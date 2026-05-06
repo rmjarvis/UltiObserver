@@ -1,0 +1,13 @@
+AGENTS.md
+local.properties
+.gradle/
+.gradle-local/
+.kotlin/
+.idea/
+*.iml
+.DS_Store
+/build/
+**/build/
+/captures/
+.externalNativeBuild/
+.cxx/
