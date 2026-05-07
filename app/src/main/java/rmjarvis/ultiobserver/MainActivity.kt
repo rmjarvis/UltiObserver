@@ -780,10 +780,10 @@ private fun LiveGameScreen(
                     },
                     onGoal = { team -> onStateChange(recordGoalFromCurrentState(state, team, now, nowMillis)) },
                     onTimeout = { team ->
-                        if (state.teamFor(team).timeoutsRemaining <= 0) {
-                            actionInfoMessage = outOfTimeoutsMessage(state, team)
-                        } else {
-                            onStateChange(chargeTimeout(state, team, nowMillis))
+                        val result = assessTimeout(state, team, nowMillis)
+                        onStateChange(result.state)
+                        if (result.message != null) {
+                            actionInfoMessage = result.message
                         }
                     },
                     onPullInfraction = { team ->

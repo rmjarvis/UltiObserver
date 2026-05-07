@@ -157,6 +157,11 @@ data class CardAssessmentResult(
     val needsLivePointMisconductChoice: Boolean = false,  // Set when a live-point card/TF needs O/D choice.
 )
 
+data class TimeoutAssessmentResult(
+    val state: LiveGameState,
+    val message: String? = null,
+)
+
 enum class RedCardMode {
     DIRECT_RED,
     SECOND_YELLOW,
@@ -787,11 +792,26 @@ fun liveGameToSetupState(state: LiveGameState): GameSetupState {
 
 // Someone called a timeout.
 // This reduces the remaining timeout count and starts or extends the appropriate countdown.
+fun assessTimeout(
+    state: LiveGameState,
+    team: TeamId,
+    nowMillis: Long,
+): TimeoutAssessmentResult {
+    if (teamState(state, team).timeoutsRemaining <= 0) {
+        return TimeoutAssessmentResult(state, "${teamName(state, team)} is out of timeouts.")
+    }
+    return TimeoutAssessmentResult(chargeTimeout(state, team, nowMillis))
+}
+
 fun chargeTimeout(
     state: LiveGameState,
     team: TeamId,
     nowMillis: Long,
 ): LiveGameState {
+    if (teamState(state, team).timeoutsRemaining <= 0) {
+        return state
+    }
+
     val updatedState = state.copy(
         teamOne = if (team == TeamId.TEAM_ONE) {
             state.teamOne.copy(timeoutsRemaining = max(0, state.teamOne.timeoutsRemaining - 1))
@@ -914,11 +934,6 @@ fun offsidesResolutionMessage(state: LiveGameState, teamId: TeamId): String {
     } else {
         "Start at midfield"
     }
-}
-
-// Message shown when a team tries to take a timeout with none remaining.
-fun outOfTimeoutsMessage(state: LiveGameState, team: TeamId): String {
-    return "${teamName(state, team)} is out of timeouts."
 }
 
 // Technical Foul
@@ -1439,6 +1454,11 @@ private fun pluralize(count: Int, singular: String): String {
 // Get the team name for a given id
 private fun teamName(state: LiveGameState, team: TeamId): String {
     return if (team == TeamId.TEAM_ONE) state.teamOne.name else state.teamTwo.name
+}
+
+// Get the live state for one team.
+private fun teamState(state: LiveGameState, team: TeamId): TeamLiveState {
+    return if (team == TeamId.TEAM_ONE) state.teamOne else state.teamTwo
 }
 
 // Attach the previous game state in the undoEntry.
