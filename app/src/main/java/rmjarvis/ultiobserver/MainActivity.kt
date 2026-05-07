@@ -1,4 +1,4 @@
-package com.example.ultiobserver
+package rmjarvis.ultiobserver
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -63,7 +63,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.ultiobserver.ui.theme.UltiObserverTheme
+import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 import java.time.Duration
 import java.time.LocalTime
 

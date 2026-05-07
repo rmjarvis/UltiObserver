@@ -1,4 +1,4 @@
-package com.example.ultiobserver
+package rmjarvis.ultiobserver
 
 import androidx.compose.ui.graphics.Color
 import java.time.Duration

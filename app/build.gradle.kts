@@ -10,7 +10,7 @@ kotlin {
 }
 
 android {
-    namespace = "com.example.ultiobserver"
+    namespace = "rmjarvis.ultiobserver"
     compileSdk {
         version = release(36) {
             minorApiLevel = 1
@@ -18,7 +18,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.ultiobserver"
+        applicationId = "rmjarvis.ultiobserver"
         minSdk = 24
         targetSdk = 36
         versionCode = 1

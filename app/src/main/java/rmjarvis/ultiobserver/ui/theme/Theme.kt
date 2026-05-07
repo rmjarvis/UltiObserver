@@ -1,4 +1,4 @@
-package com.example.ultiobserver.ui.theme
+package rmjarvis.ultiobserver.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme

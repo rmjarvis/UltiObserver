@@ -1,4 +1,4 @@
-package com.example.ultiobserver
+package rmjarvis.ultiobserver
 
 import org.junit.Test
 
