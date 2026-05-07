@@ -147,6 +147,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+// Keep the top-level app state here and switch between home, setup, and live screens.
 @Composable
 fun UltiObserverApp() {
     var screen by remember { mutableStateOf(AppScreen.HOME) }
@@ -156,6 +157,7 @@ fun UltiObserverApp() {
     var archivedGames by remember { mutableStateOf(listOf<ArchivedGame>()) }
     var viewingArchivedGame by remember { mutableStateOf<ArchivedGame?>(null) }
 
+    // Back should always return to the home screen rather than walking back through setup/live.
     BackHandler(enabled = screen != AppScreen.HOME) {
         when (screen) {
             AppScreen.HOME -> Unit
@@ -164,6 +166,7 @@ fun UltiObserverApp() {
         }
     }
 
+    // Route to the current top-level screen.
     when (screen) {
         AppScreen.HOME -> {
             HomeScreen(
@@ -240,6 +243,7 @@ fun UltiObserverApp() {
         }
 
         AppScreen.LIVE -> {
+            // Archived games reuse the live-game screen, but in a read-only summary mode.
             val currentLiveState = viewingArchivedGame?.state ?: liveState
             if (currentLiveState != null) {
                 LiveGameScreen(
@@ -263,6 +267,7 @@ fun UltiObserverApp() {
     }
 }
 
+// Home screen with quick entry points for current, completed, and archived games.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HomeScreen(
@@ -275,6 +280,7 @@ private fun HomeScreen(
     onArchiveCompletedGame: () -> Unit,
     onStartNewGame: () -> Unit,
 ) {
+    // Compose the home screen as a title area followed by the game lists.
     Scaffold { innerPadding ->
         Column(
             modifier = Modifier
@@ -283,6 +289,7 @@ private fun HomeScreen(
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
+            // Show the app title and the main entry point for starting a game.
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -314,6 +321,7 @@ private fun HomeScreen(
                 }
             }
 
+            // Show the currently active game, if there is one.
             if (currentGame != null) {
                 SectionCard(
                     title = "Current Game",
@@ -323,6 +331,7 @@ private fun HomeScreen(
                 }
             }
 
+            // Show a finished-but-not-yet-archived game, if there is one.
             if (completedGamePendingArchive != null) {
                 SectionCard(
                     title = "Completed Game",
@@ -338,6 +347,7 @@ private fun HomeScreen(
                 }
             }
 
+            // Show older archived games at the bottom.
             SectionCard(
                 title = "Previous Games",
                 subtitle = "Tap a finished game to view its summary.",
@@ -354,6 +364,7 @@ private fun HomeScreen(
     }
 }
 
+// Pregame/edit-game setup form for start time, teams, pull, rules, and prior cards.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SetupScreen(
@@ -368,6 +379,7 @@ private fun SetupScreen(
     var showTimeoutRulesDialog by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
 
+    // Compose the setup screen as a scrollable form plus modal editors.
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(title = { Text("UltiObserver Setup") })
@@ -381,6 +393,7 @@ private fun SetupScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            // Start time entry with quick +/- 5 minute nudges.
             SectionCard(title = "Game Start Time") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -401,6 +414,7 @@ private fun SetupScreen(
                 }
             }
 
+            // Team names and colors.
             SectionCard(title = "Team Info") {
                 TeamEditor(
                     fieldLabel = "Team 1",
@@ -415,6 +429,7 @@ private fun SetupScreen(
                 )
             }
 
+            // Which team pulls first, and from which end.
             SectionCard(title = "Starting Pull") {
                 Text("Pulling team", fontWeight = FontWeight.SemiBold)
                 TeamChoiceRow(
@@ -431,6 +446,7 @@ private fun SetupScreen(
                 )
             }
 
+            // Game-length, cap, and timeout rules.
             SectionCard(title = "Game Rules") {
                 EditableValueRow(
                     label = "Game to",
@@ -464,6 +480,7 @@ private fun SetupScreen(
                 )
             }
 
+            // Players who are already carrying cards from previous games.
             SectionCard(title = "Cards from Previous Games") {
                 if (state.priorCards.isEmpty()) {
                     Text("No prior cards recorded yet.")
@@ -491,6 +508,7 @@ private fun SetupScreen(
                 }
             }
 
+            // Start a new game, or return to the live screen when editing setup midgame.
             Button(
                 onClick = onPrimaryAction,
                 modifier = Modifier.fillMaxWidth(),
@@ -500,6 +518,7 @@ private fun SetupScreen(
         }
     }
 
+    // Modal for adding a player who already has cards from earlier games.
     if (showPlayerDialog) {
         AddPlayerCardDialog(
             firstTeamName = state.teamOne.name,
@@ -512,6 +531,7 @@ private fun SetupScreen(
         )
     }
 
+    // Modal for exact start-time entry.
     if (showStartTimeDialog) {
         ExactTimeDialog(
             initialTime = state.startTime,
@@ -523,6 +543,7 @@ private fun SetupScreen(
         )
     }
 
+    // Modal rule editors for the currently selected rules field.
     if (editingRule != null) {
         val target = editingRule!!
         when (target) {
@@ -593,6 +614,7 @@ private fun SetupScreen(
         }
     }
 
+    // Modal editor for the timeout rule bundle.
     if (showTimeoutRulesDialog) {
         TimeoutRulesDialog(
             rules = state.rules,
@@ -605,6 +627,7 @@ private fun SetupScreen(
     }
 }
 
+// Main live-game screen, including the field view, modal flows, and pop-up cues.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LiveGameScreen(
@@ -621,12 +644,14 @@ private fun LiveGameScreen(
     var halftimeAlert by remember { mutableStateOf(false) }
     var gameOverAlert by remember { mutableStateOf(false) }
 
+    // Update the display clock once per second so time and cap text stay fresh.
     val now by produceState(initialValue = LocalTime.now()) {
         while (true) {
             value = LocalTime.now()
             kotlinx.coroutines.delay(1000)
         }
     }
+    // Countdown logic uses absolute epoch millis, so keep a matching ticking value here too.
     val nowMillis by produceState(initialValue = System.currentTimeMillis()) {
         while (true) {
             value = System.currentTimeMillis()
@@ -644,6 +669,7 @@ private fun LiveGameScreen(
         state.phase == LivePhase.BETWEEN_POINTS || halftimeTransitionReady(state, nowMillis)
     }
 
+    // Only show the halftime/game-over alerts when those transitions first happen.
     LaunchedEffect(state.phase, state.lastEvent) {
         if (state.phase == LivePhase.HALFTIME && state.lastEvent == "Halftime.") {
             halftimeAlert = true
@@ -653,6 +679,7 @@ private fun LiveGameScreen(
         }
     }
 
+    // Compose the major elements of the live game screen.
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -674,6 +701,7 @@ private fun LiveGameScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            // If the game is over, replace the live controls with the summary screen.
             if (state.phase == LivePhase.GAME_OVER) {
                 GameOverSummary(state = state, onUndo = {
                     if (state.undoEntry != null) {
@@ -681,11 +709,13 @@ private fun LiveGameScreen(
                     }
                 }, showUndo = !readOnlySummary && state.undoEntry != null)
             } else {
+                // Show the current clock and next relevant cap.
                 StatusLine(
                     currentTime = now,
                     capStatus = capStatus,
                 )
 
+                // Show the currently active countdown, if any.
                 if (activeCountdown != null) {
                     CountdownLine(
                         countdown = activeCountdown,
@@ -694,6 +724,7 @@ private fun LiveGameScreen(
                     )
                 }
 
+                // Sketch the field with two teams and the grass strip between them.
                 FieldSketchCard(
                     state = state,
                     interactionsEnabled = !locked,
@@ -748,7 +779,7 @@ private fun LiveGameScreen(
                     onGoal = { team -> onStateChange(recordGoalFromCurrentState(state, team)) },
                     onTimeout = { team ->
                         if (state.teamFor(team).timeoutsRemaining <= 0) {
-                            actionInfoMessage = "${state.teamFor(team).name} is out of timeouts."
+                            actionInfoMessage = outOfTimeoutsMessage(state, team)
                         } else {
                             onStateChange(chargeTimeout(state, team))
                         }
@@ -764,12 +795,13 @@ private fun LiveGameScreen(
                             val updatedState = recordFalseStart(state)
                             onStateChange(updatedState)
                             if (updatedState != state) {
-                                actionInfoMessage = "Defense gets to set up."
+                                actionInfoMessage = falseStartResolutionMessage()
                             }
                         }
                     },
                 )
 
+                // Cards / TF and Other sit directly below the field.
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -800,6 +832,7 @@ private fun LiveGameScreen(
                     }
                 }
 
+                // Show a visible labeled undo button when the current state has undo history.
                 if (state.undoEntry != null) {
                     OutlinedButton(
                         onClick = { onStateChange(undoLastAction(state)) },
@@ -818,6 +851,7 @@ private fun LiveGameScreen(
         }
     }
 
+    // Bottom sheet for the card / technical foul workflow.
     if (showCardsSheet) {
         ModalBottomSheet(onDismissRequest = { showCardsSheet = false }) {
             CardsSheet(
@@ -835,6 +869,7 @@ private fun LiveGameScreen(
         }
     }
 
+    // Bottom sheet for less-common actions and manual corrections.
     if (showOtherSheet) {
         ModalBottomSheet(onDismissRequest = { showOtherSheet = false }) {
             OtherSheet(
@@ -842,15 +877,13 @@ private fun LiveGameScreen(
                 onUpdateGameSetup = onUpdateGameSetup,
                 onAction = { updatedState ->
                     onStateChange(updatedState)
-                    if (updatedState != state && updatedState.pullSequenceFalseStartRecorded && !state.pullSequenceFalseStartRecorded) {
-                        actionInfoMessage = "Defense gets to set up."
-                    }
                     showOtherSheet = false
                 },
             )
         }
     }
 
+    // General informational pop-up for terse field guidance and validation messages.
     if (actionInfoMessage != null) {
         AlertDialog(
             onDismissRequest = { actionInfoMessage = null },
@@ -869,20 +902,24 @@ private fun LiveGameScreen(
         )
     }
 
+    // Live-point misconduct needs a follow-up choice because the app cannot infer possession.
     if (pendingMisconductChoice != null) {
         AlertDialog(
             onDismissRequest = { pendingMisconductChoice = null },
             title = { Text("Misconduct Penalty") },
             text = {
                 Text(
-                    text = "${pendingMisconductChoice!!.baseMessage}\n\nWas this against the offense or defense?",
+                    text = livePointMisconductPrompt(pendingMisconductChoice!!.baseMessage),
                     style = MaterialTheme.typography.bodyLarge,
                 )
             },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        actionInfoMessage = "${pendingMisconductChoice!!.baseMessage}\n\n${livePointMisconductMessage(againstOffense = true)}"
+                        actionInfoMessage = livePointMisconductResolutionMessage(
+                            pendingMisconductChoice!!.baseMessage,
+                            againstOffense = true,
+                        )
                         pendingMisconductChoice = null
                     }
                 ) {
@@ -893,7 +930,10 @@ private fun LiveGameScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextButton(
                         onClick = {
-                            actionInfoMessage = "${pendingMisconductChoice!!.baseMessage}\n\n${livePointMisconductMessage(againstOffense = false)}"
+                            actionInfoMessage = livePointMisconductResolutionMessage(
+                                pendingMisconductChoice!!.baseMessage,
+                                againstOffense = false,
+                            )
                             pendingMisconductChoice = null
                         }
                     ) {
@@ -904,6 +944,7 @@ private fun LiveGameScreen(
         )
     }
 
+    // Cap prompts block until the observer decides whether to apply the newly eligible cap.
     if (state.pendingCapOffer != null) {
         AlertDialog(
             onDismissRequest = {},
@@ -927,6 +968,7 @@ private fun LiveGameScreen(
         )
     }
 
+    // Halftime cue popup.
     if (halftimeAlert) {
         AlertDialog(
             onDismissRequest = { halftimeAlert = false },
@@ -945,6 +987,7 @@ private fun LiveGameScreen(
         )
     }
 
+    // Game-over cue popup.
     if (gameOverAlert) {
         AlertDialog(
             onDismissRequest = { gameOverAlert = false },
@@ -964,6 +1007,7 @@ private fun LiveGameScreen(
     }
 }
 
+// Full-width unlock slider that only activates if the drag starts on the left side.
 @Composable
 private fun FieldUnlockControl(
     onUnlock: () -> Unit,
@@ -1046,6 +1090,7 @@ private fun FieldUnlockControl(
     }
 }
 
+// Top status line showing the real clock and the next relevant cap.
 @Composable
 private fun StatusLine(
     currentTime: LocalTime,
@@ -1069,6 +1114,7 @@ private fun StatusLine(
     }
 }
 
+// Draw the field as top/bottom end zones plus a center strip for pull direction and controls.
 @Composable
 private fun FieldSketchCard(
     state: LiveGameState,
@@ -1079,6 +1125,7 @@ private fun FieldSketchCard(
     onTimeout: (TeamId) -> Unit,
     onPullInfraction: (TeamId) -> Unit,
 ) {
+    // Translate the game's pulling orientation into fixed top/bottom screen slots.
     val topSlot = if (state.pullingFromEnd == FieldEnd.FAR) {
         state.pullingTeam
     } else {
@@ -1089,12 +1136,14 @@ private fun FieldSketchCard(
     val bottomTeam = state.teamFor(bottomSlot)
     val pullFrom = state.pullingFromEnd
 
+    // Draw the top team row, center field area, and bottom team row in that order.
     Card(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant,
         )
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
+            // Top end zone/team row.
             EndZonePanel(
                 teamId = topSlot,
                 team = topTeam,
@@ -1111,6 +1160,7 @@ private fun FieldSketchCard(
                 onTimeout = { onTimeout(topSlot) },
                 onPullInfraction = { onPullInfraction(topSlot) },
             )
+            // Center field strip with pull direction and the main central control.
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1137,6 +1187,7 @@ private fun FieldSketchCard(
                     }
                 }
             }
+            // Bottom end zone/team row.
             EndZonePanel(
                 teamId = bottomSlot,
                 team = bottomTeam,
@@ -1157,6 +1208,7 @@ private fun FieldSketchCard(
     }
 }
 
+// One team row on the field, with score/state info and the main live actions.
 @Composable
 private fun EndZonePanel(
     teamId: TeamId,
@@ -1230,6 +1282,7 @@ private fun EndZonePanel(
     }
 }
 
+// Center-field arrow showing which end the pull comes from.
 @Composable
 private fun PullDirectionIndicator(
     pullingFromEnd: FieldEnd,
@@ -1261,6 +1314,7 @@ private fun PullDirectionIndicator(
     }
 }
 
+// Active countdown plus the quick -5/+5 correction buttons.
 @Composable
 private fun CountdownLine(
     countdown: ActiveCountdownDisplay,
@@ -1288,6 +1342,7 @@ private fun CountdownLine(
     }
 }
 
+// Bottom sheet for recording cards and technical fouls for either team.
 @Composable
 private fun CardsSheet(
     state: LiveGameState,
@@ -1330,6 +1385,7 @@ private fun CardsSheet(
             teamName = state.teamFor(pendingYellowTeam!!).name,
             onDismiss = { pendingYellowTeam = null },
             onConfirm = { jerseyNumber ->
+                // Yellow on N/A needs a follow-up question if an unknown player already has one.
                 if (
                     jerseyNumber == UNKNOWN_PLAYER_NUMBER &&
                     playerHasYellowThisGame(state, pendingYellowTeam!!, UNKNOWN_PLAYER_NUMBER)
@@ -1349,6 +1405,7 @@ private fun CardsSheet(
             teamName = state.teamFor(pendingRedTeam!!).name,
             onDismiss = { pendingRedTeam = null },
             onConfirm = { jerseyNumber ->
+                // Red on a player who already has yellow needs a direct-red vs second-yellow choice.
                 if (playerHasYellowThisGame(state, pendingRedTeam!!, jerseyNumber)) {
                     pendingRedCardChoice = PendingRedCardChoice(pendingRedTeam!!, jerseyNumber)
                 } else {
@@ -1418,6 +1475,7 @@ private fun CardsSheet(
     }
 }
 
+// Card/TF actions and current-game issued-card summary for one team.
 @Composable
 private fun TeamActionSection(
     label: String,
@@ -1449,6 +1507,7 @@ private fun TeamActionSection(
     }
 }
 
+// Read-only summary view shown once the game is over.
 @Composable
 private fun GameOverSummary(
     state: LiveGameState,
@@ -1512,6 +1571,7 @@ private fun GameOverSummary(
     }
 }
 
+// Team-level section inside the game-over summary.
 @Composable
 private fun GameOverTeamSummary(
     team: TeamLiveState,
@@ -1540,6 +1600,7 @@ private fun GameOverTeamSummary(
     }
 }
 
+// Manual score correction dialog.
 @Composable
 private fun AdjustScoreDialog(
     state: LiveGameState,
@@ -1579,6 +1640,7 @@ private fun AdjustScoreDialog(
     )
 }
 
+// Manual timeout correction dialog.
 @Composable
 private fun AdjustTimeoutsDialog(
     state: LiveGameState,
@@ -1618,6 +1680,7 @@ private fun AdjustTimeoutsDialog(
     )
 }
 
+// Manual card/TF correction dialog, including the per-player reconciliation flow.
 @Composable
 private fun AdjustCardsDialog(
     state: LiveGameState,
@@ -1670,6 +1733,7 @@ private fun AdjustCardsDialog(
         }
         workingPlayerCards = updatedRecords
         pendingSteps = pendingSteps.drop(1)
+        // Walk through the per-player add/remove prompts until all count mismatches are resolved.
         if (pendingSteps.isEmpty()) {
             finalizeAdjustment()
         }
@@ -1761,6 +1825,7 @@ private data class CardRemovalOption(
     val label: String,
 )
 
+// Turn the requested yellow/red totals into a sequence of add/remove player-card prompts.
 private fun buildCardAdjustmentSteps(
     state: LiveGameState,
     teamOneY: Int,
@@ -1796,6 +1861,7 @@ private fun buildCardAdjustmentSteps(
     }
 }
 
+// Offer only the players who currently have the card type being removed.
 private fun removalOptionsForStep(
     records: List<InGamePlayerCardRecord>,
     team: TeamId,
@@ -1822,6 +1888,7 @@ private fun removalOptionsForStep(
     }
 }
 
+// Compact +/- row for a single card or TF count.
 @Composable
 private fun CardCountRow(
     label: String,
@@ -1842,6 +1909,7 @@ private fun CardCountRow(
     }
 }
 
+// Pick which player's assigned card should be removed during a correction flow.
 @Composable
 private fun AssignedCardRemovalDialog(
     title: String,
@@ -1875,6 +1943,7 @@ private fun AssignedCardRemovalDialog(
     )
 }
 
+// Manual offsides/false-start correction dialog.
 @Composable
 private fun AdjustPullInfractionsDialog(
     state: LiveGameState,
@@ -1916,6 +1985,7 @@ private fun AdjustPullInfractionsDialog(
     )
 }
 
+// Small labeled section used inside the adjust dialogs.
 @Composable
 private fun TeamCorrectionSection(
     title: String,
@@ -1927,6 +1997,7 @@ private fun TeamCorrectionSection(
     }
 }
 
+// Jersey-number prompt shared by the card flows. Blank records as N/A.
 @Composable
 private fun PlayerNumberDialog(
     title: String,
@@ -1969,6 +2040,7 @@ private fun PlayerNumberDialog(
     )
 }
 
+// Resolve whether a red on a player with yellow is direct red or second yellow.
 @Composable
 private fun RedCardModeDialog(
     teamName: String,
@@ -1998,6 +2070,7 @@ private fun RedCardModeDialog(
     )
 }
 
+// Resolve whether a second yellow on N/A is the same unknown player as before.
 @Composable
 private fun UnknownYellowDialog(
     teamName: String,
@@ -2029,6 +2102,7 @@ private fun UnknownYellowDialog(
     )
 }
 
+// Bottom sheet for manual corrections and less-common game actions.
 @Composable
 private fun OtherSheet(
     state: LiveGameState,
@@ -2184,6 +2258,7 @@ private fun OtherSheet(
     }
 }
 
+// Simple menu button that fills the width of its column in the Other sheet.
 @Composable
 private fun OtherMenuButton(
     label: String,
@@ -2197,6 +2272,7 @@ private fun OtherMenuButton(
     }
 }
 
+// Exact AM/PM time entry dialog for the setup start time.
 @Composable
 private fun ExactTimeDialog(
     initialTime: LocalTime,
@@ -2249,6 +2325,7 @@ private fun ExactTimeDialog(
                 onClick = {
                     val hour = hourText.toIntOrNull()?.coerceIn(1, 12) ?: toTwelveHour(initialTime)
                     val minute = minuteText.toIntOrNull()?.coerceIn(0, 59) ?: initialTime.minute
+                    // Convert the entered 12-hour clock value back into 24-hour LocalTime.
                     val normalizedHour = when {
                         isPm && hour < 12 -> hour + 12
                         !isPm && hour == 12 -> 0
@@ -2268,6 +2345,7 @@ private fun ExactTimeDialog(
     )
 }
 
+// Reusable integer-entry dialog for simple numeric rule values.
 @Composable
 private fun IntegerEditDialog(
     title: String,
@@ -2317,6 +2395,7 @@ private fun IntegerEditDialog(
     )
 }
 
+// Integer-entry dialog for a cap rule, with an explicit None toggle.
 @Composable
 private fun CapRuleEditDialog(
     title: String,
@@ -2380,6 +2459,7 @@ private fun CapRuleEditDialog(
     )
 }
 
+// Editor for per-half timeouts and the optional floater.
 @Composable
 private fun TimeoutRulesDialog(
     rules: GameRules,
@@ -2436,6 +2516,7 @@ private fun TimeoutRulesDialog(
     )
 }
 
+// Setup dialog for recording a player who already has cards from earlier games.
 @Composable
 private fun AddPlayerCardDialog(
     firstTeamName: String,
@@ -2502,6 +2583,7 @@ private fun AddPlayerCardDialog(
     )
 }
 
+// Name-and-color editor for one setup team.
 @Composable
 private fun TeamEditor(
     fieldLabel: String,
@@ -2523,6 +2605,7 @@ private fun TeamEditor(
     }
 }
 
+// Clickable setup field that looks like a normal form control for start time.
 @Composable
 private fun ExactTimeField(
     time: LocalTime,
@@ -2559,6 +2642,7 @@ private fun ExactTimeField(
     }
 }
 
+// Button-styled row for setup values that open an editor dialog.
 @Composable
 private fun EditableValueRow(
     label: String,
@@ -2580,6 +2664,7 @@ private fun EditableValueRow(
     }
 }
 
+// Single-row palette for choosing the team color.
 @Composable
 private fun ColorChoiceRow(
     selected: TeamColorChoice,
@@ -2621,6 +2706,7 @@ private fun ColorChoiceRow(
     }
 }
 
+// Two-choice row for Team 1 vs Team 2 selection.
 @Composable
 private fun TeamChoiceRow(
     firstLabel: String,
@@ -2642,6 +2728,7 @@ private fun TeamChoiceRow(
     }
 }
 
+// Two-choice row for Far end vs Near end selection.
 @Composable
 private fun FieldEndChoiceRow(
     selected: FieldEnd,
@@ -2661,6 +2748,7 @@ private fun FieldEndChoiceRow(
     }
 }
 
+// Small +/- editor for integer setup/correction values.
 @Composable
 private fun SmallCountEditor(
     label: String,
@@ -2689,6 +2777,7 @@ private fun SmallCountEditor(
     }
 }
 
+// One row in the setup list of players carrying prior cards.
 @Composable
 private fun PlayerRecordRow(
     label: String,
@@ -2717,6 +2806,7 @@ private fun PlayerRecordRow(
     }
 }
 
+// Compact setup summary for prior yellows/reds.
 private fun buildPlayerCardDetail(record: PlayerCardRecord): String {
     return if (record.priorReds > 0) {
         "Y ${record.priorYellows}  R ${record.priorReds}"
@@ -2725,6 +2815,7 @@ private fun buildPlayerCardDetail(record: PlayerCardRecord): String {
     }
 }
 
+// Compact live-game summary for one player's current-game cards.
 private fun buildIssuedCardSummary(record: InGamePlayerCardRecord): String {
     val parts = buildList {
         if (record.yellows > 0) {
@@ -2737,6 +2828,7 @@ private fun buildIssuedCardSummary(record: InGamePlayerCardRecord): String {
     return "${displayPlayerNumber(record.jerseyNumber)}: ${parts.joinToString("  ")}"
 }
 
+// More readable game-over summary for one player's issued cards.
 private fun buildSummaryIssuedCardText(record: InGamePlayerCardRecord): String {
     val parts = buildList {
         when (record.yellows) {
@@ -2752,6 +2844,7 @@ private fun buildSummaryIssuedCardText(record: InGamePlayerCardRecord): String {
     return "${displayPlayerNumber(record.jerseyNumber)}: ${parts.joinToString("; ")}"
 }
 
+// Game-over alert text with the winner listed first.
 private fun formatGameOverSummary(state: LiveGameState): String {
     val orderedTeams = winnerFirstTeams(state)
     return buildString {
@@ -2761,12 +2854,14 @@ private fun formatGameOverSummary(state: LiveGameState): String {
     }
 }
 
+// Put the higher-scoring team first for summary display.
 private fun winnerFirstTeams(state: LiveGameState): List<TeamLiveState> {
     return listOf(state.teamOne, state.teamTwo).sortedWith(
         compareByDescending<TeamLiveState> { it.score }.thenBy { it.name }
     )
 }
 
+// Show N/A for the unknown-player sentinel; otherwise format as a jersey number.
 private fun displayPlayerNumber(jerseyNumber: String): String {
     return if (jerseyNumber == UNKNOWN_PLAYER_NUMBER) {
         "N/A"
@@ -2775,6 +2870,7 @@ private fun displayPlayerNumber(jerseyNumber: String): String {
     }
 }
 
+// Between points, tag each team as pulling or receiving in the Cards / TF sheet.
 private fun cardsRoleSuffix(state: LiveGameState, team: TeamId): String {
     return if (state.phase == LivePhase.BETWEEN_POINTS || state.phase == LivePhase.HALFTIME) {
         if (team == state.pullingTeam) " (pulling)" else " (receiving)"
@@ -2783,35 +2879,7 @@ private fun cardsRoleSuffix(state: LiveGameState, team: TeamId): String {
     }
 }
 
-private fun capOfferLabel(capType: CapType): String {
-    return when (capType) {
-        CapType.HALF -> "half cap"
-        CapType.SOFT -> "soft cap"
-        CapType.HARD -> "hard cap"
-    }
-}
-
-private fun capOfferExplanation(state: LiveGameState): String {
-    return when (state.pendingCapOffer) {
-        CapType.HALF -> {
-            val target = maxOf(state.teamOne.score, state.teamTwo.score) + 1
-            "Half cap was at ${formatClockTime(state.startTime.plusMinutes(state.rules.halfCapMinutes.toLong()))}. Halftime target would become $target. Apply now?"
-        }
-        CapType.SOFT -> {
-            val target = maxOf(state.teamOne.score, state.teamTwo.score) + 1
-            "Soft cap was at ${formatClockTime(state.startTime.plusMinutes(state.rules.softCapMinutes.toLong()))}. Winning score would become $target. Apply now?"
-        }
-        CapType.HARD -> {
-            if (state.teamOne.score == state.teamTwo.score) {
-                "Hard cap was at ${formatClockTime(state.startTime.plusMinutes(state.rules.hardCapMinutes.toLong()))}. Score is tied, so one more point would be played. Apply now?"
-            } else {
-                "Hard cap was at ${formatClockTime(state.startTime.plusMinutes(state.rules.hardCapMinutes.toLong()))}. Score is not tied, so the game would end now. Apply now?"
-            }
-        }
-        null -> ""
-    }
-}
-
+// Display timeout rules in the compact setup format.
 private fun formatTimeoutRules(rules: GameRules): String {
     return buildString {
         append("${rules.timeoutsPerHalf}/half")
@@ -2821,23 +2889,28 @@ private fun formatTimeoutRules(rules: GameRules): String {
     }
 }
 
+// Convert a 24-hour LocalTime into the displayed 12-hour number.
 private fun toTwelveHour(time: LocalTime): Int {
     val hour = time.hour % 12
     return if (hour == 0) 12 else hour
 }
 
+// Fallback labels when setup names are blank.
 private fun defaultTeamName(teamId: TeamId): String {
     return if (teamId == TeamId.TEAM_ONE) "Team 1" else "Team 2"
 }
 
+// Return the other team id.
 private fun oppositeTeam(teamId: TeamId): TeamId {
     return if (teamId == TeamId.TEAM_ONE) TeamId.TEAM_TWO else TeamId.TEAM_ONE
 }
 
+// Team-card points: yellow/blue count 1, red counts 2.
 private fun totalCardPoints(team: TeamLiveState): Int {
     return team.yellowCards + team.blueCards + (2 * team.redCards)
 }
 
+// Offsides and false starts are combined for pull-violation display/rules.
 private fun pullViolationCount(team: TeamLiveState): Int {
     return team.offsides + team.falseStarts
 }
@@ -2847,6 +2920,7 @@ private data class ActiveCountdownDisplay(
     val remaining: Duration,
 )
 
+// Compute the countdown text currently visible on the live screen.
 private fun activeCountdownDisplay(state: LiveGameState, nowMillis: Long): ActiveCountdownDisplay? {
     val countdown = state.countdown ?: return null
     return if (countdown.kind == CountdownKind.HALFTIME) {
@@ -2857,6 +2931,7 @@ private fun activeCountdownDisplay(state: LiveGameState, nowMillis: Long): Activ
                 remaining = Duration.ofMillis(halftimeRemainingMillis),
             )
         } else {
+            // Once halftime expires, show the follow-on between-points countdown immediately.
             val followOn = betweenPointsDisplay(state.pullingFromEnd, countdown.targetEpochMillis, nowMillis)
             ActiveCountdownDisplay(label = followOn.first, remaining = followOn.second)
         }
@@ -2868,6 +2943,7 @@ private fun activeCountdownDisplay(state: LiveGameState, nowMillis: Long): Activ
     }
 }
 
+// Halftime can become Start Point once the halftime countdown itself has elapsed.
 private fun halftimeTransitionReady(state: LiveGameState, nowMillis: Long): Boolean {
     val countdown = state.countdown ?: return false
     return state.phase == LivePhase.HALFTIME &&
@@ -2875,18 +2951,7 @@ private fun halftimeTransitionReady(state: LiveGameState, nowMillis: Long): Bool
         nowMillis >= countdown.targetEpochMillis
 }
 
-private fun betweenPointsDisplay(
-    pullingFromEnd: FieldEnd,
-    sequenceStartMillis: Long,
-    nowMillis: Long,
-): Pair<String, Duration> {
-    val pullFromNearEnd = pullingFromEnd == FieldEnd.NEAR
-    val durationSeconds = if (pullFromNearEnd) 80 else 60
-    val label = if (pullFromNearEnd) "Pull in" else "Signal in"
-    val targetMillis = sequenceStartMillis + durationSeconds * 1000L
-    return label to Duration.ofMillis((targetMillis - nowMillis).coerceAtLeast(0L))
-}
-
+// One-line home-screen summary for a live or archived game.
 private fun gameListEntry(state: LiveGameState, subtitle: String): GameListEntry {
     return GameListEntry(
         title = "${state.teamOne.name} ${state.teamOne.score} - ${state.teamTwo.score} ${state.teamTwo.name}",
@@ -2894,6 +2959,7 @@ private fun gameListEntry(state: LiveGameState, subtitle: String): GameListEntry
     )
 }
 
+// Archived/completed games keep summary data but drop live countdown/undo state.
 private fun pruneUndoHistory(state: LiveGameState): LiveGameState {
     return state.copy(
         countdown = null,
@@ -2901,17 +2967,7 @@ private fun pruneUndoHistory(state: LiveGameState): LiveGameState {
     )
 }
 
-private fun offsidesResolutionMessage(state: LiveGameState, teamId: TeamId): String {
-    val team = state.teamFor(teamId)
-    val pullViolations = pullViolationCount(team)
-    return if (pullViolations <= 1) {
-        "Start at brick mark"
-    } else {
-        "Start at midfield"
-    }
-}
-
-
+// Small general-purpose outlined action button.
 @Composable
 private fun SmallActionButton(
     label: String,
@@ -2924,6 +2980,7 @@ private fun SmallActionButton(
     }
 }
 
+// Smaller, denser version of the action button used on team rows.
 @Composable
 private fun CompactActionButton(
     label: String,
@@ -2945,6 +3002,7 @@ private fun CompactActionButton(
     }
 }
 
+// Shared section wrapper used across home and setup screens.
 @Composable
 private fun SectionCard(
     title: String,
@@ -2972,6 +3030,7 @@ private fun SectionCard(
     }
 }
 
+// Tappable row for a game listed on the home screen.
 @Composable
 private fun HomeGameRow(
     entry: GameListEntry,
@@ -3005,10 +3064,12 @@ private fun HomeGameRow(
     }
 }
 
+// Convenience lookup for Team 1 vs Team 2 in the live state.
 private fun LiveGameState.teamFor(team: TeamId): TeamLiveState {
     return if (team == TeamId.TEAM_ONE) teamOne else teamTwo
 }
 
+// IDE preview for the setup screen.
 @Preview(showBackground = true)
 @Composable
 private fun SetupScreenPreview() {

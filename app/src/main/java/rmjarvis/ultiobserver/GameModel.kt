@@ -826,6 +826,68 @@ fun recordFalseStart(state: LiveGameState): LiveGameState {
     ).withUndo(state, "Undo False Start on ${teamName(state, team)}")
 }
 
+// Terse field-position cue shown after recording false start.
+fun falseStartResolutionMessage(): String {
+    return "Defense gets to set up."
+}
+
+// Prompt shown when live-point misconduct needs an offense/defense choice.
+fun livePointMisconductPrompt(baseMessage: String): String {
+    return "$baseMessage\n\nWas this against the offense or defense?"
+}
+
+// Full live-point misconduct message after the observer chooses offense or defense.
+fun livePointMisconductResolutionMessage(baseMessage: String, againstOffense: Boolean): String {
+    return "$baseMessage\n\n${livePointMisconductMessage(againstOffense)}"
+}
+
+// Short cap name for prompt titles/buttons.
+fun capOfferLabel(capType: CapType): String {
+    return when (capType) {
+        CapType.HALF -> "half cap"
+        CapType.SOFT -> "soft cap"
+        CapType.HARD -> "hard cap"
+    }
+}
+
+// Full text for the apply-cap confirmation dialog.
+fun capOfferExplanation(state: LiveGameState): String {
+    return when (state.pendingCapOffer) {
+        CapType.HALF -> {
+            val target = max(state.teamOne.score, state.teamTwo.score) + 1
+            "Half cap was at ${formatClockTime(state.startTime.plusMinutes(state.rules.halfCapMinutes.toLong()))}. Halftime target would become $target. Apply now?"
+        }
+        CapType.SOFT -> {
+            val target = max(state.teamOne.score, state.teamTwo.score) + 1
+            "Soft cap was at ${formatClockTime(state.startTime.plusMinutes(state.rules.softCapMinutes.toLong()))}. Winning score would become $target. Apply now?"
+        }
+        CapType.HARD -> {
+            if (state.teamOne.score == state.teamTwo.score) {
+                "Hard cap was at ${formatClockTime(state.startTime.plusMinutes(state.rules.hardCapMinutes.toLong()))}. Score is tied, so one more point would be played. Apply now?"
+            } else {
+                "Hard cap was at ${formatClockTime(state.startTime.plusMinutes(state.rules.hardCapMinutes.toLong()))}. Score is not tied, so the game would end now. Apply now?"
+            }
+        }
+        null -> ""
+    }
+}
+
+// Terse field-position cue shown after recording offsides.
+fun offsidesResolutionMessage(state: LiveGameState, teamId: TeamId): String {
+    val team = if (teamId == TeamId.TEAM_ONE) state.teamOne else state.teamTwo
+    val pullViolations = team.offsides + team.falseStarts
+    return if (pullViolations <= 1) {
+        "Start at brick mark"
+    } else {
+        "Start at midfield"
+    }
+}
+
+// Message shown when a team tries to take a timeout with none remaining.
+fun outOfTimeoutsMessage(state: LiveGameState, team: TeamId): String {
+    return "${teamName(state, team)} is out of timeouts."
+}
+
 // Technical Foul
 fun addTechnicalFoul(state: LiveGameState, team: TeamId): LiveGameState {
     return state.copy(
@@ -1047,6 +1109,16 @@ private fun buildBetweenPointsCountdown(
         durationSeconds = durationSeconds,
         targetEpochMillis = sequenceStartMillis + durationSeconds * 1000L,
     )
+}
+
+// Visible between-points countdown text for the currently responsible side of the field.
+fun betweenPointsDisplay(
+    pullingFromEnd: FieldEnd,
+    sequenceStartMillis: Long,
+    nowMillis: Long,
+): Pair<String, Duration> {
+    val countdown = buildBetweenPointsCountdown(pullingFromEnd, sequenceStartMillis)
+    return countdown.label to Duration.ofMillis((countdown.targetEpochMillis - nowMillis).coerceAtLeast(0L))
 }
 
 // Build a countdown for half time.
