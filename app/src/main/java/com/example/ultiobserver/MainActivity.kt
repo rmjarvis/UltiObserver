@@ -2198,37 +2198,6 @@ private fun OtherMenuButton(
 }
 
 @Composable
-private fun TeamPickDialog(
-    title: String,
-    firstLabel: String,
-    secondLabel: String,
-    onDismiss: () -> Unit,
-    onSelected: (TeamId) -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = { onSelected(TeamId.TEAM_ONE) },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(firstLabel)
-                }
-                Button(
-                    onClick = { onSelected(TeamId.TEAM_TWO) },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(secondLabel)
-                }
-            }
-        },
-        confirmButton = {},
-    )
-}
-
-@Composable
 private fun ExactTimeDialog(
     initialTime: LocalTime,
     onDismiss: () -> Unit,

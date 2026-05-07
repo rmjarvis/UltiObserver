@@ -3,6 +3,12 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+kotlin {
+    compilerOptions {
+        freeCompilerArgs.add("-Wextra")
+    }
+}
+
 android {
     namespace = "com.example.ultiobserver"
     compileSdk {

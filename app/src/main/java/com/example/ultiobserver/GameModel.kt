@@ -29,8 +29,8 @@ enum class LivePhase {
 
 enum class TeamColorChoice(
     val label: String,
-    val accent: Color,
-    val content: Color,
+    val accent: Color,    // The background color matching the nominal jersey color
+    val content: Color,   // A text color with good contrast to the accent color.
 ) {
     WHITE("White", Color(0xFFF5F2E8), Color(0xFF1F1A17)),
     BLACK("Black", Color(0xFF232220), Color(0xFFF6F2E8)),
@@ -50,7 +50,7 @@ data class TeamSetup(
 data class PlayerCardRecord(
     val team: TeamId,
     val jerseyNumber: String,
-    val priorYellows: Int,
+    val priorYellows: Int,    // Cards issued in previous games of the current tournament.
     val priorReds: Int,
 )
 
@@ -61,6 +61,7 @@ data class InGamePlayerCardRecord(
     val directReds: Int = 0,
 )
 
+// How to indicate cards for players when you don't know the player number.
 const val UNKNOWN_PLAYER_NUMBER = "N/A"
 
 data class GameRules(
@@ -103,8 +104,8 @@ data class TeamLiveState(
 data class CountdownState(
     val kind: CountdownKind,
     val label: String,
-    val durationSeconds: Int,
-    val targetEpochMillis: Long,
+    val durationSeconds: Int,       // Original countdown length.
+    val targetEpochMillis: Long,    // Clock time when the countdown reaches zero.
 )
 
 enum class CountdownKind {
@@ -135,7 +136,7 @@ data class LiveGameState(
     val halfCapApplied: Boolean = false,
     val softCapApplied: Boolean = false,
     val hardCapApplied: Boolean = false,
-    val pendingCapOffer: CapType? = null,
+    val pendingCapOffer: CapType? = null,  // Set when asking whether to apply the next cap
     val undoEntry: UndoEntry? = null,
     val lastEvent: String = "Pregame setup complete.",
 )
@@ -153,7 +154,7 @@ data class UndoEntry(
 data class CardAssessmentResult(
     val state: LiveGameState,
     val message: String,
-    val needsLivePointMisconductChoice: Boolean = false,
+    val needsLivePointMisconductChoice: Boolean = false,  // Set when a live-point card/TF needs O/D choice.
 )
 
 enum class RedCardMode {
@@ -167,6 +168,7 @@ enum class CapType {
     HARD,
 }
 
+// Make the first live game state after setting the initial setup parameters.
 fun createLiveGameState(setup: GameSetupState): LiveGameState {
     val nearAttackingTeam = if (setup.pullingFromEnd == FieldEnd.FAR) {
         setup.pullingTeam
@@ -204,6 +206,8 @@ fun createLiveGameState(setup: GameSetupState): LiveGameState {
     )
 }
 
+// Initiate the countdown for edge cases where we don't automatically start it directly
+// on an event.
 fun startPullSequence(state: LiveGameState): LiveGameState {
     val countdown = buildBetweenPointsCountdown(
         pullingFromEnd = state.pullingFromEnd,
@@ -218,6 +222,7 @@ fun startPullSequence(state: LiveGameState): LiveGameState {
     )
 }
 
+// Update state for someone scoring a goal.
 fun recordGoal(state: LiveGameState, scoringTeam: TeamId): LiveGameState {
     if (state.phase == LivePhase.GAME_OVER) {
         return state
@@ -233,7 +238,6 @@ fun recordGoal(state: LiveGameState, scoringTeam: TeamId): LiveGameState {
     } else {
         state.teamTwo
     }
-    val currentHigherScore = max(updatedTeamOne.score, updatedTeamTwo.score)
     val nextNearAttackingTeam = state.nearAttackingTeam.flip()
     val nextPullingTeam = scoringTeam
     val nextPullingFromEnd = if (scoringTeam == state.nearAttackingTeam) {
@@ -241,8 +245,11 @@ fun recordGoal(state: LiveGameState, scoringTeam: TeamId): LiveGameState {
     } else {
         FieldEnd.FAR
     }
+    // Do this check every time, because if the user changes the rules.gameTo, we naturally
+    // update to the updated rules.  However, if the soft cap has been applied, that takes
+    // precedence.
     val gameWinningScore = state.winningScore ?: state.rules.gameTo
-    val gameOver = updatedTeamOne.score >= gameWinningScore || updatedTeamTwo.score >= gameWinningScore
+    val gameOver = max(updatedTeamOne.score, updatedTeamTwo.score) >= gameWinningScore
 
     if (gameOver) {
         return state.copy(
@@ -264,7 +271,7 @@ fun recordGoal(state: LiveGameState, scoringTeam: TeamId): LiveGameState {
 
     val halftimeScore = state.halftimeTargetScore ?: halftimeScore(state.rules)
     val halftimeReached = !state.halftimeTaken &&
-        (updatedTeamOne.score >= halftimeScore || updatedTeamTwo.score >= halftimeScore)
+        max(updatedTeamOne.score, updatedTeamTwo.score) >= halftimeScore
 
     if (halftimeReached) {
         val secondHalfPullingTeam = state.openingPullingTeam.flip()
@@ -278,15 +285,19 @@ fun recordGoal(state: LiveGameState, scoringTeam: TeamId): LiveGameState {
             halftimeMinutes = state.rules.halftimeMinutes,
             sequenceStartMillis = System.currentTimeMillis(),
         )
+        val teamOneSecondHalfTimeouts =
+            secondHalfTimeoutAllowance(state.rules, state.teamOne.timeoutsRemaining)
+        val teamTwoSecondHalfTimeouts =
+            secondHalfTimeoutAllowance(state.rules, state.teamTwo.timeoutsRemaining)
 
         return state.copy(
             teamOne = updatedTeamOne.copy(
-                timeoutsAllowedThisHalf = secondHalfTimeoutAllowance(state.rules, state.teamOne.timeoutsRemaining),
-                timeoutsRemaining = secondHalfTimeoutAllowance(state.rules, state.teamOne.timeoutsRemaining),
+                timeoutsAllowedThisHalf = teamOneSecondHalfTimeouts,
+                timeoutsRemaining = teamOneSecondHalfTimeouts,
             ),
             teamTwo = updatedTeamTwo.copy(
-                timeoutsAllowedThisHalf = secondHalfTimeoutAllowance(state.rules, state.teamTwo.timeoutsRemaining),
-                timeoutsRemaining = secondHalfTimeoutAllowance(state.rules, state.teamTwo.timeoutsRemaining),
+                timeoutsAllowedThisHalf = teamTwoSecondHalfTimeouts,
+                timeoutsRemaining = teamTwoSecondHalfTimeouts,
             ),
             pullingTeam = secondHalfPullingTeam,
             pullingFromEnd = secondHalfPullingFromEnd,
@@ -306,6 +317,7 @@ fun recordGoal(state: LiveGameState, scoringTeam: TeamId): LiveGameState {
         ).withUndo(state, "Undo Goal by ${teamName(state, scoringTeam)}")
     }
 
+    // Regular point -- not half, and not game over.
     val now = LocalTime.now()
     val halfCapReached = state.rules.useHalfCap &&
         !state.halftimeTaken &&
@@ -351,6 +363,7 @@ fun recordGoal(state: LiveGameState, scoringTeam: TeamId): LiveGameState {
     ).withUndo(state, "Undo Goal by ${teamName(state, scoringTeam)}")
 }
 
+// Undo Game Over
 fun undoGameOver(state: LiveGameState): LiveGameState {
     if (state.phase != LivePhase.GAME_OVER) {
         return state
@@ -365,6 +378,7 @@ fun undoGameOver(state: LiveGameState): LiveGameState {
     )
 }
 
+// Manually start half time
 fun startHalftimeNow(state: LiveGameState): LiveGameState {
     if (state.halftimeTaken || state.phase == LivePhase.GAME_OVER || state.phase == LivePhase.HALFTIME) {
         return state
@@ -381,14 +395,19 @@ fun startHalftimeNow(state: LiveGameState): LiveGameState {
         sequenceStartMillis = System.currentTimeMillis(),
     )
 
+    val teamOneSecondHalfTimeouts =
+        secondHalfTimeoutAllowance(state.rules, state.teamOne.timeoutsRemaining)
+    val teamTwoSecondHalfTimeouts =
+        secondHalfTimeoutAllowance(state.rules, state.teamTwo.timeoutsRemaining)
+
     return state.copy(
         teamOne = state.teamOne.copy(
-            timeoutsAllowedThisHalf = secondHalfTimeoutAllowance(state.rules, state.teamOne.timeoutsRemaining),
-            timeoutsRemaining = secondHalfTimeoutAllowance(state.rules, state.teamOne.timeoutsRemaining),
+            timeoutsAllowedThisHalf = teamOneSecondHalfTimeouts,
+            timeoutsRemaining = teamOneSecondHalfTimeouts,
         ),
         teamTwo = state.teamTwo.copy(
-            timeoutsAllowedThisHalf = secondHalfTimeoutAllowance(state.rules, state.teamTwo.timeoutsRemaining),
-            timeoutsRemaining = secondHalfTimeoutAllowance(state.rules, state.teamTwo.timeoutsRemaining),
+            timeoutsAllowedThisHalf = teamTwoSecondHalfTimeouts,
+            timeoutsRemaining = teamTwoSecondHalfTimeouts,
         ),
         pullingTeam = secondHalfPullingTeam,
         pullingFromEnd = secondHalfPullingFromEnd,
@@ -403,6 +422,7 @@ fun startHalftimeNow(state: LiveGameState): LiveGameState {
     ).withUndo(state, "Undo Start Halftime")
 }
 
+// Manually end the game now.
 fun endGameNow(state: LiveGameState): LiveGameState {
     if (state.phase == LivePhase.GAME_OVER) {
         return state
@@ -416,6 +436,7 @@ fun endGameNow(state: LiveGameState): LiveGameState {
     ).withUndo(state, "Undo End Game")
 }
 
+// Start a point.  I.e. indicate that the pull happened.
 fun beginLivePoint(state: LiveGameState): LiveGameState {
     return state.copy(
         phase = LivePhase.LIVE_POINT,
@@ -426,6 +447,7 @@ fun beginLivePoint(state: LiveGameState): LiveGameState {
     ).withUndo(state, "Undo Start Point")
 }
 
+// If we record a goal before starting the point, start it, and then record the goal.
 fun recordGoalFromCurrentState(state: LiveGameState, scoringTeam: TeamId): LiveGameState {
     val livePointState = if (state.phase == LivePhase.BETWEEN_POINTS) {
         beginLivePoint(state)
@@ -435,6 +457,7 @@ fun recordGoalFromCurrentState(state: LiveGameState, scoringTeam: TeamId): LiveG
     return recordGoal(livePointState, scoringTeam)
 }
 
+// Resume a live point after a timeout or similar interruption.
 fun continueLivePoint(state: LiveGameState): LiveGameState {
     return state.copy(
         phase = LivePhase.LIVE_POINT,
@@ -443,6 +466,7 @@ fun continueLivePoint(state: LiveGameState): LiveGameState {
     )
 }
 
+// Adjust countdown timer (use negative number to subtract time)
 fun addTimeToCountdown(state: LiveGameState, seconds: Int): LiveGameState {
     val countdown = state.countdown ?: return state
     return state.copy(
@@ -451,6 +475,7 @@ fun addTimeToCountdown(state: LiveGameState, seconds: Int): LiveGameState {
     )
 }
 
+// Manually adjust the score
 fun adjustScore(state: LiveGameState, teamOneScore: Int, teamTwoScore: Int): LiveGameState {
     return state.copy(
         teamOne = state.teamOne.copy(score = teamOneScore.coerceAtLeast(0)),
@@ -459,6 +484,7 @@ fun adjustScore(state: LiveGameState, teamOneScore: Int, teamTwoScore: Int): Liv
     ).withUndo(state, "Undo Score Adjustment")
 }
 
+// Manually adjust the number of timeouts
 fun adjustTimeouts(state: LiveGameState, teamOneTimeouts: Int, teamTwoTimeouts: Int): LiveGameState {
     return state.copy(
         teamOne = state.teamOne.copy(
@@ -471,6 +497,7 @@ fun adjustTimeouts(state: LiveGameState, teamOneTimeouts: Int, teamTwoTimeouts: 
     ).withUndo(state, "Undo Timeout Adjustment")
 }
 
+// Manually adjust the cards and technical fouls that have been assigned
 fun adjustCardsAndTf(
     state: LiveGameState,
     teamOneYellows: Int,
@@ -501,6 +528,7 @@ fun adjustCardsAndTf(
     ).withUndo(state, "Undo Cards / TF Adjustment")
 }
 
+// Assign a card to a specific player
 fun addPlayerCardAssignment(
     records: List<InGamePlayerCardRecord>,
     team: TeamId,
@@ -515,6 +543,7 @@ fun addPlayerCardAssignment(
     }
 }
 
+// Remove a card from a specific player
 fun removePlayerCardAssignment(
     records: List<InGamePlayerCardRecord>,
     team: TeamId,
@@ -538,6 +567,7 @@ fun removePlayerCardAssignment(
     }
 }
 
+// Manually change the number of offside or false starts each team has.
 fun adjustPullInfractions(
     state: LiveGameState,
     teamOneOffsides: Int,
@@ -558,6 +588,7 @@ fun adjustPullInfractions(
     ).withUndo(state, "Undo Pull Infraction Adjustment")
 }
 
+// Swap which team is on which end of the field.
 fun swapFieldEnds(state: LiveGameState): LiveGameState {
     val newPullingFromEnd = state.pullingFromEnd.flip()
     return state.copy(
@@ -570,6 +601,7 @@ fun swapFieldEnds(state: LiveGameState): LiveGameState {
     ).withUndo(state, "Undo Swap Ends of Field")
 }
 
+// Swap which team is pulling.
 fun swapPullingTeam(state: LiveGameState): LiveGameState {
     val newPullingTeam = state.pullingTeam.flip()
     val newPullingFromEnd = state.pullingFromEnd.flip()
@@ -583,6 +615,7 @@ fun swapPullingTeam(state: LiveGameState): LiveGameState {
     ).withUndo(state, "Undo Swap Pulling Team")
 }
 
+// Manually apply one of the caps
 fun makeCapNow(state: LiveGameState, capType: CapType, now: LocalTime = LocalTime.now()): LiveGameState {
     val offsetMinutes = when (capType) {
         CapType.HALF -> state.rules.halfCapMinutes
@@ -600,6 +633,9 @@ fun makeCapNow(state: LiveGameState, capType: CapType, now: LocalTime = LocalTim
     ).withUndo(state, "Undo ${capType.name.lowercase().replaceFirstChar { it.uppercase() }} Cap Now")
 }
 
+// Apply the next cap due to its time being reached.
+// This is run when we have asked the user whether to apply the next pending cap,
+// and they agree to apply it.
 fun applyPendingCap(state: LiveGameState): LiveGameState {
     val pendingCap = state.pendingCapOffer ?: return state
     val currentHigherScore = max(state.teamOne.score, state.teamTwo.score)
@@ -640,14 +676,19 @@ fun applyPendingCap(state: LiveGameState): LiveGameState {
     }
 }
 
+// Don't apply the next cap due to its time being reached.
+// This is run when we have asked the user whether to apply the next pending cap,
+// and they decide not to apply it yet.
 fun deferPendingCap(state: LiveGameState): LiveGameState {
     return state.copy(pendingCapOffer = null, lastEvent = "Cap offer deferred.")
 }
 
+// Undo the last action.
 fun undoLastAction(state: LiveGameState): LiveGameState {
     return state.undoEntry?.previous ?: state
 }
 
+// Adjust the game setup after the game has already started.
 fun applySetupToLiveGame(existing: LiveGameState, setup: GameSetupState): LiveGameState {
     val openingNearAttackingTeam = if (setup.pullingFromEnd == FieldEnd.FAR) {
         setup.pullingTeam
@@ -695,6 +736,8 @@ fun applySetupToLiveGame(existing: LiveGameState, setup: GameSetupState): LiveGa
     }
 }
 
+// Go to setup screen from live game
+// This just extracts the information from the live state that the setup screen needs.
 fun liveGameToSetupState(state: LiveGameState): GameSetupState {
     return GameSetupState(
         startTime = state.startTime,
@@ -713,6 +756,8 @@ fun liveGameToSetupState(state: LiveGameState): GameSetupState {
     )
 }
 
+// Someone called a timeout.
+// This reduces the remaining timeout count and starts or extends the appropriate countdown.
 fun chargeTimeout(state: LiveGameState, team: TeamId): LiveGameState {
     val updatedState = state.copy(
         teamOne = if (team == TeamId.TEAM_ONE) {
@@ -737,6 +782,7 @@ fun chargeTimeout(state: LiveGameState, team: TeamId): LiveGameState {
     }
 }
 
+// Offsides on the pulling team
 fun recordOffsides(state: LiveGameState): LiveGameState {
     if (state.pullSequenceOffsidesRecorded) {
         return state
@@ -758,6 +804,7 @@ fun recordOffsides(state: LiveGameState): LiveGameState {
     ).withUndo(state, "Undo Offsides on ${teamName(state, team)}")
 }
 
+// False start on the receiving team
 fun recordFalseStart(state: LiveGameState): LiveGameState {
     if (state.pullSequenceFalseStartRecorded) {
         return state
@@ -779,6 +826,7 @@ fun recordFalseStart(state: LiveGameState): LiveGameState {
     ).withUndo(state, "Undo False Start on ${teamName(state, team)}")
 }
 
+// Technical Foul
 fun addTechnicalFoul(state: LiveGameState, team: TeamId): LiveGameState {
     return state.copy(
         teamOne = if (team == TeamId.TEAM_ONE) {
@@ -795,6 +843,7 @@ fun addTechnicalFoul(state: LiveGameState, team: TeamId): LiveGameState {
     )
 }
 
+// Blue Card
 fun addBlueCard(state: LiveGameState, team: TeamId): LiveGameState {
     return state.copy(
         teamOne = if (team == TeamId.TEAM_ONE) {
@@ -811,6 +860,7 @@ fun addBlueCard(state: LiveGameState, team: TeamId): LiveGameState {
     )
 }
 
+// Yellow/Red Card
 fun addPlayerCard(state: LiveGameState, team: TeamId, card: CardType): LiveGameState {
     return when (team) {
         TeamId.TEAM_ONE -> {
@@ -835,6 +885,7 @@ fun addPlayerCard(state: LiveGameState, team: TeamId, card: CardType): LiveGameS
     }
 }
 
+// Blue cards again.  This also checks what the consequence is.
 fun assessBlueCard(state: LiveGameState, team: TeamId): CardAssessmentResult {
     val updatedState = addBlueCard(state, team)
         .withUndo(state, "Undo Blue Card on ${teamName(state, team)}")
@@ -851,6 +902,7 @@ fun assessBlueCard(state: LiveGameState, team: TeamId): CardAssessmentResult {
     )
 }
 
+// Technical Fouls again.  This also checks what the consequence is.
 fun assessTechnicalFoul(state: LiveGameState, team: TeamId): CardAssessmentResult {
     val updatedState = addTechnicalFoul(state, team)
         .withUndo(state, "Undo Technical Foul on ${teamName(state, team)}")
@@ -867,6 +919,8 @@ fun assessTechnicalFoul(state: LiveGameState, team: TeamId): CardAssessmentResul
     )
 }
 
+// Yellow Card again.  This also checks what the consequence is.
+// It could be one of two things depending on whether it's the first or second yellow.
 fun assessYellowCard(state: LiveGameState, team: TeamId, jerseyNumber: String): CardAssessmentResult {
     val currentRecord = state.playerCardFor(team, jerseyNumber)
     return if (currentRecord?.yellows ?: 0 >= 1) {
@@ -876,6 +930,7 @@ fun assessYellowCard(state: LiveGameState, team: TeamId, jerseyNumber: String): 
     }
 }
 
+// Figure out the consequence for a standalone yellow.
 fun assessStandaloneYellowCard(state: LiveGameState, team: TeamId, jerseyNumber: String): CardAssessmentResult {
     val updatedState = addInGameYellowCard(state, team, jerseyNumber)
         .withUndo(state, "Undo Yellow Card on ${teamName(state, team)} #$jerseyNumber")
@@ -892,6 +947,7 @@ fun assessStandaloneYellowCard(state: LiveGameState, team: TeamId, jerseyNumber:
     )
 }
 
+// Red Card again.  This also checks what the consequence is.
 fun assessRedCard(
     state: LiveGameState,
     team: TeamId,
@@ -926,44 +982,39 @@ enum class CardType(val label: String) {
     RED("Red"),
 }
 
-fun computeNextCapStatus(startTime: LocalTime, rules: GameRules, now: LocalTime = LocalTime.now()): CapStatus? {
+// Figure out what the next relevant cap is in a live game.
+fun computeNextCapStatus(state: LiveGameState, now: LocalTime = LocalTime.now()): CapStatus? {
+    // `to` in Kotlin makes pairs. So `first to second` makes a pair (first, second).
+    // Here we make pairs with second being another pair:
+    // (isCapRelevant, (capName, capTime))
     val caps = listOf(
-        rules.useHalfCap to ("Half cap" to startTime.plusMinutes(rules.halfCapMinutes.toLong())),
-        rules.useSoftCap to ("Soft cap" to startTime.plusMinutes(rules.softCapMinutes.toLong())),
-        rules.useHardCap to ("Hard cap" to startTime.plusMinutes(rules.hardCapMinutes.toLong())),
+        (state.rules.useHalfCap && !state.halftimeTaken && !state.halfCapApplied) to
+            ("Half cap" to state.startTime.plusMinutes(state.rules.halfCapMinutes.toLong())),
+        (state.rules.useSoftCap && !state.softCapApplied) to
+            ("Soft cap" to state.startTime.plusMinutes(state.rules.softCapMinutes.toLong())),
+        (state.rules.useHardCap && !state.hardCapApplied) to
+            ("Hard cap" to state.startTime.plusMinutes(state.rules.hardCapMinutes.toLong())),
     )
+        // Keep only caps whose relevance flag is true.
         .filter { it.first }
+        // Keep just the (label, time) pair.
         .map { it.second }
 
     return caps
+        // Convert each capTime into the time left from now until the cap.
         .map { (label, capTime) -> label to durationUntil(now, capTime) }
+        // Find the first one whose duration is not negative.
         .firstOrNull { (_, remaining) -> !remaining.isNegative }
+        // If any are found, make a CapStatus from this cap's time remaining.
         ?.let { (label, remaining) -> CapStatus(label, remaining) }
 }
 
-fun computeNextCapStatus(state: LiveGameState, now: LocalTime = LocalTime.now()): CapStatus? {
-    val caps = buildList {
-        if (state.rules.useHalfCap && !state.halftimeTaken && !state.halfCapApplied) {
-            add("Half cap" to state.startTime.plusMinutes(state.rules.halfCapMinutes.toLong()))
-        }
-        if (state.rules.useSoftCap && !state.softCapApplied) {
-            add("Soft cap" to state.startTime.plusMinutes(state.rules.softCapMinutes.toLong()))
-        }
-        if (state.rules.useHardCap && !state.hardCapApplied) {
-            add("Hard cap" to state.startTime.plusMinutes(state.rules.hardCapMinutes.toLong()))
-        }
-    }
-
-    return caps
-        .map { (label, capTime) -> label to durationUntil(now, capTime) }
-        .firstOrNull { (_, remaining) -> !remaining.isNegative }
-        ?.let { (label, remaining) -> CapStatus(label, remaining) }
-}
-
+// Format the time into a nice string like "3:30 PM"
 fun formatClockTime(time: LocalTime): String {
     return time.format(DateTimeFormatter.ofPattern("h:mm a"))
 }
 
+// Format a duration into a nice format like "0:32"
 fun formatDuration(duration: Duration): String {
     val totalSeconds = max(0L, duration.seconds)
     val minutes = totalSeconds / 60
@@ -971,6 +1022,7 @@ fun formatDuration(duration: Duration): String {
     return "$minutes:${seconds.toString().padStart(2, '0')}"
 }
 
+// Calculate the remaining duration between now and target.
 private fun durationUntil(now: LocalTime, target: LocalTime): Duration {
     var remaining = Duration.between(now, target)
     if (remaining.isNegative && target.isBefore(now)) {
@@ -979,6 +1031,9 @@ private fun durationUntil(now: LocalTime, target: LocalTime): Duration {
     return remaining
 }
 
+// Build a countdown after a goal is scored.
+// This is different depending on whether the observer is on the side of the pulling
+// or receiving team.  (Observer is assumed on the near end.)
 private fun buildBetweenPointsCountdown(
     pullingFromEnd: FieldEnd,
     sequenceStartMillis: Long,
@@ -994,6 +1049,7 @@ private fun buildBetweenPointsCountdown(
     )
 }
 
+// Build a countdown for half time.
 private fun buildHalftimeCountdown(
     halftimeMinutes: Int,
     sequenceStartMillis: Long,
@@ -1007,18 +1063,23 @@ private fun buildHalftimeCountdown(
     )
 }
 
+// Calculate how many time outs are allowed in the first half according to the rules.
 private fun firstHalfTimeoutAllowance(rules: GameRules): Int {
     return rules.timeoutsPerHalf + if (rules.hasFloaterTimeout) 1 else 0
 }
 
+// Calculate how many time outs are allowed in the second half according to the rules.
 private fun secondHalfTimeoutAllowance(rules: GameRules, firstHalfRemaining: Int): Int {
     return rules.timeoutsPerHalf + if (rules.hasFloaterTimeout && firstHalfRemaining > 0) 1 else 0
 }
 
+// After adjusting the rules, figure out what it means for how many timeouts are allowed.
 private fun remappedTimeoutAllowance(existing: LiveGameState, teamId: TeamId, newRules: GameRules): Int {
     return if (!existing.halftimeTaken) {
         firstHalfTimeoutAllowance(newRules)
     } else {
+        // This is the tricky bit, since the number of timeouts left in the first half might
+        // have been affected by the rule change.
         val existingTeam = if (teamId == TeamId.TEAM_ONE) existing.teamOne else existing.teamTwo
         val carriedFloater = existing.rules.hasFloaterTimeout &&
             existingTeam.timeoutsAllowedThisHalf > existing.rules.timeoutsPerHalf
@@ -1026,6 +1087,7 @@ private fun remappedTimeoutAllowance(existing: LiveGameState, teamId: TeamId, ne
     }
 }
 
+// After adjusting the rules, figure out what it means for how many timeouts remain.
 private fun remappedTimeoutRemaining(existing: LiveGameState, teamId: TeamId, newRules: GameRules): Int {
     val existingTeam = if (teamId == TeamId.TEAM_ONE) existing.teamOne else existing.teamTwo
     val usedThisHalf = (existingTeam.timeoutsAllowedThisHalf - existingTeam.timeoutsRemaining).coerceAtLeast(0)
@@ -1033,6 +1095,7 @@ private fun remappedTimeoutRemaining(existing: LiveGameState, teamId: TeamId, ne
     return (newAllowance - usedThisHalf).coerceAtLeast(0)
 }
 
+// Apply a timeout between points.  (Basically just adds 70 sec to the timer.)
 private fun applyBetweenPointsTimeout(state: LiveGameState): LiveGameState {
     val nowMillis = System.currentTimeMillis()
     val countdown = state.countdown
@@ -1043,6 +1106,9 @@ private fun applyBetweenPointsTimeout(state: LiveGameState): LiveGameState {
             targetEpochMillis = countdown.targetEpochMillis + 70_000L,
         )
     } else {
+        // If the countdown expired already, make a new countdown with 70 or 90 seconds.
+        // This shouldn't happen if the observer is keeping up with things, but if it
+        // does happen, then this seems like the most sensible thing to do.
         buildBetweenPointsTimeoutCountdown(
             pullingFromEnd = state.pullingFromEnd,
             sequenceStartMillis = nowMillis,
@@ -1052,6 +1118,7 @@ private fun applyBetweenPointsTimeout(state: LiveGameState): LiveGameState {
     return state.copy(countdown = updatedCountdown)
 }
 
+// Apply a timeout by the thrower during a live point.
 private fun applyLivePointTimeout(state: LiveGameState): LiveGameState {
     return state.copy(
         countdown = CountdownState(
@@ -1063,6 +1130,8 @@ private fun applyLivePointTimeout(state: LiveGameState): LiveGameState {
     )
 }
 
+// Apply a between-points timeout after the normal countdown has already expired.
+// This should not normally happen in a well-tracked game, but do something sensible if it does.
 private fun buildBetweenPointsTimeoutCountdown(
     pullingFromEnd: FieldEnd,
     sequenceStartMillis: Long,
@@ -1078,6 +1147,7 @@ private fun buildBetweenPointsTimeoutCountdown(
     )
 }
 
+// Update the running countdown when swapping pulling team or team ends.
 private fun updatedCountdownForPullingFromEnd(
     countdown: CountdownState?,
     pullingFromEnd: FieldEnd,
@@ -1094,6 +1164,7 @@ private fun updatedCountdownForPullingFromEnd(
     }
 }
 
+// Add a yellow card to a specific player
 private fun addInGameYellowCard(state: LiveGameState, team: TeamId, jerseyNumber: String): LiveGameState {
     return state.copy(
         teamOne = if (team == TeamId.TEAM_ONE) {
@@ -1117,6 +1188,7 @@ private fun addInGameYellowCard(state: LiveGameState, team: TeamId, jerseyNumber
     )
 }
 
+// Add a second yellow card to a specific player
 private fun addInGameSecondYellow(state: LiveGameState, team: TeamId, jerseyNumber: String): LiveGameState {
     return state.copy(
         teamOne = if (team == TeamId.TEAM_ONE) {
@@ -1140,6 +1212,7 @@ private fun addInGameSecondYellow(state: LiveGameState, team: TeamId, jerseyNumb
     )
 }
 
+// Add a direct red card to a specific player
 private fun addInGameDirectRed(state: LiveGameState, team: TeamId, jerseyNumber: String): LiveGameState {
     return state.copy(
         teamOne = if (team == TeamId.TEAM_ONE) {
@@ -1163,6 +1236,7 @@ private fun addInGameDirectRed(state: LiveGameState, team: TeamId, jerseyNumber:
     )
 }
 
+// Handle the details of updating a player's card status in the list of carded players.
 private fun updatePlayerCardRecord(
     records: List<InGamePlayerCardRecord>,
     team: TeamId,
@@ -1179,6 +1253,7 @@ private fun updatePlayerCardRecord(
     }
 }
 
+// Build the message for what happens when a team gets a card.
 private fun buildCardMessage(
     baseMessage: String,
     state: LiveGameState,
@@ -1194,6 +1269,7 @@ private fun buildCardMessage(
     }
 }
 
+// Build the message for what happens when a team gets a technical foul.
 private fun buildTechnicalFoulMessage(
     baseMessage: String,
     state: LiveGameState,
@@ -1209,6 +1285,7 @@ private fun buildTechnicalFoulMessage(
     }
 }
 
+// Build the portion of the message for misconduct penalty between points.
 private fun betweenPointsMisconductMessage(state: LiveGameState, team: TeamId): String {
     val receivingTeam = state.pullingTeam.flip()
     return if (team == receivingTeam) {
@@ -1218,6 +1295,7 @@ private fun betweenPointsMisconductMessage(state: LiveGameState, team: TeamId): 
     }
 }
 
+// Build the portion of the message for misconduct penalty during points.
 fun livePointMisconductMessage(againstOffense: Boolean): String {
     return if (againstOffense) {
         "Misconduct penalty against offense.\nReverse brick. Offense 30 sec to set, defense 20 sec to check in. Defense may instead leave the disc where it stopped."
@@ -1226,57 +1304,74 @@ fun livePointMisconductMessage(againstOffense: Boolean): String {
     }
 }
 
+// Check if a player already has a yellow card yet.
 fun playerHasYellowThisGame(state: LiveGameState, team: TeamId, jerseyNumber: String): Boolean {
     return (state.playerCardFor(team, jerseyNumber)?.yellows ?: 0) > 0
 }
 
+// Count the total number of cards a team has.
 private fun teamCardTotal(state: LiveGameState, team: TeamId): Int {
     val currentTeam = if (team == TeamId.TEAM_ONE) state.teamOne else state.teamTwo
     return currentTeam.yellowCards + currentTeam.blueCards + (2 * currentTeam.redCards)
 }
 
+// Count the total number of TF a team has.
 private fun teamTechnicalFouls(state: LiveGameState, team: TeamId): Int {
     val currentTeam = if (team == TeamId.TEAM_ONE) state.teamOne else state.teamTwo
     return currentTeam.technicalFouls
 }
 
+// Helper function to pluralize nicely.
 private fun pluralize(count: Int, singular: String): String {
     return if (count == 1) singular else "${singular}s"
 }
 
+// Get the team name for a given id
 private fun teamName(state: LiveGameState, team: TeamId): String {
     return if (team == TeamId.TEAM_ONE) state.teamOne.name else state.teamTwo.name
 }
 
+// Attach the previous game state in the undoEntry.
+// Use this everywhere we want an action to be undo-able (essentially all user actions).
+// Most returned states for a user-initiated action should have a .withUndo(state, label)
+// at the end.
 private fun LiveGameState.withUndo(previous: LiveGameState, label: String): LiveGameState {
     return copy(undoEntry = UndoEntry(label = label, previous = previous))
 }
 
+// Get the card record for a specific player.
 private fun LiveGameState.playerCardFor(team: TeamId, jerseyNumber: String): InGamePlayerCardRecord? {
     return playerCardsThisGame.firstOrNull { it.team == team && it.jerseyNumber == jerseyNumber }
 }
 
+// Helper to flip TeamId between the two teams.
 private fun TeamId.flip(): TeamId {
     return if (this == TeamId.TEAM_ONE) TeamId.TEAM_TWO else TeamId.TEAM_ONE
 }
 
+// Helper to flip FieldEnd between the two directions.
 private fun FieldEnd.flip(): FieldEnd {
     return if (this == FieldEnd.NEAR) FieldEnd.FAR else FieldEnd.NEAR
 }
 
+// Calculate the halftime score as the next count over half the total.  (e.g. 15 -> 8)
 private fun halftimeScore(rules: GameRules): Int {
     return (rules.gameTo / 2) + 1
 }
 
+// Get the next time the target time happens.  (Usually today, maybe tomorrow)
 private fun nextOccurrenceMillis(time: LocalTime): Long {
     val now = LocalDateTime.now()
     var target = LocalDateTime.of(LocalDate.now(), time)
     if (target.isBefore(now)) {
         target = target.plusDays(1)
     }
+    // Convert the target time to a unix time in milliseconds.
     return target.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
 }
 
+// The default start time for a game is the next even half hour after now.
+// Figure out what time that is.
 private fun nextHalfHourFromNow(now: LocalTime = LocalTime.now()): LocalTime {
     val roundedMinute = when {
         now.minute == 0 && now.second == 0 -> 0
