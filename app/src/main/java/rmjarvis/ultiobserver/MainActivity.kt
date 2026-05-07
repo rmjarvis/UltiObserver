@@ -235,7 +235,9 @@ fun UltiObserverApp() {
                     if (setupMode == SetupMode.NEW_GAME) {
                         liveState = createLiveGameState(setupState)
                     } else {
-                        liveState = liveState?.let { applySetupToLiveGame(it, setupState) }
+                        liveState = liveState?.let {
+                            applySetupToLiveGame(it, setupState, System.currentTimeMillis())
+                        }
                     }
                     screen = AppScreen.LIVE
                 },
@@ -776,12 +778,12 @@ private fun LiveGameScreen(
                             }
                         }
                     },
-                    onGoal = { team -> onStateChange(recordGoalFromCurrentState(state, team)) },
+                    onGoal = { team -> onStateChange(recordGoalFromCurrentState(state, team, now, nowMillis)) },
                     onTimeout = { team ->
                         if (state.teamFor(team).timeoutsRemaining <= 0) {
                             actionInfoMessage = outOfTimeoutsMessage(state, team)
                         } else {
-                            onStateChange(chargeTimeout(state, team))
+                            onStateChange(chargeTimeout(state, team, nowMillis))
                         }
                     },
                     onPullInfraction = { team ->
@@ -874,6 +876,8 @@ private fun LiveGameScreen(
         ModalBottomSheet(onDismissRequest = { showOtherSheet = false }) {
             OtherSheet(
                 state = state,
+                now = now,
+                nowMillis = nowMillis,
                 onUpdateGameSetup = onUpdateGameSetup,
                 onAction = { updatedState ->
                     onStateChange(updatedState)
@@ -956,7 +960,7 @@ private fun LiveGameScreen(
                 )
             },
             confirmButton = {
-                TextButton(onClick = { onStateChange(applyPendingCap(state)) }) {
+                TextButton(onClick = { onStateChange(applyPendingCap(state, now)) }) {
                     Text("Apply")
                 }
             },
@@ -2106,6 +2110,8 @@ private fun UnknownYellowDialog(
 @Composable
 private fun OtherSheet(
     state: LiveGameState,
+    now: LocalTime,
+    nowMillis: Long,
     onUpdateGameSetup: () -> Unit,
     onAction: (LiveGameState) -> Unit,
 ) {
@@ -2168,36 +2174,36 @@ private fun OtherSheet(
                 ) {
                     OtherMenuButton(
                         label = "Start Halftime",
-                        onClick = { onAction(startHalftimeNow(state)) },
+                        onClick = { onAction(startHalftimeNow(state, nowMillis)) },
                     )
                 }
                 if (state.phase != LivePhase.GAME_OVER) {
                     OtherMenuButton(
                         label = "End Game",
-                        onClick = { onAction(endGameNow(state)) },
+                        onClick = { onAction(endGameNow(state, now)) },
                     )
                 } else {
                     OtherMenuButton(
                         label = "Undo Game Over",
-                        onClick = { onAction(undoGameOver(state)) },
+                        onClick = { onAction(undoGameOver(state, nowMillis)) },
                     )
                 }
                 if (!state.halftimeTaken && !state.halfCapApplied) {
                     OtherMenuButton(
                         label = "Apply Half Cap Now",
-                        onClick = { onAction(makeCapNow(state, CapType.HALF)) },
+                        onClick = { onAction(makeCapNow(state, CapType.HALF, now)) },
                     )
                 }
                 if (!state.softCapApplied) {
                     OtherMenuButton(
                         label = "Apply Soft Cap Now",
-                        onClick = { onAction(makeCapNow(state, CapType.SOFT)) },
+                        onClick = { onAction(makeCapNow(state, CapType.SOFT, now)) },
                     )
                 }
                 if (!state.hardCapApplied && state.phase != LivePhase.GAME_OVER) {
                     OtherMenuButton(
                         label = "Apply Hard Cap Now",
-                        onClick = { onAction(makeCapNow(state, CapType.HARD)) },
+                        onClick = { onAction(makeCapNow(state, CapType.HARD, now)) },
                     )
                 }
             }

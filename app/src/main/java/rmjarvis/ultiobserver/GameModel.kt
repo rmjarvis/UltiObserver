@@ -208,10 +208,13 @@ fun createLiveGameState(setup: GameSetupState): LiveGameState {
 
 // Initiate the countdown for edge cases where we don't automatically start it directly
 // on an event.
-fun startPullSequence(state: LiveGameState): LiveGameState {
+fun startPullSequence(
+    state: LiveGameState,
+    nowMillis: Long,
+): LiveGameState {
     val countdown = buildBetweenPointsCountdown(
         pullingFromEnd = state.pullingFromEnd,
-        sequenceStartMillis = System.currentTimeMillis(),
+        sequenceStartMillis = nowMillis,
     )
     return state.copy(
         phase = LivePhase.BETWEEN_POINTS,
@@ -223,7 +226,12 @@ fun startPullSequence(state: LiveGameState): LiveGameState {
 }
 
 // Update state for someone scoring a goal.
-fun recordGoal(state: LiveGameState, scoringTeam: TeamId): LiveGameState {
+fun recordGoal(
+    state: LiveGameState,
+    scoringTeam: TeamId,
+    now: LocalTime,
+    nowMillis: Long,
+): LiveGameState {
     if (state.phase == LivePhase.GAME_OVER) {
         return state
     }
@@ -255,7 +263,7 @@ fun recordGoal(state: LiveGameState, scoringTeam: TeamId): LiveGameState {
         return state.copy(
             teamOne = updatedTeamOne,
             teamTwo = updatedTeamTwo,
-            endTime = LocalTime.now(),
+            endTime = now,
             pullingTeam = nextPullingTeam,
             nearAttackingTeam = nextNearAttackingTeam,
             pullingFromEnd = nextPullingFromEnd,
@@ -283,7 +291,7 @@ fun recordGoal(state: LiveGameState, scoringTeam: TeamId): LiveGameState {
         }
         val halftimeCountdown = buildHalftimeCountdown(
             halftimeMinutes = state.rules.halftimeMinutes,
-            sequenceStartMillis = System.currentTimeMillis(),
+            sequenceStartMillis = nowMillis,
         )
         val teamOneSecondHalfTimeouts =
             secondHalfTimeoutAllowance(state.rules, state.teamOne.timeoutsRemaining)
@@ -318,7 +326,6 @@ fun recordGoal(state: LiveGameState, scoringTeam: TeamId): LiveGameState {
     }
 
     // Regular point -- not half, and not game over.
-    val now = LocalTime.now()
     val halfCapReached = state.rules.useHalfCap &&
         !state.halftimeTaken &&
         !state.halfCapApplied &&
@@ -339,7 +346,7 @@ fun recordGoal(state: LiveGameState, scoringTeam: TeamId): LiveGameState {
 
     val countdown = buildBetweenPointsCountdown(
         pullingFromEnd = nextPullingFromEnd,
-        sequenceStartMillis = System.currentTimeMillis(),
+        sequenceStartMillis = nowMillis,
     )
 
     return state.copy(
@@ -364,7 +371,10 @@ fun recordGoal(state: LiveGameState, scoringTeam: TeamId): LiveGameState {
 }
 
 // Undo Game Over
-fun undoGameOver(state: LiveGameState): LiveGameState {
+fun undoGameOver(
+    state: LiveGameState,
+    nowMillis: Long,
+): LiveGameState {
     if (state.phase != LivePhase.GAME_OVER) {
         return state
     }
@@ -374,12 +384,16 @@ fun undoGameOver(state: LiveGameState): LiveGameState {
             countdown = null,
             endTime = null,
             lastEvent = "Game over undone.",
-        )
+        ),
+        nowMillis,
     )
 }
 
 // Manually start half time
-fun startHalftimeNow(state: LiveGameState): LiveGameState {
+fun startHalftimeNow(
+    state: LiveGameState,
+    nowMillis: Long,
+): LiveGameState {
     if (state.halftimeTaken || state.phase == LivePhase.GAME_OVER || state.phase == LivePhase.HALFTIME) {
         return state
     }
@@ -392,7 +406,7 @@ fun startHalftimeNow(state: LiveGameState): LiveGameState {
     }
     val halftimeCountdown = buildHalftimeCountdown(
         halftimeMinutes = state.rules.halftimeMinutes,
-        sequenceStartMillis = System.currentTimeMillis(),
+        sequenceStartMillis = nowMillis,
     )
 
     val teamOneSecondHalfTimeouts =
@@ -423,12 +437,15 @@ fun startHalftimeNow(state: LiveGameState): LiveGameState {
 }
 
 // Manually end the game now.
-fun endGameNow(state: LiveGameState): LiveGameState {
+fun endGameNow(
+    state: LiveGameState,
+    now: LocalTime,
+): LiveGameState {
     if (state.phase == LivePhase.GAME_OVER) {
         return state
     }
     return state.copy(
-        endTime = LocalTime.now(),
+        endTime = now,
         phase = LivePhase.GAME_OVER,
         countdown = null,
         pendingCapOffer = null,
@@ -448,13 +465,18 @@ fun beginLivePoint(state: LiveGameState): LiveGameState {
 }
 
 // If we record a goal before starting the point, start it, and then record the goal.
-fun recordGoalFromCurrentState(state: LiveGameState, scoringTeam: TeamId): LiveGameState {
+fun recordGoalFromCurrentState(
+    state: LiveGameState,
+    scoringTeam: TeamId,
+    now: LocalTime,
+    nowMillis: Long,
+): LiveGameState {
     val livePointState = if (state.phase == LivePhase.BETWEEN_POINTS) {
         beginLivePoint(state)
     } else {
         state
     }
-    return recordGoal(livePointState, scoringTeam)
+    return recordGoal(livePointState, scoringTeam, now, nowMillis)
 }
 
 // Resume a live point after a timeout or similar interruption.
@@ -616,7 +638,7 @@ fun swapPullingTeam(state: LiveGameState): LiveGameState {
 }
 
 // Manually apply one of the caps
-fun makeCapNow(state: LiveGameState, capType: CapType, now: LocalTime = LocalTime.now()): LiveGameState {
+fun makeCapNow(state: LiveGameState, capType: CapType, now: LocalTime): LiveGameState {
     val offsetMinutes = when (capType) {
         CapType.HALF -> state.rules.halfCapMinutes
         CapType.SOFT -> state.rules.softCapMinutes
@@ -636,7 +658,10 @@ fun makeCapNow(state: LiveGameState, capType: CapType, now: LocalTime = LocalTim
 // Apply the next cap due to its time being reached.
 // This is run when we have asked the user whether to apply the next pending cap,
 // and they agree to apply it.
-fun applyPendingCap(state: LiveGameState): LiveGameState {
+fun applyPendingCap(
+    state: LiveGameState,
+    now: LocalTime,
+): LiveGameState {
     val pendingCap = state.pendingCapOffer ?: return state
     val currentHigherScore = max(state.teamOne.score, state.teamTwo.score)
     return when (pendingCap) {
@@ -657,7 +682,7 @@ fun applyPendingCap(state: LiveGameState): LiveGameState {
         CapType.HARD -> {
             if (state.teamOne.score != state.teamTwo.score) {
                 state.copy(
-                    endTime = LocalTime.now(),
+                    endTime = now,
                     phase = LivePhase.GAME_OVER,
                     countdown = null,
                     hardCapApplied = true,
@@ -689,7 +714,11 @@ fun undoLastAction(state: LiveGameState): LiveGameState {
 }
 
 // Adjust the game setup after the game has already started.
-fun applySetupToLiveGame(existing: LiveGameState, setup: GameSetupState): LiveGameState {
+fun applySetupToLiveGame(
+    existing: LiveGameState,
+    setup: GameSetupState,
+    nowMillis: Long,
+): LiveGameState {
     val openingNearAttackingTeam = if (setup.pullingFromEnd == FieldEnd.FAR) {
         setup.pullingTeam
     } else {
@@ -727,7 +756,7 @@ fun applySetupToLiveGame(existing: LiveGameState, setup: GameSetupState): LiveGa
             pullingFromEnd = setup.pullingFromEnd,
         )
         if (updated.phase == LivePhase.BETWEEN_POINTS || updated.phase == LivePhase.HALFTIME) {
-            startPullSequence(updated)
+            startPullSequence(updated, nowMillis)
         } else {
             updated
         }
@@ -758,7 +787,11 @@ fun liveGameToSetupState(state: LiveGameState): GameSetupState {
 
 // Someone called a timeout.
 // This reduces the remaining timeout count and starts or extends the appropriate countdown.
-fun chargeTimeout(state: LiveGameState, team: TeamId): LiveGameState {
+fun chargeTimeout(
+    state: LiveGameState,
+    team: TeamId,
+    nowMillis: Long,
+): LiveGameState {
     val updatedState = state.copy(
         teamOne = if (team == TeamId.TEAM_ONE) {
             state.teamOne.copy(timeoutsRemaining = max(0, state.teamOne.timeoutsRemaining - 1))
@@ -774,9 +807,9 @@ fun chargeTimeout(state: LiveGameState, team: TeamId): LiveGameState {
     )
 
     return when (state.phase) {
-        LivePhase.BETWEEN_POINTS -> applyBetweenPointsTimeout(updatedState)
+        LivePhase.BETWEEN_POINTS -> applyBetweenPointsTimeout(updatedState, nowMillis)
             .withUndo(state, "Undo Timeout by ${teamName(state, team)}")
-        LivePhase.LIVE_POINT -> applyLivePointTimeout(updatedState)
+        LivePhase.LIVE_POINT -> applyLivePointTimeout(updatedState, nowMillis)
             .withUndo(state, "Undo Timeout by ${teamName(state, team)}")
         else -> updatedState
     }
@@ -1045,7 +1078,7 @@ enum class CardType(val label: String) {
 }
 
 // Figure out what the next relevant cap is in a live game.
-fun computeNextCapStatus(state: LiveGameState, now: LocalTime = LocalTime.now()): CapStatus? {
+fun computeNextCapStatus(state: LiveGameState, now: LocalTime): CapStatus? {
     // `to` in Kotlin makes pairs. So `first to second` makes a pair (first, second).
     // Here we make pairs with second being another pair:
     // (isCapRelevant, (capName, capTime))
@@ -1168,8 +1201,10 @@ private fun remappedTimeoutRemaining(existing: LiveGameState, teamId: TeamId, ne
 }
 
 // Apply a timeout between points.  (Basically just adds 70 sec to the timer.)
-private fun applyBetweenPointsTimeout(state: LiveGameState): LiveGameState {
-    val nowMillis = System.currentTimeMillis()
+private fun applyBetweenPointsTimeout(
+    state: LiveGameState,
+    nowMillis: Long,
+): LiveGameState {
     val countdown = state.countdown
 
     val updatedCountdown = if (countdown != null && countdown.targetEpochMillis > nowMillis) {
@@ -1191,13 +1226,16 @@ private fun applyBetweenPointsTimeout(state: LiveGameState): LiveGameState {
 }
 
 // Apply a timeout by the thrower during a live point.
-private fun applyLivePointTimeout(state: LiveGameState): LiveGameState {
+private fun applyLivePointTimeout(
+    state: LiveGameState,
+    nowMillis: Long,
+): LiveGameState {
     return state.copy(
         countdown = CountdownState(
             kind = CountdownKind.BETWEEN_POINTS,
             label = "Offense set in",
             durationSeconds = 70,
-            targetEpochMillis = System.currentTimeMillis() + 70_000L,
+            targetEpochMillis = nowMillis + 70_000L,
         ),
     )
 }
