@@ -1532,19 +1532,124 @@ class TestGameModel {
     // The setup form is public UI, but the model owns how edits reshape live state.
     @Test
     fun setupRoundTripAndMidgameUpdates() {
-        // Create a live game from setup and convert it back to setup state.
+        val VC = TeamId.TEAM_ONE
+        val ANIMAL = TeamId.TEAM_TWO
+        val priorCards = listOf(
+            PlayerCardRecord(VC, "17", priorYellows = 1, priorReds = 0),
+            PlayerCardRecord(ANIMAL, "23", priorYellows = 0, priorReds = 1),
+        )
 
-        // Verify start time, rules, team names, colors, prior-card holders, and opening pull round-trip.
+        // Create a live game from setup and verify the setup form can be reconstructed from live state.
+        val setup = standardGameSetup(
+            startTime = LocalTime.of(8, 30),
+            rules = GameRules(
+                gameTo = 13,
+                halftimeMinutes = 8,
+                halfCapMinutes = 40,
+                softCapMinutes = 80,
+                hardCapMinutes = 95,
+                timeoutsPerHalf = 1,
+                hasFloaterTimeout = true,
+            ),
+            pullingTeam = VC,
+            pullingFromEnd = FieldEnd.FAR,
+        ).copy(
+            teamOne = TeamSetup("Viscous Coupling", TeamColorChoice.GREEN),
+            teamTwo = TeamSetup("Animal", TeamColorChoice.ORANGE),
+            priorCards = priorCards,
+        )
+        var state = createLiveGameState(setup)
+        assertEquals(setup, liveGameToSetupState(state))
+        assertEquals(VC, state.openingPullingTeam)
+        assertEquals(FieldEnd.FAR, state.openingPullingFromEnd)
+        assertEquals(VC, state.pullingTeam)
+        assertEquals(FieldEnd.FAR, state.pullingFromEnd)
+        assertEquals(VC, state.nearAttackingTeam)
+        assertEquals(priorCards, state.priorCards)
 
         // Edit setup before the first point and verify opening pull changes resync current pull and field state.
+        val editedBeforePlay = setup.copy(
+            startTime = LocalTime.of(8, 45),
+            rules = setup.rules.copy(gameTo = 15, timeoutsPerHalf = 2),
+            teamOne = TeamSetup("VC", TeamColorChoice.WHITE),
+            teamTwo = TeamSetup("Animal Ultimate", TeamColorChoice.RED),
+            priorCards = priorCards + PlayerCardRecord(VC, "8", priorYellows = 2, priorReds = 0),
+            pullingTeam = ANIMAL,
+            pullingFromEnd = FieldEnd.NEAR,
+        )
+        state = applySetupToLiveGame(state, editedBeforePlay, 10_000L)
+        assertEquals(LocalTime.of(8, 45), state.startTime)
+        assertEquals(15, state.rules.gameTo)
+        assertEquals(2, state.rules.timeoutsPerHalf)
+        assertEquals("VC", state.teamOne.name)
+        assertEquals(TeamColorChoice.WHITE, state.teamOne.color)
+        assertEquals("Animal Ultimate", state.teamTwo.name)
+        assertEquals(TeamColorChoice.RED, state.teamTwo.color)
+        assertEquals(editedBeforePlay.priorCards, state.priorCards)
+        assertEquals(ANIMAL, state.openingPullingTeam)
+        assertEquals(FieldEnd.NEAR, state.openingPullingFromEnd)
+        assertEquals(ANIMAL, state.pullingTeam)
+        assertEquals(FieldEnd.NEAR, state.pullingFromEnd)
+        assertEquals(VC, state.nearAttackingTeam)
+        assertEquals("Pull sequence started.", state.lastEvent)
+        assertEquals(CountdownKind.BETWEEN_POINTS, state.countdown?.kind)
+        assertEquals("Pull in", state.countdown?.label)
+        assertEquals(80, state.countdown?.durationSeconds)
+        assertEquals(90_000L, state.countdown?.targetEpochMillis)
 
         // Edit setup after play has begun and verify opening pull metadata changes without rewriting current field state.
+        state = beginLivePoint(state)
+        state = assessYellowCard(state, VC, "17").state
+        state = recordGoal(state, VC, LocalTime.of(8, 50), 100_000L)
+        val fieldStateAfterGoal = state
 
-        // Verify setup edits preserve score, cards, pull infractions, pending caps, and current phase.
+        val editedAfterPlay = editedBeforePlay.copy(
+            startTime = LocalTime.of(9, 0),
+            rules = editedBeforePlay.rules.copy(gameTo = 17, hasFloaterTimeout = false),
+            teamOne = TeamSetup("Viscous", TeamColorChoice.BLACK),
+            teamTwo = TeamSetup("Animal", TeamColorChoice.BLUE),
+            priorCards = emptyList(),
+            pullingTeam = VC,
+            pullingFromEnd = FieldEnd.FAR,
+        )
+        state = applySetupToLiveGame(state, editedAfterPlay, 200_000L)
+        assertEquals(LocalTime.of(9, 0), state.startTime)
+        assertEquals(17, state.rules.gameTo)
+        assertFalse(state.rules.hasFloaterTimeout)
+        assertEquals("Viscous", state.teamOne.name)
+        assertEquals(TeamColorChoice.BLACK, state.teamOne.color)
+        assertEquals("Animal", state.teamTwo.name)
+        assertEquals(TeamColorChoice.BLUE, state.teamTwo.color)
+        assertEquals(fieldStateAfterGoal.teamOne.score, state.teamOne.score)
+        assertEquals(fieldStateAfterGoal.teamTwo.score, state.teamTwo.score)
+        assertEquals(playerCards(fieldStateAfterGoal, VC), playerCards(state, VC))
+        assertEquals(playerCards(fieldStateAfterGoal, ANIMAL), playerCards(state, ANIMAL))
+        assertEquals(VC, state.openingPullingTeam)
+        assertEquals(FieldEnd.FAR, state.openingPullingFromEnd)
+        assertEquals(fieldStateAfterGoal.pullingTeam, state.pullingTeam)
+        assertEquals(fieldStateAfterGoal.pullingFromEnd, state.pullingFromEnd)
+        assertEquals(fieldStateAfterGoal.nearAttackingTeam, state.nearAttackingTeam)
+        assertEquals(fieldStateAfterGoal.phase, state.phase)
+        assertEquals(fieldStateAfterGoal.countdown, state.countdown)
+        assertEquals(fieldStateAfterGoal.pendingCapOffer, state.pendingCapOffer)
+        assertEquals(emptyList<PlayerCardRecord>(), state.priorCards)
 
-        // Verify prior-card holders from setup are preserved when updating an existing game.
+        // Verify setup edits preserve pending cap prompts and do not restart an in-progress countdown.
+        state = fieldStateAfterGoal.copy(pendingCapOffer = CapType.SOFT)
+        val pendingCountdown = state.countdown
+        state = applySetupToLiveGame(state, editedAfterPlay.copy(rules = editedAfterPlay.rules.copy(gameTo = 19)), 300_000L)
+        assertEquals(CapType.SOFT, state.pendingCapOffer)
+        assertEquals(pendingCountdown, state.countdown)
+        assertEquals(19, state.rules.gameTo)
 
-        // Verify updating rules midgame does not implicitly restart countdowns except in the documented pre-point resync path.
+        // Blank team names are normalized to default display names when setup is applied.
+        state = applySetupToLiveGame(
+            state,
+            editedAfterPlay.copy(teamOne = TeamSetup(""), teamTwo = TeamSetup("")),
+            400_000L,
+        )
+        assertEquals("Team 1", state.teamOne.name)
+        assertEquals("Team 2", state.teamTwo.name)
     }
 
     // Test manual correction and less-common actions that are surfaced through the Other menu.
