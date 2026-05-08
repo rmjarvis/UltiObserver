@@ -310,7 +310,10 @@ class TestGameModel {
         assertNull(state.pendingCapOffer)
         assertEquals("Game over.", state.lastEvent)
         assertNotNull(state.undoEntry)
-        assertEquals("Undo Goal by Animal", state.undoEntry?.label)
+        assertEquals("Undo End Game", state.undoEntry?.label)
+        assertEquals(LivePhase.BETWEEN_POINTS, state.undoEntry?.previous?.phase)
+        assertEquals(4, state.undoEntry?.previous?.teamOne?.score)
+        assertEquals(5, state.undoEntry?.previous?.teamTwo?.score)
     }
 
     // Test timeout rules and timeout state transitions across both halves.
@@ -1747,27 +1750,166 @@ class TestGameModel {
         assertEquals("Undo End Game", state.undoEntry?.label)
         assertEquals(beforeManualEnd, state.undoEntry?.previous)
 
+        // Undo game over restores the saved live state from before End Game was applied.
+        state = undoGameOver(state)
+        assertEquals(beforeManualEnd, state)
     }
 
     // Test the undo mechanism through user-visible actions rather than private snapshots.
     // Include ordinary undo, corrections, cap application, halftime, and game-over cases.
     @Test
     fun undoMechanism() {
+        val VC = TeamId.TEAM_ONE
+        val ANIMAL = TeamId.TEAM_TWO
+
         // Start a point and verify undo returns to the previous between-points state.
+        var state = standardLiveGameState()
+        val beforeStartPoint = state
+        state = beginLivePoint(state)
+        assertEquals("Undo Start Point", state.undoEntry?.label)
+        assertEquals(beforeStartPoint, undoLastAction(state))
 
         // Record a goal from a live point and verify undo restores the in-point state.
+        val beforeLiveGoal = state
+        state = recordGoal(state, VC, LocalTime.of(11, 5), 100_000L)
+        assertEquals(1, state.teamOne.score)
+        assertEquals("Undo Goal by Viscous Coupling", state.undoEntry?.label)
+        assertEquals(beforeLiveGoal, undoLastAction(state))
 
-        // Record a goal from between points and verify implicit start-point behavior makes undo return to live-point state.
+        // Record a goal from between points and verify undo returns to the implicit live-point state.
+        state = standardLiveGameState()
+        val betweenPointsBeforeGoal = state
+        state = recordGoalFromCurrentState(state, VC, LocalTime.of(11, 5), 200_000L)
+        val implicitLiveState = undoLastAction(state)
+        assertEquals(LivePhase.LIVE_POINT, implicitLiveState.phase)
+        assertNull(implicitLiveState.countdown)
+        assertEquals(0, implicitLiveState.teamOne.score)
+        assertEquals(0, implicitLiveState.teamTwo.score)
+        assertEquals(betweenPointsBeforeGoal, undoLastAction(implicitLiveState))
 
         // Undo timeout, card, technical foul, offsides, and false-start actions.
+        state = beginLivePoint(standardLiveGameState())
+        val beforeTimeout = state
+        state = assessTimeout(state, ANIMAL, 300_000L).state
+        assertEquals(beforeTimeout, undoLastAction(state))
+
+        state = standardLiveGameState()
+        val beforeCard = state
+        state = assessYellowCard(state, VC, "17").state
+        assertEquals(beforeCard, undoLastAction(state))
+
+        state = standardLiveGameState()
+        val beforeTf = state
+        state = assessTechnicalFoul(state, ANIMAL).state
+        assertEquals(beforeTf, undoLastAction(state))
+
+        state = standardLiveGameState()
+        val beforeOffsides = state
+        state = recordOffsides(state)
+        assertEquals(beforeOffsides, undoLastAction(state))
+
+        state = standardLiveGameState()
+        val beforeFalseStart = state
+        state = recordFalseStart(state)
+        assertEquals(beforeFalseStart, undoLastAction(state))
 
         // Undo manual score, timeout, card/TF, and pull-infraction corrections.
+        state = standardLiveGameState()
+        val beforeScoreCorrection = state
+        state = adjustScore(state, 2, 3)
+        assertEquals(beforeScoreCorrection, undoLastAction(state))
+
+        val beforeTimeoutCorrection = standardLiveGameState()
+        state = adjustTimeouts(beforeTimeoutCorrection, 2, 1)
+        assertEquals(beforeTimeoutCorrection, undoLastAction(state))
+
+        val beforeCardCorrection = standardLiveGameState()
+        state = adjustCardsAndTf(
+            state = beforeCardCorrection,
+            teamOneBlues = 1,
+            teamOneTechnicalFouls = 2,
+            teamTwoBlues = 3,
+            teamTwoTechnicalFouls = 4,
+            teamOnePlayerCards = listOf(InGamePlayerCardRecord("17", yellows = 1)),
+            teamTwoPlayerCards = listOf(InGamePlayerCardRecord("23", directReds = 1)),
+        )
+        assertEquals(beforeCardCorrection, undoLastAction(state))
+
+        val beforePullCorrection = standardLiveGameState()
+        state = adjustPullInfractions(beforePullCorrection, 1, 2, 3, 4)
+        assertEquals(beforePullCorrection, undoLastAction(state))
 
         // Undo apply half cap, soft cap, hard cap, force cap now, manual halftime, and manual end game.
+        state = standardLiveGameState(
+            startTime = LocalTime.of(10, 0),
+            rules = GameRules(gameTo = 15, halfCapMinutes = 10, useSoftCap = false, useHardCap = false),
+        )
+        state = recordGoalFromCurrentState(state, VC, LocalTime.of(10, 11), 400_000L)
+        val beforeApplyHalfCap = state
+        state = applyPendingCap(state, LocalTime.of(10, 11))
+        assertEquals(beforeApplyHalfCap, undoLastAction(state))
 
-        // Verify only the latest undo entry is exposed and old undo chains are not accidentally reused.
+        state = standardLiveGameState(
+            startTime = LocalTime.of(10, 0),
+            rules = GameRules(gameTo = 15, useHalfCap = false, softCapMinutes = 10, useHardCap = false),
+        )
+        state = recordGoalFromCurrentState(state, VC, LocalTime.of(10, 11), 500_000L)
+        val beforeApplySoftCap = state
+        state = applyPendingCap(state, LocalTime.of(10, 11))
+        assertEquals(beforeApplySoftCap, undoLastAction(state))
 
-        // Verify undo from game-over summary takes the expected path for score-ended and manually-ended games.
+        state = standardLiveGameState(
+            startTime = LocalTime.of(10, 0),
+            rules = GameRules(gameTo = 15, useHalfCap = false, useSoftCap = false, hardCapMinutes = 10),
+        )
+        state = recordGoalFromCurrentState(state, VC, LocalTime.of(10, 11), 600_000L)
+        val beforeApplyHardCap = state
+        state = applyPendingCap(state, LocalTime.of(10, 11))
+        assertEquals(beforeApplyHardCap, undoLastAction(state))
+
+        val beforeForceCap = standardLiveGameState()
+        state = makeCapNow(beforeForceCap, CapType.SOFT, LocalTime.of(11, 30))
+        assertEquals(beforeForceCap, undoLastAction(state))
+
+        val beforeManualHalftime = standardLiveGameState()
+        state = startHalftimeNow(beforeManualHalftime, LocalTime.of(11, 10), 700_000L)
+        assertEquals(beforeManualHalftime, undoLastAction(state))
+
+        val beforeManualEnd = standardLiveGameState()
+        state = endGameNow(beforeManualEnd, LocalTime.of(11, 20))
+        assertEquals(beforeManualEnd, undoLastAction(state))
+
+        // Verify the latest undo entry is exposed when actions are chained.
+        state = beginLivePoint(standardLiveGameState())
+        val afterStartPoint = state
+        state = assessTimeout(state, VC, 800_000L).state
+        assertEquals("Undo Timeout by Viscous Coupling", state.undoEntry?.label)
+        assertEquals(afterStartPoint, undoLastAction(state))
+
+        // Verify undo from game-over summary restores a score-ended game without undoing the score.
+        state = standardLiveGameState(
+            rules = GameRules(gameTo = 1, useHalfCap = false, useSoftCap = false, useHardCap = false)
+        )
+        val gameOverByScore = recordGoalFromCurrentState(state, VC, LocalTime.of(11, 25), 900_000L)
+        assertEquals(LivePhase.GAME_OVER, gameOverByScore.phase)
+        val scoreEndedUndo = undoGameOver(gameOverByScore)
+        assertEquals(LivePhase.BETWEEN_POINTS, scoreEndedUndo.phase)
+        assertEquals(1, scoreEndedUndo.teamOne.score)
+        assertEquals(0, scoreEndedUndo.teamTwo.score)
+        assertNull(scoreEndedUndo.endTime)
+        assertEquals("Viscous Coupling scored.", scoreEndedUndo.lastEvent)
+        assertEquals(LivePhase.LIVE_POINT, undoLastAction(scoreEndedUndo).phase)
+
+        // If the observer applies End Game again, the summary-relevant state matches the automatic game-over.
+        val reappliedGameOver = endGameNow(scoreEndedUndo, LocalTime.of(11, 26))
+        assertEquals(gameOverByScore.phase, reappliedGameOver.phase)
+        assertEquals(gameOverByScore.teamOne.score, reappliedGameOver.teamOne.score)
+        assertEquals(gameOverByScore.teamTwo.score, reappliedGameOver.teamTwo.score)
+        assertEquals(LocalTime.of(11, 26), reappliedGameOver.endTime)
+        assertEquals(gameOverByScore.countdown, reappliedGameOver.countdown)
+        assertEquals(gameOverByScore.pendingCapOffer, reappliedGameOver.pendingCapOffer)
+        assertEquals(gameOverByScore.lastEvent, reappliedGameOver.lastEvent)
+        assertEquals(scoreEndedUndo, reappliedGameOver.undoEntry?.previous)
     }
 
     // Test game-over and summary-relevant state without depending on UI rendering.

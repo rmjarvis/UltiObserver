@@ -717,7 +717,7 @@ private fun LiveGameScreen(
             if (state.phase == LivePhase.GAME_OVER) {
                 GameOverSummary(state = state, onUndo = {
                     if (state.undoEntry != null) {
-                        onStateChange(undoLastAction(state))
+                        onStateChange(undoGameOver(state))
                     }
                 }, showUndo = !readOnlySummary && state.undoEntry != null)
             } else {
@@ -2212,7 +2212,7 @@ private fun OtherSheet(
                 } else {
                     OtherMenuButton(
                         label = "Undo Game Over",
-                        onClick = { onAction(undoGameOver(state, nowMillis)) },
+                        onClick = { onAction(undoGameOver(state)) },
                     )
                 }
                 if (!state.halftimeTaken && !state.halfCapApplied) {

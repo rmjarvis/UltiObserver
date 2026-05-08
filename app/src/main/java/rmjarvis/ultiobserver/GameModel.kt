@@ -265,21 +265,30 @@ fun recordGoal(
     val gameOver = max(updatedTeamOne.score, updatedTeamTwo.score) >= gameWinningScore
 
     if (gameOver) {
-        return state.copy(
+        val afterGoalState = state.copy(
             teamOne = updatedTeamOne,
             teamTwo = updatedTeamTwo,
-            endTime = now,
             pullingTeam = nextPullingTeam,
             nearAttackingTeam = nextNearAttackingTeam,
             pullingFromEnd = nextPullingFromEnd,
-            phase = LivePhase.GAME_OVER,
-            countdown = null,
+            phase = LivePhase.BETWEEN_POINTS,
+            countdown = buildBetweenPointsCountdown(
+                pullingFromEnd = nextPullingFromEnd,
+                sequenceStartMillis = nowMillis,
+            ),
             pullSequenceOffsidesRecorded = false,
             pullSequenceFalseStartRecorded = false,
-            winningScore = gameWinningScore,
+            winningScore = state.winningScore,
             pendingCapOffer = null,
-            lastEvent = "Game over.",
+            lastEvent = "${teamName(state, scoringTeam)} scored.",
         ).withUndo(state, "Undo Goal by ${teamName(state, scoringTeam)}")
+        return afterGoalState.copy(
+            endTime = now,
+            phase = LivePhase.GAME_OVER,
+            countdown = null,
+            winningScore = gameWinningScore,
+            lastEvent = "Game over.",
+        ).withUndo(afterGoalState, "Undo End Game")
     }
 
     // Caps are checked before halftime so hard cap takes precedence over soft, and soft over half.
@@ -366,22 +375,11 @@ fun recordGoal(
 }
 
 // Undo Game Over
-fun undoGameOver(
-    state: LiveGameState,
-    nowMillis: Long,
-): LiveGameState {
+fun undoGameOver(state: LiveGameState): LiveGameState {
     if (state.phase != LivePhase.GAME_OVER) {
         return state
     }
-    return startPullSequence(
-        state.copy(
-            phase = LivePhase.BETWEEN_POINTS,
-            countdown = null,
-            endTime = null,
-            lastEvent = "Game over undone.",
-        ),
-        nowMillis,
-    )
+    return state.undoEntry?.previous ?: state
 }
 
 // Manually start half time
