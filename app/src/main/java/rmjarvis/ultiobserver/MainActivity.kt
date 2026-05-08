@@ -671,6 +671,16 @@ private fun LiveGameScreen(
         state.phase == LivePhase.BETWEEN_POINTS || halftimeTransitionReady(state, nowMillis)
     }
 
+    // Let countdown expiration move the model forward without requiring an observer tap.
+    LaunchedEffect(state, nowMillis, readOnlySummary) {
+        if (!readOnlySummary) {
+            val advancedState = advanceGameClock(state, nowMillis)
+            if (advancedState != state) {
+                onStateChange(advancedState)
+            }
+        }
+    }
+
     // Only show the halftime/game-over alerts when those transitions first happen.
     LaunchedEffect(state.phase, state.lastEvent) {
         if (state.phase == LivePhase.HALFTIME && state.lastEvent == "Halftime.") {

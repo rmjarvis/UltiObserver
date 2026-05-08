@@ -110,6 +110,7 @@ data class CountdownState(
 
 enum class CountdownKind {
     BETWEEN_POINTS,
+    TIME_OUT,
     HALFTIME,
 }
 
@@ -493,6 +494,33 @@ fun continueLivePoint(state: LiveGameState): LiveGameState {
     )
 }
 
+// Advance automatic clock-driven transitions that do not require an observer button press.
+fun advanceGameClock(state: LiveGameState, nowMillis: Long): LiveGameState {
+    val countdown = state.countdown ?: return state
+    if (nowMillis < countdown.targetEpochMillis) {
+        return state
+    }
+    return when {
+        state.phase == LivePhase.BETWEEN_POINTS && countdown.kind == CountdownKind.BETWEEN_POINTS -> {
+            automaticLivePointState(state)
+        }
+        state.phase == LivePhase.LIVE_POINT && countdown.kind == CountdownKind.TIME_OUT -> {
+            automaticContinueLivePointState(state)
+        }
+        state.phase == LivePhase.HALFTIME && countdown.kind == CountdownKind.HALFTIME -> {
+            val betweenPointsState = state.copy(
+                phase = LivePhase.BETWEEN_POINTS,
+                countdown = buildBetweenPointsCountdown(
+                    pullingFromEnd = state.pullingFromEnd,
+                    sequenceStartMillis = countdown.targetEpochMillis,
+                ),
+            )
+            advanceGameClock(betweenPointsState, nowMillis)
+        }
+        else -> state
+    }
+}
+
 // Adjust countdown timer (use negative number to subtract time)
 fun addTimeToCountdown(state: LiveGameState, seconds: Int): LiveGameState {
     val countdown = state.countdown ?: return state
@@ -797,10 +825,12 @@ fun assessTimeout(
     team: TeamId,
     nowMillis: Long,
 ): TimeoutAssessmentResult {
-    if (teamState(state, team).timeoutsRemaining <= 0) {
+    val timeoutState = timeoutEligibleState(state, nowMillis)
+        ?: return TimeoutAssessmentResult(state, "Timeouts are not available now.")
+    if (teamState(timeoutState, team).timeoutsRemaining <= 0) {
         return TimeoutAssessmentResult(state, "${teamName(state, team)} is out of timeouts.")
     }
-    return TimeoutAssessmentResult(chargeTimeout(state, team, nowMillis))
+    return TimeoutAssessmentResult(chargeTimeout(timeoutState, team, nowMillis))
 }
 
 fun chargeTimeout(
@@ -808,29 +838,30 @@ fun chargeTimeout(
     team: TeamId,
     nowMillis: Long,
 ): LiveGameState {
-    if (teamState(state, team).timeoutsRemaining <= 0) {
+    val timeoutState = timeoutEligibleState(state, nowMillis) ?: return state
+    if (teamState(timeoutState, team).timeoutsRemaining <= 0) {
         return state
     }
 
-    val updatedState = state.copy(
+    val updatedState = timeoutState.copy(
         teamOne = if (team == TeamId.TEAM_ONE) {
-            state.teamOne.copy(timeoutsRemaining = max(0, state.teamOne.timeoutsRemaining - 1))
+            timeoutState.teamOne.copy(timeoutsRemaining = max(0, timeoutState.teamOne.timeoutsRemaining - 1))
         } else {
-            state.teamOne
+            timeoutState.teamOne
         },
         teamTwo = if (team == TeamId.TEAM_TWO) {
-            state.teamTwo.copy(timeoutsRemaining = max(0, state.teamTwo.timeoutsRemaining - 1))
+            timeoutState.teamTwo.copy(timeoutsRemaining = max(0, timeoutState.teamTwo.timeoutsRemaining - 1))
         } else {
-            state.teamTwo
+            timeoutState.teamTwo
         },
-        lastEvent = "Timeout charged to ${teamName(state, team)}."
+        lastEvent = "Timeout charged to ${teamName(timeoutState, team)}."
     )
 
-    return when (state.phase) {
+    return when (timeoutState.phase) {
         LivePhase.BETWEEN_POINTS -> applyBetweenPointsTimeout(updatedState, nowMillis)
-            .withUndo(state, "Undo Timeout by ${teamName(state, team)}")
+            .withUndo(state, "Undo Timeout by ${teamName(timeoutState, team)}")
         LivePhase.LIVE_POINT -> applyLivePointTimeout(updatedState, nowMillis)
-            .withUndo(state, "Undo Timeout by ${teamName(state, team)}")
+            .withUndo(state, "Undo Timeout by ${teamName(timeoutState, team)}")
         else -> updatedState
     }
 }
@@ -1217,29 +1248,28 @@ private fun remappedTimeoutRemaining(existing: LiveGameState, teamId: TeamId, ne
     return (newAllowance - usedThisHalf).coerceAtLeast(0)
 }
 
+// Return the state in which a timeout may be charged, if the rules allow one now.
+private fun timeoutEligibleState(state: LiveGameState, nowMillis: Long): LiveGameState? {
+    val advancedState = advanceGameClock(state, nowMillis)
+    return when (advancedState.phase) {
+        LivePhase.BETWEEN_POINTS, LivePhase.LIVE_POINT -> advancedState
+        LivePhase.HALFTIME -> null
+        else -> null
+    }
+}
+
 // Apply a timeout between points.  (Basically just adds 70 sec to the timer.)
 private fun applyBetweenPointsTimeout(
     state: LiveGameState,
     nowMillis: Long,
 ): LiveGameState {
-    val countdown = state.countdown
-
-    val updatedCountdown = if (countdown != null && countdown.targetEpochMillis > nowMillis) {
-        countdown.copy(
+    val countdown = state.countdown!!
+    return state.copy(
+        countdown = countdown.copy(
             durationSeconds = countdown.durationSeconds + 70,
             targetEpochMillis = countdown.targetEpochMillis + 70_000L,
         )
-    } else {
-        // If the countdown expired already, make a new countdown with 70 or 90 seconds.
-        // This shouldn't happen if the observer is keeping up with things, but if it
-        // does happen, then this seems like the most sensible thing to do.
-        buildBetweenPointsTimeoutCountdown(
-            pullingFromEnd = state.pullingFromEnd,
-            sequenceStartMillis = nowMillis,
-        )
-    }
-
-    return state.copy(countdown = updatedCountdown)
+    )
 }
 
 // Apply a timeout by the thrower during a live point.
@@ -1249,28 +1279,11 @@ private fun applyLivePointTimeout(
 ): LiveGameState {
     return state.copy(
         countdown = CountdownState(
-            kind = CountdownKind.BETWEEN_POINTS,
+            kind = CountdownKind.TIME_OUT,
             label = "Offense set in",
             durationSeconds = 70,
             targetEpochMillis = nowMillis + 70_000L,
         ),
-    )
-}
-
-// Apply a between-points timeout after the normal countdown has already expired.
-// This should not normally happen in a well-tracked game, but do something sensible if it does.
-private fun buildBetweenPointsTimeoutCountdown(
-    pullingFromEnd: FieldEnd,
-    sequenceStartMillis: Long,
-): CountdownState {
-    val pullFromNearEnd = pullingFromEnd == FieldEnd.NEAR
-    val durationSeconds = if (pullFromNearEnd) 90 else 70
-    val label = if (pullFromNearEnd) "Pull in" else "Signal in"
-    return CountdownState(
-        kind = CountdownKind.BETWEEN_POINTS,
-        label = label,
-        durationSeconds = durationSeconds,
-        targetEpochMillis = sequenceStartMillis + durationSeconds * 1000L,
     )
 }
 
@@ -1280,13 +1293,12 @@ private fun updatedCountdownForPullingFromEnd(
     pullingFromEnd: FieldEnd,
 ): CountdownState? {
     countdown ?: return null
-    if (countdown.label == "Offense set in" || countdown.kind == CountdownKind.HALFTIME) {
+    if (countdown.kind == CountdownKind.TIME_OUT || countdown.kind == CountdownKind.HALFTIME) {
         return countdown
     }
     val sequenceStartMillis = countdown.targetEpochMillis - countdown.durationSeconds * 1000L
     return when (countdown.durationSeconds) {
         60, 80 -> buildBetweenPointsCountdown(pullingFromEnd, sequenceStartMillis)
-        70, 90 -> buildBetweenPointsTimeoutCountdown(pullingFromEnd, sequenceStartMillis)
         else -> countdown
     }
 }
@@ -1456,6 +1468,26 @@ private fun pluralize(count: Int, singular: String): String {
 // Get the team name for a given id
 private fun teamName(state: LiveGameState, team: TeamId): String {
     return if (team == TeamId.TEAM_ONE) state.teamOne.name else state.teamTwo.name
+}
+
+// Move to live-point state while preserving the previous user-action undo entry.
+private fun automaticLivePointState(state: LiveGameState): LiveGameState {
+    return state.copy(
+        phase = LivePhase.LIVE_POINT,
+        countdown = null,
+        pullSequenceOffsidesRecorded = false,
+        pullSequenceFalseStartRecorded = false,
+        lastEvent = "Point is live.",
+    )
+}
+
+// Clear an in-point timeout countdown while preserving the timeout undo entry.
+private fun automaticContinueLivePointState(state: LiveGameState): LiveGameState {
+    return state.copy(
+        phase = LivePhase.LIVE_POINT,
+        countdown = null,
+        lastEvent = "Point continued.",
+    )
 }
 
 // Get the live state for one team.
