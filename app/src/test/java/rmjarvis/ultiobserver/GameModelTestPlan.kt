@@ -765,27 +765,225 @@ class GameModelTestPlan {
     // Emphasize team card points, per-player records, and misconduct-threshold messages.
     @Test
     fun cardsAndTechnicalFouls() {
-        // Record a first yellow for a numbered player and verify team yellow count and player-card record.
+        val VC = TeamId.TEAM_ONE
+        val ANIMAL = TeamId.TEAM_TWO
 
-        // Record a second yellow for the same player and verify it acts as a red while adding one more team card point.
+        fun newState(): LiveGameState {
+            return createLiveGameState(
+                GameSetupState(
+                    startTime = LocalTime.of(11, 0),
+                    rules = GameRules(
+                        gameTo = 5,
+                        useHalfCap = false,
+                        useSoftCap = false,
+                        useHardCap = false,
+                    ),
+                    teamOne = TeamSetup("Viscous Coupling", TeamColorChoice.WHITE),
+                    teamTwo = TeamSetup("Animal", TeamColorChoice.RED),
+                    pullingTeam = VC,
+                    pullingFromEnd = FieldEnd.FAR,
+                )
+            )
+        }
 
-        // Record a direct red for a player with no prior yellow and verify direct-red count and two team card points.
+        fun cardPoints(team: TeamLiveState): Int {
+            return team.yellowCards + team.blueCards + (2 * team.redCards)
+        }
 
-        // Record a red for a player who already has yellow through both direct-red and second-yellow pathways.
+        fun playerRecord(
+            state: LiveGameState,
+            team: TeamId,
+            jerseyNumber: String,
+        ): InGamePlayerCardRecord {
+            return state.playerCardsThisGame.single { it.team == team && it.jerseyNumber == jerseyNumber }
+        }
 
-        // Record cards for UNKNOWN_PLAYER_NUMBER and cover same-player vs different-player yellow behavior at the model boundary.
+        // Record a first yellow for a numbered Viscous Coupling player and verify team and player state.
+        var state = newState()
+        var cardResult = assessYellowCard(state, VC, "17")
+        state = cardResult.state
+        assertFalse(cardResult.needsLivePointMisconductChoice)
+        assertEquals("Viscous Coupling has 1 card.", cardResult.message)
+        assertEquals(1, state.teamOne.yellowCards)
+        assertEquals(0, state.teamOne.redCards)
+        assertEquals(1, cardPoints(state.teamOne))
+        assertEquals(InGamePlayerCardRecord(VC, "17", yellows = 1), playerRecord(state, VC, "17"))
+        assertEquals("Undo Yellow Card on Viscous Coupling #17", state.undoEntry?.label)
 
-        // Record blue cards and verify they count as one team card point without player-card records.
+        // A second yellow to the same player acts as a red card, but adds only one more team card point.
+        cardResult = assessYellowCard(state, VC, "17")
+        state = cardResult.state
+        assertFalse(cardResult.needsLivePointMisconductChoice)
+        assertEquals("Second yellow acts as a red card. Player 17 is ejected.\nViscous Coupling has 2 cards.", cardResult.message)
+        assertEquals(2, state.teamOne.yellowCards)
+        assertEquals(0, state.teamOne.redCards)
+        assertEquals(2, cardPoints(state.teamOne))
+        assertEquals(InGamePlayerCardRecord(VC, "17", yellows = 2), playerRecord(state, VC, "17"))
+        assertEquals("Undo Second Yellow on Viscous Coupling #17", state.undoEntry?.label)
 
-        // Record technical fouls and verify they use the separate technical-foul count.
+        // A third team-card point between points gives the pulling-team misconduct field-position cue.
+        cardResult = assessBlueCard(state, VC)
+        state = cardResult.state
+        assertFalse(cardResult.needsLivePointMisconductChoice)
+        assertEquals(1, state.teamOne.blueCards)
+        assertEquals(3, cardPoints(state.teamOne))
+        assertEquals(1, state.playerCardsThisGame.size)
+        assertEquals(
+            "Viscous Coupling has 3 cards.\n\nPenalty against pulling team. No pull. Receiving team starts at attacking brick.",
+            cardResult.message,
+        )
 
-        // Verify first and second card/technical-foul warnings do not create misconduct consequences.
+        // A direct red for a player with no prior yellow counts as two team card points and records a direct red.
+        state = newState()
+        cardResult = assessRedCard(state, ANIMAL, "23", RedCardMode.DIRECT_RED)
+        state = cardResult.state
+        assertFalse(cardResult.needsLivePointMisconductChoice)
+        assertEquals("Animal has 2 cards.", cardResult.message)
+        assertEquals(0, state.teamTwo.yellowCards)
+        assertEquals(1, state.teamTwo.redCards)
+        assertEquals(2, cardPoints(state.teamTwo))
+        assertEquals(InGamePlayerCardRecord(ANIMAL, "23", directReds = 1), playerRecord(state, ANIMAL, "23"))
 
-        // Verify third-and-later cards and technical fouls create between-points misconduct messages.
+        // A direct red for a player who already has a yellow is distinct from recording the red as a second yellow.
+        state = newState()
+        state = assessYellowCard(state, ANIMAL, "8").state
+        cardResult = assessRedCard(state, ANIMAL, "8", RedCardMode.DIRECT_RED)
+        state = cardResult.state
+        assertFalse(cardResult.needsLivePointMisconductChoice)
+        assertEquals(1, state.teamTwo.yellowCards)
+        assertEquals(1, state.teamTwo.redCards)
+        assertEquals(3, cardPoints(state.teamTwo))
+        assertEquals(InGamePlayerCardRecord(ANIMAL, "8", yellows = 1, directReds = 1), playerRecord(state, ANIMAL, "8"))
+        assertEquals(
+            "Animal has 3 cards.\n\nPenalty against receiving team. No pull. Disc at negative brick in defending end zone.",
+            cardResult.message,
+        )
 
-        // Verify third-and-later live-point misconduct reports that an offense/defense choice is needed.
+        state = newState()
+        state = assessYellowCard(state, ANIMAL, "8").state
+        cardResult = assessRedCard(state, ANIMAL, "8", RedCardMode.SECOND_YELLOW)
+        state = cardResult.state
+        assertFalse(cardResult.needsLivePointMisconductChoice)
+        assertEquals(2, state.teamTwo.yellowCards)
+        assertEquals(0, state.teamTwo.redCards)
+        assertEquals(2, cardPoints(state.teamTwo))
+        assertEquals(InGamePlayerCardRecord(ANIMAL, "8", yellows = 2), playerRecord(state, ANIMAL, "8"))
+        assertEquals("Second yellow acts as a red card. Player 8 is ejected.\nAnimal has 2 cards.", cardResult.message)
 
-        // Verify live-point offense and defense misconduct resolution messages.
+        // The N/A pathways distinguish same-unknown-player second yellow from a standalone yellow.
+        state = newState()
+        state = assessYellowCard(state, VC, UNKNOWN_PLAYER_NUMBER).state
+        assertTrue(playerHasYellowThisGame(state, VC, UNKNOWN_PLAYER_NUMBER))
+        cardResult = assessRedCard(state, VC, UNKNOWN_PLAYER_NUMBER, RedCardMode.SECOND_YELLOW)
+        state = cardResult.state
+        assertEquals(2, state.teamOne.yellowCards)
+        assertEquals(0, state.teamOne.redCards)
+        assertEquals(InGamePlayerCardRecord(VC, UNKNOWN_PLAYER_NUMBER, yellows = 2), playerRecord(state, VC, UNKNOWN_PLAYER_NUMBER))
+        assertEquals("Second yellow acts as a red card. The player is ejected.\nViscous Coupling has 2 cards.", cardResult.message)
+
+        state = newState()
+        state = assessYellowCard(state, VC, UNKNOWN_PLAYER_NUMBER).state
+        cardResult = assessStandaloneYellowCard(state, VC, UNKNOWN_PLAYER_NUMBER)
+        state = cardResult.state
+        assertEquals(2, state.teamOne.yellowCards)
+        assertEquals(0, state.teamOne.redCards)
+        assertEquals(2, cardPoints(state.teamOne))
+        assertFalse(cardResult.message.startsWith("Second yellow acts as a red card."))
+
+        // Blue cards count as one team card point each and do not create per-player card records.
+        state = newState()
+        cardResult = assessBlueCard(state, ANIMAL)
+        state = cardResult.state
+        assertFalse(cardResult.needsLivePointMisconductChoice)
+        assertEquals("Animal has 1 card.", cardResult.message)
+        assertEquals(1, state.teamTwo.blueCards)
+        assertEquals(1, cardPoints(state.teamTwo))
+        assertTrue(state.playerCardsThisGame.isEmpty())
+
+        cardResult = assessBlueCard(state, ANIMAL)
+        state = cardResult.state
+        assertFalse(cardResult.needsLivePointMisconductChoice)
+        assertEquals("Animal has 2 cards.", cardResult.message)
+        assertEquals(2, state.teamTwo.blueCards)
+        assertEquals(2, cardPoints(state.teamTwo))
+
+        cardResult = assessBlueCard(state, ANIMAL)
+        state = cardResult.state
+        assertFalse(cardResult.needsLivePointMisconductChoice)
+        assertEquals(3, state.teamTwo.blueCards)
+        assertEquals(3, cardPoints(state.teamTwo))
+        assertEquals(
+            "Animal has 3 cards.\n\nPenalty against receiving team. No pull. Disc at negative brick in defending end zone.",
+            cardResult.message,
+        )
+
+        cardResult = assessBlueCard(state, ANIMAL)
+        state = cardResult.state
+        assertFalse(cardResult.needsLivePointMisconductChoice)
+        assertEquals(4, state.teamTwo.blueCards)
+        assertEquals(4, cardPoints(state.teamTwo))
+        assertEquals(
+            "Animal has 4 cards.\n\nPenalty against receiving team. No pull. Disc at negative brick in defending end zone.",
+            cardResult.message,
+        )
+
+        // Technical fouls use a separate count, with the same third-and-later misconduct handling.
+        state = newState()
+        var technicalFoulResult = assessTechnicalFoul(state, ANIMAL)
+        state = technicalFoulResult.state
+        assertFalse(technicalFoulResult.needsLivePointMisconductChoice)
+        assertEquals("Animal has 1 technical foul.", technicalFoulResult.message)
+        assertEquals(1, state.teamTwo.technicalFouls)
+        assertEquals(0, cardPoints(state.teamTwo))
+
+        technicalFoulResult = assessTechnicalFoul(state, ANIMAL)
+        state = technicalFoulResult.state
+        assertFalse(technicalFoulResult.needsLivePointMisconductChoice)
+        assertEquals("Animal has 2 technical fouls.", technicalFoulResult.message)
+        assertEquals(2, state.teamTwo.technicalFouls)
+
+        technicalFoulResult = assessTechnicalFoul(state, ANIMAL)
+        state = technicalFoulResult.state
+        assertFalse(technicalFoulResult.needsLivePointMisconductChoice)
+        assertEquals(3, state.teamTwo.technicalFouls)
+        assertEquals(
+            "Animal has 3 technical fouls.\n\nPenalty against receiving team. No pull. Disc at negative brick in defending end zone.",
+            technicalFoulResult.message,
+        )
+
+        // After Animal scores, they are the pulling team, so the next technical foul uses the pulling-team cue.
+        state = recordGoalFromCurrentState(state, ANIMAL, LocalTime.of(11, 5), 1_500_000L)
+        assertEquals(ANIMAL, state.pullingTeam)
+
+        technicalFoulResult = assessTechnicalFoul(state, ANIMAL)
+        state = technicalFoulResult.state
+        assertFalse(technicalFoulResult.needsLivePointMisconductChoice)
+        assertEquals(4, state.teamTwo.technicalFouls)
+        assertEquals(
+            "Animal has 4 technical fouls.\n\nPenalty against pulling team. No pull. Receiving team starts at attacking brick.",
+            technicalFoulResult.message,
+        )
+
+        // During a live point, third-and-later misconduct asks for offense/defense context instead of guessing.
+        state = beginLivePoint(newState())
+        state = assessBlueCard(state, VC).state
+        state = assessBlueCard(state, VC).state
+        cardResult = assessBlueCard(state, VC)
+        state = cardResult.state
+        assertEquals(LivePhase.LIVE_POINT, state.phase)
+        assertTrue(cardResult.needsLivePointMisconductChoice)
+        assertEquals("Viscous Coupling has 3 cards.", cardResult.message)
+
+        val prompt = livePointMisconductPrompt(cardResult.message)
+        assertTrue(prompt.contains("Was this against the offense or defense?"))
+        assertTrue(
+            livePointMisconductResolutionMessage(cardResult.message, againstOffense = true)
+                .contains("Reverse brick"),
+        )
+        assertTrue(
+            livePointMisconductResolutionMessage(cardResult.message, againstOffense = false)
+                .contains("Brick nearest attacking end zone"),
+        )
     }
 
     // Test pull infractions from the observer-facing actions.

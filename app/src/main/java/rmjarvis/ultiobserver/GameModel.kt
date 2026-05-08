@@ -1096,7 +1096,14 @@ fun assessRedCard(
     val cardTotal = teamCardTotal(updatedState, team)
     val baseMessage = when (mode) {
         RedCardMode.DIRECT_RED -> "${teamName(updatedState, team)} has $cardTotal ${pluralize(cardTotal, "card")}."
-        RedCardMode.SECOND_YELLOW -> "Second yellow acts as a red card.\n${teamName(updatedState, team)} has $cardTotal ${pluralize(cardTotal, "card")}."
+        RedCardMode.SECOND_YELLOW -> {
+            val ejectionMessage = if (jerseyNumber == UNKNOWN_PLAYER_NUMBER) {
+                "The player is ejected."
+            } else {
+                "Player $jerseyNumber is ejected."
+            }
+            "Second yellow acts as a red card. $ejectionMessage\n${teamName(updatedState, team)} has $cardTotal ${pluralize(cardTotal, "card")}."
+        }
     }
     return CardAssessmentResult(
         state = updatedState,
