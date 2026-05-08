@@ -6,6 +6,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -72,7 +73,7 @@ class TestGameModel {
             startTime = LocalTime.of(10, 0),
             rules = rules,
             pullingTeam = VC,
-            pullingFromEnd = FieldEnd.FAR,
+            pullingFromEnd = FieldEnd.NEAR,
         )
 
         // Start the game and verify the first between-points sequence matches the setup.
@@ -89,11 +90,11 @@ class TestGameModel {
         assertEquals(2, timeoutsAllowedThisHalf(state, ANIMAL))
         assertEquals(2, timeoutsRemaining(state, ANIMAL))
         assertEquals(VC, state.pullingTeam)
-        assertEquals(FieldEnd.FAR, state.pullingFromEnd)
-        assertEquals(VC, state.nearAttackingTeam)
+        assertEquals(FieldEnd.NEAR, state.pullingFromEnd)
+        assertEquals(ANIMAL, state.nearAttackingTeam)
         assertEquals(CountdownKind.BETWEEN_POINTS, state.countdown?.kind)
-        assertEquals("Signal in", state.countdown?.label)
-        assertEquals(60, state.countdown?.durationSeconds)
+        assertEquals("Pull in", state.countdown?.label)
+        assertEquals(80, state.countdown?.durationSeconds)
 
         // The opening pull starts the first live point and clears the initial countdown.
         state = beginLivePoint(state)
@@ -152,17 +153,17 @@ class TestGameModel {
                 .contains("Reverse brick"),
         )
 
-        // Viscous Coupling scores the first point, so they pull the next point from the near end.
+        // Viscous Coupling scores the first point, so they pull the next point from the far end.
         state = recordGoal(state, VC, LocalTime.of(10, 5), 1_010_000L)
         assertEquals(LivePhase.BETWEEN_POINTS, state.phase)
         assertEquals(1, state.teamOne.score)
         assertEquals(0, state.teamTwo.score)
         assertEquals(VC, state.pullingTeam)
-        assertEquals(FieldEnd.NEAR, state.pullingFromEnd)
-        assertEquals(ANIMAL, state.nearAttackingTeam)
-        assertEquals("Pull in", state.countdown?.label)
-        assertEquals(80, state.countdown?.durationSeconds)
-        assertEquals(1_090_000L, state.countdown?.targetEpochMillis)
+        assertEquals(FieldEnd.FAR, state.pullingFromEnd)
+        assertEquals(VC, state.nearAttackingTeam)
+        assertEquals("Signal in", state.countdown?.label)
+        assertEquals(60, state.countdown?.durationSeconds)
+        assertEquals(1_070_000L, state.countdown?.targetEpochMillis)
         assertNull(state.pendingCapOffer)
 
         // During the next pull sequence, Viscous Coupling records an offsides as the pulling team.
@@ -248,8 +249,8 @@ class TestGameModel {
         assertEquals(1, state.teamTwo.score)
         assertTrue(state.halftimeTaken)
         assertEquals(ANIMAL, state.pullingTeam)
-        assertEquals(FieldEnd.FAR, state.pullingFromEnd)
-        assertEquals(ANIMAL, state.nearAttackingTeam)
+        assertEquals(FieldEnd.NEAR, state.pullingFromEnd)
+        assertEquals(VC, state.nearAttackingTeam)
         assertEquals(CountdownKind.HALFTIME, state.countdown?.kind)
         assertEquals("Halftime", state.countdown?.label)
         assertEquals(420, state.countdown?.durationSeconds)
@@ -278,8 +279,8 @@ class TestGameModel {
         state = thirdTimeout.state
         assertEquals(1, state.teamTwo.timeoutsUsedThisHalf)
         assertEquals(1, timeoutsRemaining(state, ANIMAL))
-        assertEquals("Pull in", state.countdown?.label)
-        assertEquals(150, state.countdown?.durationSeconds)
+        assertEquals("Signal in", state.countdown?.label)
+        assertEquals(130, state.countdown?.durationSeconds)
 
         // Animal keeps pushing after halftime and ties the game.
         state = recordGoalFromCurrentState(state, ANIMAL, LocalTime.of(10, 35), 1_900_000L)
@@ -1004,6 +1005,69 @@ class TestGameModel {
                 .contains("Brick nearest attacking end zone"),
         )
 
+        // Technical fouls hit the same live-point misconduct choice when Viscous Coupling reaches the threshold.
+        state = beginLivePoint(standardLiveGameState())
+        state = assessTechnicalFoul(state, VC).state
+        state = assessTechnicalFoul(state, VC).state
+        technicalFoulResult = assessTechnicalFoul(state, VC)
+        state = technicalFoulResult.state
+        assertEquals(LivePhase.LIVE_POINT, state.phase)
+        assertTrue(technicalFoulResult.needsLivePointMisconductChoice)
+        assertEquals("Viscous Coupling has 3 technical fouls.", technicalFoulResult.message)
+        assertTrue(
+            livePointMisconductResolutionMessage(technicalFoulResult.message, againstOffense = true)
+                .contains("Reverse brick"),
+        )
+
+        // Exercise the player-card assignment helpers used by the UI reconciliation prompts.
+        var cardAssignments = emptyList<InGamePlayerCardRecord>()
+        cardAssignments = addPlayerCardAssignment(cardAssignments, "17", CardType.YELLOW)
+        assertEquals(listOf(InGamePlayerCardRecord("17", yellows = 1)), cardAssignments)
+        cardAssignments = addPlayerCardAssignment(cardAssignments, "17", CardType.RED)
+        assertEquals(listOf(InGamePlayerCardRecord("17", yellows = 1, directReds = 1)), cardAssignments)
+        cardAssignments = removePlayerCardAssignment(cardAssignments, "8", CardType.YELLOW)
+        assertEquals(listOf(InGamePlayerCardRecord("17", yellows = 1, directReds = 1)), cardAssignments)
+        cardAssignments = removePlayerCardAssignment(cardAssignments, "17", CardType.YELLOW)
+        assertEquals(listOf(InGamePlayerCardRecord("17", directReds = 1)), cardAssignments)
+        cardAssignments = removePlayerCardAssignment(cardAssignments, "17", CardType.RED)
+        assertTrue(cardAssignments.isEmpty())
+        cardAssignments = listOf(
+            InGamePlayerCardRecord("17", yellows = 1),
+            InGamePlayerCardRecord("8", directReds = 1),
+        )
+        cardAssignments = removePlayerCardAssignment(cardAssignments, "17", CardType.YELLOW)
+        assertEquals(listOf(InGamePlayerCardRecord("8", directReds = 1)), cardAssignments)
+
+        // The UI reconciliation flow should prevent invalid records; if one reaches the model anyway, fail loudly.
+        val negativeCardException = assertThrows(IllegalArgumentException::class.java) {
+            adjustCardsAndTf(
+                state = standardLiveGameState(),
+                teamOneBlues = 0,
+                teamOneTechnicalFouls = 0,
+                teamTwoBlues = 0,
+                teamTwoTechnicalFouls = 0,
+                teamOnePlayerCards = listOf(InGamePlayerCardRecord("17", yellows = -1)),
+                teamTwoPlayerCards = emptyList(),
+            )
+        }
+        assertEquals("Player card records cannot have negative card counts.", negativeCardException.message)
+
+        val duplicateCardException = assertThrows(IllegalArgumentException::class.java) {
+            adjustCardsAndTf(
+                state = standardLiveGameState(),
+                teamOneBlues = 0,
+                teamOneTechnicalFouls = 0,
+                teamTwoBlues = 0,
+                teamTwoTechnicalFouls = 0,
+                teamOnePlayerCards = listOf(
+                    InGamePlayerCardRecord("17", yellows = 1),
+                    InGamePlayerCardRecord("17", directReds = 1),
+                ),
+                teamTwoPlayerCards = emptyList(),
+            )
+        }
+        assertEquals("Player card records cannot contain duplicate player entries.", duplicateCardException.message)
+
         // Manual cards/TF correction clamps visible team counts and derives yellow/red totals from player records.
         val correctedTeamOnePlayerCards = listOf(
             InGamePlayerCardRecord("17", yellows = 1),
@@ -1076,6 +1140,15 @@ class TestGameModel {
         // Verify the same pull sequence cannot record a second offsides for the same team.
         val afterDuplicateOffsides = recordOffsides(state)
         assertEquals(state, afterDuplicateOffsides)
+
+        // Mirror the offsides pathway for a pull where Animal is the pulling team.
+        state = standardLiveGameState(pullingTeam = ANIMAL)
+        state = recordOffsides(state)
+        assertEquals(LivePhase.LIVE_POINT, state.phase)
+        assertEquals(0, state.teamOne.offsides)
+        assertEquals(1, state.teamTwo.offsides)
+        assertEquals("Offsides on Animal.", state.lastEvent)
+        assertEquals("Start at brick mark", offsidesResolutionMessage(state, ANIMAL))
 
         // In a fresh pull sequence, record false start and verify only the receiving team's count increments.
         state = standardLiveGameState()
@@ -1260,6 +1333,7 @@ class TestGameModel {
         assertEquals(1, state.teamOne.score)
         assertEquals(1, state.teamTwo.score)
         assertEquals(CapType.SOFT, state.pendingCapOffer)
+        assertEquals("soft cap", capOfferLabel(state.pendingCapOffer!!))
         assertEquals(
             "Soft cap was at 10:20 AM. Winning score would become 2. Apply now?",
             capOfferExplanation(state),
@@ -1278,6 +1352,7 @@ class TestGameModel {
         assertEquals(2, state.teamOne.score)
         assertEquals(1, state.teamTwo.score)
         assertEquals(CapType.HARD, state.pendingCapOffer)
+        assertEquals("hard cap", capOfferLabel(state.pendingCapOffer!!))
         assertEquals(
             "Hard cap was at 10:30 AM. Score is not tied, so the game would end now. Apply now?",
             capOfferExplanation(state),
@@ -1761,8 +1836,12 @@ class TestGameModel {
         val VC = TeamId.TEAM_ONE
         val ANIMAL = TeamId.TEAM_TWO
 
-        // Start a point and verify undo returns to the previous between-points state.
+        // With no undo entry, the undo action is a no-op.
         var state = standardLiveGameState()
+        assertEquals(state, undoLastAction(state))
+
+        // Start a point and verify undo returns to the previous between-points state.
+        state = standardLiveGameState()
         val beforeStartPoint = state
         state = beginLivePoint(state)
         assertEquals("Undo Start Point", state.undoEntry?.label)
@@ -1870,7 +1949,7 @@ class TestGameModel {
         state = makeCapNow(beforeForceCap, CapType.SOFT, LocalTime.of(11, 30))
         assertEquals(beforeForceCap, undoLastAction(state))
 
-        val beforeManualHalftime = standardLiveGameState()
+        val beforeManualHalftime = standardLiveGameState(pullingFromEnd = FieldEnd.NEAR)
         state = startHalftimeNow(beforeManualHalftime, LocalTime.of(11, 10), 700_000L)
         assertEquals(beforeManualHalftime, undoLastAction(state))
 
@@ -1898,6 +1977,11 @@ class TestGameModel {
         assertNull(scoreEndedUndo.endTime)
         assertEquals("Viscous Coupling scored.", scoreEndedUndo.lastEvent)
         assertEquals(LivePhase.LIVE_POINT, undoLastAction(scoreEndedUndo).phase)
+
+        // Unavailable game-over commands are idempotent no-ops; the UI normally hides these pathways.
+        assertEquals(scoreEndedUndo, undoGameOver(scoreEndedUndo))
+        assertEquals(gameOverByScore, recordGoal(gameOverByScore, ANIMAL, LocalTime.of(11, 26), 910_000L))
+        assertEquals(gameOverByScore, endGameNow(gameOverByScore, LocalTime.of(11, 26)))
 
         // If the observer applies End Game again, the summary-relevant state matches the automatic game-over.
         val reappliedGameOver = endGameNow(scoreEndedUndo, LocalTime.of(11, 26))
@@ -1943,6 +2027,13 @@ class TestGameModel {
             computeNextCapStatus(state.copy(halfCapApplied = true, softCapApplied = true), LocalTime.of(11, 35)),
         )
 
+        // Verify cap countdowns can wrap across midnight when a late-night game crosses dates.
+        state = standardLiveGameState(
+            startTime = LocalTime.of(23, 30),
+            rules = GameRules(gameTo = 15, halfCapMinutes = 45, useSoftCap = false, useHardCap = false),
+        )
+        assertEquals(CapStatus("Half cap", Duration.ofMinutes(30)), computeNextCapStatus(state, LocalTime.of(23, 45)))
+
         // Verify computeNextCapStatus returns null when no cap is still available.
         state = state.copy(halfCapApplied = true, softCapApplied = true, hardCapApplied = true)
         assertNull(computeNextCapStatus(state, LocalTime.of(10, 15)))
@@ -1958,6 +2049,22 @@ class TestGameModel {
         assertEquals("Signal in" to Duration.ofSeconds(30), betweenPointsDisplay(FieldEnd.FAR, 1_000L, 31_000L))
         assertEquals("Signal in" to Duration.ZERO, betweenPointsDisplay(FieldEnd.FAR, 1_000L, 70_000L))
         assertEquals("Pull in" to Duration.ofSeconds(80), betweenPointsDisplay(FieldEnd.NEAR, 2_000L, 2_000L))
+
+        // Verify manual countdown adjustments move only the target time and format positive/negative changes.
+        state = standardLiveGameState()
+        val originalCountdown = state.countdown!!
+        state = addTimeToCountdown(state, 65)
+        assertEquals(originalCountdown.targetEpochMillis + 65_000L, state.countdown?.targetEpochMillis)
+        assertEquals(originalCountdown.durationSeconds, state.countdown?.durationSeconds)
+        assertEquals("Adjusted timer by 1:05.", state.lastEvent)
+
+        state = addTimeToCountdown(state, -5)
+        assertEquals(originalCountdown.targetEpochMillis + 60_000L, state.countdown?.targetEpochMillis)
+        assertEquals(originalCountdown.durationSeconds, state.countdown?.durationSeconds)
+        assertEquals("Adjusted timer by -0:05.", state.lastEvent)
+
+        val livePointWithoutCountdown = beginLivePoint(state)
+        assertEquals(livePointWithoutCountdown, addTimeToCountdown(livePointWithoutCountdown, 5))
 
         // Verify countdown helpers advance automatically at the exact target time, not before.
         state = standardLiveGameState()

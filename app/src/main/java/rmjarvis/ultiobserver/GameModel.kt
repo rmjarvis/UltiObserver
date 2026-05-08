@@ -7,6 +7,7 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
@@ -508,9 +509,11 @@ fun advanceGameClock(state: LiveGameState, nowMillis: Long): LiveGameState {
 // Adjust countdown timer (use negative number to subtract time)
 fun addTimeToCountdown(state: LiveGameState, seconds: Int): LiveGameState {
     val countdown = state.countdown ?: return state
+    val sign = if (seconds < 0) "-" else ""
+    val absoluteSeconds = abs(seconds)
     return state.copy(
         countdown = countdown.copy(targetEpochMillis = countdown.targetEpochMillis + seconds * 1000L),
-        lastEvent = "Adjusted timer by ${seconds / 60}:${(seconds % 60).toString().padStart(2, '0')}.",
+        lastEvent = "Adjusted timer by $sign${absoluteSeconds / 60}:${(absoluteSeconds % 60).toString().padStart(2, '0')}.",
     )
 }
 
@@ -692,7 +695,7 @@ fun applyPendingCap(
     state: LiveGameState,
     now: LocalTime,
 ): LiveGameState {
-    val pendingCap = state.pendingCapOffer ?: return state
+    val pendingCap = state.pendingCapOffer!!
     val currentHigherScore = max(state.teamOne.score, state.teamTwo.score)
     return when (pendingCap) {
         CapType.HALF -> state.copy(
@@ -934,7 +937,7 @@ fun capOfferLabel(capType: CapType): String {
 fun capOfferExplanation(state: LiveGameState): String {
     val wasAt = if (state.phase == LivePhase.HALFTIME) "is scheduled for" else "was at"
     val endWhen = if (state.phase == LivePhase.HALFTIME) "during halftime" else "now"
-    return when (state.pendingCapOffer) {
+    return when (state.pendingCapOffer!!) {
         CapType.HALF -> {
             val target = max(state.teamOne.score, state.teamTwo.score) + 1
             "Half cap was at ${formatClockTime(state.startTime.plusMinutes(state.rules.halfCapMinutes.toLong()))}. Halftime target would become $target. Apply now?"
@@ -950,7 +953,6 @@ fun capOfferExplanation(state: LiveGameState): String {
                 "Hard cap $wasAt ${formatClockTime(state.startTime.plusMinutes(state.rules.hardCapMinutes.toLong()))}. Score is not tied, so the game would end $endWhen. Apply now?"
             }
         }
-        null -> ""
     }
 }
 
@@ -1147,7 +1149,7 @@ fun formatDuration(duration: Duration): String {
 private fun durationUntil(now: LocalTime, target: LocalTime): Duration {
     var remaining = Duration.between(now, target)
     if (remaining.isNegative && target.isBefore(now)) {
-        remaining = Duration.between(now, target.plusHours(24))
+        remaining = remaining.plusHours(24)
     }
     return remaining
 }
