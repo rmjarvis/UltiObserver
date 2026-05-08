@@ -1161,6 +1161,7 @@ private fun FieldSketchCard(
             EndZonePanel(
                 teamId = topSlot,
                 team = topTeam,
+                cardPoints = teamCardTotal(state, topSlot),
                 timeoutsRemaining = timeoutsRemaining(state, topSlot),
                 background = topTeam.color.accent.copy(alpha = 0.85f),
                 interactionsEnabled = interactionsEnabled,
@@ -1206,6 +1207,7 @@ private fun FieldSketchCard(
             EndZonePanel(
                 teamId = bottomSlot,
                 team = bottomTeam,
+                cardPoints = teamCardTotal(state, bottomSlot),
                 timeoutsRemaining = timeoutsRemaining(state, bottomSlot),
                 background = bottomTeam.color.accent,
                 interactionsEnabled = interactionsEnabled,
@@ -1229,6 +1231,7 @@ private fun FieldSketchCard(
 private fun EndZonePanel(
     teamId: TeamId,
     team: TeamLiveState,
+    cardPoints: Int,
     timeoutsRemaining: Int,
     background: Color,
     interactionsEnabled: Boolean,
@@ -1271,7 +1274,7 @@ private fun EndZonePanel(
                     )
                 }
                 Text(
-                    text = "TO $timeoutsRemaining  Cards ${totalCardPoints(team)}  TF ${team.technicalFouls}",
+                    text = "TO $timeoutsRemaining  Cards $cardPoints  TF ${team.technicalFouls}",
                     color = team.color.content,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
@@ -1379,7 +1382,7 @@ private fun CardsSheet(
         Text("Cards / Technical Fouls", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         TeamActionSection(
             label = "${state.teamOne.name}${cardsRoleSuffix(state, TeamId.TEAM_ONE)}",
-            issuedCards = state.playerCardsThisGame.filter { it.team == TeamId.TEAM_ONE },
+            issuedCards = playerCards(state, TeamId.TEAM_ONE),
             onYellow = { pendingYellowTeam = TeamId.TEAM_ONE },
             onRed = { pendingRedTeam = TeamId.TEAM_ONE },
             onBlue = { onAssessment(assessBlueCard(state, TeamId.TEAM_ONE)) },
@@ -1387,7 +1390,7 @@ private fun CardsSheet(
         )
         TeamActionSection(
             label = "${state.teamTwo.name}${cardsRoleSuffix(state, TeamId.TEAM_TWO)}",
-            issuedCards = state.playerCardsThisGame.filter { it.team == TeamId.TEAM_TWO },
+            issuedCards = playerCards(state, TeamId.TEAM_TWO),
             onYellow = { pendingYellowTeam = TeamId.TEAM_TWO },
             onRed = { pendingRedTeam = TeamId.TEAM_TWO },
             onBlue = { onAssessment(assessBlueCard(state, TeamId.TEAM_TWO)) },
@@ -1565,11 +1568,11 @@ private fun GameOverSummary(
 
         GameOverTeamSummary(
             team = state.teamOne,
-            issuedCards = state.playerCardsThisGame.filter { it.team == TeamId.TEAM_ONE },
+            issuedCards = playerCards(state, TeamId.TEAM_ONE),
         )
         GameOverTeamSummary(
             team = state.teamTwo,
-            issuedCards = state.playerCardsThisGame.filter { it.team == TeamId.TEAM_TWO },
+            issuedCards = playerCards(state, TeamId.TEAM_TWO),
         )
 
         if (showUndo) {
@@ -1706,51 +1709,48 @@ private fun AdjustCardsDialog(
     onDismiss: () -> Unit,
     onConfirm: (LiveGameState) -> Unit,
 ) {
-    var teamOneY by remember { mutableStateOf(state.teamOne.yellowCards) }
+    var teamOneY by remember { mutableStateOf(teamYellowCards(state, TeamId.TEAM_ONE)) }
     var teamOneB by remember { mutableStateOf(state.teamOne.blueCards) }
-    var teamOneR by remember { mutableStateOf(state.teamOne.redCards) }
+    var teamOneR by remember { mutableStateOf(teamRedCards(state, TeamId.TEAM_ONE)) }
     var teamOneTf by remember { mutableStateOf(state.teamOne.technicalFouls) }
-    var teamTwoY by remember { mutableStateOf(state.teamTwo.yellowCards) }
+    var teamTwoY by remember { mutableStateOf(teamYellowCards(state, TeamId.TEAM_TWO)) }
     var teamTwoB by remember { mutableStateOf(state.teamTwo.blueCards) }
-    var teamTwoR by remember { mutableStateOf(state.teamTwo.redCards) }
+    var teamTwoR by remember { mutableStateOf(teamRedCards(state, TeamId.TEAM_TWO)) }
     var teamTwoTf by remember { mutableStateOf(state.teamTwo.technicalFouls) }
-    var workingPlayerCards by remember { mutableStateOf(state.playerCardsThisGame) }
+    var workingTeamOnePlayerCards by remember { mutableStateOf(state.teamOnePlayerCards) }
+    var workingTeamTwoPlayerCards by remember { mutableStateOf(state.teamTwoPlayerCards) }
     var pendingSteps by remember { mutableStateOf<List<CardAdjustmentStep>>(emptyList()) }
 
     fun finalizeAdjustment() {
         onConfirm(
             adjustCardsAndTf(
-                state,
-                teamOneY,
-                teamOneB,
-                teamOneR,
-                teamOneTf,
-                teamTwoY,
-                teamTwoB,
-                teamTwoR,
-                teamTwoTf,
-                workingPlayerCards,
+                state = state,
+                teamOneBlues = teamOneB,
+                teamOneTechnicalFouls = teamOneTf,
+                teamTwoBlues = teamTwoB,
+                teamTwoTechnicalFouls = teamTwoTf,
+                teamOnePlayerCards = workingTeamOnePlayerCards,
+                teamTwoPlayerCards = workingTeamTwoPlayerCards,
             )
         )
     }
 
     fun applyCardAssignment(jerseyNumber: String) {
         val step = pendingSteps.firstOrNull() ?: return
-        val updatedRecords = when (step.mode) {
-            CardAdjustmentMode.ADD -> addPlayerCardAssignment(
-                workingPlayerCards,
-                step.team,
-                jerseyNumber,
-                step.cardType,
-            )
-            CardAdjustmentMode.REMOVE -> removePlayerCardAssignment(
-                workingPlayerCards,
-                step.team,
-                jerseyNumber,
-                step.cardType,
-            )
+        val currentRecords = if (step.team == TeamId.TEAM_ONE) {
+            workingTeamOnePlayerCards
+        } else {
+            workingTeamTwoPlayerCards
         }
-        workingPlayerCards = updatedRecords
+        val updatedRecords = when (step.mode) {
+            CardAdjustmentMode.ADD -> addPlayerCardAssignment(currentRecords, jerseyNumber, step.cardType)
+            CardAdjustmentMode.REMOVE -> removePlayerCardAssignment(currentRecords, jerseyNumber, step.cardType)
+        }
+        if (step.team == TeamId.TEAM_ONE) {
+            workingTeamOnePlayerCards = updatedRecords
+        } else {
+            workingTeamTwoPlayerCards = updatedRecords
+        }
         pendingSteps = pendingSteps.drop(1)
         // Walk through the per-player add/remove prompts until all count mismatches are resolved.
         if (pendingSteps.isEmpty()) {
@@ -1787,7 +1787,8 @@ private fun AdjustCardsDialog(
                         teamTwoY = teamTwoY,
                         teamTwoR = teamTwoR,
                     )
-                    workingPlayerCards = state.playerCardsThisGame
+                    workingTeamOnePlayerCards = state.teamOnePlayerCards
+                    workingTeamTwoPlayerCards = state.teamTwoPlayerCards
                     if (steps.isEmpty()) {
                         finalizeAdjustment()
                     } else {
@@ -1819,7 +1820,14 @@ private fun AdjustCardsDialog(
                 AssignedCardRemovalDialog(
                     title = "Remove ${step.cardType.label}",
                     teamName = state.teamFor(step.team).name,
-                    options = removalOptionsForStep(workingPlayerCards, step.team, step.cardType),
+                    options = removalOptionsForStep(
+                        records = if (step.team == TeamId.TEAM_ONE) {
+                            workingTeamOnePlayerCards
+                        } else {
+                            workingTeamTwoPlayerCards
+                        },
+                        cardType = step.cardType,
+                    ),
                     onDismiss = { pendingSteps = emptyList() },
                     onConfirm = { applyCardAssignment(it) },
                 )
@@ -1852,29 +1860,34 @@ private fun buildCardAdjustmentSteps(
     teamTwoY: Int,
     teamTwoR: Int,
 ): List<CardAdjustmentStep> {
+    val stateTeamOneYellows = teamYellowCards(state, TeamId.TEAM_ONE)
+    val stateTeamOneReds = teamRedCards(state, TeamId.TEAM_ONE)
+    val stateTeamTwoYellows = teamYellowCards(state, TeamId.TEAM_TWO)
+    val stateTeamTwoReds = teamRedCards(state, TeamId.TEAM_TWO)
+
     return buildList {
-        repeat(maxOf(0, teamOneY - state.teamOne.yellowCards)) {
+        repeat(maxOf(0, teamOneY - stateTeamOneYellows)) {
             add(CardAdjustmentStep(TeamId.TEAM_ONE, CardType.YELLOW, CardAdjustmentMode.ADD))
         }
-        repeat(maxOf(0, state.teamOne.yellowCards - teamOneY)) {
+        repeat(maxOf(0, stateTeamOneYellows - teamOneY)) {
             add(CardAdjustmentStep(TeamId.TEAM_ONE, CardType.YELLOW, CardAdjustmentMode.REMOVE))
         }
-        repeat(maxOf(0, teamOneR - state.teamOne.redCards)) {
+        repeat(maxOf(0, teamOneR - stateTeamOneReds)) {
             add(CardAdjustmentStep(TeamId.TEAM_ONE, CardType.RED, CardAdjustmentMode.ADD))
         }
-        repeat(maxOf(0, state.teamOne.redCards - teamOneR)) {
+        repeat(maxOf(0, stateTeamOneReds - teamOneR)) {
             add(CardAdjustmentStep(TeamId.TEAM_ONE, CardType.RED, CardAdjustmentMode.REMOVE))
         }
-        repeat(maxOf(0, teamTwoY - state.teamTwo.yellowCards)) {
+        repeat(maxOf(0, teamTwoY - stateTeamTwoYellows)) {
             add(CardAdjustmentStep(TeamId.TEAM_TWO, CardType.YELLOW, CardAdjustmentMode.ADD))
         }
-        repeat(maxOf(0, state.teamTwo.yellowCards - teamTwoY)) {
+        repeat(maxOf(0, stateTeamTwoYellows - teamTwoY)) {
             add(CardAdjustmentStep(TeamId.TEAM_TWO, CardType.YELLOW, CardAdjustmentMode.REMOVE))
         }
-        repeat(maxOf(0, teamTwoR - state.teamTwo.redCards)) {
+        repeat(maxOf(0, teamTwoR - stateTeamTwoReds)) {
             add(CardAdjustmentStep(TeamId.TEAM_TWO, CardType.RED, CardAdjustmentMode.ADD))
         }
-        repeat(maxOf(0, state.teamTwo.redCards - teamTwoR)) {
+        repeat(maxOf(0, stateTeamTwoReds - teamTwoR)) {
             add(CardAdjustmentStep(TeamId.TEAM_TWO, CardType.RED, CardAdjustmentMode.REMOVE))
         }
     }
@@ -1883,11 +1896,10 @@ private fun buildCardAdjustmentSteps(
 // Offer only the players who currently have the card type being removed.
 private fun removalOptionsForStep(
     records: List<InGamePlayerCardRecord>,
-    team: TeamId,
     cardType: CardType,
 ): List<CardRemovalOption> {
     val matching = records.filter { record ->
-        record.team == team && when (cardType) {
+        when (cardType) {
             CardType.YELLOW -> record.yellows > 0
             CardType.RED -> record.directReds > 0
         }
@@ -2924,11 +2936,6 @@ private fun defaultTeamName(teamId: TeamId): String {
 // Return the other team id.
 private fun oppositeTeam(teamId: TeamId): TeamId {
     return if (teamId == TeamId.TEAM_ONE) TeamId.TEAM_TWO else TeamId.TEAM_ONE
-}
-
-// Team-card points: yellow/blue count 1, red counts 2.
-private fun totalCardPoints(team: TeamLiveState): Int {
-    return team.yellowCards + team.blueCards + (2 * team.redCards)
 }
 
 // Offsides and false starts are combined for pull-violation display/rules.

@@ -55,7 +55,6 @@ data class PlayerCardRecord(
 )
 
 data class InGamePlayerCardRecord(
-    val team: TeamId,
     val jerseyNumber: String,
     val yellows: Int = 0,
     val directReds: Int = 0,
@@ -97,8 +96,6 @@ data class TeamLiveState(
     val falseStarts: Int = 0,
     val technicalFouls: Int = 0,
     val blueCards: Int = 0,
-    val yellowCards: Int = 0,
-    val redCards: Int = 0,
 )
 
 fun TeamLiveState.withAddedTimeout(): TeamLiveState {
@@ -125,7 +122,8 @@ data class LiveGameState(
     val teamOne: TeamLiveState,
     val teamTwo: TeamLiveState,
     val priorCards: List<PlayerCardRecord>,
-    val playerCardsThisGame: List<InGamePlayerCardRecord> = emptyList(),
+    val teamOnePlayerCards: List<InGamePlayerCardRecord> = emptyList(),
+    val teamTwoPlayerCards: List<InGamePlayerCardRecord> = emptyList(),
     val nearAttackingTeam: TeamId,
     val pullingTeam: TeamId,
     val pullingFromEnd: FieldEnd,
@@ -549,42 +547,52 @@ fun adjustTimeouts(
 // Manually adjust the cards and technical fouls that have been assigned
 fun adjustCardsAndTf(
     state: LiveGameState,
-    teamOneYellows: Int,
     teamOneBlues: Int,
-    teamOneReds: Int,
     teamOneTechnicalFouls: Int,
-    teamTwoYellows: Int,
     teamTwoBlues: Int,
-    teamTwoReds: Int,
     teamTwoTechnicalFouls: Int,
-    playerCardsThisGame: List<InGamePlayerCardRecord>,
+    teamOnePlayerCards: List<InGamePlayerCardRecord>,
+    teamTwoPlayerCards: List<InGamePlayerCardRecord>,
 ): LiveGameState {
+    requirePlayerCardRecordsValid(teamOnePlayerCards)
+    requirePlayerCardRecordsValid(teamTwoPlayerCards)
+    val adjustedTeamOneBlues = teamOneBlues.coerceAtLeast(0)
+    val adjustedTeamOneTechnicalFouls = teamOneTechnicalFouls.coerceAtLeast(0)
+    val adjustedTeamTwoBlues = teamTwoBlues.coerceAtLeast(0)
+    val adjustedTeamTwoTechnicalFouls = teamTwoTechnicalFouls.coerceAtLeast(0)
+
     return state.copy(
         teamOne = state.teamOne.copy(
-            yellowCards = teamOneYellows.coerceAtLeast(0),
-            blueCards = teamOneBlues.coerceAtLeast(0),
-            redCards = teamOneReds.coerceAtLeast(0),
-            technicalFouls = teamOneTechnicalFouls.coerceAtLeast(0),
+            blueCards = adjustedTeamOneBlues,
+            technicalFouls = adjustedTeamOneTechnicalFouls,
         ),
         teamTwo = state.teamTwo.copy(
-            yellowCards = teamTwoYellows.coerceAtLeast(0),
-            blueCards = teamTwoBlues.coerceAtLeast(0),
-            redCards = teamTwoReds.coerceAtLeast(0),
-            technicalFouls = teamTwoTechnicalFouls.coerceAtLeast(0),
+            blueCards = adjustedTeamTwoBlues,
+            technicalFouls = adjustedTeamTwoTechnicalFouls,
         ),
-        playerCardsThisGame = playerCardsThisGame,
+        teamOnePlayerCards = teamOnePlayerCards,
+        teamTwoPlayerCards = teamTwoPlayerCards,
         lastEvent = "Cards and technical fouls adjusted.",
     ).withUndo(state, "Undo Cards / TF Adjustment")
+}
+
+// Make failures obvious if a caller bypasses the normal player-card adjustment flow.
+private fun requirePlayerCardRecordsValid(records: List<InGamePlayerCardRecord>) {
+    require(records.all { it.yellows >= 0 && it.directReds >= 0 }) {
+        "Player card records cannot have negative card counts."
+    }
+    require(records.distinctBy { it.jerseyNumber }.size == records.size) {
+        "Player card records cannot contain duplicate player entries."
+    }
 }
 
 // Assign a card to a specific player
 fun addPlayerCardAssignment(
     records: List<InGamePlayerCardRecord>,
-    team: TeamId,
     jerseyNumber: String,
     cardType: CardType,
 ): List<InGamePlayerCardRecord> {
-    return updatePlayerCardRecord(records, team, jerseyNumber) { record ->
+    return updatePlayerCardRecord(records, jerseyNumber) { record ->
         when (cardType) {
             CardType.YELLOW -> record.copy(yellows = record.yellows + 1)
             CardType.RED -> record.copy(directReds = record.directReds + 1)
@@ -595,11 +603,10 @@ fun addPlayerCardAssignment(
 // Remove a card from a specific player
 fun removePlayerCardAssignment(
     records: List<InGamePlayerCardRecord>,
-    team: TeamId,
     jerseyNumber: String,
     cardType: CardType,
 ): List<InGamePlayerCardRecord> {
-    val existingIndex = records.indexOfFirst { it.team == team && it.jerseyNumber == jerseyNumber }
+    val existingIndex = records.indexOfFirst { it.jerseyNumber == jerseyNumber }
     if (existingIndex < 0) {
         return records
     }
@@ -767,7 +774,8 @@ fun applySetupToLiveGame(
             color = setup.teamTwo.color,
         ),
         priorCards = setup.priorCards,
-        playerCardsThisGame = existing.playerCardsThisGame,
+        teamOnePlayerCards = existing.teamOnePlayerCards,
+        teamTwoPlayerCards = existing.teamTwoPlayerCards,
         openingPullingTeam = setup.pullingTeam,
         openingPullingFromEnd = setup.pullingFromEnd,
     )
@@ -991,31 +999,6 @@ fun addBlueCard(state: LiveGameState, team: TeamId): LiveGameState {
         },
         lastEvent = "Blue card assessed to ${teamName(state, team)}.",
     )
-}
-
-// Yellow/Red Card
-fun addPlayerCard(state: LiveGameState, team: TeamId, card: CardType): LiveGameState {
-    return when (team) {
-        TeamId.TEAM_ONE -> {
-            state.copy(
-                teamOne = when (card) {
-                    CardType.YELLOW -> state.teamOne.copy(yellowCards = state.teamOne.yellowCards + 1)
-                    CardType.RED -> state.teamOne.copy(redCards = state.teamOne.redCards + 1)
-                },
-                lastEvent = "${card.label} card for ${teamName(state, team)}.",
-            )
-        }
-
-        TeamId.TEAM_TWO -> {
-            state.copy(
-                teamTwo = when (card) {
-                    CardType.YELLOW -> state.teamTwo.copy(yellowCards = state.teamTwo.yellowCards + 1)
-                    CardType.RED -> state.teamTwo.copy(redCards = state.teamTwo.redCards + 1)
-                },
-                lastEvent = "${card.label} card for ${teamName(state, team)}.",
-            )
-        }
-    }
 }
 
 // Blue cards again.  This also checks what the consequence is.
@@ -1287,20 +1270,10 @@ private fun updatedCountdownForPullingFromEnd(
 
 // Add a yellow card to a specific player
 private fun addInGameYellowCard(state: LiveGameState, team: TeamId, jerseyNumber: String): LiveGameState {
-    return state.copy(
-        teamOne = if (team == TeamId.TEAM_ONE) {
-            state.teamOne.copy(yellowCards = state.teamOne.yellowCards + 1)
-        } else {
-            state.teamOne
-        },
-        teamTwo = if (team == TeamId.TEAM_TWO) {
-            state.teamTwo.copy(yellowCards = state.teamTwo.yellowCards + 1)
-        } else {
-            state.teamTwo
-        },
-        playerCardsThisGame = updatePlayerCardRecord(
-            records = state.playerCardsThisGame,
-            team = team,
+    return state.withPlayerCards(
+        team = team,
+        records = updatePlayerCardRecord(
+            records = state.playerCardsFor(team),
             jerseyNumber = jerseyNumber,
         ) { record ->
             record.copy(yellows = record.yellows + 1)
@@ -1311,20 +1284,10 @@ private fun addInGameYellowCard(state: LiveGameState, team: TeamId, jerseyNumber
 
 // Add a second yellow card to a specific player
 private fun addInGameSecondYellow(state: LiveGameState, team: TeamId, jerseyNumber: String): LiveGameState {
-    return state.copy(
-        teamOne = if (team == TeamId.TEAM_ONE) {
-            state.teamOne.copy(yellowCards = state.teamOne.yellowCards + 1)
-        } else {
-            state.teamOne
-        },
-        teamTwo = if (team == TeamId.TEAM_TWO) {
-            state.teamTwo.copy(yellowCards = state.teamTwo.yellowCards + 1)
-        } else {
-            state.teamTwo
-        },
-        playerCardsThisGame = updatePlayerCardRecord(
-            records = state.playerCardsThisGame,
-            team = team,
+    return state.withPlayerCards(
+        team = team,
+        records = updatePlayerCardRecord(
+            records = state.playerCardsFor(team),
             jerseyNumber = jerseyNumber,
         ) { record ->
             record.copy(yellows = record.yellows + 1)
@@ -1335,20 +1298,10 @@ private fun addInGameSecondYellow(state: LiveGameState, team: TeamId, jerseyNumb
 
 // Add a direct red card to a specific player
 private fun addInGameDirectRed(state: LiveGameState, team: TeamId, jerseyNumber: String): LiveGameState {
-    return state.copy(
-        teamOne = if (team == TeamId.TEAM_ONE) {
-            state.teamOne.copy(redCards = state.teamOne.redCards + 1)
-        } else {
-            state.teamOne
-        },
-        teamTwo = if (team == TeamId.TEAM_TWO) {
-            state.teamTwo.copy(redCards = state.teamTwo.redCards + 1)
-        } else {
-            state.teamTwo
-        },
-        playerCardsThisGame = updatePlayerCardRecord(
-            records = state.playerCardsThisGame,
-            team = team,
+    return state.withPlayerCards(
+        team = team,
+        records = updatePlayerCardRecord(
+            records = state.playerCardsFor(team),
             jerseyNumber = jerseyNumber,
         ) { record ->
             record.copy(directReds = record.directReds + 1)
@@ -1360,17 +1313,16 @@ private fun addInGameDirectRed(state: LiveGameState, team: TeamId, jerseyNumber:
 // Handle the details of updating a player's card status in the list of carded players.
 private fun updatePlayerCardRecord(
     records: List<InGamePlayerCardRecord>,
-    team: TeamId,
     jerseyNumber: String,
     transform: (InGamePlayerCardRecord) -> InGamePlayerCardRecord,
 ): List<InGamePlayerCardRecord> {
-    val existingIndex = records.indexOfFirst { it.team == team && it.jerseyNumber == jerseyNumber }
+    val existingIndex = records.indexOfFirst { it.jerseyNumber == jerseyNumber }
     return if (existingIndex >= 0) {
         records.mapIndexed { index, record ->
             if (index == existingIndex) transform(record) else record
         }
     } else {
-        records + transform(InGamePlayerCardRecord(team = team, jerseyNumber = jerseyNumber))
+        records + transform(InGamePlayerCardRecord(jerseyNumber = jerseyNumber))
     }
 }
 
@@ -1430,10 +1382,25 @@ fun playerHasYellowThisGame(state: LiveGameState, team: TeamId, jerseyNumber: St
     return (state.playerCardFor(team, jerseyNumber)?.yellows ?: 0) > 0
 }
 
+// Return the player-card records for one team.
+fun playerCards(state: LiveGameState, team: TeamId): List<InGamePlayerCardRecord> {
+    return state.playerCardsFor(team)
+}
+
+// Count in-game yellow cards from the player-card records.
+fun teamYellowCards(state: LiveGameState, team: TeamId): Int {
+    return state.playerCardsFor(team).sumOf { it.yellows }
+}
+
+// Count in-game direct red cards from the player-card records.
+fun teamRedCards(state: LiveGameState, team: TeamId): Int {
+    return state.playerCardsFor(team).sumOf { it.directReds }
+}
+
 // Count the total number of cards a team has.
-private fun teamCardTotal(state: LiveGameState, team: TeamId): Int {
+fun teamCardTotal(state: LiveGameState, team: TeamId): Int {
     val currentTeam = if (team == TeamId.TEAM_ONE) state.teamOne else state.teamTwo
-    return currentTeam.yellowCards + currentTeam.blueCards + (2 * currentTeam.redCards)
+    return teamYellowCards(state, team) + currentTeam.blueCards + (2 * teamRedCards(state, team))
 }
 
 // Count the total number of TF a team has.
@@ -1486,8 +1453,29 @@ private fun LiveGameState.withUndo(previous: LiveGameState, label: String): Live
 }
 
 // Get the card record for a specific player.
+private fun LiveGameState.playerCardsFor(team: TeamId): List<InGamePlayerCardRecord> {
+    return if (team == TeamId.TEAM_ONE) teamOnePlayerCards else teamTwoPlayerCards
+}
+
+private fun LiveGameState.withPlayerCards(
+    team: TeamId,
+    records: List<InGamePlayerCardRecord>,
+    lastEvent: String,
+): LiveGameState {
+    return when (team) {
+        TeamId.TEAM_ONE -> copy(
+            teamOnePlayerCards = records,
+            lastEvent = lastEvent,
+        )
+        TeamId.TEAM_TWO -> copy(
+            teamTwoPlayerCards = records,
+            lastEvent = lastEvent,
+        )
+    }
+}
+
 private fun LiveGameState.playerCardFor(team: TeamId, jerseyNumber: String): InGamePlayerCardRecord? {
-    return playerCardsThisGame.firstOrNull { it.team == team && it.jerseyNumber == jerseyNumber }
+    return playerCardsFor(team).firstOrNull { it.jerseyNumber == jerseyNumber }
 }
 
 // Helper to flip TeamId between the two teams.
