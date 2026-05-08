@@ -7,7 +7,6 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Ignore
 import org.junit.Test
 
 class TestGameModel {
@@ -1912,35 +1911,67 @@ class TestGameModel {
         assertEquals(scoreEndedUndo, reappliedGameOver.undoEntry?.previous)
     }
 
-    // Test game-over and summary-relevant state without depending on UI rendering.
-    // Completed-game archival should preserve summary data and drop live-only state.
-    @Test
-    fun gameOverSummaryAndArchiveState() {
-        // End a game by reaching the winning score and verify summary fields are complete.
-
-        // End a game manually and verify final score, nominal start time, and actual end time are retained.
-
-        // Verify player yellow/red records, blue-card counts, and technical-foul counts are summary-ready.
-
-        // Verify live countdown and pending cap state are cleared on game over.
-
-        // Verify pruning undo history for archived games keeps summary data while removing undo state.
-    }
-
     // Test deterministic clock and countdown helpers that are public model surface.
     // These tests should pin time behavior without relying on the wall clock.
     @Test
     fun clockAndCountdownDisplays() {
+        val VC = TeamId.TEAM_ONE
+
         // Verify formatClockTime for midnight, noon, morning, and afternoon values.
+        assertEquals("12:00 AM", formatClockTime(LocalTime.MIDNIGHT))
+        assertEquals("12:00 PM", formatClockTime(LocalTime.NOON))
+        assertEquals("9:05 AM", formatClockTime(LocalTime.of(9, 5)))
+        assertEquals("3:30 PM", formatClockTime(LocalTime.of(15, 30)))
 
         // Verify formatDuration clamps negative durations to zero and formats minute/second boundaries.
+        assertEquals("0:00", formatDuration(Duration.ofSeconds(-3)))
+        assertEquals("0:00", formatDuration(Duration.ZERO))
+        assertEquals("0:59", formatDuration(Duration.ofSeconds(59)))
+        assertEquals("1:00", formatDuration(Duration.ofSeconds(60)))
+        assertEquals("1:01", formatDuration(Duration.ofSeconds(61)))
+        assertEquals("61:01", formatDuration(Duration.ofSeconds(3661)))
 
         // Verify computeNextCapStatus reports the next relevant enabled cap from an explicit LocalTime.
+        var state = standardLiveGameState(
+            startTime = LocalTime.of(10, 0),
+            rules = GameRules(gameTo = 15, halfCapMinutes = 45, softCapMinutes = 90, hardCapMinutes = 100),
+        )
+        assertEquals(CapStatus("Half cap", Duration.ofMinutes(30)), computeNextCapStatus(state, LocalTime.of(10, 15)))
+        assertEquals(CapStatus("Soft cap", Duration.ofMinutes(30)), computeNextCapStatus(state.copy(halfCapApplied = true), LocalTime.of(11, 0)))
+        assertEquals(
+            CapStatus("Hard cap", Duration.ofMinutes(5)),
+            computeNextCapStatus(state.copy(halfCapApplied = true, softCapApplied = true), LocalTime.of(11, 35)),
+        )
 
-        // Verify computeNextCapStatus skips applied, disabled, or irrelevant caps.
+        // Verify computeNextCapStatus returns null when no cap is still available.
+        state = state.copy(halfCapApplied = true, softCapApplied = true, hardCapApplied = true)
+        assertNull(computeNextCapStatus(state, LocalTime.of(10, 15)))
 
-        // Verify betweenPointsDisplay gives "Signal in" vs "Pull in" based on pulling end.
+        state = standardLiveGameState(
+            startTime = LocalTime.of(10, 0),
+            rules = GameRules(gameTo = 15, useHalfCap = false, useSoftCap = false, useHardCap = false),
+        )
+        assertNull(computeNextCapStatus(state, LocalTime.of(10, 15)))
 
-        // Verify between-points countdown durations are 60 seconds from far end and 80 seconds from near end.
+        // Verify betweenPointsDisplay gives "Signal in" vs "Pull in" and clamps elapsed countdowns to zero.
+        assertEquals("Signal in" to Duration.ofSeconds(60), betweenPointsDisplay(FieldEnd.FAR, 1_000L, 1_000L))
+        assertEquals("Signal in" to Duration.ofSeconds(30), betweenPointsDisplay(FieldEnd.FAR, 1_000L, 31_000L))
+        assertEquals("Signal in" to Duration.ZERO, betweenPointsDisplay(FieldEnd.FAR, 1_000L, 70_000L))
+        assertEquals("Pull in" to Duration.ofSeconds(80), betweenPointsDisplay(FieldEnd.NEAR, 2_000L, 2_000L))
+
+        // Verify countdown helpers advance automatically at the exact target time, not before.
+        state = standardLiveGameState()
+        val betweenPointsCountdown = state.countdown!!
+        assertEquals(state, advanceGameClock(state, betweenPointsCountdown.targetEpochMillis - 1L))
+        state = advanceGameClock(state, betweenPointsCountdown.targetEpochMillis)
+        assertEquals(LivePhase.LIVE_POINT, state.phase)
+        assertNull(state.countdown)
+
+        state = assessTimeout(state, VC, 500_000L).state
+        val timeoutCountdown = state.countdown!!
+        assertEquals(state, advanceGameClock(state, timeoutCountdown.targetEpochMillis - 1L))
+        state = advanceGameClock(state, timeoutCountdown.targetEpochMillis)
+        assertEquals(LivePhase.LIVE_POINT, state.phase)
+        assertNull(state.countdown)
     }
 }
