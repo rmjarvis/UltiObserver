@@ -8,6 +8,7 @@ import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlin.math.max
+import kotlin.math.min
 
 enum class TeamId {
     TEAM_ONE,
@@ -328,6 +329,7 @@ fun recordGoal(
     val halfCapReached = state.rules.useHalfCap &&
         !state.halftimeTaken &&
         !state.halfCapApplied &&
+        halfCapCanChangeHalftime(state.rules, updatedTeamOne.score, updatedTeamTwo.score) &&
         now >= state.startTime.plusMinutes(state.rules.halfCapMinutes.toLong())
     val softCapReached = state.rules.useSoftCap &&
         !state.softCapApplied &&
@@ -1111,7 +1113,12 @@ fun computeNextCapStatus(state: LiveGameState, now: LocalTime): CapStatus? {
     // Here we make pairs with second being another pair:
     // (isCapRelevant, (capName, capTime))
     val caps = listOf(
-        (state.rules.useHalfCap && !state.halftimeTaken && !state.halfCapApplied) to
+        (
+            state.rules.useHalfCap &&
+                !state.halftimeTaken &&
+                !state.halfCapApplied &&
+                halfCapCanChangeHalftime(state.rules, state.teamOne.score, state.teamTwo.score)
+            ) to
             ("Half cap" to state.startTime.plusMinutes(state.rules.halfCapMinutes.toLong())),
         (state.rules.useSoftCap && !state.softCapApplied) to
             ("Soft cap" to state.startTime.plusMinutes(state.rules.softCapMinutes.toLong())),
@@ -1491,6 +1498,13 @@ private fun FieldEnd.flip(): FieldEnd {
 // Calculate the halftime score as the next count over half the total.  (e.g. 15 -> 8)
 private fun halftimeScore(rules: GameRules): Int {
     return (rules.gameTo / 2) + 1
+}
+
+// Half cap stops mattering once any next point would leave the target at normal halftime.
+private fun halfCapCanChangeHalftime(rules: GameRules, teamOneScore: Int, teamTwoScore: Int): Boolean {
+    val normalHalftimeScore = halftimeScore(rules)
+    return max(teamOneScore, teamTwoScore) < normalHalftimeScore - 1 &&
+        min(teamOneScore, teamTwoScore) < normalHalftimeScore - 2
 }
 
 // Get the next time the target time happens.  (Usually today, maybe tomorrow)
