@@ -249,8 +249,8 @@ class TestGameModel {
         assertEquals(1, state.teamTwo.score)
         assertTrue(state.halftimeTaken)
         assertEquals(ANIMAL, state.pullingTeam)
-        assertEquals(FieldEnd.NEAR, state.pullingFromEnd)
-        assertEquals(VC, state.nearAttackingTeam)
+        assertEquals(FieldEnd.FAR, state.pullingFromEnd)
+        assertEquals(ANIMAL, state.nearAttackingTeam)
         assertEquals(CountdownKind.HALFTIME, state.countdown?.kind)
         assertEquals("Halftime", state.countdown?.label)
         assertEquals(420, state.countdown?.durationSeconds)
@@ -279,8 +279,8 @@ class TestGameModel {
         state = thirdTimeout.state
         assertEquals(1, state.teamTwo.timeoutsUsedThisHalf)
         assertEquals(1, timeoutsRemaining(state, ANIMAL))
-        assertEquals("Signal in", state.countdown?.label)
-        assertEquals(130, state.countdown?.durationSeconds)
+        assertEquals("Pull in", state.countdown?.label)
+        assertEquals(150, state.countdown?.durationSeconds)
 
         // Animal keeps pushing after halftime and ties the game.
         state = recordGoalFromCurrentState(state, ANIMAL, LocalTime.of(10, 35), 1_900_000L)
@@ -434,9 +434,9 @@ class TestGameModel {
         assertEquals(LivePhase.BETWEEN_POINTS, afterHalftimeTimeoutState.phase)
         assertEquals(1, afterHalftimeTimeoutState.teamOne.timeoutsUsedThisHalf)
         assertEquals(1, timeoutsRemaining(afterHalftimeTimeoutState, VC))
-        assertEquals("Pull in", afterHalftimeTimeoutState.countdown?.label)
-        assertEquals(150, afterHalftimeTimeoutState.countdown?.durationSeconds)
-        assertEquals(halftimeEndMillis + 150_000L, afterHalftimeTimeoutState.countdown?.targetEpochMillis)
+        assertEquals("Signal in", afterHalftimeTimeoutState.countdown?.label)
+        assertEquals(130, afterHalftimeTimeoutState.countdown?.durationSeconds)
+        assertEquals(halftimeEndMillis + 130_000L, afterHalftimeTimeoutState.countdown?.targetEpochMillis)
 
         // When the pull countdown expires, the model automatically moves into live-point state.
         val expiredPullState = createLiveGameState(setupWithRules(GameRules(useHalfCap = false)))
@@ -1339,8 +1339,8 @@ class TestGameModel {
         assertEquals(0, state.teamTwo.firstHalfTimeoutsUsed)
         assertEquals(0, state.teamTwo.timeoutsUsedThisHalf)
         assertEquals(ANIMAL, state.pullingTeam)
-        assertEquals(FieldEnd.NEAR, state.pullingFromEnd)
-        assertEquals(VC, state.nearAttackingTeam)
+        assertEquals(FieldEnd.FAR, state.pullingFromEnd)
+        assertEquals(ANIMAL, state.nearAttackingTeam)
         assertEquals("Halftime.", state.lastEvent)
         assertEquals("Undo Start Halftime", state.undoEntry?.label)
         assertEquals(beforeManualHalftime, state.undoEntry?.previous)
@@ -1452,7 +1452,7 @@ class TestGameModel {
         state = scoreAt(state, VC, 2, 3_600_000L)
         state = scoreAt(state, VC, 10, 3_700_000L)
         assertEquals(LivePhase.HALFTIME, state.phase)
-        state = advanceGameClock(state, state.countdown!!.targetEpochMillis + 60_000L)
+        state = advanceGameClock(state, state.countdown!!.targetEpochMillis + 30_000L)
         assertEquals(LivePhase.BETWEEN_POINTS, state.phase)
         assertFalse(state.softCapApplied)
         assertNull(state.pendingCapOffer)
@@ -1656,23 +1656,97 @@ class TestGameModel {
     // These are model actions even though the menu is just one UI access path.
     @Test
     fun otherMenuModelActions() {
-        // Adjust score and verify non-negative clamping, last event, and undo entry.
+        val VC = TeamId.TEAM_ONE
+        val ANIMAL = TeamId.TEAM_TWO
 
-        // Adjust timeouts and verify values are clamped to the current half allowance.
-
-        // Adjust cards and technical fouls, including explicit player-card record reconciliation inputs.
+        // Adjust score and verify negative inputs are clamped, with a normal undo entry.
+        var state = standardLiveGameState()
+        val beforeScoreAdjustment = state
+        state = adjustScore(state, teamOneScore = -2, teamTwoScore = 4)
+        assertEquals(0, state.teamOne.score)
+        assertEquals(4, state.teamTwo.score)
+        assertEquals("Score adjusted.", state.lastEvent)
+        assertEquals("Undo Score Adjustment", state.undoEntry?.label)
+        assertEquals(beforeScoreAdjustment, state.undoEntry?.previous)
 
         // Swap field ends and verify near-attacking team, pulling end, countdown label, and undo entry.
+        state = standardLiveGameState(pullingTeam = VC, pullingFromEnd = FieldEnd.FAR)
+        val countdownBeforeSwapEnds = state.countdown!!
+        assertEquals(VC, state.nearAttackingTeam)
+        assertEquals(VC, state.pullingTeam)
+        assertEquals(FieldEnd.FAR, state.pullingFromEnd)
+        assertEquals("Signal in", countdownBeforeSwapEnds.label)
+        assertEquals(60, countdownBeforeSwapEnds.durationSeconds)
+        state = swapFieldEnds(state)
+        assertEquals(ANIMAL, state.nearAttackingTeam)
+        assertEquals(VC, state.pullingTeam)
+        assertEquals(FieldEnd.NEAR, state.pullingFromEnd)
+        assertEquals("Pull in", state.countdown?.label)
+        assertEquals(80, state.countdown?.durationSeconds)
+        assertEquals(countdownBeforeSwapEnds.targetEpochMillis + 20_000L, state.countdown?.targetEpochMillis)
+        assertEquals("Field ends swapped.", state.lastEvent)
+        assertEquals("Undo Swap Ends of Field", state.undoEntry?.label)
 
         // Swap pulling team and verify only pulling team/end changes while team field positions are preserved.
+        state = standardLiveGameState(pullingTeam = VC, pullingFromEnd = FieldEnd.FAR)
+        assertEquals(VC, state.nearAttackingTeam)
+        assertEquals(VC, state.pullingTeam)
+        assertEquals(FieldEnd.FAR, state.pullingFromEnd)
+        assertEquals("Signal in", state.countdown?.label)
+        state = swapPullingTeam(state)
+        assertEquals(VC, state.nearAttackingTeam)
+        assertEquals(ANIMAL, state.pullingTeam)
+        assertEquals(FieldEnd.NEAR, state.pullingFromEnd)
+        assertEquals("Pull in", state.countdown?.label)
+        assertEquals("Pulling team swapped.", state.lastEvent)
+        assertEquals("Undo Swap Pulling Team", state.undoEntry?.label)
 
         // Manually start halftime and verify second-half pull orientation, timeout reset, countdown, and undo entry.
+        state = standardLiveGameState(
+            rules = GameRules(
+                gameTo = 7,
+                halftimeMinutes = 6,
+                useHalfCap = false,
+                useSoftCap = false,
+                useHardCap = false,
+            ),
+            pullingTeam = VC,
+            pullingFromEnd = FieldEnd.FAR,
+        )
+        state = adjustTimeouts(state, teamOneTimeoutsUsed = 1, teamTwoTimeoutsUsed = 2)
+        val beforeManualHalftime = state
+        state = startHalftimeNow(state, LocalTime.of(11, 10), 500_000L)
+        assertEquals(LivePhase.HALFTIME, state.phase)
+        assertTrue(state.halftimeTaken)
+        assertEquals(1, state.teamOne.firstHalfTimeoutsUsed)
+        assertEquals(0, state.teamOne.timeoutsUsedThisHalf)
+        assertEquals(2, state.teamTwo.firstHalfTimeoutsUsed)
+        assertEquals(0, state.teamTwo.timeoutsUsedThisHalf)
+        assertEquals(ANIMAL, state.pullingTeam)
+        assertEquals(FieldEnd.FAR, state.pullingFromEnd)
+        assertEquals(ANIMAL, state.nearAttackingTeam)
+        assertEquals(CountdownKind.HALFTIME, state.countdown?.kind)
+        assertEquals(360, state.countdown?.durationSeconds)
+        assertEquals(860_000L, state.countdown?.targetEpochMillis)
+        assertEquals("Undo Start Halftime", state.undoEntry?.label)
+        assertEquals(beforeManualHalftime, state.undoEntry?.previous)
 
-        // Verify manual halftime is rejected once halftime has already happened or the game is over.
+        // The UI hides Start Halftime after halftime or game over; the model rejects those calls too.
+        assertEquals(state, startHalftimeNow(state, LocalTime.of(11, 11), 600_000L))
+        val gameOverState = endGameNow(state, LocalTime.of(11, 12))
+        assertEquals(gameOverState, startHalftimeNow(gameOverState, LocalTime.of(11, 13), 700_000L))
 
         // Manually end the game and verify end time, phase, countdown clearing, and undo entry.
+        val beforeManualEnd = standardLiveGameState()
+        state = endGameNow(beforeManualEnd, LocalTime.of(11, 40))
+        assertEquals(LivePhase.GAME_OVER, state.phase)
+        assertEquals(LocalTime.of(11, 40), state.endTime)
+        assertNull(state.countdown)
+        assertNull(state.pendingCapOffer)
+        assertEquals("Game over.", state.lastEvent)
+        assertEquals("Undo End Game", state.undoEntry?.label)
+        assertEquals(beforeManualEnd, state.undoEntry?.previous)
 
-        // Undo game over and verify the current behavior for restoring a between-points sequence.
     }
 
     // Test the undo mechanism through user-visible actions rather than private snapshots.

@@ -301,7 +301,7 @@ fun recordGoal(
 
     if (halftimeReached && pendingCapOffer != CapType.SOFT && pendingCapOffer != CapType.HARD) {
         val secondHalfPullingTeam = state.openingPullingTeam.flip()
-        val secondHalfPullingFromEnd = state.openingPullingFromEnd.flip()
+        val secondHalfPullingFromEnd = state.openingPullingFromEnd
         val secondHalfNearAttackingTeam = if (secondHalfPullingFromEnd == FieldEnd.FAR) {
             secondHalfPullingTeam
         } else {
@@ -394,7 +394,7 @@ fun startHalftimeNow(
         return state
     }
     val secondHalfPullingTeam = state.openingPullingTeam.flip()
-    val secondHalfPullingFromEnd = state.openingPullingFromEnd.flip()
+    val secondHalfPullingFromEnd = state.openingPullingFromEnd
     val secondHalfNearAttackingTeam = if (secondHalfPullingFromEnd == FieldEnd.FAR) {
         secondHalfPullingTeam
     } else {
