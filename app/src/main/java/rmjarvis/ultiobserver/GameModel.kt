@@ -79,7 +79,7 @@ data class GameRules(
 )
 
 data class GameSetupState(
-    val startTime: LocalTime = nextHalfHourFromNow(),
+    val startTime: LocalTime,
     val rules: GameRules = GameRules(),
     val teamOne: TeamSetup = TeamSetup(name = "", color = TeamColorChoice.WHITE),
     val teamTwo: TeamSetup = TeamSetup(name = "", color = TeamColorChoice.BLUE),
@@ -109,12 +109,42 @@ data class CountdownState(
     val label: String,
     val durationSeconds: Int,       // Original countdown length.
     val targetEpochMillis: Long,    // Clock time when the countdown reaches zero.
-)
+    val betweenPointsTarget: BetweenPointsCountdownTarget? = null,
+) {
+    fun swapOD(): CountdownState {
+        if (kind != CountdownKind.BETWEEN_POINTS) {
+            return this
+        }
+        val currentTarget = betweenPointsTarget
+            ?: error("Between-points countdown is missing its target side.")
+        val newTarget = currentTarget.flip()
+        val deltaSeconds = newTarget.baseDurationSeconds - currentTarget.baseDurationSeconds
+        return copy(
+            label = newTarget.label,
+            durationSeconds = durationSeconds + deltaSeconds,
+            targetEpochMillis = targetEpochMillis + deltaSeconds * 1000L,
+            betweenPointsTarget = newTarget,
+        )
+    }
+
+}
 
 enum class CountdownKind {
     BETWEEN_POINTS,
     TIME_OUT,
     HALFTIME,
+}
+
+enum class BetweenPointsCountdownTarget(
+    val label: String,
+    val baseDurationSeconds: Int,
+) {
+    OFFENSE_READY("Signal in", 60),
+    PULL("Pull in", 80);
+
+    fun flip(): BetweenPointsCountdownTarget {
+        return if (this == OFFENSE_READY) PULL else OFFENSE_READY
+    }
 }
 
 data class LiveGameState(
@@ -502,7 +532,7 @@ fun advanceGameClock(state: LiveGameState, nowMillis: Long): LiveGameState {
             )
             advanceGameClock(betweenPointsState, nowMillis)
         }
-        else -> state
+        else -> error("Countdown ${countdown.kind} is not valid while game phase is ${state.phase}.")
     }
 }
 
@@ -649,7 +679,7 @@ fun swapFieldEnds(state: LiveGameState): LiveGameState {
     return state.copy(
         nearAttackingTeam = state.nearAttackingTeam.flip(),
         pullingFromEnd = newPullingFromEnd,
-        countdown = updatedCountdownForPullingFromEnd(state.countdown, newPullingFromEnd),
+        countdown = state.countdown?.swapOD(),
         pullSequenceOffsidesRecorded = false,
         pullSequenceFalseStartRecorded = false,
         lastEvent = "Field ends swapped.",
@@ -663,7 +693,7 @@ fun swapPullingTeam(state: LiveGameState): LiveGameState {
     return state.copy(
         pullingTeam = newPullingTeam,
         pullingFromEnd = newPullingFromEnd,
-        countdown = updatedCountdownForPullingFromEnd(state.countdown, newPullingFromEnd),
+        countdown = state.countdown?.swapOD(),
         pullSequenceOffsidesRecorded = false,
         pullSequenceFalseStartRecorded = false,
         lastEvent = "Pulling team swapped.",
@@ -780,16 +810,14 @@ fun applySetupToLiveGame(
     )
 
     return if (shouldResyncPullState) {
-        val updated = base.copy(
-            nearAttackingTeam = openingNearAttackingTeam,
-            pullingTeam = setup.pullingTeam,
-            pullingFromEnd = setup.pullingFromEnd,
+        startPullSequence(
+            base.copy(
+                nearAttackingTeam = openingNearAttackingTeam,
+                pullingTeam = setup.pullingTeam,
+                pullingFromEnd = setup.pullingFromEnd,
+            ),
+            nowMillis,
         )
-        if (updated.phase == LivePhase.BETWEEN_POINTS || updated.phase == LivePhase.HALFTIME) {
-            startPullSequence(updated, nowMillis)
-        } else {
-            updated
-        }
     } else {
         base
     }
@@ -854,13 +882,12 @@ fun chargeTimeout(
         lastEvent = "Timeout charged to ${teamName(timeoutState, team)}."
     )
 
-    return when (timeoutState.phase) {
-        LivePhase.BETWEEN_POINTS -> applyBetweenPointsTimeout(updatedState)
+    if (timeoutState.phase == LivePhase.BETWEEN_POINTS) {
+        return applyBetweenPointsTimeout(updatedState)
             .withUndo(state, "Undo Timeout by ${teamName(timeoutState, team)}")
-        LivePhase.LIVE_POINT -> applyLivePointTimeout(updatedState, nowMillis)
-            .withUndo(state, "Undo Timeout by ${teamName(timeoutState, team)}")
-        else -> updatedState
     }
+    return applyLivePointTimeout(updatedState, nowMillis)
+        .withUndo(state, "Undo Timeout by ${teamName(timeoutState, team)}")
 }
 
 // Offsides on the pulling team
@@ -1228,15 +1255,22 @@ private fun buildBetweenPointsCountdown(
     pullingFromEnd: FieldEnd,
     sequenceStartMillis: Long,
 ): CountdownState {
-    val pullFromNearEnd = pullingFromEnd == FieldEnd.NEAR
-    val durationSeconds = if (pullFromNearEnd) 80 else 60
-    val label = if (pullFromNearEnd) "Pull in" else "Signal in"
+    val target = betweenPointsCountdownTargetFor(pullingFromEnd)
     return CountdownState(
         kind = CountdownKind.BETWEEN_POINTS,
-        label = label,
-        durationSeconds = durationSeconds,
-        targetEpochMillis = sequenceStartMillis + durationSeconds * 1000L,
+        label = target.label,
+        durationSeconds = target.baseDurationSeconds,
+        targetEpochMillis = sequenceStartMillis + target.baseDurationSeconds * 1000L,
+        betweenPointsTarget = target,
     )
+}
+
+private fun betweenPointsCountdownTargetFor(pullingFromEnd: FieldEnd): BetweenPointsCountdownTarget {
+    return if (pullingFromEnd == FieldEnd.NEAR) {
+        BetweenPointsCountdownTarget.PULL
+    } else {
+        BetweenPointsCountdownTarget.OFFENSE_READY
+    }
 }
 
 // Visible between-points countdown text for the currently responsible side of the field.
@@ -1317,22 +1351,6 @@ private fun applyLivePointTimeout(
             targetEpochMillis = nowMillis + 70_000L,
         ),
     )
-}
-
-// Update the running countdown when swapping pulling team or team ends.
-private fun updatedCountdownForPullingFromEnd(
-    countdown: CountdownState?,
-    pullingFromEnd: FieldEnd,
-): CountdownState? {
-    countdown ?: return null
-    if (countdown.kind == CountdownKind.TIME_OUT || countdown.kind == CountdownKind.HALFTIME) {
-        return countdown
-    }
-    val sequenceStartMillis = countdown.targetEpochMillis - countdown.durationSeconds * 1000L
-    return when (countdown.durationSeconds) {
-        60, 80 -> buildBetweenPointsCountdown(pullingFromEnd, sequenceStartMillis)
-        else -> countdown
-    }
 }
 
 // Add a yellow card to a specific player
@@ -1579,8 +1597,7 @@ private fun nextOccurrenceMillis(time: LocalTime): Long {
 }
 
 // The default start time for a game is the next even half hour after now.
-// Figure out what time that is.
-private fun nextHalfHourFromNow(now: LocalTime = LocalTime.now()): LocalTime {
+fun nextHalfHourFrom(now: LocalTime): LocalTime {
     val roundedMinute = when {
         now.minute == 0 && now.second == 0 -> 0
         now.minute < 30 -> 30

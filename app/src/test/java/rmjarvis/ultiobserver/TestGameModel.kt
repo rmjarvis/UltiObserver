@@ -411,6 +411,7 @@ class TestGameModel {
         timeoutResult = assessTimeout(state, VC, 1_010_000L)
         assertEquals("Viscous Coupling is out of timeouts.", timeoutResult.message)
         assertEquals(state, timeoutResult.state)
+        assertEquals(state, chargeTimeout(state, VC, 1_010_000L))
 
         // In the ordinary two-per-half rules, both teams return to two timeouts at halftime.
         state = scoreToHalftime(state, VC, 1_100_000L)
@@ -429,6 +430,21 @@ class TestGameModel {
         timeoutResult = assessTimeout(state, VC, halftimeEndMillis - 1L)
         assertEquals("Timeouts are not available now.", timeoutResult.message)
         assertEquals(state, timeoutResult.state)
+
+        // The UI hides timeout actions after game over; stale timeout commands are idempotent no-ops.
+        val gameOverTimeoutState = recordGoalFromCurrentState(
+            standardLiveGameState(
+                rules = GameRules(gameTo = 1, useHalfCap = false, useSoftCap = false, useHardCap = false),
+            ),
+            VC,
+            LocalTime.of(9, 20),
+            1_150_000L,
+        )
+        assertEquals(LivePhase.GAME_OVER, gameOverTimeoutState.phase)
+        timeoutResult = assessTimeout(gameOverTimeoutState, VC, 1_160_000L)
+        assertEquals("Timeouts are not available now.", timeoutResult.message)
+        assertEquals(gameOverTimeoutState, timeoutResult.state)
+        assertEquals(gameOverTimeoutState, chargeTimeout(gameOverTimeoutState, VC, 1_160_000L))
 
         // After halftime has elapsed but before the pull, a timeout behaves like a between-points timeout.
         timeoutResult = assessTimeout(state, VC, halftimeEndMillis + 1L)
@@ -1764,6 +1780,33 @@ class TestGameModel {
         assertEquals("Field ends swapped.", state.lastEvent)
         assertEquals("Undo Swap Ends of Field", state.undoEntry?.label)
 
+        // Swapping while an in-point timeout countdown is active should preserve that timeout countdown.
+        state = beginLivePoint(standardLiveGameState())
+        state = assessTimeout(state, VC, 100_000L).state
+        val liveTimeoutCountdownBeforeSwap = state.countdown
+        state = swapFieldEnds(state)
+        assertEquals(CountdownKind.TIME_OUT, state.countdown?.kind)
+        assertEquals(liveTimeoutCountdownBeforeSwap, state.countdown)
+
+        // Timeout-extended between-points countdowns still swap between offense-ready and pull timing.
+        state = standardLiveGameState()
+        state = assessTimeout(state, VC, state.countdown!!.targetEpochMillis - 1_000L).state
+        val extendedCountdownBeforeSwap = state.countdown
+        assertEquals(130, extendedCountdownBeforeSwap?.durationSeconds)
+        state = swapPullingTeam(state)
+        assertEquals("Pull in", state.countdown?.label)
+        assertEquals(150, state.countdown?.durationSeconds)
+        assertEquals(extendedCountdownBeforeSwap!!.targetEpochMillis + 20_000L, state.countdown?.targetEpochMillis)
+
+        state = standardLiveGameState(pullingFromEnd = FieldEnd.NEAR)
+        state = assessTimeout(state, VC, state.countdown!!.targetEpochMillis - 1_000L).state
+        val extendedPullCountdownBeforeSwap = state.countdown
+        assertEquals(150, extendedPullCountdownBeforeSwap?.durationSeconds)
+        state = swapPullingTeam(state)
+        assertEquals("Signal in", state.countdown?.label)
+        assertEquals(130, state.countdown?.durationSeconds)
+        assertEquals(extendedPullCountdownBeforeSwap!!.targetEpochMillis - 20_000L, state.countdown?.targetEpochMillis)
+
         // Swap pulling team and verify only pulling team/end changes while team field positions are preserved.
         state = standardLiveGameState(pullingTeam = VC, pullingFromEnd = FieldEnd.FAR)
         assertEquals(VC, state.nearAttackingTeam)
@@ -1807,6 +1850,12 @@ class TestGameModel {
         assertEquals(860_000L, state.countdown?.targetEpochMillis)
         assertEquals("Undo Start Halftime", state.undoEntry?.label)
         assertEquals(beforeManualHalftime, state.undoEntry?.previous)
+
+        // Swapping field ends during halftime changes field metadata but preserves the halftime clock itself.
+        val halftimeCountdownBeforeSwap = state.countdown
+        state = swapFieldEnds(state)
+        assertEquals(CountdownKind.HALFTIME, state.countdown?.kind)
+        assertEquals(halftimeCountdownBeforeSwap, state.countdown)
 
         // The UI hides Start Halftime after halftime or game over; the model rejects those calls too.
         assertEquals(state, startHalftimeNow(state, LocalTime.of(11, 11), 600_000L))
@@ -2001,6 +2050,13 @@ class TestGameModel {
     fun clockAndCountdownDisplays() {
         val VC = TeamId.TEAM_ONE
 
+        // Verify the setup-time default helper rounds to the next half hour using a caller-supplied clock.
+        assertEquals(LocalTime.of(9, 0), nextHalfHourFrom(LocalTime.of(9, 0)))
+        assertEquals(LocalTime.of(9, 30), nextHalfHourFrom(LocalTime.of(9, 1)))
+        assertEquals(LocalTime.of(9, 30), nextHalfHourFrom(LocalTime.of(9, 29)))
+        assertEquals(LocalTime.of(10, 0), nextHalfHourFrom(LocalTime.of(9, 30)))
+        assertEquals(LocalTime.MIDNIGHT, nextHalfHourFrom(LocalTime.of(23, 45)))
+
         // Verify formatClockTime for midnight, noon, morning, and afternoon values.
         assertEquals("12:00 AM", formatClockTime(LocalTime.MIDNIGHT))
         assertEquals("12:00 PM", formatClockTime(LocalTime.NOON))
@@ -2065,6 +2121,30 @@ class TestGameModel {
 
         val livePointWithoutCountdown = beginLivePoint(state)
         assertEquals(livePointWithoutCountdown, addTimeToCountdown(livePointWithoutCountdown, 5))
+
+        // Countdown target swapping is a no-op for non-between-points countdowns and fails on malformed ones.
+        val inPointTimeoutCountdown = assessTimeout(livePointWithoutCountdown, VC, 600_000L).state.countdown!!
+        assertEquals(inPointTimeoutCountdown, inPointTimeoutCountdown.swapOD())
+        val malformedCountdown = CountdownState(
+            kind = CountdownKind.BETWEEN_POINTS,
+            label = "Signal in",
+            durationSeconds = 60,
+            targetEpochMillis = 60_000L,
+        )
+        val malformedCountdownException = assertThrows(IllegalStateException::class.java) {
+            malformedCountdown.swapOD()
+        }
+        assertEquals("Between-points countdown is missing its target side.", malformedCountdownException.message)
+
+        // A countdown kind that does not match the phase is an impossible model state, so fail loudly.
+        val mismatchedCountdownState = standardLiveGameState().copy(phase = LivePhase.LIVE_POINT)
+        val mismatchException = assertThrows(IllegalStateException::class.java) {
+            advanceGameClock(mismatchedCountdownState, mismatchedCountdownState.countdown!!.targetEpochMillis)
+        }
+        assertEquals(
+            "Countdown BETWEEN_POINTS is not valid while game phase is LIVE_POINT.",
+            mismatchException.message,
+        )
 
         // Verify countdown helpers advance automatically at the exact target time, not before.
         state = standardLiveGameState()

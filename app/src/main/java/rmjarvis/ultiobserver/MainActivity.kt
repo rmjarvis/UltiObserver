@@ -151,7 +151,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun UltiObserverApp() {
     var screen by remember { mutableStateOf(AppScreen.HOME) }
-    var setupState by remember { mutableStateOf(GameSetupState()) }
+    var setupState by remember { mutableStateOf(newGameSetupState()) }
     var liveState by remember { mutableStateOf<LiveGameState?>(null) }
     var setupMode by remember { mutableStateOf(SetupMode.NEW_GAME) }
     var archivedGames by remember { mutableStateOf(listOf<ArchivedGame>()) }
@@ -217,7 +217,7 @@ fun UltiObserverApp() {
                             if (existing.phase == LivePhase.GAME_OVER) "" else "Closed when new game started",
                         )
                     }
-                    setupState = GameSetupState()
+                    setupState = newGameSetupState()
                     liveState = null
                     viewingArchivedGame = null
                     setupMode = SetupMode.NEW_GAME
@@ -3103,10 +3103,14 @@ private fun LiveGameState.teamFor(team: TeamId): TeamLiveState {
 private fun SetupScreenPreview() {
     UltiObserverTheme(dynamicColor = false) {
         SetupScreen(
-            state = GameSetupState(),
+            state = newGameSetupState(),
             onStateChange = {},
             primaryButtonLabel = "Start Game",
             onPrimaryAction = {},
         )
     }
+}
+
+private fun newGameSetupState(now: LocalTime = LocalTime.now()): GameSetupState {
+    return GameSetupState(startTime = nextHalfHourFrom(now))
 }
