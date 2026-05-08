@@ -852,6 +852,8 @@ fun recordOffsides(state: LiveGameState): LiveGameState {
         } else {
             state.teamTwo
         },
+        phase = LivePhase.LIVE_POINT,
+        countdown = null,
         pullSequenceOffsidesRecorded = true,
         lastEvent = "Offsides on ${teamName(state, team)}.",
     ).withUndo(state, "Undo Offsides on ${teamName(state, team)}")
