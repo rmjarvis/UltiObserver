@@ -1307,6 +1307,159 @@ class GameModelTestPlan {
         assertEquals(3, state.winningScore)
         assertNull(state.pendingCapOffer)
 
+        // If soft cap and halftime are both due at the same point end, soft cap is the relevant cap.
+        state = newCapState(
+            capRules.copy(
+                gameTo = 5,
+                halfCapMinutes = 10,
+                softCapMinutes = 10,
+                useHardCap = false,
+            )
+        )
+        state = scoreAt(state, VC, 1, 2_400_000L)
+        state = scoreAt(state, VC, 2, 2_500_000L)
+        state = scoreAt(state, VC, 10, 2_600_000L)
+        assertEquals(3, state.teamOne.score)
+        assertEquals(0, state.teamTwo.score)
+        assertEquals(LivePhase.BETWEEN_POINTS, state.phase)
+        assertFalse(state.halftimeTaken)
+        assertEquals(CapType.SOFT, state.pendingCapOffer)
+
+        // The observer can still manually start halftime from Other when teams choose to take half anyway.
+        val beforeManualHalftime = state
+        state = startHalftimeNow(state, LocalTime.of(10, 10), 2_610_000L)
+        assertEquals(LivePhase.HALFTIME, state.phase)
+        assertTrue(state.halftimeTaken)
+        assertEquals(CapType.SOFT, state.pendingCapOffer)
+        assertEquals(CountdownKind.HALFTIME, state.countdown?.kind)
+        assertEquals(420, state.countdown?.durationSeconds)
+        assertEquals(3_030_000L, state.countdown?.targetEpochMillis)
+        assertEquals(0, state.teamOne.firstHalfTimeoutsUsed)
+        assertEquals(0, state.teamOne.timeoutsUsedThisHalf)
+        assertEquals(0, state.teamTwo.firstHalfTimeoutsUsed)
+        assertEquals(0, state.teamTwo.timeoutsUsedThisHalf)
+        assertEquals(ANIMAL, state.pullingTeam)
+        assertEquals(FieldEnd.NEAR, state.pullingFromEnd)
+        assertEquals(VC, state.nearAttackingTeam)
+        assertEquals("Halftime.", state.lastEvent)
+        assertEquals("Undo Start Halftime", state.undoEntry?.label)
+        assertEquals(beforeManualHalftime, state.undoEntry?.previous)
+
+        // Soft cap during halftime proper is applied immediately, before the next point starts.
+        state = newCapState(
+            capRules.copy(
+                gameTo = 5,
+                halftimeMinutes = 7,
+                useHalfCap = false,
+                softCapMinutes = 12,
+                useHardCap = false,
+            )
+        )
+        state = scoreAt(state, VC, 1, 2_700_000L)
+        state = scoreAt(state, VC, 2, 2_800_000L)
+        state = scoreAt(state, VC, 10, 3_000_000L)
+        assertEquals(LivePhase.HALFTIME, state.phase)
+        assertEquals(CapType.SOFT, state.pendingCapOffer)
+        assertEquals(
+            "Soft cap is scheduled for 10:12 AM. Winning score would become 4. Apply now?",
+            capOfferExplanation(state),
+        )
+        val halftimeCountdown = state.countdown!!
+        state = applyPendingCap(state, LocalTime.of(10, 12))
+        assertEquals(LivePhase.HALFTIME, state.phase)
+        assertTrue(state.softCapApplied)
+        assertEquals(4, state.winningScore)
+        assertNull(state.pendingCapOffer)
+        assertEquals("Soft cap applied.", state.lastEvent)
+
+        state = advanceGameClock(state, halftimeCountdown.targetEpochMillis)
+        assertEquals(LivePhase.BETWEEN_POINTS, state.phase)
+        assertTrue(state.softCapApplied)
+        assertEquals(4, state.winningScore)
+
+        // With custom timing, if soft and hard cap both fall inside halftime, hard cap takes precedence.
+        state = newCapState(
+            capRules.copy(
+                gameTo = 5,
+                halftimeMinutes = 7,
+                useHalfCap = false,
+                softCapMinutes = 15,
+                hardCapMinutes = 20,
+            )
+        )
+        state = scoreAt(state, VC, 1, 3_100_000L)
+        state = scoreAt(state, VC, 2, 3_200_000L)
+        state = scoreAt(state, VC, 14, 3_300_000L)
+        assertEquals(LivePhase.HALFTIME, state.phase)
+        assertEquals(CapType.HARD, state.pendingCapOffer)
+        assertEquals(
+            "Hard cap is scheduled for 10:20 AM. Score is not tied, so the game would end during halftime. Apply now?",
+            capOfferExplanation(state),
+        )
+        state = applyPendingCap(state, LocalTime.of(10, 14))
+        assertEquals(LivePhase.GAME_OVER, state.phase)
+        assertTrue(state.hardCapApplied)
+        assertFalse(state.softCapApplied)
+        assertEquals(LocalTime.of(10, 14), state.endTime)
+        assertNull(state.countdown)
+        assertNull(state.pendingCapOffer)
+
+        // Hard cap during halftime while tied can only happen after a manual halftime trigger.
+        // If it does, hard cap means one more point after halftime, not an immediate game over.
+        state = newCapState(
+            capRules.copy(
+                gameTo = 7,
+                halftimeMinutes = 7,
+                useHalfCap = false,
+                useSoftCap = false,
+                hardCapMinutes = 12,
+            )
+        )
+        state = scoreAt(state, VC, 1, 2_350_000L)
+        state = scoreAt(state, ANIMAL, 2, 2_360_000L)
+        state = scoreAt(state, VC, 3, 2_370_000L)
+        state = scoreAt(state, ANIMAL, 4, 2_380_000L)
+        assertEquals(2, state.teamOne.score)
+        assertEquals(2, state.teamTwo.score)
+        assertNull(state.pendingCapOffer)
+        state = startHalftimeNow(state, LocalTime.of(10, 10), 2_390_000L)
+        assertEquals(LivePhase.HALFTIME, state.phase)
+        assertEquals(CapType.HARD, state.pendingCapOffer)
+        assertEquals(
+            "Hard cap is scheduled for 10:12 AM. Score is tied, so one more point would be played. Apply now?",
+            capOfferExplanation(state),
+        )
+        val tiedHardCapHalftimeCountdown = state.countdown
+        state = applyPendingCap(state, LocalTime.of(10, 12))
+        assertEquals(LivePhase.HALFTIME, state.phase)
+        assertTrue(state.hardCapApplied)
+        assertEquals(3, state.winningScore)
+        assertEquals(tiedHardCapHalftimeCountdown, state.countdown)
+        assertNull(state.endTime)
+        assertNull(state.pendingCapOffer)
+
+        // A cap after halftime expires but before the pull waits until the next point is complete.
+        state = newCapState(
+            capRules.copy(
+                gameTo = 5,
+                halftimeMinutes = 7,
+                useHalfCap = false,
+                softCapMinutes = 18,
+                useHardCap = false,
+            )
+        )
+        state = scoreAt(state, VC, 1, 3_500_000L)
+        state = scoreAt(state, VC, 2, 3_600_000L)
+        state = scoreAt(state, VC, 10, 3_700_000L)
+        assertEquals(LivePhase.HALFTIME, state.phase)
+        state = advanceGameClock(state, state.countdown!!.targetEpochMillis + 60_000L)
+        assertEquals(LivePhase.BETWEEN_POINTS, state.phase)
+        assertFalse(state.softCapApplied)
+        assertNull(state.pendingCapOffer)
+        state = scoreAt(state, ANIMAL, 19, 3_900_000L)
+        assertEquals(CapType.SOFT, state.pendingCapOffer)
+        assertFalse(state.softCapApplied)
+
         // Force-cap-now actions enable the selected cap and move the nominal start time.
         state = newCapState(
             capRules.copy(

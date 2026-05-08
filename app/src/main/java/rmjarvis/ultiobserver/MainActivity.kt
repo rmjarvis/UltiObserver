@@ -2201,7 +2201,7 @@ private fun OtherSheet(
                 ) {
                     OtherMenuButton(
                         label = "Start Halftime",
-                        onClick = { onAction(startHalftimeNow(state, nowMillis)) },
+                        onClick = { onAction(startHalftimeNow(state, now, nowMillis)) },
                     )
                 }
                 if (state.phase != LivePhase.GAME_OVER) {
