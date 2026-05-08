@@ -10,6 +10,48 @@ import org.junit.Ignore
 import org.junit.Test
 
 class GameModelTestPlan {
+    private fun standardGameSetup(
+        startTime: LocalTime,
+        rules: GameRules = GameRules(
+            gameTo = 5,
+            useHalfCap = false,
+            useSoftCap = false,
+            useHardCap = false,
+        ),
+        pullingTeam: TeamId = TeamId.TEAM_ONE,
+        pullingFromEnd: FieldEnd = FieldEnd.FAR,
+    ): GameSetupState {
+        return GameSetupState(
+            startTime = startTime,
+            rules = rules,
+            teamOne = TeamSetup("Viscous Coupling", TeamColorChoice.WHITE),
+            teamTwo = TeamSetup("Animal", TeamColorChoice.RED),
+            pullingTeam = pullingTeam,
+            pullingFromEnd = pullingFromEnd,
+        )
+    }
+
+    private fun standardLiveGameState(
+        startTime: LocalTime = LocalTime.of(11, 0),
+        rules: GameRules = GameRules(
+            gameTo = 5,
+            useHalfCap = false,
+            useSoftCap = false,
+            useHardCap = false,
+        ),
+        pullingTeam: TeamId = TeamId.TEAM_ONE,
+        pullingFromEnd: FieldEnd = FieldEnd.FAR,
+    ): LiveGameState {
+        return createLiveGameState(
+            standardGameSetup(
+                startTime = startTime,
+                rules = rules,
+                pullingTeam = pullingTeam,
+                pullingFromEnd = pullingFromEnd,
+            )
+        )
+    }
+
     // Test a representative complete game from setup through halftime to final score.
     // Keep this as a user-visible story that exercises common actions between scoring events.
     @Test
@@ -26,11 +68,9 @@ class GameModelTestPlan {
             useSoftCap = false,
             useHardCap = false,
         )
-        val setup = GameSetupState(
+        val setup = standardGameSetup(
             startTime = LocalTime.of(10, 0),
             rules = rules,
-            teamOne = TeamSetup("Viscous Coupling", TeamColorChoice.WHITE),
-            teamTwo = TeamSetup("Animal", TeamColorChoice.RED),
             pullingTeam = VC,
             pullingFromEnd = FieldEnd.FAR,
         )
@@ -283,11 +323,9 @@ class GameModelTestPlan {
             rules: GameRules,
             pullingFromEnd: FieldEnd = FieldEnd.FAR,
         ): GameSetupState {
-            return GameSetupState(
+            return standardGameSetup(
                 startTime = LocalTime.of(9, 0),
                 rules = rules,
-                teamOne = TeamSetup("Viscous Coupling", TeamColorChoice.WHITE),
-                teamTwo = TeamSetup("Animal", TeamColorChoice.RED),
                 pullingTeam = VC,
                 pullingFromEnd = pullingFromEnd,
             )
@@ -768,24 +806,6 @@ class GameModelTestPlan {
         val VC = TeamId.TEAM_ONE
         val ANIMAL = TeamId.TEAM_TWO
 
-        fun newState(): LiveGameState {
-            return createLiveGameState(
-                GameSetupState(
-                    startTime = LocalTime.of(11, 0),
-                    rules = GameRules(
-                        gameTo = 5,
-                        useHalfCap = false,
-                        useSoftCap = false,
-                        useHardCap = false,
-                    ),
-                    teamOne = TeamSetup("Viscous Coupling", TeamColorChoice.WHITE),
-                    teamTwo = TeamSetup("Animal", TeamColorChoice.RED),
-                    pullingTeam = VC,
-                    pullingFromEnd = FieldEnd.FAR,
-                )
-            )
-        }
-
         fun cardPoints(team: TeamLiveState): Int {
             return team.yellowCards + team.blueCards + (2 * team.redCards)
         }
@@ -799,7 +819,7 @@ class GameModelTestPlan {
         }
 
         // Record a first yellow for a numbered Viscous Coupling player and verify team and player state.
-        var state = newState()
+        var state = standardLiveGameState()
         var cardResult = assessYellowCard(state, VC, "17")
         state = cardResult.state
         assertFalse(cardResult.needsLivePointMisconductChoice)
@@ -834,7 +854,7 @@ class GameModelTestPlan {
         )
 
         // A direct red for a player with no prior yellow counts as two team card points and records a direct red.
-        state = newState()
+        state = standardLiveGameState()
         cardResult = assessRedCard(state, ANIMAL, "23", RedCardMode.DIRECT_RED)
         state = cardResult.state
         assertFalse(cardResult.needsLivePointMisconductChoice)
@@ -845,7 +865,7 @@ class GameModelTestPlan {
         assertEquals(InGamePlayerCardRecord(ANIMAL, "23", directReds = 1), playerRecord(state, ANIMAL, "23"))
 
         // A direct red for a player who already has a yellow is distinct from recording the red as a second yellow.
-        state = newState()
+        state = standardLiveGameState()
         state = assessYellowCard(state, ANIMAL, "8").state
         cardResult = assessRedCard(state, ANIMAL, "8", RedCardMode.DIRECT_RED)
         state = cardResult.state
@@ -859,7 +879,7 @@ class GameModelTestPlan {
             cardResult.message,
         )
 
-        state = newState()
+        state = standardLiveGameState()
         state = assessYellowCard(state, ANIMAL, "8").state
         cardResult = assessRedCard(state, ANIMAL, "8", RedCardMode.SECOND_YELLOW)
         state = cardResult.state
@@ -871,7 +891,7 @@ class GameModelTestPlan {
         assertEquals("Second yellow acts as a red card. Player 8 is ejected.\nAnimal has 2 cards.", cardResult.message)
 
         // The N/A pathways distinguish same-unknown-player second yellow from a standalone yellow.
-        state = newState()
+        state = standardLiveGameState()
         state = assessYellowCard(state, VC, UNKNOWN_PLAYER_NUMBER).state
         assertTrue(playerHasYellowThisGame(state, VC, UNKNOWN_PLAYER_NUMBER))
         cardResult = assessRedCard(state, VC, UNKNOWN_PLAYER_NUMBER, RedCardMode.SECOND_YELLOW)
@@ -881,7 +901,7 @@ class GameModelTestPlan {
         assertEquals(InGamePlayerCardRecord(VC, UNKNOWN_PLAYER_NUMBER, yellows = 2), playerRecord(state, VC, UNKNOWN_PLAYER_NUMBER))
         assertEquals("Second yellow acts as a red card. The player is ejected.\nViscous Coupling has 2 cards.", cardResult.message)
 
-        state = newState()
+        state = standardLiveGameState()
         state = assessYellowCard(state, VC, UNKNOWN_PLAYER_NUMBER).state
         cardResult = assessStandaloneYellowCard(state, VC, UNKNOWN_PLAYER_NUMBER)
         state = cardResult.state
@@ -891,7 +911,7 @@ class GameModelTestPlan {
         assertFalse(cardResult.message.startsWith("Second yellow acts as a red card."))
 
         // Blue cards count as one team card point each and do not create per-player card records.
-        state = newState()
+        state = standardLiveGameState()
         cardResult = assessBlueCard(state, ANIMAL)
         state = cardResult.state
         assertFalse(cardResult.needsLivePointMisconductChoice)
@@ -928,7 +948,7 @@ class GameModelTestPlan {
         )
 
         // Technical fouls use a separate count, with the same third-and-later misconduct handling.
-        state = newState()
+        state = standardLiveGameState()
         var technicalFoulResult = assessTechnicalFoul(state, ANIMAL)
         state = technicalFoulResult.state
         assertFalse(technicalFoulResult.needsLivePointMisconductChoice)
@@ -965,7 +985,7 @@ class GameModelTestPlan {
         )
 
         // During a live point, third-and-later misconduct asks for offense/defense context instead of guessing.
-        state = beginLivePoint(newState())
+        state = beginLivePoint(standardLiveGameState())
         state = assessBlueCard(state, VC).state
         state = assessBlueCard(state, VC).state
         cardResult = assessBlueCard(state, VC)
@@ -990,23 +1010,119 @@ class GameModelTestPlan {
     // Offsides belongs to the pulling team; false start belongs to the receiving team.
     @Test
     fun pullInfractions() {
-        // Start from a pull sequence with a known pulling team and pulling end.
+        val VC = TeamId.TEAM_ONE
+        val ANIMAL = TeamId.TEAM_TWO
+
+        // Start from a pull sequence with Viscous Coupling pulling to Animal.
+        var state = standardLiveGameState()
+        assertEquals(LivePhase.BETWEEN_POINTS, state.phase)
+        assertEquals(VC, state.pullingTeam)
+        assertEquals(0, state.teamOne.offsides)
+        assertEquals(0, state.teamOne.falseStarts)
+        assertEquals(0, state.teamTwo.offsides)
+        assertEquals(0, state.teamTwo.falseStarts)
+        assertFalse(state.pullSequenceOffsidesRecorded)
+        assertFalse(state.pullSequenceFalseStartRecorded)
 
         // Record offsides and verify only the pulling team's offsides count increments.
+        state = recordOffsides(state)
+        assertEquals(LivePhase.LIVE_POINT, state.phase)
+        assertNull(state.countdown)
+        assertEquals(1, state.teamOne.offsides)
+        assertEquals(0, state.teamOne.falseStarts)
+        assertEquals(0, state.teamTwo.offsides)
+        assertEquals(0, state.teamTwo.falseStarts)
+        assertTrue(state.pullSequenceOffsidesRecorded)
+        assertFalse(state.pullSequenceFalseStartRecorded)
+        assertEquals("Offsides on Viscous Coupling.", state.lastEvent)
+        assertEquals("Undo Offsides on Viscous Coupling", state.undoEntry?.label)
 
         // Verify the first pull-violation message sends play to the brick mark.
+        assertEquals("Start at brick mark", offsidesResolutionMessage(state, VC))
 
         // Verify the same pull sequence cannot record a second offsides for the same team.
+        val afterDuplicateOffsides = recordOffsides(state)
+        assertEquals(state, afterDuplicateOffsides)
 
-        // Record false start and verify only the receiving team's false-start count increments.
+        // In a fresh pull sequence, record false start and verify only the receiving team's count increments.
+        state = standardLiveGameState()
+        state = recordFalseStart(state)
+        assertEquals(LivePhase.BETWEEN_POINTS, state.phase)
+        assertNotNull(state.countdown)
+        assertEquals(0, state.teamOne.offsides)
+        assertEquals(0, state.teamOne.falseStarts)
+        assertEquals(0, state.teamTwo.offsides)
+        assertEquals(1, state.teamTwo.falseStarts)
+        assertFalse(state.pullSequenceOffsidesRecorded)
+        assertTrue(state.pullSequenceFalseStartRecorded)
+        assertEquals("False start on Animal.", state.lastEvent)
+        assertEquals("Undo False Start on Animal", state.undoEntry?.label)
 
         // Verify false-start guidance says the defense gets to set up.
+        assertEquals("Defense gets to set up.", falseStartResolutionMessage())
+
+        // The same pull sequence cannot record a second false start.
+        val afterDuplicateFalseStart = recordFalseStart(state)
+        assertEquals(state, afterDuplicateFalseStart)
+
+        // Record offsides and false start on the same pull and verify both counts and both consequences apply.
+        state = standardLiveGameState()
+        state = recordOffsides(state)
+        state = recordFalseStart(state)
+        assertEquals(1, state.teamOne.offsides)
+        assertEquals(0, state.teamOne.falseStarts)
+        assertEquals(0, state.teamTwo.offsides)
+        assertEquals(1, state.teamTwo.falseStarts)
+        assertTrue(state.pullSequenceOffsidesRecorded)
+        assertTrue(state.pullSequenceFalseStartRecorded)
+        assertEquals("Start at brick mark", offsidesResolutionMessage(state, VC))
+        assertEquals("Defense gets to set up.", falseStartResolutionMessage())
 
         // Score the point and verify pull-sequence infraction locks reset for the next pull.
+        state = recordGoalFromCurrentState(state, VC, LocalTime.of(12, 5), 1_000_000L)
+        assertEquals(LivePhase.BETWEEN_POINTS, state.phase)
+        assertEquals(VC, state.pullingTeam)
+        assertEquals(1, state.teamOne.score)
+        assertEquals(0, state.teamTwo.score)
+        assertEquals(1, state.teamOne.offsides)
+        assertEquals(1, state.teamTwo.falseStarts)
+        assertFalse(state.pullSequenceOffsidesRecorded)
+        assertFalse(state.pullSequenceFalseStartRecorded)
+        assertEquals("Pull in", state.countdown?.label)
 
-        // Build a later pull where the same team already has a violation and verify the guidance changes to midfield.
+        // Build a later pull where Viscous Coupling already has a violation and verify the guidance changes to midfield.
+        state = recordOffsides(state)
+        assertEquals(2, state.teamOne.offsides)
+        assertEquals("Start at midfield", offsidesResolutionMessage(state, VC))
+
+        // A previous false start by Viscous Coupling also stacks with a later Viscous Coupling offsides.
+        state = standardLiveGameState(pullingTeam = ANIMAL)
+        state = recordFalseStart(state)
+        assertEquals(0, state.teamOne.offsides)
+        assertEquals(1, state.teamOne.falseStarts)
+        assertEquals(0, state.teamTwo.offsides)
+        assertEquals(0, state.teamTwo.falseStarts)
+        state = recordGoalFromCurrentState(state, VC, LocalTime.of(12, 10), 1_100_000L)
+        assertEquals(VC, state.pullingTeam)
+        state = recordOffsides(state)
+        assertEquals(1, state.teamOne.offsides)
+        assertEquals(1, state.teamOne.falseStarts)
+        assertEquals("Start at midfield", offsidesResolutionMessage(state, VC))
 
         // Manually adjust pull infractions and verify values are clamped and undo-backed.
+        state = adjustPullInfractions(
+            state,
+            teamOneOffsides = -1,
+            teamOneFalseStarts = 2,
+            teamTwoOffsides = 3,
+            teamTwoFalseStarts = -4,
+        )
+        assertEquals(0, state.teamOne.offsides)
+        assertEquals(2, state.teamOne.falseStarts)
+        assertEquals(3, state.teamTwo.offsides)
+        assertEquals(0, state.teamTwo.falseStarts)
+        assertEquals("Pull infractions adjusted.", state.lastEvent)
+        assertEquals("Undo Pull Infraction Adjustment", state.undoEntry?.label)
     }
 
     // Test cap prompting and cap application as rule-visible state transitions.
