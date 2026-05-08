@@ -1161,6 +1161,7 @@ private fun FieldSketchCard(
             EndZonePanel(
                 teamId = topSlot,
                 team = topTeam,
+                timeoutsRemaining = timeoutsRemaining(state, topSlot),
                 background = topTeam.color.accent.copy(alpha = 0.85f),
                 interactionsEnabled = interactionsEnabled,
                 isPulling = state.pullingTeam == topSlot,
@@ -1205,6 +1206,7 @@ private fun FieldSketchCard(
             EndZonePanel(
                 teamId = bottomSlot,
                 team = bottomTeam,
+                timeoutsRemaining = timeoutsRemaining(state, bottomSlot),
                 background = bottomTeam.color.accent,
                 interactionsEnabled = interactionsEnabled,
                 isPulling = state.pullingTeam == bottomSlot,
@@ -1227,6 +1229,7 @@ private fun FieldSketchCard(
 private fun EndZonePanel(
     teamId: TeamId,
     team: TeamLiveState,
+    timeoutsRemaining: Int,
     background: Color,
     interactionsEnabled: Boolean,
     isPulling: Boolean,
@@ -1268,7 +1271,7 @@ private fun EndZonePanel(
                     )
                 }
                 Text(
-                    text = "TO ${team.timeoutsRemaining}  Cards ${totalCardPoints(team)}  TF ${team.technicalFouls}",
+                    text = "TO $timeoutsRemaining  Cards ${totalCardPoints(team)}  TF ${team.technicalFouls}",
                     color = team.color.content,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
@@ -1661,8 +1664,10 @@ private fun AdjustTimeoutsDialog(
     onDismiss: () -> Unit,
     onConfirm: (Int, Int) -> Unit,
 ) {
-    var teamOneTimeouts by remember { mutableStateOf(state.teamOne.timeoutsRemaining) }
-    var teamTwoTimeouts by remember { mutableStateOf(state.teamTwo.timeoutsRemaining) }
+    val teamOneAllowed = timeoutsAllowedThisHalf(state, TeamId.TEAM_ONE)
+    val teamTwoAllowed = timeoutsAllowedThisHalf(state, TeamId.TEAM_TWO)
+    var teamOneTimeoutsUsed by remember { mutableStateOf(state.teamOne.timeoutsUsedThisHalf) }
+    var teamTwoTimeoutsUsed by remember { mutableStateOf(state.teamTwo.timeoutsUsedThisHalf) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1670,19 +1675,19 @@ private fun AdjustTimeoutsDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 SmallCountEditor(
-                    label = "${state.teamOne.name} (max ${state.teamOne.timeoutsAllowedThisHalf})",
-                    value = teamOneTimeouts,
-                    onValueChange = { teamOneTimeouts = it.coerceIn(0, state.teamOne.timeoutsAllowedThisHalf) },
+                    label = "${state.teamOne.name} used (allowed $teamOneAllowed)",
+                    value = teamOneTimeoutsUsed,
+                    onValueChange = { teamOneTimeoutsUsed = it },
                 )
                 SmallCountEditor(
-                    label = "${state.teamTwo.name} (max ${state.teamTwo.timeoutsAllowedThisHalf})",
-                    value = teamTwoTimeouts,
-                    onValueChange = { teamTwoTimeouts = it.coerceIn(0, state.teamTwo.timeoutsAllowedThisHalf) },
+                    label = "${state.teamTwo.name} used (allowed $teamTwoAllowed)",
+                    value = teamTwoTimeoutsUsed,
+                    onValueChange = { teamTwoTimeoutsUsed = it },
                 )
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(teamOneTimeouts, teamTwoTimeouts) }) {
+            TextButton(onClick = { onConfirm(teamOneTimeoutsUsed, teamTwoTimeoutsUsed) }) {
                 Text("Set")
             }
         },
@@ -2236,8 +2241,8 @@ private fun OtherSheet(
         AdjustTimeoutsDialog(
             state = state,
             onDismiss = { showAdjustTimeoutsDialog = false },
-            onConfirm = { teamOneTimeouts, teamTwoTimeouts ->
-                onAction(adjustTimeouts(state, teamOneTimeouts, teamTwoTimeouts))
+            onConfirm = { teamOneTimeoutsUsed, teamTwoTimeoutsUsed ->
+                onAction(adjustTimeouts(state, teamOneTimeoutsUsed, teamTwoTimeoutsUsed))
                 showAdjustTimeoutsDialog = false
             },
         )

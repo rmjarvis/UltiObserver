@@ -42,10 +42,12 @@ class GameModelTestPlan {
         assertEquals("Animal", state.teamTwo.name)
         assertEquals(0, state.teamOne.score)
         assertEquals(0, state.teamTwo.score)
-        assertEquals(2, state.teamOne.timeoutsAllowedThisHalf)
-        assertEquals(2, state.teamOne.timeoutsRemaining)
-        assertEquals(2, state.teamTwo.timeoutsAllowedThisHalf)
-        assertEquals(2, state.teamTwo.timeoutsRemaining)
+        assertEquals(0, state.teamOne.timeoutsUsedThisHalf)
+        assertEquals(2, timeoutsAllowedThisHalf(state, VC))
+        assertEquals(2, timeoutsRemaining(state, VC))
+        assertEquals(0, state.teamTwo.timeoutsUsedThisHalf)
+        assertEquals(2, timeoutsAllowedThisHalf(state, ANIMAL))
+        assertEquals(2, timeoutsRemaining(state, ANIMAL))
         assertEquals(VC, state.pullingTeam)
         assertEquals(FieldEnd.FAR, state.pullingFromEnd)
         assertEquals(VC, state.nearAttackingTeam)
@@ -63,7 +65,8 @@ class GameModelTestPlan {
         val firstTimeout = assessTimeout(state, ANIMAL, 1_000_000L)
         assertNull(firstTimeout.message)
         state = firstTimeout.state
-        assertEquals(1, state.teamTwo.timeoutsRemaining)
+        assertEquals(1, state.teamTwo.timeoutsUsedThisHalf)
+        assertEquals(1, timeoutsRemaining(state, ANIMAL))
         assertEquals(LivePhase.LIVE_POINT, state.phase)
         assertEquals(CountdownKind.TIME_OUT, state.countdown?.kind)
         assertEquals("Offense set in", state.countdown?.label)
@@ -165,7 +168,7 @@ class GameModelTestPlan {
         val secondTimeout = assessTimeout(state, VC, 1_020_000L)
         assertNull(secondTimeout.message)
         state = secondTimeout.state
-        assertEquals(1, state.teamOne.timeoutsRemaining)
+        assertEquals(1, timeoutsRemaining(state, VC))
         assertEquals(LivePhase.LIVE_POINT, state.phase)
         assertEquals(CountdownKind.TIME_OUT, state.countdown?.kind)
         assertEquals("Offense set in", state.countdown?.label)
@@ -211,10 +214,12 @@ class GameModelTestPlan {
         assertEquals("Halftime", state.countdown?.label)
         assertEquals(420, state.countdown?.durationSeconds)
         assertEquals(1_720_000L, state.countdown?.targetEpochMillis)
-        assertEquals(2, state.teamOne.timeoutsAllowedThisHalf)
-        assertEquals(2, state.teamOne.timeoutsRemaining)
-        assertEquals(2, state.teamTwo.timeoutsAllowedThisHalf)
-        assertEquals(2, state.teamTwo.timeoutsRemaining)
+        assertEquals(0, state.teamOne.timeoutsUsedThisHalf)
+        assertEquals(2, timeoutsAllowedThisHalf(state, VC))
+        assertEquals(2, timeoutsRemaining(state, VC))
+        assertEquals(0, state.teamTwo.timeoutsUsedThisHalf)
+        assertEquals(2, timeoutsAllowedThisHalf(state, ANIMAL))
+        assertEquals(2, timeoutsRemaining(state, ANIMAL))
         assertEquals("Undo Goal by Viscous Coupling", state.undoEntry?.label)
 
         // After halftime, the next pull can start and should behave like a normal live point.
@@ -231,7 +236,8 @@ class GameModelTestPlan {
         val thirdTimeout = assessTimeout(state, ANIMAL, 1_810_000L)
         assertNull(thirdTimeout.message)
         state = thirdTimeout.state
-        assertEquals(1, state.teamTwo.timeoutsRemaining)
+        assertEquals(1, state.teamTwo.timeoutsUsedThisHalf)
+        assertEquals(1, timeoutsRemaining(state, ANIMAL))
         assertEquals("Signal in", state.countdown?.label)
         assertEquals(130, state.countdown?.durationSeconds)
 
@@ -319,17 +325,20 @@ class GameModelTestPlan {
                 )
             )
         )
-        assertEquals(2, state.teamOne.timeoutsAllowedThisHalf)
-        assertEquals(2, state.teamOne.timeoutsRemaining)
-        assertEquals(2, state.teamTwo.timeoutsAllowedThisHalf)
-        assertEquals(2, state.teamTwo.timeoutsRemaining)
+        assertEquals(0, state.teamOne.timeoutsUsedThisHalf)
+        assertEquals(2, timeoutsAllowedThisHalf(state, VC))
+        assertEquals(2, timeoutsRemaining(state, VC))
+        assertEquals(0, state.teamTwo.timeoutsUsedThisHalf)
+        assertEquals(2, timeoutsAllowedThisHalf(state, ANIMAL))
+        assertEquals(2, timeoutsRemaining(state, ANIMAL))
 
-        // A between-points timeout decrements the team's count and extends the active countdown.
+        // A between-points timeout records a used timeout and extends the active countdown.
         val originalCountdown = state.countdown!!
         var timeoutResult = assessTimeout(state, VC, originalCountdown.targetEpochMillis - 1_000L)
         assertNull(timeoutResult.message)
         state = timeoutResult.state
-        assertEquals(1, state.teamOne.timeoutsRemaining)
+        assertEquals(1, state.teamOne.timeoutsUsedThisHalf)
+        assertEquals(1, timeoutsRemaining(state, VC))
         assertEquals("Signal in", state.countdown?.label)
         assertEquals(130, state.countdown?.durationSeconds)
         assertEquals(originalCountdown.targetEpochMillis + 70_000L, state.countdown?.targetEpochMillis)
@@ -340,7 +349,8 @@ class GameModelTestPlan {
         timeoutResult = assessTimeout(state, VC, 1_000_000L)
         assertNull(timeoutResult.message)
         state = timeoutResult.state
-        assertEquals(0, state.teamOne.timeoutsRemaining)
+        assertEquals(2, state.teamOne.timeoutsUsedThisHalf)
+        assertEquals(0, timeoutsRemaining(state, VC))
         assertEquals(LivePhase.LIVE_POINT, state.phase)
         assertEquals(CountdownKind.TIME_OUT, state.countdown?.kind)
         assertEquals("Offense set in", state.countdown?.label)
@@ -363,10 +373,14 @@ class GameModelTestPlan {
         // In the ordinary two-per-half rules, both teams return to two timeouts at halftime.
         state = scoreToHalftime(state, VC, 1_100_000L)
         assertEquals(LivePhase.HALFTIME, state.phase)
-        assertEquals(2, state.teamOne.timeoutsAllowedThisHalf)
-        assertEquals(2, state.teamOne.timeoutsRemaining)
-        assertEquals(2, state.teamTwo.timeoutsAllowedThisHalf)
-        assertEquals(2, state.teamTwo.timeoutsRemaining)
+        assertEquals(2, state.teamOne.firstHalfTimeoutsUsed)
+        assertEquals(0, state.teamOne.timeoutsUsedThisHalf)
+        assertEquals(2, timeoutsAllowedThisHalf(state, VC))
+        assertEquals(2, timeoutsRemaining(state, VC))
+        assertEquals(0, state.teamTwo.firstHalfTimeoutsUsed)
+        assertEquals(0, state.teamTwo.timeoutsUsedThisHalf)
+        assertEquals(2, timeoutsAllowedThisHalf(state, ANIMAL))
+        assertEquals(2, timeoutsRemaining(state, ANIMAL))
 
         // A timeout is not available while the halftime countdown itself is still running.
         val halftimeEndMillis = state.countdown!!.targetEpochMillis
@@ -379,7 +393,8 @@ class GameModelTestPlan {
         assertNull(timeoutResult.message)
         val afterHalftimeTimeoutState = timeoutResult.state
         assertEquals(LivePhase.BETWEEN_POINTS, afterHalftimeTimeoutState.phase)
-        assertEquals(1, afterHalftimeTimeoutState.teamOne.timeoutsRemaining)
+        assertEquals(1, afterHalftimeTimeoutState.teamOne.timeoutsUsedThisHalf)
+        assertEquals(1, timeoutsRemaining(afterHalftimeTimeoutState, VC))
         assertEquals("Pull in", afterHalftimeTimeoutState.countdown?.label)
         assertEquals(150, afterHalftimeTimeoutState.countdown?.durationSeconds)
         assertEquals(halftimeEndMillis + 150_000L, afterHalftimeTimeoutState.countdown?.targetEpochMillis)
@@ -420,17 +435,22 @@ class GameModelTestPlan {
                 )
             )
         )
-        assertEquals(2, state.teamOne.timeoutsAllowedThisHalf)
-        assertEquals(2, state.teamOne.timeoutsRemaining)
+        assertEquals(0, state.teamOne.timeoutsUsedThisHalf)
+        assertEquals(2, timeoutsAllowedThisHalf(state, VC))
+        assertEquals(2, timeoutsRemaining(state, VC))
         state = assessTimeout(state, VC, state.countdown!!.targetEpochMillis - 1_000L).state
         state = beginLivePoint(state)
         state = assessTimeout(state, VC, 2_000_000L).state
         state = continueLivePoint(state)
         state = scoreToHalftime(state, VC, 2_100_000L)
-        assertEquals(1, state.teamOne.timeoutsAllowedThisHalf)
-        assertEquals(1, state.teamOne.timeoutsRemaining)
-        assertEquals(2, state.teamTwo.timeoutsAllowedThisHalf)
-        assertEquals(2, state.teamTwo.timeoutsRemaining)
+        assertEquals(2, state.teamOne.firstHalfTimeoutsUsed)
+        assertEquals(0, state.teamOne.timeoutsUsedThisHalf)
+        assertEquals(1, timeoutsAllowedThisHalf(state, VC))
+        assertEquals(1, timeoutsRemaining(state, VC))
+        assertEquals(0, state.teamTwo.firstHalfTimeoutsUsed)
+        assertEquals(0, state.teamTwo.timeoutsUsedThisHalf)
+        assertEquals(2, timeoutsAllowedThisHalf(state, ANIMAL))
+        assertEquals(2, timeoutsRemaining(state, ANIMAL))
 
         // With one timeout per half plus a floater, using one or zero first-half timeouts carries the floater over.
         state = createLiveGameState(
@@ -447,10 +467,14 @@ class GameModelTestPlan {
         )
         state = assessTimeout(state, VC, state.countdown!!.targetEpochMillis - 1_000L).state
         state = scoreToHalftime(state, VC, 2_200_000L)
-        assertEquals(2, state.teamOne.timeoutsAllowedThisHalf)
-        assertEquals(2, state.teamOne.timeoutsRemaining)
-        assertEquals(2, state.teamTwo.timeoutsAllowedThisHalf)
-        assertEquals(2, state.teamTwo.timeoutsRemaining)
+        assertEquals(1, state.teamOne.firstHalfTimeoutsUsed)
+        assertEquals(0, state.teamOne.timeoutsUsedThisHalf)
+        assertEquals(2, timeoutsAllowedThisHalf(state, VC))
+        assertEquals(2, timeoutsRemaining(state, VC))
+        assertEquals(0, state.teamTwo.firstHalfTimeoutsUsed)
+        assertEquals(0, state.teamTwo.timeoutsUsedThisHalf)
+        assertEquals(2, timeoutsAllowedThisHalf(state, ANIMAL))
+        assertEquals(2, timeoutsRemaining(state, ANIMAL))
 
         // Zero per half plus a floater gives one first-half timeout, and the floater carries only if unused.
         state = createLiveGameState(
@@ -465,14 +489,19 @@ class GameModelTestPlan {
                 )
             )
         )
-        assertEquals(1, state.teamOne.timeoutsAllowedThisHalf)
-        assertEquals(1, state.teamOne.timeoutsRemaining)
+        assertEquals(0, state.teamOne.timeoutsUsedThisHalf)
+        assertEquals(1, timeoutsAllowedThisHalf(state, VC))
+        assertEquals(1, timeoutsRemaining(state, VC))
         state = assessTimeout(state, VC, state.countdown!!.targetEpochMillis - 1_000L).state
         state = scoreToHalftime(state, VC, 2_300_000L)
-        assertEquals(0, state.teamOne.timeoutsAllowedThisHalf)
-        assertEquals(0, state.teamOne.timeoutsRemaining)
-        assertEquals(1, state.teamTwo.timeoutsAllowedThisHalf)
-        assertEquals(1, state.teamTwo.timeoutsRemaining)
+        assertEquals(1, state.teamOne.firstHalfTimeoutsUsed)
+        assertEquals(0, state.teamOne.timeoutsUsedThisHalf)
+        assertEquals(0, timeoutsAllowedThisHalf(state, VC))
+        assertEquals(0, timeoutsRemaining(state, VC))
+        assertEquals(0, state.teamTwo.firstHalfTimeoutsUsed)
+        assertEquals(0, state.teamTwo.timeoutsUsedThisHalf)
+        assertEquals(1, timeoutsAllowedThisHalf(state, ANIMAL))
+        assertEquals(1, timeoutsRemaining(state, ANIMAL))
 
         // Zero per half with no floater means timeout requests are never allowed.
         state = createLiveGameState(
@@ -487,8 +516,9 @@ class GameModelTestPlan {
                 )
             )
         )
-        assertEquals(0, state.teamOne.timeoutsAllowedThisHalf)
-        assertEquals(0, state.teamOne.timeoutsRemaining)
+        assertEquals(0, state.teamOne.timeoutsUsedThisHalf)
+        assertEquals(0, timeoutsAllowedThisHalf(state, VC))
+        assertEquals(0, timeoutsRemaining(state, VC))
         timeoutResult = assessTimeout(state, VC, 2_400_000L)
         assertEquals("Viscous Coupling is out of timeouts.", timeoutResult.message)
         assertEquals(state, timeoutResult.state)
@@ -506,11 +536,70 @@ class GameModelTestPlan {
                 )
             )
         )
-        assertEquals(3, state.teamOne.timeoutsAllowedThisHalf)
+        assertEquals(0, state.teamOne.timeoutsUsedThisHalf)
+        assertEquals(3, timeoutsAllowedThisHalf(state, VC))
         state = assessTimeout(state, VC, state.countdown!!.targetEpochMillis - 1_000L).state
         state = scoreToHalftime(state, VC, 2_500_000L)
-        assertEquals(3, state.teamOne.timeoutsAllowedThisHalf)
-        assertEquals(3, state.teamOne.timeoutsRemaining)
+        assertEquals(1, state.teamOne.firstHalfTimeoutsUsed)
+        assertEquals(0, state.teamOne.timeoutsUsedThisHalf)
+        assertEquals(3, timeoutsAllowedThisHalf(state, VC))
+        assertEquals(3, timeoutsRemaining(state, VC))
+
+        // If a team has already used more timeouts than a later rule set allows, remaining clamps to zero.
+        // If the rules are then expanded again, remaining is recomputed from the same used count.
+        state = createLiveGameState(
+            setupWithRules(
+                GameRules(
+                    gameTo = 5,
+                    useHalfCap = false,
+                    useSoftCap = false,
+                    useHardCap = false,
+                    timeoutsPerHalf = 2,
+                    hasFloaterTimeout = false,
+                )
+            )
+        )
+        state = assessTimeout(state, VC, state.countdown!!.targetEpochMillis - 1_000L).state
+        state = beginLivePoint(state)
+        state = assessTimeout(state, VC, 2_550_000L).state
+        assertEquals(2, state.teamOne.timeoutsUsedThisHalf)
+        assertEquals(0, timeoutsRemaining(state, VC))
+
+        state = applySetupToLiveGame(
+            state,
+            setupWithRules(
+                GameRules(
+                    gameTo = 5,
+                    useHalfCap = false,
+                    useSoftCap = false,
+                    useHardCap = false,
+                    timeoutsPerHalf = 1,
+                    hasFloaterTimeout = false,
+                )
+            ),
+            2_560_000L,
+        )
+        assertEquals(1, timeoutsAllowedThisHalf(state, VC))
+        assertEquals(2, state.teamOne.timeoutsUsedThisHalf)
+        assertEquals(0, timeoutsRemaining(state, VC))
+
+        state = applySetupToLiveGame(
+            state,
+            setupWithRules(
+                GameRules(
+                    gameTo = 5,
+                    useHalfCap = false,
+                    useSoftCap = false,
+                    useHardCap = false,
+                    timeoutsPerHalf = 3,
+                    hasFloaterTimeout = false,
+                )
+            ),
+            2_570_000L,
+        )
+        assertEquals(3, timeoutsAllowedThisHalf(state, VC))
+        assertEquals(2, state.teamOne.timeoutsUsedThisHalf)
+        assertEquals(1, timeoutsRemaining(state, VC))
 
         // Updating rules mid-half remaps remaining timeouts from the number already used.
         state = createLiveGameState(
@@ -540,10 +629,12 @@ class GameModelTestPlan {
             ),
             2_600_000L,
         )
-        assertEquals(1, state.teamOne.timeoutsAllowedThisHalf)
-        assertEquals(0, state.teamOne.timeoutsRemaining)
-        assertEquals(1, state.teamTwo.timeoutsAllowedThisHalf)
-        assertEquals(1, state.teamTwo.timeoutsRemaining)
+        assertEquals(1, timeoutsAllowedThisHalf(state, VC))
+        assertEquals(1, state.teamOne.timeoutsUsedThisHalf)
+        assertEquals(0, timeoutsRemaining(state, VC))
+        assertEquals(0, state.teamTwo.timeoutsUsedThisHalf)
+        assertEquals(1, timeoutsAllowedThisHalf(state, ANIMAL))
+        assertEquals(1, timeoutsRemaining(state, ANIMAL))
 
         state = applySetupToLiveGame(
             state,
@@ -559,10 +650,12 @@ class GameModelTestPlan {
             ),
             2_700_000L,
         )
-        assertEquals(3, state.teamOne.timeoutsAllowedThisHalf)
-        assertEquals(2, state.teamOne.timeoutsRemaining)
-        assertEquals(3, state.teamTwo.timeoutsAllowedThisHalf)
-        assertEquals(3, state.teamTwo.timeoutsRemaining)
+        assertEquals(3, timeoutsAllowedThisHalf(state, VC))
+        assertEquals(1, state.teamOne.timeoutsUsedThisHalf)
+        assertEquals(2, timeoutsRemaining(state, VC))
+        assertEquals(0, state.teamTwo.timeoutsUsedThisHalf)
+        assertEquals(3, timeoutsAllowedThisHalf(state, ANIMAL))
+        assertEquals(3, timeoutsRemaining(state, ANIMAL))
 
         // Updating rules in the second half still remaps from the number used in the current half.
         state = scoreToHalftime(state, VC, 2_800_000L)
@@ -582,10 +675,90 @@ class GameModelTestPlan {
             ),
             2_900_000L,
         )
-        assertEquals(1, state.teamOne.timeoutsAllowedThisHalf)
-        assertEquals(1, state.teamOne.timeoutsRemaining)
-        assertEquals(1, state.teamTwo.timeoutsAllowedThisHalf)
-        assertEquals(0, state.teamTwo.timeoutsRemaining)
+        assertEquals(0, state.teamOne.timeoutsUsedThisHalf)
+        assertEquals(1, timeoutsAllowedThisHalf(state, VC))
+        assertEquals(1, timeoutsRemaining(state, VC))
+        assertEquals(1, state.teamTwo.timeoutsUsedThisHalf)
+        assertEquals(1, timeoutsAllowedThisHalf(state, ANIMAL))
+        assertEquals(0, timeoutsRemaining(state, ANIMAL))
+
+        // In the second half, rule changes recompute the floater from first-half usage and current-half usage.
+        state = createLiveGameState(
+            setupWithRules(
+                GameRules(
+                    gameTo = 5,
+                    useHalfCap = false,
+                    useSoftCap = false,
+                    useHardCap = false,
+                    timeoutsPerHalf = 1,
+                    hasFloaterTimeout = true,
+                )
+            )
+        )
+        state = assessTimeout(state, VC, state.countdown!!.targetEpochMillis - 1_000L).state
+        state = scoreToHalftime(state, VC, 3_000_000L)
+        assertEquals(1, state.teamOne.firstHalfTimeoutsUsed)
+        assertEquals(0, state.teamOne.timeoutsUsedThisHalf)
+        assertEquals(2, timeoutsAllowedThisHalf(state, VC))
+        assertEquals(2, timeoutsRemaining(state, VC))
+
+        state = beginLivePoint(state)
+        state = assessTimeout(state, VC, 3_100_000L).state
+        assertEquals(1, state.teamOne.timeoutsUsedThisHalf)
+        assertEquals(1, timeoutsRemaining(state, VC))
+
+        state = applySetupToLiveGame(
+            state,
+            setupWithRules(
+                GameRules(
+                    gameTo = 5,
+                    useHalfCap = false,
+                    useSoftCap = false,
+                    useHardCap = false,
+                    timeoutsPerHalf = 0,
+                    hasFloaterTimeout = true,
+                )
+            ),
+            3_200_000L,
+        )
+        assertEquals(1, state.teamOne.timeoutsUsedThisHalf)
+        assertEquals(0, timeoutsAllowedThisHalf(state, VC))
+        assertEquals(0, timeoutsRemaining(state, VC))
+
+        state = applySetupToLiveGame(
+            state,
+            setupWithRules(
+                GameRules(
+                    gameTo = 5,
+                    useHalfCap = false,
+                    useSoftCap = false,
+                    useHardCap = false,
+                    timeoutsPerHalf = 2,
+                    hasFloaterTimeout = true,
+                )
+            ),
+            3_300_000L,
+        )
+        assertEquals(1, state.teamOne.timeoutsUsedThisHalf)
+        assertEquals(3, timeoutsAllowedThisHalf(state, VC))
+        assertEquals(2, timeoutsRemaining(state, VC))
+
+        // Manual timeout correction sets the used counts directly and is undo-backed.
+        val beforeTimeoutAdjustment = state
+        state = adjustTimeouts(
+            state,
+            teamOneTimeoutsUsed = 4,
+            teamTwoTimeoutsUsed = 1,
+        )
+        assertEquals(4, state.teamOne.timeoutsUsedThisHalf)
+        assertEquals(3, timeoutsAllowedThisHalf(state, VC))
+        assertEquals(0, timeoutsRemaining(state, VC))
+        assertEquals(1, state.teamTwo.timeoutsUsedThisHalf)
+        assertEquals(3, timeoutsAllowedThisHalf(state, ANIMAL))
+        assertEquals(2, timeoutsRemaining(state, ANIMAL))
+        assertEquals("Timeouts adjusted.", state.lastEvent)
+        assertEquals("Undo Timeout Adjustment", state.undoEntry?.label)
+        assertEquals(beforeTimeoutAdjustment, state.undoEntry?.previous)
     }
 
     // Test yellow, red, blue, and technical-foul handling from public card assessment APIs.

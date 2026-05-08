@@ -91,8 +91,8 @@ data class TeamLiveState(
     val name: String,
     val color: TeamColorChoice,
     val score: Int = 0,
-    val timeoutsAllowedThisHalf: Int,
-    val timeoutsRemaining: Int,
+    val timeoutsUsedThisHalf: Int = 0,
+    val firstHalfTimeoutsUsed: Int? = null,
     val offsides: Int = 0,
     val falseStarts: Int = 0,
     val technicalFouls: Int = 0,
@@ -100,6 +100,10 @@ data class TeamLiveState(
     val yellowCards: Int = 0,
     val redCards: Int = 0,
 )
+
+fun TeamLiveState.withAddedTimeout(): TeamLiveState {
+    return copy(timeoutsUsedThisHalf = timeoutsUsedThisHalf + 1)
+}
 
 data class CountdownState(
     val kind: CountdownKind,
@@ -192,14 +196,10 @@ fun createLiveGameState(setup: GameSetupState): LiveGameState {
         teamOne = TeamLiveState(
             name = setup.teamOne.name.ifBlank { "Team 1" },
             color = setup.teamOne.color,
-            timeoutsAllowedThisHalf = firstHalfTimeoutAllowance(setup.rules),
-            timeoutsRemaining = firstHalfTimeoutAllowance(setup.rules),
         ),
         teamTwo = TeamLiveState(
             name = setup.teamTwo.name.ifBlank { "Team 2" },
             color = setup.teamTwo.color,
-            timeoutsAllowedThisHalf = firstHalfTimeoutAllowance(setup.rules),
-            timeoutsRemaining = firstHalfTimeoutAllowance(setup.rules),
         ),
         priorCards = setup.priorCards,
         nearAttackingTeam = nearAttackingTeam,
@@ -299,19 +299,14 @@ fun recordGoal(
             halftimeMinutes = state.rules.halftimeMinutes,
             sequenceStartMillis = nowMillis,
         )
-        val teamOneSecondHalfTimeouts =
-            secondHalfTimeoutAllowance(state.rules, state.teamOne.timeoutsRemaining)
-        val teamTwoSecondHalfTimeouts =
-            secondHalfTimeoutAllowance(state.rules, state.teamTwo.timeoutsRemaining)
-
         return state.copy(
             teamOne = updatedTeamOne.copy(
-                timeoutsAllowedThisHalf = teamOneSecondHalfTimeouts,
-                timeoutsRemaining = teamOneSecondHalfTimeouts,
+                firstHalfTimeoutsUsed = state.teamOne.timeoutsUsedThisHalf,
+                timeoutsUsedThisHalf = 0,
             ),
             teamTwo = updatedTeamTwo.copy(
-                timeoutsAllowedThisHalf = teamTwoSecondHalfTimeouts,
-                timeoutsRemaining = teamTwoSecondHalfTimeouts,
+                firstHalfTimeoutsUsed = state.teamTwo.timeoutsUsedThisHalf,
+                timeoutsUsedThisHalf = 0,
             ),
             pullingTeam = secondHalfPullingTeam,
             pullingFromEnd = secondHalfPullingFromEnd,
@@ -415,19 +410,14 @@ fun startHalftimeNow(
         sequenceStartMillis = nowMillis,
     )
 
-    val teamOneSecondHalfTimeouts =
-        secondHalfTimeoutAllowance(state.rules, state.teamOne.timeoutsRemaining)
-    val teamTwoSecondHalfTimeouts =
-        secondHalfTimeoutAllowance(state.rules, state.teamTwo.timeoutsRemaining)
-
     return state.copy(
         teamOne = state.teamOne.copy(
-            timeoutsAllowedThisHalf = teamOneSecondHalfTimeouts,
-            timeoutsRemaining = teamOneSecondHalfTimeouts,
+            firstHalfTimeoutsUsed = state.teamOne.timeoutsUsedThisHalf,
+            timeoutsUsedThisHalf = 0,
         ),
         teamTwo = state.teamTwo.copy(
-            timeoutsAllowedThisHalf = teamTwoSecondHalfTimeouts,
-            timeoutsRemaining = teamTwoSecondHalfTimeouts,
+            firstHalfTimeoutsUsed = state.teamTwo.timeoutsUsedThisHalf,
+            timeoutsUsedThisHalf = 0,
         ),
         pullingTeam = secondHalfPullingTeam,
         pullingFromEnd = secondHalfPullingFromEnd,
@@ -540,13 +530,17 @@ fun adjustScore(state: LiveGameState, teamOneScore: Int, teamTwoScore: Int): Liv
 }
 
 // Manually adjust the number of timeouts
-fun adjustTimeouts(state: LiveGameState, teamOneTimeouts: Int, teamTwoTimeouts: Int): LiveGameState {
+fun adjustTimeouts(
+    state: LiveGameState,
+    teamOneTimeoutsUsed: Int,
+    teamTwoTimeoutsUsed: Int,
+): LiveGameState {
     return state.copy(
         teamOne = state.teamOne.copy(
-            timeoutsRemaining = teamOneTimeouts.coerceIn(0, state.teamOne.timeoutsAllowedThisHalf),
+            timeoutsUsedThisHalf = teamOneTimeoutsUsed,
         ),
         teamTwo = state.teamTwo.copy(
-            timeoutsRemaining = teamTwoTimeouts.coerceIn(0, state.teamTwo.timeoutsAllowedThisHalf),
+            timeoutsUsedThisHalf = teamTwoTimeoutsUsed,
         ),
         lastEvent = "Timeouts adjusted.",
     ).withUndo(state, "Undo Timeout Adjustment")
@@ -767,14 +761,10 @@ fun applySetupToLiveGame(
         teamOne = existing.teamOne.copy(
             name = setup.teamOne.name.ifBlank { "Team 1" },
             color = setup.teamOne.color,
-            timeoutsAllowedThisHalf = remappedTimeoutAllowance(existing, TeamId.TEAM_ONE, setup.rules),
-            timeoutsRemaining = remappedTimeoutRemaining(existing, TeamId.TEAM_ONE, setup.rules),
         ),
         teamTwo = existing.teamTwo.copy(
             name = setup.teamTwo.name.ifBlank { "Team 2" },
             color = setup.teamTwo.color,
-            timeoutsAllowedThisHalf = remappedTimeoutAllowance(existing, TeamId.TEAM_TWO, setup.rules),
-            timeoutsRemaining = remappedTimeoutRemaining(existing, TeamId.TEAM_TWO, setup.rules),
         ),
         priorCards = setup.priorCards,
         playerCardsThisGame = existing.playerCardsThisGame,
@@ -819,7 +809,7 @@ fun liveGameToSetupState(state: LiveGameState): GameSetupState {
 }
 
 // Someone called a timeout.
-// This reduces the remaining timeout count and starts or extends the appropriate countdown.
+// This records another used timeout and starts or extends the appropriate countdown.
 fun assessTimeout(
     state: LiveGameState,
     team: TeamId,
@@ -827,7 +817,7 @@ fun assessTimeout(
 ): TimeoutAssessmentResult {
     val timeoutState = timeoutEligibleState(state, nowMillis)
         ?: return TimeoutAssessmentResult(state, "Timeouts are not available now.")
-    if (teamState(timeoutState, team).timeoutsRemaining <= 0) {
+    if (timeoutsRemaining(timeoutState, team) <= 0) {
         return TimeoutAssessmentResult(state, "${teamName(state, team)} is out of timeouts.")
     }
     return TimeoutAssessmentResult(chargeTimeout(timeoutState, team, nowMillis))
@@ -839,18 +829,18 @@ fun chargeTimeout(
     nowMillis: Long,
 ): LiveGameState {
     val timeoutState = timeoutEligibleState(state, nowMillis) ?: return state
-    if (teamState(timeoutState, team).timeoutsRemaining <= 0) {
+    if (timeoutsRemaining(timeoutState, team) <= 0) {
         return state
     }
 
     val updatedState = timeoutState.copy(
         teamOne = if (team == TeamId.TEAM_ONE) {
-            timeoutState.teamOne.copy(timeoutsRemaining = max(0, timeoutState.teamOne.timeoutsRemaining - 1))
+            timeoutState.teamOne.withAddedTimeout()
         } else {
             timeoutState.teamOne
         },
         teamTwo = if (team == TeamId.TEAM_TWO) {
-            timeoutState.teamTwo.copy(timeoutsRemaining = max(0, timeoutState.teamTwo.timeoutsRemaining - 1))
+            timeoutState.teamTwo.withAddedTimeout()
         } else {
             timeoutState.teamTwo
         },
@@ -858,7 +848,7 @@ fun chargeTimeout(
     )
 
     return when (timeoutState.phase) {
-        LivePhase.BETWEEN_POINTS -> applyBetweenPointsTimeout(updatedState, nowMillis)
+        LivePhase.BETWEEN_POINTS -> applyBetweenPointsTimeout(updatedState)
             .withUndo(state, "Undo Timeout by ${teamName(timeoutState, team)}")
         LivePhase.LIVE_POINT -> applyLivePointTimeout(updatedState, nowMillis)
             .withUndo(state, "Undo Timeout by ${teamName(timeoutState, team)}")
@@ -1216,36 +1206,22 @@ private fun buildHalftimeCountdown(
     )
 }
 
-// Calculate how many time outs are allowed in the first half according to the rules.
-private fun firstHalfTimeoutAllowance(rules: GameRules): Int {
-    return rules.timeoutsPerHalf + if (rules.hasFloaterTimeout) 1 else 0
-}
-
-// Calculate how many time outs are allowed in the second half according to the rules.
-private fun secondHalfTimeoutAllowance(rules: GameRules, firstHalfRemaining: Int): Int {
-    return rules.timeoutsPerHalf + if (rules.hasFloaterTimeout && firstHalfRemaining > 0) 1 else 0
-}
-
-// After adjusting the rules, figure out what it means for how many timeouts are allowed.
-private fun remappedTimeoutAllowance(existing: LiveGameState, teamId: TeamId, newRules: GameRules): Int {
-    return if (!existing.halftimeTaken) {
-        firstHalfTimeoutAllowance(newRules)
-    } else {
-        // This is the tricky bit, since the number of timeouts left in the first half might
-        // have been affected by the rule change.
-        val existingTeam = if (teamId == TeamId.TEAM_ONE) existing.teamOne else existing.teamTwo
-        val carriedFloater = existing.rules.hasFloaterTimeout &&
-            existingTeam.timeoutsAllowedThisHalf > existing.rules.timeoutsPerHalf
-        newRules.timeoutsPerHalf + if (newRules.hasFloaterTimeout && carriedFloater) 1 else 0
+// Calculate how many time outs are allowed in the current half according to the rules.
+fun timeoutsAllowedThisHalf(state: LiveGameState, team: TeamId): Int {
+    val firstHalfAllowance = state.rules.timeoutsPerHalf + if (state.rules.hasFloaterTimeout) 1 else 0
+    if (!state.halftimeTaken) {
+        return firstHalfAllowance
     }
+
+    val firstHalfTimeoutsUsed = teamState(state, team).firstHalfTimeoutsUsed ?: 0
+    val floaterCarries = state.rules.hasFloaterTimeout && firstHalfTimeoutsUsed < firstHalfAllowance
+    return state.rules.timeoutsPerHalf + if (floaterCarries) 1 else 0
 }
 
-// After adjusting the rules, figure out what it means for how many timeouts remain.
-private fun remappedTimeoutRemaining(existing: LiveGameState, teamId: TeamId, newRules: GameRules): Int {
-    val existingTeam = if (teamId == TeamId.TEAM_ONE) existing.teamOne else existing.teamTwo
-    val usedThisHalf = (existingTeam.timeoutsAllowedThisHalf - existingTeam.timeoutsRemaining).coerceAtLeast(0)
-    val newAllowance = remappedTimeoutAllowance(existing, teamId, newRules)
-    return (newAllowance - usedThisHalf).coerceAtLeast(0)
+// Calculate how many time outs are still available in the current half.
+fun timeoutsRemaining(state: LiveGameState, team: TeamId): Int {
+    val usedThisHalf = teamState(state, team).timeoutsUsedThisHalf
+    return (timeoutsAllowedThisHalf(state, team) - usedThisHalf).coerceAtLeast(0)
 }
 
 // Return the state in which a timeout may be charged, if the rules allow one now.
@@ -1261,7 +1237,6 @@ private fun timeoutEligibleState(state: LiveGameState, nowMillis: Long): LiveGam
 // Apply a timeout between points.  (Basically just adds 70 sec to the timer.)
 private fun applyBetweenPointsTimeout(
     state: LiveGameState,
-    nowMillis: Long,
 ): LiveGameState {
     val countdown = state.countdown!!
     return state.copy(
