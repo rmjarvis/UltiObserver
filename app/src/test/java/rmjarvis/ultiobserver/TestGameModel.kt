@@ -10,7 +10,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Ignore
 import org.junit.Test
 
-class GameModelTestPlan {
+class TestGameModel {
     private fun standardGameSetup(
         startTime: LocalTime,
         rules: GameRules = GameRules(
