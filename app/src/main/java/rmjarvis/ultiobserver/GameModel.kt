@@ -189,7 +189,7 @@ data class UndoEntry(
 data class CardAssessmentResult(
     val state: LiveGameState,
     val message: String,
-    val needsLivePointMisconductChoice: Boolean = false,  // Set when a live-point card/TF needs O/D choice.
+    val needsLivePointMisconductChoice: Boolean,  // Set when a live-point card/TF needs O/D choice.
 )
 
 data class TimeoutAssessmentResult(

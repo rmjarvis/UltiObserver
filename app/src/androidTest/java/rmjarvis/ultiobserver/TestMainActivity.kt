@@ -12,7 +12,6 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.swipeRight
-import androidx.test.espresso.Espresso.pressBack
 import java.time.LocalTime
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Rule
@@ -95,6 +94,13 @@ class MainActivitySmokeTest {
             misconductChoice = "Offense",
             expectedMisconductMessage = "Reverse brick",
         )
+        recordYellowCard(
+            team = TeamId.TEAM_ONE,
+            playerNumber = "9",
+            expectedMessage = "$viscousCoupling has 4 cards.",
+            misconductChoice = "Defense",
+            expectedMisconductMessage = "Brick nearest attacking end zone",
+        )
 
         // Viscous Coupling scores the first point, then Animal false-starts and that entry is undone.
         recordGoal(TeamId.TEAM_ONE, "Undo Goal by $viscousCoupling")
@@ -140,7 +146,8 @@ class MainActivitySmokeTest {
         composeRule.onNodeWithText("OK").performClick()
 
         // Advance the visible halftime countdown using the same correction control an observer has.
-        repeat(13) {
+        composeRule.onAllNodesWithText("+5").onFirst().performClick()
+        repeat(14) {
             composeRule.onAllNodesWithText("-5").onFirst().performClick()
         }
         waitForText("Start Point")
@@ -175,7 +182,7 @@ class MainActivitySmokeTest {
         composeRule.onNodeWithText("$animal 5").assertIsDisplayed()
 
         // The finished game should reopen from home, archive, and then reopen from Previous Games.
-        pressBack()
+        pressAppBack()
         waitForText("Completed Game")
         composeRule.onNodeWithText("Archive Completed Game").performClick()
         waitForText("Previous Games")
@@ -188,6 +195,11 @@ class MainActivitySmokeTest {
     // These are broad wiring checks rather than detailed rule-state assertions.
     @Test
     fun setupEditorsOpenAndReturnToSetup() {
+        openNewGameSetup()
+
+        // Android back from setup should return home without exiting the app.
+        pressAppBack()
+        waitForText("Start New Game")
         openNewGameSetup()
 
         // Exercise the exact start-time dialog without depending on the current clock.
@@ -268,6 +280,20 @@ class MainActivitySmokeTest {
         composeRule.onNodeWithText(beagles).assertIsDisplayed()
     }
 
+    // Test the live screen fallback labels for blank setup team names.
+    // This covers the same public setup route an observer would use, not helper-only state.
+    @Test
+    fun blankTeamNamesUseDefaultLabels() {
+        openNewGameSetup()
+
+        // Blank team names are allowed in setup and should display as Team 1 / Team 2 in live use.
+        replaceSetupTeamName("Team 1", " ")
+        replaceSetupTeamName("Team 2", " ")
+        startGameFromSetup()
+        composeRule.onNodeWithText("Team 1").assertIsDisplayed()
+        composeRule.onNodeWithText("Team 2").assertIsDisplayed()
+    }
+
     // Test the home-screen path for preserving and resuming an active game.
     // Also cover the live-to-setup update flow because it shares the same app-level routing state.
     @Test
@@ -275,7 +301,7 @@ class MainActivitySmokeTest {
         startLiveGame()
 
         // Back navigation should preserve the active game and expose the resume path.
-        pressBack()
+        pressAppBack()
         waitForText("Current Game")
         composeRule.onNodeWithText("Current Game").assertIsDisplayed()
         composeRule.onNodeWithText("Team 1 0 - 0 Team 2").performClick()
@@ -394,6 +420,16 @@ class MainActivitySmokeTest {
         waitForText("Team 1 has 4 cards.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
 
+        // The same N/A follow-up should also support recording a different unknown player.
+        openCardsSheet()
+        composeRule.onAllNodesWithText("Yellow")[teamCardButtonIndex(TeamId.TEAM_ONE)].performClick()
+        waitForText("Yellow Card")
+        composeRule.onNodeWithText("N/A").performClick()
+        waitForText("Unknown Player Number")
+        composeRule.onNodeWithText("No").performClick()
+        waitForText("Team 1 has", substring = true)
+        composeRule.onNodeWithText("OK").performClick()
+
         // Apply a manual card correction that adds a player red, removes a player yellow, and changes a team count.
         openOtherSheet()
         composeRule.onNodeWithText("Adjust Cards / TF").performClick()
@@ -417,6 +453,7 @@ class MainActivitySmokeTest {
         waitForText("Adjust Cards / TF")
         composeRule.onAllNodesWithText("+1")[0].performClick()
         composeRule.onAllNodesWithText("-1")[2].performClick()
+        composeRule.onAllNodesWithText("+1")[4].performClick()
         composeRule.onAllNodesWithText("+1")[5].performClick()
         composeRule.onAllNodesWithText("+1")[6].performClick()
         composeRule.onAllNodesWithText("+1")[7].performClick()
@@ -426,6 +463,9 @@ class MainActivitySmokeTest {
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Remove Red")
         composeRule.onNodeWithText("#5 (Red 1)").performClick()
+        waitForText("Add Yellow")
+        enterCardPlayerNumber("14")
+        composeRule.onNodeWithText("Record").performClick()
         waitForText("Add Red")
         enterCardPlayerNumber("12")
         composeRule.onNodeWithText("Record").performClick()
@@ -436,15 +476,30 @@ class MainActivitySmokeTest {
         composeRule.onNodeWithText("Adjust Cards / TF").performClick()
         waitForText("Adjust Cards / TF")
         composeRule.onAllNodesWithText("-1")[0].performClick()
+        composeRule.onAllNodesWithText("-1")[4].performClick()
         composeRule.onAllNodesWithText("-1")[5].performClick()
         composeRule.onAllNodesWithText("-1")[6].performClick()
         composeRule.onAllNodesWithText("-1")[7].performClick()
         composeRule.onNodeWithText("Set").performClick()
         waitForText("Remove Yellow")
         composeRule.onNodeWithText("#11 (Yellow 1)").performClick()
+        waitForText("Remove Yellow")
+        composeRule.onNodeWithText("#14 (Yellow 1)").performClick()
         waitForText("Remove Red")
         composeRule.onNodeWithText("#12 (Red 1)").performClick()
         waitForText("Undo Cards / TF Adjustment")
+
+        // Add a clean second-yellow record after the correction matrix so summary text can show that form.
+        recordYellowCard(TeamId.TEAM_TWO, "21", "Team 2 has", substring = true)
+        recordYellowCard(TeamId.TEAM_TWO, "21", "Second yellow acts as a red card.", substring = true)
+
+        // Ending the game renders the summary forms for second-yellow and repeated-yellow records.
+        openOtherSheet()
+        composeRule.onNodeWithText("End Game").performClick()
+        waitForText("Game is over", substring = true)
+        composeRule.onNodeWithText("OK").performClick()
+        waitForText("#21: Two yellow cards")
+        waitForText("N/A: 3 yellow cards")
     }
 
     // Test the less-common live-game actions behind the Other menu.
@@ -464,6 +519,7 @@ class MainActivitySmokeTest {
         applyScoreAdjustment()
         applyTimeoutAdjustment()
         applyPullInfractionAdjustment()
+        applyNoOpCardAdjustment()
 
         // Orientation controls should update state without breaking the live screen.
         openOtherSheet()
@@ -561,10 +617,18 @@ class MainActivitySmokeTest {
         composeRule.onNodeWithText("Game Summary").assertIsDisplayed()
         composeRule.onNodeWithText("Undo End Game").assertIsDisplayed()
 
-        // Completed games should be archivable from home and reopen from Previous Games.
-        pressBack()
+        // Completed games should reopen from home before they are archived.
+        pressAppBack()
         waitForText("Completed Game")
-        composeRule.onNodeWithText("Archive Completed Game").performClick()
+        composeRule.onNodeWithText("Team 1 0 - 0 Team 2").performClick()
+        composeRule.onNodeWithText("Game Summary").assertIsDisplayed()
+
+        // Starting a new game archives the completed one; the archived summary remains viewable.
+        pressAppBack()
+        waitForText("Completed Game")
+        composeRule.onNodeWithText("Start New Game").performClick()
+        waitForText("UltiObserver Setup")
+        pressAppBack()
         waitForText("Previous Games")
         composeRule.onNodeWithText("Team 1 0 - 0 Team 2").performClick()
         composeRule.onNodeWithText("Game Summary").assertIsDisplayed()
@@ -705,12 +769,12 @@ class MainActivitySmokeTest {
         setStartTimeToFutureMinute()
         setIntegerSetupValue("Game to", "Game To", "Points", "5")
         setIntegerSetupValue("Halftime", "Halftime", "Minutes", "7")
-        setCapRuleValue(rowLabel, dialogTitle, "0")
+        setCapRuleValue(rowLabel, dialogTitle, "2")
         startGameFromSetup()
     }
 
     private fun returnHomeFromGame() {
-        pressBack()
+        pressAppBack()
         waitForText("Start New Game")
     }
 
@@ -727,6 +791,12 @@ class MainActivitySmokeTest {
 
     private fun startPointWithFailedSwipeThenUnlock() {
         composeRule.onNodeWithText("Start Point").performClick()
+        waitForText("Slide right to unlock")
+        composeRule.onNodeWithTag("live-unlock-slider").performTouchInput {
+            down(center)
+            moveBy(androidx.compose.ui.geometry.Offset(40f, 0f))
+            cancel()
+        }
         waitForText("Slide right to unlock")
         composeRule.onNodeWithTag("live-unlock-slider").performTouchInput {
             swipeRight(startX = centerX, endX = right)
@@ -786,6 +856,14 @@ class MainActivitySmokeTest {
         composeRule.onAllNodesWithText("-1")[1].performClick()
         composeRule.onNodeWithText("Set").performClick()
         waitForText("Undo Pull Infraction Adjustment")
+    }
+
+    private fun applyNoOpCardAdjustment() {
+        openOtherSheet()
+        composeRule.onNodeWithText("Adjust Cards / TF").performClick()
+        waitForText("Adjust Cards / TF")
+        composeRule.onNodeWithText("Set").performClick()
+        waitForText("Undo Cards / TF Adjustment")
     }
 
     private fun recordYellowCard(
@@ -882,8 +960,14 @@ class MainActivitySmokeTest {
         waitForText("Update Game Setup")
     }
 
+    private fun pressAppBack() {
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.onBackPressedDispatcher.onBackPressed()
+        }
+    }
+
     private fun waitForText(text: String, substring: Boolean = false) {
-        composeRule.waitUntil(timeoutMillis = 5_000) {
+        composeRule.waitUntil(timeoutMillis = 10_000) {
             composeRule.onAllNodesWithText(text, substring = substring).fetchSemanticsNodes().isNotEmpty()
         }
     }

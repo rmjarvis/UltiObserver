@@ -159,11 +159,7 @@ fun UltiObserverApp() {
 
     // Back should always return to the home screen rather than walking back through setup/live.
     BackHandler(enabled = screen != AppScreen.HOME) {
-        when (screen) {
-            AppScreen.HOME -> Unit
-            AppScreen.SETUP -> screen = AppScreen.HOME
-            AppScreen.LIVE -> screen = AppScreen.HOME
-        }
+        screen = AppScreen.HOME
     }
 
     // Route to the current top-level screen.
@@ -252,9 +248,7 @@ fun UltiObserverApp() {
                     state = currentLiveState,
                     readOnlySummary = viewingArchivedGame != null,
                     onStateChange = { updated ->
-                        if (viewingArchivedGame != null) {
-                            viewingArchivedGame = viewingArchivedGame!!.copy(state = updated)
-                        } else {
+                        if (viewingArchivedGame == null) {
                             liveState = updated
                         }
                     },
@@ -550,27 +544,16 @@ private fun SetupScreen(
     if (editingRule != null) {
         val target = editingRule!!
         when (target) {
-            RuleEditTarget.GAME_TO, RuleEditTarget.HALFTIME -> {
-                val initialValue = when (target) {
-                    RuleEditTarget.GAME_TO -> state.rules.gameTo
-                    RuleEditTarget.HALFTIME -> state.rules.halftimeMinutes
-                    else -> 0
-                }
+            RuleEditTarget.GAME_TO -> {
                 IntegerEditDialog(
                     title = target.dialogTitle,
                     fieldLabel = target.fieldLabel,
-                    prefixText = target.prefixText,
-                    suffixText = target.suffixText,
-                    initialValue = initialValue,
+                    initialValue = state.rules.gameTo,
                     onDismiss = { editingRule = null },
                     onConfirm = { newValue ->
                         onStateChange(
                             state.copy(
-                                rules = when (target) {
-                                    RuleEditTarget.GAME_TO -> state.rules.copy(gameTo = newValue.coerceAtLeast(1))
-                                    RuleEditTarget.HALFTIME -> state.rules.copy(halftimeMinutes = newValue.coerceAtLeast(1))
-                                    else -> state.rules
-                                }
+                                rules = state.rules.copy(gameTo = newValue.coerceAtLeast(1))
                             )
                         )
                         editingRule = null
@@ -578,36 +561,76 @@ private fun SetupScreen(
                 )
             }
 
-            RuleEditTarget.HALF, RuleEditTarget.SOFT, RuleEditTarget.HARD -> {
-                val initialValue = when (target) {
-                    RuleEditTarget.HALF -> state.rules.halfCapMinutes
-                    RuleEditTarget.SOFT -> state.rules.softCapMinutes
-                    RuleEditTarget.HARD -> state.rules.hardCapMinutes
-                    else -> 0
-                }
-                val initiallyEnabled = when (target) {
-                    RuleEditTarget.HALF -> state.rules.useHalfCap
-                    RuleEditTarget.SOFT -> state.rules.useSoftCap
-                    RuleEditTarget.HARD -> state.rules.useHardCap
-                    else -> true
-                }
+            RuleEditTarget.HALFTIME -> {
+                IntegerEditDialog(
+                    title = target.dialogTitle,
+                    fieldLabel = target.fieldLabel,
+                    initialValue = state.rules.halftimeMinutes,
+                    onDismiss = { editingRule = null },
+                    onConfirm = { newValue ->
+                        onStateChange(
+                            state.copy(
+                                rules = state.rules.copy(halftimeMinutes = newValue.coerceAtLeast(1))
+                            )
+                        )
+                        editingRule = null
+                    },
+                )
+            }
+
+            RuleEditTarget.HALF -> {
                 CapRuleEditDialog(
                     title = target.dialogTitle,
                     fieldLabel = target.fieldLabel,
                     prefixText = target.prefixText,
                     suffixText = target.suffixText,
-                    initialValue = initialValue,
-                    initiallyEnabled = initiallyEnabled,
+                    initialValue = state.rules.halfCapMinutes,
+                    initiallyEnabled = state.rules.useHalfCap,
                     onDismiss = { editingRule = null },
                     onConfirm = { enabled, newValue ->
                         onStateChange(
                             state.copy(
-                                rules = when (target) {
-                                    RuleEditTarget.HALF -> state.rules.copy(useHalfCap = enabled, halfCapMinutes = newValue)
-                                    RuleEditTarget.SOFT -> state.rules.copy(useSoftCap = enabled, softCapMinutes = newValue)
-                                    RuleEditTarget.HARD -> state.rules.copy(useHardCap = enabled, hardCapMinutes = newValue)
-                                    else -> state.rules
-                                }
+                                rules = state.rules.copy(useHalfCap = enabled, halfCapMinutes = newValue)
+                            )
+                        )
+                        editingRule = null
+                    },
+                )
+            }
+
+            RuleEditTarget.SOFT -> {
+                CapRuleEditDialog(
+                    title = target.dialogTitle,
+                    fieldLabel = target.fieldLabel,
+                    prefixText = target.prefixText,
+                    suffixText = target.suffixText,
+                    initialValue = state.rules.softCapMinutes,
+                    initiallyEnabled = state.rules.useSoftCap,
+                    onDismiss = { editingRule = null },
+                    onConfirm = { enabled, newValue ->
+                        onStateChange(
+                            state.copy(
+                                rules = state.rules.copy(useSoftCap = enabled, softCapMinutes = newValue)
+                            )
+                        )
+                        editingRule = null
+                    },
+                )
+            }
+
+            RuleEditTarget.HARD -> {
+                CapRuleEditDialog(
+                    title = target.dialogTitle,
+                    fieldLabel = target.fieldLabel,
+                    prefixText = target.prefixText,
+                    suffixText = target.suffixText,
+                    initialValue = state.rules.hardCapMinutes,
+                    initiallyEnabled = state.rules.useHardCap,
+                    onDismiss = { editingRule = null },
+                    onConfirm = { enabled, newValue ->
+                        onStateChange(
+                            state.copy(
+                                rules = state.rules.copy(useHardCap = enabled, hardCapMinutes = newValue)
                             )
                         )
                         editingRule = null
@@ -1088,6 +1111,8 @@ private fun FieldUnlockControl(
                             thumbOffsetPx = (thumbOffsetPx + dragAmount.x).coerceIn(0f, maxOffset)
                         }
                     }
+                    // Compose cancels/restarts this pointerInput coroutine in normal use; the
+                    // suspend-lambda epilogue after detectDragGestures returns is not user-reachable.
                 },
         ) {
             Text(
@@ -1267,7 +1292,7 @@ private fun EndZonePanel(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = team.name.ifBlank { defaultTeamName(teamId) },
+                        text = team.name,
                         color = team.color.content,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
@@ -1921,9 +1946,6 @@ private fun removalOptionsForStep(
             CardType.RED -> record.directReds > 0
         }
     }
-    if (matching.isEmpty()) {
-        return listOf(CardRemovalOption(UNKNOWN_PLAYER_NUMBER, "N/A / unassigned"))
-    }
     return matching.map { record ->
         val count = when (cardType) {
             CardType.YELLOW -> record.yellows
@@ -2227,11 +2249,6 @@ private fun OtherSheet(
                         label = "End Game",
                         onClick = { onAction(endGameNow(state, now)) },
                     )
-                } else {
-                    OtherMenuButton(
-                        label = "Undo Game Over",
-                        onClick = { onAction(undoGameOver(state)) },
-                    )
                 }
                 if (!state.halftimeTaken && !state.halfCapApplied) {
                     OtherMenuButton(
@@ -2401,8 +2418,6 @@ private fun ExactTimeDialog(
 private fun IntegerEditDialog(
     title: String,
     fieldLabel: String,
-    prefixText: String? = null,
-    suffixText: String? = null,
     initialValue: Int,
     onDismiss: () -> Unit,
     onConfirm: (Int) -> Unit,
@@ -2414,9 +2429,6 @@ private fun IntegerEditDialog(
         title = { Text(title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (prefixText != null) {
-                    Text(prefixText)
-                }
                 OutlinedTextField(
                     value = valueText,
                     onValueChange = { valueText = it.filter(Char::isDigit) },
@@ -2424,9 +2436,6 @@ private fun IntegerEditDialog(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                 )
-                if (suffixText != null) {
-                    Text(suffixText)
-                }
             }
         },
         confirmButton = {
@@ -2956,11 +2965,6 @@ private fun formatTimeoutRules(rules: GameRules): String {
 private fun toTwelveHour(time: LocalTime): Int {
     val hour = time.hour % 12
     return if (hour == 0) 12 else hour
-}
-
-// Fallback labels when setup names are blank.
-private fun defaultTeamName(teamId: TeamId): String {
-    return if (teamId == TeamId.TEAM_ONE) "Team 1" else "Team 2"
 }
 
 // Return the other team id.
