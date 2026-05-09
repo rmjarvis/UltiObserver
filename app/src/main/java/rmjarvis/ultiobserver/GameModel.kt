@@ -999,26 +999,9 @@ fun offsidesResolutionMessage(state: LiveGameState, teamId: TeamId): String {
     }
 }
 
-// Technical Foul
-fun addTechnicalFoul(state: LiveGameState, team: TeamId): LiveGameState {
-    return state.copy(
-        teamOne = if (team == TeamId.TEAM_ONE) {
-            state.teamOne.copy(technicalFouls = state.teamOne.technicalFouls + 1)
-        } else {
-            state.teamOne
-        },
-        teamTwo = if (team == TeamId.TEAM_TWO) {
-            state.teamTwo.copy(technicalFouls = state.teamTwo.technicalFouls + 1)
-        } else {
-            state.teamTwo
-        },
-        lastEvent = "Technical foul on ${teamName(state, team)}.",
-    )
-}
-
-// Blue Card
-fun addBlueCard(state: LiveGameState, team: TeamId): LiveGameState {
-    return state.copy(
+// Assess a blue card and check whether it triggers misconduct handling.
+fun assessBlueCard(state: LiveGameState, team: TeamId): CardAssessmentResult {
+    val updatedState = state.copy(
         teamOne = if (team == TeamId.TEAM_ONE) {
             state.teamOne.copy(blueCards = state.teamOne.blueCards + 1)
         } else {
@@ -1030,13 +1013,7 @@ fun addBlueCard(state: LiveGameState, team: TeamId): LiveGameState {
             state.teamTwo
         },
         lastEvent = "Blue card assessed to ${teamName(state, team)}.",
-    )
-}
-
-// Blue cards again.  This also checks what the consequence is.
-fun assessBlueCard(state: LiveGameState, team: TeamId): CardAssessmentResult {
-    val updatedState = addBlueCard(state, team)
-        .withUndo(state, "Undo Blue Card on ${teamName(state, team)}")
+    ).withUndo(state, "Undo Blue Card on ${teamName(state, team)}")
     val cardTotal = teamCardTotal(updatedState, team)
     return CardAssessmentResult(
         state = updatedState,
@@ -1050,14 +1027,29 @@ fun assessBlueCard(state: LiveGameState, team: TeamId): CardAssessmentResult {
     )
 }
 
-// Technical Fouls again.  This also checks what the consequence is.
+// Assess a technical foul and check whether it triggers misconduct handling.
 fun assessTechnicalFoul(state: LiveGameState, team: TeamId): CardAssessmentResult {
-    val updatedState = addTechnicalFoul(state, team)
-        .withUndo(state, "Undo Technical Foul on ${teamName(state, team)}")
-    val technicalFouls = teamTechnicalFouls(updatedState, team)
+    val updatedState = state.copy(
+        teamOne = if (team == TeamId.TEAM_ONE) {
+            state.teamOne.copy(technicalFouls = state.teamOne.technicalFouls + 1)
+        } else {
+            state.teamOne
+        },
+        teamTwo = if (team == TeamId.TEAM_TWO) {
+            state.teamTwo.copy(technicalFouls = state.teamTwo.technicalFouls + 1)
+        } else {
+            state.teamTwo
+        },
+        lastEvent = "Technical foul on ${teamName(state, team)}.",
+    ).withUndo(state, "Undo Technical Foul on ${teamName(state, team)}")
+    val technicalFouls = if (team == TeamId.TEAM_ONE) {
+        updatedState.teamOne.technicalFouls
+    } else {
+        updatedState.teamTwo.technicalFouls
+    }
     return CardAssessmentResult(
         state = updatedState,
-        message = buildTechnicalFoulMessage(
+        message = buildCardMessage(
             baseMessage = "${teamName(updatedState, team)} has $technicalFouls technical ${pluralize(technicalFouls, "foul")}.",
             state = updatedState,
             team = team,
@@ -1067,7 +1059,7 @@ fun assessTechnicalFoul(state: LiveGameState, team: TeamId): CardAssessmentResul
     )
 }
 
-// Yellow Card again.  This also checks what the consequence is.
+// Assess a yellow card and check whether it triggers misconduct handling.
 // It could be one of two things depending on whether it's the first or second yellow.
 fun assessYellowCard(state: LiveGameState, team: TeamId, jerseyNumber: String): CardAssessmentResult {
     val currentRecord = state.playerCardFor(team, jerseyNumber)
@@ -1095,7 +1087,7 @@ fun assessStandaloneYellowCard(state: LiveGameState, team: TeamId, jerseyNumber:
     )
 }
 
-// Red Card again.  This also checks what the consequence is.
+// Assess a red card and check whether it triggers misconduct handling.
 fun assessRedCard(
     state: LiveGameState,
     team: TeamId,
@@ -1400,22 +1392,6 @@ private fun buildCardMessage(
     }
 }
 
-// Build the message for what happens when a team gets a technical foul.
-private fun buildTechnicalFoulMessage(
-    baseMessage: String,
-    state: LiveGameState,
-    team: TeamId,
-    thresholdCount: Int,
-): String {
-    return if (thresholdCount < 3) {
-        baseMessage
-    } else if (state.phase == LivePhase.LIVE_POINT) {
-        baseMessage
-    } else {
-        "$baseMessage\n\n${betweenPointsMisconductMessage(state, team)}"
-    }
-}
-
 // Build the portion of the message for misconduct penalty between points.
 private fun betweenPointsMisconductMessage(state: LiveGameState, team: TeamId): String {
     val receivingTeam = state.pullingTeam.flip()
@@ -1459,12 +1435,6 @@ fun teamRedCards(state: LiveGameState, team: TeamId): Int {
 fun teamCardTotal(state: LiveGameState, team: TeamId): Int {
     val currentTeam = if (team == TeamId.TEAM_ONE) state.teamOne else state.teamTwo
     return teamYellowCards(state, team) + currentTeam.blueCards + (2 * teamRedCards(state, team))
-}
-
-// Count the total number of TF a team has.
-private fun teamTechnicalFouls(state: LiveGameState, team: TeamId): Int {
-    val currentTeam = if (team == TeamId.TEAM_ONE) state.teamOne else state.teamTwo
-    return currentTeam.technicalFouls
 }
 
 // Helper function to pluralize nicely.
