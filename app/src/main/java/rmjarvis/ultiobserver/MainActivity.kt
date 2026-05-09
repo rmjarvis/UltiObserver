@@ -62,7 +62,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 import java.time.Duration
@@ -3128,20 +3127,6 @@ private fun HomeGameRow(
 // Convenience lookup for Team 1 vs Team 2 in the live state.
 private fun LiveGameState.teamFor(team: TeamId): TeamLiveState {
     return if (team == TeamId.TEAM_ONE) teamOne else teamTwo
-}
-
-// IDE preview for the setup screen.
-@Preview(showBackground = true)
-@Composable
-private fun SetupScreenPreview() {
-    UltiObserverTheme(dynamicColor = false) {
-        SetupScreen(
-            state = newGameSetupState(),
-            onStateChange = {},
-            primaryButtonLabel = "Start Game",
-            onPrimaryAction = {},
-        )
-    }
 }
 
 private fun newGameSetupState(now: LocalTime = LocalTime.now()): GameSetupState {

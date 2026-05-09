@@ -1,6 +1,9 @@
+import org.gradle.testing.jacoco.tasks.JacocoReport
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    jacoco
 }
 
 kotlin {
@@ -65,4 +68,54 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
+}
+
+val filteredCoverageExclusions = listOf(
+    // Android/resource/generated support.
+    "**/R.class",
+    "**/R\$*.class",
+    "**/BuildConfig.*",
+    "**/Manifest*.*",
+    // Kotlin/Compose compiler scaffolding that is not user-actionable app behavior.
+    "**/*\$WhenMappings.*",
+    "**/ComposableSingletons*.*",
+    // IDE previews are design-time helpers rather than app behavior.
+    "**/*Preview*.*",
+    // Static theme definitions are visual constants, not interactive behavior.
+    "**/rmjarvis/ultiobserver/ui/theme/**",
+)
+
+tasks.register<JacocoReport>("filteredCoverageReport") {
+    group = "verification"
+    description = "Generates a JaCoCo report excluding previews, generated scaffolding, and static theme code."
+
+    dependsOn("testDebugUnitTest", "connectedDebugAndroidTest")
+
+    reports {
+        html.required.set(true)
+        html.outputLocation.set(layout.buildDirectory.dir("reports/jacoco/filtered/html"))
+        xml.required.set(true)
+        xml.outputLocation.set(layout.buildDirectory.file("reports/jacoco/filtered/filteredCoverageReport.xml"))
+        csv.required.set(false)
+    }
+
+    classDirectories.setFrom(
+        files(
+            fileTree(layout.buildDirectory.dir("intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes")) {
+                exclude(filteredCoverageExclusions)
+            },
+            fileTree(layout.buildDirectory.dir("intermediates/javac/debug/classes")) {
+                exclude(filteredCoverageExclusions)
+            },
+        )
+    )
+    sourceDirectories.setFrom(files("src/main/java"))
+    executionData.setFrom(
+        fileTree(layout.buildDirectory) {
+            include(
+                "outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec",
+                "outputs/code_coverage/debugAndroidTest/connected/**/*.ec",
+            )
+        }
+    )
 }
