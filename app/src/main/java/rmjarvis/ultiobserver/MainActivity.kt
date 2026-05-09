@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -55,8 +56,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.text.font.FontWeight
@@ -276,6 +279,8 @@ private fun HomeScreen(
     onArchiveCompletedGame: () -> Unit,
     onStartNewGame: () -> Unit,
 ) {
+    val showHomeArtwork = currentGame == null && completedGamePendingArchive == null
+
     // Compose the home screen as a title area followed by the game lists.
     Scaffold { innerPadding ->
         Column(
@@ -293,9 +298,22 @@ private fun HomeScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 Column(
+                    modifier = Modifier.fillMaxSize(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
+                    if (showHomeArtwork) {
+                        Image(
+                            painter = painterResource(R.drawable.splash_observer_foul_call),
+                            contentDescription = null,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth(0.82f),
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
                     Text(
                         text = "UltiObserver",
                         style = MaterialTheme.typography.displayMedium,
@@ -314,6 +332,7 @@ private fun HomeScreen(
                     ) {
                         Text("Start New Game")
                     }
+                    Spacer(modifier = Modifier.weight(if (showHomeArtwork) 0.25f else 1f))
                 }
             }
 
