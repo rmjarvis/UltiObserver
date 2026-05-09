@@ -339,43 +339,19 @@ fun recordGoal(
     val halftimeReached = !state.halftimeTaken &&
         max(updatedTeamOne.score, updatedTeamTwo.score) >= halftimeScore
 
-    if (halftimeReached && pendingCapOffer != CapType.SOFT && pendingCapOffer != CapType.HARD) {
-        val secondHalfPullingTeam = state.openingPullingTeam.flip()
-        val secondHalfPullingFromEnd = state.openingPullingFromEnd
-        val secondHalfNearAttackingTeam = if (secondHalfPullingFromEnd == FieldEnd.FAR) {
-            secondHalfPullingTeam
-        } else {
-            secondHalfPullingTeam.flip()
-        }
-        val halftimeCountdown = buildHalftimeCountdown(
-            halftimeMinutes = state.rules.halftimeMinutes,
-            sequenceStartMillis = nowMillis,
+    // A point-end cap offer is still only pending; the observer can apply or defer it.
+    // Start halftime and surface that offer from the halftime state.
+    if (halftimeReached) {
+        return startHalftime(
+            state = state,
+            teamOne = updatedTeamOne,
+            teamTwo = updatedTeamTwo,
+            halftimeStart = now,
+            existingCapOffer = pendingCapOffer,
+            nowMillis = nowMillis,
+            undoPrevious = state,
+            undoLabel = "Undo Goal by ${teamName(state, scoringTeam)}",
         )
-        return state.copy(
-            teamOne = updatedTeamOne.copy(
-                firstHalfTimeoutsUsed = state.teamOne.timeoutsUsedThisHalf,
-                timeoutsUsedThisHalf = 0,
-            ),
-            teamTwo = updatedTeamTwo.copy(
-                firstHalfTimeoutsUsed = state.teamTwo.timeoutsUsedThisHalf,
-                timeoutsUsedThisHalf = 0,
-            ),
-            pullingTeam = secondHalfPullingTeam,
-            pullingFromEnd = secondHalfPullingFromEnd,
-            nearAttackingTeam = secondHalfNearAttackingTeam,
-            phase = LivePhase.HALFTIME,
-            countdown = halftimeCountdown,
-            pullSequenceOffsidesRecorded = false,
-            pullSequenceFalseStartRecorded = false,
-            halftimeTaken = true,
-            halftimeTargetScore = state.halftimeTargetScore,
-            winningScore = state.winningScore,
-            halfCapApplied = state.halfCapApplied,
-            softCapApplied = state.softCapApplied,
-            hardCapApplied = state.hardCapApplied,
-            pendingCapOffer = capDuringHalftimeOffer(state, now),
-            lastEvent = "Halftime.",
-        ).withUndo(state, "Undo Goal by ${teamName(state, scoringTeam)}")
     }
 
     // Regular point -- not half, and not game over.
@@ -422,6 +398,28 @@ fun startHalftimeNow(
     if (state.halftimeTaken || state.phase == LivePhase.GAME_OVER || state.phase == LivePhase.HALFTIME) {
         return state
     }
+    return startHalftime(
+        state = state,
+        teamOne = state.teamOne,
+        teamTwo = state.teamTwo,
+        halftimeStart = now,
+        existingCapOffer = state.pendingCapOffer,
+        nowMillis = nowMillis,
+        undoPrevious = state,
+        undoLabel = "Undo Start Halftime",
+    )
+}
+
+private fun startHalftime(
+    state: LiveGameState,
+    teamOne: TeamLiveState,
+    teamTwo: TeamLiveState,
+    halftimeStart: LocalTime,
+    existingCapOffer: CapType?,
+    nowMillis: Long,
+    undoPrevious: LiveGameState,
+    undoLabel: String,
+): LiveGameState {
     val secondHalfPullingTeam = state.openingPullingTeam.flip()
     val secondHalfPullingFromEnd = state.openingPullingFromEnd
     val secondHalfNearAttackingTeam = if (secondHalfPullingFromEnd == FieldEnd.FAR) {
@@ -433,13 +431,28 @@ fun startHalftimeNow(
         halftimeMinutes = state.rules.halftimeMinutes,
         sequenceStartMillis = nowMillis,
     )
+    val halftimeEnd = halftimeStart.plusMinutes(state.rules.halftimeMinutes.toLong())
+    val hardCapTime = state.startTime.plusMinutes(state.rules.hardCapMinutes.toLong())
+    val softCapTime = state.startTime.plusMinutes(state.rules.softCapMinutes.toLong())
+    // Preserve an already-pending soft/hard cap. Otherwise, catch caps that became
+    // due just before a manual halftime start or that are scheduled during halftime.
+    val pendingCapOffer = existingCapOffer.takeIf { it == CapType.SOFT || it == CapType.HARD }
+        ?: when {
+            hardCapReached(state, halftimeStart) -> CapType.HARD
+            hardCapRelevant(state) && !hardCapTime.isBefore(halftimeStart) &&
+                hardCapTime.isBefore(halftimeEnd) -> CapType.HARD
+            softCapReached(state, halftimeStart) -> CapType.SOFT
+            softCapRelevant(state) && !softCapTime.isBefore(halftimeStart) &&
+                softCapTime.isBefore(halftimeEnd) -> CapType.SOFT
+            else -> null
+        }
 
     return state.copy(
-        teamOne = state.teamOne.copy(
+        teamOne = teamOne.copy(
             firstHalfTimeoutsUsed = state.teamOne.timeoutsUsedThisHalf,
             timeoutsUsedThisHalf = 0,
         ),
-        teamTwo = state.teamTwo.copy(
+        teamTwo = teamTwo.copy(
             firstHalfTimeoutsUsed = state.teamTwo.timeoutsUsedThisHalf,
             timeoutsUsedThisHalf = 0,
         ),
@@ -451,10 +464,9 @@ fun startHalftimeNow(
         pullSequenceOffsidesRecorded = false,
         pullSequenceFalseStartRecorded = false,
         halftimeTaken = true,
-        pendingCapOffer = state.pendingCapOffer.takeIf { it == CapType.SOFT || it == CapType.HARD }
-            ?: capDuringHalftimeOffer(state, now),
+        pendingCapOffer = pendingCapOffer,
         lastEvent = "Halftime.",
-    ).withUndo(state, "Undo Start Halftime")
+    ).withUndo(undoPrevious, undoLabel)
 }
 
 // Manually end the game now.
@@ -1214,38 +1226,6 @@ private fun softCapReached(state: LiveGameState, now: LocalTime): Boolean {
 private fun hardCapReached(state: LiveGameState, now: LocalTime): Boolean {
     return hardCapRelevant(state) &&
         !now.isBefore(state.startTime.plusMinutes(state.rules.hardCapMinutes.toLong()))
-}
-
-private fun isTimeInHalfOpenInterval(time: LocalTime, start: LocalTime, end: LocalTime): Boolean {
-    return !time.isBefore(start) && time.isBefore(end)
-}
-
-private fun capDuringHalftimeOffer(state: LiveGameState, halftimeStart: LocalTime): CapType? {
-    return when {
-        hardCapRelevant(state) && capTimeFallsDuringHalftime(
-            capTime = state.startTime.plusMinutes(state.rules.hardCapMinutes.toLong()),
-            halftimeStart = halftimeStart,
-            halftimeMinutes = state.rules.halftimeMinutes,
-        ) -> CapType.HARD
-        softCapRelevant(state) && capTimeFallsDuringHalftime(
-            capTime = state.startTime.plusMinutes(state.rules.softCapMinutes.toLong()),
-            halftimeStart = halftimeStart,
-            halftimeMinutes = state.rules.halftimeMinutes,
-        ) -> CapType.SOFT
-        else -> null
-    }
-}
-
-private fun capTimeFallsDuringHalftime(
-    capTime: LocalTime,
-    halftimeStart: LocalTime,
-    halftimeMinutes: Int,
-): Boolean {
-    return isTimeInHalfOpenInterval(
-        time = capTime,
-        start = halftimeStart,
-        end = halftimeStart.plusMinutes(halftimeMinutes.toLong()),
-    )
 }
 
 // Build a countdown after a goal is scored.
