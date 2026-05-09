@@ -395,7 +395,7 @@ fun startHalftimeNow(
     now: LocalTime,
     nowMillis: Long,
 ): LiveGameState {
-    if (state.halftimeTaken || state.phase == LivePhase.GAME_OVER || state.phase == LivePhase.HALFTIME) {
+    if (state.halftimeTaken || state.phase != LivePhase.BETWEEN_POINTS) {
         return state
     }
     return startHalftime(

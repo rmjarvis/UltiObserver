@@ -1931,8 +1931,10 @@ class TestGameModel {
         assertEquals(CountdownKind.HALFTIME, state.countdown?.kind)
         assertEquals(halftimeCountdownBeforeSwap, state.countdown)
 
-        // The UI hides Start Halftime after halftime or game over; the model rejects those calls too.
+        // The UI hides Start Halftime outside between-points state; the model rejects those calls too.
         assertEquals(state, startHalftimeNow(state, LocalTime.of(11, 11), 600_000L))
+        val livePointState = beginLivePoint(standardLiveGameState())
+        assertEquals(livePointState, startHalftimeNow(livePointState, LocalTime.of(11, 11), 600_000L))
         val gameOverState = endGameNow(state, LocalTime.of(11, 12))
         assertEquals(gameOverState, startHalftimeNow(gameOverState, LocalTime.of(11, 13), 700_000L))
 

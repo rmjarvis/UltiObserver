@@ -2255,9 +2255,7 @@ private fun OtherSheet(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                if (!state.halftimeTaken &&
-                    (state.phase == LivePhase.BETWEEN_POINTS || state.phase == LivePhase.LIVE_POINT)
-                ) {
+                if (!state.halftimeTaken && state.phase == LivePhase.BETWEEN_POINTS) {
                     OtherMenuButton(
                         label = "Start Halftime",
                         onClick = { onAction(startHalftimeNow(state, now, nowMillis)) },
