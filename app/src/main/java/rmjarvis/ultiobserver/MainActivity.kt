@@ -439,6 +439,7 @@ private fun SetupScreen(
                     firstLabel = state.teamOne.name,
                     secondLabel = state.teamTwo.name,
                     selected = state.pullingTeam,
+                    testTagPrefix = "setup-pulling-team",
                     onSelected = { onStateChange(state.copy(pullingTeam = it)) },
                 )
                 Spacer(modifier = Modifier.height(12.dp))
@@ -699,7 +700,10 @@ private fun LiveGameScreen(
                 title = { Text("UltiObserver") },
                 actions = {
                     if (!locked && state.phase != LivePhase.GAME_OVER) {
-                        TextButton(onClick = { locked = true }) {
+                        TextButton(
+                            onClick = { locked = true },
+                            modifier = Modifier.testTag("live-top-lock"),
+                        ) {
                             Text("Lock")
                         }
                     }
@@ -778,6 +782,7 @@ private fun LiveGameScreen(
                         } else if (state.phase == LivePhase.LIVE_POINT) {
                             OutlinedButton(
                                 onClick = { locked = true },
+                                modifier = Modifier.testTag("live-center-lock"),
                                 shape = RoundedCornerShape(12.dp),
                                 colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
                                     containerColor = Color.White,
@@ -2063,6 +2068,7 @@ private fun PlayerNumberDialog(
                     label = { Text("Player number") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
+                    modifier = Modifier.testTag("card-player-number"),
                 )
             }
         },
@@ -2470,6 +2476,7 @@ private fun CapRuleEditDialog(
                     Checkbox(
                         checked = !enabled,
                         onCheckedChange = { enabled = !it },
+                        modifier = Modifier.testTag("setup-$title-none"),
                     )
                 }
                 if (prefixText != null) {
@@ -2536,6 +2543,7 @@ private fun TimeoutRulesDialog(
                     Checkbox(
                         checked = hasFloater,
                         onCheckedChange = { hasFloater = it },
+                        modifier = Modifier.testTag("setup-timeouts-floater"),
                     )
                 }
             }
@@ -2584,6 +2592,7 @@ private fun AddPlayerCardDialog(
                     firstLabel = firstTeamName,
                     secondLabel = secondTeamName,
                     selected = selectedTeam,
+                    testTagPrefix = "setup-prior-card-team",
                     onSelected = { selectedTeam = it },
                 )
                 OutlinedTextField(
@@ -2592,6 +2601,7 @@ private fun AddPlayerCardDialog(
                     label = { Text("Jersey number") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
+                    modifier = Modifier.testTag("setup-prior-card-jersey"),
                 )
                 SmallCountEditor(
                     label = "Prior yellows",
@@ -2648,6 +2658,7 @@ private fun TeamEditor(
         )
         ColorChoiceRow(
             selected = team.color,
+            testTagPrefix = "setup-$fieldLabel-color",
             onSelected = { onTeamChange(team.copy(color = it)) },
         )
     }
@@ -2716,6 +2727,7 @@ private fun EditableValueRow(
 @Composable
 private fun ColorChoiceRow(
     selected: TeamColorChoice,
+    testTagPrefix: String,
     onSelected: (TeamColorChoice) -> Unit,
 ) {
     Row(
@@ -2727,6 +2739,7 @@ private fun ColorChoiceRow(
                 modifier = Modifier
                     .weight(1f)
                     .height(28.dp)
+                    .testTag("$testTagPrefix-${colorChoice.name}")
                     .background(
                         color = if (selected == colorChoice) Color.Black else Color.Transparent,
                         shape = RoundedCornerShape(6.dp),
@@ -2760,17 +2773,20 @@ private fun TeamChoiceRow(
     firstLabel: String,
     secondLabel: String,
     selected: TeamId,
+    testTagPrefix: String? = null,
     onSelected: (TeamId) -> Unit,
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         FilterChip(
             selected = selected == TeamId.TEAM_ONE,
             onClick = { onSelected(TeamId.TEAM_ONE) },
+            modifier = testTagPrefix?.let { Modifier.testTag("$it-${TeamId.TEAM_ONE.name}") } ?: Modifier,
             label = { Text(firstLabel.ifBlank { "Team 1" }) },
         )
         FilterChip(
             selected = selected == TeamId.TEAM_TWO,
             onClick = { onSelected(TeamId.TEAM_TWO) },
+            modifier = testTagPrefix?.let { Modifier.testTag("$it-${TeamId.TEAM_TWO.name}") } ?: Modifier,
             label = { Text(secondLabel.ifBlank { "Team 2" }) },
         )
     }
