@@ -8,6 +8,9 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.swipeRight
 import androidx.test.espresso.Espresso.pressBack
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Rule
@@ -37,6 +40,97 @@ class MainActivitySmokeTest {
         assertLiveScreen()
         composeRule.onNodeWithText("Start Point").performClick()
         waitForText("Slide right to unlock")
+    }
+
+    // Test a representative complete game from setup through halftime to final score.
+    // Keep this as a user-visible UI story that checks flow, not detailed model accounting.
+    @Test
+    fun normalGamePath() {
+        val viscousCoupling = "Viscous Coupling"
+        val animal = "Animal"
+
+        // Set up a short non-default game so the UI story covers setup editing,
+        // halftime, and game over without a long repetitive scoring sequence.
+        openNewGameSetup()
+        replaceSetupTeamName("Team 1", viscousCoupling)
+        replaceSetupTeamName("Team 2", animal)
+        setIntegerSetupValue("Game to", "Game To", "Points", "5")
+        setIntegerSetupValue("Halftime", "Halftime", "Minutes", "1")
+        composeRule.onNodeWithText("Near end").performScrollTo().performClick()
+        startGameFromSetup()
+        composeRule.onNodeWithText(viscousCoupling).assertIsDisplayed()
+        composeRule.onNodeWithText(animal).assertIsDisplayed()
+
+        // The opening pull starts the first live point and the observer unlocks for live actions.
+        startPointAndUnlock()
+
+        // Animal calls a live-point timeout, then play resumes from the timeout countdown.
+        recordTimeout(TeamId.TEAM_TWO, "Undo Timeout by $animal")
+        continuePointAndUnlock()
+
+        // Viscous Coupling gets two early card points, then a third card that needs a misconduct choice.
+        recordYellowCard(TeamId.TEAM_ONE, "17", "$viscousCoupling has 1 card.")
+        recordBlueCard(TeamId.TEAM_ONE, "$viscousCoupling has 2 cards.")
+        recordYellowCard(
+            team = TeamId.TEAM_ONE,
+            playerNumber = "8",
+            expectedMessage = "$viscousCoupling has 3 cards.",
+            misconductChoice = "Offense",
+            expectedMisconductMessage = "Reverse brick",
+        )
+
+        // Viscous Coupling scores the first point, then records an offsides on the next pull.
+        recordGoal(TeamId.TEAM_ONE, "Undo Goal by $viscousCoupling")
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-infraction")).performClick()
+        waitForText("Start at brick mark")
+        composeRule.onNodeWithText("OK").performClick()
+
+        // Animal picks up two yellows and two technical fouls during the live point.
+        recordYellowCard(TeamId.TEAM_TWO, "23", "$animal has 1 card.")
+        recordYellowCard(TeamId.TEAM_TWO, "8", "$animal has 2 cards.")
+        recordTechnicalFoul(TeamId.TEAM_TWO, "$animal has 1 technical foul.")
+        recordTechnicalFoul(TeamId.TEAM_TWO, "$animal has 2 technical fouls.")
+
+        // Viscous Coupling calls a live-point timeout before Animal finishes the point.
+        recordTimeout(TeamId.TEAM_ONE, "Undo Timeout by $viscousCoupling")
+        continuePointAndUnlock()
+        recordGoal(TeamId.TEAM_TWO, "Undo Goal by $animal")
+
+        // Animal reaches the technical-foul threshold between points, so the UI shows the yardage cue.
+        recordTechnicalFoul(
+            team = TeamId.TEAM_TWO,
+            expectedMessage = "Receiving team starts at attacking brick.",
+            substring = true,
+        )
+
+        // Viscous Coupling scores the next two points, checking that halftime interrupts the flow.
+        recordGoal(TeamId.TEAM_ONE, "Undo Goal by $viscousCoupling")
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
+        waitForText("Halftime")
+        composeRule.onNodeWithText("OK").performClick()
+
+        // Advance the visible halftime countdown using the same correction control an observer has.
+        repeat(13) {
+            composeRule.onAllNodesWithText("-5").onFirst().performClick()
+        }
+        waitForText("Start Point")
+
+        // After halftime, Animal scores and uses one second-half timeout before the next pull.
+        startPointAndUnlock()
+        recordGoal(TeamId.TEAM_TWO, "Undo Goal by $animal")
+        recordTimeout(TeamId.TEAM_TWO, "Undo Timeout by $animal")
+
+        // Animal ties the game, Viscous Coupling goes ahead, and Animal wins on universe.
+        recordGoal(TeamId.TEAM_TWO, "Undo Goal by $animal")
+        recordGoal(TeamId.TEAM_ONE, "Undo Goal by $viscousCoupling")
+        recordGoal(TeamId.TEAM_TWO, "Undo Goal by $animal")
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "goal")).performClick()
+        waitForText("Game is over", substring = true)
+        composeRule.onNodeWithText("OK").performClick()
+        composeRule.onNodeWithText("Game Summary").assertIsDisplayed()
+        composeRule.onNodeWithText(viscousCoupling).assertIsDisplayed()
+        composeRule.onNodeWithText(animal).assertIsDisplayed()
+        composeRule.onNodeWithText("Undo End Game").assertIsDisplayed()
     }
 
     // Test the setup form's modal editors and prior-card entry point.
@@ -223,6 +317,97 @@ class MainActivitySmokeTest {
     private fun startGameFromSetup() {
         composeRule.onNodeWithText("Start Game").performScrollTo().performClick()
         assertLiveScreen()
+    }
+
+    private fun replaceSetupTeamName(fieldLabel: String, teamName: String) {
+        composeRule.onNodeWithTag("setup-$fieldLabel-name").performScrollTo().performTextReplacement(teamName)
+    }
+
+    private fun setIntegerSetupValue(
+        buttonText: String,
+        dialogTitle: String,
+        fieldLabel: String,
+        value: String,
+    ) {
+        composeRule.onNodeWithText(buttonText).performScrollTo().performClick()
+        waitForText(dialogTitle)
+        composeRule.onNodeWithText(fieldLabel).performTextReplacement(value)
+        composeRule.onNodeWithText("Set").performClick()
+        waitForText("Start Game")
+    }
+
+    private fun recordGoal(team: TeamId, undoLabel: String) {
+        composeRule.onNodeWithTag(teamActionTag(team, "goal")).performClick()
+        waitForText(undoLabel)
+    }
+
+    private fun startPointAndUnlock() {
+        composeRule.onNodeWithText("Start Point").performClick()
+        waitForText("Slide right to unlock")
+        unlockLiveScreen()
+    }
+
+    private fun continuePointAndUnlock() {
+        composeRule.onNodeWithText("Continue Point").performClick()
+        waitForText("Slide right to unlock")
+        unlockLiveScreen()
+    }
+
+    private fun unlockLiveScreen() {
+        composeRule.onNodeWithTag("live-unlock-slider").performTouchInput {
+            swipeRight()
+        }
+        waitForText("Lock")
+    }
+
+    private fun recordTimeout(team: TeamId, undoLabel: String) {
+        composeRule.onNodeWithTag(teamActionTag(team, "timeout")).performClick()
+        waitForText(undoLabel)
+    }
+
+    private fun recordYellowCard(
+        team: TeamId,
+        playerNumber: String,
+        expectedMessage: String,
+        misconductChoice: String? = null,
+        expectedMisconductMessage: String? = null,
+    ) {
+        openCardsSheet()
+        composeRule.onAllNodesWithText("Yellow")[teamCardButtonIndex(team)].performClick()
+        waitForText("Yellow Card")
+        composeRule.onNodeWithText("Player number").performTextReplacement(playerNumber)
+        composeRule.onNodeWithText("Record").performClick()
+
+        if (misconductChoice == null) {
+            waitForText(expectedMessage)
+        } else {
+            waitForText("Misconduct Penalty")
+            composeRule.onNodeWithText(misconductChoice).performClick()
+            waitForText(expectedMisconductMessage ?: expectedMessage, substring = true)
+        }
+        composeRule.onNodeWithText("OK").performClick()
+    }
+
+    private fun recordBlueCard(team: TeamId, expectedMessage: String) {
+        openCardsSheet()
+        composeRule.onAllNodesWithText("Blue")[teamCardButtonIndex(team)].performClick()
+        waitForText(expectedMessage)
+        composeRule.onNodeWithText("OK").performClick()
+    }
+
+    private fun recordTechnicalFoul(
+        team: TeamId,
+        expectedMessage: String,
+        substring: Boolean = false,
+    ) {
+        openCardsSheet()
+        composeRule.onAllNodesWithText("Tech")[teamCardButtonIndex(team)].performClick()
+        waitForText(expectedMessage, substring = substring)
+        composeRule.onNodeWithText("OK").performClick()
+    }
+
+    private fun teamCardButtonIndex(team: TeamId): Int {
+        return if (team == TeamId.TEAM_ONE) 0 else 1
     }
 
     private fun assertLiveScreen() {

@@ -2642,7 +2642,9 @@ private fun TeamEditor(
             onValueChange = { onTeamChange(team.copy(name = it)) },
             label = { Text(fieldLabel) },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("setup-$fieldLabel-name"),
         )
         ColorChoiceRow(
             selected = team.color,
