@@ -381,14 +381,6 @@ fun recordGoal(
     ).withUndo(state, "Undo Goal by ${teamName(state, scoringTeam)}")
 }
 
-// Undo Game Over
-fun undoGameOver(state: LiveGameState): LiveGameState {
-    if (state.phase != LivePhase.GAME_OVER) {
-        return state
-    }
-    return state.undoEntry?.previous ?: state
-}
-
 // Manually start half time
 fun startHalftimeNow(
     state: LiveGameState,

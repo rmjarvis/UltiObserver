@@ -763,7 +763,7 @@ private fun LiveGameScreen(
             if (state.phase == LivePhase.GAME_OVER) {
                 GameOverSummary(state = state, onUndo = {
                     if (state.undoEntry != null) {
-                        onStateChange(undoGameOver(state))
+                        onStateChange(undoLastAction(state))
                     }
                 }, showUndo = !readOnlySummary && state.undoEntry != null)
             } else {

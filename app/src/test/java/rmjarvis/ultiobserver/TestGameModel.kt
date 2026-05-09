@@ -1950,7 +1950,7 @@ class TestGameModel {
         assertEquals(beforeManualEnd, state.undoEntry?.previous)
 
         // Undo game over restores the saved live state from before End Game was applied.
-        state = undoGameOver(state)
+        state = undoLastAction(state)
         assertEquals(beforeManualEnd, state)
     }
 
@@ -2095,7 +2095,7 @@ class TestGameModel {
         )
         val gameOverByScore = recordGoalFromCurrentState(state, VC, LocalTime.of(11, 25), 900_000L)
         assertEquals(LivePhase.GAME_OVER, gameOverByScore.phase)
-        val scoreEndedUndo = undoGameOver(gameOverByScore)
+        val scoreEndedUndo = undoLastAction(gameOverByScore)
         assertEquals(LivePhase.BETWEEN_POINTS, scoreEndedUndo.phase)
         assertEquals(1, scoreEndedUndo.teamOne.score)
         assertEquals(0, scoreEndedUndo.teamTwo.score)
@@ -2104,7 +2104,6 @@ class TestGameModel {
         assertEquals(LivePhase.LIVE_POINT, undoLastAction(scoreEndedUndo).phase)
 
         // Unavailable game-over commands are idempotent no-ops; the UI normally hides these pathways.
-        assertEquals(scoreEndedUndo, undoGameOver(scoreEndedUndo))
         assertEquals(gameOverByScore, recordGoal(gameOverByScore, ANIMAL, LocalTime.of(11, 26), 910_000L))
         assertEquals(gameOverByScore, endGameNow(gameOverByScore, LocalTime.of(11, 26)))
 
