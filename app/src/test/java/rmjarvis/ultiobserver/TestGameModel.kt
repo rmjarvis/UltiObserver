@@ -1744,6 +1744,7 @@ class TestGameModel {
             pullingTeam = ANIMAL,
             pullingFromEnd = FieldEnd.NEAR,
         )
+        val beforeSetupEditBeforePlay = state
         state = applySetupToLiveGame(state, editedBeforePlay, 10_000L)
         assertEquals(LocalTime.of(8, 45), state.startTime)
         assertEquals(15, state.rules.gameTo)
@@ -1763,6 +1764,8 @@ class TestGameModel {
         assertEquals("Pull in", state.countdown?.label)
         assertEquals(80, state.countdown?.durationSeconds)
         assertEquals(90_000L, state.countdown?.targetEpochMillis)
+        assertEquals("Undo Update Game Setup", state.undoEntry?.label)
+        assertEquals(beforeSetupEditBeforePlay, state.undoEntry?.previous)
 
         // Edit setup after play has begun and verify opening pull metadata changes without rewriting current field state.
         state = beginLivePoint(state)
@@ -1779,6 +1782,7 @@ class TestGameModel {
             pullingTeam = VC,
             pullingFromEnd = FieldEnd.FAR,
         )
+        val beforeSetupEditAfterPlay = state
         state = applySetupToLiveGame(state, editedAfterPlay, 200_000L)
         assertEquals(LocalTime.of(9, 0), state.startTime)
         assertEquals(17, state.rules.gameTo)
@@ -1800,6 +1804,8 @@ class TestGameModel {
         assertEquals(fieldStateAfterGoal.countdown, state.countdown)
         assertEquals(fieldStateAfterGoal.pendingCapOffer, state.pendingCapOffer)
         assertEquals(emptyList<PlayerCardRecord>(), state.priorCards)
+        assertEquals("Undo Update Game Setup", state.undoEntry?.label)
+        assertEquals(beforeSetupEditAfterPlay, state.undoEntry?.previous)
 
         // Verify setup edits preserve pending cap prompts and do not restart an in-progress countdown.
         state = fieldStateAfterGoal.copy(pendingCapOffer = CapType.SOFT)
@@ -1808,6 +1814,7 @@ class TestGameModel {
         assertEquals(CapType.SOFT, state.pendingCapOffer)
         assertEquals(pendingCountdown, state.countdown)
         assertEquals(19, state.rules.gameTo)
+        assertEquals("Undo Update Game Setup", state.undoEntry?.label)
 
         // Blank team names are normalized to default display names when setup is applied.
         state = applySetupToLiveGame(
@@ -2041,6 +2048,16 @@ class TestGameModel {
         val beforePullCorrection = standardLiveGameState()
         state = adjustPullInfractions(beforePullCorrection, 1, 2, 3, 4)
         assertEquals(beforePullCorrection, undoLastAction(state))
+
+        val beforeSetupUpdate = standardLiveGameState()
+        state = applySetupToLiveGame(
+            existing = beforeSetupUpdate,
+            setup = liveGameToSetupState(beforeSetupUpdate).copy(
+                rules = beforeSetupUpdate.rules.copy(gameTo = 17),
+            ),
+            nowMillis = 350_000L,
+        )
+        assertEquals(beforeSetupUpdate, undoLastAction(state))
 
         // Undo apply half cap, soft cap, hard cap, force cap now, manual halftime, and manual end game.
         state = standardLiveGameState(

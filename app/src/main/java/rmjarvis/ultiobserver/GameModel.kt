@@ -813,7 +813,7 @@ fun applySetupToLiveGame(
         openingPullingFromEnd = setup.pullingFromEnd,
     )
 
-    return if (shouldResyncPullState) {
+    val updatedState = if (shouldResyncPullState) {
         startPullSequence(
             base.copy(
                 nearAttackingTeam = openingNearAttackingTeam,
@@ -825,6 +825,7 @@ fun applySetupToLiveGame(
     } else {
         base
     }
+    return updatedState.withUndo(existing, "Undo Update Game Setup")
 }
 
 // Go to setup screen from live game
