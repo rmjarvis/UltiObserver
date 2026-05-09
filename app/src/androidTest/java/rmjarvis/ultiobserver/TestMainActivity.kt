@@ -1,126 +1,267 @@
 package rmjarvis.ultiobserver
 
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.test.espresso.Espresso.pressBack
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import org.junit.Ignore
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-@Ignore("Planning skeleton only; fill these in with real smoke-test interactions later.")
 @RunWith(AndroidJUnit4::class)
-class MainActivitySmokeTestPlan {
-    // Smoke test the launch path and the main top-level navigation.
-    // This should catch broken routes without trying to exhaustively verify UI rendering.
+class MainActivitySmokeTest {
+    @get:Rule
+    val composeRule = createAndroidComposeRule<MainActivity>()
+
+    // Test the basic launch story from home to setup to live play.
+    // Keep this focused on the first-run path and the live-use lock affordance.
     @Test
     fun launchHomeAndStartGame() {
-        // Launch MainActivity.
+        // Verify the app opens on the home screen with the primary navigation affordances.
+        composeRule.onNodeWithText("UltiObserver").assertIsDisplayed()
+        composeRule.onNodeWithText("Start New Game").assertIsDisplayed()
+        composeRule.onNodeWithText("Previous Games").assertIsDisplayed()
 
-        // Verify the home screen shows the UltiObserver title and Start New Game action.
+        // Walk the default new-game path into the live screen.
+        openNewGameSetup()
+        composeRule.onNodeWithText("UltiObserver Setup").assertIsDisplayed()
 
-        // Tap Start New Game and verify setup appears.
-
-        // Tap Start Game with default setup and verify the live screen appears.
+        // Starting a point should immediately switch the phone into locked live-use mode.
+        startGameFromSetup()
+        assertLiveScreen()
+        composeRule.onNodeWithText("Start Point").performClick()
+        waitForText("Slide right to unlock")
     }
 
-    // Smoke test the current-game home pathway.
-    // Returning home should preserve live state and allow resuming the active game.
+    // Test the setup form's modal editors and prior-card entry point.
+    // These are broad wiring checks rather than detailed rule-state assertions.
     @Test
-    fun homeCurrentGameResumePath() {
-        // Start a new game and reach the live screen.
+    fun setupEditorsOpenAndReturnToSetup() {
+        openNewGameSetup()
 
-        // Record a simple score or timeout so there is visible state to preserve.
+        // Exercise the exact start-time dialog without depending on the current clock.
+        composeRule.onNodeWithText("Start time").performClick()
+        composeRule.onNodeWithText("Set Start Time").assertIsDisplayed()
+        composeRule.onNodeWithText("Cancel").performClick()
 
-        // Navigate back to the home screen.
+        // Open each compact rule editor to catch broken setup dialog wiring.
+        openSetupDialog("Game to", "Game To")
+        openSetupDialog("Halftime", "Halftime")
+        openSetupDialog("Half cap", "Half Cap")
+        openSetupDialog("Soft cap", "Soft Cap")
+        openSetupDialog("Hard cap", "Hard Cap")
+        openSetupDialog("Timeouts", "Timeout Rules")
 
-        // Verify Current Game appears.
+        // Add a prior-card holder and make sure the form remains usable afterwards.
+        composeRule.onNodeWithText("Add Card Holder").performScrollTo().performClick()
+        composeRule.onNodeWithText("Add player cards").assertIsDisplayed()
+        composeRule.onNodeWithText("Add").performClick()
+        waitForText("Start Game")
 
-        // Tap Current Game and verify the same live game is shown.
+        // The edited setup should still launch a live game.
+        startGameFromSetup()
+        assertLiveScreen()
     }
 
-    // Smoke test completed and previous game pathways on the home screen.
-    // Keep this broad: we mainly want to know that completed games can be opened and archived.
+    // Test the home-screen path for preserving and resuming an active game.
+    // Also cover the live-to-setup update flow because it shares the same app-level routing state.
     @Test
-    fun homeCompletedAndPreviousGamePaths() {
-        // Start a game and drive it to game over through the UI.
+    fun homeCurrentGameResumeAndUpdateSetupPath() {
+        startLiveGame()
 
-        // Navigate home and verify the Completed Game section appears.
+        // Back navigation should preserve the active game and expose the resume path.
+        pressBack()
+        waitForText("Current Game")
+        composeRule.onNodeWithText("Current Game").assertIsDisplayed()
+        composeRule.onNodeWithText("Team 1 0 - 0 Team 2").performClick()
+        assertLiveScreen()
 
-        // Open the completed game and verify the summary screen appears.
-
-        // Navigate home, archive the completed game, and verify it moves to Previous Games.
-
-        // Open the archived game and verify it opens read-only summary state.
+        // The live Other menu should reopen setup in update mode and return to the same game.
+        openOtherSheet()
+        composeRule.onNodeWithText("Update Game Setup").performClick()
+        waitForText("Back to Game Screen")
+        composeRule.onNodeWithText("+5").performScrollTo().performClick()
+        composeRule.onNodeWithText("Back to Game Screen").performScrollTo().performClick()
+        assertLiveScreen()
     }
 
-    // Smoke test setup editing from a live game.
-    // The model tests own the detailed state checks; this test only verifies the UI path is wired.
+    // Test the primary live screen actions that should be available directly from the phone.
+    // Keep the assertions at the visible undo/message level; GameModel owns detailed state checks.
     @Test
-    fun updateGameSetupPath() {
-        // Start a game and open the Other menu.
+    fun livePrimaryActionsAndUndoPath() {
+        startLiveGame()
 
-        // Tap Update Game Setup.
+        // A between-points goal implicitly starts the point and exposes a useful undo.
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
+        waitForText("Undo Goal by Team 1")
+        composeRule.onNodeWithText("Undo Goal by Team 1").performClick()
+        waitForText("Lock")
 
-        // Verify the setup form is prefilled and the primary button reads Back to Game Screen.
+        // Timeout and pull-infraction buttons should remain wired after the undo path.
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "timeout")).performClick()
+        waitForText("Undo Timeout by Team 1")
 
-        // Change a visible setup field and return to the live screen.
-
-        // Verify the live screen still renders.
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-infraction")).performClick()
+        waitForText("Start at brick mark")
+        composeRule.onNodeWithText("OK").performClick()
+        composeRule.onNodeWithText("Undo Offsides on Team 1").assertIsDisplayed()
     }
 
-    // Smoke test primary live actions on the field screen.
-    // This should cover the most important buttons without asserting every model detail.
-    @Test
-    fun liveScreenPrimaryActions() {
-        // Start a game and verify the initial countdown and field layout are visible.
-
-        // Tap Start Point and verify the lock UI appears.
-
-        // Unlock, record a goal, and verify the score changes.
-
-        // Record a timeout and verify either countdown text changes or the out-of-timeouts message appears.
-
-        // Record an offsides or false start and verify the terse cue popup appears.
-    }
-
-    // Smoke test the Cards / TF bottom sheet.
-    // Detailed card accounting belongs in GameModel tests; this only protects the UI flow.
+    // Test the card and technical-foul bottom sheet from the live screen.
+    // This covers the phone-facing dialog sequence, not the full card-accounting matrix.
     @Test
     fun cardsAndTechnicalFoulSheetPath() {
-        // Open Cards / TF from the live screen.
+        startLiveGame()
 
-        // Verify each team section is visible.
+        // The Cards / TF sheet should show both team sections with their pull roles.
+        openCardsSheet()
+        composeRule.onNodeWithText("Team 1 (pulling)").assertIsDisplayed()
+        composeRule.onNodeWithText("Team 2 (receiving)").assertIsDisplayed()
 
-        // Record a blue card and verify the resulting message appears.
+        // Blue cards and technical fouls should close the sheet and show the consequence cue.
+        composeRule.onAllNodesWithText("Blue").onFirst().performClick()
+        waitForText("Team 1 has 1 card.")
+        composeRule.onNodeWithText("OK").performClick()
 
-        // Record a technical foul and verify the resulting message appears.
+        openCardsSheet()
+        composeRule.onAllNodesWithText("Tech").onFirst().performClick()
+        waitForText("Team 1 has 1 technical foul.")
+        composeRule.onNodeWithText("OK").performClick()
 
-        // Open yellow/red player-number dialogs and verify N/A is available.
+        // Yellow cards should prompt for a player number while still allowing N/A.
+        openCardsSheet()
+        composeRule.onAllNodesWithText("Yellow").onFirst().performClick()
+        composeRule.onNodeWithText("Yellow Card").assertIsDisplayed()
+        composeRule.onNodeWithText("Player number").assertIsDisplayed()
+        composeRule.onNodeWithText("N/A").performClick()
+        waitForText("Team 1 has 2 cards.")
+        composeRule.onNodeWithText("OK").performClick()
+
+        // A red on a player with a yellow should ask direct red vs second yellow.
+        openCardsSheet()
+        composeRule.onAllNodesWithText("Red").onFirst().performClick()
+        composeRule.onNodeWithText("Red Card").assertIsDisplayed()
+        composeRule.onNodeWithText("N/A").performClick()
+        waitForText("Player Already Has Yellow")
+        composeRule.onNodeWithText("Direct Red").performClick()
+        waitForText("Team 1 has 4 cards.", substring = true)
     }
 
-    // Smoke test the Other menu and its less-common pathways.
-    // The goal is catching broken buttons, dialogs, and return paths.
+    // Test the less-common live-game actions behind the Other menu.
+    // The goal is to catch broken dialogs, buttons, and return paths for observer-accessible tools.
     @Test
     fun otherMenuPathways() {
-        // Open Other from the live screen.
+        startLiveGame()
 
-        // Open Adjust Score, Adjust Timeouts, Adjust Cards / TF, and Adjust Pull Infractions dialogs.
+        // Manual correction dialogs should open and return to the Other sheet cleanly.
+        openOtherSheet()
+        openOtherDialogAndCancel("Adjust Score")
+        openOtherDialogAndCancel("Adjust Timeouts")
+        openOtherDialogAndCancel("Adjust Cards / TF")
+        openOtherDialogAndCancel("Adjust Pull Infractions")
 
-        // Exercise Swap Ends of Field and Swap Pulling Team enough to verify the live screen still renders.
+        // Orientation controls should update state without breaking the live screen.
+        composeRule.onNodeWithText("Swap Ends of Field").performClick()
+        assertLiveScreen()
 
-        // Exercise Apply Half/Soft/Hard Cap Now buttons when they are visible.
+        openOtherSheet()
+        composeRule.onNodeWithText("Swap Pulling Team").performClick()
+        assertLiveScreen()
 
-        // Exercise Start Halftime and End Game paths when they are visible.
+        // Less-common game-state actions should be reachable and leave a visible result.
+        openOtherSheet()
+        composeRule.onNodeWithText("Apply Soft Cap Now").performClick()
+        waitForText("Undo Soft Cap Now")
+        assertLiveScreen()
+
+        openOtherSheet()
+        composeRule.onNodeWithText("Start Halftime").performClick()
+        waitForText("Halftime")
+        composeRule.onNodeWithText("OK").performClick()
+        assertLiveScreen()
     }
 
-    // Smoke test the visible undo affordance.
-    // Model tests verify correctness; this verifies the button appears and calls back into state.
+    // Test the completed-game flow from live game over to home archive to previous-game summary.
+    // This protects the top-level navigation state around finished games.
     @Test
-    fun liveUndoButtonPath() {
-        // Perform an undo-backed live action such as Start Point, Goal, Timeout, or Card.
+    fun completedAndPreviousGamePaths() {
+        startLiveGame()
 
-        // Verify the visible undo button describes the action.
+        // Manual game end should transition to the read-only summary surface with undo available.
+        openOtherSheet()
+        composeRule.onNodeWithText("End Game").performClick()
+        waitForText("Game is over", substring = true)
+        composeRule.onNodeWithText("OK").performClick()
+        composeRule.onNodeWithText("Game Summary").assertIsDisplayed()
+        composeRule.onNodeWithText("Undo End Game").assertIsDisplayed()
 
-        // Tap undo and verify the live screen returns to the previous visible state.
+        // Completed games should be archivable from home and reopen from Previous Games.
+        pressBack()
+        waitForText("Completed Game")
+        composeRule.onNodeWithText("Archive Completed Game").performClick()
+        waitForText("Previous Games")
+        composeRule.onNodeWithText("Team 1 0 - 0 Team 2").performClick()
+        composeRule.onNodeWithText("Game Summary").assertIsDisplayed()
+    }
 
-        // Drive a game to summary and verify Undo End Game appears when appropriate.
+    private fun openNewGameSetup() {
+        composeRule.onNodeWithText("Start New Game").performClick()
+        waitForText("UltiObserver Setup")
+    }
+
+    private fun startLiveGame() {
+        openNewGameSetup()
+        startGameFromSetup()
+    }
+
+    private fun startGameFromSetup() {
+        composeRule.onNodeWithText("Start Game").performScrollTo().performClick()
+        assertLiveScreen()
+    }
+
+    private fun assertLiveScreen() {
+        waitForText("Cards / TF")
+        composeRule.onNodeWithText("Cards / TF").assertIsDisplayed()
+        composeRule.onNodeWithText("Other").assertIsDisplayed()
+    }
+
+    private fun openSetupDialog(buttonText: String, dialogTitle: String) {
+        composeRule.onNodeWithText(buttonText).performScrollTo().performClick()
+        waitForText(dialogTitle)
+        composeRule.onNodeWithText("Cancel").assertIsDisplayed()
+        composeRule.onNodeWithText("Cancel").performClick()
+    }
+
+    private fun openCardsSheet() {
+        composeRule.onNodeWithText("Cards / TF").performClick()
+        waitForText("Cards / Technical Fouls")
+    }
+
+    private fun openOtherSheet() {
+        composeRule.onAllNodesWithText("Other").onFirst().performClick()
+        waitForText("Update Game Setup")
+    }
+
+    private fun openOtherDialogAndCancel(label: String) {
+        composeRule.onNodeWithText(label).performClick()
+        composeRule.onNodeWithText("Cancel").assertIsDisplayed()
+        composeRule.onNodeWithText("Cancel").performClick()
+        waitForText("Update Game Setup")
+    }
+
+    private fun waitForText(text: String, substring: Boolean = false) {
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithText(text, substring = substring).fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    private fun teamActionTag(team: TeamId, action: String): String {
+        return "live-${team.name}-$action"
     }
 }

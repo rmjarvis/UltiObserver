@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -1048,6 +1049,7 @@ private fun FieldUnlockControl(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .testTag("live-unlock-slider")
                 .height(52.dp)
                 .onSizeChanged { trackWidthPx = it.width.toFloat() }
                 .background(Color(0x66FFFFFF), RoundedCornerShape(26.dp))
@@ -1291,10 +1293,21 @@ private fun EndZonePanel(
             horizontalAlignment = Alignment.End,
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            CompactActionButton(label = "Goal", enabled = goalEnabled && interactionsEnabled, onClick = onGoal)
-            CompactActionButton(label = "Timeout", enabled = interactionsEnabled, onClick = onTimeout)
+            CompactActionButton(
+                label = "Goal",
+                modifier = Modifier.testTag("live-${teamId.name}-goal"),
+                enabled = goalEnabled && interactionsEnabled,
+                onClick = onGoal,
+            )
+            CompactActionButton(
+                label = "Timeout",
+                modifier = Modifier.testTag("live-${teamId.name}-timeout"),
+                enabled = interactionsEnabled,
+                onClick = onTimeout,
+            )
             CompactActionButton(
                 label = if (isPulling) "Offsides" else "False Start",
+                modifier = Modifier.testTag("live-${teamId.name}-pull-infraction"),
                 enabled = interactionsEnabled && pullInfractionEnabled,
                 onClick = onPullInfraction,
             )
@@ -3012,12 +3025,14 @@ private fun SmallActionButton(
 @Composable
 private fun CompactActionButton(
     label: String,
+    modifier: Modifier = Modifier,
     enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
+        modifier = modifier,
         shape = RoundedCornerShape(10.dp),
         colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
             containerColor = Color.White,
