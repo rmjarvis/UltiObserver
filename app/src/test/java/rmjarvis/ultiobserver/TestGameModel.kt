@@ -1054,7 +1054,79 @@ class TestGameModel {
         cardAssignments = removePlayerCardAssignment(cardAssignments, "17", CardType.YELLOW)
         assertEquals(listOf(InGamePlayerCardRecord("8", directReds = 1)), cardAssignments)
 
+        assertTrue(
+            canAddPlayerCardAssignment(
+                listOf(InGamePlayerCardRecord("17", yellows = 1)),
+                "17",
+                CardType.YELLOW,
+            ),
+        )
+        assertTrue(
+            canAddPlayerCardAssignment(
+                listOf(InGamePlayerCardRecord("17", yellows = 1)),
+                "17",
+                CardType.RED,
+            ),
+        )
+        assertFalse(
+            canAddPlayerCardAssignment(
+                listOf(InGamePlayerCardRecord("17", yellows = 2)),
+                "17",
+                CardType.RED,
+            ),
+        )
+        assertFalse(
+            canAddPlayerCardAssignment(
+                listOf(InGamePlayerCardRecord("17", directReds = 1)),
+                "17",
+                CardType.RED,
+            ),
+        )
+
+        val adjustmentStepState = standardLiveGameState().copy(
+            teamOnePlayerCards = listOf(
+                InGamePlayerCardRecord("17", yellows = 1),
+                InGamePlayerCardRecord("23", directReds = 1),
+            ),
+            teamTwoPlayerCards = listOf(
+                InGamePlayerCardRecord("8", yellows = 2),
+            ),
+        )
+        assertEquals(
+            listOf(
+                PlayerCardAdjustmentStep(VC, CardType.YELLOW, PlayerCardAdjustmentMode.ADD),
+                PlayerCardAdjustmentStep(VC, CardType.RED, PlayerCardAdjustmentMode.REMOVE),
+                PlayerCardAdjustmentStep(ANIMAL, CardType.YELLOW, PlayerCardAdjustmentMode.REMOVE),
+            ),
+            buildPlayerCardAdjustmentSteps(
+                state = adjustmentStepState,
+                teamOneYellows = 2,
+                teamOneReds = 0,
+                teamTwoYellows = 1,
+                teamTwoReds = 0,
+            ),
+        )
+        assertEquals(
+            listOf(PlayerCardRemovalCandidate("8", cardCount = 2)),
+            playerCardRemovalCandidates(adjustmentStepState.teamTwoPlayerCards, CardType.YELLOW),
+        )
+        assertEquals(
+            emptyList<PlayerCardRemovalCandidate>(),
+            playerCardRemovalCandidates(adjustmentStepState.teamTwoPlayerCards, CardType.RED),
+        )
+
         // The UI reconciliation flow should prevent invalid records; if one reaches the model anyway, fail loudly.
+        val invalidPlayerCardMessage =
+            "Player card records must be no cards, one yellow, second yellow, direct red, or one yellow plus direct red."
+        val invalidAssignmentException = assertThrows(IllegalArgumentException::class.java) {
+            addPlayerCardAssignment(
+                listOf(InGamePlayerCardRecord("17", directReds = 1)),
+                "17",
+                CardType.RED,
+            )
+        }
+        assertEquals(invalidPlayerCardMessage, invalidAssignmentException.message)
+
         val negativeCardException = assertThrows(IllegalArgumentException::class.java) {
             adjustCardsAndTf(
                 state = standardLiveGameState(),
@@ -1067,6 +1139,45 @@ class TestGameModel {
             )
         }
         assertEquals("Player card records cannot have negative card counts.", negativeCardException.message)
+
+        val tooManyYellowsException = assertThrows(IllegalArgumentException::class.java) {
+            adjustCardsAndTf(
+                state = standardLiveGameState(),
+                teamOneBlues = 0,
+                teamOneTechnicalFouls = 0,
+                teamTwoBlues = 0,
+                teamTwoTechnicalFouls = 0,
+                teamOnePlayerCards = listOf(InGamePlayerCardRecord("17", yellows = 3)),
+                teamTwoPlayerCards = emptyList(),
+            )
+        }
+        assertEquals(invalidPlayerCardMessage, tooManyYellowsException.message)
+
+        val tooManyDirectRedsException = assertThrows(IllegalArgumentException::class.java) {
+            adjustCardsAndTf(
+                state = standardLiveGameState(),
+                teamOneBlues = 0,
+                teamOneTechnicalFouls = 0,
+                teamTwoBlues = 0,
+                teamTwoTechnicalFouls = 0,
+                teamOnePlayerCards = listOf(InGamePlayerCardRecord("17", directReds = 2)),
+                teamTwoPlayerCards = emptyList(),
+            )
+        }
+        assertEquals(invalidPlayerCardMessage, tooManyDirectRedsException.message)
+
+        val secondYellowAndDirectRedException = assertThrows(IllegalArgumentException::class.java) {
+            adjustCardsAndTf(
+                state = standardLiveGameState(),
+                teamOneBlues = 0,
+                teamOneTechnicalFouls = 0,
+                teamTwoBlues = 0,
+                teamTwoTechnicalFouls = 0,
+                teamOnePlayerCards = listOf(InGamePlayerCardRecord("17", yellows = 2, directReds = 1)),
+                teamTwoPlayerCards = emptyList(),
+            )
+        }
+        assertEquals(invalidPlayerCardMessage, secondYellowAndDirectRedException.message)
 
         val duplicateCardException = assertThrows(IllegalArgumentException::class.java) {
             adjustCardsAndTf(

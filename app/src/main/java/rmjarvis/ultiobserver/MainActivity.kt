@@ -1498,16 +1498,28 @@ private fun CardsSheet(
     }
 
     if (pendingRedCardChoice != null) {
+        val redCardChoice = pendingRedCardChoice!!
+        val currentRecords = playerCards(state, redCardChoice.team)
         RedCardModeDialog(
-            teamName = state.teamFor(pendingRedCardChoice!!.team).name,
-            jerseyNumber = pendingRedCardChoice!!.jerseyNumber,
+            teamName = state.teamFor(redCardChoice.team).name,
+            jerseyNumber = redCardChoice.jerseyNumber,
+            directRedEnabled = canAddPlayerCardAssignment(
+                currentRecords,
+                redCardChoice.jerseyNumber,
+                CardType.RED,
+            ),
+            secondYellowEnabled = canAddPlayerCardAssignment(
+                currentRecords,
+                redCardChoice.jerseyNumber,
+                CardType.YELLOW,
+            ),
             onDismiss = { pendingRedCardChoice = null },
             onDirectRed = {
                 onAssessment(
                     assessRedCard(
                         state,
-                        pendingRedCardChoice!!.team,
-                        pendingRedCardChoice!!.jerseyNumber,
+                        redCardChoice.team,
+                        redCardChoice.jerseyNumber,
                         RedCardMode.DIRECT_RED,
                     )
                 )
@@ -1517,8 +1529,8 @@ private fun CardsSheet(
                 onAssessment(
                     assessRedCard(
                         state,
-                        pendingRedCardChoice!!.team,
-                        pendingRedCardChoice!!.jerseyNumber,
+                        redCardChoice.team,
+                        redCardChoice.jerseyNumber,
                         RedCardMode.SECOND_YELLOW,
                     )
                 )
@@ -1780,7 +1792,8 @@ private fun AdjustCardsDialog(
     var teamTwoTf by remember { mutableStateOf(state.teamTwo.technicalFouls) }
     var workingTeamOnePlayerCards by remember { mutableStateOf(state.teamOnePlayerCards) }
     var workingTeamTwoPlayerCards by remember { mutableStateOf(state.teamTwoPlayerCards) }
-    var pendingSteps by remember { mutableStateOf<List<CardAdjustmentStep>>(emptyList()) }
+    var pendingSteps by remember { mutableStateOf<List<PlayerCardAdjustmentStep>>(emptyList()) }
+    var invalidCardAssignmentMessage by remember { mutableStateOf<String?>(null) }
 
     fun finalizeAdjustment() {
         onConfirm(
@@ -1803,9 +1816,16 @@ private fun AdjustCardsDialog(
         } else {
             workingTeamTwoPlayerCards
         }
+        if (
+            step.mode == PlayerCardAdjustmentMode.ADD &&
+            !canAddPlayerCardAssignment(currentRecords, jerseyNumber, step.cardType)
+        ) {
+            invalidCardAssignmentMessage = "That player already has the maximum valid card combination."
+            return
+        }
         val updatedRecords = when (step.mode) {
-            CardAdjustmentMode.ADD -> addPlayerCardAssignment(currentRecords, jerseyNumber, step.cardType)
-            CardAdjustmentMode.REMOVE -> removePlayerCardAssignment(currentRecords, jerseyNumber, step.cardType)
+            PlayerCardAdjustmentMode.ADD -> addPlayerCardAssignment(currentRecords, jerseyNumber, step.cardType)
+            PlayerCardAdjustmentMode.REMOVE -> removePlayerCardAssignment(currentRecords, jerseyNumber, step.cardType)
         }
         if (step.team == TeamId.TEAM_ONE) {
             workingTeamOnePlayerCards = updatedRecords
@@ -1841,12 +1861,12 @@ private fun AdjustCardsDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    val steps = buildCardAdjustmentSteps(
+                    val steps = buildPlayerCardAdjustmentSteps(
                         state = state,
-                        teamOneY = teamOneY,
-                        teamOneR = teamOneR,
-                        teamTwoY = teamTwoY,
-                        teamTwoR = teamTwoR,
+                        teamOneYellows = teamOneY,
+                        teamOneReds = teamOneR,
+                        teamTwoYellows = teamTwoY,
+                        teamTwoReds = teamTwoR,
                     )
                     workingTeamOnePlayerCards = state.teamOnePlayerCards
                     workingTeamTwoPlayerCards = state.teamTwoPlayerCards
@@ -1869,7 +1889,7 @@ private fun AdjustCardsDialog(
 
     pendingSteps.firstOrNull()?.let { step ->
         when (step.mode) {
-            CardAdjustmentMode.ADD -> {
+            PlayerCardAdjustmentMode.ADD -> {
                 PlayerNumberDialog(
                     title = "Add ${step.cardType.label}",
                     teamName = state.teamFor(step.team).name,
@@ -1877,11 +1897,11 @@ private fun AdjustCardsDialog(
                     onConfirm = { applyCardAssignment(it) },
                 )
             }
-            CardAdjustmentMode.REMOVE -> {
+            PlayerCardAdjustmentMode.REMOVE -> {
                 AssignedCardRemovalDialog(
                     title = "Remove ${step.cardType.label}",
                     teamName = state.teamFor(step.team).name,
-                    options = removalOptionsForStep(
+                    candidates = playerCardRemovalCandidates(
                         records = if (step.team == TeamId.TEAM_ONE) {
                             workingTeamOnePlayerCards
                         } else {
@@ -1889,90 +1909,24 @@ private fun AdjustCardsDialog(
                         },
                         cardType = step.cardType,
                     ),
+                    cardType = step.cardType,
                     onDismiss = { pendingSteps = emptyList() },
                     onConfirm = { applyCardAssignment(it) },
                 )
             }
         }
     }
-}
 
-private data class CardAdjustmentStep(
-    val team: TeamId,
-    val cardType: CardType,
-    val mode: CardAdjustmentMode,
-)
-
-private enum class CardAdjustmentMode {
-    ADD,
-    REMOVE,
-}
-
-private data class CardRemovalOption(
-    val jerseyNumber: String,
-    val label: String,
-)
-
-// Turn the requested yellow/red totals into a sequence of add/remove player-card prompts.
-private fun buildCardAdjustmentSteps(
-    state: LiveGameState,
-    teamOneY: Int,
-    teamOneR: Int,
-    teamTwoY: Int,
-    teamTwoR: Int,
-): List<CardAdjustmentStep> {
-    val stateTeamOneYellows = teamYellowCards(state, TeamId.TEAM_ONE)
-    val stateTeamOneReds = teamRedCards(state, TeamId.TEAM_ONE)
-    val stateTeamTwoYellows = teamYellowCards(state, TeamId.TEAM_TWO)
-    val stateTeamTwoReds = teamRedCards(state, TeamId.TEAM_TWO)
-
-    return buildList {
-        repeat(maxOf(0, teamOneY - stateTeamOneYellows)) {
-            add(CardAdjustmentStep(TeamId.TEAM_ONE, CardType.YELLOW, CardAdjustmentMode.ADD))
-        }
-        repeat(maxOf(0, stateTeamOneYellows - teamOneY)) {
-            add(CardAdjustmentStep(TeamId.TEAM_ONE, CardType.YELLOW, CardAdjustmentMode.REMOVE))
-        }
-        repeat(maxOf(0, teamOneR - stateTeamOneReds)) {
-            add(CardAdjustmentStep(TeamId.TEAM_ONE, CardType.RED, CardAdjustmentMode.ADD))
-        }
-        repeat(maxOf(0, stateTeamOneReds - teamOneR)) {
-            add(CardAdjustmentStep(TeamId.TEAM_ONE, CardType.RED, CardAdjustmentMode.REMOVE))
-        }
-        repeat(maxOf(0, teamTwoY - stateTeamTwoYellows)) {
-            add(CardAdjustmentStep(TeamId.TEAM_TWO, CardType.YELLOW, CardAdjustmentMode.ADD))
-        }
-        repeat(maxOf(0, stateTeamTwoYellows - teamTwoY)) {
-            add(CardAdjustmentStep(TeamId.TEAM_TWO, CardType.YELLOW, CardAdjustmentMode.REMOVE))
-        }
-        repeat(maxOf(0, teamTwoR - stateTeamTwoReds)) {
-            add(CardAdjustmentStep(TeamId.TEAM_TWO, CardType.RED, CardAdjustmentMode.ADD))
-        }
-        repeat(maxOf(0, stateTeamTwoReds - teamTwoR)) {
-            add(CardAdjustmentStep(TeamId.TEAM_TWO, CardType.RED, CardAdjustmentMode.REMOVE))
-        }
-    }
-}
-
-// Offer only the players who currently have the card type being removed.
-private fun removalOptionsForStep(
-    records: List<InGamePlayerCardRecord>,
-    cardType: CardType,
-): List<CardRemovalOption> {
-    val matching = records.filter { record ->
-        when (cardType) {
-            CardType.YELLOW -> record.yellows > 0
-            CardType.RED -> record.directReds > 0
-        }
-    }
-    return matching.map { record ->
-        val count = when (cardType) {
-            CardType.YELLOW -> record.yellows
-            CardType.RED -> record.directReds
-        }
-        CardRemovalOption(
-            jerseyNumber = record.jerseyNumber,
-            label = "${displayPlayerNumber(record.jerseyNumber)} (${cardType.label} $count)",
+    invalidCardAssignmentMessage?.let { message ->
+        AlertDialog(
+            onDismissRequest = { invalidCardAssignmentMessage = null },
+            title = { Text("Invalid Card Assignment") },
+            text = { Text(message) },
+            confirmButton = {
+                TextButton(onClick = { invalidCardAssignmentMessage = null }) {
+                    Text("OK")
+                }
+            },
         )
     }
 }
@@ -2003,7 +1957,8 @@ private fun CardCountRow(
 private fun AssignedCardRemovalDialog(
     title: String,
     teamName: String,
-    options: List<CardRemovalOption>,
+    candidates: List<PlayerCardRemovalCandidate>,
+    cardType: CardType,
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit,
 ) {
@@ -2013,12 +1968,15 @@ private fun AssignedCardRemovalDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(teamName, fontWeight = FontWeight.SemiBold)
-                options.forEach { option ->
+                candidates.forEach { candidate ->
                     OutlinedButton(
-                        onClick = { onConfirm(option.jerseyNumber) },
+                        onClick = { onConfirm(candidate.jerseyNumber) },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text(option.label)
+                        Text(
+                            "${displayPlayerNumber(candidate.jerseyNumber)} " +
+                                "(${cardType.label} ${candidate.cardCount})"
+                        )
                     }
                 }
             }
@@ -2135,25 +2093,45 @@ private fun PlayerNumberDialog(
 private fun RedCardModeDialog(
     teamName: String,
     jerseyNumber: String,
+    directRedEnabled: Boolean,
+    secondYellowEnabled: Boolean,
     onDismiss: () -> Unit,
     onDirectRed: () -> Unit,
     onSecondYellow: () -> Unit,
 ) {
+    val hasValidChoice = directRedEnabled || secondYellowEnabled
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Player Already Has Yellow") },
         text = {
-            Text("$teamName #$jerseyNumber already has a yellow this game.")
+            if (hasValidChoice) {
+                Text("$teamName #$jerseyNumber already has a yellow this game.")
+            } else {
+                Text("$teamName #$jerseyNumber already has the maximum valid card combination.")
+            }
         },
         confirmButton = {
-            TextButton(onClick = onDirectRed) {
-                Text("Direct Red")
+            if (directRedEnabled) {
+                TextButton(onClick = onDirectRed) {
+                    Text("Direct Red")
+                }
+            } else if (!hasValidChoice) {
+                TextButton(onClick = onDismiss) {
+                    Text("OK")
+                }
             }
         },
         dismissButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = onSecondYellow) {
-                    Text("Second Yellow")
+            if (hasValidChoice) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (secondYellowEnabled) {
+                        TextButton(onClick = onSecondYellow) {
+                            Text("Second Yellow")
+                        }
+                    }
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel")
+                    }
                 }
             }
         },

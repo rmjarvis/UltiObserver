@@ -614,8 +614,84 @@ private fun requirePlayerCardRecordsValid(records: List<InGamePlayerCardRecord>)
     require(records.all { it.yellows >= 0 && it.directReds >= 0 }) {
         "Player card records cannot have negative card counts."
     }
+    require(records.all(::playerCardRecordHasLegalCounts)) {
+        "Player card records must be no cards, one yellow, second yellow, direct red, or one yellow plus direct red."
+    }
     require(records.distinctBy { it.jerseyNumber }.size == records.size) {
         "Player card records cannot contain duplicate player entries."
+    }
+}
+
+private fun playerCardRecordHasLegalCounts(record: InGamePlayerCardRecord): Boolean {
+    return record.yellows <= 2 &&
+        record.directReds <= 1 &&
+        (record.yellows < 2 || record.directReds == 0)
+}
+
+// Check whether assigning another card would keep the player's card record legal.
+fun canAddPlayerCardAssignment(
+    records: List<InGamePlayerCardRecord>,
+    jerseyNumber: String,
+    cardType: CardType,
+): Boolean {
+    val existingRecord = records.firstOrNull { it.jerseyNumber == jerseyNumber }
+        ?: InGamePlayerCardRecord(jerseyNumber = jerseyNumber)
+    val updatedRecord = when (cardType) {
+        CardType.YELLOW -> existingRecord.copy(yellows = existingRecord.yellows + 1)
+        CardType.RED -> existingRecord.copy(directReds = existingRecord.directReds + 1)
+    }
+    return playerCardRecordHasLegalCounts(updatedRecord)
+}
+
+// Turn requested yellow/red totals into the player-card add/remove steps needed to reconcile them.
+fun buildPlayerCardAdjustmentSteps(
+    state: LiveGameState,
+    teamOneYellows: Int,
+    teamOneReds: Int,
+    teamTwoYellows: Int,
+    teamTwoReds: Int,
+): List<PlayerCardAdjustmentStep> {
+    val stateTeamOneYellows = teamYellowCards(state, TeamId.TEAM_ONE)
+    val stateTeamOneReds = teamRedCards(state, TeamId.TEAM_ONE)
+    val stateTeamTwoYellows = teamYellowCards(state, TeamId.TEAM_TWO)
+    val stateTeamTwoReds = teamRedCards(state, TeamId.TEAM_TWO)
+
+    return buildList {
+        fun addSteps(team: TeamId, cardType: CardType, desiredCount: Int, currentCount: Int) {
+            repeat(maxOf(0, desiredCount - currentCount)) {
+                add(PlayerCardAdjustmentStep(team, cardType, PlayerCardAdjustmentMode.ADD))
+            }
+            repeat(maxOf(0, currentCount - desiredCount)) {
+                add(PlayerCardAdjustmentStep(team, cardType, PlayerCardAdjustmentMode.REMOVE))
+            }
+        }
+
+        addSteps(TeamId.TEAM_ONE, CardType.YELLOW, teamOneYellows, stateTeamOneYellows)
+        addSteps(TeamId.TEAM_ONE, CardType.RED, teamOneReds, stateTeamOneReds)
+        addSteps(TeamId.TEAM_TWO, CardType.YELLOW, teamTwoYellows, stateTeamTwoYellows)
+        addSteps(TeamId.TEAM_TWO, CardType.RED, teamTwoReds, stateTeamTwoReds)
+    }
+}
+
+// Return the players who currently have a card of the given type available to remove.
+fun playerCardRemovalCandidates(
+    records: List<InGamePlayerCardRecord>,
+    cardType: CardType,
+): List<PlayerCardRemovalCandidate> {
+    return records.mapNotNull { record ->
+        val count = playerCardCount(record, cardType)
+        if (count > 0) {
+            PlayerCardRemovalCandidate(record.jerseyNumber, count)
+        } else {
+            null
+        }
+    }
+}
+
+private fun playerCardCount(record: InGamePlayerCardRecord, cardType: CardType): Int {
+    return when (cardType) {
+        CardType.YELLOW -> record.yellows
+        CardType.RED -> record.directReds
     }
 }
 
@@ -1129,6 +1205,22 @@ enum class CardType(val label: String) {
     RED("Red"),
 }
 
+enum class PlayerCardAdjustmentMode {
+    ADD,
+    REMOVE,
+}
+
+data class PlayerCardAdjustmentStep(
+    val team: TeamId,
+    val cardType: CardType,
+    val mode: PlayerCardAdjustmentMode,
+)
+
+data class PlayerCardRemovalCandidate(
+    val jerseyNumber: String,
+    val cardCount: Int,
+)
+
 // Figure out what the next relevant cap is in a live game.
 fun computeNextCapStatus(state: LiveGameState, now: LocalTime): CapStatus? {
     // `to` in Kotlin makes pairs. So `first to second` makes a pair (first, second).
@@ -1367,13 +1459,15 @@ private fun updatePlayerCardRecord(
     transform: (InGamePlayerCardRecord) -> InGamePlayerCardRecord,
 ): List<InGamePlayerCardRecord> {
     val existingIndex = records.indexOfFirst { it.jerseyNumber == jerseyNumber }
-    return if (existingIndex >= 0) {
+    val updatedRecords = if (existingIndex >= 0) {
         records.mapIndexed { index, record ->
             if (index == existingIndex) transform(record) else record
         }
     } else {
         records + transform(InGamePlayerCardRecord(jerseyNumber = jerseyNumber))
     }
+    requirePlayerCardRecordsValid(updatedRecords)
+    return updatedRecords
 }
 
 // Build the message for what happens when a team gets a card.
