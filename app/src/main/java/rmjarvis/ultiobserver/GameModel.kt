@@ -79,7 +79,9 @@ data class GameRules(
 )
 
 data class GameSetupState(
+    val startDate: LocalDate,
     val startTime: LocalTime,
+    val timeZone: ZoneId,
     val rules: GameRules = GameRules(),
     val teamOne: TeamSetup = TeamSetup(name = "", color = TeamColorChoice.WHITE),
     val teamTwo: TeamSetup = TeamSetup(name = "", color = TeamColorChoice.BLUE),
@@ -148,7 +150,10 @@ enum class BetweenPointsCountdownTarget(
 }
 
 data class LiveGameState(
+    val startDate: LocalDate,
     val startTime: LocalTime,
+    val timeZone: ZoneId,
+    val startEpochMillis: Long,
     val endTime: LocalTime? = null,
     val rules: GameRules,
     val teamOne: TeamLiveState,
@@ -215,13 +220,17 @@ fun createLiveGameState(setup: GameSetupState): LiveGameState {
     } else {
         setup.pullingTeam.flip()
     }
+    val startEpochMillis = dateTimeMillis(setup.startDate, setup.startTime, setup.timeZone)
     val initialCountdown = buildBetweenPointsCountdown(
         pullingFromEnd = setup.pullingFromEnd,
-        sequenceStartMillis = nextOccurrenceMillis(setup.startTime),
+        sequenceStartMillis = startEpochMillis,
     )
 
     return LiveGameState(
+        startDate = setup.startDate,
         startTime = setup.startTime,
+        timeZone = setup.timeZone,
+        startEpochMillis = startEpochMillis,
         rules = setup.rules,
         teamOne = TeamLiveState(
             name = setup.teamOne.name.ifBlank { "Team 1" },
@@ -324,13 +333,13 @@ fun recordGoal(
 
     // Caps are checked before halftime so hard cap takes precedence over soft, and soft over half.
     val pendingCapOffer = when {
-        hardCapReached(state, now) -> CapType.HARD
-        softCapReached(state, now) -> CapType.SOFT
+        hardCapReached(state, nowMillis) -> CapType.HARD
+        softCapReached(state, nowMillis) -> CapType.SOFT
         halfCapReached(
             state = state,
             teamOneScore = updatedTeamOne.score,
             teamTwoScore = updatedTeamTwo.score,
-            now = now,
+            nowMillis = nowMillis,
         ) -> CapType.HALF
         else -> null
     }
@@ -423,19 +432,19 @@ private fun startHalftime(
         halftimeMinutes = state.rules.halftimeMinutes,
         sequenceStartMillis = nowMillis,
     )
-    val halftimeEnd = halftimeStart.plusMinutes(state.rules.halftimeMinutes.toLong())
-    val hardCapTime = state.startTime.plusMinutes(state.rules.hardCapMinutes.toLong())
-    val softCapTime = state.startTime.plusMinutes(state.rules.softCapMinutes.toLong())
+    val halftimeEndMillis = nowMillis + state.rules.halftimeMinutes * 60_000L
+    val hardCapTimeMillis = state.startEpochMillis + state.rules.hardCapMinutes * 60_000L
+    val softCapTimeMillis = state.startEpochMillis + state.rules.softCapMinutes * 60_000L
     // Preserve an already-pending soft/hard cap. Otherwise, catch caps that became
     // due just before a manual halftime start or that are scheduled during halftime.
     val pendingCapOffer = existingCapOffer.takeIf { it == CapType.SOFT || it == CapType.HARD }
         ?: when {
-            hardCapReached(state, halftimeStart) -> CapType.HARD
-            hardCapRelevant(state) && !hardCapTime.isBefore(halftimeStart) &&
-                hardCapTime.isBefore(halftimeEnd) -> CapType.HARD
-            softCapReached(state, halftimeStart) -> CapType.SOFT
-            softCapRelevant(state) && !softCapTime.isBefore(halftimeStart) &&
-                softCapTime.isBefore(halftimeEnd) -> CapType.SOFT
+            hardCapReached(state, nowMillis) -> CapType.HARD
+            hardCapRelevant(state) && hardCapTimeMillis >= nowMillis &&
+                hardCapTimeMillis < halftimeEndMillis -> CapType.HARD
+            softCapReached(state, nowMillis) -> CapType.SOFT
+            softCapRelevant(state) && softCapTimeMillis >= nowMillis &&
+                softCapTimeMillis < halftimeEndMillis -> CapType.SOFT
             else -> null
         }
 
@@ -781,19 +790,27 @@ fun swapPullingTeam(state: LiveGameState): LiveGameState {
 }
 
 // Manually apply one of the caps
-fun makeCapNow(state: LiveGameState, capType: CapType, now: LocalTime): LiveGameState {
+fun makeCapNow(
+    state: LiveGameState,
+    capType: CapType,
+    nowMillis: Long,
+): LiveGameState {
     val offsetMinutes = when (capType) {
         CapType.HALF -> state.rules.halfCapMinutes
         CapType.SOFT -> state.rules.softCapMinutes
         CapType.HARD -> state.rules.hardCapMinutes
     }
+    val offsetMillis = offsetMinutes * 60_000L
+    val adjustedStart = localDateTimeFromMillis(nowMillis - offsetMillis, state.timeZone)
     return state.copy(
         rules = when (capType) {
             CapType.HALF -> state.rules.copy(useHalfCap = true)
             CapType.SOFT -> state.rules.copy(useSoftCap = true)
             CapType.HARD -> state.rules.copy(useHardCap = true)
         },
-        startTime = now.minusMinutes(offsetMinutes.toLong()),
+        startDate = adjustedStart.toLocalDate(),
+        startTime = adjustedStart.toLocalTime(),
+        startEpochMillis = nowMillis - offsetMillis,
         lastEvent = "${capType.name.lowercase().replaceFirstChar { it.uppercase() }} cap set to now.",
     ).withUndo(state, "Undo ${capType.name.lowercase().replaceFirstChar { it.uppercase() }} Cap Now")
 }
@@ -872,7 +889,10 @@ fun applySetupToLiveGame(
         existing.phase != LivePhase.LIVE_POINT
 
     val base = existing.copy(
+        startDate = setup.startDate,
         startTime = setup.startTime,
+        timeZone = setup.timeZone,
+        startEpochMillis = dateTimeMillis(setup.startDate, setup.startTime, setup.timeZone),
         rules = setup.rules,
         teamOne = existing.teamOne.copy(
             name = setup.teamOne.name.ifBlank { "Team 1" },
@@ -908,7 +928,9 @@ fun applySetupToLiveGame(
 // This just extracts the information from the live state that the setup screen needs.
 fun liveGameToSetupState(state: LiveGameState): GameSetupState {
     return GameSetupState(
+        startDate = state.startDate,
         startTime = state.startTime,
+        timeZone = state.timeZone,
         rules = state.rules,
         teamOne = TeamSetup(
             name = state.teamOne.name,
@@ -1222,17 +1244,17 @@ data class PlayerCardRemovalCandidate(
 )
 
 // Figure out what the next relevant cap is in a live game.
-fun computeNextCapStatus(state: LiveGameState, now: LocalTime): CapStatus? {
+fun computeNextCapStatus(state: LiveGameState, nowMillis: Long): CapStatus? {
     // `to` in Kotlin makes pairs. So `first to second` makes a pair (first, second).
     // Here we make pairs with second being another pair:
     // (isCapRelevant, (capName, capTime))
     val caps = listOf(
         halfCapRelevant(state, state.teamOne.score, state.teamTwo.score) to
-            ("Half cap" to state.startTime.plusMinutes(state.rules.halfCapMinutes.toLong())),
+            ("Half cap" to capEpochMillis(state, CapType.HALF)),
         softCapRelevant(state) to
-            ("Soft cap" to state.startTime.plusMinutes(state.rules.softCapMinutes.toLong())),
+            ("Soft cap" to capEpochMillis(state, CapType.SOFT)),
         hardCapRelevant(state) to
-            ("Hard cap" to state.startTime.plusMinutes(state.rules.hardCapMinutes.toLong())),
+            ("Hard cap" to capEpochMillis(state, CapType.HARD)),
     )
         // Keep only caps whose relevance flag is true.
         .filter { it.first }
@@ -1241,7 +1263,7 @@ fun computeNextCapStatus(state: LiveGameState, now: LocalTime): CapStatus? {
 
     return caps
         // Convert each capTime into the time left from now until the cap.
-        .map { (label, capTime) -> label to durationUntil(now, capTime) }
+        .map { (label, capTimeMillis) -> label to Duration.ofMillis(capTimeMillis - nowMillis) }
         // Find the first one whose duration is not negative.
         .firstOrNull { (_, remaining) -> !remaining.isNegative }
         // If any are found, make a CapStatus from this cap's time remaining.
@@ -1259,15 +1281,6 @@ fun formatDuration(duration: Duration): String {
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
     return "$minutes:${seconds.toString().padStart(2, '0')}"
-}
-
-// Calculate the remaining duration between now and target.
-private fun durationUntil(now: LocalTime, target: LocalTime): Duration {
-    var remaining = Duration.between(now, target)
-    if (remaining.isNegative && target.isBefore(now)) {
-        remaining = remaining.plusHours(24)
-    }
-    return remaining
 }
 
 private fun halfCapRelevant(state: LiveGameState, teamOneScore: Int, teamTwoScore: Int): Boolean {
@@ -1289,20 +1302,20 @@ private fun halfCapReached(
     state: LiveGameState,
     teamOneScore: Int,
     teamTwoScore: Int,
-    now: LocalTime,
+    nowMillis: Long,
 ): Boolean {
     return halfCapRelevant(state, teamOneScore, teamTwoScore) &&
-        !now.isBefore(state.startTime.plusMinutes(state.rules.halfCapMinutes.toLong()))
+        nowMillis >= capEpochMillis(state, CapType.HALF)
 }
 
-private fun softCapReached(state: LiveGameState, now: LocalTime): Boolean {
+private fun softCapReached(state: LiveGameState, nowMillis: Long): Boolean {
     return softCapRelevant(state) &&
-        !now.isBefore(state.startTime.plusMinutes(state.rules.softCapMinutes.toLong()))
+        nowMillis >= capEpochMillis(state, CapType.SOFT)
 }
 
-private fun hardCapReached(state: LiveGameState, now: LocalTime): Boolean {
+private fun hardCapReached(state: LiveGameState, nowMillis: Long): Boolean {
     return hardCapRelevant(state) &&
-        !now.isBefore(state.startTime.plusMinutes(state.rules.hardCapMinutes.toLong()))
+        nowMillis >= capEpochMillis(state, CapType.HARD)
 }
 
 // Build a countdown after a goal is scored.
@@ -1622,15 +1635,27 @@ private fun halfCapCanChangeHalftime(rules: GameRules, teamOneScore: Int, teamTw
         min(teamOneScore, teamTwoScore) < normalHalftimeScore - 2
 }
 
-// Get the next time the target time happens.  (Usually today, maybe tomorrow)
-private fun nextOccurrenceMillis(time: LocalTime): Long {
-    val now = LocalDateTime.now()
-    var target = LocalDateTime.of(LocalDate.now(), time)
-    if (target.isBefore(now)) {
-        target = target.plusDays(1)
+private fun capEpochMillis(state: LiveGameState, capType: CapType): Long {
+    val offsetMinutes = when (capType) {
+        CapType.HALF -> state.rules.halfCapMinutes
+        CapType.SOFT -> state.rules.softCapMinutes
+        CapType.HARD -> state.rules.hardCapMinutes
     }
-    // Convert the target time to a unix time in milliseconds.
-    return target.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+    return state.startEpochMillis + offsetMinutes * 60_000L
+}
+
+private fun dateTimeMillis(date: LocalDate, time: LocalTime, timeZone: ZoneId): Long {
+    return LocalDateTime.of(date, time)
+        .atZone(timeZone)
+        .toInstant()
+        .toEpochMilli()
+}
+
+private fun localDateTimeFromMillis(epochMillis: Long, timeZone: ZoneId): LocalDateTime {
+    return LocalDateTime.ofInstant(
+        java.time.Instant.ofEpochMilli(epochMillis),
+        timeZone,
+    )
 }
 
 // The default start time for a game is the next even half hour after now.

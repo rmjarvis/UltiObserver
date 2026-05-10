@@ -33,6 +33,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -45,6 +47,10 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimeInput
+import androidx.compose.material3.TimePickerDialog
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -68,7 +74,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 import java.time.Duration
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.ZoneId
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 
 private enum class RuleEditTarget(
     val dialogTitle: String,
@@ -389,6 +401,7 @@ private fun SetupScreen(
     onPrimaryAction: () -> Unit,
 ) {
     var showPlayerDialog by remember { mutableStateOf(false) }
+    var showStartDateDialog by remember { mutableStateOf(false) }
     var showStartTimeDialog by remember { mutableStateOf(false) }
     var editingRule by remember { mutableStateOf<RuleEditTarget?>(null) }
     var showTimeoutRulesDialog by remember { mutableStateOf(false) }
@@ -409,14 +422,34 @@ private fun SetupScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // Start time entry with quick +/- 5 minute nudges.
-            SectionCard(title = "Game Start Time") {
+            SectionCard(title = "Game Start") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    ExactTimeField(
-                        time = state.startTime,
+                    DateTimeDisplayField(
+                        label = "Date",
+                        value = formatStartDate(state.startDate),
+                        modifier = Modifier.weight(1f),
+                        onClick = { showStartDateDialog = true },
+                    )
+                    SmallActionButton(label = "-1d") {
+                        onStateChange(state.copy(startDate = state.startDate.minusDays(1)))
+                    }
+                    SmallActionButton(label = "+1d") {
+                        onStateChange(state.copy(startDate = state.startDate.plusDays(1)))
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    DateTimeDisplayField(
+                        label = "Start time",
+                        value = formatClockTime(state.startTime),
                         modifier = Modifier.weight(1f),
                         onClick = { showStartTimeDialog = true },
                     )
@@ -543,6 +576,18 @@ private fun SetupScreen(
             onConfirm = { record ->
                 onStateChange(state.copy(priorCards = state.priorCards + record))
                 showPlayerDialog = false
+            },
+        )
+    }
+
+    // Modal for exact start-date entry.
+    if (showStartDateDialog) {
+        StartDateDialog(
+            initialDate = state.startDate,
+            onDismiss = { showStartDateDialog = false },
+            onConfirm = {
+                onStateChange(state.copy(startDate = it))
+                showStartDateDialog = false
             },
         )
     }
@@ -704,8 +749,8 @@ private fun LiveGameScreen(
         }
     }
 
-    val capStatus = remember(now, state) {
-        computeNextCapStatus(state, now)
+    val capStatus = remember(nowMillis, state) {
+        computeNextCapStatus(state, nowMillis)
     }
     val activeCountdown = remember(state, nowMillis) {
         activeCountdownDisplay(state, nowMillis)
@@ -1620,7 +1665,7 @@ private fun GameOverSummary(
             ) {
                 Text("Game Summary", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Text(
-                    text = "Start time ${formatClockTime(state.startTime)}",
+                    text = "Start ${formatStartDate(state.startDate)} ${formatClockTime(state.startTime)}",
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 state.endTime?.let { endTime ->
@@ -2248,19 +2293,19 @@ private fun OtherSheet(
                 if (!state.halftimeTaken && !state.halfCapApplied) {
                     OtherMenuButton(
                         label = "Apply Half Cap Now",
-                        onClick = { onAction(makeCapNow(state, CapType.HALF, now)) },
+                        onClick = { onAction(makeCapNow(state, CapType.HALF, nowMillis)) },
                     )
                 }
                 if (!state.softCapApplied) {
                     OtherMenuButton(
                         label = "Apply Soft Cap Now",
-                        onClick = { onAction(makeCapNow(state, CapType.SOFT, now)) },
+                        onClick = { onAction(makeCapNow(state, CapType.SOFT, nowMillis)) },
                     )
                 }
                 if (!state.hardCapApplied && state.phase != LivePhase.GAME_OVER) {
                     OtherMenuButton(
                         label = "Apply Hard Cap Now",
-                        onClick = { onAction(makeCapNow(state, CapType.HARD, now)) },
+                        onClick = { onAction(makeCapNow(state, CapType.HARD, nowMillis)) },
                     )
                 }
             }
@@ -2335,66 +2380,26 @@ private fun OtherMenuButton(
     }
 }
 
-// Exact AM/PM time entry dialog for the setup start time.
+// Standard Material date picker for the setup start date.
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ExactTimeDialog(
-    initialTime: LocalTime,
+private fun StartDateDialog(
+    initialDate: LocalDate,
     onDismiss: () -> Unit,
-    onConfirm: (LocalTime) -> Unit,
+    onConfirm: (LocalDate) -> Unit,
 ) {
-    var hourText by remember { mutableStateOf(toTwelveHour(initialTime).toString()) }
-    var minuteText by remember { mutableStateOf(initialTime.minute.toString().padStart(2, '0')) }
-    var isPm by remember { mutableStateOf(initialTime.hour >= 12) }
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = dateToPickerMillis(initialDate),
+    )
 
-    AlertDialog(
+    DatePickerDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Set Start Time") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
-                        value = hourText,
-                        onValueChange = { hourText = it.filter(Char::isDigit).take(2) },
-                        label = { Text("Hour") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                    )
-                    OutlinedTextField(
-                        value = minuteText,
-                        onValueChange = { minuteText = it.filter(Char::isDigit).take(2) },
-                        label = { Text("Minute") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
-                        selected = !isPm,
-                        onClick = { isPm = false },
-                        label = { Text("AM") },
-                    )
-                    FilterChip(
-                        selected = isPm,
-                        onClick = { isPm = true },
-                        label = { Text("PM") },
-                    )
-                }
-            }
-        },
         confirmButton = {
             TextButton(
                 onClick = {
-                    val hour = hourText.toIntOrNull()?.coerceIn(1, 12) ?: toTwelveHour(initialTime)
-                    val minute = minuteText.toIntOrNull()?.coerceIn(0, 59) ?: initialTime.minute
-                    // Convert the entered 12-hour clock value back into 24-hour LocalTime.
-                    val normalizedHour = when {
-                        isPm && hour < 12 -> hour + 12
-                        !isPm && hour == 12 -> 0
-                        else -> hour % 24
-                    }
-                    onConfirm(LocalTime.of(normalizedHour, minute))
+                    val selectedMillis = datePickerState.selectedDateMillis
+                        ?: dateToPickerMillis(initialDate)
+                    onConfirm(pickerMillisToDate(selectedMillis))
                 }
             ) {
                 Text("Set")
@@ -2405,7 +2410,53 @@ private fun ExactTimeDialog(
                 Text("Cancel")
             }
         },
+    ) {
+        DatePicker(
+            state = datePickerState,
+            title = {
+                Text(
+                    text = "Set Start Date",
+                    modifier = Modifier.padding(horizontal = 24.dp),
+                )
+            },
+        )
+    }
+}
+
+// Standard Material time input dialog for the setup start time.
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ExactTimeDialog(
+    initialTime: LocalTime,
+    onDismiss: () -> Unit,
+    onConfirm: (LocalTime) -> Unit,
+) {
+    val timePickerState = rememberTimePickerState(
+        initialHour = initialTime.hour,
+        initialMinute = initialTime.minute,
+        is24Hour = false,
     )
+
+    TimePickerDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Set Start Time") },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onConfirm(LocalTime.of(timePickerState.hour, timePickerState.minute))
+                }
+            ) {
+                Text("Set")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+    ) {
+        TimeInput(state = timePickerState)
+    }
 }
 
 // Reusable integer-entry dialog for simple numeric rule values.
@@ -2667,10 +2718,11 @@ private fun TeamEditor(
     }
 }
 
-// Clickable setup field that looks like a normal form control for start time.
+// Clickable setup field that looks like a compact form control.
 @Composable
-private fun ExactTimeField(
-    time: LocalTime,
+private fun DateTimeDisplayField(
+    label: String,
+    value: String,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
@@ -2691,12 +2743,12 @@ private fun ExactTimeField(
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             Text(
-                text = "Start time",
+                text = label,
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                text = formatClockTime(time),
+                text = value,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -2921,6 +2973,18 @@ private fun formatGameOverSummary(state: LiveGameState): String {
     }
 }
 
+private fun formatStartDate(date: LocalDate): String {
+    return date.format(DateTimeFormatter.ofPattern("MMM d, yyyy"))
+}
+
+private fun dateToPickerMillis(date: LocalDate): Long {
+    return date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+}
+
+private fun pickerMillisToDate(millis: Long): LocalDate {
+    return Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate()
+}
+
 // Put the higher-scoring team first for summary display.
 private fun winnerFirstTeams(state: LiveGameState): List<TeamLiveState> {
     return listOf(state.teamOne, state.teamTwo).sortedWith(
@@ -3128,6 +3192,16 @@ private fun LiveGameState.teamFor(team: TeamId): TeamLiveState {
     return if (team == TeamId.TEAM_ONE) teamOne else teamTwo
 }
 
-private fun newGameSetupState(now: LocalTime = LocalTime.now()): GameSetupState {
-    return GameSetupState(startTime = nextHalfHourFrom(now))
+private fun newGameSetupState(now: LocalDateTime = LocalDateTime.now()): GameSetupState {
+    val startTime = nextHalfHourFrom(now.toLocalTime())
+    val startDate = if (startTime.isBefore(now.toLocalTime())) {
+        now.toLocalDate().plusDays(1)
+    } else {
+        now.toLocalDate()
+    }
+    return GameSetupState(
+        startDate = startDate,
+        startTime = startTime,
+        timeZone = ZoneId.systemDefault(),
+    )
 }

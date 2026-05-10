@@ -202,6 +202,11 @@ class MainActivitySmokeTest {
         waitForText("Start New Game")
         openNewGameSetup()
 
+        // Exercise the standard start-date picker.
+        composeRule.onNodeWithText("Date").performClick()
+        composeRule.onNodeWithText("Set Start Date").assertIsDisplayed()
+        composeRule.onNodeWithText("Cancel").performClick()
+
         // Exercise the exact start-time dialog without depending on the current clock.
         composeRule.onNodeWithText("Start time").performClick()
         composeRule.onNodeWithText("Set Start Time").assertIsDisplayed()

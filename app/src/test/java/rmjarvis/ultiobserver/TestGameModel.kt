@@ -1,7 +1,10 @@
 package rmjarvis.ultiobserver
 
 import java.time.Duration
+import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.ZoneId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -11,8 +14,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TestGameModel {
+    private val testTimeZone: ZoneId = ZoneId.of("America/New_York")
+
     private fun standardGameSetup(
+        startDate: LocalDate = LocalDate.of(2026, 1, 1),
         startTime: LocalTime,
+        timeZone: ZoneId = testTimeZone,
         rules: GameRules = GameRules(
             gameTo = 5,
             useHalfCap = false,
@@ -23,7 +30,9 @@ class TestGameModel {
         pullingFromEnd: FieldEnd = FieldEnd.FAR,
     ): GameSetupState {
         return GameSetupState(
+            startDate = startDate,
             startTime = startTime,
+            timeZone = timeZone,
             rules = rules,
             teamOne = TeamSetup("Viscous Coupling", TeamColorChoice.WHITE),
             teamTwo = TeamSetup("Animal", TeamColorChoice.RED),
@@ -40,17 +49,32 @@ class TestGameModel {
             useSoftCap = false,
             useHardCap = false,
         ),
+        startDate: LocalDate = LocalDate.of(2026, 1, 1),
+        timeZone: ZoneId = testTimeZone,
         pullingTeam: TeamId = TeamId.TEAM_ONE,
         pullingFromEnd: FieldEnd = FieldEnd.FAR,
     ): LiveGameState {
         return createLiveGameState(
             standardGameSetup(
+                startDate = startDate,
                 startTime = startTime,
+                timeZone = timeZone,
                 rules = rules,
                 pullingTeam = pullingTeam,
                 pullingFromEnd = pullingFromEnd,
             )
         )
+    }
+
+    private fun millisAfterStart(state: LiveGameState, minutes: Int): Long {
+        return state.startEpochMillis + Duration.ofMinutes(minutes.toLong()).toMillis()
+    }
+
+    private fun millisAt(date: LocalDate, time: LocalTime): Long {
+        return LocalDateTime.of(date, time)
+            .atZone(testTimeZone)
+            .toInstant()
+            .toEpochMilli()
     }
 
     // Test a representative complete game from setup through halftime to final score.
@@ -1380,27 +1404,26 @@ class TestGameModel {
             state: LiveGameState,
             scoringTeam: TeamId,
             minute: Int,
-            nowMillis: Long,
         ): LiveGameState {
             return recordGoalFromCurrentState(
                 state = state,
                 scoringTeam = scoringTeam,
-                now = LocalTime.of(10, minute),
-                nowMillis = nowMillis,
+                now = startTime.plusMinutes(minute.toLong()),
+                nowMillis = millisAfterStart(state, minute),
             )
         }
 
         // Start with an ordinary first point before any cap time and verify no cap is offered.
         var state = newCapState()
-        assertEquals(CapStatus("Half cap", Duration.ofMinutes(5)), computeNextCapStatus(state, LocalTime.of(10, 5)))
-        state = scoreAt(state, VC, 5, 1_000_000L)
+        assertEquals(CapStatus("Half cap", Duration.ofMinutes(5)), computeNextCapStatus(state, millisAfterStart(state, 5)))
+        state = scoreAt(state, VC, 5)
         assertEquals(1, state.teamOne.score)
         assertEquals(0, state.teamTwo.score)
         assertNull(state.pendingCapOffer)
         assertFalse(state.halfCapApplied)
 
         // Score after half-cap time and verify the pending prompt is explicit and undo-backed when applied.
-        state = scoreAt(state, ANIMAL, 11, 1_100_000L)
+        state = scoreAt(state, ANIMAL, 11)
         assertEquals(1, state.teamOne.score)
         assertEquals(1, state.teamTwo.score)
         assertEquals(CapType.HALF, state.pendingCapOffer)
@@ -1420,7 +1443,7 @@ class TestGameModel {
         assertEquals(beforeHalfCap, state.undoEntry?.previous)
 
         // The half-cap target becomes the live halftime target, so the next point starts halftime.
-        state = scoreAt(state, VC, 12, 1_200_000L)
+        state = scoreAt(state, VC, 12)
         assertEquals(2, state.teamOne.score)
         assertEquals(1, state.teamTwo.score)
         assertEquals(LivePhase.HALFTIME, state.phase)
@@ -1430,7 +1453,7 @@ class TestGameModel {
 
         // If the observer defers a pending half cap, the offer clears but the cap is not applied.
         state = newCapState()
-        state = scoreAt(state, VC, 11, 1_300_000L)
+        state = scoreAt(state, VC, 11)
         assertEquals(CapType.HALF, state.pendingCapOffer)
         state = deferPendingCap(state)
         assertNull(state.pendingCapOffer)
@@ -1446,17 +1469,44 @@ class TestGameModel {
                 useHardCap = false,
             )
         )
-        assertNull(computeNextCapStatus(state, LocalTime.of(10, 5)))
-        state = scoreAt(state, VC, 35, 1_400_000L)
+        assertNull(computeNextCapStatus(state, millisAfterStart(state, 5)))
+        state = scoreAt(state, VC, 35)
         assertNull(state.pendingCapOffer)
         assertFalse(state.halfCapApplied)
         assertFalse(state.softCapApplied)
         assertFalse(state.hardCapApplied)
 
+        // A cap after midnight should not be eligible before midnight just because its clock time is earlier.
+        val lateStartDate = LocalDate.of(2026, 1, 1)
+        state = standardLiveGameState(
+            startDate = lateStartDate,
+            startTime = LocalTime.of(23, 30),
+            rules = GameRules(
+                gameTo = 15,
+                useHalfCap = false,
+                useSoftCap = false,
+                hardCapMinutes = 100,
+            ),
+        )
+        state = recordGoalFromCurrentState(
+            state,
+            VC,
+            LocalTime.of(23, 50),
+            millisAt(lateStartDate, LocalTime.of(23, 50)),
+        )
+        assertNull(state.pendingCapOffer)
+        state = recordGoalFromCurrentState(
+            state,
+            ANIMAL,
+            LocalTime.of(1, 11),
+            millisAt(lateStartDate.plusDays(1), LocalTime.of(1, 11)),
+        )
+        assertEquals(CapType.HARD, state.pendingCapOffer)
+
         // Soft cap can be applied independently and sets the winning score to the current higher score plus one.
         state = newCapState(capRules.copy(useHalfCap = false))
-        state = scoreAt(state, VC, 5, 1_500_000L)
-        state = scoreAt(state, ANIMAL, 21, 1_600_000L)
+        state = scoreAt(state, VC, 5)
+        state = scoreAt(state, ANIMAL, 21)
         assertEquals(1, state.teamOne.score)
         assertEquals(1, state.teamTwo.score)
         assertEquals(CapType.SOFT, state.pendingCapOffer)
@@ -1473,9 +1523,9 @@ class TestGameModel {
 
         // Hard cap while the score is not tied ends the game immediately when applied.
         state = newCapState(capRules.copy(useHalfCap = false, useSoftCap = false))
-        state = scoreAt(state, VC, 5, 1_700_000L)
-        state = scoreAt(state, ANIMAL, 6, 1_800_000L)
-        state = scoreAt(state, VC, 31, 1_900_000L)
+        state = scoreAt(state, VC, 5)
+        state = scoreAt(state, ANIMAL, 6)
+        state = scoreAt(state, VC, 31)
         assertEquals(2, state.teamOne.score)
         assertEquals(1, state.teamTwo.score)
         assertEquals(CapType.HARD, state.pendingCapOffer)
@@ -1494,10 +1544,10 @@ class TestGameModel {
 
         // Hard cap while tied sets a one-point winning score instead of ending immediately.
         state = newCapState(capRules.copy(useHalfCap = false, useSoftCap = false))
-        state = scoreAt(state, VC, 5, 2_000_000L)
-        state = scoreAt(state, VC, 6, 2_100_000L)
-        state = scoreAt(state, ANIMAL, 7, 2_200_000L)
-        state = scoreAt(state, ANIMAL, 31, 2_300_000L)
+        state = scoreAt(state, VC, 5)
+        state = scoreAt(state, VC, 6)
+        state = scoreAt(state, ANIMAL, 7)
+        state = scoreAt(state, ANIMAL, 31)
         assertEquals(2, state.teamOne.score)
         assertEquals(2, state.teamTwo.score)
         assertEquals(CapType.HARD, state.pendingCapOffer)
@@ -1521,10 +1571,11 @@ class TestGameModel {
                 useHardCap = false,
             )
         )
-        state = scoreAt(state, VC, 1, 2_400_000L)
-        state = scoreAt(state, VC, 2, 2_500_000L)
+        state = scoreAt(state, VC, 1)
+        state = scoreAt(state, VC, 2)
         val beforeSoftCapHalftimeGoal = beginLivePoint(state)
-        state = recordGoal(beforeSoftCapHalftimeGoal, VC, LocalTime.of(10, 10), 2_600_000L)
+        val softCapHalftimeGoalMillis = millisAfterStart(beforeSoftCapHalftimeGoal, 10)
+        state = recordGoal(beforeSoftCapHalftimeGoal, VC, LocalTime.of(10, 10), softCapHalftimeGoalMillis)
         assertEquals(3, state.teamOne.score)
         assertEquals(0, state.teamTwo.score)
         assertEquals(LivePhase.HALFTIME, state.phase)
@@ -1532,7 +1583,7 @@ class TestGameModel {
         assertEquals(CapType.SOFT, state.pendingCapOffer)
         assertEquals(CountdownKind.HALFTIME, state.countdown?.kind)
         assertEquals(420, state.countdown?.durationSeconds)
-        assertEquals(3_020_000L, state.countdown?.targetEpochMillis)
+        assertEquals(softCapHalftimeGoalMillis + 420_000L, state.countdown?.targetEpochMillis)
         assertEquals(0, state.teamOne.firstHalfTimeoutsUsed)
         assertEquals(0, state.teamOne.timeoutsUsedThisHalf)
         assertEquals(0, state.teamTwo.firstHalfTimeoutsUsed)
@@ -1560,9 +1611,9 @@ class TestGameModel {
                 hardCapMinutes = 10,
             )
         )
-        state = scoreAt(state, VC, 1, 2_610_000L)
-        state = scoreAt(state, VC, 2, 2_620_000L)
-        state = scoreAt(state, VC, 10, 2_630_000L)
+        state = scoreAt(state, VC, 1)
+        state = scoreAt(state, VC, 2)
+        state = scoreAt(state, VC, 10)
         assertEquals(3, state.teamOne.score)
         assertEquals(0, state.teamTwo.score)
         assertEquals(LivePhase.HALFTIME, state.phase)
@@ -1588,10 +1639,10 @@ class TestGameModel {
                 useHardCap = false,
             )
         )
-        state = scoreAt(state, VC, 8, 2_640_000L)
+        state = scoreAt(state, VC, 8)
         assertEquals(LivePhase.BETWEEN_POINTS, state.phase)
         assertNull(state.pendingCapOffer)
-        state = startHalftimeNow(state, LocalTime.of(10, 10), 2_650_000L)
+        state = startHalftimeNow(state, LocalTime.of(10, 10), millisAfterStart(state, 10))
         assertEquals(LivePhase.HALFTIME, state.phase)
         assertEquals(CapType.SOFT, state.pendingCapOffer)
         assertEquals(
@@ -1613,9 +1664,9 @@ class TestGameModel {
                 hardCapMinutes = 12,
             )
         )
-        state = scoreAt(state, VC, 8, 2_660_000L)
+        state = scoreAt(state, VC, 8)
         assertNull(state.pendingCapOffer)
-        state = startHalftimeNow(state, LocalTime.of(10, 10), 2_670_000L)
+        state = startHalftimeNow(state, LocalTime.of(10, 10), millisAfterStart(state, 10))
         assertEquals(LivePhase.HALFTIME, state.phase)
         assertEquals(CapType.HARD, state.pendingCapOffer)
         assertEquals(
@@ -1633,9 +1684,9 @@ class TestGameModel {
                 useHardCap = false,
             )
         )
-        state = scoreAt(state, VC, 1, 2_700_000L)
-        state = scoreAt(state, VC, 2, 2_800_000L)
-        state = scoreAt(state, VC, 10, 3_000_000L)
+        state = scoreAt(state, VC, 1)
+        state = scoreAt(state, VC, 2)
+        state = scoreAt(state, VC, 10)
         assertEquals(LivePhase.HALFTIME, state.phase)
         assertEquals(CapType.SOFT, state.pendingCapOffer)
         assertEquals(
@@ -1665,9 +1716,9 @@ class TestGameModel {
                 hardCapMinutes = 20,
             )
         )
-        state = scoreAt(state, VC, 1, 3_100_000L)
-        state = scoreAt(state, VC, 2, 3_200_000L)
-        state = scoreAt(state, VC, 14, 3_300_000L)
+        state = scoreAt(state, VC, 1)
+        state = scoreAt(state, VC, 2)
+        state = scoreAt(state, VC, 14)
         assertEquals(LivePhase.HALFTIME, state.phase)
         assertEquals(CapType.HARD, state.pendingCapOffer)
         assertEquals(
@@ -1693,14 +1744,14 @@ class TestGameModel {
                 hardCapMinutes = 12,
             )
         )
-        state = scoreAt(state, VC, 1, 2_350_000L)
-        state = scoreAt(state, ANIMAL, 2, 2_360_000L)
-        state = scoreAt(state, VC, 3, 2_370_000L)
-        state = scoreAt(state, ANIMAL, 4, 2_380_000L)
+        state = scoreAt(state, VC, 1)
+        state = scoreAt(state, ANIMAL, 2)
+        state = scoreAt(state, VC, 3)
+        state = scoreAt(state, ANIMAL, 4)
         assertEquals(2, state.teamOne.score)
         assertEquals(2, state.teamTwo.score)
         assertNull(state.pendingCapOffer)
-        state = startHalftimeNow(state, LocalTime.of(10, 10), 2_390_000L)
+        state = startHalftimeNow(state, LocalTime.of(10, 10), millisAfterStart(state, 10))
         assertEquals(LivePhase.HALFTIME, state.phase)
         assertEquals(CapType.HARD, state.pendingCapOffer)
         assertEquals(
@@ -1726,15 +1777,15 @@ class TestGameModel {
                 useHardCap = false,
             )
         )
-        state = scoreAt(state, VC, 1, 3_500_000L)
-        state = scoreAt(state, VC, 2, 3_600_000L)
-        state = scoreAt(state, VC, 10, 3_700_000L)
+        state = scoreAt(state, VC, 1)
+        state = scoreAt(state, VC, 2)
+        state = scoreAt(state, VC, 10)
         assertEquals(LivePhase.HALFTIME, state.phase)
         state = advanceGameClock(state, state.countdown!!.targetEpochMillis + 30_000L)
         assertEquals(LivePhase.BETWEEN_POINTS, state.phase)
         assertFalse(state.softCapApplied)
         assertNull(state.pendingCapOffer)
-        state = scoreAt(state, ANIMAL, 19, 3_900_000L)
+        state = scoreAt(state, ANIMAL, 19)
         assertEquals(CapType.SOFT, state.pendingCapOffer)
         assertFalse(state.softCapApplied)
 
@@ -1746,20 +1797,23 @@ class TestGameModel {
                 useHardCap = false,
             )
         )
-        val halfNow = makeCapNow(state, CapType.HALF, LocalTime.of(10, 42))
+        val halfNow = makeCapNow(state, CapType.HALF, millisAfterStart(state, 42))
         assertTrue(halfNow.rules.useHalfCap)
+        assertEquals(state.startDate, halfNow.startDate)
         assertEquals(LocalTime.of(10, 32), halfNow.startTime)
         assertEquals("Half cap set to now.", halfNow.lastEvent)
         assertEquals("Undo Half Cap Now", halfNow.undoEntry?.label)
 
-        val softNow = makeCapNow(state, CapType.SOFT, LocalTime.of(10, 42))
+        val softNow = makeCapNow(state, CapType.SOFT, millisAfterStart(state, 42))
         assertTrue(softNow.rules.useSoftCap)
+        assertEquals(state.startDate, softNow.startDate)
         assertEquals(LocalTime.of(10, 22), softNow.startTime)
         assertEquals("Soft cap set to now.", softNow.lastEvent)
         assertEquals("Undo Soft Cap Now", softNow.undoEntry?.label)
 
-        val hardNow = makeCapNow(state, CapType.HARD, LocalTime.of(10, 42))
+        val hardNow = makeCapNow(state, CapType.HARD, millisAfterStart(state, 42))
         assertTrue(hardNow.rules.useHardCap)
+        assertEquals(state.startDate, hardNow.startDate)
         assertEquals(LocalTime.of(10, 12), hardNow.startTime)
         assertEquals("Hard cap set to now.", hardNow.lastEvent)
         assertEquals("Undo Hard Cap Now", hardNow.undoEntry?.label)
@@ -1770,15 +1824,15 @@ class TestGameModel {
                 useHardCap = false,
             )
         )
-        repeat(6) { index ->
-            state = scoreAt(state, VC, 1, 3_000_000L + index * 20_000L)
-            state = scoreAt(state, ANIMAL, 1, 3_010_000L + index * 20_000L)
+        repeat(6) {
+            state = scoreAt(state, VC, 1)
+            state = scoreAt(state, ANIMAL, 1)
         }
         assertEquals(6, state.teamOne.score)
         assertEquals(6, state.teamTwo.score)
         assertNull(state.pendingCapOffer)
-        assertEquals(CapStatus("Soft cap", Duration.ofMinutes(19)), computeNextCapStatus(state, LocalTime.of(10, 1)))
-        state = scoreAt(state, VC, 11, 3_200_000L)
+        assertEquals(CapStatus("Soft cap", Duration.ofMinutes(19)), computeNextCapStatus(state, millisAfterStart(state, 1)))
+        state = scoreAt(state, VC, 11)
         assertEquals(7, state.teamOne.score)
         assertEquals(6, state.teamTwo.score)
         assertNull(state.pendingCapOffer)
@@ -1789,17 +1843,17 @@ class TestGameModel {
                 useHardCap = false,
             )
         )
-        repeat(7) { index ->
-            state = scoreAt(state, VC, 1, 3_300_000L + index * 10_000L)
+        repeat(7) {
+            state = scoreAt(state, VC, 1)
         }
-        repeat(3) { index ->
-            state = scoreAt(state, ANIMAL, 1, 3_400_000L + index * 10_000L)
+        repeat(3) {
+            state = scoreAt(state, ANIMAL, 1)
         }
         assertEquals(7, state.teamOne.score)
         assertEquals(3, state.teamTwo.score)
         assertNull(state.pendingCapOffer)
-        assertEquals(CapStatus("Soft cap", Duration.ofMinutes(19)), computeNextCapStatus(state, LocalTime.of(10, 1)))
-        state = scoreAt(state, ANIMAL, 11, 3_500_000L)
+        assertEquals(CapStatus("Soft cap", Duration.ofMinutes(19)), computeNextCapStatus(state, millisAfterStart(state, 1)))
+        state = scoreAt(state, ANIMAL, 11)
         assertEquals(7, state.teamOne.score)
         assertEquals(4, state.teamTwo.score)
         assertNull(state.pendingCapOffer)
@@ -2175,7 +2229,7 @@ class TestGameModel {
             startTime = LocalTime.of(10, 0),
             rules = GameRules(gameTo = 15, halfCapMinutes = 10, useSoftCap = false, useHardCap = false),
         )
-        state = recordGoalFromCurrentState(state, VC, LocalTime.of(10, 11), 400_000L)
+        state = recordGoalFromCurrentState(state, VC, LocalTime.of(10, 11), millisAfterStart(state, 11))
         val beforeApplyHalfCap = state
         state = applyPendingCap(state, LocalTime.of(10, 11))
         assertEquals(beforeApplyHalfCap, undoLastAction(state))
@@ -2184,7 +2238,7 @@ class TestGameModel {
             startTime = LocalTime.of(10, 0),
             rules = GameRules(gameTo = 15, useHalfCap = false, softCapMinutes = 10, useHardCap = false),
         )
-        state = recordGoalFromCurrentState(state, VC, LocalTime.of(10, 11), 500_000L)
+        state = recordGoalFromCurrentState(state, VC, LocalTime.of(10, 11), millisAfterStart(state, 11))
         val beforeApplySoftCap = state
         state = applyPendingCap(state, LocalTime.of(10, 11))
         assertEquals(beforeApplySoftCap, undoLastAction(state))
@@ -2193,13 +2247,13 @@ class TestGameModel {
             startTime = LocalTime.of(10, 0),
             rules = GameRules(gameTo = 15, useHalfCap = false, useSoftCap = false, hardCapMinutes = 10),
         )
-        state = recordGoalFromCurrentState(state, VC, LocalTime.of(10, 11), 600_000L)
+        state = recordGoalFromCurrentState(state, VC, LocalTime.of(10, 11), millisAfterStart(state, 11))
         val beforeApplyHardCap = state
         state = applyPendingCap(state, LocalTime.of(10, 11))
         assertEquals(beforeApplyHardCap, undoLastAction(state))
 
         val beforeForceCap = standardLiveGameState()
-        state = makeCapNow(beforeForceCap, CapType.SOFT, LocalTime.of(11, 30))
+        state = makeCapNow(beforeForceCap, CapType.SOFT, millisAfterStart(beforeForceCap, 30))
         assertEquals(beforeForceCap, undoLastAction(state))
 
         val beforeManualHalftime = standardLiveGameState(pullingFromEnd = FieldEnd.NEAR)
@@ -2279,29 +2333,30 @@ class TestGameModel {
             startTime = LocalTime.of(10, 0),
             rules = GameRules(gameTo = 15, halfCapMinutes = 45, softCapMinutes = 90, hardCapMinutes = 100),
         )
-        assertEquals(CapStatus("Half cap", Duration.ofMinutes(30)), computeNextCapStatus(state, LocalTime.of(10, 15)))
-        assertEquals(CapStatus("Soft cap", Duration.ofMinutes(30)), computeNextCapStatus(state.copy(halfCapApplied = true), LocalTime.of(11, 0)))
+        assertEquals(CapStatus("Half cap", Duration.ofMinutes(30)), computeNextCapStatus(state, millisAfterStart(state, 15)))
+        assertEquals(CapStatus("Soft cap", Duration.ofMinutes(30)), computeNextCapStatus(state.copy(halfCapApplied = true), millisAfterStart(state, 60)))
         assertEquals(
             CapStatus("Hard cap", Duration.ofMinutes(5)),
-            computeNextCapStatus(state.copy(halfCapApplied = true, softCapApplied = true), LocalTime.of(11, 35)),
+            computeNextCapStatus(state.copy(halfCapApplied = true, softCapApplied = true), millisAfterStart(state, 95)),
         )
 
         // Verify cap countdowns can wrap across midnight when a late-night game crosses dates.
         state = standardLiveGameState(
+            startDate = LocalDate.of(2026, 1, 1),
             startTime = LocalTime.of(23, 30),
             rules = GameRules(gameTo = 15, halfCapMinutes = 45, useSoftCap = false, useHardCap = false),
         )
-        assertEquals(CapStatus("Half cap", Duration.ofMinutes(30)), computeNextCapStatus(state, LocalTime.of(23, 45)))
+        assertEquals(CapStatus("Half cap", Duration.ofMinutes(30)), computeNextCapStatus(state, millisAfterStart(state, 15)))
 
         // Verify computeNextCapStatus returns null when no cap is still available.
         state = state.copy(halfCapApplied = true, softCapApplied = true, hardCapApplied = true)
-        assertNull(computeNextCapStatus(state, LocalTime.of(10, 15)))
+        assertNull(computeNextCapStatus(state, millisAfterStart(state, 15)))
 
         state = standardLiveGameState(
             startTime = LocalTime.of(10, 0),
             rules = GameRules(gameTo = 15, useHalfCap = false, useSoftCap = false, useHardCap = false),
         )
-        assertNull(computeNextCapStatus(state, LocalTime.of(10, 15)))
+        assertNull(computeNextCapStatus(state, millisAfterStart(state, 15)))
 
         // Verify betweenPointsDisplay gives "Signal in" vs "Pull in" and clamps elapsed countdowns to zero.
         assertEquals("Signal in" to Duration.ofSeconds(60), betweenPointsDisplay(FieldEnd.FAR, 1_000L, 1_000L))
