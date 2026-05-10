@@ -274,7 +274,6 @@ fun startPullSequence(
 fun recordGoal(
     state: LiveGameState,
     scoringTeam: TeamId,
-    now: LocalTime,
     nowMillis: Long,
 ): LiveGameState {
     if (state.phase == LivePhase.GAME_OVER) {
@@ -323,7 +322,7 @@ fun recordGoal(
             lastEvent = "${teamName(state, scoringTeam)} scored.",
         ).withUndo(state, "Undo Goal by ${teamName(state, scoringTeam)}")
         return afterGoalState.copy(
-            endTime = now,
+            endTime = localTimeFromMillis(nowMillis, state.timeZone),
             phase = LivePhase.GAME_OVER,
             countdown = null,
             winningScore = gameWinningScore,
@@ -355,7 +354,6 @@ fun recordGoal(
             state = state,
             teamOne = updatedTeamOne,
             teamTwo = updatedTeamTwo,
-            halftimeStart = now,
             existingCapOffer = pendingCapOffer,
             nowMillis = nowMillis,
             undoPrevious = state,
@@ -393,7 +391,6 @@ fun recordGoal(
 // Manually start half time
 fun startHalftimeNow(
     state: LiveGameState,
-    now: LocalTime,
     nowMillis: Long,
 ): LiveGameState {
     if (state.halftimeTaken || state.phase != LivePhase.BETWEEN_POINTS) {
@@ -403,7 +400,6 @@ fun startHalftimeNow(
         state = state,
         teamOne = state.teamOne,
         teamTwo = state.teamTwo,
-        halftimeStart = now,
         existingCapOffer = state.pendingCapOffer,
         nowMillis = nowMillis,
         undoPrevious = state,
@@ -415,7 +411,6 @@ private fun startHalftime(
     state: LiveGameState,
     teamOne: TeamLiveState,
     teamTwo: TeamLiveState,
-    halftimeStart: LocalTime,
     existingCapOffer: CapType?,
     nowMillis: Long,
     undoPrevious: LiveGameState,
@@ -473,13 +468,13 @@ private fun startHalftime(
 // Manually end the game now.
 fun endGameNow(
     state: LiveGameState,
-    now: LocalTime,
+    nowMillis: Long,
 ): LiveGameState {
     if (state.phase == LivePhase.GAME_OVER) {
         return state
     }
     return state.copy(
-        endTime = now,
+        endTime = localTimeFromMillis(nowMillis, state.timeZone),
         phase = LivePhase.GAME_OVER,
         countdown = null,
         pendingCapOffer = null,
@@ -502,7 +497,6 @@ fun beginLivePoint(state: LiveGameState): LiveGameState {
 fun recordGoalFromCurrentState(
     state: LiveGameState,
     scoringTeam: TeamId,
-    now: LocalTime,
     nowMillis: Long,
 ): LiveGameState {
     val livePointState = if (state.phase == LivePhase.BETWEEN_POINTS) {
@@ -510,7 +504,7 @@ fun recordGoalFromCurrentState(
     } else {
         state
     }
-    return recordGoal(livePointState, scoringTeam, now, nowMillis)
+    return recordGoal(livePointState, scoringTeam, nowMillis)
 }
 
 // Resume a live point after a timeout or similar interruption.
@@ -820,7 +814,7 @@ fun makeCapNow(
 // and they agree to apply it.
 fun applyPendingCap(
     state: LiveGameState,
-    now: LocalTime,
+    nowMillis: Long,
 ): LiveGameState {
     val pendingCap = state.pendingCapOffer!!
     val currentHigherScore = max(state.teamOne.score, state.teamTwo.score)
@@ -842,7 +836,7 @@ fun applyPendingCap(
         CapType.HARD -> {
             if (state.teamOne.score != state.teamTwo.score) {
                 state.copy(
-                    endTime = now,
+                    endTime = localTimeFromMillis(nowMillis, state.timeZone),
                     phase = LivePhase.GAME_OVER,
                     countdown = null,
                     hardCapApplied = true,
@@ -1070,17 +1064,17 @@ fun capOfferExplanation(state: LiveGameState): String {
     return when (state.pendingCapOffer!!) {
         CapType.HALF -> {
             val target = max(state.teamOne.score, state.teamTwo.score) + 1
-            "Half cap was at ${formatClockTime(state.startTime.plusMinutes(state.rules.halfCapMinutes.toLong()))}. Halftime target would become $target. Apply now?"
+            "Half cap was at ${formatCapClockTime(state, CapType.HALF)}. Halftime target would become $target. Apply now?"
         }
         CapType.SOFT -> {
             val target = max(state.teamOne.score, state.teamTwo.score) + 1
-            "Soft cap $wasAt ${formatClockTime(state.startTime.plusMinutes(state.rules.softCapMinutes.toLong()))}. Winning score would become $target. Apply now?"
+            "Soft cap $wasAt ${formatCapClockTime(state, CapType.SOFT)}. Winning score would become $target. Apply now?"
         }
         CapType.HARD -> {
             if (state.teamOne.score == state.teamTwo.score) {
-                "Hard cap $wasAt ${formatClockTime(state.startTime.plusMinutes(state.rules.hardCapMinutes.toLong()))}. Score is tied, so one more point would be played. Apply now?"
+                "Hard cap $wasAt ${formatCapClockTime(state, CapType.HARD)}. Score is tied, so one more point would be played. Apply now?"
             } else {
-                "Hard cap $wasAt ${formatClockTime(state.startTime.plusMinutes(state.rules.hardCapMinutes.toLong()))}. Score is not tied, so the game would end $endWhen. Apply now?"
+                "Hard cap $wasAt ${formatCapClockTime(state, CapType.HARD)}. Score is not tied, so the game would end $endWhen. Apply now?"
             }
         }
     }
@@ -1644,6 +1638,10 @@ private fun capEpochMillis(state: LiveGameState, capType: CapType): Long {
     return state.startEpochMillis + offsetMinutes * 60_000L
 }
 
+private fun formatCapClockTime(state: LiveGameState, capType: CapType): String {
+    return formatClockTime(localTimeFromMillis(capEpochMillis(state, capType), state.timeZone))
+}
+
 private fun dateTimeMillis(date: LocalDate, time: LocalTime, timeZone: ZoneId): Long {
     return LocalDateTime.of(date, time)
         .atZone(timeZone)
@@ -1658,13 +1656,21 @@ private fun localDateTimeFromMillis(epochMillis: Long, timeZone: ZoneId): LocalD
     )
 }
 
-// The default start time for a game is the next even half hour after now.
-fun nextHalfHourFrom(now: LocalTime): LocalTime {
+private fun localTimeFromMillis(epochMillis: Long, timeZone: ZoneId): LocalTime {
+    return localDateTimeFromMillis(epochMillis, timeZone).toLocalTime()
+}
+
+// The default start time for a game is the next even half hour after the reference time.
+fun nextHalfHourFrom(referenceTime: LocalTime): LocalTime {
     val roundedMinute = when {
-        now.minute == 0 && now.second == 0 -> 0
-        now.minute < 30 -> 30
+        referenceTime.minute == 0 && referenceTime.second == 0 -> 0
+        referenceTime.minute < 30 -> 30
         else -> 0
     }
-    val baseHour = if (roundedMinute == 0 && now.minute >= 30) now.hour + 1 else now.hour
+    val baseHour = if (roundedMinute == 0 && referenceTime.minute >= 30) {
+        referenceTime.hour + 1
+    } else {
+        referenceTime.hour
+    }
     return LocalTime.of(baseHour % 24, roundedMinute)
 }

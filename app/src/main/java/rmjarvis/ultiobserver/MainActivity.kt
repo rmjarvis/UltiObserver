@@ -880,7 +880,7 @@ private fun LiveGameScreen(
                             }
                         }
                     },
-                    onGoal = { team -> onStateChange(recordGoalFromCurrentState(state, team, now, nowMillis)) },
+                    onGoal = { team -> onStateChange(recordGoalFromCurrentState(state, team, nowMillis)) },
                     onTimeout = { team ->
                         val result = assessTimeout(state, team, nowMillis)
                         onStateChange(result.state)
@@ -978,7 +978,6 @@ private fun LiveGameScreen(
         ModalBottomSheet(onDismissRequest = { showOtherSheet = false }) {
             OtherSheet(
                 state = state,
-                now = now,
                 nowMillis = nowMillis,
                 onUpdateGameSetup = onUpdateGameSetup,
                 onAction = { updatedState ->
@@ -1062,7 +1061,7 @@ private fun LiveGameScreen(
                 )
             },
             confirmButton = {
-                TextButton(onClick = { onStateChange(applyPendingCap(state, now)) }) {
+                TextButton(onClick = { onStateChange(applyPendingCap(state, nowMillis)) }) {
                     Text("Apply")
                 }
             },
@@ -2219,7 +2218,6 @@ private fun UnknownYellowDialog(
 @Composable
 private fun OtherSheet(
     state: LiveGameState,
-    now: LocalTime,
     nowMillis: Long,
     onUpdateGameSetup: () -> Unit,
     onAction: (LiveGameState) -> Unit,
@@ -2281,13 +2279,13 @@ private fun OtherSheet(
                 if (!state.halftimeTaken && state.phase == LivePhase.BETWEEN_POINTS) {
                     OtherMenuButton(
                         label = "Start Halftime",
-                        onClick = { onAction(startHalftimeNow(state, now, nowMillis)) },
+                        onClick = { onAction(startHalftimeNow(state, nowMillis)) },
                     )
                 }
                 if (state.phase != LivePhase.GAME_OVER) {
                     OtherMenuButton(
                         label = "End Game",
-                        onClick = { onAction(endGameNow(state, now)) },
+                        onClick = { onAction(endGameNow(state, nowMillis)) },
                     )
                 }
                 if (!state.halftimeTaken && !state.halfCapApplied) {
