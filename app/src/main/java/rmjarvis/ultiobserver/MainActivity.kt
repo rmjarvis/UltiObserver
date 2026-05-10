@@ -137,6 +137,12 @@ private data class ArchivedGame(
     val subtitle: String,
 )
 
+private val TeamColorChoice.accent: Color
+    get() = Color(accentArgb)
+
+private val TeamColorChoice.content: Color
+    get() = Color(contentArgb)
+
 private data class PendingMisconductChoice(
     val baseMessage: String,
 )

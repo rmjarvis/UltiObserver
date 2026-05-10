@@ -1,6 +1,5 @@
 package rmjarvis.ultiobserver
 
-import androidx.compose.ui.graphics.Color
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -33,17 +32,17 @@ enum class LivePhase {
 
 enum class TeamColorChoice(
     val label: String,
-    val accent: Color,    // The background color matching the nominal jersey color
-    val content: Color,   // A text color with good contrast to the accent color.
+    val accentArgb: Long,    // The background color matching the nominal jersey color.
+    val contentArgb: Long,   // A text color with good contrast to the accent color.
 ) {
-    WHITE("White", Color(0xFFF5F2E8), Color(0xFF1F1A17)),
-    BLACK("Black", Color(0xFF232220), Color(0xFFF6F2E8)),
-    RED("Red", Color(0xFFC23B2A), Color(0xFFFFF8F5)),
-    BLUE("Blue", Color(0xFF2A5CAA), Color(0xFFF7FAFF)),
-    GREEN("Green", Color(0xFF2E7D32), Color(0xFFF4FFF4)),
-    YELLOW("Yellow", Color(0xFFE0B52F), Color(0xFF2E2400)),
-    ORANGE("Orange", Color(0xFFCF6B17), Color(0xFFFFF6EE)),
-    GRAY("Gray", Color(0xFF708090), Color(0xFFF7F8FA)),
+    WHITE("White", 0xFFF5F2E8, 0xFF1F1A17),
+    BLACK("Black", 0xFF232220, 0xFFF6F2E8),
+    RED("Red", 0xFFC23B2A, 0xFFFFF8F5),
+    BLUE("Blue", 0xFF2A5CAA, 0xFFF7FAFF),
+    GREEN("Green", 0xFF2E7D32, 0xFFF4FFF4),
+    YELLOW("Yellow", 0xFFE0B52F, 0xFF2E2400),
+    ORANGE("Orange", 0xFFCF6B17, 0xFFFFF6EE),
+    GRAY("Gray", 0xFF708090, 0xFFF7F8FA),
 }
 
 data class TeamSetup(
