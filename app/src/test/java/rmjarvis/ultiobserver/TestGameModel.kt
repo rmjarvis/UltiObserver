@@ -1920,7 +1920,7 @@ class TestGameModel {
             pullingFromEnd = FieldEnd.FAR,
         ).copy(
             teamOne = TeamSetup("Viscous Coupling", TeamColorChoice.GREEN),
-            teamTwo = TeamSetup("Animal", TeamColorChoice.ORANGE),
+            teamTwo = TeamSetup("Animal", TeamColorChoice.YELLOW),
             priorCards = priorCards,
         )
         var state = createLiveGameState(setup)

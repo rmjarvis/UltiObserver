@@ -252,7 +252,7 @@ class MainActivitySmokeTest {
         replaceSetupTeamName("Team 1", aardvarks)
         replaceSetupTeamName("Team 2", beagles)
         composeRule.onNodeWithTag("setup-Team 1-color-${TeamColorChoice.BLUE.name}").performScrollTo().performClick()
-        composeRule.onNodeWithTag("setup-Team 2-color-${TeamColorChoice.ORANGE.name}").performScrollTo().performClick()
+        composeRule.onNodeWithTag("setup-Team 2-color-${TeamColorChoice.YELLOW.name}").performScrollTo().performClick()
 
         // Starting-pull setup should accept either team and either field end.
         composeRule.onNodeWithTag("setup-pulling-team-${TeamId.TEAM_TWO.name}").performScrollTo().performClick()

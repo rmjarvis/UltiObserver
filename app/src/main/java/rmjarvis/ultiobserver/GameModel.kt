@@ -40,8 +40,8 @@ enum class TeamColorChoice(
     RED("Red", 0xFFC23B2A, 0xFFFFF8F5),
     BLUE("Blue", 0xFF2A5CAA, 0xFFF7FAFF),
     GREEN("Green", 0xFF2E7D32, 0xFFF4FFF4),
-    YELLOW("Yellow", 0xFFE0B52F, 0xFF2E2400),
-    ORANGE("Orange", 0xFFCF6B17, 0xFFFFF6EE),
+    YELLOW("Yellow", 0xFFE7A51E, 0xFF2E2400),
+    PINK("Pink", 0xFFFF4FA3, 0xFF2F1022),
     GRAY("Gray", 0xFF708090, 0xFFF7F8FA),
 }
 
