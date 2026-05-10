@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -76,9 +77,7 @@ import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.time.LocalTime
-import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
@@ -116,24 +115,8 @@ private enum class RuleEditTarget(
     ),
 }
 
-private enum class AppScreen {
-    HOME,
-    SETUP,
-    LIVE,
-}
-
-private enum class SetupMode {
-    NEW_GAME,
-    EDIT_CURRENT_GAME,
-}
-
 private data class GameListEntry(
     val title: String,
-    val subtitle: String,
-)
-
-private data class ArchivedGame(
-    val state: LiveGameState,
     val subtitle: String,
 )
 
@@ -157,126 +140,63 @@ private data class PendingUnknownYellowChoice(
 )
 
 class MainActivity : ComponentActivity() {
+    private val appViewModel: UltiObserverAppViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             UltiObserverTheme(dynamicColor = false) {
-                UltiObserverApp()
+                UltiObserverApp(appViewModel)
             }
         }
     }
 }
 
-// Keep the top-level app state here and switch between home, setup, and live screens.
+// Switch between home, setup, and live screens from the app ViewModel state.
 @Composable
-fun UltiObserverApp() {
-    var screen by remember { mutableStateOf(AppScreen.HOME) }
-    var setupState by remember { mutableStateOf(newGameSetupState()) }
-    var liveState by remember { mutableStateOf<LiveGameState?>(null) }
-    var setupMode by remember { mutableStateOf(SetupMode.NEW_GAME) }
-    var archivedGames by remember { mutableStateOf(listOf<ArchivedGame>()) }
-    var viewingArchivedGame by remember { mutableStateOf<ArchivedGame?>(null) }
-
+internal fun UltiObserverApp(viewModel: UltiObserverAppViewModel) {
     // Back should always return to the home screen rather than walking back through setup/live.
-    BackHandler(enabled = screen != AppScreen.HOME) {
-        screen = AppScreen.HOME
+    BackHandler(enabled = viewModel.screen != AppScreen.HOME) {
+        viewModel.goHome()
     }
 
     // Route to the current top-level screen.
-    when (screen) {
+    when (viewModel.screen) {
         AppScreen.HOME -> {
             HomeScreen(
-                currentGame = liveState?.takeIf { it.phase != LivePhase.GAME_OVER }?.let { gameListEntry(it, "Current game") },
-                completedGamePendingArchive = liveState?.takeIf { it.phase == LivePhase.GAME_OVER }?.let {
+                currentGame = viewModel.liveState?.takeIf { it.phase != LivePhase.GAME_OVER }?.let { gameListEntry(it, "Current game") },
+                completedGamePendingArchive = viewModel.liveState?.takeIf { it.phase == LivePhase.GAME_OVER }?.let {
                     gameListEntry(it, "")
                 },
-                previousGames = archivedGames.map { gameListEntry(it.state, it.subtitle) },
-                onResumeCurrentGame = {
-                    if (liveState != null && liveState?.phase != LivePhase.GAME_OVER) {
-                        viewingArchivedGame = null
-                        screen = AppScreen.LIVE
-                    }
-                },
-                onOpenCompletedGame = {
-                    liveState?.takeIf { it.phase == LivePhase.GAME_OVER }?.let {
-                        viewingArchivedGame = null
-                        screen = AppScreen.LIVE
-                    }
-                },
-                onOpenPreviousGame = { index ->
-                    val archived = archivedGames.getOrNull(index)
-                    if (archived != null) {
-                        viewingArchivedGame = archived
-                        screen = AppScreen.LIVE
-                    }
-                },
-                onArchiveCompletedGame = {
-                    liveState?.takeIf { it.phase == LivePhase.GAME_OVER }?.let { completed ->
-                        archivedGames = archivedGames + ArchivedGame(
-                            pruneUndoHistory(completed),
-                            "",
-                        )
-                        liveState = null
-                        viewingArchivedGame = null
-                    }
-                },
-                onStartNewGame = {
-                    liveState?.let { existing ->
-                        archivedGames = archivedGames + ArchivedGame(
-                            pruneUndoHistory(
-                                if (existing.phase == LivePhase.GAME_OVER) {
-                                    existing
-                                } else {
-                                    existing.copy(phase = LivePhase.GAME_OVER, endTime = LocalTime.now())
-                                }
-                            ),
-                            if (existing.phase == LivePhase.GAME_OVER) "" else "Closed when new game started",
-                        )
-                    }
-                    setupState = newGameSetupState()
-                    liveState = null
-                    viewingArchivedGame = null
-                    setupMode = SetupMode.NEW_GAME
-                    screen = AppScreen.SETUP
-                },
+                previousGames = viewModel.archivedGames.map { gameListEntry(it.state, it.subtitle) },
+                onResumeCurrentGame = viewModel::resumeCurrentGame,
+                onOpenCompletedGame = viewModel::openCompletedGame,
+                onOpenPreviousGame = viewModel::openPreviousGame,
+                onArchiveCompletedGame = viewModel::archiveCompletedGame,
+                onStartNewGame = viewModel::startNewGame,
             )
         }
 
         AppScreen.SETUP -> {
             SetupScreen(
-                state = setupState,
-                onStateChange = { setupState = it },
-                primaryButtonLabel = if (setupMode == SetupMode.NEW_GAME) "Start Game" else "Back to Game Screen",
-                onPrimaryAction = {
-                    if (setupMode == SetupMode.NEW_GAME) {
-                        liveState = createLiveGameState(setupState)
-                    } else {
-                        liveState = liveState?.let {
-                            applySetupToLiveGame(it, setupState, System.currentTimeMillis())
-                        }
-                    }
-                    screen = AppScreen.LIVE
-                },
+                state = viewModel.setupState,
+                onStateChange = viewModel::updateSetup,
+                primaryButtonLabel = if (viewModel.setupMode == SetupMode.NEW_GAME) "Start Game" else "Back to Game Screen",
+                onPrimaryAction = { viewModel.finishSetup() },
             )
         }
 
         AppScreen.LIVE -> {
             // Archived games reuse the live-game screen, but in a read-only summary mode.
-            val currentLiveState = viewingArchivedGame?.state ?: liveState
+            val currentLiveState = viewModel.currentLiveState
             if (currentLiveState != null) {
                 LiveGameScreen(
                     state = currentLiveState,
-                    readOnlySummary = viewingArchivedGame != null,
-                    onStateChange = { updated ->
-                        if (viewingArchivedGame == null) {
-                            liveState = updated
-                        }
-                    },
+                    readOnlySummary = viewModel.viewingReadOnlySummary,
+                    onStateChange = viewModel::updateLiveGame,
                     onUpdateGameSetup = {
-                        setupState = liveGameToSetupState(currentLiveState)
-                        setupMode = SetupMode.EDIT_CURRENT_GAME
-                        screen = AppScreen.SETUP
+                        viewModel.editCurrentGame(currentLiveState)
                     },
                 )
             }
@@ -3083,14 +3003,6 @@ private fun gameListEntry(state: LiveGameState, subtitle: String): GameListEntry
     )
 }
 
-// Archived/completed games keep summary data but drop live countdown/undo state.
-private fun pruneUndoHistory(state: LiveGameState): LiveGameState {
-    return state.copy(
-        countdown = null,
-        undoEntry = null,
-    )
-}
-
 // Small general-purpose outlined action button.
 @Composable
 private fun SmallActionButton(
@@ -3193,18 +3105,4 @@ private fun HomeGameRow(
 // Convenience lookup for Team 1 vs Team 2 in the live state.
 private fun LiveGameState.teamFor(team: TeamId): TeamLiveState {
     return if (team == TeamId.TEAM_ONE) teamOne else teamTwo
-}
-
-private fun newGameSetupState(now: LocalDateTime = LocalDateTime.now()): GameSetupState {
-    val startTime = nextHalfHourFrom(now.toLocalTime())
-    val startDate = if (startTime.isBefore(now.toLocalTime())) {
-        now.toLocalDate().plusDays(1)
-    } else {
-        now.toLocalDate()
-    }
-    return GameSetupState(
-        startDate = startDate,
-        startTime = startTime,
-        timeZone = ZoneId.systemDefault(),
-    )
 }

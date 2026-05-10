@@ -9,6 +9,6 @@ import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 @Composable
 private fun MainActivityPreview() {
     UltiObserverTheme(dynamicColor = false) {
-        UltiObserverApp()
+        UltiObserverApp(UltiObserverAppViewModel())
     }
 }
