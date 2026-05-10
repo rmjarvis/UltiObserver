@@ -735,34 +735,33 @@ private fun LiveGameScreen(
     var gameOverAlert by remember { mutableStateOf(false) }
 
     // Update the display clock once per second so time and cap text stay fresh.
-    val now by produceState(initialValue = LocalTime.now()) {
+    val currentClockTime by produceState(initialValue = LocalTime.now()) {
         while (true) {
             value = LocalTime.now()
             kotlinx.coroutines.delay(1000)
         }
     }
-    // Countdown logic uses absolute epoch millis, so keep a matching ticking value here too.
-    val nowMillis by produceState(initialValue = System.currentTimeMillis()) {
+    val now by produceState(initialValue = System.currentTimeMillis()) {
         while (true) {
             value = System.currentTimeMillis()
             kotlinx.coroutines.delay(1000)
         }
     }
 
-    val capStatus = remember(nowMillis, state) {
-        computeNextCapStatus(state, nowMillis)
+    val capStatus = remember(now, state) {
+        computeNextCapStatus(state, now)
     }
-    val activeCountdown = remember(state, nowMillis) {
-        activeCountdownDisplay(state, nowMillis)
+    val activeCountdown = remember(state, now) {
+        activeCountdownDisplay(state, now)
     }
-    val canStartPoint = remember(state, nowMillis) {
-        state.phase == LivePhase.BETWEEN_POINTS || halftimeTransitionReady(state, nowMillis)
+    val canStartPoint = remember(state, now) {
+        state.phase == LivePhase.BETWEEN_POINTS || halftimeTransitionReady(state, now)
     }
 
     // Let countdown expiration move the model forward without requiring an observer tap.
-    LaunchedEffect(state, nowMillis, readOnlySummary) {
+    LaunchedEffect(state, now, readOnlySummary) {
         if (!readOnlySummary) {
-            val advancedState = advanceGameClock(state, nowMillis)
+            val advancedState = advanceGameClock(state, now)
             if (advancedState != state) {
                 onStateChange(advancedState)
             }
@@ -814,7 +813,7 @@ private fun LiveGameScreen(
             } else {
                 // Show the current clock and next relevant cap.
                 StatusLine(
-                    currentTime = now,
+                    currentTime = currentClockTime,
                     capStatus = capStatus,
                 )
 
@@ -880,9 +879,9 @@ private fun LiveGameScreen(
                             }
                         }
                     },
-                    onGoal = { team -> onStateChange(recordGoalFromCurrentState(state, team, nowMillis)) },
+                    onGoal = { team -> onStateChange(recordGoalFromCurrentState(state, team, now)) },
                     onTimeout = { team ->
-                        val result = assessTimeout(state, team, nowMillis)
+                        val result = assessTimeout(state, team, now)
                         onStateChange(result.state)
                         if (result.message != null) {
                             actionInfoMessage = result.message
@@ -978,7 +977,7 @@ private fun LiveGameScreen(
         ModalBottomSheet(onDismissRequest = { showOtherSheet = false }) {
             OtherSheet(
                 state = state,
-                nowMillis = nowMillis,
+                now = now,
                 onUpdateGameSetup = onUpdateGameSetup,
                 onAction = { updatedState ->
                     onStateChange(updatedState)
@@ -1061,7 +1060,7 @@ private fun LiveGameScreen(
                 )
             },
             confirmButton = {
-                TextButton(onClick = { onStateChange(applyPendingCap(state, nowMillis)) }) {
+                TextButton(onClick = { onStateChange(applyPendingCap(state, now)) }) {
                     Text("Apply")
                 }
             },
@@ -2218,7 +2217,7 @@ private fun UnknownYellowDialog(
 @Composable
 private fun OtherSheet(
     state: LiveGameState,
-    nowMillis: Long,
+    now: Long,
     onUpdateGameSetup: () -> Unit,
     onAction: (LiveGameState) -> Unit,
 ) {
@@ -2279,31 +2278,31 @@ private fun OtherSheet(
                 if (!state.halftimeTaken && state.phase == LivePhase.BETWEEN_POINTS) {
                     OtherMenuButton(
                         label = "Start Halftime",
-                        onClick = { onAction(startHalftimeNow(state, nowMillis)) },
+                        onClick = { onAction(startHalftimeNow(state, now)) },
                     )
                 }
                 if (state.phase != LivePhase.GAME_OVER) {
                     OtherMenuButton(
                         label = "End Game",
-                        onClick = { onAction(endGameNow(state, nowMillis)) },
+                        onClick = { onAction(endGameNow(state, now)) },
                     )
                 }
                 if (!state.halftimeTaken && !state.halfCapApplied) {
                     OtherMenuButton(
                         label = "Apply Half Cap Now",
-                        onClick = { onAction(makeCapNow(state, CapType.HALF, nowMillis)) },
+                        onClick = { onAction(makeCapNow(state, CapType.HALF, now)) },
                     )
                 }
                 if (!state.softCapApplied) {
                     OtherMenuButton(
                         label = "Apply Soft Cap Now",
-                        onClick = { onAction(makeCapNow(state, CapType.SOFT, nowMillis)) },
+                        onClick = { onAction(makeCapNow(state, CapType.SOFT, now)) },
                     )
                 }
                 if (!state.hardCapApplied && state.phase != LivePhase.GAME_OVER) {
                     OtherMenuButton(
                         label = "Apply Hard Cap Now",
-                        onClick = { onAction(makeCapNow(state, CapType.HARD, nowMillis)) },
+                        onClick = { onAction(makeCapNow(state, CapType.HARD, now)) },
                     )
                 }
             }
@@ -2387,7 +2386,7 @@ private fun StartDateDialog(
     onConfirm: (LocalDate) -> Unit,
 ) {
     val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = dateToPickerMillis(initialDate),
+        initialSelectedDateMillis = dateToPickerTimestamp(initialDate),
     )
 
     DatePickerDialog(
@@ -2395,9 +2394,9 @@ private fun StartDateDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    val selectedMillis = datePickerState.selectedDateMillis
-                        ?: dateToPickerMillis(initialDate)
-                    onConfirm(pickerMillisToDate(selectedMillis))
+                    val selectedTimestamp = datePickerState.selectedDateMillis
+                        ?: dateToPickerTimestamp(initialDate)
+                    onConfirm(pickerTimestampToDate(selectedTimestamp))
                 }
             ) {
                 Text("Set")
@@ -2975,12 +2974,12 @@ private fun formatStartDate(date: LocalDate): String {
     return date.format(DateTimeFormatter.ofPattern("MMM d, yyyy"))
 }
 
-private fun dateToPickerMillis(date: LocalDate): Long {
+private fun dateToPickerTimestamp(date: LocalDate): Long {
     return date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
 }
 
-private fun pickerMillisToDate(millis: Long): LocalDate {
-    return Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate()
+private fun pickerTimestampToDate(timestamp: Long): LocalDate {
+    return Instant.ofEpochMilli(timestamp).atZone(ZoneOffset.UTC).toLocalDate()
 }
 
 // Put the higher-scoring team first for summary display.
@@ -3040,34 +3039,34 @@ private data class ActiveCountdownDisplay(
 )
 
 // Compute the countdown text currently visible on the live screen.
-private fun activeCountdownDisplay(state: LiveGameState, nowMillis: Long): ActiveCountdownDisplay? {
+private fun activeCountdownDisplay(state: LiveGameState, now: Long): ActiveCountdownDisplay? {
     val countdown = state.countdown ?: return null
     return if (countdown.kind == CountdownKind.HALFTIME) {
-        val halftimeRemainingMillis = countdown.targetEpochMillis - nowMillis
-        if (halftimeRemainingMillis > 0L) {
+        val halftimeRemaining = countdown.targetEpoch - now
+        if (halftimeRemaining > 0L) {
             ActiveCountdownDisplay(
                 label = countdown.label,
-                remaining = Duration.ofMillis(halftimeRemainingMillis),
+                remaining = Duration.ofMillis(halftimeRemaining),
             )
         } else {
             // Once halftime expires, show the follow-on between-points countdown immediately.
-            val followOn = betweenPointsDisplay(state.pullingFromEnd, countdown.targetEpochMillis, nowMillis)
+            val followOn = betweenPointsDisplay(state.pullingFromEnd, countdown.targetEpoch, now)
             ActiveCountdownDisplay(label = followOn.first, remaining = followOn.second)
         }
     } else {
         ActiveCountdownDisplay(
             label = countdown.label,
-            remaining = Duration.ofMillis((countdown.targetEpochMillis - nowMillis).coerceAtLeast(0L)),
+            remaining = Duration.ofMillis((countdown.targetEpoch - now).coerceAtLeast(0L)),
         )
     }
 }
 
 // Halftime can become Start Point once the halftime countdown itself has elapsed.
-private fun halftimeTransitionReady(state: LiveGameState, nowMillis: Long): Boolean {
+private fun halftimeTransitionReady(state: LiveGameState, now: Long): Boolean {
     val countdown = state.countdown ?: return false
     return state.phase == LivePhase.HALFTIME &&
         countdown.kind == CountdownKind.HALFTIME &&
-        nowMillis >= countdown.targetEpochMillis
+        now >= countdown.targetEpoch
 }
 
 // One-line home-screen summary for a live or archived game.

@@ -66,18 +66,18 @@ class TestGameModel {
         )
     }
 
-    private fun millisAfterStart(state: LiveGameState, minutes: Int): Long {
-        return state.startEpochMillis + Duration.ofMinutes(minutes.toLong()).toMillis()
+    private fun timestampAfterStart(state: LiveGameState, minutes: Int): Long {
+        return state.startEpoch + Duration.ofMinutes(minutes.toLong()).toMillis()
     }
 
-    private fun millisAt(date: LocalDate, time: LocalTime): Long {
+    private fun timestampAt(date: LocalDate, time: LocalTime): Long {
         return LocalDateTime.of(date, time)
             .atZone(testTimeZone)
             .toInstant()
             .toEpochMilli()
     }
 
-    private fun millisAt(state: LiveGameState, time: LocalTime): Long {
+    private fun timestampAt(state: LiveGameState, time: LocalTime): Long {
         return LocalDateTime.of(state.startDate, time)
             .atZone(state.timeZone)
             .toInstant()
@@ -89,7 +89,7 @@ class TestGameModel {
         scoringTeam: TeamId,
         time: LocalTime,
     ): LiveGameState {
-        return recordGoal(state, scoringTeam, millisAt(state, time))
+        return recordGoal(state, scoringTeam, timestampAt(state, time))
     }
 
     private fun recordGoalFromCurrentStateAt(
@@ -97,19 +97,19 @@ class TestGameModel {
         scoringTeam: TeamId,
         time: LocalTime,
     ): LiveGameState {
-        return recordGoalFromCurrentState(state, scoringTeam, millisAt(state, time))
+        return recordGoalFromCurrentState(state, scoringTeam, timestampAt(state, time))
     }
 
     private fun startHalftimeNowAt(state: LiveGameState, time: LocalTime): LiveGameState {
-        return startHalftimeNow(state, millisAt(state, time))
+        return startHalftimeNow(state, timestampAt(state, time))
     }
 
     private fun endGameNowAt(state: LiveGameState, time: LocalTime): LiveGameState {
-        return endGameNow(state, millisAt(state, time))
+        return endGameNow(state, timestampAt(state, time))
     }
 
     private fun applyPendingCapAt(state: LiveGameState, time: LocalTime): LiveGameState {
-        return applyPendingCap(state, millisAt(state, time))
+        return applyPendingCap(state, timestampAt(state, time))
     }
 
     // Test a representative complete game from setup through halftime to final score.
@@ -171,7 +171,7 @@ class TestGameModel {
         assertEquals(CountdownKind.TIME_OUT, state.countdown?.kind)
         assertEquals("Offense set in", state.countdown?.label)
         assertEquals(70, state.countdown?.durationSeconds)
-        assertEquals(1_070_000L, state.countdown?.targetEpochMillis)
+        assertEquals(1_070_000L, state.countdown?.targetEpoch)
         assertEquals("Undo Timeout by Animal", state.undoEntry?.label)
 
         state = continueLivePoint(state)
@@ -213,8 +213,8 @@ class TestGameModel {
         )
 
         // Viscous Coupling scores the first point, so they pull the next point from the far end.
-        val firstGoalMillis = millisAt(state, LocalTime.of(10, 5))
-        state = recordGoal(state, VC, firstGoalMillis)
+        val firstGoalTime = timestampAt(state, LocalTime.of(10, 5))
+        state = recordGoal(state, VC, firstGoalTime)
         assertEquals(LivePhase.BETWEEN_POINTS, state.phase)
         assertEquals(1, state.teamOne.score)
         assertEquals(0, state.teamTwo.score)
@@ -223,7 +223,7 @@ class TestGameModel {
         assertEquals(VC, state.nearAttackingTeam)
         assertEquals("Signal in", state.countdown?.label)
         assertEquals(60, state.countdown?.durationSeconds)
-        assertEquals(firstGoalMillis + 60_000L, state.countdown?.targetEpochMillis)
+        assertEquals(firstGoalTime + 60_000L, state.countdown?.targetEpoch)
         assertNull(state.pendingCapOffer)
 
         // During the next pull sequence, Viscous Coupling records an offsides as the pulling team.
@@ -266,8 +266,8 @@ class TestGameModel {
         assertEquals("Animal has 2 technical fouls.", technicalFoulResult.message)
 
         // Viscous Coupling calls a live-point timeout, starting an offense-set countdown.
-        val secondTimeoutMillis = millisAt(state, LocalTime.of(10, 6))
-        val secondTimeout = assessTimeout(state, VC, secondTimeoutMillis)
+        val secondTimeoutTime = timestampAt(state, LocalTime.of(10, 6))
+        val secondTimeout = assessTimeout(state, VC, secondTimeoutTime)
         assertNull(secondTimeout.message)
         state = secondTimeout.state
         assertEquals(1, timeoutsRemaining(state, VC))
@@ -275,7 +275,7 @@ class TestGameModel {
         assertEquals(CountdownKind.TIME_OUT, state.countdown?.kind)
         assertEquals("Offense set in", state.countdown?.label)
         assertEquals(70, state.countdown?.durationSeconds)
-        assertEquals(secondTimeoutMillis + 70_000L, state.countdown?.targetEpochMillis)
+        assertEquals(secondTimeoutTime + 70_000L, state.countdown?.targetEpoch)
 
         state = continueLivePoint(state)
         assertEquals(LivePhase.LIVE_POINT, state.phase)
@@ -304,8 +304,8 @@ class TestGameModel {
         assertEquals(2, state.teamOne.score)
         assertEquals(1, state.teamTwo.score)
 
-        val halftimeGoalMillis = millisAt(state, LocalTime.of(10, 20))
-        state = recordGoalFromCurrentState(state, VC, halftimeGoalMillis)
+        val halftimeGoalTime = timestampAt(state, LocalTime.of(10, 20))
+        state = recordGoalFromCurrentState(state, VC, halftimeGoalTime)
         assertEquals(LivePhase.HALFTIME, state.phase)
         assertEquals(3, state.teamOne.score)
         assertEquals(1, state.teamTwo.score)
@@ -316,7 +316,7 @@ class TestGameModel {
         assertEquals(CountdownKind.HALFTIME, state.countdown?.kind)
         assertEquals("Halftime", state.countdown?.label)
         assertEquals(420, state.countdown?.durationSeconds)
-        assertEquals(halftimeGoalMillis + 420_000L, state.countdown?.targetEpochMillis)
+        assertEquals(halftimeGoalTime + 420_000L, state.countdown?.targetEpoch)
         assertEquals(0, state.teamOne.timeoutsUsedThisHalf)
         assertEquals(2, timeoutsAllowedThisHalf(state, VC))
         assertEquals(2, timeoutsRemaining(state, VC))
@@ -400,7 +400,7 @@ class TestGameModel {
         fun scoreToHalftime(
             startingState: LiveGameState,
             scoringTeam: TeamId,
-            startMillis: Long,
+            start: Long,
         ): LiveGameState {
             var current = startingState
             var pointNumber = 0
@@ -408,7 +408,7 @@ class TestGameModel {
                 current = recordGoalFromCurrentState(
                     current,
                     scoringTeam,
-                    nowMillis = startMillis + pointNumber * 10_000L,
+                    now = start + pointNumber * 10_000L,
                 )
                 pointNumber += 1
             }
@@ -437,14 +437,14 @@ class TestGameModel {
 
         // A between-points timeout records a used timeout and extends the active countdown.
         val originalCountdown = state.countdown!!
-        var timeoutResult = assessTimeout(state, VC, originalCountdown.targetEpochMillis - 1_000L)
+        var timeoutResult = assessTimeout(state, VC, originalCountdown.targetEpoch - 1_000L)
         assertNull(timeoutResult.message)
         state = timeoutResult.state
         assertEquals(1, state.teamOne.timeoutsUsedThisHalf)
         assertEquals(1, timeoutsRemaining(state, VC))
         assertEquals("Signal in", state.countdown?.label)
         assertEquals(130, state.countdown?.durationSeconds)
-        assertEquals(originalCountdown.targetEpochMillis + 70_000L, state.countdown?.targetEpochMillis)
+        assertEquals(originalCountdown.targetEpoch + 70_000L, state.countdown?.targetEpoch)
         assertEquals("Undo Timeout by Viscous Coupling", state.undoEntry?.label)
 
         // A live-point timeout starts a fresh offense-set timeout countdown.
@@ -458,7 +458,7 @@ class TestGameModel {
         assertEquals(CountdownKind.TIME_OUT, state.countdown?.kind)
         assertEquals("Offense set in", state.countdown?.label)
         assertEquals(70, state.countdown?.durationSeconds)
-        assertEquals(1_070_000L, state.countdown?.targetEpochMillis)
+        assertEquals(1_070_000L, state.countdown?.targetEpoch)
 
         // Once the live-point timeout countdown expires, the model automatically continues the point.
         assertEquals(state, advanceGameClock(state, 1_070_000L - 1L))
@@ -487,8 +487,8 @@ class TestGameModel {
         assertEquals(2, timeoutsRemaining(state, ANIMAL))
 
         // A timeout is not available while the halftime countdown itself is still running.
-        val halftimeEndMillis = state.countdown!!.targetEpochMillis
-        timeoutResult = assessTimeout(state, VC, halftimeEndMillis - 1L)
+        val halftimeEnd = state.countdown!!.targetEpoch
+        timeoutResult = assessTimeout(state, VC, halftimeEnd - 1L)
         assertEquals("Timeouts are not available now.", timeoutResult.message)
         assertEquals(state, timeoutResult.state)
 
@@ -507,7 +507,7 @@ class TestGameModel {
         assertEquals(gameOverTimeoutState, chargeTimeout(gameOverTimeoutState, VC, 1_160_000L))
 
         // After halftime has elapsed but before the pull, a timeout behaves like a between-points timeout.
-        timeoutResult = assessTimeout(state, VC, halftimeEndMillis + 1L)
+        timeoutResult = assessTimeout(state, VC, halftimeEnd + 1L)
         assertNull(timeoutResult.message)
         val afterHalftimeTimeoutState = timeoutResult.state
         assertEquals(LivePhase.BETWEEN_POINTS, afterHalftimeTimeoutState.phase)
@@ -515,11 +515,11 @@ class TestGameModel {
         assertEquals(1, timeoutsRemaining(afterHalftimeTimeoutState, VC))
         assertEquals("Signal in", afterHalftimeTimeoutState.countdown?.label)
         assertEquals(130, afterHalftimeTimeoutState.countdown?.durationSeconds)
-        assertEquals(halftimeEndMillis + 130_000L, afterHalftimeTimeoutState.countdown?.targetEpochMillis)
+        assertEquals(halftimeEnd + 130_000L, afterHalftimeTimeoutState.countdown?.targetEpoch)
 
         // When the pull countdown expires, the model automatically moves into live-point state.
         val expiredPullState = createLiveGameState(setupWithRules(GameRules(useHalfCap = false)))
-        val expiredCountdownNow = expiredPullState.countdown!!.targetEpochMillis + 1L
+        val expiredCountdownNow = expiredPullState.countdown!!.targetEpoch + 1L
         val advancedPullState = advanceGameClock(expiredPullState, expiredCountdownNow)
         assertEquals(LivePhase.LIVE_POINT, advancedPullState.phase)
         assertNull(advancedPullState.countdown)
@@ -538,7 +538,7 @@ class TestGameModel {
         assertEquals(CountdownKind.TIME_OUT, expiredTimeoutState.countdown?.kind)
         assertEquals("Offense set in", expiredTimeoutState.countdown?.label)
         assertEquals(70, expiredTimeoutState.countdown?.durationSeconds)
-        assertEquals(expiredCountdownNow + 70_000L, expiredTimeoutState.countdown?.targetEpochMillis)
+        assertEquals(expiredCountdownNow + 70_000L, expiredTimeoutState.countdown?.targetEpoch)
 
         // With one timeout per half plus a floater, using both first-half timeouts means no floater carries over.
         state = createLiveGameState(
@@ -556,7 +556,7 @@ class TestGameModel {
         assertEquals(0, state.teamOne.timeoutsUsedThisHalf)
         assertEquals(2, timeoutsAllowedThisHalf(state, VC))
         assertEquals(2, timeoutsRemaining(state, VC))
-        state = assessTimeout(state, VC, state.countdown!!.targetEpochMillis - 1_000L).state
+        state = assessTimeout(state, VC, state.countdown!!.targetEpoch - 1_000L).state
         state = beginLivePoint(state)
         state = assessTimeout(state, VC, 2_000_000L).state
         state = continueLivePoint(state)
@@ -583,7 +583,7 @@ class TestGameModel {
                 )
             )
         )
-        state = assessTimeout(state, VC, state.countdown!!.targetEpochMillis - 1_000L).state
+        state = assessTimeout(state, VC, state.countdown!!.targetEpoch - 1_000L).state
         state = scoreToHalftime(state, VC, 2_200_000L)
         assertEquals(1, state.teamOne.firstHalfTimeoutsUsed)
         assertEquals(0, state.teamOne.timeoutsUsedThisHalf)
@@ -610,7 +610,7 @@ class TestGameModel {
         assertEquals(0, state.teamOne.timeoutsUsedThisHalf)
         assertEquals(1, timeoutsAllowedThisHalf(state, VC))
         assertEquals(1, timeoutsRemaining(state, VC))
-        state = assessTimeout(state, VC, state.countdown!!.targetEpochMillis - 1_000L).state
+        state = assessTimeout(state, VC, state.countdown!!.targetEpoch - 1_000L).state
         state = scoreToHalftime(state, VC, 2_300_000L)
         assertEquals(1, state.teamOne.firstHalfTimeoutsUsed)
         assertEquals(0, state.teamOne.timeoutsUsedThisHalf)
@@ -656,7 +656,7 @@ class TestGameModel {
         )
         assertEquals(0, state.teamOne.timeoutsUsedThisHalf)
         assertEquals(3, timeoutsAllowedThisHalf(state, VC))
-        state = assessTimeout(state, VC, state.countdown!!.targetEpochMillis - 1_000L).state
+        state = assessTimeout(state, VC, state.countdown!!.targetEpoch - 1_000L).state
         state = scoreToHalftime(state, VC, 2_500_000L)
         assertEquals(1, state.teamOne.firstHalfTimeoutsUsed)
         assertEquals(0, state.teamOne.timeoutsUsedThisHalf)
@@ -677,7 +677,7 @@ class TestGameModel {
                 )
             )
         )
-        state = assessTimeout(state, VC, state.countdown!!.targetEpochMillis - 1_000L).state
+        state = assessTimeout(state, VC, state.countdown!!.targetEpoch - 1_000L).state
         state = beginLivePoint(state)
         state = assessTimeout(state, VC, 2_550_000L).state
         assertEquals(2, state.teamOne.timeoutsUsedThisHalf)
@@ -732,7 +732,7 @@ class TestGameModel {
                 )
             )
         )
-        state = assessTimeout(state, VC, state.countdown!!.targetEpochMillis - 1_000L).state
+        state = assessTimeout(state, VC, state.countdown!!.targetEpoch - 1_000L).state
         state = applySetupToLiveGame(
             state,
             setupWithRules(
@@ -813,7 +813,7 @@ class TestGameModel {
                 )
             )
         )
-        state = assessTimeout(state, VC, state.countdown!!.targetEpochMillis - 1_000L).state
+        state = assessTimeout(state, VC, state.countdown!!.targetEpoch - 1_000L).state
         state = scoreToHalftime(state, VC, 3_000_000L)
         assertEquals(1, state.teamOne.firstHalfTimeoutsUsed)
         assertEquals(0, state.teamOne.timeoutsUsedThisHalf)
@@ -1444,13 +1444,13 @@ class TestGameModel {
             return recordGoalFromCurrentState(
                 state = state,
                 scoringTeam = scoringTeam,
-                nowMillis = millisAfterStart(state, minute),
+                now = timestampAfterStart(state, minute),
             )
         }
 
         // Start with an ordinary first point before any cap time and verify no cap is offered.
         var state = newCapState()
-        assertEquals(CapStatus("Half cap", Duration.ofMinutes(5)), computeNextCapStatus(state, millisAfterStart(state, 5)))
+        assertEquals(CapStatus("Half cap", Duration.ofMinutes(5)), computeNextCapStatus(state, timestampAfterStart(state, 5)))
         state = scoreAt(state, VC, 5)
         assertEquals(1, state.teamOne.score)
         assertEquals(0, state.teamTwo.score)
@@ -1504,7 +1504,7 @@ class TestGameModel {
                 useHardCap = false,
             )
         )
-        assertNull(computeNextCapStatus(state, millisAfterStart(state, 5)))
+        assertNull(computeNextCapStatus(state, timestampAfterStart(state, 5)))
         state = scoreAt(state, VC, 35)
         assertNull(state.pendingCapOffer)
         assertFalse(state.halfCapApplied)
@@ -1526,13 +1526,13 @@ class TestGameModel {
         state = recordGoalFromCurrentState(
             state,
             VC,
-            nowMillis = millisAt(lateStartDate, LocalTime.of(23, 50)),
+            now = timestampAt(lateStartDate, LocalTime.of(23, 50)),
         )
         assertNull(state.pendingCapOffer)
         state = recordGoalFromCurrentState(
             state,
             ANIMAL,
-            nowMillis = millisAt(lateStartDate.plusDays(1), LocalTime.of(1, 11)),
+            now = timestampAt(lateStartDate.plusDays(1), LocalTime.of(1, 11)),
         )
         assertEquals(CapType.HARD, state.pendingCapOffer)
 
@@ -1607,8 +1607,8 @@ class TestGameModel {
         state = scoreAt(state, VC, 1)
         state = scoreAt(state, VC, 2)
         val beforeSoftCapHalftimeGoal = beginLivePoint(state)
-        val softCapHalftimeGoalMillis = millisAfterStart(beforeSoftCapHalftimeGoal, 10)
-        state = recordGoal(beforeSoftCapHalftimeGoal, VC, softCapHalftimeGoalMillis)
+        val softCapHalftimeGoalTime = timestampAfterStart(beforeSoftCapHalftimeGoal, 10)
+        state = recordGoal(beforeSoftCapHalftimeGoal, VC, softCapHalftimeGoalTime)
         assertEquals(3, state.teamOne.score)
         assertEquals(0, state.teamTwo.score)
         assertEquals(LivePhase.HALFTIME, state.phase)
@@ -1616,7 +1616,7 @@ class TestGameModel {
         assertEquals(CapType.SOFT, state.pendingCapOffer)
         assertEquals(CountdownKind.HALFTIME, state.countdown?.kind)
         assertEquals(420, state.countdown?.durationSeconds)
-        assertEquals(softCapHalftimeGoalMillis + 420_000L, state.countdown?.targetEpochMillis)
+        assertEquals(softCapHalftimeGoalTime + 420_000L, state.countdown?.targetEpoch)
         assertEquals(0, state.teamOne.firstHalfTimeoutsUsed)
         assertEquals(0, state.teamOne.timeoutsUsedThisHalf)
         assertEquals(0, state.teamTwo.firstHalfTimeoutsUsed)
@@ -1675,7 +1675,7 @@ class TestGameModel {
         state = scoreAt(state, VC, 8)
         assertEquals(LivePhase.BETWEEN_POINTS, state.phase)
         assertNull(state.pendingCapOffer)
-        state = startHalftimeNow(state, millisAfterStart(state, 10))
+        state = startHalftimeNow(state, timestampAfterStart(state, 10))
         assertEquals(LivePhase.HALFTIME, state.phase)
         assertEquals(CapType.SOFT, state.pendingCapOffer)
         assertEquals(
@@ -1699,7 +1699,7 @@ class TestGameModel {
         )
         state = scoreAt(state, VC, 8)
         assertNull(state.pendingCapOffer)
-        state = startHalftimeNow(state, millisAfterStart(state, 10))
+        state = startHalftimeNow(state, timestampAfterStart(state, 10))
         assertEquals(LivePhase.HALFTIME, state.phase)
         assertEquals(CapType.HARD, state.pendingCapOffer)
         assertEquals(
@@ -1734,7 +1734,7 @@ class TestGameModel {
         assertNull(state.pendingCapOffer)
         assertEquals("Soft cap applied.", state.lastEvent)
 
-        state = advanceGameClock(state, halftimeCountdown.targetEpochMillis)
+        state = advanceGameClock(state, halftimeCountdown.targetEpoch)
         assertEquals(LivePhase.BETWEEN_POINTS, state.phase)
         assertTrue(state.softCapApplied)
         assertEquals(4, state.winningScore)
@@ -1784,7 +1784,7 @@ class TestGameModel {
         assertEquals(2, state.teamOne.score)
         assertEquals(2, state.teamTwo.score)
         assertNull(state.pendingCapOffer)
-        state = startHalftimeNow(state, millisAfterStart(state, 10))
+        state = startHalftimeNow(state, timestampAfterStart(state, 10))
         assertEquals(LivePhase.HALFTIME, state.phase)
         assertEquals(CapType.HARD, state.pendingCapOffer)
         assertEquals(
@@ -1814,7 +1814,7 @@ class TestGameModel {
         state = scoreAt(state, VC, 2)
         state = scoreAt(state, VC, 10)
         assertEquals(LivePhase.HALFTIME, state.phase)
-        state = advanceGameClock(state, state.countdown!!.targetEpochMillis + 30_000L)
+        state = advanceGameClock(state, state.countdown!!.targetEpoch + 30_000L)
         assertEquals(LivePhase.BETWEEN_POINTS, state.phase)
         assertFalse(state.softCapApplied)
         assertNull(state.pendingCapOffer)
@@ -1830,21 +1830,21 @@ class TestGameModel {
                 useHardCap = false,
             )
         )
-        val halfNow = makeCapNow(state, CapType.HALF, millisAfterStart(state, 42))
+        val halfNow = makeCapNow(state, CapType.HALF, timestampAfterStart(state, 42))
         assertTrue(halfNow.rules.useHalfCap)
         assertEquals(state.startDate, halfNow.startDate)
         assertEquals(LocalTime.of(10, 32), halfNow.startTime)
         assertEquals("Half cap set to now.", halfNow.lastEvent)
         assertEquals("Undo Half Cap Now", halfNow.undoEntry?.label)
 
-        val softNow = makeCapNow(state, CapType.SOFT, millisAfterStart(state, 42))
+        val softNow = makeCapNow(state, CapType.SOFT, timestampAfterStart(state, 42))
         assertTrue(softNow.rules.useSoftCap)
         assertEquals(state.startDate, softNow.startDate)
         assertEquals(LocalTime.of(10, 22), softNow.startTime)
         assertEquals("Soft cap set to now.", softNow.lastEvent)
         assertEquals("Undo Soft Cap Now", softNow.undoEntry?.label)
 
-        val hardNow = makeCapNow(state, CapType.HARD, millisAfterStart(state, 42))
+        val hardNow = makeCapNow(state, CapType.HARD, timestampAfterStart(state, 42))
         assertTrue(hardNow.rules.useHardCap)
         assertEquals(state.startDate, hardNow.startDate)
         assertEquals(LocalTime.of(10, 12), hardNow.startTime)
@@ -1864,7 +1864,7 @@ class TestGameModel {
         assertEquals(6, state.teamOne.score)
         assertEquals(6, state.teamTwo.score)
         assertNull(state.pendingCapOffer)
-        assertEquals(CapStatus("Soft cap", Duration.ofMinutes(19)), computeNextCapStatus(state, millisAfterStart(state, 1)))
+        assertEquals(CapStatus("Soft cap", Duration.ofMinutes(19)), computeNextCapStatus(state, timestampAfterStart(state, 1)))
         state = scoreAt(state, VC, 11)
         assertEquals(7, state.teamOne.score)
         assertEquals(6, state.teamTwo.score)
@@ -1885,7 +1885,7 @@ class TestGameModel {
         assertEquals(7, state.teamOne.score)
         assertEquals(3, state.teamTwo.score)
         assertNull(state.pendingCapOffer)
-        assertEquals(CapStatus("Soft cap", Duration.ofMinutes(19)), computeNextCapStatus(state, millisAfterStart(state, 1)))
+        assertEquals(CapStatus("Soft cap", Duration.ofMinutes(19)), computeNextCapStatus(state, timestampAfterStart(state, 1)))
         state = scoreAt(state, ANIMAL, 11)
         assertEquals(7, state.teamOne.score)
         assertEquals(4, state.teamTwo.score)
@@ -1961,7 +1961,7 @@ class TestGameModel {
         assertEquals(CountdownKind.BETWEEN_POINTS, state.countdown?.kind)
         assertEquals("Pull in", state.countdown?.label)
         assertEquals(80, state.countdown?.durationSeconds)
-        assertEquals(90_000L, state.countdown?.targetEpochMillis)
+        assertEquals(90_000L, state.countdown?.targetEpoch)
         assertEquals("Undo Update Game Setup", state.undoEntry?.label)
         assertEquals(beforeSetupEditBeforePlay, state.undoEntry?.previous)
 
@@ -2055,7 +2055,7 @@ class TestGameModel {
         assertEquals(FieldEnd.NEAR, state.pullingFromEnd)
         assertEquals("Pull in", state.countdown?.label)
         assertEquals(80, state.countdown?.durationSeconds)
-        assertEquals(countdownBeforeSwapEnds.targetEpochMillis + 20_000L, state.countdown?.targetEpochMillis)
+        assertEquals(countdownBeforeSwapEnds.targetEpoch + 20_000L, state.countdown?.targetEpoch)
         assertEquals("Field ends swapped.", state.lastEvent)
         assertEquals("Undo Swap Ends of Field", state.undoEntry?.label)
 
@@ -2069,22 +2069,22 @@ class TestGameModel {
 
         // Timeout-extended between-points countdowns still swap between offense-ready and pull timing.
         state = standardLiveGameState()
-        state = assessTimeout(state, VC, state.countdown!!.targetEpochMillis - 1_000L).state
+        state = assessTimeout(state, VC, state.countdown!!.targetEpoch - 1_000L).state
         val extendedCountdownBeforeSwap = state.countdown
         assertEquals(130, extendedCountdownBeforeSwap?.durationSeconds)
         state = swapPullingTeam(state)
         assertEquals("Pull in", state.countdown?.label)
         assertEquals(150, state.countdown?.durationSeconds)
-        assertEquals(extendedCountdownBeforeSwap!!.targetEpochMillis + 20_000L, state.countdown?.targetEpochMillis)
+        assertEquals(extendedCountdownBeforeSwap!!.targetEpoch + 20_000L, state.countdown?.targetEpoch)
 
         state = standardLiveGameState(pullingFromEnd = FieldEnd.NEAR)
-        state = assessTimeout(state, VC, state.countdown!!.targetEpochMillis - 1_000L).state
+        state = assessTimeout(state, VC, state.countdown!!.targetEpoch - 1_000L).state
         val extendedPullCountdownBeforeSwap = state.countdown
         assertEquals(150, extendedPullCountdownBeforeSwap?.durationSeconds)
         state = swapPullingTeam(state)
         assertEquals("Signal in", state.countdown?.label)
         assertEquals(130, state.countdown?.durationSeconds)
-        assertEquals(extendedPullCountdownBeforeSwap!!.targetEpochMillis - 20_000L, state.countdown?.targetEpochMillis)
+        assertEquals(extendedPullCountdownBeforeSwap!!.targetEpoch - 20_000L, state.countdown?.targetEpoch)
 
         // Swap pulling team and verify only pulling team/end changes while team field positions are preserved.
         state = standardLiveGameState(pullingTeam = VC, pullingFromEnd = FieldEnd.FAR)
@@ -2114,8 +2114,8 @@ class TestGameModel {
         )
         state = adjustTimeouts(state, teamOneTimeoutsUsed = 1, teamTwoTimeoutsUsed = 2)
         val beforeManualHalftime = state
-        val manualHalftimeStartMillis = millisAt(state, LocalTime.of(11, 10))
-        state = startHalftimeNow(state, manualHalftimeStartMillis)
+        val manualHalftimeStartTime = timestampAt(state, LocalTime.of(11, 10))
+        state = startHalftimeNow(state, manualHalftimeStartTime)
         assertEquals(LivePhase.HALFTIME, state.phase)
         assertTrue(state.halftimeTaken)
         assertEquals(1, state.teamOne.firstHalfTimeoutsUsed)
@@ -2127,7 +2127,7 @@ class TestGameModel {
         assertEquals(ANIMAL, state.nearAttackingTeam)
         assertEquals(CountdownKind.HALFTIME, state.countdown?.kind)
         assertEquals(360, state.countdown?.durationSeconds)
-        assertEquals(manualHalftimeStartMillis + 360_000L, state.countdown?.targetEpochMillis)
+        assertEquals(manualHalftimeStartTime + 360_000L, state.countdown?.targetEpoch)
         assertEquals("Undo Start Halftime", state.undoEntry?.label)
         assertEquals(beforeManualHalftime, state.undoEntry?.previous)
 
@@ -2138,11 +2138,11 @@ class TestGameModel {
         assertEquals(halftimeCountdownBeforeSwap, state.countdown)
 
         // The UI hides Start Halftime outside between-points state; the model rejects those calls too.
-        assertEquals(state, startHalftimeNow(state, millisAt(state, LocalTime.of(11, 11))))
+        assertEquals(state, startHalftimeNow(state, timestampAt(state, LocalTime.of(11, 11))))
         val livePointState = beginLivePoint(standardLiveGameState())
-        assertEquals(livePointState, startHalftimeNow(livePointState, millisAt(livePointState, LocalTime.of(11, 11))))
+        assertEquals(livePointState, startHalftimeNow(livePointState, timestampAt(livePointState, LocalTime.of(11, 11))))
         val gameOverState = endGameNowAt(state, LocalTime.of(11, 12))
-        assertEquals(gameOverState, startHalftimeNow(gameOverState, millisAt(gameOverState, LocalTime.of(11, 13))))
+        assertEquals(gameOverState, startHalftimeNow(gameOverState, timestampAt(gameOverState, LocalTime.of(11, 13))))
 
         // Manually end the game and verify end time, phase, countdown clearing, and undo entry.
         val beforeManualEnd = standardLiveGameState()
@@ -2254,7 +2254,7 @@ class TestGameModel {
             setup = liveGameToSetupState(beforeSetupUpdate).copy(
                 rules = beforeSetupUpdate.rules.copy(gameTo = 17),
             ),
-            nowMillis = 350_000L,
+            now = 350_000L,
         )
         assertEquals(beforeSetupUpdate, undoLastAction(state))
 
@@ -2263,7 +2263,7 @@ class TestGameModel {
             startTime = LocalTime.of(10, 0),
             rules = GameRules(gameTo = 15, halfCapMinutes = 10, useSoftCap = false, useHardCap = false),
         )
-        state = recordGoalFromCurrentState(state, VC, millisAfterStart(state, 11))
+        state = recordGoalFromCurrentState(state, VC, timestampAfterStart(state, 11))
         val beforeApplyHalfCap = state
         state = applyPendingCapAt(state, LocalTime.of(10, 11))
         assertEquals(beforeApplyHalfCap, undoLastAction(state))
@@ -2272,7 +2272,7 @@ class TestGameModel {
             startTime = LocalTime.of(10, 0),
             rules = GameRules(gameTo = 15, useHalfCap = false, softCapMinutes = 10, useHardCap = false),
         )
-        state = recordGoalFromCurrentState(state, VC, millisAfterStart(state, 11))
+        state = recordGoalFromCurrentState(state, VC, timestampAfterStart(state, 11))
         val beforeApplySoftCap = state
         state = applyPendingCapAt(state, LocalTime.of(10, 11))
         assertEquals(beforeApplySoftCap, undoLastAction(state))
@@ -2281,13 +2281,13 @@ class TestGameModel {
             startTime = LocalTime.of(10, 0),
             rules = GameRules(gameTo = 15, useHalfCap = false, useSoftCap = false, hardCapMinutes = 10),
         )
-        state = recordGoalFromCurrentState(state, VC, millisAfterStart(state, 11))
+        state = recordGoalFromCurrentState(state, VC, timestampAfterStart(state, 11))
         val beforeApplyHardCap = state
         state = applyPendingCapAt(state, LocalTime.of(10, 11))
         assertEquals(beforeApplyHardCap, undoLastAction(state))
 
         val beforeForceCap = standardLiveGameState()
-        state = makeCapNow(beforeForceCap, CapType.SOFT, millisAfterStart(beforeForceCap, 30))
+        state = makeCapNow(beforeForceCap, CapType.SOFT, timestampAfterStart(beforeForceCap, 30))
         assertEquals(beforeForceCap, undoLastAction(state))
 
         val beforeManualHalftime = standardLiveGameState(pullingFromEnd = FieldEnd.NEAR)
@@ -2367,11 +2367,11 @@ class TestGameModel {
             startTime = LocalTime.of(10, 0),
             rules = GameRules(gameTo = 15, halfCapMinutes = 45, softCapMinutes = 90, hardCapMinutes = 100),
         )
-        assertEquals(CapStatus("Half cap", Duration.ofMinutes(30)), computeNextCapStatus(state, millisAfterStart(state, 15)))
-        assertEquals(CapStatus("Soft cap", Duration.ofMinutes(30)), computeNextCapStatus(state.copy(halfCapApplied = true), millisAfterStart(state, 60)))
+        assertEquals(CapStatus("Half cap", Duration.ofMinutes(30)), computeNextCapStatus(state, timestampAfterStart(state, 15)))
+        assertEquals(CapStatus("Soft cap", Duration.ofMinutes(30)), computeNextCapStatus(state.copy(halfCapApplied = true), timestampAfterStart(state, 60)))
         assertEquals(
             CapStatus("Hard cap", Duration.ofMinutes(5)),
-            computeNextCapStatus(state.copy(halfCapApplied = true, softCapApplied = true), millisAfterStart(state, 95)),
+            computeNextCapStatus(state.copy(halfCapApplied = true, softCapApplied = true), timestampAfterStart(state, 95)),
         )
 
         // Verify cap countdowns can wrap across midnight when a late-night game crosses dates.
@@ -2380,17 +2380,17 @@ class TestGameModel {
             startTime = LocalTime.of(23, 30),
             rules = GameRules(gameTo = 15, halfCapMinutes = 45, useSoftCap = false, useHardCap = false),
         )
-        assertEquals(CapStatus("Half cap", Duration.ofMinutes(30)), computeNextCapStatus(state, millisAfterStart(state, 15)))
+        assertEquals(CapStatus("Half cap", Duration.ofMinutes(30)), computeNextCapStatus(state, timestampAfterStart(state, 15)))
 
         // Verify computeNextCapStatus returns null when no cap is still available.
         state = state.copy(halfCapApplied = true, softCapApplied = true, hardCapApplied = true)
-        assertNull(computeNextCapStatus(state, millisAfterStart(state, 15)))
+        assertNull(computeNextCapStatus(state, timestampAfterStart(state, 15)))
 
         state = standardLiveGameState(
             startTime = LocalTime.of(10, 0),
             rules = GameRules(gameTo = 15, useHalfCap = false, useSoftCap = false, useHardCap = false),
         )
-        assertNull(computeNextCapStatus(state, millisAfterStart(state, 15)))
+        assertNull(computeNextCapStatus(state, timestampAfterStart(state, 15)))
 
         // Verify betweenPointsDisplay gives "Signal in" vs "Pull in" and clamps elapsed countdowns to zero.
         assertEquals("Signal in" to Duration.ofSeconds(60), betweenPointsDisplay(FieldEnd.FAR, 1_000L, 1_000L))
@@ -2402,12 +2402,12 @@ class TestGameModel {
         state = standardLiveGameState()
         val originalCountdown = state.countdown!!
         state = addTimeToCountdown(state, 65)
-        assertEquals(originalCountdown.targetEpochMillis + 65_000L, state.countdown?.targetEpochMillis)
+        assertEquals(originalCountdown.targetEpoch + 65_000L, state.countdown?.targetEpoch)
         assertEquals(originalCountdown.durationSeconds, state.countdown?.durationSeconds)
         assertEquals("Adjusted timer by 1:05.", state.lastEvent)
 
         state = addTimeToCountdown(state, -5)
-        assertEquals(originalCountdown.targetEpochMillis + 60_000L, state.countdown?.targetEpochMillis)
+        assertEquals(originalCountdown.targetEpoch + 60_000L, state.countdown?.targetEpoch)
         assertEquals(originalCountdown.durationSeconds, state.countdown?.durationSeconds)
         assertEquals("Adjusted timer by -0:05.", state.lastEvent)
 
@@ -2421,7 +2421,7 @@ class TestGameModel {
             kind = CountdownKind.BETWEEN_POINTS,
             label = "Signal in",
             durationSeconds = 60,
-            targetEpochMillis = 60_000L,
+            targetEpoch = 60_000L,
         )
         val malformedCountdownException = assertThrows(IllegalStateException::class.java) {
             malformedCountdown.swapOD()
@@ -2431,7 +2431,7 @@ class TestGameModel {
         // A countdown kind that does not match the phase is an impossible model state, so fail loudly.
         val mismatchedCountdownState = standardLiveGameState().copy(phase = LivePhase.LIVE_POINT)
         val mismatchException = assertThrows(IllegalStateException::class.java) {
-            advanceGameClock(mismatchedCountdownState, mismatchedCountdownState.countdown!!.targetEpochMillis)
+            advanceGameClock(mismatchedCountdownState, mismatchedCountdownState.countdown!!.targetEpoch)
         }
         assertEquals(
             "Countdown BETWEEN_POINTS is not valid while game phase is LIVE_POINT.",
@@ -2441,15 +2441,15 @@ class TestGameModel {
         // Verify countdown helpers advance automatically at the exact target time, not before.
         state = standardLiveGameState()
         val betweenPointsCountdown = state.countdown!!
-        assertEquals(state, advanceGameClock(state, betweenPointsCountdown.targetEpochMillis - 1L))
-        state = advanceGameClock(state, betweenPointsCountdown.targetEpochMillis)
+        assertEquals(state, advanceGameClock(state, betweenPointsCountdown.targetEpoch - 1L))
+        state = advanceGameClock(state, betweenPointsCountdown.targetEpoch)
         assertEquals(LivePhase.LIVE_POINT, state.phase)
         assertNull(state.countdown)
 
         state = assessTimeout(state, VC, 500_000L).state
         val timeoutCountdown = state.countdown!!
-        assertEquals(state, advanceGameClock(state, timeoutCountdown.targetEpochMillis - 1L))
-        state = advanceGameClock(state, timeoutCountdown.targetEpochMillis)
+        assertEquals(state, advanceGameClock(state, timeoutCountdown.targetEpoch - 1L))
+        state = advanceGameClock(state, timeoutCountdown.targetEpoch)
         assertEquals(LivePhase.LIVE_POINT, state.phase)
         assertNull(state.countdown)
     }

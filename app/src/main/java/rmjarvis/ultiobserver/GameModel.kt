@@ -11,6 +11,8 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
+// Absolute Long timestamps in the game model are Unix epoch milliseconds.
+
 enum class TeamId {
     TEAM_ONE,
     TEAM_TWO,
@@ -110,7 +112,7 @@ data class CountdownState(
     val kind: CountdownKind,
     val label: String,
     val durationSeconds: Int,       // Original countdown length.
-    val targetEpochMillis: Long,    // Clock time when the countdown reaches zero.
+    val targetEpoch: Long,          // Clock time when the countdown reaches zero.
     val betweenPointsTarget: BetweenPointsCountdownTarget? = null,
 ) {
     fun swapOD(): CountdownState {
@@ -124,7 +126,7 @@ data class CountdownState(
         return copy(
             label = newTarget.label,
             durationSeconds = durationSeconds + deltaSeconds,
-            targetEpochMillis = targetEpochMillis + deltaSeconds * 1000L,
+            targetEpoch = targetEpoch + deltaSeconds * 1000L,
             betweenPointsTarget = newTarget,
         )
     }
@@ -153,7 +155,7 @@ data class LiveGameState(
     val startDate: LocalDate,
     val startTime: LocalTime,
     val timeZone: ZoneId,
-    val startEpochMillis: Long,
+    val startEpoch: Long,
     val endTime: LocalTime? = null,
     val rules: GameRules,
     val teamOne: TeamLiveState,
@@ -220,17 +222,17 @@ fun createLiveGameState(setup: GameSetupState): LiveGameState {
     } else {
         setup.pullingTeam.flip()
     }
-    val startEpochMillis = dateTimeMillis(setup.startDate, setup.startTime, setup.timeZone)
+    val startEpoch = epochTimestamp(setup.startDate, setup.startTime, setup.timeZone)
     val initialCountdown = buildBetweenPointsCountdown(
         pullingFromEnd = setup.pullingFromEnd,
-        sequenceStartMillis = startEpochMillis,
+        sequenceStart = startEpoch,
     )
 
     return LiveGameState(
         startDate = setup.startDate,
         startTime = setup.startTime,
         timeZone = setup.timeZone,
-        startEpochMillis = startEpochMillis,
+        startEpoch = startEpoch,
         rules = setup.rules,
         teamOne = TeamLiveState(
             name = setup.teamOne.name.ifBlank { "Team 1" },
@@ -255,11 +257,11 @@ fun createLiveGameState(setup: GameSetupState): LiveGameState {
 // on an event.
 fun startPullSequence(
     state: LiveGameState,
-    nowMillis: Long,
+    now: Long,
 ): LiveGameState {
     val countdown = buildBetweenPointsCountdown(
         pullingFromEnd = state.pullingFromEnd,
-        sequenceStartMillis = nowMillis,
+        sequenceStart = now,
     )
     return state.copy(
         phase = LivePhase.BETWEEN_POINTS,
@@ -274,7 +276,7 @@ fun startPullSequence(
 fun recordGoal(
     state: LiveGameState,
     scoringTeam: TeamId,
-    nowMillis: Long,
+    now: Long,
 ): LiveGameState {
     if (state.phase == LivePhase.GAME_OVER) {
         return state
@@ -313,7 +315,7 @@ fun recordGoal(
             phase = LivePhase.BETWEEN_POINTS,
             countdown = buildBetweenPointsCountdown(
                 pullingFromEnd = nextPullingFromEnd,
-                sequenceStartMillis = nowMillis,
+                sequenceStart = now,
             ),
             pullSequenceOffsidesRecorded = false,
             pullSequenceFalseStartRecorded = false,
@@ -322,7 +324,7 @@ fun recordGoal(
             lastEvent = "${teamName(state, scoringTeam)} scored.",
         ).withUndo(state, "Undo Goal by ${teamName(state, scoringTeam)}")
         return afterGoalState.copy(
-            endTime = localTimeFromMillis(nowMillis, state.timeZone),
+            endTime = localTimeFromEpoch(now, state.timeZone),
             phase = LivePhase.GAME_OVER,
             countdown = null,
             winningScore = gameWinningScore,
@@ -332,13 +334,13 @@ fun recordGoal(
 
     // Caps are checked before halftime so hard cap takes precedence over soft, and soft over half.
     val pendingCapOffer = when {
-        hardCapReached(state, nowMillis) -> CapType.HARD
-        softCapReached(state, nowMillis) -> CapType.SOFT
+        hardCapReached(state, now) -> CapType.HARD
+        softCapReached(state, now) -> CapType.SOFT
         halfCapReached(
             state = state,
             teamOneScore = updatedTeamOne.score,
             teamTwoScore = updatedTeamTwo.score,
-            nowMillis = nowMillis,
+            now = now,
         ) -> CapType.HALF
         else -> null
     }
@@ -355,7 +357,7 @@ fun recordGoal(
             teamOne = updatedTeamOne,
             teamTwo = updatedTeamTwo,
             existingCapOffer = pendingCapOffer,
-            nowMillis = nowMillis,
+            now = now,
             undoPrevious = state,
             undoLabel = "Undo Goal by ${teamName(state, scoringTeam)}",
         )
@@ -364,7 +366,7 @@ fun recordGoal(
     // Regular point -- not half, and not game over.
     val countdown = buildBetweenPointsCountdown(
         pullingFromEnd = nextPullingFromEnd,
-        sequenceStartMillis = nowMillis,
+        sequenceStart = now,
     )
 
     return state.copy(
@@ -391,7 +393,7 @@ fun recordGoal(
 // Manually start half time
 fun startHalftimeNow(
     state: LiveGameState,
-    nowMillis: Long,
+    now: Long,
 ): LiveGameState {
     if (state.halftimeTaken || state.phase != LivePhase.BETWEEN_POINTS) {
         return state
@@ -401,7 +403,7 @@ fun startHalftimeNow(
         teamOne = state.teamOne,
         teamTwo = state.teamTwo,
         existingCapOffer = state.pendingCapOffer,
-        nowMillis = nowMillis,
+        now = now,
         undoPrevious = state,
         undoLabel = "Undo Start Halftime",
     )
@@ -412,7 +414,7 @@ private fun startHalftime(
     teamOne: TeamLiveState,
     teamTwo: TeamLiveState,
     existingCapOffer: CapType?,
-    nowMillis: Long,
+    now: Long,
     undoPrevious: LiveGameState,
     undoLabel: String,
 ): LiveGameState {
@@ -425,21 +427,21 @@ private fun startHalftime(
     }
     val halftimeCountdown = buildHalftimeCountdown(
         halftimeMinutes = state.rules.halftimeMinutes,
-        sequenceStartMillis = nowMillis,
+        sequenceStart = now,
     )
-    val halftimeEndMillis = nowMillis + state.rules.halftimeMinutes * 60_000L
-    val hardCapTimeMillis = state.startEpochMillis + state.rules.hardCapMinutes * 60_000L
-    val softCapTimeMillis = state.startEpochMillis + state.rules.softCapMinutes * 60_000L
+    val halftimeEnd = now + state.rules.halftimeMinutes * 60_000L
+    val hardCapTime = state.startEpoch + state.rules.hardCapMinutes * 60_000L
+    val softCapTime = state.startEpoch + state.rules.softCapMinutes * 60_000L
     // Preserve an already-pending soft/hard cap. Otherwise, catch caps that became
     // due just before a manual halftime start or that are scheduled during halftime.
     val pendingCapOffer = existingCapOffer.takeIf { it == CapType.SOFT || it == CapType.HARD }
         ?: when {
-            hardCapReached(state, nowMillis) -> CapType.HARD
-            hardCapRelevant(state) && hardCapTimeMillis >= nowMillis &&
-                hardCapTimeMillis < halftimeEndMillis -> CapType.HARD
-            softCapReached(state, nowMillis) -> CapType.SOFT
-            softCapRelevant(state) && softCapTimeMillis >= nowMillis &&
-                softCapTimeMillis < halftimeEndMillis -> CapType.SOFT
+            hardCapReached(state, now) -> CapType.HARD
+            hardCapRelevant(state) && hardCapTime >= now &&
+                hardCapTime < halftimeEnd -> CapType.HARD
+            softCapReached(state, now) -> CapType.SOFT
+            softCapRelevant(state) && softCapTime >= now &&
+                softCapTime < halftimeEnd -> CapType.SOFT
             else -> null
         }
 
@@ -468,13 +470,13 @@ private fun startHalftime(
 // Manually end the game now.
 fun endGameNow(
     state: LiveGameState,
-    nowMillis: Long,
+    now: Long,
 ): LiveGameState {
     if (state.phase == LivePhase.GAME_OVER) {
         return state
     }
     return state.copy(
-        endTime = localTimeFromMillis(nowMillis, state.timeZone),
+        endTime = localTimeFromEpoch(now, state.timeZone),
         phase = LivePhase.GAME_OVER,
         countdown = null,
         pendingCapOffer = null,
@@ -497,14 +499,14 @@ fun beginLivePoint(state: LiveGameState): LiveGameState {
 fun recordGoalFromCurrentState(
     state: LiveGameState,
     scoringTeam: TeamId,
-    nowMillis: Long,
+    now: Long,
 ): LiveGameState {
     val livePointState = if (state.phase == LivePhase.BETWEEN_POINTS) {
         beginLivePoint(state)
     } else {
         state
     }
-    return recordGoal(livePointState, scoringTeam, nowMillis)
+    return recordGoal(livePointState, scoringTeam, now)
 }
 
 // Resume a live point after a timeout or similar interruption.
@@ -517,9 +519,9 @@ fun continueLivePoint(state: LiveGameState): LiveGameState {
 }
 
 // Advance automatic clock-driven transitions that do not require an observer button press.
-fun advanceGameClock(state: LiveGameState, nowMillis: Long): LiveGameState {
+fun advanceGameClock(state: LiveGameState, now: Long): LiveGameState {
     val countdown = state.countdown ?: return state
-    if (nowMillis < countdown.targetEpochMillis) {
+    if (now < countdown.targetEpoch) {
         return state
     }
     return when {
@@ -534,10 +536,10 @@ fun advanceGameClock(state: LiveGameState, nowMillis: Long): LiveGameState {
                 phase = LivePhase.BETWEEN_POINTS,
                 countdown = buildBetweenPointsCountdown(
                     pullingFromEnd = state.pullingFromEnd,
-                    sequenceStartMillis = countdown.targetEpochMillis,
+                    sequenceStart = countdown.targetEpoch,
                 ),
             )
-            advanceGameClock(betweenPointsState, nowMillis)
+            advanceGameClock(betweenPointsState, now)
         }
         else -> error("Countdown ${countdown.kind} is not valid while game phase is ${state.phase}.")
     }
@@ -549,7 +551,7 @@ fun addTimeToCountdown(state: LiveGameState, seconds: Int): LiveGameState {
     val sign = if (seconds < 0) "-" else ""
     val absoluteSeconds = abs(seconds)
     return state.copy(
-        countdown = countdown.copy(targetEpochMillis = countdown.targetEpochMillis + seconds * 1000L),
+        countdown = countdown.copy(targetEpoch = countdown.targetEpoch + seconds * 1000L),
         lastEvent = "Adjusted timer by $sign${absoluteSeconds / 60}:${(absoluteSeconds % 60).toString().padStart(2, '0')}.",
     )
 }
@@ -787,15 +789,15 @@ fun swapPullingTeam(state: LiveGameState): LiveGameState {
 fun makeCapNow(
     state: LiveGameState,
     capType: CapType,
-    nowMillis: Long,
+    now: Long,
 ): LiveGameState {
     val offsetMinutes = when (capType) {
         CapType.HALF -> state.rules.halfCapMinutes
         CapType.SOFT -> state.rules.softCapMinutes
         CapType.HARD -> state.rules.hardCapMinutes
     }
-    val offsetMillis = offsetMinutes * 60_000L
-    val adjustedStart = localDateTimeFromMillis(nowMillis - offsetMillis, state.timeZone)
+    val offset = offsetMinutes * 60_000L
+    val adjustedStart = localDateTimeFromEpoch(now - offset, state.timeZone)
     return state.copy(
         rules = when (capType) {
             CapType.HALF -> state.rules.copy(useHalfCap = true)
@@ -804,7 +806,7 @@ fun makeCapNow(
         },
         startDate = adjustedStart.toLocalDate(),
         startTime = adjustedStart.toLocalTime(),
-        startEpochMillis = nowMillis - offsetMillis,
+        startEpoch = now - offset,
         lastEvent = "${capType.name.lowercase().replaceFirstChar { it.uppercase() }} cap set to now.",
     ).withUndo(state, "Undo ${capType.name.lowercase().replaceFirstChar { it.uppercase() }} Cap Now")
 }
@@ -814,7 +816,7 @@ fun makeCapNow(
 // and they agree to apply it.
 fun applyPendingCap(
     state: LiveGameState,
-    nowMillis: Long,
+    now: Long,
 ): LiveGameState {
     val pendingCap = state.pendingCapOffer!!
     val currentHigherScore = max(state.teamOne.score, state.teamTwo.score)
@@ -836,7 +838,7 @@ fun applyPendingCap(
         CapType.HARD -> {
             if (state.teamOne.score != state.teamTwo.score) {
                 state.copy(
-                    endTime = localTimeFromMillis(nowMillis, state.timeZone),
+                    endTime = localTimeFromEpoch(now, state.timeZone),
                     phase = LivePhase.GAME_OVER,
                     countdown = null,
                     hardCapApplied = true,
@@ -871,7 +873,7 @@ fun undoLastAction(state: LiveGameState): LiveGameState {
 fun applySetupToLiveGame(
     existing: LiveGameState,
     setup: GameSetupState,
-    nowMillis: Long,
+    now: Long,
 ): LiveGameState {
     val openingNearAttackingTeam = if (setup.pullingFromEnd == FieldEnd.FAR) {
         setup.pullingTeam
@@ -886,7 +888,7 @@ fun applySetupToLiveGame(
         startDate = setup.startDate,
         startTime = setup.startTime,
         timeZone = setup.timeZone,
-        startEpochMillis = dateTimeMillis(setup.startDate, setup.startTime, setup.timeZone),
+        startEpoch = epochTimestamp(setup.startDate, setup.startTime, setup.timeZone),
         rules = setup.rules,
         teamOne = existing.teamOne.copy(
             name = setup.teamOne.name.ifBlank { "Team 1" },
@@ -910,7 +912,7 @@ fun applySetupToLiveGame(
                 pullingTeam = setup.pullingTeam,
                 pullingFromEnd = setup.pullingFromEnd,
             ),
-            nowMillis,
+            now,
         )
     } else {
         base
@@ -945,22 +947,22 @@ fun liveGameToSetupState(state: LiveGameState): GameSetupState {
 fun assessTimeout(
     state: LiveGameState,
     team: TeamId,
-    nowMillis: Long,
+    now: Long,
 ): TimeoutAssessmentResult {
-    val timeoutState = timeoutEligibleState(state, nowMillis)
+    val timeoutState = timeoutEligibleState(state, now)
         ?: return TimeoutAssessmentResult(state, "Timeouts are not available now.")
     if (timeoutsRemaining(timeoutState, team) <= 0) {
         return TimeoutAssessmentResult(state, "${teamName(state, team)} is out of timeouts.")
     }
-    return TimeoutAssessmentResult(chargeTimeout(timeoutState, team, nowMillis))
+    return TimeoutAssessmentResult(chargeTimeout(timeoutState, team, now))
 }
 
 fun chargeTimeout(
     state: LiveGameState,
     team: TeamId,
-    nowMillis: Long,
+    now: Long,
 ): LiveGameState {
-    val timeoutState = timeoutEligibleState(state, nowMillis) ?: return state
+    val timeoutState = timeoutEligibleState(state, now) ?: return state
     if (timeoutsRemaining(timeoutState, team) <= 0) {
         return state
     }
@@ -983,7 +985,7 @@ fun chargeTimeout(
         return applyBetweenPointsTimeout(updatedState)
             .withUndo(state, "Undo Timeout by ${teamName(timeoutState, team)}")
     }
-    return applyLivePointTimeout(updatedState, nowMillis)
+    return applyLivePointTimeout(updatedState, now)
         .withUndo(state, "Undo Timeout by ${teamName(timeoutState, team)}")
 }
 
@@ -1238,17 +1240,17 @@ data class PlayerCardRemovalCandidate(
 )
 
 // Figure out what the next relevant cap is in a live game.
-fun computeNextCapStatus(state: LiveGameState, nowMillis: Long): CapStatus? {
+fun computeNextCapStatus(state: LiveGameState, now: Long): CapStatus? {
     // `to` in Kotlin makes pairs. So `first to second` makes a pair (first, second).
     // Here we make pairs with second being another pair:
     // (isCapRelevant, (capName, capTime))
     val caps = listOf(
         halfCapRelevant(state, state.teamOne.score, state.teamTwo.score) to
-            ("Half cap" to capEpochMillis(state, CapType.HALF)),
+            ("Half cap" to capEpoch(state, CapType.HALF)),
         softCapRelevant(state) to
-            ("Soft cap" to capEpochMillis(state, CapType.SOFT)),
+            ("Soft cap" to capEpoch(state, CapType.SOFT)),
         hardCapRelevant(state) to
-            ("Hard cap" to capEpochMillis(state, CapType.HARD)),
+            ("Hard cap" to capEpoch(state, CapType.HARD)),
     )
         // Keep only caps whose relevance flag is true.
         .filter { it.first }
@@ -1257,7 +1259,7 @@ fun computeNextCapStatus(state: LiveGameState, nowMillis: Long): CapStatus? {
 
     return caps
         // Convert each capTime into the time left from now until the cap.
-        .map { (label, capTimeMillis) -> label to Duration.ofMillis(capTimeMillis - nowMillis) }
+        .map { (label, capTime) -> label to Duration.ofMillis(capTime - now) }
         // Find the first one whose duration is not negative.
         .firstOrNull { (_, remaining) -> !remaining.isNegative }
         // If any are found, make a CapStatus from this cap's time remaining.
@@ -1296,20 +1298,20 @@ private fun halfCapReached(
     state: LiveGameState,
     teamOneScore: Int,
     teamTwoScore: Int,
-    nowMillis: Long,
+    now: Long,
 ): Boolean {
     return halfCapRelevant(state, teamOneScore, teamTwoScore) &&
-        nowMillis >= capEpochMillis(state, CapType.HALF)
+        now >= capEpoch(state, CapType.HALF)
 }
 
-private fun softCapReached(state: LiveGameState, nowMillis: Long): Boolean {
+private fun softCapReached(state: LiveGameState, now: Long): Boolean {
     return softCapRelevant(state) &&
-        nowMillis >= capEpochMillis(state, CapType.SOFT)
+        now >= capEpoch(state, CapType.SOFT)
 }
 
-private fun hardCapReached(state: LiveGameState, nowMillis: Long): Boolean {
+private fun hardCapReached(state: LiveGameState, now: Long): Boolean {
     return hardCapRelevant(state) &&
-        nowMillis >= capEpochMillis(state, CapType.HARD)
+        now >= capEpoch(state, CapType.HARD)
 }
 
 // Build a countdown after a goal is scored.
@@ -1317,14 +1319,14 @@ private fun hardCapReached(state: LiveGameState, nowMillis: Long): Boolean {
 // or receiving team.  (Observer is assumed on the near end.)
 private fun buildBetweenPointsCountdown(
     pullingFromEnd: FieldEnd,
-    sequenceStartMillis: Long,
+    sequenceStart: Long,
 ): CountdownState {
     val target = betweenPointsCountdownTargetFor(pullingFromEnd)
     return CountdownState(
         kind = CountdownKind.BETWEEN_POINTS,
         label = target.label,
         durationSeconds = target.baseDurationSeconds,
-        targetEpochMillis = sequenceStartMillis + target.baseDurationSeconds * 1000L,
+        targetEpoch = sequenceStart + target.baseDurationSeconds * 1000L,
         betweenPointsTarget = target,
     )
 }
@@ -1340,24 +1342,24 @@ private fun betweenPointsCountdownTargetFor(pullingFromEnd: FieldEnd): BetweenPo
 // Visible between-points countdown text for the currently responsible side of the field.
 fun betweenPointsDisplay(
     pullingFromEnd: FieldEnd,
-    sequenceStartMillis: Long,
-    nowMillis: Long,
+    sequenceStart: Long,
+    now: Long,
 ): Pair<String, Duration> {
-    val countdown = buildBetweenPointsCountdown(pullingFromEnd, sequenceStartMillis)
-    return countdown.label to Duration.ofMillis((countdown.targetEpochMillis - nowMillis).coerceAtLeast(0L))
+    val countdown = buildBetweenPointsCountdown(pullingFromEnd, sequenceStart)
+    return countdown.label to Duration.ofMillis((countdown.targetEpoch - now).coerceAtLeast(0L))
 }
 
 // Build a countdown for half time.
 private fun buildHalftimeCountdown(
     halftimeMinutes: Int,
-    sequenceStartMillis: Long,
+    sequenceStart: Long,
 ): CountdownState {
     val durationSeconds = halftimeMinutes * 60
     return CountdownState(
         kind = CountdownKind.HALFTIME,
         label = "Halftime",
         durationSeconds = durationSeconds,
-        targetEpochMillis = sequenceStartMillis + durationSeconds * 1000L,
+        targetEpoch = sequenceStart + durationSeconds * 1000L,
     )
 }
 
@@ -1380,8 +1382,8 @@ fun timeoutsRemaining(state: LiveGameState, team: TeamId): Int {
 }
 
 // Return the state in which a timeout may be charged, if the rules allow one now.
-private fun timeoutEligibleState(state: LiveGameState, nowMillis: Long): LiveGameState? {
-    val advancedState = advanceGameClock(state, nowMillis)
+private fun timeoutEligibleState(state: LiveGameState, now: Long): LiveGameState? {
+    val advancedState = advanceGameClock(state, now)
     return when (advancedState.phase) {
         LivePhase.BETWEEN_POINTS, LivePhase.LIVE_POINT -> advancedState
         LivePhase.HALFTIME -> null
@@ -1397,7 +1399,7 @@ private fun applyBetweenPointsTimeout(
     return state.copy(
         countdown = countdown.copy(
             durationSeconds = countdown.durationSeconds + 70,
-            targetEpochMillis = countdown.targetEpochMillis + 70_000L,
+            targetEpoch = countdown.targetEpoch + 70_000L,
         )
     )
 }
@@ -1405,14 +1407,14 @@ private fun applyBetweenPointsTimeout(
 // Apply a timeout by the thrower during a live point.
 private fun applyLivePointTimeout(
     state: LiveGameState,
-    nowMillis: Long,
+    now: Long,
 ): LiveGameState {
     return state.copy(
         countdown = CountdownState(
             kind = CountdownKind.TIME_OUT,
             label = "Offense set in",
             durationSeconds = 70,
-            targetEpochMillis = nowMillis + 70_000L,
+            targetEpoch = now + 70_000L,
         ),
     )
 }
@@ -1629,35 +1631,35 @@ private fun halfCapCanChangeHalftime(rules: GameRules, teamOneScore: Int, teamTw
         min(teamOneScore, teamTwoScore) < normalHalftimeScore - 2
 }
 
-private fun capEpochMillis(state: LiveGameState, capType: CapType): Long {
+private fun capEpoch(state: LiveGameState, capType: CapType): Long {
     val offsetMinutes = when (capType) {
         CapType.HALF -> state.rules.halfCapMinutes
         CapType.SOFT -> state.rules.softCapMinutes
         CapType.HARD -> state.rules.hardCapMinutes
     }
-    return state.startEpochMillis + offsetMinutes * 60_000L
+    return state.startEpoch + offsetMinutes * 60_000L
 }
 
 private fun formatCapClockTime(state: LiveGameState, capType: CapType): String {
-    return formatClockTime(localTimeFromMillis(capEpochMillis(state, capType), state.timeZone))
+    return formatClockTime(localTimeFromEpoch(capEpoch(state, capType), state.timeZone))
 }
 
-private fun dateTimeMillis(date: LocalDate, time: LocalTime, timeZone: ZoneId): Long {
+private fun epochTimestamp(date: LocalDate, time: LocalTime, timeZone: ZoneId): Long {
     return LocalDateTime.of(date, time)
         .atZone(timeZone)
         .toInstant()
         .toEpochMilli()
 }
 
-private fun localDateTimeFromMillis(epochMillis: Long, timeZone: ZoneId): LocalDateTime {
+private fun localDateTimeFromEpoch(epoch: Long, timeZone: ZoneId): LocalDateTime {
     return LocalDateTime.ofInstant(
-        java.time.Instant.ofEpochMilli(epochMillis),
+        java.time.Instant.ofEpochMilli(epoch),
         timeZone,
     )
 }
 
-private fun localTimeFromMillis(epochMillis: Long, timeZone: ZoneId): LocalTime {
-    return localDateTimeFromMillis(epochMillis, timeZone).toLocalTime()
+private fun localTimeFromEpoch(epoch: Long, timeZone: ZoneId): LocalTime {
+    return localDateTimeFromEpoch(epoch, timeZone).toLocalTime()
 }
 
 // The default start time for a game is the next even half hour after the reference time.
