@@ -57,7 +57,7 @@ fun LiveGameState.applyPendingCap(
         CapType.HARD -> {
             if (this.teamOne.score != this.teamTwo.score) {
                 this.copy(
-                    endTime = localTimeFromEpoch(now, this.timeZone),
+                    endEpoch = now,
                     phase = LivePhase.GAME_OVER,
                     countdown = null,
                     hardCapApplied = true,

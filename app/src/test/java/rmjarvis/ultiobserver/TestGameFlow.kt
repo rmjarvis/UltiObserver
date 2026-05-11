@@ -268,7 +268,7 @@ class TestGameFlow : GameModelTestFixtures() {
         assertEquals(LivePhase.GAME_OVER, state.phase)
         assertEquals(4, state.teamOne.score)
         assertEquals(5, state.teamTwo.score)
-        assertEquals(LocalTime.of(10, 50), state.endTime)
+        assertEquals(timestampAt(state, LocalTime.of(10, 50)), state.endEpoch)
         assertEquals(5, state.winningScore)
         assertNull(state.countdown)
         assertNull(state.pendingCapOffer)

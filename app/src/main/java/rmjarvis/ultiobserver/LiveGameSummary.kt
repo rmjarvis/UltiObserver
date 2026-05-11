@@ -38,9 +38,9 @@ internal fun GameOverSummary(
                     text = "Start ${formatStartDate(state.startDate)} ${formatClockTime(state.startTime)}",
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                state.endTime?.let { endTime ->
+                state.endEpoch?.let { endEpoch ->
                     Text(
-                        text = "End time ${formatClockTime(endTime)}",
+                        text = "End time ${formatClockTime(localTimeFromEpoch(endEpoch, state.timeZone))}",
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }

@@ -5,7 +5,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import java.time.LocalDateTime
-import java.time.LocalTime
 import java.time.ZoneId
 
 internal enum class AppScreen {
@@ -102,7 +101,7 @@ internal class UltiObserverAppViewModel : ViewModel() {
                     } else {
                         existing.copy(
                             phase = LivePhase.GAME_OVER,
-                            endTime = LocalTime.now(existing.timeZone),
+                            endEpoch = System.currentTimeMillis(),
                         )
                     }
                 ),

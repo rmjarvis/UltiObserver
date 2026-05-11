@@ -168,7 +168,7 @@ class TestGameCaps : GameModelTestFixtures() {
         state = applyPendingCapAt(state, LocalTime.of(10, 31))
         assertTrue(state.hardCapApplied)
         assertEquals(LivePhase.GAME_OVER, state.phase)
-        assertEquals(LocalTime.of(10, 31), state.endTime)
+        assertEquals(timestampAt(state, LocalTime.of(10, 31)), state.endEpoch)
         assertNull(state.countdown)
         assertNull(state.pendingCapOffer)
         assertEquals("Undo Apply Hard Cap", state.undoEntry?.label)
@@ -257,7 +257,7 @@ class TestGameCaps : GameModelTestFixtures() {
         state = applyPendingCapAt(state, LocalTime.of(10, 10))
         assertEquals(LivePhase.GAME_OVER, state.phase)
         assertTrue(state.hardCapApplied)
-        assertEquals(LocalTime.of(10, 10), state.endTime)
+        assertEquals(timestampAt(state, LocalTime.of(10, 10)), state.endEpoch)
         assertNull(state.pendingCapOffer)
 
         // Manual halftime also catches a cap that became due after the last point
@@ -427,7 +427,7 @@ class TestGameCaps : GameModelTestFixtures() {
         assertEquals(LivePhase.GAME_OVER, state.phase)
         assertTrue(state.hardCapApplied)
         assertFalse(state.softCapApplied)
-        assertEquals(LocalTime.of(10, 14), state.endTime)
+        assertEquals(timestampAt(state, LocalTime.of(10, 14)), state.endEpoch)
         assertNull(state.countdown)
         assertNull(state.pendingCapOffer)
 
@@ -462,7 +462,7 @@ class TestGameCaps : GameModelTestFixtures() {
         assertTrue(state.hardCapApplied)
         assertEquals(3, state.winningScore)
         assertEquals(tiedHardCapHalftimeCountdown, state.countdown)
-        assertNull(state.endTime)
+        assertNull(state.endEpoch)
         assertNull(state.pendingCapOffer)
 
         // A cap after halftime expires but before the pull waits until the next point is complete.

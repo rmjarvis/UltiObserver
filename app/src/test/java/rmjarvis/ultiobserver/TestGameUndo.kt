@@ -168,7 +168,7 @@ class TestGameUndo : GameModelTestFixtures() {
         assertEquals(LivePhase.BETWEEN_POINTS, scoreEndedUndo.phase)
         assertEquals(1, scoreEndedUndo.teamOne.score)
         assertEquals(0, scoreEndedUndo.teamTwo.score)
-        assertNull(scoreEndedUndo.endTime)
+        assertNull(scoreEndedUndo.endEpoch)
         assertEquals("Viscous Coupling scored.", scoreEndedUndo.lastEvent)
         assertEquals(LivePhase.LIVE_POINT, scoreEndedUndo.undoLastAction().phase)
 
@@ -181,7 +181,7 @@ class TestGameUndo : GameModelTestFixtures() {
         assertEquals(gameOverByScore.phase, reappliedGameOver.phase)
         assertEquals(gameOverByScore.teamOne.score, reappliedGameOver.teamOne.score)
         assertEquals(gameOverByScore.teamTwo.score, reappliedGameOver.teamTwo.score)
-        assertEquals(LocalTime.of(11, 26), reappliedGameOver.endTime)
+        assertEquals(timestampAt(reappliedGameOver, LocalTime.of(11, 26)), reappliedGameOver.endEpoch)
         assertEquals(gameOverByScore.countdown, reappliedGameOver.countdown)
         assertEquals(gameOverByScore.pendingCapOffer, reappliedGameOver.pendingCapOffer)
         assertEquals(gameOverByScore.lastEvent, reappliedGameOver.lastEvent)

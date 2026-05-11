@@ -147,7 +147,7 @@ class TestGameOtherActions : GameModelTestFixtures() {
         val beforeManualEnd = standardLiveGameState()
         state = endGameNowAt(beforeManualEnd, LocalTime.of(11, 40))
         assertEquals(LivePhase.GAME_OVER, state.phase)
-        assertEquals(LocalTime.of(11, 40), state.endTime)
+        assertEquals(timestampAt(state, LocalTime.of(11, 40)), state.endEpoch)
         assertNull(state.countdown)
         assertNull(state.pendingCapOffer)
         assertEquals("Game over.", state.lastEvent)

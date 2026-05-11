@@ -135,7 +135,7 @@ data class LiveGameState(
     val startTime: LocalTime,
     val timeZone: ZoneId,
     val startEpoch: Long,
-    val endTime: LocalTime? = null,
+    val endEpoch: Long? = null,
     val rules: GameRules,
     val teamOne: TeamLiveState,
     val teamTwo: TeamLiveState,

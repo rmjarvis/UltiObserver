@@ -112,7 +112,7 @@ fun LiveGameState.recordGoal(
             lastEvent = "${teamName(this, scoringTeam)} scored.",
         ).withUndo(this, "Undo Goal by ${teamName(this, scoringTeam)}")
         return afterGoalState.copy(
-            endTime = localTimeFromEpoch(now, this.timeZone),
+            endEpoch = now,
             phase = LivePhase.GAME_OVER,
             countdown = null,
             winningScore = gameWinningScore,
@@ -255,7 +255,7 @@ fun LiveGameState.endGameNow(
         return this
     }
     return this.copy(
-        endTime = localTimeFromEpoch(now, this.timeZone),
+        endEpoch = now,
         phase = LivePhase.GAME_OVER,
         countdown = null,
         pendingCapOffer = null,
