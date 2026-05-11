@@ -30,14 +30,20 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         openNewGameSetup()
 
         // Exercise the standard start-date picker.
-        composeRule.onNodeWithText("Date").performClick()
+        openStartTimeSetupEditor()
+        composeRule.onNodeWithTag("setup-start-date-field").performClick()
         composeRule.onNodeWithText("Set Start Date").assertIsDisplayed()
         composeRule.onNodeWithText("Cancel").performClick()
+        waitForText("Date")
+        closeSetupEditor()
 
         // Exercise the exact start-time dialog without depending on the current clock.
-        composeRule.onNodeWithText("Start time").performClick()
+        openStartTimeSetupEditor()
+        composeRule.onNodeWithTag("setup-start-time-field").performClick()
         composeRule.onNodeWithText("Set Start Time").assertIsDisplayed()
         composeRule.onNodeWithText("Cancel").performClick()
+        waitForText("Date")
+        closeSetupEditor()
 
         // Open each compact rule editor to catch broken setup dialog wiring.
         openSetupDialog("Game to", "Game To")
@@ -53,9 +59,12 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         setTimeoutRules(timeoutsPerHalf = "", hasFloater = false)
 
         // Add a prior-card holder and make sure the form remains usable afterwards.
+        openPriorCardsSetupEditor()
         composeRule.onNodeWithText("Add Card Holder").performScrollTo().performClick()
         composeRule.onNodeWithText("Add player cards").assertIsDisplayed()
         composeRule.onNodeWithText("Add").performClick()
+        waitForText("Add Card Holder")
+        closeSetupEditor()
         waitForText("Start Game")
 
         // The edited setup should still launch a live game.
@@ -73,17 +82,20 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         openNewGameSetup()
 
         // Start time supports both quick nudges and the exact-time dialog cancel/set paths.
+        openStartTimeSetupEditor()
         composeRule.onNodeWithText("-1d").performClick()
         composeRule.onNodeWithText("+1d").performClick()
-        composeRule.onNodeWithText("Date").performClick()
+        composeRule.onNodeWithTag("setup-start-date-field").performClick()
         waitForText("Set Start Date")
         composeRule.onNodeWithText("Set").performClick()
-        waitForText("Start Game")
-        composeRule.onNodeWithText("-5").performClick()
-        composeRule.onNodeWithText("+5").performClick()
-        composeRule.onNodeWithText("Start time").performClick()
+        waitForText("Date")
+        composeRule.onNodeWithText("-5m").performClick()
+        composeRule.onNodeWithText("+5m").performClick()
+        composeRule.onNodeWithTag("setup-start-time-field").performClick()
         waitForText("Set Start Time")
         composeRule.onNodeWithText("Cancel").performClick()
+        waitForText("Date")
+        closeSetupEditor()
         setStartTime(LocalTime.of(11, 45))
 
         // Team fields include name text and the compact color swatch rows.
@@ -93,10 +105,12 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("setup-Team 2-color-${TeamColorChoice.YELLOW.name}").performScrollTo().performClick()
 
         // Starting-pull setup should accept either team and either field end.
-        composeRule.onNodeWithTag("setup-pulling-team-${TeamId.TEAM_TWO.name}").performScrollTo().performClick()
-        composeRule.onNodeWithText("Near end").performScrollTo().performClick()
-        composeRule.onNodeWithText("Far end").performScrollTo().performClick()
-        composeRule.onNodeWithText("Near end").performScrollTo().performClick()
+        openStartingPullSetupEditor()
+        composeRule.onNodeWithTag("setup-pulling-team-${TeamId.TEAM_TWO.name}").performClick()
+        composeRule.onNodeWithText("Near end").performClick()
+        composeRule.onNodeWithText("Far end").performClick()
+        composeRule.onNodeWithText("Near end").performClick()
+        closeSetupEditor()
 
         // Rule editors cover numeric fields, enabled caps, disabled caps, and timeout floaters.
         setIntegerSetupValue("Game to", "Game To", "Points", "7")
@@ -108,13 +122,18 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         setTimeoutRules(timeoutsPerHalf = "3", hasFloater = true)
 
         // Prior-card entry should support cancel, team selection, yellow/red counts, and removal.
+        openPriorCardsSetupEditor()
         composeRule.onNodeWithText("Add Card Holder").performScrollTo().performClick()
         waitForText("Add player cards")
         composeRule.onNodeWithText("Cancel").performClick()
+        waitForText("Add Card Holder")
+        closeSetupEditor()
         waitForText("Start Game")
         addPriorCardHolder(teamName = beagles, jersey = "88", yellows = 2, reds = 1)
+        openPriorCardsSetupEditor()
         composeRule.onNodeWithText("Remove").performScrollTo().performClick()
         waitForText("No prior cards recorded yet.")
+        closeSetupEditor()
         addPriorCardHolder(teamName = beagles, jersey = "88", yellows = 2, reds = 1)
 
         // The edited setup launches a live game carrying the visible team names forward.

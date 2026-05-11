@@ -31,7 +31,7 @@ abstract class MainActivityUiTestFixtures {
     }
 
     protected fun startGameFromSetup() {
-        composeRule.onNodeWithText("Start Game").performScrollTo().performClick()
+        composeRule.onNodeWithText("Start Game").performClick()
         assertLiveScreen()
     }
 
@@ -45,10 +45,13 @@ abstract class MainActivityUiTestFixtures {
         fieldLabel: String,
         value: String,
     ) {
+        openGameRulesSetupEditor()
         composeRule.onNodeWithText(buttonText).performScrollTo().performClick()
         waitForText(dialogTitle)
         composeRule.onNodeWithText(fieldLabel).performTextReplacement(value)
         composeRule.onNodeWithText("Set").performClick()
+        waitForText("Game to")
+        closeSetupEditor()
         waitForText("Start Game")
     }
 
@@ -58,7 +61,8 @@ abstract class MainActivityUiTestFixtures {
         val minuteText = startTime.minute.toString().padStart(2, '0')
         val period = if (startTime.hour >= 12) "PM" else "AM"
 
-        composeRule.onNodeWithText("Start time").performClick()
+        openStartTimeSetupEditor()
+        composeRule.onNodeWithTag("setup-start-time-field").performClick()
         waitForText("Set Start Time")
         composeRule.onNode(
             hasSetTextAction() and hasContentDescription("hour", substring = true, ignoreCase = true),
@@ -70,6 +74,8 @@ abstract class MainActivityUiTestFixtures {
         ).performTextReplacement(minuteText)
         composeRule.onNodeWithText(period).performClick()
         composeRule.onNodeWithText("Set").performClick()
+        waitForText("Date")
+        closeSetupEditor()
         waitForText("Start Game")
     }
 
@@ -87,6 +93,7 @@ abstract class MainActivityUiTestFixtures {
         value: String,
         enableFromNone: Boolean = false,
     ) {
+        openGameRulesSetupEditor()
         composeRule.onNodeWithText(rowLabel).performScrollTo().performClick()
         waitForText(dialogTitle)
         if (enableFromNone) {
@@ -94,18 +101,24 @@ abstract class MainActivityUiTestFixtures {
         }
         composeRule.onNodeWithText("Minutes").performTextReplacement(value)
         composeRule.onNodeWithText("Set").performClick()
+        waitForText("Game to")
+        closeSetupEditor()
         waitForText("Start Game")
     }
 
     protected fun setCapRuleToNone(rowLabel: String, dialogTitle: String) {
+        openGameRulesSetupEditor()
         composeRule.onNodeWithText(rowLabel).performScrollTo().performClick()
         waitForText(dialogTitle)
         composeRule.onNodeWithTag("setup-$dialogTitle-none").performClick()
         composeRule.onNodeWithText("Set").performClick()
+        waitForText("Game to")
+        closeSetupEditor()
         waitForText("Start Game")
     }
 
     protected fun setTimeoutRules(timeoutsPerHalf: String, hasFloater: Boolean) {
+        openGameRulesSetupEditor()
         composeRule.onNodeWithText("Timeouts").performScrollTo().performClick()
         waitForText("Timeout Rules")
         composeRule.onNodeWithText("Timeouts per half").performTextReplacement(timeoutsPerHalf)
@@ -113,10 +126,13 @@ abstract class MainActivityUiTestFixtures {
             composeRule.onNodeWithTag("setup-timeouts-floater").performClick()
         }
         composeRule.onNodeWithText("Set").performClick()
+        waitForText("Game to")
+        closeSetupEditor()
         waitForText("Start Game")
     }
 
     protected fun addPriorCardHolder(teamName: String, jersey: String, yellows: Int, reds: Int) {
+        openPriorCardsSetupEditor()
         composeRule.onNodeWithText("Add Card Holder").performScrollTo().performClick()
         waitForText("Add player cards")
         composeRule.onNodeWithTag("setup-prior-card-team-${TeamId.TEAM_TWO.name}").performClick()
@@ -128,8 +144,9 @@ abstract class MainActivityUiTestFixtures {
             composeRule.onAllNodesWithText("+1")[1].performClick()
         }
         composeRule.onNodeWithText("Add").performClick()
-        waitForText("Start Game")
         composeRule.onNodeWithText("$teamName #$jersey").performScrollTo().assertIsDisplayed()
+        closeSetupEditor()
+        waitForText("Start Game")
     }
 
     protected fun startLiveGameWithDueCap(rowLabel: String, dialogTitle: String) {
@@ -336,10 +353,37 @@ abstract class MainActivityUiTestFixtures {
     }
 
     protected fun openSetupDialog(buttonText: String, dialogTitle: String) {
+        openGameRulesSetupEditor()
         composeRule.onNodeWithText(buttonText).performScrollTo().performClick()
         waitForText(dialogTitle)
         composeRule.onNodeWithText("Cancel").assertIsDisplayed()
         composeRule.onNodeWithText("Cancel").performClick()
+        waitForText("Game to")
+        closeSetupEditor()
+    }
+
+    protected fun openStartTimeSetupEditor() {
+        composeRule.onNodeWithTag("setup-edit-start-time").performScrollTo().performClick()
+        waitForText("Date")
+    }
+
+    protected fun openStartingPullSetupEditor() {
+        composeRule.onNodeWithTag("setup-edit-starting-pull").performScrollTo().performClick()
+        waitForText("Pulling team")
+    }
+
+    protected fun openGameRulesSetupEditor() {
+        composeRule.onNodeWithTag("setup-edit-game-rules").performScrollTo().performClick()
+        waitForText("Game to")
+    }
+
+    protected fun openPriorCardsSetupEditor() {
+        composeRule.onNodeWithTag("setup-edit-prior-cards").performScrollTo().performClick()
+        waitForText("Add Card Holder")
+    }
+
+    protected fun closeSetupEditor() {
+        composeRule.onNodeWithText("Done").performClick()
     }
 
     protected fun openCardsSheet() {

@@ -27,7 +27,6 @@ import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -50,7 +49,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import java.time.Instant
 import java.time.LocalDate
@@ -92,6 +90,13 @@ private enum class RuleEditTarget(
     ),
 }
 
+private enum class SetupEditor {
+    START_TIME,
+    STARTING_PULL,
+    GAME_RULES,
+    PRIOR_CARDS,
+}
+
 // Pregame/edit-game setup form for start time, teams, pull, rules, and prior cards.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -107,9 +112,10 @@ internal fun SetupScreen(
     var showStartTimeDialog by remember { mutableStateOf(false) }
     var editingRule by remember { mutableStateOf<RuleEditTarget?>(null) }
     var showTimeoutRulesDialog by remember { mutableStateOf(false) }
+    var setupEditor by remember { mutableStateOf<SetupEditor?>(null) }
     val scrollState = rememberScrollState()
 
-    // Compose the setup screen as a scrollable form plus modal editors.
+    // Compose the setup screen as compact overview rows plus modal editors.
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -120,7 +126,17 @@ internal fun SetupScreen(
                     }
                 },
             )
-        }
+        },
+        bottomBar = {
+            Button(
+                onClick = onPrimaryAction,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+            ) {
+                Text(primaryButtonLabel)
+            }
+        },
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -128,51 +144,10 @@ internal fun SetupScreen(
                 .padding(innerPadding)
                 .verticalScroll(scrollState)
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            // Start time entry with quick +/- 5 minute nudges.
-            SectionCard(title = "Game Start") {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    DateTimeDisplayField(
-                        label = "Date",
-                        value = formatStartDate(state.startDate),
-                        modifier = Modifier.weight(1f),
-                        onClick = { showStartDateDialog = true },
-                    )
-                    SmallActionButton(label = "-1d") {
-                        onStateChange(state.copy(startDate = state.startDate.minusDays(1)))
-                    }
-                    SmallActionButton(label = "+1d") {
-                        onStateChange(state.copy(startDate = state.startDate.plusDays(1)))
-                    }
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    DateTimeDisplayField(
-                        label = "Start time",
-                        value = formatClockTime(state.startTime),
-                        modifier = Modifier.weight(1f),
-                        onClick = { showStartTimeDialog = true },
-                    )
-                    SmallActionButton(label = "-5") {
-                        onStateChange(state.copy(startTime = state.startTime.minusMinutes(5)))
-                    }
-                    SmallActionButton(label = "+5") {
-                        onStateChange(state.copy(startTime = state.startTime.plusMinutes(5)))
-                    }
-                }
-            }
-
             // Team names and colors.
-            SectionCard(title = "Team Info") {
+            SetupFieldBox(title = "Teams") {
                 TeamEditor(
                     fieldLabel = "Team 1",
                     team = state.teamOne,
@@ -186,94 +161,72 @@ internal fun SetupScreen(
                 )
             }
 
-            // Which team pulls first, and from which end.
-            SectionCard(title = "Starting Pull") {
-                Text("Pulling team", fontWeight = FontWeight.SemiBold)
-                TeamChoiceRow(
-                    firstLabel = state.teamOne.name,
-                    secondLabel = state.teamTwo.name,
-                    selected = state.pullingTeam,
-                    testTagPrefix = "setup-pulling-team",
-                    onSelected = { onStateChange(state.copy(pullingTeam = it)) },
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Text("Pulling from", fontWeight = FontWeight.SemiBold)
-                FieldEndChoiceRow(
-                    selected = state.pullingFromEnd,
-                    onSelected = { onStateChange(state.copy(pullingFromEnd = it)) },
-                )
-            }
-
-            // Game-length, cap, and timeout rules.
-            SectionCard(title = "Game Rules") {
-                EditableValueRow(
-                    label = "Game to",
-                    value = state.rules.gameTo.toString(),
-                    onClick = { editingRule = RuleEditTarget.GAME_TO },
-                )
-                EditableValueRow(
-                    label = "Halftime",
-                    value = "${state.rules.halftimeMinutes} min",
-                    onClick = { editingRule = RuleEditTarget.HALFTIME },
-                )
-                EditableValueRow(
-                    label = "Half cap",
-                    value = if (state.rules.useHalfCap) "+${state.rules.halfCapMinutes}" else "None",
-                    onClick = { editingRule = RuleEditTarget.HALF },
-                )
-                EditableValueRow(
-                    label = "Soft cap",
-                    value = if (state.rules.useSoftCap) "+${state.rules.softCapMinutes}" else "None",
-                    onClick = { editingRule = RuleEditTarget.SOFT },
-                )
-                EditableValueRow(
-                    label = "Hard cap",
-                    value = if (state.rules.useHardCap) "+${state.rules.hardCapMinutes}" else "None",
-                    onClick = { editingRule = RuleEditTarget.HARD },
-                )
-                EditableValueRow(
-                    label = "Timeouts",
-                    value = state.rules.formatTimeoutRules(),
-                    onClick = { showTimeoutRulesDialog = true },
-                )
-            }
-
-            // Players who are already carrying cards from previous games.
-            SectionCard(title = "Cards from Previous Games") {
-                if (state.priorCards.isEmpty()) {
-                    Text("No prior cards recorded yet.")
-                } else {
-                    state.priorCards.forEachIndexed { index, record ->
-                        val teamName = if (record.team == TeamId.TEAM_ONE) {
-                            state.teamOne.name
-                        } else {
-                            state.teamTwo.name
-                        }
-                        PlayerRecordRow(
-                            label = "$teamName #${record.jerseyNumber}",
-                            detail = record.playerCardDetail(),
-                            onRemove = {
-                                onStateChange(
-                                    state.copy(priorCards = state.priorCards.filterIndexed { i, _ -> i != index })
-                                )
-                            },
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                OutlinedButton(onClick = { showPlayerDialog = true }) {
-                    Text("Add Card Holder")
-                }
-            }
-
-            // Start a new game, or return to the live screen when editing setup midgame.
-            Button(
-                onClick = onPrimaryAction,
-                modifier = Modifier.fillMaxWidth(),
+            SetupSummaryRow(
+                title = "Start Time",
+                summary = state.startTimeSummary(),
+                editTag = "setup-edit-start-time",
+                onEdit = { setupEditor = SetupEditor.START_TIME },
+            )
+            SetupSummaryRow(
+                title = "Starting Pull",
+                summary = state.startingPullSummary(),
+                editTag = "setup-edit-starting-pull",
+                onEdit = { setupEditor = SetupEditor.STARTING_PULL },
+            )
+            SetupSummaryRow(
+                title = "Game Rules",
+                editTag = "setup-edit-game-rules",
+                onEdit = { setupEditor = SetupEditor.GAME_RULES },
             ) {
-                Text(primaryButtonLabel)
+                GameRulesSummary(state.rules)
             }
+            SetupSummaryRow(
+                title = "Cards from Previous Games",
+                summary = state.priorCardsSummary(),
+                editTag = "setup-edit-prior-cards",
+                onEdit = { setupEditor = SetupEditor.PRIOR_CARDS },
+            )
         }
+    }
+
+    when (setupEditor) {
+        SetupEditor.START_TIME -> {
+            StartTimeSetupDialog(
+                state = state,
+                onStateChange = onStateChange,
+                onEditDate = { showStartDateDialog = true },
+                onEditTime = { showStartTimeDialog = true },
+                onDismiss = { setupEditor = null },
+            )
+        }
+
+        SetupEditor.STARTING_PULL -> {
+            StartingPullSetupDialog(
+                state = state,
+                onStateChange = onStateChange,
+                onDismiss = { setupEditor = null },
+            )
+        }
+
+        SetupEditor.GAME_RULES -> {
+            GameRulesSetupDialog(
+                rules = state.rules,
+                onEditRule = { editingRule = it },
+                onEditTimeouts = { showTimeoutRulesDialog = true },
+                onDismiss = { setupEditor = null },
+            )
+        }
+
+        SetupEditor.PRIOR_CARDS -> {
+            PriorCardsSetupDialog(
+                state = state,
+                onStateChange = onStateChange,
+                onAddPlayer = { showPlayerDialog = true },
+                onDismiss = { setupEditor = null },
+            )
+        }
+
+        null -> Unit
     }
 
     // Modal for adding a player who already has cards from earlier games.
@@ -424,6 +377,349 @@ internal fun SetupScreen(
             },
         )
     }
+}
+
+// Setup overview box with an understated field label.
+@Composable
+private fun SetupFieldBox(
+    title: String,
+    content: @Composable () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 1.dp,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                    shape = RoundedCornerShape(8.dp),
+                )
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            content()
+        }
+    }
+}
+
+// Compact overview row for setup categories that open detailed editors.
+@Composable
+private fun SetupSummaryRow(
+    title: String,
+    summary: String,
+    editTag: String,
+    onEdit: () -> Unit,
+) {
+    SetupSummaryRow(
+        title = title,
+        editTag = editTag,
+        onEdit = onEdit,
+    ) {
+        Text(
+            text = summary,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
+// Compact overview row for setup categories with custom summary content.
+@Composable
+private fun SetupSummaryRow(
+    title: String,
+    editTag: String,
+    onEdit: () -> Unit,
+    summaryContent: @Composable () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 1.dp,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                    shape = RoundedCornerShape(8.dp),
+                )
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                summaryContent()
+            }
+            OutlinedButton(
+                onClick = onEdit,
+                modifier = Modifier.testTag(editTag),
+            ) {
+                Text("Edit")
+            }
+        }
+    }
+}
+
+// Two-column summary so Half and TO align visually.
+@Composable
+private fun GameRulesSummary(rules: GameRules) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            SetupSummaryValue("Game to ${rules.gameTo}")
+            SetupSummaryValue("Caps: ${rules.capRulesSummary()}")
+        }
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            SetupSummaryValue("Half: ${rules.halftimeMinutes} min")
+            SetupSummaryValue("TO: ${rules.timeoutSummary()}")
+        }
+    }
+}
+
+@Composable
+private fun SetupSummaryValue(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.SemiBold,
+    )
+}
+
+// Start-date and start-time controls shown from the compact setup overview.
+@Composable
+private fun StartTimeSetupDialog(
+    state: GameSetupState,
+    onStateChange: (GameSetupState) -> Unit,
+    onEditDate: () -> Unit,
+    onEditTime: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Start Time") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = "Date",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                DateTimeDisplayField(
+                    value = formatStartDate(state.startDate),
+                    testTag = "setup-start-date-field",
+                    onClick = onEditDate,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    SmallActionButton(label = "-1d") {
+                        onStateChange(state.copy(startDate = state.startDate.minusDays(1)))
+                    }
+                    SmallActionButton(label = "+1d") {
+                        onStateChange(state.copy(startDate = state.startDate.plusDays(1)))
+                    }
+                }
+
+                Text(
+                    text = "Time",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                DateTimeDisplayField(
+                    value = formatClockTime(state.startTime),
+                    testTag = "setup-start-time-field",
+                    onClick = onEditTime,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    SmallActionButton(label = "-5m") {
+                        onStateChange(state.copy(startTime = state.startTime.minusMinutes(5)))
+                    }
+                    SmallActionButton(label = "+5m") {
+                        onStateChange(state.copy(startTime = state.startTime.plusMinutes(5)))
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Done")
+            }
+        },
+    )
+}
+
+// Opening pull controls shown from the compact setup overview.
+@Composable
+private fun StartingPullSetupDialog(
+    state: GameSetupState,
+    onStateChange: (GameSetupState) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Starting Pull") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Pulling team", fontWeight = FontWeight.SemiBold)
+                TeamChoiceRow(
+                    firstLabel = state.teamOne.name,
+                    secondLabel = state.teamTwo.name,
+                    selected = state.pullingTeam,
+                    testTagPrefix = "setup-pulling-team",
+                    onSelected = { onStateChange(state.copy(pullingTeam = it)) },
+                )
+                Text("Pulling from", fontWeight = FontWeight.SemiBold)
+                FieldEndChoiceRow(
+                    selected = state.pullingFromEnd,
+                    onSelected = { onStateChange(state.copy(pullingFromEnd = it)) },
+                )
+                Text(
+                    text = "Near end is the end of the field you are primarily responsible for covering.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Done")
+            }
+        },
+    )
+}
+
+// Rule rows shown from the compact setup overview.
+@Composable
+private fun GameRulesSetupDialog(
+    rules: GameRules,
+    onEditRule: (RuleEditTarget) -> Unit,
+    onEditTimeouts: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Game Rules") },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                EditableValueRow(
+                    label = "Game to",
+                    value = rules.gameTo.toString(),
+                    onClick = { onEditRule(RuleEditTarget.GAME_TO) },
+                )
+                EditableValueRow(
+                    label = "Halftime",
+                    value = "${rules.halftimeMinutes} min",
+                    onClick = { onEditRule(RuleEditTarget.HALFTIME) },
+                )
+                EditableValueRow(
+                    label = "Half cap",
+                    value = if (rules.useHalfCap) "+${rules.halfCapMinutes}" else "None",
+                    onClick = { onEditRule(RuleEditTarget.HALF) },
+                )
+                EditableValueRow(
+                    label = "Soft cap",
+                    value = if (rules.useSoftCap) "+${rules.softCapMinutes}" else "None",
+                    onClick = { onEditRule(RuleEditTarget.SOFT) },
+                )
+                EditableValueRow(
+                    label = "Hard cap",
+                    value = if (rules.useHardCap) "+${rules.hardCapMinutes}" else "None",
+                    onClick = { onEditRule(RuleEditTarget.HARD) },
+                )
+                EditableValueRow(
+                    label = "Timeouts",
+                    value = rules.formatTimeoutRules(),
+                    onClick = onEditTimeouts,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Done")
+            }
+        },
+    )
+}
+
+// Prior-card controls shown from the compact setup overview.
+@Composable
+private fun PriorCardsSetupDialog(
+    state: GameSetupState,
+    onStateChange: (GameSetupState) -> Unit,
+    onAddPlayer: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Cards from Previous Games") },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                if (state.priorCards.isEmpty()) {
+                    Text("No prior cards recorded yet.")
+                } else {
+                    state.priorCards.forEachIndexed { index, record ->
+                        PlayerRecordRow(
+                            label = "${record.team.setupName(state)} #${record.jerseyNumber}",
+                            detail = record.playerCardDetail(),
+                            onRemove = {
+                                onStateChange(
+                                    state.copy(priorCards = state.priorCards.filterIndexed { i, _ -> i != index })
+                                )
+                            },
+                        )
+                    }
+                }
+                OutlinedButton(onClick = onAddPlayer) {
+                    Text("Add Card Holder")
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Done")
+            }
+        },
+    )
 }
 
 // Standard Material date picker for the setup start date.
@@ -766,17 +1062,19 @@ private fun TeamEditor(
 // Clickable setup field that looks like a compact form control.
 @Composable
 private fun DateTimeDisplayField(
-    label: String,
     value: String,
-    modifier: Modifier = Modifier,
+    testTag: String,
     onClick: () -> Unit,
 ) {
     Surface(
-        modifier = modifier.clickable(onClick = onClick),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(testTag)
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surface,
     ) {
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .border(
@@ -784,17 +1082,11 @@ private fun DateTimeDisplayField(
                     color = MaterialTheme.colorScheme.outline,
                     shape = RoundedCornerShape(12.dp),
                 )
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+                .padding(horizontal = 16.dp, vertical = 14.dp),
         ) {
             Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
                 text = value,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
             )
         }
@@ -976,6 +1268,50 @@ private fun PlayerCardRecord.playerCardDetail(): String {
         "Y $priorYellows  R $priorReds"
     } else {
         "Y $priorYellows"
+    }
+}
+
+private fun GameSetupState.startTimeSummary(): String {
+    return "${formatStartDate(startDate)} ${formatClockTime(startTime)}"
+}
+
+private fun GameSetupState.startingPullSummary(): String {
+    return "${pullingTeam.setupName(this)} pulls from ${pullingFromEnd.displayText()}"
+}
+
+private fun TeamId.setupName(state: GameSetupState): String {
+    val name = if (this == TeamId.TEAM_ONE) state.teamOne.name else state.teamTwo.name
+    return name.ifBlank {
+        if (this == TeamId.TEAM_ONE) "Team 1" else "Team 2"
+    }
+}
+
+private fun FieldEnd.displayText(): String {
+    return when (this) {
+        FieldEnd.FAR -> "Far end"
+        FieldEnd.NEAR -> "Near end"
+    }
+}
+
+private fun GameRules.capRulesSummary(): String {
+    return "${capSummary(useHalfCap, halfCapMinutes)}/" +
+        "${capSummary(useSoftCap, softCapMinutes)}/" +
+        capSummary(useHardCap, hardCapMinutes)
+}
+
+private fun capSummary(enabled: Boolean, minutes: Int): String {
+    return if (enabled) minutes.toString() else "-"
+}
+
+private fun GameRules.timeoutSummary(): String {
+    return if (hasFloaterTimeout) "$timeoutsPerHalf+1" else timeoutsPerHalf.toString()
+}
+
+private fun GameSetupState.priorCardsSummary(): String {
+    return when (priorCards.size) {
+        0 -> "No previous cards."
+        1 -> "1 player carries cards."
+        else -> "${priorCards.size} players carry cards."
     }
 }
 

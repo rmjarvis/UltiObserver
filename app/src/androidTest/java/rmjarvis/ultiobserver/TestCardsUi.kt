@@ -75,13 +75,16 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         openNewGameSetup()
 
         // Add a prior-card holder in setup and verify the compact prior-card summary renders.
+        openPriorCardsSetupEditor()
         composeRule.onNodeWithText("Add Card Holder").performScrollTo().performClick()
         waitForText("Add player cards")
         composeRule.onNodeWithTag("setup-prior-card-jersey").performTextReplacement("42")
         composeRule.onAllNodesWithText("+1")[1].performClick()
         composeRule.onNodeWithText("Add").performClick()
-        waitForText("Start Game")
         composeRule.onNodeWithText("Y 1  R 1").performScrollTo().assertIsDisplayed()
+        closeSetupEditor()
+        waitForText("Start Game")
+        composeRule.onNodeWithText("1 player carries cards.").performScrollTo().assertIsDisplayed()
         startGameFromSetup()
 
         // A direct red without an existing yellow should record immediately.
