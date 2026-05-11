@@ -105,7 +105,7 @@ internal fun SettingsScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun PreviousGamesScreen(
-    previousGames: List<GameListEntry>,
+    previousGames: List<ArchivedGameListEntry>,
     onOpenPreviousGame: (Int) -> Unit,
     onDeletePreviousGame: (Int) -> Unit,
     onBackHome: () -> Unit,
@@ -162,7 +162,7 @@ internal fun PreviousGamesScreen(
 // Archived game row with a separate right-side delete action.
 @Composable
 private fun ArchivedGameRow(
-    entry: GameListEntry,
+    entry: ArchivedGameListEntry,
     onClick: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -171,17 +171,18 @@ private fun ArchivedGameRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         GameListRow(
-            entry = entry,
+            startDateTime = entry.startDateTime,
+            scoreLine = entry.scoreLine,
             onClick = onClick,
             modifier = Modifier.weight(1f),
         )
         IconButton(
             onClick = onDelete,
-            modifier = Modifier.testTag("delete-archived-game-${entry.title}"),
+            modifier = Modifier.testTag("delete-archived-game-${entry.scoreLine}"),
         ) {
             Icon(
                 imageVector = Icons.Filled.Delete,
-                contentDescription = "Delete ${entry.title}",
+                contentDescription = "Delete ${entry.scoreLine}",
             )
         }
     }

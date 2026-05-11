@@ -28,18 +28,40 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import java.time.format.DateTimeFormatter
 
 internal data class GameListEntry(
     val title: String,
     val subtitle: String,
 )
 
-// One-line home-screen summary for a live or archived game.
-internal fun LiveGameState.gameListEntry(subtitle: String): GameListEntry {
+internal data class ArchivedGameListEntry(
+    val startDateTime: String,
+    val scoreLine: String,
+)
+
+// Home-screen summary for a live or completed game.
+internal fun LiveGameState.gameListEntry(): GameListEntry {
     return GameListEntry(
-        title = "${teamOne.name} ${teamOne.score} - ${teamTwo.score} ${teamTwo.name}",
-        subtitle = subtitle,
+        title = compactStartDateTime(),
+        subtitle = scoreLine(),
     )
+}
+
+// Previous-games row summary with compact start time above the final score.
+internal fun LiveGameState.archivedGameListEntry(): ArchivedGameListEntry {
+    return ArchivedGameListEntry(
+        startDateTime = compactStartDateTime(),
+        scoreLine = scoreLine(),
+    )
+}
+
+private fun LiveGameState.compactStartDateTime(): String {
+    return "${startDate.format(DateTimeFormatter.ofPattern("M/d/yy"))} ${formatClockTime(startTime)}"
+}
+
+private fun LiveGameState.scoreLine(): String {
+    return "${teamOne.name} ${teamOne.score} - ${teamTwo.score} ${teamTwo.name}"
 }
 
 // Home screen with quick entry points for current, completed, and archived games.
@@ -181,6 +203,22 @@ internal fun GameListRow(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
+    GameListRow(
+        startDateTime = entry.title,
+        scoreLine = entry.subtitle,
+        modifier = modifier,
+        onClick = onClick,
+    )
+}
+
+// Tappable game row with date/time above the score line.
+@Composable
+internal fun GameListRow(
+    startDateTime: String,
+    scoreLine: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
     Surface(
         modifier = modifier
             .fillMaxWidth()
@@ -199,12 +237,12 @@ internal fun GameListRow(
                 .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text(entry.title, fontWeight = FontWeight.Medium)
             Text(
-                text = entry.subtitle,
+                text = startDateTime,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelLarge,
             )
+            Text(scoreLine, fontWeight = FontWeight.Medium)
         }
     }
 }
