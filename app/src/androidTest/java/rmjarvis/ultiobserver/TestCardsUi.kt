@@ -1,0 +1,236 @@
+package rmjarvis.ultiobserver
+
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.swipeRight
+import java.time.LocalTime
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import org.junit.Test
+import org.junit.runner.RunWith
+
+@RunWith(AndroidJUnit4::class)
+class TestCardsUi : MainActivityUiTestFixtures() {
+    // Test the card and technical-foul bottom sheet from the live screen.
+    // This covers the phone-facing dialog sequence, not the full card-accounting matrix.
+    @Test
+    fun cardsAndTechnicalFoulSheetPath() {
+        startLiveGame()
+
+        // The Cards / TF sheet should show both team sections with their pull roles.
+        openCardsSheet()
+        composeRule.onNodeWithText("Team 1 (pulling)").assertIsDisplayed()
+        composeRule.onNodeWithText("Team 2 (receiving)").assertIsDisplayed()
+
+        // Blue cards and technical fouls should close the sheet and show the consequence cue.
+        composeRule.onAllNodesWithText("Blue").onFirst().performClick()
+        waitForText("Team 1 has 1 card.")
+        composeRule.onNodeWithText("OK").performClick()
+
+        openCardsSheet()
+        composeRule.onAllNodesWithText("Tech").onFirst().performClick()
+        waitForText("Team 1 has 1 technical foul.")
+        composeRule.onNodeWithText("OK").performClick()
+
+        openCardsSheet()
+        composeRule.onAllNodesWithText("Blue")[teamCardButtonIndex(TeamId.TEAM_TWO)].performClick()
+        waitForText("Team 2 has 1 card.")
+        composeRule.onNodeWithText("OK").performClick()
+
+        openCardsSheet()
+        composeRule.onAllNodesWithText("Tech")[teamCardButtonIndex(TeamId.TEAM_TWO)].performClick()
+        waitForText("Team 2 has 1 technical foul.")
+        composeRule.onNodeWithText("OK").performClick()
+
+        // Yellow cards should prompt for a player number while still allowing N/A.
+        openCardsSheet()
+        composeRule.onAllNodesWithText("Yellow").onFirst().performClick()
+        composeRule.onNodeWithText("Yellow Card").assertIsDisplayed()
+        composeRule.onNodeWithText("Player number").assertIsDisplayed()
+        composeRule.onNodeWithText("N/A").performClick()
+        waitForText("Team 1 has 2 cards.")
+        composeRule.onNodeWithText("OK").performClick()
+
+        // A red on a player with a yellow should ask direct red vs second yellow.
+        openCardsSheet()
+        composeRule.onAllNodesWithText("Red").onFirst().performClick()
+        composeRule.onNodeWithText("Red Card").assertIsDisplayed()
+        composeRule.onNodeWithText("N/A").performClick()
+        waitForText("Player Already Has Yellow")
+        composeRule.onNodeWithText("Direct Red").performClick()
+        waitForText("Team 1 has 4 cards.", substring = true)
+    }
+
+    // Test the card-specific edge cases that route through setup, Cards / TF, and Adjust Cards / TF.
+    // This is still a UI-flow test; GameModel owns the detailed card-counting invariants.
+    @Test
+    fun cardEdgeCasesAndAdjustments() {
+        openNewGameSetup()
+
+        // Add a prior-card holder in setup and verify the compact prior-card summary renders.
+        composeRule.onNodeWithText("Add Card Holder").performScrollTo().performClick()
+        waitForText("Add player cards")
+        composeRule.onNodeWithTag("setup-prior-card-jersey").performTextReplacement("42")
+        composeRule.onAllNodesWithText("+1")[1].performClick()
+        composeRule.onNodeWithText("Add").performClick()
+        waitForText("Start Game")
+        composeRule.onNodeWithText("Y 1  R 1").performScrollTo().assertIsDisplayed()
+        startGameFromSetup()
+
+        // A direct red without an existing yellow should record immediately.
+        recordRedCard(TeamId.TEAM_ONE, "5", "Team 1 has 2 cards.")
+
+        // A red on a player with yellow should allow the second-yellow path.
+        recordYellowCard(TeamId.TEAM_TWO, "7", "Team 2 has 1 card.")
+        openCardsSheet()
+        composeRule.onAllNodesWithText("Red")[teamCardButtonIndex(TeamId.TEAM_TWO)].performClick()
+        waitForText("Red Card")
+        enterCardPlayerNumber("7")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Player Already Has Yellow")
+        composeRule.onNodeWithText("Second Yellow").performClick()
+        waitForText("Team 2 has 2 cards.", substring = true)
+        composeRule.onNodeWithText("OK").performClick()
+
+        // Reusing N/A for a yellow should support recording a different unknown player.
+        recordYellowCard(TeamId.TEAM_ONE, "", "Team 1 has 3 cards.", substring = true)
+        openCardsSheet()
+        composeRule.onAllNodesWithText("Yellow")[teamCardButtonIndex(TeamId.TEAM_ONE)].performClick()
+        waitForText("Yellow Card")
+        composeRule.onNodeWithText("N/A").performClick()
+        waitForText("Unknown Player Number")
+        composeRule.onNodeWithText("No").performClick()
+        waitForText("Team 1 has 4 cards.", substring = true)
+        composeRule.onNodeWithText("OK").performClick()
+
+        // Apply a manual card correction that adds a player red, removes a player yellow, and changes a team count.
+        openOtherSheet()
+        composeRule.onNodeWithText("Adjust Cards / TF").performClick()
+        waitForText("Adjust Cards / TF")
+        composeRule.onAllNodesWithText("+1")[1].performClick()
+        composeRule.onAllNodesWithText("+1")[2].performClick()
+        composeRule.onAllNodesWithText("-1")[4].performClick()
+        composeRule.onNodeWithText("Set").performClick()
+
+        // The adjustment reconciles player-backed red/yellow totals through explicit prompts.
+        waitForText("Add Red")
+        enterCardPlayerNumber("9")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Remove Yellow")
+        composeRule.onNodeWithText("#7 (Yellow 2)").performClick()
+        waitForText("Undo Cards / TF Adjustment")
+
+        // A fuller correction pass covers adding/removing player-backed cards on both teams.
+        openOtherSheet()
+        composeRule.onNodeWithText("Adjust Cards / TF").performClick()
+        waitForText("Adjust Cards / TF")
+        composeRule.onAllNodesWithText("+1")[0].performClick()
+        composeRule.onAllNodesWithText("-1")[2].performClick()
+        composeRule.onAllNodesWithText("+1")[4].performClick()
+        composeRule.onAllNodesWithText("+1")[5].performClick()
+        composeRule.onAllNodesWithText("+1")[6].performClick()
+        composeRule.onAllNodesWithText("+1")[7].performClick()
+        composeRule.onNodeWithText("Set").performClick()
+        waitForText("Add Yellow")
+        enterCardPlayerNumber("11")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Remove Red")
+        composeRule.onNodeWithText("#5 (Red 1)").performClick()
+        waitForText("Add Yellow")
+        enterCardPlayerNumber("14")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Add Red")
+        enterCardPlayerNumber("12")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Undo Cards / TF Adjustment")
+
+        // A final correction removes the just-added player cards and non-player team counts.
+        openOtherSheet()
+        composeRule.onNodeWithText("Adjust Cards / TF").performClick()
+        waitForText("Adjust Cards / TF")
+        composeRule.onAllNodesWithText("-1")[0].performClick()
+        composeRule.onAllNodesWithText("-1")[4].performClick()
+        composeRule.onAllNodesWithText("-1")[5].performClick()
+        composeRule.onAllNodesWithText("-1")[6].performClick()
+        composeRule.onAllNodesWithText("-1")[7].performClick()
+        composeRule.onNodeWithText("Set").performClick()
+        waitForText("Remove Yellow")
+        composeRule.onNodeWithText("#11 (Yellow 1)").performClick()
+        waitForText("Remove Yellow")
+        composeRule.onNodeWithText("#14 (Yellow 1)").performClick()
+        waitForText("Remove Red")
+        composeRule.onNodeWithText("#12 (Red 1)").performClick()
+        waitForText("Undo Cards / TF Adjustment")
+
+        // Add a clean second-yellow record after the correction matrix so summary text can show that form.
+        recordYellowCard(TeamId.TEAM_TWO, "21", "Team 2 has", substring = true)
+        recordYellowCard(TeamId.TEAM_TWO, "21", "Second yellow acts as a red card.", substring = true)
+
+        // Trying to add another yellow to the maxed-out player should show the invalid assignment warning.
+        openOtherSheet()
+        composeRule.onNodeWithText("Adjust Cards / TF").performClick()
+        waitForText("Adjust Cards / TF")
+        composeRule.onAllNodesWithText("+1")[4].performClick()
+        composeRule.onNodeWithText("Set").performClick()
+        waitForText("Add Yellow")
+        enterCardPlayerNumber("21")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Invalid Card Assignment")
+        composeRule.onNodeWithText("OK").performClick()
+        composeRule.onAllNodesWithText("Cancel")[1].performClick()
+        composeRule.onNodeWithText("Cancel").performClick()
+        waitForText("Update Game Setup")
+
+        // Ending the game renders the summary forms for second-yellow and repeated-yellow records.
+        openOtherSheet()
+        composeRule.onNodeWithText("End Game").performClick()
+        waitForText("Game is over", substring = true)
+        composeRule.onNodeWithText("OK").performClick()
+        waitForText("#21: Two yellow cards")
+        waitForText("N/A: Two yellow cards")
+    }
+
+    // Test card dialogs that require follow-up choices for already-carded players.
+    @Test
+    fun repeatedPlayerCardChoiceDialogs() {
+        startLiveGame()
+
+        // A second yellow on N/A can be recorded as the same unknown player.
+        recordYellowCard(TeamId.TEAM_ONE, "", "Team 1 has 1 card.")
+        openCardsSheet()
+        composeRule.onAllNodesWithText("Yellow")[teamCardButtonIndex(TeamId.TEAM_ONE)].performClick()
+        waitForText("Yellow Card")
+        composeRule.onNodeWithText("N/A").performClick()
+        waitForText("Unknown Player Number")
+        composeRule.onNodeWithText("Yes").performClick()
+        waitForText("Second yellow acts as a red card.", substring = true)
+        composeRule.onNodeWithText("OK").performClick()
+
+        // A player with both a yellow and direct red has no valid additional red-card mode.
+        recordYellowCard(TeamId.TEAM_TWO, "6", "Team 2 has 1 card.")
+        openCardsSheet()
+        composeRule.onAllNodesWithText("Red")[teamCardButtonIndex(TeamId.TEAM_TWO)].performClick()
+        waitForText("Red Card")
+        enterCardPlayerNumber("6")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Player Already Has Yellow")
+        composeRule.onNodeWithText("Direct Red").performClick()
+        waitForText("Team 2 has", substring = true)
+        composeRule.onNodeWithText("OK").performClick()
+
+        openCardsSheet()
+        composeRule.onAllNodesWithText("Red")[teamCardButtonIndex(TeamId.TEAM_TWO)].performClick()
+        waitForText("Red Card")
+        enterCardPlayerNumber("6")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("maximum valid card combination", substring = true)
+        composeRule.onNodeWithText("OK").performClick()
+    }
+}
