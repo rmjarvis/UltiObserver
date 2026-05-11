@@ -37,18 +37,20 @@ class MainActivity : ComponentActivity() {
 // Switch between home, setup, and live screens from the app ViewModel state.
 @Composable
 internal fun UltiObserverApp(viewModel: UltiObserverAppViewModel) {
-    // Back should always return to the home screen rather than walking back through setup/live.
+    // Back returns to setup from the initial live preview, otherwise to home.
     BackHandler(enabled = viewModel.screen != AppScreen.HOME) {
-        viewModel.goHome()
+        viewModel.goBackFromCurrentScreen()
     }
 
     // Route to the current top-level screen.
     when (viewModel.screen) {
         AppScreen.HOME -> {
             HomeScreen(
-                currentGame = viewModel.liveState?.takeIf { it.phase != LivePhase.GAME_OVER }?.let {
-                    it.gameListEntry()
-                },
+                currentGame = viewModel.liveState?.takeIf { it.phase != LivePhase.GAME_OVER }?.gameListEntry()
+                    ?: viewModel.setupState
+                        .takeIf { viewModel.liveState == null && viewModel.hasSetupDraft }
+                        ?.gameListEntry(),
+                currentGameSectionSubtitle = viewModel.currentGameHomeSubtitle,
                 completedGamePendingArchive = viewModel.liveState?.takeIf { it.phase == LivePhase.GAME_OVER }?.let {
                     it.gameListEntry()
                 },
@@ -105,7 +107,7 @@ internal fun UltiObserverApp(viewModel: UltiObserverAppViewModel) {
                         viewModel.editCurrentGame(currentLiveState)
                     },
                     onDeleteGame = viewModel::deleteCurrentGame,
-                    onBackHome = viewModel::goHome,
+                    onBackHome = viewModel::goBackFromCurrentScreen,
                 )
             }
         }

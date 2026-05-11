@@ -33,10 +33,23 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         // Walk the default new-game path into the live screen.
         openNewGameSetup()
         composeRule.onNodeWithText("UltiObserver Setup").assertIsDisplayed()
+        replaceSetupTeamName("Team 1", "Draft Team")
+
+        // Backing out of setup should keep a resumable setup draft on Home.
+        pressAppBack()
+        waitForText("Current Game")
+        composeRule.onNodeWithText("Tap to resume setup.").assertIsDisplayed()
+        composeRule.onNodeWithText("Draft Team 0 - 0 Team 2").performClick()
+        waitForText("Start Game")
+
+        // Before the first pull, Back should return to setup for quick field-layout corrections.
+        startGameFromSetup()
+        assertLiveScreen()
+        pressAppBack()
+        waitForText("Start Game")
 
         // Starting a point should immediately switch the phone into locked live-use mode.
         startGameFromSetup()
-        assertLiveScreen()
         composeRule.onNodeWithText("Start Point").performClick()
         waitForText("Slide right to unlock")
     }
@@ -45,10 +58,13 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
     @Test
     fun homeCurrentGameResumeAndUpdateSetupPath() {
         startLiveGame()
+        composeRule.onNodeWithText("Start Point").performClick()
+        waitForText("Slide right to unlock")
 
-        // Back navigation should expose the current-game resume path.
+        // After the first pull, Back navigation should expose the current-game resume path.
         pressAppBack()
         waitForText("Current Game")
+        composeRule.onNodeWithText("Tap to resume the active game.").assertIsDisplayed()
         composeRule.onNodeWithText("Current Game").assertIsDisplayed()
         composeRule.onNodeWithText("Team 1 0 - 0 Team 2").performClick()
         assertLiveScreen()
@@ -57,7 +73,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         openOtherSheet()
         composeRule.onNodeWithText("Update Game Setup").performClick()
         waitForText("Back to Game Screen")
-        composeRule.onNodeWithText("Back to Game Screen").performScrollTo().performClick()
+        composeRule.onNodeWithText("Back to Game Screen").performClick()
         assertLiveScreen()
     }
 
@@ -69,6 +85,11 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText("Start New Game")
 
         startLiveGame()
+        composeRule.onNodeWithText("Back").performClick()
+        waitForText("Start Game")
+        startGameFromSetup()
+        composeRule.onNodeWithText("Start Point").performClick()
+        waitForText("Slide right to unlock")
         composeRule.onNodeWithText("Back").performClick()
         waitForText("Current Game")
     }

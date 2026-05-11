@@ -21,6 +21,7 @@ internal data class PersistedActiveAppState(
     val setupMode: SetupMode,
     val viewingArchivedGameIndex: Int?,
     val profileName: String = "",
+    val hasSetupDraft: Boolean = false,
 )
 
 internal interface AppStateStore {

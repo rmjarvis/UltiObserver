@@ -48,6 +48,14 @@ internal fun LiveGameState.gameListEntry(): GameListEntry {
     )
 }
 
+// Home-screen summary for a setup draft before the first pull.
+internal fun GameSetupState.gameListEntry(): GameListEntry {
+    return GameListEntry(
+        title = compactStartDateTime(),
+        subtitle = scoreLine(),
+    )
+}
+
 // Previous-games row summary with compact start time above the final score.
 internal fun LiveGameState.archivedGameListEntry(): ArchivedGameListEntry {
     return ArchivedGameListEntry(
@@ -60,14 +68,23 @@ private fun LiveGameState.compactStartDateTime(): String {
     return "${startDate.format(DateTimeFormatter.ofPattern("M/d/yy"))} ${formatClockTime(startTime)}"
 }
 
+private fun GameSetupState.compactStartDateTime(): String {
+    return "${startDate.format(DateTimeFormatter.ofPattern("M/d/yy"))} ${formatClockTime(startTime)}"
+}
+
 private fun LiveGameState.scoreLine(): String {
     return "${teamOne.name} ${teamOne.score} - ${teamTwo.score} ${teamTwo.name}"
+}
+
+private fun GameSetupState.scoreLine(): String {
+    return "${teamOne.name.ifBlank { "Team 1" }} 0 - 0 ${teamTwo.name.ifBlank { "Team 2" }}"
 }
 
 // Home screen with quick entry points for current, completed, and archived games.
 @Composable
 internal fun HomeScreen(
     currentGame: GameListEntry?,
+    currentGameSectionSubtitle: String?,
     completedGamePendingArchive: GameListEntry?,
     onResumeCurrentGame: () -> Unit,
     onOpenCompletedGame: () -> Unit,
@@ -169,7 +186,7 @@ internal fun HomeScreen(
                     if (currentGame != null) {
                         SectionCard(
                             title = "Current Game",
-                            subtitle = "Tap to resume the active game.",
+                            subtitle = currentGameSectionSubtitle,
                         ) {
                             GameListRow(entry = currentGame, onClick = onResumeCurrentGame)
                         }

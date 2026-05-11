@@ -34,6 +34,11 @@ internal class UltiObserverAppViewModel(
     private val appStateStore: AppStateStore = NoOpAppStateStore,
 ) : ViewModel() {
     private val persistedActiveState = appStateStore.loadActiveState()
+    private val restoredSetupDraft = persistedActiveState?.hasSetupDraft ?: (
+        persistedActiveState?.screen == AppScreen.SETUP &&
+            persistedActiveState.liveState == null &&
+            persistedActiveState.setupMode == SetupMode.NEW_GAME
+        )
     private var viewingArchivedGameIndex: Int? = null
 
     var screen by mutableStateOf(AppScreen.HOME)
@@ -50,6 +55,8 @@ internal class UltiObserverAppViewModel(
         private set
     var viewingArchivedGame by mutableStateOf(viewingArchivedGameIndex?.let { archivedGames.getOrNull(it) })
         private set
+    var hasSetupDraft by mutableStateOf(restoredSetupDraft)
+        private set
 
     val currentLiveState: LiveGameState?
         get() = viewingArchivedGame?.state ?: liveState
@@ -57,14 +64,35 @@ internal class UltiObserverAppViewModel(
     val viewingReadOnlySummary: Boolean
         get() = viewingArchivedGame != null
 
+    val currentGameHomeSubtitle: String?
+        get() = when {
+            liveState?.isInitialLivePreview() == true -> "Tap to resume setup."
+            liveState == null && hasSetupDraft -> "Tap to resume setup."
+            liveState?.phase != null && liveState?.phase != LivePhase.GAME_OVER -> "Tap to resume the active game."
+            else -> null
+        }
+
     fun goHome() {
         screen = AppScreen.HOME
         clearViewedArchivedGame()
         persistActiveState()
     }
 
+    fun goBackFromCurrentScreen() {
+        val previewState = liveState
+        if (screen == AppScreen.LIVE && previewState?.isInitialLivePreview() == true && viewingArchivedGame == null) {
+            reopenSetupDraftFromInitialPreview()
+            return
+        }
+
+        goHome()
+    }
+
     fun updateSetup(updatedSetup: GameSetupState) {
         setupState = updatedSetup
+        if (setupMode == SetupMode.NEW_GAME && liveState == null) {
+            hasSetupDraft = true
+        }
         persistActiveState()
     }
 
@@ -100,10 +128,27 @@ internal class UltiObserverAppViewModel(
     }
 
     fun resumeCurrentGame() {
-        val current = liveState ?: return
+        val current = liveState
+        if (current == null) {
+            resumeSetupDraft()
+            return
+        }
+        if (current.isInitialLivePreview()) {
+            reopenSetupDraftFromInitialPreview()
+            return
+        }
         if (current.phase != LivePhase.GAME_OVER) {
             clearViewedArchivedGame()
             screen = AppScreen.LIVE
+            persistActiveState()
+        }
+    }
+
+    fun resumeSetupDraft() {
+        if (liveState == null && hasSetupDraft) {
+            clearViewedArchivedGame()
+            setupMode = SetupMode.NEW_GAME
+            screen = AppScreen.SETUP
             persistActiveState()
         }
     }
@@ -144,6 +189,7 @@ internal class UltiObserverAppViewModel(
         liveState = null
         clearViewedArchivedGame()
         setupMode = SetupMode.NEW_GAME
+        hasSetupDraft = false
         screen = AppScreen.HOME
         persistActiveState()
     }
@@ -177,6 +223,7 @@ internal class UltiObserverAppViewModel(
         liveState = null
         clearViewedArchivedGame()
         setupMode = SetupMode.NEW_GAME
+        hasSetupDraft = true
         screen = AppScreen.SETUP
         persistActiveState()
     }
@@ -188,6 +235,7 @@ internal class UltiObserverAppViewModel(
             applySetupToLiveGame(liveState!!, setupState, now)
         }
         clearViewedArchivedGame()
+        hasSetupDraft = false
         screen = AppScreen.LIVE
         persistActiveState()
     }
@@ -196,8 +244,21 @@ internal class UltiObserverAppViewModel(
         if (viewingArchivedGame != null) {
             return
         }
+        if (currentGame.isInitialLivePreview()) {
+            reopenSetupDraftFromInitialPreview()
+            return
+        }
         setupState = currentGame.toSetupState()
         setupMode = SetupMode.EDIT_CURRENT_GAME
+        screen = AppScreen.SETUP
+        persistActiveState()
+    }
+
+    private fun reopenSetupDraftFromInitialPreview() {
+        liveState = null
+        clearViewedArchivedGame()
+        setupMode = SetupMode.NEW_GAME
+        hasSetupDraft = true
         screen = AppScreen.SETUP
         persistActiveState()
     }
@@ -216,6 +277,7 @@ internal class UltiObserverAppViewModel(
                 setupMode = setupMode,
                 viewingArchivedGameIndex = viewingArchivedGameIndex,
                 profileName = profileName,
+                hasSetupDraft = hasSetupDraft,
             )
         )
     }
@@ -232,6 +294,14 @@ private fun LiveGameState.pruneUndoHistory(): LiveGameState {
         undoEntry = null,
         redoEntry = null,
     )
+}
+
+private fun LiveGameState.isInitialLivePreview(): Boolean {
+    return phase == LivePhase.BETWEEN_POINTS &&
+        teamOne.score == 0 &&
+        teamTwo.score == 0 &&
+        undoEntry == null &&
+        !halftimeTaken
 }
 
 internal fun newGameSetupState(now: LocalDateTime = LocalDateTime.now()): GameSetupState {

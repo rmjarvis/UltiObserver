@@ -31,6 +31,7 @@ class TestUltiObserverAppViewModel {
 
         viewModel.startNewGame()
         assertEquals(AppScreen.SETUP, viewModel.screen)
+        assertTrue(viewModel.hasSetupDraft)
 
         val namedSetup = viewModel.setupState.copy(
             teamOne = TeamSetup("Alpha", TeamColorChoice.BLUE),
@@ -38,6 +39,7 @@ class TestUltiObserverAppViewModel {
         )
         viewModel.updateSetup(namedSetup)
         viewModel.finishSetup()
+        assertFalse(viewModel.hasSetupDraft)
 
         val startedGame = viewModel.liveState
         assertNotNull(startedGame)
@@ -66,10 +68,69 @@ class TestUltiObserverAppViewModel {
         assertEquals(AppScreen.HOME, viewModel.screen)
         viewModel.startNewGame()
         assertEquals(AppScreen.SETUP, viewModel.screen)
+        assertTrue(viewModel.hasSetupDraft)
         assertEquals(1, viewModel.archivedGames.size)
         assertEquals("Closed when new game started", viewModel.archivedGames.single().subtitle)
         assertEquals(LivePhase.GAME_OVER, viewModel.archivedGames.single().state.phase)
         assertNull(viewModel.liveState)
+    }
+
+    @Test
+    fun setupDraftCanResumeFromHomeBeforeFirstPull() {
+        val viewModel = UltiObserverAppViewModel()
+        viewModel.startNewGame()
+        val draftedSetup = viewModel.setupState.copy(
+            teamOne = TeamSetup("", TeamColorChoice.GREEN),
+            teamTwo = TeamSetup("", TeamColorChoice.YELLOW),
+        )
+        viewModel.updateSetup(draftedSetup)
+        viewModel.goHome()
+
+        assertEquals(AppScreen.HOME, viewModel.screen)
+        assertTrue(viewModel.hasSetupDraft)
+        assertNull(viewModel.liveState)
+
+        viewModel.resumeCurrentGame()
+        assertEquals(AppScreen.SETUP, viewModel.screen)
+        assertEquals(draftedSetup, viewModel.setupState)
+
+        viewModel.finishSetup()
+        assertEquals(AppScreen.LIVE, viewModel.screen)
+        assertFalse(viewModel.hasSetupDraft)
+
+        viewModel.goBackFromCurrentScreen()
+        assertEquals(AppScreen.SETUP, viewModel.screen)
+        assertTrue(viewModel.hasSetupDraft)
+        assertNull(viewModel.liveState)
+        assertEquals("", viewModel.setupState.teamOne.name)
+        assertEquals("", viewModel.setupState.teamTwo.name)
+
+        viewModel.finishSetup()
+        val livePreview = viewModel.liveState!!
+        viewModel.goHome()
+        viewModel.resumeCurrentGame()
+        assertEquals(AppScreen.SETUP, viewModel.screen)
+        assertTrue(viewModel.hasSetupDraft)
+        assertNull(viewModel.liveState)
+        assertEquals("", viewModel.setupState.teamOne.name)
+        assertEquals("", viewModel.setupState.teamTwo.name)
+
+        viewModel.finishSetup()
+        viewModel.editCurrentGame(viewModel.liveState!!)
+        assertEquals(AppScreen.SETUP, viewModel.screen)
+        assertTrue(viewModel.hasSetupDraft)
+        assertNull(viewModel.liveState)
+        assertEquals("", viewModel.setupState.teamOne.name)
+        assertEquals("", viewModel.setupState.teamTwo.name)
+
+        viewModel.finishSetup()
+        viewModel.updateLiveGame(viewModel.liveState!!.beginLivePoint())
+        viewModel.goHome()
+        viewModel.resumeCurrentGame()
+        assertEquals(AppScreen.LIVE, viewModel.screen)
+        assertEquals(LivePhase.LIVE_POINT, viewModel.liveState!!.phase)
+        assertFalse(viewModel.hasSetupDraft)
+        assertEquals(livePreview.teamOne.name, viewModel.liveState!!.teamOne.name)
     }
 
     @Test
@@ -305,10 +366,14 @@ class TestUltiObserverAppViewModel {
         val draftRestored = UltiObserverAppViewModel(FileAppStateStore(storeDir))
         assertEquals(AppScreen.HOME, draftRestored.screen)
         assertEquals(draftedSetup, draftRestored.setupState)
+        assertTrue(draftRestored.hasSetupDraft)
         assertNull(draftRestored.liveState)
+        draftRestored.resumeCurrentGame()
+        assertEquals(AppScreen.SETUP, draftRestored.screen)
 
         // Finish setup, record an undo-backed game action, and verify it survives restart.
         draftRestored.finishSetup()
+        assertFalse(draftRestored.hasSetupDraft)
         val livePointState = draftRestored.liveState!!.beginLivePoint()
         val scoredState = livePointState.recordGoal(
             scoringTeam = TeamId.TEAM_ONE,
