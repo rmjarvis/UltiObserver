@@ -2,6 +2,7 @@ package rmjarvis.ultiobserver
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,7 +29,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -39,6 +42,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import java.time.Duration
 import java.time.LocalTime
 
@@ -381,25 +385,63 @@ private fun PullDirectionIndicator(
             .width(72.dp)
             .fillMaxHeight(),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween,
+        verticalArrangement = Arrangement.SpaceEvenly,
     ) {
-        Text(
-            "Pull",
-            color = Color.Black.copy(alpha = if (pullingFromEnd == FieldEnd.FAR) 1f else 0f),
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            text = if (pullingFromEnd == FieldEnd.FAR) "↓" else "↑",
-            color = Color.Black,
-            style = MaterialTheme.typography.displayLarge,
-            fontWeight = FontWeight.Black,
-        )
-        Text(
-            "Pull",
-            color = Color.Black.copy(alpha = if (pullingFromEnd == FieldEnd.NEAR) 1f else 0f),
-            fontWeight = FontWeight.Bold,
-        )
+        if (pullingFromEnd == FieldEnd.FAR) {
+            PullDirectionLabel()
+        }
+        PullDirectionArrow(pointsTowardNearEnd = pullingFromEnd == FieldEnd.FAR)
+        if (pullingFromEnd == FieldEnd.NEAR) {
+            PullDirectionLabel()
+        }
     }
+}
+
+@Composable
+private fun PullDirectionArrow(pointsTowardNearEnd: Boolean) {
+    Canvas(
+        modifier = Modifier
+            .width(28.dp)
+            .height(48.dp),
+    ) {
+        val centerX = size.width / 2f
+        val strokeWidth = 5.dp.toPx()
+        val headHeight = 13.dp.toPx()
+        val headHalfWidth = 10.dp.toPx()
+        val shaftInset = 2.dp.toPx()
+        val headBaseY = if (pointsTowardNearEnd) {
+            size.height - headHeight
+        } else {
+            headHeight
+        }
+        val tipY = if (pointsTowardNearEnd) size.height else 0f
+        val shaftStartY = if (pointsTowardNearEnd) shaftInset else headBaseY
+        val shaftEndY = if (pointsTowardNearEnd) headBaseY else size.height - shaftInset
+
+        drawLine(
+            color = Color.Black,
+            start = Offset(centerX, shaftStartY),
+            end = Offset(centerX, shaftEndY),
+            strokeWidth = strokeWidth,
+        )
+        val head = Path().apply {
+            moveTo(centerX, tipY)
+            lineTo(centerX - headHalfWidth, headBaseY)
+            lineTo(centerX + headHalfWidth, headBaseY)
+            close()
+        }
+        drawPath(head, Color.Black)
+    }
+}
+
+@Composable
+private fun PullDirectionLabel() {
+    Text(
+        "Pull",
+        color = Color.Black,
+        fontWeight = FontWeight.Bold,
+        lineHeight = 20.sp,
+    )
 }
 
 // Active countdown plus the quick -5/+5 correction buttons.
