@@ -327,7 +327,19 @@ private fun EndZonePanel(
                     )
                 }
                 Text(
-                    text = "TO $timeoutsRemaining  Cards $cardPoints  TF ${team.technicalFouls}",
+                    text = "TO $timeoutsRemaining",
+                    color = team.color.content,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = "Cards $cardPoints",
+                    color = team.color.content,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = "TF ${team.technicalFouls}",
                     color = team.color.content,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
