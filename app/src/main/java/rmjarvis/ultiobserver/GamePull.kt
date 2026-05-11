@@ -61,6 +61,7 @@ fun LiveGameState.assessPullInfraction(team: TeamId): PullInfractionAssessmentRe
     return PullInfractionAssessmentResult(
         state = updatedState,
         event = GameEvent.PullInfractionRecorded(
+            state = updatedState,
             team = team,
             infraction = infraction,
             totalPullViolations = updatedState.pullViolationTotal(team),
@@ -87,8 +88,8 @@ fun LiveGameState.recordOffsides(): LiveGameState {
         phase = LivePhase.LIVE_POINT,
         countdown = null,
         pullSequenceOffsidesRecorded = true,
-        lastEvent = "Offsides on ${teamName(this, team)}.",
-    ).withUndo(this, "Undo Offsides on ${teamName(this, team)}")
+        lastEvent = "Offsides on ${this.teamName(team)}.",
+    ).withUndo(this, "Undo Offsides on ${this.teamName(team)}")
 }
 // False start on the receiving team
 fun LiveGameState.recordFalseStart(): LiveGameState {
@@ -108,8 +109,8 @@ fun LiveGameState.recordFalseStart(): LiveGameState {
             this.teamTwo
         },
         pullSequenceFalseStartRecorded = true,
-        lastEvent = "False start on ${teamName(this, team)}.",
-    ).withUndo(this, "Undo False Start on ${teamName(this, team)}")
+        lastEvent = "False start on ${this.teamName(team)}.",
+    ).withUndo(this, "Undo False Start on ${this.teamName(team)}")
 }
 // Count total pull violations for a team.
 private fun LiveGameState.pullViolationTotal(teamId: TeamId): Int {
@@ -117,6 +118,6 @@ private fun LiveGameState.pullViolationTotal(teamId: TeamId): Int {
     return team.offsides + team.falseStarts
 }
 // Get the team name for a given id
-internal fun teamName(state: LiveGameState, team: TeamId): String {
-    return if (team == TeamId.TEAM_ONE) state.teamOne.name else state.teamTwo.name
+internal fun LiveGameState.teamName(team: TeamId): String {
+    return if (team == TeamId.TEAM_ONE) teamOne.name else teamTwo.name
 }

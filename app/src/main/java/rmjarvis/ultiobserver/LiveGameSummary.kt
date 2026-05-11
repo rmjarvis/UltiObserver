@@ -22,7 +22,7 @@ internal fun GameOverSummary(
     onUndo: () -> Unit,
     showUndo: Boolean,
 ) {
-    val orderedTeams = winnerFirstTeams(state)
+    val orderedTeams = state.winnerFirstTeams()
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -99,7 +99,7 @@ private fun GameOverTeamSummary(
                 Text("No yellow or red cards issued.", style = MaterialTheme.typography.bodyMedium)
             } else {
                 issuedCards.forEach { record ->
-                    Text(buildSummaryIssuedCardText(record), style = MaterialTheme.typography.bodyMedium)
+                    Text(record.summaryIssuedCardText(), style = MaterialTheme.typography.bodyMedium)
                 }
             }
             Text("Blue cards ${team.blueCards}", style = MaterialTheme.typography.bodyMedium)
@@ -109,22 +109,22 @@ private fun GameOverTeamSummary(
 }
 
 // More readable game-over summary for one player's issued cards.
-private fun buildSummaryIssuedCardText(record: InGamePlayerCardRecord): String {
+private fun InGamePlayerCardRecord.summaryIssuedCardText(): String {
     val parts = buildList {
-        when (record.yellows) {
+        when (yellows) {
             1 -> add("Yellow card")
             2 -> add("Two yellow cards")
         }
-        when (record.directReds) {
+        when (directReds) {
             1 -> add("Direct red card")
         }
     }
-    return "${displayPlayerNumber(record.jerseyNumber)}: ${parts.joinToString("; ")}"
+    return "${displayPlayerNumber(jerseyNumber)}: ${parts.joinToString("; ")}"
 }
 
 // Put the higher-scoring team first for summary display.
-internal fun winnerFirstTeams(state: LiveGameState): List<TeamLiveState> {
-    return listOf(state.teamOne, state.teamTwo).sortedWith(
+internal fun LiveGameState.winnerFirstTeams(): List<TeamLiveState> {
+    return listOf(teamOne, teamTwo).sortedWith(
         compareByDescending<TeamLiveState> { it.score }.thenBy { it.name }
     )
 }

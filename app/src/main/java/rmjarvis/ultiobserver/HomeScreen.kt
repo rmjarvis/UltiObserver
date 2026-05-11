@@ -33,9 +33,9 @@ internal data class GameListEntry(
 )
 
 // One-line home-screen summary for a live or archived game.
-internal fun gameListEntry(state: LiveGameState, subtitle: String): GameListEntry {
+internal fun LiveGameState.gameListEntry(subtitle: String): GameListEntry {
     return GameListEntry(
-        title = "${state.teamOne.name} ${state.teamOne.score} - ${state.teamTwo.score} ${state.teamTwo.name}",
+        title = "${teamOne.name} ${teamOne.score} - ${teamTwo.score} ${teamTwo.name}",
         subtitle = subtitle,
     )
 }
@@ -186,4 +186,3 @@ private fun HomeGameRow(
         }
     }
 }
-

@@ -85,7 +85,7 @@ internal class UltiObserverAppViewModel : ViewModel() {
             return
         }
         archivedGames = archivedGames + ArchivedGame(
-            pruneUndoHistory(completed),
+            completed.pruneUndoHistory(),
             "",
         )
         liveState = null
@@ -95,16 +95,14 @@ internal class UltiObserverAppViewModel : ViewModel() {
     fun startNewGame() {
         liveState?.let { existing ->
             archivedGames = archivedGames + ArchivedGame(
-                pruneUndoHistory(
-                    if (existing.phase == LivePhase.GAME_OVER) {
-                        existing
-                    } else {
-                        existing.copy(
-                            phase = LivePhase.GAME_OVER,
-                            endEpoch = System.currentTimeMillis(),
-                        )
-                    }
-                ),
+                if (existing.phase == LivePhase.GAME_OVER) {
+                    existing
+                } else {
+                    existing.copy(
+                        phase = LivePhase.GAME_OVER,
+                        endEpoch = System.currentTimeMillis(),
+                    )
+                }.pruneUndoHistory(),
                 if (existing.phase == LivePhase.GAME_OVER) "" else "Closed when new game started",
             )
         }
@@ -129,15 +127,15 @@ internal class UltiObserverAppViewModel : ViewModel() {
         if (viewingArchivedGame != null) {
             return
         }
-        setupState = liveGameToSetupState(currentGame)
+        setupState = currentGame.toSetupState()
         setupMode = SetupMode.EDIT_CURRENT_GAME
         screen = AppScreen.SETUP
     }
 }
 
 // Archived/completed games keep summary data but drop live countdown/undo state.
-private fun pruneUndoHistory(state: LiveGameState): LiveGameState {
-    return state.copy(
+private fun LiveGameState.pruneUndoHistory(): LiveGameState {
+    return copy(
         countdown = null,
         undoEntry = null,
     )

@@ -37,17 +37,17 @@ private fun requirePlayerCardRecordsValid(records: List<InGamePlayerCardRecord>)
     require(records.all { it.yellows >= 0 && it.directReds >= 0 }) {
         "Player card records cannot have negative card counts."
     }
-    require(records.all(::playerCardRecordHasLegalCounts)) {
+    require(records.all { it.hasLegalCounts() }) {
         "Player card records must be no cards, one yellow, second yellow, direct red, or one yellow plus direct red."
     }
     require(records.distinctBy { it.jerseyNumber }.size == records.size) {
         "Player card records cannot contain duplicate player entries."
     }
 }
-private fun playerCardRecordHasLegalCounts(record: InGamePlayerCardRecord): Boolean {
-    return record.yellows <= 2 &&
-        record.directReds <= 1 &&
-        (record.yellows < 2 || record.directReds == 0)
+private fun InGamePlayerCardRecord.hasLegalCounts(): Boolean {
+    return yellows <= 2 &&
+        directReds <= 1 &&
+        (yellows < 2 || directReds == 0)
 }
 // Check whether assigning another card would keep the player's card record legal.
 fun canAddPlayerCardAssignment(
@@ -61,7 +61,7 @@ fun canAddPlayerCardAssignment(
         CardType.YELLOW -> existingRecord.copy(yellows = existingRecord.yellows + 1)
         CardType.RED -> existingRecord.copy(directReds = existingRecord.directReds + 1)
     }
-    return playerCardRecordHasLegalCounts(updatedRecord)
+    return updatedRecord.hasLegalCounts()
 }
 // Turn requested yellow/red totals into the player-card add/remove steps needed to reconcile them.
 fun LiveGameState.buildPlayerCardAdjustmentSteps(
@@ -97,7 +97,7 @@ fun playerCardRemovalCandidates(
     cardType: CardType,
 ): List<PlayerCardRemovalCandidate> {
     return records.mapNotNull { record ->
-        val count = playerCardCount(record, cardType)
+        val count = record.cardCount(cardType)
         if (count > 0) {
             PlayerCardRemovalCandidate(record.jerseyNumber, count)
         } else {
@@ -105,10 +105,10 @@ fun playerCardRemovalCandidates(
         }
     }
 }
-private fun playerCardCount(record: InGamePlayerCardRecord, cardType: CardType): Int {
+private fun InGamePlayerCardRecord.cardCount(cardType: CardType): Int {
     return when (cardType) {
-        CardType.YELLOW -> record.yellows
-        CardType.RED -> record.directReds
+        CardType.YELLOW -> yellows
+        CardType.RED -> directReds
     }
 }
 // Assign a card to a specific player
@@ -159,12 +159,16 @@ fun LiveGameState.assessBlueCard(team: TeamId): CardAssessmentResult {
         } else {
             this.teamTwo
         },
-        lastEvent = "Blue card assessed to ${teamName(this, team)}.",
-    ).withUndo(this, "Undo Blue Card on ${teamName(this, team)}")
+        lastEvent = "Blue card assessed to ${this.teamName(team)}.",
+    ).withUndo(this, "Undo Blue Card on ${this.teamName(team)}")
     val cardTotal = updatedState.teamCardTotal(team)
     return CardAssessmentResult(
         state = updatedState,
-        event = GameEvent.TeamCardsChanged(team = team, teamCardTotal = cardTotal),
+        event = GameEvent.TeamCardsChanged(
+            state = updatedState,
+            team = team,
+            teamCardTotal = cardTotal,
+        ),
     )
 }
 // Assess a technical foul and check whether it triggers misconduct handling.
@@ -180,8 +184,8 @@ fun LiveGameState.assessTechnicalFoul(team: TeamId): CardAssessmentResult {
         } else {
             this.teamTwo
         },
-        lastEvent = "Technical foul on ${teamName(this, team)}.",
-    ).withUndo(this, "Undo Technical Foul on ${teamName(this, team)}")
+        lastEvent = "Technical foul on ${this.teamName(team)}.",
+    ).withUndo(this, "Undo Technical Foul on ${this.teamName(team)}")
     val technicalFouls = if (team == TeamId.TEAM_ONE) {
         updatedState.teamOne.technicalFouls
     } else {
@@ -189,7 +193,11 @@ fun LiveGameState.assessTechnicalFoul(team: TeamId): CardAssessmentResult {
     }
     return CardAssessmentResult(
         state = updatedState,
-        event = GameEvent.TechnicalFoulsChanged(team = team, technicalFoulTotal = technicalFouls),
+        event = GameEvent.TechnicalFoulsChanged(
+            state = updatedState,
+            team = team,
+            technicalFoulTotal = technicalFouls,
+        ),
     )
 }
 // Assess a yellow card and check whether it triggers misconduct handling.
@@ -204,12 +212,16 @@ fun LiveGameState.assessYellowCard(team: TeamId, jerseyNumber: String): CardAsse
 }
 // Figure out the consequence for a standalone yellow.
 fun LiveGameState.assessStandaloneYellowCard(team: TeamId, jerseyNumber: String): CardAssessmentResult {
-    val updatedState = addInGameYellowCard(this, team, jerseyNumber)
-        .withUndo(this, "Undo Yellow Card on ${teamName(this, team)} #$jerseyNumber")
+    val updatedState = this.addInGameYellowCard(team, jerseyNumber)
+        .withUndo(this, "Undo Yellow Card on ${this.teamName(team)} #$jerseyNumber")
     val cardTotal = updatedState.teamCardTotal(team)
     return CardAssessmentResult(
         state = updatedState,
-        event = GameEvent.TeamCardsChanged(team = team, teamCardTotal = cardTotal),
+        event = GameEvent.TeamCardsChanged(
+            state = updatedState,
+            team = team,
+            teamCardTotal = cardTotal,
+        ),
     )
 }
 // Assess a red card and check whether it triggers misconduct handling.
@@ -219,15 +231,16 @@ fun LiveGameState.assessRedCard(
     mode: RedCardMode,
 ): CardAssessmentResult {
     val updatedState = when (mode) {
-        RedCardMode.DIRECT_RED -> addInGameDirectRed(this, team, jerseyNumber)
-            .withUndo(this, "Undo Direct Red on ${teamName(this, team)} #$jerseyNumber")
-        RedCardMode.SECOND_YELLOW -> addInGameSecondYellow(this, team, jerseyNumber)
-            .withUndo(this, "Undo Second Yellow on ${teamName(this, team)} #$jerseyNumber")
+        RedCardMode.DIRECT_RED -> this.addInGameDirectRed(team, jerseyNumber)
+            .withUndo(this, "Undo Direct Red on ${this.teamName(team)} #$jerseyNumber")
+        RedCardMode.SECOND_YELLOW -> this.addInGameSecondYellow(team, jerseyNumber)
+            .withUndo(this, "Undo Second Yellow on ${this.teamName(team)} #$jerseyNumber")
     }
     val cardTotal = updatedState.teamCardTotal(team)
     return CardAssessmentResult(
         state = updatedState,
         event = GameEvent.TeamCardsChanged(
+            state = updatedState,
             team = team,
             teamCardTotal = cardTotal,
             secondYellowJerseyNumber = if (mode == RedCardMode.SECOND_YELLOW) jerseyNumber else null,
@@ -252,42 +265,42 @@ data class PlayerCardRemovalCandidate(
     val cardCount: Int,
 )
 // Add a yellow card to a specific player
-private fun addInGameYellowCard(state: LiveGameState, team: TeamId, jerseyNumber: String): LiveGameState {
-    return state.withPlayerCards(
+private fun LiveGameState.addInGameYellowCard(team: TeamId, jerseyNumber: String): LiveGameState {
+    return withPlayerCards(
         team = team,
         records = updatePlayerCardRecord(
-            records = state.playerCardsFor(team),
+            records = playerCardsFor(team),
             jerseyNumber = jerseyNumber,
         ) { record ->
             record.copy(yellows = record.yellows + 1)
         },
-        lastEvent = "Yellow card for ${teamName(state, team)} #$jerseyNumber.",
+        lastEvent = "Yellow card for ${teamName(team)} #$jerseyNumber.",
     )
 }
 // Add a second yellow card to a specific player
-private fun addInGameSecondYellow(state: LiveGameState, team: TeamId, jerseyNumber: String): LiveGameState {
-    return state.withPlayerCards(
+private fun LiveGameState.addInGameSecondYellow(team: TeamId, jerseyNumber: String): LiveGameState {
+    return withPlayerCards(
         team = team,
         records = updatePlayerCardRecord(
-            records = state.playerCardsFor(team),
+            records = playerCardsFor(team),
             jerseyNumber = jerseyNumber,
         ) { record ->
             record.copy(yellows = record.yellows + 1)
         },
-        lastEvent = "Second yellow for ${teamName(state, team)} #$jerseyNumber.",
+        lastEvent = "Second yellow for ${teamName(team)} #$jerseyNumber.",
     )
 }
 // Add a direct red card to a specific player
-private fun addInGameDirectRed(state: LiveGameState, team: TeamId, jerseyNumber: String): LiveGameState {
-    return state.withPlayerCards(
+private fun LiveGameState.addInGameDirectRed(team: TeamId, jerseyNumber: String): LiveGameState {
+    return withPlayerCards(
         team = team,
         records = updatePlayerCardRecord(
-            records = state.playerCardsFor(team),
+            records = playerCardsFor(team),
             jerseyNumber = jerseyNumber,
         ) { record ->
             record.copy(directReds = record.directReds + 1)
         },
-        lastEvent = "Direct red for ${teamName(state, team)} #$jerseyNumber.",
+        lastEvent = "Direct red for ${teamName(team)} #$jerseyNumber.",
     )
 }
 // Handle the details of updating a player's card status in the list of carded players.

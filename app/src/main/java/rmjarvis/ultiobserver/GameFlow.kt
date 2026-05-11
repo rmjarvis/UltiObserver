@@ -109,8 +109,8 @@ fun LiveGameState.recordGoal(
             pullSequenceFalseStartRecorded = false,
             winningScore = this.winningScore,
             pendingCapOffer = null,
-            lastEvent = "${teamName(this, scoringTeam)} scored.",
-        ).withUndo(this, "Undo Goal by ${teamName(this, scoringTeam)}")
+            lastEvent = "${this.teamName(scoringTeam)} scored.",
+        ).withUndo(this, "Undo Goal by ${this.teamName(scoringTeam)}")
         return afterGoalState.copy(
             endEpoch = now,
             phase = LivePhase.GAME_OVER,
@@ -122,10 +122,9 @@ fun LiveGameState.recordGoal(
 
     // Caps are checked before halftime so hard cap takes precedence over soft, and soft over half.
     val pendingCapOffer = when {
-        hardCapReached(this, now) -> CapType.HARD
-        softCapReached(this, now) -> CapType.SOFT
-        halfCapReached(
-            state = this,
+        this.hardCapReached(now) -> CapType.HARD
+        this.softCapReached(now) -> CapType.SOFT
+        this.halfCapReached(
             teamOneScore = updatedTeamOne.score,
             teamTwoScore = updatedTeamTwo.score,
             now = now,
@@ -147,7 +146,7 @@ fun LiveGameState.recordGoal(
             existingCapOffer = pendingCapOffer,
             now = now,
             undoPrevious = this,
-            undoLabel = "Undo Goal by ${teamName(this, scoringTeam)}",
+            undoLabel = "Undo Goal by ${this.teamName(scoringTeam)}",
         )
     }
 
@@ -174,8 +173,8 @@ fun LiveGameState.recordGoal(
         softCapApplied = this.softCapApplied,
         hardCapApplied = this.hardCapApplied,
         pendingCapOffer = pendingCapOffer,
-        lastEvent = "${teamName(this, scoringTeam)} scored.",
-    ).withUndo(this, "Undo Goal by ${teamName(this, scoringTeam)}")
+        lastEvent = "${this.teamName(scoringTeam)} scored.",
+    ).withUndo(this, "Undo Goal by ${this.teamName(scoringTeam)}")
 }
 // Manually start half time
 fun LiveGameState.startHalftimeNow(
@@ -221,8 +220,8 @@ private fun startHalftime(
     // due just before a manual halftime start or that are scheduled during halftime.
     val pendingCapOffer = existingCapOffer.takeIf { it == CapType.SOFT || it == CapType.HARD }
         ?: when {
-            hardCapRelevant(state) && hardCapTime < halftimeEnd -> CapType.HARD
-            softCapRelevant(state) && softCapTime < halftimeEnd -> CapType.SOFT
+            state.hardCapRelevant() && hardCapTime < halftimeEnd -> CapType.HARD
+            state.softCapRelevant() && softCapTime < halftimeEnd -> CapType.SOFT
             else -> null
         }
 
@@ -300,10 +299,10 @@ fun LiveGameState.advanceGameClock(now: Long): LiveGameState {
     }
     return when {
         this.phase == LivePhase.BETWEEN_POINTS && countdown.kind == CountdownKind.BETWEEN_POINTS -> {
-            automaticLivePointState(this)
+            this.automaticLivePointState()
         }
         this.phase == LivePhase.LIVE_POINT && countdown.kind == CountdownKind.TIME_OUT -> {
-            automaticContinueLivePointState(this)
+            this.automaticContinueLivePointState()
         }
         this.phase == LivePhase.HALFTIME && countdown.kind == CountdownKind.HALFTIME -> {
             val betweenPointsState = this.copy(
@@ -389,28 +388,28 @@ fun applySetupToLiveGame(
 }
 // Go to setup screen from live game
 // This just extracts the information from the live state that the setup screen needs.
-fun liveGameToSetupState(state: LiveGameState): GameSetupState {
+fun LiveGameState.toSetupState(): GameSetupState {
     return GameSetupState(
-        startDate = state.startDate,
-        startTime = state.startTime,
-        timeZone = state.timeZone,
-        rules = state.rules,
+        startDate = startDate,
+        startTime = startTime,
+        timeZone = timeZone,
+        rules = rules,
         teamOne = TeamSetup(
-            name = state.teamOne.name,
-            color = state.teamOne.color,
+            name = teamOne.name,
+            color = teamOne.color,
         ),
         teamTwo = TeamSetup(
-            name = state.teamTwo.name,
-            color = state.teamTwo.color,
+            name = teamTwo.name,
+            color = teamTwo.color,
         ),
-        priorCards = state.priorCards,
-        pullingTeam = state.openingPullingTeam,
-        pullingFromEnd = state.openingPullingFromEnd,
+        priorCards = priorCards,
+        pullingTeam = openingPullingTeam,
+        pullingFromEnd = openingPullingFromEnd,
     )
 }
 // Move to live-point state while preserving the previous user-action undo entry.
-private fun automaticLivePointState(state: LiveGameState): LiveGameState {
-    return state.copy(
+private fun LiveGameState.automaticLivePointState(): LiveGameState {
+    return copy(
         phase = LivePhase.LIVE_POINT,
         countdown = null,
         pullSequenceOffsidesRecorded = false,
@@ -419,8 +418,8 @@ private fun automaticLivePointState(state: LiveGameState): LiveGameState {
     )
 }
 // Clear an in-point timeout countdown while preserving the timeout undo entry.
-private fun automaticContinueLivePointState(state: LiveGameState): LiveGameState {
-    return state.copy(
+private fun LiveGameState.automaticContinueLivePointState(): LiveGameState {
+    return copy(
         phase = LivePhase.LIVE_POINT,
         countdown = null,
         lastEvent = "Point continued.",

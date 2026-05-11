@@ -66,10 +66,10 @@ internal fun LiveGameScreen(
         state.computeNextCapStatus(now)
     }
     val activeCountdown = remember(state, now) {
-        activeCountdownDisplay(state, now)
+        state.activeCountdownDisplay(now)
     }
     val canStartPoint = remember(state, now) {
-        state.phase == LivePhase.BETWEEN_POINTS || halftimeTransitionReady(state, now)
+        state.phase == LivePhase.BETWEEN_POINTS || state.halftimeTransitionReady(now)
     }
 
     // Let countdown expiration move the model forward without requiring an observer tap.
@@ -197,7 +197,7 @@ internal fun LiveGameScreen(
                     onTimeout = { team ->
                         val result = state.assessTimeout(team, now)
                         onStateChange(result.state)
-                        val message = formatGameEventMessage(result.state, result.event)
+                        val message = result.event?.formatMessage()
                         if (message != null) {
                             actionInfoMessage = message
                         }
@@ -205,7 +205,7 @@ internal fun LiveGameScreen(
                     onPullInfraction = { team ->
                         val result = state.assessPullInfraction(team)
                         onStateChange(result.state)
-                        val message = formatGameEventMessage(result.state, result.event)
+                        val message = result.event?.formatMessage()
                         if (message != null) {
                             actionInfoMessage = message
                         }
@@ -269,13 +269,12 @@ internal fun LiveGameScreen(
                 state = state,
                 onAssessment = { result ->
                     onStateChange(result.state)
-                    if (result.needsLivePointMisconductChoice) {
+                    if (result.needsMisconductChoice) {
                         activeGamePrompt = GamePrompt.LivePointMisconduct(
-                            state = result.state,
                             event = result.event,
                         )
                     } else {
-                        actionInfoMessage = formatGameEventMessage(result.state, result.event)
+                        actionInfoMessage = result.event.formatMessage()
                     }
                     showCardsSheet = false
                 },
@@ -358,7 +357,7 @@ internal fun LiveGameScreen(
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            actionInfoMessage = prompt.formatResolutionMessage(
+                            actionInfoMessage = prompt.resolutionMessage(
                                 againstOffense = true,
                             )
                             activeGamePrompt = null
@@ -371,7 +370,7 @@ internal fun LiveGameScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         TextButton(
                             onClick = {
-                                actionInfoMessage = prompt.formatResolutionMessage(
+                                actionInfoMessage = prompt.resolutionMessage(
                                     againstOffense = false,
                                 )
                                 activeGamePrompt = null

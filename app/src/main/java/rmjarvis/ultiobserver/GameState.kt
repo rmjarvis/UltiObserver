@@ -172,8 +172,8 @@ data class UndoEntry(
 data class CardAssessmentResult(
     val state: LiveGameState,
     val event: GameEvent,
-    val needsLivePointMisconductChoice: Boolean =
-        event.needsLivePointMisconductChoice(state),
+    val needsMisconductChoice: Boolean =
+        event.needsMisconductChoice(),
 )
 data class TimeoutAssessmentResult(
     val state: LiveGameState,
@@ -198,24 +198,30 @@ enum class PullInfractionType {
 }
 
 sealed interface GameEvent {
-    data object TimeoutUnavailable : GameEvent
+    data class TimeoutUnavailable(
+        val state: LiveGameState,
+    ) : GameEvent
 
     data class TeamOutOfTimeouts(
+        val state: LiveGameState,
         val team: TeamId,
     ) : GameEvent
 
     data class TeamCardsChanged(
+        val state: LiveGameState,
         val team: TeamId,
         val teamCardTotal: Int,
         val secondYellowJerseyNumber: String? = null,
     ) : GameEvent
 
     data class TechnicalFoulsChanged(
+        val state: LiveGameState,
         val team: TeamId,
         val technicalFoulTotal: Int,
     ) : GameEvent
 
     data class PullInfractionRecorded(
+        val state: LiveGameState,
         val team: TeamId,
         val infraction: PullInfractionType,
         val totalPullViolations: Int,
@@ -229,7 +235,6 @@ sealed interface GamePrompt {
     ) : GamePrompt
 
     data class LivePointMisconduct(
-        val state: LiveGameState,
         val event: GameEvent,
     ) : GamePrompt
 

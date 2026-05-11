@@ -105,23 +105,23 @@ abstract class GameModelTestFixtures {
         return state.applyPendingCap(timestampAt(state, time))
     }
 
-    protected fun eventMessage(result: CardAssessmentResult): String? {
-        return formatGameEventMessage(result.state, result.event)
+    protected fun CardAssessmentResult.message(): String? {
+        return event.formatMessage()
     }
 
-    protected fun eventMessage(result: TimeoutAssessmentResult): String? {
-        return formatGameEventMessage(result.state, result.event)
+    protected fun TimeoutAssessmentResult.message(): String? {
+        return event?.formatMessage()
     }
 
-    protected fun eventMessage(result: PullInfractionAssessmentResult): String? {
-        return formatGameEventMessage(result.state, result.event)
+    protected fun PullInfractionAssessmentResult.message(): String? {
+        return event?.formatMessage()
     }
 
-    protected fun capPrompt(state: LiveGameState): GamePrompt.ApplyCap {
-        return GamePrompt.ApplyCap(state, state.pendingCapOffer!!)
+    protected fun LiveGameState.capPrompt(): GamePrompt.ApplyCap {
+        return GamePrompt.ApplyCap(this, pendingCapOffer!!)
     }
 
-    protected fun misconductPrompt(result: CardAssessmentResult): GamePrompt.LivePointMisconduct {
-        return GamePrompt.LivePointMisconduct(result.state, result.event)
+    protected fun CardAssessmentResult.misconductPrompt(): GamePrompt.LivePointMisconduct {
+        return GamePrompt.LivePointMisconduct(event)
     }
 }

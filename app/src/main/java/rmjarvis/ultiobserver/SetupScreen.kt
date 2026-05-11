@@ -225,7 +225,7 @@ internal fun SetupScreen(
                 )
                 EditableValueRow(
                     label = "Timeouts",
-                    value = formatTimeoutRules(state.rules),
+                    value = state.rules.formatTimeoutRules(),
                     onClick = { showTimeoutRulesDialog = true },
                 )
             }
@@ -243,7 +243,7 @@ internal fun SetupScreen(
                         }
                         PlayerRecordRow(
                             label = "$teamName #${record.jerseyNumber}",
-                            detail = buildPlayerCardDetail(record),
+                            detail = record.playerCardDetail(),
                             onRemove = {
                                 onStateChange(
                                     state.copy(priorCards = state.priorCards.filterIndexed { i, _ -> i != index })
@@ -963,11 +963,11 @@ private fun PlayerRecordRow(
 }
 
 // Compact setup summary for prior yellows/reds.
-private fun buildPlayerCardDetail(record: PlayerCardRecord): String {
-    return if (record.priorReds > 0) {
-        "Y ${record.priorYellows}  R ${record.priorReds}"
+private fun PlayerCardRecord.playerCardDetail(): String {
+    return if (priorReds > 0) {
+        "Y $priorYellows  R $priorReds"
     } else {
-        "Y ${record.priorYellows}"
+        "Y $priorYellows"
     }
 }
 
@@ -984,10 +984,10 @@ private fun pickerTimestampToDate(timestamp: Long): LocalDate {
 }
 
 // Display timeout rules in the compact setup format.
-private fun formatTimeoutRules(rules: GameRules): String {
+private fun GameRules.formatTimeoutRules(): String {
     return buildString {
-        append("${rules.timeoutsPerHalf}/half")
-        if (rules.hasFloaterTimeout) {
+        append("$timeoutsPerHalf/half")
+        if (hasFloaterTimeout) {
             append(" + floater")
         }
     }

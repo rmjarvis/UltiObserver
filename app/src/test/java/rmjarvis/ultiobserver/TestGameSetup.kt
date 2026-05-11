@@ -45,7 +45,7 @@ class TestGameSetup : GameModelTestFixtures() {
             priorCards = priorCards,
         )
         var state = createLiveGameState(setup)
-        assertEquals(setup, liveGameToSetupState(state))
+        assertEquals(setup, state.toSetupState())
         assertEquals(VC, state.openingPullingTeam)
         assertEquals(FieldEnd.FAR, state.openingPullingFromEnd)
         assertEquals(VC, state.pullingTeam)

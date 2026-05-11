@@ -52,7 +52,7 @@ internal fun CardsSheet(
     ) {
         Text("Cards / Technical Fouls", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         TeamActionSection(
-            label = "${state.teamOne.name}${cardsRoleSuffix(state, TeamId.TEAM_ONE)}",
+            label = "${state.teamOne.name}${state.cardsRoleSuffix(TeamId.TEAM_ONE)}",
             issuedCards = state.playerCards(TeamId.TEAM_ONE),
             onYellow = { pendingYellowTeam = TeamId.TEAM_ONE },
             onRed = { pendingRedTeam = TeamId.TEAM_ONE },
@@ -60,7 +60,7 @@ internal fun CardsSheet(
             onTech = { onAssessment(state.assessTechnicalFoul(TeamId.TEAM_ONE)) },
         )
         TeamActionSection(
-            label = "${state.teamTwo.name}${cardsRoleSuffix(state, TeamId.TEAM_TWO)}",
+            label = "${state.teamTwo.name}${state.cardsRoleSuffix(TeamId.TEAM_TWO)}",
             issuedCards = state.playerCards(TeamId.TEAM_TWO),
             onYellow = { pendingYellowTeam = TeamId.TEAM_TWO },
             onRed = { pendingRedTeam = TeamId.TEAM_TWO },
@@ -198,7 +198,7 @@ private fun TeamActionSection(
             Text("This game", fontWeight = FontWeight.Medium, style = MaterialTheme.typography.labelLarge)
             issuedCards.forEach { record ->
                 Text(
-                    text = buildIssuedCardSummary(record),
+                    text = record.issuedCardSummary(),
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
@@ -333,22 +333,22 @@ private fun UnknownYellowDialog(
 }
 
 // Compact live-game summary for one player's current-game cards.
-private fun buildIssuedCardSummary(record: InGamePlayerCardRecord): String {
+private fun InGamePlayerCardRecord.issuedCardSummary(): String {
     val parts = buildList {
-        if (record.yellows > 0) {
-            add("Y ${record.yellows}")
+        if (yellows > 0) {
+            add("Y $yellows")
         }
-        if (record.directReds > 0) {
-            add("DR ${record.directReds}")
+        if (directReds > 0) {
+            add("DR $directReds")
         }
     }
-    return "${displayPlayerNumber(record.jerseyNumber)}: ${parts.joinToString("  ")}"
+    return "${displayPlayerNumber(jerseyNumber)}: ${parts.joinToString("  ")}"
 }
 
 // Between points, tag each team as pulling or receiving in the Cards / TF sheet.
-private fun cardsRoleSuffix(state: LiveGameState, team: TeamId): String {
-    return if (state.phase == LivePhase.BETWEEN_POINTS || state.phase == LivePhase.HALFTIME) {
-        if (team == state.pullingTeam) " (pulling)" else " (receiving)"
+private fun LiveGameState.cardsRoleSuffix(team: TeamId): String {
+    return if (phase == LivePhase.BETWEEN_POINTS || phase == LivePhase.HALFTIME) {
+        if (team == pullingTeam) " (pulling)" else " (receiving)"
     } else {
         ""
     }

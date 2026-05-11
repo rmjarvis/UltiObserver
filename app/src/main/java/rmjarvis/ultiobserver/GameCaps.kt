@@ -94,12 +94,12 @@ fun LiveGameState.computeNextCapStatus(now: Long): CapStatus? {
     // Here we make pairs with second being another pair:
     // (isCapRelevant, (capName, capTime))
     val caps = listOf(
-        halfCapRelevant(this, this.teamOne.score, this.teamTwo.score) to
-            ("Half cap" to capEpoch(this, CapType.HALF)),
-        softCapRelevant(this) to
-            ("Soft cap" to capEpoch(this, CapType.SOFT)),
-        hardCapRelevant(this) to
-            ("Hard cap" to capEpoch(this, CapType.HARD)),
+        this.halfCapRelevant(this.teamOne.score, this.teamTwo.score) to
+            ("Half cap" to this.capEpoch(CapType.HALF)),
+        this.softCapRelevant() to
+            ("Soft cap" to this.capEpoch(CapType.SOFT)),
+        this.hardCapRelevant() to
+            ("Hard cap" to this.capEpoch(CapType.HARD)),
     )
         // Keep only caps whose relevance flag is true.
         .filter { it.first }
@@ -118,34 +118,33 @@ fun LiveGameState.computeNextCapStatus(now: Long): CapStatus? {
 fun formatClockTime(time: LocalTime): String {
     return time.format(DateTimeFormatter.ofPattern("h:mm a"))
 }
-internal fun halfCapRelevant(state: LiveGameState, teamOneScore: Int, teamTwoScore: Int): Boolean {
-    return state.rules.useHalfCap &&
-        !state.halftimeTaken &&
-        !state.halfCapApplied &&
-        halfCapCanChangeHalftime(state.rules, teamOneScore, teamTwoScore)
+internal fun LiveGameState.halfCapRelevant(teamOneScore: Int, teamTwoScore: Int): Boolean {
+    return rules.useHalfCap &&
+        !halftimeTaken &&
+        !halfCapApplied &&
+        halfCapCanChangeHalftime(rules, teamOneScore, teamTwoScore)
 }
-internal fun softCapRelevant(state: LiveGameState): Boolean {
-    return state.rules.useSoftCap && !state.softCapApplied
+internal fun LiveGameState.softCapRelevant(): Boolean {
+    return rules.useSoftCap && !softCapApplied
 }
-internal fun hardCapRelevant(state: LiveGameState): Boolean {
-    return state.rules.useHardCap && !state.hardCapApplied
+internal fun LiveGameState.hardCapRelevant(): Boolean {
+    return rules.useHardCap && !hardCapApplied
 }
-internal fun halfCapReached(
-    state: LiveGameState,
+internal fun LiveGameState.halfCapReached(
     teamOneScore: Int,
     teamTwoScore: Int,
     now: Long,
 ): Boolean {
-    return halfCapRelevant(state, teamOneScore, teamTwoScore) &&
-        now >= capEpoch(state, CapType.HALF)
+    return halfCapRelevant(teamOneScore, teamTwoScore) &&
+        now >= capEpoch(CapType.HALF)
 }
-internal fun softCapReached(state: LiveGameState, now: Long): Boolean {
-    return softCapRelevant(state) &&
-        now >= capEpoch(state, CapType.SOFT)
+internal fun LiveGameState.softCapReached(now: Long): Boolean {
+    return softCapRelevant() &&
+        now >= capEpoch(CapType.SOFT)
 }
-internal fun hardCapReached(state: LiveGameState, now: Long): Boolean {
-    return hardCapRelevant(state) &&
-        now >= capEpoch(state, CapType.HARD)
+internal fun LiveGameState.hardCapReached(now: Long): Boolean {
+    return hardCapRelevant() &&
+        now >= capEpoch(CapType.HARD)
 }
 // Calculate the halftime score as the next count over half the total.  (e.g. 15 -> 8)
 internal fun halftimeScore(rules: GameRules): Int {
@@ -157,11 +156,11 @@ private fun halfCapCanChangeHalftime(rules: GameRules, teamOneScore: Int, teamTw
     return max(teamOneScore, teamTwoScore) < normalHalftimeScore - 1 &&
         min(teamOneScore, teamTwoScore) < normalHalftimeScore - 2
 }
-internal fun capEpoch(state: LiveGameState, capType: CapType): Long {
+internal fun LiveGameState.capEpoch(capType: CapType): Long {
     val offsetMinutes = when (capType) {
-        CapType.HALF -> state.rules.halfCapMinutes
-        CapType.SOFT -> state.rules.softCapMinutes
-        CapType.HARD -> state.rules.hardCapMinutes
+        CapType.HALF -> rules.halfCapMinutes
+        CapType.SOFT -> rules.softCapMinutes
+        CapType.HARD -> rules.hardCapMinutes
     }
-    return state.startEpoch + offsetMinutes * 60_000L
+    return startEpoch + offsetMinutes * 60_000L
 }

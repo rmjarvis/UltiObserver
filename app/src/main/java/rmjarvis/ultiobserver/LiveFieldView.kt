@@ -164,9 +164,9 @@ internal fun FieldSketchCard(
     val topSlot = if (state.pullingFromEnd == FieldEnd.FAR) {
         state.pullingTeam
     } else {
-        oppositeTeam(state.pullingTeam)
+        state.pullingTeam.flip()
     }
-    val bottomSlot = oppositeTeam(topSlot)
+    val bottomSlot = topSlot.flip()
     val topTeam = state.teamFor(topSlot)
     val bottomTeam = state.teamFor(bottomSlot)
     val pullFrom = state.pullingFromEnd
@@ -301,7 +301,7 @@ private fun EndZonePanel(
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = "Pull violations ${pullViolationCount(team)}",
+                    text = "Pull violations ${team.pullViolationCount()}",
                     color = team.color.content,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
@@ -394,14 +394,9 @@ internal fun CountdownLine(
     }
 }
 
-// Return the other team id.
-private fun oppositeTeam(teamId: TeamId): TeamId {
-    return if (teamId == TeamId.TEAM_ONE) TeamId.TEAM_TWO else TeamId.TEAM_ONE
-}
-
 // Offsides and false starts are combined for pull-violation display/rules.
-private fun pullViolationCount(team: TeamLiveState): Int {
-    return team.offsides + team.falseStarts
+private fun TeamLiveState.pullViolationCount(): Int {
+    return offsides + falseStarts
 }
 
 internal data class ActiveCountdownDisplay(
@@ -410,8 +405,8 @@ internal data class ActiveCountdownDisplay(
 )
 
 // Compute the countdown text currently visible on the live screen.
-internal fun activeCountdownDisplay(state: LiveGameState, now: Long): ActiveCountdownDisplay? {
-    val countdown = state.countdown ?: return null
+internal fun LiveGameState.activeCountdownDisplay(now: Long): ActiveCountdownDisplay? {
+    val countdown = countdown ?: return null
     return if (countdown.kind == CountdownKind.HALFTIME) {
         val halftimeRemaining = countdown.targetEpoch - now
         if (halftimeRemaining > 0L) {
@@ -421,7 +416,7 @@ internal fun activeCountdownDisplay(state: LiveGameState, now: Long): ActiveCoun
             )
         } else {
             // Once halftime expires, show the follow-on between-points countdown immediately.
-            val followOn = betweenPointsDisplay(state.pullingFromEnd, countdown.targetEpoch, now)
+            val followOn = betweenPointsDisplay(pullingFromEnd, countdown.targetEpoch, now)
             ActiveCountdownDisplay(label = followOn.first, remaining = followOn.second)
         }
     } else {
@@ -433,9 +428,9 @@ internal fun activeCountdownDisplay(state: LiveGameState, now: Long): ActiveCoun
 }
 
 // Halftime can become Start Point once the halftime countdown itself has elapsed.
-internal fun halftimeTransitionReady(state: LiveGameState, now: Long): Boolean {
-    val countdown = state.countdown ?: return false
-    return state.phase == LivePhase.HALFTIME &&
+internal fun LiveGameState.halftimeTransitionReady(now: Long): Boolean {
+    val countdown = countdown ?: return false
+    return phase == LivePhase.HALFTIME &&
         countdown.kind == CountdownKind.HALFTIME &&
         now >= countdown.targetEpoch
 }

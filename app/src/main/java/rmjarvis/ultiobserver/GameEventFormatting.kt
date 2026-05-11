@@ -1,21 +1,18 @@
 package rmjarvis.ultiobserver
 
-// Convert model events into UI-facing text for the current Android app.
-fun formatGameEventMessage(state: LiveGameState, event: GameEvent?): String? {
-    if (event == null) {
-        return null
-    }
-    return when (event) {
-        GameEvent.TimeoutUnavailable -> "Timeouts are not available now."
-        is GameEvent.TeamOutOfTimeouts -> "${teamName(state, event.team)} is out of timeouts."
-        is GameEvent.TeamCardsChanged -> formatTeamCardsChanged(state, event)
-        is GameEvent.TechnicalFoulsChanged -> formatTechnicalFoulsChanged(state, event)
-        is GameEvent.PullInfractionRecorded -> formatPullInfractionRecorded(event)
+// UI-facing text for this model event in the current Android app.
+fun GameEvent.formatMessage(): String {
+    return when (this) {
+        is GameEvent.TimeoutUnavailable -> "Timeouts are not available now."
+        is GameEvent.TeamOutOfTimeouts -> "${this.state.teamName(this.team)} is out of timeouts."
+        is GameEvent.TeamCardsChanged -> this.formatMessage()
+        is GameEvent.TechnicalFoulsChanged -> this.formatMessage()
+        is GameEvent.PullInfractionRecorded -> this.formatMessage()
     }
 }
 
 // Does this event need the observer to choose offense/defense before showing the penalty cue?
-fun GameEvent.needsLivePointMisconductChoice(state: LiveGameState): Boolean {
+fun GameEvent.needsMisconductChoice(): Boolean {
     return when (this) {
         is GameEvent.TeamCardsChanged -> teamCardTotal >= 3 && state.phase == LivePhase.LIVE_POINT
         is GameEvent.TechnicalFoulsChanged -> technicalFoulTotal >= 3 && state.phase == LivePhase.LIVE_POINT
@@ -23,41 +20,39 @@ fun GameEvent.needsLivePointMisconductChoice(state: LiveGameState): Boolean {
     }
 }
 
-private fun formatTeamCardsChanged(state: LiveGameState, event: GameEvent.TeamCardsChanged): String {
-    val baseMessage = if (event.secondYellowJerseyNumber == null) {
-        "${teamName(state, event.team)} has ${event.teamCardTotal} ${pluralizeEvent(event.teamCardTotal, "card")}."
+private fun GameEvent.TeamCardsChanged.formatMessage(): String {
+    val baseMessage = if (secondYellowJerseyNumber == null) {
+        "${state.teamName(team)} has $teamCardTotal ${pluralize(teamCardTotal, "card")}."
     } else {
-        val ejectionMessage = if (event.secondYellowJerseyNumber == UNKNOWN_PLAYER_NUMBER) {
+        val ejectionMessage = if (secondYellowJerseyNumber == UNKNOWN_PLAYER_NUMBER) {
             "The player is ejected."
         } else {
-            "Player ${event.secondYellowJerseyNumber} is ejected."
+            "Player $secondYellowJerseyNumber is ejected."
         }
         "Second yellow acts as a red card. $ejectionMessage\n" +
-            "${teamName(state, event.team)} has ${event.teamCardTotal} ${pluralizeEvent(event.teamCardTotal, "card")}."
+            "${state.teamName(team)} has $teamCardTotal ${pluralize(teamCardTotal, "card")}."
     }
-    return appendMisconductCueIfNeeded(
-        baseMessage = baseMessage,
+    return baseMessage.withMisconductCue(
         state = state,
-        team = event.team,
-        thresholdCount = event.teamCardTotal,
+        team = team,
+        thresholdCount = teamCardTotal,
     )
 }
 
-private fun formatTechnicalFoulsChanged(state: LiveGameState, event: GameEvent.TechnicalFoulsChanged): String {
+private fun GameEvent.TechnicalFoulsChanged.formatMessage(): String {
     val baseMessage =
-        "${teamName(state, event.team)} has ${event.technicalFoulTotal} technical " +
-            "${pluralizeEvent(event.technicalFoulTotal, "foul")}."
-    return appendMisconductCueIfNeeded(
-        baseMessage = baseMessage,
+        "${state.teamName(team)} has $technicalFoulTotal technical " +
+            "${pluralize(technicalFoulTotal, "foul")}."
+    return baseMessage.withMisconductCue(
         state = state,
-        team = event.team,
-        thresholdCount = event.technicalFoulTotal,
+        team = team,
+        thresholdCount = technicalFoulTotal,
     )
 }
 
-private fun formatPullInfractionRecorded(event: GameEvent.PullInfractionRecorded): String {
-    return when (event.infraction) {
-        PullInfractionType.OFFSIDES -> if (event.totalPullViolations <= 1) {
+private fun GameEvent.PullInfractionRecorded.formatMessage(): String {
+    return when (infraction) {
+        PullInfractionType.OFFSIDES -> if (totalPullViolations <= 1) {
             "Start at brick mark"
         } else {
             "Start at midfield"
@@ -66,21 +61,20 @@ private fun formatPullInfractionRecorded(event: GameEvent.PullInfractionRecorded
     }
 }
 
-private fun appendMisconductCueIfNeeded(
-    baseMessage: String,
+private fun String.withMisconductCue(
     state: LiveGameState,
     team: TeamId,
     thresholdCount: Int,
 ): String {
     return if (thresholdCount < 3 || state.phase == LivePhase.LIVE_POINT) {
-        baseMessage
+        this
     } else {
-        "$baseMessage\n\n${betweenPointsMisconductMessage(state, team)}"
+        "$this\n\n${state.betweenPointsMisconductCue(team)}"
     }
 }
 
-private fun betweenPointsMisconductMessage(state: LiveGameState, team: TeamId): String {
-    val receivingTeam = state.pullingTeam.flip()
+private fun LiveGameState.betweenPointsMisconductCue(team: TeamId): String {
+    val receivingTeam = pullingTeam.flip()
     return if (team == receivingTeam) {
         "Penalty against receiving team. No pull. Disc at negative brick in defending end zone."
     } else {
@@ -88,6 +82,6 @@ private fun betweenPointsMisconductMessage(state: LiveGameState, team: TeamId): 
     }
 }
 
-private fun pluralizeEvent(count: Int, singular: String): String {
+private fun pluralize(count: Int, singular: String): String {
     return if (count == 1) singular else "${singular}s"
 }
