@@ -47,7 +47,18 @@ internal fun LiveGameScreen(
     var showOtherSheet by remember { mutableStateOf(false) }
     var locked by remember { mutableStateOf(false) }
     var actionInfoMessage by remember { mutableStateOf<String?>(null) }
+    var actionInfoTitle by remember { mutableStateOf<String?>(null) }
     var activeGamePrompt by remember { mutableStateOf<GamePrompt?>(null) }
+
+    fun showActionInfo(message: String, title: String) {
+        actionInfoMessage = message
+        actionInfoTitle = title
+    }
+
+    fun dismissActionInfo() {
+        actionInfoMessage = null
+        actionInfoTitle = null
+    }
 
     // Update the display clock once per second so time and cap text stay fresh.
     val currentClockTime by produceState(initialValue = LocalTime.now()) {
@@ -198,7 +209,10 @@ internal fun LiveGameScreen(
                         onStateChange(result.state)
                         val message = result.event?.formatMessage()
                         if (message != null) {
-                            actionInfoMessage = message
+                            showActionInfo(
+                                message = message,
+                                title = result.event.formatPopupTitle(),
+                            )
                         }
                     },
                     onPullInfraction = { team ->
@@ -206,7 +220,10 @@ internal fun LiveGameScreen(
                         onStateChange(result.state)
                         val message = result.event?.formatMessage()
                         if (message != null) {
-                            actionInfoMessage = message
+                            showActionInfo(
+                                message = message,
+                                title = result.event.formatPopupTitle(),
+                            )
                         }
                     },
                 )
@@ -263,7 +280,10 @@ internal fun LiveGameScreen(
                             event = result.event,
                         )
                     } else {
-                        actionInfoMessage = result.event.formatMessage()
+                        showActionInfo(
+                            message = result.event.formatMessage(),
+                            title = result.event.formatPopupTitle(),
+                        )
                     }
                     showCardsSheet = false
                 },
@@ -289,16 +309,18 @@ internal fun LiveGameScreen(
     // General informational pop-up for terse field guidance and validation messages.
     if (actionInfoMessage != null) {
         AlertDialog(
-            onDismissRequest = { actionInfoMessage = null },
+            onDismissRequest = { dismissActionInfo() },
+            title = actionInfoTitle?.let { title ->
+                { Text(title) }
+            },
             text = {
                 Text(
                     text = actionInfoMessage!!,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.bodyLarge,
                 )
             },
             confirmButton = {
-                TextButton(onClick = { actionInfoMessage = null }) {
+                TextButton(onClick = { dismissActionInfo() }) {
                     Text("OK")
                 }
             },
@@ -346,8 +368,11 @@ internal fun LiveGameScreen(
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            actionInfoMessage = prompt.resolutionMessage(
-                                againstOffense = true,
+                            showActionInfo(
+                                message = prompt.resolutionMessage(
+                                    againstOffense = true,
+                                ),
+                                title = requireNotNull(prompt.formatTitle()),
                             )
                             activeGamePrompt = null
                         }
@@ -359,8 +384,11 @@ internal fun LiveGameScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         TextButton(
                             onClick = {
-                                actionInfoMessage = prompt.resolutionMessage(
-                                    againstOffense = false,
+                                showActionInfo(
+                                    message = prompt.resolutionMessage(
+                                        againstOffense = false,
+                                    ),
+                                    title = requireNotNull(prompt.formatTitle()),
                                 )
                                 activeGamePrompt = null
                             }

@@ -11,6 +11,17 @@ fun GameEvent.formatMessage(): String {
     }
 }
 
+// Title for event-driven popups.
+fun GameEvent.formatPopupTitle(): String {
+    return when (this) {
+        is GameEvent.TimeoutUnavailable -> "Invalid Timeout"
+        is GameEvent.TeamOutOfTimeouts -> "Invalid Timeout"
+        is GameEvent.TeamCardsChanged -> if (teamCardTotal >= 3) "Misconduct Penalty" else "Misconduct"
+        is GameEvent.TechnicalFoulsChanged -> if (technicalFoulTotal >= 3) "Misconduct Penalty" else "Misconduct"
+        is GameEvent.PullInfractionRecorded -> "Pull Infraction"
+    }
+}
+
 // Does this event need the observer to choose offense/defense before showing the penalty cue?
 fun GameEvent.needsMisconductChoice(): Boolean {
     return when (this) {
