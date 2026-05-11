@@ -101,7 +101,7 @@ internal fun LiveGameScreen(
     }
 
     val capStatus = remember(now, state) {
-        computeNextCapStatus(state, now)
+        state.computeNextCapStatus(now)
     }
     val activeCountdown = remember(state, now) {
         activeCountdownDisplay(state, now)
@@ -113,7 +113,7 @@ internal fun LiveGameScreen(
     // Let countdown expiration move the model forward without requiring an observer tap.
     LaunchedEffect(state, now, readOnlySummary) {
         if (!readOnlySummary) {
-            val advancedState = advanceGameClock(state, now)
+            val advancedState = state.advanceGameClock(now)
             if (advancedState != state) {
                 onStateChange(advancedState)
             }
@@ -159,7 +159,7 @@ internal fun LiveGameScreen(
             if (state.phase == LivePhase.GAME_OVER) {
                 GameOverSummary(state = state, onUndo = {
                     if (state.undoEntry != null) {
-                        onStateChange(undoLastAction(state))
+                        onStateChange(state.undoLastAction())
                     }
                 }, showUndo = !readOnlySummary && state.undoEntry != null)
             } else {
@@ -174,7 +174,7 @@ internal fun LiveGameScreen(
                     CountdownLine(
                         countdown = activeCountdown,
                         enabled = !locked,
-                        onAdjust = { seconds -> onStateChange(addTimeToCountdown(state, seconds)) },
+                        onAdjust = { seconds -> onStateChange(state.addTimeToCountdown(seconds)) },
                     )
                 }
 
@@ -189,7 +189,7 @@ internal fun LiveGameScreen(
                         } else if (canStartPoint) {
                             OutlinedButton(
                                 onClick = {
-                                    onStateChange(beginLivePoint(state))
+                                    onStateChange(state.beginLivePoint())
                                     locked = true
                                 },
                                 shape = RoundedCornerShape(12.dp),
@@ -204,7 +204,7 @@ internal fun LiveGameScreen(
                         } else if (state.phase == LivePhase.LIVE_POINT && state.countdown != null) {
                             OutlinedButton(
                                 onClick = {
-                                    onStateChange(continueLivePoint(state))
+                                    onStateChange(state.continueLivePoint())
                                     locked = true
                                 },
                                 shape = RoundedCornerShape(12.dp),
@@ -231,9 +231,9 @@ internal fun LiveGameScreen(
                             }
                         }
                     },
-                    onGoal = { team -> onStateChange(recordGoalFromCurrentState(state, team, now)) },
+                    onGoal = { team -> onStateChange(state.recordGoalFromCurrentState(team, now)) },
                     onTimeout = { team ->
-                        val result = assessTimeout(state, team, now)
+                        val result = state.assessTimeout(team, now)
                         onStateChange(result.state)
                         if (result.message != null) {
                             actionInfoMessage = result.message
@@ -241,13 +241,13 @@ internal fun LiveGameScreen(
                     },
                     onPullInfraction = { team ->
                         if (team == state.pullingTeam) {
-                            val updatedState = recordOffsides(state)
+                            val updatedState = state.recordOffsides()
                             onStateChange(updatedState)
                             if (updatedState != state) {
-                                actionInfoMessage = offsidesResolutionMessage(updatedState, team)
+                                actionInfoMessage = updatedState.offsidesResolutionMessage(team)
                             }
                         } else {
-                            val updatedState = recordFalseStart(state)
+                            val updatedState = state.recordFalseStart()
                             onStateChange(updatedState)
                             if (updatedState != state) {
                                 actionInfoMessage = falseStartResolutionMessage()
@@ -290,7 +290,7 @@ internal fun LiveGameScreen(
                 // Show a visible labeled undo button when the current state has undo history.
                 if (state.undoEntry != null) {
                     OutlinedButton(
-                        onClick = { onStateChange(undoLastAction(state)) },
+                        onClick = { onStateChange(state.undoLastAction()) },
                         enabled = !locked,
                         modifier = Modifier.fillMaxWidth(),
                         colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
@@ -407,17 +407,17 @@ internal fun LiveGameScreen(
             title = { Text("Apply ${capOfferLabel(state.pendingCapOffer!!)}?") },
             text = {
                 Text(
-                    text = capOfferExplanation(state),
+                    text = state.capOfferExplanation(),
                     style = MaterialTheme.typography.bodyLarge,
                 )
             },
             confirmButton = {
-                TextButton(onClick = { onStateChange(applyPendingCap(state, now)) }) {
+                TextButton(onClick = { onStateChange(state.applyPendingCap(now)) }) {
                     Text("Apply")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { onStateChange(deferPendingCap(state)) }) {
+                TextButton(onClick = { onStateChange(state.deferPendingCap()) }) {
                     Text("No")
                 }
             },
@@ -606,8 +606,8 @@ private fun FieldSketchCard(
             EndZonePanel(
                 teamId = topSlot,
                 team = topTeam,
-                cardPoints = teamCardTotal(state, topSlot),
-                timeoutsRemaining = timeoutsRemaining(state, topSlot),
+                cardPoints = state.teamCardTotal(topSlot),
+                timeoutsRemaining = state.timeoutsRemaining(topSlot),
                 background = topTeam.color.accent.copy(alpha = 0.85f),
                 interactionsEnabled = interactionsEnabled,
                 isPulling = state.pullingTeam == topSlot,
@@ -652,8 +652,8 @@ private fun FieldSketchCard(
             EndZonePanel(
                 teamId = bottomSlot,
                 team = bottomTeam,
-                cardPoints = teamCardTotal(state, bottomSlot),
-                timeoutsRemaining = timeoutsRemaining(state, bottomSlot),
+                cardPoints = state.teamCardTotal(bottomSlot),
+                timeoutsRemaining = state.timeoutsRemaining(bottomSlot),
                 background = bottomTeam.color.accent,
                 interactionsEnabled = interactionsEnabled,
                 isPulling = state.pullingTeam == bottomSlot,
@@ -838,19 +838,19 @@ private fun CardsSheet(
         Text("Cards / Technical Fouls", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         TeamActionSection(
             label = "${state.teamOne.name}${cardsRoleSuffix(state, TeamId.TEAM_ONE)}",
-            issuedCards = playerCards(state, TeamId.TEAM_ONE),
+            issuedCards = state.playerCards(TeamId.TEAM_ONE),
             onYellow = { pendingYellowTeam = TeamId.TEAM_ONE },
             onRed = { pendingRedTeam = TeamId.TEAM_ONE },
-            onBlue = { onAssessment(assessBlueCard(state, TeamId.TEAM_ONE)) },
-            onTech = { onAssessment(assessTechnicalFoul(state, TeamId.TEAM_ONE)) },
+            onBlue = { onAssessment(state.assessBlueCard(TeamId.TEAM_ONE)) },
+            onTech = { onAssessment(state.assessTechnicalFoul(TeamId.TEAM_ONE)) },
         )
         TeamActionSection(
             label = "${state.teamTwo.name}${cardsRoleSuffix(state, TeamId.TEAM_TWO)}",
-            issuedCards = playerCards(state, TeamId.TEAM_TWO),
+            issuedCards = state.playerCards(TeamId.TEAM_TWO),
             onYellow = { pendingYellowTeam = TeamId.TEAM_TWO },
             onRed = { pendingRedTeam = TeamId.TEAM_TWO },
-            onBlue = { onAssessment(assessBlueCard(state, TeamId.TEAM_TWO)) },
-            onTech = { onAssessment(assessTechnicalFoul(state, TeamId.TEAM_TWO)) },
+            onBlue = { onAssessment(state.assessBlueCard(TeamId.TEAM_TWO)) },
+            onTech = { onAssessment(state.assessTechnicalFoul(TeamId.TEAM_TWO)) },
         )
         Spacer(modifier = Modifier.height(24.dp))
     }
@@ -864,11 +864,11 @@ private fun CardsSheet(
                 // Yellow on N/A needs a follow-up question if an unknown player already has one.
                 if (
                     jerseyNumber == UNKNOWN_PLAYER_NUMBER &&
-                    playerHasYellowThisGame(state, pendingYellowTeam!!, UNKNOWN_PLAYER_NUMBER)
+                    state.playerHasYellowThisGame(pendingYellowTeam!!, UNKNOWN_PLAYER_NUMBER)
                 ) {
                     pendingUnknownYellowChoice = PendingUnknownYellowChoice(pendingYellowTeam!!)
                 } else {
-                    onAssessment(assessYellowCard(state, pendingYellowTeam!!, jerseyNumber))
+                    onAssessment(state.assessYellowCard(pendingYellowTeam!!, jerseyNumber))
                 }
                 pendingYellowTeam = null
             },
@@ -882,10 +882,10 @@ private fun CardsSheet(
             onDismiss = { pendingRedTeam = null },
             onConfirm = { jerseyNumber ->
                 // Red on a player who already has yellow needs a direct-red vs second-yellow choice.
-                if (playerHasYellowThisGame(state, pendingRedTeam!!, jerseyNumber)) {
+                if (state.playerHasYellowThisGame(pendingRedTeam!!, jerseyNumber)) {
                     pendingRedCardChoice = PendingRedCardChoice(pendingRedTeam!!, jerseyNumber)
                 } else {
-                    onAssessment(assessRedCard(state, pendingRedTeam!!, jerseyNumber, RedCardMode.DIRECT_RED))
+                    onAssessment(state.assessRedCard(pendingRedTeam!!, jerseyNumber, RedCardMode.DIRECT_RED))
                 }
                 pendingRedTeam = null
             },
@@ -894,7 +894,7 @@ private fun CardsSheet(
 
     if (pendingRedCardChoice != null) {
         val redCardChoice = pendingRedCardChoice!!
-        val currentRecords = playerCards(state, redCardChoice.team)
+        val currentRecords = state.playerCards(redCardChoice.team)
         RedCardModeDialog(
             teamName = state.teamFor(redCardChoice.team).name,
             jerseyNumber = redCardChoice.jerseyNumber,
@@ -911,8 +911,7 @@ private fun CardsSheet(
             onDismiss = { pendingRedCardChoice = null },
             onDirectRed = {
                 onAssessment(
-                    assessRedCard(
-                        state,
+                    state.assessRedCard(
                         redCardChoice.team,
                         redCardChoice.jerseyNumber,
                         RedCardMode.DIRECT_RED,
@@ -922,8 +921,7 @@ private fun CardsSheet(
             },
             onSecondYellow = {
                 onAssessment(
-                    assessRedCard(
-                        state,
+                    state.assessRedCard(
                         redCardChoice.team,
                         redCardChoice.jerseyNumber,
                         RedCardMode.SECOND_YELLOW,
@@ -940,8 +938,7 @@ private fun CardsSheet(
             onDismiss = { pendingUnknownYellowChoice = null },
             onSamePlayer = {
                 onAssessment(
-                    assessRedCard(
-                        state,
+                    state.assessRedCard(
                         pendingUnknownYellowChoice!!.team,
                         UNKNOWN_PLAYER_NUMBER,
                         RedCardMode.SECOND_YELLOW,
@@ -951,8 +948,7 @@ private fun CardsSheet(
             },
             onDifferentPlayer = {
                 onAssessment(
-                    assessStandaloneYellowCard(
-                        state,
+                    state.assessStandaloneYellowCard(
                         pendingUnknownYellowChoice!!.team,
                         UNKNOWN_PLAYER_NUMBER,
                     )
@@ -1036,11 +1032,11 @@ private fun GameOverSummary(
 
         GameOverTeamSummary(
             team = state.teamOne,
-            issuedCards = playerCards(state, TeamId.TEAM_ONE),
+            issuedCards = state.playerCards(TeamId.TEAM_ONE),
         )
         GameOverTeamSummary(
             team = state.teamTwo,
-            issuedCards = playerCards(state, TeamId.TEAM_TWO),
+            issuedCards = state.playerCards(TeamId.TEAM_TWO),
         )
 
         if (showUndo) {
@@ -1135,8 +1131,8 @@ private fun AdjustTimeoutsDialog(
     onDismiss: () -> Unit,
     onConfirm: (Int, Int) -> Unit,
 ) {
-    val teamOneAllowed = timeoutsAllowedThisHalf(state, TeamId.TEAM_ONE)
-    val teamTwoAllowed = timeoutsAllowedThisHalf(state, TeamId.TEAM_TWO)
+    val teamOneAllowed = state.timeoutsAllowedThisHalf(TeamId.TEAM_ONE)
+    val teamTwoAllowed = state.timeoutsAllowedThisHalf(TeamId.TEAM_TWO)
     var teamOneTimeoutsUsed by remember { mutableStateOf(state.teamOne.timeoutsUsedThisHalf) }
     var teamTwoTimeoutsUsed by remember { mutableStateOf(state.teamTwo.timeoutsUsedThisHalf) }
 
@@ -1177,13 +1173,13 @@ private fun AdjustCardsDialog(
     onDismiss: () -> Unit,
     onConfirm: (LiveGameState) -> Unit,
 ) {
-    var teamOneY by remember { mutableStateOf(teamYellowCards(state, TeamId.TEAM_ONE)) }
+    var teamOneY by remember { mutableStateOf(state.teamYellowCards(TeamId.TEAM_ONE)) }
     var teamOneB by remember { mutableStateOf(state.teamOne.blueCards) }
-    var teamOneR by remember { mutableStateOf(teamRedCards(state, TeamId.TEAM_ONE)) }
+    var teamOneR by remember { mutableStateOf(state.teamRedCards(TeamId.TEAM_ONE)) }
     var teamOneTf by remember { mutableStateOf(state.teamOne.technicalFouls) }
-    var teamTwoY by remember { mutableStateOf(teamYellowCards(state, TeamId.TEAM_TWO)) }
+    var teamTwoY by remember { mutableStateOf(state.teamYellowCards(TeamId.TEAM_TWO)) }
     var teamTwoB by remember { mutableStateOf(state.teamTwo.blueCards) }
-    var teamTwoR by remember { mutableStateOf(teamRedCards(state, TeamId.TEAM_TWO)) }
+    var teamTwoR by remember { mutableStateOf(state.teamRedCards(TeamId.TEAM_TWO)) }
     var teamTwoTf by remember { mutableStateOf(state.teamTwo.technicalFouls) }
     var workingTeamOnePlayerCards by remember { mutableStateOf(state.teamOnePlayerCards) }
     var workingTeamTwoPlayerCards by remember { mutableStateOf(state.teamTwoPlayerCards) }
@@ -1192,8 +1188,7 @@ private fun AdjustCardsDialog(
 
     fun finalizeAdjustment() {
         onConfirm(
-            adjustCardsAndTf(
-                state = state,
+            state.adjustCardsAndTf(
                 teamOneBlues = teamOneB,
                 teamOneTechnicalFouls = teamOneTf,
                 teamTwoBlues = teamTwoB,
@@ -1256,8 +1251,7 @@ private fun AdjustCardsDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    val steps = buildPlayerCardAdjustmentSteps(
-                        state = state,
+                    val steps = state.buildPlayerCardAdjustmentSteps(
                         teamOneYellows = teamOneY,
                         teamOneReds = teamOneR,
                         teamTwoYellows = teamTwoY,
@@ -1616,11 +1610,11 @@ private fun OtherSheet(
                 )
                 OtherMenuButton(
                     label = "Swap Ends of Field",
-                    onClick = { onAction(swapFieldEnds(state)) },
+                    onClick = { onAction(state.swapFieldEnds()) },
                 )
                 OtherMenuButton(
                     label = "Swap Pulling Team",
-                    onClick = { onAction(swapPullingTeam(state)) },
+                    onClick = { onAction(state.swapPullingTeam()) },
                 )
             }
             Column(
@@ -1630,31 +1624,31 @@ private fun OtherSheet(
                 if (!state.halftimeTaken && state.phase == LivePhase.BETWEEN_POINTS) {
                     OtherMenuButton(
                         label = "Start Halftime",
-                        onClick = { onAction(startHalftimeNow(state, now)) },
+                        onClick = { onAction(state.startHalftimeNow(now)) },
                     )
                 }
                 if (state.phase != LivePhase.GAME_OVER) {
                     OtherMenuButton(
                         label = "End Game",
-                        onClick = { onAction(endGameNow(state, now)) },
+                        onClick = { onAction(state.endGameNow(now)) },
                     )
                 }
                 if (!state.halftimeTaken && !state.halfCapApplied) {
                     OtherMenuButton(
                         label = "Apply Half Cap Now",
-                        onClick = { onAction(makeCapNow(state, CapType.HALF, now)) },
+                        onClick = { onAction(state.makeCapNow(CapType.HALF, now)) },
                     )
                 }
                 if (!state.softCapApplied) {
                     OtherMenuButton(
                         label = "Apply Soft Cap Now",
-                        onClick = { onAction(makeCapNow(state, CapType.SOFT, now)) },
+                        onClick = { onAction(state.makeCapNow(CapType.SOFT, now)) },
                     )
                 }
                 if (!state.hardCapApplied && state.phase != LivePhase.GAME_OVER) {
                     OtherMenuButton(
                         label = "Apply Hard Cap Now",
-                        onClick = { onAction(makeCapNow(state, CapType.HARD, now)) },
+                        onClick = { onAction(state.makeCapNow(CapType.HARD, now)) },
                     )
                 }
             }
@@ -1667,7 +1661,7 @@ private fun OtherSheet(
             state = state,
             onDismiss = { showAdjustScoreDialog = false },
             onConfirm = { teamOneScore, teamTwoScore ->
-                onAction(adjustScore(state, teamOneScore, teamTwoScore))
+                onAction(state.adjustScore(teamOneScore, teamTwoScore))
                 showAdjustScoreDialog = false
             },
         )
@@ -1678,7 +1672,7 @@ private fun OtherSheet(
             state = state,
             onDismiss = { showAdjustTimeoutsDialog = false },
             onConfirm = { teamOneTimeoutsUsed, teamTwoTimeoutsUsed ->
-                onAction(adjustTimeouts(state, teamOneTimeoutsUsed, teamTwoTimeoutsUsed))
+                onAction(state.adjustTimeouts(teamOneTimeoutsUsed, teamTwoTimeoutsUsed))
                 showAdjustTimeoutsDialog = false
             },
         )
@@ -1701,8 +1695,7 @@ private fun OtherSheet(
             onDismiss = { showAdjustPullInfractionsDialog = false },
             onConfirm = { teamOneOffsides, teamOneFalseStarts, teamTwoOffsides, teamTwoFalseStarts ->
                 onAction(
-                    adjustPullInfractions(
-                        state,
+                    state.adjustPullInfractions(
                         teamOneOffsides,
                         teamOneFalseStarts,
                         teamTwoOffsides,

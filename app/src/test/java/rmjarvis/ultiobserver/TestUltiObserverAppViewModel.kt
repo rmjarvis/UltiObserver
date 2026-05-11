@@ -34,7 +34,7 @@ class TestUltiObserverAppViewModel {
         assertEquals("Alpha", startedGame!!.teamOne.name)
         assertEquals("Beta", startedGame.teamTwo.name)
 
-        val adjustedGame = adjustScore(startedGame, teamOneScore = 2, teamTwoScore = 1)
+        val adjustedGame = startedGame.adjustScore(teamOneScore = 2, teamTwoScore = 1)
         viewModel.updateLiveGame(adjustedGame)
         assertEquals(2, viewModel.liveState!!.teamOne.score)
 
@@ -125,7 +125,7 @@ class TestUltiObserverAppViewModel {
         val viewModel = UltiObserverAppViewModel()
         viewModel.startNewGame()
         viewModel.finishSetup()
-        val scoredGame = adjustScore(viewModel.liveState!!, teamOneScore = 3, teamTwoScore = 2)
+        val scoredGame = viewModel.liveState!!.adjustScore(teamOneScore = 3, teamTwoScore = 2)
         viewModel.updateLiveGame(scoredGame)
 
         viewModel.goHome()
