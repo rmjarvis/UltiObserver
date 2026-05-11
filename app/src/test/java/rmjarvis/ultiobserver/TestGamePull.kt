@@ -48,6 +48,7 @@ class TestGamePull : GameModelTestFixtures() {
 
         // Verify the first pull-violation message sends play to the brick mark.
         assertEquals("Start at brick mark", pullInfractionResult.message())
+        assertFalse(pullInfractionResult.event!!.needsMisconductChoice())
 
         // Verify the same pull sequence cannot record a second offsides for the same team.
         pullInfractionResult = state.assessPullInfraction(VC)

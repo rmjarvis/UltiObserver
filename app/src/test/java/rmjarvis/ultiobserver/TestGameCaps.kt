@@ -80,6 +80,7 @@ class TestGameCaps : GameModelTestFixtures() {
         assertTrue(state.halftimeTaken)
         assertEquals(2, state.halftimeTargetScore)
         assertNull(state.pendingCapOffer)
+        assertNull(GamePrompt.HalftimeStarted(state).formatTitle())
 
         // If the observer defers a pending half cap, the offer clears but the cap is not applied.
         state = newCapState()
@@ -172,6 +173,7 @@ class TestGameCaps : GameModelTestFixtures() {
         assertNull(state.countdown)
         assertNull(state.pendingCapOffer)
         assertEquals("Undo Apply Hard Cap", state.undoEntry?.label)
+        assertNull(GamePrompt.GameOver(state).formatTitle())
 
         // Hard cap while tied sets a one-point winning score instead of ending immediately.
         state = newCapState(capRules.copy(useHalfCap = false, useSoftCap = false))
