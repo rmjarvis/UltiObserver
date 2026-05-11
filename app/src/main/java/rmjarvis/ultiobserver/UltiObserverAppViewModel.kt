@@ -31,9 +31,9 @@ internal class UltiObserverAppViewModel(
     private val appStateStore: AppStateStore = NoOpAppStateStore,
 ) : ViewModel() {
     private val persistedActiveState = appStateStore.loadActiveState()
-    private var viewingArchivedGameIndex = persistedActiveState?.viewingArchivedGameIndex
+    private var viewingArchivedGameIndex: Int? = null
 
-    var screen by mutableStateOf(persistedActiveState?.screen ?: AppScreen.HOME)
+    var screen by mutableStateOf(AppScreen.HOME)
         private set
     var setupState by mutableStateOf(persistedActiveState?.setupState ?: newGameSetupState())
         private set

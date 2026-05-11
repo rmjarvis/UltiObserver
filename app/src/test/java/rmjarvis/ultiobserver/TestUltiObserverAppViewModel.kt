@@ -251,7 +251,7 @@ class TestUltiObserverAppViewModel {
         val store = FileAppStateStore(storeDir)
         val viewModel = UltiObserverAppViewModel(store)
 
-        // Start a new-game setup draft and verify a fresh ViewModel restores the draft.
+        // Start a new-game setup draft and verify a fresh ViewModel keeps the draft but opens at Home.
         viewModel.startNewGame()
         val draftedSetup = viewModel.setupState.copy(
             teamOne = TeamSetup("Viscous Coupling", TeamColorChoice.BLUE),
@@ -260,7 +260,7 @@ class TestUltiObserverAppViewModel {
         viewModel.updateSetup(draftedSetup)
 
         val draftRestored = UltiObserverAppViewModel(FileAppStateStore(storeDir))
-        assertEquals(AppScreen.SETUP, draftRestored.screen)
+        assertEquals(AppScreen.HOME, draftRestored.screen)
         assertEquals(draftedSetup, draftRestored.setupState)
         assertNull(draftRestored.liveState)
 
@@ -274,9 +274,11 @@ class TestUltiObserverAppViewModel {
         draftRestored.updateLiveGame(scoredState)
 
         val gameRestored = UltiObserverAppViewModel(FileAppStateStore(storeDir))
-        assertEquals(AppScreen.LIVE, gameRestored.screen)
+        assertEquals(AppScreen.HOME, gameRestored.screen)
         assertEquals(scoredState, gameRestored.liveState)
         assertNotNull(gameRestored.liveState!!.undoEntry)
+        gameRestored.resumeCurrentGame()
+        assertEquals(AppScreen.LIVE, gameRestored.screen)
         val undoRestoredState = gameRestored.liveState!!.undoLastAction()
         assertEquals(livePointState, undoRestoredState.copy(redoEntry = null))
         assertNotNull(undoRestoredState.redoEntry)
