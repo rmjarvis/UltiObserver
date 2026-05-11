@@ -140,6 +140,24 @@ internal class UltiObserverAppViewModel(
         persistActiveState()
     }
 
+    fun deleteCurrentGame() {
+        liveState = null
+        clearViewedArchivedGame()
+        setupMode = SetupMode.NEW_GAME
+        screen = AppScreen.HOME
+        persistActiveState()
+    }
+
+    fun deleteArchivedGame(index: Int) {
+        if (archivedGames.getOrNull(index) == null) {
+            return
+        }
+        archivedGames = archivedGames.toMutableList().also { it.removeAt(index) }
+        clearViewedArchivedGame()
+        persistArchivedGames()
+        persistActiveState()
+    }
+
     fun startNewGame() {
         liveState?.let { existing ->
             archivedGames = archivedGames + ArchivedGame(

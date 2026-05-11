@@ -41,6 +41,7 @@ internal fun LiveGameScreen(
     readOnlySummary: Boolean,
     onStateChange: (LiveGameState) -> Unit,
     onUpdateGameSetup: () -> Unit,
+    onDeleteGame: () -> Unit,
     onBackHome: () -> Unit,
 ) {
     var showCardsSheet by remember { mutableStateOf(false) }
@@ -306,6 +307,7 @@ internal fun LiveGameScreen(
                 state = state,
                 now = now,
                 onUpdateGameSetup = onUpdateGameSetup,
+                onDeleteGame = onDeleteGame,
                 onAction = { updatedState ->
                     onStateChange(updatedState)
                     showOtherSheet = false

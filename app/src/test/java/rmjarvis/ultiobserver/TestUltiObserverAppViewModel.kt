@@ -132,6 +132,29 @@ class TestUltiObserverAppViewModel {
     }
 
     @Test
+    fun currentAndArchivedGamesCanBeDeleted() {
+        val viewModel = UltiObserverAppViewModel()
+        viewModel.startNewGame()
+        viewModel.finishSetup()
+        val currentGame = viewModel.liveState!!
+
+        viewModel.deleteCurrentGame()
+        assertEquals(AppScreen.HOME, viewModel.screen)
+        assertNull(viewModel.liveState)
+        assertNull(viewModel.currentLiveState)
+
+        viewModel.updateLiveGame(currentGame.copy(phase = LivePhase.GAME_OVER))
+        viewModel.archiveCompletedGame()
+        assertEquals(1, viewModel.archivedGames.size)
+
+        viewModel.openPreviousGame(0)
+        assertTrue(viewModel.viewingReadOnlySummary)
+        viewModel.deleteArchivedGame(0)
+        assertTrue(viewModel.archivedGames.isEmpty())
+        assertNull(viewModel.currentLiveState)
+    }
+
+    @Test
     fun currentGameResumeAndSetupUpdatePreserveLiveState() {
         val viewModel = UltiObserverAppViewModel()
         viewModel.startNewGame()

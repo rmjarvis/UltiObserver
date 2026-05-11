@@ -26,12 +26,14 @@ internal fun OtherSheet(
     state: LiveGameState,
     now: Long,
     onUpdateGameSetup: () -> Unit,
+    onDeleteGame: () -> Unit,
     onAction: (LiveGameState) -> Unit,
 ) {
     var showAdjustScoreDialog by remember { mutableStateOf(false) }
     var showAdjustTimeoutsDialog by remember { mutableStateOf(false) }
     var showAdjustCardsDialog by remember { mutableStateOf(false) }
     var showAdjustPullInfractionsDialog by remember { mutableStateOf(false) }
+    var showDeleteGameDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -112,6 +114,10 @@ internal fun OtherSheet(
                         onClick = { onAction(state.makeCapNow(CapType.HARD, now)) },
                     )
                 }
+                OtherMenuButton(
+                    label = "Delete Game",
+                    onClick = { showDeleteGameDialog = true },
+                )
             }
         }
         Spacer(modifier = Modifier.height(24.dp))
@@ -164,6 +170,16 @@ internal fun OtherSheet(
                     )
                 )
                 showAdjustPullInfractionsDialog = false
+            },
+        )
+    }
+
+    if (showDeleteGameDialog) {
+        DeleteGameDialog(
+            onDismiss = { showDeleteGameDialog = false },
+            onConfirmDelete = {
+                showDeleteGameDialog = false
+                onDeleteGame()
             },
         )
     }

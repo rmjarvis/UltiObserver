@@ -210,6 +210,13 @@ abstract class MainActivityUiTestFixtures {
         waitForText("Lock")
     }
 
+    protected fun confirmDeleteWithSlider() {
+        waitForText("Delete Game?")
+        composeRule.onNodeWithTag("confirm-delete-slider").performTouchInput {
+            swipeRight()
+        }
+    }
+
     protected fun recordTimeout(team: TeamId, undoLabel: String) {
         composeRule.onNodeWithTag(teamActionTag(team, "timeout")).performClick()
         waitForText(undoLabel)

@@ -13,6 +13,7 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.swipeRight
 import java.time.LocalTime
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -57,5 +58,55 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         waitForText("Halftime")
         composeRule.onNodeWithText("OK").performClick()
         assertLiveScreen()
+    }
+
+    // Test that deleting the current game is guarded by the slide confirmation.
+    @Test
+    fun otherMenuCanDeleteCurrentGameAfterSliderConfirmation() {
+        startLiveGame()
+
+        openOtherSheet()
+        composeRule.onNodeWithText("Delete Game").performClick()
+        waitForText("This cannot be undone", substring = true)
+        composeRule.onNodeWithText("Cancel").performClick()
+        waitForText("Update Game Setup")
+
+        composeRule.onNodeWithText("Delete Game").performClick()
+        confirmDeleteWithSlider()
+        waitForText("Start New Game")
+        assertTrue(composeRule.onAllNodesWithText("Current Game").fetchSemanticsNodes().isEmpty())
+    }
+
+    // Test that archived games can be deleted from the Previous Games list.
+    @Test
+    fun previousGamesCanDeleteArchivedGameAfterSliderConfirmation() {
+        val suffix = System.currentTimeMillis().toString().takeLast(6)
+        val teamOne = "DelA$suffix"
+        val teamTwo = "DelB$suffix"
+        val archivedTitle = "$teamOne 0 - 0 $teamTwo"
+
+        openNewGameSetup()
+        replaceSetupTeamName("Team 1", teamOne)
+        replaceSetupTeamName("Team 2", teamTwo)
+        startGameFromSetup()
+        openOtherSheet()
+        composeRule.onNodeWithText("End Game").performClick()
+        waitForText("Game Over")
+        composeRule.onNodeWithText("OK").performClick()
+        composeRule.onNodeWithText("Back").performClick()
+        waitForText("Completed Game")
+        composeRule.onNodeWithText("Archive Completed Game").performClick()
+        waitForText("Previous Games")
+
+        composeRule.onNodeWithText("Previous Games").performClick()
+        waitForText(archivedTitle)
+        composeRule.onNodeWithTag("delete-archived-game-$archivedTitle").performClick()
+        waitForText("This cannot be undone", substring = true)
+        composeRule.onNodeWithText("Cancel").performClick()
+        composeRule.onNodeWithText(archivedTitle).assertIsDisplayed()
+
+        composeRule.onNodeWithTag("delete-archived-game-$archivedTitle").performClick()
+        confirmDeleteWithSlider()
+        assertTrue(composeRule.onAllNodesWithText(archivedTitle).fetchSemanticsNodes().isEmpty())
     }
 }

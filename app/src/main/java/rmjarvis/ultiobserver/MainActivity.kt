@@ -78,6 +78,7 @@ internal fun UltiObserverApp(viewModel: UltiObserverAppViewModel) {
             PreviousGamesScreen(
                 previousGames = viewModel.archivedGames.map { it.state.gameListEntry(it.subtitle) },
                 onOpenPreviousGame = viewModel::openPreviousGame,
+                onDeletePreviousGame = viewModel::deleteArchivedGame,
                 onBackHome = viewModel::goHome,
             )
         }
@@ -103,6 +104,7 @@ internal fun UltiObserverApp(viewModel: UltiObserverAppViewModel) {
                     onUpdateGameSetup = {
                         viewModel.editCurrentGame(currentLiveState)
                     },
+                    onDeleteGame = viewModel::deleteCurrentGame,
                     onBackHome = viewModel::goHome,
                 )
             }

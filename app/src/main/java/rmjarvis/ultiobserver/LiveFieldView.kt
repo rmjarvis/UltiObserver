@@ -47,6 +47,31 @@ import java.time.LocalTime
 internal fun FieldUnlockControl(
     onUnlock: () -> Unit,
 ) {
+    SlideToConfirmControl(
+        instructionText = "Slide right to unlock",
+        trackText = "Unlock",
+        testTag = "live-unlock-slider",
+        onConfirmed = onUnlock,
+        textColor = Color.Black,
+        trackColor = Color(0x66FFFFFF),
+        thumbColor = Color.White,
+        borderColor = Color.Black,
+    )
+}
+
+// Full-width confirmation slider that only activates if the drag starts on the left side.
+@Composable
+internal fun SlideToConfirmControl(
+    instructionText: String,
+    trackText: String,
+    testTag: String,
+    onConfirmed: () -> Unit,
+    modifier: Modifier = Modifier,
+    textColor: Color = MaterialTheme.colorScheme.onSurface,
+    trackColor: Color = MaterialTheme.colorScheme.surfaceVariant,
+    thumbColor: Color = MaterialTheme.colorScheme.surface,
+    borderColor: Color = MaterialTheme.colorScheme.outline,
+) {
     var trackWidthPx by remember { mutableStateOf(0f) }
     var thumbOffsetPx by remember { mutableStateOf(0f) }
     var dragEnabled by remember { mutableStateOf(false) }
@@ -55,25 +80,25 @@ internal fun FieldUnlockControl(
     val thumbDiameterPx = with(density) { thumbDiameter.toPx() }
 
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
-            "Slide right to unlock",
+            instructionText,
             style = MaterialTheme.typography.bodyMedium,
-            color = Color.Black,
+            color = textColor,
             textAlign = TextAlign.Center,
             fontWeight = FontWeight.SemiBold,
         )
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .testTag("live-unlock-slider")
+                .testTag(testTag)
                 .height(52.dp)
                 .onSizeChanged { trackWidthPx = it.width.toFloat() }
-                .background(Color(0x66FFFFFF), RoundedCornerShape(26.dp))
-                .border(1.dp, Color.Black, RoundedCornerShape(26.dp))
+                .background(trackColor, RoundedCornerShape(26.dp))
+                .border(1.dp, borderColor, RoundedCornerShape(26.dp))
                 .pointerInput(trackWidthPx) {
                     detectDragGestures(
                         onDragStart = { offset ->
@@ -88,7 +113,7 @@ internal fun FieldUnlockControl(
                             if (dragEnabled && thumbCenter >= unlockThreshold) {
                                 thumbOffsetPx = 0f
                                 dragEnabled = false
-                                onUnlock()
+                                onConfirmed()
                             } else {
                                 thumbOffsetPx = 0f
                                 dragEnabled = false
@@ -109,9 +134,9 @@ internal fun FieldUnlockControl(
                 },
         ) {
             Text(
-                "Unlock",
+                trackText,
                 modifier = Modifier.align(Alignment.Center),
-                color = Color.Black.copy(alpha = 0.7f),
+                color = textColor.copy(alpha = 0.7f),
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium,
             )
@@ -121,8 +146,8 @@ internal fun FieldUnlockControl(
                     .offset { IntOffset(thumbOffsetPx.toInt(), 0) }
                     .padding(6.dp)
                     .size(thumbDiameter)
-                    .background(Color.White, RoundedCornerShape(20.dp))
-                    .border(1.dp, Color.Black, RoundedCornerShape(20.dp)),
+                    .background(thumbColor, RoundedCornerShape(20.dp))
+                    .border(1.dp, borderColor, RoundedCornerShape(20.dp)),
             )
         }
     }

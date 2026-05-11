@@ -178,10 +178,11 @@ internal fun HomeScreen(
 @Composable
 internal fun GameListRow(
     entry: GameListEntry,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     Surface(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .border(
