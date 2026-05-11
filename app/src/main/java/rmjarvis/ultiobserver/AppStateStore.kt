@@ -44,6 +44,7 @@ internal class FileAppStateStore(
 ) : AppStateStore {
     private val json = Json {
         encodeDefaults = true
+        ignoreUnknownKeys = true
         prettyPrint = true
     }
     private val activeStateFile = File(rootDir, "active_app_state.json")

@@ -337,7 +337,14 @@ fun LiveGameState.adjustScore(teamOneScore: Int, teamTwoScore: Int): LiveGameSta
 }
 // Undo the last action.
 fun LiveGameState.undoLastAction(): LiveGameState {
-    return this.undoEntry?.previous ?: this
+    val entry = this.undoEntry ?: return this
+    return entry.previous.copy(
+        redoEntry = this,
+    )
+}
+// Redo the last undone action.
+fun LiveGameState.redoLastAction(): LiveGameState {
+    return this.redoEntry ?: this
 }
 // Adjust the game setup after the game has already started.
 fun applySetupToLiveGame(
@@ -430,7 +437,10 @@ private fun LiveGameState.automaticContinueLivePointState(): LiveGameState {
 // Most returned states for a user-initiated action should have a .withUndo(state, label)
 // at the end.
 internal fun LiveGameState.withUndo(previous: LiveGameState, label: String): LiveGameState {
-    return copy(undoEntry = UndoEntry(label = label, previous = previous))
+    return copy(
+        undoEntry = UndoEntry(label = label, previous = previous.copy(redoEntry = null)),
+        redoEntry = null,
+    )
 }
 // Helper to flip TeamId between the two teams.
 internal fun TeamId.flip(): TeamId {

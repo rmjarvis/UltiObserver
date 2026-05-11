@@ -30,14 +30,18 @@ class TestGameUndo : GameModelTestFixtures() {
         val beforeStartPoint = state
         state = state.beginLivePoint()
         assertEquals("Undo Start Point", state.undoEntry?.label)
-        assertEquals(beforeStartPoint, state.undoLastAction())
+        val undoneStartPoint = assertUndoRestores(beforeStartPoint, state)
+        val nudgedCountdown = undoneStartPoint.addTimeToCountdown(10)
+        assertNotNull(nudgedCountdown.redoEntry)
 
         // Record a goal from a live point and verify undo restores the in-point state.
         val beforeLiveGoal = state
         state = recordGoalAt(state, VC, LocalTime.of(11, 5))
         assertEquals(1, state.teamOne.score)
         assertEquals("Undo Goal by Viscous Coupling", state.undoEntry?.label)
-        assertEquals(beforeLiveGoal, state.undoLastAction())
+        val undoneLiveGoal = assertUndoRestores(beforeLiveGoal, state)
+        state = undoneLiveGoal.assessTimeout(VC, 800_000L).state
+        assertNull(state.redoEntry)
 
         // Record a goal from between points and verify undo returns to the implicit live-point state.
         state = standardLiveGameState()
@@ -48,43 +52,43 @@ class TestGameUndo : GameModelTestFixtures() {
         assertNull(implicitLiveState.countdown)
         assertEquals(0, implicitLiveState.teamOne.score)
         assertEquals(0, implicitLiveState.teamTwo.score)
-        assertEquals(betweenPointsBeforeGoal, implicitLiveState.undoLastAction())
+        assertUndoRestores(betweenPointsBeforeGoal, implicitLiveState)
 
         // Undo timeout, card, technical foul, offsides, and false-start actions.
         state = standardLiveGameState().beginLivePoint()
         val beforeTimeout = state
         state = state.assessTimeout(ANIMAL, 300_000L).state
-        assertEquals(beforeTimeout, state.undoLastAction())
+        assertUndoRestores(beforeTimeout, state)
 
         state = standardLiveGameState()
         val beforeCard = state
         state = state.assessYellowCard(VC, "17").state
-        assertEquals(beforeCard, state.undoLastAction())
+        assertUndoRestores(beforeCard, state)
 
         state = standardLiveGameState()
         val beforeTf = state
         state = state.assessTechnicalFoul(ANIMAL).state
-        assertEquals(beforeTf, state.undoLastAction())
+        assertUndoRestores(beforeTf, state)
 
         state = standardLiveGameState()
         val beforeOffsides = state
         state = state.recordOffsides()
-        assertEquals(beforeOffsides, state.undoLastAction())
+        assertUndoRestores(beforeOffsides, state)
 
         state = standardLiveGameState()
         val beforeFalseStart = state
         state = state.recordFalseStart()
-        assertEquals(beforeFalseStart, state.undoLastAction())
+        assertUndoRestores(beforeFalseStart, state)
 
         // Undo manual score, timeout, card/TF, and pull-infraction corrections.
         state = standardLiveGameState()
         val beforeScoreCorrection = state
         state = state.adjustScore(2, 3)
-        assertEquals(beforeScoreCorrection, state.undoLastAction())
+        assertUndoRestores(beforeScoreCorrection, state)
 
         val beforeTimeoutCorrection = standardLiveGameState()
         state = beforeTimeoutCorrection.adjustTimeouts(2, 1)
-        assertEquals(beforeTimeoutCorrection, state.undoLastAction())
+        assertUndoRestores(beforeTimeoutCorrection, state)
 
         val beforeCardCorrection = standardLiveGameState()
         state = beforeCardCorrection.adjustCardsAndTf(
@@ -95,11 +99,11 @@ class TestGameUndo : GameModelTestFixtures() {
             teamOnePlayerCards = listOf(InGamePlayerCardRecord("17", yellows = 1)),
             teamTwoPlayerCards = listOf(InGamePlayerCardRecord("23", directReds = 1)),
         )
-        assertEquals(beforeCardCorrection, state.undoLastAction())
+        assertUndoRestores(beforeCardCorrection, state)
 
         val beforePullCorrection = standardLiveGameState()
         state = beforePullCorrection.adjustPullInfractions(1, 2, 3, 4)
-        assertEquals(beforePullCorrection, state.undoLastAction())
+        assertUndoRestores(beforePullCorrection, state)
 
         val beforeSetupUpdate = standardLiveGameState()
         state = applySetupToLiveGame(
@@ -109,7 +113,7 @@ class TestGameUndo : GameModelTestFixtures() {
             ),
             now = 350_000L,
         )
-        assertEquals(beforeSetupUpdate, state.undoLastAction())
+        assertUndoRestores(beforeSetupUpdate, state)
 
         // Undo apply half cap, soft cap, hard cap, force cap now, manual halftime, and manual end game.
         state = standardLiveGameState(
@@ -119,7 +123,7 @@ class TestGameUndo : GameModelTestFixtures() {
         state = state.recordGoalFromCurrentState(VC, timestampAfterStart(state, 11))
         val beforeApplyHalfCap = state
         state = applyPendingCapAt(state, LocalTime.of(10, 11))
-        assertEquals(beforeApplyHalfCap, state.undoLastAction())
+        assertUndoRestores(beforeApplyHalfCap, state)
 
         state = standardLiveGameState(
             startTime = LocalTime.of(10, 0),
@@ -128,7 +132,7 @@ class TestGameUndo : GameModelTestFixtures() {
         state = state.recordGoalFromCurrentState(VC, timestampAfterStart(state, 11))
         val beforeApplySoftCap = state
         state = applyPendingCapAt(state, LocalTime.of(10, 11))
-        assertEquals(beforeApplySoftCap, state.undoLastAction())
+        assertUndoRestores(beforeApplySoftCap, state)
 
         state = standardLiveGameState(
             startTime = LocalTime.of(10, 0),
@@ -137,26 +141,26 @@ class TestGameUndo : GameModelTestFixtures() {
         state = state.recordGoalFromCurrentState(VC, timestampAfterStart(state, 11))
         val beforeApplyHardCap = state
         state = applyPendingCapAt(state, LocalTime.of(10, 11))
-        assertEquals(beforeApplyHardCap, state.undoLastAction())
+        assertUndoRestores(beforeApplyHardCap, state)
 
         val beforeForceCap = standardLiveGameState()
         state = beforeForceCap.makeCapNow(CapType.SOFT, timestampAfterStart(beforeForceCap, 30))
-        assertEquals(beforeForceCap, state.undoLastAction())
+        assertUndoRestores(beforeForceCap, state)
 
         val beforeManualHalftime = standardLiveGameState(pullingFromEnd = FieldEnd.NEAR)
         state = startHalftimeNowAt(beforeManualHalftime, LocalTime.of(11, 10))
-        assertEquals(beforeManualHalftime, state.undoLastAction())
+        assertUndoRestores(beforeManualHalftime, state)
 
         val beforeManualEnd = standardLiveGameState()
         state = endGameNowAt(beforeManualEnd, LocalTime.of(11, 20))
-        assertEquals(beforeManualEnd, state.undoLastAction())
+        assertUndoRestores(beforeManualEnd, state)
 
         // Verify the latest undo entry is exposed when actions are chained.
         state = standardLiveGameState().beginLivePoint()
         val afterStartPoint = state
         state = state.assessTimeout(VC, 800_000L).state
         assertEquals("Undo Timeout by Viscous Coupling", state.undoEntry?.label)
-        assertEquals(afterStartPoint, state.undoLastAction())
+        assertUndoRestores(afterStartPoint, state)
 
         // Verify undo from game-over summary restores a score-ended game without undoing the score.
         state = standardLiveGameState(
@@ -185,6 +189,6 @@ class TestGameUndo : GameModelTestFixtures() {
         assertEquals(gameOverByScore.countdown, reappliedGameOver.countdown)
         assertEquals(gameOverByScore.pendingCapOffer, reappliedGameOver.pendingCapOffer)
         assertEquals(gameOverByScore.lastEvent, reappliedGameOver.lastEvent)
-        assertEquals(scoreEndedUndo, reappliedGameOver.undoEntry?.previous)
+        assertEquals(scoreEndedUndo.copy(redoEntry = null), reappliedGameOver.undoEntry?.previous)
     }
 }

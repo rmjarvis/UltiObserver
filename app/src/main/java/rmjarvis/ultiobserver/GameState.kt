@@ -180,6 +180,7 @@ data class LiveGameState(
     val hardCapApplied: Boolean = false,
     val pendingCapOffer: CapType? = null,  // Set when asking whether to apply the next cap
     val undoEntry: UndoEntry? = null,
+    val redoEntry: LiveGameState? = null,
     val lastEvent: String = "Pregame setup complete.",
 )
 data class CapStatus(

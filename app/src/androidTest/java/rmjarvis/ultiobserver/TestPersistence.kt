@@ -7,6 +7,7 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -58,9 +59,12 @@ class TestPersistence {
             val restoredArchivedGame = restoredStore.loadArchivedGames().single()
 
             assertEquals(scoredState, restoredActiveState.liveState)
-            assertEquals(livePointState, restoredActiveState.liveState!!.undoLastAction())
+            val undoRestoredState = restoredActiveState.liveState!!.undoLastAction()
+            assertEquals(livePointState, undoRestoredState.copy(redoEntry = null))
+            assertNotNull(undoRestoredState.redoEntry)
             assertEquals(archivedSummary, restoredArchivedGame.state)
             assertNull(restoredArchivedGame.state.undoEntry)
+            assertNull(restoredArchivedGame.state.redoEntry)
         } finally {
             storeDir.deleteRecursively()
         }

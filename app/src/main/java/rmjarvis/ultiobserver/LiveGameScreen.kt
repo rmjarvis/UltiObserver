@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import java.time.LocalTime
 
@@ -243,21 +244,11 @@ internal fun LiveGameScreen(
                     }
                 }
 
-                // Show a visible labeled undo button when the current state has undo history.
-                if (state.undoEntry != null) {
-                    OutlinedButton(
-                        onClick = { onStateChange(state.undoLastAction()) },
-                        enabled = !locked,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
-                            containerColor = Color.White,
-                            contentColor = Color.Black,
-                        ),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
-                    ) {
-                        Text(state.undoEntry!!.label)
-                    }
-                }
+                UndoRedoBar(
+                    state = state,
+                    enabled = !locked,
+                    onStateChange = onStateChange,
+                )
             }
         }
     }
@@ -401,6 +392,73 @@ internal fun LiveGameScreen(
                     }
                 },
             )
+        }
+    }
+}
+
+// Bottom action bar for undo plus immediate redo after an undo.
+@Composable
+private fun UndoRedoBar(
+    state: LiveGameState,
+    enabled: Boolean,
+    onStateChange: (LiveGameState) -> Unit,
+) {
+    val undoEntry = state.undoEntry
+    val redoEntry = state.redoEntry
+    if (undoEntry == null && redoEntry == null) {
+        return
+    }
+
+    if (redoEntry == null) {
+        OutlinedButton(
+            onClick = { onStateChange(state.undoLastAction()) },
+            enabled = enabled,
+            modifier = Modifier.fillMaxWidth(),
+            colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                containerColor = Color.White,
+                contentColor = Color.Black,
+            ),
+            border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
+        ) {
+            Text(undoEntry!!.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        return
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (undoEntry != null) {
+            OutlinedButton(
+                onClick = { onStateChange(state.undoLastAction()) },
+                enabled = enabled,
+                modifier = Modifier.weight(3f),
+                colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                    containerColor = Color.White,
+                    contentColor = Color.Black,
+                ),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
+            ) {
+                Text(undoEntry.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        } else {
+            Spacer(modifier = Modifier.weight(3f))
+        }
+        OutlinedButton(
+            onClick = { onStateChange(state.redoLastAction()) },
+            enabled = enabled,
+            modifier = Modifier.weight(1f),
+            colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                containerColor = Color(0xFF343A40),
+                contentColor = Color.White,
+                disabledContainerColor = Color(0xFF343A40),
+                disabledContentColor = Color.White,
+            ),
+            border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
+        ) {
+            Text("Redo")
         }
     }
 }

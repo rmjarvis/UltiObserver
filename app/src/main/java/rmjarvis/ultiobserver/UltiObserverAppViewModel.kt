@@ -178,11 +178,12 @@ internal class UltiObserverAppViewModel(
     }
 }
 
-// Archived/completed games keep summary data but drop live countdown/undo state.
+// Archived/completed games keep summary data but drop live countdown and undo/redo state.
 private fun LiveGameState.pruneUndoHistory(): LiveGameState {
     return copy(
         countdown = null,
         undoEntry = null,
+        redoEntry = null,
     )
 }
 

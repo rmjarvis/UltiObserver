@@ -51,6 +51,7 @@ class TestGameCards : GameModelTestFixtures() {
         assertEquals(2, state.teamCardTotal(VC))
         assertEquals(InGamePlayerCardRecord("17", yellows = 2), playerRecord(state, VC, "17"))
         assertEquals("Undo Second Yellow on Viscous Coupling #17", state.undoEntry?.label)
+        assertUndoRestores(cardResult.state.undoEntry!!.previous, state)
 
         // A third team-card point between points gives the pulling-team misconduct field-position cue.
         cardResult = state.assessBlueCard(VC)
@@ -93,6 +94,7 @@ class TestGameCards : GameModelTestFixtures() {
         assertEquals(1, state.teamRedCards(ANIMAL))
         assertEquals(2, state.teamCardTotal(ANIMAL))
         assertEquals(InGamePlayerCardRecord("23", directReds = 1), playerRecord(state, ANIMAL, "23"))
+        assertUndoRestores(cardResult.state.undoEntry!!.previous, state)
 
         // During a live point, a direct red that reaches the misconduct threshold needs an offense/defense choice.
         state = standardLiveGameState().beginLivePoint()

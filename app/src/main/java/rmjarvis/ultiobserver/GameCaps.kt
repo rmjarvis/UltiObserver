@@ -79,7 +79,10 @@ fun LiveGameState.applyPendingCap(
 // This is run when we have asked the user whether to apply the next pending cap,
 // and they decide not to apply it yet.
 fun LiveGameState.deferPendingCap(): LiveGameState {
-    return this.copy(pendingCapOffer = null, lastEvent = "Cap offer deferred.")
+    return this.copy(
+        pendingCapOffer = null,
+        lastEvent = "Cap offer deferred.",
+    )
 }
 private fun capDisplayName(capType: CapType): String {
     return when (capType) {

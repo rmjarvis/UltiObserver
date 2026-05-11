@@ -5,6 +5,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
+import org.junit.Assert.assertEquals
 
 abstract class GameModelTestFixtures {
     protected val testTimeZone: ZoneId = ZoneId.of("America/New_York")
@@ -115,6 +116,16 @@ abstract class GameModelTestFixtures {
 
     protected fun PullInfractionAssessmentResult.message(): String? {
         return event?.formatMessage()
+    }
+
+    protected fun assertUndoRestores(
+        expectedPrevious: LiveGameState,
+        state: LiveGameState,
+    ): LiveGameState {
+        val undoneState = state.undoLastAction()
+        assertEquals(expectedPrevious, undoneState.copy(redoEntry = null))
+        assertEquals(state, undoneState.redoLastAction())
+        return undoneState
     }
 
     protected fun LiveGameState.capPrompt(): GamePrompt.ApplyCap {

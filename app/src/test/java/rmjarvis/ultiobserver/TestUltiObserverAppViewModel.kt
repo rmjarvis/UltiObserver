@@ -230,6 +230,7 @@ class TestUltiObserverAppViewModel {
         assertEquals(LivePhase.GAME_OVER, viewModel.archivedGames.single().state.phase)
         assertNull(viewModel.archivedGames.single().state.countdown)
         assertNull(viewModel.archivedGames.single().state.undoEntry)
+        assertNull(viewModel.archivedGames.single().state.redoEntry)
     }
 
     @Test
@@ -276,7 +277,14 @@ class TestUltiObserverAppViewModel {
         assertEquals(AppScreen.LIVE, gameRestored.screen)
         assertEquals(scoredState, gameRestored.liveState)
         assertNotNull(gameRestored.liveState!!.undoEntry)
-        assertEquals(livePointState, gameRestored.liveState!!.undoLastAction())
+        val undoRestoredState = gameRestored.liveState!!.undoLastAction()
+        assertEquals(livePointState, undoRestoredState.copy(redoEntry = null))
+        assertNotNull(undoRestoredState.redoEntry)
+
+        gameRestored.updateLiveGame(undoRestoredState)
+        val redoRestored = UltiObserverAppViewModel(FileAppStateStore(storeDir))
+        assertEquals(undoRestoredState, redoRestored.liveState)
+        assertEquals(scoredState, redoRestored.liveState!!.redoLastAction())
     }
 
     // Verify live event updates persist at the ViewModel boundary.
@@ -334,6 +342,7 @@ class TestUltiObserverAppViewModel {
         assertEquals(1, restored.archivedGames.size)
         assertNull(restored.archivedGames.single().state.countdown)
         assertNull(restored.archivedGames.single().state.undoEntry)
+        assertNull(restored.archivedGames.single().state.redoEntry)
         assertEquals(LivePhase.GAME_OVER, restored.archivedGames.single().state.phase)
     }
 

@@ -98,6 +98,7 @@ class TestGameOtherActions : GameModelTestFixtures() {
         assertEquals("Pull in", state.countdown?.label)
         assertEquals("Pulling team swapped.", state.lastEvent)
         assertEquals("Undo Swap Pulling Team", state.undoEntry?.label)
+        assertUndoRestores(state.undoEntry!!.previous, state)
 
         // Manually start halftime and verify second-half pull orientation, timeout reset, countdown, and undo entry.
         state = standardLiveGameState(
@@ -156,6 +157,7 @@ class TestGameOtherActions : GameModelTestFixtures() {
 
         // Undo game over restores the saved live state from before End Game was applied.
         state = state.undoLastAction()
-        assertEquals(beforeManualEnd, state)
+        assertEquals(beforeManualEnd, state.copy(redoEntry = null))
+        assertNotNull(state.redoEntry)
     }
 }
