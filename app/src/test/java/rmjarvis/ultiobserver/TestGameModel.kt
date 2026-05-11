@@ -929,6 +929,25 @@ class TestGameModel {
             cardResult.message,
         )
 
+        state = standardLiveGameState()
+        state = state.copy(teamOne = state.teamOne.copy(blueCards = 2))
+        cardResult = assessYellowCard(state, VC, "14")
+        assertFalse(cardResult.needsLivePointMisconductChoice)
+        assertEquals(
+            "Viscous Coupling has 3 cards.\n\nPenalty against pulling team. No pull. Receiving team starts at attacking brick.",
+            cardResult.message,
+        )
+
+        // During a live point, a standalone yellow that reaches the misconduct threshold needs an offense/defense choice.
+        state = beginLivePoint(standardLiveGameState())
+        state = assessBlueCard(state, VC).state
+        state = assessBlueCard(state, VC).state
+        cardResult = assessYellowCard(state, VC, "14")
+        state = cardResult.state
+        assertTrue(cardResult.needsLivePointMisconductChoice)
+        assertEquals("Viscous Coupling has 3 cards.", cardResult.message)
+        assertEquals(3, teamCardTotal(state, VC))
+
         // A direct red for a player with no prior yellow counts as two team card points and records a direct red.
         state = standardLiveGameState()
         cardResult = assessRedCard(state, ANIMAL, "23", RedCardMode.DIRECT_RED)
@@ -939,6 +958,15 @@ class TestGameModel {
         assertEquals(1, teamRedCards(state, ANIMAL))
         assertEquals(2, teamCardTotal(state, ANIMAL))
         assertEquals(InGamePlayerCardRecord("23", directReds = 1), playerRecord(state, ANIMAL, "23"))
+
+        // During a live point, a direct red that reaches the misconduct threshold needs an offense/defense choice.
+        state = beginLivePoint(standardLiveGameState())
+        state = assessYellowCard(state, ANIMAL, "8").state
+        cardResult = assessRedCard(state, ANIMAL, "23", RedCardMode.DIRECT_RED)
+        state = cardResult.state
+        assertTrue(cardResult.needsLivePointMisconductChoice)
+        assertEquals("Animal has 3 cards.", cardResult.message)
+        assertEquals(3, teamCardTotal(state, ANIMAL))
 
         // A direct red for a player who already has a yellow is distinct from recording the red as a second yellow.
         state = standardLiveGameState()
@@ -1105,15 +1133,35 @@ class TestGameModel {
         assertEquals(listOf(InGamePlayerCardRecord("17", yellows = 1, directReds = 1)), cardAssignments)
         cardAssignments = removePlayerCardAssignment(cardAssignments, "17", CardType.YELLOW)
         assertEquals(listOf(InGamePlayerCardRecord("17", directReds = 1)), cardAssignments)
+        cardAssignments = addPlayerCardAssignment(cardAssignments, "17", CardType.YELLOW)
         cardAssignments = removePlayerCardAssignment(cardAssignments, "17", CardType.RED)
-        assertTrue(cardAssignments.isEmpty())
+        assertEquals(listOf(InGamePlayerCardRecord("17", yellows = 1)), cardAssignments)
+        cardAssignments = addPlayerCardAssignment(cardAssignments, "17", CardType.RED)
+        cardAssignments = removePlayerCardAssignment(cardAssignments, "17", CardType.RED)
+        assertEquals(listOf(InGamePlayerCardRecord("17", yellows = 1)), cardAssignments)
         cardAssignments = listOf(
             InGamePlayerCardRecord("17", yellows = 1),
             InGamePlayerCardRecord("8", directReds = 1),
         )
         cardAssignments = removePlayerCardAssignment(cardAssignments, "17", CardType.YELLOW)
         assertEquals(listOf(InGamePlayerCardRecord("8", directReds = 1)), cardAssignments)
+        cardAssignments = addPlayerCardAssignment(cardAssignments, "23", CardType.YELLOW)
+        cardAssignments = addPlayerCardAssignment(cardAssignments, "8", CardType.YELLOW)
+        assertEquals(
+            listOf(
+                InGamePlayerCardRecord("8", yellows = 1, directReds = 1),
+                InGamePlayerCardRecord("23", yellows = 1),
+            ),
+            cardAssignments,
+        )
 
+        assertTrue(
+            canAddPlayerCardAssignment(
+                emptyList(),
+                "99",
+                CardType.YELLOW,
+            ),
+        )
         assertTrue(
             canAddPlayerCardAssignment(
                 listOf(InGamePlayerCardRecord("17", yellows = 1)),
@@ -1141,6 +1189,15 @@ class TestGameModel {
                 "17",
                 CardType.RED,
             ),
+        )
+
+        assertFalse(playerHasYellowThisGame(standardLiveGameState(), VC, "99"))
+        assertFalse(
+            playerHasYellowThisGame(
+                standardLiveGameState().copy(teamOnePlayerCards = listOf(InGamePlayerCardRecord("99"))),
+                VC,
+                "99",
+            )
         )
 
         val adjustmentStepState = standardLiveGameState().copy(
@@ -1199,6 +1256,19 @@ class TestGameModel {
             )
         }
         assertEquals("Player card records cannot have negative card counts.", negativeCardException.message)
+
+        val negativeRedException = assertThrows(IllegalArgumentException::class.java) {
+            adjustCardsAndTf(
+                state = standardLiveGameState(),
+                teamOneBlues = 0,
+                teamOneTechnicalFouls = 0,
+                teamTwoBlues = 0,
+                teamTwoTechnicalFouls = 0,
+                teamOnePlayerCards = listOf(InGamePlayerCardRecord("17", directReds = -1)),
+                teamTwoPlayerCards = emptyList(),
+            )
+        }
+        assertEquals("Player card records cannot have negative card counts.", negativeRedException.message)
 
         val tooManyYellowsException = assertThrows(IllegalArgumentException::class.java) {
             adjustCardsAndTf(
@@ -1553,6 +1623,11 @@ class TestGameModel {
         assertEquals(2, state.winningScore)
         assertNull(state.pendingCapOffer)
         assertEquals("Undo Apply Soft Cap", state.undoEntry?.label)
+        state = scoreAt(state, VC, 22)
+        assertEquals(LivePhase.GAME_OVER, state.phase)
+        assertEquals(2, state.teamOne.score)
+        assertEquals(1, state.teamTwo.score)
+        assertEquals(2, state.winningScore)
 
         // Hard cap while the score is not tied ends the game immediately when applied.
         state = newCapState(capRules.copy(useHalfCap = false, useSoftCap = false))
@@ -1685,6 +1760,73 @@ class TestGameModel {
         state = applyPendingCapAt(state, LocalTime.of(10, 10))
         assertTrue(state.softCapApplied)
         assertEquals(2, state.winningScore)
+        assertNull(state.pendingCapOffer)
+
+        // Manual halftime also catches a hard cap that became due before halftime was started.
+        state = newCapState(
+            capRules.copy(
+                gameTo = 7,
+                useHalfCap = false,
+                useSoftCap = false,
+                hardCapMinutes = 9,
+            )
+        )
+        state = scoreAt(state, VC, 8)
+        assertEquals(LivePhase.BETWEEN_POINTS, state.phase)
+        assertNull(state.pendingCapOffer)
+        state = startHalftimeNow(state, timestampAfterStart(state, 10))
+        assertEquals(LivePhase.HALFTIME, state.phase)
+        assertEquals(CapType.HARD, state.pendingCapOffer)
+        assertEquals(
+            "Hard cap is scheduled for 10:09 AM. Score is not tied, so the game would end during halftime. Apply now?",
+            capOfferExplanation(state),
+        )
+
+        // With hard cap disabled, manual halftime can catch a soft cap scheduled during halftime proper.
+        state = newCapState(
+            capRules.copy(
+                gameTo = 7,
+                useHalfCap = false,
+                softCapMinutes = 12,
+                useHardCap = false,
+            )
+        )
+        state = scoreAt(state, VC, 8)
+        state = startHalftimeNow(state, timestampAfterStart(state, 10))
+        assertEquals(LivePhase.HALFTIME, state.phase)
+        assertEquals(CapType.SOFT, state.pendingCapOffer)
+        assertEquals(
+            "Soft cap is scheduled for 10:12 AM. Winning score would become 2. Apply now?",
+            capOfferExplanation(state),
+        )
+
+        // Caps scheduled after halftime ends should wait for the next point rather than prompting from halftime.
+        state = newCapState(
+            capRules.copy(
+                gameTo = 7,
+                halftimeMinutes = 7,
+                useHalfCap = false,
+                useSoftCap = false,
+                hardCapMinutes = 20,
+            )
+        )
+        state = scoreAt(state, VC, 8)
+        state = startHalftimeNow(state, timestampAfterStart(state, 10))
+        assertEquals(LivePhase.HALFTIME, state.phase)
+        assertNull(state.pendingCapOffer)
+
+        state = newCapState(
+            capRules.copy(
+                gameTo = 7,
+                halftimeMinutes = 7,
+                useHalfCap = false,
+                softCapMinutes = 20,
+                useHardCap = false,
+            )
+        )
+        state = scoreAt(state, VC, 8)
+        state = startHalftimeNow(state, timestampAfterStart(state, 10))
+        assertEquals(LivePhase.HALFTIME, state.phase)
         assertNull(state.pendingCapOffer)
 
         // A hard cap scheduled during halftime takes precedence over a soft cap
@@ -1965,6 +2107,25 @@ class TestGameModel {
         assertEquals("Undo Update Game Setup", state.undoEntry?.label)
         assertEquals(beforeSetupEditBeforePlay, state.undoEntry?.previous)
 
+        // The raw live-state defaults represent a pregame state before the setup-to-live transition.
+        val pregameState = LiveGameState(
+            startDate = setup.startDate,
+            startTime = setup.startTime,
+            timeZone = setup.timeZone,
+            startEpoch = 0L,
+            rules = setup.rules,
+            teamOne = TeamLiveState("Team 1", TeamColorChoice.WHITE),
+            teamTwo = TeamLiveState("Team 2", TeamColorChoice.BLUE),
+            priorCards = emptyList(),
+            nearAttackingTeam = VC,
+            pullingTeam = VC,
+            pullingFromEnd = FieldEnd.FAR,
+            openingPullingTeam = VC,
+            openingPullingFromEnd = FieldEnd.FAR,
+        )
+        assertEquals(LivePhase.PRE_GAME, pregameState.phase)
+        assertNull(pregameState.countdown)
+
         // Edit setup after play has begun and verify opening pull metadata changes without rewriting current field state.
         state = beginLivePoint(state)
         state = assessYellowCard(state, VC, "17").state
@@ -2004,6 +2165,20 @@ class TestGameModel {
         assertEquals(emptyList<PlayerCardRecord>(), state.priorCards)
         assertEquals("Undo Update Game Setup", state.undoEntry?.label)
         assertEquals(beforeSetupEditAfterPlay, state.undoEntry?.previous)
+
+        // A game with only Team 2 on the scoreboard has still started, so setup edits
+        // should preserve the current pull and field state rather than resyncing from opening pull settings.
+        val animalScoredState = recordGoalAt(createLiveGameState(setup), ANIMAL, LocalTime.of(8, 40))
+        val animalScoredUpdate = applySetupToLiveGame(
+            animalScoredState,
+            editedBeforePlay.copy(pullingTeam = VC, pullingFromEnd = FieldEnd.FAR),
+            250_000L,
+        )
+        assertEquals(0, animalScoredUpdate.teamOne.score)
+        assertEquals(1, animalScoredUpdate.teamTwo.score)
+        assertEquals(animalScoredState.pullingTeam, animalScoredUpdate.pullingTeam)
+        assertEquals(animalScoredState.pullingFromEnd, animalScoredUpdate.pullingFromEnd)
+        assertEquals(animalScoredState.nearAttackingTeam, animalScoredUpdate.nearAttackingTeam)
 
         // Verify setup edits preserve pending cap prompts and do not restart an in-progress countdown.
         state = fieldStateAfterGoal.copy(pendingCapOffer = CapType.SOFT)
@@ -2066,6 +2241,15 @@ class TestGameModel {
         state = swapFieldEnds(state)
         assertEquals(CountdownKind.TIME_OUT, state.countdown?.kind)
         assertEquals(liveTimeoutCountdownBeforeSwap, state.countdown)
+
+        // Swapping during a live point with no active countdown keeps the point live and countdown-free.
+        state = beginLivePoint(standardLiveGameState())
+        state = swapFieldEnds(state)
+        assertEquals(LivePhase.LIVE_POINT, state.phase)
+        assertNull(state.countdown)
+        state = swapPullingTeam(state)
+        assertEquals(LivePhase.LIVE_POINT, state.phase)
+        assertNull(state.countdown)
 
         // Timeout-extended between-points countdowns still swap between offense-ready and pull timing.
         state = standardLiveGameState()
@@ -2341,8 +2525,22 @@ class TestGameModel {
     fun clockAndCountdownDisplays() {
         val VC = TeamId.TEAM_ONE
 
+        // Verify simple model defaults and labels used by setup display surfaces.
+        assertEquals("Pink", TeamColorChoice.PINK.label)
+        val defaultTeamSetup = TeamSetup()
+        assertEquals("", defaultTeamSetup.name)
+        assertEquals(TeamColorChoice.WHITE, defaultTeamSetup.color)
+        val timeoutCountdownWithDefaultTarget = CountdownState(
+            kind = CountdownKind.TIME_OUT,
+            label = "Offense set in",
+            durationSeconds = 70,
+            targetEpoch = 70_000L,
+        )
+        assertNull(timeoutCountdownWithDefaultTarget.betweenPointsTarget)
+
         // Verify the setup-time default helper rounds to the next half hour using a caller-supplied clock.
         assertEquals(LocalTime.of(9, 0), nextHalfHourFrom(LocalTime.of(9, 0)))
+        assertEquals(LocalTime.of(9, 30), nextHalfHourFrom(LocalTime.of(9, 0, 1)))
         assertEquals(LocalTime.of(9, 30), nextHalfHourFrom(LocalTime.of(9, 1)))
         assertEquals(LocalTime.of(9, 30), nextHalfHourFrom(LocalTime.of(9, 29)))
         assertEquals(LocalTime.of(10, 0), nextHalfHourFrom(LocalTime.of(9, 30)))
@@ -2372,6 +2570,21 @@ class TestGameModel {
         assertEquals(
             CapStatus("Hard cap", Duration.ofMinutes(5)),
             computeNextCapStatus(state.copy(halfCapApplied = true, softCapApplied = true), timestampAfterStart(state, 95)),
+        )
+        assertNull(computeNextCapStatus(state, timestampAfterStart(state, 200)))
+        assertEquals(
+            CapStatus("Soft cap", Duration.ofMinutes(30)),
+            computeNextCapStatus(state.copy(halftimeTaken = true), timestampAfterStart(state, 60)),
+        )
+        assertNull(
+            computeNextCapStatus(
+                state.copy(
+                    halfCapApplied = true,
+                    softCapApplied = true,
+                    hardCapApplied = true,
+                ),
+                timestampAfterStart(state, 95),
+            )
         )
 
         // Verify cap countdowns can wrap across midnight when a late-night game crosses dates.
@@ -2436,6 +2649,26 @@ class TestGameModel {
         assertEquals(
             "Countdown BETWEEN_POINTS is not valid while game phase is LIVE_POINT.",
             mismatchException.message,
+        )
+        val betweenPointsWithTimeoutCountdown = standardLiveGameState().copy(
+            countdown = inPointTimeoutCountdown,
+        )
+        val betweenPointsMismatchException = assertThrows(IllegalStateException::class.java) {
+            advanceGameClock(betweenPointsWithTimeoutCountdown, inPointTimeoutCountdown.targetEpoch)
+        }
+        assertEquals(
+            "Countdown TIME_OUT is not valid while game phase is BETWEEN_POINTS.",
+            betweenPointsMismatchException.message,
+        )
+        val halftimeWithBetweenPointsCountdown = standardLiveGameState().copy(
+            phase = LivePhase.HALFTIME,
+        )
+        val halftimeMismatchException = assertThrows(IllegalStateException::class.java) {
+            advanceGameClock(halftimeWithBetweenPointsCountdown, halftimeWithBetweenPointsCountdown.countdown!!.targetEpoch)
+        }
+        assertEquals(
+            "Countdown BETWEEN_POINTS is not valid while game phase is HALFTIME.",
+            halftimeMismatchException.message,
         )
 
         // Verify countdown helpers advance automatically at the exact target time, not before.

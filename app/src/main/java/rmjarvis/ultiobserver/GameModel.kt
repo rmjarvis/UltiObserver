@@ -96,7 +96,7 @@ data class TeamLiveState(
     val color: TeamColorChoice,
     val score: Int = 0,
     val timeoutsUsedThisHalf: Int = 0,
-    val firstHalfTimeoutsUsed: Int? = null,
+    val firstHalfTimeoutsUsed: Int = 0,
     val offsides: Int = 0,
     val falseStarts: Int = 0,
     val technicalFouls: Int = 0,
@@ -435,12 +435,8 @@ private fun startHalftime(
     // due just before a manual halftime start or that are scheduled during halftime.
     val pendingCapOffer = existingCapOffer.takeIf { it == CapType.SOFT || it == CapType.HARD }
         ?: when {
-            hardCapReached(state, now) -> CapType.HARD
-            hardCapRelevant(state) && hardCapTime >= now &&
-                hardCapTime < halftimeEnd -> CapType.HARD
-            softCapReached(state, now) -> CapType.SOFT
-            softCapRelevant(state) && softCapTime >= now &&
-                softCapTime < halftimeEnd -> CapType.SOFT
+            hardCapRelevant(state) && hardCapTime < halftimeEnd -> CapType.HARD
+            softCapRelevant(state) && softCapTime < halftimeEnd -> CapType.SOFT
             else -> null
         }
 
@@ -797,6 +793,7 @@ fun makeCapNow(
     }
     val offset = offsetMinutes * 60_000L
     val adjustedStart = localDateTimeFromEpoch(now - offset, state.timeZone)
+    val capName = capDisplayName(capType)
     return state.copy(
         rules = when (capType) {
             CapType.HALF -> state.rules.copy(useHalfCap = true)
@@ -806,8 +803,8 @@ fun makeCapNow(
         startDate = adjustedStart.toLocalDate(),
         startTime = adjustedStart.toLocalTime(),
         startEpoch = now - offset,
-        lastEvent = "${capType.name.lowercase().replaceFirstChar { it.uppercase() }} cap set to now.",
-    ).withUndo(state, "Undo ${capType.name.lowercase().replaceFirstChar { it.uppercase() }} Cap Now")
+        lastEvent = "$capName cap set to now.",
+    ).withUndo(state, "Undo $capName Cap Now")
 }
 
 // Apply the next cap due to its time being reached.
@@ -1055,6 +1052,14 @@ fun capOfferLabel(capType: CapType): String {
         CapType.HALF -> "half cap"
         CapType.SOFT -> "soft cap"
         CapType.HARD -> "hard cap"
+    }
+}
+
+private fun capDisplayName(capType: CapType): String {
+    return when (capType) {
+        CapType.HALF -> "Half"
+        CapType.SOFT -> "Soft"
+        CapType.HARD -> "Hard"
     }
 }
 
@@ -1369,7 +1374,7 @@ fun timeoutsAllowedThisHalf(state: LiveGameState, team: TeamId): Int {
         return firstHalfAllowance
     }
 
-    val firstHalfTimeoutsUsed = teamState(state, team).firstHalfTimeoutsUsed ?: 0
+    val firstHalfTimeoutsUsed = teamState(state, team).firstHalfTimeoutsUsed
     val floaterCarries = state.rules.hasFloaterTimeout && firstHalfTimeoutsUsed < firstHalfAllowance
     return state.rules.timeoutsPerHalf + if (floaterCarries) 1 else 0
 }
