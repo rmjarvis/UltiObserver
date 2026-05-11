@@ -11,10 +11,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -23,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -41,111 +43,130 @@ internal fun LiveGameState.gameListEntry(subtitle: String): GameListEntry {
 }
 
 // Home screen with quick entry points for current, completed, and archived games.
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun HomeScreen(
     currentGame: GameListEntry?,
     completedGamePendingArchive: GameListEntry?,
-    previousGames: List<GameListEntry>,
     onResumeCurrentGame: () -> Unit,
     onOpenCompletedGame: () -> Unit,
-    onOpenPreviousGame: (Int) -> Unit,
     onArchiveCompletedGame: () -> Unit,
     onStartNewGame: () -> Unit,
+    onOpenProfile: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenPreviousGames: () -> Unit,
 ) {
-    val showHomeArtwork = currentGame == null && completedGamePendingArchive == null
-
-    // Compose the home screen as a title area followed by the game lists.
+    // Compose the home screen as an app identity area with navigation and game resume cards.
     Scaffold { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // Show the app title and the main entry point for starting a game.
-            Box(
+            // Keep the observer artwork and app title visible on every home-screen state.
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentAlignment = Alignment.Center,
+                    .fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.splash_observer_foul_call),
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .height(255.dp)
+                        .fillMaxWidth(0.9f)
+                        .testTag("home-artwork"),
+                )
+                Text(
+                    text = "UltiObserver",
+                    style = MaterialTheme.typography.displayMedium,
+                    fontWeight = FontWeight.Black,
+                    textAlign = TextAlign.Center,
+                )
+                Text(
+                    text = "Game management for Ultimate observers",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+            }
+
+            // Main home actions. Start game remains primary; the others lead to early stub pages.
+            Row(
+                modifier = Modifier.fillMaxWidth(0.9f),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    if (showHomeArtwork) {
-                        Image(
-                            painter = painterResource(R.drawable.splash_observer_foul_call),
-                            contentDescription = null,
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth(0.82f),
-                        )
-                    } else {
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
-                    Text(
-                        text = "UltiObserver",
-                        style = MaterialTheme.typography.displayMedium,
-                        fontWeight = FontWeight.Black,
-                        textAlign = TextAlign.Center,
-                    )
-                    Text(
-                        text = "Game management for Ultimate observers",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                    )
                     Button(
                         onClick = onStartNewGame,
-                        modifier = Modifier.fillMaxWidth(0.8f),
-                    ) {
-                        Text("Start New Game")
-                    }
-                    Spacer(modifier = Modifier.weight(if (showHomeArtwork) 0.25f else 1f))
-                }
-            }
-
-            // Show the currently active game, if there is one.
-            if (currentGame != null) {
-                SectionCard(
-                    title = "Current Game",
-                    subtitle = "Tap to resume the active game.",
-                ) {
-                    HomeGameRow(entry = currentGame, onClick = onResumeCurrentGame)
-                }
-            }
-
-            // Show a finished-but-not-yet-archived game, if there is one.
-            if (completedGamePendingArchive != null) {
-                SectionCard(
-                    title = "Completed Game",
-                ) {
-                    HomeGameRow(entry = completedGamePendingArchive, onClick = onOpenCompletedGame)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Button(
-                        onClick = onArchiveCompletedGame,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text("Archive Completed Game")
+                        Text("Start New Game", textAlign = TextAlign.Center)
+                    }
+                    OutlinedButton(
+                        onClick = onOpenPreviousGames,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Previous Games", textAlign = TextAlign.Center)
+                    }
+                }
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    OutlinedButton(
+                        onClick = onOpenProfile,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Profile")
+                    }
+                    OutlinedButton(
+                        onClick = onOpenSettings,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Settings")
                     }
                 }
             }
 
-            // Show older archived games at the bottom.
-            SectionCard(
-                title = "Previous Games",
-                subtitle = "Tap a finished game to view its summary.",
-            ) {
-                if (previousGames.isEmpty()) {
-                    Text("No completed games yet.")
-                } else {
-                    previousGames.forEachIndexed { index, game ->
-                        HomeGameRow(entry = game, onClick = { onOpenPreviousGame(index) })
+            Spacer(modifier = Modifier.weight(1f))
+
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    // Show the currently active game, if there is one.
+                    if (currentGame != null) {
+                        SectionCard(
+                            title = "Current Game",
+                            subtitle = "Tap to resume the active game.",
+                        ) {
+                            GameListRow(entry = currentGame, onClick = onResumeCurrentGame)
+                        }
+                    }
+
+                    // Show a finished-but-not-yet-archived game, if there is one.
+                    if (completedGamePendingArchive != null) {
+                        SectionCard(
+                            title = "Completed Game",
+                        ) {
+                            GameListRow(entry = completedGamePendingArchive, onClick = onOpenCompletedGame)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Button(
+                                onClick = onArchiveCompletedGame,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text("Archive Completed Game")
+                            }
+                        }
                     }
                 }
             }
@@ -153,9 +174,9 @@ internal fun HomeScreen(
     }
 }
 
-// Tappable row for a game listed on the home screen.
+// Tappable row for a game listed on the home or previous-games screen.
 @Composable
-private fun HomeGameRow(
+internal fun GameListRow(
     entry: GameListEntry,
     onClick: () -> Unit,
 ) {

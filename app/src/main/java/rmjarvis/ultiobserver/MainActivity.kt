@@ -52,12 +52,33 @@ internal fun UltiObserverApp(viewModel: UltiObserverAppViewModel) {
                 completedGamePendingArchive = viewModel.liveState?.takeIf { it.phase == LivePhase.GAME_OVER }?.let {
                     it.gameListEntry("")
                 },
-                previousGames = viewModel.archivedGames.map { it.state.gameListEntry(it.subtitle) },
                 onResumeCurrentGame = viewModel::resumeCurrentGame,
                 onOpenCompletedGame = viewModel::openCompletedGame,
-                onOpenPreviousGame = viewModel::openPreviousGame,
                 onArchiveCompletedGame = viewModel::archiveCompletedGame,
                 onStartNewGame = viewModel::startNewGame,
+                onOpenProfile = viewModel::openProfile,
+                onOpenSettings = viewModel::openSettings,
+                onOpenPreviousGames = viewModel::openPreviousGames,
+            )
+        }
+
+        AppScreen.PROFILE -> {
+            ProfileScreen(
+                name = viewModel.profileName,
+                onNameChange = viewModel::updateProfileName,
+                onBackHome = viewModel::goHome,
+            )
+        }
+
+        AppScreen.SETTINGS -> {
+            SettingsScreen(onBackHome = viewModel::goHome)
+        }
+
+        AppScreen.PREVIOUS_GAMES -> {
+            PreviousGamesScreen(
+                previousGames = viewModel.archivedGames.map { it.state.gameListEntry(it.subtitle) },
+                onOpenPreviousGame = viewModel::openPreviousGame,
+                onBackHome = viewModel::goHome,
             )
         }
 

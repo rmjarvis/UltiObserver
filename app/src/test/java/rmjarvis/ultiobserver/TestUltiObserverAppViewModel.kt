@@ -203,6 +203,26 @@ class TestUltiObserverAppViewModel {
     }
 
     @Test
+    fun homeDestinationScreensAndProfileNameAreAppState() {
+        val storeDir = temporaryFolder.newFolder()
+        val viewModel = UltiObserverAppViewModel(FileAppStateStore(storeDir))
+
+        viewModel.openProfile()
+        assertEquals(AppScreen.PROFILE, viewModel.screen)
+        viewModel.updateProfileName("Casey Observer")
+        assertEquals("Casey Observer", viewModel.profileName)
+
+        viewModel.openSettings()
+        assertEquals(AppScreen.SETTINGS, viewModel.screen)
+        viewModel.openPreviousGames()
+        assertEquals(AppScreen.PREVIOUS_GAMES, viewModel.screen)
+
+        val restored = UltiObserverAppViewModel(FileAppStateStore(storeDir))
+        assertEquals(AppScreen.HOME, restored.screen)
+        assertEquals("Casey Observer", restored.profileName)
+    }
+
+    @Test
     fun startingNewGameArchivesCompletedGameWithoutClosingItAgain() {
         val viewModel = UltiObserverAppViewModel()
         viewModel.startNewGame()

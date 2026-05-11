@@ -162,6 +162,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         waitForText("Completed Game")
         composeRule.onNodeWithText("Archive Completed Game").performClick()
         waitForText("Previous Games")
+        composeRule.onNodeWithText("Previous Games").performClick()
         composeRule.onNodeWithText("$viscousCoupling 4 - 5 $animal").performClick()
         composeRule.onNodeWithText("Game Summary").assertIsDisplayed()
         composeRule.onNodeWithText("$animal 5").assertIsDisplayed()

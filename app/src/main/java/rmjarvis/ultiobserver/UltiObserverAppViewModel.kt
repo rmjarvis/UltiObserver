@@ -11,6 +11,9 @@ import kotlinx.serialization.Serializable
 @Serializable
 internal enum class AppScreen {
     HOME,
+    PROFILE,
+    SETTINGS,
+    PREVIOUS_GAMES,
     SETUP,
     LIVE,
 }
@@ -41,6 +44,8 @@ internal class UltiObserverAppViewModel(
         private set
     var setupMode by mutableStateOf(persistedActiveState?.setupMode ?: SetupMode.NEW_GAME)
         private set
+    var profileName by mutableStateOf(persistedActiveState?.profileName ?: "")
+        private set
     var archivedGames by mutableStateOf(appStateStore.loadArchivedGames())
         private set
     var viewingArchivedGame by mutableStateOf(viewingArchivedGameIndex?.let { archivedGames.getOrNull(it) })
@@ -69,6 +74,29 @@ internal class UltiObserverAppViewModel(
             liveState = updatedGame
             persistActiveState()
         }
+    }
+
+    fun updateProfileName(updatedName: String) {
+        profileName = updatedName
+        persistActiveState()
+    }
+
+    fun openProfile() {
+        clearViewedArchivedGame()
+        screen = AppScreen.PROFILE
+        persistActiveState()
+    }
+
+    fun openSettings() {
+        clearViewedArchivedGame()
+        screen = AppScreen.SETTINGS
+        persistActiveState()
+    }
+
+    fun openPreviousGames() {
+        clearViewedArchivedGame()
+        screen = AppScreen.PREVIOUS_GAMES
+        persistActiveState()
     }
 
     fun resumeCurrentGame() {
@@ -169,6 +197,7 @@ internal class UltiObserverAppViewModel(
                 liveState = liveState,
                 setupMode = setupMode,
                 viewingArchivedGameIndex = viewingArchivedGameIndex,
+                profileName = profileName,
             )
         )
     }

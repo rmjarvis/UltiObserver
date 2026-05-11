@@ -24,7 +24,10 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
     fun launchHomeAndStartGame() {
         // Verify the app opens on the home screen with the primary navigation affordances.
         composeRule.onNodeWithText("UltiObserver").assertIsDisplayed()
+        composeRule.onNodeWithTag("home-artwork").assertIsDisplayed()
         composeRule.onNodeWithText("Start New Game").assertIsDisplayed()
+        composeRule.onNodeWithText("Profile").assertIsDisplayed()
+        composeRule.onNodeWithText("Settings").assertIsDisplayed()
         composeRule.onNodeWithText("Previous Games").assertIsDisplayed()
 
         // Walk the default new-game path into the live screen.
@@ -56,5 +59,24 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText("Back to Game Screen")
         composeRule.onNodeWithText("Back to Game Screen").performScrollTo().performClick()
         assertLiveScreen()
+    }
+
+    // Test the new home destinations that are present before their full feature work exists.
+    @Test
+    fun homeDestinationButtonsOpenStubPages() {
+        composeRule.onNodeWithText("Profile").performClick()
+        waitForText("Name")
+        composeRule.onNodeWithTag("profile-name-field").performTextReplacement("Casey Observer")
+        composeRule.onNodeWithText("Casey Observer").assertIsDisplayed()
+
+        pressAppBack()
+        waitForText("Start New Game")
+        composeRule.onNodeWithText("Settings").performClick()
+        waitForText("No settings available yet.")
+
+        pressAppBack()
+        waitForText("Start New Game")
+        composeRule.onNodeWithText("Previous Games").performClick()
+        composeRule.onNodeWithTag("previous-games-screen").assertIsDisplayed()
     }
 }
