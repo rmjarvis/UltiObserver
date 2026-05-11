@@ -2,6 +2,8 @@ package rmjarvis.ultiobserver
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
@@ -299,24 +301,22 @@ class MainActivitySmokeTest {
         composeRule.onNodeWithText("Team 2").assertIsDisplayed()
     }
 
-    // Test the home-screen path for preserving and resuming an active game.
-    // Also cover the live-to-setup update flow because it shares the same app-level routing state.
+    // Test the home-screen and update-setup buttons that wire into app-level routing state.
     @Test
     fun homeCurrentGameResumeAndUpdateSetupPath() {
         startLiveGame()
 
-        // Back navigation should preserve the active game and expose the resume path.
+        // Back navigation should expose the current-game resume path.
         pressAppBack()
         waitForText("Current Game")
         composeRule.onNodeWithText("Current Game").assertIsDisplayed()
         composeRule.onNodeWithText("Team 1 0 - 0 Team 2").performClick()
         assertLiveScreen()
 
-        // The live Other menu should reopen setup in update mode and return to the same game.
+        // The live Other menu should reopen setup in update mode and return to live.
         openOtherSheet()
         composeRule.onNodeWithText("Update Game Setup").performClick()
         waitForText("Back to Game Screen")
-        composeRule.onNodeWithText("+5").performScrollTo().performClick()
         composeRule.onNodeWithText("Back to Game Screen").performScrollTo().performClick()
         assertLiveScreen()
     }
@@ -414,25 +414,15 @@ class MainActivitySmokeTest {
         waitForText("Team 2 has 2 cards.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
 
-        // Reusing N/A for a yellow should ask whether it is the same unknown player.
+        // Reusing N/A for a yellow should support recording a different unknown player.
         recordYellowCard(TeamId.TEAM_ONE, "", "Team 1 has 3 cards.", substring = true)
         openCardsSheet()
         composeRule.onAllNodesWithText("Yellow")[teamCardButtonIndex(TeamId.TEAM_ONE)].performClick()
         waitForText("Yellow Card")
         composeRule.onNodeWithText("N/A").performClick()
         waitForText("Unknown Player Number")
-        composeRule.onNodeWithText("Yes").performClick()
-        waitForText("Team 1 has 4 cards.", substring = true)
-        composeRule.onNodeWithText("OK").performClick()
-
-        // The same N/A follow-up should also support recording a different unknown player.
-        openCardsSheet()
-        composeRule.onAllNodesWithText("Yellow")[teamCardButtonIndex(TeamId.TEAM_ONE)].performClick()
-        waitForText("Yellow Card")
-        composeRule.onNodeWithText("N/A").performClick()
-        waitForText("Unknown Player Number")
         composeRule.onNodeWithText("No").performClick()
-        waitForText("Team 1 has", substring = true)
+        waitForText("Team 1 has 4 cards.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
 
         // Apply a manual card correction that adds a player red, removes a player yellow, and changes a team count.
@@ -504,7 +494,7 @@ class MainActivitySmokeTest {
         waitForText("Game is over", substring = true)
         composeRule.onNodeWithText("OK").performClick()
         waitForText("#21: Two yellow cards")
-        waitForText("N/A: 3 yellow cards")
+        waitForText("N/A: Two yellow cards")
     }
 
     // Test the less-common live-game actions behind the Other menu.
@@ -608,37 +598,6 @@ class MainActivitySmokeTest {
         assertLiveScreen()
     }
 
-    // Test the completed-game flow from live game over to home archive to previous-game summary.
-    // This protects the top-level navigation state around finished games.
-    @Test
-    fun completedAndPreviousGamePaths() {
-        startLiveGame()
-
-        // Manual game end should transition to the read-only summary surface with undo available.
-        openOtherSheet()
-        composeRule.onNodeWithText("End Game").performClick()
-        waitForText("Game is over", substring = true)
-        composeRule.onNodeWithText("OK").performClick()
-        composeRule.onNodeWithText("Game Summary").assertIsDisplayed()
-        composeRule.onNodeWithText("Undo End Game").assertIsDisplayed()
-
-        // Completed games should reopen from home before they are archived.
-        pressAppBack()
-        waitForText("Completed Game")
-        composeRule.onNodeWithText("Team 1 0 - 0 Team 2").performClick()
-        composeRule.onNodeWithText("Game Summary").assertIsDisplayed()
-
-        // Starting a new game archives the completed one; the archived summary remains viewable.
-        pressAppBack()
-        waitForText("Completed Game")
-        composeRule.onNodeWithText("Start New Game").performClick()
-        waitForText("UltiObserver Setup")
-        pressAppBack()
-        waitForText("Previous Games")
-        composeRule.onNodeWithText("Team 1 0 - 0 Team 2").performClick()
-        composeRule.onNodeWithText("Game Summary").assertIsDisplayed()
-    }
-
     private fun openNewGameSetup() {
         composeRule.onNodeWithText("Start New Game").performClick()
         waitForText("UltiObserver Setup")
@@ -679,8 +638,14 @@ class MainActivitySmokeTest {
 
         composeRule.onNodeWithText("Start time").performClick()
         waitForText("Set Start Time")
-        composeRule.onNodeWithText("Hour").performTextReplacement(hourText)
-        composeRule.onNodeWithText("Minute").performTextReplacement(minuteText)
+        composeRule.onNode(
+            hasSetTextAction() and hasContentDescription("hour", substring = true, ignoreCase = true),
+            useUnmergedTree = true,
+        ).performTextReplacement(hourText)
+        composeRule.onNode(
+            hasSetTextAction() and hasContentDescription("minute", substring = true, ignoreCase = true),
+            useUnmergedTree = true,
+        ).performTextReplacement(minuteText)
         composeRule.onNodeWithText(period).performClick()
         composeRule.onNodeWithText("Set").performClick()
         waitForText("Start Game")

@@ -1,6 +1,7 @@
 package rmjarvis.ultiobserver
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -82,5 +83,64 @@ class TestUltiObserverAppViewModel {
         viewModel.updateLiveGame(changedArchivedGame)
         assertNull(viewModel.liveState)
         assertEquals(archivedGame, viewModel.currentLiveState)
+    }
+
+    @Test
+    fun completedGameCanReopenFromHomeAndThenArchive() {
+        val viewModel = UltiObserverAppViewModel()
+        viewModel.startNewGame()
+        viewModel.finishSetup()
+
+        val completedGame = viewModel.liveState!!.copy(phase = LivePhase.GAME_OVER)
+        viewModel.updateLiveGame(completedGame)
+        viewModel.goHome()
+
+        viewModel.openCompletedGame()
+        assertEquals(AppScreen.LIVE, viewModel.screen)
+        assertEquals(completedGame, viewModel.currentLiveState)
+        assertFalse(viewModel.viewingReadOnlySummary)
+
+        viewModel.goHome()
+        viewModel.archiveCompletedGame()
+        assertNull(viewModel.liveState)
+        assertEquals(1, viewModel.archivedGames.size)
+        assertEquals("", viewModel.archivedGames.single().subtitle)
+
+        viewModel.openPreviousGame(0)
+        assertEquals(AppScreen.LIVE, viewModel.screen)
+        assertTrue(viewModel.viewingReadOnlySummary)
+        assertEquals(viewModel.archivedGames.single().state, viewModel.currentLiveState)
+    }
+
+    @Test
+    fun currentGameResumeAndSetupUpdatePreserveLiveState() {
+        val viewModel = UltiObserverAppViewModel()
+        viewModel.startNewGame()
+        viewModel.finishSetup()
+        val scoredGame = adjustScore(viewModel.liveState!!, teamOneScore = 3, teamTwoScore = 2)
+        viewModel.updateLiveGame(scoredGame)
+
+        viewModel.goHome()
+        assertEquals(AppScreen.HOME, viewModel.screen)
+        assertEquals(scoredGame, viewModel.liveState)
+
+        viewModel.resumeCurrentGame()
+        assertEquals(AppScreen.LIVE, viewModel.screen)
+        assertEquals(scoredGame, viewModel.currentLiveState)
+
+        viewModel.editCurrentGame(viewModel.currentLiveState!!)
+        assertEquals(AppScreen.SETUP, viewModel.screen)
+        assertEquals(SetupMode.EDIT_CURRENT_GAME, viewModel.setupMode)
+        viewModel.updateSetup(
+            viewModel.setupState.copy(
+                rules = viewModel.setupState.rules.copy(gameTo = 17),
+            )
+        )
+        viewModel.finishSetup()
+
+        assertEquals(AppScreen.LIVE, viewModel.screen)
+        assertEquals(17, viewModel.liveState!!.rules.gameTo)
+        assertEquals(3, viewModel.liveState!!.teamOne.score)
+        assertEquals(2, viewModel.liveState!!.teamTwo.score)
     }
 }
