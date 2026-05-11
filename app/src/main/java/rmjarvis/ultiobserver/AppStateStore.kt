@@ -1,6 +1,11 @@
 package rmjarvis.ultiobserver
 
 import java.io.File
+import java.nio.charset.StandardCharsets
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption.ATOMIC_MOVE
+import java.nio.file.StandardCopyOption.REPLACE_EXISTING
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -33,6 +38,9 @@ internal object NoOpAppStateStore : AppStateStore {
 
 internal class FileAppStateStore(
     private val rootDir: File,
+    // Keep file moves injectable so tests can force platform-specific fallback paths.
+    private val moveFileAtomically: (File, File) -> Unit = ::moveFileAtomically,
+    private val replaceFile: (File, File) -> Unit = ::replaceFile,
 ) : AppStateStore {
     private val json = Json {
         encodeDefaults = true
@@ -54,7 +62,7 @@ internal class FileAppStateStore(
 
     override fun saveActiveState(state: PersistedActiveAppState) {
         rootDir.mkdirs()
-        activeStateFile.writeAtomically(json.encodeToString(state))
+        activeStateFile.writeAtomically(json.encodeToString(state), moveFileAtomically, replaceFile)
     }
 
     override fun loadArchivedGames(): List<ArchivedGame> {
@@ -74,16 +82,41 @@ internal class FileAppStateStore(
             .listFiles { file -> file.isFile && file.extension == "json" }
             ?.forEach { file -> require(file.delete()) { "Could not delete stale archive ${file.name}." } }
         games.forEachIndexed { index, game ->
-            File(archivedGamesDir, "%05d.json".format(index)).writeAtomically(json.encodeToString(game))
+            File(archivedGamesDir, "%05d.json".format(index))
+                .writeAtomically(json.encodeToString(game), moveFileAtomically, replaceFile)
         }
     }
 }
 
-private fun File.writeAtomically(content: String) {
-    val tmpFile = File(parentFile, ".$name.tmp")
-    tmpFile.writeText(content)
-    if (exists()) {
-        require(delete()) { "Could not replace $path." }
+private fun File.writeAtomically(
+    content: String,
+    moveFileAtomically: (File, File) -> Unit,
+    replaceFile: (File, File) -> Unit,
+) {
+    val directory = parentFile ?: error("Atomic writes require a parent directory for $path.")
+    directory.mkdirs()
+    val tmpFile = File(directory, ".$name.tmp")
+    try {
+        tmpFile.outputStream().use { output ->
+            output.write(content.toByteArray(StandardCharsets.UTF_8))
+            output.fd.sync()
+        }
+        try {
+            moveFileAtomically(tmpFile, this)
+        } catch (_: AtomicMoveNotSupportedException) {
+            replaceFile(tmpFile, this)
+        }
+    } finally {
+        if (tmpFile.exists()) {
+            tmpFile.delete()
+        }
     }
-    require(tmpFile.renameTo(this)) { "Could not move ${tmpFile.path} to $path." }
+}
+
+private fun moveFileAtomically(source: File, target: File) {
+    Files.move(source.toPath(), target.toPath(), ATOMIC_MOVE, REPLACE_EXISTING)
+}
+
+private fun replaceFile(source: File, target: File) {
+    Files.move(source.toPath(), target.toPath(), REPLACE_EXISTING)
 }

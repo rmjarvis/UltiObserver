@@ -1,6 +1,10 @@
 package rmjarvis.ultiobserver
 
 import java.io.File
+import java.io.IOException
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption.REPLACE_EXISTING
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -8,6 +12,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -330,6 +335,70 @@ class TestUltiObserverAppViewModel {
         assertNull(restored.archivedGames.single().state.countdown)
         assertNull(restored.archivedGames.single().state.undoEntry)
         assertEquals(LivePhase.GAME_OVER, restored.archivedGames.single().state.phase)
+    }
+
+    // Verify failed active-state writes do not leave stale temporary files behind.
+    @Test
+    fun persistentStoreCleansTemporaryFileAfterFailedWrite() {
+        val storeDir = temporaryFolder.newFolder()
+        val activeStatePath = File(storeDir, "active_app_state.json")
+
+        // Make the destination an undeletable non-empty directory so replacement fails.
+        assertTrue(activeStatePath.mkdir())
+        assertTrue(File(activeStatePath, "blocking-child").writeText("blocker").let { true })
+
+        val store = FileAppStateStore(storeDir)
+        val setup = newGameSetupState(LocalDateTime.of(2026, 5, 11, 10, 0))
+
+        assertThrows(IOException::class.java) {
+            store.saveActiveState(
+                PersistedActiveAppState(
+                    screen = AppScreen.SETUP,
+                    setupState = setup,
+                    liveState = null,
+                    setupMode = SetupMode.NEW_GAME,
+                    viewingArchivedGameIndex = null,
+                )
+            )
+        }
+        assertFalse(File(storeDir, ".active_app_state.json.tmp").exists())
+    }
+
+    // Verify the non-atomic replace fallback still writes readable state.
+    @Test
+    fun persistentStoreFallsBackWhenAtomicMoveIsUnavailable() {
+        val storeDir = temporaryFolder.newFolder()
+        var atomicMoveAttempts = 0
+        var replaceMoveAttempts = 0
+        val store = FileAppStateStore(
+            rootDir = storeDir,
+            moveFileAtomically = { source, target ->
+                atomicMoveAttempts += 1
+                throw AtomicMoveNotSupportedException(source.path, target.path, "forced fallback")
+            },
+            replaceFile = { source, target ->
+                replaceMoveAttempts += 1
+                Files.move(source.toPath(), target.toPath(), REPLACE_EXISTING)
+            },
+        )
+        val setup = newGameSetupState(LocalDateTime.of(2026, 5, 11, 10, 0))
+        val savedState = PersistedActiveAppState(
+            screen = AppScreen.SETUP,
+            setupState = setup,
+            liveState = null,
+            setupMode = SetupMode.NEW_GAME,
+            viewingArchivedGameIndex = null,
+        )
+
+        // Force the atomic path to fail and verify the fallback path replaces the file.
+        store.saveActiveState(savedState)
+        assertEquals(1, atomicMoveAttempts)
+        assertEquals(1, replaceMoveAttempts)
+        assertFalse(File(storeDir, ".active_app_state.json.tmp").exists())
+
+        // Load through a normal store to verify the fallback wrote valid serialized state.
+        val restoredState = FileAppStateStore(storeDir).loadActiveState()
+        assertEquals(savedState, restoredState)
     }
 }
 
