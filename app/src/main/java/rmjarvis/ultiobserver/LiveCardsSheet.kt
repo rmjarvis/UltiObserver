@@ -1,0 +1,355 @@
+package rmjarvis.ultiobserver
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+
+private data class PendingRedCardChoice(
+    val team: TeamId,
+    val jerseyNumber: String,
+)
+
+private data class PendingUnknownYellowChoice(
+    val team: TeamId,
+)
+
+// Bottom sheet for recording cards and technical fouls for either team.
+@Composable
+internal fun CardsSheet(
+    state: LiveGameState,
+    onAssessment: (CardAssessmentResult) -> Unit,
+) {
+    var pendingYellowTeam by remember { mutableStateOf<TeamId?>(null) }
+    var pendingRedTeam by remember { mutableStateOf<TeamId?>(null) }
+    var pendingRedCardChoice by remember { mutableStateOf<PendingRedCardChoice?>(null) }
+    var pendingUnknownYellowChoice by remember { mutableStateOf<PendingUnknownYellowChoice?>(null) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text("Cards / Technical Fouls", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        TeamActionSection(
+            label = "${state.teamOne.name}${cardsRoleSuffix(state, TeamId.TEAM_ONE)}",
+            issuedCards = state.playerCards(TeamId.TEAM_ONE),
+            onYellow = { pendingYellowTeam = TeamId.TEAM_ONE },
+            onRed = { pendingRedTeam = TeamId.TEAM_ONE },
+            onBlue = { onAssessment(state.assessBlueCard(TeamId.TEAM_ONE)) },
+            onTech = { onAssessment(state.assessTechnicalFoul(TeamId.TEAM_ONE)) },
+        )
+        TeamActionSection(
+            label = "${state.teamTwo.name}${cardsRoleSuffix(state, TeamId.TEAM_TWO)}",
+            issuedCards = state.playerCards(TeamId.TEAM_TWO),
+            onYellow = { pendingYellowTeam = TeamId.TEAM_TWO },
+            onRed = { pendingRedTeam = TeamId.TEAM_TWO },
+            onBlue = { onAssessment(state.assessBlueCard(TeamId.TEAM_TWO)) },
+            onTech = { onAssessment(state.assessTechnicalFoul(TeamId.TEAM_TWO)) },
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+    }
+
+    if (pendingYellowTeam != null) {
+        PlayerNumberDialog(
+            title = "Yellow Card",
+            teamName = state.teamFor(pendingYellowTeam!!).name,
+            onDismiss = { pendingYellowTeam = null },
+            onConfirm = { jerseyNumber ->
+                // Yellow on N/A needs a follow-up question if an unknown player already has one.
+                if (
+                    jerseyNumber == UNKNOWN_PLAYER_NUMBER &&
+                    state.playerHasYellowThisGame(pendingYellowTeam!!, UNKNOWN_PLAYER_NUMBER)
+                ) {
+                    pendingUnknownYellowChoice = PendingUnknownYellowChoice(pendingYellowTeam!!)
+                } else {
+                    onAssessment(state.assessYellowCard(pendingYellowTeam!!, jerseyNumber))
+                }
+                pendingYellowTeam = null
+            },
+        )
+    }
+
+    if (pendingRedTeam != null) {
+        PlayerNumberDialog(
+            title = "Red Card",
+            teamName = state.teamFor(pendingRedTeam!!).name,
+            onDismiss = { pendingRedTeam = null },
+            onConfirm = { jerseyNumber ->
+                // Red on a player who already has yellow needs a direct-red vs second-yellow choice.
+                if (state.playerHasYellowThisGame(pendingRedTeam!!, jerseyNumber)) {
+                    pendingRedCardChoice = PendingRedCardChoice(pendingRedTeam!!, jerseyNumber)
+                } else {
+                    onAssessment(state.assessRedCard(pendingRedTeam!!, jerseyNumber, RedCardMode.DIRECT_RED))
+                }
+                pendingRedTeam = null
+            },
+        )
+    }
+
+    if (pendingRedCardChoice != null) {
+        val redCardChoice = pendingRedCardChoice!!
+        val currentRecords = state.playerCards(redCardChoice.team)
+        RedCardModeDialog(
+            teamName = state.teamFor(redCardChoice.team).name,
+            jerseyNumber = redCardChoice.jerseyNumber,
+            directRedEnabled = canAddPlayerCardAssignment(
+                currentRecords,
+                redCardChoice.jerseyNumber,
+                CardType.RED,
+            ),
+            secondYellowEnabled = canAddPlayerCardAssignment(
+                currentRecords,
+                redCardChoice.jerseyNumber,
+                CardType.YELLOW,
+            ),
+            onDismiss = { pendingRedCardChoice = null },
+            onDirectRed = {
+                onAssessment(
+                    state.assessRedCard(
+                        redCardChoice.team,
+                        redCardChoice.jerseyNumber,
+                        RedCardMode.DIRECT_RED,
+                    )
+                )
+                pendingRedCardChoice = null
+            },
+            onSecondYellow = {
+                onAssessment(
+                    state.assessRedCard(
+                        redCardChoice.team,
+                        redCardChoice.jerseyNumber,
+                        RedCardMode.SECOND_YELLOW,
+                    )
+                )
+                pendingRedCardChoice = null
+            },
+        )
+    }
+
+    if (pendingUnknownYellowChoice != null) {
+        UnknownYellowDialog(
+            teamName = state.teamFor(pendingUnknownYellowChoice!!.team).name,
+            onDismiss = { pendingUnknownYellowChoice = null },
+            onSamePlayer = {
+                onAssessment(
+                    state.assessRedCard(
+                        pendingUnknownYellowChoice!!.team,
+                        UNKNOWN_PLAYER_NUMBER,
+                        RedCardMode.SECOND_YELLOW,
+                    )
+                )
+                pendingUnknownYellowChoice = null
+            },
+            onDifferentPlayer = {
+                onAssessment(
+                    state.assessStandaloneYellowCard(
+                        pendingUnknownYellowChoice!!.team,
+                        UNKNOWN_PLAYER_NUMBER,
+                    )
+                )
+                pendingUnknownYellowChoice = null
+            },
+        )
+    }
+}
+
+// Card/TF actions and current-game issued-card summary for one team.
+@Composable
+private fun TeamActionSection(
+    label: String,
+    issuedCards: List<InGamePlayerCardRecord>,
+    onYellow: () -> Unit,
+    onRed: () -> Unit,
+    onBlue: () -> Unit,
+    onTech: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(label, fontWeight = FontWeight.SemiBold)
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SmallActionButton(label = "Yellow", modifier = Modifier.weight(1f), onClick = onYellow)
+            SmallActionButton(label = "Red", modifier = Modifier.weight(1f), onClick = onRed)
+        }
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SmallActionButton(label = "Blue", modifier = Modifier.weight(1f), onClick = onBlue)
+            SmallActionButton(label = "Tech", modifier = Modifier.weight(1f), onClick = onTech)
+        }
+        if (issuedCards.isNotEmpty()) {
+            Text("This game", fontWeight = FontWeight.Medium, style = MaterialTheme.typography.labelLarge)
+            issuedCards.forEach { record ->
+                Text(
+                    text = buildIssuedCardSummary(record),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
+    }
+}
+
+// Jersey-number prompt shared by the card flows. Blank records as N/A.
+@Composable
+internal fun PlayerNumberDialog(
+    title: String,
+    teamName: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit,
+) {
+    var jerseyNumber by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(teamName, fontWeight = FontWeight.SemiBold)
+                OutlinedTextField(
+                    value = jerseyNumber,
+                    onValueChange = { jerseyNumber = it.filter(Char::isDigit) },
+                    label = { Text("Player number") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    modifier = Modifier.testTag("card-player-number"),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(jerseyNumber.ifBlank { UNKNOWN_PLAYER_NUMBER }) }) {
+                Text("Record")
+            }
+        },
+        dismissButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = { onConfirm(UNKNOWN_PLAYER_NUMBER) }) {
+                    Text("N/A")
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel")
+                }
+            }
+        },
+    )
+}
+
+// Resolve whether a red on a player with yellow is direct red or second yellow.
+@Composable
+private fun RedCardModeDialog(
+    teamName: String,
+    jerseyNumber: String,
+    directRedEnabled: Boolean,
+    secondYellowEnabled: Boolean,
+    onDismiss: () -> Unit,
+    onDirectRed: () -> Unit,
+    onSecondYellow: () -> Unit,
+) {
+    val hasValidChoice = directRedEnabled || secondYellowEnabled
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Player Already Has Yellow") },
+        text = {
+            if (hasValidChoice) {
+                Text("$teamName #$jerseyNumber already has a yellow this game.")
+            } else {
+                Text("$teamName #$jerseyNumber already has the maximum valid card combination.")
+            }
+        },
+        confirmButton = {
+            if (directRedEnabled) {
+                TextButton(onClick = onDirectRed) {
+                    Text("Direct Red")
+                }
+            } else if (!hasValidChoice) {
+                TextButton(onClick = onDismiss) {
+                    Text("OK")
+                }
+            }
+        },
+        dismissButton = {
+            if (hasValidChoice) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (secondYellowEnabled) {
+                        TextButton(onClick = onSecondYellow) {
+                            Text("Second Yellow")
+                        }
+                    }
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel")
+                    }
+                }
+            }
+        },
+    )
+}
+
+// Resolve whether a second yellow on N/A is the same unknown player as before.
+@Composable
+private fun UnknownYellowDialog(
+    teamName: String,
+    onDismiss: () -> Unit,
+    onSamePlayer: () -> Unit,
+    onDifferentPlayer: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Unknown Player Number") },
+        text = {
+            Text("$teamName already has a yellow assigned to N/A. Is this the same player?")
+        },
+        confirmButton = {
+            TextButton(onClick = onSamePlayer) {
+                Text("Yes")
+            }
+        },
+        dismissButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = onDifferentPlayer) {
+                    Text("No")
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel")
+                }
+            }
+        },
+    )
+}
+
+// Compact live-game summary for one player's current-game cards.
+private fun buildIssuedCardSummary(record: InGamePlayerCardRecord): String {
+    val parts = buildList {
+        if (record.yellows > 0) {
+            add("Y ${record.yellows}")
+        }
+        if (record.directReds > 0) {
+            add("DR ${record.directReds}")
+        }
+    }
+    return "${displayPlayerNumber(record.jerseyNumber)}: ${parts.joinToString("  ")}"
+}
+
+// Between points, tag each team as pulling or receiving in the Cards / TF sheet.
+private fun cardsRoleSuffix(state: LiveGameState, team: TeamId): String {
+    return if (state.phase == LivePhase.BETWEEN_POINTS || state.phase == LivePhase.HALFTIME) {
+        if (team == state.pullingTeam) " (pulling)" else " (receiving)"
+    } else {
+        ""
+    }
+}
