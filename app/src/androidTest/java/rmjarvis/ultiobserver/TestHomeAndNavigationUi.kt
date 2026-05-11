@@ -61,6 +61,18 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         assertLiveScreen()
     }
 
+    // Test the explicit app-bar Back buttons mirror Android back navigation on main screens.
+    @Test
+    fun topLevelScreensHaveVisibleBackButtons() {
+        openNewGameSetup()
+        composeRule.onNodeWithText("Back").performClick()
+        waitForText("Start New Game")
+
+        startLiveGame()
+        composeRule.onNodeWithText("Back").performClick()
+        waitForText("Current Game")
+    }
+
     // Test the new home destinations that are present before their full feature work exists.
     @Test
     fun homeDestinationButtonsOpenStubPages() {

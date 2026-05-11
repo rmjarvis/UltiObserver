@@ -42,6 +42,7 @@ internal fun LiveGameScreen(
     readOnlySummary: Boolean,
     onStateChange: (LiveGameState) -> Unit,
     onUpdateGameSetup: () -> Unit,
+    onBackHome: () -> Unit,
 ) {
     var showCardsSheet by remember { mutableStateOf(false) }
     var showOtherSheet by remember { mutableStateOf(false) }
@@ -109,6 +110,11 @@ internal fun LiveGameScreen(
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("UltiObserver") },
+                navigationIcon = {
+                    TextButton(onClick = onBackHome) {
+                        Text("Back")
+                    }
+                },
                 actions = {
                     if (!locked && state.phase != LivePhase.GAME_OVER) {
                         TextButton(

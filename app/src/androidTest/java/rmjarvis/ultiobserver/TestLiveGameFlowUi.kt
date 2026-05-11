@@ -157,8 +157,8 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("$viscousCoupling 4").assertIsDisplayed()
         composeRule.onNodeWithText("$animal 5").assertIsDisplayed()
 
-        // The finished game should reopen from home, archive, and then reopen from Previous Games.
-        pressAppBack()
+        // The finished game should go home from the visible Back action, archive, and then reopen from Previous Games.
+        composeRule.onNodeWithText("Back").performClick()
         waitForText("Completed Game")
         composeRule.onNodeWithText("Archive Completed Game").performClick()
         waitForText("Previous Games")
@@ -166,6 +166,8 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("$viscousCoupling 4 - 5 $animal").performClick()
         composeRule.onNodeWithText("Game Summary").assertIsDisplayed()
         composeRule.onNodeWithText("$animal 5").assertIsDisplayed()
+        composeRule.onNodeWithText("Back").performClick()
+        waitForText("Start New Game")
     }
 
     // Test the primary live screen actions that should be available directly from the phone.

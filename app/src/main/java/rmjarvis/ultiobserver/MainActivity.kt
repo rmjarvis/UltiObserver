@@ -88,6 +88,7 @@ internal fun UltiObserverApp(viewModel: UltiObserverAppViewModel) {
                 onStateChange = viewModel::updateSetup,
                 primaryButtonLabel = if (viewModel.setupMode == SetupMode.NEW_GAME) "Start Game" else "Back to Game Screen",
                 onPrimaryAction = { viewModel.finishSetup() },
+                onBackHome = viewModel::goHome,
             )
         }
 
@@ -102,6 +103,7 @@ internal fun UltiObserverApp(viewModel: UltiObserverAppViewModel) {
                     onUpdateGameSetup = {
                         viewModel.editCurrentGame(currentLiveState)
                     },
+                    onBackHome = viewModel::goHome,
                 )
             }
         }

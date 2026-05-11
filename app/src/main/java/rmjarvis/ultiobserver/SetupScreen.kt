@@ -100,6 +100,7 @@ internal fun SetupScreen(
     onStateChange: (GameSetupState) -> Unit,
     primaryButtonLabel: String,
     onPrimaryAction: () -> Unit,
+    onBackHome: () -> Unit,
 ) {
     var showPlayerDialog by remember { mutableStateOf(false) }
     var showStartDateDialog by remember { mutableStateOf(false) }
@@ -111,7 +112,14 @@ internal fun SetupScreen(
     // Compose the setup screen as a scrollable form plus modal editors.
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(title = { Text("UltiObserver Setup") })
+            CenterAlignedTopAppBar(
+                title = { Text("UltiObserver Setup") },
+                navigationIcon = {
+                    TextButton(onClick = onBackHome) {
+                        Text("Back")
+                    }
+                },
+            )
         }
     ) { innerPadding ->
         Column(
