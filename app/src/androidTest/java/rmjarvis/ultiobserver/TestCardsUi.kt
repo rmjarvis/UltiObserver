@@ -191,7 +191,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         // Ending the game renders the summary forms for second-yellow and repeated-yellow records.
         openOtherSheet()
         composeRule.onNodeWithText("End Game").performClick()
-        waitForText("Game is over", substring = true)
+        waitForText("Game Over")
         composeRule.onNodeWithText("OK").performClick()
         waitForText("#21: Two yellow cards")
         waitForText("N/A: Two yellow cards")

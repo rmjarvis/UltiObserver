@@ -25,7 +25,7 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
 
         openOtherSheet()
         composeRule.onNodeWithText("End Game").performClick()
-        waitForText("Game is over", substring = true)
+        waitForText("Game Over")
         composeRule.onNodeWithText("OK").performClick()
         waitForText("Game Summary")
         waitForText("No yellow or red cards issued.")

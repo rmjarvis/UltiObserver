@@ -7,8 +7,8 @@ fun GamePrompt.formatTitle(): String? {
     return when (this) {
         is GamePrompt.ApplyCap -> "Apply ${this.label()}?"
         is GamePrompt.LivePointMisconduct -> "Misconduct Penalty"
-        is GamePrompt.HalftimeStarted -> null
-        is GamePrompt.GameOver -> null
+        is GamePrompt.HalftimeStarted -> "Halftime"
+        is GamePrompt.GameOver -> "Game Over"
     }
 }
 
@@ -17,7 +17,7 @@ fun GamePrompt.formatMessage(): String {
     return when (this) {
         is GamePrompt.ApplyCap -> this.formatMessage()
         is GamePrompt.LivePointMisconduct -> this.formatMessage()
-        is GamePrompt.HalftimeStarted -> "Halftime"
+        is GamePrompt.HalftimeStarted -> "Announce halftime."
         is GamePrompt.GameOver -> this.formatMessage()
     }
 }
@@ -70,7 +70,6 @@ private fun GamePrompt.ApplyCap.capClockTime(): String {
 private fun GamePrompt.GameOver.formatMessage(): String {
     val orderedTeams = state.winnerFirstTeams()
     return buildString {
-        appendLine("Game is over")
         appendLine("${orderedTeams[0].name} ${orderedTeams[0].score}")
         append("${orderedTeams[1].name} ${orderedTeams[1].score}")
     }

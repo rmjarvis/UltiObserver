@@ -29,7 +29,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import java.time.LocalTime
@@ -50,6 +49,7 @@ internal fun LiveGameScreen(
     var actionInfoMessage by remember { mutableStateOf<String?>(null) }
     var actionInfoTitle by remember { mutableStateOf<String?>(null) }
     var activeGamePrompt by remember { mutableStateOf<GamePrompt?>(null) }
+    var previouslyObservedPhase by remember { mutableStateOf(state.phase) }
 
     fun showActionInfo(message: String, title: String) {
         actionInfoMessage = message
@@ -97,12 +97,14 @@ internal fun LiveGameScreen(
 
     // Only show the large halftime/game-over prompts when those states first become visible.
     LaunchedEffect(state.phase, readOnlySummary) {
-        if (state.phase == LivePhase.HALFTIME) {
+        val previousPhase = previouslyObservedPhase
+        if (state.phase == LivePhase.HALFTIME && previousPhase != LivePhase.HALFTIME) {
             activeGamePrompt = GamePrompt.HalftimeStarted(state)
         }
-        if (!readOnlySummary && state.phase == LivePhase.GAME_OVER) {
+        if (!readOnlySummary && state.phase == LivePhase.GAME_OVER && previousPhase != LivePhase.GAME_OVER) {
             activeGamePrompt = GamePrompt.GameOver(state)
         }
+        previouslyObservedPhase = state.phase
     }
 
     // Compose the major elements of the live game screen.
@@ -407,15 +409,13 @@ internal fun LiveGameScreen(
         } else {
             AlertDialog(
                 onDismissRequest = { activeGamePrompt = null },
+                title = prompt.formatTitle()?.let { title ->
+                    { Text(title) }
+                },
                 text = {
                     Text(
                         text = prompt.formatMessage(),
-                        style = if (prompt is GamePrompt.HalftimeStarted) {
-                            MaterialTheme.typography.displaySmall
-                        } else {
-                            MaterialTheme.typography.headlineSmall
-                        },
-                        fontWeight = FontWeight.Black,
+                        style = MaterialTheme.typography.bodyLarge,
                     )
                 },
                 confirmButton = {

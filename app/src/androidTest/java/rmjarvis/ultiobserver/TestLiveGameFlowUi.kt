@@ -14,6 +14,7 @@ import androidx.compose.ui.test.swipeRight
 import java.time.LocalTime
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -138,7 +139,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         recordGoal(TeamId.TEAM_ONE, "Undo Goal by $viscousCoupling")
         recordGoal(TeamId.TEAM_TWO, "Undo Goal by $animal")
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "goal")).performClick()
-        waitForText("Game is over", substring = true)
+        waitForText("Game Over")
         composeRule.onNodeWithText("OK").performClick()
         composeRule.onNodeWithText("Game Summary").assertIsDisplayed()
         composeRule.onNodeWithText("$viscousCoupling 4").assertIsDisplayed()
@@ -151,7 +152,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         // Manually ending from the restored final state should return to the same summary.
         openOtherSheet()
         composeRule.onNodeWithText("End Game").performClick()
-        waitForText("Game is over", substring = true)
+        waitForText("Game Over")
         composeRule.onNodeWithText("OK").performClick()
         composeRule.onNodeWithText("Game Summary").assertIsDisplayed()
         composeRule.onNodeWithText("$viscousCoupling 4").assertIsDisplayed()
@@ -160,14 +161,24 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         // The finished game should go home from the visible Back action, archive, and then reopen from Previous Games.
         composeRule.onNodeWithText("Back").performClick()
         waitForText("Completed Game")
+        composeRule.onNodeWithText("$viscousCoupling 4 - 5 $animal").performClick()
+        composeRule.onNodeWithText("Game Summary").assertIsDisplayed()
+        assertNoGameOverDialog()
+        composeRule.onNodeWithText("Back").performClick()
+        waitForText("Completed Game")
         composeRule.onNodeWithText("Archive Completed Game").performClick()
         waitForText("Previous Games")
         composeRule.onNodeWithText("Previous Games").performClick()
         composeRule.onNodeWithText("$viscousCoupling 4 - 5 $animal").performClick()
         composeRule.onNodeWithText("Game Summary").assertIsDisplayed()
+        assertNoGameOverDialog()
         composeRule.onNodeWithText("$animal 5").assertIsDisplayed()
         composeRule.onNodeWithText("Back").performClick()
         waitForText("Start New Game")
+    }
+
+    private fun assertNoGameOverDialog() {
+        assertTrue(composeRule.onAllNodesWithText("Game Over").fetchSemanticsNodes().isEmpty())
     }
 
     // Test the primary live screen actions that should be available directly from the phone.
