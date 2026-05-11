@@ -27,11 +27,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
@@ -173,6 +175,7 @@ internal fun FieldSketchCard(
 
     // Draw the top team row, center field area, and bottom team row in that order.
     Card(
+        modifier = Modifier.testTag("live-field-diagram"),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant,
         )
@@ -369,25 +372,35 @@ private fun PullDirectionIndicator(
 // Active countdown plus the quick -5/+5 correction buttons.
 @Composable
 internal fun CountdownLine(
-    countdown: ActiveCountdownDisplay,
+    countdown: ActiveCountdownDisplay?,
     enabled: Boolean,
     onAdjust: (Int) -> Unit,
 ) {
+    val visible = countdown != null
+    val displayCountdown = countdown ?: ActiveCountdownDisplay("Pull in", Duration.ZERO)
+    val rowModifier = if (visible) {
+        Modifier.fillMaxWidth()
+    } else {
+        Modifier
+            .fillMaxWidth()
+            .clearAndSetSemantics { }
+            .alpha(0f)
+    }
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = rowModifier,
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "${countdown.label} ${formatDuration(countdown.remaining)}",
+            text = "${displayCountdown.label} ${formatDuration(displayCountdown.remaining)}",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SmallActionButton(label = "-5", enabled = enabled) {
+            SmallActionButton(label = "-5", enabled = enabled && visible) {
                 onAdjust(-5)
             }
-            SmallActionButton(label = "+5", enabled = enabled) {
+            SmallActionButton(label = "+5", enabled = enabled && visible) {
                 onAdjust(5)
             }
         }

@@ -132,14 +132,12 @@ internal fun LiveGameScreen(
                     capStatus = capStatus,
                 )
 
-                // Show the currently active countdown, if any.
-                if (activeCountdown != null) {
-                    CountdownLine(
-                        countdown = activeCountdown,
-                        enabled = !locked,
-                        onAdjust = { seconds -> onStateChange(state.addTimeToCountdown(seconds)) },
-                    )
-                }
+                // Reserve the countdown row even when no timer is active so the field stays put.
+                CountdownLine(
+                    countdown = activeCountdown,
+                    enabled = !locked,
+                    onAdjust = { seconds -> onStateChange(state.addTimeToCountdown(seconds)) },
+                )
 
                 // Sketch the field with two teams and the grass strip between them.
                 FieldSketchCard(

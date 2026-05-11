@@ -13,6 +13,7 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.swipeRight
 import java.time.LocalTime
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -195,5 +196,22 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         // Timeout should remain wired after the undo path.
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "timeout")).performClick()
         waitForText("Undo Timeout by Team 1")
+    }
+
+    @Test
+    fun fieldDiagramDoesNotMoveWhenCountdownClears() {
+        startLiveGame()
+
+        val fieldTopBeforeStartPoint = composeRule.onNodeWithTag("live-field-diagram")
+            .fetchSemanticsNode()
+            .boundsInRoot
+            .top
+        composeRule.onNodeWithText("Start Point").performClick()
+        waitForText("Slide right to unlock")
+        val fieldTopAfterStartPoint = composeRule.onNodeWithTag("live-field-diagram")
+            .fetchSemanticsNode()
+            .boundsInRoot
+            .top
+        assertEquals(fieldTopBeforeStartPoint, fieldTopAfterStartPoint, 0.5f)
     }
 }
