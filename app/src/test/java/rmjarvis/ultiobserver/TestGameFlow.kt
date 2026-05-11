@@ -110,7 +110,7 @@ class TestGameFlow : GameModelTestFixtures() {
             state.playerCards(VC).single { it.jerseyNumber == "8" },
         )
         assertTrue(
-            livePointMisconductResolutionMessage(cardResult.state, cardResult.event, againstOffense = true)
+            misconductPrompt(cardResult).formatResolutionMessage(againstOffense = true)
                 .contains("Reverse brick"),
         )
 

@@ -23,22 +23,6 @@ fun GameEvent.needsLivePointMisconductChoice(state: LiveGameState): Boolean {
     }
 }
 
-// Prompt shown when live-point misconduct needs an offense/defense choice.
-fun livePointMisconductPrompt(state: LiveGameState, event: GameEvent): String {
-    val baseMessage = formatGameEventMessage(state, event)!!
-    return "$baseMessage\n\nWas this against the offense or defense?"
-}
-
-// Full live-point misconduct message after the observer chooses offense or defense.
-fun livePointMisconductResolutionMessage(
-    state: LiveGameState,
-    event: GameEvent,
-    againstOffense: Boolean,
-): String {
-    val baseMessage = formatGameEventMessage(state, event)!!
-    return "$baseMessage\n\n${livePointMisconductMessage(againstOffense)}"
-}
-
 private fun formatTeamCardsChanged(state: LiveGameState, event: GameEvent.TeamCardsChanged): String {
     val baseMessage = if (event.secondYellowJerseyNumber == null) {
         "${teamName(state, event.team)} has ${event.teamCardTotal} ${pluralizeEvent(event.teamCardTotal, "card")}."

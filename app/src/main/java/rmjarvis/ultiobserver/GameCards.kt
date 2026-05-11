@@ -307,14 +307,6 @@ private fun updatePlayerCardRecord(
     requirePlayerCardRecordsValid(updatedRecords)
     return updatedRecords
 }
-// Build the portion of the message for misconduct penalty during points.
-fun livePointMisconductMessage(againstOffense: Boolean): String {
-    return if (againstOffense) {
-        "Misconduct penalty against offense.\nReverse brick. Offense 30 sec to set, defense 20 sec to check in. Defense may instead leave the disc where it stopped."
-    } else {
-        "Misconduct penalty against defense.\nBrick nearest attacking end zone. Offense 30 sec to set, defense 20 sec to check in. Offense may instead leave it or center it."
-    }
-}
 // Check if a player already has a yellow card yet.
 fun LiveGameState.playerHasYellowThisGame(team: TeamId, jerseyNumber: String): Boolean {
     return (this.playerCardFor(team, jerseyNumber)?.yellows ?: 0) > 0

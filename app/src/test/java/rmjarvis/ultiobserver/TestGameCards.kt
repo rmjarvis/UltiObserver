@@ -233,14 +233,14 @@ class TestGameCards : GameModelTestFixtures() {
         assertTrue(cardResult.needsLivePointMisconductChoice)
         assertEquals("Viscous Coupling has 3 cards.", eventMessage(cardResult))
 
-        val prompt = livePointMisconductPrompt(cardResult.state, cardResult.event)
+        val prompt = misconductPrompt(cardResult).formatMessage()
         assertTrue(prompt.contains("Was this against the offense or defense?"))
         assertTrue(
-            livePointMisconductResolutionMessage(cardResult.state, cardResult.event, againstOffense = true)
+            misconductPrompt(cardResult).formatResolutionMessage(againstOffense = true)
                 .contains("Reverse brick"),
         )
         assertTrue(
-            livePointMisconductResolutionMessage(cardResult.state, cardResult.event, againstOffense = false)
+            misconductPrompt(cardResult).formatResolutionMessage(againstOffense = false)
                 .contains("Brick nearest attacking end zone"),
         )
 
@@ -254,7 +254,7 @@ class TestGameCards : GameModelTestFixtures() {
         assertTrue(technicalFoulResult.needsLivePointMisconductChoice)
         assertEquals("Viscous Coupling has 3 technical fouls.", eventMessage(technicalFoulResult))
         assertTrue(
-            livePointMisconductResolutionMessage(technicalFoulResult.state, technicalFoulResult.event, againstOffense = true)
+            misconductPrompt(technicalFoulResult).formatResolutionMessage(againstOffense = true)
                 .contains("Reverse brick"),
         )
 

@@ -33,11 +33,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import java.time.LocalTime
 
-private data class PendingMisconductChoice(
-    val state: LiveGameState,
-    val event: GameEvent,
-)
-
 // Main live-game screen, including the field view, modal flows, and pop-up cues.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,9 +46,7 @@ internal fun LiveGameScreen(
     var showOtherSheet by remember { mutableStateOf(false) }
     var locked by remember { mutableStateOf(false) }
     var actionInfoMessage by remember { mutableStateOf<String?>(null) }
-    var pendingMisconductChoice by remember { mutableStateOf<PendingMisconductChoice?>(null) }
-    var halftimeAlert by remember { mutableStateOf(false) }
-    var gameOverAlert by remember { mutableStateOf(false) }
+    var activeGamePrompt by remember { mutableStateOf<GamePrompt?>(null) }
 
     // Update the display clock once per second so time and cap text stay fresh.
     val currentClockTime by produceState(initialValue = LocalTime.now()) {
@@ -89,13 +82,13 @@ internal fun LiveGameScreen(
         }
     }
 
-    // Only show the halftime/game-over alerts when those transitions first happen.
-    LaunchedEffect(state.phase, state.lastEvent) {
-        if (state.phase == LivePhase.HALFTIME && state.lastEvent == "Halftime.") {
-            halftimeAlert = true
+    // Only show the large halftime/game-over prompts when those states first become visible.
+    LaunchedEffect(state.phase, readOnlySummary) {
+        if (state.phase == LivePhase.HALFTIME) {
+            activeGamePrompt = GamePrompt.HalftimeStarted(state)
         }
-        if (!readOnlySummary && state.phase == LivePhase.GAME_OVER && state.lastEvent == "Game over.") {
-            gameOverAlert = true
+        if (!readOnlySummary && state.phase == LivePhase.GAME_OVER) {
+            activeGamePrompt = GamePrompt.GameOver(state)
         }
     }
 
@@ -277,7 +270,7 @@ internal fun LiveGameScreen(
                 onAssessment = { result ->
                     onStateChange(result.state)
                     if (result.needsLivePointMisconductChoice) {
-                        pendingMisconductChoice = PendingMisconductChoice(
+                        activeGamePrompt = GamePrompt.LivePointMisconduct(
                             state = result.state,
                             event = result.event,
                         )
@@ -324,59 +317,15 @@ internal fun LiveGameScreen(
         )
     }
 
-    // Live-point misconduct needs a follow-up choice because the app cannot infer possession.
-    if (pendingMisconductChoice != null) {
-        val misconductChoice = pendingMisconductChoice!!
-        AlertDialog(
-            onDismissRequest = { pendingMisconductChoice = null },
-            title = { Text("Misconduct Penalty") },
-            text = {
-                Text(
-                    text = livePointMisconductPrompt(misconductChoice.state, misconductChoice.event),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        actionInfoMessage = livePointMisconductResolutionMessage(
-                            misconductChoice.state,
-                            misconductChoice.event,
-                            againstOffense = true,
-                        )
-                        pendingMisconductChoice = null
-                    }
-                ) {
-                    Text("Offense")
-                }
-            },
-            dismissButton = {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(
-                        onClick = {
-                            actionInfoMessage = livePointMisconductResolutionMessage(
-                                misconductChoice.state,
-                                misconductChoice.event,
-                                againstOffense = false,
-                            )
-                            pendingMisconductChoice = null
-                        }
-                    ) {
-                        Text("Defense")
-                    }
-                }
-            },
-        )
-    }
-
     // Cap prompts block until the observer decides whether to apply the newly eligible cap.
     if (state.pendingCapOffer != null) {
+        val capPrompt = GamePrompt.ApplyCap(state, state.pendingCapOffer!!)
         AlertDialog(
             onDismissRequest = {},
-            title = { Text("Apply ${capOfferLabel(state.pendingCapOffer!!)}?") },
+            title = { Text(capPrompt.formatTitle()!!) },
             text = {
                 Text(
-                    text = state.capOfferExplanation(),
+                    text = capPrompt.formatMessage(),
                     style = MaterialTheme.typography.bodyLarge,
                 )
             },
@@ -393,41 +342,66 @@ internal fun LiveGameScreen(
         )
     }
 
-    // Halftime cue popup.
-    if (halftimeAlert) {
-        AlertDialog(
-            onDismissRequest = { halftimeAlert = false },
-            text = {
-                Text(
-                    text = "Halftime",
-                    style = MaterialTheme.typography.displaySmall,
-                    fontWeight = FontWeight.Black,
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { halftimeAlert = false }) {
-                    Text("OK")
-                }
-            },
-        )
-    }
-
-    // Game-over cue popup.
-    if (gameOverAlert) {
-        AlertDialog(
-            onDismissRequest = { gameOverAlert = false },
-            text = {
-                Text(
-                    text = formatGameOverSummary(state),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Black,
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { gameOverAlert = false }) {
-                    Text("OK")
-                }
-            },
-        )
+    // Prominent game prompts that are not tied to bottom-sheet workflows.
+    if (activeGamePrompt != null) {
+        val prompt = activeGamePrompt!!
+        if (prompt is GamePrompt.LivePointMisconduct) {
+            AlertDialog(
+                onDismissRequest = { activeGamePrompt = null },
+                title = { Text(prompt.formatTitle()!!) },
+                text = {
+                    Text(
+                        text = prompt.formatMessage(),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            actionInfoMessage = prompt.formatResolutionMessage(
+                                againstOffense = true,
+                            )
+                            activeGamePrompt = null
+                        }
+                    ) {
+                        Text("Offense")
+                    }
+                },
+                dismissButton = {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(
+                            onClick = {
+                                actionInfoMessage = prompt.formatResolutionMessage(
+                                    againstOffense = false,
+                                )
+                                activeGamePrompt = null
+                            }
+                        ) {
+                            Text("Defense")
+                        }
+                    }
+                },
+            )
+        } else {
+            AlertDialog(
+                onDismissRequest = { activeGamePrompt = null },
+                text = {
+                    Text(
+                        text = prompt.formatMessage(),
+                        style = if (prompt is GamePrompt.HalftimeStarted) {
+                            MaterialTheme.typography.displaySmall
+                        } else {
+                            MaterialTheme.typography.headlineSmall
+                        },
+                        fontWeight = FontWeight.Black,
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = { activeGamePrompt = null }) {
+                        Text("OK")
+                    }
+                },
+            )
+        }
     }
 }

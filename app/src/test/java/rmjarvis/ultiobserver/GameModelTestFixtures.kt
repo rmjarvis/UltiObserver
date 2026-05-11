@@ -116,4 +116,12 @@ abstract class GameModelTestFixtures {
     protected fun eventMessage(result: PullInfractionAssessmentResult): String? {
         return formatGameEventMessage(result.state, result.event)
     }
+
+    protected fun capPrompt(state: LiveGameState): GamePrompt.ApplyCap {
+        return GamePrompt.ApplyCap(state, state.pendingCapOffer!!)
+    }
+
+    protected fun misconductPrompt(result: CardAssessmentResult): GamePrompt.LivePointMisconduct {
+        return GamePrompt.LivePointMisconduct(result.state, result.event)
+    }
 }

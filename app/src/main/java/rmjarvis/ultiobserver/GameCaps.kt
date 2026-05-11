@@ -81,41 +81,11 @@ fun LiveGameState.applyPendingCap(
 fun LiveGameState.deferPendingCap(): LiveGameState {
     return this.copy(pendingCapOffer = null, lastEvent = "Cap offer deferred.")
 }
-// Short cap name for prompt titles/buttons.
-fun capOfferLabel(capType: CapType): String {
-    return when (capType) {
-        CapType.HALF -> "half cap"
-        CapType.SOFT -> "soft cap"
-        CapType.HARD -> "hard cap"
-    }
-}
 private fun capDisplayName(capType: CapType): String {
     return when (capType) {
         CapType.HALF -> "Half"
         CapType.SOFT -> "Soft"
         CapType.HARD -> "Hard"
-    }
-}
-// Full text for the apply-cap confirmation dialog.
-fun LiveGameState.capOfferExplanation(): String {
-    val wasAt = if (this.phase == LivePhase.HALFTIME) "is scheduled for" else "was at"
-    val endWhen = if (this.phase == LivePhase.HALFTIME) "during halftime" else "now"
-    return when (this.pendingCapOffer!!) {
-        CapType.HALF -> {
-            val target = max(this.teamOne.score, this.teamTwo.score) + 1
-            "Half cap was at ${formatCapClockTime(this, CapType.HALF)}. Halftime target would become $target. Apply now?"
-        }
-        CapType.SOFT -> {
-            val target = max(this.teamOne.score, this.teamTwo.score) + 1
-            "Soft cap $wasAt ${formatCapClockTime(this, CapType.SOFT)}. Winning score would become $target. Apply now?"
-        }
-        CapType.HARD -> {
-            if (this.teamOne.score == this.teamTwo.score) {
-                "Hard cap $wasAt ${formatCapClockTime(this, CapType.HARD)}. Score is tied, so one more point would be played. Apply now?"
-            } else {
-                "Hard cap $wasAt ${formatCapClockTime(this, CapType.HARD)}. Score is not tied, so the game would end $endWhen. Apply now?"
-            }
-        }
     }
 }
 // Figure out what the next relevant cap is in a live game.
@@ -187,14 +157,11 @@ private fun halfCapCanChangeHalftime(rules: GameRules, teamOneScore: Int, teamTw
     return max(teamOneScore, teamTwoScore) < normalHalftimeScore - 1 &&
         min(teamOneScore, teamTwoScore) < normalHalftimeScore - 2
 }
-private fun capEpoch(state: LiveGameState, capType: CapType): Long {
+internal fun capEpoch(state: LiveGameState, capType: CapType): Long {
     val offsetMinutes = when (capType) {
         CapType.HALF -> state.rules.halfCapMinutes
         CapType.SOFT -> state.rules.softCapMinutes
         CapType.HARD -> state.rules.hardCapMinutes
     }
     return state.startEpoch + offsetMinutes * 60_000L
-}
-private fun formatCapClockTime(state: LiveGameState, capType: CapType): String {
-    return formatClockTime(localTimeFromEpoch(capEpoch(state, capType), state.timeZone))
 }

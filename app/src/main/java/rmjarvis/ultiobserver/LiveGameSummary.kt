@@ -122,18 +122,8 @@ private fun buildSummaryIssuedCardText(record: InGamePlayerCardRecord): String {
     return "${displayPlayerNumber(record.jerseyNumber)}: ${parts.joinToString("; ")}"
 }
 
-// Game-over alert text with the winner listed first.
-internal fun formatGameOverSummary(state: LiveGameState): String {
-    val orderedTeams = winnerFirstTeams(state)
-    return buildString {
-        appendLine("Game is over")
-        appendLine("${orderedTeams[0].name} ${orderedTeams[0].score}")
-        append("${orderedTeams[1].name} ${orderedTeams[1].score}")
-    }
-}
-
 // Put the higher-scoring team first for summary display.
-private fun winnerFirstTeams(state: LiveGameState): List<TeamLiveState> {
+internal fun winnerFirstTeams(state: LiveGameState): List<TeamLiveState> {
     return listOf(state.teamOne, state.teamTwo).sortedWith(
         compareByDescending<TeamLiveState> { it.score }.thenBy { it.name }
     )

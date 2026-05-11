@@ -221,3 +221,23 @@ sealed interface GameEvent {
         val totalPullViolations: Int,
     ) : GameEvent
 }
+
+sealed interface GamePrompt {
+    data class ApplyCap(
+        val state: LiveGameState,
+        val capType: CapType,
+    ) : GamePrompt
+
+    data class LivePointMisconduct(
+        val state: LiveGameState,
+        val event: GameEvent,
+    ) : GamePrompt
+
+    data class HalftimeStarted(
+        val state: LiveGameState,
+    ) : GamePrompt
+
+    data class GameOver(
+        val state: LiveGameState,
+    ) : GamePrompt
+}
