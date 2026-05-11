@@ -12,7 +12,7 @@ import androidx.lifecycle.ViewModelProvider
 import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 
 class MainActivity : ComponentActivity() {
-    private val appViewModel: UltiObserverAppViewModel by viewModels {
+    internal val appViewModel: UltiObserverAppViewModel by viewModels {
         object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 require(modelClass == UltiObserverAppViewModel::class.java) {
@@ -81,6 +81,7 @@ internal fun UltiObserverApp(viewModel: UltiObserverAppViewModel) {
                 previousGames = viewModel.archivedGames.map { it.state.archivedGameListEntry() },
                 onOpenPreviousGame = viewModel::openPreviousGame,
                 onDeletePreviousGame = viewModel::deleteArchivedGame,
+                onDeleteAllPreviousGames = viewModel::deleteAllArchivedGames,
                 onBackHome = viewModel::goHome,
             )
         }

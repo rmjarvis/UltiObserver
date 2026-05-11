@@ -204,6 +204,13 @@ internal class UltiObserverAppViewModel(
         persistActiveState()
     }
 
+    fun deleteAllArchivedGames() {
+        archivedGames = emptyList()
+        clearViewedArchivedGame()
+        persistArchivedGames()
+        persistActiveState()
+    }
+
     fun startNewGame() {
         liveState?.let { existing ->
             archivedGames = archivedGames + ArchivedGame(

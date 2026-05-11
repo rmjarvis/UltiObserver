@@ -16,16 +16,18 @@ import androidx.compose.ui.unit.dp
 internal fun DeleteGameDialog(
     onDismiss: () -> Unit,
     onConfirmDelete: () -> Unit,
+    title: String = "Delete Game?",
+    message: String = "Completely delete the data for this game? This cannot be undone.",
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Delete Game?") },
+        title = { Text(title) },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
-                    text = "Completely delete the data for this game? This cannot be undone.",
+                    text = message,
                     style = MaterialTheme.typography.bodyLarge,
                 )
                 SlideToConfirmControl(

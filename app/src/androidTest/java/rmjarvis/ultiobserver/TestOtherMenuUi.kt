@@ -77,14 +77,59 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         assertTrue(composeRule.onAllNodesWithText("Current Game").fetchSemanticsNodes().isEmpty())
     }
 
-    // Test that archived games can be deleted from the Previous Games list.
+    // Test that archived games can be deleted in bulk and one at a time from Previous Games.
     @Test
     fun previousGamesCanDeleteArchivedGameAfterSliderConfirmation() {
+        clearArchivedGamesProgrammatically()
         val suffix = System.currentTimeMillis().toString().takeLast(6)
-        val teamOne = "DelA$suffix"
-        val teamTwo = "DelB$suffix"
-        val archivedTitle = "$teamOne 0 - 0 $teamTwo"
+        val firstTeamOne = "DelA$suffix"
+        val firstTeamTwo = "DelB$suffix"
+        val secondTeamOne = "DelC$suffix"
+        val secondTeamTwo = "DelD$suffix"
+        val firstArchivedTitle = "$firstTeamOne 0 - 0 $firstTeamTwo"
+        val secondArchivedTitle = "$secondTeamOne 0 - 0 $secondTeamTwo"
 
+        createArchivedGame(firstTeamOne, firstTeamTwo)
+        createArchivedGame(secondTeamOne, secondTeamTwo)
+        openPreviousGamesScreen()
+        waitForText(firstArchivedTitle)
+        waitForText(secondArchivedTitle)
+        composeRule.onNodeWithTag("delete-all-archived-games").performClick()
+        waitForText("This cannot be undone", substring = true)
+        confirmDeleteWithSlider("Delete All Games?")
+        waitForText("No completed games yet.")
+        assertTrue(composeRule.onAllNodesWithText(firstArchivedTitle).fetchSemanticsNodes().isEmpty())
+        assertTrue(composeRule.onAllNodesWithText(secondArchivedTitle).fetchSemanticsNodes().isEmpty())
+        composeRule.onNodeWithText("Back").performClick()
+
+        createArchivedGame(firstTeamOne, firstTeamTwo)
+        createArchivedGame(secondTeamOne, secondTeamTwo)
+        openPreviousGamesScreen()
+        waitForText(firstArchivedTitle)
+        waitForText(secondArchivedTitle)
+        composeRule.onNodeWithTag("delete-archived-game-$firstArchivedTitle").performClick()
+        waitForText("This cannot be undone", substring = true)
+        composeRule.onNodeWithText("Cancel").performClick()
+        composeRule.onNodeWithText(firstArchivedTitle).assertIsDisplayed()
+        composeRule.onNodeWithText(secondArchivedTitle).assertIsDisplayed()
+
+        composeRule.onNodeWithTag("delete-archived-game-$firstArchivedTitle").performClick()
+        confirmDeleteWithSlider()
+        waitForText(secondArchivedTitle)
+        assertTrue(composeRule.onAllNodesWithText(firstArchivedTitle).fetchSemanticsNodes().isEmpty())
+
+        composeRule.onNodeWithTag("delete-archived-game-$secondArchivedTitle").performClick()
+        confirmDeleteWithSlider()
+        waitForText("No completed games yet.")
+        assertTrue(composeRule.onAllNodesWithText(secondArchivedTitle).fetchSemanticsNodes().isEmpty())
+    }
+
+    private fun openPreviousGamesScreen() {
+        composeRule.onNodeWithText("Previous Games").performClick()
+        waitForText("Previous Games")
+    }
+
+    private fun createArchivedGame(teamOne: String, teamTwo: String) {
         openNewGameSetup()
         replaceSetupTeamName("Team 1", teamOne)
         replaceSetupTeamName("Team 2", teamTwo)
@@ -97,16 +142,5 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         waitForText("Completed Game")
         composeRule.onNodeWithText("Archive Completed Game").performClick()
         waitForText("Previous Games")
-
-        composeRule.onNodeWithText("Previous Games").performClick()
-        waitForText(archivedTitle)
-        composeRule.onNodeWithTag("delete-archived-game-$archivedTitle").performClick()
-        waitForText("This cannot be undone", substring = true)
-        composeRule.onNodeWithText("Cancel").performClick()
-        composeRule.onNodeWithText(archivedTitle).assertIsDisplayed()
-
-        composeRule.onNodeWithTag("delete-archived-game-$archivedTitle").performClick()
-        confirmDeleteWithSlider()
-        assertTrue(composeRule.onAllNodesWithText(archivedTitle).fetchSemanticsNodes().isEmpty())
     }
 }

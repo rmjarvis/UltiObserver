@@ -213,6 +213,23 @@ class TestUltiObserverAppViewModel {
         viewModel.deleteArchivedGame(0)
         assertTrue(viewModel.archivedGames.isEmpty())
         assertNull(viewModel.currentLiveState)
+
+        viewModel.updateLiveGame(currentGame.copy(phase = LivePhase.GAME_OVER))
+        viewModel.archiveCompletedGame()
+        viewModel.updateLiveGame(
+            currentGame.copy(
+                phase = LivePhase.GAME_OVER,
+                teamOne = currentGame.teamOne.copy(name = "Second archived game"),
+            ),
+        )
+        viewModel.archiveCompletedGame()
+        assertEquals(2, viewModel.archivedGames.size)
+
+        viewModel.openPreviousGame(1)
+        assertTrue(viewModel.viewingReadOnlySummary)
+        viewModel.deleteAllArchivedGames()
+        assertTrue(viewModel.archivedGames.isEmpty())
+        assertNull(viewModel.currentLiveState)
     }
 
     @Test

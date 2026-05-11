@@ -108,9 +108,11 @@ internal fun PreviousGamesScreen(
     previousGames: List<ArchivedGameListEntry>,
     onOpenPreviousGame: (Int) -> Unit,
     onDeletePreviousGame: (Int) -> Unit,
+    onDeleteAllPreviousGames: () -> Unit,
     onBackHome: () -> Unit,
 ) {
     var pendingDeleteIndex by remember { mutableStateOf<Int?>(null) }
+    var pendingDeleteAll by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -136,6 +138,17 @@ internal fun PreviousGamesScreen(
             if (previousGames.isEmpty()) {
                 Text("No completed games yet.")
             } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(
+                        onClick = { pendingDeleteAll = true },
+                        modifier = Modifier.testTag("delete-all-archived-games"),
+                    ) {
+                        Text("Delete All")
+                    }
+                }
                 previousGames.forEachIndexed { index, game ->
                     ArchivedGameRow(
                         entry = game,
@@ -157,6 +170,17 @@ internal fun PreviousGamesScreen(
             },
         )
     }
+    if (pendingDeleteAll) {
+        DeleteGameDialog(
+            onDismiss = { pendingDeleteAll = false },
+            onConfirmDelete = {
+                pendingDeleteAll = false
+                onDeleteAllPreviousGames()
+            },
+            title = "Delete All Games?",
+            message = "Completely delete all previous game data? This cannot be undone.",
+        )
+    }
 }
 
 // Archived game row with a separate right-side delete action.
@@ -174,7 +198,9 @@ private fun ArchivedGameRow(
             startDateTime = entry.startDateTime,
             scoreLine = entry.scoreLine,
             onClick = onClick,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .testTag("archived-game-${entry.scoreLine}"),
         )
         IconButton(
             onClick = onDelete,

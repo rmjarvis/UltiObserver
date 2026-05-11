@@ -220,6 +220,13 @@ abstract class MainActivityUiTestFixtures {
         unlockLiveScreen()
     }
 
+    protected fun clearArchivedGamesProgrammatically() {
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appViewModel.deleteAllArchivedGames()
+        }
+        composeRule.waitForIdle()
+    }
+
     protected fun unlockLiveScreen() {
         composeRule.onNodeWithTag("live-unlock-slider").performTouchInput {
             swipeRight()
@@ -227,8 +234,8 @@ abstract class MainActivityUiTestFixtures {
         waitForText("Lock")
     }
 
-    protected fun confirmDeleteWithSlider() {
-        waitForText("Delete Game?")
+    protected fun confirmDeleteWithSlider(dialogTitle: String = "Delete Game?") {
+        waitForText(dialogTitle)
         composeRule.onNodeWithTag("confirm-delete-slider").performTouchInput {
             swipeRight()
         }

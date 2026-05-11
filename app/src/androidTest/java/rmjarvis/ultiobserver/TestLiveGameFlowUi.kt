@@ -24,8 +24,10 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
     // Keep this as a user-visible UI story that checks flow, not detailed model accounting.
     @Test
     fun normalGamePath() {
-        val viscousCoupling = "Viscous Coupling"
-        val animal = "Animal"
+        clearArchivedGamesProgrammatically()
+        val suffix = System.currentTimeMillis().toString().takeLast(6)
+        val viscousCoupling = "VC$suffix"
+        val animal = "AN$suffix"
 
         // Set up a short non-default game so the UI story covers setup editing,
         // halftime, and game over without a long repetitive scoring sequence.
@@ -166,15 +168,16 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Back").performClick()
         waitForText("Completed Game")
         composeRule.onNodeWithText("$viscousCoupling 4 - 5 $animal").performClick()
-        composeRule.onNodeWithText("Game Summary").assertIsDisplayed()
+        waitForText("Game Summary")
         assertNoGameOverDialog()
         composeRule.onNodeWithText("Back").performClick()
         waitForText("Completed Game")
         composeRule.onNodeWithText("Archive Completed Game").performClick()
         waitForText("Previous Games")
         composeRule.onNodeWithText("Previous Games").performClick()
-        composeRule.onNodeWithText("$viscousCoupling 4 - 5 $animal").performClick()
-        composeRule.onNodeWithText("Game Summary").assertIsDisplayed()
+        waitForText("$viscousCoupling 4 - 5 $animal")
+        composeRule.onNodeWithTag("archived-game-$viscousCoupling 4 - 5 $animal").performClick()
+        waitForText("Game Summary")
         assertNoGameOverDialog()
         composeRule.onNodeWithText("$animal 5").assertIsDisplayed()
         composeRule.onNodeWithText("Back").performClick()
