@@ -58,6 +58,7 @@ fun LiveGameState.startPullSequence(
         countdown = countdown,
         pullSequenceOffsidesRecorded = false,
         pullSequenceFalseStartRecorded = false,
+        pullSkippedForCurrentPoint = false,
         lastEvent = "Pull sequence started.",
     )
 }
@@ -107,6 +108,7 @@ fun LiveGameState.recordGoal(
             ),
             pullSequenceOffsidesRecorded = false,
             pullSequenceFalseStartRecorded = false,
+            pullSkippedForCurrentPoint = false,
             winningScore = this.winningScore,
             pendingCapOffer = null,
             lastEvent = "${this.teamName(scoringTeam)} scored.",
@@ -166,6 +168,7 @@ fun LiveGameState.recordGoal(
         countdown = countdown,
         pullSequenceOffsidesRecorded = false,
         pullSequenceFalseStartRecorded = false,
+        pullSkippedForCurrentPoint = false,
         halftimeTaken = this.halftimeTaken,
         halftimeTargetScore = this.halftimeTargetScore,
         winningScore = this.winningScore,
@@ -241,6 +244,7 @@ private fun startHalftime(
         countdown = halftimeCountdown,
         pullSequenceOffsidesRecorded = false,
         pullSequenceFalseStartRecorded = false,
+        pullSkippedForCurrentPoint = false,
         halftimeTaken = true,
         pendingCapOffer = pendingCapOffer,
         lastEvent = "Halftime.",
@@ -268,6 +272,7 @@ fun LiveGameState.beginLivePoint(): LiveGameState {
         countdown = null,
         pullSequenceOffsidesRecorded = false,
         pullSequenceFalseStartRecorded = false,
+        pullSkippedForCurrentPoint = false,
         lastEvent = "Point is live.",
     ).withUndo(this, "Undo Start Point")
 }
@@ -311,6 +316,7 @@ fun LiveGameState.advanceGameClock(now: Long): LiveGameState {
                     pullingFromEnd = this.pullingFromEnd,
                     sequenceStart = countdown.targetEpoch,
                 ),
+                pullSkippedForCurrentPoint = false,
             )
             betweenPointsState.advanceGameClock(now)
         }
@@ -421,6 +427,7 @@ private fun LiveGameState.automaticLivePointState(): LiveGameState {
         countdown = null,
         pullSequenceOffsidesRecorded = false,
         pullSequenceFalseStartRecorded = false,
+        pullSkippedForCurrentPoint = false,
         lastEvent = "Point is live.",
     )
 }

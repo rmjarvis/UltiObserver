@@ -46,6 +46,9 @@ fun LiveGameState.swapPullingTeam(): LiveGameState {
 }
 // Record the pull infraction that belongs to the selected team, if not already recorded on this pull.
 fun LiveGameState.assessPullInfraction(team: TeamId): PullInfractionAssessmentResult {
+    if (!this.canRecordPullInfraction(team)) {
+        return PullInfractionAssessmentResult(this)
+    }
     val infraction = if (team == this.pullingTeam) {
         PullInfractionType.OFFSIDES
     } else {
@@ -68,9 +71,21 @@ fun LiveGameState.assessPullInfraction(team: TeamId): PullInfractionAssessmentRe
         ),
     )
 }
+
+fun LiveGameState.canRecordPullInfraction(team: TeamId): Boolean {
+    if (this.pullSkippedForCurrentPoint) {
+        return false
+    }
+    return if (team == this.pullingTeam) {
+        !this.pullSequenceOffsidesRecorded
+    } else {
+        !this.pullSequenceFalseStartRecorded
+    }
+}
+
 // Offsides on the pulling team
 fun LiveGameState.recordOffsides(): LiveGameState {
-    if (this.pullSequenceOffsidesRecorded) {
+    if (this.pullSkippedForCurrentPoint || this.pullSequenceOffsidesRecorded) {
         return this
     }
     val team = this.pullingTeam
@@ -93,7 +108,7 @@ fun LiveGameState.recordOffsides(): LiveGameState {
 }
 // False start on the receiving team
 fun LiveGameState.recordFalseStart(): LiveGameState {
-    if (this.pullSequenceFalseStartRecorded) {
+    if (this.pullSkippedForCurrentPoint || this.pullSequenceFalseStartRecorded) {
         return this
     }
     val team = this.pullingTeam.flip()

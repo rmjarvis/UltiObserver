@@ -148,7 +148,7 @@ fun removePlayerCardAssignment(
 }
 // Assess a blue card and check whether it triggers misconduct handling.
 fun LiveGameState.assessBlueCard(team: TeamId): CardAssessmentResult {
-    val updatedState = this.copy(
+    var updatedState = this.copy(
         teamOne = if (team == TeamId.TEAM_ONE) {
             this.teamOne.copy(blueCards = this.teamOne.blueCards + 1)
         } else {
@@ -162,6 +162,7 @@ fun LiveGameState.assessBlueCard(team: TeamId): CardAssessmentResult {
         lastEvent = "Blue card assessed to ${this.teamName(team)}.",
     ).withUndo(this, "Undo Blue Card on ${this.teamName(team)}")
     val cardTotal = updatedState.teamCardTotal(team)
+    updatedState = updatedState.withSkippedPullForMisconductThreshold(cardTotal)
     return CardAssessmentResult(
         state = updatedState,
         event = GameEvent.TeamCardsChanged(
@@ -173,7 +174,7 @@ fun LiveGameState.assessBlueCard(team: TeamId): CardAssessmentResult {
 }
 // Assess a technical foul and check whether it triggers misconduct handling.
 fun LiveGameState.assessTechnicalFoul(team: TeamId): CardAssessmentResult {
-    val updatedState = this.copy(
+    var updatedState = this.copy(
         teamOne = if (team == TeamId.TEAM_ONE) {
             this.teamOne.copy(technicalFouls = this.teamOne.technicalFouls + 1)
         } else {
@@ -191,6 +192,7 @@ fun LiveGameState.assessTechnicalFoul(team: TeamId): CardAssessmentResult {
     } else {
         updatedState.teamTwo.technicalFouls
     }
+    updatedState = updatedState.withSkippedPullForMisconductThreshold(technicalFouls)
     return CardAssessmentResult(
         state = updatedState,
         event = GameEvent.TechnicalFoulsChanged(
@@ -212,9 +214,10 @@ fun LiveGameState.assessYellowCard(team: TeamId, jerseyNumber: String): CardAsse
 }
 // Figure out the consequence for a standalone yellow.
 fun LiveGameState.assessStandaloneYellowCard(team: TeamId, jerseyNumber: String): CardAssessmentResult {
-    val updatedState = this.addInGameYellowCard(team, jerseyNumber)
+    var updatedState = this.addInGameYellowCard(team, jerseyNumber)
         .withUndo(this, playerCardUndoLabel("Yellow", team, jerseyNumber))
     val cardTotal = updatedState.teamCardTotal(team)
+    updatedState = updatedState.withSkippedPullForMisconductThreshold(cardTotal)
     return CardAssessmentResult(
         state = updatedState,
         event = GameEvent.TeamCardsChanged(
@@ -232,13 +235,14 @@ fun LiveGameState.assessRedCard(
     jerseyNumber: String,
     mode: RedCardMode,
 ): CardAssessmentResult {
-    val updatedState = when (mode) {
+    var updatedState = when (mode) {
         RedCardMode.DIRECT_RED -> this.addInGameDirectRed(team, jerseyNumber)
             .withUndo(this, playerCardUndoLabel("Red", team, jerseyNumber))
         RedCardMode.SECOND_YELLOW -> this.addInGameSecondYellow(team, jerseyNumber)
             .withUndo(this, playerCardUndoLabel("Second Yellow", team, jerseyNumber))
     }
     val cardTotal = updatedState.teamCardTotal(team)
+    updatedState = updatedState.withSkippedPullForMisconductThreshold(cardTotal)
     return CardAssessmentResult(
         state = updatedState,
         event = GameEvent.TeamCardsChanged(
@@ -256,6 +260,13 @@ fun LiveGameState.assessRedCard(
 
 private fun LiveGameState.playerCardUndoLabel(action: String, team: TeamId, jerseyNumber: String): String {
     return "Undo $action on #$jerseyNumber of ${this.teamName(team)}"
+}
+
+private fun LiveGameState.withSkippedPullForMisconductThreshold(thresholdCount: Int): LiveGameState {
+    if (thresholdCount < 3 || this.phase == LivePhase.LIVE_POINT || this.phase == LivePhase.GAME_OVER) {
+        return this
+    }
+    return this.copy(pullSkippedForCurrentPoint = true)
 }
 enum class CardType(val label: String) {
     YELLOW("Yellow"),

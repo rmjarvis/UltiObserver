@@ -117,6 +117,8 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             expectedMessage = "Receiving team starts at attacking brick.",
             substring = true,
         )
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-infraction")).assertIsNotEnabled()
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "pull-infraction")).assertIsNotEnabled()
 
         // Viscous Coupling scores the next two points, checking that halftime interrupts the flow.
         recordGoal(TeamId.TEAM_ONE, "Undo Goal by $viscousCoupling")

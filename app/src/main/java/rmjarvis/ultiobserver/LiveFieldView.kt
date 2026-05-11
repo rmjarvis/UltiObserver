@@ -216,11 +216,7 @@ internal fun FieldSketchCard(
                 background = topTeam.color.accent.copy(alpha = 0.85f),
                 interactionsEnabled = interactionsEnabled,
                 isPulling = state.pullingTeam == topSlot,
-                pullInfractionEnabled = if (state.pullingTeam == topSlot) {
-                    !state.pullSequenceOffsidesRecorded
-                } else {
-                    !state.pullSequenceFalseStartRecorded
-                },
+                pullInfractionEnabled = state.canRecordPullInfraction(topSlot),
                 goalEnabled = state.phase != LivePhase.GAME_OVER,
                 onGoal = { onGoal(topSlot) },
                 onTimeout = { onTimeout(topSlot) },
@@ -262,11 +258,7 @@ internal fun FieldSketchCard(
                 background = bottomTeam.color.accent,
                 interactionsEnabled = interactionsEnabled,
                 isPulling = state.pullingTeam == bottomSlot,
-                pullInfractionEnabled = if (state.pullingTeam == bottomSlot) {
-                    !state.pullSequenceOffsidesRecorded
-                } else {
-                    !state.pullSequenceFalseStartRecorded
-                },
+                pullInfractionEnabled = state.canRecordPullInfraction(bottomSlot),
                 goalEnabled = state.phase != LivePhase.GAME_OVER,
                 onGoal = { onGoal(bottomSlot) },
                 onTimeout = { onTimeout(bottomSlot) },

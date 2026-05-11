@@ -64,6 +64,16 @@ class TestGameCards : GameModelTestFixtures() {
             "Viscous Coupling has 3 cards.\n\nPenalty against pulling team. No pull. Receiving team starts at attacking brick.",
             cardResult.message(),
         )
+        assertTrue(state.pullSkippedForCurrentPoint)
+        assertFalse(state.canRecordPullInfraction(VC))
+        assertFalse(state.canRecordPullInfraction(ANIMAL))
+        assertEquals(state, state.assessPullInfraction(VC).state)
+        assertEquals(state, state.assessPullInfraction(ANIMAL).state)
+
+        // The no-pull restriction is only for the current point sequence.
+        state = recordGoalFromCurrentStateAt(state, VC, LocalTime.of(12, 5))
+        assertFalse(state.pullSkippedForCurrentPoint)
+        assertTrue(state.canRecordPullInfraction(VC))
 
         state = standardLiveGameState()
         state = state.copy(teamOne = state.teamOne.copy(blueCards = 2))

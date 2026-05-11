@@ -172,6 +172,7 @@ data class LiveGameState(
     val countdown: CountdownState? = null,
     val pullSequenceOffsidesRecorded: Boolean = false,
     val pullSequenceFalseStartRecorded: Boolean = false,
+    val pullSkippedForCurrentPoint: Boolean = false,
     val halftimeTaken: Boolean = false,
     val halftimeTargetScore: Int? = null,
     val winningScore: Int? = null,
