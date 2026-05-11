@@ -164,13 +164,7 @@ fun LiveGameState.assessBlueCard(team: TeamId): CardAssessmentResult {
     val cardTotal = updatedState.teamCardTotal(team)
     return CardAssessmentResult(
         state = updatedState,
-        message = buildCardMessage(
-            baseMessage = "${teamName(updatedState, team)} has $cardTotal ${pluralize(cardTotal, "card")}.",
-            state = updatedState,
-            team = team,
-            thresholdCount = cardTotal,
-        ),
-        needsLivePointMisconductChoice = cardTotal >= 3 && updatedState.phase == LivePhase.LIVE_POINT,
+        event = GameEvent.TeamCardsChanged(team = team, teamCardTotal = cardTotal),
     )
 }
 // Assess a technical foul and check whether it triggers misconduct handling.
@@ -195,13 +189,7 @@ fun LiveGameState.assessTechnicalFoul(team: TeamId): CardAssessmentResult {
     }
     return CardAssessmentResult(
         state = updatedState,
-        message = buildCardMessage(
-            baseMessage = "${teamName(updatedState, team)} has $technicalFouls technical ${pluralize(technicalFouls, "foul")}.",
-            state = updatedState,
-            team = team,
-            thresholdCount = technicalFouls,
-        ),
-        needsLivePointMisconductChoice = technicalFouls >= 3 && updatedState.phase == LivePhase.LIVE_POINT,
+        event = GameEvent.TechnicalFoulsChanged(team = team, technicalFoulTotal = technicalFouls),
     )
 }
 // Assess a yellow card and check whether it triggers misconduct handling.
@@ -221,13 +209,7 @@ fun LiveGameState.assessStandaloneYellowCard(team: TeamId, jerseyNumber: String)
     val cardTotal = updatedState.teamCardTotal(team)
     return CardAssessmentResult(
         state = updatedState,
-        message = buildCardMessage(
-            baseMessage = "${teamName(updatedState, team)} has $cardTotal ${pluralize(cardTotal, "card")}.",
-            state = updatedState,
-            team = team,
-            thresholdCount = cardTotal,
-        ),
-        needsLivePointMisconductChoice = cardTotal >= 3 && updatedState.phase == LivePhase.LIVE_POINT,
+        event = GameEvent.TeamCardsChanged(team = team, teamCardTotal = cardTotal),
     )
 }
 // Assess a red card and check whether it triggers misconduct handling.
@@ -243,26 +225,13 @@ fun LiveGameState.assessRedCard(
             .withUndo(this, "Undo Second Yellow on ${teamName(this, team)} #$jerseyNumber")
     }
     val cardTotal = updatedState.teamCardTotal(team)
-    val baseMessage = when (mode) {
-        RedCardMode.DIRECT_RED -> "${teamName(updatedState, team)} has $cardTotal ${pluralize(cardTotal, "card")}."
-        RedCardMode.SECOND_YELLOW -> {
-            val ejectionMessage = if (jerseyNumber == UNKNOWN_PLAYER_NUMBER) {
-                "The player is ejected."
-            } else {
-                "Player $jerseyNumber is ejected."
-            }
-            "Second yellow acts as a red card. $ejectionMessage\n${teamName(updatedState, team)} has $cardTotal ${pluralize(cardTotal, "card")}."
-        }
-    }
     return CardAssessmentResult(
         state = updatedState,
-        message = buildCardMessage(
-            baseMessage = baseMessage,
-            state = updatedState,
+        event = GameEvent.TeamCardsChanged(
             team = team,
-            thresholdCount = cardTotal,
+            teamCardTotal = cardTotal,
+            secondYellowJerseyNumber = if (mode == RedCardMode.SECOND_YELLOW) jerseyNumber else null,
         ),
-        needsLivePointMisconductChoice = cardTotal >= 3 && updatedState.phase == LivePhase.LIVE_POINT,
     )
 }
 enum class CardType(val label: String) {
@@ -338,30 +307,6 @@ private fun updatePlayerCardRecord(
     requirePlayerCardRecordsValid(updatedRecords)
     return updatedRecords
 }
-// Build the message for what happens when a team gets a card.
-private fun buildCardMessage(
-    baseMessage: String,
-    state: LiveGameState,
-    team: TeamId,
-    thresholdCount: Int,
-): String {
-    return if (thresholdCount < 3) {
-        baseMessage
-    } else if (state.phase == LivePhase.LIVE_POINT) {
-        baseMessage
-    } else {
-        "$baseMessage\n\n${betweenPointsMisconductMessage(state, team)}"
-    }
-}
-// Build the portion of the message for misconduct penalty between points.
-private fun betweenPointsMisconductMessage(state: LiveGameState, team: TeamId): String {
-    val receivingTeam = state.pullingTeam.flip()
-    return if (team == receivingTeam) {
-        "Penalty against receiving team. No pull. Disc at negative brick in defending end zone."
-    } else {
-        "Penalty against pulling team. No pull. Receiving team starts at attacking brick."
-    }
-}
 // Build the portion of the message for misconduct penalty during points.
 fun livePointMisconductMessage(againstOffense: Boolean): String {
     return if (againstOffense) {
@@ -390,10 +335,6 @@ fun LiveGameState.teamRedCards(team: TeamId): Int {
 fun LiveGameState.teamCardTotal(team: TeamId): Int {
     val currentTeam = if (team == TeamId.TEAM_ONE) this.teamOne else this.teamTwo
     return this.teamYellowCards(team) + currentTeam.blueCards + (2 * this.teamRedCards(team))
-}
-// Helper function to pluralize nicely.
-private fun pluralize(count: Int, singular: String): String {
-    return if (count == 1) singular else "${singular}s"
 }
 // Get the card record for a specific player.
 private fun LiveGameState.playerCardsFor(team: TeamId): List<InGamePlayerCardRecord> {

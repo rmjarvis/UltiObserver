@@ -171,12 +171,17 @@ data class UndoEntry(
 )
 data class CardAssessmentResult(
     val state: LiveGameState,
-    val message: String,
-    val needsLivePointMisconductChoice: Boolean,  // Set when a live-point card/TF needs O/D choice.
+    val event: GameEvent,
+    val needsLivePointMisconductChoice: Boolean =
+        event.needsLivePointMisconductChoice(state),
 )
 data class TimeoutAssessmentResult(
     val state: LiveGameState,
-    val message: String? = null,
+    val event: GameEvent? = null,
+)
+data class PullInfractionAssessmentResult(
+    val state: LiveGameState,
+    val event: GameEvent? = null,
 )
 enum class RedCardMode {
     DIRECT_RED,
@@ -186,4 +191,33 @@ enum class CapType {
     HALF,
     SOFT,
     HARD,
+}
+enum class PullInfractionType {
+    OFFSIDES,
+    FALSE_START,
+}
+
+sealed interface GameEvent {
+    data object TimeoutUnavailable : GameEvent
+
+    data class TeamOutOfTimeouts(
+        val team: TeamId,
+    ) : GameEvent
+
+    data class TeamCardsChanged(
+        val team: TeamId,
+        val teamCardTotal: Int,
+        val secondYellowJerseyNumber: String? = null,
+    ) : GameEvent
+
+    data class TechnicalFoulsChanged(
+        val team: TeamId,
+        val technicalFoulTotal: Int,
+    ) : GameEvent
+
+    data class PullInfractionRecorded(
+        val team: TeamId,
+        val infraction: PullInfractionType,
+        val totalPullViolations: Int,
+    ) : GameEvent
 }

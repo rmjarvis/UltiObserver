@@ -65,7 +65,7 @@ class TestGameFlow : GameModelTestFixtures() {
 
         // Animal calls a live-point timeout; the point stays live but a thrower countdown starts.
         val firstTimeout = state.assessTimeout(ANIMAL, 1_000_000L)
-        assertNull(firstTimeout.message)
+        assertNull(eventMessage(firstTimeout))
         state = firstTimeout.state
         assertEquals(1, state.teamTwo.timeoutsUsedThisHalf)
         assertEquals(1, state.timeoutsRemaining(ANIMAL))
@@ -84,7 +84,7 @@ class TestGameFlow : GameModelTestFixtures() {
         var cardResult = state.assessYellowCard(VC, "17")
         state = cardResult.state
         assertFalse(cardResult.needsLivePointMisconductChoice)
-        assertEquals("Viscous Coupling has 1 card.", cardResult.message)
+        assertEquals("Viscous Coupling has 1 card.", eventMessage(cardResult))
         assertEquals(1, state.teamYellowCards(VC))
         assertEquals(
             InGamePlayerCardRecord("17", yellows = 1),
@@ -94,7 +94,7 @@ class TestGameFlow : GameModelTestFixtures() {
         cardResult = state.assessBlueCard(VC)
         state = cardResult.state
         assertFalse(cardResult.needsLivePointMisconductChoice)
-        assertEquals("Viscous Coupling has 2 cards.", cardResult.message)
+        assertEquals("Viscous Coupling has 2 cards.", eventMessage(cardResult))
         assertEquals(1, state.teamOne.blueCards)
 
         // Viscous Coupling reaches three team card points with a yellow on #8 during a live point.
@@ -102,7 +102,7 @@ class TestGameFlow : GameModelTestFixtures() {
         cardResult = state.assessYellowCard(VC, "8")
         state = cardResult.state
         assertTrue(cardResult.needsLivePointMisconductChoice)
-        assertEquals("Viscous Coupling has 3 cards.", cardResult.message)
+        assertEquals("Viscous Coupling has 3 cards.", eventMessage(cardResult))
         assertEquals(2, state.teamYellowCards(VC))
         assertEquals("Undo Yellow Card on Viscous Coupling #8", state.undoEntry?.label)
         assertEquals(
@@ -110,7 +110,7 @@ class TestGameFlow : GameModelTestFixtures() {
             state.playerCards(VC).single { it.jerseyNumber == "8" },
         )
         assertTrue(
-            livePointMisconductResolutionMessage(cardResult.message, againstOffense = true)
+            livePointMisconductResolutionMessage(cardResult.state, cardResult.event, againstOffense = true)
                 .contains("Reverse brick"),
         )
 
@@ -129,18 +129,19 @@ class TestGameFlow : GameModelTestFixtures() {
         assertNull(state.pendingCapOffer)
 
         // During the next pull sequence, Viscous Coupling records an offsides as the pulling team.
-        state = state.recordOffsides()
+        val pullInfractionResult = state.assessPullInfraction(VC)
+        state = pullInfractionResult.state
         assertEquals(1, state.teamOne.offsides)
         assertEquals(0, state.teamTwo.offsides)
         assertEquals(LivePhase.LIVE_POINT, state.phase)
         assertNull(state.countdown)
-        assertEquals("Start at brick mark", state.offsidesResolutionMessage(VC))
+        assertEquals("Start at brick mark", eventMessage(pullInfractionResult))
         assertEquals("Undo Offsides on Viscous Coupling", state.undoEntry?.label)
 
         // Animal picks up yellow cards for #23 and #8
         cardResult = state.assessYellowCard(ANIMAL, "23")
         state = cardResult.state
-        assertEquals("Animal has 1 card.", cardResult.message)
+        assertEquals("Animal has 1 card.", eventMessage(cardResult))
         assertEquals(1, state.teamYellowCards(ANIMAL))
         assertEquals(
             InGamePlayerCardRecord("23", yellows = 1),
@@ -149,7 +150,7 @@ class TestGameFlow : GameModelTestFixtures() {
 
         cardResult = state.assessYellowCard(ANIMAL, "8")
         state = cardResult.state
-        assertEquals("Animal has 2 cards.", cardResult.message)
+        assertEquals("Animal has 2 cards.", eventMessage(cardResult))
         assertEquals(2, state.teamYellowCards(ANIMAL))
         assertEquals(
             InGamePlayerCardRecord("8", yellows = 1),
@@ -160,17 +161,17 @@ class TestGameFlow : GameModelTestFixtures() {
         var technicalFoulResult = state.assessTechnicalFoul(ANIMAL)
         state = technicalFoulResult.state
         assertFalse(technicalFoulResult.needsLivePointMisconductChoice)
-        assertEquals("Animal has 1 technical foul.", technicalFoulResult.message)
+        assertEquals("Animal has 1 technical foul.", eventMessage(technicalFoulResult))
 
         technicalFoulResult = state.assessTechnicalFoul(ANIMAL)
         state = technicalFoulResult.state
         assertFalse(technicalFoulResult.needsLivePointMisconductChoice)
-        assertEquals("Animal has 2 technical fouls.", technicalFoulResult.message)
+        assertEquals("Animal has 2 technical fouls.", eventMessage(technicalFoulResult))
 
         // Viscous Coupling calls a live-point timeout, starting an offense-set countdown.
         val secondTimeoutTime = timestampAt(state, LocalTime.of(10, 6))
         val secondTimeout = state.assessTimeout(VC, secondTimeoutTime)
-        assertNull(secondTimeout.message)
+        assertNull(eventMessage(secondTimeout))
         state = secondTimeout.state
         assertEquals(1, state.timeoutsRemaining(VC))
         assertEquals(LivePhase.LIVE_POINT, state.phase)
@@ -195,9 +196,9 @@ class TestGameFlow : GameModelTestFixtures() {
         state = technicalFoulResult.state
         assertFalse(technicalFoulResult.needsLivePointMisconductChoice)
         assertEquals(3, state.teamTwo.technicalFouls)
-        assertTrue(technicalFoulResult.message.contains("Animal has 3 technical fouls."))
-        assertTrue(technicalFoulResult.message.contains("Penalty against pulling team."))
-        assertTrue(technicalFoulResult.message.contains("Receiving team starts at attacking brick."))
+        assertTrue(eventMessage(technicalFoulResult)!!.contains("Animal has 3 technical fouls."))
+        assertTrue(eventMessage(technicalFoulResult)!!.contains("Penalty against pulling team."))
+        assertTrue(eventMessage(technicalFoulResult)!!.contains("Receiving team starts at attacking brick."))
         assertEquals("Undo Technical Foul on Animal", state.undoEntry?.label)
 
         // Viscous Coupling scores the next two points, reaching halftime in this game-to-5 setup.
@@ -239,7 +240,7 @@ class TestGameFlow : GameModelTestFixtures() {
         assertEquals(2, state.teamTwo.score)
 
         val thirdTimeout = state.assessTimeout(ANIMAL, 1_810_000L)
-        assertNull(thirdTimeout.message)
+        assertNull(eventMessage(thirdTimeout))
         state = thirdTimeout.state
         assertEquals(1, state.teamTwo.timeoutsUsedThisHalf)
         assertEquals(1, state.timeoutsRemaining(ANIMAL))

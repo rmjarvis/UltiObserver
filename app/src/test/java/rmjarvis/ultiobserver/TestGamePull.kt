@@ -33,7 +33,8 @@ class TestGamePull : GameModelTestFixtures() {
         assertFalse(state.pullSequenceFalseStartRecorded)
 
         // Record offsides and verify only the pulling team's offsides count increments.
-        state = state.recordOffsides()
+        var pullInfractionResult = state.assessPullInfraction(VC)
+        state = pullInfractionResult.state
         assertEquals(LivePhase.LIVE_POINT, state.phase)
         assertNull(state.countdown)
         assertEquals(1, state.teamOne.offsides)
@@ -46,24 +47,27 @@ class TestGamePull : GameModelTestFixtures() {
         assertEquals("Undo Offsides on Viscous Coupling", state.undoEntry?.label)
 
         // Verify the first pull-violation message sends play to the brick mark.
-        assertEquals("Start at brick mark", state.offsidesResolutionMessage(VC))
+        assertEquals("Start at brick mark", eventMessage(pullInfractionResult))
 
         // Verify the same pull sequence cannot record a second offsides for the same team.
-        val afterDuplicateOffsides = state.recordOffsides()
-        assertEquals(state, afterDuplicateOffsides)
+        pullInfractionResult = state.assessPullInfraction(VC)
+        assertEquals(state, pullInfractionResult.state)
+        assertNull(eventMessage(pullInfractionResult))
 
         // Mirror the offsides pathway for a pull where Animal is the pulling team.
         state = standardLiveGameState(pullingTeam = ANIMAL)
-        state = state.recordOffsides()
+        pullInfractionResult = state.assessPullInfraction(ANIMAL)
+        state = pullInfractionResult.state
         assertEquals(LivePhase.LIVE_POINT, state.phase)
         assertEquals(0, state.teamOne.offsides)
         assertEquals(1, state.teamTwo.offsides)
         assertEquals("Offsides on Animal.", state.lastEvent)
-        assertEquals("Start at brick mark", state.offsidesResolutionMessage(ANIMAL))
+        assertEquals("Start at brick mark", eventMessage(pullInfractionResult))
 
         // In a fresh pull sequence, record false start and verify only the receiving team's count increments.
         state = standardLiveGameState()
-        state = state.recordFalseStart()
+        pullInfractionResult = state.assessPullInfraction(ANIMAL)
+        state = pullInfractionResult.state
         assertEquals(LivePhase.BETWEEN_POINTS, state.phase)
         assertNotNull(state.countdown)
         assertEquals(0, state.teamOne.offsides)
@@ -76,24 +80,27 @@ class TestGamePull : GameModelTestFixtures() {
         assertEquals("Undo False Start on Animal", state.undoEntry?.label)
 
         // Verify false-start guidance says the defense gets to set up.
-        assertEquals("Defense gets to set up.", falseStartResolutionMessage())
+        assertEquals("Defense gets to set up.", eventMessage(pullInfractionResult))
 
         // The same pull sequence cannot record a second false start.
-        val afterDuplicateFalseStart = state.recordFalseStart()
-        assertEquals(state, afterDuplicateFalseStart)
+        pullInfractionResult = state.assessPullInfraction(ANIMAL)
+        assertEquals(state, pullInfractionResult.state)
+        assertNull(eventMessage(pullInfractionResult))
 
         // Record offsides and false start on the same pull and verify both counts and both consequences apply.
         state = standardLiveGameState()
-        state = state.recordOffsides()
-        state = state.recordFalseStart()
+        val offsidesResult = state.assessPullInfraction(VC)
+        state = offsidesResult.state
+        val falseStartResult = state.assessPullInfraction(ANIMAL)
+        state = falseStartResult.state
         assertEquals(1, state.teamOne.offsides)
         assertEquals(0, state.teamOne.falseStarts)
         assertEquals(0, state.teamTwo.offsides)
         assertEquals(1, state.teamTwo.falseStarts)
         assertTrue(state.pullSequenceOffsidesRecorded)
         assertTrue(state.pullSequenceFalseStartRecorded)
-        assertEquals("Start at brick mark", state.offsidesResolutionMessage(VC))
-        assertEquals("Defense gets to set up.", falseStartResolutionMessage())
+        assertEquals("Start at brick mark", eventMessage(offsidesResult))
+        assertEquals("Defense gets to set up.", eventMessage(falseStartResult))
 
         // Score the point and verify pull-sequence infraction locks reset for the next pull.
         state = recordGoalFromCurrentStateAt(state, VC, LocalTime.of(12, 5))
@@ -108,23 +115,25 @@ class TestGamePull : GameModelTestFixtures() {
         assertEquals("Pull in", state.countdown?.label)
 
         // Build a later pull where Viscous Coupling already has a violation and verify the guidance changes to midfield.
-        state = state.recordOffsides()
+        pullInfractionResult = state.assessPullInfraction(VC)
+        state = pullInfractionResult.state
         assertEquals(2, state.teamOne.offsides)
-        assertEquals("Start at midfield", state.offsidesResolutionMessage(VC))
+        assertEquals("Start at midfield", eventMessage(pullInfractionResult))
 
         // A previous false start by Viscous Coupling also stacks with a later Viscous Coupling offsides.
         state = standardLiveGameState(pullingTeam = ANIMAL)
-        state = state.recordFalseStart()
+        state = state.assessPullInfraction(VC).state
         assertEquals(0, state.teamOne.offsides)
         assertEquals(1, state.teamOne.falseStarts)
         assertEquals(0, state.teamTwo.offsides)
         assertEquals(0, state.teamTwo.falseStarts)
         state = recordGoalFromCurrentStateAt(state, VC, LocalTime.of(12, 10))
         assertEquals(VC, state.pullingTeam)
-        state = state.recordOffsides()
+        pullInfractionResult = state.assessPullInfraction(VC)
+        state = pullInfractionResult.state
         assertEquals(1, state.teamOne.offsides)
         assertEquals(1, state.teamOne.falseStarts)
-        assertEquals("Start at midfield", state.offsidesResolutionMessage(VC))
+        assertEquals("Start at midfield", eventMessage(pullInfractionResult))
 
         // Manually adjust pull infractions and verify values are clamped and undo-backed.
         state = state.adjustPullInfractions(

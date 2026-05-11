@@ -73,7 +73,7 @@ class TestGameTimeouts : GameModelTestFixtures() {
         // A between-points timeout records a used timeout and extends the active countdown.
         val originalCountdown = state.countdown!!
         var timeoutResult = state.assessTimeout(VC, originalCountdown.targetEpoch - 1_000L)
-        assertNull(timeoutResult.message)
+        assertNull(eventMessage(timeoutResult))
         state = timeoutResult.state
         assertEquals(1, state.teamOne.timeoutsUsedThisHalf)
         assertEquals(1, state.timeoutsRemaining(VC))
@@ -85,7 +85,7 @@ class TestGameTimeouts : GameModelTestFixtures() {
         // A live-point timeout starts a fresh offense-set timeout countdown.
         state = state.beginLivePoint()
         timeoutResult = state.assessTimeout(VC, 1_000_000L)
-        assertNull(timeoutResult.message)
+        assertNull(eventMessage(timeoutResult))
         state = timeoutResult.state
         assertEquals(2, state.teamOne.timeoutsUsedThisHalf)
         assertEquals(0, state.timeoutsRemaining(VC))
@@ -105,7 +105,7 @@ class TestGameTimeouts : GameModelTestFixtures() {
 
         // With both first-half timeouts used, another timeout request leaves state unchanged and returns a message.
         timeoutResult = state.assessTimeout(VC, 1_010_000L)
-        assertEquals("Viscous Coupling is out of timeouts.", timeoutResult.message)
+        assertEquals("Viscous Coupling is out of timeouts.", eventMessage(timeoutResult))
         assertEquals(state, timeoutResult.state)
         assertEquals(state, state.chargeTimeout(VC, 1_010_000L))
 
@@ -124,7 +124,7 @@ class TestGameTimeouts : GameModelTestFixtures() {
         // A timeout is not available while the halftime countdown itself is still running.
         val halftimeEnd = state.countdown!!.targetEpoch
         timeoutResult = state.assessTimeout(VC, halftimeEnd - 1L)
-        assertEquals("Timeouts are not available now.", timeoutResult.message)
+        assertEquals("Timeouts are not available now.", eventMessage(timeoutResult))
         assertEquals(state, timeoutResult.state)
 
         // The UI hides timeout actions after game over; stale timeout commands are idempotent no-ops.
@@ -136,13 +136,13 @@ class TestGameTimeouts : GameModelTestFixtures() {
         )
         assertEquals(LivePhase.GAME_OVER, gameOverTimeoutState.phase)
         timeoutResult = gameOverTimeoutState.assessTimeout(VC, 1_160_000L)
-        assertEquals("Timeouts are not available now.", timeoutResult.message)
+        assertEquals("Timeouts are not available now.", eventMessage(timeoutResult))
         assertEquals(gameOverTimeoutState, timeoutResult.state)
         assertEquals(gameOverTimeoutState, gameOverTimeoutState.chargeTimeout(VC, 1_160_000L))
 
         // After halftime has elapsed but before the pull, a timeout behaves like a between-points timeout.
         timeoutResult = state.assessTimeout(VC, halftimeEnd + 1L)
-        assertNull(timeoutResult.message)
+        assertNull(eventMessage(timeoutResult))
         val afterHalftimeTimeoutState = timeoutResult.state
         assertEquals(LivePhase.BETWEEN_POINTS, afterHalftimeTimeoutState.phase)
         assertEquals(1, afterHalftimeTimeoutState.teamOne.timeoutsUsedThisHalf)
@@ -166,7 +166,7 @@ class TestGameTimeouts : GameModelTestFixtures() {
             expiredCountdownNow,
         )
         val expiredTimeoutState = timeoutResult.state
-        assertNull(timeoutResult.message)
+        assertNull(eventMessage(timeoutResult))
         assertEquals(LivePhase.LIVE_POINT, expiredTimeoutState.phase)
         assertEquals(CountdownKind.TIME_OUT, expiredTimeoutState.countdown?.kind)
         assertEquals("Offense set in", expiredTimeoutState.countdown?.label)
@@ -271,7 +271,7 @@ class TestGameTimeouts : GameModelTestFixtures() {
         assertEquals(0, state.timeoutsAllowedThisHalf(VC))
         assertEquals(0, state.timeoutsRemaining(VC))
         timeoutResult = state.assessTimeout(VC, 2_400_000L)
-        assertEquals("Viscous Coupling is out of timeouts.", timeoutResult.message)
+        assertEquals("Viscous Coupling is out of timeouts.", eventMessage(timeoutResult))
         assertEquals(state, timeoutResult.state)
 
         // Two per half plus a floater starts at three and carries the floater if any first-half timeout remains.

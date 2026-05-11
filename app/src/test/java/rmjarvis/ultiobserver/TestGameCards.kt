@@ -34,7 +34,7 @@ class TestGameCards : GameModelTestFixtures() {
         var cardResult = state.assessYellowCard(VC, "17")
         state = cardResult.state
         assertFalse(cardResult.needsLivePointMisconductChoice)
-        assertEquals("Viscous Coupling has 1 card.", cardResult.message)
+        assertEquals("Viscous Coupling has 1 card.", eventMessage(cardResult))
         assertEquals(1, state.teamYellowCards(VC))
         assertEquals(0, state.teamRedCards(VC))
         assertEquals(1, state.teamCardTotal(VC))
@@ -45,7 +45,7 @@ class TestGameCards : GameModelTestFixtures() {
         cardResult = state.assessYellowCard(VC, "17")
         state = cardResult.state
         assertFalse(cardResult.needsLivePointMisconductChoice)
-        assertEquals("Second yellow acts as a red card. Player 17 is ejected.\nViscous Coupling has 2 cards.", cardResult.message)
+        assertEquals("Second yellow acts as a red card. Player 17 is ejected.\nViscous Coupling has 2 cards.", eventMessage(cardResult))
         assertEquals(2, state.teamYellowCards(VC))
         assertEquals(0, state.teamRedCards(VC))
         assertEquals(2, state.teamCardTotal(VC))
@@ -61,7 +61,7 @@ class TestGameCards : GameModelTestFixtures() {
         assertEquals(1, state.playerCards(VC).size)
         assertEquals(
             "Viscous Coupling has 3 cards.\n\nPenalty against pulling team. No pull. Receiving team starts at attacking brick.",
-            cardResult.message,
+            eventMessage(cardResult),
         )
 
         state = standardLiveGameState()
@@ -70,7 +70,7 @@ class TestGameCards : GameModelTestFixtures() {
         assertFalse(cardResult.needsLivePointMisconductChoice)
         assertEquals(
             "Viscous Coupling has 3 cards.\n\nPenalty against pulling team. No pull. Receiving team starts at attacking brick.",
-            cardResult.message,
+            eventMessage(cardResult),
         )
 
         // During a live point, a standalone yellow that reaches the misconduct threshold needs an offense/defense choice.
@@ -80,7 +80,7 @@ class TestGameCards : GameModelTestFixtures() {
         cardResult = state.assessYellowCard(VC, "14")
         state = cardResult.state
         assertTrue(cardResult.needsLivePointMisconductChoice)
-        assertEquals("Viscous Coupling has 3 cards.", cardResult.message)
+        assertEquals("Viscous Coupling has 3 cards.", eventMessage(cardResult))
         assertEquals(3, state.teamCardTotal(VC))
 
         // A direct red for a player with no prior yellow counts as two team card points and records a direct red.
@@ -88,7 +88,7 @@ class TestGameCards : GameModelTestFixtures() {
         cardResult = state.assessRedCard(ANIMAL, "23", RedCardMode.DIRECT_RED)
         state = cardResult.state
         assertFalse(cardResult.needsLivePointMisconductChoice)
-        assertEquals("Animal has 2 cards.", cardResult.message)
+        assertEquals("Animal has 2 cards.", eventMessage(cardResult))
         assertEquals(0, state.teamYellowCards(ANIMAL))
         assertEquals(1, state.teamRedCards(ANIMAL))
         assertEquals(2, state.teamCardTotal(ANIMAL))
@@ -100,7 +100,7 @@ class TestGameCards : GameModelTestFixtures() {
         cardResult = state.assessRedCard(ANIMAL, "23", RedCardMode.DIRECT_RED)
         state = cardResult.state
         assertTrue(cardResult.needsLivePointMisconductChoice)
-        assertEquals("Animal has 3 cards.", cardResult.message)
+        assertEquals("Animal has 3 cards.", eventMessage(cardResult))
         assertEquals(3, state.teamCardTotal(ANIMAL))
 
         // A direct red for a player who already has a yellow is distinct from recording the red as a second yellow.
@@ -115,7 +115,7 @@ class TestGameCards : GameModelTestFixtures() {
         assertEquals(InGamePlayerCardRecord("8", yellows = 1, directReds = 1), playerRecord(state, ANIMAL, "8"))
         assertEquals(
             "Animal has 3 cards.\n\nPenalty against receiving team. No pull. Disc at negative brick in defending end zone.",
-            cardResult.message,
+            eventMessage(cardResult),
         )
 
         state = standardLiveGameState()
@@ -127,7 +127,7 @@ class TestGameCards : GameModelTestFixtures() {
         assertEquals(0, state.teamRedCards(ANIMAL))
         assertEquals(2, state.teamCardTotal(ANIMAL))
         assertEquals(InGamePlayerCardRecord("8", yellows = 2), playerRecord(state, ANIMAL, "8"))
-        assertEquals("Second yellow acts as a red card. Player 8 is ejected.\nAnimal has 2 cards.", cardResult.message)
+        assertEquals("Second yellow acts as a red card. Player 8 is ejected.\nAnimal has 2 cards.", eventMessage(cardResult))
 
         // The N/A pathways distinguish same-unknown-player second yellow from a standalone yellow.
         state = standardLiveGameState()
@@ -138,7 +138,7 @@ class TestGameCards : GameModelTestFixtures() {
         assertEquals(2, state.teamYellowCards(VC))
         assertEquals(0, state.teamRedCards(VC))
         assertEquals(InGamePlayerCardRecord(UNKNOWN_PLAYER_NUMBER, yellows = 2), playerRecord(state, VC, UNKNOWN_PLAYER_NUMBER))
-        assertEquals("Second yellow acts as a red card. The player is ejected.\nViscous Coupling has 2 cards.", cardResult.message)
+        assertEquals("Second yellow acts as a red card. The player is ejected.\nViscous Coupling has 2 cards.", eventMessage(cardResult))
 
         state = standardLiveGameState()
         state = state.assessYellowCard(VC, UNKNOWN_PLAYER_NUMBER).state
@@ -147,14 +147,14 @@ class TestGameCards : GameModelTestFixtures() {
         assertEquals(2, state.teamYellowCards(VC))
         assertEquals(0, state.teamRedCards(VC))
         assertEquals(2, state.teamCardTotal(VC))
-        assertFalse(cardResult.message.startsWith("Second yellow acts as a red card."))
+        assertFalse(eventMessage(cardResult)!!.startsWith("Second yellow acts as a red card."))
 
         // Blue cards count as one team card point each and do not create per-player card records.
         state = standardLiveGameState()
         cardResult = state.assessBlueCard(ANIMAL)
         state = cardResult.state
         assertFalse(cardResult.needsLivePointMisconductChoice)
-        assertEquals("Animal has 1 card.", cardResult.message)
+        assertEquals("Animal has 1 card.", eventMessage(cardResult))
         assertEquals(1, state.teamTwo.blueCards)
         assertEquals(1, state.teamCardTotal(ANIMAL))
         assertTrue(state.playerCards(ANIMAL).isEmpty())
@@ -162,7 +162,7 @@ class TestGameCards : GameModelTestFixtures() {
         cardResult = state.assessBlueCard(ANIMAL)
         state = cardResult.state
         assertFalse(cardResult.needsLivePointMisconductChoice)
-        assertEquals("Animal has 2 cards.", cardResult.message)
+        assertEquals("Animal has 2 cards.", eventMessage(cardResult))
         assertEquals(2, state.teamTwo.blueCards)
         assertEquals(2, state.teamCardTotal(ANIMAL))
 
@@ -173,7 +173,7 @@ class TestGameCards : GameModelTestFixtures() {
         assertEquals(3, state.teamCardTotal(ANIMAL))
         assertEquals(
             "Animal has 3 cards.\n\nPenalty against receiving team. No pull. Disc at negative brick in defending end zone.",
-            cardResult.message,
+            eventMessage(cardResult),
         )
 
         cardResult = state.assessBlueCard(ANIMAL)
@@ -183,7 +183,7 @@ class TestGameCards : GameModelTestFixtures() {
         assertEquals(4, state.teamCardTotal(ANIMAL))
         assertEquals(
             "Animal has 4 cards.\n\nPenalty against receiving team. No pull. Disc at negative brick in defending end zone.",
-            cardResult.message,
+            eventMessage(cardResult),
         )
 
         // Technical fouls use a separate count, with the same third-and-later misconduct handling.
@@ -191,14 +191,14 @@ class TestGameCards : GameModelTestFixtures() {
         var technicalFoulResult = state.assessTechnicalFoul(ANIMAL)
         state = technicalFoulResult.state
         assertFalse(technicalFoulResult.needsLivePointMisconductChoice)
-        assertEquals("Animal has 1 technical foul.", technicalFoulResult.message)
+        assertEquals("Animal has 1 technical foul.", eventMessage(technicalFoulResult))
         assertEquals(1, state.teamTwo.technicalFouls)
         assertEquals(0, state.teamCardTotal(ANIMAL))
 
         technicalFoulResult = state.assessTechnicalFoul(ANIMAL)
         state = technicalFoulResult.state
         assertFalse(technicalFoulResult.needsLivePointMisconductChoice)
-        assertEquals("Animal has 2 technical fouls.", technicalFoulResult.message)
+        assertEquals("Animal has 2 technical fouls.", eventMessage(technicalFoulResult))
         assertEquals(2, state.teamTwo.technicalFouls)
 
         technicalFoulResult = state.assessTechnicalFoul(ANIMAL)
@@ -207,7 +207,7 @@ class TestGameCards : GameModelTestFixtures() {
         assertEquals(3, state.teamTwo.technicalFouls)
         assertEquals(
             "Animal has 3 technical fouls.\n\nPenalty against receiving team. No pull. Disc at negative brick in defending end zone.",
-            technicalFoulResult.message,
+            eventMessage(technicalFoulResult),
         )
 
         // After Animal scores, they are the pulling team, so the next technical foul uses the pulling-team cue.
@@ -220,7 +220,7 @@ class TestGameCards : GameModelTestFixtures() {
         assertEquals(4, state.teamTwo.technicalFouls)
         assertEquals(
             "Animal has 4 technical fouls.\n\nPenalty against pulling team. No pull. Receiving team starts at attacking brick.",
-            technicalFoulResult.message,
+            eventMessage(technicalFoulResult),
         )
 
         // During a live point, third-and-later misconduct asks for offense/defense context instead of guessing.
@@ -231,16 +231,16 @@ class TestGameCards : GameModelTestFixtures() {
         state = cardResult.state
         assertEquals(LivePhase.LIVE_POINT, state.phase)
         assertTrue(cardResult.needsLivePointMisconductChoice)
-        assertEquals("Viscous Coupling has 3 cards.", cardResult.message)
+        assertEquals("Viscous Coupling has 3 cards.", eventMessage(cardResult))
 
-        val prompt = livePointMisconductPrompt(cardResult.message)
+        val prompt = livePointMisconductPrompt(cardResult.state, cardResult.event)
         assertTrue(prompt.contains("Was this against the offense or defense?"))
         assertTrue(
-            livePointMisconductResolutionMessage(cardResult.message, againstOffense = true)
+            livePointMisconductResolutionMessage(cardResult.state, cardResult.event, againstOffense = true)
                 .contains("Reverse brick"),
         )
         assertTrue(
-            livePointMisconductResolutionMessage(cardResult.message, againstOffense = false)
+            livePointMisconductResolutionMessage(cardResult.state, cardResult.event, againstOffense = false)
                 .contains("Brick nearest attacking end zone"),
         )
 
@@ -252,9 +252,9 @@ class TestGameCards : GameModelTestFixtures() {
         state = technicalFoulResult.state
         assertEquals(LivePhase.LIVE_POINT, state.phase)
         assertTrue(technicalFoulResult.needsLivePointMisconductChoice)
-        assertEquals("Viscous Coupling has 3 technical fouls.", technicalFoulResult.message)
+        assertEquals("Viscous Coupling has 3 technical fouls.", eventMessage(technicalFoulResult))
         assertTrue(
-            livePointMisconductResolutionMessage(technicalFoulResult.message, againstOffense = true)
+            livePointMisconductResolutionMessage(technicalFoulResult.state, technicalFoulResult.event, againstOffense = true)
                 .contains("Reverse brick"),
         )
 

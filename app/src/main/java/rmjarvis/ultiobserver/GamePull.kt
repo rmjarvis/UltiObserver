@@ -44,6 +44,29 @@ fun LiveGameState.swapPullingTeam(): LiveGameState {
         lastEvent = "Pulling team swapped.",
     ).withUndo(this, "Undo Swap Pulling Team")
 }
+// Record the pull infraction that belongs to the selected team, if not already recorded on this pull.
+fun LiveGameState.assessPullInfraction(team: TeamId): PullInfractionAssessmentResult {
+    val infraction = if (team == this.pullingTeam) {
+        PullInfractionType.OFFSIDES
+    } else {
+        PullInfractionType.FALSE_START
+    }
+    val updatedState = when (infraction) {
+        PullInfractionType.OFFSIDES -> this.recordOffsides()
+        PullInfractionType.FALSE_START -> this.recordFalseStart()
+    }
+    if (updatedState == this) {
+        return PullInfractionAssessmentResult(this)
+    }
+    return PullInfractionAssessmentResult(
+        state = updatedState,
+        event = GameEvent.PullInfractionRecorded(
+            team = team,
+            infraction = infraction,
+            totalPullViolations = updatedState.pullViolationTotal(team),
+        ),
+    )
+}
 // Offsides on the pulling team
 fun LiveGameState.recordOffsides(): LiveGameState {
     if (this.pullSequenceOffsidesRecorded) {
@@ -88,27 +111,10 @@ fun LiveGameState.recordFalseStart(): LiveGameState {
         lastEvent = "False start on ${teamName(this, team)}.",
     ).withUndo(this, "Undo False Start on ${teamName(this, team)}")
 }
-// Terse field-position cue shown after recording false start.
-fun falseStartResolutionMessage(): String {
-    return "Defense gets to set up."
-}
-// Prompt shown when live-point misconduct needs an offense/defense choice.
-fun livePointMisconductPrompt(baseMessage: String): String {
-    return "$baseMessage\n\nWas this against the offense or defense?"
-}
-// Full live-point misconduct message after the observer chooses offense or defense.
-fun livePointMisconductResolutionMessage(baseMessage: String, againstOffense: Boolean): String {
-    return "$baseMessage\n\n${livePointMisconductMessage(againstOffense)}"
-}
-// Terse field-position cue shown after recording offsides.
-fun LiveGameState.offsidesResolutionMessage(teamId: TeamId): String {
+// Count total pull violations for a team.
+private fun LiveGameState.pullViolationTotal(teamId: TeamId): Int {
     val team = if (teamId == TeamId.TEAM_ONE) this.teamOne else this.teamTwo
-    val pullViolations = team.offsides + team.falseStarts
-    return if (pullViolations <= 1) {
-        "Start at brick mark"
-    } else {
-        "Start at midfield"
-    }
+    return team.offsides + team.falseStarts
 }
 // Get the team name for a given id
 internal fun teamName(state: LiveGameState, team: TeamId): String {

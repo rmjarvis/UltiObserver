@@ -34,7 +34,8 @@ import androidx.compose.ui.unit.dp
 import java.time.LocalTime
 
 private data class PendingMisconductChoice(
-    val baseMessage: String,
+    val state: LiveGameState,
+    val event: GameEvent,
 )
 
 // Main live-game screen, including the field view, modal flows, and pop-up cues.
@@ -203,23 +204,17 @@ internal fun LiveGameScreen(
                     onTimeout = { team ->
                         val result = state.assessTimeout(team, now)
                         onStateChange(result.state)
-                        if (result.message != null) {
-                            actionInfoMessage = result.message
+                        val message = formatGameEventMessage(result.state, result.event)
+                        if (message != null) {
+                            actionInfoMessage = message
                         }
                     },
                     onPullInfraction = { team ->
-                        if (team == state.pullingTeam) {
-                            val updatedState = state.recordOffsides()
-                            onStateChange(updatedState)
-                            if (updatedState != state) {
-                                actionInfoMessage = updatedState.offsidesResolutionMessage(team)
-                            }
-                        } else {
-                            val updatedState = state.recordFalseStart()
-                            onStateChange(updatedState)
-                            if (updatedState != state) {
-                                actionInfoMessage = falseStartResolutionMessage()
-                            }
+                        val result = state.assessPullInfraction(team)
+                        onStateChange(result.state)
+                        val message = formatGameEventMessage(result.state, result.event)
+                        if (message != null) {
+                            actionInfoMessage = message
                         }
                     },
                 )
@@ -282,9 +277,12 @@ internal fun LiveGameScreen(
                 onAssessment = { result ->
                     onStateChange(result.state)
                     if (result.needsLivePointMisconductChoice) {
-                        pendingMisconductChoice = PendingMisconductChoice(result.message)
+                        pendingMisconductChoice = PendingMisconductChoice(
+                            state = result.state,
+                            event = result.event,
+                        )
                     } else {
-                        actionInfoMessage = result.message
+                        actionInfoMessage = formatGameEventMessage(result.state, result.event)
                     }
                     showCardsSheet = false
                 },
@@ -328,12 +326,13 @@ internal fun LiveGameScreen(
 
     // Live-point misconduct needs a follow-up choice because the app cannot infer possession.
     if (pendingMisconductChoice != null) {
+        val misconductChoice = pendingMisconductChoice!!
         AlertDialog(
             onDismissRequest = { pendingMisconductChoice = null },
             title = { Text("Misconduct Penalty") },
             text = {
                 Text(
-                    text = livePointMisconductPrompt(pendingMisconductChoice!!.baseMessage),
+                    text = livePointMisconductPrompt(misconductChoice.state, misconductChoice.event),
                     style = MaterialTheme.typography.bodyLarge,
                 )
             },
@@ -341,7 +340,8 @@ internal fun LiveGameScreen(
                 TextButton(
                     onClick = {
                         actionInfoMessage = livePointMisconductResolutionMessage(
-                            pendingMisconductChoice!!.baseMessage,
+                            misconductChoice.state,
+                            misconductChoice.event,
                             againstOffense = true,
                         )
                         pendingMisconductChoice = null
@@ -355,7 +355,8 @@ internal fun LiveGameScreen(
                     TextButton(
                         onClick = {
                             actionInfoMessage = livePointMisconductResolutionMessage(
-                                pendingMisconductChoice!!.baseMessage,
+                                misconductChoice.state,
+                                misconductChoice.event,
                                 againstOffense = false,
                             )
                             pendingMisconductChoice = null

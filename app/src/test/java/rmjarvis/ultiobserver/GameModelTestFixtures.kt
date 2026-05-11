@@ -105,4 +105,15 @@ abstract class GameModelTestFixtures {
         return state.applyPendingCap(timestampAt(state, time))
     }
 
+    protected fun eventMessage(result: CardAssessmentResult): String? {
+        return formatGameEventMessage(result.state, result.event)
+    }
+
+    protected fun eventMessage(result: TimeoutAssessmentResult): String? {
+        return formatGameEventMessage(result.state, result.event)
+    }
+
+    protected fun eventMessage(result: PullInfractionAssessmentResult): String? {
+        return formatGameEventMessage(result.state, result.event)
+    }
 }

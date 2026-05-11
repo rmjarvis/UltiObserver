@@ -22,9 +22,9 @@ fun LiveGameState.assessTimeout(
     now: Long,
 ): TimeoutAssessmentResult {
     val timeoutState = timeoutEligibleState(this, now)
-        ?: return TimeoutAssessmentResult(this, "Timeouts are not available now.")
+        ?: return TimeoutAssessmentResult(this, GameEvent.TimeoutUnavailable)
     if (timeoutState.timeoutsRemaining(team) <= 0) {
-        return TimeoutAssessmentResult(this, "${teamName(this, team)} is out of timeouts.")
+        return TimeoutAssessmentResult(this, GameEvent.TeamOutOfTimeouts(team))
     }
     return TimeoutAssessmentResult(timeoutState.chargeTimeout(team, now))
 }
