@@ -59,14 +59,16 @@ internal class UltiObserverAppViewModel : ViewModel() {
     }
 
     fun resumeCurrentGame() {
-        if (liveState?.phase != LivePhase.GAME_OVER) {
+        val current = liveState ?: return
+        if (current.phase != LivePhase.GAME_OVER) {
             viewingArchivedGame = null
             screen = AppScreen.LIVE
         }
     }
 
     fun openCompletedGame() {
-        if (liveState?.phase == LivePhase.GAME_OVER) {
+        val current = liveState ?: return
+        if (current.phase == LivePhase.GAME_OVER) {
             viewingArchivedGame = null
             screen = AppScreen.LIVE
         }
@@ -79,7 +81,10 @@ internal class UltiObserverAppViewModel : ViewModel() {
     }
 
     fun archiveCompletedGame() {
-        val completed = liveState?.takeIf { it.phase == LivePhase.GAME_OVER } ?: return
+        val completed = liveState ?: return
+        if (completed.phase != LivePhase.GAME_OVER) {
+            return
+        }
         archivedGames = archivedGames + ArchivedGame(
             pruneUndoHistory(completed),
             "",
@@ -115,9 +120,7 @@ internal class UltiObserverAppViewModel : ViewModel() {
         liveState = if (setupMode == SetupMode.NEW_GAME) {
             createLiveGameState(setupState)
         } else {
-            liveState?.let {
-                applySetupToLiveGame(it, setupState, now)
-            }
+            applySetupToLiveGame(liveState!!, setupState, now)
         }
         viewingArchivedGame = null
         screen = AppScreen.LIVE
