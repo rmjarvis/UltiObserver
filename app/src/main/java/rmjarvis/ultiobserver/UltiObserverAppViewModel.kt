@@ -6,35 +6,44 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import java.time.LocalDateTime
 import java.time.ZoneId
+import kotlinx.serialization.Serializable
 
+@Serializable
 internal enum class AppScreen {
     HOME,
     SETUP,
     LIVE,
 }
 
+@Serializable
 internal enum class SetupMode {
     NEW_GAME,
     EDIT_CURRENT_GAME,
 }
 
+@Serializable
 internal data class ArchivedGame(
     val state: LiveGameState,
     val subtitle: String,
 )
 
-internal class UltiObserverAppViewModel : ViewModel() {
-    var screen by mutableStateOf(AppScreen.HOME)
+internal class UltiObserverAppViewModel(
+    private val appStateStore: AppStateStore = NoOpAppStateStore,
+) : ViewModel() {
+    private val persistedActiveState = appStateStore.loadActiveState()
+    private var viewingArchivedGameIndex = persistedActiveState?.viewingArchivedGameIndex
+
+    var screen by mutableStateOf(persistedActiveState?.screen ?: AppScreen.HOME)
         private set
-    var setupState by mutableStateOf(newGameSetupState())
+    var setupState by mutableStateOf(persistedActiveState?.setupState ?: newGameSetupState())
         private set
-    var liveState by mutableStateOf<LiveGameState?>(null)
+    var liveState by mutableStateOf(persistedActiveState?.liveState)
         private set
-    var setupMode by mutableStateOf(SetupMode.NEW_GAME)
+    var setupMode by mutableStateOf(persistedActiveState?.setupMode ?: SetupMode.NEW_GAME)
         private set
-    var archivedGames by mutableStateOf(listOf<ArchivedGame>())
+    var archivedGames by mutableStateOf(appStateStore.loadArchivedGames())
         private set
-    var viewingArchivedGame by mutableStateOf<ArchivedGame?>(null)
+    var viewingArchivedGame by mutableStateOf(viewingArchivedGameIndex?.let { archivedGames.getOrNull(it) })
         private set
 
     val currentLiveState: LiveGameState?
@@ -45,38 +54,47 @@ internal class UltiObserverAppViewModel : ViewModel() {
 
     fun goHome() {
         screen = AppScreen.HOME
+        clearViewedArchivedGame()
+        persistActiveState()
     }
 
     fun updateSetup(updatedSetup: GameSetupState) {
         setupState = updatedSetup
+        persistActiveState()
     }
 
     fun updateLiveGame(updatedGame: LiveGameState) {
         if (viewingArchivedGame == null) {
+            // All live game event logging flows through this ViewModel boundary.
             liveState = updatedGame
+            persistActiveState()
         }
     }
 
     fun resumeCurrentGame() {
         val current = liveState ?: return
         if (current.phase != LivePhase.GAME_OVER) {
-            viewingArchivedGame = null
+            clearViewedArchivedGame()
             screen = AppScreen.LIVE
+            persistActiveState()
         }
     }
 
     fun openCompletedGame() {
         val current = liveState ?: return
         if (current.phase == LivePhase.GAME_OVER) {
-            viewingArchivedGame = null
+            clearViewedArchivedGame()
             screen = AppScreen.LIVE
+            persistActiveState()
         }
     }
 
     fun openPreviousGame(index: Int) {
         val archived = archivedGames.getOrNull(index) ?: return
+        viewingArchivedGameIndex = index
         viewingArchivedGame = archived
         screen = AppScreen.LIVE
+        persistActiveState()
     }
 
     fun archiveCompletedGame() {
@@ -89,7 +107,9 @@ internal class UltiObserverAppViewModel : ViewModel() {
             "",
         )
         liveState = null
-        viewingArchivedGame = null
+        clearViewedArchivedGame()
+        persistArchivedGames()
+        persistActiveState()
     }
 
     fun startNewGame() {
@@ -105,12 +125,14 @@ internal class UltiObserverAppViewModel : ViewModel() {
                 }.pruneUndoHistory(),
                 if (existing.phase == LivePhase.GAME_OVER) "" else "Closed when new game started",
             )
+            persistArchivedGames()
         }
         setupState = newGameSetupState()
         liveState = null
-        viewingArchivedGame = null
+        clearViewedArchivedGame()
         setupMode = SetupMode.NEW_GAME
         screen = AppScreen.SETUP
+        persistActiveState()
     }
 
     fun finishSetup(now: Long = System.currentTimeMillis()) {
@@ -119,8 +141,9 @@ internal class UltiObserverAppViewModel : ViewModel() {
         } else {
             applySetupToLiveGame(liveState!!, setupState, now)
         }
-        viewingArchivedGame = null
+        clearViewedArchivedGame()
         screen = AppScreen.LIVE
+        persistActiveState()
     }
 
     fun editCurrentGame(currentGame: LiveGameState) {
@@ -130,6 +153,28 @@ internal class UltiObserverAppViewModel : ViewModel() {
         setupState = currentGame.toSetupState()
         setupMode = SetupMode.EDIT_CURRENT_GAME
         screen = AppScreen.SETUP
+        persistActiveState()
+    }
+
+    private fun clearViewedArchivedGame() {
+        viewingArchivedGameIndex = null
+        viewingArchivedGame = null
+    }
+
+    private fun persistActiveState() {
+        appStateStore.saveActiveState(
+            PersistedActiveAppState(
+                screen = screen,
+                setupState = setupState,
+                liveState = liveState,
+                setupMode = setupMode,
+                viewingArchivedGameIndex = viewingArchivedGameIndex,
+            )
+        )
+    }
+
+    private fun persistArchivedGames() {
+        appStateStore.saveArchivedGames(archivedGames)
     }
 }
 

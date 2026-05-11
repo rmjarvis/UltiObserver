@@ -1,5 +1,6 @@
 package rmjarvis.ultiobserver
 
+import java.io.File
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -8,9 +9,14 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 
 class TestUltiObserverAppViewModel {
+    @get:Rule
+    val temporaryFolder = TemporaryFolder()
+
     @Test
     fun appStateHolderOwnsTopLevelGameFlow() {
         val viewModel = UltiObserverAppViewModel()
@@ -230,5 +236,116 @@ class TestUltiObserverAppViewModel {
         val nextDaySetup = newGameSetupState(LocalDateTime.of(2026, 1, 1, 23, 45))
         assertEquals(LocalDate.of(2026, 1, 2), nextDaySetup.startDate)
         assertEquals(LocalTime.MIDNIGHT, nextDaySetup.startTime)
+    }
+
+    // Verify persisted app state restores both setup drafts and active-game undo history.
+    @Test
+    fun persistentStoreRestoresSetupDraftAndActiveGameUndoHistory() {
+        val storeDir = temporaryFolder.newFolder()
+        val store = FileAppStateStore(storeDir)
+        val viewModel = UltiObserverAppViewModel(store)
+
+        // Start a new-game setup draft and verify a fresh ViewModel restores the draft.
+        viewModel.startNewGame()
+        val draftedSetup = viewModel.setupState.copy(
+            teamOne = TeamSetup("Viscous Coupling", TeamColorChoice.BLUE),
+            teamTwo = TeamSetup("Animal", TeamColorChoice.PINK),
+        )
+        viewModel.updateSetup(draftedSetup)
+
+        val draftRestored = UltiObserverAppViewModel(FileAppStateStore(storeDir))
+        assertEquals(AppScreen.SETUP, draftRestored.screen)
+        assertEquals(draftedSetup, draftRestored.setupState)
+        assertNull(draftRestored.liveState)
+
+        // Finish setup, record an undo-backed game action, and verify it survives restart.
+        draftRestored.finishSetup()
+        val livePointState = draftRestored.liveState!!.beginLivePoint()
+        val scoredState = livePointState.recordGoal(
+            scoringTeam = TeamId.TEAM_ONE,
+            now = livePointState.startEpoch + 5 * 60_000L,
+        )
+        draftRestored.updateLiveGame(scoredState)
+
+        val gameRestored = UltiObserverAppViewModel(FileAppStateStore(storeDir))
+        assertEquals(AppScreen.LIVE, gameRestored.screen)
+        assertEquals(scoredState, gameRestored.liveState)
+        assertNotNull(gameRestored.liveState!!.undoEntry)
+        assertEquals(livePointState, gameRestored.liveState!!.undoLastAction())
+    }
+
+    // Verify live event updates persist at the ViewModel boundary.
+    @Test
+    fun liveGameEventsPersistThroughUpdateLiveGame() {
+        val store = RecordingAppStateStore()
+        val viewModel = UltiObserverAppViewModel(store)
+
+        // Start a live game and clear the setup saves so the event assertion is focused.
+        viewModel.startNewGame()
+        viewModel.finishSetup()
+        store.savedActiveStates.clear()
+
+        // Record an ordinary user-visible event through the same callback used by live UI actions.
+        val livePointState = viewModel.liveState!!.beginLivePoint()
+        viewModel.updateLiveGame(livePointState)
+
+        assertEquals("Point is live.", store.savedActiveStates.single().liveState!!.lastEvent)
+        assertEquals(livePointState, store.savedActiveStates.single().liveState)
+    }
+
+    // Verify archived games are persisted as pruned summaries separate from active state.
+    @Test
+    fun persistentStoreWritesArchivedSummariesSeparatelyFromActiveSnapshot() {
+        val storeDir = temporaryFolder.newFolder()
+        val viewModel = UltiObserverAppViewModel(FileAppStateStore(storeDir))
+
+        // Complete and archive a game that still has live-only countdown and undo state.
+        viewModel.startNewGame()
+        viewModel.finishSetup()
+        val beforeEndGame = viewModel.liveState!!
+        val completedGame = beforeEndGame.copy(
+            phase = LivePhase.GAME_OVER,
+            countdown = CountdownState(
+                kind = CountdownKind.BETWEEN_POINTS,
+                label = "Pull in",
+                durationSeconds = 80,
+                targetEpoch = 80_000L,
+                betweenPointsTarget = BetweenPointsCountdownTarget.PULL,
+            ),
+            undoEntry = UndoEntry("Undo End Game", beforeEndGame),
+        )
+        viewModel.updateLiveGame(completedGame)
+        viewModel.goHome()
+        viewModel.archiveCompletedGame()
+
+        // Verify active state and archived summaries are written to separate files.
+        assertTrue(File(storeDir, "active_app_state.json").exists())
+        assertTrue(File(File(storeDir, "archived_games"), "00000.json").exists())
+
+        // Restore from disk and verify the archived game keeps only summary-relevant state.
+        val restored = UltiObserverAppViewModel(FileAppStateStore(storeDir))
+        assertEquals(AppScreen.HOME, restored.screen)
+        assertNull(restored.liveState)
+        assertEquals(1, restored.archivedGames.size)
+        assertNull(restored.archivedGames.single().state.countdown)
+        assertNull(restored.archivedGames.single().state.undoEntry)
+        assertEquals(LivePhase.GAME_OVER, restored.archivedGames.single().state.phase)
+    }
+}
+
+private class RecordingAppStateStore : AppStateStore {
+    val savedActiveStates = mutableListOf<PersistedActiveAppState>()
+    val savedArchivedGames = mutableListOf<List<ArchivedGame>>()
+
+    override fun loadActiveState(): PersistedActiveAppState? = null
+
+    override fun saveActiveState(state: PersistedActiveAppState) {
+        savedActiveStates += state
+    }
+
+    override fun loadArchivedGames(): List<ArchivedGame> = emptyList()
+
+    override fun saveArchivedGames(games: List<ArchivedGame>) {
+        savedArchivedGames += games
     }
 }

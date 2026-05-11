@@ -4,17 +4,21 @@ import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
+import kotlinx.serialization.Serializable
 
 // Absolute Long timestamps in the game model are Unix epoch milliseconds.
 
+@Serializable
 enum class TeamId {
     TEAM_ONE,
     TEAM_TWO,
 }
+@Serializable
 enum class FieldEnd {
     NEAR,
     FAR,
 }
+@Serializable
 enum class LivePhase {
     PRE_GAME,
     BETWEEN_POINTS,
@@ -22,6 +26,7 @@ enum class LivePhase {
     HALFTIME,
     GAME_OVER,
 }
+@Serializable
 enum class TeamColorChoice(
     val label: String,
     val accentArgb: Long,    // The background color matching the nominal jersey color.
@@ -36,16 +41,19 @@ enum class TeamColorChoice(
     PINK("Pink", 0xFFFF4FA3, 0xFF2F1022),
     GRAY("Gray", 0xFF708090, 0xFFF7F8FA),
 }
+@Serializable
 data class TeamSetup(
     val name: String = "",
     val color: TeamColorChoice = TeamColorChoice.WHITE,
 )
+@Serializable
 data class PlayerCardRecord(
     val team: TeamId,
     val jerseyNumber: String,
     val priorYellows: Int,    // Cards issued in previous games of the current tournament.
     val priorReds: Int,
 )
+@Serializable
 data class InGamePlayerCardRecord(
     val jerseyNumber: String,
     val yellows: Int = 0,
@@ -53,6 +61,7 @@ data class InGamePlayerCardRecord(
 )
 // How to indicate cards for players when you don't know the player number.
 const val UNKNOWN_PLAYER_NUMBER = "N/A"
+@Serializable
 data class GameRules(
     val gameTo: Int = 15,
     val halftimeMinutes: Int = 7,
@@ -65,9 +74,13 @@ data class GameRules(
     val timeoutsPerHalf: Int = 2,
     val hasFloaterTimeout: Boolean = false,
 )
+@Serializable
 data class GameSetupState(
+    @Serializable(with = LocalDateAsStringSerializer::class)
     val startDate: LocalDate,
+    @Serializable(with = LocalTimeAsStringSerializer::class)
     val startTime: LocalTime,
+    @Serializable(with = ZoneIdAsStringSerializer::class)
     val timeZone: ZoneId,
     val rules: GameRules = GameRules(),
     val teamOne: TeamSetup = TeamSetup(name = "", color = TeamColorChoice.WHITE),
@@ -76,6 +89,7 @@ data class GameSetupState(
     val pullingTeam: TeamId = TeamId.TEAM_ONE,
     val pullingFromEnd: FieldEnd = FieldEnd.FAR,
 )
+@Serializable
 data class TeamLiveState(
     val name: String,
     val color: TeamColorChoice,
@@ -90,6 +104,7 @@ data class TeamLiveState(
 fun TeamLiveState.withAddedTimeout(): TeamLiveState {
     return copy(timeoutsUsedThisHalf = timeoutsUsedThisHalf + 1)
 }
+@Serializable
 data class CountdownState(
     val kind: CountdownKind,
     val label: String,
@@ -114,11 +129,13 @@ data class CountdownState(
     }
 
 }
+@Serializable
 enum class CountdownKind {
     BETWEEN_POINTS,
     TIME_OUT,
     HALFTIME,
 }
+@Serializable
 enum class BetweenPointsCountdownTarget(
     val label: String,
     val baseDurationSeconds: Int,
@@ -130,9 +147,13 @@ enum class BetweenPointsCountdownTarget(
         return if (this == OFFENSE_READY) PULL else OFFENSE_READY
     }
 }
+@Serializable
 data class LiveGameState(
+    @Serializable(with = LocalDateAsStringSerializer::class)
     val startDate: LocalDate,
+    @Serializable(with = LocalTimeAsStringSerializer::class)
     val startTime: LocalTime,
+    @Serializable(with = ZoneIdAsStringSerializer::class)
     val timeZone: ZoneId,
     val startEpoch: Long,
     val endEpoch: Long? = null,
@@ -165,6 +186,7 @@ data class CapStatus(
     val label: String,
     val remaining: Duration,
 )
+@Serializable
 data class UndoEntry(
     val label: String,
     val previous: LiveGameState,
@@ -187,11 +209,13 @@ enum class RedCardMode {
     DIRECT_RED,
     SECOND_YELLOW,
 }
+@Serializable
 enum class CapType {
     HALF,
     SOFT,
     HARD,
 }
+@Serializable
 enum class PullInfractionType {
     OFFSIDES,
     FALSE_START,

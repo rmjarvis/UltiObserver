@@ -7,10 +7,21 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.runtime.Composable
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 
 class MainActivity : ComponentActivity() {
-    private val appViewModel: UltiObserverAppViewModel by viewModels()
+    private val appViewModel: UltiObserverAppViewModel by viewModels {
+        object : ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                require(modelClass == UltiObserverAppViewModel::class.java) {
+                    "Unknown ViewModel class ${modelClass.name}."
+                }
+                return modelClass.cast(UltiObserverAppViewModel(FileAppStateStore(filesDir)))
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
