@@ -61,7 +61,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         continuePointAndUnlock()
 
         // Viscous Coupling gets two early card points, then a third card that needs a misconduct choice.
-        recordYellowCard(TeamId.TEAM_ONE, "17", "$viscousCoupling has 1 card.")
+        recordYellowCard(TeamId.TEAM_ONE, "17", "Yellow card on player 17.\n$viscousCoupling has 1 card.")
         recordBlueCard(TeamId.TEAM_ONE, "$viscousCoupling has 2 cards.")
         recordYellowCard(
             team = TeamId.TEAM_ONE,
@@ -92,8 +92,8 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-infraction")).assertIsNotEnabled()
 
         // Animal picks up two yellows and two technical fouls during the live point.
-        recordYellowCard(TeamId.TEAM_TWO, "23", "$animal has 1 card.")
-        recordYellowCard(TeamId.TEAM_TWO, "8", "$animal has 2 cards.")
+        recordYellowCard(TeamId.TEAM_TWO, "23", "Yellow card on player 23.\n$animal has 1 card.")
+        recordYellowCard(TeamId.TEAM_TWO, "8", "Yellow card on player 8.\n$animal has 2 cards.")
         recordTechnicalFoul(TeamId.TEAM_TWO, "$animal has 1 technical foul.")
         recordTechnicalFoul(TeamId.TEAM_TWO, "$animal has 2 technical fouls.")
 

@@ -222,6 +222,12 @@ enum class PullInfractionType {
     FALSE_START,
 }
 
+enum class PlayerCardEventType {
+    YELLOW,
+    RED,
+    SECOND_YELLOW,
+}
+
 sealed interface GameEvent {
     data class TimeoutUnavailable(
         val state: LiveGameState,
@@ -236,8 +242,13 @@ sealed interface GameEvent {
         val state: LiveGameState,
         val team: TeamId,
         val teamCardTotal: Int,
-        val secondYellowJerseyNumber: String? = null,
-    ) : GameEvent
+        val playerCardType: PlayerCardEventType? = null,
+        val playerCardJerseyNumber: String? = null,
+    ) : GameEvent {
+        init {
+            require((playerCardType == null) == (playerCardJerseyNumber == null))
+        }
+    }
 
     data class TechnicalFoulsChanged(
         val state: LiveGameState,

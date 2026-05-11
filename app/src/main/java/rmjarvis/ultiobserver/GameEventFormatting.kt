@@ -21,22 +21,29 @@ fun GameEvent.needsMisconductChoice(): Boolean {
 }
 
 private fun GameEvent.TeamCardsChanged.formatMessage(): String {
-    val baseMessage = if (secondYellowJerseyNumber == null) {
-        "${state.teamName(team)} has $teamCardTotal ${pluralize(teamCardTotal, "card")}."
-    } else {
-        val ejectionMessage = if (secondYellowJerseyNumber == UNKNOWN_PLAYER_NUMBER) {
-            "The player is ejected."
-        } else {
-            "Player $secondYellowJerseyNumber is ejected."
+    val totalMessage = "${state.teamName(team)} has $teamCardTotal ${pluralize(teamCardTotal, "card")}."
+    val baseMessage = when (playerCardType) {
+        null -> totalMessage
+        PlayerCardEventType.YELLOW -> "Yellow card on player ${requireNotNull(playerCardJerseyNumber)}.\n$totalMessage"
+        PlayerCardEventType.RED -> "${ejectionMessage(requireNotNull(playerCardJerseyNumber))}\n$totalMessage"
+        PlayerCardEventType.SECOND_YELLOW -> {
+            "Second yellow acts as a red card. ${ejectionMessage(requireNotNull(playerCardJerseyNumber))}\n" +
+                totalMessage
         }
-        "Second yellow acts as a red card. $ejectionMessage\n" +
-            "${state.teamName(team)} has $teamCardTotal ${pluralize(teamCardTotal, "card")}."
     }
     return baseMessage.withMisconductCue(
         state = state,
         team = team,
         thresholdCount = teamCardTotal,
     )
+}
+
+private fun ejectionMessage(jerseyNumber: String): String {
+    return if (jerseyNumber == UNKNOWN_PLAYER_NUMBER) {
+        "The player is ejected."
+    } else {
+        "Player $jerseyNumber is ejected."
+    }
 }
 
 private fun GameEvent.TechnicalFoulsChanged.formatMessage(): String {

@@ -55,7 +55,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Yellow Card").assertIsDisplayed()
         composeRule.onNodeWithText("Player number").assertIsDisplayed()
         composeRule.onNodeWithText("N/A").performClick()
-        waitForText("Team 1 has 2 cards.")
+        waitForText("Yellow card on player N/A.\nTeam 1 has 2 cards.")
         composeRule.onNodeWithText("OK").performClick()
 
         // A red on a player with a yellow should ask direct red vs second yellow.
@@ -64,7 +64,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Red Card").assertIsDisplayed()
         composeRule.onNodeWithText("N/A").performClick()
         waitForText("Player Already Has Yellow")
-        composeRule.onNodeWithText("Direct Red").performClick()
+        composeRule.onNodeWithTag("red-card-mode-red").performClick()
         waitForText("Team 1 has 4 cards.", substring = true)
     }
 
@@ -85,10 +85,10 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         startGameFromSetup()
 
         // A direct red without an existing yellow should record immediately.
-        recordRedCard(TeamId.TEAM_ONE, "5", "Team 1 has 2 cards.")
+        recordRedCard(TeamId.TEAM_ONE, "5", "Player 5 is ejected.\nTeam 1 has 2 cards.")
 
         // A red on a player with yellow should allow the second-yellow path.
-        recordYellowCard(TeamId.TEAM_TWO, "7", "Team 2 has 1 card.")
+        recordYellowCard(TeamId.TEAM_TWO, "7", "Yellow card on player 7.\nTeam 2 has 1 card.")
         openCardsSheet()
         composeRule.onAllNodesWithText("Red")[teamCardButtonIndex(TeamId.TEAM_TWO)].performClick()
         waitForText("Red Card")
@@ -203,7 +203,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         startLiveGame()
 
         // A second yellow on N/A can be recorded as the same unknown player.
-        recordYellowCard(TeamId.TEAM_ONE, "", "Team 1 has 1 card.")
+        recordYellowCard(TeamId.TEAM_ONE, "", "Yellow card on player N/A.\nTeam 1 has 1 card.")
         openCardsSheet()
         composeRule.onAllNodesWithText("Yellow")[teamCardButtonIndex(TeamId.TEAM_ONE)].performClick()
         waitForText("Yellow Card")
@@ -214,14 +214,14 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("OK").performClick()
 
         // A player with both a yellow and direct red has no valid additional red-card mode.
-        recordYellowCard(TeamId.TEAM_TWO, "6", "Team 2 has 1 card.")
+        recordYellowCard(TeamId.TEAM_TWO, "6", "Yellow card on player 6.\nTeam 2 has 1 card.")
         openCardsSheet()
         composeRule.onAllNodesWithText("Red")[teamCardButtonIndex(TeamId.TEAM_TWO)].performClick()
         waitForText("Red Card")
         enterCardPlayerNumber("6")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Player Already Has Yellow")
-        composeRule.onNodeWithText("Direct Red").performClick()
+        composeRule.onNodeWithTag("red-card-mode-red").performClick()
         waitForText("Team 2 has", substring = true)
         composeRule.onNodeWithText("OK").performClick()
 

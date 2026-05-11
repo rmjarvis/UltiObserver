@@ -116,7 +116,7 @@ private fun InGamePlayerCardRecord.summaryIssuedCardText(): String {
             2 -> add("Two yellow cards")
         }
         when (directReds) {
-            1 -> add("Direct red card")
+            1 -> add("Red card")
         }
     }
     return "${displayPlayerNumber(jerseyNumber)}: ${parts.joinToString("; ")}"

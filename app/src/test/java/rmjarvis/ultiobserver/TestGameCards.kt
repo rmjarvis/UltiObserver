@@ -34,12 +34,12 @@ class TestGameCards : GameModelTestFixtures() {
         var cardResult = state.assessYellowCard(VC, "17")
         state = cardResult.state
         assertFalse(cardResult.needsMisconductChoice)
-        assertEquals("Viscous Coupling has 1 card.", cardResult.message())
+        assertEquals("Yellow card on player 17.\nViscous Coupling has 1 card.", cardResult.message())
         assertEquals(1, state.teamYellowCards(VC))
         assertEquals(0, state.teamRedCards(VC))
         assertEquals(1, state.teamCardTotal(VC))
         assertEquals(InGamePlayerCardRecord("17", yellows = 1), playerRecord(state, VC, "17"))
-        assertEquals("Undo Yellow Card on Viscous Coupling #17", state.undoEntry?.label)
+        assertEquals("Undo Yellow on #17 of Viscous Coupling", state.undoEntry?.label)
 
         // A second yellow to the same player acts as a red card, but adds only one more team card point.
         cardResult = state.assessYellowCard(VC, "17")
@@ -50,7 +50,7 @@ class TestGameCards : GameModelTestFixtures() {
         assertEquals(0, state.teamRedCards(VC))
         assertEquals(2, state.teamCardTotal(VC))
         assertEquals(InGamePlayerCardRecord("17", yellows = 2), playerRecord(state, VC, "17"))
-        assertEquals("Undo Second Yellow on Viscous Coupling #17", state.undoEntry?.label)
+        assertEquals("Undo Second Yellow on #17 of Viscous Coupling", state.undoEntry?.label)
         assertUndoRestores(cardResult.state.undoEntry!!.previous, state)
 
         // A third team-card point between points gives the pulling-team misconduct field-position cue.
@@ -70,7 +70,8 @@ class TestGameCards : GameModelTestFixtures() {
         cardResult = state.assessYellowCard(VC, "14")
         assertFalse(cardResult.needsMisconductChoice)
         assertEquals(
-            "Viscous Coupling has 3 cards.\n\nPenalty against pulling team. No pull. Receiving team starts at attacking brick.",
+            "Yellow card on player 14.\nViscous Coupling has 3 cards.\n\n" +
+                "Penalty against pulling team. No pull. Receiving team starts at attacking brick.",
             cardResult.message(),
         )
 
@@ -81,7 +82,7 @@ class TestGameCards : GameModelTestFixtures() {
         cardResult = state.assessYellowCard(VC, "14")
         state = cardResult.state
         assertTrue(cardResult.needsMisconductChoice)
-        assertEquals("Viscous Coupling has 3 cards.", cardResult.message())
+        assertEquals("Yellow card on player 14.\nViscous Coupling has 3 cards.", cardResult.message())
         assertEquals(3, state.teamCardTotal(VC))
 
         // A direct red for a player with no prior yellow counts as two team card points and records a direct red.
@@ -89,7 +90,7 @@ class TestGameCards : GameModelTestFixtures() {
         cardResult = state.assessRedCard(ANIMAL, "23", RedCardMode.DIRECT_RED)
         state = cardResult.state
         assertFalse(cardResult.needsMisconductChoice)
-        assertEquals("Animal has 2 cards.", cardResult.message())
+        assertEquals("Player 23 is ejected.\nAnimal has 2 cards.", cardResult.message())
         assertEquals(0, state.teamYellowCards(ANIMAL))
         assertEquals(1, state.teamRedCards(ANIMAL))
         assertEquals(2, state.teamCardTotal(ANIMAL))
@@ -102,7 +103,7 @@ class TestGameCards : GameModelTestFixtures() {
         cardResult = state.assessRedCard(ANIMAL, "23", RedCardMode.DIRECT_RED)
         state = cardResult.state
         assertTrue(cardResult.needsMisconductChoice)
-        assertEquals("Animal has 3 cards.", cardResult.message())
+        assertEquals("Player 23 is ejected.\nAnimal has 3 cards.", cardResult.message())
         assertEquals(3, state.teamCardTotal(ANIMAL))
 
         // A direct red for a player who already has a yellow is distinct from recording the red as a second yellow.
@@ -116,7 +117,8 @@ class TestGameCards : GameModelTestFixtures() {
         assertEquals(3, state.teamCardTotal(ANIMAL))
         assertEquals(InGamePlayerCardRecord("8", yellows = 1, directReds = 1), playerRecord(state, ANIMAL, "8"))
         assertEquals(
-            "Animal has 3 cards.\n\nPenalty against receiving team. No pull. Disc at negative brick in defending end zone.",
+            "Player 8 is ejected.\nAnimal has 3 cards.\n\n" +
+                "Penalty against receiving team. No pull. Disc at negative brick in defending end zone.",
             cardResult.message(),
         )
 

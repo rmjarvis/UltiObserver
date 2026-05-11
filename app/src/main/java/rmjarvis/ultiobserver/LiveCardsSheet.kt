@@ -274,8 +274,11 @@ private fun RedCardModeDialog(
         },
         confirmButton = {
             if (directRedEnabled) {
-                TextButton(onClick = onDirectRed) {
-                    Text("Direct Red")
+                TextButton(
+                    onClick = onDirectRed,
+                    modifier = Modifier.testTag("red-card-mode-red"),
+                ) {
+                    Text("Red")
                 }
             } else if (!hasValidChoice) {
                 TextButton(onClick = onDismiss) {
@@ -339,7 +342,7 @@ private fun InGamePlayerCardRecord.issuedCardSummary(): String {
             add("Y $yellows")
         }
         if (directReds > 0) {
-            add("DR $directReds")
+            add("R $directReds")
         }
     }
     return "${displayPlayerNumber(jerseyNumber)}: ${parts.joinToString("  ")}"

@@ -84,7 +84,7 @@ class TestGameFlow : GameModelTestFixtures() {
         var cardResult = state.assessYellowCard(VC, "17")
         state = cardResult.state
         assertFalse(cardResult.needsMisconductChoice)
-        assertEquals("Viscous Coupling has 1 card.", cardResult.message())
+        assertEquals("Yellow card on player 17.\nViscous Coupling has 1 card.", cardResult.message())
         assertEquals(1, state.teamYellowCards(VC))
         assertEquals(
             InGamePlayerCardRecord("17", yellows = 1),
@@ -102,9 +102,9 @@ class TestGameFlow : GameModelTestFixtures() {
         cardResult = state.assessYellowCard(VC, "8")
         state = cardResult.state
         assertTrue(cardResult.needsMisconductChoice)
-        assertEquals("Viscous Coupling has 3 cards.", cardResult.message())
+        assertEquals("Yellow card on player 8.\nViscous Coupling has 3 cards.", cardResult.message())
         assertEquals(2, state.teamYellowCards(VC))
-        assertEquals("Undo Yellow Card on Viscous Coupling #8", state.undoEntry?.label)
+        assertEquals("Undo Yellow on #8 of Viscous Coupling", state.undoEntry?.label)
         assertEquals(
             InGamePlayerCardRecord("8", yellows = 1),
             state.playerCards(VC).single { it.jerseyNumber == "8" },
@@ -141,7 +141,7 @@ class TestGameFlow : GameModelTestFixtures() {
         // Animal picks up yellow cards for #23 and #8
         cardResult = state.assessYellowCard(ANIMAL, "23")
         state = cardResult.state
-        assertEquals("Animal has 1 card.", cardResult.message())
+        assertEquals("Yellow card on player 23.\nAnimal has 1 card.", cardResult.message())
         assertEquals(1, state.teamYellowCards(ANIMAL))
         assertEquals(
             InGamePlayerCardRecord("23", yellows = 1),
@@ -150,7 +150,7 @@ class TestGameFlow : GameModelTestFixtures() {
 
         cardResult = state.assessYellowCard(ANIMAL, "8")
         state = cardResult.state
-        assertEquals("Animal has 2 cards.", cardResult.message())
+        assertEquals("Yellow card on player 8.\nAnimal has 2 cards.", cardResult.message())
         assertEquals(2, state.teamYellowCards(ANIMAL))
         assertEquals(
             InGamePlayerCardRecord("8", yellows = 1),

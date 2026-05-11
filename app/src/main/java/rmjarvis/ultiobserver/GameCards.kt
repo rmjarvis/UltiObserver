@@ -213,7 +213,7 @@ fun LiveGameState.assessYellowCard(team: TeamId, jerseyNumber: String): CardAsse
 // Figure out the consequence for a standalone yellow.
 fun LiveGameState.assessStandaloneYellowCard(team: TeamId, jerseyNumber: String): CardAssessmentResult {
     val updatedState = this.addInGameYellowCard(team, jerseyNumber)
-        .withUndo(this, "Undo Yellow Card on ${this.teamName(team)} #$jerseyNumber")
+        .withUndo(this, playerCardUndoLabel("Yellow", team, jerseyNumber))
     val cardTotal = updatedState.teamCardTotal(team)
     return CardAssessmentResult(
         state = updatedState,
@@ -221,6 +221,8 @@ fun LiveGameState.assessStandaloneYellowCard(team: TeamId, jerseyNumber: String)
             state = updatedState,
             team = team,
             teamCardTotal = cardTotal,
+            playerCardType = PlayerCardEventType.YELLOW,
+            playerCardJerseyNumber = jerseyNumber,
         ),
     )
 }
@@ -232,9 +234,9 @@ fun LiveGameState.assessRedCard(
 ): CardAssessmentResult {
     val updatedState = when (mode) {
         RedCardMode.DIRECT_RED -> this.addInGameDirectRed(team, jerseyNumber)
-            .withUndo(this, "Undo Direct Red on ${this.teamName(team)} #$jerseyNumber")
+            .withUndo(this, playerCardUndoLabel("Red", team, jerseyNumber))
         RedCardMode.SECOND_YELLOW -> this.addInGameSecondYellow(team, jerseyNumber)
-            .withUndo(this, "Undo Second Yellow on ${this.teamName(team)} #$jerseyNumber")
+            .withUndo(this, playerCardUndoLabel("Second Yellow", team, jerseyNumber))
     }
     val cardTotal = updatedState.teamCardTotal(team)
     return CardAssessmentResult(
@@ -243,9 +245,17 @@ fun LiveGameState.assessRedCard(
             state = updatedState,
             team = team,
             teamCardTotal = cardTotal,
-            secondYellowJerseyNumber = if (mode == RedCardMode.SECOND_YELLOW) jerseyNumber else null,
+            playerCardType = when (mode) {
+                RedCardMode.DIRECT_RED -> PlayerCardEventType.RED
+                RedCardMode.SECOND_YELLOW -> PlayerCardEventType.SECOND_YELLOW
+            },
+            playerCardJerseyNumber = jerseyNumber,
         ),
     )
+}
+
+private fun LiveGameState.playerCardUndoLabel(action: String, team: TeamId, jerseyNumber: String): String {
+    return "Undo $action on #$jerseyNumber of ${this.teamName(team)}"
 }
 enum class CardType(val label: String) {
     YELLOW("Yellow"),
@@ -300,7 +310,7 @@ private fun LiveGameState.addInGameDirectRed(team: TeamId, jerseyNumber: String)
         ) { record ->
             record.copy(directReds = record.directReds + 1)
         },
-        lastEvent = "Direct red for ${teamName(team)} #$jerseyNumber.",
+        lastEvent = "Red card for ${teamName(team)} #$jerseyNumber.",
     )
 }
 // Handle the details of updating a player's card status in the list of carded players.
