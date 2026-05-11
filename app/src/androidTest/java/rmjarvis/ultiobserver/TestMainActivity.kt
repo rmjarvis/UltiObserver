@@ -222,6 +222,11 @@ class MainActivitySmokeTest {
         openSetupDialog("Hard cap", "Hard Cap")
         openSetupDialog("Timeouts", "Timeout Rules")
 
+        // Invalid numeric entry should fall back to the current value without trapping the observer.
+        setIntegerSetupValue("Game to", "Game To", "Points", "")
+        setCapRuleValue("Half cap", "Half Cap", "")
+        setTimeoutRules(timeoutsPerHalf = "", hasFloater = false)
+
         // Add a prior-card holder and make sure the form remains usable afterwards.
         composeRule.onNodeWithText("Add Card Holder").performScrollTo().performClick()
         composeRule.onNodeWithText("Add player cards").assertIsDisplayed()
@@ -243,6 +248,12 @@ class MainActivitySmokeTest {
         openNewGameSetup()
 
         // Start time supports both quick nudges and the exact-time dialog cancel/set paths.
+        composeRule.onNodeWithText("-1d").performClick()
+        composeRule.onNodeWithText("+1d").performClick()
+        composeRule.onNodeWithText("Date").performClick()
+        waitForText("Set Start Date")
+        composeRule.onNodeWithText("Set").performClick()
+        waitForText("Start Game")
         composeRule.onNodeWithText("-5").performClick()
         composeRule.onNodeWithText("+5").performClick()
         composeRule.onNodeWithText("Start time").performClick()
@@ -327,20 +338,26 @@ class MainActivitySmokeTest {
     fun livePrimaryActionsAndUndoPath() {
         startLiveGame()
 
+        // Each side can record only one pull infraction of its type for the current pull sequence.
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "pull-infraction")).performClick()
+        waitForText("Defense gets to set up.")
+        composeRule.onNodeWithText("OK").performClick()
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "pull-infraction")).assertIsNotEnabled()
+
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-infraction")).performClick()
+        waitForText("Start at brick mark")
+        composeRule.onNodeWithText("OK").performClick()
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-infraction")).assertIsNotEnabled()
+
         // A between-points goal implicitly starts the point and exposes a useful undo.
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
         waitForText("Undo Goal by Team 1")
         composeRule.onNodeWithText("Undo Goal by Team 1").performClick()
         waitForText("Lock")
 
-        // Timeout and pull-infraction buttons should remain wired after the undo path.
+        // Timeout should remain wired after the undo path.
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "timeout")).performClick()
         waitForText("Undo Timeout by Team 1")
-
-        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-infraction")).performClick()
-        waitForText("Start at brick mark")
-        composeRule.onNodeWithText("OK").performClick()
-        composeRule.onNodeWithText("Undo Offsides on Team 1").assertIsDisplayed()
     }
 
     // Test the card and technical-foul bottom sheet from the live screen.
@@ -362,6 +379,16 @@ class MainActivitySmokeTest {
         openCardsSheet()
         composeRule.onAllNodesWithText("Tech").onFirst().performClick()
         waitForText("Team 1 has 1 technical foul.")
+        composeRule.onNodeWithText("OK").performClick()
+
+        openCardsSheet()
+        composeRule.onAllNodesWithText("Blue")[teamCardButtonIndex(TeamId.TEAM_TWO)].performClick()
+        waitForText("Team 2 has 1 card.")
+        composeRule.onNodeWithText("OK").performClick()
+
+        openCardsSheet()
+        composeRule.onAllNodesWithText("Tech")[teamCardButtonIndex(TeamId.TEAM_TWO)].performClick()
+        waitForText("Team 2 has 1 technical foul.")
         composeRule.onNodeWithText("OK").performClick()
 
         // Yellow cards should prompt for a player number while still allowing N/A.
@@ -488,6 +515,21 @@ class MainActivitySmokeTest {
         recordYellowCard(TeamId.TEAM_TWO, "21", "Team 2 has", substring = true)
         recordYellowCard(TeamId.TEAM_TWO, "21", "Second yellow acts as a red card.", substring = true)
 
+        // Trying to add another yellow to the maxed-out player should show the invalid assignment warning.
+        openOtherSheet()
+        composeRule.onNodeWithText("Adjust Cards / TF").performClick()
+        waitForText("Adjust Cards / TF")
+        composeRule.onAllNodesWithText("+1")[4].performClick()
+        composeRule.onNodeWithText("Set").performClick()
+        waitForText("Add Yellow")
+        enterCardPlayerNumber("21")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Invalid Card Assignment")
+        composeRule.onNodeWithText("OK").performClick()
+        composeRule.onAllNodesWithText("Cancel")[1].performClick()
+        composeRule.onNodeWithText("Cancel").performClick()
+        waitForText("Update Game Setup")
+
         // Ending the game renders the summary forms for second-yellow and repeated-yellow records.
         openOtherSheet()
         composeRule.onNodeWithText("End Game").performClick()
@@ -495,6 +537,56 @@ class MainActivitySmokeTest {
         composeRule.onNodeWithText("OK").performClick()
         waitForText("#21: Two yellow cards")
         waitForText("N/A: Two yellow cards")
+    }
+
+    // Test card dialogs that require follow-up choices for already-carded players.
+    @Test
+    fun repeatedPlayerCardChoiceDialogs() {
+        startLiveGame()
+
+        // A second yellow on N/A can be recorded as the same unknown player.
+        recordYellowCard(TeamId.TEAM_ONE, "", "Team 1 has 1 card.")
+        openCardsSheet()
+        composeRule.onAllNodesWithText("Yellow")[teamCardButtonIndex(TeamId.TEAM_ONE)].performClick()
+        waitForText("Yellow Card")
+        composeRule.onNodeWithText("N/A").performClick()
+        waitForText("Unknown Player Number")
+        composeRule.onNodeWithText("Yes").performClick()
+        waitForText("Second yellow acts as a red card.", substring = true)
+        composeRule.onNodeWithText("OK").performClick()
+
+        // A player with both a yellow and direct red has no valid additional red-card mode.
+        recordYellowCard(TeamId.TEAM_TWO, "6", "Team 2 has 1 card.")
+        openCardsSheet()
+        composeRule.onAllNodesWithText("Red")[teamCardButtonIndex(TeamId.TEAM_TWO)].performClick()
+        waitForText("Red Card")
+        enterCardPlayerNumber("6")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Player Already Has Yellow")
+        composeRule.onNodeWithText("Direct Red").performClick()
+        waitForText("Team 2 has", substring = true)
+        composeRule.onNodeWithText("OK").performClick()
+
+        openCardsSheet()
+        composeRule.onAllNodesWithText("Red")[teamCardButtonIndex(TeamId.TEAM_TWO)].performClick()
+        waitForText("Red Card")
+        enterCardPlayerNumber("6")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("maximum valid card combination", substring = true)
+        composeRule.onNodeWithText("OK").performClick()
+    }
+
+    // Test the game-over summary branch for teams with no player-specific cards.
+    @Test
+    fun gameSummaryShowsNoIssuedPlayerCards() {
+        startLiveGame()
+
+        openOtherSheet()
+        composeRule.onNodeWithText("End Game").performClick()
+        waitForText("Game is over", substring = true)
+        composeRule.onNodeWithText("OK").performClick()
+        waitForText("Game Summary")
+        waitForText("No yellow or red cards issued.")
     }
 
     // Test the less-common live-game actions behind the Other menu.

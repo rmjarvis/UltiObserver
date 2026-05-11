@@ -2320,8 +2320,7 @@ private fun StartDateDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    val selectedTimestamp = datePickerState.selectedDateMillis
-                        ?: dateToPickerTimestamp(initialDate)
+                    val selectedTimestamp = datePickerState.selectedDateMillis!!
                     onConfirm(pickerTimestampToDate(selectedTimestamp))
                 }
             ) {
@@ -2876,11 +2875,9 @@ private fun buildSummaryIssuedCardText(record: InGamePlayerCardRecord): String {
         when (record.yellows) {
             1 -> add("Yellow card")
             2 -> add("Two yellow cards")
-            in 3..Int.MAX_VALUE -> add("${record.yellows} yellow cards")
         }
         when (record.directReds) {
             1 -> add("Direct red card")
-            in 2..Int.MAX_VALUE -> add("${record.directReds} direct red cards")
         }
     }
     return "${displayPlayerNumber(record.jerseyNumber)}: ${parts.joinToString("; ")}"
@@ -2941,12 +2938,6 @@ private fun formatTimeoutRules(rules: GameRules): String {
             append(" + floater")
         }
     }
-}
-
-// Convert a 24-hour LocalTime into the displayed 12-hour number.
-private fun toTwelveHour(time: LocalTime): Int {
-    val hour = time.hour % 12
-    return if (hour == 0) 12 else hour
 }
 
 // Return the other team id.
