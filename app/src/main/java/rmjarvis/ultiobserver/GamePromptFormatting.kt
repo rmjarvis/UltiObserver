@@ -3,7 +3,7 @@ package rmjarvis.ultiobserver
 import kotlin.math.max
 
 // Title text for prompts that need a dialog title in the current Android app.
-fun GamePrompt.formatTitle(): String? {
+fun GamePrompt.formatTitle(): String {
     return when (this) {
         is GamePrompt.ApplyCap -> "Apply ${this.label()}?"
         is GamePrompt.LivePointMisconduct -> "Misconduct Penalty"

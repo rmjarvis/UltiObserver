@@ -143,8 +143,7 @@ data class CountdownState(
         if (!kind.usesBetweenPointsTarget()) {
             return this
         }
-        val currentTarget = betweenPointsTarget
-            ?: error("Between-points countdown is missing its target side.")
+        val currentTarget = betweenPointsTarget!!
         val newTarget = currentTarget.flip()
         val deltaSeconds = newTarget.baseDurationSeconds(kind) - currentTarget.baseDurationSeconds(kind)
         return copy(

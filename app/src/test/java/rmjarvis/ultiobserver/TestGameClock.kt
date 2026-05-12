@@ -22,9 +22,25 @@ class TestGameClock : GameModelTestFixtures() {
 
         // Verify simple model defaults and labels used by setup display surfaces.
         assertEquals("Pink", TeamColorChoice.PINK.label)
+        assertEquals(0xFFFF4FA3, TeamColorChoice.PINK.accentArgb)
+        assertEquals(0xFF2F1022, TeamColorChoice.PINK.contentArgb)
         val defaultTeamSetup = TeamSetup()
         assertEquals("", defaultTeamSetup.name)
         assertEquals(TeamColorChoice.WHITE, defaultTeamSetup.color)
+        val priorCardRecord = PlayerCardRecord(
+            team = VC,
+            jerseyNumber = "8",
+            priorYellows = 1,
+            priorReds = 0,
+        )
+        assertEquals(VC, priorCardRecord.team)
+        assertEquals("8", priorCardRecord.jerseyNumber)
+        assertEquals(1, priorCardRecord.priorYellows)
+        assertEquals(0, priorCardRecord.priorReds)
+        assertEquals("Yellow", CardType.YELLOW.label)
+        assertEquals("Tick", TimingAlertSound.TICK.label)
+        assertEquals("N/A", displayPlayerNumber(UNKNOWN_PLAYER_NUMBER))
+        assertEquals("#8", displayPlayerNumber("8"))
         val timeoutCountdownWithDefaultTarget = CountdownState(
             kind = CountdownKind.TIME_OUT,
             label = "Offense set in",
@@ -51,6 +67,44 @@ class TestGameClock : GameModelTestFixtures() {
         assertEquals(
             TimingCueId.entries.size - vibrationDefaultCues.size,
             defaultTimingAlertPreferences.cueModes.values.count { mode -> mode == TimingAlertMode.NONE },
+        )
+        assertEquals(
+            TimingAlertMode.BEEP,
+            defaultTimingAlertPreferences.copy(
+                globalMode = TimingAlertGlobalMode.SOUNDS_ON,
+                cueModes = defaultTimingAlertPreferences.cueModes +
+                    (TimingCueId.PULLING_TIME_VIOLATION to TimingAlertMode.BEEP),
+            )
+                .alertModeFor(TimingCueId.PULLING_TIME_VIOLATION),
+        )
+        assertEquals(
+            TimingAlertMode.VIBRATE,
+            defaultTimingAlertPreferences.copy(cueModes = emptyMap())
+                .alertModeFor(TimingCueId.PULLING_TWENTY_TO_PULL),
+        )
+        assertEquals(
+            TimingAlertMode.NONE,
+            defaultTimingAlertPreferences.copy(
+                cueModes = defaultTimingAlertPreferences.cueModes +
+                    (TimingCueId.PULLING_TWENTY_TO_PULL to TimingAlertMode.NONE),
+            )
+                .alertModeFor(TimingCueId.PULLING_TWENTY_TO_PULL),
+        )
+        assertEquals(
+            TimingAlertMode.NONE,
+            defaultTimingAlertPreferences.copy(globalMode = TimingAlertGlobalMode.OFF)
+                .alertModeFor(TimingCueId.PULLING_TWENTY_TO_PULL),
+        )
+        assertEquals(TimingAlertSound.TICK, TimingAlertMode.TICK.toTimingAlertSound())
+        assertEquals(TimingAlertSound.BEEP, TimingAlertMode.BEEP.toTimingAlertSound())
+        assertEquals(TimingAlertSound.DING, TimingAlertMode.DING.toTimingAlertSound())
+        assertEquals(TimingAlertSound.DOUBLE_TICK, TimingAlertMode.DOUBLE_TICK.toTimingAlertSound())
+        val nonSoundModeException = assertThrows(IllegalStateException::class.java) {
+            TimingAlertMode.VIBRATE.toTimingAlertSound()
+        }
+        assertEquals(
+            "VIBRATE is not a sound timing alert mode.",
+            nonSoundModeException.message,
         )
 
         // Verify the setup-time default helper rounds to the next half hour using a caller-supplied clock.
@@ -127,6 +181,10 @@ class TestGameClock : GameModelTestFixtures() {
         assertEquals("Pull in" to Duration.ofSeconds(80), betweenPointsDisplay(FieldEnd.NEAR, 2_000L, 2_000L))
         val standardPullCountdown = buildBetweenPointsCountdown(FieldEnd.NEAR, 2_000L)
         assertEquals(TimingCueId.PULLING_TWENTY_TO_PULL, standardPullCountdown.nextTimingCue(2_000L)?.id)
+        assertEquals(60, BetweenPointsCountdownTarget.OFFENSE_READY.baseDurationSeconds(CountdownKind.BETWEEN_POINTS))
+        assertEquals(80, BetweenPointsCountdownTarget.PULL.baseDurationSeconds(CountdownKind.BETWEEN_POINTS))
+        assertEquals(30, BetweenPointsCountdownTarget.OFFENSE_READY.baseDurationSeconds(CountdownKind.PULL_RESET))
+        assertEquals(30, BetweenPointsCountdownTarget.PULL.baseDurationSeconds(CountdownKind.PULL_RESET))
 
         // Verify the opening pull uses the first-point timing from the observer manual.
         val openingReceiveCountdown = buildBetweenPointsCountdown(
@@ -139,6 +197,9 @@ class TestGameClock : GameModelTestFixtures() {
         assertEquals(1_000L, openingReceiveCountdown.nextTimingCue(1_000L)?.targetEpoch)
         assertEquals(TimingCueId.RECEIVING_TWENTY_FOR_HAND, openingReceiveCountdown.dueTimingCue(1_000L)?.id)
         assertEquals(TimingCueId.RECEIVING_TEN_FOR_HAND, openingReceiveCountdown.nextTimingCue(2_000L)?.id)
+        assertNull(openingReceiveCountdown.dueTimingCue(999L))
+        assertNull(openingReceiveCountdown.nextTimingCue(openingReceiveCountdown.targetEpoch + 1L))
+        assertNull(openingReceiveCountdown.dueTimingCue(openingReceiveCountdown.targetEpoch + 1_101L))
 
         val openingPullCountdown = buildBetweenPointsCountdown(
             pullingFromEnd = FieldEnd.NEAR,
@@ -149,6 +210,26 @@ class TestGameClock : GameModelTestFixtures() {
         assertEquals(TimingCueId.PULLING_TWENTY_TO_PULL, openingPullCountdown.nextTimingCue(1_000L)?.id)
         assertEquals(Duration.ofSeconds(20), openingPullCountdown.nextTimingCue(1_000L)?.remaining)
         assertEquals(Duration.ofSeconds(20), openingPullCountdown.nextTimingCue(1_000L)?.countdownTime)
+
+        val invalidBetweenPointsKindException = assertThrows(IllegalArgumentException::class.java) {
+            buildBetweenPointsCountdown(
+                pullingFromEnd = FieldEnd.NEAR,
+                sequenceStart = 1_000L,
+                kind = CountdownKind.TIME_OUT,
+            )
+        }
+        assertEquals(
+            "Countdown kind TIME_OUT does not use between-points timing.",
+            invalidBetweenPointsKindException.message,
+        )
+        assertTrue(CountdownKind.OPENING_PULL.usesBetweenPointsTarget())
+        assertTrue(CountdownKind.BETWEEN_POINTS.usesBetweenPointsTarget())
+        assertTrue(CountdownKind.PULL_RESET.usesBetweenPointsTarget())
+        assertFalse(CountdownKind.TIME_OUT.usesBetweenPointsTarget())
+        assertFalse(CountdownKind.HALFTIME.usesBetweenPointsTarget())
+        assertEquals("LocalDateAsString", LocalDateAsStringSerializer.descriptor.serialName)
+        assertEquals("LocalTimeAsString", LocalTimeAsStringSerializer.descriptor.serialName)
+        assertEquals("ZoneIdAsString", ZoneIdAsStringSerializer.descriptor.serialName)
 
         // Verify timeout cues stop at offense freeze, with the app's last reminder at countdown-from-five.
         assertEquals(TimingCueId.TIMEOUT_CLEAR_FIELD, timeoutCountdownWithDefaultTarget.nextTimingCue(40_000L)?.id)
@@ -161,6 +242,18 @@ class TestGameClock : GameModelTestFixtures() {
             TimingCueId.TIMEOUT_OFFENSE_FREEZE_DEFENSE_TWENTY,
             timeoutCountdownWithDefaultTarget.dueTimingCue(70_000L)?.id,
         )
+
+        val halftimeCountdown = buildHalftimeCountdown(
+            halftimeMinutes = 7,
+            sequenceStart = 1_000L,
+        )
+        assertEquals(TimingCueId.HALFTIME_FIVE_MINUTES, halftimeCountdown.nextTimingCue(1_000L)?.id)
+        assertEquals(TimingCueId.HALFTIME_TWO_MINUTES, halftimeCountdown.dueTimingCue(301_000L)?.id)
+        val shortHalftimeCountdown = buildHalftimeCountdown(
+            halftimeMinutes = 2,
+            sequenceStart = 1_000L,
+        )
+        assertEquals(TimingCueId.HALFTIME_TWO_MINUTES, shortHalftimeCountdown.nextTimingCue(1_000L)?.id)
 
         // Verify manual countdown adjustments move only the target time and format positive/negative changes.
         state = standardLiveGameState()
@@ -187,10 +280,12 @@ class TestGameClock : GameModelTestFixtures() {
             durationSeconds = 60,
             targetEpoch = 60_000L,
         )
-        val malformedCountdownException = assertThrows(IllegalStateException::class.java) {
+        assertThrows(NullPointerException::class.java) {
             malformedCountdown.swapOD()
         }
-        assertEquals("Between-points countdown is missing its target side.", malformedCountdownException.message)
+        assertThrows(NullPointerException::class.java) {
+            malformedCountdown.nextTimingCue(1_000L)
+        }
 
         // A countdown kind that does not match the phase is an impossible model state, so fail loudly.
         val mismatchedCountdownState = standardLiveGameState().copy(phase = LivePhase.LIVE_POINT)
@@ -236,9 +331,19 @@ class TestGameClock : GameModelTestFixtures() {
             pullCountdownExpired = true,
         )
         val undoneAutomaticStartState = assertUndoRestores(expiredPullDecisionState, automaticStartState)
+        assertEquals(undoneAutomaticStartState, undoneAutomaticStartState.redoLastAction().undoLastAction())
+        assertEquals(state, state.redoLastAction())
         assertEquals(undoneAutomaticStartState, undoneAutomaticStartState.advanceGameClock(betweenPointsCountdown.targetEpoch))
         assertTrue(undoneAutomaticStartState.hasExpiredPullActions())
         assertFalse(state.hasExpiredPullActions())
+        assertTrue(state.isInitialLivePreview())
+        assertFalse(automaticStartState.isInitialLivePreview())
+        assertFalse(state.copy(teamOne = state.teamOne.copy(score = 1)).isInitialLivePreview())
+        assertFalse(state.copy(teamTwo = state.teamTwo.copy(score = 1)).isInitialLivePreview())
+        assertFalse(
+            state.copy(undoEntry = UndoEntry("Undo placeholder", state)).isInitialLivePreview()
+        )
+        assertFalse(state.copy(halftimeTaken = true).isInitialLivePreview())
 
         // In-point timeout countdowns still continue automatically.
         state = state.beginLivePoint()
@@ -248,5 +353,30 @@ class TestGameClock : GameModelTestFixtures() {
         state = state.advanceGameClock(timeoutCountdown.targetEpoch)
         assertEquals(LivePhase.LIVE_POINT, state.phase)
         assertNull(state.countdown)
+
+        val halftimePrompt = GamePrompt.HalftimeStarted(state)
+        assertEquals("Halftime", halftimePrompt.formatTitle())
+        assertEquals("Announce halftime.", halftimePrompt.formatMessage())
+        val gameOverState = state.copy(
+            phase = LivePhase.GAME_OVER,
+            teamOne = state.teamOne.copy(score = 3),
+            teamTwo = state.teamTwo.copy(score = 5),
+        )
+        val gameOverPrompt = GamePrompt.GameOver(gameOverState)
+        assertEquals("Game Over", gameOverPrompt.formatTitle())
+        assertEquals("Animal 5\nViscous Coupling 3", gameOverPrompt.formatMessage())
+
+        val invalidCardEventException = assertThrows(IllegalArgumentException::class.java) {
+            GameEvent.TeamCardsChanged(
+                state = state,
+                team = VC,
+                teamCardTotal = 1,
+                playerCardType = PlayerCardEventType.YELLOW,
+            )
+        }
+        assertEquals(
+            "Failed requirement.",
+            invalidCardEventException.message,
+        )
     }
 }

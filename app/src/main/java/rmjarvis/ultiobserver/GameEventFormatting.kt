@@ -37,10 +37,10 @@ private fun GameEvent.TeamCardsChanged.formatMessage(): String {
     val totalMessage = "${state.teamName(team)} has $teamCardTotal ${pluralize(teamCardTotal, "card")}."
     val baseMessage = when (playerCardType) {
         null -> totalMessage
-        PlayerCardEventType.YELLOW -> "Yellow card on player ${requireNotNull(playerCardJerseyNumber)}.\n$totalMessage"
-        PlayerCardEventType.RED -> "${ejectionMessage(requireNotNull(playerCardJerseyNumber))}\n$totalMessage"
+        PlayerCardEventType.YELLOW -> "Yellow card on player ${playerCardJerseyNumber as String}.\n$totalMessage"
+        PlayerCardEventType.RED -> "${ejectionMessage(playerCardJerseyNumber as String)}\n$totalMessage"
         PlayerCardEventType.SECOND_YELLOW -> {
-            "Second yellow acts as a red card. ${ejectionMessage(requireNotNull(playerCardJerseyNumber))}\n" +
+            "Second yellow acts as a red card. ${ejectionMessage(playerCardJerseyNumber as String)}\n" +
                 totalMessage
         }
     }

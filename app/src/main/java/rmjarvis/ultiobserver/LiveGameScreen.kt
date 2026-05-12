@@ -431,7 +431,7 @@ internal fun LiveGameScreen(
         val capPrompt = GamePrompt.ApplyCap(state, state.pendingCapOffer!!)
         AlertDialog(
             onDismissRequest = {},
-            title = { Text(capPrompt.formatTitle()!!) },
+            title = { Text(capPrompt.formatTitle()) },
             text = {
                 Text(
                     text = capPrompt.formatMessage(),
@@ -457,7 +457,7 @@ internal fun LiveGameScreen(
         if (prompt is GamePrompt.LivePointMisconduct) {
             AlertDialog(
                 onDismissRequest = { activeGamePrompt = null },
-                title = { Text(prompt.formatTitle()!!) },
+                title = { Text(prompt.formatTitle()) },
                 text = {
                     Text(
                         text = prompt.formatMessage(),
@@ -471,7 +471,7 @@ internal fun LiveGameScreen(
                                 message = prompt.resolutionMessage(
                                     againstOffense = true,
                                 ),
-                                title = requireNotNull(prompt.formatTitle()),
+                                title = prompt.formatTitle(),
                             )
                             activeGamePrompt = null
                         }
@@ -487,7 +487,7 @@ internal fun LiveGameScreen(
                                     message = prompt.resolutionMessage(
                                         againstOffense = false,
                                     ),
-                                    title = requireNotNull(prompt.formatTitle()),
+                                    title = prompt.formatTitle(),
                                 )
                                 activeGamePrompt = null
                             }
@@ -500,9 +500,7 @@ internal fun LiveGameScreen(
         } else {
             AlertDialog(
                 onDismissRequest = { activeGamePrompt = null },
-                title = prompt.formatTitle()?.let { title ->
-                    { Text(title) }
-                },
+                title = { Text(prompt.formatTitle()) },
                 text = {
                     Text(
                         text = prompt.formatMessage(),

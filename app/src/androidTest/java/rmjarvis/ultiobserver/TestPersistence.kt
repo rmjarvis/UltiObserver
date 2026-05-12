@@ -41,7 +41,6 @@ class TestPersistence {
                     setupState = setup,
                     liveState = scoredState,
                     setupMode = SetupMode.NEW_GAME,
-                    viewingArchivedGameIndex = null,
                 )
             )
 

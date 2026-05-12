@@ -15,9 +15,7 @@ class MainActivity : ComponentActivity() {
     internal val appViewModel: UltiObserverAppViewModel by viewModels {
         object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                require(modelClass == UltiObserverAppViewModel::class.java) {
-                    "Unknown ViewModel class ${modelClass.name}."
-                }
+                require(modelClass == UltiObserverAppViewModel::class.java)
                 return modelClass.cast(UltiObserverAppViewModel(FileAppStateStore(filesDir)))
             }
         }

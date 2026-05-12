@@ -3,8 +3,6 @@ package rmjarvis.ultiobserver
 import java.io.File
 import java.io.IOException
 import java.nio.file.AtomicMoveNotSupportedException
-import java.nio.file.Files
-import java.nio.file.StandardCopyOption.REPLACE_EXISTING
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -28,10 +26,12 @@ class TestUltiObserverAppViewModel {
         assertEquals(AppScreen.HOME, viewModel.screen)
         assertNull(viewModel.liveState)
         assertTrue(viewModel.archivedGames.isEmpty())
+        assertNull(viewModel.currentGameHomeSubtitle)
 
         viewModel.startNewGame()
         assertEquals(AppScreen.SETUP, viewModel.screen)
         assertTrue(viewModel.hasSetupDraft)
+        assertEquals("Tap to resume setup.", viewModel.currentGameHomeSubtitle)
 
         val namedSetup = viewModel.setupState.copy(
             teamOne = TeamSetup("Alpha", TeamColorChoice.BLUE),
@@ -44,10 +44,14 @@ class TestUltiObserverAppViewModel {
         val startedGame = viewModel.liveState
         assertNotNull(startedGame)
         assertEquals(AppScreen.LIVE, viewModel.screen)
+        assertEquals("Tap to resume setup.", viewModel.currentGameHomeSubtitle)
         assertEquals("Alpha", startedGame!!.teamOne.name)
         assertEquals("Beta", startedGame.teamTwo.name)
 
-        val adjustedGame = startedGame.adjustScore(teamOneScore = 2, teamTwoScore = 1)
+        viewModel.updateLiveGame(startedGame.beginLivePoint())
+        assertEquals("Tap to resume the active game.", viewModel.currentGameHomeSubtitle)
+
+        val adjustedGame = viewModel.liveState!!.adjustScore(teamOneScore = 2, teamTwoScore = 1)
         viewModel.updateLiveGame(adjustedGame)
         assertEquals(2, viewModel.liveState!!.teamOne.score)
 
@@ -73,6 +77,7 @@ class TestUltiObserverAppViewModel {
         assertEquals("Closed when new game started", viewModel.archivedGames.single().subtitle)
         assertEquals(LivePhase.GAME_OVER, viewModel.archivedGames.single().state.phase)
         assertNull(viewModel.liveState)
+        assertEquals("Tap to resume setup.", viewModel.currentGameHomeSubtitle)
     }
 
     @Test
@@ -161,8 +166,18 @@ class TestUltiObserverAppViewModel {
 
         viewModel.editCurrentGame(archivedGame)
         assertEquals(AppScreen.LIVE, viewModel.screen)
-        assertEquals(SetupMode.NEW_GAME, viewModel.setupMode)
+        assertEquals(SetupMode.EDIT_CURRENT_GAME, viewModel.setupMode)
         assertEquals(archivedGame, viewModel.currentLiveState)
+
+        viewModel.goHome()
+        viewModel.startNewGame()
+        viewModel.finishSetup()
+        val currentPreview = viewModel.liveState!!
+        assertTrue(currentPreview.isInitialLivePreview())
+        viewModel.openPreviousGame(0)
+        viewModel.goBackFromCurrentScreen()
+        assertEquals(AppScreen.HOME, viewModel.screen)
+        assertEquals(currentPreview, viewModel.liveState)
     }
 
     @Test
@@ -173,6 +188,7 @@ class TestUltiObserverAppViewModel {
 
         val completedGame = viewModel.liveState!!.copy(phase = LivePhase.GAME_OVER)
         viewModel.updateLiveGame(completedGame)
+        assertNull(viewModel.currentGameHomeSubtitle)
         viewModel.goHome()
 
         viewModel.openCompletedGame()
@@ -213,6 +229,8 @@ class TestUltiObserverAppViewModel {
         viewModel.deleteArchivedGame(0)
         assertTrue(viewModel.archivedGames.isEmpty())
         assertNull(viewModel.currentLiveState)
+        viewModel.deleteArchivedGame(0)
+        assertTrue(viewModel.archivedGames.isEmpty())
 
         viewModel.updateLiveGame(currentGame.copy(phase = LivePhase.GAME_OVER))
         viewModel.archiveCompletedGame()
@@ -301,6 +319,20 @@ class TestUltiObserverAppViewModel {
         viewModel.resumeCurrentGame()
         assertEquals(AppScreen.HOME, viewModel.screen)
         assertEquals(completedGame, viewModel.liveState)
+
+        viewModel.openProfile()
+        viewModel.goBackFromCurrentScreen()
+        assertEquals(AppScreen.HOME, viewModel.screen)
+
+        viewModel.updateLiveGame(activeGame.beginLivePoint())
+        viewModel.resumeSetupDraft()
+        assertEquals(AppScreen.HOME, viewModel.screen)
+        assertEquals(LivePhase.LIVE_POINT, viewModel.liveState!!.phase)
+
+        viewModel.resumeCurrentGame()
+        assertEquals(AppScreen.LIVE, viewModel.screen)
+        viewModel.goBackFromCurrentScreen()
+        assertEquals(AppScreen.HOME, viewModel.screen)
     }
 
     @Test
@@ -514,6 +546,54 @@ class TestUltiObserverAppViewModel {
         assertEquals(LivePhase.GAME_OVER, restored.archivedGames.single().state.phase)
     }
 
+    // Verify persistence handles ordinary empty/corrupt filesystem shapes without inventing app state.
+    @Test
+    fun persistentStoreLoadsOnlyCurrentStateAndJsonArchives() {
+        val storeDir = temporaryFolder.newFolder()
+        val store = FileAppStateStore(storeDir)
+
+        assertNull(store.loadActiveState())
+        assertTrue(store.loadArchivedGames().isEmpty())
+
+        val setup = newGameSetupState(LocalDateTime.of(2026, 5, 11, 10, 0))
+        val activeState = PersistedActiveAppState(
+            screen = AppScreen.SETUP,
+            setupState = setup,
+            liveState = null,
+            setupMode = SetupMode.NEW_GAME,
+        )
+        store.saveActiveState(activeState)
+        assertEquals(activeState, store.loadActiveState())
+
+        val activeStateFile = File(storeDir, "active_app_state.json")
+        activeStateFile.writeText(activeStateFile.readText().replace("\"version\": 1", "\"version\": 99"))
+        val versionException = assertThrows(IllegalArgumentException::class.java) {
+            store.loadActiveState()
+        }
+        assertEquals("Unsupported active app state version 99.", versionException.message)
+
+        val archivedOne = ArchivedGame(
+            createLiveGameState(setup).copy(phase = LivePhase.GAME_OVER),
+            "First",
+        )
+        val archivedTwo = archivedOne.copy(subtitle = "Second")
+        store.saveArchivedGames(listOf(archivedOne, archivedTwo))
+        val archiveDir = File(storeDir, "archived_games")
+        File(archiveDir, "not-json.txt").writeText("ignored")
+        assertTrue(File(archiveDir, "directory.json").mkdir())
+        assertEquals(listOf(archivedOne, archivedTwo), store.loadArchivedGames())
+
+        store.saveArchivedGames(listOf(archivedOne))
+        assertEquals(listOf(archivedOne), store.loadArchivedGames())
+        assertFalse(File(archiveDir, "00001.json").exists())
+
+        assertTrue(archiveDir.deleteRecursively())
+        File(storeDir, "archived_games").writeText("not a directory")
+        assertTrue(store.loadArchivedGames().isEmpty())
+        store.saveArchivedGames(emptyList())
+        assertTrue(File(storeDir, "archived_games").isFile)
+    }
+
     // Verify failed active-state writes do not leave stale temporary files behind.
     @Test
     fun persistentStoreCleansTemporaryFileAfterFailedWrite() {
@@ -534,7 +614,6 @@ class TestUltiObserverAppViewModel {
                     setupState = setup,
                     liveState = null,
                     setupMode = SetupMode.NEW_GAME,
-                    viewingArchivedGameIndex = null,
                 )
             )
         }
@@ -546,16 +625,11 @@ class TestUltiObserverAppViewModel {
     fun persistentStoreFallsBackWhenAtomicMoveIsUnavailable() {
         val storeDir = temporaryFolder.newFolder()
         var atomicMoveAttempts = 0
-        var replaceMoveAttempts = 0
         val store = FileAppStateStore(
             rootDir = storeDir,
             moveFileAtomically = { source, target ->
                 atomicMoveAttempts += 1
                 throw AtomicMoveNotSupportedException(source.path, target.path, "forced fallback")
-            },
-            replaceFile = { source, target ->
-                replaceMoveAttempts += 1
-                Files.move(source.toPath(), target.toPath(), REPLACE_EXISTING)
             },
         )
         val setup = newGameSetupState(LocalDateTime.of(2026, 5, 11, 10, 0))
@@ -564,13 +638,11 @@ class TestUltiObserverAppViewModel {
             setupState = setup,
             liveState = null,
             setupMode = SetupMode.NEW_GAME,
-            viewingArchivedGameIndex = null,
         )
 
         // Force the atomic path to fail and verify the fallback path replaces the file.
         store.saveActiveState(savedState)
         assertEquals(1, atomicMoveAttempts)
-        assertEquals(1, replaceMoveAttempts)
         assertFalse(File(storeDir, ".active_app_state.json.tmp").exists())
 
         // Load through a normal store to verify the fallback wrote valid serialized state.

@@ -19,7 +19,6 @@ internal data class PersistedActiveAppState(
     val setupState: GameSetupState,
     val liveState: LiveGameState?,
     val setupMode: SetupMode,
-    val viewingArchivedGameIndex: Int?,
     val profileName: String = "",
     val hasSetupDraft: Boolean = false,
     val timingAlertPreferences: TimingAlertPreferences = TimingAlertPreferences(),
@@ -73,18 +72,18 @@ internal class FileAppStateStore(
         if (!archivedGamesDir.exists()) {
             return emptyList()
         }
-        return archivedGamesDir
-            .listFiles { file -> file.isFile && file.extension == "json" }
-            ?.sortedBy { it.name }
-            ?.map { file -> json.decodeFromString<ArchivedGame>(file.readText()) }
-            ?: emptyList()
+        val archiveFiles = archivedGamesDir.listFiles { file -> file.isFile && file.extension == "json" }
+            ?: return emptyList()
+        return archiveFiles
+            .sortedBy { it.name }
+            .map { file -> json.decodeFromString<ArchivedGame>(file.readText()) }
     }
 
     override fun saveArchivedGames(games: List<ArchivedGame>) {
         archivedGamesDir.mkdirs()
         archivedGamesDir
             .listFiles { file -> file.isFile && file.extension == "json" }
-            ?.forEach { file -> require(file.delete()) { "Could not delete stale archive ${file.name}." } }
+            ?.forEach { file -> Files.delete(file.toPath()) }
         games.forEachIndexed { index, game ->
             File(archivedGamesDir, "%05d.json".format(index))
                 .writeAtomically(json.encodeToString(game), moveFileAtomically, replaceFile)
@@ -97,7 +96,7 @@ private fun File.writeAtomically(
     moveFileAtomically: (File, File) -> Unit,
     replaceFile: (File, File) -> Unit,
 ) {
-    val directory = parentFile ?: error("Atomic writes require a parent directory for $path.")
+    val directory = parentFile!!
     directory.mkdirs()
     val tmpFile = File(directory, ".$name.tmp")
     try {

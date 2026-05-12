@@ -35,6 +35,7 @@ class TestGameCards : GameModelTestFixtures() {
         state = cardResult.state
         assertFalse(cardResult.needsMisconductChoice)
         assertEquals("Yellow card on player 17.\nViscous Coupling has 1 card.", cardResult.message())
+        assertEquals("Misconduct", cardResult.event.formatPopupTitle())
         assertEquals(1, state.teamYellowCards(VC))
         assertEquals(0, state.teamRedCards(VC))
         assertEquals(1, state.teamCardTotal(VC))
@@ -64,6 +65,7 @@ class TestGameCards : GameModelTestFixtures() {
             "Viscous Coupling has 3 cards.\n\nPenalty against pulling team. No pull. Receiving team starts at attacking brick.",
             cardResult.message(),
         )
+        assertEquals("Misconduct Penalty", cardResult.event.formatPopupTitle())
         assertTrue(state.pullSkippedForCurrentPoint)
         assertFalse(state.canRecordPullInfraction(VC))
         assertFalse(state.canRecordPullInfraction(ANIMAL))
@@ -101,6 +103,7 @@ class TestGameCards : GameModelTestFixtures() {
         state = cardResult.state
         assertFalse(cardResult.needsMisconductChoice)
         assertEquals("Player 23 is ejected.\nAnimal has 2 cards.", cardResult.message())
+        assertEquals("Misconduct", cardResult.event.formatPopupTitle())
         assertEquals(0, state.teamYellowCards(ANIMAL))
         assertEquals(1, state.teamRedCards(ANIMAL))
         assertEquals(2, state.teamCardTotal(ANIMAL))
@@ -114,6 +117,14 @@ class TestGameCards : GameModelTestFixtures() {
         state = cardResult.state
         assertTrue(cardResult.needsMisconductChoice)
         assertEquals("Player 23 is ejected.\nAnimal has 3 cards.", cardResult.message())
+        val misconductPrompt = cardResult.misconductPrompt()
+        assertEquals("Misconduct Penalty", misconductPrompt.formatTitle())
+        assertEquals(
+            "Player 23 is ejected.\nAnimal has 3 cards.\n\nWas this against the offense or defense?",
+            misconductPrompt.formatMessage(),
+        )
+        assertTrue(misconductPrompt.resolutionMessage(againstOffense = true).contains("Reverse brick"))
+        assertTrue(misconductPrompt.resolutionMessage(againstOffense = false).contains("Brick nearest attacking end zone"))
         assertEquals(3, state.teamCardTotal(ANIMAL))
 
         // A direct red for a player who already has a yellow is distinct from recording the red as a second yellow.
@@ -200,12 +211,24 @@ class TestGameCards : GameModelTestFixtures() {
             cardResult.message(),
         )
 
+        // After game over, stale card actions can arrive from UI timing, but should not create no-pull guidance.
+        state = standardLiveGameState().copy(
+            phase = LivePhase.GAME_OVER,
+            teamOne = standardLiveGameState().teamOne.copy(blueCards = 2),
+        )
+        cardResult = state.assessBlueCard(VC)
+        state = cardResult.state
+        assertEquals(LivePhase.GAME_OVER, state.phase)
+        assertEquals(3, state.teamOne.blueCards)
+        assertFalse(state.pullSkippedForCurrentPoint)
+
         // Technical fouls use a separate count, with the same third-and-later misconduct handling.
         state = standardLiveGameState()
         var technicalFoulResult = state.assessTechnicalFoul(ANIMAL)
         state = technicalFoulResult.state
         assertFalse(technicalFoulResult.needsMisconductChoice)
         assertEquals("Animal has 1 technical foul.", technicalFoulResult.message())
+        assertEquals("Misconduct", technicalFoulResult.event.formatPopupTitle())
         assertEquals(1, state.teamTwo.technicalFouls)
         assertEquals(0, state.teamCardTotal(ANIMAL))
 
@@ -223,6 +246,7 @@ class TestGameCards : GameModelTestFixtures() {
             "Animal has 3 technical fouls.\n\nPenalty against receiving team. No pull. Disc at negative brick in defending end zone.",
             technicalFoulResult.message(),
         )
+        assertEquals("Misconduct Penalty", technicalFoulResult.event.formatPopupTitle())
 
         // After Animal scores, they are the pulling team, so the next technical foul uses the pulling-team cue.
         state = recordGoalFromCurrentStateAt(state, ANIMAL, LocalTime.of(11, 5))

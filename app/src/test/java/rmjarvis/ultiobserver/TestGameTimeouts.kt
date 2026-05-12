@@ -127,6 +127,7 @@ class TestGameTimeouts : GameModelTestFixtures() {
         // With both first-half timeouts used, another timeout request leaves state unchanged and returns a message.
         timeoutResult = state.assessTimeout(VC, 1_010_000L)
         assertEquals("Viscous Coupling is out of timeouts.", timeoutResult.message())
+        assertEquals("Invalid Timeout", timeoutResult.event?.formatPopupTitle())
         assertEquals(state, timeoutResult.state)
         assertEquals(state, state.chargeTimeout(VC, 1_010_000L))
 
@@ -146,6 +147,7 @@ class TestGameTimeouts : GameModelTestFixtures() {
         val halftimeEnd = state.countdown!!.targetEpoch
         timeoutResult = state.assessTimeout(VC, halftimeEnd - 1L)
         assertEquals("Timeouts are not available now.", timeoutResult.message())
+        assertEquals("Invalid Timeout", timeoutResult.event?.formatPopupTitle())
         assertEquals(state, timeoutResult.state)
 
         // The UI hides timeout actions after game over; stale timeout commands are idempotent no-ops.

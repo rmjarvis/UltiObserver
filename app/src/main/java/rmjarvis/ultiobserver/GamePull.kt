@@ -58,9 +58,6 @@ fun LiveGameState.assessPullInfraction(team: TeamId): PullInfractionAssessmentRe
         PullInfractionType.OFFSIDES -> this.recordOffsides()
         PullInfractionType.FALSE_START -> this.recordFalseStart()
     }
-    if (updatedState == this) {
-        return PullInfractionAssessmentResult(this)
-    }
     return PullInfractionAssessmentResult(
         state = updatedState,
         event = GameEvent.PullInfractionRecorded(

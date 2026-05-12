@@ -140,7 +140,7 @@ private fun CountdownState.timingCues(): List<TimingCue> {
 }
 
 private fun CountdownState.betweenPointsTimingCues(): List<TimingCue> {
-    val target = betweenPointsTarget ?: error("Between-points countdown is missing its target side.")
+    val target = betweenPointsTarget!!
     val timeoutCues = if (durationSeconds > target.baseDurationSeconds(kind)) {
         listOf(TimingCue(target.timeoutCueId(), 60))
     } else {

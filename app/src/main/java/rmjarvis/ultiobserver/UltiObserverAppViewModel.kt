@@ -35,12 +35,7 @@ internal class UltiObserverAppViewModel(
     private val appStateStore: AppStateStore = NoOpAppStateStore,
 ) : ViewModel() {
     private val persistedActiveState = appStateStore.loadActiveState()
-    private val restoredSetupDraft = persistedActiveState?.hasSetupDraft ?: (
-        persistedActiveState?.screen == AppScreen.SETUP &&
-            persistedActiveState.liveState == null &&
-            persistedActiveState.setupMode == SetupMode.NEW_GAME
-        )
-    private var viewingArchivedGameIndex: Int? = null
+    private val restoredSetupDraft = persistedActiveState?.hasSetupDraft ?: false
 
     var screen by mutableStateOf(AppScreen.HOME)
         private set
@@ -58,7 +53,7 @@ internal class UltiObserverAppViewModel(
         private set
     var archivedGames by mutableStateOf(appStateStore.loadArchivedGames())
         private set
-    var viewingArchivedGame by mutableStateOf(viewingArchivedGameIndex?.let { archivedGames.getOrNull(it) })
+    var viewingArchivedGame by mutableStateOf<ArchivedGame?>(null)
         private set
     var hasSetupDraft by mutableStateOf(restoredSetupDraft)
         private set
@@ -70,11 +65,14 @@ internal class UltiObserverAppViewModel(
         get() = viewingArchivedGame != null
 
     val currentGameHomeSubtitle: String?
-        get() = when {
-            liveState?.isInitialLivePreview() == true -> "Tap to resume setup."
-            liveState == null && hasSetupDraft -> "Tap to resume setup."
-            liveState?.phase != null && liveState?.phase != LivePhase.GAME_OVER -> "Tap to resume the active game."
-            else -> null
+        get() {
+            val current = liveState
+            return when {
+                current?.isInitialLivePreview() == true -> "Tap to resume setup."
+                current == null && hasSetupDraft -> "Tap to resume setup."
+                current != null && current.phase != LivePhase.GAME_OVER -> "Tap to resume the active game."
+                else -> null
+            }
         }
 
     fun goHome() {
@@ -89,8 +87,13 @@ internal class UltiObserverAppViewModel(
             return
         }
 
-        val previewState = liveState
-        if (screen == AppScreen.LIVE && previewState?.isInitialLivePreview() == true && viewingArchivedGame == null) {
+        if (screen != AppScreen.LIVE || viewingArchivedGame != null) {
+            goHome()
+            return
+        }
+
+        val current = liveState!!
+        if (current.isInitialLivePreview()) {
             reopenSetupDraftFromInitialPreview()
             return
         }
@@ -100,7 +103,7 @@ internal class UltiObserverAppViewModel(
 
     fun updateSetup(updatedSetup: GameSetupState) {
         setupState = updatedSetup
-        if (setupMode == SetupMode.NEW_GAME && liveState == null) {
+        if (setupMode == SetupMode.NEW_GAME) {
             hasSetupDraft = true
         }
         persistActiveState()
@@ -202,7 +205,6 @@ internal class UltiObserverAppViewModel(
 
     fun openPreviousGame(index: Int) {
         val archived = archivedGames.getOrNull(index) ?: return
-        viewingArchivedGameIndex = index
         viewingArchivedGame = archived
         screen = AppScreen.LIVE
         persistActiveState()
@@ -281,6 +283,7 @@ internal class UltiObserverAppViewModel(
         }
         clearViewedArchivedGame()
         hasSetupDraft = false
+        setupMode = SetupMode.EDIT_CURRENT_GAME
         screen = AppScreen.LIVE
         persistActiveState()
     }
@@ -309,7 +312,6 @@ internal class UltiObserverAppViewModel(
     }
 
     private fun clearViewedArchivedGame() {
-        viewingArchivedGameIndex = null
         viewingArchivedGame = null
     }
 
@@ -320,7 +322,6 @@ internal class UltiObserverAppViewModel(
                 setupState = setupState,
                 liveState = liveState,
                 setupMode = setupMode,
-                viewingArchivedGameIndex = viewingArchivedGameIndex,
                 profileName = profileName,
                 hasSetupDraft = hasSetupDraft,
                 timingAlertPreferences = timingAlertPreferences,

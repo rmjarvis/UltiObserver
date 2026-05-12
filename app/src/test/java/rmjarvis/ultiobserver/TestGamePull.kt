@@ -48,12 +48,14 @@ class TestGamePull : GameModelTestFixtures() {
 
         // Verify the first pull-violation message sends play to the brick mark.
         assertEquals("Start at brick mark", pullInfractionResult.message())
+        assertEquals("Pull Infraction", pullInfractionResult.event!!.formatPopupTitle())
         assertFalse(pullInfractionResult.event!!.needsMisconductChoice())
 
         // Verify the same pull sequence cannot record a second offsides for the same team.
         pullInfractionResult = state.assessPullInfraction(VC)
         assertEquals(state, pullInfractionResult.state)
         assertNull(pullInfractionResult.message())
+        assertEquals(state, state.recordOffsides())
 
         // Mirror the offsides pathway for a pull where Animal is the pulling team.
         state = standardLiveGameState(pullingTeam = ANIMAL)
@@ -87,11 +89,20 @@ class TestGamePull : GameModelTestFixtures() {
         pullInfractionResult = state.assessPullInfraction(ANIMAL)
         assertEquals(state, pullInfractionResult.state)
         assertNull(pullInfractionResult.message())
+        assertEquals(state, state.recordFalseStart())
 
         // If the receiving team is late, the first time violation is a warning and shortened pull reset.
         state = standardLiveGameState()
         val firstViolationMoment = state.countdown!!.targetEpoch
         assertFalse(state.hasExpiredPullActions())
+        assertEquals(state, state.assessTimeViolation(ANIMAL, firstViolationMoment).state)
+        assertEquals(state, state.restartPullCountdown(firstViolationMoment))
+        assertFalse(
+            state.copy(
+                phase = LivePhase.LIVE_POINT,
+                pullCountdownExpired = true,
+            ).hasExpiredPullActions()
+        )
         var timeViolationDecisionState = state.expiredPullDecisionState()
         assertTrue(timeViolationDecisionState.hasExpiredPullActions())
         var timeViolationResult = timeViolationDecisionState.assessTimeViolation(ANIMAL, firstViolationMoment)
@@ -99,6 +110,7 @@ class TestGamePull : GameModelTestFixtures() {
         var timeViolationState = timeViolationResult.state
         assertEquals(ANIMAL, warningEvent.team)
         assertEquals(TimeViolationOutcome.WARNING, warningEvent.outcome)
+        assertEquals("Time Violation", warningEvent.formatPopupTitle())
         assertTrue(timeViolationState.teamTwo.timeViolationWarningIssued)
         assertFalse(timeViolationState.teamOne.timeViolationWarningIssued)
         assertEquals(CountdownKind.PULL_RESET, timeViolationState.countdown?.kind)
@@ -194,6 +206,8 @@ class TestGamePull : GameModelTestFixtures() {
         assertEquals(LivePhase.BETWEEN_POINTS, timeViolationState.phase)
         assertNull(timeViolationState.countdown)
         assertTrue(timeViolationState.pullSkippedForCurrentPoint)
+        assertEquals(timeViolationState, timeViolationState.recordFalseStart())
+        assertEquals(timeViolationState, timeViolationState.recordOffsides())
         assertEquals(
             "No timeouts remaining. No pull. Receiving team starts at midpoint of defending end zone.",
             timeViolationResult.message(),

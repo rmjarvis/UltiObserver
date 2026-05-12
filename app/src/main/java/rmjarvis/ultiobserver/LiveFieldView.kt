@@ -187,7 +187,7 @@ internal fun FieldSketchCard(
     state: LiveGameState,
     interactionsEnabled: Boolean,
     showPullIndicator: Boolean,
-    centerContent: @Composable (() -> Unit)?,
+    centerContent: @Composable () -> Unit,
     onGoal: (TeamId) -> Unit,
     onTimeout: (TeamId) -> Unit,
     onPullInfraction: (TeamId) -> Unit,
@@ -221,7 +221,6 @@ internal fun FieldSketchCard(
                 interactionsEnabled = interactionsEnabled,
                 isPulling = state.pullingTeam == topSlot,
                 pullInfractionEnabled = state.canRecordPullInfraction(topSlot),
-                goalEnabled = state.phase != LivePhase.GAME_OVER,
                 onGoal = { onGoal(topSlot) },
                 onTimeout = { onTimeout(topSlot) },
                 onPullInfraction = { onPullInfraction(topSlot) },
@@ -249,7 +248,7 @@ internal fun FieldSketchCard(
                         modifier = Modifier.weight(1f),
                         contentAlignment = Alignment.Center,
                     ) {
-                        centerContent?.invoke()
+                        centerContent()
                     }
                 }
             }
@@ -263,7 +262,6 @@ internal fun FieldSketchCard(
                 interactionsEnabled = interactionsEnabled,
                 isPulling = state.pullingTeam == bottomSlot,
                 pullInfractionEnabled = state.canRecordPullInfraction(bottomSlot),
-                goalEnabled = state.phase != LivePhase.GAME_OVER,
                 onGoal = { onGoal(bottomSlot) },
                 onTimeout = { onTimeout(bottomSlot) },
                 onPullInfraction = { onPullInfraction(bottomSlot) },
@@ -283,7 +281,6 @@ private fun EndZonePanel(
     interactionsEnabled: Boolean,
     isPulling: Boolean,
     pullInfractionEnabled: Boolean,
-    goalEnabled: Boolean,
     onGoal: () -> Unit,
     onTimeout: () -> Unit,
     onPullInfraction: () -> Unit,
@@ -355,7 +352,7 @@ private fun EndZonePanel(
             CompactActionButton(
                 label = "Goal",
                 modifier = Modifier.testTag("live-${teamId.name}-goal"),
-                enabled = goalEnabled && interactionsEnabled,
+                enabled = interactionsEnabled,
                 onClick = onGoal,
             )
             CompactActionButton(
