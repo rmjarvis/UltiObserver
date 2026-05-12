@@ -222,8 +222,8 @@ private fun startHalftime(
         sequenceStart = now,
     )
     val halftimeEnd = now + state.rules.halftimeMinutes * 60_000L
-    val hardCapTime = state.startEpoch + state.rules.hardCapMinutes * 60_000L
-    val softCapTime = state.startEpoch + state.rules.softCapMinutes * 60_000L
+    val hardCapTime = state.capEpoch(CapType.HARD)
+    val softCapTime = state.capEpoch(CapType.SOFT)
     // Preserve an already-pending soft/hard cap. Otherwise, catch caps that became
     // due just before a manual halftime start or that are scheduled during halftime.
     val pendingCapOffer = existingCapOffer.takeIf { it == CapType.SOFT || it == CapType.HARD }
@@ -460,14 +460,6 @@ internal fun LiveGameState.withUndo(previous: LiveGameState, label: String): Liv
         undoEntry = UndoEntry(label = label, previous = previous.copy(redoEntry = null)),
         redoEntry = null,
     )
-}
-// Helper to flip TeamId between the two teams.
-internal fun TeamId.flip(): TeamId {
-    return if (this == TeamId.TEAM_ONE) TeamId.TEAM_TWO else TeamId.TEAM_ONE
-}
-// Helper to flip FieldEnd between the two directions.
-internal fun FieldEnd.flip(): FieldEnd {
-    return if (this == FieldEnd.NEAR) FieldEnd.FAR else FieldEnd.NEAR
 }
 internal fun epochTimestamp(date: LocalDate, time: LocalTime, timeZone: ZoneId): Long {
     return LocalDateTime.of(date, time)

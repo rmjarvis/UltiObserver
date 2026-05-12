@@ -44,11 +44,6 @@ private fun requirePlayerCardRecordsValid(records: List<InGamePlayerCardRecord>)
         "Player card records cannot contain duplicate player entries."
     }
 }
-private fun InGamePlayerCardRecord.hasLegalCounts(): Boolean {
-    return yellows <= 2 &&
-        directReds <= 1 &&
-        (yellows < 2 || directReds == 0)
-}
 // Check whether assigning another card would keep the player's card record legal.
 fun canAddPlayerCardAssignment(
     records: List<InGamePlayerCardRecord>,
@@ -103,12 +98,6 @@ fun playerCardRemovalCandidates(
         } else {
             null
         }
-    }
-}
-private fun InGamePlayerCardRecord.cardCount(cardType: CardType): Int {
-    return when (cardType) {
-        CardType.YELLOW -> yellows
-        CardType.RED -> directReds
     }
 }
 // Assign a card to a specific player
@@ -267,10 +256,6 @@ private fun LiveGameState.withSkippedPullForMisconductThreshold(thresholdCount: 
         return this
     }
     return this.copy(pullSkippedForCurrentPoint = true)
-}
-enum class CardType(val label: String) {
-    YELLOW("Yellow"),
-    RED("Red"),
 }
 enum class PlayerCardAdjustmentMode {
     ADD,

@@ -11,25 +11,16 @@ fun LiveGameState.makeCapNow(
     capType: CapType,
     now: Long,
 ): LiveGameState {
-    val offsetMinutes = when (capType) {
-        CapType.HALF -> this.rules.halfCapMinutes
-        CapType.SOFT -> this.rules.softCapMinutes
-        CapType.HARD -> this.rules.hardCapMinutes
-    }
+    val offsetMinutes = capType.offsetMinutes(rules)
     val offset = offsetMinutes * 60_000L
     val adjustedStart = localDateTimeFromEpoch(now - offset, this.timeZone)
-    val capName = capDisplayName(capType)
     return this.copy(
-        rules = when (capType) {
-            CapType.HALF -> this.rules.copy(useHalfCap = true)
-            CapType.SOFT -> this.rules.copy(useSoftCap = true)
-            CapType.HARD -> this.rules.copy(useHardCap = true)
-        },
+        rules = capType.rulesWithCapEnabled(rules),
         startDate = adjustedStart.toLocalDate(),
         startTime = adjustedStart.toLocalTime(),
         startEpoch = now - offset,
-        lastEvent = "$capName cap set to now.",
-    ).withUndo(this, "Undo $capName Cap Now")
+        lastEvent = "${capType.label} set to now.",
+    ).withUndo(this, "Undo ${capType.titleLabel} Now")
 }
 // Apply the next cap due to its time being reached.
 // This is run when we have asked the user whether to apply the next pending cap,
@@ -84,13 +75,6 @@ fun LiveGameState.deferPendingCap(): LiveGameState {
         lastEvent = "Cap offer deferred.",
     )
 }
-private fun capDisplayName(capType: CapType): String {
-    return when (capType) {
-        CapType.HALF -> "Half"
-        CapType.SOFT -> "Soft"
-        CapType.HARD -> "Hard"
-    }
-}
 // Figure out what the next relevant cap is in a live game.
 fun LiveGameState.computeNextCapStatus(now: Long): CapStatus? {
     // `to` in Kotlin makes pairs. So `first to second` makes a pair (first, second).
@@ -98,11 +82,11 @@ fun LiveGameState.computeNextCapStatus(now: Long): CapStatus? {
     // (isCapRelevant, (capName, capTime))
     val caps = listOf(
         this.halfCapRelevant(this.teamOne.score, this.teamTwo.score) to
-            ("Half cap" to this.capEpoch(CapType.HALF)),
+            (CapType.HALF.label to this.capEpoch(CapType.HALF)),
         this.softCapRelevant() to
-            ("Soft cap" to this.capEpoch(CapType.SOFT)),
+            (CapType.SOFT.label to this.capEpoch(CapType.SOFT)),
         this.hardCapRelevant() to
-            ("Hard cap" to this.capEpoch(CapType.HARD)),
+            (CapType.HARD.label to this.capEpoch(CapType.HARD)),
     )
         // Keep only caps whose relevance flag is true.
         .filter { it.first }
@@ -160,10 +144,5 @@ private fun halfCapCanChangeHalftime(rules: GameRules, teamOneScore: Int, teamTw
         min(teamOneScore, teamTwoScore) < normalHalftimeScore - 2
 }
 internal fun LiveGameState.capEpoch(capType: CapType): Long {
-    val offsetMinutes = when (capType) {
-        CapType.HALF -> rules.halfCapMinutes
-        CapType.SOFT -> rules.softCapMinutes
-        CapType.HARD -> rules.hardCapMinutes
-    }
-    return startEpoch + offsetMinutes * 60_000L
+    return startEpoch + capType.offsetMinutes(rules) * 60_000L
 }

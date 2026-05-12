@@ -333,23 +333,6 @@ internal class UltiObserverAppViewModel(
     }
 }
 
-// Archived/completed games keep summary data but drop live countdown and undo/redo state.
-private fun LiveGameState.pruneUndoHistory(): LiveGameState {
-    return copy(
-        countdown = null,
-        undoEntry = null,
-        redoEntry = null,
-    )
-}
-
-private fun LiveGameState.isInitialLivePreview(): Boolean {
-    return phase == LivePhase.BETWEEN_POINTS &&
-        teamOne.score == 0 &&
-        teamTwo.score == 0 &&
-        undoEntry == null &&
-        !halftimeTaken
-}
-
 internal fun newGameSetupState(now: LocalDateTime = LocalDateTime.now()): GameSetupState {
     val startTime = nextHalfHourFrom(now.toLocalTime())
     val startDate = if (startTime.isBefore(now.toLocalTime())) {

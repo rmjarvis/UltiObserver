@@ -29,11 +29,7 @@ fun GamePrompt.LivePointMisconduct.resolutionMessage(againstOffense: Boolean): S
 }
 
 private fun GamePrompt.ApplyCap.label(): String {
-    return when (capType) {
-        CapType.HALF -> "half cap"
-        CapType.SOFT -> "soft cap"
-        CapType.HARD -> "hard cap"
-    }
+    return capType.label.lowercase()
 }
 
 private fun GamePrompt.ApplyCap.formatMessage(): String {

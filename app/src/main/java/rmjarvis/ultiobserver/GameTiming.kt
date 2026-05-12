@@ -94,17 +94,6 @@ internal fun defaultTimingCueModes(): Map<TimingCueId, TimingAlertMode> {
     return TimingCueId.entries.associateWith { it.defaultAlertMode() }
 }
 
-internal fun TimingCueId.defaultAlertMode(): TimingAlertMode {
-    return when (this) {
-        TimingCueId.RECEIVING_TWENTY_FOR_HAND,
-        TimingCueId.PULLING_TWENTY_TO_PULL,
-        TimingCueId.TIMEOUT_OFFENSE_TWENTY,
-        TimingCueId.HALFTIME_TWO_MINUTES,
-        -> TimingAlertMode.VIBRATE
-        else -> TimingAlertMode.NONE
-    }
-}
-
 internal fun CountdownState.nextTimingCue(now: Long): TimingCueDisplay? {
     return timingCues()
         .firstNotNullOfOrNull { cue ->
@@ -168,13 +157,6 @@ private fun CountdownState.betweenPointsTimingCues(): List<TimingCue> {
             TimingCue(TimingCueId.PULLING_TEN_TO_PULL, 10),
             TimingCue(TimingCueId.PULLING_TIME_VIOLATION, 0),
         )
-    }
-}
-
-private fun BetweenPointsCountdownTarget.timeoutCueId(): TimingCueId {
-    return when (this) {
-        BetweenPointsCountdownTarget.OFFENSE_READY -> TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND
-        BetweenPointsCountdownTarget.PULL -> TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL
     }
 }
 

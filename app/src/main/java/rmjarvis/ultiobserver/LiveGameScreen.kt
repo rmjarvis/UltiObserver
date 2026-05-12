@@ -535,16 +535,6 @@ private fun View.performTimingCueHaptic() {
     performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
 }
 
-private fun TimingAlertMode.toTimingAlertSound(): TimingAlertSound {
-    return when (this) {
-        TimingAlertMode.TICK -> TimingAlertSound.TICK
-        TimingAlertMode.BEEP -> TimingAlertSound.BEEP
-        TimingAlertMode.DING -> TimingAlertSound.DING
-        TimingAlertMode.DOUBLE_TICK -> TimingAlertSound.DOUBLE_TICK
-        TimingAlertMode.NONE, TimingAlertMode.VIBRATE -> error("$this is not a sound timing alert mode.")
-    }
-}
-
 // Bottom action bar for undo plus immediate redo after an undo.
 @Composable
 private fun UndoRedoBar(

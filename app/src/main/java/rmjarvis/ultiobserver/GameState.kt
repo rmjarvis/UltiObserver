@@ -11,12 +11,20 @@ import kotlinx.serialization.Serializable
 @Serializable
 enum class TeamId {
     TEAM_ONE,
-    TEAM_TWO,
+    TEAM_TWO;
+
+    fun flip(): TeamId {
+        return if (this == TEAM_ONE) TEAM_TWO else TEAM_ONE
+    }
 }
 @Serializable
 enum class FieldEnd {
     NEAR,
-    FAR,
+    FAR;
+
+    fun flip(): FieldEnd {
+        return if (this == NEAR) FAR else NEAR
+    }
 }
 @Serializable
 enum class LivePhase {
@@ -53,12 +61,29 @@ data class PlayerCardRecord(
     val priorYellows: Int,    // Cards issued in previous games of the current tournament.
     val priorReds: Int,
 )
+enum class CardType(val label: String) {
+    YELLOW("Yellow"),
+    RED("Red"),
+}
 @Serializable
 data class InGamePlayerCardRecord(
     val jerseyNumber: String,
     val yellows: Int = 0,
     val directReds: Int = 0,
-)
+) {
+    fun hasLegalCounts(): Boolean {
+        return yellows <= 2 &&
+            directReds <= 1 &&
+            (yellows < 2 || directReds == 0)
+    }
+
+    fun cardCount(cardType: CardType): Int {
+        return when (cardType) {
+            CardType.YELLOW -> yellows
+            CardType.RED -> directReds
+        }
+    }
+}
 // How to indicate cards for players when you don't know the player number.
 const val UNKNOWN_PLAYER_NUMBER = "N/A"
 @Serializable
@@ -101,9 +126,10 @@ data class TeamLiveState(
     val timeViolationWarningIssued: Boolean = false,
     val technicalFouls: Int = 0,
     val blueCards: Int = 0,
-)
-fun TeamLiveState.withAddedTimeout(): TeamLiveState {
-    return copy(timeoutsUsedThisHalf = timeoutsUsedThisHalf + 1)
+) {
+    fun withAddedTimeout(): TeamLiveState {
+        return copy(timeoutsUsedThisHalf = timeoutsUsedThisHalf + 1)
+    }
 }
 @Serializable
 data class CountdownState(
@@ -136,11 +162,11 @@ enum class CountdownKind {
     BETWEEN_POINTS,
     PULL_RESET,
     TIME_OUT,
-    HALFTIME,
-}
+    HALFTIME;
 
-internal fun CountdownKind.usesBetweenPointsTarget(): Boolean {
-    return this == CountdownKind.OPENING_PULL || this == CountdownKind.BETWEEN_POINTS || this == CountdownKind.PULL_RESET
+    fun usesBetweenPointsTarget(): Boolean {
+        return this == OPENING_PULL || this == BETWEEN_POINTS || this == PULL_RESET
+    }
 }
 @Serializable
 enum class BetweenPointsCountdownTarget(
@@ -162,6 +188,13 @@ enum class BetweenPointsCountdownTarget(
     fun flip(): BetweenPointsCountdownTarget {
         return if (this == OFFENSE_READY) PULL else OFFENSE_READY
     }
+
+    fun timeoutCueId(): TimingCueId {
+        return when (this) {
+            OFFENSE_READY -> TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND
+            PULL -> TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL
+        }
+    }
 }
 
 @Serializable
@@ -182,7 +215,18 @@ enum class TimingCueId(
     TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND("1 minute for a hand"),
     TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL("1 minute to pull"),
     HALFTIME_FIVE_MINUTES("5 minutes"),
-    HALFTIME_TWO_MINUTES("2 minutes"),
+    HALFTIME_TWO_MINUTES("2 minutes");
+
+    fun defaultAlertMode(): TimingAlertMode {
+        return when (this) {
+            RECEIVING_TWENTY_FOR_HAND,
+            PULLING_TWENTY_TO_PULL,
+            TIMEOUT_OFFENSE_TWENTY,
+            HALFTIME_TWO_MINUTES,
+            -> TimingAlertMode.VIBRATE
+            else -> TimingAlertMode.NONE
+        }
+    }
 }
 @Serializable
 enum class TimingAlertMode {
@@ -191,7 +235,17 @@ enum class TimingAlertMode {
     TICK,
     BEEP,
     DING,
-    DOUBLE_TICK,
+    DOUBLE_TICK;
+
+    fun toTimingAlertSound(): TimingAlertSound {
+        return when (this) {
+            TICK -> TimingAlertSound.TICK
+            BEEP -> TimingAlertSound.BEEP
+            DING -> TimingAlertSound.DING
+            DOUBLE_TICK -> TimingAlertSound.DOUBLE_TICK
+            NONE, VIBRATE -> error("$this is not a sound timing alert mode.")
+        }
+    }
 }
 @Serializable
 enum class TimingAlertSound(
@@ -266,7 +320,32 @@ data class LiveGameState(
     val undoEntry: UndoEntry? = null,
     val redoEntry: LiveGameState? = null,
     val lastEvent: String = "Pregame setup complete.",
-)
+) {
+    fun isInitialLivePreview(): Boolean {
+        return phase == LivePhase.BETWEEN_POINTS &&
+            teamOne.score == 0 &&
+            teamTwo.score == 0 &&
+            undoEntry == null &&
+            !halftimeTaken
+    }
+
+    // Archived/completed games keep summary data but drop live countdown and undo/redo state.
+    fun pruneUndoHistory(): LiveGameState {
+        return copy(
+            countdown = null,
+            undoEntry = null,
+            redoEntry = null,
+        )
+    }
+
+    fun teamFor(team: TeamId): TeamLiveState {
+        return if (team == TeamId.TEAM_ONE) teamOne else teamTwo
+    }
+
+    fun teamName(team: TeamId): String {
+        return teamFor(team).name
+    }
+}
 data class CapStatus(
     val label: String,
     val remaining: Duration,
@@ -302,7 +381,33 @@ enum class RedCardMode {
 enum class CapType {
     HALF,
     SOFT,
-    HARD,
+    HARD;
+
+    val label: String
+        get() = when (this) {
+            HALF -> "Half cap"
+            SOFT -> "Soft cap"
+            HARD -> "Hard cap"
+        }
+
+    val titleLabel: String
+        get() = label.replace(" cap", " Cap")
+
+    fun offsetMinutes(rules: GameRules): Int {
+        return when (this) {
+            HALF -> rules.halfCapMinutes
+            SOFT -> rules.softCapMinutes
+            HARD -> rules.hardCapMinutes
+        }
+    }
+
+    fun rulesWithCapEnabled(rules: GameRules): GameRules {
+        return when (this) {
+            HALF -> rules.copy(useHalfCap = true)
+            SOFT -> rules.copy(useSoftCap = true)
+            HARD -> rules.copy(useHardCap = true)
+        }
+    }
 }
 @Serializable
 enum class PullInfractionType {

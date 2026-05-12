@@ -277,7 +277,3 @@ private fun LiveGameState.pullViolationTotal(teamId: TeamId): Int {
     val team = if (teamId == TeamId.TEAM_ONE) this.teamOne else this.teamTwo
     return team.offsides + team.falseStarts
 }
-// Get the team name for a given id
-internal fun LiveGameState.teamName(team: TeamId): String {
-    return if (team == TeamId.TEAM_ONE) teamOne.name else teamTwo.name
-}
