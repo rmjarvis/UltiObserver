@@ -78,7 +78,7 @@ class TestGameTimeouts : GameModelTestFixtures() {
         assertEquals(1, state.teamOne.timeoutsUsedThisHalf)
         assertEquals(1, state.timeoutsRemaining(VC))
         assertEquals("Signal in", state.countdown?.label)
-        assertEquals(130, state.countdown?.durationSeconds)
+        assertEquals(90, state.countdown?.durationSeconds)
         assertEquals(originalCountdown.targetEpoch + 70_000L, state.countdown?.targetEpoch)
         assertEquals("Undo Timeout by Viscous Coupling", state.undoEntry?.label)
 

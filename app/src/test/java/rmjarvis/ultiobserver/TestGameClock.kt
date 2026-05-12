@@ -106,6 +106,32 @@ class TestGameClock : GameModelTestFixtures() {
         assertEquals("Signal in" to Duration.ZERO, betweenPointsDisplay(FieldEnd.FAR, 1_000L, 70_000L))
         assertEquals("Pull in" to Duration.ofSeconds(80), betweenPointsDisplay(FieldEnd.NEAR, 2_000L, 2_000L))
 
+        // Verify the opening pull uses the first-point timing from the observer manual.
+        val openingReceiveCountdown = buildBetweenPointsCountdown(
+            pullingFromEnd = FieldEnd.FAR,
+            sequenceStart = 1_000L,
+            kind = CountdownKind.OPENING_PULL,
+        )
+        assertEquals(CountdownKind.OPENING_PULL, openingReceiveCountdown.kind)
+        assertEquals(20, openingReceiveCountdown.durationSeconds)
+        assertEquals(1_000L, openingReceiveCountdown.nextTimingCue(1_000L)?.targetEpoch)
+        assertEquals(TimingCueId.RECEIVING_TWENTY_FOR_HAND, openingReceiveCountdown.dueTimingCue(1_000L)?.id)
+        assertEquals(TimingCueId.RECEIVING_TEN_FOR_HAND, openingReceiveCountdown.nextTimingCue(2_000L)?.id)
+
+        val openingPullCountdown = buildBetweenPointsCountdown(
+            pullingFromEnd = FieldEnd.NEAR,
+            sequenceStart = 1_000L,
+            kind = CountdownKind.OPENING_PULL,
+        )
+        assertEquals(40, openingPullCountdown.durationSeconds)
+        assertEquals(TimingCueId.PULLING_TWENTY_TO_PULL, openingPullCountdown.nextTimingCue(1_000L)?.id)
+        assertEquals(Duration.ofSeconds(20), openingPullCountdown.nextTimingCue(1_000L)?.remaining)
+
+        // Verify timeout cues stop at offense freeze, with the app's last reminder at countdown-from-five.
+        assertEquals(TimingCueId.TIMEOUT_CLEAR_FIELD, timeoutCountdownWithDefaultTarget.nextTimingCue(40_000L)?.id)
+        assertEquals(TimingCueId.TIMEOUT_COUNTDOWN_FROM_FIVE, timeoutCountdownWithDefaultTarget.nextTimingCue(65_000L)?.id)
+        assertEquals(TimingCueId.TIMEOUT_OFFENSE_FREEZE, timeoutCountdownWithDefaultTarget.dueTimingCue(70_000L)?.id)
+
         // Verify manual countdown adjustments move only the target time and format positive/negative changes.
         state = standardLiveGameState()
         val originalCountdown = state.countdown!!
@@ -142,7 +168,7 @@ class TestGameClock : GameModelTestFixtures() {
             mismatchedCountdownState.advanceGameClock(mismatchedCountdownState.countdown!!.targetEpoch)
         }
         assertEquals(
-            "Countdown BETWEEN_POINTS is not valid while game phase is LIVE_POINT.",
+            "Countdown OPENING_PULL is not valid while game phase is LIVE_POINT.",
             mismatchException.message,
         )
         val betweenPointsWithTimeoutCountdown = standardLiveGameState().copy(
@@ -162,7 +188,7 @@ class TestGameClock : GameModelTestFixtures() {
             halftimeWithBetweenPointsCountdown.advanceGameClock(halftimeWithBetweenPointsCountdown.countdown!!.targetEpoch)
         }
         assertEquals(
-            "Countdown BETWEEN_POINTS is not valid while game phase is HALFTIME.",
+            "Countdown OPENING_PULL is not valid while game phase is HALFTIME.",
             halftimeMismatchException.message,
         )
 

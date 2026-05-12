@@ -37,14 +37,16 @@ class TestGameOtherActions : GameModelTestFixtures() {
         assertEquals(VC, state.nearAttackingTeam)
         assertEquals(VC, state.pullingTeam)
         assertEquals(FieldEnd.FAR, state.pullingFromEnd)
+        assertEquals(CountdownKind.OPENING_PULL, countdownBeforeSwapEnds.kind)
         assertEquals("Signal in", countdownBeforeSwapEnds.label)
-        assertEquals(60, countdownBeforeSwapEnds.durationSeconds)
+        assertEquals(20, countdownBeforeSwapEnds.durationSeconds)
         state = state.swapFieldEnds()
         assertEquals(ANIMAL, state.nearAttackingTeam)
         assertEquals(VC, state.pullingTeam)
         assertEquals(FieldEnd.NEAR, state.pullingFromEnd)
+        assertEquals(CountdownKind.OPENING_PULL, state.countdown?.kind)
         assertEquals("Pull in", state.countdown?.label)
-        assertEquals(80, state.countdown?.durationSeconds)
+        assertEquals(40, state.countdown?.durationSeconds)
         assertEquals(countdownBeforeSwapEnds.targetEpoch + 20_000L, state.countdown?.targetEpoch)
         assertEquals("Field ends swapped.", state.lastEvent)
         assertEquals("Undo Swap Ends of Field", state.undoEntry?.label)
@@ -70,19 +72,19 @@ class TestGameOtherActions : GameModelTestFixtures() {
         state = standardLiveGameState()
         state = state.assessTimeout(VC, state.countdown!!.targetEpoch - 1_000L).state
         val extendedCountdownBeforeSwap = state.countdown
-        assertEquals(130, extendedCountdownBeforeSwap?.durationSeconds)
+        assertEquals(90, extendedCountdownBeforeSwap?.durationSeconds)
         state = state.swapPullingTeam()
         assertEquals("Pull in", state.countdown?.label)
-        assertEquals(150, state.countdown?.durationSeconds)
+        assertEquals(110, state.countdown?.durationSeconds)
         assertEquals(extendedCountdownBeforeSwap!!.targetEpoch + 20_000L, state.countdown?.targetEpoch)
 
         state = standardLiveGameState(pullingFromEnd = FieldEnd.NEAR)
         state = state.assessTimeout(VC, state.countdown!!.targetEpoch - 1_000L).state
         val extendedPullCountdownBeforeSwap = state.countdown
-        assertEquals(150, extendedPullCountdownBeforeSwap?.durationSeconds)
+        assertEquals(110, extendedPullCountdownBeforeSwap?.durationSeconds)
         state = state.swapPullingTeam()
         assertEquals("Signal in", state.countdown?.label)
-        assertEquals(130, state.countdown?.durationSeconds)
+        assertEquals(90, state.countdown?.durationSeconds)
         assertEquals(extendedPullCountdownBeforeSwap!!.targetEpoch - 20_000L, state.countdown?.targetEpoch)
 
         // Swap pulling team and verify only pulling team/end changes while team field positions are preserved.

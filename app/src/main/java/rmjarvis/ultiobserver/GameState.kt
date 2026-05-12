@@ -113,13 +113,13 @@ data class CountdownState(
     val betweenPointsTarget: BetweenPointsCountdownTarget? = null,
 ) {
     fun swapOD(): CountdownState {
-        if (kind != CountdownKind.BETWEEN_POINTS) {
+        if (!kind.usesBetweenPointsTarget()) {
             return this
         }
         val currentTarget = betweenPointsTarget
             ?: error("Between-points countdown is missing its target side.")
         val newTarget = currentTarget.flip()
-        val deltaSeconds = newTarget.baseDurationSeconds - currentTarget.baseDurationSeconds
+        val deltaSeconds = newTarget.baseDurationSeconds(kind) - currentTarget.baseDurationSeconds(kind)
         return copy(
             label = newTarget.label,
             durationSeconds = durationSeconds + deltaSeconds,
@@ -131,17 +131,27 @@ data class CountdownState(
 }
 @Serializable
 enum class CountdownKind {
+    OPENING_PULL,
     BETWEEN_POINTS,
     TIME_OUT,
     HALFTIME,
 }
+
+internal fun CountdownKind.usesBetweenPointsTarget(): Boolean {
+    return this == CountdownKind.OPENING_PULL || this == CountdownKind.BETWEEN_POINTS
+}
 @Serializable
 enum class BetweenPointsCountdownTarget(
     val label: String,
-    val baseDurationSeconds: Int,
+    private val standardDurationSeconds: Int,
+    private val openingDurationSeconds: Int,
 ) {
-    OFFENSE_READY("Signal in", 60),
-    PULL("Pull in", 80);
+    OFFENSE_READY("Signal in", 60, 20),
+    PULL("Pull in", 80, 40);
+
+    fun baseDurationSeconds(kind: CountdownKind): Int {
+        return if (kind == CountdownKind.OPENING_PULL) openingDurationSeconds else standardDurationSeconds
+    }
 
     fun flip(): BetweenPointsCountdownTarget {
         return if (this == OFFENSE_READY) PULL else OFFENSE_READY

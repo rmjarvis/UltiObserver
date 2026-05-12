@@ -18,6 +18,7 @@ fun createLiveGameState(setup: GameSetupState): LiveGameState {
     val initialCountdown = buildBetweenPointsCountdown(
         pullingFromEnd = setup.pullingFromEnd,
         sequenceStart = startEpoch,
+        kind = CountdownKind.OPENING_PULL,
     )
 
     return LiveGameState(
@@ -303,7 +304,7 @@ fun LiveGameState.advanceGameClock(now: Long): LiveGameState {
         return this
     }
     return when {
-        this.phase == LivePhase.BETWEEN_POINTS && countdown.kind == CountdownKind.BETWEEN_POINTS -> {
+        this.phase == LivePhase.BETWEEN_POINTS && countdown.kind.usesBetweenPointsTarget() -> {
             this.automaticLivePointState()
         }
         this.phase == LivePhase.LIVE_POINT && countdown.kind == CountdownKind.TIME_OUT -> {

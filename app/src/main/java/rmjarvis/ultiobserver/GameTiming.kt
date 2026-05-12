@@ -17,13 +17,18 @@ fun formatDuration(duration: Duration): String {
 internal fun buildBetweenPointsCountdown(
     pullingFromEnd: FieldEnd,
     sequenceStart: Long,
+    kind: CountdownKind = CountdownKind.BETWEEN_POINTS,
 ): CountdownState {
+    require(kind.usesBetweenPointsTarget()) {
+        "Countdown kind $kind does not use between-points timing."
+    }
     val target = betweenPointsCountdownTargetFor(pullingFromEnd)
+    val durationSeconds = target.baseDurationSeconds(kind)
     return CountdownState(
-        kind = CountdownKind.BETWEEN_POINTS,
+        kind = kind,
         label = target.label,
-        durationSeconds = target.baseDurationSeconds,
-        targetEpoch = sequenceStart + target.baseDurationSeconds * 1000L,
+        durationSeconds = durationSeconds,
+        targetEpoch = sequenceStart + durationSeconds * 1000L,
         betweenPointsTarget = target,
     )
 }
@@ -39,8 +44,9 @@ fun betweenPointsDisplay(
     pullingFromEnd: FieldEnd,
     sequenceStart: Long,
     now: Long,
+    kind: CountdownKind = CountdownKind.BETWEEN_POINTS,
 ): Pair<String, Duration> {
-    val countdown = buildBetweenPointsCountdown(pullingFromEnd, sequenceStart)
+    val countdown = buildBetweenPointsCountdown(pullingFromEnd, sequenceStart, kind)
     return countdown.label to Duration.ofMillis((countdown.targetEpoch - now).coerceAtLeast(0L))
 }
 // Build a countdown for half time.

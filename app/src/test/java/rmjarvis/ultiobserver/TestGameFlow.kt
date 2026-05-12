@@ -53,9 +53,9 @@ class TestGameFlow : GameModelTestFixtures() {
         assertEquals(VC, state.pullingTeam)
         assertEquals(FieldEnd.NEAR, state.pullingFromEnd)
         assertEquals(ANIMAL, state.nearAttackingTeam)
-        assertEquals(CountdownKind.BETWEEN_POINTS, state.countdown?.kind)
+        assertEquals(CountdownKind.OPENING_PULL, state.countdown?.kind)
         assertEquals("Pull in", state.countdown?.label)
-        assertEquals(80, state.countdown?.durationSeconds)
+        assertEquals(40, state.countdown?.durationSeconds)
 
         // The opening pull starts the first live point and clears the initial countdown.
         state = state.beginLivePoint()
