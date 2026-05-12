@@ -486,7 +486,7 @@ internal fun CountdownLine(
         }
         Text(
             text = displayCountdown.nextCue?.let { cue ->
-                "Next cue ${formatDuration(cue.remaining)} - ${cue.message}"
+                "Next cue at ${formatDuration(cue.countdownTime)} - ${cue.message}"
             } ?: "Next cue",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

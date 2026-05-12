@@ -86,6 +86,7 @@ internal data class TimingCueDisplay(
     val id: TimingCueId,
     val message: String,
     val remaining: Duration,
+    val countdownTime: Duration,
     val targetEpoch: Long,
 )
 
@@ -98,6 +99,7 @@ internal fun CountdownState.nextTimingCue(now: Long): TimingCueDisplay? {
                     id = cue.id,
                     message = cue.id.label,
                     remaining = Duration.ofMillis(cueEpoch - now),
+                    countdownTime = Duration.ofSeconds(cue.remainingSeconds.toLong()),
                     targetEpoch = cueEpoch,
                 )
             } else {
@@ -116,6 +118,7 @@ internal fun CountdownState.dueTimingCue(now: Long): TimingCueDisplay? {
                     id = cue.id,
                     message = cue.id.label,
                     remaining = Duration.ZERO,
+                    countdownTime = Duration.ofSeconds(cue.remainingSeconds.toLong()),
                     targetEpoch = cueEpoch,
                 )
             } else {
@@ -153,7 +156,7 @@ private fun timeoutTimingCues(): List<TimingCue> {
         TimingCue(TimingCueId.TIMEOUT_OFFENSE_TWENTY, 20),
         TimingCue(TimingCueId.TIMEOUT_OFFENSE_TEN, 10),
         TimingCue(TimingCueId.TIMEOUT_COUNTDOWN_FROM_FIVE, 5),
-        TimingCue(TimingCueId.TIMEOUT_OFFENSE_FREEZE, 0),
+        TimingCue(TimingCueId.TIMEOUT_OFFENSE_FREEZE_DEFENSE_TWENTY, 0),
     )
 }
 

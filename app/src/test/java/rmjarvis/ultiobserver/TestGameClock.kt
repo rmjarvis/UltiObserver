@@ -126,11 +126,19 @@ class TestGameClock : GameModelTestFixtures() {
         assertEquals(40, openingPullCountdown.durationSeconds)
         assertEquals(TimingCueId.PULLING_TWENTY_TO_PULL, openingPullCountdown.nextTimingCue(1_000L)?.id)
         assertEquals(Duration.ofSeconds(20), openingPullCountdown.nextTimingCue(1_000L)?.remaining)
+        assertEquals(Duration.ofSeconds(20), openingPullCountdown.nextTimingCue(1_000L)?.countdownTime)
 
         // Verify timeout cues stop at offense freeze, with the app's last reminder at countdown-from-five.
         assertEquals(TimingCueId.TIMEOUT_CLEAR_FIELD, timeoutCountdownWithDefaultTarget.nextTimingCue(40_000L)?.id)
         assertEquals(TimingCueId.TIMEOUT_COUNTDOWN_FROM_FIVE, timeoutCountdownWithDefaultTarget.nextTimingCue(65_000L)?.id)
-        assertEquals(TimingCueId.TIMEOUT_OFFENSE_FREEZE, timeoutCountdownWithDefaultTarget.dueTimingCue(70_000L)?.id)
+        assertEquals(
+            Duration.ofSeconds(5),
+            timeoutCountdownWithDefaultTarget.nextTimingCue(65_000L)?.countdownTime,
+        )
+        assertEquals(
+            TimingCueId.TIMEOUT_OFFENSE_FREEZE_DEFENSE_TWENTY,
+            timeoutCountdownWithDefaultTarget.dueTimingCue(70_000L)?.id,
+        )
 
         // Verify manual countdown adjustments move only the target time and format positive/negative changes.
         state = standardLiveGameState()
