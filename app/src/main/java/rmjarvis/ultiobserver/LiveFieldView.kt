@@ -452,7 +452,7 @@ internal fun CountdownLine(
     onAdjust: (Int) -> Unit,
 ) {
     val visible = countdown != null
-    val displayCountdown = countdown ?: ActiveCountdownDisplay("Pull in", Duration.ZERO)
+    val displayCountdown = countdown ?: ActiveCountdownDisplay("Pull in", Duration.ZERO, null)
     val rowModifier = if (visible) {
         Modifier.fillMaxWidth()
     } else {
@@ -461,24 +461,38 @@ internal fun CountdownLine(
             .clearAndSetSemantics { }
             .alpha(0f)
     }
-    Row(
+    Column(
         modifier = rowModifier,
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
+        verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        Text(
-            text = "${displayCountdown.label} ${formatDuration(displayCountdown.remaining)}",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SmallActionButton(label = "-5", enabled = enabled && visible) {
-                onAdjust(-5)
-            }
-            SmallActionButton(label = "+5", enabled = enabled && visible) {
-                onAdjust(5)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "${displayCountdown.label} ${formatDuration(displayCountdown.remaining)}",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SmallActionButton(label = "-5", enabled = enabled && visible) {
+                    onAdjust(-5)
+                }
+                SmallActionButton(label = "+5", enabled = enabled && visible) {
+                    onAdjust(5)
+                }
             }
         }
+        Text(
+            text = displayCountdown.nextCue?.let { cue ->
+                "Next cue ${formatDuration(cue.remaining)} - ${cue.message}"
+            } ?: "Next cue",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -490,6 +504,7 @@ private fun TeamLiveState.pullViolationCount(): Int {
 internal data class ActiveCountdownDisplay(
     val label: String,
     val remaining: Duration,
+    val nextCue: TimingCueDisplay?,
 )
 
 // Compute the countdown text currently visible on the live screen.
@@ -501,16 +516,23 @@ internal fun LiveGameState.activeCountdownDisplay(now: Long): ActiveCountdownDis
             ActiveCountdownDisplay(
                 label = countdown.label,
                 remaining = Duration.ofMillis(halftimeRemaining),
+                nextCue = countdown.nextTimingCue(now),
             )
         } else {
             // Once halftime expires, show the follow-on between-points countdown immediately.
             val followOn = betweenPointsDisplay(pullingFromEnd, countdown.targetEpoch, now)
-            ActiveCountdownDisplay(label = followOn.first, remaining = followOn.second)
+            val followOnCountdown = buildBetweenPointsCountdown(pullingFromEnd, countdown.targetEpoch)
+            ActiveCountdownDisplay(
+                label = followOn.first,
+                remaining = followOn.second,
+                nextCue = followOnCountdown.nextTimingCue(now),
+            )
         }
     } else {
         ActiveCountdownDisplay(
             label = countdown.label,
             remaining = Duration.ofMillis((countdown.targetEpoch - now).coerceAtLeast(0L)),
+            nextCue = countdown.nextTimingCue(now),
         )
     }
 }

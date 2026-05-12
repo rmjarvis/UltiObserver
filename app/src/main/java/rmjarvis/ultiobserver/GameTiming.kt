@@ -76,3 +76,90 @@ fun nextHalfHourFrom(referenceTime: LocalTime): LocalTime {
     }
     return LocalTime.of(baseHour % 24, roundedMinute)
 }
+
+internal data class TimingCue(
+    val id: TimingCueId,
+    val remainingSeconds: Int,
+)
+
+internal data class TimingCueDisplay(
+    val id: TimingCueId,
+    val message: String,
+    val remaining: Duration,
+    val targetEpoch: Long,
+)
+
+internal fun CountdownState.nextTimingCue(now: Long): TimingCueDisplay? {
+    return timingCues()
+        .firstNotNullOfOrNull { cue ->
+            val cueEpoch = targetEpoch - cue.remainingSeconds * 1000L
+            if (cueEpoch >= now) {
+                TimingCueDisplay(
+                    id = cue.id,
+                    message = cue.id.label,
+                    remaining = Duration.ofMillis(cueEpoch - now),
+                    targetEpoch = cueEpoch,
+                )
+            } else {
+                null
+            }
+        }
+}
+
+internal fun CountdownState.dueTimingCue(now: Long): TimingCueDisplay? {
+    return timingCues()
+        .firstNotNullOfOrNull { cue ->
+            val cueEpoch = targetEpoch - cue.remainingSeconds * 1000L
+            val elapsedSinceCue = now - cueEpoch
+            if (elapsedSinceCue in 0L..1_100L) {
+                TimingCueDisplay(
+                    id = cue.id,
+                    message = cue.id.label,
+                    remaining = Duration.ZERO,
+                    targetEpoch = cueEpoch,
+                )
+            } else {
+                null
+            }
+        }
+}
+
+private fun CountdownState.timingCues(): List<TimingCue> {
+    return when (kind) {
+        CountdownKind.OPENING_PULL, CountdownKind.BETWEEN_POINTS -> betweenPointsTimingCues()
+        CountdownKind.TIME_OUT -> timeoutTimingCues()
+        CountdownKind.HALFTIME -> halftimeTimingCues()
+    }
+}
+
+private fun CountdownState.betweenPointsTimingCues(): List<TimingCue> {
+    return when (betweenPointsTarget ?: error("Between-points countdown is missing its target side.")) {
+        BetweenPointsCountdownTarget.OFFENSE_READY -> listOf(
+            TimingCue(TimingCueId.RECEIVING_TWENTY_FOR_HAND, 20),
+            TimingCue(TimingCueId.RECEIVING_TEN_FOR_HAND, 10),
+            TimingCue(TimingCueId.RECEIVING_GIVE_HAND, 0),
+        )
+        BetweenPointsCountdownTarget.PULL -> listOf(
+            TimingCue(TimingCueId.PULLING_TWENTY_TO_PULL, 20),
+            TimingCue(TimingCueId.PULLING_TEN_TO_PULL, 10),
+            TimingCue(TimingCueId.PULLING_DELAY_OF_GAME, 0),
+        )
+    }
+}
+
+private fun timeoutTimingCues(): List<TimingCue> {
+    return listOf(
+        TimingCue(TimingCueId.TIMEOUT_CLEAR_FIELD, 30),
+        TimingCue(TimingCueId.TIMEOUT_OFFENSE_TWENTY, 20),
+        TimingCue(TimingCueId.TIMEOUT_OFFENSE_TEN, 10),
+        TimingCue(TimingCueId.TIMEOUT_COUNTDOWN_FROM_FIVE, 5),
+        TimingCue(TimingCueId.TIMEOUT_OFFENSE_FREEZE, 0),
+    )
+}
+
+private fun CountdownState.halftimeTimingCues(): List<TimingCue> {
+    return listOf(
+        TimingCue(TimingCueId.HALFTIME_FIVE_MINUTES, 5 * 60),
+        TimingCue(TimingCueId.HALFTIME_TWO_MINUTES, 2 * 60),
+    ).filter { cue -> cue.remainingSeconds <= durationSeconds }
+}

@@ -158,6 +158,24 @@ enum class BetweenPointsCountdownTarget(
     }
 }
 @Serializable
+enum class TimingCueId(
+    val label: String,
+) {
+    RECEIVING_TWENTY_FOR_HAND("20 seconds for a hand"),
+    RECEIVING_TEN_FOR_HAND("10 seconds for a hand"),
+    RECEIVING_GIVE_HAND("Give hand"),
+    PULLING_TWENTY_TO_PULL("20 seconds to pull"),
+    PULLING_TEN_TO_PULL("10 seconds to pull"),
+    PULLING_DELAY_OF_GAME("Delay of game?"),
+    TIMEOUT_CLEAR_FIELD("Sideline players clear the field"),
+    TIMEOUT_OFFENSE_TWENTY("20 seconds, offense"),
+    TIMEOUT_OFFENSE_TEN("10 seconds, offense"),
+    TIMEOUT_COUNTDOWN_FROM_FIVE("Countdown from 5"),
+    TIMEOUT_OFFENSE_FREEZE("Offense freeze"),
+    HALFTIME_FIVE_MINUTES("5 minutes"),
+    HALFTIME_TWO_MINUTES("2 minutes"),
+}
+@Serializable
 data class LiveGameState(
     @Serializable(with = LocalDateAsStringSerializer::class)
     val startDate: LocalDate,
