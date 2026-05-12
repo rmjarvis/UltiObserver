@@ -356,7 +356,8 @@ private val timingCueSections = listOf(
     TimingCueSection(
         title = "Timeout Between Points",
         cues = listOf(
-            TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE,
+            TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND,
+            TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL,
         ),
     ),
     TimingCueSection(

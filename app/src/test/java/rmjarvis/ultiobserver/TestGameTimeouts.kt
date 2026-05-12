@@ -82,7 +82,7 @@ class TestGameTimeouts : GameModelTestFixtures() {
         assertEquals(90, state.countdown?.durationSeconds)
         assertEquals(originalCountdown.targetEpoch + 70_000L, state.countdown?.targetEpoch)
         assertEquals(
-            TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE,
+            TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND,
             state.countdown?.nextTimingCue(betweenPointsTimeoutTime)?.id,
         )
         assertEquals(
@@ -90,6 +90,18 @@ class TestGameTimeouts : GameModelTestFixtures() {
             state.countdown?.nextTimingCue(betweenPointsTimeoutTime)?.countdownTime,
         )
         assertEquals("Undo Timeout by Viscous Coupling", state.undoEntry?.label)
+
+        // Pull-side between-points timeouts use the pull-specific 1-minute cue.
+        val pullSideState = standardLiveGameState().copy(
+            pullingFromEnd = FieldEnd.NEAR,
+            countdown = buildBetweenPointsCountdown(FieldEnd.NEAR, 1_000L),
+        )
+        val pullSideTimeoutTime = pullSideState.countdown!!.targetEpoch - 1_000L
+        val pullSideTimeoutState = pullSideState.assessTimeout(ANIMAL, pullSideTimeoutTime).state
+        assertEquals(
+            TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL,
+            pullSideTimeoutState.countdown?.nextTimingCue(pullSideTimeoutTime)?.id,
+        )
 
         // A live-point timeout starts a fresh offense-set timeout countdown.
         state = state.beginLivePoint()

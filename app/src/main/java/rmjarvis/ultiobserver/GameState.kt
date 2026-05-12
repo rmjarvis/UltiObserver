@@ -172,7 +172,8 @@ enum class TimingCueId(
     TIMEOUT_OFFENSE_TEN("10 seconds, offense"),
     TIMEOUT_COUNTDOWN_FROM_FIVE("Countdown from 5"),
     TIMEOUT_OFFENSE_FREEZE_DEFENSE_TWENTY("Offense freeze; defense 20 seconds"),
-    TIMEOUT_BETWEEN_POINTS_ONE_MINUTE("1 minute to hand/pull"),
+    TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND("1 minute for a hand"),
+    TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL("1 minute to pull"),
     HALFTIME_FIVE_MINUTES("5 minutes"),
     HALFTIME_TWO_MINUTES("2 minutes"),
 }

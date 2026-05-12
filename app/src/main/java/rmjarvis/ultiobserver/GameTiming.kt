@@ -153,7 +153,7 @@ private fun CountdownState.timingCues(): List<TimingCue> {
 private fun CountdownState.betweenPointsTimingCues(): List<TimingCue> {
     val target = betweenPointsTarget ?: error("Between-points countdown is missing its target side.")
     val timeoutCues = if (durationSeconds > target.baseDurationSeconds(kind)) {
-        listOf(TimingCue(TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE, 60))
+        listOf(TimingCue(target.timeoutCueId(), 60))
     } else {
         emptyList()
     }
@@ -168,6 +168,13 @@ private fun CountdownState.betweenPointsTimingCues(): List<TimingCue> {
             TimingCue(TimingCueId.PULLING_TEN_TO_PULL, 10),
             TimingCue(TimingCueId.PULLING_DELAY_OF_GAME, 0),
         )
+    }
+}
+
+private fun BetweenPointsCountdownTarget.timeoutCueId(): TimingCueId {
+    return when (this) {
+        BetweenPointsCountdownTarget.OFFENSE_READY -> TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND
+        BetweenPointsCountdownTarget.PULL -> TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL
     }
 }
 
