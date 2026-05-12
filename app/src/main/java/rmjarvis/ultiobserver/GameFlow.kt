@@ -57,6 +57,7 @@ fun LiveGameState.startPullSequence(
     return this.copy(
         phase = LivePhase.BETWEEN_POINTS,
         countdown = countdown,
+        pullCountdownExpired = false,
         pullSequenceOffsidesRecorded = false,
         pullSequenceFalseStartRecorded = false,
         pullSkippedForCurrentPoint = false,
@@ -107,6 +108,7 @@ fun LiveGameState.recordGoal(
                 pullingFromEnd = nextPullingFromEnd,
                 sequenceStart = now,
             ),
+            pullCountdownExpired = false,
             pullSequenceOffsidesRecorded = false,
             pullSequenceFalseStartRecorded = false,
             pullSkippedForCurrentPoint = false,
@@ -118,6 +120,7 @@ fun LiveGameState.recordGoal(
             endEpoch = now,
             phase = LivePhase.GAME_OVER,
             countdown = null,
+            pullCountdownExpired = false,
             winningScore = gameWinningScore,
             lastEvent = "Game over.",
         ).withUndo(afterGoalState, "Undo End Game")
@@ -167,6 +170,7 @@ fun LiveGameState.recordGoal(
         pullingFromEnd = nextPullingFromEnd,
         phase = LivePhase.BETWEEN_POINTS,
         countdown = countdown,
+        pullCountdownExpired = false,
         pullSequenceOffsidesRecorded = false,
         pullSequenceFalseStartRecorded = false,
         pullSkippedForCurrentPoint = false,
@@ -243,6 +247,7 @@ private fun startHalftime(
         nearAttackingTeam = secondHalfNearAttackingTeam,
         phase = LivePhase.HALFTIME,
         countdown = halftimeCountdown,
+        pullCountdownExpired = false,
         pullSequenceOffsidesRecorded = false,
         pullSequenceFalseStartRecorded = false,
         pullSkippedForCurrentPoint = false,
@@ -262,6 +267,7 @@ fun LiveGameState.endGameNow(
         endEpoch = now,
         phase = LivePhase.GAME_OVER,
         countdown = null,
+        pullCountdownExpired = false,
         pendingCapOffer = null,
         lastEvent = "Game over.",
     ).withUndo(this, "Undo End Game")
@@ -271,6 +277,7 @@ fun LiveGameState.beginLivePoint(): LiveGameState {
     return this.copy(
         phase = LivePhase.LIVE_POINT,
         countdown = null,
+        pullCountdownExpired = false,
         pullSequenceOffsidesRecorded = false,
         pullSequenceFalseStartRecorded = false,
         pullSkippedForCurrentPoint = false,
@@ -317,6 +324,7 @@ fun LiveGameState.advanceGameClock(now: Long): LiveGameState {
                     pullingFromEnd = this.pullingFromEnd,
                     sequenceStart = countdown.targetEpoch,
                 ),
+                pullCountdownExpired = false,
                 pullSkippedForCurrentPoint = false,
             )
             betweenPointsState.advanceGameClock(now)
@@ -423,20 +431,23 @@ fun LiveGameState.toSetupState(): GameSetupState {
 }
 // Move to live-point state while preserving the previous user-action undo entry.
 private fun LiveGameState.automaticLivePointState(): LiveGameState {
+    val previous = this.expiredPullDecisionState()
     return copy(
         phase = LivePhase.LIVE_POINT,
         countdown = null,
+        pullCountdownExpired = false,
         pullSequenceOffsidesRecorded = false,
         pullSequenceFalseStartRecorded = false,
         pullSkippedForCurrentPoint = false,
         lastEvent = "Point is live.",
-    )
+    ).withUndo(previous, "Undo Start Point")
 }
 // Clear an in-point timeout countdown while preserving the timeout undo entry.
 private fun LiveGameState.automaticContinueLivePointState(): LiveGameState {
     return copy(
         phase = LivePhase.LIVE_POINT,
         countdown = null,
+        pullCountdownExpired = false,
         lastEvent = "Point continued.",
     )
 }

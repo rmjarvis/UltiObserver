@@ -8,6 +8,7 @@ fun GameEvent.formatMessage(): String {
         is GameEvent.TeamCardsChanged -> this.formatMessage()
         is GameEvent.TechnicalFoulsChanged -> this.formatMessage()
         is GameEvent.PullInfractionRecorded -> this.formatMessage()
+        is GameEvent.TimeViolationRecorded -> this.formatMessage()
     }
 }
 
@@ -19,6 +20,7 @@ fun GameEvent.formatPopupTitle(): String {
         is GameEvent.TeamCardsChanged -> if (teamCardTotal >= 3) "Misconduct Penalty" else "Misconduct"
         is GameEvent.TechnicalFoulsChanged -> if (technicalFoulTotal >= 3) "Misconduct Penalty" else "Misconduct"
         is GameEvent.PullInfractionRecorded -> "Pull Infraction"
+        is GameEvent.TimeViolationRecorded -> "Time Violation"
     }
 }
 
@@ -76,6 +78,26 @@ private fun GameEvent.PullInfractionRecorded.formatMessage(): String {
             "Start at midfield"
         }
         PullInfractionType.FALSE_START -> "Defense gets to set up."
+    }
+}
+
+private fun GameEvent.TimeViolationRecorded.formatMessage(): String {
+    return when (outcome) {
+        TimeViolationOutcome.WARNING -> {
+            if (team == state.pullingTeam) {
+                "${state.teamName(team)} now has 30 seconds to pull."
+            } else {
+                "${state.teamName(team)} now has 30 seconds to signal readiness."
+            }
+        }
+        TimeViolationOutcome.TIMEOUT -> "Timeout charged to ${state.teamName(team)}. Reset pull timing."
+        TimeViolationOutcome.NO_TIMEOUT -> {
+            if (team == state.pullingTeam.flip()) {
+                "No timeouts remaining. No pull. Receiving team starts at midpoint of defending end zone."
+            } else {
+                "No timeouts remaining. No pull. Receiving team starts at midfield."
+            }
+        }
     }
 }
 

@@ -78,7 +78,8 @@ fun LiveGameState.timeoutsRemaining(team: TeamId): Int {
 private fun LiveGameState.timeoutEligibleState(now: Long): LiveGameState? {
     val advancedState = advanceGameClock(now)
     return when (advancedState.phase) {
-        LivePhase.BETWEEN_POINTS, LivePhase.LIVE_POINT -> advancedState
+        LivePhase.BETWEEN_POINTS -> if (advancedState.countdown != null) advancedState else null
+        LivePhase.LIVE_POINT -> advancedState
         LivePhase.HALFTIME -> null
         else -> null
     }

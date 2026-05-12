@@ -340,7 +340,7 @@ private val timingCueSections = listOf(
         cues = listOf(
             TimingCueId.PULLING_TWENTY_TO_PULL,
             TimingCueId.PULLING_TEN_TO_PULL,
-            TimingCueId.PULLING_DELAY_OF_GAME,
+            TimingCueId.PULLING_TIME_VIOLATION,
         ),
     ),
     TimingCueSection(

@@ -172,16 +172,23 @@ class TestGameTimeouts : GameModelTestFixtures() {
         assertEquals(130, afterHalftimeTimeoutState.countdown?.durationSeconds)
         assertEquals(halftimeEnd + 130_000L, afterHalftimeTimeoutState.countdown?.targetEpoch)
 
-        // When the pull countdown expires, the model automatically moves into live-point state.
+        // When the pull countdown expires, timeout handling advances to the live point unless the observer undoes it.
         val expiredPullState = createLiveGameState(setupWithRules(GameRules(useHalfCap = false)))
         val expiredCountdownNow = expiredPullState.countdown!!.targetEpoch + 1L
         val advancedPullState = expiredPullState.advanceGameClock(expiredCountdownNow)
         assertEquals(LivePhase.LIVE_POINT, advancedPullState.phase)
         assertNull(advancedPullState.countdown)
-        assertEquals("Point is live.", advancedPullState.lastEvent)
-        assertNull(advancedPullState.undoEntry)
+        assertEquals("Undo Start Point", advancedPullState.undoEntry?.label)
+        val expiredPullDecisionState = expiredPullState.copy(
+            countdown = null,
+            pullCountdownExpired = true,
+        )
+        val undoneExpiredPullState = assertUndoRestores(expiredPullDecisionState, advancedPullState)
+        timeoutResult = undoneExpiredPullState.assessTimeout(ANIMAL, expiredCountdownNow)
+        assertEquals("Timeouts are not available now.", timeoutResult.message())
+        assertEquals(undoneExpiredPullState, timeoutResult.state)
 
-        // A timeout after the pull countdown has expired is therefore a live-point timeout, not a pull restart.
+        // A timeout after the pull countdown has expired behaves as a live-point timeout.
         timeoutResult = expiredPullState.assessTimeout(
             ANIMAL,
             expiredCountdownNow,

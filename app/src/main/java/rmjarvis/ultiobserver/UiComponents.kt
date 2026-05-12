@@ -33,9 +33,21 @@ internal fun SmallActionButton(
     label: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    containerColor: Color = Color.Transparent,
+    contentColor: Color = MaterialTheme.colorScheme.primary,
+    borderColor: Color = MaterialTheme.colorScheme.outline,
     onClick: () -> Unit,
 ) {
-    OutlinedButton(onClick = onClick, enabled = enabled, modifier = modifier) {
+    OutlinedButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier,
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = containerColor,
+            contentColor = contentColor,
+        ),
+        border = BorderStroke(1.dp, borderColor),
+    ) {
         Text(label, textAlign = TextAlign.Center)
     }
 }

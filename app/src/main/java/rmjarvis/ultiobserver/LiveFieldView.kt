@@ -450,8 +450,10 @@ internal fun CountdownLine(
     countdown: ActiveCountdownDisplay?,
     enabled: Boolean,
     onAdjust: (Int) -> Unit,
+    onTimeViolation: (() -> Unit)? = null,
+    onRestartPullCountdown: (() -> Unit)? = null,
 ) {
-    val visible = countdown != null
+    val visible = countdown != null || onTimeViolation != null || onRestartPullCountdown != null
     val displayCountdown = countdown ?: ActiveCountdownDisplay("Pull in", Duration.ZERO, null)
     val rowModifier = if (visible) {
         Modifier.fillMaxWidth()
@@ -470,24 +472,57 @@ internal fun CountdownLine(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = "${displayCountdown.label} ${formatDuration(displayCountdown.remaining)}",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                SmallActionButton(label = "-5", enabled = enabled && visible) {
-                    onAdjust(-5)
+            if (onTimeViolation != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    SmallActionButton(
+                        label = "Time Violation",
+                        enabled = enabled,
+                        containerColor = Color(0xFFE53935),
+                        contentColor = Color.Black,
+                        borderColor = Color.Black,
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("live-time-violation"),
+                        onClick = onTimeViolation,
+                    )
+                    if (onRestartPullCountdown != null) {
+                        SmallActionButton(
+                            label = "Restart Countdown",
+                            enabled = enabled,
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("live-restart-pull-countdown"),
+                            onClick = onRestartPullCountdown,
+                        )
+                    }
                 }
-                SmallActionButton(label = "+5", enabled = enabled && visible) {
-                    onAdjust(5)
+            } else {
+                Text(
+                    text = "${displayCountdown.label} ${formatDuration(displayCountdown.remaining)}",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SmallActionButton(label = "-5", enabled = enabled && visible) {
+                        onAdjust(-5)
+                    }
+                    SmallActionButton(label = "+5", enabled = enabled && visible) {
+                        onAdjust(5)
+                    }
                 }
             }
         }
         Text(
-            text = displayCountdown.nextCue?.let { cue ->
-                "Next cue at ${formatDuration(cue.countdownTime)} - ${cue.message}"
-            } ?: "Next cue",
+            text = if (countdown == null && (onTimeViolation != null || onRestartPullCountdown != null)) {
+                ""
+            } else {
+                displayCountdown.nextCue?.let { cue ->
+                    "Next cue at ${formatDuration(cue.countdownTime)} - ${cue.message}"
+                } ?: "Next cue"
+            },
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,

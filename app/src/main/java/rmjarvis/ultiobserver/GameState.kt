@@ -98,6 +98,7 @@ data class TeamLiveState(
     val firstHalfTimeoutsUsed: Int = 0,
     val offsides: Int = 0,
     val falseStarts: Int = 0,
+    val timeViolationWarningIssued: Boolean = false,
     val technicalFouls: Int = 0,
     val blueCards: Int = 0,
 )
@@ -133,12 +134,13 @@ data class CountdownState(
 enum class CountdownKind {
     OPENING_PULL,
     BETWEEN_POINTS,
+    PULL_RESET,
     TIME_OUT,
     HALFTIME,
 }
 
 internal fun CountdownKind.usesBetweenPointsTarget(): Boolean {
-    return this == CountdownKind.OPENING_PULL || this == CountdownKind.BETWEEN_POINTS
+    return this == CountdownKind.OPENING_PULL || this == CountdownKind.BETWEEN_POINTS || this == CountdownKind.PULL_RESET
 }
 @Serializable
 enum class BetweenPointsCountdownTarget(
@@ -150,13 +152,18 @@ enum class BetweenPointsCountdownTarget(
     PULL("Pull in", 80, 40);
 
     fun baseDurationSeconds(kind: CountdownKind): Int {
-        return if (kind == CountdownKind.OPENING_PULL) openingDurationSeconds else standardDurationSeconds
+        return when (kind) {
+            CountdownKind.OPENING_PULL -> openingDurationSeconds
+            CountdownKind.PULL_RESET -> 30
+            else -> standardDurationSeconds
+        }
     }
 
     fun flip(): BetweenPointsCountdownTarget {
         return if (this == OFFENSE_READY) PULL else OFFENSE_READY
     }
 }
+
 @Serializable
 enum class TimingCueId(
     val label: String,
@@ -166,7 +173,7 @@ enum class TimingCueId(
     RECEIVING_GIVE_HAND("Give hand"),
     PULLING_TWENTY_TO_PULL("20 seconds to pull"),
     PULLING_TEN_TO_PULL("10 seconds to pull"),
-    PULLING_DELAY_OF_GAME("Delay of game?"),
+    PULLING_TIME_VIOLATION("Time violation?"),
     TIMEOUT_CLEAR_FIELD("Sideline players clear the field"),
     TIMEOUT_OFFENSE_TWENTY("20 seconds, offense"),
     TIMEOUT_OFFENSE_TEN("10 seconds, offense"),
@@ -252,6 +259,7 @@ data class LiveGameState(
     val openingPullingFromEnd: FieldEnd,
     val phase: LivePhase = LivePhase.PRE_GAME,
     val countdown: CountdownState? = null,
+    val pullCountdownExpired: Boolean = false,
     val pullSequenceOffsidesRecorded: Boolean = false,
     val pullSequenceFalseStartRecorded: Boolean = false,
     val pullSkippedForCurrentPoint: Boolean = false,
@@ -289,6 +297,10 @@ data class PullInfractionAssessmentResult(
     val state: LiveGameState,
     val event: GameEvent? = null,
 )
+data class TimeViolationAssessmentResult(
+    val state: LiveGameState,
+    val event: GameEvent? = null,
+)
 enum class RedCardMode {
     DIRECT_RED,
     SECOND_YELLOW,
@@ -303,6 +315,11 @@ enum class CapType {
 enum class PullInfractionType {
     OFFSIDES,
     FALSE_START,
+}
+enum class TimeViolationOutcome {
+    WARNING,
+    TIMEOUT,
+    NO_TIMEOUT,
 }
 
 enum class PlayerCardEventType {
@@ -344,6 +361,12 @@ sealed interface GameEvent {
         val team: TeamId,
         val infraction: PullInfractionType,
         val totalPullViolations: Int,
+    ) : GameEvent
+
+    data class TimeViolationRecorded(
+        val state: LiveGameState,
+        val team: TeamId,
+        val outcome: TimeViolationOutcome,
     ) : GameEvent
 }
 

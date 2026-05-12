@@ -83,6 +83,149 @@ fun LiveGameState.canRecordPullInfraction(team: TeamId): Boolean {
     }
 }
 
+// Expired pull actions are available after undoing an automatic start point.
+fun LiveGameState.hasExpiredPullActions(): Boolean {
+    return this.phase == LivePhase.BETWEEN_POINTS && this.pullCountdownExpired
+}
+
+// Undoing automatic start point returns here so the observer can assess a time violation instead.
+internal fun LiveGameState.expiredPullDecisionState(): LiveGameState {
+    return this.copy(
+        countdown = null,
+        pullCountdownExpired = true,
+    )
+}
+
+fun LiveGameState.assessTimeViolation(team: TeamId, now: Long): TimeViolationAssessmentResult {
+    if (!this.hasExpiredPullActions()) {
+        return TimeViolationAssessmentResult(this)
+    }
+    val outcome = when {
+        !this.timeViolationWarningIssued(team) -> TimeViolationOutcome.WARNING
+        this.timeoutsRemaining(team) > 0 -> TimeViolationOutcome.TIMEOUT
+        else -> TimeViolationOutcome.NO_TIMEOUT
+    }
+    val updatedState = when (outcome) {
+        TimeViolationOutcome.WARNING -> this.recordTimeViolationWarning(team, now)
+        TimeViolationOutcome.TIMEOUT -> this.recordTimeViolationTimeout(team, now)
+        TimeViolationOutcome.NO_TIMEOUT -> this.recordTimeViolationWithoutTimeout(team)
+    }
+    return TimeViolationAssessmentResult(
+        state = updatedState,
+        event = GameEvent.TimeViolationRecorded(
+            state = updatedState,
+            team = team,
+            outcome = outcome,
+        ),
+    )
+}
+
+// First time violation is a warning with 30 seconds to ready or pull.
+private fun LiveGameState.recordTimeViolationWarning(team: TeamId, now: Long): LiveGameState {
+    return this.copy(
+        teamOne = if (team == TeamId.TEAM_ONE) {
+            this.teamOne.copy(timeViolationWarningIssued = true)
+        } else {
+            this.teamOne
+        },
+        teamTwo = if (team == TeamId.TEAM_TWO) {
+            this.teamTwo.copy(timeViolationWarningIssued = true)
+        } else {
+            this.teamTwo
+        },
+        countdown = if (this.isNearSideTeam(team)) {
+            this.buildTimeViolationCountdownForCurrentSide(
+                now = now,
+                durationSeconds = 30,
+                kind = CountdownKind.PULL_RESET,
+            )
+        } else {
+            null
+        },
+        pullCountdownExpired = false,
+        lastEvent = "Time violation warning on ${this.teamName(team)}.",
+    ).withUndo(this, "Undo Time Violation Warning on ${this.teamName(team)}")
+}
+
+fun LiveGameState.restartPullCountdown(now: Long): LiveGameState {
+    if (!this.hasExpiredPullActions()) {
+        return this
+    }
+    return this.copy(
+        countdown = buildBetweenPointsCountdown(
+            pullingFromEnd = this.pullingFromEnd,
+            sequenceStart = now,
+        ),
+        pullCountdownExpired = false,
+        lastEvent = "Pull countdown restarted.",
+    ).withUndo(this, "Undo Restart Pull Countdown")
+}
+
+// Later time violations charge a timeout when one remains: 70 seconds for offense, 90 for defense.
+private fun LiveGameState.recordTimeViolationTimeout(team: TeamId, now: Long): LiveGameState {
+    val durationSeconds = if (this.pullingFromEnd == FieldEnd.FAR) 70 else 90
+    return this.copy(
+        teamOne = if (team == TeamId.TEAM_ONE) this.teamOne.withAddedTimeout() else this.teamOne,
+        teamTwo = if (team == TeamId.TEAM_TWO) this.teamTwo.withAddedTimeout() else this.teamTwo,
+        countdown = this.buildTimeViolationCountdownForCurrentSide(
+            now = now,
+            durationSeconds = durationSeconds,
+            kind = CountdownKind.BETWEEN_POINTS,
+        ),
+        pullCountdownExpired = false,
+        lastEvent = "Timeout charged to ${this.teamName(team)} for time violation.",
+    ).withUndo(this, "Undo Time Violation Timeout on ${this.teamName(team)}")
+}
+
+private fun LiveGameState.buildTimeViolationCountdownForCurrentSide(
+    now: Long,
+    durationSeconds: Int,
+    kind: CountdownKind,
+): CountdownState {
+    val target = this.currentSideCountdownTarget()
+    return CountdownState(
+        kind = kind,
+        label = target.label,
+        durationSeconds = durationSeconds,
+        targetEpoch = now + durationSeconds * 1000L,
+        betweenPointsTarget = target,
+    )
+}
+
+private fun LiveGameState.currentSideCountdownTarget(): BetweenPointsCountdownTarget {
+    return if (this.pullingFromEnd == FieldEnd.NEAR) {
+        BetweenPointsCountdownTarget.PULL
+    } else {
+        BetweenPointsCountdownTarget.OFFENSE_READY
+    }
+}
+
+internal fun LiveGameState.isNearSideTeam(team: TeamId): Boolean {
+    return team == if (this.pullingFromEnd == FieldEnd.NEAR) {
+        this.pullingTeam
+    } else {
+        this.pullingTeam.flip()
+    }
+}
+
+// If no timeout remains, skip the pull and show field-position guidance.
+private fun LiveGameState.recordTimeViolationWithoutTimeout(team: TeamId): LiveGameState {
+    return this.copy(
+        countdown = null,
+        pullCountdownExpired = false,
+        pullSkippedForCurrentPoint = true,
+        lastEvent = "Time violation on ${this.teamName(team)}.",
+    ).withUndo(this, "Undo Time Violation on ${this.teamName(team)}")
+}
+
+private fun LiveGameState.timeViolationWarningIssued(team: TeamId): Boolean {
+    return if (team == TeamId.TEAM_ONE) {
+        this.teamOne.timeViolationWarningIssued
+    } else {
+        this.teamTwo.timeViolationWarningIssued
+    }
+}
+
 // Offsides on the pulling team
 fun LiveGameState.recordOffsides(): LiveGameState {
     if (this.pullSkippedForCurrentPoint || this.pullSequenceOffsidesRecorded) {
@@ -102,6 +245,7 @@ fun LiveGameState.recordOffsides(): LiveGameState {
         },
         phase = LivePhase.LIVE_POINT,
         countdown = null,
+        pullCountdownExpired = false,
         pullSequenceOffsidesRecorded = true,
         lastEvent = "Offsides on ${this.teamName(team)}.",
     ).withUndo(this, "Undo Offsides on ${this.teamName(team)}")
@@ -123,6 +267,7 @@ fun LiveGameState.recordFalseStart(): LiveGameState {
         } else {
             this.teamTwo
         },
+        pullCountdownExpired = false,
         pullSequenceFalseStartRecorded = true,
         lastEvent = "False start on ${this.teamName(team)}.",
     ).withUndo(this, "Undo False Start on ${this.teamName(team)}")

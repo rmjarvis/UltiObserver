@@ -118,6 +118,10 @@ abstract class GameModelTestFixtures {
         return event?.formatMessage()
     }
 
+    protected fun TimeViolationAssessmentResult.message(): String? {
+        return event?.formatMessage()
+    }
+
     protected fun assertUndoRestores(
         expectedPrevious: LiveGameState,
         state: LiveGameState,

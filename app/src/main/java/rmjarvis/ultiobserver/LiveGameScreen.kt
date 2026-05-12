@@ -51,6 +51,7 @@ internal fun LiveGameScreen(
 ) {
     var showCardsSheet by remember { mutableStateOf(false) }
     var showOtherSheet by remember { mutableStateOf(false) }
+    var showTimeViolationTeamPrompt by remember { mutableStateOf(false) }
     var locked by remember { mutableStateOf(false) }
     var actionInfoMessage by remember { mutableStateOf<String?>(null) }
     var actionInfoTitle by remember { mutableStateOf<String?>(null) }
@@ -100,6 +101,9 @@ internal fun LiveGameScreen(
     }
     val canStartPoint = remember(state, now) {
         state.phase == LivePhase.BETWEEN_POINTS || state.halftimeTransitionReady(now)
+    }
+    val hasExpiredPullActions = remember(state) {
+        state.hasExpiredPullActions()
     }
 
     // Let countdown expiration move the model forward without requiring an observer tap.
@@ -187,6 +191,16 @@ internal fun LiveGameScreen(
                     countdown = activeCountdown,
                     enabled = !locked,
                     onAdjust = { seconds -> onStateChange(state.addTimeToCountdown(seconds)) },
+                    onTimeViolation = if (hasExpiredPullActions && !locked) {
+                        { showTimeViolationTeamPrompt = true }
+                    } else {
+                        null
+                    },
+                    onRestartPullCountdown = if (hasExpiredPullActions && !locked) {
+                        { onStateChange(state.restartPullCountdown(now)) }
+                    } else {
+                        null
+                    },
                 )
 
                 // Sketch the field with two teams and the grass strip between them.
@@ -344,6 +358,42 @@ internal fun LiveGameScreen(
                 },
             )
         }
+    }
+
+    if (showTimeViolationTeamPrompt) {
+        fun assessTimeViolationFor(team: TeamId) {
+            val result = state.assessTimeViolation(team, now)
+            onStateChange(result.state)
+            val message = result.event?.formatMessage()
+            if (message != null) {
+                showActionInfo(
+                    message = message,
+                    title = result.event.formatPopupTitle(),
+                )
+            }
+            showTimeViolationTeamPrompt = false
+        }
+
+        AlertDialog(
+            onDismissRequest = { showTimeViolationTeamPrompt = false },
+            title = { Text("Time Violation") },
+            text = {
+                Text(
+                    text = "Which team committed the time violation?",
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { assessTimeViolationFor(TeamId.TEAM_TWO) }) {
+                    Text(state.teamName(TeamId.TEAM_TWO))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { assessTimeViolationFor(TeamId.TEAM_ONE) }) {
+                    Text(state.teamName(TeamId.TEAM_ONE))
+                }
+            },
+        )
     }
 
     // General informational pop-up for terse field guidance and validation messages.

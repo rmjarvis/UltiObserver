@@ -316,10 +316,10 @@ class TestUltiObserverAppViewModel {
         viewModel.openSettings()
         assertEquals(AppScreen.SETTINGS, viewModel.screen)
         viewModel.updateTimingAlertGlobalMode(TimingAlertGlobalMode.VIBRATION_ONLY)
-        viewModel.updateTimingCueMode(TimingCueId.PULLING_DELAY_OF_GAME, TimingAlertMode.DING)
+        viewModel.updateTimingCueMode(TimingCueId.PULLING_TIME_VIOLATION, TimingAlertMode.DING)
         assertEquals(
             TimingAlertMode.VIBRATE,
-            viewModel.timingAlertPreferences.alertModeFor(TimingCueId.PULLING_DELAY_OF_GAME),
+            viewModel.timingAlertPreferences.alertModeFor(TimingCueId.PULLING_TIME_VIOLATION),
         )
         viewModel.updateTimingCueMode(TimingCueId.TIMEOUT_OFFENSE_TEN, TimingAlertMode.VIBRATE)
         viewModel.openTimingCueSettings()
@@ -329,7 +329,7 @@ class TestUltiObserverAppViewModel {
         viewModel.updateTimingAlertGlobalMode(TimingAlertGlobalMode.OFF)
         assertEquals(
             TimingAlertMode.NONE,
-            viewModel.timingAlertPreferences.alertModeFor(TimingCueId.PULLING_DELAY_OF_GAME),
+            viewModel.timingAlertPreferences.alertModeFor(TimingCueId.PULLING_TIME_VIOLATION),
         )
         assertEquals(
             TimingAlertMode.NONE,
@@ -344,7 +344,7 @@ class TestUltiObserverAppViewModel {
         assertEquals(TimingAlertGlobalMode.OFF, restored.timingAlertPreferences.globalMode)
         assertEquals(
             TimingAlertMode.DING,
-            restored.timingAlertPreferences.cueModes[TimingCueId.PULLING_DELAY_OF_GAME],
+            restored.timingAlertPreferences.cueModes[TimingCueId.PULLING_TIME_VIOLATION],
         )
         assertEquals(
             TimingAlertMode.VIBRATE,
@@ -352,7 +352,7 @@ class TestUltiObserverAppViewModel {
         )
         assertEquals(
             TimingAlertMode.NONE,
-            restored.timingAlertPreferences.alertModeFor(TimingCueId.PULLING_DELAY_OF_GAME),
+            restored.timingAlertPreferences.alertModeFor(TimingCueId.PULLING_TIME_VIOLATION),
         )
         assertEquals(
             TimingAlertMode.NONE,

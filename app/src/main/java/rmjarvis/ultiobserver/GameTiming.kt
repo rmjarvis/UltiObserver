@@ -144,7 +144,7 @@ internal fun CountdownState.dueTimingCue(now: Long): TimingCueDisplay? {
 
 private fun CountdownState.timingCues(): List<TimingCue> {
     return when (kind) {
-        CountdownKind.OPENING_PULL, CountdownKind.BETWEEN_POINTS -> betweenPointsTimingCues()
+        CountdownKind.OPENING_PULL, CountdownKind.BETWEEN_POINTS, CountdownKind.PULL_RESET -> betweenPointsTimingCues()
         CountdownKind.TIME_OUT -> timeoutTimingCues()
         CountdownKind.HALFTIME -> halftimeTimingCues()
     }
@@ -166,7 +166,7 @@ private fun CountdownState.betweenPointsTimingCues(): List<TimingCue> {
         BetweenPointsCountdownTarget.PULL -> listOf(
             TimingCue(TimingCueId.PULLING_TWENTY_TO_PULL, 20),
             TimingCue(TimingCueId.PULLING_TEN_TO_PULL, 10),
-            TimingCue(TimingCueId.PULLING_DELAY_OF_GAME, 0),
+            TimingCue(TimingCueId.PULLING_TIME_VIOLATION, 0),
         )
     }
 }

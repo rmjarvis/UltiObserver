@@ -220,14 +220,26 @@ class TestGameClock : GameModelTestFixtures() {
             halftimeMismatchException.message,
         )
 
-        // Verify countdown helpers advance automatically at the exact target time, not before.
+        // Verify between-points countdown expiration silently starts the point, but leaves an undo path.
         state = standardLiveGameState()
         val betweenPointsCountdown = state.countdown!!
         assertEquals(state, state.advanceGameClock(betweenPointsCountdown.targetEpoch - 1L))
-        state = state.advanceGameClock(betweenPointsCountdown.targetEpoch)
-        assertEquals(LivePhase.LIVE_POINT, state.phase)
-        assertNull(state.countdown)
+        val automaticStartState = state.advanceGameClock(betweenPointsCountdown.targetEpoch)
+        assertEquals(LivePhase.LIVE_POINT, automaticStartState.phase)
+        assertNull(automaticStartState.countdown)
+        assertEquals("Point is live.", automaticStartState.lastEvent)
+        assertEquals("Undo Start Point", automaticStartState.undoEntry?.label)
+        val expiredPullDecisionState = state.copy(
+            countdown = null,
+            pullCountdownExpired = true,
+        )
+        val undoneAutomaticStartState = assertUndoRestores(expiredPullDecisionState, automaticStartState)
+        assertEquals(undoneAutomaticStartState, undoneAutomaticStartState.advanceGameClock(betweenPointsCountdown.targetEpoch))
+        assertTrue(undoneAutomaticStartState.hasExpiredPullActions())
+        assertFalse(state.hasExpiredPullActions())
 
+        // In-point timeout countdowns still continue automatically.
+        state = state.beginLivePoint()
         state = state.assessTimeout(VC, 500_000L).state
         val timeoutCountdown = state.countdown!!
         assertEquals(state, state.advanceGameClock(timeoutCountdown.targetEpoch - 1L))
