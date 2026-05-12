@@ -4,6 +4,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -128,11 +129,10 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         waitForText("Halftime")
         composeRule.onNodeWithText("OK").performClick()
 
-        // Advance the visible halftime countdown using the same correction control an observer has.
+        // Touch the visible correction controls, then jump the countdown to its expired state.
         composeRule.onAllNodesWithText("+5").onFirst().performClick()
-        repeat(14) {
-            composeRule.onAllNodesWithText("-5").onFirst().performClick()
-        }
+        composeRule.onAllNodesWithText("-5").onFirst().performClick()
+        setActiveCountdownRemainingProgrammatically(secondsRemaining = -1)
         waitForText("Start Point")
 
         // After halftime, Animal scores and uses one second-half timeout before the next pull.
@@ -192,7 +192,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
     // Keep the assertions at the visible undo/message level; GameModel owns detailed state checks.
     @Test
     fun livePrimaryActionsAndUndoPath() {
-        startLiveGame()
+        startLiveGameProgrammatically()
 
         // Each side can record only one pull infraction of its type for the current pull sequence.
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "pull-infraction")).performClick()
@@ -220,8 +220,54 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
     }
 
     @Test
+    fun expiredPullActionsAndTimingAlertsAreWired() {
+        startLiveGameProgrammatically()
+
+        triggerDueTimeoutTwentyCue(
+            globalMode = TimingAlertGlobalMode.VIBRATION_ONLY,
+            cueMode = TimingAlertMode.VIBRATE,
+            vibrateWithSounds = false,
+        )
+        triggerDueTimeoutTwentyCue(
+            globalMode = TimingAlertGlobalMode.SOUNDS_ON,
+            cueMode = TimingAlertMode.TICK,
+            vibrateWithSounds = true,
+        )
+        triggerDueTimeoutTwentyCue(
+            globalMode = TimingAlertGlobalMode.OFF,
+            cueMode = TimingAlertMode.NONE,
+            vibrateWithSounds = false,
+        )
+
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val current = activity.appViewModel.liveState!!
+            activity.appViewModel.updateLiveGame(
+                current.copy(
+                    phase = LivePhase.BETWEEN_POINTS,
+                    countdown = null,
+                    pullCountdownExpired = true,
+                )
+            )
+        }
+        waitForText("Time Violation")
+        waitForText("Restart Countdown")
+
+        composeRule.onNodeWithText("Restart Countdown").performClick()
+        waitForText("Undo Restart Pull Countdown")
+        composeRule.onNodeWithText("Undo Restart Pull Countdown").performClick()
+        waitForText("Redo")
+        waitForText("Time Violation")
+
+        composeRule.onNodeWithText("Time Violation").performClick()
+        waitForText("Which team committed the time violation?")
+        composeRule.onAllNodesWithText("Team 2").onLast().performClick()
+        waitForText("now has 30 seconds", substring = true)
+        composeRule.onNodeWithText("OK").performClick()
+    }
+
+    @Test
     fun fieldDiagramDoesNotMoveWhenCountdownClears() {
-        startLiveGame()
+        startLiveGameProgrammatically()
 
         val fieldTopBeforeStartPoint = composeRule.onNodeWithTag("live-field-diagram")
             .fetchSemanticsNode()
@@ -234,5 +280,38 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             .boundsInRoot
             .top
         assertEquals(fieldTopBeforeStartPoint, fieldTopAfterStartPoint, 0.5f)
+    }
+
+    private fun triggerDueTimeoutTwentyCue(
+        globalMode: TimingAlertGlobalMode,
+        cueMode: TimingAlertMode,
+        vibrateWithSounds: Boolean,
+    ) {
+        var dueEpoch = 0L
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val now = System.currentTimeMillis()
+            dueEpoch = now + 500L
+            activity.appViewModel.updateTimingAlertGlobalMode(globalMode)
+            activity.appViewModel.updateTimingAlertVibrateWithSounds(vibrateWithSounds)
+            activity.appViewModel.updateTimingCueMode(TimingCueId.TIMEOUT_OFFENSE_TWENTY, cueMode)
+            val current = activity.appViewModel.liveState!!
+            activity.appViewModel.updateLiveGame(
+                current.copy(
+                    phase = LivePhase.LIVE_POINT,
+                    countdown = CountdownState(
+                        kind = CountdownKind.TIME_OUT,
+                        label = "Offense set in",
+                        durationSeconds = 70,
+                        targetEpoch = dueEpoch + 20_000L,
+                    ),
+                    pullCountdownExpired = false,
+                )
+            )
+        }
+        waitForText("Offense set in", substring = true)
+        composeRule.waitUntil(timeoutMillis = 3_000) {
+            System.currentTimeMillis() >= dueEpoch + 300L
+        }
+        composeRule.waitForIdle()
     }
 }

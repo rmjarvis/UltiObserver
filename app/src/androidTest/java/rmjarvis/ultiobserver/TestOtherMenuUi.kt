@@ -23,7 +23,7 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
     // The goal is to catch broken dialogs, buttons, and return paths for observer-accessible tools.
     @Test
     fun otherMenuPathways() {
-        startLiveGame()
+        startLiveGameProgrammatically()
 
         // Manual correction dialogs should open and return to the Other sheet cleanly.
         openOtherSheet()
@@ -63,7 +63,7 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
     // Test that deleting the current game is guarded by the slide confirmation.
     @Test
     fun otherMenuCanDeleteCurrentGameAfterSliderConfirmation() {
-        startLiveGame()
+        startLiveGameProgrammatically()
 
         openOtherSheet()
         composeRule.onNodeWithText("Delete Game").performClick()
@@ -89,8 +89,8 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         val firstArchivedTitle = "$firstTeamOne 0 - 0 $firstTeamTwo"
         val secondArchivedTitle = "$secondTeamOne 0 - 0 $secondTeamTwo"
 
-        createArchivedGame(firstTeamOne, firstTeamTwo)
-        createArchivedGame(secondTeamOne, secondTeamTwo)
+        seedArchivedGameProgrammatically(firstTeamOne, firstTeamTwo)
+        seedArchivedGameProgrammatically(secondTeamOne, secondTeamTwo)
         openPreviousGamesScreen()
         waitForText(firstArchivedTitle)
         waitForText(secondArchivedTitle)
@@ -102,8 +102,8 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         assertTrue(composeRule.onAllNodesWithText(secondArchivedTitle).fetchSemanticsNodes().isEmpty())
         composeRule.onNodeWithText("Back").performClick()
 
-        createArchivedGame(firstTeamOne, firstTeamTwo)
-        createArchivedGame(secondTeamOne, secondTeamTwo)
+        seedArchivedGameProgrammatically(firstTeamOne, firstTeamTwo)
+        seedArchivedGameProgrammatically(secondTeamOne, secondTeamTwo)
         openPreviousGamesScreen()
         waitForText(firstArchivedTitle)
         waitForText(secondArchivedTitle)
@@ -129,18 +129,4 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         waitForText("Previous Games")
     }
 
-    private fun createArchivedGame(teamOne: String, teamTwo: String) {
-        openNewGameSetup()
-        replaceSetupTeamName("Team 1", teamOne)
-        replaceSetupTeamName("Team 2", teamTwo)
-        startGameFromSetup()
-        openOtherSheet()
-        composeRule.onNodeWithText("End Game").performClick()
-        waitForText("Game Over")
-        composeRule.onNodeWithText("OK").performClick()
-        composeRule.onNodeWithText("Back").performClick()
-        waitForText("Completed Game")
-        composeRule.onNodeWithText("Archive Completed Game").performClick()
-        waitForText("Previous Games")
-    }
 }

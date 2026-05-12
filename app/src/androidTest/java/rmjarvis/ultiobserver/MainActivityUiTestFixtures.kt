@@ -13,6 +13,8 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.swipeRight
+import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 import org.junit.Rule
 
@@ -28,6 +30,16 @@ abstract class MainActivityUiTestFixtures {
     protected fun startLiveGame() {
         openNewGameSetup()
         startGameFromSetup()
+    }
+
+    protected fun startLiveGameProgrammatically(setup: GameSetupState = newGameSetupState()) {
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appViewModel.deleteCurrentGame()
+            activity.appViewModel.startNewGame()
+            activity.appViewModel.updateSetup(setup)
+            activity.appViewModel.finishSetup()
+        }
+        assertLiveScreen()
     }
 
     protected fun startGameFromSetup() {
@@ -150,36 +162,26 @@ abstract class MainActivityUiTestFixtures {
     }
 
     protected fun startLiveGameWithDueCap(rowLabel: String, dialogTitle: String) {
-        composeRule.onNodeWithText("Start New Game").performClick()
-        waitForText("UltiObserver Setup")
-        setStartTimeToRecentPast()
-        setIntegerSetupValue("Game to", "Game To", "Points", "5")
-        when (rowLabel) {
-            "Half cap" -> {
-                setCapRuleToNone("Soft cap", "Soft Cap")
-                setCapRuleToNone("Hard cap", "Hard Cap")
-            }
-            "Soft cap" -> {
-                setCapRuleToNone("Half cap", "Half Cap")
-                setCapRuleToNone("Hard cap", "Hard Cap")
-            }
-            "Hard cap" -> {
-                setCapRuleToNone("Half cap", "Half Cap")
-                setCapRuleToNone("Soft cap", "Soft Cap")
-            }
-        }
-        setCapRuleValue(rowLabel, dialogTitle, "0")
-        startGameFromSetup()
+        val capType = capTypeForSetupLabels(rowLabel, dialogTitle)
+        startLiveGameProgrammatically(
+            newGameSetupState().copy(
+                startDate = LocalDate.now(),
+                startTime = LocalTime.MIDNIGHT,
+                rules = singleEnabledCapRules(capType, capMinutes = 0),
+            )
+        )
     }
 
     protected fun startLiveGameWithCapDuringHalftime(rowLabel: String, dialogTitle: String) {
-        composeRule.onNodeWithText("Start New Game").performClick()
-        waitForText("UltiObserver Setup")
-        setStartTimeToFutureMinute()
-        setIntegerSetupValue("Game to", "Game To", "Points", "5")
-        setIntegerSetupValue("Halftime", "Halftime", "Minutes", "7")
-        setCapRuleValue(rowLabel, dialogTitle, "2")
-        startGameFromSetup()
+        val capType = capTypeForSetupLabels(rowLabel, dialogTitle)
+        val start = LocalDateTime.now().plusMinutes(1)
+        startLiveGameProgrammatically(
+            newGameSetupState().copy(
+                startDate = start.toLocalDate(),
+                startTime = start.toLocalTime(),
+                rules = singleEnabledCapRules(capType, capMinutes = 2).copy(halftimeMinutes = 7),
+            )
+        )
     }
 
     protected fun returnHomeFromGame() {
@@ -223,6 +225,62 @@ abstract class MainActivityUiTestFixtures {
     protected fun clearArchivedGamesProgrammatically() {
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.appViewModel.deleteAllArchivedGames()
+        }
+        composeRule.waitForIdle()
+    }
+
+    protected fun seedArchivedGameProgrammatically(teamOneName: String, teamTwoName: String) {
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val setup = newGameSetupState().copy(
+                teamOne = TeamSetup(name = teamOneName, color = TeamColorChoice.WHITE),
+                teamTwo = TeamSetup(name = teamTwoName, color = TeamColorChoice.BLUE),
+            )
+            val completed = createLiveGameState(setup).copy(
+                phase = LivePhase.GAME_OVER,
+                endEpoch = System.currentTimeMillis(),
+                countdown = null,
+            )
+            activity.appViewModel.updateLiveGame(completed)
+            activity.appViewModel.archiveCompletedGame()
+        }
+        composeRule.waitForIdle()
+    }
+
+    protected fun seedInGamePlayerCardsProgrammatically(
+        teamOneCards: List<InGamePlayerCardRecord> = emptyList(),
+        teamTwoCards: List<InGamePlayerCardRecord> = emptyList(),
+    ) {
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val current = activity.appViewModel.liveState!!
+            activity.appViewModel.updateLiveGame(
+                current.copy(
+                    teamOnePlayerCards = teamOneCards,
+                    teamTwoPlayerCards = teamTwoCards,
+                )
+            )
+        }
+        composeRule.waitForIdle()
+    }
+
+    protected fun endCurrentGameProgrammatically() {
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val current = activity.appViewModel.liveState!!
+            activity.appViewModel.updateLiveGame(current.endGameNow(System.currentTimeMillis()))
+        }
+        waitForText("Game Over")
+    }
+
+    protected fun setActiveCountdownRemainingProgrammatically(secondsRemaining: Int) {
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val current = activity.appViewModel.liveState!!
+            val countdown = current.countdown!!
+            activity.appViewModel.updateLiveGame(
+                current.copy(
+                    countdown = countdown.copy(
+                        targetEpoch = System.currentTimeMillis() + secondsRemaining * 1000L,
+                    )
+                )
+            )
         }
         composeRule.waitForIdle()
     }
@@ -424,5 +482,26 @@ abstract class MainActivityUiTestFixtures {
 
     protected fun teamActionTag(team: TeamId, action: String): String {
         return "live-${team.name}-$action"
+    }
+
+    private fun capTypeForSetupLabels(rowLabel: String, dialogTitle: String): CapType {
+        return when (rowLabel to dialogTitle) {
+            "Half cap" to "Half Cap" -> CapType.HALF
+            "Soft cap" to "Soft Cap" -> CapType.SOFT
+            "Hard cap" to "Hard Cap" -> CapType.HARD
+            else -> error("Unexpected cap setup labels: $rowLabel / $dialogTitle")
+        }
+    }
+
+    private fun singleEnabledCapRules(capType: CapType, capMinutes: Int): GameRules {
+        return GameRules(
+            gameTo = 5,
+            useHalfCap = capType == CapType.HALF,
+            halfCapMinutes = capMinutes,
+            useSoftCap = capType == CapType.SOFT,
+            softCapMinutes = capMinutes,
+            useHardCap = capType == CapType.HARD,
+            hardCapMinutes = capMinutes,
+        )
     }
 }

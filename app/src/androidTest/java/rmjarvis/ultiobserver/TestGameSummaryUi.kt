@@ -21,11 +21,9 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
     // Test the game-over summary branch for teams with no player-specific cards.
     @Test
     fun gameSummaryShowsNoIssuedPlayerCards() {
-        startLiveGame()
+        startLiveGameProgrammatically()
 
-        openOtherSheet()
-        composeRule.onNodeWithText("End Game").performClick()
-        waitForText("Game Over")
+        endCurrentGameProgrammatically()
         composeRule.onNodeWithText("OK").performClick()
         waitForText("Game Summary")
         waitForText("No yellow or red cards issued.")

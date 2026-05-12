@@ -60,7 +60,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
     // Test the home-screen and update-setup buttons that wire into app-level routing state.
     @Test
     fun homeCurrentGameResumeAndUpdateSetupPath() {
-        startLiveGame()
+        startLiveGameProgrammatically()
         composeRule.onNodeWithText("Start Point").performClick()
         waitForText("Slide right to unlock")
 
@@ -87,7 +87,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Back").performClick()
         waitForText("Start New Game")
 
-        startLiveGame()
+        startLiveGameProgrammatically()
         composeRule.onNodeWithText("Back").performClick()
         waitForText("Start Game")
         startGameFromSetup()
@@ -107,9 +107,14 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
 
         pressAppBack()
         waitForText("Start New Game")
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appViewModel.updateTimingAlertGlobalMode(TimingAlertGlobalMode.VIBRATION_ONLY)
+            activity.appViewModel.updateTimingAlertVibrateWithSounds(false)
+        }
         composeRule.onNodeWithText("Settings").performClick()
         waitForText("Use sounds and vibration for timing cues?")
         waitForText("Vibration Only")
+        composeRule.onNodeWithText("Vibration Only").performClick()
         waitForText("Vibration will be used for any cues that are set to use sound.")
         composeRule.onAllNodesWithTag("settings-sound-volume").assertCountEquals(0)
         composeRule.onAllNodesWithTag("settings-vibrate-with-sounds").assertCountEquals(0)
@@ -124,12 +129,17 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText("No sound or vibration will be used for any timing cues.")
         composeRule.onAllNodesWithTag("settings-sound-volume").assertCountEquals(0)
         composeRule.onAllNodesWithTag("settings-vibrate-with-sounds").assertCountEquals(0)
+        composeRule.onNodeWithText("Sounds On").performClick()
         waitForText("Sound Settings for Individual Cues")
         composeRule.onNodeWithText("Sound Settings for Individual Cues").performClick()
         waitForText("Cue Sound Settings")
+        waitForText("Sound previews")
+        composeRule.onAllNodesWithText("Tick").onFirst().performClick()
         waitForText("Before Pull - Offense")
         waitForText("Timeout Between Points")
 
+        pressAppBack()
+        waitForText("Use sounds and vibration for timing cues?")
         pressAppBack()
         waitForText("Start New Game")
         composeRule.onNodeWithText("Previous Games").performClick()

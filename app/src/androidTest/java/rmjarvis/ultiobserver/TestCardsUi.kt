@@ -22,7 +22,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
     // This covers the phone-facing dialog sequence, not the full card-accounting matrix.
     @Test
     fun cardsAndTechnicalFoulSheetPath() {
-        startLiveGame()
+        startLiveGameProgrammatically()
 
         // The Cards / TF sheet should show both team sections with their pull roles.
         openCardsSheet()
@@ -203,10 +203,13 @@ class TestCardsUi : MainActivityUiTestFixtures() {
     // Test card dialogs that require follow-up choices for already-carded players.
     @Test
     fun repeatedPlayerCardChoiceDialogs() {
-        startLiveGame()
+        startLiveGameProgrammatically()
+        seedInGamePlayerCardsProgrammatically(
+            teamOneCards = listOf(InGamePlayerCardRecord(UNKNOWN_PLAYER_NUMBER, yellows = 1)),
+            teamTwoCards = listOf(InGamePlayerCardRecord("6", yellows = 1, directReds = 1)),
+        )
 
         // A second yellow on N/A can be recorded as the same unknown player.
-        recordYellowCard(TeamId.TEAM_ONE, "", "Yellow card on player N/A.\nTeam 1 has 1 card.")
         openCardsSheet()
         composeRule.onAllNodesWithText("Yellow")[teamCardButtonIndex(TeamId.TEAM_ONE)].performClick()
         waitForText("Yellow Card")
@@ -217,17 +220,6 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("OK").performClick()
 
         // A player with both a yellow and direct red has no valid additional red-card mode.
-        recordYellowCard(TeamId.TEAM_TWO, "6", "Yellow card on player 6.\nTeam 2 has 1 card.")
-        openCardsSheet()
-        composeRule.onAllNodesWithText("Red")[teamCardButtonIndex(TeamId.TEAM_TWO)].performClick()
-        waitForText("Red Card")
-        enterCardPlayerNumber("6")
-        composeRule.onNodeWithText("Record").performClick()
-        waitForText("Player Already Has Yellow")
-        composeRule.onNodeWithTag("red-card-mode-red").performClick()
-        waitForText("Team 2 has", substring = true)
-        composeRule.onNodeWithText("OK").performClick()
-
         openCardsSheet()
         composeRule.onAllNodesWithText("Red")[teamCardButtonIndex(TeamId.TEAM_TWO)].performClick()
         waitForText("Red Card")

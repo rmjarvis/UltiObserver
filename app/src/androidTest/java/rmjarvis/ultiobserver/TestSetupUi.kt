@@ -135,6 +135,8 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         waitForText("No prior cards recorded yet.")
         closeSetupEditor()
         addPriorCardHolder(teamName = beagles, jersey = "88", yellows = 2, reds = 1)
+        addPriorCardHolder(teamName = beagles, jersey = "77", yellows = 1, reds = 0)
+        waitForText("2 players carry cards.")
 
         // The edited setup launches a live game carrying the visible team names forward.
         startGameFromSetup()
