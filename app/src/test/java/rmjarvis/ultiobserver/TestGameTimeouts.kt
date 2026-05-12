@@ -72,7 +72,8 @@ class TestGameTimeouts : GameModelTestFixtures() {
 
         // A between-points timeout records a used timeout and extends the active countdown.
         val originalCountdown = state.countdown!!
-        var timeoutResult = state.assessTimeout(VC, originalCountdown.targetEpoch - 1_000L)
+        val betweenPointsTimeoutTime = originalCountdown.targetEpoch - 1_000L
+        var timeoutResult = state.assessTimeout(VC, betweenPointsTimeoutTime)
         assertNull(timeoutResult.message())
         state = timeoutResult.state
         assertEquals(1, state.teamOne.timeoutsUsedThisHalf)
@@ -80,6 +81,14 @@ class TestGameTimeouts : GameModelTestFixtures() {
         assertEquals("Signal in", state.countdown?.label)
         assertEquals(90, state.countdown?.durationSeconds)
         assertEquals(originalCountdown.targetEpoch + 70_000L, state.countdown?.targetEpoch)
+        assertEquals(
+            TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE,
+            state.countdown?.nextTimingCue(betweenPointsTimeoutTime)?.id,
+        )
+        assertEquals(
+            Duration.ofSeconds(60),
+            state.countdown?.nextTimingCue(betweenPointsTimeoutTime)?.countdownTime,
+        )
         assertEquals("Undo Timeout by Viscous Coupling", state.undoEntry?.label)
 
         // A live-point timeout starts a fresh offense-set timeout countdown.

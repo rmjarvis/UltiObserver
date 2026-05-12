@@ -90,6 +90,21 @@ internal data class TimingCueDisplay(
     val targetEpoch: Long,
 )
 
+internal fun defaultTimingCueModes(): Map<TimingCueId, TimingAlertMode> {
+    return TimingCueId.entries.associateWith { it.defaultAlertMode() }
+}
+
+internal fun TimingCueId.defaultAlertMode(): TimingAlertMode {
+    return when (this) {
+        TimingCueId.RECEIVING_TWENTY_FOR_HAND,
+        TimingCueId.PULLING_TWENTY_TO_PULL,
+        TimingCueId.TIMEOUT_OFFENSE_TWENTY,
+        TimingCueId.HALFTIME_TWO_MINUTES,
+        -> TimingAlertMode.VIBRATE
+        else -> TimingAlertMode.NONE
+    }
+}
+
 internal fun CountdownState.nextTimingCue(now: Long): TimingCueDisplay? {
     return timingCues()
         .firstNotNullOfOrNull { cue ->
@@ -136,7 +151,13 @@ private fun CountdownState.timingCues(): List<TimingCue> {
 }
 
 private fun CountdownState.betweenPointsTimingCues(): List<TimingCue> {
-    return when (betweenPointsTarget ?: error("Between-points countdown is missing its target side.")) {
+    val target = betweenPointsTarget ?: error("Between-points countdown is missing its target side.")
+    val timeoutCues = if (durationSeconds > target.baseDurationSeconds(kind)) {
+        listOf(TimingCue(TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE, 60))
+    } else {
+        emptyList()
+    }
+    return timeoutCues + when (target) {
         BetweenPointsCountdownTarget.OFFENSE_READY -> listOf(
             TimingCue(TimingCueId.RECEIVING_TWENTY_FOR_HAND, 20),
             TimingCue(TimingCueId.RECEIVING_TEN_FOR_HAND, 10),

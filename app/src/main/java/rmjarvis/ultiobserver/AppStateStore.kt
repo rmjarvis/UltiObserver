@@ -22,6 +22,7 @@ internal data class PersistedActiveAppState(
     val viewingArchivedGameIndex: Int?,
     val profileName: String = "",
     val hasSetupDraft: Boolean = false,
+    val timingAlertPreferences: TimingAlertPreferences = TimingAlertPreferences(),
 )
 
 internal interface AppStateStore {

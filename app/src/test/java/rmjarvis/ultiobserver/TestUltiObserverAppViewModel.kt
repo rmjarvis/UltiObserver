@@ -315,12 +315,49 @@ class TestUltiObserverAppViewModel {
 
         viewModel.openSettings()
         assertEquals(AppScreen.SETTINGS, viewModel.screen)
+        viewModel.updateTimingAlertGlobalMode(TimingAlertGlobalMode.VIBRATION_ONLY)
+        viewModel.updateTimingCueMode(TimingCueId.PULLING_DELAY_OF_GAME, TimingAlertMode.DING)
+        assertEquals(
+            TimingAlertMode.VIBRATE,
+            viewModel.timingAlertPreferences.alertModeFor(TimingCueId.PULLING_DELAY_OF_GAME),
+        )
+        viewModel.updateTimingCueMode(TimingCueId.TIMEOUT_OFFENSE_TEN, TimingAlertMode.VIBRATE)
+        viewModel.openTimingCueSettings()
+        assertEquals(AppScreen.TIMING_CUE_SETTINGS, viewModel.screen)
+        viewModel.goBackFromCurrentScreen()
+        assertEquals(AppScreen.SETTINGS, viewModel.screen)
+        viewModel.updateTimingAlertGlobalMode(TimingAlertGlobalMode.OFF)
+        assertEquals(
+            TimingAlertMode.NONE,
+            viewModel.timingAlertPreferences.alertModeFor(TimingCueId.PULLING_DELAY_OF_GAME),
+        )
+        assertEquals(
+            TimingAlertMode.NONE,
+            viewModel.timingAlertPreferences.alertModeFor(TimingCueId.TIMEOUT_OFFENSE_TEN),
+        )
         viewModel.openPreviousGames()
         assertEquals(AppScreen.PREVIOUS_GAMES, viewModel.screen)
 
         val restored = UltiObserverAppViewModel(FileAppStateStore(storeDir))
         assertEquals(AppScreen.HOME, restored.screen)
         assertEquals("Casey Observer", restored.profileName)
+        assertEquals(TimingAlertGlobalMode.OFF, restored.timingAlertPreferences.globalMode)
+        assertEquals(
+            TimingAlertMode.DING,
+            restored.timingAlertPreferences.cueModes[TimingCueId.PULLING_DELAY_OF_GAME],
+        )
+        assertEquals(
+            TimingAlertMode.VIBRATE,
+            restored.timingAlertPreferences.cueModes[TimingCueId.TIMEOUT_OFFENSE_TEN],
+        )
+        assertEquals(
+            TimingAlertMode.NONE,
+            restored.timingAlertPreferences.alertModeFor(TimingCueId.PULLING_DELAY_OF_GAME),
+        )
+        assertEquals(
+            TimingAlertMode.NONE,
+            restored.timingAlertPreferences.alertModeFor(TimingCueId.TIMEOUT_OFFENSE_TEN),
+        )
     }
 
     @Test

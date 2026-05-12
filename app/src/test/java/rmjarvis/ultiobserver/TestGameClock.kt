@@ -32,6 +32,24 @@ class TestGameClock : GameModelTestFixtures() {
             targetEpoch = 70_000L,
         )
         assertNull(timeoutCountdownWithDefaultTarget.betweenPointsTarget)
+        val defaultTimingAlertPreferences = TimingAlertPreferences()
+        assertEquals(TimingAlertGlobalMode.VIBRATION_ONLY, defaultTimingAlertPreferences.globalMode)
+        val vibrationDefaultCues = TimingCueId.entries.filter { cueId ->
+            defaultTimingAlertPreferences.cueModes[cueId] == TimingAlertMode.VIBRATE
+        }
+        assertEquals(
+            listOf(
+                TimingCueId.RECEIVING_TWENTY_FOR_HAND,
+                TimingCueId.PULLING_TWENTY_TO_PULL,
+                TimingCueId.TIMEOUT_OFFENSE_TWENTY,
+                TimingCueId.HALFTIME_TWO_MINUTES,
+            ),
+            vibrationDefaultCues,
+        )
+        assertEquals(
+            TimingCueId.entries.size - vibrationDefaultCues.size,
+            defaultTimingAlertPreferences.cueModes.values.count { mode -> mode == TimingAlertMode.NONE },
+        )
 
         // Verify the setup-time default helper rounds to the next half hour using a caller-supplied clock.
         assertEquals(LocalTime.of(9, 0), nextHalfHourFrom(LocalTime.of(9, 0)))
@@ -105,6 +123,8 @@ class TestGameClock : GameModelTestFixtures() {
         assertEquals("Signal in" to Duration.ofSeconds(30), betweenPointsDisplay(FieldEnd.FAR, 1_000L, 31_000L))
         assertEquals("Signal in" to Duration.ZERO, betweenPointsDisplay(FieldEnd.FAR, 1_000L, 70_000L))
         assertEquals("Pull in" to Duration.ofSeconds(80), betweenPointsDisplay(FieldEnd.NEAR, 2_000L, 2_000L))
+        val standardPullCountdown = buildBetweenPointsCountdown(FieldEnd.NEAR, 2_000L)
+        assertEquals(TimingCueId.PULLING_TWENTY_TO_PULL, standardPullCountdown.nextTimingCue(2_000L)?.id)
 
         // Verify the opening pull uses the first-point timing from the observer manual.
         val openingReceiveCountdown = buildBetweenPointsCountdown(

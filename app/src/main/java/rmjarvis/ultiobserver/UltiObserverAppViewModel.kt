@@ -13,6 +13,7 @@ internal enum class AppScreen {
     HOME,
     PROFILE,
     SETTINGS,
+    TIMING_CUE_SETTINGS,
     PREVIOUS_GAMES,
     SETUP,
     LIVE,
@@ -51,6 +52,10 @@ internal class UltiObserverAppViewModel(
         private set
     var profileName by mutableStateOf(persistedActiveState?.profileName ?: "")
         private set
+    var timingAlertPreferences by mutableStateOf(
+        persistedActiveState?.timingAlertPreferences ?: TimingAlertPreferences()
+    )
+        private set
     var archivedGames by mutableStateOf(appStateStore.loadArchivedGames())
         private set
     var viewingArchivedGame by mutableStateOf(viewingArchivedGameIndex?.let { archivedGames.getOrNull(it) })
@@ -79,6 +84,11 @@ internal class UltiObserverAppViewModel(
     }
 
     fun goBackFromCurrentScreen() {
+        if (screen == AppScreen.TIMING_CUE_SETTINGS) {
+            openSettings()
+            return
+        }
+
         val previewState = liveState
         if (screen == AppScreen.LIVE && previewState?.isInitialLivePreview() == true && viewingArchivedGame == null) {
             reopenSetupDraftFromInitialPreview()
@@ -109,6 +119,18 @@ internal class UltiObserverAppViewModel(
         persistActiveState()
     }
 
+    fun updateTimingAlertGlobalMode(mode: TimingAlertGlobalMode) {
+        timingAlertPreferences = timingAlertPreferences.copy(globalMode = mode)
+        persistActiveState()
+    }
+
+    fun updateTimingCueMode(cueId: TimingCueId, mode: TimingAlertMode) {
+        timingAlertPreferences = timingAlertPreferences.copy(
+            cueModes = timingAlertPreferences.cueModes + (cueId to mode),
+        )
+        persistActiveState()
+    }
+
     fun openProfile() {
         clearViewedArchivedGame()
         screen = AppScreen.PROFILE
@@ -118,6 +140,12 @@ internal class UltiObserverAppViewModel(
     fun openSettings() {
         clearViewedArchivedGame()
         screen = AppScreen.SETTINGS
+        persistActiveState()
+    }
+
+    fun openTimingCueSettings() {
+        clearViewedArchivedGame()
+        screen = AppScreen.TIMING_CUE_SETTINGS
         persistActiveState()
     }
 
@@ -285,6 +313,7 @@ internal class UltiObserverAppViewModel(
                 viewingArchivedGameIndex = viewingArchivedGameIndex,
                 profileName = profileName,
                 hasSetupDraft = hasSetupDraft,
+                timingAlertPreferences = timingAlertPreferences,
             )
         )
     }

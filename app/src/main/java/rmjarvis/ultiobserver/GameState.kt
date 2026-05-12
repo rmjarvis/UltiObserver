@@ -172,8 +172,61 @@ enum class TimingCueId(
     TIMEOUT_OFFENSE_TEN("10 seconds, offense"),
     TIMEOUT_COUNTDOWN_FROM_FIVE("Countdown from 5"),
     TIMEOUT_OFFENSE_FREEZE_DEFENSE_TWENTY("Offense freeze; defense 20 seconds"),
+    TIMEOUT_BETWEEN_POINTS_ONE_MINUTE("1 minute to hand/pull"),
     HALFTIME_FIVE_MINUTES("5 minutes"),
     HALFTIME_TWO_MINUTES("2 minutes"),
+}
+@Serializable
+enum class TimingAlertMode {
+    NONE,
+    VIBRATE,
+    TICK,
+    BEEP,
+    DING,
+    DOUBLE_TICK,
+}
+@Serializable
+enum class TimingAlertSound(
+    val label: String,
+) {
+    TICK("Tick"),
+    BEEP("Beep"),
+    DING("Ding"),
+    DOUBLE_TICK("2 Tick"),
+}
+@Serializable
+data class TimingAlertPreferences(
+    val globalMode: TimingAlertGlobalMode = TimingAlertGlobalMode.VIBRATION_ONLY,
+    val cueModes: Map<TimingCueId, TimingAlertMode> = defaultTimingCueModes(),
+) {
+    fun alertModeFor(cueId: TimingCueId): TimingAlertMode {
+        val configuredMode = cueModes[cueId] ?: cueId.defaultAlertMode()
+        return when (globalMode) {
+            TimingAlertGlobalMode.OFF -> TimingAlertMode.NONE
+            TimingAlertGlobalMode.VIBRATION_ONLY -> {
+                if (configuredMode == TimingAlertMode.NONE) TimingAlertMode.NONE else TimingAlertMode.VIBRATE
+            }
+            TimingAlertGlobalMode.SOUNDS_ON -> configuredMode
+        }
+    }
+}
+
+enum class TimingAlertGlobalMode(
+    val label: String,
+) {
+    OFF("Off"),
+    VIBRATION_ONLY("Vibration Only"),
+    SOUNDS_ON("Sounds On"),
+}
+
+internal fun TimingAlertMode.soundOrNull(): TimingAlertSound? {
+    return when (this) {
+        TimingAlertMode.TICK -> TimingAlertSound.TICK
+        TimingAlertMode.BEEP -> TimingAlertSound.BEEP
+        TimingAlertMode.DING -> TimingAlertSound.DING
+        TimingAlertMode.DOUBLE_TICK -> TimingAlertSound.DOUBLE_TICK
+        TimingAlertMode.NONE, TimingAlertMode.VIBRATE -> null
+    }
 }
 @Serializable
 data class LiveGameState(

@@ -73,7 +73,20 @@ internal fun UltiObserverApp(viewModel: UltiObserverAppViewModel) {
         }
 
         AppScreen.SETTINGS -> {
-            SettingsScreen(onBackHome = viewModel::goHome)
+            SettingsScreen(
+                timingAlertPreferences = viewModel.timingAlertPreferences,
+                onGlobalModeChange = viewModel::updateTimingAlertGlobalMode,
+                onOpenTimingCueSettings = viewModel::openTimingCueSettings,
+                onBackHome = viewModel::goHome,
+            )
+        }
+
+        AppScreen.TIMING_CUE_SETTINGS -> {
+            TimingCueSettingsScreen(
+                timingAlertPreferences = viewModel.timingAlertPreferences,
+                onTimingCueModeChange = viewModel::updateTimingCueMode,
+                onBackSettings = viewModel::openSettings,
+            )
         }
 
         AppScreen.PREVIOUS_GAMES -> {
@@ -103,6 +116,7 @@ internal fun UltiObserverApp(viewModel: UltiObserverAppViewModel) {
                 LiveGameScreen(
                     state = currentLiveState,
                     readOnlySummary = viewModel.viewingReadOnlySummary,
+                    timingAlertPreferences = viewModel.timingAlertPreferences,
                     onStateChange = viewModel::updateLiveGame,
                     onUpdateGameSetup = {
                         viewModel.editCurrentGame(currentLiveState)

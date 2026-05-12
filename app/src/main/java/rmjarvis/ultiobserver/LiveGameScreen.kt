@@ -1,5 +1,6 @@
 package rmjarvis.ultiobserver
 
+import android.view.HapticFeedbackConstants
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,6 +20,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,6 +30,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -39,6 +43,7 @@ import java.time.LocalTime
 internal fun LiveGameScreen(
     state: LiveGameState,
     readOnlySummary: Boolean,
+    timingAlertPreferences: TimingAlertPreferences,
     onStateChange: (LiveGameState) -> Unit,
     onUpdateGameSetup: () -> Unit,
     onDeleteGame: () -> Unit,
@@ -51,6 +56,14 @@ internal fun LiveGameScreen(
     var actionInfoTitle by remember { mutableStateOf<String?>(null) }
     var activeGamePrompt by remember { mutableStateOf<GamePrompt?>(null) }
     var previouslyObservedPhase by remember { mutableStateOf(state.phase) }
+    var lastTimingAlertKey by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+    val view = LocalView.current
+    val timingAlertPlayer = remember(context) { TimingAlertPlayer(context) }
+
+    DisposableEffect(timingAlertPlayer) {
+        onDispose { timingAlertPlayer.release() }
+    }
 
     fun showActionInfo(message: String, title: String) {
         actionInfoMessage = message
@@ -82,6 +95,9 @@ internal fun LiveGameScreen(
     val activeCountdown = remember(state, now) {
         state.activeCountdownDisplay(now)
     }
+    val dueTimingCue = remember(state.countdown, now) {
+        state.countdown?.dueTimingCue(now)
+    }
     val canStartPoint = remember(state, now) {
         state.phase == LivePhase.BETWEEN_POINTS || state.halftimeTransitionReady(now)
     }
@@ -92,6 +108,20 @@ internal fun LiveGameScreen(
             val advancedState = state.advanceGameClock(now)
             if (advancedState != state) {
                 onStateChange(advancedState)
+            }
+        }
+    }
+
+    LaunchedEffect(dueTimingCue, timingAlertPreferences, readOnlySummary) {
+        val cue = dueTimingCue ?: return@LaunchedEffect
+        val alertKey = "${cue.id.name}:${cue.targetEpoch}"
+        if (!readOnlySummary && alertKey != lastTimingAlertKey) {
+            lastTimingAlertKey = alertKey
+            val alertMode = timingAlertPreferences.alertModeFor(cue.id)
+            when (alertMode) {
+                TimingAlertMode.NONE -> Unit
+                TimingAlertMode.VIBRATE -> view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                else -> alertMode.soundOrNull()?.let(timingAlertPlayer::play)
             }
         }
     }
