@@ -34,6 +34,8 @@ class TestGameClock : GameModelTestFixtures() {
         assertNull(timeoutCountdownWithDefaultTarget.betweenPointsTarget)
         val defaultTimingAlertPreferences = TimingAlertPreferences()
         assertEquals(TimingAlertGlobalMode.VIBRATION_ONLY, defaultTimingAlertPreferences.globalMode)
+        assertEquals(0.5f, defaultTimingAlertPreferences.soundVolume, 0f)
+        assertFalse(defaultTimingAlertPreferences.vibrateWithSounds)
         val vibrationDefaultCues = TimingCueId.entries.filter { cueId ->
             defaultTimingAlertPreferences.cueModes[cueId] == TimingAlertMode.VIBRATE
         }

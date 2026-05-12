@@ -22,7 +22,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.Icons
@@ -33,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -84,6 +87,8 @@ internal fun ProfileScreen(
 internal fun SettingsScreen(
     timingAlertPreferences: TimingAlertPreferences,
     onGlobalModeChange: (TimingAlertGlobalMode) -> Unit,
+    onSoundVolumeChange: (Float) -> Unit,
+    onVibrateWithSoundsChange: (Boolean) -> Unit,
     onOpenTimingCueSettings: () -> Unit,
     onBackHome: () -> Unit,
 ) {
@@ -110,6 +115,12 @@ internal fun SettingsScreen(
             TimingAlertGlobalModeSelector(
                 selectedMode = timingAlertPreferences.globalMode,
                 onModeChange = onGlobalModeChange,
+            )
+
+            TimingAlertSoundControls(
+                timingAlertPreferences = timingAlertPreferences,
+                onSoundVolumeChange = onSoundVolumeChange,
+                onVibrateWithSoundsChange = onVibrateWithSoundsChange,
             )
 
             Button(
@@ -168,7 +179,7 @@ internal fun TimingCueSettingsScreen(
                 sounds = TimingAlertSound.entries,
                 onPreview = { sound ->
                     if (timingAlertPreferences.globalMode == TimingAlertGlobalMode.SOUNDS_ON) {
-                        timingAlertPlayer.play(sound)
+                        timingAlertPlayer.play(sound, timingAlertPreferences.soundVolume)
                     }
                 },
             )
@@ -201,7 +212,7 @@ private fun TimingAlertGlobalModeSelector(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
-            text = "Use sounds and vibration for cues?",
+            text = "Use sounds and vibration for timing cues?",
             style = MaterialTheme.typography.titleMedium,
         )
         FlowRow(
@@ -215,6 +226,64 @@ private fun TimingAlertGlobalModeSelector(
                     onClick = { onModeChange(mode) },
                     label = { Text(mode.label) },
                     modifier = Modifier.testTag("settings-global-alert-${mode.name}"),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TimingAlertSoundControls(
+    timingAlertPreferences: TimingAlertPreferences,
+    onSoundVolumeChange: (Float) -> Unit,
+    onVibrateWithSoundsChange: (Boolean) -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            text = timingAlertPreferences.globalMode.settingsMessage(),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        if (timingAlertPreferences.globalMode != TimingAlertGlobalMode.SOUNDS_ON) {
+            return@Column
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = "Sound volume ${(timingAlertPreferences.soundVolume * 100).toInt()}%",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Slider(
+                value = timingAlertPreferences.soundVolume,
+                onValueChange = onSoundVolumeChange,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("settings-sound-volume"),
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "Also vibrate on cues that use sound?",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = if (timingAlertPreferences.vibrateWithSounds) "Yes" else "No",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.testTag("settings-vibrate-with-sounds-value"),
+                )
+                Switch(
+                    checked = timingAlertPreferences.vibrateWithSounds,
+                    onCheckedChange = onVibrateWithSoundsChange,
+                    modifier = Modifier.testTag("settings-vibrate-with-sounds"),
                 )
             }
         }
@@ -298,6 +367,16 @@ private fun CompactTimingAlertOption(
             maxLines = 1,
             style = MaterialTheme.typography.labelMedium,
         )
+    }
+}
+
+private fun TimingAlertGlobalMode.settingsMessage(): String {
+    return when (this) {
+        TimingAlertGlobalMode.OFF -> "No sound or vibration will be used for any timing cues."
+        TimingAlertGlobalMode.VIBRATION_ONLY -> {
+            "Vibration will be used for any cues that are set to use sound."
+        }
+        TimingAlertGlobalMode.SOUNDS_ON -> "Ear buds are recommended when using sounds with UltiObserver."
     }
 }
 

@@ -205,6 +205,8 @@ enum class TimingAlertSound(
 @Serializable
 data class TimingAlertPreferences(
     val globalMode: TimingAlertGlobalMode = TimingAlertGlobalMode.VIBRATION_ONLY,
+    val soundVolume: Float = 0.5f,
+    val vibrateWithSounds: Boolean = false,
     val cueModes: Map<TimingCueId, TimingAlertMode> = defaultTimingCueModes(),
 ) {
     fun alertModeFor(cueId: TimingCueId): TimingAlertMode {
@@ -227,15 +229,6 @@ enum class TimingAlertGlobalMode(
     SOUNDS_ON("Sounds On"),
 }
 
-internal fun TimingAlertMode.soundOrNull(): TimingAlertSound? {
-    return when (this) {
-        TimingAlertMode.TICK -> TimingAlertSound.TICK
-        TimingAlertMode.BEEP -> TimingAlertSound.BEEP
-        TimingAlertMode.DING -> TimingAlertSound.DING
-        TimingAlertMode.DOUBLE_TICK -> TimingAlertSound.DOUBLE_TICK
-        TimingAlertMode.NONE, TimingAlertMode.VIBRATE -> null
-    }
-}
 @Serializable
 data class LiveGameState(
     @Serializable(with = LocalDateAsStringSerializer::class)

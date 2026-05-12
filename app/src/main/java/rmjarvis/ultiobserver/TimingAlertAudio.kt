@@ -20,9 +20,9 @@ internal class TimingAlertPlayer(
         soundPool.load(context, sound.rawResourceId(), 1)
     }
 
-    fun play(sound: TimingAlertSound) {
+    fun play(sound: TimingAlertSound, volume: Float) {
         val soundId = soundIds[sound] ?: return
-        soundPool.play(soundId, 1f, 1f, 1, 0, 1f)
+        soundPool.play(soundId, volume, volume, 1, 0, 1f)
     }
 
     fun release() {

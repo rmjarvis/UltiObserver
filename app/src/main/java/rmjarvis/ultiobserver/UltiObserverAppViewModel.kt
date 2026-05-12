@@ -124,6 +124,16 @@ internal class UltiObserverAppViewModel(
         persistActiveState()
     }
 
+    fun updateTimingAlertSoundVolume(volume: Float) {
+        timingAlertPreferences = timingAlertPreferences.copy(soundVolume = volume)
+        persistActiveState()
+    }
+
+    fun updateTimingAlertVibrateWithSounds(vibrateWithSounds: Boolean) {
+        timingAlertPreferences = timingAlertPreferences.copy(vibrateWithSounds = vibrateWithSounds)
+        persistActiveState()
+    }
+
     fun updateTimingCueMode(cueId: TimingCueId, mode: TimingAlertMode) {
         timingAlertPreferences = timingAlertPreferences.copy(
             cueModes = timingAlertPreferences.cueModes + (cueId to mode),

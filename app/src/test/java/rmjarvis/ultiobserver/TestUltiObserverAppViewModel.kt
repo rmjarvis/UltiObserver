@@ -316,6 +316,8 @@ class TestUltiObserverAppViewModel {
         viewModel.openSettings()
         assertEquals(AppScreen.SETTINGS, viewModel.screen)
         viewModel.updateTimingAlertGlobalMode(TimingAlertGlobalMode.VIBRATION_ONLY)
+        viewModel.updateTimingAlertSoundVolume(0.4f)
+        viewModel.updateTimingAlertVibrateWithSounds(true)
         viewModel.updateTimingCueMode(TimingCueId.PULLING_TIME_VIOLATION, TimingAlertMode.DING)
         assertEquals(
             TimingAlertMode.VIBRATE,
@@ -342,6 +344,8 @@ class TestUltiObserverAppViewModel {
         assertEquals(AppScreen.HOME, restored.screen)
         assertEquals("Casey Observer", restored.profileName)
         assertEquals(TimingAlertGlobalMode.OFF, restored.timingAlertPreferences.globalMode)
+        assertEquals(0.4f, restored.timingAlertPreferences.soundVolume, 0f)
+        assertTrue(restored.timingAlertPreferences.vibrateWithSounds)
         assertEquals(
             TimingAlertMode.DING,
             restored.timingAlertPreferences.cueModes[TimingCueId.PULLING_TIME_VIOLATION],

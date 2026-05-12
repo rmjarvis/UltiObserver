@@ -76,6 +76,8 @@ internal fun UltiObserverApp(viewModel: UltiObserverAppViewModel) {
             SettingsScreen(
                 timingAlertPreferences = viewModel.timingAlertPreferences,
                 onGlobalModeChange = viewModel::updateTimingAlertGlobalMode,
+                onSoundVolumeChange = viewModel::updateTimingAlertSoundVolume,
+                onVibrateWithSoundsChange = viewModel::updateTimingAlertVibrateWithSounds,
                 onOpenTimingCueSettings = viewModel::openTimingCueSettings,
                 onBackHome = viewModel::goHome,
             )

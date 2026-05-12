@@ -1,6 +1,7 @@
 package rmjarvis.ultiobserver
 
 import android.view.HapticFeedbackConstants
+import android.view.View
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -124,8 +125,16 @@ internal fun LiveGameScreen(
             val alertMode = timingAlertPreferences.alertModeFor(cue.id)
             when (alertMode) {
                 TimingAlertMode.NONE -> Unit
-                TimingAlertMode.VIBRATE -> view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                else -> alertMode.soundOrNull()?.let(timingAlertPlayer::play)
+                TimingAlertMode.VIBRATE -> view.performTimingCueHaptic()
+                TimingAlertMode.TICK,
+                TimingAlertMode.BEEP,
+                TimingAlertMode.DING,
+                TimingAlertMode.DOUBLE_TICK -> playTimingSound(
+                    alertMode.toTimingAlertSound(),
+                    timingAlertPreferences,
+                    view,
+                    timingAlertPlayer,
+                )
             }
         }
     }
@@ -507,6 +516,32 @@ internal fun LiveGameScreen(
                 },
             )
         }
+    }
+}
+
+private fun playTimingSound(
+    sound: TimingAlertSound,
+    timingAlertPreferences: TimingAlertPreferences,
+    view: View,
+    timingAlertPlayer: TimingAlertPlayer,
+) {
+    if (timingAlertPreferences.vibrateWithSounds) {
+        view.performTimingCueHaptic()
+    }
+    timingAlertPlayer.play(sound, timingAlertPreferences.soundVolume)
+}
+
+private fun View.performTimingCueHaptic() {
+    performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+}
+
+private fun TimingAlertMode.toTimingAlertSound(): TimingAlertSound {
+    return when (this) {
+        TimingAlertMode.TICK -> TimingAlertSound.TICK
+        TimingAlertMode.BEEP -> TimingAlertSound.BEEP
+        TimingAlertMode.DING -> TimingAlertSound.DING
+        TimingAlertMode.DOUBLE_TICK -> TimingAlertSound.DOUBLE_TICK
+        TimingAlertMode.NONE, TimingAlertMode.VIBRATE -> error("$this is not a sound timing alert mode.")
     }
 }
 

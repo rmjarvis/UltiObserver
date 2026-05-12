@@ -1,7 +1,10 @@
 package rmjarvis.ultiobserver
 
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
@@ -105,8 +108,22 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         pressAppBack()
         waitForText("Start New Game")
         composeRule.onNodeWithText("Settings").performClick()
-        waitForText("Use sounds and vibration for cues?")
+        waitForText("Use sounds and vibration for timing cues?")
         waitForText("Vibration Only")
+        waitForText("Vibration will be used for any cues that are set to use sound.")
+        composeRule.onAllNodesWithTag("settings-sound-volume").assertCountEquals(0)
+        composeRule.onAllNodesWithTag("settings-vibrate-with-sounds").assertCountEquals(0)
+        composeRule.onNodeWithText("Sounds On").performClick()
+        waitForText("Ear buds are recommended when using sounds with UltiObserver.")
+        waitForText("Sound volume 50%")
+        waitForText("Also vibrate on cues that use sound?")
+        composeRule.onNodeWithTag("settings-vibrate-with-sounds-value").assertTextEquals("No")
+        composeRule.onNodeWithTag("settings-sound-volume").assertIsEnabled()
+        composeRule.onNodeWithTag("settings-vibrate-with-sounds").assertIsEnabled()
+        composeRule.onNodeWithText("Off").performClick()
+        waitForText("No sound or vibration will be used for any timing cues.")
+        composeRule.onAllNodesWithTag("settings-sound-volume").assertCountEquals(0)
+        composeRule.onAllNodesWithTag("settings-vibrate-with-sounds").assertCountEquals(0)
         waitForText("Sound Settings for Individual Cues")
         composeRule.onNodeWithText("Sound Settings for Individual Cues").performClick()
         waitForText("Cue Sound Settings")
