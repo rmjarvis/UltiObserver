@@ -132,6 +132,11 @@ internal class UltiObserverAppViewModel(
         persistActiveState()
     }
 
+    fun updateTimingAlertVibrationDuration(durationMillis: Long) {
+        timingAlertPreferences = timingAlertPreferences.copy(vibrationDurationMillis = durationMillis)
+        persistActiveState()
+    }
+
     fun updateTimingAlertVibrateWithSounds(vibrateWithSounds: Boolean) {
         timingAlertPreferences = timingAlertPreferences.copy(vibrateWithSounds = vibrateWithSounds)
         persistActiveState()

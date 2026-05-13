@@ -41,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToLong
 
 // Profile placeholder with the first real user-editable field.
 @OptIn(ExperimentalMaterial3Api::class)
@@ -88,6 +89,7 @@ internal fun SettingsScreen(
     timingAlertPreferences: TimingAlertPreferences,
     onGlobalModeChange: (TimingAlertGlobalMode) -> Unit,
     onSoundVolumeChange: (Float) -> Unit,
+    onVibrationDurationChange: (Long) -> Unit,
     onVibrateWithSoundsChange: (Boolean) -> Unit,
     onOpenTimingCueSettings: () -> Unit,
     onBackHome: () -> Unit,
@@ -120,6 +122,7 @@ internal fun SettingsScreen(
             TimingAlertSoundControls(
                 timingAlertPreferences = timingAlertPreferences,
                 onSoundVolumeChange = onSoundVolumeChange,
+                onVibrationDurationChange = onVibrationDurationChange,
                 onVibrateWithSoundsChange = onVibrateWithSoundsChange,
             )
 
@@ -236,6 +239,7 @@ private fun TimingAlertGlobalModeSelector(
 private fun TimingAlertSoundControls(
     timingAlertPreferences: TimingAlertPreferences,
     onSoundVolumeChange: (Float) -> Unit,
+    onVibrationDurationChange: (Long) -> Unit,
     onVibrateWithSoundsChange: (Boolean) -> Unit,
 ) {
     Column(
@@ -246,6 +250,22 @@ private fun TimingAlertSoundControls(
             text = timingAlertPreferences.globalMode.settingsMessage(),
             style = MaterialTheme.typography.bodyMedium,
         )
+        if (timingAlertPreferences.globalMode != TimingAlertGlobalMode.OFF) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = "Vibration length",
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Slider(
+                    value = timingAlertPreferences.vibrationDurationMillis.toFloat(),
+                    onValueChange = { onVibrationDurationChange(it.roundToLong()) },
+                    valueRange = MIN_TIMING_CUE_VIBRATION_MS.toFloat()..MAX_TIMING_CUE_VIBRATION_MS.toFloat(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("settings-vibration-length"),
+                )
+            }
+        }
         if (timingAlertPreferences.globalMode != TimingAlertGlobalMode.SOUNDS_ON) {
             return@Column
         }

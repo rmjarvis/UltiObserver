@@ -259,6 +259,7 @@ enum class TimingAlertSound(
 data class TimingAlertPreferences(
     val globalMode: TimingAlertGlobalMode = TimingAlertGlobalMode.VIBRATION_ONLY,
     val soundVolume: Float = 0.5f,
+    val vibrationDurationMillis: Long = DEFAULT_TIMING_CUE_VIBRATION_MS,
     val vibrateWithSounds: Boolean = false,
     val cueModes: Map<TimingCueId, TimingAlertMode> = defaultTimingCueModes(),
 ) {
@@ -279,6 +280,10 @@ data class TimingAlertPreferences(
         }
     }
 }
+
+const val MIN_TIMING_CUE_VIBRATION_MS = 100L
+const val MAX_TIMING_CUE_VIBRATION_MS = 500L
+const val DEFAULT_TIMING_CUE_VIBRATION_MS = 360L
 
 enum class TimingAlertGlobalMode(
     val label: String,

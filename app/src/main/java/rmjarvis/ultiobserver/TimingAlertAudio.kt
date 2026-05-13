@@ -11,22 +11,50 @@ internal class TimingAlertPlayer(
         .setMaxStreams(1)
         .setAudioAttributes(
             AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+                .setUsage(AudioAttributes.USAGE_MEDIA)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                 .build()
         )
         .build()
-    private val soundIds = TimingAlertSound.entries.associateWith { sound ->
-        soundPool.load(context, sound.rawResourceId(), 1)
+    private val loadedSounds = mutableSetOf<TimingAlertSound>()
+    private val pendingPlays = mutableMapOf<TimingAlertSound, Float>()
+    private val soundsById = mutableMapOf<Int, TimingAlertSound>()
+    private val soundIds: Map<TimingAlertSound, Int>
+
+    init {
+        soundPool.setOnLoadCompleteListener { _, sampleId, status ->
+            val sound = soundsById[sampleId] ?: return@setOnLoadCompleteListener
+            if (status == 0) {
+                loadedSounds += sound
+                pendingPlays.remove(sound)?.let { volume ->
+                    playLoaded(sound, volume)
+                }
+            }
+        }
+        soundIds = TimingAlertSound.entries.associateWith { sound ->
+            soundPool.load(context, sound.rawResourceId(), 1).also { soundId ->
+                soundsById[soundId] = sound
+            }
+        }
     }
 
     fun play(sound: TimingAlertSound, volume: Float) {
-        val soundId = soundIds[sound]!!
-        soundPool.play(soundId, volume, volume, 1, 0, 1f)
+        val playVolume = volume.coerceIn(0f, 1f)
+        if (sound in loadedSounds) {
+            playLoaded(sound, playVolume)
+        } else {
+            pendingPlays[sound] = playVolume
+        }
     }
 
     fun release() {
+        pendingPlays.clear()
         soundPool.release()
+    }
+
+    private fun playLoaded(sound: TimingAlertSound, volume: Float) {
+        val soundId = soundIds[sound]!!
+        soundPool.play(soundId, volume, volume, 1, 0, 1f)
     }
 }
 

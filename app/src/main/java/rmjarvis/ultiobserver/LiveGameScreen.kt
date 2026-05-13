@@ -1,7 +1,10 @@
 package rmjarvis.ultiobserver
 
-import android.view.HapticFeedbackConstants
-import android.view.View
+import android.content.Context
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -32,7 +35,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -60,7 +62,6 @@ internal fun LiveGameScreen(
     var previouslyObservedPhase by remember { mutableStateOf(state.phase) }
     var lastTimingAlertKey by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
-    val view = LocalView.current
     val timingAlertPlayer = remember(context) { TimingAlertPlayer(context) }
 
     DisposableEffect(timingAlertPlayer) {
@@ -125,14 +126,16 @@ internal fun LiveGameScreen(
             val alertMode = timingAlertPreferences.alertModeFor(cue.id)
             when (alertMode) {
                 TimingAlertMode.NONE -> Unit
-                TimingAlertMode.VIBRATE -> view.performTimingCueHaptic()
+                TimingAlertMode.VIBRATE -> context.performTimingCueHaptic(
+                    timingAlertPreferences.vibrationDurationMillis,
+                )
                 TimingAlertMode.TICK,
                 TimingAlertMode.BEEP,
                 TimingAlertMode.DING,
                 TimingAlertMode.DOUBLE_TICK -> playTimingSound(
                     alertMode.toTimingAlertSound(),
                     timingAlertPreferences,
-                    view,
+                    context,
                     timingAlertPlayer,
                 )
             }
@@ -518,17 +521,30 @@ internal fun LiveGameScreen(
 private fun playTimingSound(
     sound: TimingAlertSound,
     timingAlertPreferences: TimingAlertPreferences,
-    view: View,
+    context: Context,
     timingAlertPlayer: TimingAlertPlayer,
 ) {
     if (timingAlertPreferences.vibrateWithSounds) {
-        view.performTimingCueHaptic()
+        context.performTimingCueHaptic(timingAlertPreferences.vibrationDurationMillis)
     }
     timingAlertPlayer.play(sound, timingAlertPreferences.soundVolume)
 }
 
-private fun View.performTimingCueHaptic() {
-    performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+private fun Context.performTimingCueHaptic(durationMillis: Long) {
+    val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        getSystemService(VibratorManager::class.java).defaultVibrator
+    } else {
+        getSystemService(Vibrator::class.java)
+    }
+    if (!vibrator.hasVibrator()) {
+        return
+    }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        vibrator.vibrate(VibrationEffect.createOneShot(durationMillis, VibrationEffect.DEFAULT_AMPLITUDE))
+    } else {
+        @Suppress("DEPRECATION")
+        vibrator.vibrate(durationMillis)
+    }
 }
 
 // Bottom action bar for undo plus immediate redo after an undo.
