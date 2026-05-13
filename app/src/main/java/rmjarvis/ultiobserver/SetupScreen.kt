@@ -59,8 +59,6 @@ import java.time.format.DateTimeFormatter
 private enum class RuleEditTarget(
     val dialogTitle: String,
     val fieldLabel: String,
-    val prefixText: String? = null,
-    val suffixText: String? = null,
 ) {
     GAME_TO(
         dialogTitle = "Game To",
@@ -73,20 +71,14 @@ private enum class RuleEditTarget(
     HALF(
         dialogTitle = "Half Cap",
         fieldLabel = "Minutes",
-        prefixText = "Half Cap at:",
-        suffixText = "minutes after start time.",
     ),
     SOFT(
         dialogTitle = "Soft Cap",
         fieldLabel = "Minutes",
-        prefixText = "Soft Cap at:",
-        suffixText = "minutes after start time.",
     ),
     HARD(
         dialogTitle = "Hard Cap",
         fieldLabel = "Minutes",
-        prefixText = "Hard Cap at:",
-        suffixText = "minutes after start time.",
     ),
 }
 
@@ -308,8 +300,8 @@ internal fun SetupScreen(
                 CapRuleEditDialog(
                     title = target.dialogTitle,
                     fieldLabel = target.fieldLabel,
-                    prefixText = target.prefixText,
-                    suffixText = target.suffixText,
+                    prefixText = "Half Cap at:",
+                    suffixText = "minutes after start time.",
                     initialValue = state.rules.halfCapMinutes,
                     initiallyEnabled = state.rules.useHalfCap,
                     onDismiss = { editingRule = null },
@@ -328,8 +320,8 @@ internal fun SetupScreen(
                 CapRuleEditDialog(
                     title = target.dialogTitle,
                     fieldLabel = target.fieldLabel,
-                    prefixText = target.prefixText,
-                    suffixText = target.suffixText,
+                    prefixText = "Soft Cap at:",
+                    suffixText = "minutes after start time.",
                     initialValue = state.rules.softCapMinutes,
                     initiallyEnabled = state.rules.useSoftCap,
                     onDismiss = { editingRule = null },
@@ -348,8 +340,8 @@ internal fun SetupScreen(
                 CapRuleEditDialog(
                     title = target.dialogTitle,
                     fieldLabel = target.fieldLabel,
-                    prefixText = target.prefixText,
-                    suffixText = target.suffixText,
+                    prefixText = "Hard Cap at:",
+                    suffixText = "minutes after start time.",
                     initialValue = state.rules.hardCapMinutes,
                     initiallyEnabled = state.rules.useHardCap,
                     onDismiss = { editingRule = null },
@@ -847,8 +839,8 @@ private fun IntegerEditDialog(
 private fun CapRuleEditDialog(
     title: String,
     fieldLabel: String,
-    prefixText: String? = null,
-    suffixText: String? = null,
+    prefixText: String,
+    suffixText: String,
     initialValue: Int,
     initiallyEnabled: Boolean,
     onDismiss: () -> Unit,
@@ -874,9 +866,7 @@ private fun CapRuleEditDialog(
                         modifier = Modifier.testTag("setup-$title-none"),
                     )
                 }
-                if (prefixText != null) {
-                    Text(prefixText)
-                }
+                Text(prefixText)
                 OutlinedTextField(
                     value = valueText,
                     onValueChange = { valueText = it.filter(Char::isDigit) },
@@ -885,9 +875,7 @@ private fun CapRuleEditDialog(
                     singleLine = true,
                     enabled = enabled,
                 )
-                if (suffixText != null) {
-                    Text(suffixText)
-                }
+                Text(suffixText)
             }
         },
         confirmButton = {

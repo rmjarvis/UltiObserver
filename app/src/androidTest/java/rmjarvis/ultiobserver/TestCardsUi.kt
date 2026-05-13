@@ -54,7 +54,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onAllNodesWithText("Yellow").onFirst().performClick()
         composeRule.onNodeWithText("Yellow Card").assertIsDisplayed()
         composeRule.onNodeWithText("Player number").assertIsDisplayed()
-        composeRule.onNodeWithText("N/A").performClick()
+        composeRule.onNodeWithText("Record").performClick()
         waitForText("Yellow card on player N/A.\nTeam 1 has 2 cards.")
         composeRule.onNodeWithText("OK").performClick()
 
@@ -66,6 +66,32 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         waitForText("Player Already Has Yellow")
         composeRule.onNodeWithTag("red-card-mode-red").performClick()
         waitForText("Team 1 has 4 cards.", substring = true)
+        composeRule.onNodeWithText("OK").performClick()
+
+        openCardsSheet()
+        composeRule.onAllNodesWithText("Yellow")[teamCardButtonIndex(TeamId.TEAM_TWO)].performClick()
+        waitForText("Yellow Card")
+        enterCardPlayerNumber("8")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Yellow card on player 8.\nTeam 2 has 2 cards.")
+        composeRule.onNodeWithText("OK").performClick()
+    }
+
+    // The Cards / TF sheet should keep pull/receive role labels visible during halftime.
+    @Test
+    fun cardsSheetShowsPullRolesDuringHalftime() {
+        startLiveGameProgrammatically()
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val current = activity.appViewModel.liveState!!
+            activity.appViewModel.updateLiveGame(current.startHalftimeNow(System.currentTimeMillis()))
+        }
+        composeRule.waitForIdle()
+        waitForText("Halftime")
+        composeRule.onNodeWithText("OK").performClick()
+
+        openCardsSheet()
+        composeRule.onNodeWithText("Team 1 (receiving)").assertIsDisplayed()
+        composeRule.onNodeWithText("Team 2 (pulling)").assertIsDisplayed()
     }
 
     // Test the card-specific edge cases that route through setup, Cards / TF, and Adjust Cards / TF.

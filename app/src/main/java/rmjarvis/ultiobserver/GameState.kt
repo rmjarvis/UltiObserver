@@ -262,8 +262,14 @@ data class TimingAlertPreferences(
     val vibrateWithSounds: Boolean = false,
     val cueModes: Map<TimingCueId, TimingAlertMode> = defaultTimingCueModes(),
 ) {
+    // The configured per-cue setting shown in Settings, before the global alert mode is applied.
+    fun settingsModeFor(cueId: TimingCueId): TimingAlertMode {
+        return cueModes[cueId] ?: cueId.defaultAlertMode()
+    }
+
+    // The effective alert mode to use when a timing cue fires.
     fun alertModeFor(cueId: TimingCueId): TimingAlertMode {
-        val configuredMode = cueModes[cueId] ?: cueId.defaultAlertMode()
+        val configuredMode = settingsModeFor(cueId)
         return when (globalMode) {
             TimingAlertGlobalMode.OFF -> TimingAlertMode.NONE
             TimingAlertGlobalMode.VIBRATION_ONLY -> {

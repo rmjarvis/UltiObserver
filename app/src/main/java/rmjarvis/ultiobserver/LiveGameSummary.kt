@@ -38,12 +38,11 @@ internal fun GameOverSummary(
                     text = "Start ${formatStartDate(state.startDate)} ${formatClockTime(state.startTime)}",
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                state.endEpoch?.let { endEpoch ->
-                    Text(
-                        text = "End time ${formatClockTime(localTimeFromEpoch(endEpoch, state.timeZone))}",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                }
+                val endTime = localTimeFromEpoch(state.endEpoch!!, state.timeZone)
+                Text(
+                    text = "End time ${formatClockTime(endTime)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
                 orderedTeams.forEach { team ->
                     Text(
                         text = "${team.name} ${team.score}",

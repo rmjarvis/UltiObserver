@@ -193,7 +193,7 @@ internal fun TimingCueSettingsScreen(
                 section.cues.forEach { cueId ->
                     TimingCueSettingRow(
                         cueId = cueId,
-                        mode = timingAlertPreferences.cueModes[cueId] ?: cueId.defaultAlertMode(),
+                        mode = timingAlertPreferences.settingsModeFor(cueId),
                         onModeChange = { mode -> onTimingCueModeChange(cueId, mode) },
                     )
                 }

@@ -135,6 +135,7 @@ internal fun AdjustCardsDialog(
     }
 
     fun applyCardAssignment(jerseyNumber: String) {
+        // Defensive stale-callback guard for a weird timing state.
         val step = pendingSteps.firstOrNull() ?: return
         val currentRecords = if (step.team == TeamId.TEAM_ONE) {
             workingTeamOnePlayerCards

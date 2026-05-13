@@ -15,8 +15,7 @@ class MainActivity : ComponentActivity() {
     internal val appViewModel: UltiObserverAppViewModel by viewModels {
         object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                require(modelClass == UltiObserverAppViewModel::class.java)
-                return modelClass.cast(UltiObserverAppViewModel(FileAppStateStore(filesDir)))
+                return modelClass.cast(UltiObserverAppViewModel(FileAppStateStore(filesDir)))!!
             }
         }
     }
@@ -43,15 +42,27 @@ internal fun UltiObserverApp(viewModel: UltiObserverAppViewModel) {
     // Route to the current top-level screen.
     when (viewModel.screen) {
         AppScreen.HOME -> {
+            val liveState = viewModel.liveState
+            val currentGame: GameListEntry?
+            val completedGamePendingArchive: GameListEntry?
+            if (liveState == null) {
+                currentGame = if (viewModel.hasSetupDraft) {
+                    viewModel.setupState.gameListEntry()
+                } else {
+                    null
+                }
+                completedGamePendingArchive = null
+            } else if (liveState.phase == LivePhase.GAME_OVER) {
+                currentGame = null
+                completedGamePendingArchive = liveState.gameListEntry()
+            } else {
+                currentGame = liveState.gameListEntry()
+                completedGamePendingArchive = null
+            }
             HomeScreen(
-                currentGame = viewModel.liveState?.takeIf { it.phase != LivePhase.GAME_OVER }?.gameListEntry()
-                    ?: viewModel.setupState
-                        .takeIf { viewModel.liveState == null && viewModel.hasSetupDraft }
-                        ?.gameListEntry(),
+                currentGame = currentGame,
                 currentGameSectionSubtitle = viewModel.currentGameHomeSubtitle,
-                completedGamePendingArchive = viewModel.liveState?.takeIf { it.phase == LivePhase.GAME_OVER }?.let {
-                    it.gameListEntry()
-                },
+                completedGamePendingArchive = completedGamePendingArchive,
                 onResumeCurrentGame = viewModel::resumeCurrentGame,
                 onOpenCompletedGame = viewModel::openCompletedGame,
                 onArchiveCompletedGame = viewModel::archiveCompletedGame,
@@ -111,20 +122,18 @@ internal fun UltiObserverApp(viewModel: UltiObserverAppViewModel) {
 
         AppScreen.LIVE -> {
             // Archived games reuse the live-game screen, but in a read-only summary mode.
-            val currentLiveState = viewModel.currentLiveState
-            if (currentLiveState != null) {
-                LiveGameScreen(
-                    state = currentLiveState,
-                    readOnlySummary = viewModel.viewingReadOnlySummary,
-                    timingAlertPreferences = viewModel.timingAlertPreferences,
-                    onStateChange = viewModel::updateLiveGame,
-                    onUpdateGameSetup = {
-                        viewModel.editCurrentGame(currentLiveState)
-                    },
-                    onDeleteGame = viewModel::deleteCurrentGame,
-                    onBackHome = viewModel::goBackFromCurrentScreen,
-                )
-            }
+            val currentLiveState = viewModel.currentLiveState!!
+            LiveGameScreen(
+                state = currentLiveState,
+                readOnlySummary = viewModel.viewingReadOnlySummary,
+                timingAlertPreferences = viewModel.timingAlertPreferences,
+                onStateChange = viewModel::updateLiveGame,
+                onUpdateGameSetup = {
+                    viewModel.editCurrentGame(currentLiveState)
+                },
+                onDeleteGame = viewModel::deleteCurrentGame,
+                onBackHome = viewModel::goBackFromCurrentScreen,
+            )
         }
     }
 }

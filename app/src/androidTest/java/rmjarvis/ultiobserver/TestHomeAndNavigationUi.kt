@@ -36,13 +36,20 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         // Walk the default new-game path into the live screen.
         openNewGameSetup()
         composeRule.onNodeWithText("UltiObserver Setup").assertIsDisplayed()
+
+        // A brand-new draft with blank setup names should use fallback names on Home.
+        pressAppBack()
+        waitForText("Current Game")
+        composeRule.onNodeWithText("Team 1 0 - 0 Team 2").performClick()
+        waitForText("Start Game")
         replaceSetupTeamName("Team 1", "Draft Team")
+        replaceSetupTeamName("Team 2", "Draft Opponent")
 
         // Backing out of setup should keep a resumable setup draft on Home.
         pressAppBack()
         waitForText("Current Game")
         composeRule.onNodeWithText("Tap to resume setup.").assertIsDisplayed()
-        composeRule.onNodeWithText("Draft Team 0 - 0 Team 2").performClick()
+        composeRule.onNodeWithText("Draft Team 0 - 0 Draft Opponent").performClick()
         waitForText("Start Game")
 
         // Before the first pull, Back should return to setup for quick field-layout corrections.
@@ -110,6 +117,10 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.appViewModel.updateTimingAlertGlobalMode(TimingAlertGlobalMode.VIBRATION_ONLY)
             activity.appViewModel.updateTimingAlertVibrateWithSounds(false)
+            activity.appViewModel.updateTimingCueMode(
+                TimingCueId.RECEIVING_TWENTY_FOR_HAND,
+                TimingAlertMode.NONE,
+            )
         }
         composeRule.onNodeWithText("Settings").performClick()
         waitForText("Use sounds and vibration for timing cues?")
@@ -118,6 +129,12 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText("Vibration will be used for any cues that are set to use sound.")
         composeRule.onAllNodesWithTag("settings-sound-volume").assertCountEquals(0)
         composeRule.onAllNodesWithTag("settings-vibrate-with-sounds").assertCountEquals(0)
+        composeRule.onNodeWithText("Sound Settings for Individual Cues").performClick()
+        waitForText("Cue Sound Settings")
+        composeRule.onAllNodesWithText("Tick").onFirst().performClick()
+        composeRule.onNodeWithTag("settings-TIMEOUT_OFFENSE_TWENTY-NONE").performScrollTo().performClick()
+        pressAppBack()
+        waitForText("Use sounds and vibration for timing cues?")
         composeRule.onNodeWithText("Sounds On").performClick()
         waitForText("Ear buds are recommended when using sounds with UltiObserver.")
         waitForText("Sound volume 50%")
@@ -125,6 +142,8 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("settings-vibrate-with-sounds-value").assertTextEquals("No")
         composeRule.onNodeWithTag("settings-sound-volume").assertIsEnabled()
         composeRule.onNodeWithTag("settings-vibrate-with-sounds").assertIsEnabled()
+        composeRule.onNodeWithTag("settings-vibrate-with-sounds").performClick()
+        composeRule.onNodeWithTag("settings-vibrate-with-sounds-value").assertTextEquals("Yes")
         composeRule.onNodeWithText("Off").performClick()
         waitForText("No sound or vibration will be used for any timing cues.")
         composeRule.onAllNodesWithTag("settings-sound-volume").assertCountEquals(0)

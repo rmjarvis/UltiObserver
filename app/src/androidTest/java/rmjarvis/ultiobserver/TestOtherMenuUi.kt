@@ -60,6 +60,44 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         assertLiveScreen()
     }
 
+    // Test Other menu visibility for game states where cap and halftime actions no longer apply.
+    @Test
+    fun otherMenuHidesUnavailableCapActions() {
+        startLiveGameProgrammatically()
+
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val current = activity.appViewModel.liveState!!
+            activity.appViewModel.updateLiveGame(
+                current.copy(
+                    halfCapApplied = true,
+                    softCapApplied = true,
+                    hardCapApplied = true,
+                )
+            )
+        }
+        composeRule.waitForIdle()
+
+        openOtherSheet()
+        assertTrue(composeRule.onAllNodesWithText("Apply Half Cap Now").fetchSemanticsNodes().isEmpty())
+        assertTrue(composeRule.onAllNodesWithText("Apply Soft Cap Now").fetchSemanticsNodes().isEmpty())
+        assertTrue(composeRule.onAllNodesWithText("Apply Hard Cap Now").fetchSemanticsNodes().isEmpty())
+
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val current = activity.appViewModel.liveState!!
+            activity.appViewModel.updateLiveGame(
+                current.copy(
+                    halftimeTaken = true,
+                    halfCapApplied = false,
+                    softCapApplied = false,
+                    hardCapApplied = false,
+                )
+            )
+        }
+        composeRule.waitForIdle()
+
+        assertTrue(composeRule.onAllNodesWithText("Apply Half Cap Now").fetchSemanticsNodes().isEmpty())
+    }
+
     // Test that deleting the current game is guarded by the slide confirmation.
     @Test
     fun otherMenuCanDeleteCurrentGameAfterSliderConfirmation() {

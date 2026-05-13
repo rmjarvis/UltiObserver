@@ -1,8 +1,10 @@
 package rmjarvis.ultiobserver
 
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithTag
@@ -234,6 +236,11 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             vibrateWithSounds = true,
         )
         triggerDueTimeoutTwentyCue(
+            globalMode = TimingAlertGlobalMode.SOUNDS_ON,
+            cueMode = TimingAlertMode.BEEP,
+            vibrateWithSounds = false,
+        )
+        triggerDueTimeoutTwentyCue(
             globalMode = TimingAlertGlobalMode.OFF,
             cueMode = TimingAlertMode.NONE,
             vibrateWithSounds = false,
@@ -249,6 +256,13 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
                 )
             )
         }
+        waitForText("Time Violation")
+        waitForText("Restart Countdown")
+        composeRule.onNodeWithTag("live-top-lock").performClick()
+        waitForText("Slide right to unlock")
+        composeRule.onAllNodesWithTag("live-time-violation").assertCountEquals(0)
+        composeRule.onAllNodesWithTag("live-restart-pull-countdown").assertCountEquals(0)
+        unlockLiveScreen()
         waitForText("Time Violation")
         waitForText("Restart Countdown")
 

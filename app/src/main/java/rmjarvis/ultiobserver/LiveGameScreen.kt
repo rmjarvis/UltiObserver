@@ -55,7 +55,7 @@ internal fun LiveGameScreen(
     var showTimeViolationTeamPrompt by remember { mutableStateOf(false) }
     var locked by remember { mutableStateOf(false) }
     var actionInfoMessage by remember { mutableStateOf<String?>(null) }
-    var actionInfoTitle by remember { mutableStateOf<String?>(null) }
+    var actionInfoTitle by remember { mutableStateOf("") }
     var activeGamePrompt by remember { mutableStateOf<GamePrompt?>(null) }
     var previouslyObservedPhase by remember { mutableStateOf(state.phase) }
     var lastTimingAlertKey by remember { mutableStateOf<String?>(null) }
@@ -74,7 +74,6 @@ internal fun LiveGameScreen(
 
     fun dismissActionInfo() {
         actionInfoMessage = null
-        actionInfoTitle = null
     }
 
     // Update the display clock once per second so time and cap text stay fresh.
@@ -120,6 +119,7 @@ internal fun LiveGameScreen(
     LaunchedEffect(dueTimingCue, timingAlertPreferences, readOnlySummary) {
         val cue = dueTimingCue ?: return@LaunchedEffect
         val alertKey = "${cue.id.name}:${cue.targetEpoch}"
+        // Defensive timing guard so recomposition does not replay the same cue.
         if (!readOnlySummary && alertKey != lastTimingAlertKey) {
             lastTimingAlertKey = alertKey
             val alertMode = timingAlertPreferences.alertModeFor(cue.id)
@@ -142,9 +142,11 @@ internal fun LiveGameScreen(
     // Only show the large halftime/game-over prompts when those states first become visible.
     LaunchedEffect(state.phase, readOnlySummary) {
         val previousPhase = previouslyObservedPhase
+        // Defensive transition guard so recomposition does not reshow the halftime prompt.
         if (state.phase == LivePhase.HALFTIME && previousPhase != LivePhase.HALFTIME) {
             activeGamePrompt = GamePrompt.HalftimeStarted(state)
         }
+        // Defensive transition guard so recomposition does not reshow the game-over prompt.
         if (!readOnlySummary && state.phase == LivePhase.GAME_OVER && previousPhase != LivePhase.GAME_OVER) {
             activeGamePrompt = GamePrompt.GameOver(state)
         }
@@ -184,10 +186,8 @@ internal fun LiveGameScreen(
             // If the game is over, replace the live controls with the summary screen.
             if (state.phase == LivePhase.GAME_OVER) {
                 GameOverSummary(state = state, onUndo = {
-                    if (state.undoEntry != null) {
-                        onStateChange(state.undoLastAction())
-                    }
-                }, showUndo = !readOnlySummary && state.undoEntry != null)
+                    onStateChange(state.undoLastAction())
+                }, showUndo = !readOnlySummary)
             } else {
                 // Show the current clock and next relevant cap.
                 StatusLine(
@@ -200,13 +200,11 @@ internal fun LiveGameScreen(
                     countdown = activeCountdown,
                     enabled = !locked,
                     onAdjust = { seconds -> onStateChange(state.addTimeToCountdown(seconds)) },
-                    onTimeViolation = if (hasExpiredPullActions && !locked) {
-                        { showTimeViolationTeamPrompt = true }
-                    } else {
-                        null
-                    },
-                    onRestartPullCountdown = if (hasExpiredPullActions && !locked) {
-                        { onStateChange(state.restartPullCountdown(now)) }
+                    expiredPullActions = if (hasExpiredPullActions && !locked) {
+                        ExpiredPullActions(
+                            onTimeViolation = { showTimeViolationTeamPrompt = true },
+                            onRestartPullCountdown = { onStateChange(state.restartPullCountdown(now)) },
+                        )
                     } else {
                         null
                     },
@@ -280,6 +278,7 @@ internal fun LiveGameScreen(
                     onPullInfraction = { team ->
                         val result = state.assessPullInfraction(team)
                         onStateChange(result.state)
+                        // Defensive stale-callback guard for a weird timing state.
                         val message = result.event?.formatMessage()
                         if (message != null) {
                             showActionInfo(
@@ -373,6 +372,7 @@ internal fun LiveGameScreen(
         fun assessTimeViolationFor(team: TeamId) {
             val result = state.assessTimeViolation(team, now)
             onStateChange(result.state)
+            // Defensive stale-callback guard for a weird timing state.
             val message = result.event?.formatMessage()
             if (message != null) {
                 showActionInfo(
@@ -409,9 +409,7 @@ internal fun LiveGameScreen(
     if (actionInfoMessage != null) {
         AlertDialog(
             onDismissRequest = { dismissActionInfo() },
-            title = actionInfoTitle?.let { title ->
-                { Text(title) }
-            },
+            title = { Text(actionInfoTitle) },
             text = {
                 Text(
                     text = actionInfoMessage!!,

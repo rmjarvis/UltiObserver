@@ -137,6 +137,11 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         addPriorCardHolder(teamName = beagles, jersey = "88", yellows = 2, reds = 1)
         addPriorCardHolder(teamName = beagles, jersey = "77", yellows = 1, reds = 0)
         waitForText("2 players carry cards.")
+        openPriorCardsSetupEditor()
+        composeRule.onAllNodesWithText("Remove").onFirst().performScrollTo().performClick()
+        composeRule.onNodeWithText("$beagles #77").performScrollTo().assertIsDisplayed()
+        closeSetupEditor()
+        waitForText("1 player carries cards.")
 
         // The edited setup launches a live game carrying the visible team names forward.
         startGameFromSetup()
@@ -153,6 +158,12 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         // Blank team names are allowed in setup and should display as Team 1 / Team 2 in live use.
         replaceSetupTeamName("Team 1", " ")
         replaceSetupTeamName("Team 2", " ")
+        composeRule.onNodeWithText("Team 1 pulls from Far end").assertIsDisplayed()
+        openStartingPullSetupEditor()
+        composeRule.onNodeWithTag("setup-pulling-team-${TeamId.TEAM_TWO.name}").performClick()
+        closeSetupEditor()
+        composeRule.onNodeWithText("Team 2 pulls from Far end").assertIsDisplayed()
+
         startGameFromSetup()
         composeRule.onNodeWithText("Team 1").assertIsDisplayed()
         composeRule.onNodeWithText("Team 2").assertIsDisplayed()

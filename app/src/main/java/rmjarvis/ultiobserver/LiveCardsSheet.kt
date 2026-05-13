@@ -113,15 +113,10 @@ internal fun CardsSheet(
         RedCardModeDialog(
             teamName = state.teamFor(redCardChoice.team).name,
             jerseyNumber = redCardChoice.jerseyNumber,
-            directRedEnabled = canAddPlayerCardAssignment(
+            hasValidChoice = canAddPlayerCardAssignment(
                 currentRecords,
                 redCardChoice.jerseyNumber,
                 CardType.RED,
-            ),
-            secondYellowEnabled = canAddPlayerCardAssignment(
-                currentRecords,
-                redCardChoice.jerseyNumber,
-                CardType.YELLOW,
             ),
             onDismiss = { pendingRedCardChoice = null },
             onDirectRed = {
@@ -255,13 +250,11 @@ internal fun PlayerNumberDialog(
 private fun RedCardModeDialog(
     teamName: String,
     jerseyNumber: String,
-    directRedEnabled: Boolean,
-    secondYellowEnabled: Boolean,
+    hasValidChoice: Boolean,
     onDismiss: () -> Unit,
     onDirectRed: () -> Unit,
     onSecondYellow: () -> Unit,
 ) {
-    val hasValidChoice = directRedEnabled || secondYellowEnabled
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Player Already Has Yellow") },
@@ -273,14 +266,14 @@ private fun RedCardModeDialog(
             }
         },
         confirmButton = {
-            if (directRedEnabled) {
+            if (hasValidChoice) {
                 TextButton(
                     onClick = onDirectRed,
                     modifier = Modifier.testTag("red-card-mode-red"),
                 ) {
                     Text("Red")
                 }
-            } else if (!hasValidChoice) {
+            } else {
                 TextButton(onClick = onDismiss) {
                     Text("OK")
                 }
@@ -289,10 +282,8 @@ private fun RedCardModeDialog(
         dismissButton = {
             if (hasValidChoice) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (secondYellowEnabled) {
-                        TextButton(onClick = onSecondYellow) {
-                            Text("Second Yellow")
-                        }
+                    TextButton(onClick = onSecondYellow) {
+                        Text("Second Yellow")
                     }
                     TextButton(onClick = onDismiss) {
                         Text("Cancel")

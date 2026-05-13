@@ -90,12 +90,10 @@ internal fun OtherSheet(
                         onClick = { onAction(state.startHalftimeNow(now)) },
                     )
                 }
-                if (state.phase != LivePhase.GAME_OVER) {
-                    OtherMenuButton(
-                        label = "End Game",
-                        onClick = { onAction(state.endGameNow(now)) },
-                    )
-                }
+                OtherMenuButton(
+                    label = "End Game",
+                    onClick = { onAction(state.endGameNow(now)) },
+                )
                 if (!state.halftimeTaken && !state.halfCapApplied) {
                     OtherMenuButton(
                         label = "Apply Half Cap Now",
@@ -108,7 +106,7 @@ internal fun OtherSheet(
                         onClick = { onAction(state.makeCapNow(CapType.SOFT, now)) },
                     )
                 }
-                if (!state.hardCapApplied && state.phase != LivePhase.GAME_OVER) {
+                if (!state.hardCapApplied) {
                     OtherMenuButton(
                         label = "Apply Hard Cap Now",
                         onClick = { onAction(state.makeCapNow(CapType.HARD, now)) },

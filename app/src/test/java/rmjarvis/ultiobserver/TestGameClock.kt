@@ -80,6 +80,11 @@ class TestGameClock : GameModelTestFixtures() {
         assertEquals(
             TimingAlertMode.VIBRATE,
             defaultTimingAlertPreferences.copy(cueModes = emptyMap())
+                .settingsModeFor(TimingCueId.PULLING_TWENTY_TO_PULL),
+        )
+        assertEquals(
+            TimingAlertMode.VIBRATE,
+            defaultTimingAlertPreferences.copy(cueModes = emptyMap())
                 .alertModeFor(TimingCueId.PULLING_TWENTY_TO_PULL),
         )
         assertEquals(

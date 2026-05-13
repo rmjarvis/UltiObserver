@@ -447,10 +447,9 @@ internal fun CountdownLine(
     countdown: ActiveCountdownDisplay?,
     enabled: Boolean,
     onAdjust: (Int) -> Unit,
-    onTimeViolation: (() -> Unit)? = null,
-    onRestartPullCountdown: (() -> Unit)? = null,
+    expiredPullActions: ExpiredPullActions? = null,
 ) {
-    val visible = countdown != null || onTimeViolation != null || onRestartPullCountdown != null
+    val visible = countdown != null || expiredPullActions != null
     val displayCountdown = countdown ?: ActiveCountdownDisplay("Pull in", Duration.ZERO, null)
     val rowModifier = if (visible) {
         Modifier.fillMaxWidth()
@@ -469,7 +468,7 @@ internal fun CountdownLine(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (onTimeViolation != null) {
+            if (expiredPullActions != null) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -483,18 +482,16 @@ internal fun CountdownLine(
                         modifier = Modifier
                             .weight(1f)
                             .testTag("live-time-violation"),
-                        onClick = onTimeViolation,
+                        onClick = expiredPullActions.onTimeViolation,
                     )
-                    if (onRestartPullCountdown != null) {
-                        SmallActionButton(
-                            label = "Restart Countdown",
-                            enabled = enabled,
-                            modifier = Modifier
-                                .weight(1f)
-                                .testTag("live-restart-pull-countdown"),
-                            onClick = onRestartPullCountdown,
-                        )
-                    }
+                    SmallActionButton(
+                        label = "Restart Countdown",
+                        enabled = enabled,
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("live-restart-pull-countdown"),
+                        onClick = expiredPullActions.onRestartPullCountdown,
+                    )
                 }
             } else {
                 Text(
@@ -513,7 +510,7 @@ internal fun CountdownLine(
             }
         }
         Text(
-            text = if (countdown == null && (onTimeViolation != null || onRestartPullCountdown != null)) {
+            text = if (countdown == null && expiredPullActions != null) {
                 ""
             } else {
                 displayCountdown.nextCue?.let { cue ->
@@ -527,6 +524,11 @@ internal fun CountdownLine(
         )
     }
 }
+
+internal data class ExpiredPullActions(
+    val onTimeViolation: () -> Unit,
+    val onRestartPullCountdown: () -> Unit,
+)
 
 // Offsides and false starts are combined for pull-violation display/rules.
 private fun TeamLiveState.pullViolationCount(): Int {
