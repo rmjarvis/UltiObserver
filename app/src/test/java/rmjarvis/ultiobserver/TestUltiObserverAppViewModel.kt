@@ -372,6 +372,8 @@ class TestUltiObserverAppViewModel {
         )
         viewModel.openPreviousGames()
         assertEquals(AppScreen.PREVIOUS_GAMES, viewModel.screen)
+        assertTrue(File(storeDir, "profile.json").exists())
+        assertTrue(File(storeDir, "settings.json").exists())
 
         val restored = UltiObserverAppViewModel(FileAppStateStore(storeDir))
         assertEquals(AppScreen.HOME, restored.screen)
@@ -498,19 +500,49 @@ class TestUltiObserverAppViewModel {
         // Start a live game and clear the setup saves so the event assertion is focused.
         viewModel.startNewGame()
         viewModel.finishSetup()
-        store.savedActiveStates.clear()
+        store.savedCurrentGameStates.clear()
 
         // Record an ordinary user-visible event through the same callback used by live UI actions.
         val livePointState = viewModel.liveState!!.beginLivePoint()
         viewModel.updateLiveGame(livePointState)
 
-        assertEquals("Point is live.", store.savedActiveStates.single().liveState!!.lastEvent)
-        assertEquals(livePointState, store.savedActiveStates.single().liveState)
+        assertEquals("Point is live.", store.savedCurrentGameStates.single().liveState!!.lastEvent)
+        assertEquals(livePointState, store.savedCurrentGameStates.single().liveState)
+        assertTrue(store.savedProfiles.isEmpty())
+        assertTrue(store.savedSettings.isEmpty())
     }
 
-    // Verify archived games are persisted as pruned summaries separate from active state.
+    // Verify profile, settings, and current-game changes persist through their own buckets.
     @Test
-    fun persistentStoreWritesArchivedSummariesSeparatelyFromActiveSnapshot() {
+    fun appDataBucketsPersistIndependently() {
+        val store = RecordingAppStateStore()
+        val viewModel = UltiObserverAppViewModel(store)
+
+        viewModel.updateProfileName("Casey Observer")
+        assertEquals("Casey Observer", store.savedProfiles.single().profileName)
+        assertTrue(store.savedCurrentGameStates.isEmpty())
+        assertTrue(store.savedSettings.isEmpty())
+
+        viewModel.updateTimingAlertGlobalMode(TimingAlertGlobalMode.OFF)
+        assertEquals(TimingAlertGlobalMode.OFF, store.savedSettings.single().timingAlertPreferences.globalMode)
+        assertTrue(store.savedCurrentGameStates.isEmpty())
+        assertEquals(1, store.savedProfiles.size)
+
+        viewModel.startNewGame()
+        assertTrue(store.savedCurrentGameStates.single().hasSetupDraft)
+        assertEquals(1, store.savedProfiles.size)
+        assertEquals(1, store.savedSettings.size)
+
+        // The default no-op store should accept the same split-bucket writes without side effects.
+        NoOpAppStateStore.saveCurrentGameState(PersistedCurrentGameState())
+        NoOpAppStateStore.saveProfile(PersistedProfile())
+        NoOpAppStateStore.saveSettings(PersistedSettings())
+        NoOpAppStateStore.saveArchivedGames(emptyList())
+    }
+
+    // Verify archived games are persisted as pruned summaries separate from current-game state.
+    @Test
+    fun persistentStoreWritesArchivedSummariesSeparatelyFromCurrentGameSnapshot() {
         val storeDir = temporaryFolder.newFolder()
         val viewModel = UltiObserverAppViewModel(FileAppStateStore(storeDir))
 
@@ -533,8 +565,10 @@ class TestUltiObserverAppViewModel {
         viewModel.goHome()
         viewModel.archiveCompletedGame()
 
-        // Verify active state and archived summaries are written to separate files.
-        assertTrue(File(storeDir, "active_app_state.json").exists())
+        // Verify current game and archived summaries are written separately from profile/settings.
+        assertTrue(File(storeDir, "current_game_state.json").exists())
+        assertFalse(File(storeDir, "profile.json").exists())
+        assertFalse(File(storeDir, "settings.json").exists())
         assertTrue(File(File(storeDir, "archived_games"), "00000.json").exists())
 
         // Restore from disk and verify the archived game keeps only summary-relevant state.
@@ -554,25 +588,24 @@ class TestUltiObserverAppViewModel {
         val storeDir = temporaryFolder.newFolder()
         val store = FileAppStateStore(storeDir)
 
-        assertNull(store.loadActiveState())
+        assertNull(store.loadCurrentGameState())
         assertTrue(store.loadArchivedGames().isEmpty())
 
         val setup = newGameSetupState(LocalDateTime.of(2026, 5, 11, 10, 0))
-        val activeState = PersistedActiveAppState(
-            screen = AppScreen.SETUP,
+        val currentGameState = PersistedCurrentGameState(
             setupState = setup,
             liveState = null,
             setupMode = SetupMode.NEW_GAME,
         )
-        store.saveActiveState(activeState)
-        assertEquals(activeState, store.loadActiveState())
+        store.saveCurrentGameState(currentGameState)
+        assertEquals(currentGameState, store.loadCurrentGameState())
 
-        val activeStateFile = File(storeDir, "active_app_state.json")
-        activeStateFile.writeText(activeStateFile.readText().replace("\"version\": 1", "\"version\": 99"))
-        val versionException = assertThrows(IllegalArgumentException::class.java) {
-            store.loadActiveState()
-        }
-        assertEquals("Unsupported active app state version 99.", versionException.message)
+        val currentGameStateFile = File(storeDir, "current_game_state.json")
+        currentGameStateFile.writeText(currentGameStateFile.readText().replace("\"version\": 1", "\"version\": 99"))
+        val recoveredState = store.loadCurrentGameState()!!
+        assertNull(recoveredState.liveState)
+        assertEquals(SetupMode.NEW_GAME, recoveredState.setupMode)
+        assertEquals(setOf(PersistedDataArea.GAME_STATE), store.resetPersistedDataAreas)
 
         val archivedOne = ArchivedGame(
             createLiveGameState(setup).copy(phase = LivePhase.GAME_OVER),
@@ -596,30 +629,278 @@ class TestUltiObserverAppViewModel {
         assertTrue(File(storeDir, "archived_games").isFile)
     }
 
-    // Verify failed active-state writes do not leave stale temporary files behind.
+    // Verify corrupted current-game fields reset narrowly while preserving readable profile/settings.
+    @Test
+    fun persistentStoreSalvagesReadableSplitStateFiles() {
+        val storeDir = temporaryFolder.newFolder()
+        val store = FileAppStateStore(storeDir)
+        val setup = newGameSetupState(LocalDateTime.of(2026, 5, 11, 10, 0))
+        val liveState = createLiveGameState(setup).beginLivePoint()
+        val timingPreferences = TimingAlertPreferences(
+            globalMode = TimingAlertGlobalMode.VIBRATION_ONLY,
+            soundVolume = 0.4f,
+        )
+        val savedCurrentGameState = PersistedCurrentGameState(
+            setupState = setup,
+            liveState = liveState,
+            setupMode = SetupMode.EDIT_CURRENT_GAME,
+        )
+        val savedArchive = ArchivedGame(
+            createLiveGameState(setup).copy(phase = LivePhase.GAME_OVER),
+            "Final",
+        )
+        store.saveCurrentGameState(savedCurrentGameState)
+        store.saveProfile(PersistedProfile(profileName = "Casey Observer"))
+        store.saveSettings(PersistedSettings(timingAlertPreferences = timingPreferences))
+
+        val currentGameStateFile = File(storeDir, "current_game_state.json")
+        currentGameStateFile.writeText(
+            currentGameStateFile.readText().replace(
+                "\"liveState\": {",
+                "\"liveState\": \"broken\", \"ignoredLiveState\": {",
+            )
+        )
+
+        val recoveredState = store.loadCurrentGameState()!!
+        assertNull(recoveredState.liveState)
+        assertEquals(SetupMode.NEW_GAME, recoveredState.setupMode)
+        assertEquals(setOf(PersistedDataArea.GAME_STATE), store.resetPersistedDataAreas)
+
+        val recoveredViewModel = UltiObserverAppViewModel(FileAppStateStore(storeDir))
+        assertNull(recoveredViewModel.liveState)
+        assertEquals("Casey Observer", recoveredViewModel.profileName)
+        assertEquals(timingPreferences, recoveredViewModel.timingAlertPreferences)
+        assertEquals(
+            "Sorry, some phone data was corrupt, so UltiObserver had to revert to default values for Current Game.",
+            recoveredViewModel.startupRecoveryNotice!!.message,
+        )
+        recoveredViewModel.dismissStartupRecoveryNotice()
+        assertNull(recoveredViewModel.startupRecoveryNotice)
+
+        // Other split files follow the same recovery path when their typed contents are corrupt.
+        store.saveProfile(PersistedProfile(profileName = "Casey Observer"))
+        File(storeDir, "profile.json").replaceText("\"profileName\": \"Casey Observer\"", "\"profileName\": 7")
+        assertEquals(PersistedProfile(), store.loadProfile())
+
+        store.saveSettings(PersistedSettings(timingAlertPreferences = TimingAlertPreferences(soundVolume = 0.35f)))
+        File(storeDir, "settings.json").replaceText(
+            "\"timingAlertPreferences\": {",
+            "\"timingAlertPreferences\": \"broken\", \"ignoredTimingAlertPreferences\": {",
+        )
+        assertEquals(PersistedSettings(), store.loadSettings())
+
+        store.saveArchivedGames(listOf(savedArchive))
+        File(File(storeDir, "archived_games"), "00000.json").replaceText(
+            "\"state\": {",
+            "\"state\": \"broken\", \"ignoredState\": {",
+        )
+        assertTrue(store.loadArchivedGames().isEmpty())
+        assertEquals(
+            setOf(
+                PersistedDataArea.GAME_STATE,
+                PersistedDataArea.PROFILE,
+                PersistedDataArea.SETTINGS,
+                PersistedDataArea.PREVIOUS_GAMES,
+            ),
+            store.resetPersistedDataAreas,
+        )
+
+        // A single bad archive file should be skipped without losing the other readable summaries.
+        val archiveStoreDir = temporaryFolder.newFolder()
+        val archiveStore = FileAppStateStore(archiveStoreDir)
+        val archivedOne = ArchivedGame(savedArchive.state, "First")
+        val archivedTwo = archivedOne.copy(subtitle = "Second")
+        archiveStore.saveArchivedGames(listOf(archivedOne, archivedTwo))
+        File(File(archiveStoreDir, "archived_games"), "00000.json").writeText("{not-json")
+
+        assertEquals(listOf(archivedTwo), archiveStore.loadArchivedGames())
+        assertEquals(setOf(PersistedDataArea.PREVIOUS_GAMES), archiveStore.resetPersistedDataAreas)
+
+        val archiveViewModel = UltiObserverAppViewModel(FileAppStateStore(archiveStoreDir))
+        assertEquals(listOf(archivedTwo), archiveViewModel.archivedGames)
+        assertEquals(
+            "Sorry, some phone data was corrupt, so UltiObserver had to revert to default values for Previous Games.",
+            archiveViewModel.startupRecoveryNotice!!.message,
+        )
+    }
+
+    // Verify default-version decoding stays usable while invalid versions reset only affected buckets.
+    @Test
+    fun persistentStoreHandlesMissingInvalidAndUnsupportedVersions() {
+        val storeDir = temporaryFolder.newFolder()
+        val store = FileAppStateStore(storeDir)
+        val setup = newGameSetupState(LocalDateTime.of(2026, 5, 11, 10, 0))
+        val savedCurrentGameState = PersistedCurrentGameState(
+            setupState = setup,
+            liveState = createLiveGameState(setup),
+            setupMode = SetupMode.EDIT_CURRENT_GAME,
+        )
+        val savedProfile = PersistedProfile(profileName = "Casey Observer")
+        val savedSettings = PersistedSettings(
+            timingAlertPreferences = TimingAlertPreferences(soundVolume = 0.35f),
+        )
+        val savedArchive = ArchivedGame(
+            createLiveGameState(setup).copy(phase = LivePhase.GAME_OVER),
+            "Final",
+        )
+
+        assertEquals(APP_STATE_VERSION, PersistedCurrentGameState().version)
+        assertEquals(APP_STATE_VERSION, PersistedProfile().version)
+        assertEquals(APP_STATE_VERSION, PersistedSettings().version)
+        assertEquals(APP_STATE_VERSION, ArchivedGame(createLiveGameState(setup), "").version)
+
+        store.saveProfile(savedProfile)
+        File(storeDir, "profile.json").removeStoredVersion()
+        assertEquals(savedProfile, store.loadProfile())
+
+        store.saveSettings(savedSettings)
+        File(storeDir, "settings.json").removeStoredVersion()
+        assertEquals(savedSettings, store.loadSettings())
+
+        store.saveArchivedGames(listOf(savedArchive))
+        File(File(storeDir, "archived_games"), "00000.json").removeStoredVersion()
+        assertEquals(listOf(savedArchive), store.loadArchivedGames())
+
+        store.saveCurrentGameState(savedCurrentGameState)
+        File(storeDir, "current_game_state.json").replaceText("\"version\": 1", "\"version\": \"bad\"")
+        assertEquals(PersistedCurrentGameState(), store.loadCurrentGameState())
+        assertEquals(setOf(PersistedDataArea.GAME_STATE), store.resetPersistedDataAreas)
+
+        store.saveProfile(savedProfile)
+        File(storeDir, "profile.json").replaceText("\"version\": 1", "\"version\": \"bad\"")
+        assertEquals(PersistedProfile(), store.loadProfile())
+        assertEquals(setOf(PersistedDataArea.GAME_STATE, PersistedDataArea.PROFILE), store.resetPersistedDataAreas)
+
+        store.saveSettings(savedSettings)
+        File(storeDir, "settings.json").replaceText("\"version\": 1", "\"version\": \"bad\"")
+        assertEquals(PersistedSettings(), store.loadSettings())
+        assertEquals(
+            setOf(PersistedDataArea.GAME_STATE, PersistedDataArea.PROFILE, PersistedDataArea.SETTINGS),
+            store.resetPersistedDataAreas,
+        )
+
+        store.saveArchivedGames(listOf(savedArchive))
+        File(File(storeDir, "archived_games"), "00000.json").replaceText("\"version\": 1", "\"version\": \"bad\"")
+        assertTrue(store.loadArchivedGames().isEmpty())
+        assertEquals(
+            setOf(
+                PersistedDataArea.GAME_STATE,
+                PersistedDataArea.PROFILE,
+                PersistedDataArea.SETTINGS,
+                PersistedDataArea.PREVIOUS_GAMES,
+            ),
+            store.resetPersistedDataAreas,
+        )
+
+        store.saveProfile(savedProfile)
+        File(storeDir, "profile.json").replaceText("\"version\": 1", "\"version\": 99")
+        assertEquals(PersistedProfile(), store.loadProfile())
+        assertEquals(
+            setOf(
+                PersistedDataArea.GAME_STATE,
+                PersistedDataArea.SETTINGS,
+                PersistedDataArea.PREVIOUS_GAMES,
+                PersistedDataArea.PROFILE,
+            ),
+            store.resetPersistedDataAreas,
+        )
+
+        store.saveSettings(savedSettings)
+        File(storeDir, "settings.json").replaceText("\"version\": 1", "\"version\": 99")
+        assertEquals(PersistedSettings(), store.loadSettings())
+        assertEquals(
+            setOf(
+                PersistedDataArea.GAME_STATE,
+                PersistedDataArea.PROFILE,
+                PersistedDataArea.PREVIOUS_GAMES,
+                PersistedDataArea.SETTINGS,
+            ),
+            store.resetPersistedDataAreas,
+        )
+
+        store.saveArchivedGames(listOf(savedArchive))
+        File(File(storeDir, "archived_games"), "00000.json").replaceText("\"version\": 1", "\"version\": 99")
+        assertTrue(store.loadArchivedGames().isEmpty())
+        assertEquals(
+            setOf(
+                PersistedDataArea.GAME_STATE,
+                PersistedDataArea.PROFILE,
+                PersistedDataArea.SETTINGS,
+                PersistedDataArea.PREVIOUS_GAMES,
+            ),
+            store.resetPersistedDataAreas,
+        )
+    }
+
+    // Verify malformed split-state JSON resets each affected app-data area without crashing startup.
+    @Test
+    fun persistentStoreReportsMalformedSplitStateAsRecoveredDefaults() {
+        val storeDir = temporaryFolder.newFolder()
+        File(storeDir, "current_game_state.json").writeText("{not-json")
+        File(storeDir, "profile.json").writeText("{not-json")
+        File(storeDir, "settings.json").writeText("{not-json")
+
+        val viewModel = UltiObserverAppViewModel(FileAppStateStore(storeDir))
+
+        assertEquals(AppScreen.HOME, viewModel.screen)
+        assertNull(viewModel.liveState)
+        assertEquals("", viewModel.profileName)
+        assertEquals(TimingAlertPreferences(), viewModel.timingAlertPreferences)
+        assertEquals(
+            setOf(
+                PersistedDataArea.GAME_STATE,
+                PersistedDataArea.PROFILE,
+                PersistedDataArea.SETTINGS,
+            ),
+            viewModel.startupRecoveryNotice!!.resetAreas,
+        )
+        assertEquals("Phone Data Reset", viewModel.startupRecoveryNotice!!.title)
+        assertEquals(
+            "Sorry, some phone data was corrupt, so UltiObserver had to revert to default values for Current Game, Profile, and Settings.",
+            viewModel.startupRecoveryNotice!!.message,
+        )
+
+        val twoAreaNotice = PersistedDataRecoveryNotice(
+            setOf(PersistedDataArea.PROFILE, PersistedDataArea.SETTINGS)
+        )
+        assertEquals(
+            "Sorry, some phone data was corrupt, so UltiObserver had to revert to default values for Profile and Settings.",
+            twoAreaNotice.message,
+        )
+        assertThrows(IllegalArgumentException::class.java) {
+            PersistedDataRecoveryNotice(emptySet())
+        }
+
+        val unreadableStoreDir = temporaryFolder.newFolder()
+        assertTrue(File(unreadableStoreDir, "profile.json").mkdir())
+        val unreadableStore = FileAppStateStore(unreadableStoreDir)
+        assertEquals(PersistedProfile(), unreadableStore.loadProfile())
+        assertEquals(setOf(PersistedDataArea.PROFILE), unreadableStore.resetPersistedDataAreas)
+    }
+
+    // Verify failed current-game writes do not leave stale temporary files behind.
     @Test
     fun persistentStoreCleansTemporaryFileAfterFailedWrite() {
         val storeDir = temporaryFolder.newFolder()
-        val activeStatePath = File(storeDir, "active_app_state.json")
+        val currentGameStatePath = File(storeDir, "current_game_state.json")
 
         // Make the destination an undeletable non-empty directory so replacement fails.
-        assertTrue(activeStatePath.mkdir())
-        assertTrue(File(activeStatePath, "blocking-child").writeText("blocker").let { true })
+        assertTrue(currentGameStatePath.mkdir())
+        assertTrue(File(currentGameStatePath, "blocking-child").writeText("blocker").let { true })
 
         val store = FileAppStateStore(storeDir)
         val setup = newGameSetupState(LocalDateTime.of(2026, 5, 11, 10, 0))
 
         assertThrows(IOException::class.java) {
-            store.saveActiveState(
-                PersistedActiveAppState(
-                    screen = AppScreen.SETUP,
+            store.saveCurrentGameState(
+                PersistedCurrentGameState(
                     setupState = setup,
                     liveState = null,
                     setupMode = SetupMode.NEW_GAME,
                 )
             )
         }
-        assertFalse(File(storeDir, ".active_app_state.json.tmp").exists())
+        assertFalse(File(storeDir, ".current_game_state.json.tmp").exists())
     }
 
     // Verify the non-atomic replace fallback still writes readable state.
@@ -635,32 +916,64 @@ class TestUltiObserverAppViewModel {
             },
         )
         val setup = newGameSetupState(LocalDateTime.of(2026, 5, 11, 10, 0))
-        val savedState = PersistedActiveAppState(
-            screen = AppScreen.SETUP,
+        val savedState = PersistedCurrentGameState(
             setupState = setup,
             liveState = null,
             setupMode = SetupMode.NEW_GAME,
         )
 
-        // Force the atomic path to fail and verify the fallback path replaces the file.
-        store.saveActiveState(savedState)
-        assertEquals(1, atomicMoveAttempts)
-        assertFalse(File(storeDir, ".active_app_state.json.tmp").exists())
+        // Force the atomic path to fail and verify the fallback path replaces each split file.
+        store.saveCurrentGameState(savedState)
+        store.saveProfile(PersistedProfile(profileName = "Casey Observer"))
+        store.saveSettings(PersistedSettings(timingAlertPreferences = TimingAlertPreferences()))
+        assertEquals(3, atomicMoveAttempts)
+        assertFalse(File(storeDir, ".current_game_state.json.tmp").exists())
+        assertFalse(File(storeDir, ".profile.json.tmp").exists())
+        assertFalse(File(storeDir, ".settings.json.tmp").exists())
 
         // Load through a normal store to verify the fallback wrote valid serialized state.
-        val restoredState = FileAppStateStore(storeDir).loadActiveState()
+        val restoredState = FileAppStateStore(storeDir).loadCurrentGameState()
         assertEquals(savedState, restoredState)
     }
 }
 
+private fun File.removeStoredVersion() {
+    writeText(
+        readText()
+            .lines()
+            .filterNot { it.trim() == "\"version\": $APP_STATE_VERSION," }
+            .joinToString("\n")
+    )
+}
+
+private fun File.replaceText(oldValue: String, newValue: String) {
+    writeText(readText().replace(oldValue, newValue))
+}
+
 private class RecordingAppStateStore : AppStateStore {
-    val savedActiveStates = mutableListOf<PersistedActiveAppState>()
+    val savedCurrentGameStates = mutableListOf<PersistedCurrentGameState>()
+    val savedProfiles = mutableListOf<PersistedProfile>()
+    val savedSettings = mutableListOf<PersistedSettings>()
     val savedArchivedGames = mutableListOf<List<ArchivedGame>>()
 
-    override fun loadActiveState(): PersistedActiveAppState? = null
+    override val resetPersistedDataAreas: Set<PersistedDataArea> = emptySet()
 
-    override fun saveActiveState(state: PersistedActiveAppState) {
-        savedActiveStates += state
+    override fun loadCurrentGameState(): PersistedCurrentGameState? = null
+
+    override fun saveCurrentGameState(state: PersistedCurrentGameState) {
+        savedCurrentGameStates += state
+    }
+
+    override fun loadProfile(): PersistedProfile? = null
+
+    override fun saveProfile(state: PersistedProfile) {
+        savedProfiles += state
+    }
+
+    override fun loadSettings(): PersistedSettings? = null
+
+    override fun saveSettings(state: PersistedSettings) {
+        savedSettings += state
     }
 
     override fun loadArchivedGames(): List<ArchivedGame> = emptyList()

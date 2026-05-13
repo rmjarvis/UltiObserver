@@ -25,37 +25,40 @@ internal enum class SetupMode {
     EDIT_CURRENT_GAME,
 }
 
-@Serializable
-internal data class ArchivedGame(
-    val state: LiveGameState,
-    val subtitle: String,
-)
-
 internal class UltiObserverAppViewModel(
     private val appStateStore: AppStateStore = NoOpAppStateStore,
 ) : ViewModel() {
-    private val persistedActiveState = appStateStore.loadActiveState()
-    private val restoredSetupDraft = persistedActiveState?.hasSetupDraft ?: false
+    private val persistedCurrentGameState = appStateStore.loadCurrentGameState()
+    private val persistedProfile = appStateStore.loadProfile()
+    private val persistedSettings = appStateStore.loadSettings()
+    private val restoredSetupDraft = persistedCurrentGameState?.hasSetupDraft ?: false
+    private val restoredArchivedGames = appStateStore.loadArchivedGames()
 
     var screen by mutableStateOf(AppScreen.HOME)
         private set
-    var setupState by mutableStateOf(persistedActiveState?.setupState ?: newGameSetupState())
+    var setupState by mutableStateOf(persistedCurrentGameState?.setupState ?: newGameSetupState())
         private set
-    var liveState by mutableStateOf(persistedActiveState?.liveState)
+    var liveState by mutableStateOf(persistedCurrentGameState?.liveState)
         private set
-    var setupMode by mutableStateOf(persistedActiveState?.setupMode ?: SetupMode.NEW_GAME)
+    var setupMode by mutableStateOf(persistedCurrentGameState?.setupMode ?: SetupMode.NEW_GAME)
         private set
-    var profileName by mutableStateOf(persistedActiveState?.profileName ?: "")
+    var profileName by mutableStateOf(persistedProfile?.profileName ?: "")
         private set
     var timingAlertPreferences by mutableStateOf(
-        persistedActiveState?.timingAlertPreferences ?: TimingAlertPreferences()
+        persistedSettings?.timingAlertPreferences ?: TimingAlertPreferences()
     )
         private set
-    var archivedGames by mutableStateOf(appStateStore.loadArchivedGames())
+    var archivedGames by mutableStateOf(restoredArchivedGames)
         private set
     var viewingArchivedGame by mutableStateOf<ArchivedGame?>(null)
         private set
     var hasSetupDraft by mutableStateOf(restoredSetupDraft)
+        private set
+    var startupRecoveryNotice by mutableStateOf(
+        appStateStore.resetPersistedDataAreas.takeIf { it.isNotEmpty() }?.let { resetAreas ->
+            PersistedDataRecoveryNotice(resetAreas)
+        }
+    )
         private set
 
     val currentLiveState: LiveGameState?
@@ -78,7 +81,6 @@ internal class UltiObserverAppViewModel(
     fun goHome() {
         screen = AppScreen.HOME
         clearViewedArchivedGame()
-        persistActiveState()
     }
 
     fun goBackFromCurrentScreen() {
@@ -106,71 +108,71 @@ internal class UltiObserverAppViewModel(
         if (setupMode == SetupMode.NEW_GAME) {
             hasSetupDraft = true
         }
-        persistActiveState()
+        persistCurrentGameState()
     }
 
     fun updateLiveGame(updatedGame: LiveGameState) {
         if (viewingArchivedGame == null) {
             // All live game event logging flows through this ViewModel boundary.
             liveState = updatedGame
-            persistActiveState()
+            persistCurrentGameState()
         }
     }
 
     fun updateProfileName(updatedName: String) {
         profileName = updatedName
-        persistActiveState()
+        persistProfileState()
     }
 
     fun updateTimingAlertGlobalMode(mode: TimingAlertGlobalMode) {
         timingAlertPreferences = timingAlertPreferences.copy(globalMode = mode)
-        persistActiveState()
+        persistSettingsState()
     }
 
     fun updateTimingAlertSoundVolume(volume: Float) {
         timingAlertPreferences = timingAlertPreferences.copy(soundVolume = volume)
-        persistActiveState()
+        persistSettingsState()
     }
 
     fun updateTimingAlertVibrationDuration(durationMillis: Long) {
         timingAlertPreferences = timingAlertPreferences.copy(vibrationDurationMillis = durationMillis)
-        persistActiveState()
+        persistSettingsState()
     }
 
     fun updateTimingAlertVibrateWithSounds(vibrateWithSounds: Boolean) {
         timingAlertPreferences = timingAlertPreferences.copy(vibrateWithSounds = vibrateWithSounds)
-        persistActiveState()
+        persistSettingsState()
     }
 
     fun updateTimingCueMode(cueId: TimingCueId, mode: TimingAlertMode) {
         timingAlertPreferences = timingAlertPreferences.copy(
             cueModes = timingAlertPreferences.cueModes + (cueId to mode),
         )
-        persistActiveState()
+        persistSettingsState()
+    }
+
+    fun dismissStartupRecoveryNotice() {
+        startupRecoveryNotice = null
     }
 
     fun openProfile() {
         clearViewedArchivedGame()
         screen = AppScreen.PROFILE
-        persistActiveState()
     }
 
     fun openSettings() {
         clearViewedArchivedGame()
         screen = AppScreen.SETTINGS
-        persistActiveState()
     }
 
     fun openTimingCueSettings() {
         clearViewedArchivedGame()
         screen = AppScreen.TIMING_CUE_SETTINGS
-        persistActiveState()
     }
 
     fun openPreviousGames() {
         clearViewedArchivedGame()
         screen = AppScreen.PREVIOUS_GAMES
-        persistActiveState()
     }
 
     fun resumeCurrentGame() {
@@ -186,7 +188,6 @@ internal class UltiObserverAppViewModel(
         if (current.phase != LivePhase.GAME_OVER) {
             clearViewedArchivedGame()
             screen = AppScreen.LIVE
-            persistActiveState()
         }
     }
 
@@ -195,7 +196,7 @@ internal class UltiObserverAppViewModel(
             clearViewedArchivedGame()
             setupMode = SetupMode.NEW_GAME
             screen = AppScreen.SETUP
-            persistActiveState()
+            persistCurrentGameState()
         }
     }
 
@@ -204,7 +205,6 @@ internal class UltiObserverAppViewModel(
         if (current.phase == LivePhase.GAME_OVER) {
             clearViewedArchivedGame()
             screen = AppScreen.LIVE
-            persistActiveState()
         }
     }
 
@@ -212,7 +212,6 @@ internal class UltiObserverAppViewModel(
         val archived = archivedGames.getOrNull(index) ?: return
         viewingArchivedGame = archived
         screen = AppScreen.LIVE
-        persistActiveState()
     }
 
     fun archiveCompletedGame() {
@@ -227,7 +226,7 @@ internal class UltiObserverAppViewModel(
         liveState = null
         clearViewedArchivedGame()
         persistArchivedGames()
-        persistActiveState()
+        persistCurrentGameState()
     }
 
     fun deleteCurrentGame() {
@@ -236,7 +235,7 @@ internal class UltiObserverAppViewModel(
         setupMode = SetupMode.NEW_GAME
         hasSetupDraft = false
         screen = AppScreen.HOME
-        persistActiveState()
+        persistCurrentGameState()
     }
 
     fun deleteArchivedGame(index: Int) {
@@ -246,14 +245,12 @@ internal class UltiObserverAppViewModel(
         archivedGames = archivedGames.toMutableList().also { it.removeAt(index) }
         clearViewedArchivedGame()
         persistArchivedGames()
-        persistActiveState()
     }
 
     fun deleteAllArchivedGames() {
         archivedGames = emptyList()
         clearViewedArchivedGame()
         persistArchivedGames()
-        persistActiveState()
     }
 
     fun startNewGame() {
@@ -277,7 +274,7 @@ internal class UltiObserverAppViewModel(
         setupMode = SetupMode.NEW_GAME
         hasSetupDraft = true
         screen = AppScreen.SETUP
-        persistActiveState()
+        persistCurrentGameState()
     }
 
     fun finishSetup(now: Long = System.currentTimeMillis()) {
@@ -290,7 +287,7 @@ internal class UltiObserverAppViewModel(
         hasSetupDraft = false
         setupMode = SetupMode.EDIT_CURRENT_GAME
         screen = AppScreen.LIVE
-        persistActiveState()
+        persistCurrentGameState()
     }
 
     fun editCurrentGame(currentGame: LiveGameState) {
@@ -304,7 +301,7 @@ internal class UltiObserverAppViewModel(
         setupState = currentGame.toSetupState()
         setupMode = SetupMode.EDIT_CURRENT_GAME
         screen = AppScreen.SETUP
-        persistActiveState()
+        persistCurrentGameState()
     }
 
     private fun reopenSetupDraftFromInitialPreview() {
@@ -313,24 +310,31 @@ internal class UltiObserverAppViewModel(
         setupMode = SetupMode.NEW_GAME
         hasSetupDraft = true
         screen = AppScreen.SETUP
-        persistActiveState()
+        persistCurrentGameState()
     }
 
     private fun clearViewedArchivedGame() {
         viewingArchivedGame = null
     }
 
-    private fun persistActiveState() {
-        appStateStore.saveActiveState(
-            PersistedActiveAppState(
-                screen = screen,
+    private fun persistCurrentGameState() {
+        appStateStore.saveCurrentGameState(
+            PersistedCurrentGameState(
                 setupState = setupState,
                 liveState = liveState,
                 setupMode = setupMode,
-                profileName = profileName,
                 hasSetupDraft = hasSetupDraft,
-                timingAlertPreferences = timingAlertPreferences,
             )
+        )
+    }
+
+    private fun persistProfileState() {
+        appStateStore.saveProfile(PersistedProfile(profileName = profileName))
+    }
+
+    private fun persistSettingsState() {
+        appStateStore.saveSettings(
+            PersistedSettings(timingAlertPreferences = timingAlertPreferences)
         )
     }
 

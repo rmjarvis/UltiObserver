@@ -1,5 +1,11 @@
 package rmjarvis.ultiobserver
 
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
@@ -9,19 +15,24 @@ import java.time.ZoneId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 
 @RunWith(AndroidJUnit4::class)
 class TestPersistence {
-    // Test Android app-private storage for active state and archived summaries.
+    @get:Rule
+    val composeRule = createComposeRule()
+
+    // Test Android app-private storage for each persisted app-data bucket.
     @Test
     fun fileStorePersistsStateOnDeviceStorage() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val storeDir = File(context.filesDir, "persistence-test-${System.nanoTime()}")
 
         try {
-            // Save active live state with undo history through the Android file-backed store.
+            // Save current live state with undo history through the Android file-backed store.
             val store = FileAppStateStore(storeDir)
             val setup = GameSetupState(
                 startDate = LocalDate.of(2026, 5, 11),
@@ -35,14 +46,19 @@ class TestPersistence {
                 scoringTeam = TeamId.TEAM_ONE,
                 now = livePointState.startEpoch + 5 * 60_000L,
             )
-            store.saveActiveState(
-                PersistedActiveAppState(
-                    screen = AppScreen.LIVE,
+            store.saveCurrentGameState(
+                PersistedCurrentGameState(
                     setupState = setup,
                     liveState = scoredState,
                     setupMode = SetupMode.NEW_GAME,
                 )
             )
+            store.saveProfile(PersistedProfile(profileName = "Casey Observer"))
+            val timingPreferences = TimingAlertPreferences(
+                globalMode = TimingAlertGlobalMode.VIBRATION_ONLY,
+                soundVolume = 0.4f,
+            )
+            store.saveSettings(PersistedSettings(timingAlertPreferences = timingPreferences))
 
             // Save an archived summary separately, without countdown or undo state.
             val archivedSummary = scoredState.copy(
@@ -54,13 +70,17 @@ class TestPersistence {
 
             // Load through a fresh store instance to verify the on-device files round-trip.
             val restoredStore = FileAppStateStore(storeDir)
-            val restoredActiveState = restoredStore.loadActiveState()!!
+            val restoredCurrentGameState = restoredStore.loadCurrentGameState()!!
+            val restoredProfile = restoredStore.loadProfile()!!
+            val restoredSettings = restoredStore.loadSettings()!!
             val restoredArchivedGame = restoredStore.loadArchivedGames().single()
 
-            assertEquals(scoredState, restoredActiveState.liveState)
-            val undoRestoredState = restoredActiveState.liveState!!.undoLastAction()
+            assertEquals(scoredState, restoredCurrentGameState.liveState)
+            val undoRestoredState = restoredCurrentGameState.liveState!!.undoLastAction()
             assertEquals(livePointState, undoRestoredState.copy(redoEntry = null))
             assertNotNull(undoRestoredState.redoEntry)
+            assertEquals("Casey Observer", restoredProfile.profileName)
+            assertEquals(timingPreferences, restoredSettings.timingAlertPreferences)
             assertEquals(archivedSummary, restoredArchivedGame.state)
             assertNull(restoredArchivedGame.state.undoEntry)
             assertNull(restoredArchivedGame.state.redoEntry)
@@ -68,4 +88,51 @@ class TestPersistence {
             storeDir.deleteRecursively()
         }
     }
+
+    // Test the startup recovery dialog that appears after persisted phone data is reset.
+    @Test
+    fun startupRecoveryNoticeCanBeDismissed() {
+        val viewModel = UltiObserverAppViewModel(
+            StartupRecoveryNoticeStore(
+                setOf(PersistedDataArea.PROFILE, PersistedDataArea.SETTINGS)
+            )
+        )
+
+        composeRule.setContent {
+            UltiObserverTheme(dynamicColor = false) {
+                UltiObserverApp(viewModel)
+            }
+        }
+
+        composeRule.onNodeWithText("Phone Data Reset").assertIsDisplayed()
+        composeRule.onNodeWithText(
+            "Sorry, some phone data was corrupt, so UltiObserver had to revert to default values for Profile and Settings."
+        ).assertIsDisplayed()
+        composeRule.onNodeWithText("Start New Game").assertIsDisplayed()
+
+        composeRule.onNodeWithText("OK").performClick()
+
+        composeRule.onAllNodesWithText("Phone Data Reset").assertCountEquals(0)
+        composeRule.onNodeWithText("Start New Game").assertIsDisplayed()
+    }
+}
+
+private class StartupRecoveryNoticeStore(
+    override val resetPersistedDataAreas: Set<PersistedDataArea>,
+) : AppStateStore {
+    override fun loadCurrentGameState(): PersistedCurrentGameState? = null
+
+    override fun saveCurrentGameState(state: PersistedCurrentGameState) = Unit
+
+    override fun loadProfile(): PersistedProfile? = null
+
+    override fun saveProfile(state: PersistedProfile) = Unit
+
+    override fun loadSettings(): PersistedSettings? = null
+
+    override fun saveSettings(state: PersistedSettings) = Unit
+
+    override fun loadArchivedGames(): List<ArchivedGame> = emptyList()
+
+    override fun saveArchivedGames(games: List<ArchivedGame>) = Unit
 }

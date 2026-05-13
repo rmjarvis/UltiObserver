@@ -7,6 +7,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.runtime.Composable
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
@@ -136,5 +139,18 @@ internal fun UltiObserverApp(viewModel: UltiObserverAppViewModel) {
                 onBackHome = viewModel::goBackFromCurrentScreen,
             )
         }
+    }
+
+    viewModel.startupRecoveryNotice?.let { notice ->
+        AlertDialog(
+            onDismissRequest = viewModel::dismissStartupRecoveryNotice,
+            title = { Text(notice.title) },
+            text = { Text(notice.message) },
+            confirmButton = {
+                TextButton(onClick = viewModel::dismissStartupRecoveryNotice) {
+                    Text("OK")
+                }
+            },
+        )
     }
 }
