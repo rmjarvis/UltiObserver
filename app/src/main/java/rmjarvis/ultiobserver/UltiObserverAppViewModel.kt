@@ -68,9 +68,9 @@ internal class UltiObserverAppViewModel(
         get() {
             val current = liveState
             return when {
-                current?.isInitialLivePreview() == true -> "Tap to resume setup."
-                current == null && hasSetupDraft -> "Tap to resume setup."
-                current != null && current.phase != LivePhase.GAME_OVER -> "Tap to resume the active game."
+                current?.isInitialLivePreview() == true -> "Tap to resume"
+                current == null && hasSetupDraft -> "Tap to resume"
+                current != null && current.phase != LivePhase.GAME_OVER -> "Tap to resume"
                 else -> null
             }
         }

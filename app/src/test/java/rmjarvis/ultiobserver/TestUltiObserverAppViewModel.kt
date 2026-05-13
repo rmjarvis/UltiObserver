@@ -31,7 +31,7 @@ class TestUltiObserverAppViewModel {
         viewModel.startNewGame()
         assertEquals(AppScreen.SETUP, viewModel.screen)
         assertTrue(viewModel.hasSetupDraft)
-        assertEquals("Tap to resume setup.", viewModel.currentGameHomeSubtitle)
+        assertEquals("Tap to resume", viewModel.currentGameHomeSubtitle)
 
         val namedSetup = viewModel.setupState.copy(
             teamOne = TeamSetup("Alpha", TeamColorChoice.BLUE),
@@ -44,12 +44,12 @@ class TestUltiObserverAppViewModel {
         val startedGame = viewModel.liveState
         assertNotNull(startedGame)
         assertEquals(AppScreen.LIVE, viewModel.screen)
-        assertEquals("Tap to resume setup.", viewModel.currentGameHomeSubtitle)
+        assertEquals("Tap to resume", viewModel.currentGameHomeSubtitle)
         assertEquals("Alpha", startedGame!!.teamOne.name)
         assertEquals("Beta", startedGame.teamTwo.name)
 
         viewModel.updateLiveGame(startedGame.beginLivePoint())
-        assertEquals("Tap to resume the active game.", viewModel.currentGameHomeSubtitle)
+        assertEquals("Tap to resume", viewModel.currentGameHomeSubtitle)
 
         val adjustedGame = viewModel.liveState!!.adjustScore(teamOneScore = 2, teamTwoScore = 1)
         viewModel.updateLiveGame(adjustedGame)
@@ -77,7 +77,7 @@ class TestUltiObserverAppViewModel {
         assertEquals("Closed when new game started", viewModel.archivedGames.single().subtitle)
         assertEquals(LivePhase.GAME_OVER, viewModel.archivedGames.single().state.phase)
         assertNull(viewModel.liveState)
-        assertEquals("Tap to resume setup.", viewModel.currentGameHomeSubtitle)
+        assertEquals("Tap to resume", viewModel.currentGameHomeSubtitle)
     }
 
     @Test

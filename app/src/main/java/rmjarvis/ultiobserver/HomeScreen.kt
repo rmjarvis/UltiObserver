@@ -68,8 +68,6 @@ private val PREFERRED_ARTWORK_HEIGHT = 255.dp
 private val SECTION_VERTICAL_PADDING = 32.dp        // 16 dp padding at top and bottom
 private val SECTION_ITEM_GAP = 10.dp                // Space between elements
 private val SECTION_TITLE_LINE_HEIGHT = 28.dp       // Line height for title
-private val SECTION_SUBTITLE_LINE_HEIGHT = 24.dp    // Line height for subtitle
-private val SECTION_DIVIDER_HEIGHT = 1.dp           // Divider height below subtitle
 
 // Elements of the GameListRow in the bottom SectionCard
 private val GAME_ROW_VERTICAL_PADDING = 24.dp       // 12 dp padding at top and bottom
@@ -85,10 +83,9 @@ private val GAME_ROW_HEIGHT =
 // Height of the three central action rows plus the gap before a bottom game section.
 private val ACTIONS_HEIGHT = BUTTON_HEIGHT * 3 + BUTTON_SPACER * 3
 
-// Current-game card height: title, subtitle, divider, row, padding, and three SectionCard gaps.
+// Current-game card height: header row, game row, padding, and one SectionCard gap.
 private val CURRENT_GAME_CARD_HEIGHT =
-    SECTION_VERTICAL_PADDING + SECTION_TITLE_LINE_HEIGHT + SECTION_SUBTITLE_LINE_HEIGHT +
-        SECTION_DIVIDER_HEIGHT + GAME_ROW_HEIGHT + SECTION_ITEM_GAP * 3
+    SECTION_VERTICAL_PADDING + SECTION_TITLE_LINE_HEIGHT + GAME_ROW_HEIGHT + SECTION_ITEM_GAP
 
 // Completed-game card height: title, row, explicit spacer, archive button, padding, and three SectionCard gaps.
 private val COMPLETED_GAME_CARD_HEIGHT =

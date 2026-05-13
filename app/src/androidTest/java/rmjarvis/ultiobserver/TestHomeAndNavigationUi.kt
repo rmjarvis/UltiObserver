@@ -48,7 +48,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         // Backing out of setup should keep a resumable setup draft on Home.
         pressAppBack()
         waitForText("Current Game")
-        composeRule.onNodeWithText("Tap to resume setup.").assertIsDisplayed()
+        composeRule.onNodeWithText("Tap to resume").assertIsDisplayed()
         composeRule.onNodeWithText("Draft Team 0 - 0 Draft Opponent").performClick()
         waitForText("Start Game")
 
@@ -74,7 +74,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         // After the first pull, Back navigation should expose the current-game resume path.
         pressAppBack()
         waitForText("Current Game")
-        composeRule.onNodeWithText("Tap to resume the active game.").assertIsDisplayed()
+        composeRule.onNodeWithText("Tap to resume").assertIsDisplayed()
         composeRule.onNodeWithText("Current Game").assertIsDisplayed()
         composeRule.onNodeWithText("Team 1 0 - 0 Team 2").performClick()
         assertLiveScreen()
