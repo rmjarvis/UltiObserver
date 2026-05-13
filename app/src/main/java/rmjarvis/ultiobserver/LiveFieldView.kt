@@ -40,6 +40,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -162,22 +163,90 @@ internal fun SlideToConfirmControl(
 internal fun StatusLine(
     currentTime: LocalTime,
     capStatus: CapStatus?,
+    height: Dp,
 ) {
+    val clockFontSize = (height.value * 0.68f).coerceIn(28f, 36f).sp
+    val capFontSize = (height.value * 0.42f).coerceIn(18f, 22f).sp
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(height),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = formatClockTime(currentTime),
-            style = MaterialTheme.typography.headlineMedium,
+            style = MaterialTheme.typography.headlineMedium.copy(fontSize = clockFontSize),
             fontWeight = FontWeight.Bold,
         )
         Text(
             text = capStatus?.let { "${it.label} ${formatDuration(it.remaining)}" } ?: "Caps passed",
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = capFontSize),
             fontWeight = FontWeight.SemiBold,
         )
+    }
+}
+
+internal data class FieldLayoutMetrics(
+    val fieldHeight: Dp,
+    val teamRowHeight: Dp,
+    val centerHeight: Dp,
+    val centerVerticalPadding: Dp,
+    val teamRowPadding: Dp,
+    val teamRowGap: Dp,
+    val titleGap: Dp,
+    val detailGap: Dp,
+    val actionGap: Dp,
+    val actionButtonHeight: Dp,
+    val titleFontSize: androidx.compose.ui.unit.TextUnit,
+    val titleLineHeight: androidx.compose.ui.unit.TextUnit,
+    val detailFontSize: androidx.compose.ui.unit.TextUnit,
+    val detailLineHeight: androidx.compose.ui.unit.TextUnit,
+) {
+    companion object {
+        fun fromFieldHeight(fieldHeight: Dp): FieldLayoutMetrics {
+            val centerHeight = (fieldHeight.value * 0.22f)
+                .coerceIn(64f, 120f)
+                .coerceAtMost(fieldHeight.value)
+                .dp
+            val teamRowHeight = ((fieldHeight.value - centerHeight.value) / 2f)
+                .coerceAtLeast(0f)
+                .dp
+            val rowPadding = (teamRowHeight.value * 0.045f)
+                .coerceIn(2f, 12f)
+                .coerceAtMost(teamRowHeight.value / 2f)
+                .dp
+            val contentHeight = (teamRowHeight.value - rowPadding.value * 2f)
+                .coerceAtLeast(0f)
+                .dp
+            val detailGap = (contentHeight.value * 0.01f).coerceIn(0f, 4f).dp
+            val lineBudget = (contentHeight.value - detailGap.value * 4f).coerceAtLeast(0f)
+            val detailLineHeightValue = (lineBudget / 5.35f).coerceIn(0f, 18f)
+            val titleLineHeightValue = (detailLineHeightValue * 1.35f).coerceAtMost(24f)
+            val actionButtonHeight = (contentHeight.value / 3.1f)
+                .coerceIn(0f, 34f)
+                .coerceAtMost(contentHeight.value / 3f)
+                .dp
+            val actionGap = ((contentHeight.value - 3f * actionButtonHeight.value) / 2f)
+                .coerceIn(0f, 6f)
+                .dp
+            return FieldLayoutMetrics(
+                fieldHeight = fieldHeight,
+                teamRowHeight = teamRowHeight,
+                centerHeight = centerHeight,
+                centerVerticalPadding = (centerHeight.value * 0.05f).dp.coerceIn(4.dp, 12.dp),
+                teamRowPadding = rowPadding,
+                teamRowGap = (teamRowHeight.value * 0.045f).dp.coerceIn(5.dp, 12.dp),
+                titleGap = (teamRowHeight.value * 0.035f).dp.coerceIn(4.dp, 10.dp),
+                detailGap = detailGap,
+                actionGap = actionGap,
+                actionButtonHeight = actionButtonHeight,
+                titleFontSize = (titleLineHeightValue - 3f).coerceAtLeast(1f).sp,
+                titleLineHeight = titleLineHeightValue.sp,
+                detailFontSize = (detailLineHeightValue - 2f).coerceAtLeast(1f).sp,
+                detailLineHeight = detailLineHeightValue.sp,
+            )
+        }
     }
 }
 
@@ -187,6 +256,7 @@ internal fun FieldSketchCard(
     state: LiveGameState,
     interactionsEnabled: Boolean,
     showPullIndicator: Boolean,
+    metrics: FieldLayoutMetrics,
     centerContent: @Composable () -> Unit,
     onGoal: (TeamId) -> Unit,
     onTimeout: (TeamId) -> Unit,
@@ -205,7 +275,9 @@ internal fun FieldSketchCard(
 
     // Draw the top team row, center field area, and bottom team row in that order.
     Card(
-        modifier = Modifier.testTag("live-field-diagram"),
+        modifier = Modifier
+            .height(metrics.fieldHeight)
+            .testTag("live-field-diagram"),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant,
         )
@@ -221,6 +293,7 @@ internal fun FieldSketchCard(
                 interactionsEnabled = interactionsEnabled,
                 isPulling = state.pullingTeam == topSlot,
                 pullInfractionEnabled = state.canRecordPullInfraction(topSlot),
+                metrics = metrics,
                 onGoal = { onGoal(topSlot) },
                 onTimeout = { onTimeout(topSlot) },
                 onPullInfraction = { onPullInfraction(topSlot) },
@@ -229,9 +302,9 @@ internal fun FieldSketchCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(120.dp)
+                    .height(metrics.centerHeight)
                     .background(Color(0xFFA8D5A0))
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = 16.dp, vertical = metrics.centerVerticalPadding),
             ) {
                 Row(
                     modifier = Modifier.fillMaxSize(),
@@ -262,6 +335,7 @@ internal fun FieldSketchCard(
                 interactionsEnabled = interactionsEnabled,
                 isPulling = state.pullingTeam == bottomSlot,
                 pullInfractionEnabled = state.canRecordPullInfraction(bottomSlot),
+                metrics = metrics,
                 onGoal = { onGoal(bottomSlot) },
                 onTimeout = { onTimeout(bottomSlot) },
                 onPullInfraction = { onPullInfraction(bottomSlot) },
@@ -281,33 +355,44 @@ private fun EndZonePanel(
     interactionsEnabled: Boolean,
     isPulling: Boolean,
     pullInfractionEnabled: Boolean,
+    metrics: FieldLayoutMetrics,
     onGoal: () -> Unit,
     onTimeout: () -> Unit,
     onPullInfraction: () -> Unit,
 ) {
+    val titleTextStyle = MaterialTheme.typography.titleLarge.copy(
+        fontSize = metrics.titleFontSize,
+        lineHeight = metrics.titleLineHeight,
+    )
+    val detailTextStyle = MaterialTheme.typography.bodyMedium.copy(
+        fontSize = metrics.detailFontSize,
+        lineHeight = metrics.detailLineHeight,
+    )
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .height(metrics.teamRowHeight)
             .background(background)
-            .padding(12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(metrics.teamRowPadding),
+        horizontalArrangement = Arrangement.spacedBy(metrics.teamRowGap),
         verticalAlignment = Alignment.Top,
     ) {
         Row(
             modifier = Modifier.weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(metrics.titleGap),
             verticalAlignment = Alignment.Top,
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(metrics.detailGap)) {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(metrics.titleGap),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
                         text = team.name,
                         color = team.color.content,
                         modifier = Modifier.weight(1f, fill = false),
-                        style = MaterialTheme.typography.titleLarge,
+                        style = titleTextStyle,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -315,56 +400,59 @@ private fun EndZonePanel(
                     Text(
                         text = team.score.toString(),
                         color = team.color.content,
-                        style = MaterialTheme.typography.titleLarge,
+                        style = titleTextStyle,
                         fontWeight = FontWeight.Bold,
                     )
                 }
                 Text(
                     text = "TO $timeoutsRemaining",
                     color = team.color.content,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = detailTextStyle,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
                     text = "Cards $cardPoints",
                     color = team.color.content,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = detailTextStyle,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
                     text = "TF ${team.technicalFouls}",
                     color = team.color.content,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = detailTextStyle,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
                     text = "Pull violations ${team.pullViolationCount()}",
                     color = team.color.content,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = detailTextStyle,
                     fontWeight = FontWeight.SemiBold,
                 )
             }
         }
         Column(
             horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(metrics.actionGap),
         ) {
             CompactActionButton(
                 label = "Goal",
                 modifier = Modifier.testTag("live-${teamId.name}-goal"),
                 enabled = interactionsEnabled,
+                height = metrics.actionButtonHeight,
                 onClick = onGoal,
             )
             CompactActionButton(
                 label = "Timeout",
                 modifier = Modifier.testTag("live-${teamId.name}-timeout"),
                 enabled = interactionsEnabled,
+                height = metrics.actionButtonHeight,
                 onClick = onTimeout,
             )
             CompactActionButton(
                 label = if (isPulling) "Offsides" else "False Start",
                 modifier = Modifier.testTag("live-${teamId.name}-pull-infraction"),
                 enabled = interactionsEnabled && pullInfractionEnabled,
+                height = metrics.actionButtonHeight,
                 onClick = onPullInfraction,
             )
         }
@@ -448,9 +536,12 @@ internal fun CountdownLine(
     enabled: Boolean,
     onAdjust: (Int) -> Unit,
     expiredPullActions: ExpiredPullActions? = null,
+    height: Dp,
 ) {
     val visible = countdown != null || expiredPullActions != null
     val displayCountdown = countdown ?: ActiveCountdownDisplay("Pull in", Duration.ZERO, null)
+    val titleFontSize = (height.value * 0.4f).coerceIn(22f, 28f).sp
+    val labelFontSize = (height.value * 0.21f).coerceIn(12f, 14f).sp
     val rowModifier = if (visible) {
         Modifier.fillMaxWidth()
     } else {
@@ -460,7 +551,7 @@ internal fun CountdownLine(
             .alpha(0f)
     }
     Column(
-        modifier = rowModifier,
+        modifier = rowModifier.height(height),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Row(
@@ -496,10 +587,10 @@ internal fun CountdownLine(
             } else {
                 Text(
                     text = "${displayCountdown.label} ${formatDuration(displayCountdown.remaining)}",
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleLarge.copy(fontSize = titleFontSize),
                     fontWeight = FontWeight.Bold,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     SmallActionButton(label = "-5", enabled = enabled && visible) {
                         onAdjust(-5)
                     }
@@ -517,7 +608,7 @@ internal fun CountdownLine(
                     "Next cue at ${formatDuration(cue.countdownTime)} - ${cue.message}"
                 } ?: "Next cue"
             },
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.labelMedium.copy(fontSize = labelFontSize),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

@@ -6,10 +6,13 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -24,6 +28,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -37,7 +42,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import java.time.LocalTime
 
 // Main live-game screen, including the field view, modal flows, and pop-up cues.
@@ -179,23 +186,30 @@ internal fun LiveGameScreen(
             )
         }
     ) { innerPadding ->
-        Column(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(innerPadding),
         ) {
-            // If the game is over, replace the live controls with the summary screen.
-            if (state.phase == LivePhase.GAME_OVER) {
-                GameOverSummary(state = state, onUndo = {
-                    onStateChange(state.undoLastAction())
-                }, showUndo = !readOnlySummary)
-            } else {
+            val layoutMetrics = liveLayoutMetrics(maxHeight)
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(layoutMetrics.pagePadding),
+                verticalArrangement = Arrangement.spacedBy(layoutMetrics.sectionSpacing),
+            ) {
+                // If the game is over, replace the live controls with the summary screen.
+                if (state.phase == LivePhase.GAME_OVER) {
+                    GameOverSummary(state = state, onUndo = {
+                        onStateChange(state.undoLastAction())
+                    }, showUndo = !readOnlySummary)
+                } else {
                 // Show the current clock and next relevant cap.
                 StatusLine(
                     currentTime = currentClockTime,
                     capStatus = capStatus,
+                    height = layoutMetrics.statusHeight,
                 )
 
                 // Reserve the countdown row even when no timer is active so the field stays put.
@@ -211,6 +225,7 @@ internal fun LiveGameScreen(
                     } else {
                         null
                     },
+                    height = layoutMetrics.countdownHeight,
                 )
 
                 // Sketch the field with two teams and the grass strip between them.
@@ -218,6 +233,7 @@ internal fun LiveGameScreen(
                     state = state,
                     interactionsEnabled = !locked,
                     showPullIndicator = !locked,
+                    metrics = layoutMetrics.field,
                     centerContent = {
                         if (locked) {
                             FieldUnlockControl(onUnlock = { locked = false })
@@ -227,6 +243,7 @@ internal fun LiveGameScreen(
                                     onStateChange(state.beginLivePoint())
                                     locked = true
                                 },
+                                modifier = Modifier.height(layoutMetrics.centerButtonHeight),
                                 shape = RoundedCornerShape(12.dp),
                                 colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
                                     containerColor = Color.White,
@@ -234,7 +251,12 @@ internal fun LiveGameScreen(
                                 ),
                                 border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
                             ) {
-                                Text("Start Point")
+                                Text(
+                                    "Start Point",
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontSize = layoutMetrics.centerButtonFontSize,
+                                    ),
+                                )
                             }
                         } else if (state.phase == LivePhase.LIVE_POINT && state.countdown != null) {
                             OutlinedButton(
@@ -242,6 +264,7 @@ internal fun LiveGameScreen(
                                     onStateChange(state.continueLivePoint())
                                     locked = true
                                 },
+                                modifier = Modifier.height(layoutMetrics.centerButtonHeight),
                                 shape = RoundedCornerShape(12.dp),
                                 colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
                                     containerColor = Color.White,
@@ -249,12 +272,19 @@ internal fun LiveGameScreen(
                                 ),
                                 border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
                             ) {
-                                Text("Continue Point")
+                                Text(
+                                    "Continue Point",
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontSize = layoutMetrics.centerButtonFontSize,
+                                    ),
+                                )
                             }
                         } else if (state.phase == LivePhase.LIVE_POINT) {
                             OutlinedButton(
                                 onClick = { locked = true },
-                                modifier = Modifier.testTag("live-center-lock"),
+                                modifier = Modifier
+                                    .height(layoutMetrics.centerButtonHeight)
+                                    .testTag("live-center-lock"),
                                 shape = RoundedCornerShape(12.dp),
                                 colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
                                     containerColor = Color.White,
@@ -262,7 +292,12 @@ internal fun LiveGameScreen(
                                 ),
                                 border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
                             ) {
-                                Text("Lock")
+                                Text(
+                                    "Lock",
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontSize = layoutMetrics.centerButtonFontSize,
+                                    ),
+                                )
                             }
                         }
                     },
@@ -297,37 +332,37 @@ internal fun LiveGameScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    OutlinedButton(
+                    SmallActionButton(
+                        label = "Cards / TF",
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(layoutMetrics.bottomActionHeight),
+                        enabled = !locked,
+                        containerColor = Color.White,
+                        contentColor = Color.Black,
+                        borderColor = Color.Black,
                         onClick = { showCardsSheet = true },
+                    )
+                    SmallActionButton(
+                        label = "Other",
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(layoutMetrics.bottomActionHeight),
                         enabled = !locked,
-                        modifier = Modifier.weight(1f),
-                        colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
-                            containerColor = Color.White,
-                            contentColor = Color.Black,
-                        ),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
-                    ) {
-                        Text("Cards / TF")
-                    }
-                    OutlinedButton(
+                        containerColor = Color.White,
+                        contentColor = Color.Black,
+                        borderColor = Color.Black,
                         onClick = { showOtherSheet = true },
-                        enabled = !locked,
-                        modifier = Modifier.weight(1f),
-                        colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
-                            containerColor = Color.White,
-                            contentColor = Color.Black,
-                        ),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
-                    ) {
-                        Text("Other")
-                    }
+                    )
                 }
 
                 UndoRedoBar(
                     state = state,
                     enabled = !locked,
+                    height = layoutMetrics.undoHeight,
                     onStateChange = onStateChange,
                 )
+                }
             }
         }
     }
@@ -547,11 +582,55 @@ private fun Context.performTimingCueHaptic(durationMillis: Long) {
     }
 }
 
+private data class LiveLayoutMetrics(
+    val pagePadding: Dp,
+    val sectionSpacing: Dp,
+    val statusHeight: Dp,
+    val countdownHeight: Dp,
+    val bottomActionHeight: Dp,
+    val undoHeight: Dp,
+    val centerButtonHeight: Dp,
+    val centerButtonFontSize: androidx.compose.ui.unit.TextUnit,
+    val field: FieldLayoutMetrics,
+)
+
+private fun liveLayoutMetrics(contentHeight: Dp): LiveLayoutMetrics {
+    val pagePadding = (contentHeight.value * 0.014f).dp.coerceIn(8.dp, 16.dp)
+    val sectionSpacing = (contentHeight.value * 0.011f).dp.coerceIn(6.dp, 12.dp)
+    val statusHeight = (contentHeight.value * 0.075f).dp.coerceIn(42.dp, 52.dp)
+    val countdownHeight = (contentHeight.value * 0.095f).dp.coerceIn(52.dp, 64.dp)
+    val bottomActionHeight = 34.dp
+    val undoHeight = 34.dp
+    val fieldHeight = (
+        contentHeight.value -
+            pagePadding.value * 2f -
+            sectionSpacing.value * 4f -
+            statusHeight.value -
+            countdownHeight.value -
+            bottomActionHeight.value -
+            undoHeight.value
+        )
+        .coerceAtLeast(0f)
+        .dp
+    return LiveLayoutMetrics(
+        pagePadding = pagePadding,
+        sectionSpacing = sectionSpacing,
+        statusHeight = statusHeight,
+        countdownHeight = countdownHeight,
+        bottomActionHeight = bottomActionHeight,
+        undoHeight = undoHeight,
+        centerButtonHeight = (fieldHeight.value * 0.11f).dp.coerceIn(38.dp, 48.dp),
+        centerButtonFontSize = (fieldHeight.value * 0.04f).coerceIn(14f, 16f).sp,
+        field = FieldLayoutMetrics.fromFieldHeight(fieldHeight),
+    )
+}
+
 // Bottom action bar for undo plus immediate redo after an undo.
 @Composable
 private fun UndoRedoBar(
     state: LiveGameState,
     enabled: Boolean,
+    height: Dp,
     onStateChange: (LiveGameState) -> Unit,
 ) {
     val undoEntry = state.undoEntry
@@ -561,55 +640,71 @@ private fun UndoRedoBar(
     }
 
     if (redoEntry == null) {
-        OutlinedButton(
-            onClick = { onStateChange(state.undoLastAction()) },
-            enabled = enabled,
-            modifier = Modifier.fillMaxWidth(),
-            colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
-                containerColor = Color.White,
-                contentColor = Color.Black,
-            ),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
-        ) {
-            Text(undoEntry!!.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        return
-    }
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (undoEntry != null) {
+        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
             OutlinedButton(
                 onClick = { onStateChange(state.undoLastAction()) },
                 enabled = enabled,
-                modifier = Modifier.weight(3f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(height)
+                    .defaultMinSize(minHeight = 0.dp),
                 colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
                     containerColor = Color.White,
                     contentColor = Color.Black,
                 ),
                 border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
             ) {
-                Text(undoEntry.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(undoEntry!!.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-        } else {
-            Spacer(modifier = Modifier.weight(3f))
         }
-        OutlinedButton(
-            onClick = { onStateChange(state.redoLastAction()) },
-            enabled = enabled,
-            modifier = Modifier.weight(1f),
-            colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
-                containerColor = Color(0xFF343A40),
-                contentColor = Color.White,
-                disabledContainerColor = Color(0xFF343A40),
-                disabledContentColor = Color.White,
-            ),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
+        return
+    }
+
+    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Redo")
+            if (undoEntry != null) {
+                OutlinedButton(
+                    onClick = { onStateChange(state.undoLastAction()) },
+                    enabled = enabled,
+                    modifier = Modifier
+                        .weight(3f)
+                        .height(height)
+                        .defaultMinSize(minHeight = 0.dp),
+                    colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                        containerColor = Color.White,
+                        contentColor = Color.Black,
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
+                ) {
+                    Text(undoEntry.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            } else {
+                Spacer(modifier = Modifier.weight(3f))
+            }
+            OutlinedButton(
+                onClick = { onStateChange(state.redoLastAction()) },
+                enabled = enabled,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(height)
+                    .defaultMinSize(minHeight = 0.dp),
+                colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                    containerColor = Color(0xFF343A40),
+                    contentColor = Color.White,
+                    disabledContainerColor = Color(0xFF343A40),
+                    disabledContentColor = Color.White,
+                ),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
+            ) {
+                Text("Redo")
+            }
         }
     }
 }

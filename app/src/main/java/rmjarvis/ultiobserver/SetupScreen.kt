@@ -6,11 +6,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -49,6 +51,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import java.time.Instant
 import java.time.LocalDate
@@ -120,13 +123,18 @@ internal fun SetupScreen(
             )
         },
         bottomBar = {
-            Button(
-                onClick = onPrimaryAction,
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .navigationBarsPadding()
                     .padding(16.dp),
             ) {
-                Text(primaryButtonLabel)
+                Button(
+                    onClick = onPrimaryAction,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(primaryButtonLabel)
+                }
             }
         },
     ) { innerPadding ->
@@ -472,27 +480,18 @@ private fun SetupSummaryRow(
     }
 }
 
-// Two-column summary so Half and TO align visually.
+// Flowing summary keeps each rule value on one line on narrower phones.
 @Composable
 private fun GameRulesSummary(rules: GameRules) {
-    Row(
+    FlowRow(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(28.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            SetupSummaryValue("Game to ${rules.gameTo}")
-            SetupSummaryValue("Caps: ${rules.capRulesSummary()}")
-        }
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            SetupSummaryValue("Half: ${rules.halftimeMinutes} min")
-            SetupSummaryValue("TO: ${rules.timeoutSummary()}")
-        }
+        SetupSummaryValue("Game to ${rules.gameTo}")
+        SetupSummaryValue("Half: ${rules.halftimeMinutes} min")
+        SetupSummaryValue("Caps ${rules.capRulesSummary()}")
+        SetupSummaryValue("TO ${rules.timeoutSummary()}")
     }
 }
 
@@ -502,6 +501,8 @@ private fun SetupSummaryValue(text: String) {
         text = text,
         style = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.SemiBold,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
     )
 }
 
@@ -1288,7 +1289,7 @@ private fun GameRules.capRulesSummary(): String {
 }
 
 private fun capSummary(enabled: Boolean, minutes: Int): String {
-    return if (enabled) minutes.toString() else "-"
+    return if (enabled) "+$minutes" else "-"
 }
 
 private fun GameRules.timeoutSummary(): String {

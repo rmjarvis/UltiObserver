@@ -152,8 +152,8 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Game Summary").assertIsDisplayed()
         composeRule.onNodeWithText("$viscousCoupling 4").assertIsDisplayed()
         composeRule.onNodeWithText("$animal 5").assertIsDisplayed()
-        composeRule.onNodeWithText(viscousCoupling).assertIsDisplayed()
-        composeRule.onNodeWithText(animal).assertIsDisplayed()
+        composeRule.onNodeWithText(viscousCoupling).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText(animal).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Undo End Game").performClick()
         assertLiveScreen()
 

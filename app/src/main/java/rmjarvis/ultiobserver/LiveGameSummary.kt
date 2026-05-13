@@ -2,8 +2,12 @@ package rmjarvis.ultiobserver
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -23,44 +27,57 @@ internal fun GameOverSummary(
     showUndo: Boolean,
 ) {
     val orderedTeams = state.winnerFirstTeams()
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .navigationBarsPadding()
+            .padding(bottom = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             ) {
-                Text("Game Summary", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Text(
-                    text = "Start ${formatStartDate(state.startDate)} ${formatClockTime(state.startTime)}",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                val endTime = localTimeFromEpoch(state.endEpoch!!, state.timeZone)
-                Text(
-                    text = "End time ${formatClockTime(endTime)}",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                orderedTeams.forEach { team ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text("Game Summary", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     Text(
-                        text = "${team.name} ${team.score}",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
+                        text = "Start ${formatStartDate(state.startDate)} ${formatClockTime(state.startTime)}",
+                        style = MaterialTheme.typography.bodyMedium,
                     )
+                    val endTime = localTimeFromEpoch(state.endEpoch!!, state.timeZone)
+                    Text(
+                        text = "End time ${formatClockTime(endTime)}",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    orderedTeams.forEach { team ->
+                        Text(
+                            text = "${team.name} ${team.score}",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
                 }
             }
-        }
 
-        GameOverTeamSummary(
-            team = state.teamOne,
-            issuedCards = state.playerCards(TeamId.TEAM_ONE),
-        )
-        GameOverTeamSummary(
-            team = state.teamTwo,
-            issuedCards = state.playerCards(TeamId.TEAM_TWO),
-        )
+            GameOverTeamSummary(
+                team = state.teamOne,
+                issuedCards = state.playerCards(TeamId.TEAM_ONE),
+            )
+            GameOverTeamSummary(
+                team = state.teamTwo,
+                issuedCards = state.playerCards(TeamId.TEAM_TWO),
+            )
+        }
 
         if (showUndo) {
             OutlinedButton(

@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,7 +28,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import java.time.format.DateTimeFormatter
 
 internal data class GameListEntry(
@@ -39,6 +42,64 @@ internal data class ArchivedGameListEntry(
     val startDateTime: String,
     val scoreLine: String,
 )
+
+// Define primitive component heights used to calculate the size of each home-screen section.
+// This lets us scale the identity area between minimum and preferred size.
+
+// Size and space for main buttons
+private val BUTTON_HEIGHT = 48.dp  // Start New Game button, and others.
+private val BUTTON_SPACER = 8.dp   // Vertical space between buttons and other content
+
+// Minimum and preferred line heights for the title/subtitle text
+private val MIN_TITLE_LINE_HEIGHT = 39.dp           // Line height for 32.sp font
+private val PREFERRED_TITLE_LINE_HEIGHT = 52.dp     // Line height for 45.sp font
+private val MIN_SUBTITLE_LINE_HEIGHT = 22.dp        // Line height for 14.sp font
+private val PREFERRED_SUBTITLE_LINE_HEIGHT = 24.dp  // Line height for 16.sp font
+
+// We use the sum of these in multiple places below for our spacing calculations.
+private val MIN_IDENTITY_TEXT_HEIGHT = MIN_TITLE_LINE_HEIGHT + MIN_SUBTITLE_LINE_HEIGHT
+private val PREFERRED_IDENTITY_TEXT_HEIGHT = PREFERRED_TITLE_LINE_HEIGHT + PREFERRED_SUBTITLE_LINE_HEIGHT
+
+// Minimum and preferred artwork sizes
+private val MIN_ARTWORK_HEIGHT = 75.dp
+private val PREFERRED_ARTWORK_HEIGHT = 255.dp
+
+// Elements of the SectionCard for completed and current games.
+private val SECTION_VERTICAL_PADDING = 32.dp        // 16 dp padding at top and bottom
+private val SECTION_ITEM_GAP = 10.dp                // Space between elements
+private val SECTION_TITLE_LINE_HEIGHT = 28.dp       // Line height for title
+private val SECTION_SUBTITLE_LINE_HEIGHT = 24.dp    // Line height for subtitle
+private val SECTION_DIVIDER_HEIGHT = 1.dp           // Divider height below subtitle
+
+// Elements of the GameListRow in the bottom SectionCard
+private val GAME_ROW_VERTICAL_PADDING = 24.dp       // 12 dp padding at top and bottom
+private val GAME_ROW_DATE_LINE_HEIGHT = 17.dp       // Line height for start date/time
+private val GAME_ROW_SCORE_LINE_HEIGHT = 24.dp      // Line height for score
+private val GAME_ROW_LINE_GAP = 4.dp                // Space between start date/time and score
+
+// Total size of the GameListRow
+private val GAME_ROW_HEIGHT =
+    GAME_ROW_VERTICAL_PADDING + GAME_ROW_DATE_LINE_HEIGHT + GAME_ROW_LINE_GAP +
+        GAME_ROW_SCORE_LINE_HEIGHT
+
+// Height of the three central action rows plus the gap before a bottom game section.
+private val ACTIONS_HEIGHT = BUTTON_HEIGHT * 3 + BUTTON_SPACER * 3
+
+// Current-game card height: title, subtitle, divider, row, padding, and three SectionCard gaps.
+private val CURRENT_GAME_CARD_HEIGHT =
+    SECTION_VERTICAL_PADDING + SECTION_TITLE_LINE_HEIGHT + SECTION_SUBTITLE_LINE_HEIGHT +
+        SECTION_DIVIDER_HEIGHT + GAME_ROW_HEIGHT + SECTION_ITEM_GAP * 3
+
+// Completed-game card height: title, row, explicit spacer, archive button, padding, and three SectionCard gaps.
+private val COMPLETED_GAME_CARD_HEIGHT =
+    SECTION_VERTICAL_PADDING + SECTION_TITLE_LINE_HEIGHT + GAME_ROW_HEIGHT +
+        BUTTON_SPACER + BUTTON_HEIGHT + SECTION_ITEM_GAP * 3
+
+// Calculate the total desired growth from min values to preferred.
+// This is used to scale up from the minimum fonts and sizes once we know how much space we have.
+private val MIN_TOTAL_HEIGHT = MIN_IDENTITY_TEXT_HEIGHT + MIN_ARTWORK_HEIGHT
+private val PREFERRED_TOTAL_HEIGHT = PREFERRED_IDENTITY_TEXT_HEIGHT + PREFERRED_ARTWORK_HEIGHT
+private val PREFERRED_GROWTH_HEIGHT = PREFERRED_TOTAL_HEIGHT - MIN_TOTAL_HEIGHT
 
 // Home-screen summary for a live or completed game.
 internal fun LiveGameState.gameListEntry(): GameListEntry {
@@ -96,114 +157,157 @@ internal fun HomeScreen(
 ) {
     // Compose the home screen as an app identity area with navigation and game resume cards.
     Scaffold { innerPadding ->
-        Column(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(innerPadding),
         ) {
-            // Keep the observer artwork and app title visible on every home-screen state.
+            val usableHeight = maxHeight
+
+            // Scale outer padding with screen height so tall phones get a little
+            // more breathing room while smaller screens stay compact.
+            val pagePadding = (usableHeight.value * 0.02f).dp.coerceIn(12.dp, 20.dp)
+
+            // Same idea for major vertical gaps: 1.7% keeps short screens tight
+            // and reaches the normal 16 dp on taller phones.
+            val mainSpacing = (usableHeight.value * 0.017f).dp.coerceIn(10.dp, 16.dp)
+
+            // Identity spacing is the tighter artwork/title/subtitle gap. 1.3%
+            // scales from compact spacing on short screens to 12 dp on roomier screens.
+            val identitySpacing = (usableHeight.value * 0.013f).dp.coerceIn(6.dp, 12.dp)
+
+            // Central content is the minimum identity text plus the three home action rows.
+            // The artwork itself is excluded because it is the value we solve for.
+            val minCentralContentHeight =
+                MIN_IDENTITY_TEXT_HEIGHT + identitySpacing * 2 + mainSpacing + ACTIONS_HEIGHT
+
+            // Bottom section height is based on the concrete card that will render, if any.
+            val bottomGameSectionHeight = when {
+                currentGame != null -> CURRENT_GAME_CARD_HEIGHT
+                completedGamePendingArchive != null -> COMPLETED_GAME_CARD_HEIGHT
+                else -> 0.dp
+            }
+            val hasBottomGameSection = currentGame != null || completedGamePendingArchive != null
+
+            // Figure out how much to scale the artwork and identity text between the
+            // minimum sizes and the preferred sizes.
+            // When this is 0, there is no extra room beyond the minimum sizes.
+            // When this is 1, we can scale all the way up to the preferred sizes.
+            val growthScale = if (hasBottomGameSection) {
+                (
+                    // When a bottom game card exists, find how much height remains after the min
+                    // identity/artwork budget, then use that to scale toward preferred size.
+                    usableHeight -
+                        pagePadding * 2 -
+                        minCentralContentHeight -
+                        bottomGameSectionHeight -
+                        MIN_ARTWORK_HEIGHT
+                    ).value
+                    .div(PREFERRED_GROWTH_HEIGHT.value)
+                    .coerceIn(0f, 1f)
+            } else {
+                // With no bottom section, we can use the preferred size.
+                1f
+            }
+
+            // Scale artwork and identity text with the same minimum-to-preferred factor.
+            fun scaledHeightValue(min: Float, max: Float): Float {
+                return min + growthScale * (max - min)
+            }
+            val artworkHeight = scaledHeightValue(
+                min = MIN_ARTWORK_HEIGHT.value,
+                max = PREFERRED_ARTWORK_HEIGHT.value,
+            ).dp
+            val titleFontSize = scaledHeightValue(min = 32f, max = 45f).sp
+            val subtitleFontSize = scaledHeightValue(min = 14f, max = 16f).sp
+
             Column(
                 modifier = Modifier
-                    .fillMaxWidth(),
+                    .fillMaxSize()
+                    .padding(pagePadding),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Image(
-                    painter = painterResource(R.drawable.splash_observer_foul_call),
-                    contentDescription = null,
-                    contentScale = ContentScale.Fit,
+                // Keep the observer artwork and app title visible on every home-screen state.
+                Column(
                     modifier = Modifier
-                        .height(255.dp)
-                        .fillMaxWidth(0.9f)
-                        .testTag("home-artwork"),
-                )
-                Text(
-                    text = "UltiObserver",
-                    style = MaterialTheme.typography.displayMedium,
-                    fontWeight = FontWeight.Black,
-                    textAlign = TextAlign.Center,
-                )
-                Text(
-                    text = "Game management for Ultimate observers",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
-            }
-
-            // Main home actions. Start game remains primary; the others lead to early stub pages.
-            Row(
-                modifier = Modifier.fillMaxWidth(0.9f),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                        .fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(identitySpacing),
                 ) {
-                    Button(
-                        onClick = onStartNewGame,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Start New Game", textAlign = TextAlign.Center)
-                    }
-                    OutlinedButton(
-                        onClick = onOpenPreviousGames,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Previous Games", textAlign = TextAlign.Center)
-                    }
+                    Image(
+                        painter = painterResource(R.drawable.splash_observer_foul_call),
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .height(artworkHeight)
+                            .fillMaxWidth(0.9f)
+                            .testTag("home-artwork"),
+                    )
+                    Text(
+                        text = "UltiObserver",
+                        style = MaterialTheme.typography.displayMedium.copy(
+                            fontSize = titleFontSize,
+                            lineHeight = (titleFontSize.value + 7f).sp,
+                        ),
+                        fontWeight = FontWeight.Black,
+                        textAlign = TextAlign.Center,
+                    )
+                    Text(
+                        text = "Game management for Ultimate observers",
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            fontSize = subtitleFontSize,
+                            lineHeight = (subtitleFontSize.value + 8f).sp,
+                        ),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
                 }
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    OutlinedButton(
-                        onClick = onOpenProfile,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Profile")
-                    }
-                    OutlinedButton(
-                        onClick = onOpenSettings,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Settings")
-                    }
+
+                Spacer(modifier = Modifier.height(mainSpacing))
+
+                // Main home actions use the same one-primary layout on every phone size.
+                HomeActions(
+                    onStartNewGame = onStartNewGame,
+                    onOpenPreviousGames = onOpenPreviousGames,
+                    onOpenProfile = onOpenProfile,
+                    onOpenSettings = onOpenSettings,
+                    modifier = Modifier.fillMaxWidth(0.9f),
+                )
+
+                if (hasBottomGameSection) {
+                    Spacer(modifier = Modifier.height(BUTTON_SPACER))
+                } else {
+                    Spacer(modifier = Modifier.weight(1f))
                 }
-            }
 
-            Spacer(modifier = Modifier.weight(1f))
-
-            Box(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    // Show the currently active game, if there is one.
-                    if (currentGame != null) {
-                        SectionCard(
-                            title = "Current Game",
-                            subtitle = currentGameSectionSubtitle,
-                        ) {
-                            GameListRow(entry = currentGame, onClick = onResumeCurrentGame)
-                        }
-                    }
-
-                    // Show a finished-but-not-yet-archived game, if there is one.
-                    if (completedGamePendingArchive != null) {
-                        SectionCard(
-                            title = "Completed Game",
-                        ) {
-                            GameListRow(entry = completedGamePendingArchive, onClick = onOpenCompletedGame)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Button(
-                                onClick = onArchiveCompletedGame,
-                                modifier = Modifier.fillMaxWidth(),
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(mainSpacing),
+                    ) {
+                        // Show the currently active game, if there is one.
+                        if (currentGame != null) {
+                            SectionCard(
+                                title = "Current Game",
+                                subtitle = currentGameSectionSubtitle,
                             ) {
-                                Text("Archive Completed Game")
+                                GameListRow(entry = currentGame, onClick = onResumeCurrentGame)
+                            }
+                        }
+
+                        // Show a finished-but-not-yet-archived game, if there is one.
+                        if (completedGamePendingArchive != null) {
+                            SectionCard(
+                                title = "Completed Game",
+                            ) {
+                                GameListRow(entry = completedGamePendingArchive, onClick = onOpenCompletedGame)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Button(
+                                    onClick = onArchiveCompletedGame,
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Text("Archive Completed Game")
+                                }
                             }
                         }
                     }
@@ -211,6 +315,60 @@ internal fun HomeScreen(
             }
         }
     }
+}
+
+@Composable
+private fun HomeActions(
+    onStartNewGame: () -> Unit,
+    onOpenPreviousGames: () -> Unit,
+    onOpenProfile: () -> Unit,
+    onOpenSettings: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Button(
+            onClick = onStartNewGame,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            HomeActionText("Start New Game")
+        }
+        OutlinedButton(
+            onClick = onOpenPreviousGames,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            HomeActionText("Previous Games")
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            OutlinedButton(
+                onClick = onOpenProfile,
+                modifier = Modifier.weight(1f),
+            ) {
+                HomeActionText("Profile")
+            }
+            OutlinedButton(
+                onClick = onOpenSettings,
+                modifier = Modifier.weight(1f),
+            ) {
+                HomeActionText("Settings")
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeActionText(text: String) {
+    Text(
+        text = text,
+        textAlign = TextAlign.Center,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
 }
 
 // Tappable row for a game listed on the home or previous-games screen.
