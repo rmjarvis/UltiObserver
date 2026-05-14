@@ -601,7 +601,7 @@ class TestUltiObserverAppViewModel {
         assertEquals(currentGameState, store.loadCurrentGameState())
 
         val currentGameStateFile = File(storeDir, "current_game_state.json")
-        currentGameStateFile.writeText(currentGameStateFile.readText().replace("\"version\": 1", "\"version\": 99"))
+        currentGameStateFile.replaceText("\"versionCode\": 1", "\"versionCode\": 99")
         val recoveredState = store.loadCurrentGameState()!!
         assertNull(recoveredState.liveState)
         assertEquals(SetupMode.NEW_GAME, recoveredState.setupMode)
@@ -724,7 +724,7 @@ class TestUltiObserverAppViewModel {
         )
     }
 
-    // Verify default-version decoding stays usable while invalid versions reset only affected buckets.
+    // Verify app-version metadata is written and invalid versions reset only affected buckets.
     @Test
     fun persistentStoreHandlesMissingInvalidAndUnsupportedVersions() {
         val storeDir = temporaryFolder.newFolder()
@@ -744,44 +744,37 @@ class TestUltiObserverAppViewModel {
             "Final",
         )
 
-        assertEquals(APP_STATE_VERSION, PersistedCurrentGameState().version)
-        assertEquals(APP_STATE_VERSION, PersistedProfile().version)
-        assertEquals(APP_STATE_VERSION, PersistedSettings().version)
-        assertEquals(APP_STATE_VERSION, ArchivedGame(createLiveGameState(setup), "").version)
+        assertEquals("0.1.0", BuildConfig.VERSION_NAME)
+        assertEquals(APP_STATE_VERSION_NAME, PersistedCurrentGameState().versionName)
+        assertEquals(APP_STATE_VERSION_CODE, PersistedCurrentGameState().versionCode)
+        assertEquals(APP_STATE_VERSION_NAME, PersistedProfile().versionName)
+        assertEquals(APP_STATE_VERSION_CODE, PersistedProfile().versionCode)
+        assertEquals(APP_STATE_VERSION_NAME, PersistedSettings().versionName)
+        assertEquals(APP_STATE_VERSION_CODE, PersistedSettings().versionCode)
+        assertEquals(APP_STATE_VERSION_NAME, ArchivedGame(createLiveGameState(setup), "").versionName)
+        assertEquals(APP_STATE_VERSION_CODE, ArchivedGame(createLiveGameState(setup), "").versionCode)
 
         store.saveProfile(savedProfile)
-        File(storeDir, "profile.json").removeStoredVersion()
-        assertEquals(savedProfile, store.loadProfile())
+        File(storeDir, "profile.json").removeStoredAppVersion()
+        assertEquals(PersistedProfile(), store.loadProfile())
+        assertEquals(setOf(PersistedDataArea.PROFILE), store.resetPersistedDataAreas)
 
         store.saveSettings(savedSettings)
-        File(storeDir, "settings.json").removeStoredVersion()
-        assertEquals(savedSettings, store.loadSettings())
+        File(storeDir, "settings.json").removeStoredAppVersion()
+        assertEquals(PersistedSettings(), store.loadSettings())
+        assertEquals(setOf(PersistedDataArea.PROFILE, PersistedDataArea.SETTINGS), store.resetPersistedDataAreas)
 
         store.saveArchivedGames(listOf(savedArchive))
-        File(File(storeDir, "archived_games"), "00000.json").removeStoredVersion()
-        assertEquals(listOf(savedArchive), store.loadArchivedGames())
+        File(File(storeDir, "archived_games"), "00000.json").removeStoredAppVersion()
+        assertTrue(store.loadArchivedGames().isEmpty())
+        assertEquals(
+            setOf(PersistedDataArea.PROFILE, PersistedDataArea.SETTINGS, PersistedDataArea.PREVIOUS_GAMES),
+            store.resetPersistedDataAreas,
+        )
 
         store.saveCurrentGameState(savedCurrentGameState)
-        File(storeDir, "current_game_state.json").replaceText("\"version\": 1", "\"version\": \"bad\"")
+        File(storeDir, "current_game_state.json").replaceText("\"versionName\": \"0.1.0\"", "\"versionName\": 1")
         assertEquals(PersistedCurrentGameState(), store.loadCurrentGameState())
-        assertEquals(setOf(PersistedDataArea.GAME_STATE), store.resetPersistedDataAreas)
-
-        store.saveProfile(savedProfile)
-        File(storeDir, "profile.json").replaceText("\"version\": 1", "\"version\": \"bad\"")
-        assertEquals(PersistedProfile(), store.loadProfile())
-        assertEquals(setOf(PersistedDataArea.GAME_STATE, PersistedDataArea.PROFILE), store.resetPersistedDataAreas)
-
-        store.saveSettings(savedSettings)
-        File(storeDir, "settings.json").replaceText("\"version\": 1", "\"version\": \"bad\"")
-        assertEquals(PersistedSettings(), store.loadSettings())
-        assertEquals(
-            setOf(PersistedDataArea.GAME_STATE, PersistedDataArea.PROFILE, PersistedDataArea.SETTINGS),
-            store.resetPersistedDataAreas,
-        )
-
-        store.saveArchivedGames(listOf(savedArchive))
-        File(File(storeDir, "archived_games"), "00000.json").replaceText("\"version\": 1", "\"version\": \"bad\"")
-        assertTrue(store.loadArchivedGames().isEmpty())
         assertEquals(
             setOf(
                 PersistedDataArea.GAME_STATE,
@@ -793,7 +786,7 @@ class TestUltiObserverAppViewModel {
         )
 
         store.saveProfile(savedProfile)
-        File(storeDir, "profile.json").replaceText("\"version\": 1", "\"version\": 99")
+        File(storeDir, "profile.json").replaceText("\"versionCode\": 1", "\"versionCode\": \"bad\"")
         assertEquals(PersistedProfile(), store.loadProfile())
         assertEquals(
             setOf(
@@ -806,7 +799,7 @@ class TestUltiObserverAppViewModel {
         )
 
         store.saveSettings(savedSettings)
-        File(storeDir, "settings.json").replaceText("\"version\": 1", "\"version\": 99")
+        File(storeDir, "settings.json").replaceText("\"versionCode\": 1", "\"versionCode\": \"bad\"")
         assertEquals(PersistedSettings(), store.loadSettings())
         assertEquals(
             setOf(
@@ -819,7 +812,8 @@ class TestUltiObserverAppViewModel {
         )
 
         store.saveArchivedGames(listOf(savedArchive))
-        File(File(storeDir, "archived_games"), "00000.json").replaceText("\"version\": 1", "\"version\": 99")
+        File(File(storeDir, "archived_games"), "00000.json")
+            .replaceText("\"versionCode\": 1", "\"versionCode\": \"bad\"")
         assertTrue(store.loadArchivedGames().isEmpty())
         assertEquals(
             setOf(
@@ -828,6 +822,32 @@ class TestUltiObserverAppViewModel {
                 PersistedDataArea.SETTINGS,
                 PersistedDataArea.PREVIOUS_GAMES,
             ),
+            store.resetPersistedDataAreas,
+        )
+
+        store.saveProfile(savedProfile)
+        File(storeDir, "profile.json").replaceText("\"versionName\": \"0.1.0\"", "\"versionName\": \"0.1.0-debug\"")
+        assertEquals(savedProfile.copy(versionName = "0.1.0-debug"), store.loadProfile())
+        assertEquals(setOf(PersistedDataArea.GAME_STATE, PersistedDataArea.SETTINGS, PersistedDataArea.PREVIOUS_GAMES), store.resetPersistedDataAreas)
+
+        store.saveSettings(savedSettings)
+        File(storeDir, "settings.json").replaceText("\"versionCode\": 1", "\"versionCode\": 99")
+        assertEquals(PersistedSettings(), store.loadSettings())
+        assertEquals(
+            setOf(
+                PersistedDataArea.GAME_STATE,
+                PersistedDataArea.PREVIOUS_GAMES,
+                PersistedDataArea.SETTINGS,
+            ),
+            store.resetPersistedDataAreas,
+        )
+
+        store.saveArchivedGames(listOf(savedArchive))
+        File(File(storeDir, "archived_games"), "00000.json")
+            .replaceText("\"versionName\": \"0.1.0\"", "\"versionName\": \"0.1.0-debug\"")
+        assertEquals(listOf(savedArchive.copy(versionName = "0.1.0-debug")), store.loadArchivedGames())
+        assertEquals(
+            setOf(PersistedDataArea.GAME_STATE, PersistedDataArea.SETTINGS),
             store.resetPersistedDataAreas,
         )
     }
@@ -937,11 +957,15 @@ class TestUltiObserverAppViewModel {
     }
 }
 
-private fun File.removeStoredVersion() {
+private fun File.removeStoredAppVersion() {
     writeText(
         readText()
             .lines()
-            .filterNot { it.trim() == "\"version\": $APP_STATE_VERSION," }
+            .filterNot { line ->
+                val trimmed = line.trim()
+                trimmed == "\"versionName\": \"${BuildConfig.VERSION_NAME}\"," ||
+                    trimmed == "\"versionCode\": ${BuildConfig.VERSION_CODE},"
+            }
             .joinToString("\n")
     )
 }

@@ -14,21 +14,28 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 
-internal const val APP_STATE_VERSION = 1
+internal val APP_STATE_VERSION_NAME: String = BuildConfig.VERSION_NAME
+internal val APP_STATE_VERSION_CODE: Int = BuildConfig.VERSION_CODE
+
+internal data class PersistedAppVersion(
+    val versionName: String,
+    val versionCode: Int,
+)
 
 @Serializable
 internal data class PersistedCurrentGameState(
-    val version: Int = APP_STATE_VERSION,
+    val versionName: String = APP_STATE_VERSION_NAME,
+    val versionCode: Int = APP_STATE_VERSION_CODE,
     val setupState: GameSetupState = newGameSetupState(),
     val liveState: LiveGameState? = null,
     val setupMode: SetupMode = SetupMode.NEW_GAME,
     val hasSetupDraft: Boolean = false,
 ) {
     companion object {
-        fun decodeJsonVersion(jsonObject: JsonObject, version: Int): PersistedCurrentGameState? {
+        fun decodeJson(jsonObject: JsonObject, version: PersistedAppVersion): PersistedCurrentGameState? {
             // Placeholder for future version-specific decoding/migration into the current model.
-            return when (version) {
-                APP_STATE_VERSION -> decodeCurrentJson(jsonObject)
+            return when {
+                version.versionCode == APP_STATE_VERSION_CODE -> decodeCurrentJson(jsonObject)
                 else -> null
             }
         }
@@ -45,14 +52,15 @@ internal data class PersistedCurrentGameState(
 
 @Serializable
 internal data class PersistedProfile(
-    val version: Int = APP_STATE_VERSION,
+    val versionName: String = APP_STATE_VERSION_NAME,
+    val versionCode: Int = APP_STATE_VERSION_CODE,
     val profileName: String = "",
 ) {
     companion object {
-        fun decodeJsonVersion(jsonObject: JsonObject, version: Int): PersistedProfile? {
+        fun decodeJson(jsonObject: JsonObject, version: PersistedAppVersion): PersistedProfile? {
             // Placeholder for future version-specific decoding/migration into the current model.
-            return when (version) {
-                APP_STATE_VERSION -> decodeCurrentJson(jsonObject)
+            return when {
+                version.versionCode == APP_STATE_VERSION_CODE -> decodeCurrentJson(jsonObject)
                 else -> null
             }
         }
@@ -69,14 +77,15 @@ internal data class PersistedProfile(
 
 @Serializable
 internal data class PersistedSettings(
-    val version: Int = APP_STATE_VERSION,
+    val versionName: String = APP_STATE_VERSION_NAME,
+    val versionCode: Int = APP_STATE_VERSION_CODE,
     val timingAlertPreferences: TimingAlertPreferences = TimingAlertPreferences(),
 ) {
     companion object {
-        fun decodeJsonVersion(jsonObject: JsonObject, version: Int): PersistedSettings? {
+        fun decodeJson(jsonObject: JsonObject, version: PersistedAppVersion): PersistedSettings? {
             // Placeholder for future version-specific decoding/migration into the current model.
-            return when (version) {
-                APP_STATE_VERSION -> decodeCurrentJson(jsonObject)
+            return when {
+                version.versionCode == APP_STATE_VERSION_CODE -> decodeCurrentJson(jsonObject)
                 else -> null
             }
         }
@@ -95,13 +104,14 @@ internal data class PersistedSettings(
 internal data class ArchivedGame(
     val state: LiveGameState,
     val subtitle: String,
-    val version: Int = APP_STATE_VERSION,
+    val versionName: String = APP_STATE_VERSION_NAME,
+    val versionCode: Int = APP_STATE_VERSION_CODE,
 ) {
     companion object {
-        fun decodeJsonVersion(jsonObject: JsonObject, version: Int): ArchivedGame? {
+        fun decodeJson(jsonObject: JsonObject, version: PersistedAppVersion): ArchivedGame? {
             // Placeholder for future version-specific decoding/migration into the current model.
-            return when (version) {
-                APP_STATE_VERSION -> decodeCurrentJson(jsonObject)
+            return when {
+                version.versionCode == APP_STATE_VERSION_CODE -> decodeCurrentJson(jsonObject)
                 else -> null
             }
         }
@@ -201,7 +211,7 @@ internal class FileAppStateStore(
         val currentGameState = readExistingJsonObject(currentGameStateFile)
             ?.let { storedCurrentGameState ->
                 readVersion(storedCurrentGameState)
-                    ?.let { version -> PersistedCurrentGameState.decodeJsonVersion(storedCurrentGameState, version) }
+                    ?.let { version -> PersistedCurrentGameState.decodeJson(storedCurrentGameState, version) }
             }
         if (currentGameState == null) {
             // We get here if:
@@ -228,7 +238,7 @@ internal class FileAppStateStore(
         val profile = readExistingJsonObject(profileFile)
             ?.let { storedProfile ->
                 readVersion(storedProfile)
-                    ?.let { version -> PersistedProfile.decodeJsonVersion(storedProfile, version) }
+                    ?.let { version -> PersistedProfile.decodeJson(storedProfile, version) }
             }
         if (profile == null) {
             resetAreas += PersistedDataArea.PROFILE
@@ -250,7 +260,7 @@ internal class FileAppStateStore(
         val settings = readExistingJsonObject(settingsFile)
             ?.let { storedSettings ->
                 readVersion(storedSettings)
-                    ?.let { version -> PersistedSettings.decodeJsonVersion(storedSettings, version) }
+                    ?.let { version -> PersistedSettings.decodeJson(storedSettings, version) }
             }
         if (settings == null) {
             resetAreas += PersistedDataArea.SETTINGS
@@ -274,9 +284,15 @@ internal class FileAppStateStore(
         }
     }
 
-    private fun readVersion(jsonObject: JsonObject): Int? {
+    private fun readVersion(jsonObject: JsonObject): PersistedAppVersion? {
         return try {
-            appStateJson.decodeFromJsonElement<Int>(jsonObject["version"] ?: return APP_STATE_VERSION)
+            val versionName = appStateJson.decodeFromJsonElement<String>(
+                jsonObject["versionName"] ?: return null
+            )
+            val versionCode = appStateJson.decodeFromJsonElement<Int>(
+                jsonObject["versionCode"] ?: return null
+            )
+            PersistedAppVersion(versionName = versionName, versionCode = versionCode)
         } catch (_: RuntimeException) {
             null
         }
@@ -295,7 +311,7 @@ internal class FileAppStateStore(
                 val archivedGame = readExistingJsonObject(file)
                     ?.let { storedArchivedGame ->
                         readVersion(storedArchivedGame)
-                            ?.let { version -> ArchivedGame.decodeJsonVersion(storedArchivedGame, version) }
+                            ?.let { version -> ArchivedGame.decodeJson(storedArchivedGame, version) }
                     }
                 if (archivedGame == null) {
                     resetAreas += PersistedDataArea.PREVIOUS_GAMES
