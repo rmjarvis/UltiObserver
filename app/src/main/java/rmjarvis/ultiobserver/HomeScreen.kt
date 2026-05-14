@@ -148,6 +148,7 @@ internal fun HomeScreen(
     onOpenCompletedGame: () -> Unit,
     onArchiveCompletedGame: () -> Unit,
     onStartNewGame: () -> Unit,
+    onOpenAbout: () -> Unit,
     onOpenProfile: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenPreviousGames: () -> Unit,
@@ -310,6 +311,16 @@ internal fun HomeScreen(
                     }
                 }
             }
+
+            Text(
+                text = "About",
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(pagePadding)
+                    .clickable(onClick = onOpenAbout),
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.labelLarge,
+            )
         }
     }
 }

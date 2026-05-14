@@ -70,9 +70,17 @@ internal fun UltiObserverApp(viewModel: UltiObserverAppViewModel) {
                 onOpenCompletedGame = viewModel::openCompletedGame,
                 onArchiveCompletedGame = viewModel::archiveCompletedGame,
                 onStartNewGame = viewModel::startNewGame,
+                onOpenAbout = viewModel::openAbout,
                 onOpenProfile = viewModel::openProfile,
                 onOpenSettings = viewModel::openSettings,
                 onOpenPreviousGames = viewModel::openPreviousGames,
+            )
+        }
+
+        AppScreen.ABOUT -> {
+            AboutScreen(
+                versionName = BuildConfig.VERSION_NAME,
+                onBackHome = viewModel::goHome,
             )
         }
 

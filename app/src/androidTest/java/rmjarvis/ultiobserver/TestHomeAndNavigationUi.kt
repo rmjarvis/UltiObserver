@@ -107,6 +107,13 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
     // Test the new home destinations that are present before their full feature work exists.
     @Test
     fun homeDestinationButtonsOpenStubPages() {
+        composeRule.onNodeWithText("About").performClick()
+        composeRule.onNodeWithTag("about-screen").assertIsDisplayed()
+        composeRule.onNodeWithText("Version ${BuildConfig.VERSION_NAME}").assertIsDisplayed()
+        composeRule.onNodeWithText("https://github.com/rmjarvis/UltiObserver").assertIsDisplayed()
+        pressAppBack()
+        waitForText("Start New Game")
+
         composeRule.onNodeWithText("Profile").performClick()
         waitForText("Name")
         composeRule.onNodeWithTag("profile-name-field").performTextReplacement("Casey Observer")

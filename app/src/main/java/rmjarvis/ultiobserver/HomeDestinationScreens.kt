@@ -1,6 +1,7 @@
 package rmjarvis.ultiobserver
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -38,10 +39,74 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToLong
+
+private const val SOURCE_CODE_URL = "https://github.com/rmjarvis/UltiObserver"
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun AboutScreen(
+    versionName: String,
+    onBackHome: () -> Unit,
+) {
+    val uriHandler = LocalUriHandler.current
+
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("About") },
+                navigationIcon = {
+                    TextButton(onClick = onBackHome) {
+                        Text("Back")
+                    }
+                },
+            )
+        },
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(20.dp)
+                .testTag("about-screen"),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text(
+                text = "UltiObserver",
+                style = MaterialTheme.typography.headlineMedium,
+            )
+            Text(
+                text = "Version $versionName",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            Text(
+                text = "A game management app for Ultimate observers to take the place of physical game cards and a stopwatch.",
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            HorizontalDivider()
+            Text(
+                text = "Source code",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = SOURCE_CODE_URL,
+                modifier = Modifier.clickable { uriHandler.openUri(SOURCE_CODE_URL) },
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            Text(
+                text = "If you notice any bugs or have requests for features to add, please go to the above GitHub page and make an issue.",
+                style = MaterialTheme.typography.bodyLarge,
+            )
+        }
+    }
+}
 
 // Profile placeholder with the first real user-editable field.
 @OptIn(ExperimentalMaterial3Api::class)

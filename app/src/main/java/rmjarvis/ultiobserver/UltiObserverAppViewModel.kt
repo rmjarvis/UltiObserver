@@ -11,6 +11,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 internal enum class AppScreen {
     HOME,
+    ABOUT,
     PROFILE,
     SETTINGS,
     TIMING_CUE_SETTINGS,
@@ -158,6 +159,11 @@ internal class UltiObserverAppViewModel(
     fun openProfile() {
         clearViewedArchivedGame()
         screen = AppScreen.PROFILE
+    }
+
+    fun openAbout() {
+        clearViewedArchivedGame()
+        screen = AppScreen.ABOUT
     }
 
     fun openSettings() {
