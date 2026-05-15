@@ -116,10 +116,12 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
 
         composeRule.onNodeWithText("Profile").performClick()
         waitForText("Name")
+        waitForText("Home avatar")
+        waitForText("Use a random avatar")
+        waitForText("Or choose a specific avatar:")
         composeRule.onNodeWithTag("profile-name-field").performTextReplacement("Casey Observer")
         composeRule.onNodeWithText("Casey Observer").assertIsDisplayed()
-
-        pressAppBack()
+        composeRule.onNodeWithTag("profile-avatar-BLUE").performScrollTo().performClick()
         waitForText("Start New Game")
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.appViewModel.updateTimingAlertGlobalMode(TimingAlertGlobalMode.VIBRATION_ONLY)

@@ -141,6 +141,7 @@ private fun GameSetupState.scoreLine(): String {
 // Home screen with quick entry points for current, completed, and archived games.
 @Composable
 internal fun HomeScreen(
+    avatarPreference: ObserverAvatarPreference,
     currentGame: GameListEntry?,
     currentGameSectionSubtitle: String?,
     completedGamePendingArchive: GameListEntry?,
@@ -233,7 +234,7 @@ internal fun HomeScreen(
                     verticalArrangement = Arrangement.spacedBy(identitySpacing),
                 ) {
                     Image(
-                        painter = painterResource(R.drawable.splash_observer_foul_call),
+                        painter = painterResource(avatarPreference.drawableRes),
                         contentDescription = null,
                         contentScale = ContentScale.Fit,
                         modifier = Modifier

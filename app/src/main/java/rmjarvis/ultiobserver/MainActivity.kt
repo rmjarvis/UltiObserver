@@ -63,6 +63,7 @@ internal fun UltiObserverApp(viewModel: UltiObserverAppViewModel) {
                 completedGamePendingArchive = null
             }
             HomeScreen(
+                avatarPreference = viewModel.homeAvatarPreference,
                 currentGame = currentGame,
                 currentGameSectionSubtitle = viewModel.currentGameHomeSubtitle,
                 completedGamePendingArchive = completedGamePendingArchive,
@@ -87,7 +88,9 @@ internal fun UltiObserverApp(viewModel: UltiObserverAppViewModel) {
         AppScreen.PROFILE -> {
             ProfileScreen(
                 name = viewModel.profileName,
+                avatarPreference = viewModel.avatarPreference,
                 onNameChange = viewModel::updateProfileName,
+                onAvatarPreferenceChange = viewModel::updateAvatarPreference,
                 onBackHome = viewModel::goHome,
             )
         }

@@ -336,7 +336,7 @@ class TestUltiObserverAppViewModel {
     }
 
     @Test
-    fun homeDestinationScreensAndProfileNameAreAppState() {
+    fun profileAndSettingsPersistAcrossRestart() {
         val storeDir = temporaryFolder.newFolder()
         val viewModel = UltiObserverAppViewModel(FileAppStateStore(storeDir))
 
@@ -344,6 +344,9 @@ class TestUltiObserverAppViewModel {
         assertEquals(AppScreen.PROFILE, viewModel.screen)
         viewModel.updateProfileName("Casey Observer")
         assertEquals("Casey Observer", viewModel.profileName)
+        viewModel.updateAvatarPreference(ObserverAvatarPreference.BLUE)
+        assertEquals(ObserverAvatarPreference.BLUE, viewModel.avatarPreference)
+        assertEquals(ObserverAvatarPreference.BLUE, viewModel.homeAvatarPreference)
 
         viewModel.openSettings()
         assertEquals(AppScreen.SETTINGS, viewModel.screen)
@@ -378,6 +381,8 @@ class TestUltiObserverAppViewModel {
         val restored = UltiObserverAppViewModel(FileAppStateStore(storeDir))
         assertEquals(AppScreen.HOME, restored.screen)
         assertEquals("Casey Observer", restored.profileName)
+        assertEquals(ObserverAvatarPreference.BLUE, restored.avatarPreference)
+        assertEquals(ObserverAvatarPreference.BLUE, restored.homeAvatarPreference)
         assertEquals(TimingAlertGlobalMode.OFF, restored.timingAlertPreferences.globalMode)
         assertEquals(0.4f, restored.timingAlertPreferences.soundVolume, 0f)
         assertEquals(420L, restored.timingAlertPreferences.vibrationDurationMillis)
@@ -398,6 +403,28 @@ class TestUltiObserverAppViewModel {
             TimingAlertMode.NONE,
             restored.timingAlertPreferences.alertModeFor(TimingCueId.TIMEOUT_OFFENSE_TEN),
         )
+    }
+
+    @Test
+    fun randomAvatarPreferenceResolvesHomeAvatarOnStartup() {
+        // Use a fixed chooser to verify random-avatar timing without relying on randomness.
+        val viewModel = UltiObserverAppViewModel(
+            chooseAvatarIndex = { size ->
+                assertEquals(concreteObserverAvatarPreferences.size, size)
+                2
+            },
+        )
+
+        assertEquals(ObserverAvatarPreference.RANDOM, viewModel.avatarPreference)
+        assertEquals(concreteObserverAvatarPreferences[2], viewModel.homeAvatarPreference)
+
+        viewModel.updateAvatarPreference(ObserverAvatarPreference.GREY)
+        assertEquals(ObserverAvatarPreference.GREY, viewModel.avatarPreference)
+        assertEquals(ObserverAvatarPreference.GREY, viewModel.homeAvatarPreference)
+
+        viewModel.updateAvatarPreference(ObserverAvatarPreference.RANDOM)
+        assertEquals(ObserverAvatarPreference.RANDOM, viewModel.avatarPreference)
+        assertEquals(concreteObserverAvatarPreferences[2], viewModel.homeAvatarPreference)
     }
 
     @Test
@@ -523,14 +550,19 @@ class TestUltiObserverAppViewModel {
         assertTrue(store.savedCurrentGameStates.isEmpty())
         assertTrue(store.savedSettings.isEmpty())
 
+        viewModel.updateAvatarPreference(ObserverAvatarPreference.BLUE)
+        assertEquals(ObserverAvatarPreference.BLUE, store.savedProfiles.last().avatarPreference)
+        assertTrue(store.savedCurrentGameStates.isEmpty())
+        assertTrue(store.savedSettings.isEmpty())
+
         viewModel.updateTimingAlertGlobalMode(TimingAlertGlobalMode.OFF)
         assertEquals(TimingAlertGlobalMode.OFF, store.savedSettings.single().timingAlertPreferences.globalMode)
         assertTrue(store.savedCurrentGameStates.isEmpty())
-        assertEquals(1, store.savedProfiles.size)
+        assertEquals(2, store.savedProfiles.size)
 
         viewModel.startNewGame()
         assertTrue(store.savedCurrentGameStates.single().hasSetupDraft)
-        assertEquals(1, store.savedProfiles.size)
+        assertEquals(2, store.savedProfiles.size)
         assertEquals(1, store.savedSettings.size)
 
         // The default no-op store should accept the same split-bucket writes without side effects.

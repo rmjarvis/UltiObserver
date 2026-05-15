@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import java.time.LocalDateTime
 import java.time.ZoneId
 import kotlinx.serialization.Serializable
+import kotlin.random.Random
 
 @Serializable
 internal enum class AppScreen {
@@ -28,6 +29,8 @@ internal enum class SetupMode {
 
 internal class UltiObserverAppViewModel(
     private val appStateStore: AppStateStore = NoOpAppStateStore,
+    // Injected so tests can make random avatar selection deterministic.
+    private val chooseAvatarIndex: (Int) -> Int = { size -> Random.nextInt(size) },
 ) : ViewModel() {
     private val persistedCurrentGameState = appStateStore.loadCurrentGameState()
     private val persistedProfile = appStateStore.loadProfile()
@@ -44,6 +47,12 @@ internal class UltiObserverAppViewModel(
     var setupMode by mutableStateOf(persistedCurrentGameState?.setupMode ?: SetupMode.NEW_GAME)
         private set
     var profileName by mutableStateOf(persistedProfile?.profileName ?: "")
+        private set
+    var avatarPreference by mutableStateOf(
+        persistedProfile?.avatarPreference ?: ObserverAvatarPreference.RANDOM
+    )
+        private set
+    var homeAvatarPreference by mutableStateOf(resolveHomeAvatarPreference(avatarPreference))
         private set
     var timingAlertPreferences by mutableStateOf(
         persistedSettings?.timingAlertPreferences ?: TimingAlertPreferences()
@@ -122,6 +131,12 @@ internal class UltiObserverAppViewModel(
 
     fun updateProfileName(updatedName: String) {
         profileName = updatedName
+        persistProfileState()
+    }
+
+    fun updateAvatarPreference(updatedPreference: ObserverAvatarPreference) {
+        avatarPreference = updatedPreference
+        homeAvatarPreference = resolveHomeAvatarPreference(updatedPreference)
         persistProfileState()
     }
 
@@ -335,7 +350,12 @@ internal class UltiObserverAppViewModel(
     }
 
     private fun persistProfileState() {
-        appStateStore.saveProfile(PersistedProfile(profileName = profileName))
+        appStateStore.saveProfile(
+            PersistedProfile(
+                profileName = profileName,
+                avatarPreference = avatarPreference,
+            )
+        )
     }
 
     private fun persistSettingsState() {
@@ -346,6 +366,13 @@ internal class UltiObserverAppViewModel(
 
     private fun persistArchivedGames() {
         appStateStore.saveArchivedGames(archivedGames)
+    }
+
+    private fun resolveHomeAvatarPreference(preference: ObserverAvatarPreference): ObserverAvatarPreference {
+        if (preference != ObserverAvatarPreference.RANDOM) {
+            return preference
+        }
+        return concreteObserverAvatarPreferences[chooseAvatarIndex(concreteObserverAvatarPreferences.size)]
     }
 }
 

@@ -55,6 +55,7 @@ internal data class PersistedProfile(
     val versionName: String = APP_STATE_VERSION_NAME,
     val versionCode: Int = APP_STATE_VERSION_CODE,
     val profileName: String = "",
+    val avatarPreference: ObserverAvatarPreference = ObserverAvatarPreference.RANDOM,
 ) {
     companion object {
         fun decodeJson(jsonObject: JsonObject, version: PersistedAppVersion): PersistedProfile? {
