@@ -38,7 +38,7 @@ private fun requirePlayerCardRecordsValid(records: List<InGamePlayerCardRecord>)
         "Player card records cannot have negative card counts."
     }
     require(records.all { it.hasLegalCounts() }) {
-        "Player card records must be no cards, one yellow, second yellow, direct red, or one yellow plus direct red."
+        "Player card records must be no cards, one yellow, second yellow, red, or one yellow plus red."
     }
     require(records.distinctBy { it.jerseyNumber }.size == records.size) {
         "Player card records cannot contain duplicate player entries."
@@ -296,7 +296,7 @@ private fun LiveGameState.addInGameSecondYellow(team: TeamId, jerseyNumber: Stri
         lastEvent = "Second yellow for ${teamName(team)} #$jerseyNumber.",
     )
 }
-// Add a direct red card to a specific player
+// Add a red card to a specific player
 private fun LiveGameState.addInGameDirectRed(team: TeamId, jerseyNumber: String): LiveGameState {
     return withPlayerCards(
         team = team,
@@ -338,7 +338,7 @@ fun LiveGameState.playerCards(team: TeamId): List<InGamePlayerCardRecord> {
 fun LiveGameState.teamYellowCards(team: TeamId): Int {
     return this.playerCardsFor(team).sumOf { it.yellows }
 }
-// Count in-game direct red cards from the player-card records.
+// Count in-game red cards from the player-card records.
 fun LiveGameState.teamRedCards(team: TeamId): Int {
     return this.playerCardsFor(team).sumOf { it.directReds }
 }

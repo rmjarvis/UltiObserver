@@ -42,11 +42,16 @@ class TestGameCards : GameModelTestFixtures() {
         assertEquals(InGamePlayerCardRecord("17", yellows = 1), playerRecord(state, VC, "17"))
         assertEquals("Undo Yellow on #17 of Viscous Coupling", state.undoEntry?.label)
 
-        // A second yellow to the same player acts as a red card, but adds only one more team card point.
+        // A second yellow to the same player creates a game suspension, but adds only one more team card point.
         cardResult = state.assessYellowCard(VC, "17")
         state = cardResult.state
         assertFalse(cardResult.needsMisconductChoice)
-        assertEquals("Second yellow acts as a red card. Player 17 is ejected.\nViscous Coupling has 2 cards.", cardResult.message())
+        assertEquals(
+            "Second yellow on player 17.\n" +
+                "Player 17 receives a game suspension.\n" +
+                "Viscous Coupling has 2 cards.",
+            cardResult.message(),
+        )
         assertEquals(2, state.teamYellowCards(VC))
         assertEquals(0, state.teamRedCards(VC))
         assertEquals(2, state.teamCardTotal(VC))
@@ -97,12 +102,17 @@ class TestGameCards : GameModelTestFixtures() {
         assertEquals("Yellow card on player 14.\nViscous Coupling has 3 cards.", cardResult.message())
         assertEquals(3, state.teamCardTotal(VC))
 
-        // A direct red for a player with no prior yellow counts as two team card points and records a direct red.
+        // A red for a player with no prior yellow counts as two team card points and records a red.
         state = standardLiveGameState()
         cardResult = state.assessRedCard(ANIMAL, "23", RedCardMode.DIRECT_RED)
         state = cardResult.state
         assertFalse(cardResult.needsMisconductChoice)
-        assertEquals("Player 23 is ejected.\nAnimal has 2 cards.", cardResult.message())
+        assertEquals(
+            "Red card on player 23.\n" +
+                "Player 23 receives a game suspension.\n" +
+                "Animal has 2 cards.",
+            cardResult.message(),
+        )
         assertEquals("Misconduct", cardResult.event.formatPopupTitle())
         assertEquals(0, state.teamYellowCards(ANIMAL))
         assertEquals(1, state.teamRedCards(ANIMAL))
@@ -110,24 +120,31 @@ class TestGameCards : GameModelTestFixtures() {
         assertEquals(InGamePlayerCardRecord("23", directReds = 1), playerRecord(state, ANIMAL, "23"))
         assertUndoRestores(cardResult.state.undoEntry!!.previous, state)
 
-        // During a live point, a direct red that reaches the misconduct threshold needs an offense/defense choice.
+        // During a live point, a red that reaches the misconduct threshold needs an offense/defense choice.
         state = standardLiveGameState().beginLivePoint()
         state = state.assessYellowCard(ANIMAL, "8").state
         cardResult = state.assessRedCard(ANIMAL, "23", RedCardMode.DIRECT_RED)
         state = cardResult.state
         assertTrue(cardResult.needsMisconductChoice)
-        assertEquals("Player 23 is ejected.\nAnimal has 3 cards.", cardResult.message())
+        assertEquals(
+            "Red card on player 23.\n" +
+                "Player 23 receives a game suspension.\n" +
+                "Animal has 3 cards.",
+            cardResult.message(),
+        )
         val misconductPrompt = cardResult.misconductPrompt()
         assertEquals("Misconduct Penalty", misconductPrompt.formatTitle())
         assertEquals(
-            "Player 23 is ejected.\nAnimal has 3 cards.\n\nWas this against the offense or defense?",
+            "Red card on player 23.\n" +
+                "Player 23 receives a game suspension.\n" +
+                "Animal has 3 cards.\n\nWas this against the offense or defense?",
             misconductPrompt.formatMessage(),
         )
         assertTrue(misconductPrompt.resolutionMessage(againstOffense = true).contains("Reverse brick"))
         assertTrue(misconductPrompt.resolutionMessage(againstOffense = false).contains("Brick nearest attacking end zone"))
         assertEquals(3, state.teamCardTotal(ANIMAL))
 
-        // A direct red for a player who already has a yellow is distinct from recording the red as a second yellow.
+        // A red for a player who already has a yellow is distinct from recording the red as a second yellow.
         state = standardLiveGameState()
         state = state.assessYellowCard(ANIMAL, "8").state
         cardResult = state.assessRedCard(ANIMAL, "8", RedCardMode.DIRECT_RED)
@@ -138,9 +155,14 @@ class TestGameCards : GameModelTestFixtures() {
         assertEquals(3, state.teamCardTotal(ANIMAL))
         assertEquals(InGamePlayerCardRecord("8", yellows = 1, directReds = 1), playerRecord(state, ANIMAL, "8"))
         assertEquals(
-            "Player 8 is ejected.\nAnimal has 3 cards.\n\n" +
+            "Red card on player 8.\n" +
+                "Player 8 is suspended for the rest of the tournament.\n" +
+                "Animal has 3 cards.\n\n" +
                 "Penalty against receiving team. No pull. Disc at negative brick in defending end zone.",
             cardResult.message(),
+        )
+        assertTrue(
+            cardResult.message()!!.contains("Player 8 is suspended for the rest of the tournament."),
         )
 
         state = standardLiveGameState()
@@ -152,7 +174,12 @@ class TestGameCards : GameModelTestFixtures() {
         assertEquals(0, state.teamRedCards(ANIMAL))
         assertEquals(2, state.teamCardTotal(ANIMAL))
         assertEquals(InGamePlayerCardRecord("8", yellows = 2), playerRecord(state, ANIMAL, "8"))
-        assertEquals("Second yellow acts as a red card. Player 8 is ejected.\nAnimal has 2 cards.", cardResult.message())
+        assertEquals(
+            "Second yellow on player 8.\n" +
+                "Player 8 receives a game suspension.\n" +
+                "Animal has 2 cards.",
+            cardResult.message(),
+        )
 
         // The N/A pathways distinguish same-unknown-player second yellow from a standalone yellow.
         state = standardLiveGameState()
@@ -163,7 +190,12 @@ class TestGameCards : GameModelTestFixtures() {
         assertEquals(2, state.teamYellowCards(VC))
         assertEquals(0, state.teamRedCards(VC))
         assertEquals(InGamePlayerCardRecord(UNKNOWN_PLAYER_NUMBER, yellows = 2), playerRecord(state, VC, UNKNOWN_PLAYER_NUMBER))
-        assertEquals("Second yellow acts as a red card. The player is ejected.\nViscous Coupling has 2 cards.", cardResult.message())
+        assertEquals(
+            "Second yellow on player N/A.\n" +
+                "The player receives a game suspension.\n" +
+                "Viscous Coupling has 2 cards.",
+            cardResult.message(),
+        )
 
         state = standardLiveGameState()
         state = state.assessYellowCard(VC, UNKNOWN_PLAYER_NUMBER).state
@@ -172,7 +204,73 @@ class TestGameCards : GameModelTestFixtures() {
         assertEquals(2, state.teamYellowCards(VC))
         assertEquals(0, state.teamRedCards(VC))
         assertEquals(2, state.teamCardTotal(VC))
-        assertFalse(cardResult.message()!!.startsWith("Second yellow acts as a red card."))
+        assertFalse(cardResult.message()!!.startsWith("Second yellow on"))
+
+        // Prior cards from this tournament surface the tournament suspension thresholds.
+        state = createLiveGameState(
+            standardGameSetup(startTime = LocalTime.of(11, 0)).copy(
+                priorCards = listOf(PlayerCardRecord(VC, "44", priorYellows = 2, priorReds = 0)),
+            )
+        )
+        cardResult = state.assessYellowCard(VC, "44")
+        assertEquals(
+            "Yellow card on player 44.\n" +
+                "Player 44 is suspended for the rest of the tournament.\n" +
+                "Viscous Coupling has 1 card.",
+            cardResult.message(),
+        )
+
+        state = createLiveGameState(
+            standardGameSetup(startTime = LocalTime.of(11, 0)).copy(
+                priorCards = listOf(PlayerCardRecord(ANIMAL, "31", priorYellows = 0, priorReds = 1)),
+            )
+        )
+        cardResult = state.assessRedCard(ANIMAL, "31", RedCardMode.DIRECT_RED)
+        assertEquals(
+            "Red card on player 31.\n" +
+                "Player 31 is suspended for the rest of the tournament.\n" +
+                "Animal has 2 cards.",
+            cardResult.message(),
+        )
+
+        state = standardLiveGameState().copy(
+            phase = LivePhase.BETWEEN_POINTS,
+            halftimeTaken = true,
+        )
+        cardResult = state.assessRedCard(ANIMAL, "29", RedCardMode.DIRECT_RED)
+        assertEquals(
+            "Red card on player 29.\n" +
+                "Player 29 receives a game suspension.\n" +
+                "Player 29 must also sit out the first half of the next game, if there is one.\n" +
+                "Animal has 2 cards.",
+            cardResult.message(),
+        )
+
+        state = standardLiveGameState().copy(
+            phase = LivePhase.HALFTIME,
+            halftimeTaken = true,
+        )
+        cardResult = state.assessRedCard(ANIMAL, "30", RedCardMode.DIRECT_RED)
+        assertEquals(
+            "Red card on player 30.\n" +
+                "Player 30 receives a game suspension.\n" +
+                "Player 30 must also sit out the first half of the next game, if there is one.\n" +
+                "Animal has 2 cards.",
+            cardResult.message(),
+        )
+
+        state = standardLiveGameState().copy(
+            phase = LivePhase.GAME_OVER,
+            halftimeTaken = true,
+        )
+        cardResult = state.assessRedCard(ANIMAL, "32", RedCardMode.DIRECT_RED)
+        assertEquals(
+            "Red card on player 32.\n" +
+                "Player 32 receives a game suspension.\n" +
+                "Player 32 must also sit out the first half of the next game, if there is one.\n" +
+                "Animal has 2 cards.",
+            cardResult.message(),
+        )
 
         // Blue cards count as one team card point each and do not create per-player card records.
         state = standardLiveGameState()
@@ -407,7 +505,7 @@ class TestGameCards : GameModelTestFixtures() {
 
         // The UI reconciliation flow should prevent invalid records; if one reaches the model anyway, fail loudly.
         val invalidPlayerCardMessage =
-            "Player card records must be no cards, one yellow, second yellow, direct red, or one yellow plus direct red."
+            "Player card records must be no cards, one yellow, second yellow, red, or one yellow plus red."
         val invalidAssignmentException = assertThrows(IllegalArgumentException::class.java) {
             addPlayerCardAssignment(
                 listOf(InGamePlayerCardRecord("17", directReds = 1)),

@@ -24,11 +24,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 
-private data class PendingRedCardChoice(
-    val team: TeamId,
-    val jerseyNumber: String,
-)
-
 private data class PendingUnknownYellowChoice(
     val team: TeamId,
 )
@@ -41,8 +36,8 @@ internal fun CardsSheet(
 ) {
     var pendingYellowTeam by remember { mutableStateOf<TeamId?>(null) }
     var pendingRedTeam by remember { mutableStateOf<TeamId?>(null) }
-    var pendingRedCardChoice by remember { mutableStateOf<PendingRedCardChoice?>(null) }
     var pendingUnknownYellowChoice by remember { mutableStateOf<PendingUnknownYellowChoice?>(null) }
+    var invalidCardAssignmentMessage by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
@@ -96,48 +91,26 @@ internal fun CardsSheet(
             teamName = state.teamFor(pendingRedTeam!!).name,
             onDismiss = { pendingRedTeam = null },
             onConfirm = { jerseyNumber ->
-                // Red on a player who already has yellow needs a direct-red vs second-yellow choice.
-                if (state.playerHasYellowThisGame(pendingRedTeam!!, jerseyNumber)) {
-                    pendingRedCardChoice = PendingRedCardChoice(pendingRedTeam!!, jerseyNumber)
-                } else {
+                if (canAddPlayerCardAssignment(state.playerCards(pendingRedTeam!!), jerseyNumber, CardType.RED)) {
                     onAssessment(state.assessRedCard(pendingRedTeam!!, jerseyNumber, RedCardMode.DIRECT_RED))
+                } else {
+                    invalidCardAssignmentMessage =
+                        "${state.teamFor(pendingRedTeam!!).name} #$jerseyNumber already has the maximum valid card combination."
                 }
                 pendingRedTeam = null
             },
         )
     }
 
-    if (pendingRedCardChoice != null) {
-        val redCardChoice = pendingRedCardChoice!!
-        val currentRecords = state.playerCards(redCardChoice.team)
-        RedCardModeDialog(
-            teamName = state.teamFor(redCardChoice.team).name,
-            jerseyNumber = redCardChoice.jerseyNumber,
-            hasValidChoice = canAddPlayerCardAssignment(
-                currentRecords,
-                redCardChoice.jerseyNumber,
-                CardType.RED,
-            ),
-            onDismiss = { pendingRedCardChoice = null },
-            onDirectRed = {
-                onAssessment(
-                    state.assessRedCard(
-                        redCardChoice.team,
-                        redCardChoice.jerseyNumber,
-                        RedCardMode.DIRECT_RED,
-                    )
-                )
-                pendingRedCardChoice = null
-            },
-            onSecondYellow = {
-                onAssessment(
-                    state.assessRedCard(
-                        redCardChoice.team,
-                        redCardChoice.jerseyNumber,
-                        RedCardMode.SECOND_YELLOW,
-                    )
-                )
-                pendingRedCardChoice = null
+    invalidCardAssignmentMessage?.let { message ->
+        AlertDialog(
+            onDismissRequest = { invalidCardAssignmentMessage = null },
+            title = { Text("Invalid Card Assignment") },
+            text = { Text(message) },
+            confirmButton = {
+                TextButton(onClick = { invalidCardAssignmentMessage = null }) {
+                    Text("OK")
+                }
             },
         )
     }
@@ -239,55 +212,6 @@ internal fun PlayerNumberDialog(
                 }
                 TextButton(onClick = onDismiss) {
                     Text("Cancel")
-                }
-            }
-        },
-    )
-}
-
-// Resolve whether a red on a player with yellow is direct red or second yellow.
-@Composable
-private fun RedCardModeDialog(
-    teamName: String,
-    jerseyNumber: String,
-    hasValidChoice: Boolean,
-    onDismiss: () -> Unit,
-    onDirectRed: () -> Unit,
-    onSecondYellow: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Player Already Has Yellow") },
-        text = {
-            if (hasValidChoice) {
-                Text("$teamName #$jerseyNumber already has a yellow this game.")
-            } else {
-                Text("$teamName #$jerseyNumber already has the maximum valid card combination.")
-            }
-        },
-        confirmButton = {
-            if (hasValidChoice) {
-                TextButton(
-                    onClick = onDirectRed,
-                    modifier = Modifier.testTag("red-card-mode-red"),
-                ) {
-                    Text("Red")
-                }
-            } else {
-                TextButton(onClick = onDismiss) {
-                    Text("OK")
-                }
-            }
-        },
-        dismissButton = {
-            if (hasValidChoice) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = onSecondYellow) {
-                        Text("Second Yellow")
-                    }
-                    TextButton(onClick = onDismiss) {
-                        Text("Cancel")
-                    }
                 }
             }
         },

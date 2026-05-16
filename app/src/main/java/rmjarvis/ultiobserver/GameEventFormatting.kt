@@ -35,14 +35,11 @@ fun GameEvent.needsMisconductChoice(): Boolean {
 
 private fun GameEvent.TeamCardsChanged.formatMessage(): String {
     val totalMessage = "${state.teamName(team)} has $teamCardTotal ${pluralize(teamCardTotal, "card")}."
-    val baseMessage = when (playerCardType) {
-        null -> totalMessage
-        PlayerCardEventType.YELLOW -> "Yellow card on player ${playerCardJerseyNumber as String}.\n$totalMessage"
-        PlayerCardEventType.RED -> "${ejectionMessage(playerCardJerseyNumber as String)}\n$totalMessage"
-        PlayerCardEventType.SECOND_YELLOW -> {
-            "Second yellow acts as a red card. ${ejectionMessage(playerCardJerseyNumber as String)}\n" +
-                totalMessage
-        }
+    val baseMessage = if (playerCardType == null) {
+        totalMessage
+    } else {
+        val jerseyNumber = playerCardJerseyNumber as String
+        (playerCardEventLines(playerCardType, jerseyNumber) + totalMessage).joinToString("\n")
     }
     return baseMessage.withMisconductCue(
         state = state,
@@ -51,12 +48,62 @@ private fun GameEvent.TeamCardsChanged.formatMessage(): String {
     )
 }
 
-private fun ejectionMessage(jerseyNumber: String): String {
-    return if (jerseyNumber == UNKNOWN_PLAYER_NUMBER) {
-        "The player is ejected."
-    } else {
-        "Player $jerseyNumber is ejected."
+private fun GameEvent.TeamCardsChanged.playerCardEventLines(
+    playerCardType: PlayerCardEventType,
+    jerseyNumber: String,
+): List<String> {
+    return buildList {
+        val hasTournamentSuspension = state.playerHasTournamentSuspension(team, jerseyNumber)
+        when (playerCardType) {
+            PlayerCardEventType.YELLOW -> add("Yellow card on ${playerReference(jerseyNumber)}.")
+            PlayerCardEventType.RED -> {
+                add("Red card on ${playerReference(jerseyNumber)}.")
+                if (!hasTournamentSuspension) {
+                    add("${playerSentenceSubject(jerseyNumber)} receives a game suspension.")
+                }
+            }
+            PlayerCardEventType.SECOND_YELLOW -> {
+                add("Second yellow on ${playerReference(jerseyNumber)}.")
+                if (!hasTournamentSuspension) {
+                    add("${playerSentenceSubject(jerseyNumber)} receives a game suspension.")
+                }
+            }
+        }
+        if (playerCardType != PlayerCardEventType.YELLOW &&
+            state.gameSuspensionStartedInSecondHalf() &&
+            !hasTournamentSuspension
+        ) {
+            add("${playerSentenceSubject(jerseyNumber)} must also sit out the first half of the next game, if there is one.")
+        }
+        if (hasTournamentSuspension) {
+            add("${playerSentenceSubject(jerseyNumber)} is suspended for the rest of the tournament.")
+        }
     }
+}
+
+private fun playerReference(jerseyNumber: String): String {
+    return if (jerseyNumber == UNKNOWN_PLAYER_NUMBER) "player N/A" else "player $jerseyNumber"
+}
+
+private fun playerSentenceSubject(jerseyNumber: String): String {
+    return if (jerseyNumber == UNKNOWN_PLAYER_NUMBER) "The player" else "Player $jerseyNumber"
+}
+
+private fun LiveGameState.gameSuspensionStartedInSecondHalf(): Boolean {
+    return halftimeTaken
+}
+
+private fun LiveGameState.playerHasTournamentSuspension(team: TeamId, jerseyNumber: String): Boolean {
+    val priorYellows = priorCards
+        .filter { it.team == team && it.jerseyNumber == jerseyNumber }
+        .sumOf { it.priorYellows }
+    val priorReds = priorCards
+        .filter { it.team == team && it.jerseyNumber == jerseyNumber }
+        .sumOf { it.priorReds }
+    val inGameRecord = playerCards(team).firstOrNull { it.jerseyNumber == jerseyNumber }
+    val totalYellows = priorYellows + (inGameRecord?.yellows ?: 0)
+    val totalReds = priorReds + (inGameRecord?.directReds ?: 0)
+    return totalYellows + 2 * totalReds >= 3
 }
 
 private fun GameEvent.TechnicalFoulsChanged.formatMessage(): String {

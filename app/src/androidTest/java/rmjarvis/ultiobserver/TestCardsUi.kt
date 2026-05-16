@@ -13,6 +13,7 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.swipeRight
 import java.time.LocalTime
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -58,13 +59,17 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         waitForText("Yellow card on player N/A.\nTeam 1 has 2 cards.")
         composeRule.onNodeWithText("OK").performClick()
 
-        // A red on a player with a yellow should ask direct red vs second yellow.
+        // A red on a player with a yellow records as a red.
         openCardsSheet()
         composeRule.onAllNodesWithText("Red").onFirst().performClick()
         composeRule.onNodeWithText("Red Card").assertIsDisplayed()
         composeRule.onNodeWithText("N/A").performClick()
-        waitForText("Player Already Has Yellow")
-        composeRule.onNodeWithTag("red-card-mode-red").performClick()
+        waitForText("The player is suspended for the rest of the tournament.")
+        assertTrue(
+            composeRule.onAllNodesWithText("The player receives a game suspension.")
+                .fetchSemanticsNodes()
+                .isEmpty(),
+        )
         waitForText("Team 1 has 4 cards.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
 
@@ -113,20 +118,16 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("1 player carries cards.").performScrollTo().assertIsDisplayed()
         startGameFromSetup()
 
-        // A direct red without an existing yellow should record immediately.
-        recordRedCard(TeamId.TEAM_ONE, "5", "Player 5 is ejected.\nTeam 1 has 2 cards.")
+        // A red without an existing yellow should record immediately.
+        recordRedCard(
+            TeamId.TEAM_ONE,
+            "5",
+            "Red card on player 5.\nPlayer 5 receives a game suspension.\nTeam 1 has 2 cards.",
+        )
 
-        // A red on a player with yellow should allow the second-yellow path.
+        // A second yellow comes from issuing another yellow, not from pressing Red.
         recordYellowCard(TeamId.TEAM_TWO, "7", "Yellow card on player 7.\nTeam 2 has 1 card.")
-        openCardsSheet()
-        composeRule.onAllNodesWithText("Red")[teamCardButtonIndex(TeamId.TEAM_TWO)].performClick()
-        waitForText("Red Card")
-        enterCardPlayerNumber("7")
-        composeRule.onNodeWithText("Record").performClick()
-        waitForText("Player Already Has Yellow")
-        composeRule.onNodeWithText("Second Yellow").performClick()
-        waitForText("Team 2 has 2 cards.", substring = true)
-        composeRule.onNodeWithText("OK").performClick()
+        recordYellowCard(TeamId.TEAM_TWO, "7", "Second yellow on player 7.", substring = true)
 
         // Reusing N/A for a yellow should support recording a different unknown player.
         recordYellowCard(TeamId.TEAM_ONE, "", "Team 1 has 3 cards.", substring = true)
@@ -200,7 +201,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
 
         // Add a clean second-yellow record after the correction matrix so summary text can show that form.
         recordYellowCard(TeamId.TEAM_TWO, "21", "Team 2 has", substring = true)
-        recordYellowCard(TeamId.TEAM_TWO, "21", "Second yellow acts as a red card.", substring = true)
+        recordYellowCard(TeamId.TEAM_TWO, "21", "Second yellow on player 21.", substring = true)
 
         // Trying to add another yellow to the maxed-out player should show the invalid assignment warning.
         openOtherSheet()
@@ -242,10 +243,10 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("N/A").performClick()
         waitForText("Unknown Player Number")
         composeRule.onNodeWithText("Yes").performClick()
-        waitForText("Second yellow acts as a red card.", substring = true)
+        waitForText("Second yellow on player N/A.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
 
-        // A player with both a yellow and direct red has no valid additional red-card mode.
+        // A player with both a yellow and red has no valid additional red card.
         openCardsSheet()
         composeRule.onAllNodesWithText("Red")[teamCardButtonIndex(TeamId.TEAM_TWO)].performClick()
         waitForText("Red Card")
