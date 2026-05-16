@@ -1,5 +1,6 @@
 package rmjarvis.ultiobserver
 
+import android.content.Context
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -111,6 +112,38 @@ class TestGameClock : GameModelTestFixtures() {
             "VIBRATE is not a sound timing alert mode.",
             nonSoundModeException.message,
         )
+        val soundIds = TimingAlertSound.entries.withIndex().associate { (index, sound) ->
+            sound to index + 1
+        }
+        val soundPlayer = FakeTimingAlertSoundPlayer()
+        val timingAlertPlayer = TimingAlertPlayer(soundPlayer) { _, sound -> soundIds.getValue(sound) }
+        timingAlertPlayer.play(TimingAlertSound.TICK, 1.5f)
+        assertTrue(soundPlayer.playedSounds.isEmpty())
+        soundPlayer.completeLoad(soundIds.getValue(TimingAlertSound.TICK))
+        assertEquals(
+            listOf(PlayedTimingAlertSound(soundIds.getValue(TimingAlertSound.TICK), 1f)),
+            soundPlayer.playedSounds,
+        )
+        timingAlertPlayer.play(TimingAlertSound.TICK, -0.5f)
+        assertEquals(
+            listOf(
+                PlayedTimingAlertSound(soundIds.getValue(TimingAlertSound.TICK), 1f),
+                PlayedTimingAlertSound(soundIds.getValue(TimingAlertSound.TICK), 0f),
+            ),
+            soundPlayer.playedSounds,
+        )
+        timingAlertPlayer.play(TimingAlertSound.BEEP, 0.25f)
+        timingAlertPlayer.release()
+        soundPlayer.completeLoad(soundIds.getValue(TimingAlertSound.BEEP))
+        assertEquals(2, soundPlayer.playedSounds.size)
+        assertTrue(soundPlayer.released)
+
+        val failedSoundPlayer = FakeTimingAlertSoundPlayer()
+        val failedTimingAlertPlayer = TimingAlertPlayer(failedSoundPlayer) { _, sound -> soundIds.getValue(sound) }
+        failedTimingAlertPlayer.play(TimingAlertSound.DING, 0.5f)
+        failedSoundPlayer.completeLoad(soundIds.getValue(TimingAlertSound.DING), status = 1)
+        failedSoundPlayer.completeLoad(999)
+        assertTrue(failedSoundPlayer.playedSounds.isEmpty())
 
         // Verify the setup-time default helper rounds to the next half hour using a caller-supplied clock.
         assertEquals(LocalTime.of(9, 0), nextHalfHourFrom(LocalTime.of(9, 0)))
@@ -385,3 +418,35 @@ class TestGameClock : GameModelTestFixtures() {
         )
     }
 }
+
+private class FakeTimingAlertSoundPlayer : TimingAlertSoundPlayer {
+    private lateinit var listener: (sampleId: Int, status: Int) -> Unit
+
+    val playedSounds = mutableListOf<PlayedTimingAlertSound>()
+    var released = false
+
+    override fun setOnLoadCompleteListener(listener: (sampleId: Int, status: Int) -> Unit) {
+        this.listener = listener
+    }
+
+    override fun load(context: Context, resId: Int, priority: Int): Int {
+        error("Unit tests provide sound ids directly.")
+    }
+
+    override fun play(soundId: Int, leftVolume: Float, rightVolume: Float, priority: Int, loop: Int, rate: Float) {
+        playedSounds += PlayedTimingAlertSound(soundId, leftVolume)
+    }
+
+    override fun release() {
+        released = true
+    }
+
+    fun completeLoad(soundId: Int, status: Int = 0) {
+        listener(soundId, status)
+    }
+}
+
+private data class PlayedTimingAlertSound(
+    val soundId: Int,
+    val volume: Float,
+)

@@ -567,19 +567,15 @@ private fun playTimingSound(
 
 private fun Context.performTimingCueHaptic(durationMillis: Long) {
     val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        getSystemService(VibratorManager::class.java).defaultVibrator
+        getSystemService(VibratorManager::class.java)?.defaultVibrator
     } else {
         getSystemService(Vibrator::class.java)
     }
-    if (!vibrator.hasVibrator()) {
+    // Devices without usable vibration hardware should ignore haptic cues without crashing.
+    if (vibrator == null || !vibrator.hasVibrator()) {
         return
     }
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        vibrator.vibrate(VibrationEffect.createOneShot(durationMillis, VibrationEffect.DEFAULT_AMPLITUDE))
-    } else {
-        @Suppress("DEPRECATION")
-        vibrator.vibrate(durationMillis)
-    }
+    vibrator.vibrate(VibrationEffect.createOneShot(durationMillis, VibrationEffect.DEFAULT_AMPLITUDE))
 }
 
 private data class LiveLayoutMetrics(

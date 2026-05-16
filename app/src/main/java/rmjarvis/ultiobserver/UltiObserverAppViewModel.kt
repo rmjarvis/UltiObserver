@@ -37,6 +37,7 @@ internal class UltiObserverAppViewModel(
     private val persistedSettings = appStateStore.loadSettings()
     private val restoredSetupDraft = persistedCurrentGameState?.hasSetupDraft ?: false
     private val restoredArchivedGames = appStateStore.loadArchivedGames()
+    private val recoveredPersistedDataAreas = appStateStore.resetPersistedDataAreas
 
     var screen by mutableStateOf(AppScreen.HOME)
         private set
@@ -65,11 +66,15 @@ internal class UltiObserverAppViewModel(
     var hasSetupDraft by mutableStateOf(restoredSetupDraft)
         private set
     var startupRecoveryNotice by mutableStateOf(
-        appStateStore.resetPersistedDataAreas.takeIf { it.isNotEmpty() }?.let { resetAreas ->
+        recoveredPersistedDataAreas.takeIf { it.isNotEmpty() }?.let { resetAreas ->
             PersistedDataRecoveryNotice(resetAreas)
         }
     )
         private set
+
+    init {
+        persistRecoveredDataAreas(recoveredPersistedDataAreas)
+    }
 
     val currentLiveState: LiveGameState?
         get() = viewingArchivedGame?.state ?: liveState
@@ -366,6 +371,21 @@ internal class UltiObserverAppViewModel(
 
     private fun persistArchivedGames() {
         appStateStore.saveArchivedGames(archivedGames)
+    }
+
+    private fun persistRecoveredDataAreas(resetAreas: Set<PersistedDataArea>) {
+        if (PersistedDataArea.GAME_STATE in resetAreas) {
+            persistCurrentGameState()
+        }
+        if (PersistedDataArea.PROFILE in resetAreas) {
+            persistProfileState()
+        }
+        if (PersistedDataArea.SETTINGS in resetAreas) {
+            persistSettingsState()
+        }
+        if (PersistedDataArea.PREVIOUS_GAMES in resetAreas) {
+            persistArchivedGames()
+        }
     }
 
     private fun resolveHomeAvatarPreference(preference: ObserverAvatarPreference): ObserverAvatarPreference {

@@ -229,6 +229,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             globalMode = TimingAlertGlobalMode.VIBRATION_ONLY,
             cueMode = TimingAlertMode.VIBRATE,
             vibrateWithSounds = false,
+            waitAfterDueMillis = 1_500L,
         )
         triggerDueTimeoutTwentyCue(
             globalMode = TimingAlertGlobalMode.SOUNDS_ON,
@@ -300,6 +301,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         globalMode: TimingAlertGlobalMode,
         cueMode: TimingAlertMode,
         vibrateWithSounds: Boolean,
+        waitAfterDueMillis: Long = 300L,
     ) {
         var dueEpoch = 0L
         composeRule.activityRule.scenario.onActivity { activity ->
@@ -324,7 +326,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         }
         waitForText("Offense set in", substring = true)
         composeRule.waitUntil(timeoutMillis = 3_000) {
-            System.currentTimeMillis() >= dueEpoch + 300L
+            System.currentTimeMillis() >= dueEpoch + waitAfterDueMillis
         }
         composeRule.waitForIdle()
     }

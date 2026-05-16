@@ -754,6 +754,13 @@ class TestUltiObserverAppViewModel {
             "Sorry, some phone data was corrupt, so UltiObserver had to revert to default values for Previous Games.",
             archiveViewModel.startupRecoveryNotice!!.message,
         )
+
+        val repairedArchiveStore = FileAppStateStore(archiveStoreDir)
+        assertEquals(listOf(archivedTwo), repairedArchiveStore.loadArchivedGames())
+        assertTrue(repairedArchiveStore.resetPersistedDataAreas.isEmpty())
+        val restoredAfterRecovery = UltiObserverAppViewModel(FileAppStateStore(archiveStoreDir))
+        assertEquals(listOf(archivedTwo), restoredAfterRecovery.archivedGames)
+        assertNull(restoredAfterRecovery.startupRecoveryNotice)
     }
 
     // Verify app-version metadata is written and invalid versions reset only affected buckets.
@@ -830,6 +837,32 @@ class TestUltiObserverAppViewModel {
             store.resetPersistedDataAreas,
         )
 
+        store.saveProfile(savedProfile)
+        File(storeDir, "profile.json").removeStoredVersionCode()
+        assertEquals(PersistedProfile(), store.loadProfile())
+        assertEquals(
+            setOf(
+                PersistedDataArea.GAME_STATE,
+                PersistedDataArea.SETTINGS,
+                PersistedDataArea.PREVIOUS_GAMES,
+                PersistedDataArea.PROFILE,
+            ),
+            store.resetPersistedDataAreas,
+        )
+
+        store.saveProfile(savedProfile)
+        File(storeDir, "profile.json").replaceText("\"versionCode\": 1", "\"versionCode\": 99")
+        assertEquals(PersistedProfile(), store.loadProfile())
+        assertEquals(
+            setOf(
+                PersistedDataArea.GAME_STATE,
+                PersistedDataArea.SETTINGS,
+                PersistedDataArea.PREVIOUS_GAMES,
+                PersistedDataArea.PROFILE,
+            ),
+            store.resetPersistedDataAreas,
+        )
+
         store.saveSettings(savedSettings)
         File(storeDir, "settings.json").replaceText("\"versionCode\": 1", "\"versionCode\": \"bad\"")
         assertEquals(PersistedSettings(), store.loadSettings())
@@ -880,6 +913,15 @@ class TestUltiObserverAppViewModel {
         assertEquals(listOf(savedArchive.copy(versionName = "0.1.0-debug")), store.loadArchivedGames())
         assertEquals(
             setOf(PersistedDataArea.GAME_STATE, PersistedDataArea.SETTINGS),
+            store.resetPersistedDataAreas,
+        )
+
+        store.saveArchivedGames(listOf(savedArchive))
+        File(File(storeDir, "archived_games"), "00000.json")
+            .replaceText("\"versionCode\": 1", "\"versionCode\": 99")
+        assertTrue(store.loadArchivedGames().isEmpty())
+        assertEquals(
+            setOf(PersistedDataArea.GAME_STATE, PersistedDataArea.SETTINGS, PersistedDataArea.PREVIOUS_GAMES),
             store.resetPersistedDataAreas,
         )
     }
@@ -997,6 +1039,17 @@ private fun File.removeStoredAppVersion() {
                 val trimmed = line.trim()
                 trimmed == "\"versionName\": \"${BuildConfig.VERSION_NAME}\"," ||
                     trimmed == "\"versionCode\": ${BuildConfig.VERSION_CODE},"
+            }
+            .joinToString("\n")
+    )
+}
+
+private fun File.removeStoredVersionCode() {
+    writeText(
+        readText()
+            .lines()
+            .filterNot { line ->
+                line.trim() == "\"versionCode\": ${BuildConfig.VERSION_CODE},"
             }
             .joinToString("\n")
     )

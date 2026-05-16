@@ -72,7 +72,7 @@ internal fun CompactActionButton(
     label: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    height: Dp = 34.dp,
+    height: Dp,
     onClick: () -> Unit,
 ) {
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {

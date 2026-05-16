@@ -4,6 +4,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
@@ -122,6 +123,11 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("profile-name-field").performTextReplacement("Casey Observer")
         composeRule.onNodeWithText("Casey Observer").assertIsDisplayed()
         composeRule.onNodeWithTag("profile-avatar-BLUE").performScrollTo().performClick()
+        waitForText("Start New Game")
+        composeRule.onNodeWithText("Profile").performClick()
+        composeRule.onNodeWithTag("profile-avatar-BLUE").performScrollTo()
+        composeRule.onNode(hasContentDescription("Man with blue ponytail and glasses")).assertIsDisplayed()
+        pressAppBack()
         waitForText("Start New Game")
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.appViewModel.updateTimingAlertGlobalMode(TimingAlertGlobalMode.VIBRATION_ONLY)

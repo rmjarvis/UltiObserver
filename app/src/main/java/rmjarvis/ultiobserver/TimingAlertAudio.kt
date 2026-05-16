@@ -4,25 +4,22 @@ import android.content.Context
 import android.media.AudioAttributes
 import android.media.SoundPool
 
-internal class TimingAlertPlayer(
-    context: Context,
+internal class TimingAlertPlayer internal constructor(
+    private val soundPlayer: TimingAlertSoundPlayer,
+    loadSound: (TimingAlertSoundPlayer, TimingAlertSound) -> Int,
 ) {
-    private val soundPool = SoundPool.Builder()
-        .setMaxStreams(1)
-        .setAudioAttributes(
-            AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_MEDIA)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .build()
-        )
-        .build()
+    constructor(context: Context) : this(
+        soundPlayer = AndroidTimingAlertSoundPlayer(),
+        loadSound = { soundPlayer, sound -> soundPlayer.load(context, sound.rawResourceId(), 1) },
+    )
+
     private val loadedSounds = mutableSetOf<TimingAlertSound>()
     private val pendingPlays = mutableMapOf<TimingAlertSound, Float>()
     private val soundsById = mutableMapOf<Int, TimingAlertSound>()
     private val soundIds: Map<TimingAlertSound, Int>
 
     init {
-        soundPool.setOnLoadCompleteListener { _, sampleId, status ->
+        soundPlayer.setOnLoadCompleteListener { sampleId, status ->
             val sound = soundsById[sampleId] ?: return@setOnLoadCompleteListener
             if (status == 0) {
                 loadedSounds += sound
@@ -32,7 +29,7 @@ internal class TimingAlertPlayer(
             }
         }
         soundIds = TimingAlertSound.entries.associateWith { sound ->
-            soundPool.load(context, sound.rawResourceId(), 1).also { soundId ->
+            loadSound(soundPlayer, sound).also { soundId ->
                 soundsById[soundId] = sound
             }
         }
@@ -49,12 +46,49 @@ internal class TimingAlertPlayer(
 
     fun release() {
         pendingPlays.clear()
-        soundPool.release()
+        soundPlayer.release()
     }
 
     private fun playLoaded(sound: TimingAlertSound, volume: Float) {
         val soundId = soundIds[sound]!!
-        soundPool.play(soundId, volume, volume, 1, 0, 1f)
+        soundPlayer.play(soundId, volume, volume, 1, 0, 1f)
+    }
+}
+
+internal interface TimingAlertSoundPlayer {
+    fun setOnLoadCompleteListener(listener: (sampleId: Int, status: Int) -> Unit)
+    fun load(context: Context, resId: Int, priority: Int): Int
+    fun play(soundId: Int, leftVolume: Float, rightVolume: Float, priority: Int, loop: Int, rate: Float)
+    fun release()
+}
+
+private class AndroidTimingAlertSoundPlayer : TimingAlertSoundPlayer {
+    private val soundPool = SoundPool.Builder()
+        .setMaxStreams(1)
+        .setAudioAttributes(
+            AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_MEDIA)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
+        )
+        .build()
+
+    override fun setOnLoadCompleteListener(listener: (sampleId: Int, status: Int) -> Unit) {
+        soundPool.setOnLoadCompleteListener { _, sampleId, status ->
+            listener(sampleId, status)
+        }
+    }
+
+    override fun load(context: Context, resId: Int, priority: Int): Int {
+        return soundPool.load(context, resId, priority)
+    }
+
+    override fun play(soundId: Int, leftVolume: Float, rightVolume: Float, priority: Int, loop: Int, rate: Float) {
+        soundPool.play(soundId, leftVolume, rightVolume, priority, loop, rate)
+    }
+
+    override fun release() {
+        soundPool.release()
     }
 }
 
