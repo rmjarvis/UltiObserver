@@ -113,6 +113,22 @@ class TestGameFlow : GameModelTestFixtures() {
             cardResult.misconductPrompt().resolutionMessage(againstOffense = true)
                 .contains("Reverse brick"),
         )
+        assertTrue(
+            cardResult.misconductPrompt().resolutionMessage(againstOffense = true)
+                .contains("Offense has 30 seconds to set. Then defense has 20 seconds to check the disc in."),
+        )
+        state = state.withPendingMisconductCountdown()
+        assertTrue(state.pendingMisconductCountdown)
+        assertNull(state.countdown)
+        state = state.startMisconductCountdown(1_010_000L)
+        assertFalse(state.pendingMisconductCountdown)
+        assertEquals(CountdownKind.TIME_OUT, state.countdown?.kind)
+        assertEquals("Offense set in", state.countdown?.label)
+        assertEquals(30, state.countdown?.durationSeconds)
+        assertEquals(1_040_000L, state.countdown?.targetEpoch)
+        state = state.advanceGameClock(1_040_000L)
+        assertEquals(LivePhase.LIVE_POINT, state.phase)
+        assertNull(state.countdown)
 
         // Viscous Coupling scores the first point, so they pull the next point from the far end.
         val firstGoalTime = timestampAt(state, LocalTime.of(10, 5))

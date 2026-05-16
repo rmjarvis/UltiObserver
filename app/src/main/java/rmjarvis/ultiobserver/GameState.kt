@@ -160,6 +160,8 @@ enum class CountdownKind {
     OPENING_PULL,
     BETWEEN_POINTS,
     PULL_RESET,
+    MISCONDUCT_BETWEEN_POINTS,
+    MISCONDUCT_DEFENSE_CHECK,
     TIME_OUT,
     HALFTIME;
 
@@ -211,6 +213,7 @@ enum class TimingCueId(
     TIMEOUT_OFFENSE_TEN("10 seconds, offense"),
     TIMEOUT_COUNTDOWN_FROM_FIVE("Countdown from 5"),
     TIMEOUT_OFFENSE_FREEZE_DEFENSE_TWENTY("Offense freeze; defense 20 seconds"),
+    MISCONDUCT_DEFENSE_TWENTY("20 seconds, defense"),
     TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND("1 minute for a hand"),
     TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL("1 minute to pull"),
     HALFTIME_FIVE_MINUTES("5 minutes"),
@@ -221,6 +224,7 @@ enum class TimingCueId(
             RECEIVING_TWENTY_FOR_HAND,
             PULLING_TWENTY_TO_PULL,
             TIMEOUT_OFFENSE_TWENTY,
+            MISCONDUCT_DEFENSE_TWENTY,
             HALFTIME_TWO_MINUTES,
             -> TimingAlertMode.VIBRATE
             else -> TimingAlertMode.NONE
@@ -320,6 +324,7 @@ data class LiveGameState(
     val pullSequenceOffsidesRecorded: Boolean = false,
     val pullSequenceFalseStartRecorded: Boolean = false,
     val pullSkippedForCurrentPoint: Boolean = false,
+    val pendingMisconductCountdown: Boolean = false,
     val halftimeTaken: Boolean = false,
     val halftimeTargetScore: Int? = null,
     val winningScore: Int? = null,

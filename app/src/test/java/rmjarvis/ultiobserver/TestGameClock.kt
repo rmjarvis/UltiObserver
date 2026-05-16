@@ -61,6 +61,7 @@ class TestGameClock : GameModelTestFixtures() {
                 TimingCueId.RECEIVING_TWENTY_FOR_HAND,
                 TimingCueId.PULLING_TWENTY_TO_PULL,
                 TimingCueId.TIMEOUT_OFFENSE_TWENTY,
+                TimingCueId.MISCONDUCT_DEFENSE_TWENTY,
                 TimingCueId.HALFTIME_TWO_MINUTES,
             ),
             vibrationDefaultCues,
@@ -263,6 +264,8 @@ class TestGameClock : GameModelTestFixtures() {
         assertTrue(CountdownKind.OPENING_PULL.usesBetweenPointsTarget())
         assertTrue(CountdownKind.BETWEEN_POINTS.usesBetweenPointsTarget())
         assertTrue(CountdownKind.PULL_RESET.usesBetweenPointsTarget())
+        assertFalse(CountdownKind.MISCONDUCT_BETWEEN_POINTS.usesBetweenPointsTarget())
+        assertFalse(CountdownKind.MISCONDUCT_DEFENSE_CHECK.usesBetweenPointsTarget())
         assertFalse(CountdownKind.TIME_OUT.usesBetweenPointsTarget())
         assertFalse(CountdownKind.HALFTIME.usesBetweenPointsTarget())
         assertEquals("LocalDateAsString", LocalDateAsStringSerializer.descriptor.serialName)
@@ -280,6 +283,33 @@ class TestGameClock : GameModelTestFixtures() {
             TimingCueId.TIMEOUT_OFFENSE_FREEZE_DEFENSE_TWENTY,
             timeoutCountdownWithDefaultTarget.dueTimingCue(70_000L)?.id,
         )
+        val misconductCountdown = CountdownState(
+            kind = CountdownKind.TIME_OUT,
+            label = "Offense set in",
+            durationSeconds = 30,
+            targetEpoch = 30_000L,
+        )
+        assertEquals(TimingCueId.TIMEOUT_OFFENSE_TWENTY, misconductCountdown.nextTimingCue(1_000L)?.id)
+        assertEquals(TimingCueId.TIMEOUT_OFFENSE_TEN, misconductCountdown.nextTimingCue(20_000L)?.id)
+        assertEquals(TimingCueId.TIMEOUT_COUNTDOWN_FROM_FIVE, misconductCountdown.nextTimingCue(25_000L)?.id)
+        assertEquals(TimingCueId.TIMEOUT_OFFENSE_FREEZE_DEFENSE_TWENTY, misconductCountdown.dueTimingCue(30_000L)?.id)
+        val betweenPointsMisconductCountdown = CountdownState(
+            kind = CountdownKind.MISCONDUCT_BETWEEN_POINTS,
+            label = "Offense set in",
+            durationSeconds = 90,
+            targetEpoch = 90_000L,
+        )
+        assertEquals(TimingCueId.TIMEOUT_OFFENSE_TWENTY, betweenPointsMisconductCountdown.nextTimingCue(1_000L)?.id)
+        assertEquals(TimingCueId.TIMEOUT_OFFENSE_FREEZE_DEFENSE_TWENTY, betweenPointsMisconductCountdown.dueTimingCue(90_000L)?.id)
+        val misconductDefenseCountdown = CountdownState(
+            kind = CountdownKind.MISCONDUCT_DEFENSE_CHECK,
+            label = "Defense check in",
+            durationSeconds = 30,
+            targetEpoch = 100_000L,
+        )
+        assertEquals(TimingCueId.MISCONDUCT_DEFENSE_TWENTY, misconductDefenseCountdown.nextTimingCue(70_000L)?.id)
+        assertNull(misconductDefenseCountdown.nextTimingCue(81_000L))
+        assertNull(misconductDefenseCountdown.dueTimingCue(100_000L))
 
         val halftimeCountdown = buildHalftimeCountdown(
             halftimeMinutes = 7,

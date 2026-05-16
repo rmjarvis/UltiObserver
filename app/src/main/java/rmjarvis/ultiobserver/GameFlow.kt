@@ -61,6 +61,7 @@ fun LiveGameState.startPullSequence(
         pullSequenceOffsidesRecorded = false,
         pullSequenceFalseStartRecorded = false,
         pullSkippedForCurrentPoint = false,
+        pendingMisconductCountdown = false,
         lastEvent = "Pull sequence started.",
     )
 }
@@ -112,6 +113,7 @@ fun LiveGameState.recordGoal(
             pullSequenceOffsidesRecorded = false,
             pullSequenceFalseStartRecorded = false,
             pullSkippedForCurrentPoint = false,
+            pendingMisconductCountdown = false,
             winningScore = this.winningScore,
             pendingCapOffer = null,
             lastEvent = "${this.teamName(scoringTeam)} scored.",
@@ -174,6 +176,7 @@ fun LiveGameState.recordGoal(
         pullSequenceOffsidesRecorded = false,
         pullSequenceFalseStartRecorded = false,
         pullSkippedForCurrentPoint = false,
+        pendingMisconductCountdown = false,
         halftimeTaken = this.halftimeTaken,
         halftimeTargetScore = this.halftimeTargetScore,
         winningScore = this.winningScore,
@@ -251,6 +254,7 @@ private fun startHalftime(
         pullSequenceOffsidesRecorded = false,
         pullSequenceFalseStartRecorded = false,
         pullSkippedForCurrentPoint = false,
+        pendingMisconductCountdown = false,
         halftimeTaken = true,
         pendingCapOffer = pendingCapOffer,
         lastEvent = "Halftime.",
@@ -268,6 +272,7 @@ fun LiveGameState.endGameNow(
         phase = LivePhase.GAME_OVER,
         countdown = null,
         pullCountdownExpired = false,
+        pendingMisconductCountdown = false,
         pendingCapOffer = null,
         lastEvent = "Game over.",
     ).withUndo(this, "Undo End Game")
@@ -281,6 +286,7 @@ fun LiveGameState.beginLivePoint(): LiveGameState {
         pullSequenceOffsidesRecorded = false,
         pullSequenceFalseStartRecorded = false,
         pullSkippedForCurrentPoint = false,
+        pendingMisconductCountdown = false,
         lastEvent = "Point is live.",
     ).withUndo(this, "Undo Start Point")
 }
@@ -301,7 +307,61 @@ fun LiveGameState.continueLivePoint(): LiveGameState {
     return this.copy(
         phase = LivePhase.LIVE_POINT,
         countdown = null,
+        pendingMisconductCountdown = false,
         lastEvent = "Point continued.",
+    )
+}
+// Queue the in-point misconduct countdown until the observer is ready to start timing.
+fun LiveGameState.withPendingMisconductCountdown(): LiveGameState {
+    if (phase != LivePhase.LIVE_POINT) {
+        return this
+    }
+    return copy(
+        countdown = null,
+        pendingMisconductCountdown = true,
+    )
+}
+// Start the 30-second offense-set countdown after an in-point misconduct penalty.
+fun LiveGameState.startMisconductCountdown(now: Long): LiveGameState {
+    if (phase != LivePhase.LIVE_POINT || !pendingMisconductCountdown) {
+        return this
+    }
+    return copy(
+        countdown = CountdownState(
+            kind = CountdownKind.TIME_OUT,
+            label = "Offense set in",
+            durationSeconds = 30,
+            targetEpoch = now + 30_000L,
+        ),
+        pendingMisconductCountdown = false,
+        lastEvent = "Misconduct countdown started.",
+    )
+}
+// The early-set button matters only while defense gets the fixed 100-second deadline.
+fun LiveGameState.canReportMisconductOffenseSet(now: Long): Boolean {
+    val countdown = countdown ?: return false
+    return phase == LivePhase.BETWEEN_POINTS &&
+        countdown.kind == CountdownKind.MISCONDUCT_BETWEEN_POINTS &&
+        now < countdown.targetEpoch - 10_000L
+}
+// Start timing the defense check-in window after offense sets early between points.
+fun LiveGameState.reportMisconductOffenseSet(now: Long): LiveGameState {
+    val countdown = countdown ?: return this
+    if (!canReportMisconductOffenseSet(now)) {
+        return this
+    }
+    val targetEpoch = max(
+        countdown.targetEpoch + 10_000L,
+        now + 20_000L,
+    )
+    return copy(
+        countdown = CountdownState(
+            kind = CountdownKind.MISCONDUCT_DEFENSE_CHECK,
+            label = "Defense check in",
+            durationSeconds = ((targetEpoch - now) / 1000L).toInt(),
+            targetEpoch = targetEpoch,
+        ),
+        lastEvent = "Offense set after misconduct penalty.",
     )
 }
 // Advance automatic clock-driven transitions that do not require an observer button press.
@@ -312,6 +372,12 @@ fun LiveGameState.advanceGameClock(now: Long): LiveGameState {
     }
     return when {
         this.phase == LivePhase.BETWEEN_POINTS && countdown.kind.usesBetweenPointsTarget() -> {
+            this.automaticLivePointState()
+        }
+        this.phase == LivePhase.BETWEEN_POINTS && countdown.kind == CountdownKind.MISCONDUCT_BETWEEN_POINTS -> {
+            this.automaticLivePointState()
+        }
+        this.phase == LivePhase.BETWEEN_POINTS && countdown.kind == CountdownKind.MISCONDUCT_DEFENSE_CHECK -> {
             this.automaticLivePointState()
         }
         this.phase == LivePhase.LIVE_POINT && countdown.kind == CountdownKind.TIME_OUT -> {
@@ -326,6 +392,7 @@ fun LiveGameState.advanceGameClock(now: Long): LiveGameState {
                 ),
                 pullCountdownExpired = false,
                 pullSkippedForCurrentPoint = false,
+                pendingMisconductCountdown = false,
             )
             betweenPointsState.advanceGameClock(now)
         }
@@ -439,6 +506,7 @@ private fun LiveGameState.automaticLivePointState(): LiveGameState {
         pullSequenceOffsidesRecorded = false,
         pullSequenceFalseStartRecorded = false,
         pullSkippedForCurrentPoint = false,
+        pendingMisconductCountdown = false,
         lastEvent = "Point is live.",
     ).withUndo(previous, "Undo Start Point")
 }
@@ -448,6 +516,7 @@ private fun LiveGameState.automaticContinueLivePointState(): LiveGameState {
         phase = LivePhase.LIVE_POINT,
         countdown = null,
         pullCountdownExpired = false,
+        pendingMisconductCountdown = false,
         lastEvent = "Point continued.",
     )
 }

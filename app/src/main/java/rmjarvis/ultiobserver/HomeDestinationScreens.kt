@@ -631,7 +631,7 @@ private val timingCueSections = listOf(
         ),
     ),
     TimingCueSection(
-        title = "Timeout During Point",
+        title = "Timeout or Misconduct During Point",
         cues = listOf(
             TimingCueId.TIMEOUT_CLEAR_FIELD,
             TimingCueId.TIMEOUT_OFFENSE_TWENTY,
@@ -645,6 +645,12 @@ private val timingCueSections = listOf(
         cues = listOf(
             TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND,
             TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL,
+        ),
+    ),
+    TimingCueSection(
+        title = "Misconduct Between Points",
+        cues = listOf(
+            TimingCueId.MISCONDUCT_DEFENSE_TWENTY,
         ),
     ),
     TimingCueSection(

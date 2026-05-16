@@ -134,6 +134,8 @@ internal fun CountdownState.dueTimingCue(now: Long): TimingCueDisplay? {
 private fun CountdownState.timingCues(): List<TimingCue> {
     return when (kind) {
         CountdownKind.OPENING_PULL, CountdownKind.BETWEEN_POINTS, CountdownKind.PULL_RESET -> betweenPointsTimingCues()
+        CountdownKind.MISCONDUCT_BETWEEN_POINTS -> misconductTimingCues()
+        CountdownKind.MISCONDUCT_DEFENSE_CHECK -> misconductDefenseCheckTimingCues()
         CountdownKind.TIME_OUT -> timeoutTimingCues()
         CountdownKind.HALFTIME -> halftimeTimingCues()
     }
@@ -160,13 +162,32 @@ private fun CountdownState.betweenPointsTimingCues(): List<TimingCue> {
     }
 }
 
-private fun timeoutTimingCues(): List<TimingCue> {
-    return listOf(
-        TimingCue(TimingCueId.TIMEOUT_CLEAR_FIELD, 30),
+private fun CountdownState.timeoutTimingCues(): List<TimingCue> {
+    val openingCues = if (durationSeconds > 30) {
+        listOf(TimingCue(TimingCueId.TIMEOUT_CLEAR_FIELD, 30))
+    } else {
+        emptyList()
+    }
+    return openingCues + listOf(
         TimingCue(TimingCueId.TIMEOUT_OFFENSE_TWENTY, 20),
         TimingCue(TimingCueId.TIMEOUT_OFFENSE_TEN, 10),
         TimingCue(TimingCueId.TIMEOUT_COUNTDOWN_FROM_FIVE, 5),
         TimingCue(TimingCueId.TIMEOUT_OFFENSE_FREEZE_DEFENSE_TWENTY, 0),
+    )
+}
+
+private fun misconductTimingCues(): List<TimingCue> {
+    return listOf(
+        TimingCue(TimingCueId.TIMEOUT_OFFENSE_TWENTY, 20),
+        TimingCue(TimingCueId.TIMEOUT_OFFENSE_TEN, 10),
+        TimingCue(TimingCueId.TIMEOUT_COUNTDOWN_FROM_FIVE, 5),
+        TimingCue(TimingCueId.TIMEOUT_OFFENSE_FREEZE_DEFENSE_TWENTY, 0),
+    )
+}
+
+private fun misconductDefenseCheckTimingCues(): List<TimingCue> {
+    return listOf(
+        TimingCue(TimingCueId.MISCONDUCT_DEFENSE_TWENTY, 20),
     )
 }
 

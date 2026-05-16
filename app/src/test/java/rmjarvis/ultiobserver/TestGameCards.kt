@@ -72,10 +72,31 @@ class TestGameCards : GameModelTestFixtures() {
         )
         assertEquals("Misconduct Penalty", cardResult.event.formatPopupTitle())
         assertTrue(state.pullSkippedForCurrentPoint)
+        assertEquals(CountdownKind.MISCONDUCT_BETWEEN_POINTS, state.countdown?.kind)
+        assertEquals("Offense set in", state.countdown?.label)
+        assertEquals(90, state.countdown?.durationSeconds)
+        assertEquals(state.startEpoch + 90_000L, state.countdown?.targetEpoch)
         assertFalse(state.canRecordPullInfraction(VC))
         assertFalse(state.canRecordPullInfraction(ANIMAL))
         assertEquals(state, state.assessPullInfraction(VC).state)
         assertEquals(state, state.assessPullInfraction(ANIMAL).state)
+        assertTrue(state.canReportMisconductOffenseSet(state.startEpoch + 70_000L))
+        val earlySetState = state.reportMisconductOffenseSet(state.startEpoch + 70_000L)
+        assertEquals(CountdownKind.MISCONDUCT_DEFENSE_CHECK, earlySetState.countdown?.kind)
+        assertEquals("Defense check in", earlySetState.countdown?.label)
+        assertEquals(30, earlySetState.countdown?.durationSeconds)
+        assertEquals(state.startEpoch + 100_000L, earlySetState.countdown?.targetEpoch)
+        assertEquals(
+            LivePhase.LIVE_POINT,
+            earlySetState.advanceGameClock(earlySetState.countdown!!.targetEpoch).phase,
+        )
+        assertFalse(state.canReportMisconductOffenseSet(state.startEpoch + 85_000L))
+        assertEquals(state, state.reportMisconductOffenseSet(state.startEpoch + 85_000L))
+        assertFalse(state.canReportMisconductOffenseSet(state.countdown!!.targetEpoch))
+        state = state.advanceGameClock(state.countdown!!.targetEpoch)
+        assertEquals(LivePhase.LIVE_POINT, state.phase)
+        assertFalse(state.pullSkippedForCurrentPoint)
+        assertNull(state.countdown)
 
         // The no-pull restriction is only for the current point sequence.
         state = recordGoalFromCurrentStateAt(state, VC, LocalTime.of(12, 5))
@@ -91,6 +112,7 @@ class TestGameCards : GameModelTestFixtures() {
                 "Penalty against pulling team. No pull. Receiving team starts at attacking brick.",
             cardResult.message(),
         )
+        assertEquals(CountdownKind.MISCONDUCT_BETWEEN_POINTS, cardResult.state.countdown?.kind)
 
         // During a live point, a standalone yellow that reaches the misconduct threshold needs an offense/defense choice.
         state = standardLiveGameState().beginLivePoint()

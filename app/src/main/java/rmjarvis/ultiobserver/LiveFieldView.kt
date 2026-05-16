@@ -536,9 +536,10 @@ internal fun CountdownLine(
     enabled: Boolean,
     onAdjust: (Int) -> Unit,
     expiredPullActions: ExpiredPullActions? = null,
+    misconductCountdownAction: MisconductCountdownAction? = null,
     height: Dp,
 ) {
-    val visible = countdown != null || expiredPullActions != null
+    val visible = countdown != null || expiredPullActions != null || misconductCountdownAction != null
     val displayCountdown = countdown ?: ActiveCountdownDisplay("Pull in", Duration.ZERO, null)
     val titleFontSize = (height.value * 0.4f).coerceIn(22f, 28f).sp
     val labelFontSize = (height.value * 0.21f).coerceIn(12f, 14f).sp
@@ -559,7 +560,16 @@ internal fun CountdownLine(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (expiredPullActions != null) {
+            if (misconductCountdownAction != null) {
+                SmallActionButton(
+                    label = "Start Misconduct Countdown",
+                    enabled = enabled,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("live-start-misconduct-countdown"),
+                    onClick = misconductCountdownAction.onStart,
+                )
+            } else if (expiredPullActions != null) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -601,7 +611,7 @@ internal fun CountdownLine(
             }
         }
         Text(
-            text = if (countdown == null && expiredPullActions != null) {
+            text = if (countdown == null && (expiredPullActions != null || misconductCountdownAction != null)) {
                 ""
             } else {
                 displayCountdown.nextCue?.let { cue ->
@@ -619,6 +629,10 @@ internal fun CountdownLine(
 internal data class ExpiredPullActions(
     val onTimeViolation: () -> Unit,
     val onRestartPullCountdown: () -> Unit,
+)
+
+internal data class MisconductCountdownAction(
+    val onStart: () -> Unit,
 )
 
 // Offsides and false starts are combined for pull-violation display/rules.

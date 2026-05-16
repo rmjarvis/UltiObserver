@@ -78,6 +78,10 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             misconductChoice = "Offense",
             expectedMisconductMessage = "Reverse brick",
         )
+        waitForText("Start Misconduct Countdown")
+        composeRule.onNodeWithTag("live-start-misconduct-countdown").performClick()
+        waitForText("Offense set in", substring = true)
+        continuePointAndUnlock()
         recordYellowCard(
             team = TeamId.TEAM_ONE,
             playerNumber = "9",

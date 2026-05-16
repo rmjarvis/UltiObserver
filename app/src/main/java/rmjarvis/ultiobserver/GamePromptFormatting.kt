@@ -73,8 +73,10 @@ private fun GamePrompt.GameOver.formatMessage(): String {
 
 private fun misconductResolution(againstOffense: Boolean): String {
     return if (againstOffense) {
-        "Misconduct penalty against offense.\nReverse brick. Offense 30 sec to set, defense 20 sec to check in. Defense may instead leave the disc where it stopped."
+        "Misconduct penalty against offense.\nReverse brick. Defense may instead leave the disc where it stopped.\n\n" +
+            "Offense has 30 seconds to set. Then defense has 20 seconds to check the disc in."
     } else {
-        "Misconduct penalty against defense.\nBrick nearest attacking end zone. Offense 30 sec to set, defense 20 sec to check in. Offense may instead leave it or center it."
+        "Misconduct penalty against defense.\nBrick nearest attacking end zone. Offense may instead leave it or center it.\n\n" +
+            "Offense has 30 seconds to set. Then defense has 20 seconds to check the disc in."
     }
 }

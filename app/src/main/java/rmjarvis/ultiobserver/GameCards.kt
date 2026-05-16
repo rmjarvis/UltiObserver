@@ -255,7 +255,21 @@ private fun LiveGameState.withSkippedPullForMisconductThreshold(thresholdCount: 
     if (thresholdCount < 3 || this.phase == LivePhase.LIVE_POINT || this.phase == LivePhase.GAME_OVER) {
         return this
     }
-    return this.copy(pullSkippedForCurrentPoint = true)
+    return this.copy(
+        countdown = this.countdown?.toBetweenPointsMisconductCountdown(),
+        pullSkippedForCurrentPoint = true,
+    )
+}
+
+private fun CountdownState.toBetweenPointsMisconductCountdown(): CountdownState {
+    val sequenceStart = targetEpoch - durationSeconds * 1000L
+    val durationSeconds = 90
+    return CountdownState(
+        kind = CountdownKind.MISCONDUCT_BETWEEN_POINTS,
+        label = "Offense set in",
+        durationSeconds = durationSeconds,
+        targetEpoch = sequenceStart + durationSeconds * 1000L,
+    )
 }
 enum class PlayerCardAdjustmentMode {
     ADD,

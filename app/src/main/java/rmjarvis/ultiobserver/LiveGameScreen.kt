@@ -113,6 +113,9 @@ internal fun LiveGameScreen(
     val hasExpiredPullActions = remember(state) {
         state.hasExpiredPullActions()
     }
+    val canReportMisconductOffenseSet = remember(state, now) {
+        state.canReportMisconductOffenseSet(now)
+    }
 
     // Let countdown expiration move the model forward without requiring an observer tap.
     LaunchedEffect(state, now, readOnlySummary) {
@@ -225,6 +228,13 @@ internal fun LiveGameScreen(
                     } else {
                         null
                     },
+                    misconductCountdownAction = if (state.pendingMisconductCountdown && !locked) {
+                        MisconductCountdownAction(
+                            onStart = { onStateChange(state.startMisconductCountdown(now)) },
+                        )
+                    } else {
+                        null
+                    },
                     height = layoutMetrics.countdownHeight,
                 )
 
@@ -237,6 +247,26 @@ internal fun LiveGameScreen(
                     centerContent = {
                         if (locked) {
                             FieldUnlockControl(onUnlock = { locked = false })
+                        } else if (canReportMisconductOffenseSet) {
+                            OutlinedButton(
+                                onClick = { onStateChange(state.reportMisconductOffenseSet(now)) },
+                                modifier = Modifier
+                                    .height(layoutMetrics.centerButtonHeight)
+                                    .testTag("live-misconduct-offense-set"),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                                    containerColor = Color.White,
+                                    contentColor = Color.Black,
+                                ),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
+                            ) {
+                                Text(
+                                    "Offense is set",
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontSize = layoutMetrics.centerButtonFontSize,
+                                    ),
+                                )
+                            }
                         } else if (canStartPoint) {
                             OutlinedButton(
                                 onClick = {
@@ -509,6 +539,7 @@ internal fun LiveGameScreen(
                                 ),
                                 title = prompt.formatTitle(),
                             )
+                            onStateChange(state.withPendingMisconductCountdown())
                             activeGamePrompt = null
                         }
                     ) {
@@ -525,6 +556,7 @@ internal fun LiveGameScreen(
                                     ),
                                     title = prompt.formatTitle(),
                                 )
+                                onStateChange(state.withPendingMisconductCountdown())
                                 activeGamePrompt = null
                             }
                         ) {
