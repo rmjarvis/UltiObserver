@@ -243,15 +243,13 @@ enum class TimingAlertMode {
     VIBRATE,
     TICK,
     BEEP,
-    DING,
-    DOUBLE_TICK;
+    DING;
 
     fun toTimingAlertSound(): TimingAlertSound {
         return when (this) {
             TICK -> TimingAlertSound.TICK
             BEEP -> TimingAlertSound.BEEP
             DING -> TimingAlertSound.DING
-            DOUBLE_TICK -> TimingAlertSound.DOUBLE_TICK
             NONE, VIBRATE -> error("$this is not a sound timing alert mode.")
         }
     }
@@ -263,7 +261,6 @@ enum class TimingAlertSound(
     TICK("Tick"),
     BEEP("Beep"),
     DING("Ding"),
-    DOUBLE_TICK("2 Tick"),
 }
 @Serializable
 data class TimingAlertPreferences(
@@ -272,10 +269,17 @@ data class TimingAlertPreferences(
     val vibrationDurationMillis: Long = DEFAULT_TIMING_CUE_VIBRATION_MS,
     val vibrateWithSounds: Boolean = false,
     val cueModes: Map<TimingCueId, TimingAlertMode> = defaultTimingCueModes(),
+    val cueRepeatCounts: Map<TimingCueId, Int> = emptyMap(),
 ) {
     // The configured per-cue setting shown in Settings, before the global alert mode is applied.
     fun settingsModeFor(cueId: TimingCueId): TimingAlertMode {
         return cueModes[cueId] ?: cueId.defaultAlertMode()
+    }
+
+    fun repeatCountFor(cueId: TimingCueId): Int {
+        return cueRepeatCounts[cueId]
+            ?.coerceIn(MIN_TIMING_ALERT_REPEAT_COUNT, MAX_TIMING_ALERT_REPEAT_COUNT)
+            ?: DEFAULT_TIMING_ALERT_REPEAT_COUNT
     }
 
     // The effective alert mode to use when a timing cue fires.
@@ -294,6 +298,9 @@ data class TimingAlertPreferences(
 const val MIN_TIMING_CUE_VIBRATION_MS = 100L
 const val MAX_TIMING_CUE_VIBRATION_MS = 500L
 const val DEFAULT_TIMING_CUE_VIBRATION_MS = 360L
+const val MIN_TIMING_ALERT_REPEAT_COUNT = 1
+const val MAX_TIMING_ALERT_REPEAT_COUNT = 3
+const val DEFAULT_TIMING_ALERT_REPEAT_COUNT = 1
 
 enum class TimingAlertGlobalMode(
     val label: String,

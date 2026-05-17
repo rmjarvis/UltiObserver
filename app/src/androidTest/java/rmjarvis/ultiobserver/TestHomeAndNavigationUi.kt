@@ -2,6 +2,7 @@ package rmjarvis.ultiobserver
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasContentDescription
@@ -169,6 +170,10 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText("Cue Sound Settings")
         waitForText("Sound previews")
         composeRule.onAllNodesWithText("Tick").onFirst().performClick()
+        waitForText("x2")
+        waitForText("x3")
+        composeRule.onNodeWithTag("settings-HALF_CAP-REPEAT_3").performScrollTo().performClick()
+        composeRule.onNodeWithTag("settings-HALF_CAP-REPEAT_3").assertIsSelected()
         waitForText("Before Pull - Offense")
         waitForText("Timeout Between Points")
         waitForText("Caps")

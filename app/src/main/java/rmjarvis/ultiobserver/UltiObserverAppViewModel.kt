@@ -172,6 +172,17 @@ internal class UltiObserverAppViewModel(
         persistSettingsState()
     }
 
+    fun updateTimingCueRepeatCount(cueId: TimingCueId, repeatCount: Int) {
+        require(repeatCount in MIN_TIMING_ALERT_REPEAT_COUNT..MAX_TIMING_ALERT_REPEAT_COUNT) {
+            "Timing alert repeat count must be between $MIN_TIMING_ALERT_REPEAT_COUNT and " +
+                "$MAX_TIMING_ALERT_REPEAT_COUNT."
+        }
+        timingAlertPreferences = timingAlertPreferences.copy(
+            cueRepeatCounts = timingAlertPreferences.cueRepeatCounts + (cueId to repeatCount),
+        )
+        persistSettingsState()
+    }
+
     fun dismissStartupRecoveryNotice() {
         startupRecoveryNotice = null
     }

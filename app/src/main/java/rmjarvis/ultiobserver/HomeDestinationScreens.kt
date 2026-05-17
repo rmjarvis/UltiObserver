@@ -25,6 +25,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -36,6 +37,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,6 +49,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -336,6 +340,7 @@ internal fun SettingsScreen(
 internal fun TimingCueSettingsScreen(
     timingAlertPreferences: TimingAlertPreferences,
     onTimingCueModeChange: (TimingCueId, TimingAlertMode) -> Unit,
+    onTimingCueRepeatCountChange: (TimingCueId, Int) -> Unit,
     onBackSettings: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -385,7 +390,9 @@ internal fun TimingCueSettingsScreen(
                     TimingCueSettingRow(
                         cueId = cueId,
                         mode = timingAlertPreferences.settingsModeFor(cueId),
+                        repeatCount = timingAlertPreferences.repeatCountFor(cueId),
                         onModeChange = { mode -> onTimingCueModeChange(cueId, mode) },
+                        onRepeatCountChange = { repeatCount -> onTimingCueRepeatCountChange(cueId, repeatCount) },
                     )
                 }
             }
@@ -529,25 +536,48 @@ private fun SoundPreviewRow(
 private fun TimingCueSettingRow(
     cueId: TimingCueId,
     mode: TimingAlertMode,
+    repeatCount: Int,
     onModeChange: (TimingAlertMode) -> Unit,
+    onRepeatCountChange: (Int) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
             text = cueId.label,
             style = MaterialTheme.typography.bodyMedium,
         )
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            timingAlertOptions.forEach { option ->
-                CompactTimingAlertOption(
-                    selected = option == mode,
-                    onClick = { onModeChange(option) },
-                    label = option.settingsLabel(),
-                    modifier = Modifier.testTag("settings-${cueId.name}-${option.name}"),
-                )
+        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                timingAlertOptions.forEach { option ->
+                    CompactTimingAlertOption(
+                        selected = option == mode,
+                        onClick = { onModeChange(option) },
+                        label = option.settingsLabel(),
+                        horizontalPadding = 6,
+                        modifier = Modifier.testTag("settings-${cueId.name}-${option.name}"),
+                    )
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    timingAlertRepeatOptions.forEach { option ->
+                        CompactTimingAlertOption(
+                            selected = option == repeatCount,
+                            onClick = {
+                                onRepeatCountChange(
+                                    if (option == repeatCount) DEFAULT_TIMING_ALERT_REPEAT_COUNT else option
+                            )
+                        },
+                        label = "x$option",
+                        horizontalPadding = 8,
+                        modifier = Modifier.testTag("settings-${cueId.name}-REPEAT_$option"),
+                    )
+                }
+                }
             }
         }
     }
@@ -558,12 +588,13 @@ private fun CompactTimingAlertOption(
     selected: Boolean,
     label: String,
     modifier: Modifier = Modifier,
+    horizontalPadding: Int = 5,
     onClick: () -> Unit,
 ) {
     val colorScheme = MaterialTheme.colorScheme
     Surface(
         onClick = onClick,
-        modifier = modifier,
+        modifier = modifier.semantics { this.selected = selected },
         shape = RoundedCornerShape(16.dp),
         color = if (selected) colorScheme.secondaryContainer else colorScheme.surface,
         contentColor = if (selected) colorScheme.onSecondaryContainer else colorScheme.onSurface,
@@ -571,7 +602,7 @@ private fun CompactTimingAlertOption(
     ) {
         Text(
             text = label,
-            modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp),
+            modifier = Modifier.padding(horizontal = horizontalPadding.dp, vertical = 5.dp),
             maxLines = 1,
             style = MaterialTheme.typography.labelMedium,
         )
@@ -595,7 +626,6 @@ private fun TimingAlertMode.settingsLabel(): String {
         TimingAlertMode.TICK -> "Tick"
         TimingAlertMode.BEEP -> "Beep"
         TimingAlertMode.DING -> "Ding"
-        TimingAlertMode.DOUBLE_TICK -> "2 Tick"
     }
 }
 
@@ -605,8 +635,9 @@ private val timingAlertOptions = listOf(
     TimingAlertMode.TICK,
     TimingAlertMode.BEEP,
     TimingAlertMode.DING,
-    TimingAlertMode.DOUBLE_TICK,
 )
+
+private val timingAlertRepeatOptions = listOf(2, 3)
 
 private data class TimingCueSection(
     val title: String,

@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import kotlinx.coroutines.delay
 
 internal class TimingAlertPlayer internal constructor(
     private val soundPlayer: TimingAlertSoundPlayer,
@@ -18,7 +19,7 @@ internal class TimingAlertPlayer internal constructor(
     )
 
     private val loadedSounds = mutableSetOf<TimingAlertSound>()
-    private val pendingPlays = mutableMapOf<TimingAlertSound, Float>()
+    private val pendingPlays = mutableMapOf<TimingAlertSound, MutableList<Float>>()
     private val soundsById = mutableMapOf<Int, TimingAlertSound>()
     private val soundIds: Map<TimingAlertSound, Int>
 
@@ -27,7 +28,7 @@ internal class TimingAlertPlayer internal constructor(
             val sound = soundsById[sampleId] ?: return@setOnLoadCompleteListener
             if (status == 0) {
                 loadedSounds += sound
-                pendingPlays.remove(sound)?.let { volume ->
+                pendingPlays.remove(sound)?.forEach { volume ->
                     playLoaded(sound, volume)
                 }
             }
@@ -44,7 +45,7 @@ internal class TimingAlertPlayer internal constructor(
         if (sound in loadedSounds) {
             playLoaded(sound, playVolume)
         } else {
-            pendingPlays[sound] = playVolume
+            pendingPlays.getOrPut(sound) { mutableListOf() } += playVolume
         }
     }
 
@@ -101,11 +102,10 @@ private fun TimingAlertSound.rawResourceId(): Int {
         TimingAlertSound.TICK -> R.raw.timing_tick
         TimingAlertSound.BEEP -> R.raw.timing_beep
         TimingAlertSound.DING -> R.raw.timing_ding
-        TimingAlertSound.DOUBLE_TICK -> R.raw.timing_double_tick
     }
 }
 
-internal fun playTimingAlertOnce(
+internal suspend fun playTimingAlertOnce(
     cue: TimingCueDisplay,
     timingAlertPreferences: TimingAlertPreferences,
     context: Context,
@@ -120,20 +120,29 @@ internal fun playTimingAlertOnce(
     }
     onAlertKeyPlayed(alertKey)
     val alertMode = timingAlertPreferences.alertModeFor(cue.id)
-    when (alertMode) {
-        TimingAlertMode.NONE -> Unit
-        TimingAlertMode.VIBRATE -> context.performTimingCueHaptic(
-            timingAlertPreferences.vibrationDurationMillis,
-        )
-        TimingAlertMode.TICK,
-        TimingAlertMode.BEEP,
-        TimingAlertMode.DING,
-        TimingAlertMode.DOUBLE_TICK -> playTimingSound(
-            alertMode.toTimingAlertSound(),
-            timingAlertPreferences,
-            context,
-            timingAlertPlayer,
-        )
+    if (alertMode == TimingAlertMode.NONE) {
+        return
+    }
+
+    val repeatCount = timingAlertPreferences.repeatCountFor(cue.id)
+    repeat(repeatCount) { pulseIndex ->
+        when (alertMode) {
+            TimingAlertMode.NONE -> Unit
+            TimingAlertMode.VIBRATE -> context.performTimingCueHaptic(
+                timingAlertPreferences.vibrationDurationMillis,
+            )
+            TimingAlertMode.TICK,
+            TimingAlertMode.BEEP,
+            TimingAlertMode.DING -> playTimingSound(
+                alertMode.toTimingAlertSound(),
+                timingAlertPreferences,
+                context,
+                timingAlertPlayer,
+            )
+        }
+        if (pulseIndex < repeatCount - 1) {
+            delay(timingAlertPreferences.repeatSpacingMillis(alertMode))
+        }
     }
 }
 
@@ -149,6 +158,14 @@ private fun playTimingSound(
     timingAlertPlayer.play(sound, timingAlertPreferences.soundVolume)
 }
 
+private fun TimingAlertPreferences.repeatSpacingMillis(alertMode: TimingAlertMode): Long {
+    return if (alertMode == TimingAlertMode.VIBRATE || vibrateWithSounds) {
+        vibrationDurationMillis + TIMING_ALERT_REPEAT_HAPTIC_GAP_MS
+    } else {
+        TIMING_ALERT_REPEAT_SOUND_SPACING_MS
+    }
+}
+
 internal fun Context.performTimingCueHaptic(durationMillis: Long) {
     val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         getSystemService(VibratorManager::class.java)?.defaultVibrator
@@ -161,3 +178,6 @@ internal fun Context.performTimingCueHaptic(durationMillis: Long) {
     }
     vibrator.vibrate(VibrationEffect.createOneShot(durationMillis, VibrationEffect.DEFAULT_AMPLITUDE))
 }
+
+private const val TIMING_ALERT_REPEAT_SOUND_SPACING_MS = 220L
+private const val TIMING_ALERT_REPEAT_HAPTIC_GAP_MS = 120L

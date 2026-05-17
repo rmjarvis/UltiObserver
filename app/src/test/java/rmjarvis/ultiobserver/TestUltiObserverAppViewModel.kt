@@ -355,6 +355,7 @@ class TestUltiObserverAppViewModel {
         viewModel.updateTimingAlertVibrationDuration(420L)
         viewModel.updateTimingAlertVibrateWithSounds(true)
         viewModel.updateTimingCueMode(TimingCueId.PULLING_TIME_VIOLATION, TimingAlertMode.DING)
+        viewModel.updateTimingCueRepeatCount(TimingCueId.PULLING_TIME_VIOLATION, 3)
         assertEquals(
             TimingAlertMode.VIBRATE,
             viewModel.timingAlertPreferences.alertModeFor(TimingCueId.PULLING_TIME_VIOLATION),
@@ -390,6 +391,10 @@ class TestUltiObserverAppViewModel {
         assertEquals(
             TimingAlertMode.DING,
             restored.timingAlertPreferences.cueModes[TimingCueId.PULLING_TIME_VIOLATION],
+        )
+        assertEquals(
+            3,
+            restored.timingAlertPreferences.repeatCountFor(TimingCueId.PULLING_TIME_VIOLATION),
         )
         assertEquals(
             TimingAlertMode.VIBRATE,

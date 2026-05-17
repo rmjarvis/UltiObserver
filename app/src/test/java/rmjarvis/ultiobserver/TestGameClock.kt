@@ -105,10 +105,25 @@ class TestGameClock : GameModelTestFixtures() {
             defaultTimingAlertPreferences.copy(globalMode = TimingAlertGlobalMode.OFF)
                 .alertModeFor(TimingCueId.PULLING_TWENTY_TO_PULL),
         )
+        assertEquals(1, defaultTimingAlertPreferences.repeatCountFor(TimingCueId.PULLING_TWENTY_TO_PULL))
+        assertEquals(
+            3,
+            defaultTimingAlertPreferences.copy(
+                cueRepeatCounts = mapOf(TimingCueId.PULLING_TWENTY_TO_PULL to 3),
+            )
+                .repeatCountFor(TimingCueId.PULLING_TWENTY_TO_PULL),
+        )
+        assertEquals(
+            3,
+            defaultTimingAlertPreferences.copy(
+                cueRepeatCounts = mapOf(TimingCueId.PULLING_TWENTY_TO_PULL to 99),
+            )
+                .repeatCountFor(TimingCueId.PULLING_TWENTY_TO_PULL),
+        )
         assertEquals(TimingAlertSound.TICK, TimingAlertMode.TICK.toTimingAlertSound())
         assertEquals(TimingAlertSound.BEEP, TimingAlertMode.BEEP.toTimingAlertSound())
         assertEquals(TimingAlertSound.DING, TimingAlertMode.DING.toTimingAlertSound())
-        assertEquals(TimingAlertSound.DOUBLE_TICK, TimingAlertMode.DOUBLE_TICK.toTimingAlertSound())
+        assertEquals(listOf(TimingAlertSound.TICK, TimingAlertSound.BEEP, TimingAlertSound.DING), TimingAlertSound.entries)
         val nonSoundModeException = assertThrows(IllegalStateException::class.java) {
             TimingAlertMode.VIBRATE.toTimingAlertSound()
         }
@@ -122,16 +137,21 @@ class TestGameClock : GameModelTestFixtures() {
         val soundPlayer = FakeTimingAlertSoundPlayer()
         val timingAlertPlayer = TimingAlertPlayer(soundPlayer) { _, sound -> soundIds.getValue(sound) }
         timingAlertPlayer.play(TimingAlertSound.TICK, 1.5f)
+        timingAlertPlayer.play(TimingAlertSound.TICK, 0.5f)
         assertTrue(soundPlayer.playedSounds.isEmpty())
         soundPlayer.completeLoad(soundIds.getValue(TimingAlertSound.TICK))
         assertEquals(
-            listOf(PlayedTimingAlertSound(soundIds.getValue(TimingAlertSound.TICK), 1f)),
+            listOf(
+                PlayedTimingAlertSound(soundIds.getValue(TimingAlertSound.TICK), 1f),
+                PlayedTimingAlertSound(soundIds.getValue(TimingAlertSound.TICK), 0.5f),
+            ),
             soundPlayer.playedSounds,
         )
         timingAlertPlayer.play(TimingAlertSound.TICK, -0.5f)
         assertEquals(
             listOf(
                 PlayedTimingAlertSound(soundIds.getValue(TimingAlertSound.TICK), 1f),
+                PlayedTimingAlertSound(soundIds.getValue(TimingAlertSound.TICK), 0.5f),
                 PlayedTimingAlertSound(soundIds.getValue(TimingAlertSound.TICK), 0f),
             ),
             soundPlayer.playedSounds,
@@ -139,7 +159,7 @@ class TestGameClock : GameModelTestFixtures() {
         timingAlertPlayer.play(TimingAlertSound.BEEP, 0.25f)
         timingAlertPlayer.release()
         soundPlayer.completeLoad(soundIds.getValue(TimingAlertSound.BEEP))
-        assertEquals(2, soundPlayer.playedSounds.size)
+        assertEquals(3, soundPlayer.playedSounds.size)
         assertTrue(soundPlayer.released)
 
         val failedSoundPlayer = FakeTimingAlertSoundPlayer()
