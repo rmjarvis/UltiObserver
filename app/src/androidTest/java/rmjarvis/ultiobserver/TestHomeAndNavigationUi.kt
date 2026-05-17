@@ -169,6 +169,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Sound Settings for Individual Cues").performClick()
         waitForText("Cue Sound Settings")
         waitForText("Sound previews")
+        waitForText("Knock")
         composeRule.onAllNodesWithText("Tick").onFirst().performClick()
         waitForText("x2")
         waitForText("x3")

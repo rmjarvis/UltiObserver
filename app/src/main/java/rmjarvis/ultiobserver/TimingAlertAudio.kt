@@ -102,6 +102,8 @@ private fun TimingAlertSound.rawResourceId(): Int {
         TimingAlertSound.TICK -> R.raw.timing_tick
         TimingAlertSound.BEEP -> R.raw.timing_beep
         TimingAlertSound.DING -> R.raw.timing_ding
+        // Public-domain excerpt from Wikimedia Commons: Knocking_on_wood_or_door.ogg.
+        TimingAlertSound.KNOCK -> R.raw.timing_knock
     }
 }
 
@@ -133,7 +135,8 @@ internal suspend fun playTimingAlertOnce(
             )
             TimingAlertMode.TICK,
             TimingAlertMode.BEEP,
-            TimingAlertMode.DING -> playTimingSound(
+            TimingAlertMode.DING,
+            TimingAlertMode.KNOCK -> playTimingSound(
                 alertMode.toTimingAlertSound(),
                 timingAlertPreferences,
                 context,
