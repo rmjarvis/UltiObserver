@@ -95,7 +95,7 @@ data class GameRules(
     val useSoftCap: Boolean = true,
     val softCapMinutes: Int = 90,
     val useHardCap: Boolean = true,
-    val hardCapMinutes: Int = 100,
+    val hardCapMinutes: Int = 105,
     val timeoutsPerHalf: Int = 2,
     val hasFloaterTimeout: Boolean = false,
 )

@@ -213,6 +213,7 @@ internal fun SetupScreen(
                 rules = state.rules,
                 onEditRule = { editingRule = it },
                 onEditTimeouts = { showTimeoutRulesDialog = true },
+                onUseUsauDefaults = { onStateChange(state.copy(rules = GameRules())) },
                 onDismiss = { setupEditor = null },
             )
         }
@@ -621,6 +622,7 @@ private fun GameRulesSetupDialog(
     rules: GameRules,
     onEditRule: (RuleEditTarget) -> Unit,
     onEditTimeouts: () -> Unit,
+    onUseUsauDefaults: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
@@ -661,6 +663,14 @@ private fun GameRulesSetupDialog(
                     value = rules.formatTimeoutRules(),
                     onClick = onEditTimeouts,
                 )
+                OutlinedButton(
+                    onClick = onUseUsauDefaults,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("setup-usau-defaults"),
+                ) {
+                    Text("Reset to USAU Defaults")
+                }
             }
         },
         confirmButton = {

@@ -120,6 +120,10 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         setCapRuleToNone("Hard cap", "Hard Cap")
         setCapRuleValue("Hard cap", "Hard Cap", "20", enableFromNone = true)
         setTimeoutRules(timeoutsPerHalf = "3", hasFloater = true)
+        openGameRulesSetupEditor()
+        composeRule.onNodeWithTag("setup-usau-defaults").performScrollTo().performClick()
+        waitForText("+105")
+        closeSetupEditor()
 
         // Prior-card entry should support cancel, team selection, yellow/red counts, and removal.
         openPriorCardsSetupEditor()

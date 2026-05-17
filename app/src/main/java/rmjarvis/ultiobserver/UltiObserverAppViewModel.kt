@@ -294,7 +294,7 @@ internal class UltiObserverAppViewModel(
             )
             persistArchivedGames()
         }
-        setupState = newGameSetupState()
+        setupState = newGameSetupState(rules = archivedGames.lastOrNull()?.state?.rules ?: GameRules())
         liveState = null
         clearViewedArchivedGame()
         setupMode = SetupMode.NEW_GAME
@@ -396,7 +396,10 @@ internal class UltiObserverAppViewModel(
     }
 }
 
-internal fun newGameSetupState(now: LocalDateTime = LocalDateTime.now()): GameSetupState {
+internal fun newGameSetupState(
+    now: LocalDateTime = LocalDateTime.now(),
+    rules: GameRules = GameRules(),
+): GameSetupState {
     val startTime = nextHalfHourFrom(now.toLocalTime())
     val startDate = if (startTime.isBefore(now.toLocalTime())) {
         now.toLocalDate().plusDays(1)
@@ -407,5 +410,6 @@ internal fun newGameSetupState(now: LocalDateTime = LocalDateTime.now()): GameSe
         startDate = startDate,
         startTime = startTime,
         timeZone = ZoneId.systemDefault(),
+        rules = rules,
     )
 }

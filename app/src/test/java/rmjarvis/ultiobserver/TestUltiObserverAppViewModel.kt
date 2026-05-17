@@ -463,10 +463,54 @@ class TestUltiObserverAppViewModel {
         val sameDaySetup = newGameSetupState(LocalDateTime.of(2026, 1, 1, 23, 0))
         assertEquals(LocalDate.of(2026, 1, 1), sameDaySetup.startDate)
         assertEquals(LocalTime.of(23, 0), sameDaySetup.startTime)
+        assertEquals(105, sameDaySetup.rules.hardCapMinutes)
 
         val nextDaySetup = newGameSetupState(LocalDateTime.of(2026, 1, 1, 23, 45))
         assertEquals(LocalDate.of(2026, 1, 2), nextDaySetup.startDate)
         assertEquals(LocalTime.MIDNIGHT, nextDaySetup.startTime)
+    }
+
+    @Test
+    fun newGameRulesDefaultFromPreviousGame() {
+        val viewModel = UltiObserverAppViewModel()
+        viewModel.startNewGame()
+        val tournamentRules = GameRules(
+            gameTo = 13,
+            halftimeMinutes = 5,
+            useHalfCap = true,
+            halfCapMinutes = 35,
+            useSoftCap = false,
+            softCapMinutes = 75,
+            useHardCap = true,
+            hardCapMinutes = 95,
+            timeoutsPerHalf = 1,
+            hasFloaterTimeout = true,
+        )
+        viewModel.updateSetup(viewModel.setupState.copy(rules = tournamentRules))
+        viewModel.finishSetup()
+        viewModel.updateLiveGame(viewModel.liveState!!.copy(phase = LivePhase.GAME_OVER))
+        viewModel.archiveCompletedGame()
+
+        viewModel.startNewGame()
+
+        assertEquals(tournamentRules, viewModel.setupState.rules)
+        assertNull(viewModel.liveState)
+        assertEquals(SetupMode.NEW_GAME, viewModel.setupMode)
+    }
+
+    @Test
+    fun newGameRulesDefaultFromCurrentGameWhenStartingOver() {
+        val viewModel = UltiObserverAppViewModel()
+        viewModel.startNewGame()
+        val currentRules = GameRules(gameTo = 11, hardCapMinutes = 80, hasFloaterTimeout = true)
+        viewModel.updateSetup(viewModel.setupState.copy(rules = currentRules))
+        viewModel.finishSetup()
+
+        viewModel.startNewGame()
+
+        assertEquals(currentRules, viewModel.setupState.rules)
+        assertEquals(currentRules, viewModel.archivedGames.single().state.rules)
+        assertEquals("Closed when new game started", viewModel.archivedGames.single().subtitle)
     }
 
     // Verify persisted app state restores both setup drafts and active-game undo history.
@@ -478,7 +522,9 @@ class TestUltiObserverAppViewModel {
 
         // Start a new-game setup draft and verify a fresh ViewModel keeps the draft but opens at Home.
         viewModel.startNewGame()
+        val persistedRules = GameRules(gameTo = 13, hardCapMinutes = 95, hasFloaterTimeout = true)
         val draftedSetup = viewModel.setupState.copy(
+            rules = persistedRules,
             teamOne = TeamSetup("Viscous Coupling", TeamColorChoice.BLUE),
             teamTwo = TeamSetup("Animal", TeamColorChoice.PINK),
         )
@@ -487,6 +533,7 @@ class TestUltiObserverAppViewModel {
         val draftRestored = UltiObserverAppViewModel(FileAppStateStore(storeDir))
         assertEquals(AppScreen.HOME, draftRestored.screen)
         assertEquals(draftedSetup, draftRestored.setupState)
+        assertEquals(persistedRules, draftRestored.setupState.rules)
         assertTrue(draftRestored.hasSetupDraft)
         assertNull(draftRestored.liveState)
         draftRestored.resumeCurrentGame()
@@ -505,6 +552,7 @@ class TestUltiObserverAppViewModel {
         val gameRestored = UltiObserverAppViewModel(FileAppStateStore(storeDir))
         assertEquals(AppScreen.HOME, gameRestored.screen)
         assertEquals(scoredState, gameRestored.liveState)
+        assertEquals(persistedRules, gameRestored.liveState!!.rules)
         assertNotNull(gameRestored.liveState!!.undoEntry)
         gameRestored.resumeCurrentGame()
         assertEquals(AppScreen.LIVE, gameRestored.screen)
