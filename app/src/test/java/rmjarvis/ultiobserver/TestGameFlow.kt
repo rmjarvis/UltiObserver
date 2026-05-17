@@ -129,6 +129,7 @@ class TestGameFlow : GameModelTestFixtures() {
         state = state.advanceGameClock(1_040_000L)
         assertEquals(LivePhase.LIVE_POINT, state.phase)
         assertNull(state.countdown)
+        assertEquals("Point continued.", state.lastEvent)
 
         // Viscous Coupling scores the first point, so they pull the next point from the far end.
         val firstGoalTime = timestampAt(state, LocalTime.of(10, 5))

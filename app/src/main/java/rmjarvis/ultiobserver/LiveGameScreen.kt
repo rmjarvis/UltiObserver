@@ -122,6 +122,9 @@ internal fun LiveGameScreen(
         if (!readOnlySummary) {
             val advancedState = state.advanceGameClock(now)
             if (advancedState != state) {
+                if (advancedState.phase == LivePhase.LIVE_POINT) {
+                    locked = true
+                }
                 onStateChange(advancedState)
             }
         }

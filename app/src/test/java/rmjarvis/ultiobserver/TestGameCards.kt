@@ -90,6 +90,7 @@ class TestGameCards : GameModelTestFixtures() {
             LivePhase.LIVE_POINT,
             earlySetState.advanceGameClock(earlySetState.countdown!!.targetEpoch).phase,
         )
+        assertEquals("Point is live.", earlySetState.advanceGameClock(earlySetState.countdown!!.targetEpoch).lastEvent)
         assertFalse(state.canReportMisconductOffenseSet(state.startEpoch + 85_000L))
         assertEquals(state, state.reportMisconductOffenseSet(state.startEpoch + 85_000L))
         assertFalse(state.canReportMisconductOffenseSet(state.countdown!!.targetEpoch))
@@ -97,6 +98,7 @@ class TestGameCards : GameModelTestFixtures() {
         assertEquals(LivePhase.LIVE_POINT, state.phase)
         assertFalse(state.pullSkippedForCurrentPoint)
         assertNull(state.countdown)
+        assertEquals("Point is live.", state.lastEvent)
 
         // The no-pull restriction is only for the current point sequence.
         state = recordGoalFromCurrentStateAt(state, VC, LocalTime.of(12, 5))

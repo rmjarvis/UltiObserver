@@ -301,6 +301,39 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         assertEquals(fieldTopBeforeStartPoint, fieldTopAfterStartPoint, 0.5f)
     }
 
+    @Test
+    fun automaticCountdownTransitionsLockScreen() {
+        startLiveGameProgrammatically()
+
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val current = activity.appViewModel.liveState!!
+            activity.appViewModel.updateLiveGame(
+                current.copy(
+                    countdown = current.countdown!!.copy(targetEpoch = System.currentTimeMillis() - 1_000L),
+                )
+            )
+        }
+        waitForText("Slide right to unlock")
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).assertIsNotEnabled()
+        unlockLiveScreen()
+
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val current = activity.appViewModel.liveState!!
+            activity.appViewModel.updateLiveGame(
+                current.copy(
+                    countdown = CountdownState(
+                        kind = CountdownKind.TIME_OUT,
+                        label = "Offense set in",
+                        durationSeconds = 70,
+                        targetEpoch = System.currentTimeMillis() - 1_000L,
+                    ),
+                )
+            )
+        }
+        waitForText("Slide right to unlock")
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "timeout")).assertIsNotEnabled()
+    }
+
     private fun triggerDueTimeoutTwentyCue(
         globalMode: TimingAlertGlobalMode,
         cueMode: TimingAlertMode,
