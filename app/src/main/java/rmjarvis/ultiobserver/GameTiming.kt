@@ -131,6 +131,13 @@ internal fun CountdownState.dueTimingCue(now: Long): TimingCueDisplay? {
         }
 }
 
+internal fun LiveGameState.dueTimingAlerts(now: Long): List<TimingCueDisplay> {
+    return listOfNotNull(
+        countdown?.dueTimingCue(now),
+        dueCapTimingCue(now),
+    ).sortedBy { cue -> cue.targetEpoch }
+}
+
 private fun CountdownState.timingCues(): List<TimingCue> {
     return when (kind) {
         CountdownKind.OPENING_PULL, CountdownKind.BETWEEN_POINTS, CountdownKind.PULL_RESET -> betweenPointsTimingCues()

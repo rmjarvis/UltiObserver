@@ -466,6 +466,20 @@ class TestGameClock : GameModelTestFixtures() {
         assertEquals(TimingCueId.HALF_CAP, state.dueCapTimingCue(state.startEpoch + 45 * 60_000L + 1_100L)?.id)
         assertNull(state.dueCapTimingCue(state.startEpoch + 45 * 60_000L + 1_101L))
 
+        val halfCapTime = state.startEpoch + 45 * 60_000L
+        val stateWithDueCountdown = state.copy(
+            countdown = CountdownState(
+                kind = CountdownKind.TIME_OUT,
+                label = "Offense set in",
+                durationSeconds = 70,
+                targetEpoch = halfCapTime,
+            )
+        )
+        val dueAlertIds = stateWithDueCountdown.dueTimingAlerts(halfCapTime).map { cue -> cue.id }
+        assertEquals(2, dueAlertIds.size)
+        assertTrue(TimingCueId.TIMEOUT_OFFENSE_FREEZE_DEFENSE_TWENTY in dueAlertIds)
+        assertTrue(TimingCueId.HALF_CAP in dueAlertIds)
+
         state = state.copy(halfCapApplied = true)
         assertEquals(TimingCueId.SOFT_CAP, state.dueCapTimingCue(state.startEpoch + 90 * 60_000L)?.id)
 

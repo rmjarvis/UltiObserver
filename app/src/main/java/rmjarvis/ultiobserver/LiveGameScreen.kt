@@ -1,10 +1,5 @@
 package rmjarvis.ultiobserver
 
-import android.content.Context
-import android.os.Build
-import android.os.VibrationEffect
-import android.os.Vibrator
-import android.os.VibratorManager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -29,7 +24,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,7 +33,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -53,7 +46,6 @@ import java.time.LocalTime
 internal fun LiveGameScreen(
     state: LiveGameState,
     readOnlySummary: Boolean,
-    timingAlertPreferences: TimingAlertPreferences,
     onStateChange: (LiveGameState) -> Unit,
     onUpdateGameSetup: () -> Unit,
     onDeleteGame: () -> Unit,
@@ -69,14 +61,6 @@ internal fun LiveGameScreen(
     var previouslyObservedPhase by remember { mutableStateOf(state.phase) }
     var suppressNextPhasePrompt by remember { mutableStateOf(false) }
     var suppressNextAutoLock by remember { mutableStateOf(false) }
-    var lastTimingAlertKey by remember { mutableStateOf<String?>(null) }
-    val context = LocalContext.current
-    val timingAlertPlayer = remember(context) { TimingAlertPlayer(context) }
-
-    DisposableEffect(timingAlertPlayer) {
-        onDispose { timingAlertPlayer.release() }
-    }
-
     fun showActionInfo(message: String, title: String) {
         actionInfoMessage = message
         actionInfoTitle = title
@@ -113,12 +97,6 @@ internal fun LiveGameScreen(
     val activeCountdown = remember(state, now) {
         state.activeCountdownDisplay(now)
     }
-    val dueTimingCue = remember(state.countdown, now) {
-        state.countdown?.dueTimingCue(now)
-    }
-    val dueCapTimingCue = remember(state, now) {
-        state.dueCapTimingCue(now)
-    }
     val canStartPoint = remember(state, now) {
         state.phase == LivePhase.BETWEEN_POINTS || state.halftimeTransitionReady(now)
     }
@@ -142,32 +120,6 @@ internal fun LiveGameScreen(
                 onStateChange(advancedState)
             }
         }
-    }
-
-    LaunchedEffect(dueTimingCue, timingAlertPreferences, readOnlySummary) {
-        val cue = dueTimingCue ?: return@LaunchedEffect
-        playTimingAlertOnce(
-            cue = cue,
-            readOnlySummary = readOnlySummary,
-            timingAlertPreferences = timingAlertPreferences,
-            context = context,
-            timingAlertPlayer = timingAlertPlayer,
-            lastTimingAlertKey = lastTimingAlertKey,
-            onAlertKeyPlayed = { lastTimingAlertKey = it },
-        )
-    }
-
-    LaunchedEffect(dueCapTimingCue, timingAlertPreferences, readOnlySummary) {
-        val cue = dueCapTimingCue ?: return@LaunchedEffect
-        playTimingAlertOnce(
-            cue = cue,
-            readOnlySummary = readOnlySummary,
-            timingAlertPreferences = timingAlertPreferences,
-            context = context,
-            timingAlertPlayer = timingAlertPlayer,
-            lastTimingAlertKey = lastTimingAlertKey,
-            onAlertKeyPlayed = { lastTimingAlertKey = it },
-        )
     }
 
     // Only show the large halftime/game-over prompts when those states first become visible.
@@ -607,64 +559,6 @@ internal fun LiveGameScreen(
             )
         }
     }
-}
-
-private fun playTimingSound(
-    sound: TimingAlertSound,
-    timingAlertPreferences: TimingAlertPreferences,
-    context: Context,
-    timingAlertPlayer: TimingAlertPlayer,
-) {
-    if (timingAlertPreferences.vibrateWithSounds) {
-        context.performTimingCueHaptic(timingAlertPreferences.vibrationDurationMillis)
-    }
-    timingAlertPlayer.play(sound, timingAlertPreferences.soundVolume)
-}
-
-private fun playTimingAlertOnce(
-    cue: TimingCueDisplay,
-    readOnlySummary: Boolean,
-    timingAlertPreferences: TimingAlertPreferences,
-    context: Context,
-    timingAlertPlayer: TimingAlertPlayer,
-    lastTimingAlertKey: String?,
-    onAlertKeyPlayed: (String) -> Unit,
-) {
-    val alertKey = "${cue.id.name}:${cue.targetEpoch}"
-    // Defensive timing guard so recomposition does not replay the same cue.
-    if (readOnlySummary || alertKey == lastTimingAlertKey) {
-        return
-    }
-    onAlertKeyPlayed(alertKey)
-    val alertMode = timingAlertPreferences.alertModeFor(cue.id)
-    when (alertMode) {
-        TimingAlertMode.NONE -> Unit
-        TimingAlertMode.VIBRATE -> context.performTimingCueHaptic(
-            timingAlertPreferences.vibrationDurationMillis,
-        )
-        TimingAlertMode.TICK,
-        TimingAlertMode.BEEP,
-        TimingAlertMode.DING,
-        TimingAlertMode.DOUBLE_TICK -> playTimingSound(
-            alertMode.toTimingAlertSound(),
-            timingAlertPreferences,
-            context,
-            timingAlertPlayer,
-        )
-    }
-}
-
-private fun Context.performTimingCueHaptic(durationMillis: Long) {
-    val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        getSystemService(VibratorManager::class.java)?.defaultVibrator
-    } else {
-        getSystemService(Vibrator::class.java)
-    }
-    // Devices without usable vibration hardware should ignore haptic cues without crashing.
-    if (vibrator == null || !vibrator.hasVibrator()) {
-        return
-    }
-    vibrator.vibrate(VibrationEffect.createOneShot(durationMillis, VibrationEffect.DEFAULT_AMPLITUDE))
 }
 
 private data class LiveLayoutMetrics(

@@ -6,10 +6,18 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.compose.runtime.Composable
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
@@ -41,6 +49,11 @@ internal fun UltiObserverApp(viewModel: UltiObserverAppViewModel) {
     BackHandler(enabled = viewModel.screen != AppScreen.HOME) {
         viewModel.goBackFromCurrentScreen()
     }
+
+    TimingAlertCueListener(
+        liveState = viewModel.liveState.takeUnless { state -> state?.phase == LivePhase.GAME_OVER },
+        timingAlertPreferences = viewModel.timingAlertPreferences,
+    )
 
     // Route to the current top-level screen.
     when (viewModel.screen) {
@@ -141,7 +154,6 @@ internal fun UltiObserverApp(viewModel: UltiObserverAppViewModel) {
             LiveGameScreen(
                 state = currentLiveState,
                 readOnlySummary = viewModel.viewingReadOnlySummary,
-                timingAlertPreferences = viewModel.timingAlertPreferences,
                 onStateChange = viewModel::updateLiveGame,
                 onUpdateGameSetup = {
                     viewModel.editCurrentGame(currentLiveState)
@@ -163,5 +175,45 @@ internal fun UltiObserverApp(viewModel: UltiObserverAppViewModel) {
                 }
             },
         )
+    }
+}
+
+// Keep active-game timing cues alive even when the observer leaves the live screen.
+@Composable
+private fun TimingAlertCueListener(
+    liveState: LiveGameState?,
+    timingAlertPreferences: TimingAlertPreferences,
+) {
+    var playedTimingAlertKeys by remember(liveState?.startEpoch) {
+        mutableStateOf(emptySet<String>())
+    }
+    val context = LocalContext.current
+    val timingAlertPlayer = remember(context) { TimingAlertPlayer(context) }
+
+    DisposableEffect(timingAlertPlayer) {
+        onDispose { timingAlertPlayer.release() }
+    }
+
+    val now by produceState(initialValue = System.currentTimeMillis()) {
+        while (true) {
+            value = System.currentTimeMillis()
+            kotlinx.coroutines.delay(1000)
+        }
+    }
+    val dueTimingAlerts = remember(liveState, now) {
+        liveState?.dueTimingAlerts(now).orEmpty()
+    }
+
+    LaunchedEffect(dueTimingAlerts, timingAlertPreferences) {
+        dueTimingAlerts.forEach { cue ->
+            playTimingAlertOnce(
+                cue = cue,
+                timingAlertPreferences = timingAlertPreferences,
+                context = context,
+                timingAlertPlayer = timingAlertPlayer,
+                playedTimingAlertKeys = playedTimingAlertKeys,
+                onAlertKeyPlayed = { playedTimingAlertKeys += it },
+            )
+        }
     }
 }

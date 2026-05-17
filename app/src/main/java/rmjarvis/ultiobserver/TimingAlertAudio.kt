@@ -3,6 +3,10 @@ package rmjarvis.ultiobserver
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.SoundPool
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 
 internal class TimingAlertPlayer internal constructor(
     private val soundPlayer: TimingAlertSoundPlayer,
@@ -99,4 +103,61 @@ private fun TimingAlertSound.rawResourceId(): Int {
         TimingAlertSound.DING -> R.raw.timing_ding
         TimingAlertSound.DOUBLE_TICK -> R.raw.timing_double_tick
     }
+}
+
+internal fun playTimingAlertOnce(
+    cue: TimingCueDisplay,
+    timingAlertPreferences: TimingAlertPreferences,
+    context: Context,
+    timingAlertPlayer: TimingAlertPlayer,
+    playedTimingAlertKeys: Set<String>,
+    onAlertKeyPlayed: (String) -> Unit,
+) {
+    val alertKey = "${cue.id.name}:${cue.targetEpoch}"
+    // Defensive timing guard so recomposition does not replay the same cue.
+    if (alertKey in playedTimingAlertKeys) {
+        return
+    }
+    onAlertKeyPlayed(alertKey)
+    val alertMode = timingAlertPreferences.alertModeFor(cue.id)
+    when (alertMode) {
+        TimingAlertMode.NONE -> Unit
+        TimingAlertMode.VIBRATE -> context.performTimingCueHaptic(
+            timingAlertPreferences.vibrationDurationMillis,
+        )
+        TimingAlertMode.TICK,
+        TimingAlertMode.BEEP,
+        TimingAlertMode.DING,
+        TimingAlertMode.DOUBLE_TICK -> playTimingSound(
+            alertMode.toTimingAlertSound(),
+            timingAlertPreferences,
+            context,
+            timingAlertPlayer,
+        )
+    }
+}
+
+private fun playTimingSound(
+    sound: TimingAlertSound,
+    timingAlertPreferences: TimingAlertPreferences,
+    context: Context,
+    timingAlertPlayer: TimingAlertPlayer,
+) {
+    if (timingAlertPreferences.vibrateWithSounds) {
+        context.performTimingCueHaptic(timingAlertPreferences.vibrationDurationMillis)
+    }
+    timingAlertPlayer.play(sound, timingAlertPreferences.soundVolume)
+}
+
+internal fun Context.performTimingCueHaptic(durationMillis: Long) {
+    val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        getSystemService(VibratorManager::class.java)?.defaultVibrator
+    } else {
+        getSystemService(Vibrator::class.java)
+    }
+    // Devices without usable vibration hardware should ignore haptic cues without crashing.
+    if (vibrator == null || !vibrator.hasVibrator()) {
+        return
+    }
+    vibrator.vibrate(VibrationEffect.createOneShot(durationMillis, VibrationEffect.DEFAULT_AMPLITUDE))
 }
