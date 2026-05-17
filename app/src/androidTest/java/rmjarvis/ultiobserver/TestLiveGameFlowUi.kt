@@ -134,6 +134,10 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
         waitForText("Halftime")
         composeRule.onNodeWithText("OK").performClick()
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
+        waitForText("Undo Goal by $viscousCoupling")
+        composeRule.onNodeWithText("Undo Goal by $viscousCoupling").performClick()
+        composeRule.onAllNodesWithText("Announce halftime.").assertCountEquals(0)
 
         // Touch the visible correction controls, then jump the countdown to its expired state.
         composeRule.onAllNodesWithText("+5").onFirst().performClick()

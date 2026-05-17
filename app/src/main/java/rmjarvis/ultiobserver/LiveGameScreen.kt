@@ -67,6 +67,7 @@ internal fun LiveGameScreen(
     var actionInfoTitle by remember { mutableStateOf("") }
     var activeGamePrompt by remember { mutableStateOf<GamePrompt?>(null) }
     var previouslyObservedPhase by remember { mutableStateOf(state.phase) }
+    var suppressNextPhasePrompt by remember { mutableStateOf(false) }
     var lastTimingAlertKey by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val timingAlertPlayer = remember(context) { TimingAlertPlayer(context) }
@@ -82,6 +83,12 @@ internal fun LiveGameScreen(
 
     fun dismissActionInfo() {
         actionInfoMessage = null
+    }
+
+    fun undoWithoutPhasePrompt(updatedState: LiveGameState) {
+        suppressNextPhasePrompt = updatedState.phase != state.phase
+        activeGamePrompt = null
+        onStateChange(updatedState)
     }
 
     // Update the display clock once per second so time and cap text stay fresh.
@@ -158,6 +165,11 @@ internal fun LiveGameScreen(
     // Only show the large halftime/game-over prompts when those states first become visible.
     LaunchedEffect(state.phase, readOnlySummary) {
         val previousPhase = previouslyObservedPhase
+        if (suppressNextPhasePrompt) {
+            previouslyObservedPhase = state.phase
+            suppressNextPhasePrompt = false
+            return@LaunchedEffect
+        }
         // Defensive transition guard so recomposition does not reshow the halftime prompt.
         if (state.phase == LivePhase.HALFTIME && previousPhase != LivePhase.HALFTIME) {
             activeGamePrompt = GamePrompt.HalftimeStarted(state)
@@ -208,7 +220,7 @@ internal fun LiveGameScreen(
                 // If the game is over, replace the live controls with the summary screen.
                 if (state.phase == LivePhase.GAME_OVER) {
                     GameOverSummary(state = state, onUndo = {
-                        onStateChange(state.undoLastAction())
+                        undoWithoutPhasePrompt(state.undoLastAction())
                     }, showUndo = !readOnlySummary)
                 } else {
                 // Show the current clock and next relevant cap.
@@ -393,7 +405,8 @@ internal fun LiveGameScreen(
                     state = state,
                     enabled = !locked,
                     height = layoutMetrics.undoHeight,
-                    onStateChange = onStateChange,
+                    onUndo = { undoWithoutPhasePrompt(it) },
+                    onRedo = onStateChange,
                 )
                 }
             }
@@ -662,7 +675,8 @@ private fun UndoRedoBar(
     state: LiveGameState,
     enabled: Boolean,
     height: Dp,
-    onStateChange: (LiveGameState) -> Unit,
+    onUndo: (LiveGameState) -> Unit,
+    onRedo: (LiveGameState) -> Unit,
 ) {
     val undoEntry = state.undoEntry
     val redoEntry = state.redoEntry
@@ -673,7 +687,7 @@ private fun UndoRedoBar(
     if (redoEntry == null) {
         CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
             OutlinedButton(
-                onClick = { onStateChange(state.undoLastAction()) },
+                onClick = { onUndo(state.undoLastAction()) },
                 enabled = enabled,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -700,7 +714,7 @@ private fun UndoRedoBar(
         ) {
             if (undoEntry != null) {
                 OutlinedButton(
-                    onClick = { onStateChange(state.undoLastAction()) },
+                    onClick = { onUndo(state.undoLastAction()) },
                     enabled = enabled,
                     modifier = Modifier
                         .weight(3f)
@@ -719,7 +733,7 @@ private fun UndoRedoBar(
                 Spacer(modifier = Modifier.weight(3f))
             }
             OutlinedButton(
-                onClick = { onStateChange(state.redoLastAction()) },
+                onClick = { onRedo(state.redoLastAction()) },
                 enabled = enabled,
                 modifier = Modifier
                     .weight(1f)
