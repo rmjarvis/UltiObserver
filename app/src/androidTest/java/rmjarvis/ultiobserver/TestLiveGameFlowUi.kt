@@ -319,6 +319,10 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         waitForText("Slide right to unlock")
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).assertIsNotEnabled()
         unlockLiveScreen()
+        composeRule.onNodeWithText("Undo Start Point").performClick()
+        waitForText("Lock")
+        composeRule.onAllNodesWithText("Slide right to unlock").assertCountEquals(0)
+        composeRule.onNodeWithText("Redo").performClick()
 
         composeRule.activityRule.scenario.onActivity { activity ->
             val current = activity.appViewModel.liveState!!

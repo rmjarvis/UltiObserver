@@ -68,6 +68,7 @@ internal fun LiveGameScreen(
     var activeGamePrompt by remember { mutableStateOf<GamePrompt?>(null) }
     var previouslyObservedPhase by remember { mutableStateOf(state.phase) }
     var suppressNextPhasePrompt by remember { mutableStateOf(false) }
+    var suppressNextAutoLock by remember { mutableStateOf(false) }
     var lastTimingAlertKey by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val timingAlertPlayer = remember(context) { TimingAlertPlayer(context) }
@@ -87,6 +88,7 @@ internal fun LiveGameScreen(
 
     fun undoWithoutPhasePrompt(updatedState: LiveGameState) {
         suppressNextPhasePrompt = updatedState.phase != state.phase
+        suppressNextAutoLock = true
         activeGamePrompt = null
         onStateChange(updatedState)
     }
@@ -126,10 +128,12 @@ internal fun LiveGameScreen(
 
     // Let countdown expiration move the model forward without requiring an observer tap.
     LaunchedEffect(state, now, readOnlySummary) {
+        val suppressAutoLock = suppressNextAutoLock
+        suppressNextAutoLock = false
         if (!readOnlySummary) {
             val advancedState = state.advanceGameClock(now)
             if (advancedState != state) {
-                if (advancedState.phase == LivePhase.LIVE_POINT) {
+                if (advancedState.phase == LivePhase.LIVE_POINT && !suppressAutoLock) {
                     locked = true
                 }
                 onStateChange(advancedState)
