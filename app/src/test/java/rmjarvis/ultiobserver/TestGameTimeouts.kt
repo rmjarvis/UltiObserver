@@ -74,7 +74,11 @@ class TestGameTimeouts : GameModelTestFixtures() {
         val originalCountdown = state.countdown!!
         val betweenPointsTimeoutTime = originalCountdown.targetEpoch - 1_000L
         var timeoutResult = state.assessTimeout(VC, betweenPointsTimeoutTime)
-        assertNull(timeoutResult.message())
+        assertEquals(
+            "Timeout charged to Viscous Coupling. They have 1 timeout remaining in this half.",
+            timeoutResult.message(),
+        )
+        assertEquals("Timeout Charged", timeoutResult.event?.formatPopupTitle())
         state = timeoutResult.state
         assertEquals(1, state.teamOne.timeoutsUsedThisHalf)
         assertEquals(1, state.timeoutsRemaining(VC))
@@ -106,7 +110,10 @@ class TestGameTimeouts : GameModelTestFixtures() {
         // A live-point timeout starts a fresh offense-set timeout countdown.
         state = state.beginLivePoint()
         timeoutResult = state.assessTimeout(VC, 1_000_000L)
-        assertNull(timeoutResult.message())
+        assertEquals(
+            "Timeout charged to Viscous Coupling. They have 0 timeouts remaining in this half.",
+            timeoutResult.message(),
+        )
         state = timeoutResult.state
         assertEquals(2, state.teamOne.timeoutsUsedThisHalf)
         assertEquals(0, state.timeoutsRemaining(VC))
@@ -165,7 +172,10 @@ class TestGameTimeouts : GameModelTestFixtures() {
 
         // After halftime has elapsed but before the pull, a timeout behaves like a between-points timeout.
         timeoutResult = state.assessTimeout(VC, halftimeEnd + 1L)
-        assertNull(timeoutResult.message())
+        assertEquals(
+            "Timeout charged to Viscous Coupling. They have 1 timeout remaining in this half.",
+            timeoutResult.message(),
+        )
         val afterHalftimeTimeoutState = timeoutResult.state
         assertEquals(LivePhase.BETWEEN_POINTS, afterHalftimeTimeoutState.phase)
         assertEquals(1, afterHalftimeTimeoutState.teamOne.timeoutsUsedThisHalf)
@@ -196,7 +206,7 @@ class TestGameTimeouts : GameModelTestFixtures() {
             expiredCountdownNow,
         )
         val expiredTimeoutState = timeoutResult.state
-        assertNull(timeoutResult.message())
+        assertEquals("Timeout charged to Animal. They have 1 timeout remaining in this half.", timeoutResult.message())
         assertEquals(LivePhase.LIVE_POINT, expiredTimeoutState.phase)
         assertEquals(CountdownKind.TIME_OUT, expiredTimeoutState.countdown?.kind)
         assertEquals("Offense set in", expiredTimeoutState.countdown?.label)

@@ -3,6 +3,7 @@ package rmjarvis.ultiobserver
 // UI-facing text for this model event in the current Android app.
 fun GameEvent.formatMessage(): String {
     return when (this) {
+        is GameEvent.TimeoutCharged -> this.formatMessage()
         is GameEvent.TimeoutUnavailable -> "Timeouts are not available now."
         is GameEvent.TeamOutOfTimeouts -> "${this.state.teamName(this.team)} is out of timeouts."
         is GameEvent.TeamCardsChanged -> this.formatMessage()
@@ -15,6 +16,7 @@ fun GameEvent.formatMessage(): String {
 // Title for event-driven popups.
 fun GameEvent.formatPopupTitle(): String {
     return when (this) {
+        is GameEvent.TimeoutCharged -> "Timeout Charged"
         is GameEvent.TimeoutUnavailable -> "Invalid Timeout"
         is GameEvent.TeamOutOfTimeouts -> "Invalid Timeout"
         is GameEvent.TeamCardsChanged -> if (teamCardTotal >= 3) "Misconduct Penalty" else "Misconduct"
@@ -46,6 +48,12 @@ private fun GameEvent.TeamCardsChanged.formatMessage(): String {
         team = team,
         thresholdCount = teamCardTotal,
     )
+}
+
+private fun GameEvent.TimeoutCharged.formatMessage(): String {
+    val timeoutCount = state.timeoutsRemaining(team)
+    return "Timeout charged to ${state.teamName(team)}. " +
+        "They have $timeoutCount ${pluralize(timeoutCount, "timeout")} remaining in this half."
 }
 
 private fun GameEvent.TeamCardsChanged.playerCardEventLines(

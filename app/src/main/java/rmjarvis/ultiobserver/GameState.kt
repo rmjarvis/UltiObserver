@@ -442,6 +442,11 @@ enum class PlayerCardEventType {
 }
 
 sealed interface GameEvent {
+    data class TimeoutCharged(
+        val state: LiveGameState,
+        val team: TeamId,
+    ) : GameEvent
+
     data class TimeoutUnavailable(
         val state: LiveGameState,
     ) : GameEvent

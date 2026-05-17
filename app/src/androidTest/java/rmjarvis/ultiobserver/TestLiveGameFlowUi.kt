@@ -221,8 +221,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         waitForText("Undo Goal by Team 1")
 
         // Timeout should remain wired after the undo path.
-        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "timeout")).performClick()
-        waitForText("Undo Timeout by Team 1")
+        recordTimeout(TeamId.TEAM_ONE, "Undo Timeout by Team 1")
     }
 
     @Test

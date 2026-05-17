@@ -301,6 +301,8 @@ abstract class MainActivityUiTestFixtures {
 
     protected fun recordTimeout(team: TeamId, undoLabel: String) {
         composeRule.onNodeWithTag(teamActionTag(team, "timeout")).performClick()
+        waitForText("Timeout charged to", substring = true)
+        composeRule.onNodeWithText("OK").performClick()
         waitForText(undoLabel)
     }
 

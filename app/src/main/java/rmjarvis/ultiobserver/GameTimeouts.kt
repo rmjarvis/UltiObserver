@@ -26,7 +26,11 @@ fun LiveGameState.assessTimeout(
     if (timeoutState.timeoutsRemaining(team) <= 0) {
         return TimeoutAssessmentResult(this, GameEvent.TeamOutOfTimeouts(state = this, team = team))
     }
-    return TimeoutAssessmentResult(timeoutState.chargeTimeout(team, now))
+    val chargedState = timeoutState.chargeTimeout(team, now)
+    return TimeoutAssessmentResult(
+        state = chargedState,
+        event = GameEvent.TimeoutCharged(state = chargedState, team = team),
+    )
 }
 fun LiveGameState.chargeTimeout(
     team: TeamId,

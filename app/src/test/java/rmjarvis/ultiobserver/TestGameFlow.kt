@@ -65,7 +65,8 @@ class TestGameFlow : GameModelTestFixtures() {
 
         // Animal calls a live-point timeout; the point stays live but a thrower countdown starts.
         val firstTimeout = state.assessTimeout(ANIMAL, 1_000_000L)
-        assertNull(firstTimeout.message())
+        assertEquals("Timeout charged to Animal. They have 1 timeout remaining in this half.", firstTimeout.message())
+        assertEquals("Timeout Charged", firstTimeout.event?.formatPopupTitle())
         state = firstTimeout.state
         assertEquals(1, state.teamTwo.timeoutsUsedThisHalf)
         assertEquals(1, state.timeoutsRemaining(ANIMAL))
@@ -188,7 +189,10 @@ class TestGameFlow : GameModelTestFixtures() {
         // Viscous Coupling calls a live-point timeout, starting an offense-set countdown.
         val secondTimeoutTime = timestampAt(state, LocalTime.of(10, 6))
         val secondTimeout = state.assessTimeout(VC, secondTimeoutTime)
-        assertNull(secondTimeout.message())
+        assertEquals(
+            "Timeout charged to Viscous Coupling. They have 1 timeout remaining in this half.",
+            secondTimeout.message(),
+        )
         state = secondTimeout.state
         assertEquals(1, state.timeoutsRemaining(VC))
         assertEquals(LivePhase.LIVE_POINT, state.phase)
@@ -257,7 +261,7 @@ class TestGameFlow : GameModelTestFixtures() {
         assertEquals(2, state.teamTwo.score)
 
         val thirdTimeout = state.assessTimeout(ANIMAL, 1_810_000L)
-        assertNull(thirdTimeout.message())
+        assertEquals("Timeout charged to Animal. They have 1 timeout remaining in this half.", thirdTimeout.message())
         state = thirdTimeout.state
         assertEquals(1, state.teamTwo.timeoutsUsedThisHalf)
         assertEquals(1, state.timeoutsRemaining(ANIMAL))
