@@ -171,6 +171,10 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onAllNodesWithText("Tick").onFirst().performClick()
         waitForText("Before Pull - Offense")
         waitForText("Timeout Between Points")
+        waitForText("Caps")
+        waitForText("Half cap")
+        waitForText("Soft cap")
+        waitForText("Hard cap")
 
         pressAppBack()
         waitForText("Use sounds and vibration for timing cues?")

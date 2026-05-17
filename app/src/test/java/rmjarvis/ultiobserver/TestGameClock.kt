@@ -63,6 +63,9 @@ class TestGameClock : GameModelTestFixtures() {
                 TimingCueId.TIMEOUT_OFFENSE_TWENTY,
                 TimingCueId.MISCONDUCT_DEFENSE_TWENTY,
                 TimingCueId.HALFTIME_TWO_MINUTES,
+                TimingCueId.HALF_CAP,
+                TimingCueId.SOFT_CAP,
+                TimingCueId.HARD_CAP,
             ),
             vibrationDefaultCues,
         )
@@ -446,6 +449,31 @@ class TestGameClock : GameModelTestFixtures() {
             "Failed requirement.",
             invalidCardEventException.message,
         )
+    }
+
+    @Test
+    fun capTimingCuesFireAtScheduledCapTimes() {
+        var state = standardLiveGameState(
+            rules = GameRules(
+                gameTo = 15,
+                halfCapMinutes = 45,
+                softCapMinutes = 90,
+                hardCapMinutes = 105,
+            )
+        )
+        assertNull(state.dueCapTimingCue(state.startEpoch + 45 * 60_000L - 1L))
+        assertEquals(TimingCueId.HALF_CAP, state.dueCapTimingCue(state.startEpoch + 45 * 60_000L)?.id)
+        assertEquals(TimingCueId.HALF_CAP, state.dueCapTimingCue(state.startEpoch + 45 * 60_000L + 1_100L)?.id)
+        assertNull(state.dueCapTimingCue(state.startEpoch + 45 * 60_000L + 1_101L))
+
+        state = state.copy(halfCapApplied = true)
+        assertEquals(TimingCueId.SOFT_CAP, state.dueCapTimingCue(state.startEpoch + 90 * 60_000L)?.id)
+
+        state = state.copy(softCapApplied = true)
+        assertEquals(TimingCueId.HARD_CAP, state.dueCapTimingCue(state.startEpoch + 105 * 60_000L)?.id)
+
+        state = state.copy(hardCapApplied = true)
+        assertNull(state.dueCapTimingCue(state.startEpoch + 105 * 60_000L))
     }
 }
 

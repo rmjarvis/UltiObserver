@@ -217,7 +217,10 @@ enum class TimingCueId(
     TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND("1 minute for a hand"),
     TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL("1 minute to pull"),
     HALFTIME_FIVE_MINUTES("5 minutes"),
-    HALFTIME_TWO_MINUTES("2 minutes");
+    HALFTIME_TWO_MINUTES("2 minutes"),
+    HALF_CAP("Half cap"),
+    SOFT_CAP("Soft cap"),
+    HARD_CAP("Hard cap");
 
     fun defaultAlertMode(): TimingAlertMode {
         return when (this) {
@@ -226,6 +229,9 @@ enum class TimingCueId(
             TIMEOUT_OFFENSE_TWENTY,
             MISCONDUCT_DEFENSE_TWENTY,
             HALFTIME_TWO_MINUTES,
+            HALF_CAP,
+            SOFT_CAP,
+            HARD_CAP,
             -> TimingAlertMode.VIBRATE
             else -> TimingAlertMode.NONE
         }
@@ -421,6 +427,14 @@ enum class CapType {
             HALF -> rules.copy(useHalfCap = true)
             SOFT -> rules.copy(useSoftCap = true)
             HARD -> rules.copy(useHardCap = true)
+        }
+    }
+
+    fun timingCueId(): TimingCueId {
+        return when (this) {
+            HALF -> TimingCueId.HALF_CAP
+            SOFT -> TimingCueId.SOFT_CAP
+            HARD -> TimingCueId.HARD_CAP
         }
     }
 }

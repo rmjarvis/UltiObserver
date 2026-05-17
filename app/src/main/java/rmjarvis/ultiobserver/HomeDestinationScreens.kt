@@ -660,6 +660,14 @@ private val timingCueSections = listOf(
             TimingCueId.HALFTIME_TWO_MINUTES,
         ),
     ),
+    TimingCueSection(
+        title = "Caps",
+        cues = listOf(
+            TimingCueId.HALF_CAP,
+            TimingCueId.SOFT_CAP,
+            TimingCueId.HARD_CAP,
+        ),
+    ),
 )
 
 // Archived game list, separated from Home so the launch screen has more room.

@@ -101,9 +101,36 @@ fun LiveGameState.computeNextCapStatus(now: Long): CapStatus? {
         // If any are found, make a CapStatus from this cap's time remaining.
         ?.let { (label, remaining) -> CapStatus(label, remaining) }
 }
+// Return a one-shot timing cue when a relevant cap reaches its scheduled wall-clock time.
+internal fun LiveGameState.dueCapTimingCue(now: Long): TimingCueDisplay? {
+    return relevantCapTypes()
+        .map { capType -> capType to capEpoch(capType) }
+        .sortedBy { (_, capTime) -> capTime }
+        .firstNotNullOfOrNull { (capType, capTime) ->
+            val elapsedSinceCap = now - capTime
+            if (elapsedSinceCap in 0L..1_100L) {
+                TimingCueDisplay(
+                    id = capType.timingCueId(),
+                    message = capType.label,
+                    remaining = Duration.ZERO,
+                    countdownTime = Duration.ZERO,
+                    targetEpoch = capTime,
+                )
+            } else {
+                null
+            }
+        }
+}
 // Format the time into a nice string like "3:30 PM"
 fun formatClockTime(time: LocalTime): String {
     return time.format(DateTimeFormatter.ofPattern("h:mm a"))
+}
+private fun LiveGameState.relevantCapTypes(): List<CapType> {
+    return listOfNotNull(
+        CapType.HALF.takeIf { halfCapRelevant(teamOne.score, teamTwo.score) },
+        CapType.SOFT.takeIf { softCapRelevant() },
+        CapType.HARD.takeIf { hardCapRelevant() },
+    )
 }
 internal fun LiveGameState.halfCapRelevant(teamOneScore: Int, teamTwoScore: Int): Boolean {
     return rules.useHalfCap &&

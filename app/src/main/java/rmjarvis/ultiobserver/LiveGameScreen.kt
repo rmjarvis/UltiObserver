@@ -116,6 +116,9 @@ internal fun LiveGameScreen(
     val dueTimingCue = remember(state.countdown, now) {
         state.countdown?.dueTimingCue(now)
     }
+    val dueCapTimingCue = remember(state, now) {
+        state.dueCapTimingCue(now)
+    }
     val canStartPoint = remember(state, now) {
         state.phase == LivePhase.BETWEEN_POINTS || state.halftimeTransitionReady(now)
     }
@@ -143,27 +146,28 @@ internal fun LiveGameScreen(
 
     LaunchedEffect(dueTimingCue, timingAlertPreferences, readOnlySummary) {
         val cue = dueTimingCue ?: return@LaunchedEffect
-        val alertKey = "${cue.id.name}:${cue.targetEpoch}"
-        // Defensive timing guard so recomposition does not replay the same cue.
-        if (!readOnlySummary && alertKey != lastTimingAlertKey) {
-            lastTimingAlertKey = alertKey
-            val alertMode = timingAlertPreferences.alertModeFor(cue.id)
-            when (alertMode) {
-                TimingAlertMode.NONE -> Unit
-                TimingAlertMode.VIBRATE -> context.performTimingCueHaptic(
-                    timingAlertPreferences.vibrationDurationMillis,
-                )
-                TimingAlertMode.TICK,
-                TimingAlertMode.BEEP,
-                TimingAlertMode.DING,
-                TimingAlertMode.DOUBLE_TICK -> playTimingSound(
-                    alertMode.toTimingAlertSound(),
-                    timingAlertPreferences,
-                    context,
-                    timingAlertPlayer,
-                )
-            }
-        }
+        playTimingAlertOnce(
+            cue = cue,
+            readOnlySummary = readOnlySummary,
+            timingAlertPreferences = timingAlertPreferences,
+            context = context,
+            timingAlertPlayer = timingAlertPlayer,
+            lastTimingAlertKey = lastTimingAlertKey,
+            onAlertKeyPlayed = { lastTimingAlertKey = it },
+        )
+    }
+
+    LaunchedEffect(dueCapTimingCue, timingAlertPreferences, readOnlySummary) {
+        val cue = dueCapTimingCue ?: return@LaunchedEffect
+        playTimingAlertOnce(
+            cue = cue,
+            readOnlySummary = readOnlySummary,
+            timingAlertPreferences = timingAlertPreferences,
+            context = context,
+            timingAlertPlayer = timingAlertPlayer,
+            lastTimingAlertKey = lastTimingAlertKey,
+            onAlertKeyPlayed = { lastTimingAlertKey = it },
+        )
     }
 
     // Only show the large halftime/game-over prompts when those states first become visible.
@@ -615,6 +619,39 @@ private fun playTimingSound(
         context.performTimingCueHaptic(timingAlertPreferences.vibrationDurationMillis)
     }
     timingAlertPlayer.play(sound, timingAlertPreferences.soundVolume)
+}
+
+private fun playTimingAlertOnce(
+    cue: TimingCueDisplay,
+    readOnlySummary: Boolean,
+    timingAlertPreferences: TimingAlertPreferences,
+    context: Context,
+    timingAlertPlayer: TimingAlertPlayer,
+    lastTimingAlertKey: String?,
+    onAlertKeyPlayed: (String) -> Unit,
+) {
+    val alertKey = "${cue.id.name}:${cue.targetEpoch}"
+    // Defensive timing guard so recomposition does not replay the same cue.
+    if (readOnlySummary || alertKey == lastTimingAlertKey) {
+        return
+    }
+    onAlertKeyPlayed(alertKey)
+    val alertMode = timingAlertPreferences.alertModeFor(cue.id)
+    when (alertMode) {
+        TimingAlertMode.NONE -> Unit
+        TimingAlertMode.VIBRATE -> context.performTimingCueHaptic(
+            timingAlertPreferences.vibrationDurationMillis,
+        )
+        TimingAlertMode.TICK,
+        TimingAlertMode.BEEP,
+        TimingAlertMode.DING,
+        TimingAlertMode.DOUBLE_TICK -> playTimingSound(
+            alertMode.toTimingAlertSound(),
+            timingAlertPreferences,
+            context,
+            timingAlertPlayer,
+        )
+    }
 }
 
 private fun Context.performTimingCueHaptic(durationMillis: Long) {
