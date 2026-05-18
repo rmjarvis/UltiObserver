@@ -17,13 +17,13 @@ import kotlinx.serialization.json.jsonObject
 internal val APP_STATE_VERSION_NAME: String = BuildConfig.VERSION_NAME
 internal val APP_STATE_VERSION_CODE: Int = BuildConfig.VERSION_CODE
 
-internal data class PersistedAppVersion(
+internal data class AppVersion(
     val versionName: String,
     val versionCode: Int,
 )
 
 @Serializable
-internal data class PersistedCurrentGameState(
+internal data class CurrentGameSnapshot(
     val versionName: String = APP_STATE_VERSION_NAME,
     val versionCode: Int = APP_STATE_VERSION_CODE,
     val setupState: GameSetupState = newGameSetupState(),
@@ -38,7 +38,7 @@ internal data class PersistedCurrentGameState(
          * @param jsonObject The parsed JSON object from the current-game bucket.
          * @param version The version metadata read from that JSON object.
          */
-        fun decodeJson(jsonObject: JsonObject, version: PersistedAppVersion): PersistedCurrentGameState? {
+        fun decodeJson(jsonObject: JsonObject, version: AppVersion): CurrentGameSnapshot? {
             // Placeholder for future version-specific decoding/migration into the current model.
             return when {
                 version.versionCode == APP_STATE_VERSION_CODE -> decodeCurrentJson(jsonObject)
@@ -51,7 +51,7 @@ internal data class PersistedCurrentGameState(
          *
          * @param jsonObject The parsed current-game JSON object.
          */
-        private fun decodeCurrentJson(jsonObject: JsonObject): PersistedCurrentGameState? {
+        private fun decodeCurrentJson(jsonObject: JsonObject): CurrentGameSnapshot? {
             return try {
                 appStateJson.decodeFromJsonElement(jsonObject)
             } catch (_: RuntimeException) {
@@ -61,127 +61,15 @@ internal data class PersistedCurrentGameState(
     }
 }
 
-@Serializable
-internal data class PersistedProfile(
-    val versionName: String = APP_STATE_VERSION_NAME,
-    val versionCode: Int = APP_STATE_VERSION_CODE,
-    val profileName: String = "",
-    val avatarPreference: ObserverAvatarPreference = ObserverAvatarPreference.RANDOM,
-) {
-    companion object {
-        /**
-         * Decode persisted profile state for a known storage version.
-         *
-         * @param jsonObject The parsed JSON object from the profile bucket.
-         * @param version The version metadata read from that JSON object.
-         */
-        fun decodeJson(jsonObject: JsonObject, version: PersistedAppVersion): PersistedProfile? {
-            // Placeholder for future version-specific decoding/migration into the current model.
-            return when {
-                version.versionCode == APP_STATE_VERSION_CODE -> decodeCurrentJson(jsonObject)
-                else -> null
-            }
-        }
-
-        /**
-         * Decode current-version profile JSON, returning null when the bucket is corrupt.
-         *
-         * @param jsonObject The parsed profile JSON object.
-         */
-        private fun decodeCurrentJson(jsonObject: JsonObject): PersistedProfile? {
-            return try {
-                appStateJson.decodeFromJsonElement(jsonObject)
-            } catch (_: RuntimeException) {
-                null
-            }
-        }
-    }
-}
-
-@Serializable
-internal data class PersistedSettings(
-    val versionName: String = APP_STATE_VERSION_NAME,
-    val versionCode: Int = APP_STATE_VERSION_CODE,
-    val automaticallyAdvanceCountdowns: Boolean = true,
-    val automaticallyLockLivePoint: Boolean = true,
-    val timingAlertPreferences: TimingAlertPreferences = TimingAlertPreferences(),
-) {
-    companion object {
-        /**
-         * Decode persisted settings state for a known storage version.
-         *
-         * @param jsonObject The parsed JSON object from the settings bucket.
-         * @param version The version metadata read from that JSON object.
-         */
-        fun decodeJson(jsonObject: JsonObject, version: PersistedAppVersion): PersistedSettings? {
-            // Placeholder for future version-specific decoding/migration into the current model.
-            return when {
-                version.versionCode == APP_STATE_VERSION_CODE -> decodeCurrentJson(jsonObject)
-                else -> null
-            }
-        }
-
-        /**
-         * Decode current-version settings JSON, returning null when the bucket is corrupt.
-         *
-         * @param jsonObject The parsed settings JSON object.
-         */
-        private fun decodeCurrentJson(jsonObject: JsonObject): PersistedSettings? {
-            return try {
-                appStateJson.decodeFromJsonElement(jsonObject)
-            } catch (_: RuntimeException) {
-                null
-            }
-        }
-    }
-}
-
-@Serializable
-internal data class ArchivedGame(
-    val state: LiveGameState,
-    val subtitle: String,
-    val versionName: String = APP_STATE_VERSION_NAME,
-    val versionCode: Int = APP_STATE_VERSION_CODE,
-) {
-    companion object {
-        /**
-         * Decode an archived game summary for a known storage version.
-         *
-         * @param jsonObject The parsed JSON object from one archived-game file.
-         * @param version The version metadata read from that JSON object.
-         */
-        fun decodeJson(jsonObject: JsonObject, version: PersistedAppVersion): ArchivedGame? {
-            // Placeholder for future version-specific decoding/migration into the current model.
-            return when {
-                version.versionCode == APP_STATE_VERSION_CODE -> decodeCurrentJson(jsonObject)
-                else -> null
-            }
-        }
-
-        /**
-         * Decode current-version archived-game JSON, returning null when the file is corrupt.
-         *
-         * @param jsonObject The parsed archived-game JSON object.
-         */
-        private fun decodeCurrentJson(jsonObject: JsonObject): ArchivedGame? {
-            return try {
-                appStateJson.decodeFromJsonElement(jsonObject)
-            } catch (_: RuntimeException) {
-                null
-            }
-        }
-    }
-}
-
-internal enum class PersistedDataArea(val label: String) {
+internal enum class PersistedData(val label: String) {
     GAME_STATE("Current Game"),
     PROFILE("Profile"),
     SETTINGS("Settings"),
     PREVIOUS_GAMES("Previous Games"),
 }
 
-internal data class PersistedDataRecoveryNotice(
-    val resetAreas: Set<PersistedDataArea>,
+internal data class RecoveryNotice(
+    val resetAreas: Set<PersistedData>,
 ) {
     init {
         require(resetAreas.isNotEmpty()) {
@@ -204,37 +92,37 @@ internal data class PersistedDataRecoveryNotice(
 }
 
 internal interface AppStateStore {
-    val resetPersistedDataAreas: Set<PersistedDataArea>
+    val resetPersistedDataAreas: Set<PersistedData>
 
     /// Load the persisted current/setup game bucket, if one exists.
-    fun loadCurrentGameState(): PersistedCurrentGameState?
+    fun loadCurrentGameState(): CurrentGameSnapshot?
 
     /**
      * Save the current/setup game bucket.
      *
      * @param state The current-game state snapshot to persist.
      */
-    fun saveCurrentGameState(state: PersistedCurrentGameState)
+    fun saveCurrentGameState(state: CurrentGameSnapshot)
 
     /// Load the persisted profile bucket, if one exists.
-    fun loadProfile(): PersistedProfile?
+    fun loadProfile(): Profile?
 
     /**
      * Save the profile bucket.
      *
      * @param state The profile state snapshot to persist.
      */
-    fun saveProfile(state: PersistedProfile)
+    fun saveProfile(state: Profile)
 
     /// Load the persisted settings bucket, if one exists.
-    fun loadSettings(): PersistedSettings?
+    fun loadSettings(): Settings?
 
     /**
      * Save the settings bucket.
      *
      * @param state The settings state snapshot to persist.
      */
-    fun saveSettings(state: PersistedSettings)
+    fun saveSettings(state: Settings)
 
     /// Load all readable archived-game summaries.
     fun loadArchivedGames(): List<ArchivedGame>
@@ -248,25 +136,25 @@ internal interface AppStateStore {
 }
 
 internal object NoOpAppStateStore : AppStateStore {
-    override val resetPersistedDataAreas: Set<PersistedDataArea> = emptySet()
+    override val resetPersistedDataAreas: Set<PersistedData> = emptySet()
 
     /// Load no current-game state for in-memory/no-persistence runs.
-    override fun loadCurrentGameState(): PersistedCurrentGameState? = null
+    override fun loadCurrentGameState(): CurrentGameSnapshot? = null
 
     /// Ignore current-game saves for in-memory/no-persistence runs.
-    override fun saveCurrentGameState(state: PersistedCurrentGameState) = Unit
+    override fun saveCurrentGameState(state: CurrentGameSnapshot) = Unit
 
     /// Load no profile state for in-memory/no-persistence runs.
-    override fun loadProfile(): PersistedProfile? = null
+    override fun loadProfile(): Profile? = null
 
     /// Ignore profile saves for in-memory/no-persistence runs.
-    override fun saveProfile(state: PersistedProfile) = Unit
+    override fun saveProfile(state: Profile) = Unit
 
     /// Load no settings state for in-memory/no-persistence runs.
-    override fun loadSettings(): PersistedSettings? = null
+    override fun loadSettings(): Settings? = null
 
     /// Ignore settings saves for in-memory/no-persistence runs.
-    override fun saveSettings(state: PersistedSettings) = Unit
+    override fun saveSettings(state: Settings) = Unit
 
     /// Load no archived games for in-memory/no-persistence runs.
     override fun loadArchivedGames(): List<ArchivedGame> = emptyList()
@@ -275,7 +163,7 @@ internal object NoOpAppStateStore : AppStateStore {
     override fun saveArchivedGames(games: List<ArchivedGame>) = Unit
 }
 
-private val appStateJson = Json {
+internal val appStateJson = Json {
     encodeDefaults = true
     ignoreUnknownKeys = true
     prettyPrint = true
@@ -291,21 +179,21 @@ internal class FileAppStateStore(
     private val profileFile = File(rootDir, "profile.json")
     private val settingsFile = File(rootDir, "settings.json")
     private val archivedGamesDir = File(rootDir, "archived_games")
-    private val resetAreas = mutableSetOf<PersistedDataArea>()
+    private val resetAreas = mutableSetOf<PersistedData>()
 
-    override val resetPersistedDataAreas: Set<PersistedDataArea>
+    override val resetPersistedDataAreas: Set<PersistedData>
         get() = resetAreas.toSet()
 
     /// Load current/setup game state from app-private JSON.
-    override fun loadCurrentGameState(): PersistedCurrentGameState? {
-        resetAreas.remove(PersistedDataArea.GAME_STATE)
+    override fun loadCurrentGameState(): CurrentGameSnapshot? {
+        resetAreas.remove(PersistedData.GAME_STATE)
         if (!currentGameStateFile.exists()) {
             return null
         }
         val currentGameState = readExistingJsonObject(currentGameStateFile)
             ?.let { storedCurrentGameState ->
                 readVersion(storedCurrentGameState)
-                    ?.let { version -> PersistedCurrentGameState.decodeJson(storedCurrentGameState, version) }
+                    ?.let { version -> CurrentGameSnapshot.decodeJson(storedCurrentGameState, version) }
             }
         if (currentGameState == null) {
             // We get here if:
@@ -313,8 +201,8 @@ internal class FileAppStateStore(
             // - the version number could not be read from the json object
             // - our decode function didn't know how to handle that version number
             // - our decode function had an error decoding the json object
-            resetAreas += PersistedDataArea.GAME_STATE
-            return PersistedCurrentGameState()
+            resetAreas += PersistedData.GAME_STATE
+            return CurrentGameSnapshot()
         }
         return currentGameState
     }
@@ -324,25 +212,25 @@ internal class FileAppStateStore(
      *
      * @param state The current-game state snapshot to persist.
      */
-    override fun saveCurrentGameState(state: PersistedCurrentGameState) {
+    override fun saveCurrentGameState(state: CurrentGameSnapshot) {
         rootDir.mkdirs()
         currentGameStateFile.writeAtomically(appStateJson.encodeToString(state), moveFileAtomically, replaceFile)
     }
 
     /// Load profile state from app-private JSON.
-    override fun loadProfile(): PersistedProfile? {
-        resetAreas.remove(PersistedDataArea.PROFILE)
+    override fun loadProfile(): Profile? {
+        resetAreas.remove(PersistedData.PROFILE)
         if (!profileFile.exists()) {
             return null
         }
         val profile = readExistingJsonObject(profileFile)
             ?.let { storedProfile ->
                 readVersion(storedProfile)
-                    ?.let { version -> PersistedProfile.decodeJson(storedProfile, version) }
+                    ?.let { version -> Profile.decodeJson(storedProfile, version) }
             }
         if (profile == null) {
-            resetAreas += PersistedDataArea.PROFILE
-            return PersistedProfile()
+            resetAreas += PersistedData.PROFILE
+            return Profile()
         }
         return profile
     }
@@ -352,25 +240,25 @@ internal class FileAppStateStore(
      *
      * @param state The profile state snapshot to persist.
      */
-    override fun saveProfile(state: PersistedProfile) {
+    override fun saveProfile(state: Profile) {
         rootDir.mkdirs()
         profileFile.writeAtomically(appStateJson.encodeToString(state), moveFileAtomically, replaceFile)
     }
 
     /// Load settings state from app-private JSON.
-    override fun loadSettings(): PersistedSettings? {
-        resetAreas.remove(PersistedDataArea.SETTINGS)
+    override fun loadSettings(): Settings? {
+        resetAreas.remove(PersistedData.SETTINGS)
         if (!settingsFile.exists()) {
             return null
         }
         val settings = readExistingJsonObject(settingsFile)
             ?.let { storedSettings ->
                 readVersion(storedSettings)
-                    ?.let { version -> PersistedSettings.decodeJson(storedSettings, version) }
+                    ?.let { version -> Settings.decodeJson(storedSettings, version) }
             }
         if (settings == null) {
-            resetAreas += PersistedDataArea.SETTINGS
-            return PersistedSettings()
+            resetAreas += PersistedData.SETTINGS
+            return Settings()
         }
         return settings
     }
@@ -380,7 +268,7 @@ internal class FileAppStateStore(
      *
      * @param state The settings state snapshot to persist.
      */
-    override fun saveSettings(state: PersistedSettings) {
+    override fun saveSettings(state: Settings) {
         rootDir.mkdirs()
         settingsFile.writeAtomically(appStateJson.encodeToString(state), moveFileAtomically, replaceFile)
     }
@@ -405,7 +293,7 @@ internal class FileAppStateStore(
      *
      * @param jsonObject The parsed bucket or archived-game JSON object.
      */
-    private fun readVersion(jsonObject: JsonObject): PersistedAppVersion? {
+    private fun readVersion(jsonObject: JsonObject): AppVersion? {
         return try {
             val versionName = appStateJson.decodeFromJsonElement<String>(
                 jsonObject["versionName"] ?: return null
@@ -413,7 +301,7 @@ internal class FileAppStateStore(
             val versionCode = appStateJson.decodeFromJsonElement<Int>(
                 jsonObject["versionCode"] ?: return null
             )
-            PersistedAppVersion(versionName = versionName, versionCode = versionCode)
+            AppVersion(versionName = versionName, versionCode = versionCode)
         } catch (_: RuntimeException) {
             null
         }
@@ -421,7 +309,7 @@ internal class FileAppStateStore(
 
     /// Load all readable archived-game summaries from app-private JSON files.
     override fun loadArchivedGames(): List<ArchivedGame> {
-        resetAreas.remove(PersistedDataArea.PREVIOUS_GAMES)
+        resetAreas.remove(PersistedData.PREVIOUS_GAMES)
         if (!archivedGamesDir.exists()) {
             return emptyList()
         }
@@ -436,7 +324,7 @@ internal class FileAppStateStore(
                             ?.let { version -> ArchivedGame.decodeJson(storedArchivedGame, version) }
                     }
                 if (archivedGame == null) {
-                    resetAreas += PersistedDataArea.PREVIOUS_GAMES
+                    resetAreas += PersistedData.PREVIOUS_GAMES
                 }
                 archivedGame
             }

@@ -75,7 +75,7 @@ internal class UltiObserverAppViewModel(
         private set
     var startupRecoveryNotice by mutableStateOf(
         recoveredPersistedDataAreas.takeIf { it.isNotEmpty() }?.let { resetAreas ->
-            PersistedDataRecoveryNotice(resetAreas)
+            RecoveryNotice(resetAreas)
         }
     )
         private set
@@ -488,7 +488,7 @@ internal class UltiObserverAppViewModel(
     /// Persist the current/setup game bucket.
     private fun persistCurrentGameState() {
         appStateStore.saveCurrentGameState(
-            PersistedCurrentGameState(
+            CurrentGameSnapshot(
                 setupState = setupState,
                 liveState = liveState,
                 setupMode = setupMode,
@@ -500,7 +500,7 @@ internal class UltiObserverAppViewModel(
     /// Persist the profile bucket.
     private fun persistProfileState() {
         appStateStore.saveProfile(
-            PersistedProfile(
+            Profile(
                 profileName = profileName,
                 avatarPreference = avatarPreference,
             )
@@ -510,7 +510,7 @@ internal class UltiObserverAppViewModel(
     /// Persist the settings bucket.
     private fun persistSettingsState() {
         appStateStore.saveSettings(
-            PersistedSettings(
+            Settings(
                 automaticallyAdvanceCountdowns = automaticallyAdvanceCountdowns,
                 automaticallyLockLivePoint = automaticallyLockLivePoint,
                 timingAlertPreferences = timingAlertPreferences,
@@ -528,17 +528,17 @@ internal class UltiObserverAppViewModel(
      *
      * @param resetAreas The app-data buckets that were repaired to defaults or readable subsets.
      */
-    private fun persistRecoveredDataAreas(resetAreas: Set<PersistedDataArea>) {
-        if (PersistedDataArea.GAME_STATE in resetAreas) {
+    private fun persistRecoveredDataAreas(resetAreas: Set<PersistedData>) {
+        if (PersistedData.GAME_STATE in resetAreas) {
             persistCurrentGameState()
         }
-        if (PersistedDataArea.PROFILE in resetAreas) {
+        if (PersistedData.PROFILE in resetAreas) {
             persistProfileState()
         }
-        if (PersistedDataArea.SETTINGS in resetAreas) {
+        if (PersistedData.SETTINGS in resetAreas) {
             persistSettingsState()
         }
-        if (PersistedDataArea.PREVIOUS_GAMES in resetAreas) {
+        if (PersistedData.PREVIOUS_GAMES in resetAreas) {
             persistArchivedGames()
         }
     }

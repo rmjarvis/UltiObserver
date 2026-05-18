@@ -47,19 +47,19 @@ class TestPersistence {
                 now = livePointState.startEpoch + 5 * 60_000L,
             )
             store.saveCurrentGameState(
-                PersistedCurrentGameState(
+                CurrentGameSnapshot(
                     setupState = setup,
                     liveState = scoredState,
                     setupMode = SetupMode.NEW_GAME,
                 )
             )
-            store.saveProfile(PersistedProfile(profileName = "Casey Observer"))
+            store.saveProfile(Profile(profileName = "Casey Observer"))
             val timingPreferences = TimingAlertPreferences(
                 globalMode = TimingAlertGlobalMode.VIBRATION_ONLY,
                 soundVolume = 0.4f,
             )
             store.saveSettings(
-                PersistedSettings(
+                Settings(
                     automaticallyAdvanceCountdowns = false,
                     automaticallyLockLivePoint = false,
                     timingAlertPreferences = timingPreferences,
@@ -102,7 +102,7 @@ class TestPersistence {
     fun startupRecoveryNoticeCanBeDismissed() {
         val viewModel = UltiObserverAppViewModel(
             StartupRecoveryNoticeStore(
-                setOf(PersistedDataArea.PROFILE, PersistedDataArea.SETTINGS)
+                setOf(PersistedData.PROFILE, PersistedData.SETTINGS)
             )
         )
 
@@ -126,25 +126,25 @@ class TestPersistence {
 }
 
 private class StartupRecoveryNoticeStore(
-    override val resetPersistedDataAreas: Set<PersistedDataArea>,
+    override val resetPersistedDataAreas: Set<PersistedData>,
 ) : AppStateStore {
     /// Load no current game for the startup-recovery notice fixture.
-    override fun loadCurrentGameState(): PersistedCurrentGameState? = null
+    override fun loadCurrentGameState(): CurrentGameSnapshot? = null
 
     /// Ignore current-game saves for the startup-recovery notice fixture.
-    override fun saveCurrentGameState(state: PersistedCurrentGameState) = Unit
+    override fun saveCurrentGameState(state: CurrentGameSnapshot) = Unit
 
     /// Load no profile for the startup-recovery notice fixture.
-    override fun loadProfile(): PersistedProfile? = null
+    override fun loadProfile(): Profile? = null
 
     /// Ignore profile saves for the startup-recovery notice fixture.
-    override fun saveProfile(state: PersistedProfile) = Unit
+    override fun saveProfile(state: Profile) = Unit
 
     /// Load no settings for the startup-recovery notice fixture.
-    override fun loadSettings(): PersistedSettings? = null
+    override fun loadSettings(): Settings? = null
 
     /// Ignore settings saves for the startup-recovery notice fixture.
-    override fun saveSettings(state: PersistedSettings) = Unit
+    override fun saveSettings(state: Settings) = Unit
 
     /// Load no archived games for the startup-recovery notice fixture.
     override fun loadArchivedGames(): List<ArchivedGame> = emptyList()
