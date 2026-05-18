@@ -45,6 +45,19 @@ data class InGamePlayerCardRecord(
 // How to indicate cards for players when you don't know the player number.
 const val UNKNOWN_PLAYER_NUMBER = "N/A"
 
+/**
+ * Format a player number for display in card and misconduct summaries.
+ *
+ * @param jerseyNumber The stored jersey number, or the unknown-player sentinel.
+ */
+internal fun displayPlayerNumber(jerseyNumber: String): String {
+    return if (jerseyNumber == UNKNOWN_PLAYER_NUMBER) {
+        "N/A"
+    } else {
+        "#$jerseyNumber"
+    }
+}
+
 data class CardAssessmentResult(
     val state: LiveGameState,
     val event: GameEvent,

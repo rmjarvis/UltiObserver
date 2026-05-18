@@ -1,22 +1,8 @@
 package rmjarvis.ultiobserver
 
 import java.time.Duration
-import java.time.LocalTime
-import kotlin.math.max
 import kotlinx.serialization.Serializable
 
-/**
- * Format a duration as a clamped minute-second countdown string.
- * For example, 32 seconds is shown as `0:32`.
- *
- * @param duration The duration to display; negative values are shown as zero.
- */
-fun formatDuration(duration: Duration): String {
-    val totalSeconds = max(0L, duration.seconds)
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
-    return "$minutes:${seconds.toString().padStart(2, '0')}"
-}
 /**
  * Build the halftime countdown from the configured halftime length.
  *
@@ -34,25 +20,6 @@ internal fun buildHalftimeCountdown(
         durationSeconds = durationSeconds,
         targetEpoch = sequenceStart + durationSeconds * 1000L,
     )
-}
-/**
- * Round a reference time to the default setup start time.
- * The default game start is the next even half hour after the reference time.
- *
- * @param referenceTime The time to round up to the next half-hour boundary.
- */
-fun nextHalfHourFrom(referenceTime: LocalTime): LocalTime {
-    val roundedMinute = when {
-        referenceTime.minute == 0 && referenceTime.second == 0 -> 0
-        referenceTime.minute < 30 -> 30
-        else -> 0
-    }
-    val baseHour = if (roundedMinute == 0 && referenceTime.minute >= 30) {
-        referenceTime.hour + 1
-    } else {
-        referenceTime.hour
-    }
-    return LocalTime.of(baseHour % 24, roundedMinute)
 }
 
 @Serializable

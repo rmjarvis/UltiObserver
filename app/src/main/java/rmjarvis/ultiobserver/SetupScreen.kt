@@ -58,7 +58,6 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
 
 private enum class RuleEditTarget(
     val dialogTitle: String,
@@ -1489,15 +1488,6 @@ private fun GameSetupState.priorCardsSummary(): String {
         1 -> "1 player carries cards."
         else -> "${priorCards.size} players carry cards."
     }
-}
-
-/**
- * Format the setup start date for display.
- *
- * @param date The local date to format.
- */
-internal fun formatStartDate(date: LocalDate): String {
-    return date.format(DateTimeFormatter.ofPattern("MMM d, yyyy"))
 }
 
 /**
