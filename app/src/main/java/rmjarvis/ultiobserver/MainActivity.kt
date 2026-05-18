@@ -16,10 +16,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 
 class MainActivity : ComponentActivity() {
@@ -190,6 +193,7 @@ private fun TimingAlertCueListener(
     }
     val context = LocalContext.current
     val timingAlertPlayer = remember(context) { TimingAlertPlayer(context) }
+    val alertPlaybackScope = rememberCoroutineScope()
 
     DisposableEffect(timingAlertPlayer) {
         onDispose { timingAlertPlayer.release() }
@@ -206,15 +210,24 @@ private fun TimingAlertCueListener(
     }
 
     LaunchedEffect(dueTimingAlerts, timingAlertPreferences) {
-        dueTimingAlerts.forEach { cue ->
-            playTimingAlertOnce(
-                cue = cue,
-                timingAlertPreferences = timingAlertPreferences,
-                context = context,
-                timingAlertPlayer = timingAlertPlayer,
-                playedTimingAlertKeys = playedTimingAlertKeys,
-                onAlertKeyPlayed = { playedTimingAlertKeys += it },
-            )
+        val unplayedTimingAlerts = dueTimingAlerts.filter { cue ->
+            "${cue.id.name}:${cue.targetEpoch}" !in playedTimingAlertKeys
+        }
+        if (unplayedTimingAlerts.isEmpty()) {
+            return@LaunchedEffect
+        }
+        playedTimingAlertKeys += unplayedTimingAlerts.map { cue -> "${cue.id.name}:${cue.targetEpoch}" }
+        alertPlaybackScope.launch(Dispatchers.Default) {
+            unplayedTimingAlerts.forEach { cue ->
+                playTimingAlertOnce(
+                    cue = cue,
+                    timingAlertPreferences = timingAlertPreferences,
+                    context = context,
+                    timingAlertPlayer = timingAlertPlayer,
+                    playedTimingAlertKeys = emptySet(),
+                    onAlertKeyPlayed = {},
+                )
+            }
         }
     }
 }

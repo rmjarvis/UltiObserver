@@ -11,41 +11,50 @@ import kotlinx.coroutines.delay
 
 internal class TimingAlertPlayer internal constructor(
     private val soundPlayer: TimingAlertSoundPlayer,
-    loadSound: (TimingAlertSoundPlayer, TimingAlertSound) -> Int,
+    loadSound: (TimingAlertSoundPlayer, TimingAlertSoundClip) -> Int,
 ) {
     constructor(context: Context) : this(
         soundPlayer = AndroidTimingAlertSoundPlayer(),
-        loadSound = { soundPlayer, sound -> soundPlayer.load(context, sound.rawResourceId(), 1) },
+        loadSound = { soundPlayer, clip -> soundPlayer.load(context, clip.rawResourceId(), 1) },
     )
 
-    private val loadedSounds = mutableSetOf<TimingAlertSound>()
-    private val pendingPlays = mutableMapOf<TimingAlertSound, MutableList<Float>>()
-    private val soundsById = mutableMapOf<Int, TimingAlertSound>()
-    private val soundIds: Map<TimingAlertSound, Int>
+    private val loadedSounds = mutableSetOf<TimingAlertSoundClip>()
+    private val pendingPlays = mutableMapOf<TimingAlertSoundClip, MutableList<Float>>()
+    private val soundsById = mutableMapOf<Int, TimingAlertSoundClip>()
+    private val soundIds: Map<TimingAlertSoundClip, Int>
 
     init {
         soundPlayer.setOnLoadCompleteListener { sampleId, status ->
-            val sound = soundsById[sampleId] ?: return@setOnLoadCompleteListener
+            val clip = soundsById[sampleId] ?: return@setOnLoadCompleteListener
             if (status == 0) {
-                loadedSounds += sound
-                pendingPlays.remove(sound)?.forEach { volume ->
-                    playLoaded(sound, volume)
+                loadedSounds += clip
+                pendingPlays.remove(clip)?.forEach { volume ->
+                    playLoaded(clip, volume)
                 }
             }
         }
-        soundIds = TimingAlertSound.entries.associateWith { sound ->
-            loadSound(soundPlayer, sound).also { soundId ->
-                soundsById[soundId] = sound
+        soundIds = timingAlertSoundClips().associateWith { clip ->
+            loadSound(soundPlayer, clip).also { soundId ->
+                soundsById[soundId] = clip
             }
         }
     }
 
     fun play(sound: TimingAlertSound, volume: Float) {
+        play(sound, DEFAULT_TIMING_ALERT_REPEAT_COUNT, volume)
+    }
+
+    fun play(sound: TimingAlertSound, repeatCount: Int, volume: Float) {
+        require(repeatCount in MIN_TIMING_ALERT_REPEAT_COUNT..MAX_TIMING_ALERT_REPEAT_COUNT) {
+            "Timing alert repeat count must be between $MIN_TIMING_ALERT_REPEAT_COUNT and " +
+                "$MAX_TIMING_ALERT_REPEAT_COUNT."
+        }
+        val clip = TimingAlertSoundClip(sound, repeatCount)
         val playVolume = volume.coerceIn(0f, 1f)
-        if (sound in loadedSounds) {
-            playLoaded(sound, playVolume)
+        if (clip in loadedSounds) {
+            playLoaded(clip, playVolume)
         } else {
-            pendingPlays.getOrPut(sound) { mutableListOf() } += playVolume
+            pendingPlays.getOrPut(clip) { mutableListOf() } += playVolume
         }
     }
 
@@ -54,9 +63,19 @@ internal class TimingAlertPlayer internal constructor(
         soundPlayer.release()
     }
 
-    private fun playLoaded(sound: TimingAlertSound, volume: Float) {
-        val soundId = soundIds[sound]!!
+    private fun playLoaded(clip: TimingAlertSoundClip, volume: Float) {
+        val soundId = soundIds[clip]!!
         soundPlayer.play(soundId, volume, volume, 1, 0, 1f)
+    }
+}
+
+internal data class TimingAlertSoundClip(val sound: TimingAlertSound, val repeatCount: Int)
+
+private fun timingAlertSoundClips(): List<TimingAlertSoundClip> {
+    return TimingAlertSound.entries.flatMap { sound ->
+        (MIN_TIMING_ALERT_REPEAT_COUNT..MAX_TIMING_ALERT_REPEAT_COUNT).map { repeatCount ->
+            TimingAlertSoundClip(sound, repeatCount)
+        }
     }
 }
 
@@ -97,15 +116,35 @@ private class AndroidTimingAlertSoundPlayer : TimingAlertSoundPlayer {
     }
 }
 
-private fun TimingAlertSound.rawResourceId(): Int {
-    return when (this) {
-        // CC0 excerpt from Wikimedia Commons: Clicker_sound.ogg.
-        TimingAlertSound.TICK -> R.raw.timing_tick
-        TimingAlertSound.BEEP -> R.raw.timing_beep
-        // Excerpt from Pixabay Content License sound: Ding~ by u_31vnwfmzt6.
-        TimingAlertSound.DING -> R.raw.timing_ding
-        // Public-domain excerpt from Wikimedia Commons: Knocking_on_wood_or_door.ogg.
-        TimingAlertSound.KNOCK -> R.raw.timing_knock
+private fun TimingAlertSoundClip.rawResourceId(): Int {
+    return when (sound) {
+        // CC0 excerpts from Wikimedia Commons: Clicker_sound.ogg.
+        TimingAlertSound.TICK -> when (repeatCount) {
+            1 -> R.raw.timing_tick
+            2 -> R.raw.timing_tick_x2
+            3 -> R.raw.timing_tick_x3
+            else -> error("Unsupported repeat count: $repeatCount")
+        }
+        TimingAlertSound.BEEP -> when (repeatCount) {
+            1 -> R.raw.timing_beep
+            2 -> R.raw.timing_beep_x2
+            3 -> R.raw.timing_beep_x3
+            else -> error("Unsupported repeat count: $repeatCount")
+        }
+        // Excerpts from Pixabay Content License sound: Ding~ by u_31vnwfmzt6.
+        TimingAlertSound.DING -> when (repeatCount) {
+            1 -> R.raw.timing_ding
+            2 -> R.raw.timing_ding_x2
+            3 -> R.raw.timing_ding_x3
+            else -> error("Unsupported repeat count: $repeatCount")
+        }
+        // Public-domain excerpts from Wikimedia Commons: Knocking_on_wood_or_door.ogg.
+        TimingAlertSound.KNOCK -> when (repeatCount) {
+            1 -> R.raw.timing_knock
+            2 -> R.raw.timing_knock_x2
+            3 -> R.raw.timing_knock_x3
+            else -> error("Unsupported repeat count: $repeatCount")
+        }
     }
 }
 
@@ -129,46 +168,53 @@ internal suspend fun playTimingAlertOnce(
     }
 
     val repeatCount = timingAlertPreferences.repeatCountFor(cue.id)
-    repeat(repeatCount) { pulseIndex ->
-        when (alertMode) {
-            TimingAlertMode.NONE -> Unit
-            TimingAlertMode.VIBRATE -> context.performTimingCueHaptic(
-                timingAlertPreferences.vibrationDurationMillis,
-            )
-            TimingAlertMode.TICK,
-            TimingAlertMode.BEEP,
-            TimingAlertMode.DING,
-            TimingAlertMode.KNOCK -> playTimingSound(
-                alertMode.toTimingAlertSound(),
-                timingAlertPreferences,
-                context,
-                timingAlertPlayer,
-            )
+    when (alertMode) {
+        TimingAlertMode.NONE -> Unit
+        TimingAlertMode.VIBRATE -> {
+            repeat(repeatCount) { pulseIndex ->
+                context.performTimingCueHaptic(
+                    timingAlertPreferences.vibrationDurationMillis,
+                )
+                if (pulseIndex < repeatCount - 1) {
+                    delay(timingAlertPreferences.vibrationRepeatSpacingMillis())
+                }
+            }
         }
-        if (pulseIndex < repeatCount - 1) {
-            delay(timingAlertPreferences.repeatSpacingMillis(alertMode))
-        }
+        TimingAlertMode.TICK,
+        TimingAlertMode.BEEP,
+        TimingAlertMode.DING,
+        TimingAlertMode.KNOCK -> playTimingSound(
+            alertMode.toTimingAlertSound(),
+            repeatCount,
+            timingAlertPreferences,
+            context,
+            timingAlertPlayer,
+        )
     }
 }
 
-private fun playTimingSound(
+private suspend fun playTimingSound(
     sound: TimingAlertSound,
+    repeatCount: Int,
     timingAlertPreferences: TimingAlertPreferences,
     context: Context,
     timingAlertPlayer: TimingAlertPlayer,
 ) {
+    timingAlertPlayer.play(sound, repeatCount, timingAlertPreferences.soundVolume)
     if (timingAlertPreferences.vibrateWithSounds) {
-        context.performTimingCueHaptic(timingAlertPreferences.vibrationDurationMillis)
+        repeat(repeatCount) { pulseIndex ->
+            context.performTimingCueHaptic(
+                timingAlertPreferences.vibrationDurationMillis,
+            )
+            if (pulseIndex < repeatCount - 1) {
+                delay(timingAlertPreferences.vibrationRepeatSpacingMillis())
+            }
+        }
     }
-    timingAlertPlayer.play(sound, timingAlertPreferences.soundVolume)
 }
 
-private fun TimingAlertPreferences.repeatSpacingMillis(alertMode: TimingAlertMode): Long {
-    return if (alertMode == TimingAlertMode.VIBRATE || vibrateWithSounds) {
-        vibrationDurationMillis + TIMING_ALERT_REPEAT_HAPTIC_GAP_MS
-    } else {
-        TIMING_ALERT_REPEAT_SOUND_SPACING_MS
-    }
+private fun TimingAlertPreferences.vibrationRepeatSpacingMillis(): Long {
+    return vibrationDurationMillis + TIMING_ALERT_REPEAT_HAPTIC_GAP_MS
 }
 
 internal fun Context.performTimingCueHaptic(durationMillis: Long) {
@@ -184,5 +230,4 @@ internal fun Context.performTimingCueHaptic(durationMillis: Long) {
     vibrator.vibrate(VibrationEffect.createOneShot(durationMillis, VibrationEffect.DEFAULT_AMPLITUDE))
 }
 
-private const val TIMING_ALERT_REPEAT_SOUND_SPACING_MS = 220L
 private const val TIMING_ALERT_REPEAT_HAPTIC_GAP_MS = 120L

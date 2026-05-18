@@ -135,41 +135,70 @@ class TestGameClock : GameModelTestFixtures() {
             "VIBRATE is not a sound timing alert mode.",
             nonSoundModeException.message,
         )
-        val soundIds = TimingAlertSound.entries.withIndex().associate { (index, sound) ->
-            sound to index + 1
-        }
+        val soundIds = TimingAlertSound.entries
+            .flatMap { sound ->
+                (MIN_TIMING_ALERT_REPEAT_COUNT..MAX_TIMING_ALERT_REPEAT_COUNT).map { repeatCount ->
+                    TimingAlertSoundClip(sound, repeatCount)
+                }
+            }
+            .withIndex()
+            .associate { (index, clip) ->
+                clip to index + 1
+            }
+        val tickClip = TimingAlertSoundClip(TimingAlertSound.TICK, 1)
+        val tickX3Clip = TimingAlertSoundClip(TimingAlertSound.TICK, 3)
+        val beepClip = TimingAlertSoundClip(TimingAlertSound.BEEP, 1)
+        val dingClip = TimingAlertSoundClip(TimingAlertSound.DING, 1)
         val soundPlayer = FakeTimingAlertSoundPlayer()
-        val timingAlertPlayer = TimingAlertPlayer(soundPlayer) { _, sound -> soundIds.getValue(sound) }
+        val timingAlertPlayer = TimingAlertPlayer(soundPlayer) { _, clip -> soundIds.getValue(clip) }
         timingAlertPlayer.play(TimingAlertSound.TICK, 1.5f)
         timingAlertPlayer.play(TimingAlertSound.TICK, 0.5f)
+        timingAlertPlayer.play(TimingAlertSound.TICK, 3, 0.75f)
         assertTrue(soundPlayer.playedSounds.isEmpty())
-        soundPlayer.completeLoad(soundIds.getValue(TimingAlertSound.TICK))
+        soundPlayer.completeLoad(soundIds.getValue(tickClip))
         assertEquals(
             listOf(
-                PlayedTimingAlertSound(soundIds.getValue(TimingAlertSound.TICK), 1f),
-                PlayedTimingAlertSound(soundIds.getValue(TimingAlertSound.TICK), 0.5f),
+                PlayedTimingAlertSound(soundIds.getValue(tickClip), 1f),
+                PlayedTimingAlertSound(soundIds.getValue(tickClip), 0.5f),
+            ),
+            soundPlayer.playedSounds,
+        )
+        soundPlayer.completeLoad(soundIds.getValue(tickX3Clip))
+        assertEquals(
+            listOf(
+                PlayedTimingAlertSound(soundIds.getValue(tickClip), 1f),
+                PlayedTimingAlertSound(soundIds.getValue(tickClip), 0.5f),
+                PlayedTimingAlertSound(soundIds.getValue(tickX3Clip), 0.75f),
             ),
             soundPlayer.playedSounds,
         )
         timingAlertPlayer.play(TimingAlertSound.TICK, -0.5f)
         assertEquals(
             listOf(
-                PlayedTimingAlertSound(soundIds.getValue(TimingAlertSound.TICK), 1f),
-                PlayedTimingAlertSound(soundIds.getValue(TimingAlertSound.TICK), 0.5f),
-                PlayedTimingAlertSound(soundIds.getValue(TimingAlertSound.TICK), 0f),
+                PlayedTimingAlertSound(soundIds.getValue(tickClip), 1f),
+                PlayedTimingAlertSound(soundIds.getValue(tickClip), 0.5f),
+                PlayedTimingAlertSound(soundIds.getValue(tickX3Clip), 0.75f),
+                PlayedTimingAlertSound(soundIds.getValue(tickClip), 0f),
             ),
             soundPlayer.playedSounds,
         )
+        val invalidRepeatCountException = assertThrows(IllegalArgumentException::class.java) {
+            timingAlertPlayer.play(TimingAlertSound.TICK, 4, 0.5f)
+        }
+        assertEquals(
+            "Timing alert repeat count must be between 1 and 3.",
+            invalidRepeatCountException.message,
+        )
         timingAlertPlayer.play(TimingAlertSound.BEEP, 0.25f)
         timingAlertPlayer.release()
-        soundPlayer.completeLoad(soundIds.getValue(TimingAlertSound.BEEP))
-        assertEquals(3, soundPlayer.playedSounds.size)
+        soundPlayer.completeLoad(soundIds.getValue(beepClip))
+        assertEquals(4, soundPlayer.playedSounds.size)
         assertTrue(soundPlayer.released)
 
         val failedSoundPlayer = FakeTimingAlertSoundPlayer()
-        val failedTimingAlertPlayer = TimingAlertPlayer(failedSoundPlayer) { _, sound -> soundIds.getValue(sound) }
+        val failedTimingAlertPlayer = TimingAlertPlayer(failedSoundPlayer) { _, clip -> soundIds.getValue(clip) }
         failedTimingAlertPlayer.play(TimingAlertSound.DING, 0.5f)
-        failedSoundPlayer.completeLoad(soundIds.getValue(TimingAlertSound.DING), status = 1)
+        failedSoundPlayer.completeLoad(soundIds.getValue(dingClip), status = 1)
         failedSoundPlayer.completeLoad(999)
         assertTrue(failedSoundPlayer.playedSounds.isEmpty())
 
