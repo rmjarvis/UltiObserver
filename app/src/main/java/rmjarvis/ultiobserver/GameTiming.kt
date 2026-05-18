@@ -17,62 +17,6 @@ fun formatDuration(duration: Duration): String {
     return "$minutes:${seconds.toString().padStart(2, '0')}"
 }
 /**
- * Build the countdown that applies between points for the observer's end of the field.
- * The exact target depends on whether the observer is on the pulling or receiving side;
- * the observer is assumed to be on the near end.
- *
- * @param pullingFromEnd The field end the pulling team occupies, which determines the observer's responsibility.
- * @param sequenceStart The epoch millis when the between-points sequence starts.
- * @param kind The between-points countdown kind, used to distinguish normal, opening, and reset timing.
- */
-internal fun buildBetweenPointsCountdown(
-    pullingFromEnd: FieldEnd,
-    sequenceStart: Long,
-    kind: CountdownKind = CountdownKind.BETWEEN_POINTS,
-): CountdownState {
-    require(kind.usesBetweenPointsTarget()) {
-        "Countdown kind $kind does not use between-points timing."
-    }
-    val target = betweenPointsCountdownTargetFor(pullingFromEnd)
-    val durationSeconds = target.baseDurationSeconds(kind)
-    return CountdownState(
-        kind = kind,
-        label = target.label,
-        durationSeconds = durationSeconds,
-        targetEpoch = sequenceStart + durationSeconds * 1000L,
-        betweenPointsTarget = target,
-    )
-}
-/**
- * Select the timing target the near-side observer is responsible for between points.
- *
- * @param pullingFromEnd The field end the pulling team occupies.
- */
-private fun betweenPointsCountdownTargetFor(pullingFromEnd: FieldEnd): BetweenPointsCountdownTarget {
-    return if (pullingFromEnd == FieldEnd.NEAR) {
-        BetweenPointsCountdownTarget.PULL
-    } else {
-        BetweenPointsCountdownTarget.OFFENSE_READY
-    }
-}
-/**
- * Compute the label and remaining time for the visible between-points countdown.
- *
- * @param pullingFromEnd The field end the pulling team occupies.
- * @param sequenceStart The epoch millis when the between-points sequence started.
- * @param now The epoch millis used to compute remaining time.
- * @param kind The between-points countdown kind to display.
- */
-fun betweenPointsDisplay(
-    pullingFromEnd: FieldEnd,
-    sequenceStart: Long,
-    now: Long,
-    kind: CountdownKind = CountdownKind.BETWEEN_POINTS,
-): Pair<String, Duration> {
-    val countdown = buildBetweenPointsCountdown(pullingFromEnd, sequenceStart, kind)
-    return countdown.label to Duration.ofMillis((countdown.targetEpoch - now).coerceAtLeast(0L))
-}
-/**
  * Build the halftime countdown from the configured halftime length.
  *
  * @param halftimeMinutes The number of minutes halftime should last.
@@ -230,28 +174,6 @@ private fun CountdownState.timingCues(): List<TimingCue> {
         CountdownKind.MISCONDUCT_DEFENSE_CHECK -> misconductDefenseCheckTimingCues()
         CountdownKind.TIME_OUT -> timeoutTimingCues()
         CountdownKind.HALFTIME -> halftimeTimingCues()
-    }
-}
-
-/// List normal between-points cues, including timeout-extension cues when applicable.
-private fun CountdownState.betweenPointsTimingCues(): List<TimingCue> {
-    val target = betweenPointsTarget!!
-    val timeoutCues = if (durationSeconds > target.baseDurationSeconds(kind)) {
-        listOf(TimingCue(target.timeoutCueId(), 60))
-    } else {
-        emptyList()
-    }
-    return timeoutCues + when (target) {
-        BetweenPointsCountdownTarget.OFFENSE_READY -> listOf(
-            TimingCue(TimingCueId.RECEIVING_TWENTY_FOR_HAND, 20),
-            TimingCue(TimingCueId.RECEIVING_TEN_FOR_HAND, 10),
-            TimingCue(TimingCueId.RECEIVING_GIVE_HAND, 0),
-        )
-        BetweenPointsCountdownTarget.PULL -> listOf(
-            TimingCue(TimingCueId.PULLING_TWENTY_TO_PULL, 20),
-            TimingCue(TimingCueId.PULLING_TEN_TO_PULL, 10),
-            TimingCue(TimingCueId.PULLING_TIME_VIOLATION, 0),
-        )
     }
 }
 

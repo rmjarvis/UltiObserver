@@ -24,28 +24,7 @@ fun GameEvent.formatPopupTitle(): String {
         is GameEvent.TeamCardsChanged -> this.formatPopupTitle()
         is GameEvent.TechnicalFoulsChanged -> this.formatPopupTitle()
         is GameEvent.PullInfractionRecorded -> this.formatPopupTitle()
-        is GameEvent.TimeViolationRecorded -> "Time Violation"
-    }
-}
-
-/// Format a time-violation event message with warning, timeout, or no-timeout consequences.
-private fun GameEvent.TimeViolationRecorded.formatMessage(): String {
-    return when (outcome) {
-        TimeViolationOutcome.WARNING -> {
-            if (team == state.pullingTeam) {
-                "${state.teamName(team)} now has 30 seconds to pull."
-            } else {
-                "${state.teamName(team)} now has 30 seconds to signal readiness."
-            }
-        }
-        TimeViolationOutcome.TIMEOUT -> "Timeout charged to ${state.teamName(team)}. Reset pull timing."
-        TimeViolationOutcome.NO_TIMEOUT -> {
-            if (team == state.pullingTeam.flip()) {
-                "No timeouts remaining. No pull. Receiving team starts at midpoint of defending end zone."
-            } else {
-                "No timeouts remaining. No pull. Receiving team starts at midfield."
-            }
-        }
+        is GameEvent.TimeViolationRecorded -> this.formatPopupTitle()
     }
 }
 

@@ -143,42 +143,6 @@ enum class CountdownKind {
     }
 }
 @Serializable
-enum class BetweenPointsCountdownTarget(
-    val label: String,
-    private val standardDurationSeconds: Int,
-    private val openingDurationSeconds: Int,
-) {
-    OFFENSE_READY("Signal in", 60, 20),
-    PULL("Pull in", 80, 40);
-
-    /**
-     * Return the base countdown duration for this target and countdown kind.
-     *
-     * @param kind The countdown kind whose opening/reset rules may override the standard duration.
-     */
-    fun baseDurationSeconds(kind: CountdownKind): Int {
-        return when (kind) {
-            CountdownKind.OPENING_PULL -> openingDurationSeconds
-            CountdownKind.PULL_RESET -> 30
-            else -> standardDurationSeconds
-        }
-    }
-
-    /// Return the opposite between-points timing target.
-    fun flip(): BetweenPointsCountdownTarget {
-        return if (this == OFFENSE_READY) PULL else OFFENSE_READY
-    }
-
-    /// Return the alert cue used when a timeout extension adds one minute to this target.
-    fun timeoutCueId(): TimingCueId {
-        return when (this) {
-            OFFENSE_READY -> TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND
-            PULL -> TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL
-        }
-    }
-}
-
-@Serializable
 enum class TimingCueId(
     val label: String,
 ) {
@@ -398,6 +362,33 @@ data class LiveGameState(
     fun teamName(team: TeamId): String {
         return teamFor(team).name
     }
+
+    /// Swap the teams' field ends while keeping the same team pulling.
+    fun swapFieldEnds(): LiveGameState {
+        val newPullingFromEnd = this.pullingFromEnd.flip()
+        return this.copy(
+            nearAttackingTeam = this.nearAttackingTeam.flip(),
+            pullingFromEnd = newPullingFromEnd,
+            countdown = this.countdown?.swapOD(),
+            pullSequenceOffsidesRecorded = false,
+            pullSequenceFalseStartRecorded = false,
+            lastEvent = "Field ends swapped.",
+        ).withUndo(this, "Undo Swap Ends of Field")
+    }
+
+    /// Swap the pulling team while leaving the teams' attacking orientation otherwise intact.
+    fun swapPullingTeam(): LiveGameState {
+        val newPullingTeam = this.pullingTeam.flip()
+        val newPullingFromEnd = this.pullingFromEnd.flip()
+        return this.copy(
+            pullingTeam = newPullingTeam,
+            pullingFromEnd = newPullingFromEnd,
+            countdown = this.countdown?.swapOD(),
+            pullSequenceOffsidesRecorded = false,
+            pullSequenceFalseStartRecorded = false,
+            lastEvent = "Pulling team swapped.",
+        ).withUndo(this, "Undo Swap Pulling Team")
+    }
 }
 data class CapStatus(
     val label: String,
@@ -407,10 +398,6 @@ data class CapStatus(
 data class UndoEntry(
     val label: String,
     val previous: LiveGameState,
-)
-data class TimeViolationAssessmentResult(
-    val state: LiveGameState,
-    val event: GameEvent? = null,
 )
 @Serializable
 enum class CapType {
@@ -463,12 +450,6 @@ enum class CapType {
         }
     }
 }
-enum class TimeViolationOutcome {
-    WARNING,
-    TIMEOUT,
-    NO_TIMEOUT,
-}
-
 sealed interface GameEvent {
     data class TimeoutCharged(
         val state: LiveGameState,

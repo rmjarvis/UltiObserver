@@ -1,30 +1,136 @@
 package rmjarvis.ultiobserver
 
-/// Swap the teams' field ends while keeping the same team pulling.
-fun LiveGameState.swapFieldEnds(): LiveGameState {
-    val newPullingFromEnd = this.pullingFromEnd.flip()
-    return this.copy(
-        nearAttackingTeam = this.nearAttackingTeam.flip(),
-        pullingFromEnd = newPullingFromEnd,
-        countdown = this.countdown?.swapOD(),
-        pullSequenceOffsidesRecorded = false,
-        pullSequenceFalseStartRecorded = false,
-        lastEvent = "Field ends swapped.",
-    ).withUndo(this, "Undo Swap Ends of Field")
+import java.time.Duration
+import kotlinx.serialization.Serializable
+
+@Serializable
+enum class BetweenPointsCountdownTarget(
+    val label: String,
+    private val standardDurationSeconds: Int,
+    private val openingDurationSeconds: Int,
+) {
+    OFFENSE_READY("Signal in", 60, 20),
+    PULL("Pull in", 80, 40);
+
+    /**
+     * Return the base countdown duration for this target and countdown kind.
+     *
+     * @param kind The countdown kind whose opening/reset rules may override the standard duration.
+     */
+    fun baseDurationSeconds(kind: CountdownKind): Int {
+        return when (kind) {
+            CountdownKind.OPENING_PULL -> openingDurationSeconds
+            CountdownKind.PULL_RESET -> 30
+            else -> standardDurationSeconds
+        }
+    }
+
+    /// Return the opposite between-points timing target.
+    fun flip(): BetweenPointsCountdownTarget {
+        return if (this == OFFENSE_READY) PULL else OFFENSE_READY
+    }
+
+    /// Return the alert cue used when a timeout extension adds one minute to this target.
+    fun timeoutCueId(): TimingCueId {
+        return when (this) {
+            OFFENSE_READY -> TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND
+            PULL -> TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL
+        }
+    }
 }
-/// Swap the pulling team while leaving the teams' attacking orientation otherwise intact.
-fun LiveGameState.swapPullingTeam(): LiveGameState {
-    val newPullingTeam = this.pullingTeam.flip()
-    val newPullingFromEnd = this.pullingFromEnd.flip()
-    return this.copy(
-        pullingTeam = newPullingTeam,
-        pullingFromEnd = newPullingFromEnd,
-        countdown = this.countdown?.swapOD(),
-        pullSequenceOffsidesRecorded = false,
-        pullSequenceFalseStartRecorded = false,
-        lastEvent = "Pulling team swapped.",
-    ).withUndo(this, "Undo Swap Pulling Team")
+
+data class TimeViolationAssessmentResult(
+    val state: LiveGameState,
+    val event: GameEvent? = null,
+)
+
+enum class TimeViolationOutcome {
+    WARNING,
+    TIMEOUT,
+    NO_TIMEOUT,
 }
+
+/**
+ * Build the countdown that applies between points for the observer's end of the field.
+ * The exact target depends on whether the observer is on the pulling or receiving side;
+ * the observer is assumed to be on the near end.
+ *
+ * @param pullingFromEnd The field end the pulling team occupies, which determines the observer's responsibility.
+ * @param sequenceStart The epoch millis when the between-points sequence starts.
+ * @param kind The between-points countdown kind, used to distinguish normal, opening, and reset timing.
+ */
+internal fun buildBetweenPointsCountdown(
+    pullingFromEnd: FieldEnd,
+    sequenceStart: Long,
+    kind: CountdownKind = CountdownKind.BETWEEN_POINTS,
+): CountdownState {
+    require(kind.usesBetweenPointsTarget()) {
+        "Countdown kind $kind does not use between-points timing."
+    }
+    val target = betweenPointsCountdownTargetFor(pullingFromEnd)
+    val durationSeconds = target.baseDurationSeconds(kind)
+    return CountdownState(
+        kind = kind,
+        label = target.label,
+        durationSeconds = durationSeconds,
+        targetEpoch = sequenceStart + durationSeconds * 1000L,
+        betweenPointsTarget = target,
+    )
+}
+
+/**
+ * Select the timing target the near-side observer is responsible for between points.
+ *
+ * @param pullingFromEnd The field end the pulling team occupies.
+ */
+private fun betweenPointsCountdownTargetFor(pullingFromEnd: FieldEnd): BetweenPointsCountdownTarget {
+    return if (pullingFromEnd == FieldEnd.NEAR) {
+        BetweenPointsCountdownTarget.PULL
+    } else {
+        BetweenPointsCountdownTarget.OFFENSE_READY
+    }
+}
+
+/**
+ * Compute the label and remaining time for the visible between-points countdown.
+ *
+ * @param pullingFromEnd The field end the pulling team occupies.
+ * @param sequenceStart The epoch millis when the between-points sequence started.
+ * @param now The epoch millis used to compute remaining time.
+ * @param kind The between-points countdown kind to display.
+ */
+fun betweenPointsDisplay(
+    pullingFromEnd: FieldEnd,
+    sequenceStart: Long,
+    now: Long,
+    kind: CountdownKind = CountdownKind.BETWEEN_POINTS,
+): Pair<String, Duration> {
+    val countdown = buildBetweenPointsCountdown(pullingFromEnd, sequenceStart, kind)
+    return countdown.label to Duration.ofMillis((countdown.targetEpoch - now).coerceAtLeast(0L))
+}
+
+/// List normal between-points cues, including timeout-extension cues when applicable.
+internal fun CountdownState.betweenPointsTimingCues(): List<TimingCue> {
+    val target = betweenPointsTarget!!
+    val timeoutCues = if (durationSeconds > target.baseDurationSeconds(kind)) {
+        listOf(TimingCue(target.timeoutCueId(), 60))
+    } else {
+        emptyList()
+    }
+    return timeoutCues + when (target) {
+        BetweenPointsCountdownTarget.OFFENSE_READY -> listOf(
+            TimingCue(TimingCueId.RECEIVING_TWENTY_FOR_HAND, 20),
+            TimingCue(TimingCueId.RECEIVING_TEN_FOR_HAND, 10),
+            TimingCue(TimingCueId.RECEIVING_GIVE_HAND, 0),
+        )
+        BetweenPointsCountdownTarget.PULL -> listOf(
+            TimingCue(TimingCueId.PULLING_TWENTY_TO_PULL, 20),
+            TimingCue(TimingCueId.PULLING_TEN_TO_PULL, 10),
+            TimingCue(TimingCueId.PULLING_TIME_VIOLATION, 0),
+        )
+    }
+}
+
 /// Report whether the expired-pull action surface should be available.
 fun LiveGameState.hasExpiredPullActions(): Boolean {
     return this.phase == LivePhase.BETWEEN_POINTS && this.pullCountdownExpired
@@ -213,5 +319,29 @@ private fun LiveGameState.timeViolationWarningIssued(team: TeamId): Boolean {
         this.teamOne.timeViolationWarningIssued
     } else {
         this.teamTwo.timeViolationWarningIssued
+    }
+}
+
+/// Format a time-violation event popup title.
+internal fun GameEvent.TimeViolationRecorded.formatPopupTitle(): String = "Time Violation"
+
+/// Format a time-violation event message with warning, timeout, or no-timeout consequences.
+internal fun GameEvent.TimeViolationRecorded.formatMessage(): String {
+    return when (outcome) {
+        TimeViolationOutcome.WARNING -> {
+            if (team == state.pullingTeam) {
+                "${state.teamName(team)} now has 30 seconds to pull."
+            } else {
+                "${state.teamName(team)} now has 30 seconds to signal readiness."
+            }
+        }
+        TimeViolationOutcome.TIMEOUT -> "Timeout charged to ${state.teamName(team)}. Reset pull timing."
+        TimeViolationOutcome.NO_TIMEOUT -> {
+            if (team == state.pullingTeam.flip()) {
+                "No timeouts remaining. No pull. Receiving team starts at midpoint of defending end zone."
+            } else {
+                "No timeouts remaining. No pull. Receiving team starts at midfield."
+            }
+        }
     }
 }
