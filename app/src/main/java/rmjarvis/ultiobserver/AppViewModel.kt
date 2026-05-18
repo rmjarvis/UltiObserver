@@ -201,8 +201,12 @@ internal class AppViewModel(
 
     /// Navigate to Home and clear any read-only archived-game view.
     fun goHome() {
-        screen = AppScreen.HOME
-        clearViewedArchivedGame()
+        _state.update {
+            it.copy(
+                screen = AppScreen.HOME,
+                viewingArchivedGame = null,
+            )
+        }
     }
 
     /// Navigate back according to the current top-level screen and live-game state.
@@ -268,8 +272,12 @@ internal class AppViewModel(
      * @param updatedPreference The newly selected avatar preference.
      */
     fun updateAvatarPreference(updatedPreference: ObserverAvatarPreference) {
-        avatarPreference = updatedPreference
-        homeAvatarPreference = resolveHomeAvatarPreference(updatedPreference)
+        _state.update {
+            it.copy(
+                avatarPreference = updatedPreference,
+                homeAvatarPreference = resolveHomeAvatarPreference(updatedPreference),
+            )
+        }
         persistProfileState()
     }
 
@@ -384,32 +392,27 @@ internal class AppViewModel(
 
     /// Open the profile screen.
     fun openProfile() {
-        clearViewedArchivedGame()
-        screen = AppScreen.PROFILE
+        openScreen(AppScreen.PROFILE)
     }
 
     /// Open the About screen.
     fun openAbout() {
-        clearViewedArchivedGame()
-        screen = AppScreen.ABOUT
+        openScreen(AppScreen.ABOUT)
     }
 
     /// Open the settings screen.
     fun openSettings() {
-        clearViewedArchivedGame()
-        screen = AppScreen.SETTINGS
+        openScreen(AppScreen.SETTINGS)
     }
 
     /// Open the timing cue settings screen.
     fun openTimingCueSettings() {
-        clearViewedArchivedGame()
-        screen = AppScreen.TIMING_CUE_SETTINGS
+        openScreen(AppScreen.TIMING_CUE_SETTINGS)
     }
 
     /// Open the archived games screen.
     fun openArchivedGames() {
-        clearViewedArchivedGame()
-        screen = AppScreen.ARCHIVED_GAMES
+        openScreen(AppScreen.ARCHIVED_GAMES)
     }
 
     /// Resume the current setup draft, initial live preview, or active live game from Home.
@@ -424,17 +427,20 @@ internal class AppViewModel(
             return
         }
         if (current.phase != LivePhase.GAME_OVER) {
-            clearViewedArchivedGame()
-            screen = AppScreen.LIVE
+            openScreen(AppScreen.LIVE)
         }
     }
 
     /// Resume a saved setup draft when no live game exists yet.
     fun resumeSetupDraft() {
         if (liveState == null && hasSetupDraft) {
-            clearViewedArchivedGame()
-            setupMode = SetupMode.NEW_GAME
-            screen = AppScreen.SETUP
+            _state.update {
+                it.copy(
+                    viewingArchivedGame = null,
+                    setupMode = SetupMode.NEW_GAME,
+                    screen = AppScreen.SETUP,
+                )
+            }
             persistCurrentGameState()
         }
     }
@@ -443,8 +449,7 @@ internal class AppViewModel(
     fun openCompletedGame() {
         val current = liveState ?: return
         if (current.phase == LivePhase.GAME_OVER) {
-            clearViewedArchivedGame()
-            screen = AppScreen.LIVE
+            openScreen(AppScreen.LIVE)
         }
     }
 
@@ -455,8 +460,12 @@ internal class AppViewModel(
      */
     fun openArchivedGame(index: Int) {
         val archived = archivedGames.getOrNull(index) ?: return
-        viewingArchivedGame = archived
-        screen = AppScreen.LIVE
+        _state.update {
+            it.copy(
+                viewingArchivedGame = archived,
+                screen = AppScreen.LIVE,
+            )
+        }
     }
 
     /// Move the current completed game into the archived games list.
@@ -465,23 +474,32 @@ internal class AppViewModel(
         if (completed.phase != LivePhase.GAME_OVER) {
             return
         }
-        archivedGames = archivedGames + ArchivedGame(
+        val updatedArchivedGames = archivedGames + ArchivedGame(
             completed.pruneUndoHistory(),
             "",
         )
-        liveState = null
-        clearViewedArchivedGame()
+        _state.update {
+            it.copy(
+                archivedGames = updatedArchivedGames,
+                liveState = null,
+                viewingArchivedGame = null,
+            )
+        }
         persistArchivedGames()
         persistCurrentGameState()
     }
 
     /// Delete the current live/setup/completed game state and return Home.
     fun deleteCurrentGame() {
-        liveState = null
-        clearViewedArchivedGame()
-        setupMode = SetupMode.NEW_GAME
-        hasSetupDraft = false
-        screen = AppScreen.HOME
+        _state.update {
+            it.copy(
+                liveState = null,
+                viewingArchivedGame = null,
+                setupMode = SetupMode.NEW_GAME,
+                hasSetupDraft = false,
+                screen = AppScreen.HOME,
+            )
+        }
         persistCurrentGameState()
     }
 
@@ -494,22 +512,33 @@ internal class AppViewModel(
         if (archivedGames.getOrNull(index) == null) {
             return
         }
-        archivedGames = archivedGames.toMutableList().also { it.removeAt(index) }
-        clearViewedArchivedGame()
+        val updatedArchivedGames = archivedGames.toMutableList().also { it.removeAt(index) }
+        _state.update {
+            it.copy(
+                archivedGames = updatedArchivedGames,
+                viewingArchivedGame = null,
+            )
+        }
         persistArchivedGames()
     }
 
     /// Delete all archived games.
     fun deleteAllArchivedGames() {
-        archivedGames = emptyList()
-        clearViewedArchivedGame()
+        _state.update {
+            it.copy(
+                archivedGames = emptyList(),
+                viewingArchivedGame = null,
+            )
+        }
         persistArchivedGames()
     }
 
     /// Start a new game setup, archiving any existing current game first.
     fun startNewGame() {
+        var shouldPersistArchivedGames = false
+        var updatedArchivedGames = archivedGames
         liveState?.let { existing ->
-            archivedGames = archivedGames + ArchivedGame(
+            updatedArchivedGames = updatedArchivedGames + ArchivedGame(
                 if (existing.phase == LivePhase.GAME_OVER) {
                     existing
                 } else {
@@ -520,14 +549,22 @@ internal class AppViewModel(
                 }.pruneUndoHistory(),
                 if (existing.phase == LivePhase.GAME_OVER) "" else "Closed when new game started",
             )
+            shouldPersistArchivedGames = true
+        }
+        _state.update {
+            it.copy(
+                archivedGames = updatedArchivedGames,
+                setupState = newGameSetupState(rules = updatedArchivedGames.lastOrNull()?.state?.rules ?: GameRules()),
+                liveState = null,
+                viewingArchivedGame = null,
+                setupMode = SetupMode.NEW_GAME,
+                hasSetupDraft = true,
+                screen = AppScreen.SETUP,
+            )
+        }
+        if (shouldPersistArchivedGames) {
             persistArchivedGames()
         }
-        setupState = newGameSetupState(rules = archivedGames.lastOrNull()?.state?.rules ?: GameRules())
-        liveState = null
-        clearViewedArchivedGame()
-        setupMode = SetupMode.NEW_GAME
-        hasSetupDraft = true
-        screen = AppScreen.SETUP
         persistCurrentGameState()
     }
 
@@ -537,15 +574,20 @@ internal class AppViewModel(
      * @param now The epoch millis used when applying setup edits to an existing pre-play countdown.
      */
     fun finishSetup(now: Long = System.currentTimeMillis()) {
-        liveState = if (setupMode == SetupMode.NEW_GAME) {
+        val updatedLiveState = if (setupMode == SetupMode.NEW_GAME) {
             createLiveGameState(setupState)
         } else {
             applySetupToLiveGame(liveState!!, setupState, now)
         }
-        clearViewedArchivedGame()
-        hasSetupDraft = false
-        setupMode = SetupMode.EDIT_CURRENT_GAME
-        screen = AppScreen.LIVE
+        _state.update {
+            it.copy(
+                liveState = updatedLiveState,
+                viewingArchivedGame = null,
+                hasSetupDraft = false,
+                setupMode = SetupMode.EDIT_CURRENT_GAME,
+                screen = AppScreen.LIVE,
+            )
+        }
         persistCurrentGameState()
     }
 
@@ -562,25 +604,42 @@ internal class AppViewModel(
             reopenSetupDraftFromInitialPreview()
             return
         }
-        setupState = currentGame.toSetupState()
-        setupMode = SetupMode.EDIT_CURRENT_GAME
-        screen = AppScreen.SETUP
+        _state.update {
+            it.copy(
+                setupState = currentGame.toSetupState(),
+                setupMode = SetupMode.EDIT_CURRENT_GAME,
+                screen = AppScreen.SETUP,
+            )
+        }
         persistCurrentGameState()
     }
 
     /// Convert the initial live preview back into a resumable setup draft.
     private fun reopenSetupDraftFromInitialPreview() {
-        liveState = null
-        clearViewedArchivedGame()
-        setupMode = SetupMode.NEW_GAME
-        hasSetupDraft = true
-        screen = AppScreen.SETUP
+        _state.update {
+            it.copy(
+                liveState = null,
+                viewingArchivedGame = null,
+                setupMode = SetupMode.NEW_GAME,
+                hasSetupDraft = true,
+                screen = AppScreen.SETUP,
+            )
+        }
         persistCurrentGameState()
     }
 
-    /// Clear any archived-game summary currently being viewed.
-    private fun clearViewedArchivedGame() {
-        viewingArchivedGame = null
+    /**
+     * Open a normal app screen and clear any archived summary left from read-only viewing.
+     *
+     * @param targetScreen The destination screen to show.
+     */
+    private fun openScreen(targetScreen: AppScreen) {
+        _state.update {
+            it.copy(
+                viewingArchivedGame = null,
+                screen = targetScreen,
+            )
+        }
     }
 
     /// Persist the current/setup game bucket.
