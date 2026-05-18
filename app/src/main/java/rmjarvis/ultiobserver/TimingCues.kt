@@ -3,6 +3,7 @@ package rmjarvis.ultiobserver
 import java.time.Duration
 import java.time.LocalTime
 import kotlin.math.max
+import kotlinx.serialization.Serializable
 
 /**
  * Format a duration as a clamped minute-second countdown string.
@@ -54,6 +55,35 @@ fun nextHalfHourFrom(referenceTime: LocalTime): LocalTime {
     return LocalTime.of(baseHour % 24, roundedMinute)
 }
 
+@Serializable
+enum class TimingCueId(
+    val label: String,
+) {
+    RECEIVING_TWENTY_FOR_HAND("20 seconds for a hand"),
+    RECEIVING_TEN_FOR_HAND("10 seconds for a hand"),
+    RECEIVING_GIVE_HAND("Give hand"),
+    PULLING_TWENTY_TO_PULL("20 seconds to pull"),
+    PULLING_TEN_TO_PULL("10 seconds to pull"),
+    PULLING_TIME_VIOLATION("Time violation?"),
+    TIMEOUT_CLEAR_FIELD("Sideline players clear the field"),
+    TIMEOUT_OFFENSE_TWENTY("20 seconds, offense"),
+    TIMEOUT_OFFENSE_TEN("10 seconds, offense"),
+    TIMEOUT_COUNTDOWN_FROM_FIVE("Countdown from 5"),
+    TIMEOUT_OFFENSE_FREEZE_DEFENSE_TWENTY("Offense freeze; defense 20 seconds"),
+    MISCONDUCT_OFFENSE_TWENTY("20 seconds, offense"),
+    MISCONDUCT_OFFENSE_TEN("10 seconds, offense"),
+    MISCONDUCT_COUNTDOWN_FROM_FIVE("Countdown from 5"),
+    MISCONDUCT_OFFENSE_FREEZE_DEFENSE_TWENTY("Offense freeze; defense 20 seconds"),
+    MISCONDUCT_DEFENSE_TWENTY("20 seconds, defense"),
+    TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND("1 minute for a hand"),
+    TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL("1 minute to pull"),
+    HALFTIME_FIVE_MINUTES("5 minutes"),
+    HALFTIME_TWO_MINUTES("2 minutes"),
+    HALF_CAP("Half cap"),
+    SOFT_CAP("Soft cap"),
+    HARD_CAP("Hard cap"),
+}
+
 internal data class TimingCue(
     val id: TimingCueId,
     val remainingSeconds: Int,
@@ -67,30 +97,9 @@ internal data class TimingCueDisplay(
     val targetEpoch: Long,
 )
 
-/// Build the default timing-alert mode map for every cue.
-internal fun defaultTimingCueModes(): Map<TimingCueId, TimingAlertMode> {
-    return TimingCueId.entries.associateWith { it.defaultAlertMode() }
-}
-
-/// Build the default repeat-count map for every timing cue.
-internal fun defaultTimingCueRepeatCounts(): Map<TimingCueId, Int> {
-    return TimingCueId.entries.associateWith { it.defaultRepeatCount() }
-}
-
-/// Return the default sound/vibration repeat count for a cue.
-internal fun TimingCueId.defaultRepeatCount(): Int {
-    return when (this) {
-        TimingCueId.RECEIVING_TWENTY_FOR_HAND,
-        TimingCueId.TIMEOUT_OFFENSE_TWENTY,
-        TimingCueId.MISCONDUCT_OFFENSE_TWENTY,
-        TimingCueId.HALFTIME_FIVE_MINUTES,
-        TimingCueId.HALFTIME_TWO_MINUTES,
-        TimingCueId.HALF_CAP,
-        TimingCueId.SOFT_CAP,
-        -> 2
-        TimingCueId.HARD_CAP -> 3
-        else -> DEFAULT_TIMING_ALERT_REPEAT_COUNT
-    }
+/// Build a stable deduplication key for a timing cue.
+internal fun TimingCueDisplay.alertKey(): String {
+    return "${id.name}:$targetEpoch"
 }
 
 /**
