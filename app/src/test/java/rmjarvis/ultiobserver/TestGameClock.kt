@@ -61,6 +61,7 @@ class TestGameClock : GameModelTestFixtures() {
                 TimingCueId.RECEIVING_TWENTY_FOR_HAND,
                 TimingCueId.PULLING_TWENTY_TO_PULL,
                 TimingCueId.TIMEOUT_OFFENSE_TWENTY,
+                TimingCueId.MISCONDUCT_OFFENSE_TWENTY,
                 TimingCueId.MISCONDUCT_DEFENSE_TWENTY,
                 TimingCueId.HALFTIME_TWO_MINUTES,
                 TimingCueId.HALF_CAP,
@@ -355,8 +356,13 @@ class TestGameClock : GameModelTestFixtures() {
             durationSeconds = 90,
             targetEpoch = 90_000L,
         )
-        assertEquals(TimingCueId.TIMEOUT_OFFENSE_TWENTY, betweenPointsMisconductCountdown.nextTimingCue(1_000L)?.id)
-        assertEquals(TimingCueId.TIMEOUT_OFFENSE_FREEZE_DEFENSE_TWENTY, betweenPointsMisconductCountdown.dueTimingCue(90_000L)?.id)
+        assertEquals(TimingCueId.MISCONDUCT_OFFENSE_TWENTY, betweenPointsMisconductCountdown.nextTimingCue(1_000L)?.id)
+        assertEquals(TimingCueId.MISCONDUCT_OFFENSE_TEN, betweenPointsMisconductCountdown.nextTimingCue(80_000L)?.id)
+        assertEquals(TimingCueId.MISCONDUCT_COUNTDOWN_FROM_FIVE, betweenPointsMisconductCountdown.nextTimingCue(85_000L)?.id)
+        assertEquals(
+            TimingCueId.MISCONDUCT_OFFENSE_FREEZE_DEFENSE_TWENTY,
+            betweenPointsMisconductCountdown.dueTimingCue(90_000L)?.id,
+        )
         val misconductDefenseCountdown = CountdownState(
             kind = CountdownKind.MISCONDUCT_DEFENSE_CHECK,
             label = "Defense check in",

@@ -561,7 +561,7 @@ private fun TimingCueSettingRow(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
-            text = cueId.label,
+            text = cueId.settingsLabel(),
             style = MaterialTheme.typography.bodyMedium,
         )
         CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
@@ -599,6 +599,13 @@ private fun TimingCueSettingRow(
                 }
             }
         }
+    }
+}
+
+private fun TimingCueId.settingsLabel(): String {
+    return when (this) {
+        TimingCueId.MISCONDUCT_DEFENSE_TWENTY -> "20 seconds, defense (if offense is ready early)"
+        else -> label
     }
 }
 
@@ -702,6 +709,10 @@ private val timingCueSections = listOf(
     TimingCueSection(
         title = "Misconduct Between Points",
         cues = listOf(
+            TimingCueId.MISCONDUCT_OFFENSE_TWENTY,
+            TimingCueId.MISCONDUCT_OFFENSE_TEN,
+            TimingCueId.MISCONDUCT_COUNTDOWN_FROM_FIVE,
+            TimingCueId.MISCONDUCT_OFFENSE_FREEZE_DEFENSE_TWENTY,
             TimingCueId.MISCONDUCT_DEFENSE_TWENTY,
         ),
     ),

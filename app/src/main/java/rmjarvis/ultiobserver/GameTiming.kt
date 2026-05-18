@@ -194,10 +194,10 @@ private fun CountdownState.timeoutTimingCues(): List<TimingCue> {
 
 private fun misconductTimingCues(): List<TimingCue> {
     return listOf(
-        TimingCue(TimingCueId.TIMEOUT_OFFENSE_TWENTY, 20),
-        TimingCue(TimingCueId.TIMEOUT_OFFENSE_TEN, 10),
-        TimingCue(TimingCueId.TIMEOUT_COUNTDOWN_FROM_FIVE, 5),
-        TimingCue(TimingCueId.TIMEOUT_OFFENSE_FREEZE_DEFENSE_TWENTY, 0),
+        TimingCue(TimingCueId.MISCONDUCT_OFFENSE_TWENTY, 20),
+        TimingCue(TimingCueId.MISCONDUCT_OFFENSE_TEN, 10),
+        TimingCue(TimingCueId.MISCONDUCT_COUNTDOWN_FROM_FIVE, 5),
+        TimingCue(TimingCueId.MISCONDUCT_OFFENSE_FREEZE_DEFENSE_TWENTY, 0),
     )
 }
 
