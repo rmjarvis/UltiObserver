@@ -4,8 +4,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
-import java.time.LocalDateTime
-import java.time.ZoneId
 import kotlinx.serialization.Serializable
 import kotlin.random.Random
 
@@ -20,13 +18,6 @@ internal enum class AppScreen {
     ARCHIVED_GAMES,
     SETUP,
     LIVE,
-}
-
-/// Mode describing whether the setup screen is creating a new game or editing the current one.
-@Serializable
-internal enum class SetupMode {
-    NEW_GAME,
-    EDIT_CURRENT_GAME,
 }
 
 /**
@@ -571,28 +562,4 @@ internal class AppViewModel(
         }
         return concreteObserverAvatarPreferences[chooseAvatarIndex(concreteObserverAvatarPreferences.size)]
     }
-}
-
-/**
- * Build the default setup state for a new game.
- *
- * @param now The reference local date-time for choosing the next half-hour start; injectable for tests.
- * @param rules The rules to prefill, usually defaults or the most recent game's rules.
- */
-internal fun newGameSetupState(
-    now: LocalDateTime = LocalDateTime.now(),
-    rules: GameRules = GameRules(),
-): GameSetupState {
-    val startTime = nextHalfHourFrom(now.toLocalTime())
-    val startDate = if (startTime.isBefore(now.toLocalTime())) {
-        now.toLocalDate().plusDays(1)
-    } else {
-        now.toLocalDate()
-    }
-    return GameSetupState(
-        startDate = startDate,
-        startTime = startTime,
-        timeZone = ZoneId.systemDefault(),
-        rules = rules,
-    )
 }

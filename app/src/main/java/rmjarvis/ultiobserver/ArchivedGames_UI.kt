@@ -27,6 +27,26 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import java.time.format.DateTimeFormatter
+
+/**
+ * Archived-game row in the archived games list.
+ *
+ * @param startDateTime Compact start date/time text.
+ * @param scoreLine Final score text.
+ */
+internal data class ArchivedGameListEntry(
+    val startDateTime: String,
+    val scoreLine: String,
+)
+
+/// Return the archived-games row summary with compact start time above the final score.
+internal fun LiveGameState.archivedGameListEntry(): ArchivedGameListEntry {
+    return ArchivedGameListEntry(
+        startDateTime = "${startDate.format(DateTimeFormatter.ofPattern("M/d/yy"))} ${formatClockTime(startTime)}",
+        scoreLine = "${teamOne.name} ${teamOne.score} - ${teamTwo.score} ${teamTwo.name}",
+    )
+}
 
 /**
  * Render the archived game list, separated from Home so the launch screen has more room.

@@ -104,7 +104,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
 
     /**
      * Test the card-specific edge cases that route through setup, Cards / TF, and Adjust Cards / TF.
-     * This is still a UI-flow test; GameModel owns the detailed card-counting invariants.
+     * This is still a UI-flow test; domain helpers own the detailed card-counting invariants.
      */
     @Test
     fun cardEdgeCasesAndAdjustments() {

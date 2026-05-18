@@ -44,17 +44,6 @@ internal data class GameListEntry(
     val subtitle: String,
 )
 
-/**
- * Archived-game row in the archived games list.
- *
- * @param startDateTime Compact start date/time text.
- * @param scoreLine Final score text.
- */
-internal data class ArchivedGameListEntry(
-    val startDateTime: String,
-    val scoreLine: String,
-)
-
 // Define primitive component heights used to calculate the size of each home-screen section.
 // This lets us scale the identity area between minimum and preferred size.
 
@@ -123,14 +112,6 @@ internal fun GameSetupState.gameListEntry(): GameListEntry {
     return GameListEntry(
         title = compactStartDateTime(),
         subtitle = scoreLine(),
-    )
-}
-
-// Previous-games row summary with compact start time above the final score.
-internal fun LiveGameState.archivedGameListEntry(): ArchivedGameListEntry {
-    return ArchivedGameListEntry(
-        startDateTime = compactStartDateTime(),
-        scoreLine = scoreLine(),
     )
 }
 

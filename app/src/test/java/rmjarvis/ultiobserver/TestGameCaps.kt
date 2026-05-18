@@ -14,7 +14,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /// Tests for cap relevance, prompting, application, and timing cues in the game model.
-class TestGameCaps : GameModelTestFixtures() {
+class TestGameCaps : GameDomainTestFixtures() {
     /**
      * Test cap prompting and cap application as rule-visible state transitions.
      * Caps should become eligible only after point end and should be deterministic from supplied clock values.

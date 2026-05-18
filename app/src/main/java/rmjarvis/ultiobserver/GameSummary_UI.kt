@@ -148,10 +148,3 @@ private fun InGamePlayerCardRecord.summaryIssuedCardText(): String {
     }
     return "${displayPlayerNumber(jerseyNumber)}: ${parts.joinToString("; ")}"
 }
-
-/// Return teams ordered with the higher-scoring team first for summary display.
-internal fun LiveGameState.winnerFirstTeams(): List<TeamLiveState> {
-    return listOf(teamOne, teamTwo).sortedWith(
-        compareByDescending<TeamLiveState> { it.score }.thenBy { it.name }
-    )
-}

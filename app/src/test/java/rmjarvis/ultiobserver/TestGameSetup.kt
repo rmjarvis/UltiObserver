@@ -14,7 +14,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /// Tests for setup-state conversion and applying setup edits to live games.
-class TestGameSetup : GameModelTestFixtures() {
+class TestGameSetup : GameDomainTestFixtures() {
     /**
      * Test setup conversion and applying setup edits to a live game.
      * The setup form is public UI, but the model owns how edits reshape live state.

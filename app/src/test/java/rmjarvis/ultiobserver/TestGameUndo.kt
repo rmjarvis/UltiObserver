@@ -14,7 +14,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /// Tests for undo and redo behavior across representative model actions.
-class TestGameUndo : GameModelTestFixtures() {
+class TestGameUndo : GameDomainTestFixtures() {
     /**
      * Test the undo mechanism through user-visible actions rather than private snapshots.
      * Include ordinary undo, corrections, cap application, halftime, and game-over cases.

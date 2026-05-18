@@ -15,7 +15,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /// Tests for clock, countdown, formatting, timing cue, and timing alert audio helpers.
-class TestGameClock : GameModelTestFixtures() {
+class TestGameClock : GameDomainTestFixtures() {
     /**
      * Test deterministic clock and countdown helpers that are public model surface.
      * These tests should pin time behavior without relying on the wall clock.

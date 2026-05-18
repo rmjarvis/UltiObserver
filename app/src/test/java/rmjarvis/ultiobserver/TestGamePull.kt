@@ -14,7 +14,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /// Tests for pull infractions and pull time-violation model behavior.
-class TestGamePull : GameModelTestFixtures() {
+class TestGamePull : GameDomainTestFixtures() {
     /**
      * Test pull infractions from the observer-facing actions.
      * Offsides belongs to the pulling team; false start belongs to the receiving team.

@@ -14,7 +14,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /// Tests for player cards, team cards, technical fouls, and misconduct consequences in the game model.
-class TestGameCards : GameModelTestFixtures() {
+class TestGameCards : GameDomainTestFixtures() {
     /**
      * Test yellow, red, blue, and technical-foul handling from public card assessment APIs.
      * Emphasize team card points, per-player records, and misconduct-threshold messages.

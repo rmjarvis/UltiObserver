@@ -14,7 +14,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /// Tests for timeout allowance, timeout charging, timeout corrections, and timeout event messages.
-class TestGameTimeouts : GameModelTestFixtures() {
+class TestGameTimeouts : GameDomainTestFixtures() {
     /**
      * Test timeout rules and timeout state transitions across both halves.
      * Cover ordinary rules, floater rules, no-timeout rules, and midgame rule updates.

@@ -207,22 +207,6 @@ data class GameRules(
     val timeoutsPerHalf: Int = 2,
     val hasFloaterTimeout: Boolean = false,
 )
-/// Setup-screen fields needed to create or edit a live game.
-@Serializable
-data class GameSetupState(
-    @Serializable(with = LocalDateAsStringSerializer::class)
-    val startDate: LocalDate,
-    @Serializable(with = LocalTimeAsStringSerializer::class)
-    val startTime: LocalTime,
-    @Serializable(with = ZoneIdAsStringSerializer::class)
-    val timeZone: ZoneId,
-    val rules: GameRules = GameRules(),
-    val teamOne: TeamSetup = TeamSetup(name = "", color = TeamColorChoice.WHITE),
-    val teamTwo: TeamSetup = TeamSetup(name = "", color = TeamColorChoice.BLUE),
-    val priorCards: List<PlayerCardRecord> = emptyList(),
-    val pullingTeam: TeamId = TeamId.TEAM_ONE,
-    val pullingFromEnd: FieldEnd = FieldEnd.FAR,
-)
 /**
  * Live counters and display identity for one team.
  *
@@ -245,6 +229,13 @@ data class TeamLiveState(
     fun withAddedTimeout(): TeamLiveState {
         return copy(timeoutsUsedThisHalf = timeoutsUsedThisHalf + 1)
     }
+}
+
+/// Return teams ordered with the higher-scoring team first for summary display.
+internal fun LiveGameState.winnerFirstTeams(): List<TeamLiveState> {
+    return listOf(teamOne, teamTwo).sortedWith(
+        compareByDescending<TeamLiveState> { it.score }.thenBy { it.name }
+    )
 }
 /**
  * Active countdown and the information needed to display, adjust, and transition it.
@@ -528,204 +519,3 @@ data class UndoEntry(
     val label: String,
     val previous: LiveGameState,
 )
-/// Model events that need observer-facing popup text.
-sealed interface GameEvent {
-    /**
-     * Event reporting that a timeout was successfully charged to a team.
-     *
-     * @param state The live state after charging the timeout.
-     * @param team The team charged with the timeout.
-     */
-    data class TimeoutCharged(
-        val state: LiveGameState,
-        val team: TeamId,
-    ) : GameEvent
-
-    /**
-     * Event reporting that timeout entry is not legal in the current game state.
-     *
-     * @param state The live state that rejected the timeout.
-     */
-    data class TimeoutUnavailable(
-        val state: LiveGameState,
-    ) : GameEvent
-
-    /**
-     * Event reporting that a team requested a timeout with none remaining.
-     *
-     * @param state The live state that rejected the timeout.
-     * @param team The team that has no remaining timeouts.
-     */
-    data class TeamOutOfTimeouts(
-        val state: LiveGameState,
-        val team: TeamId,
-    ) : GameEvent
-
-    /**
-     * Event reporting a changed team-card total, with optional player-card context.
-     *
-     * @param state The live state after the card action.
-     * @param team The team whose card total changed.
-     * @param teamCardTotal The team-card point total after the action.
-     * @param playerCardType The player-card event type, or null for team-only card changes.
-     * @param playerCardJerseyNumber The player jersey number when playerCardType is present.
-     */
-    data class TeamCardsChanged(
-        val state: LiveGameState,
-        val team: TeamId,
-        val teamCardTotal: Int,
-        val playerCardType: PlayerCardEventType? = null,
-        val playerCardJerseyNumber: String? = null,
-    ) : GameEvent {
-        init {
-            require((playerCardType == null) == (playerCardJerseyNumber == null))
-        }
-    }
-
-    /**
-     * Event reporting a changed technical-foul total.
-     *
-     * @param state The live state after the technical foul.
-     * @param team The team whose technical-foul total changed.
-     * @param technicalFoulTotal The team technical-foul total after the action.
-     */
-    data class TechnicalFoulsChanged(
-        val state: LiveGameState,
-        val team: TeamId,
-        val technicalFoulTotal: Int,
-    ) : GameEvent
-
-    /**
-     * Event reporting an offsides or false-start pull infraction.
-     *
-     * @param state The live state after recording the infraction.
-     * @param team The team that committed the infraction.
-     * @param infraction The type of pull infraction recorded.
-     * @param totalPullViolations The team's combined pull-violation total after the action.
-     */
-    data class PullInfractionRecorded(
-        val state: LiveGameState,
-        val team: TeamId,
-        val infraction: PullInfractionType,
-        val totalPullViolations: Int,
-    ) : GameEvent
-
-    /**
-     * Event reporting a pull time violation and its rule outcome.
-     *
-     * @param state The live state after assessing the violation.
-     * @param team The team that committed the time violation.
-     * @param outcome The warning, timeout, or no-timeout outcome.
-     */
-    data class TimeViolationRecorded(
-        val state: LiveGameState,
-        val team: TeamId,
-        val outcome: TimeViolationOutcome,
-    ) : GameEvent
-}
-
-// Keep these as extensions instead of GameEvent members. If they become members, Kotlin
-// resolves same-named subtype extension helpers to the member and recursively calls this dispatcher.
-/// Format UI-facing text for this model event in the current Android app.
-fun GameEvent.formatMessage(): String {
-    // This when block does runtime resolution to call the correct subtype's extension function.
-    return when (this) {
-        is GameEvent.TimeoutCharged -> this.formatMessage()
-        is GameEvent.TimeoutUnavailable -> this.formatMessage()
-        is GameEvent.TeamOutOfTimeouts -> this.formatMessage()
-        is GameEvent.TeamCardsChanged -> this.formatMessage()
-        is GameEvent.TechnicalFoulsChanged -> this.formatMessage()
-        is GameEvent.PullInfractionRecorded -> this.formatMessage()
-        is GameEvent.TimeViolationRecorded -> this.formatMessage()
-    }
-}
-
-/// Format the title for an event-driven popup.
-fun GameEvent.formatPopupTitle(): String {
-    // This when block does runtime resolution to call the correct subtype's extension function.
-    return when (this) {
-        is GameEvent.TimeoutCharged -> this.formatPopupTitle()
-        is GameEvent.TimeoutUnavailable -> this.formatPopupTitle()
-        is GameEvent.TeamOutOfTimeouts -> this.formatPopupTitle()
-        is GameEvent.TeamCardsChanged -> this.formatPopupTitle()
-        is GameEvent.TechnicalFoulsChanged -> this.formatPopupTitle()
-        is GameEvent.PullInfractionRecorded -> this.formatPopupTitle()
-        is GameEvent.TimeViolationRecorded -> this.formatPopupTitle()
-    }
-}
-
-/// Model prompts that require an observer decision or acknowledgement.
-sealed interface GamePrompt {
-    /**
-     * Prompt asking whether to apply a due cap now.
-     *
-     * @param state The live state with a pending cap offer.
-     * @param capType The cap being offered.
-     */
-    data class ApplyCap(
-        val state: LiveGameState,
-        val capType: CapType,
-    ) : GamePrompt
-
-    /**
-     * Prompt asking whether live-point misconduct was against the offense or defense.
-     *
-     * @param event The card or technical-foul event that triggered the misconduct prompt.
-     */
-    data class LivePointMisconduct(
-        val event: GameEvent,
-    ) : GamePrompt
-
-    /**
-     * Prompt notifying the observer that halftime has started.
-     *
-     * @param state The live state after entering halftime.
-     */
-    data class HalftimeStarted(
-        val state: LiveGameState,
-    ) : GamePrompt
-
-    /**
-     * Prompt notifying the observer that the game has ended.
-     *
-     * @param state The completed live state.
-     */
-    data class GameOver(
-        val state: LiveGameState,
-    ) : GamePrompt
-}
-
-/// Format title text for prompts that need a dialog title in the current Android app.
-fun GamePrompt.formatTitle(): String {
-    return when (this) {
-        is GamePrompt.ApplyCap -> this.formatTitle()
-        is GamePrompt.LivePointMisconduct -> this.formatTitle()
-        is GamePrompt.HalftimeStarted -> this.formatTitle()
-        is GamePrompt.GameOver -> this.formatTitle()
-    }
-}
-
-/// Format the main text shown to the observer for a prompt.
-fun GamePrompt.formatMessage(): String {
-    return when (this) {
-        is GamePrompt.ApplyCap -> this.formatMessage()
-        is GamePrompt.LivePointMisconduct -> this.formatMessage()
-        is GamePrompt.HalftimeStarted -> "Announce halftime."
-        is GamePrompt.GameOver -> this.formatMessage()
-    }
-}
-
-/// Format the title for a halftime-started prompt.
-private fun GamePrompt.HalftimeStarted.formatTitle(): String = "Halftime"
-
-/// Format the title for a game-over prompt.
-private fun GamePrompt.GameOver.formatTitle(): String = "Game Over"
-
-/// Format the game-over prompt body with the winner first.
-private fun GamePrompt.GameOver.formatMessage(): String {
-    val orderedTeams = state.winnerFirstTeams()
-    return buildString {
-        appendLine("${orderedTeams[0].name} ${orderedTeams[0].score}")
-        append("${orderedTeams[1].name} ${orderedTeams[1].score}")
-    }
-}

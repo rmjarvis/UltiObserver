@@ -204,7 +204,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
 
     /**
      * Test the primary live screen actions that should be available directly from the phone.
-     * Keep the assertions at the visible undo/message level; GameModel owns detailed state checks.
+     * Keep the assertions at the visible undo/message level; domain helpers own detailed state checks.
      */
     @Test
     fun livePrimaryActionsAndUndoPath() {
