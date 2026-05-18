@@ -6,8 +6,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TestObserverAvatars {
+    /// Verify every selectable observer avatar has stable copy and a concrete drawable resource.
     @Test
     fun avatarPreferencesHaveAccessibilityLabelsAndDrawableResources() {
+        // Verify the concrete chooser order stays stable for random selection and UI presentation.
         assertEquals(
             listOf(
                 ObserverAvatarPreference.SPIKY,
@@ -26,6 +28,7 @@ class TestObserverAvatars {
             concreteObserverAvatarPreferences,
         )
 
+        // Check every user-facing label and concrete drawable used by profile/home UI.
         val labelsByPreference = mapOf(
             ObserverAvatarPreference.RANDOM to "Random",
             ObserverAvatarPreference.SPIKY to "Spiky brown-haired man",
@@ -49,6 +52,7 @@ class TestObserverAvatars {
             assertTrue(preference.drawableRes != 0)
         }
 
+        // RANDOM is a preference sentinel, so it should fail loudly if used as a drawable choice.
         val randomDrawableException = assertThrows(IllegalStateException::class.java) {
             ObserverAvatarPreference.RANDOM.drawableRes
         }

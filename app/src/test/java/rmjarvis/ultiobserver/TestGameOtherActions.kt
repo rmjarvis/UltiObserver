@@ -14,8 +14,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TestGameOtherActions : GameModelTestFixtures() {
-    // Test manual correction and less-common actions that are surfaced through the Other menu.
-    // These are model actions even though the menu is just one UI access path.
+    /**
+     * Test manual correction and less-common actions that are surfaced through the Other menu.
+     * These are model actions even though the menu is just one UI access path.
+     */
     @Test
     fun otherMenuModelActions() {
         val VC = TeamId.TEAM_ONE

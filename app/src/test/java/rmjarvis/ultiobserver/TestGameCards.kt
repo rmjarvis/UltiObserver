@@ -14,13 +14,22 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TestGameCards : GameModelTestFixtures() {
-    // Test yellow, red, blue, and technical-foul handling from public card assessment APIs.
-    // Emphasize team card points, per-player records, and misconduct-threshold messages.
+    /**
+     * Test yellow, red, blue, and technical-foul handling from public card assessment APIs.
+     * Emphasize team card points, per-player records, and misconduct-threshold messages.
+     */
     @Test
     fun cardsAndTechnicalFouls() {
         val VC = TeamId.TEAM_ONE
         val ANIMAL = TeamId.TEAM_TWO
 
+        /**
+         * Return a single player's card record from a team after a test action.
+         *
+         * @param state The live game state to inspect.
+         * @param team The team whose player records should be searched.
+         * @param jerseyNumber The player number expected to have exactly one record.
+         */
         fun playerRecord(
             state: LiveGameState,
             team: TeamId,

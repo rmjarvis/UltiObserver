@@ -14,8 +14,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TestGameFlow : GameModelTestFixtures() {
-    // Test a representative complete game from setup through halftime to final score.
-    // Keep this as a user-visible story that exercises common actions between scoring events.
+    /**
+     * Test a representative complete game from setup through halftime to final score.
+     * Keep this as a user-visible story that exercises common actions between scoring events.
+     */
     @Test
     fun normalGamePath() {
         val VC = TeamId.TEAM_ONE

@@ -14,8 +14,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TestGameCaps : GameModelTestFixtures() {
-    // Test cap prompting and cap application as rule-visible state transitions.
-    // Caps should become eligible only after point end and should be deterministic from supplied clock values.
+    /**
+     * Test cap prompting and cap application as rule-visible state transitions.
+     * Caps should become eligible only after point end and should be deterministic from supplied clock values.
+     */
     @Test
     fun caps() {
         val VC = TeamId.TEAM_ONE
@@ -28,10 +30,22 @@ class TestGameCaps : GameModelTestFixtures() {
             hardCapMinutes = 30,
         )
 
+        /**
+         * Build a fresh cap-focused live state with the supplied rules.
+         *
+         * @param rules The cap rules to install for this scenario.
+         */
         fun newCapState(rules: GameRules = capRules): LiveGameState {
             return standardLiveGameState(startTime = startTime, rules = rules)
         }
 
+        /**
+         * Score a point for a team at a specific minute after game start.
+         *
+         * @param state The current live state before the point is scored.
+         * @param scoringTeam The team that scores the point.
+         * @param minute The minute after game start assigned to the goal.
+         */
         fun scoreAt(
             state: LiveGameState,
             scoringTeam: TeamId,

@@ -15,8 +15,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TestGameClock : GameModelTestFixtures() {
-    // Test deterministic clock and countdown helpers that are public model surface.
-    // These tests should pin time behavior without relying on the wall clock.
+    /**
+     * Test deterministic clock and countdown helpers that are public model surface.
+     * These tests should pin time behavior without relying on the wall clock.
+     */
     @Test
     fun clockAndCountdownDisplays() {
         val VC = TeamId.TEAM_ONE
@@ -549,6 +551,7 @@ class TestGameClock : GameModelTestFixtures() {
         )
     }
 
+    /// Verify cap cue timing for half, soft, and hard caps around their scheduled wall-clock instants.
     @Test
     fun capTimingCuesFireAtScheduledCapTimes() {
         var state = standardLiveGameState(
@@ -595,22 +598,51 @@ private class FakeTimingAlertSoundPlayer : TimingAlertSoundPlayer {
     val playedSounds = mutableListOf<PlayedTimingAlertSound>()
     var released = false
 
+    /**
+     * Capture the sound-load completion listener installed by the timing alert player.
+     *
+     * @param listener The listener the fake should call when a test completes loading.
+     */
     override fun setOnLoadCompleteListener(listener: (sampleId: Int, status: Int) -> Unit) {
         this.listener = listener
     }
 
+    /**
+     * Fail if production resource loading is used by these unit tests.
+     *
+     * @param context Unused Android context from the interface.
+     * @param resId Unused sound resource id from the interface.
+     * @param priority Unused load priority from the interface.
+     */
     override fun load(context: Context, resId: Int, priority: Int): Int {
         error("Unit tests provide sound ids directly.")
     }
 
+    /**
+     * Record a played sound and volume.
+     *
+     * @param soundId The loaded sound id requested by the player.
+     * @param leftVolume The left-channel volume, mirrored by production code to the right channel.
+     * @param rightVolume The right-channel volume from the interface.
+     * @param priority The unused playback priority from the interface.
+     * @param loop The unused loop setting from the interface.
+     * @param rate The unused playback rate from the interface.
+     */
     override fun play(soundId: Int, leftVolume: Float, rightVolume: Float, priority: Int, loop: Int, rate: Float) {
         playedSounds += PlayedTimingAlertSound(soundId, leftVolume)
     }
 
+    /// Record that the fake timing-alert sound-player was released.
     override fun release() {
         released = true
     }
 
+    /**
+     * Simulate SoundPool completing a sound load.
+     *
+     * @param soundId The sound id whose load should complete.
+     * @param status The load status to report; zero means success.
+     */
     fun completeLoad(soundId: Int, status: Int = 0) {
         listener(soundId, status)
     }

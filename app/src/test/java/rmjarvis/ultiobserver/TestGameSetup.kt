@@ -14,8 +14,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TestGameSetup : GameModelTestFixtures() {
-    // Test setup conversion and applying setup edits to a live game.
-    // The setup form is public UI, but the model owns how edits reshape live state.
+    /**
+     * Test setup conversion and applying setup edits to a live game.
+     * The setup form is public UI, but the model owns how edits reshape live state.
+     */
     @Test
     fun setupRoundTripAndMidgameUpdates() {
         val VC = TeamId.TEAM_ONE

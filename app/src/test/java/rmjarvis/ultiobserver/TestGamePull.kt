@@ -14,8 +14,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TestGamePull : GameModelTestFixtures() {
-    // Test pull infractions from the observer-facing actions.
-    // Offsides belongs to the pulling team; false start belongs to the receiving team.
+    /**
+     * Test pull infractions from the observer-facing actions.
+     * Offsides belongs to the pulling team; false start belongs to the receiving team.
+     */
     @Test
     fun pullInfractions() {
         val VC = TeamId.TEAM_ONE

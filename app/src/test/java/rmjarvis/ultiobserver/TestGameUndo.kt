@@ -14,8 +14,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TestGameUndo : GameModelTestFixtures() {
-    // Test the undo mechanism through user-visible actions rather than private snapshots.
-    // Include ordinary undo, corrections, cap application, halftime, and game-over cases.
+    /**
+     * Test the undo mechanism through user-visible actions rather than private snapshots.
+     * Include ordinary undo, corrections, cap application, halftime, and game-over cases.
+     */
     @Test
     fun undoMechanism() {
         val VC = TeamId.TEAM_ONE

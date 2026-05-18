@@ -14,13 +14,21 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TestGameTimeouts : GameModelTestFixtures() {
-    // Test timeout rules and timeout state transitions across both halves.
-    // Cover ordinary rules, floater rules, no-timeout rules, and midgame rule updates.
+    /**
+     * Test timeout rules and timeout state transitions across both halves.
+     * Cover ordinary rules, floater rules, no-timeout rules, and midgame rule updates.
+     */
     @Test
     fun timeouts() {
         val VC = TeamId.TEAM_ONE
         val ANIMAL = TeamId.TEAM_TWO
 
+        /**
+         * Build setup state for a timeout-rule scenario.
+         *
+         * @param rules The timeout rules to install in the setup.
+         * @param pullingFromEnd The opening pulling end, used to exercise both countdown targets.
+         */
         fun setupWithRules(
             rules: GameRules,
             pullingFromEnd: FieldEnd = FieldEnd.FAR,
@@ -33,6 +41,13 @@ class TestGameTimeouts : GameModelTestFixtures() {
             )
         }
 
+        /**
+         * Score enough points to enter halftime in a game-to-five scenario.
+         *
+         * @param startingState The live state to advance toward halftime.
+         * @param scoringTeam The team that scores each point in the halftime setup sequence.
+         * @param start The epoch millis assigned to the first goal in the sequence.
+         */
         fun scoreToHalftime(
             startingState: LiveGameState,
             scoringTeam: TeamId,
