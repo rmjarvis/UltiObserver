@@ -490,3 +490,38 @@ sealed interface GamePrompt {
         val state: LiveGameState,
     ) : GamePrompt
 }
+
+/// Format title text for prompts that need a dialog title in the current Android app.
+fun GamePrompt.formatTitle(): String {
+    return when (this) {
+        is GamePrompt.ApplyCap -> this.formatTitle()
+        is GamePrompt.LivePointMisconduct -> this.formatTitle()
+        is GamePrompt.HalftimeStarted -> this.formatTitle()
+        is GamePrompt.GameOver -> this.formatTitle()
+    }
+}
+
+/// Format the main text shown to the observer for a prompt.
+fun GamePrompt.formatMessage(): String {
+    return when (this) {
+        is GamePrompt.ApplyCap -> this.formatMessage()
+        is GamePrompt.LivePointMisconduct -> this.formatMessage()
+        is GamePrompt.HalftimeStarted -> "Announce halftime."
+        is GamePrompt.GameOver -> this.formatMessage()
+    }
+}
+
+/// Format the title for a halftime-started prompt.
+private fun GamePrompt.HalftimeStarted.formatTitle(): String = "Halftime"
+
+/// Format the title for a game-over prompt.
+private fun GamePrompt.GameOver.formatTitle(): String = "Game Over"
+
+/// Format the game-over prompt body with the winner first.
+private fun GamePrompt.GameOver.formatMessage(): String {
+    val orderedTeams = state.winnerFirstTeams()
+    return buildString {
+        appendLine("${orderedTeams[0].name} ${orderedTeams[0].score}")
+        append("${orderedTeams[1].name} ${orderedTeams[1].score}")
+    }
+}

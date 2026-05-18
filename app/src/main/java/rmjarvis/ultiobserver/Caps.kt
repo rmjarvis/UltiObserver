@@ -315,9 +315,12 @@ internal fun LiveGameState.capEpoch(capType: CapType): Long {
 }
 
 /// Return the lower-case cap label used in an apply-cap prompt title.
-internal fun GamePrompt.ApplyCap.label(): String {
+private fun GamePrompt.ApplyCap.label(): String {
     return capType.label.lowercase()
 }
+
+/// Format the title for an apply-cap prompt.
+internal fun GamePrompt.ApplyCap.formatTitle(): String = "Apply ${this.label()}?"
 
 /// Format the prompt body for an offered cap.
 internal fun GamePrompt.ApplyCap.formatMessage(): String {
