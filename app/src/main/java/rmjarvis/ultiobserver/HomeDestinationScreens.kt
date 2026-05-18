@@ -373,10 +373,9 @@ internal fun TimingCueSettingsScreen(
             SoundPreviewRow(
                 title = "Sound previews",
                 sounds = TimingAlertSound.entries,
+                note = timingAlertPreferences.soundPreviewNote(),
                 onPreview = { sound ->
-                    if (timingAlertPreferences.globalMode == TimingAlertGlobalMode.SOUNDS_ON) {
-                        timingAlertPlayer.play(sound, timingAlertPreferences.soundVolume)
-                    }
+                    timingAlertPlayer.play(sound, timingAlertPreferences.soundVolume)
                 },
             )
 
@@ -509,6 +508,7 @@ private fun TimingAlertSoundControls(
 private fun SoundPreviewRow(
     title: String,
     sounds: List<TimingAlertSound>,
+    note: String?,
     onPreview: (TimingAlertSound) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -529,7 +529,26 @@ private fun SoundPreviewRow(
                 )
             }
         }
+        if (note != null) {
+            Text(
+                text = note,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
     }
+}
+
+private fun TimingAlertPreferences.soundPreviewNote(): String? {
+    if (globalMode == TimingAlertGlobalMode.SOUNDS_ON) {
+        return null
+    }
+    val vibrateInsteadSentence = if (vibrateWithSounds) {
+        " The phone will currently vibrate instead for any cues with sounds."
+    } else {
+        ""
+    }
+    return "Note -- sounds are currently not enabled.$vibrateInsteadSentence " +
+        "If you want sounds, enable them on the previous page."
 }
 
 @Composable
