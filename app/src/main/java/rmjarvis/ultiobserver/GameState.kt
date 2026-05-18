@@ -57,44 +57,6 @@ data class TeamSetup(
     val color: TeamColorChoice = TeamColorChoice.WHITE,
 )
 @Serializable
-data class PlayerCardRecord(
-    val team: TeamId,
-    val jerseyNumber: String,
-    val priorYellows: Int,    // Cards issued in previous games of the current tournament.
-    val priorReds: Int,
-)
-enum class CardType(val label: String) {
-    YELLOW("Yellow"),
-    RED("Red"),
-}
-@Serializable
-data class InGamePlayerCardRecord(
-    val jerseyNumber: String,
-    val yellows: Int = 0,
-    val reds: Int = 0,
-) {
-    /// Report whether this per-player card combination is allowed by the app's card model.
-    fun hasLegalCounts(): Boolean {
-        return yellows <= 2 &&
-            reds <= 1 &&
-            (yellows < 2 || reds == 0)
-    }
-
-    /**
-     * Count this player's cards of the requested type.
-     *
-     * @param cardType The card type whose count should be returned.
-     */
-    fun cardCount(cardType: CardType): Int {
-        return when (cardType) {
-            CardType.YELLOW -> yellows
-            CardType.RED -> reds
-        }
-    }
-}
-// How to indicate cards for players when you don't know the player number.
-const val UNKNOWN_PLAYER_NUMBER = "N/A"
-@Serializable
 data class GameRules(
     val gameTo: Int = 15,
     val halftimeMinutes: Int = 7,
@@ -446,20 +408,10 @@ data class UndoEntry(
     val label: String,
     val previous: LiveGameState,
 )
-data class CardAssessmentResult(
-    val state: LiveGameState,
-    val event: GameEvent,
-    val needsMisconductChoice: Boolean =
-        event.needsMisconductChoice(),
-)
 data class TimeViolationAssessmentResult(
     val state: LiveGameState,
     val event: GameEvent? = null,
 )
-enum class RedCardMode {
-    RED,
-    SECOND_YELLOW,
-}
 @Serializable
 enum class CapType {
     HALF,
@@ -515,12 +467,6 @@ enum class TimeViolationOutcome {
     WARNING,
     TIMEOUT,
     NO_TIMEOUT,
-}
-
-enum class PlayerCardEventType {
-    YELLOW,
-    RED,
-    SECOND_YELLOW,
 }
 
 sealed interface GameEvent {

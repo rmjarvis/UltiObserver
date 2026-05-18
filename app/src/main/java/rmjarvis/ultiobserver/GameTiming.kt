@@ -270,23 +270,6 @@ private fun CountdownState.timeoutTimingCues(): List<TimingCue> {
     )
 }
 
-/// List cues for between-points misconduct offense-set timing.
-private fun misconductTimingCues(): List<TimingCue> {
-    return listOf(
-        TimingCue(TimingCueId.MISCONDUCT_OFFENSE_TWENTY, 20),
-        TimingCue(TimingCueId.MISCONDUCT_OFFENSE_TEN, 10),
-        TimingCue(TimingCueId.MISCONDUCT_COUNTDOWN_FROM_FIVE, 5),
-        TimingCue(TimingCueId.MISCONDUCT_OFFENSE_FREEZE_DEFENSE_TWENTY, 0),
-    )
-}
-
-/// List cues for the defense check-in window after offense sets early.
-private fun misconductDefenseCheckTimingCues(): List<TimingCue> {
-    return listOf(
-        TimingCue(TimingCueId.MISCONDUCT_DEFENSE_TWENTY, 20),
-    )
-}
-
 /// List halftime cues that fit within the configured halftime duration.
 private fun CountdownState.halftimeTimingCues(): List<TimingCue> {
     return listOf(

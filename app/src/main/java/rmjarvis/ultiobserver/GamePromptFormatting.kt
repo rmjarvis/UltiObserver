@@ -6,7 +6,7 @@ import kotlin.math.max
 fun GamePrompt.formatTitle(): String {
     return when (this) {
         is GamePrompt.ApplyCap -> "Apply ${this.label()}?"
-        is GamePrompt.LivePointMisconduct -> "Misconduct Penalty"
+        is GamePrompt.LivePointMisconduct -> this.formatTitle()
         is GamePrompt.HalftimeStarted -> "Halftime"
         is GamePrompt.GameOver -> "Game Over"
     }
@@ -20,16 +20,6 @@ fun GamePrompt.formatMessage(): String {
         is GamePrompt.HalftimeStarted -> "Announce halftime."
         is GamePrompt.GameOver -> this.formatMessage()
     }
-}
-
-/**
- * Format the full live-point misconduct message after the observer chooses offense or defense.
- *
- * @param againstOffense Whether the penalty is against the offense rather than the defense.
- */
-fun GamePrompt.LivePointMisconduct.resolutionMessage(againstOffense: Boolean): String {
-    val baseMessage = this.event.formatMessage()
-    return "$baseMessage\n\n${misconductResolution(againstOffense)}"
 }
 
 /// Return the lower-case cap label used in an apply-cap prompt title.
@@ -60,12 +50,6 @@ private fun GamePrompt.ApplyCap.formatMessage(): String {
     }
 }
 
-/// Format the prompt body that asks which side committed live-point misconduct.
-private fun GamePrompt.LivePointMisconduct.formatMessage(): String {
-    val baseMessage = event.formatMessage()
-    return "$baseMessage\n\nWas this against the offense or defense?"
-}
-
 /// Format the scheduled clock time for an offered cap.
 private fun GamePrompt.ApplyCap.capClockTime(): String {
     return formatClockTime(localTimeFromEpoch(state.capEpoch(capType), state.timeZone))
@@ -77,20 +61,5 @@ private fun GamePrompt.GameOver.formatMessage(): String {
     return buildString {
         appendLine("${orderedTeams[0].name} ${orderedTeams[0].score}")
         append("${orderedTeams[1].name} ${orderedTeams[1].score}")
-    }
-}
-
-/**
- * Format the live-point misconduct consequence after offense/defense is chosen.
- *
- * @param againstOffense Whether the penalty is against the offense rather than the defense.
- */
-private fun misconductResolution(againstOffense: Boolean): String {
-    return if (againstOffense) {
-        "Misconduct penalty against offense.\nReverse brick. Defense may instead leave the disc where it stopped.\n\n" +
-            "Offense has 30 seconds to set. Then defense has 20 seconds to check the disc in."
-    } else {
-        "Misconduct penalty against defense.\nBrick nearest attacking end zone. Offense may instead leave it or center it.\n\n" +
-            "Offense has 30 seconds to set. Then defense has 20 seconds to check the disc in."
     }
 }
