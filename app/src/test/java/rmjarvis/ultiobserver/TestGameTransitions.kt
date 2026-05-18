@@ -13,7 +13,7 @@ import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class TestGameFlow : GameModelTestFixtures() {
+class TestGameTransitions : GameModelTestFixtures() {
     /**
      * Test a representative complete game from setup through halftime to final score.
      * Keep this as a user-visible story that exercises common actions between scoring events.
@@ -129,7 +129,7 @@ class TestGameFlow : GameModelTestFixtures() {
         assertEquals("Offense set in", state.countdown?.label)
         assertEquals(30, state.countdown?.durationSeconds)
         assertEquals(1_040_000L, state.countdown?.targetEpoch)
-        state = state.advanceGameClock(1_040_000L)
+        state = state.applyExpiredCountdownTransitions(1_040_000L)
         assertEquals(LivePhase.LIVE_POINT, state.phase)
         assertNull(state.countdown)
         assertEquals("Point continued.", state.lastEvent)

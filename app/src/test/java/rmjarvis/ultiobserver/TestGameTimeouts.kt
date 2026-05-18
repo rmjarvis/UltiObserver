@@ -139,8 +139,8 @@ class TestGameTimeouts : GameModelTestFixtures() {
         assertEquals(1_070_000L, state.countdown?.targetEpoch)
 
         // Once the live-point timeout countdown expires, the model automatically continues the point.
-        assertEquals(state, state.advanceGameClock(1_070_000L - 1L))
-        state = state.advanceGameClock(1_070_000L)
+        assertEquals(state, state.applyExpiredCountdownTransitions(1_070_000L - 1L))
+        state = state.applyExpiredCountdownTransitions(1_070_000L)
         assertEquals(LivePhase.LIVE_POINT, state.phase)
         assertNull(state.countdown)
         assertEquals("Point continued.", state.lastEvent)
@@ -199,18 +199,18 @@ class TestGameTimeouts : GameModelTestFixtures() {
         assertEquals(130, afterHalftimeTimeoutState.countdown?.durationSeconds)
         assertEquals(halftimeEnd + 130_000L, afterHalftimeTimeoutState.countdown?.targetEpoch)
 
-        // When the pull countdown expires, timeout handling advances to the live point unless the observer undoes it.
+        // When the pull countdown expires, timeout handling transitions to the live point unless the observer undoes it.
         val expiredPullState = createLiveGameState(setupWithRules(GameRules(useHalfCap = false)))
         val expiredCountdownNow = expiredPullState.countdown!!.targetEpoch + 1L
-        val advancedPullState = expiredPullState.advanceGameClock(expiredCountdownNow)
-        assertEquals(LivePhase.LIVE_POINT, advancedPullState.phase)
-        assertNull(advancedPullState.countdown)
-        assertEquals("Undo Start Point", advancedPullState.undoEntry?.label)
+        val transitionedPullState = expiredPullState.applyExpiredCountdownTransitions(expiredCountdownNow)
+        assertEquals(LivePhase.LIVE_POINT, transitionedPullState.phase)
+        assertNull(transitionedPullState.countdown)
+        assertEquals("Undo Start Point", transitionedPullState.undoEntry?.label)
         val expiredPullDecisionState = expiredPullState.copy(
             countdown = null,
             pullCountdownExpired = true,
         )
-        val undoneExpiredPullState = assertUndoRestores(expiredPullDecisionState, advancedPullState)
+        val undoneExpiredPullState = assertUndoRestores(expiredPullDecisionState, transitionedPullState)
         timeoutResult = undoneExpiredPullState.assessTimeout(ANIMAL, expiredCountdownNow)
         assertEquals("Timeouts are not available now.", timeoutResult.message())
         assertEquals(undoneExpiredPullState, timeoutResult.state)

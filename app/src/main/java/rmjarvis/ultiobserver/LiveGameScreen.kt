@@ -138,16 +138,16 @@ internal fun LiveGameScreen(
         val suppressAutoLock = suppressNextAutoLock
         suppressNextAutoLock = false
         if (!readOnlySummary && automaticallyAdvanceCountdowns) {
-            val advancedState = state.advanceGameClock(now)
-            if (advancedState != state) {
+            val transitionedState = state.applyExpiredCountdownTransitions(now)
+            if (transitionedState != state) {
                 if (
-                    advancedState.phase == LivePhase.LIVE_POINT &&
+                    transitionedState.phase == LivePhase.LIVE_POINT &&
                     automaticallyLockLivePoint &&
                     !suppressAutoLock
                 ) {
                     locked = true
                 }
-                onStateChange(advancedState)
+                onStateChange(transitionedState)
             }
         }
     }

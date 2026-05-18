@@ -461,7 +461,7 @@ class TestGameClock : GameModelTestFixtures() {
         // A countdown kind that does not match the phase is an impossible model state, so fail loudly.
         val mismatchedCountdownState = standardLiveGameState().copy(phase = LivePhase.LIVE_POINT)
         val mismatchException = assertThrows(IllegalStateException::class.java) {
-            mismatchedCountdownState.advanceGameClock(mismatchedCountdownState.countdown!!.targetEpoch)
+            mismatchedCountdownState.applyExpiredCountdownTransitions(mismatchedCountdownState.countdown!!.targetEpoch)
         }
         assertEquals(
             "Countdown OPENING_PULL is not valid while game phase is LIVE_POINT.",
@@ -471,7 +471,7 @@ class TestGameClock : GameModelTestFixtures() {
             countdown = inPointTimeoutCountdown,
         )
         val betweenPointsMismatchException = assertThrows(IllegalStateException::class.java) {
-            betweenPointsWithTimeoutCountdown.advanceGameClock(inPointTimeoutCountdown.targetEpoch)
+            betweenPointsWithTimeoutCountdown.applyExpiredCountdownTransitions(inPointTimeoutCountdown.targetEpoch)
         }
         assertEquals(
             "Countdown TIME_OUT is not valid while game phase is BETWEEN_POINTS.",
@@ -481,7 +481,7 @@ class TestGameClock : GameModelTestFixtures() {
             phase = LivePhase.HALFTIME,
         )
         val halftimeMismatchException = assertThrows(IllegalStateException::class.java) {
-            halftimeWithBetweenPointsCountdown.advanceGameClock(halftimeWithBetweenPointsCountdown.countdown!!.targetEpoch)
+            halftimeWithBetweenPointsCountdown.applyExpiredCountdownTransitions(halftimeWithBetweenPointsCountdown.countdown!!.targetEpoch)
         }
         assertEquals(
             "Countdown OPENING_PULL is not valid while game phase is HALFTIME.",
@@ -491,8 +491,8 @@ class TestGameClock : GameModelTestFixtures() {
         // Verify between-points countdown expiration silently starts the point, but leaves an undo path.
         state = standardLiveGameState()
         val betweenPointsCountdown = state.countdown!!
-        assertEquals(state, state.advanceGameClock(betweenPointsCountdown.targetEpoch - 1L))
-        val automaticStartState = state.advanceGameClock(betweenPointsCountdown.targetEpoch)
+        assertEquals(state, state.applyExpiredCountdownTransitions(betweenPointsCountdown.targetEpoch - 1L))
+        val automaticStartState = state.applyExpiredCountdownTransitions(betweenPointsCountdown.targetEpoch)
         assertEquals(LivePhase.LIVE_POINT, automaticStartState.phase)
         assertNull(automaticStartState.countdown)
         assertEquals("Point is live.", automaticStartState.lastEvent)
@@ -504,7 +504,7 @@ class TestGameClock : GameModelTestFixtures() {
         val undoneAutomaticStartState = assertUndoRestores(expiredPullDecisionState, automaticStartState)
         assertEquals(undoneAutomaticStartState, undoneAutomaticStartState.redoLastAction().undoLastAction())
         assertEquals(state, state.redoLastAction())
-        assertEquals(undoneAutomaticStartState, undoneAutomaticStartState.advanceGameClock(betweenPointsCountdown.targetEpoch))
+        assertEquals(undoneAutomaticStartState, undoneAutomaticStartState.applyExpiredCountdownTransitions(betweenPointsCountdown.targetEpoch))
         assertTrue(undoneAutomaticStartState.hasExpiredPullActions())
         assertFalse(state.hasExpiredPullActions())
         assertTrue(state.isInitialLivePreview())
@@ -520,8 +520,8 @@ class TestGameClock : GameModelTestFixtures() {
         state = state.beginLivePoint()
         state = state.assessTimeout(VC, 500_000L).state
         val timeoutCountdown = state.countdown!!
-        assertEquals(state, state.advanceGameClock(timeoutCountdown.targetEpoch - 1L))
-        state = state.advanceGameClock(timeoutCountdown.targetEpoch)
+        assertEquals(state, state.applyExpiredCountdownTransitions(timeoutCountdown.targetEpoch - 1L))
+        state = state.applyExpiredCountdownTransitions(timeoutCountdown.targetEpoch)
         assertEquals(LivePhase.LIVE_POINT, state.phase)
         assertNull(state.countdown)
 

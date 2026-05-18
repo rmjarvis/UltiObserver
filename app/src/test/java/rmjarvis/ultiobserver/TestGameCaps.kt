@@ -415,7 +415,7 @@ class TestGameCaps : GameModelTestFixtures() {
         assertNull(state.pendingCapOffer)
         assertEquals("Soft cap applied.", state.lastEvent)
 
-        state = state.advanceGameClock(halftimeCountdown.targetEpoch)
+        state = state.applyExpiredCountdownTransitions(halftimeCountdown.targetEpoch)
         assertEquals(LivePhase.BETWEEN_POINTS, state.phase)
         assertTrue(state.softCapApplied)
         assertEquals(4, state.winningScore)
@@ -495,7 +495,7 @@ class TestGameCaps : GameModelTestFixtures() {
         state = scoreAt(state, VC, 2)
         state = scoreAt(state, VC, 10)
         assertEquals(LivePhase.HALFTIME, state.phase)
-        state = state.advanceGameClock(state.countdown!!.targetEpoch + 30_000L)
+        state = state.applyExpiredCountdownTransitions(state.countdown!!.targetEpoch + 30_000L)
         assertEquals(LivePhase.BETWEEN_POINTS, state.phase)
         assertFalse(state.softCapApplied)
         assertNull(state.pendingCapOffer)

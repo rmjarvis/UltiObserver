@@ -1,10 +1,5 @@
 package rmjarvis.ultiobserver
 
-import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.LocalTime
-import java.time.ZoneId
-import kotlin.math.abs
 import kotlin.math.max
 
 /**
@@ -354,7 +349,7 @@ fun LiveGameState.continueLivePoint(): LiveGameState {
  *
  * @param now The current epoch millis so tests and background ticks can drive deterministic transitions.
  */
-fun LiveGameState.advanceGameClock(now: Long): LiveGameState {
+fun LiveGameState.applyExpiredCountdownTransitions(now: Long): LiveGameState {
     val countdown = this.countdown ?: return this
     if (now < countdown.targetEpoch) {
         return this
@@ -383,37 +378,10 @@ fun LiveGameState.advanceGameClock(now: Long): LiveGameState {
                 pullSkippedForCurrentPoint = false,
                 pendingMisconductCountdown = false,
             )
-            betweenPointsState.advanceGameClock(now)
+            betweenPointsState.applyExpiredCountdownTransitions(now)
         }
         else -> error("Countdown ${countdown.kind} is not valid while game phase is ${this.phase}.")
     }
-}
-/**
- * Add or subtract seconds from the active countdown.
- *
- * @param seconds The signed countdown adjustment; negative values move the target earlier.
- */
-fun LiveGameState.addTimeToCountdown(seconds: Int): LiveGameState {
-    val countdown = this.countdown ?: return this
-    val sign = if (seconds < 0) "-" else ""
-    val absoluteSeconds = abs(seconds)
-    return this.copy(
-        countdown = countdown.copy(targetEpoch = countdown.targetEpoch + seconds * 1000L),
-        lastEvent = "Adjusted timer by $sign${absoluteSeconds / 60}:${(absoluteSeconds % 60).toString().padStart(2, '0')}.",
-    )
-}
-/**
- * Replace the recorded score as a manual correction.
- *
- * @param teamOneScore The corrected team-one score, clamped at zero.
- * @param teamTwoScore The corrected team-two score, clamped at zero.
- */
-fun LiveGameState.adjustScore(teamOneScore: Int, teamTwoScore: Int): LiveGameState {
-    return this.copy(
-        teamOne = this.teamOne.copy(score = teamOneScore.coerceAtLeast(0)),
-        teamTwo = this.teamTwo.copy(score = teamTwoScore.coerceAtLeast(0)),
-        lastEvent = "Score adjusted.",
-    ).withUndo(this, "Undo Score Adjustment")
 }
 /// Restore the state saved by the most recent undo-backed user action.
 fun LiveGameState.undoLastAction(): LiveGameState {
@@ -425,80 +393,6 @@ fun LiveGameState.undoLastAction(): LiveGameState {
 /// Reapply the state that was just undone, if redo is still available.
 fun LiveGameState.redoLastAction(): LiveGameState {
     return this.redoEntry ?: this
-}
-/**
- * Apply an edited setup form to an existing live game.
- * This is the model-side return path from the live-game setup editor.
- *
- * @param existing The live state currently being edited.
- * @param setup The setup values returned by the update-game form.
- * @param now The epoch millis for rebuilding the opening pull countdown when pre-play orientation changes.
- */
-fun applySetupToLiveGame(
-    existing: LiveGameState,
-    setup: GameSetupState,
-    now: Long,
-): LiveGameState {
-    val openingNearAttackingTeam = if (setup.pullingFromEnd == FieldEnd.FAR) {
-        setup.pullingTeam
-    } else {
-        setup.pullingTeam.flip()
-    }
-    val shouldResyncPullState = existing.teamOne.score == 0 &&
-        existing.teamTwo.score == 0 &&
-        existing.phase != LivePhase.LIVE_POINT
-
-    val base = existing.copy(
-        startDate = setup.startDate,
-        startTime = setup.startTime,
-        timeZone = setup.timeZone,
-        startEpoch = epochTimestamp(setup.startDate, setup.startTime, setup.timeZone),
-        rules = setup.rules,
-        teamOne = existing.teamOne.copy(
-            name = setup.teamOne.name.ifBlank { "Team 1" },
-            color = setup.teamOne.color,
-        ),
-        teamTwo = existing.teamTwo.copy(
-            name = setup.teamTwo.name.ifBlank { "Team 2" },
-            color = setup.teamTwo.color,
-        ),
-        priorCards = setup.priorCards,
-        teamOnePlayerCards = existing.teamOnePlayerCards,
-        teamTwoPlayerCards = existing.teamTwoPlayerCards,
-        openingPullingTeam = setup.pullingTeam,
-        openingPullingFromEnd = setup.pullingFromEnd,
-    )
-
-    val updatedState = if (shouldResyncPullState) {
-        base.copy(
-            nearAttackingTeam = openingNearAttackingTeam,
-            pullingTeam = setup.pullingTeam,
-            pullingFromEnd = setup.pullingFromEnd,
-        ).startPullSequence(now)
-    } else {
-        base
-    }
-    return updatedState.withUndo(existing, "Undo Update Game Setup")
-}
-/// Extract only the setup-screen fields from live state so the setup editor can reopen prefilled.
-fun LiveGameState.toSetupState(): GameSetupState {
-    return GameSetupState(
-        startDate = startDate,
-        startTime = startTime,
-        timeZone = timeZone,
-        rules = rules,
-        teamOne = TeamSetup(
-            name = teamOne.name,
-            color = teamOne.color,
-        ),
-        teamTwo = TeamSetup(
-            name = teamTwo.name,
-            color = teamTwo.color,
-        ),
-        priorCards = priorCards,
-        pullingTeam = openingPullingTeam,
-        pullingFromEnd = openingPullingFromEnd,
-    )
 }
 /// Enter live-point play from an expired countdown while preserving undo back to the expired-pull actions.
 private fun LiveGameState.automaticLivePointState(): LiveGameState {
@@ -537,38 +431,4 @@ internal fun LiveGameState.withUndo(previous: LiveGameState, label: String): Liv
         undoEntry = UndoEntry(label = label, previous = previous.copy(redoEntry = null)),
         redoEntry = null,
     )
-}
-/**
- * Convert local game start date/time fields into epoch millis.
- *
- * @param date The local calendar date selected in setup.
- * @param time The local clock time selected in setup.
- * @param timeZone The zone that gives the local date/time its real instant.
- */
-internal fun epochTimestamp(date: LocalDate, time: LocalTime, timeZone: ZoneId): Long {
-    return LocalDateTime.of(date, time)
-        .atZone(timeZone)
-        .toInstant()
-        .toEpochMilli()
-}
-/**
- * Convert epoch millis into a local date-time in the game's time zone.
- *
- * @param epoch The epoch millis to convert.
- * @param timeZone The zone used to present the instant as local game time.
- */
-internal fun localDateTimeFromEpoch(epoch: Long, timeZone: ZoneId): LocalDateTime {
-    return LocalDateTime.ofInstant(
-        java.time.Instant.ofEpochMilli(epoch),
-        timeZone,
-    )
-}
-/**
- * Convert epoch millis into a local clock time in the game's time zone.
- *
- * @param epoch The epoch millis to convert.
- * @param timeZone The zone used to present the instant as local game time.
- */
-internal fun localTimeFromEpoch(epoch: Long, timeZone: ZoneId): LocalTime {
-    return localDateTimeFromEpoch(epoch, timeZone).toLocalTime()
 }

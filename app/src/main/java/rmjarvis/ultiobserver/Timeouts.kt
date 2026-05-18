@@ -115,16 +115,16 @@ fun LiveGameState.timeoutsRemaining(team: TeamId): Int {
     return (this.timeoutsAllowedThisHalf(team) - usedThisHalf).coerceAtLeast(0)
 }
 /**
- * Return the clock-advanced state in which a timeout may be charged, if one is legal now.
+ * Return the countdown-expiry-adjusted state in which a timeout may be charged, if one is legal now.
  * This treats an expired between-points countdown as live play before deciding how the timeout works.
  *
  * @param now The current epoch millis, used to treat an expired between-points countdown as live play.
  */
 private fun LiveGameState.timeoutEligibleState(now: Long): LiveGameState? {
-    val advancedState = advanceGameClock(now)
-    return when (advancedState.phase) {
-        LivePhase.BETWEEN_POINTS -> if (advancedState.countdown != null) advancedState else null
-        LivePhase.LIVE_POINT -> advancedState
+    val transitionedState = applyExpiredCountdownTransitions(now)
+    return when (transitionedState.phase) {
+        LivePhase.BETWEEN_POINTS -> if (transitionedState.countdown != null) transitionedState else null
+        LivePhase.LIVE_POINT -> transitionedState
         LivePhase.HALFTIME -> null
         else -> null
     }

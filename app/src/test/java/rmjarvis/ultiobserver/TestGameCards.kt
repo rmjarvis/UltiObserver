@@ -97,13 +97,13 @@ class TestGameCards : GameModelTestFixtures() {
         assertEquals(state.startEpoch + 100_000L, earlySetState.countdown?.targetEpoch)
         assertEquals(
             LivePhase.LIVE_POINT,
-            earlySetState.advanceGameClock(earlySetState.countdown!!.targetEpoch).phase,
+            earlySetState.applyExpiredCountdownTransitions(earlySetState.countdown!!.targetEpoch).phase,
         )
-        assertEquals("Point is live.", earlySetState.advanceGameClock(earlySetState.countdown!!.targetEpoch).lastEvent)
+        assertEquals("Point is live.", earlySetState.applyExpiredCountdownTransitions(earlySetState.countdown!!.targetEpoch).lastEvent)
         assertFalse(state.canReportMisconductOffenseSet(state.startEpoch + 85_000L))
         assertEquals(state, state.reportMisconductOffenseSet(state.startEpoch + 85_000L))
         assertFalse(state.canReportMisconductOffenseSet(state.countdown!!.targetEpoch))
-        state = state.advanceGameClock(state.countdown!!.targetEpoch)
+        state = state.applyExpiredCountdownTransitions(state.countdown!!.targetEpoch)
         assertEquals(LivePhase.LIVE_POINT, state.phase)
         assertFalse(state.pullSkippedForCurrentPoint)
         assertNull(state.countdown)
