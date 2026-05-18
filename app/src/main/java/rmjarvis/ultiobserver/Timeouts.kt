@@ -1,6 +1,17 @@
 package rmjarvis.ultiobserver
 
 /**
+ * Represent the state and optional popup event from trying to charge a timeout.
+ *
+ * @param state The live state after the timeout attempt.
+ * @param event The observer-facing event to show, or null when no popup is needed.
+ */
+data class TimeoutAssessmentResult(
+    val state: LiveGameState,
+    val event: GameEvent? = null,
+)
+
+/**
  * Replace the number of timeouts used by each team as a manual correction.
  *
  * @param teamOneTimeoutsUsed The corrected count of team-one timeouts used in the current half.
@@ -153,4 +164,30 @@ private fun applyLivePointTimeout(
             targetEpoch = now + 70_000L,
         ),
     )
+}
+
+/// Format a timeout event popup title.
+internal fun GameEvent.TimeoutCharged.formatPopupTitle(): String = "Timeout Charged"
+
+/// Format an invalid-timeout event popup title.
+internal fun GameEvent.TimeoutUnavailable.formatPopupTitle(): String = "Invalid Timeout"
+
+/// Format an out-of-timeouts event popup title.
+internal fun GameEvent.TeamOutOfTimeouts.formatPopupTitle(): String = "Invalid Timeout"
+
+/// Format a timeout-charged event message with the remaining timeout count.
+internal fun GameEvent.TimeoutCharged.formatMessage(): String {
+    val timeoutCount = state.timeoutsRemaining(team)
+    return "Timeout charged to ${state.teamName(team)}. " +
+        "They have $timeoutCount ${pluralize(timeoutCount, "timeout")} remaining in this half."
+}
+
+/// Format a timeout-unavailable event message.
+internal fun GameEvent.TimeoutUnavailable.formatMessage(): String {
+    return "Timeouts are not available now."
+}
+
+/// Format an out-of-timeouts event message.
+internal fun GameEvent.TeamOutOfTimeouts.formatMessage(): String {
+    return "${this.state.teamName(this.team)} is out of timeouts."
 }

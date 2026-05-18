@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -48,48 +47,6 @@ internal fun AdjustScoreDialog(
         },
         confirmButton = {
             TextButton(onClick = { onConfirm(teamOneScore, teamTwoScore) }) {
-                Text("Set")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        },
-    )
-}
-
-// Manual timeout correction dialog.
-@Composable
-internal fun AdjustTimeoutsDialog(
-    state: LiveGameState,
-    onDismiss: () -> Unit,
-    onConfirm: (Int, Int) -> Unit,
-) {
-    val teamOneAllowed = state.timeoutsAllowedThisHalf(TeamId.TEAM_ONE)
-    val teamTwoAllowed = state.timeoutsAllowedThisHalf(TeamId.TEAM_TWO)
-    var teamOneTimeoutsUsed by remember { mutableStateOf(state.teamOne.timeoutsUsedThisHalf) }
-    var teamTwoTimeoutsUsed by remember { mutableStateOf(state.teamTwo.timeoutsUsedThisHalf) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Adjust Timeouts") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                SmallCountEditor(
-                    label = "${state.teamOne.name} used (allowed $teamOneAllowed)",
-                    value = teamOneTimeoutsUsed,
-                    onValueChange = { teamOneTimeoutsUsed = it },
-                )
-                SmallCountEditor(
-                    label = "${state.teamTwo.name} used (allowed $teamTwoAllowed)",
-                    value = teamTwoTimeoutsUsed,
-                    onValueChange = { teamTwoTimeoutsUsed = it },
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { onConfirm(teamOneTimeoutsUsed, teamTwoTimeoutsUsed) }) {
                 Text("Set")
             }
         },

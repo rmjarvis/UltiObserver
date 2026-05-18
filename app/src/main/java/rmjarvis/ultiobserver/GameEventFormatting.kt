@@ -2,10 +2,11 @@ package rmjarvis.ultiobserver
 
 /// Format UI-facing text for a model event in the current Android app.
 fun GameEvent.formatMessage(): String {
+    // This when block does runtime resolution to call the correct subtype's extension function.
     return when (this) {
         is GameEvent.TimeoutCharged -> this.formatMessage()
-        is GameEvent.TimeoutUnavailable -> "Timeouts are not available now."
-        is GameEvent.TeamOutOfTimeouts -> "${this.state.teamName(this.team)} is out of timeouts."
+        is GameEvent.TimeoutUnavailable -> this.formatMessage()
+        is GameEvent.TeamOutOfTimeouts -> this.formatMessage()
         is GameEvent.TeamCardsChanged -> this.formatMessage()
         is GameEvent.TechnicalFoulsChanged -> this.formatMessage()
         is GameEvent.PullInfractionRecorded -> this.formatMessage()
@@ -15,10 +16,11 @@ fun GameEvent.formatMessage(): String {
 
 /// Format the title for an event-driven popup.
 fun GameEvent.formatPopupTitle(): String {
+    // This when block does runtime resolution to call the correct subtype's extension function.
     return when (this) {
-        is GameEvent.TimeoutCharged -> "Timeout Charged"
-        is GameEvent.TimeoutUnavailable -> "Invalid Timeout"
-        is GameEvent.TeamOutOfTimeouts -> "Invalid Timeout"
+        is GameEvent.TimeoutCharged -> this.formatPopupTitle()
+        is GameEvent.TimeoutUnavailable -> this.formatPopupTitle()
+        is GameEvent.TeamOutOfTimeouts -> this.formatPopupTitle()
         is GameEvent.TeamCardsChanged -> if (teamCardTotal >= 3) "Misconduct Penalty" else "Misconduct"
         is GameEvent.TechnicalFoulsChanged -> if (technicalFoulTotal >= 3) "Misconduct Penalty" else "Misconduct"
         is GameEvent.PullInfractionRecorded -> "Pull Infraction"
@@ -49,13 +51,6 @@ private fun GameEvent.TeamCardsChanged.formatMessage(): String {
         team = team,
         thresholdCount = teamCardTotal,
     )
-}
-
-/// Format a timeout-charged event message with the remaining timeout count.
-private fun GameEvent.TimeoutCharged.formatMessage(): String {
-    val timeoutCount = state.timeoutsRemaining(team)
-    return "Timeout charged to ${state.teamName(team)}. " +
-        "They have $timeoutCount ${pluralize(timeoutCount, "timeout")} remaining in this half."
 }
 
 /**
@@ -223,6 +218,6 @@ private fun LiveGameState.betweenPointsMisconductCue(team: TeamId): String {
  * @param count The count controlling pluralization.
  * @param singular The singular noun form.
  */
-private fun pluralize(count: Int, singular: String): String {
+internal fun pluralize(count: Int, singular: String): String {
     return if (count == 1) singular else "${singular}s"
 }

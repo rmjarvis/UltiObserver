@@ -452,10 +452,6 @@ data class CardAssessmentResult(
     val needsMisconductChoice: Boolean =
         event.needsMisconductChoice(),
 )
-data class TimeoutAssessmentResult(
-    val state: LiveGameState,
-    val event: GameEvent? = null,
-)
 data class PullInfractionAssessmentResult(
     val state: LiveGameState,
     val event: GameEvent? = null,
