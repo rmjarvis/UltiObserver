@@ -17,6 +17,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
@@ -191,6 +192,7 @@ private fun TimingAlertCueListener(
     var playedTimingAlertKeys by remember(liveState?.startEpoch) {
         mutableStateOf(emptySet<String>())
     }
+    val currentLiveState by rememberUpdatedState(liveState)
     val context = LocalContext.current
     val timingAlertPlayer = remember(context) { TimingAlertPlayer(context) }
     val alertPlaybackScope = rememberCoroutineScope()
@@ -199,35 +201,81 @@ private fun TimingAlertCueListener(
         onDispose { timingAlertPlayer.release() }
     }
 
-    val now by produceState(initialValue = System.currentTimeMillis()) {
+    LaunchedEffect(liveState?.startEpoch, timingAlertPreferences) {
         while (true) {
-            value = System.currentTimeMillis()
-            kotlinx.coroutines.delay(1000)
-        }
-    }
-    val dueTimingAlerts = remember(liveState, now) {
-        liveState?.dueTimingAlerts(now).orEmpty()
-    }
-
-    LaunchedEffect(dueTimingAlerts, timingAlertPreferences) {
-        val unplayedTimingAlerts = dueTimingAlerts.filter { cue ->
-            "${cue.id.name}:${cue.targetEpoch}" !in playedTimingAlertKeys
-        }
-        if (unplayedTimingAlerts.isEmpty()) {
-            return@LaunchedEffect
-        }
-        playedTimingAlertKeys += unplayedTimingAlerts.map { cue -> "${cue.id.name}:${cue.targetEpoch}" }
-        alertPlaybackScope.launch(Dispatchers.Default) {
-            unplayedTimingAlerts.forEach { cue ->
-                playTimingAlertOnce(
-                    cue = cue,
+            val state = currentLiveState ?: return@LaunchedEffect
+            val now = System.currentTimeMillis()
+            val dueTimingAlerts = state.dueTimingAlerts(now)
+            val unplayedTimingAlerts = dueTimingAlerts.filter { cue ->
+                cue.alertKey() !in playedTimingAlertKeys
+            }
+            if (unplayedTimingAlerts.isNotEmpty()) {
+                playTimingAlerts(
+                    timingAlerts = unplayedTimingAlerts,
                     timingAlertPreferences = timingAlertPreferences,
                     context = context,
                     timingAlertPlayer = timingAlertPlayer,
-                    playedTimingAlertKeys = emptySet(),
-                    onAlertKeyPlayed = {},
+                    alertPlaybackScope = alertPlaybackScope,
+                    onAlertKeysPlayed = { alertKeys -> playedTimingAlertKeys += alertKeys },
+                )
+                continue
+            }
+
+            val nextTimingAlert = state.nextTimingAlert(now)
+            if (nextTimingAlert == null) {
+                kotlinx.coroutines.delay(TIMING_ALERT_SCHEDULE_CHECK_MS)
+                continue
+            }
+
+            val millisUntilNextAlert = nextTimingAlert.targetEpoch - now
+            if (millisUntilNextAlert > TIMING_ALERT_SCHEDULE_CHECK_MS) {
+                kotlinx.coroutines.delay(TIMING_ALERT_SCHEDULE_CHECK_MS)
+                continue
+            }
+
+            if (millisUntilNextAlert > 0L) {
+                kotlinx.coroutines.delay(millisUntilNextAlert)
+            }
+            val alertKey = nextTimingAlert.alertKey()
+            if (alertKey !in playedTimingAlertKeys) {
+                playTimingAlerts(
+                    timingAlerts = listOf(nextTimingAlert),
+                    timingAlertPreferences = timingAlertPreferences,
+                    context = context,
+                    timingAlertPlayer = timingAlertPlayer,
+                    alertPlaybackScope = alertPlaybackScope,
+                    onAlertKeysPlayed = { alertKeys -> playedTimingAlertKeys += alertKeys },
                 )
             }
         }
     }
 }
+
+private fun playTimingAlerts(
+    timingAlerts: List<TimingCueDisplay>,
+    timingAlertPreferences: TimingAlertPreferences,
+    context: android.content.Context,
+    timingAlertPlayer: TimingAlertPlayer,
+    alertPlaybackScope: kotlinx.coroutines.CoroutineScope,
+    onAlertKeysPlayed: (Set<String>) -> Unit,
+) {
+    onAlertKeysPlayed(timingAlerts.map { cue -> cue.alertKey() }.toSet())
+    alertPlaybackScope.launch(Dispatchers.Default) {
+        timingAlerts.forEach { cue ->
+            playTimingAlertOnce(
+                cue = cue,
+                timingAlertPreferences = timingAlertPreferences,
+                context = context,
+                timingAlertPlayer = timingAlertPlayer,
+                playedTimingAlertKeys = emptySet(),
+                onAlertKeyPlayed = {},
+            )
+        }
+    }
+}
+
+private fun TimingCueDisplay.alertKey(): String {
+    return "${id.name}:$targetEpoch"
+}
+
+private const val TIMING_ALERT_SCHEDULE_CHECK_MS = 250L

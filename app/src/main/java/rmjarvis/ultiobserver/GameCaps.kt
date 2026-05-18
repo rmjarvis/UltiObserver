@@ -121,6 +121,26 @@ internal fun LiveGameState.dueCapTimingCue(now: Long): TimingCueDisplay? {
             }
         }
 }
+
+internal fun LiveGameState.nextCapTimingCue(now: Long): TimingCueDisplay? {
+    return relevantCapTypes()
+        .map { capType -> capType to capEpoch(capType) }
+        .sortedBy { (_, capTime) -> capTime }
+        .firstNotNullOfOrNull { (capType, capTime) ->
+            if (capTime >= now) {
+                TimingCueDisplay(
+                    id = capType.timingCueId(),
+                    message = capType.label,
+                    remaining = Duration.ofMillis(capTime - now),
+                    countdownTime = Duration.ZERO,
+                    targetEpoch = capTime,
+                )
+            } else {
+                null
+            }
+        }
+}
+
 // Format the time into a nice string like "3:30 PM"
 fun formatClockTime(time: LocalTime): String {
     return time.format(DateTimeFormatter.ofPattern("h:mm a"))
