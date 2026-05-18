@@ -166,7 +166,7 @@ class TestUltiObserverAppViewModel {
         val archivedGame = viewModel.archivedGames.single().state
         assertEquals(LivePhase.GAME_OVER, archivedGame.phase)
 
-        viewModel.openPreviousGame(0)
+        viewModel.openArchivedGame(0)
         assertEquals(AppScreen.LIVE, viewModel.screen)
         assertTrue(viewModel.viewingReadOnlySummary)
         assertEquals(archivedGame, viewModel.currentLiveState)
@@ -186,13 +186,13 @@ class TestUltiObserverAppViewModel {
         viewModel.finishSetup()
         val currentPreview = viewModel.liveState!!
         assertTrue(currentPreview.isInitialLivePreview())
-        viewModel.openPreviousGame(0)
+        viewModel.openArchivedGame(0)
         viewModel.goBackFromCurrentScreen()
         assertEquals(AppScreen.HOME, viewModel.screen)
         assertEquals(currentPreview, viewModel.liveState)
     }
 
-    /// Verify a completed current game can be reopened from Home, then archived into Previous Games.
+    /// Verify a completed current game can be reopened from Home, then archived into Archived Games.
     @Test
     fun completedGameCanReopenFromHomeAndThenArchive() {
         val viewModel = UltiObserverAppViewModel()
@@ -215,7 +215,7 @@ class TestUltiObserverAppViewModel {
         assertEquals(1, viewModel.archivedGames.size)
         assertEquals("", viewModel.archivedGames.single().subtitle)
 
-        viewModel.openPreviousGame(0)
+        viewModel.openArchivedGame(0)
         assertEquals(AppScreen.LIVE, viewModel.screen)
         assertTrue(viewModel.viewingReadOnlySummary)
         assertEquals(viewModel.archivedGames.single().state, viewModel.currentLiveState)
@@ -238,7 +238,7 @@ class TestUltiObserverAppViewModel {
         viewModel.archiveCompletedGame()
         assertEquals(1, viewModel.archivedGames.size)
 
-        viewModel.openPreviousGame(0)
+        viewModel.openArchivedGame(0)
         assertTrue(viewModel.viewingReadOnlySummary)
         viewModel.deleteArchivedGame(0)
         assertTrue(viewModel.archivedGames.isEmpty())
@@ -257,7 +257,7 @@ class TestUltiObserverAppViewModel {
         viewModel.archiveCompletedGame()
         assertEquals(2, viewModel.archivedGames.size)
 
-        viewModel.openPreviousGame(1)
+        viewModel.openArchivedGame(1)
         assertTrue(viewModel.viewingReadOnlySummary)
         viewModel.deleteAllArchivedGames()
         assertTrue(viewModel.archivedGames.isEmpty())
@@ -311,7 +311,7 @@ class TestUltiObserverAppViewModel {
         assertEquals(AppScreen.HOME, viewModel.screen)
         assertNull(viewModel.liveState)
 
-        viewModel.openPreviousGame(0)
+        viewModel.openArchivedGame(0)
         assertEquals(AppScreen.HOME, viewModel.screen)
         assertNull(viewModel.currentLiveState)
 
@@ -409,8 +409,8 @@ class TestUltiObserverAppViewModel {
             TimingAlertMode.NONE,
             viewModel.timingAlertPreferences.alertModeFor(TimingCueId.TIMEOUT_OFFENSE_TEN),
         )
-        viewModel.openPreviousGames()
-        assertEquals(AppScreen.PREVIOUS_GAMES, viewModel.screen)
+        viewModel.openArchivedGames()
+        assertEquals(AppScreen.ARCHIVED_GAMES, viewModel.screen)
         assertTrue(File(storeDir, "profile.json").exists())
         assertTrue(File(storeDir, "settings.json").exists())
 
@@ -547,7 +547,7 @@ class TestUltiObserverAppViewModel {
 
     /// Verify a new game's default rules prefer the most recent archived game's rules.
     @Test
-    fun newGameRulesDefaultFromPreviousGame() {
+    fun newGameRulesDefaultFromArchivedGame() {
         val viewModel = UltiObserverAppViewModel()
         viewModel.startNewGame()
         val tournamentRules = GameRules(
@@ -857,7 +857,7 @@ class TestUltiObserverAppViewModel {
                 PersistedData.GAME_STATE,
                 PersistedData.PROFILE,
                 PersistedData.SETTINGS,
-                PersistedData.PREVIOUS_GAMES,
+                PersistedData.ARCHIVED_GAMES,
             ),
             store.resetPersistedDataAreas,
         )
@@ -871,12 +871,12 @@ class TestUltiObserverAppViewModel {
         File(File(archiveStoreDir, "archived_games"), "00000.json").writeText("{not-json")
 
         assertEquals(listOf(archivedTwo), archiveStore.loadArchivedGames())
-        assertEquals(setOf(PersistedData.PREVIOUS_GAMES), archiveStore.resetPersistedDataAreas)
+        assertEquals(setOf(PersistedData.ARCHIVED_GAMES), archiveStore.resetPersistedDataAreas)
 
         val archiveViewModel = UltiObserverAppViewModel(FileAppStateStore(archiveStoreDir))
         assertEquals(listOf(archivedTwo), archiveViewModel.archivedGames)
         assertEquals(
-            "Sorry, some phone data was corrupt, so UltiObserver had to revert to default values for Previous Games.",
+            "Sorry, some phone data was corrupt, so UltiObserver had to revert to default values for Archived Games.",
             archiveViewModel.startupRecoveryNotice!!.message,
         )
 
@@ -934,7 +934,7 @@ class TestUltiObserverAppViewModel {
         File(File(storeDir, "archived_games"), "00000.json").removeStoredAppVersion()
         assertTrue(store.loadArchivedGames().isEmpty())
         assertEquals(
-            setOf(PersistedData.PROFILE, PersistedData.SETTINGS, PersistedData.PREVIOUS_GAMES),
+            setOf(PersistedData.PROFILE, PersistedData.SETTINGS, PersistedData.ARCHIVED_GAMES),
             store.resetPersistedDataAreas,
         )
 
@@ -947,7 +947,7 @@ class TestUltiObserverAppViewModel {
                 PersistedData.GAME_STATE,
                 PersistedData.PROFILE,
                 PersistedData.SETTINGS,
-                PersistedData.PREVIOUS_GAMES,
+                PersistedData.ARCHIVED_GAMES,
             ),
             store.resetPersistedDataAreas,
         )
@@ -959,7 +959,7 @@ class TestUltiObserverAppViewModel {
             setOf(
                 PersistedData.GAME_STATE,
                 PersistedData.SETTINGS,
-                PersistedData.PREVIOUS_GAMES,
+                PersistedData.ARCHIVED_GAMES,
                 PersistedData.PROFILE,
             ),
             store.resetPersistedDataAreas,
@@ -972,7 +972,7 @@ class TestUltiObserverAppViewModel {
             setOf(
                 PersistedData.GAME_STATE,
                 PersistedData.SETTINGS,
-                PersistedData.PREVIOUS_GAMES,
+                PersistedData.ARCHIVED_GAMES,
                 PersistedData.PROFILE,
             ),
             store.resetPersistedDataAreas,
@@ -985,7 +985,7 @@ class TestUltiObserverAppViewModel {
             setOf(
                 PersistedData.GAME_STATE,
                 PersistedData.SETTINGS,
-                PersistedData.PREVIOUS_GAMES,
+                PersistedData.ARCHIVED_GAMES,
                 PersistedData.PROFILE,
             ),
             store.resetPersistedDataAreas,
@@ -998,7 +998,7 @@ class TestUltiObserverAppViewModel {
             setOf(
                 PersistedData.GAME_STATE,
                 PersistedData.PROFILE,
-                PersistedData.PREVIOUS_GAMES,
+                PersistedData.ARCHIVED_GAMES,
                 PersistedData.SETTINGS,
             ),
             store.resetPersistedDataAreas,
@@ -1013,7 +1013,7 @@ class TestUltiObserverAppViewModel {
                 PersistedData.GAME_STATE,
                 PersistedData.PROFILE,
                 PersistedData.SETTINGS,
-                PersistedData.PREVIOUS_GAMES,
+                PersistedData.ARCHIVED_GAMES,
             ),
             store.resetPersistedDataAreas,
         )
@@ -1022,7 +1022,7 @@ class TestUltiObserverAppViewModel {
         store.saveProfile(savedProfile)
         File(storeDir, "profile.json").replaceText("\"versionName\": \"0.1.0\"", "\"versionName\": \"0.1.0-debug\"")
         assertEquals(savedProfile.copy(versionName = "0.1.0-debug"), store.loadProfile())
-        assertEquals(setOf(PersistedData.GAME_STATE, PersistedData.SETTINGS, PersistedData.PREVIOUS_GAMES), store.resetPersistedDataAreas)
+        assertEquals(setOf(PersistedData.GAME_STATE, PersistedData.SETTINGS, PersistedData.ARCHIVED_GAMES), store.resetPersistedDataAreas)
 
         store.saveSettings(savedSettings)
         File(storeDir, "settings.json").replaceText("\"versionCode\": 1", "\"versionCode\": 99")
@@ -1030,7 +1030,7 @@ class TestUltiObserverAppViewModel {
         assertEquals(
             setOf(
                 PersistedData.GAME_STATE,
-                PersistedData.PREVIOUS_GAMES,
+                PersistedData.ARCHIVED_GAMES,
                 PersistedData.SETTINGS,
             ),
             store.resetPersistedDataAreas,
@@ -1050,7 +1050,7 @@ class TestUltiObserverAppViewModel {
             .replaceText("\"versionCode\": 1", "\"versionCode\": 99")
         assertTrue(store.loadArchivedGames().isEmpty())
         assertEquals(
-            setOf(PersistedData.GAME_STATE, PersistedData.SETTINGS, PersistedData.PREVIOUS_GAMES),
+            setOf(PersistedData.GAME_STATE, PersistedData.SETTINGS, PersistedData.ARCHIVED_GAMES),
             store.resetPersistedDataAreas,
         )
     }

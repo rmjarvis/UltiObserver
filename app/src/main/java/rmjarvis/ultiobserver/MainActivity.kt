@@ -104,7 +104,7 @@ internal fun UltiObserverApp(viewModel: UltiObserverAppViewModel) {
                 onOpenAbout = viewModel::openAbout,
                 onOpenProfile = viewModel::openProfile,
                 onOpenSettings = viewModel::openSettings,
-                onOpenPreviousGames = viewModel::openPreviousGames,
+                onOpenArchivedGames = viewModel::openArchivedGames,
             )
         }
 
@@ -151,12 +151,12 @@ internal fun UltiObserverApp(viewModel: UltiObserverAppViewModel) {
             )
         }
 
-        AppScreen.PREVIOUS_GAMES -> {
-            PreviousGamesScreen(
-                previousGames = viewModel.archivedGames.map { it.state.archivedGameListEntry() },
-                onOpenPreviousGame = viewModel::openPreviousGame,
-                onDeletePreviousGame = viewModel::deleteArchivedGame,
-                onDeleteAllPreviousGames = viewModel::deleteAllArchivedGames,
+        AppScreen.ARCHIVED_GAMES -> {
+            ArchivedGamesScreen(
+                archivedGames = viewModel.archivedGames.map { it.state.archivedGameListEntry() },
+                onOpenArchivedGame = viewModel::openArchivedGame,
+                onDeleteArchivedGame = viewModel::deleteArchivedGame,
+                onDeleteAllArchivedGames = viewModel::deleteAllArchivedGames,
                 onBackHome = viewModel::goHome,
             )
         }

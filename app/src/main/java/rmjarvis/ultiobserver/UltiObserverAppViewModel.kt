@@ -16,7 +16,7 @@ internal enum class AppScreen {
     PROFILE,
     SETTINGS,
     TIMING_CUE_SETTINGS,
-    PREVIOUS_GAMES,
+    ARCHIVED_GAMES,
     SETUP,
     LIVE,
 }
@@ -308,10 +308,10 @@ internal class UltiObserverAppViewModel(
         screen = AppScreen.TIMING_CUE_SETTINGS
     }
 
-    /// Open the previous games screen.
-    fun openPreviousGames() {
+    /// Open the archived games screen.
+    fun openArchivedGames() {
         clearViewedArchivedGame()
-        screen = AppScreen.PREVIOUS_GAMES
+        screen = AppScreen.ARCHIVED_GAMES
     }
 
     /// Resume the current setup draft, initial live preview, or active live game from Home.
@@ -353,9 +353,9 @@ internal class UltiObserverAppViewModel(
     /**
      * Open one archived game as a read-only summary.
      *
-     * @param index The archived-game index in the displayed Previous Games list.
+     * @param index The archived-game index in the displayed Archived Games list.
      */
-    fun openPreviousGame(index: Int) {
+    fun openArchivedGame(index: Int) {
         val archived = archivedGames.getOrNull(index) ?: return
         viewingArchivedGame = archived
         screen = AppScreen.LIVE
@@ -538,7 +538,7 @@ internal class UltiObserverAppViewModel(
         if (PersistedData.SETTINGS in resetAreas) {
             persistSettingsState()
         }
-        if (PersistedData.PREVIOUS_GAMES in resetAreas) {
+        if (PersistedData.ARCHIVED_GAMES in resetAreas) {
             persistArchivedGames()
         }
     }

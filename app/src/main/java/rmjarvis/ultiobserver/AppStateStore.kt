@@ -65,7 +65,7 @@ internal enum class PersistedData(val label: String) {
     GAME_STATE("Current Game"),
     PROFILE("Profile"),
     SETTINGS("Settings"),
-    PREVIOUS_GAMES("Previous Games"),
+    ARCHIVED_GAMES("Archived Games"),
 }
 
 internal data class RecoveryNotice(
@@ -309,7 +309,7 @@ internal class FileAppStateStore(
 
     /// Load all readable archived-game summaries from app-private JSON files.
     override fun loadArchivedGames(): List<ArchivedGame> {
-        resetAreas.remove(PersistedData.PREVIOUS_GAMES)
+        resetAreas.remove(PersistedData.ARCHIVED_GAMES)
         if (!archivedGamesDir.exists()) {
             return emptyList()
         }
@@ -324,7 +324,7 @@ internal class FileAppStateStore(
                             ?.let { version -> ArchivedGame.decodeJson(storedArchivedGame, version) }
                     }
                 if (archivedGame == null) {
-                    resetAreas += PersistedData.PREVIOUS_GAMES
+                    resetAreas += PersistedData.ARCHIVED_GAMES
                 }
                 archivedGame
             }

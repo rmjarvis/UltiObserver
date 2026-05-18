@@ -117,9 +117,9 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         assertTrue(composeRule.onAllNodesWithText("Current Game").fetchSemanticsNodes().isEmpty())
     }
 
-    /// Test that archived games can be deleted in bulk and one at a time from Previous Games.
+    /// Test that archived games can be deleted in bulk and one at a time from Archived Games.
     @Test
-    fun previousGamesCanDeleteArchivedGameAfterSliderConfirmation() {
+    fun archivedGamesCanDeleteArchivedGameAfterSliderConfirmation() {
         // Build two uniquely named archived rows so delete assertions cannot match stale test data.
         clearArchivedGamesProgrammatically()
         val suffix = System.currentTimeMillis().toString().takeLast(6)
@@ -133,7 +133,7 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         // Verify the bulk delete path removes every archived row after slider confirmation.
         seedArchivedGameProgrammatically(firstTeamOne, firstTeamTwo)
         seedArchivedGameProgrammatically(secondTeamOne, secondTeamTwo)
-        openPreviousGamesScreen()
+        openArchivedGamesScreen()
         waitForText(firstArchivedTitle)
         waitForText(secondArchivedTitle)
         composeRule.onNodeWithTag("delete-all-archived-games").performClick()
@@ -147,7 +147,7 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         // Re-seed the archive and verify cancelling a single-game delete leaves both rows intact.
         seedArchivedGameProgrammatically(firstTeamOne, firstTeamTwo)
         seedArchivedGameProgrammatically(secondTeamOne, secondTeamTwo)
-        openPreviousGamesScreen()
+        openArchivedGamesScreen()
         waitForText(firstArchivedTitle)
         waitForText(secondArchivedTitle)
         composeRule.onNodeWithTag("delete-archived-game-$firstArchivedTitle").performClick()
@@ -162,17 +162,17 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         waitForText(secondArchivedTitle)
         assertTrue(composeRule.onAllNodesWithText(firstArchivedTitle).fetchSemanticsNodes().isEmpty())
 
-        // Delete the last archived row and verify Previous Games returns to its empty state.
+        // Delete the last archived row and verify Archived Games returns to its empty state.
         composeRule.onNodeWithTag("delete-archived-game-$secondArchivedTitle").performClick()
         confirmDeleteWithSlider()
         waitForText("No completed games yet.")
         assertTrue(composeRule.onAllNodesWithText(secondArchivedTitle).fetchSemanticsNodes().isEmpty())
     }
 
-    /// Open Previous Games from Home and wait until the page is visible.
-    private fun openPreviousGamesScreen() {
-        composeRule.onNodeWithText("Previous Games").performClick()
-        waitForText("Previous Games")
+    /// Open Archived Games from Home and wait until the page is visible.
+    private fun openArchivedGamesScreen() {
+        composeRule.onNodeWithText("See Archived Games").performClick()
+        waitForText("Archived Games")
     }
 
 }

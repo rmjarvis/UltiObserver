@@ -35,7 +35,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Start New Game").assertIsDisplayed()
         composeRule.onNodeWithText("Profile").assertIsDisplayed()
         composeRule.onNodeWithText("Settings").assertIsDisplayed()
-        composeRule.onNodeWithText("Previous Games").assertIsDisplayed()
+        composeRule.onNodeWithText("See Archived Games").assertIsDisplayed()
 
         // Walk the default new-game path into the live screen.
         openNewGameSetup()
@@ -215,8 +215,8 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         pressAppBack()
         waitForText("Start New Game")
 
-        // Previous Games should be reachable from Home even before archived-game flows are populated.
-        composeRule.onNodeWithText("Previous Games").performClick()
-        composeRule.onNodeWithTag("previous-games-screen").assertIsDisplayed()
+        // Archived Games should be reachable from Home even before archived-game flows are populated.
+        composeRule.onNodeWithText("See Archived Games").performClick()
+        composeRule.onNodeWithTag("archived-games-screen").assertIsDisplayed()
     }
 }

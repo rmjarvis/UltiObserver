@@ -152,7 +152,7 @@ internal fun HomeScreen(
     onOpenAbout: () -> Unit,
     onOpenProfile: () -> Unit,
     onOpenSettings: () -> Unit,
-    onOpenPreviousGames: () -> Unit,
+    onOpenArchivedGames: () -> Unit,
 ) {
     // Compose the home screen as an app identity area with navigation and game resume cards.
     Scaffold { innerPadding ->
@@ -267,7 +267,7 @@ internal fun HomeScreen(
                 // Main home actions use the same one-primary layout on every phone size.
                 HomeActions(
                     onStartNewGame = onStartNewGame,
-                    onOpenPreviousGames = onOpenPreviousGames,
+                    onOpenArchivedGames = onOpenArchivedGames,
                     onOpenProfile = onOpenProfile,
                     onOpenSettings = onOpenSettings,
                     modifier = Modifier.fillMaxWidth(0.9f),
@@ -330,7 +330,7 @@ internal fun HomeScreen(
  * Render the main Home action cluster.
  *
  * @param onStartNewGame Callback starting a new setup flow.
- * @param onOpenPreviousGames Callback opening Previous Games.
+ * @param onOpenArchivedGames Callback opening Archived Games.
  * @param onOpenProfile Callback opening Profile.
  * @param onOpenSettings Callback opening Settings.
  * @param modifier Optional layout modifier for the action column.
@@ -338,7 +338,7 @@ internal fun HomeScreen(
 @Composable
 private fun HomeActions(
     onStartNewGame: () -> Unit,
-    onOpenPreviousGames: () -> Unit,
+    onOpenArchivedGames: () -> Unit,
     onOpenProfile: () -> Unit,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
@@ -354,10 +354,10 @@ private fun HomeActions(
             HomeActionText("Start New Game")
         }
         OutlinedButton(
-            onClick = onOpenPreviousGames,
+            onClick = onOpenArchivedGames,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            HomeActionText("Previous Games")
+            HomeActionText("See Archived Games")
         }
         Row(
             modifier = Modifier.fillMaxWidth(),

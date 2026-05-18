@@ -323,7 +323,7 @@ abstract class MainActivityUiTestFixtures {
     /**
      * Seed one archived completed game by calling the ViewModel directly.
      *
-     * This lets UI tests validate Previous Games behavior without first playing and archiving a game
+     * This lets UI tests validate Archived Games behavior without first playing and archiving a game
      * through UI actions.
      *
      * @param teamOneName The archived game Team 1 name.

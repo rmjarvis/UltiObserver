@@ -29,19 +29,19 @@ import androidx.compose.ui.unit.dp
 /**
  * Render the archived game list, separated from Home so the launch screen has more room.
  *
- * @param previousGames The archived game rows to display.
- * @param onOpenPreviousGame Callback opening an archived game by index.
- * @param onDeletePreviousGame Callback deleting an archived game by index.
- * @param onDeleteAllPreviousGames Callback deleting every archived game after confirmation.
+ * @param archivedGames The archived game rows to display.
+ * @param onOpenArchivedGame Callback opening an archived game by index.
+ * @param onDeleteArchivedGame Callback deleting an archived game by index.
+ * @param onDeleteAllArchivedGames Callback deleting every archived game after confirmation.
  * @param onBackHome Callback returning to Home.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun PreviousGamesScreen(
-    previousGames: List<ArchivedGameListEntry>,
-    onOpenPreviousGame: (Int) -> Unit,
-    onDeletePreviousGame: (Int) -> Unit,
-    onDeleteAllPreviousGames: () -> Unit,
+internal fun ArchivedGamesScreen(
+    archivedGames: List<ArchivedGameListEntry>,
+    onOpenArchivedGame: (Int) -> Unit,
+    onDeleteArchivedGame: (Int) -> Unit,
+    onDeleteAllArchivedGames: () -> Unit,
     onBackHome: () -> Unit,
 ) {
     var pendingDeleteIndex by remember { mutableStateOf<Int?>(null) }
@@ -50,7 +50,7 @@ internal fun PreviousGamesScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Previous Games") },
+                title = { Text("Archived Games") },
                 navigationIcon = {
                     TextButton(onClick = onBackHome) {
                         Text("Back")
@@ -65,10 +65,10 @@ internal fun PreviousGamesScreen(
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp)
-                .testTag("previous-games-screen"),
+                .testTag("archived-games-screen"),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            if (previousGames.isEmpty()) {
+            if (archivedGames.isEmpty()) {
                 Text("No completed games yet.")
             } else {
                 Row(
@@ -82,10 +82,10 @@ internal fun PreviousGamesScreen(
                         Text("Delete All")
                     }
                 }
-                previousGames.forEachIndexed { index, game ->
+                archivedGames.forEachIndexed { index, game ->
                     ArchivedGameRow(
                         entry = game,
-                        onClick = { onOpenPreviousGame(index) },
+                        onClick = { onOpenArchivedGame(index) },
                         onDelete = { pendingDeleteIndex = index },
                     )
                 }
@@ -99,7 +99,7 @@ internal fun PreviousGamesScreen(
             onDismiss = { pendingDeleteIndex = null },
             onConfirmDelete = {
                 pendingDeleteIndex = null
-                onDeletePreviousGame(deleteIndex)
+                onDeleteArchivedGame(deleteIndex)
             },
         )
     }
@@ -108,10 +108,10 @@ internal fun PreviousGamesScreen(
             onDismiss = { pendingDeleteAll = false },
             onConfirmDelete = {
                 pendingDeleteAll = false
-                onDeleteAllPreviousGames()
+                onDeleteAllArchivedGames()
             },
             title = "Delete All Games?",
-            message = "Completely delete all previous game data? This cannot be undone.",
+            message = "Completely delete all archived game data? This cannot be undone.",
         )
     }
 }
