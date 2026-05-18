@@ -100,7 +100,7 @@ class TestPersistence {
     /// Test the startup recovery dialog that appears after persisted phone data is reset.
     @Test
     fun startupRecoveryNoticeCanBeDismissed() {
-        val viewModel = UltiObserverAppViewModel(
+        val viewModel = AppViewModel(
             StartupRecoveryNoticeStorage(
                 setOf(PersistedData.PROFILE, PersistedData.SETTINGS)
             )

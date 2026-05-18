@@ -27,7 +27,22 @@ internal enum class SetupMode {
     EDIT_CURRENT_GAME,
 }
 
-internal class UltiObserverAppViewModel(
+/**
+ * Coordinate app-level state for the Android UI.
+ *
+ * An Android ViewModel is a lifecycle-aware state holder scoped to an Activity or UI flow.
+ * It survives normal Activity recreation, such as rotation, so the UI can be rebuilt without
+ * losing in-memory state; process restart recovery still comes from the app's storage layer.
+ *
+ * UltiObserver's AppViewModel owns top-level navigation, setup/live-game state, profile state,
+ * settings, archived-game lists, startup recovery notices, and the app actions that persist or
+ * move between those states. Domain rules stay in the model helpers; this class coordinates the
+ * app session around those model results.
+ *
+ * @param appStateStorage The persistence boundary used to load and save app state buckets.
+ * @param chooseAvatarIndex Random-avatar chooser injected so tests can make selection deterministic.
+ */
+internal class AppViewModel(
     private val appStateStorage: AppStateStorage,
     // Injected so tests can make random avatar selection deterministic.
     private val chooseAvatarIndex: (Int) -> Int = { size -> Random.nextInt(size) },

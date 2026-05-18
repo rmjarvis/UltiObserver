@@ -16,7 +16,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
-class TestUltiObserverAppViewModel {
+class TestAppViewModel {
     @get:Rule
     val temporaryFolder = TemporaryFolder()
 
@@ -24,7 +24,7 @@ class TestUltiObserverAppViewModel {
     @Test
     fun appStateHolderOwnsTopLevelGameFlow() {
         // Start from a clean Home state with no current or archived game.
-        val viewModel = UltiObserverAppViewModel(NoOpAppStateStorage)
+        val viewModel = AppViewModel(NoOpAppStateStorage)
         assertEquals(AppScreen.HOME, viewModel.screen)
         assertNull(viewModel.liveState)
         assertTrue(viewModel.archivedGames.isEmpty())
@@ -90,7 +90,7 @@ class TestUltiObserverAppViewModel {
     @Test
     fun setupDraftCanResumeFromHomeBeforeFirstPull() {
         // Create a blank-name setup draft and verify Home resumes it as setup, not live play.
-        val viewModel = UltiObserverAppViewModel(NoOpAppStateStorage)
+        val viewModel = AppViewModel(NoOpAppStateStorage)
         viewModel.startNewGame()
         val draftedSetup = viewModel.setupState.copy(
             teamOne = TeamSetup("", TeamColorChoice.GREEN),
@@ -152,7 +152,7 @@ class TestUltiObserverAppViewModel {
     /// Verify archived games open as read-only summaries and ignore live-game mutation callbacks.
     @Test
     fun archivedGamesOpenReadOnlyAndIgnoreLiveUpdates() {
-        val viewModel = UltiObserverAppViewModel(NoOpAppStateStorage)
+        val viewModel = AppViewModel(NoOpAppStateStorage)
         viewModel.startNewGame()
         viewModel.finishSetup()
 
@@ -195,7 +195,7 @@ class TestUltiObserverAppViewModel {
     /// Verify a completed current game can be reopened from Home, then archived into Archived Games.
     @Test
     fun completedGameCanReopenFromHomeAndThenArchive() {
-        val viewModel = UltiObserverAppViewModel(NoOpAppStateStorage)
+        val viewModel = AppViewModel(NoOpAppStateStorage)
         viewModel.startNewGame()
         viewModel.finishSetup()
 
@@ -224,7 +224,7 @@ class TestUltiObserverAppViewModel {
     /// Verify deleting current, single archived, and all archived games clears the right ViewModel state.
     @Test
     fun currentAndArchivedGamesCanBeDeleted() {
-        val viewModel = UltiObserverAppViewModel(NoOpAppStateStorage)
+        val viewModel = AppViewModel(NoOpAppStateStorage)
         viewModel.startNewGame()
         viewModel.finishSetup()
         val currentGame = viewModel.liveState!!
@@ -267,7 +267,7 @@ class TestUltiObserverAppViewModel {
     /// Verify resuming and editing the current game's setup preserves existing live score state.
     @Test
     fun currentGameResumeAndSetupUpdatePreserveLiveState() {
-        val viewModel = UltiObserverAppViewModel(NoOpAppStateStorage)
+        val viewModel = AppViewModel(NoOpAppStateStorage)
         viewModel.startNewGame()
         viewModel.finishSetup()
         val scoredGame = viewModel.liveState!!.adjustScore(teamOneScore = 3, teamTwoScore = 2)
@@ -301,7 +301,7 @@ class TestUltiObserverAppViewModel {
     @Test
     fun unavailableHomeActionsLeaveStateAlone() {
         // Empty-home actions should be harmless when there is no current or completed game.
-        val viewModel = UltiObserverAppViewModel(NoOpAppStateStorage)
+        val viewModel = AppViewModel(NoOpAppStateStorage)
 
         viewModel.resumeCurrentGame()
         assertEquals(AppScreen.HOME, viewModel.screen)
@@ -360,7 +360,7 @@ class TestUltiObserverAppViewModel {
     fun profileAndSettingsPersistAcrossRestart() {
         // Write profile values through the same ViewModel actions the UI uses.
         val storeDir = temporaryFolder.newFolder()
-        val viewModel = UltiObserverAppViewModel(FileAppStateStorage(storeDir))
+        val viewModel = AppViewModel(FileAppStateStorage(storeDir))
 
         viewModel.openProfile()
         assertEquals(AppScreen.PROFILE, viewModel.screen)
@@ -415,7 +415,7 @@ class TestUltiObserverAppViewModel {
         assertTrue(File(storeDir, "settings.json").exists())
 
         // Recreate the ViewModel and verify persisted values restore while startup opens at Home.
-        val restored = UltiObserverAppViewModel(FileAppStateStorage(storeDir))
+        val restored = AppViewModel(FileAppStateStorage(storeDir))
         assertEquals(AppScreen.HOME, restored.screen)
         assertEquals("Casey Observer", restored.profileName)
         assertEquals(ObserverAvatarPreference.BLUE, restored.avatarPreference)
@@ -451,7 +451,7 @@ class TestUltiObserverAppViewModel {
     /// Verify restoring timing cue defaults resets cue choices without changing global sound settings.
     @Test
     fun timingCueDefaultsCanBeRestoredWithoutChangingGlobalSoundSettings() {
-        val viewModel = UltiObserverAppViewModel(NoOpAppStateStorage)
+        val viewModel = AppViewModel(NoOpAppStateStorage)
 
         viewModel.updateTimingAlertGlobalMode(TimingAlertGlobalMode.SOUNDS_ON)
         viewModel.updateTimingAlertSoundVolume(0.4f)
@@ -481,7 +481,7 @@ class TestUltiObserverAppViewModel {
     @Test
     fun randomAvatarPreferenceResolvesHomeAvatarOnStartup() {
         // Use a fixed chooser to verify random-avatar timing without relying on randomness.
-        val viewModel = UltiObserverAppViewModel(
+        val viewModel = AppViewModel(
             appStateStorage = NoOpAppStateStorage,
             chooseAvatarIndex = { size ->
                 assertEquals(concreteObserverAvatarPreferences.size, size)
@@ -504,7 +504,7 @@ class TestUltiObserverAppViewModel {
     /// Verify starting a new game archives a completed game without adding another close-game wrapper.
     @Test
     fun startingNewGameArchivesCompletedGameWithoutClosingItAgain() {
-        val viewModel = UltiObserverAppViewModel(NoOpAppStateStorage)
+        val viewModel = AppViewModel(NoOpAppStateStorage)
         viewModel.startNewGame()
         viewModel.finishSetup()
 
@@ -549,7 +549,7 @@ class TestUltiObserverAppViewModel {
     /// Verify a new game's default rules prefer the most recent archived game's rules.
     @Test
     fun newGameRulesDefaultFromArchivedGame() {
-        val viewModel = UltiObserverAppViewModel(NoOpAppStateStorage)
+        val viewModel = AppViewModel(NoOpAppStateStorage)
         viewModel.startNewGame()
         val tournamentRules = GameRules(
             gameTo = 13,
@@ -578,7 +578,7 @@ class TestUltiObserverAppViewModel {
     /// Verify starting over from a current game uses that current game's rules as new defaults.
     @Test
     fun newGameRulesDefaultFromCurrentGameWhenStartingOver() {
-        val viewModel = UltiObserverAppViewModel(NoOpAppStateStorage)
+        val viewModel = AppViewModel(NoOpAppStateStorage)
         viewModel.startNewGame()
         val currentRules = GameRules(gameTo = 11, hardCapMinutes = 80, hasFloaterTimeout = true)
         viewModel.updateSetup(viewModel.setupState.copy(rules = currentRules))
@@ -596,7 +596,7 @@ class TestUltiObserverAppViewModel {
     fun persistentStoreRestoresSetupDraftAndActiveGameUndoHistory() {
         val storeDir = temporaryFolder.newFolder()
         val store = FileAppStateStorage(storeDir)
-        val viewModel = UltiObserverAppViewModel(store)
+        val viewModel = AppViewModel(store)
 
         // Start a new-game setup draft and verify a fresh ViewModel keeps the draft but opens at Home.
         viewModel.startNewGame()
@@ -608,7 +608,7 @@ class TestUltiObserverAppViewModel {
         )
         viewModel.updateSetup(draftedSetup)
 
-        val draftRestored = UltiObserverAppViewModel(FileAppStateStorage(storeDir))
+        val draftRestored = AppViewModel(FileAppStateStorage(storeDir))
         assertEquals(AppScreen.HOME, draftRestored.screen)
         assertEquals(draftedSetup, draftRestored.setupState)
         assertEquals(persistedRules, draftRestored.setupState.rules)
@@ -627,7 +627,7 @@ class TestUltiObserverAppViewModel {
         )
         draftRestored.updateLiveGame(scoredState)
 
-        val gameRestored = UltiObserverAppViewModel(FileAppStateStorage(storeDir))
+        val gameRestored = AppViewModel(FileAppStateStorage(storeDir))
         assertEquals(AppScreen.HOME, gameRestored.screen)
         assertEquals(scoredState, gameRestored.liveState)
         assertEquals(persistedRules, gameRestored.liveState!!.rules)
@@ -639,7 +639,7 @@ class TestUltiObserverAppViewModel {
         assertNotNull(undoRestoredState.redoEntry)
 
         gameRestored.updateLiveGame(undoRestoredState)
-        val redoRestored = UltiObserverAppViewModel(FileAppStateStorage(storeDir))
+        val redoRestored = AppViewModel(FileAppStateStorage(storeDir))
         assertEquals(undoRestoredState, redoRestored.liveState)
         assertEquals(scoredState, redoRestored.liveState!!.redoLastAction())
     }
@@ -648,7 +648,7 @@ class TestUltiObserverAppViewModel {
     @Test
     fun liveGameEventsPersistThroughUpdateLiveGame() {
         val store = RecordingAppStateStorage()
-        val viewModel = UltiObserverAppViewModel(store)
+        val viewModel = AppViewModel(store)
 
         // Start a live game and clear the setup saves so the event assertion is focused.
         viewModel.startNewGame()
@@ -669,7 +669,7 @@ class TestUltiObserverAppViewModel {
     @Test
     fun appDataBucketsPersistIndependently() {
         val store = RecordingAppStateStorage()
-        val viewModel = UltiObserverAppViewModel(store)
+        val viewModel = AppViewModel(store)
 
         viewModel.updateProfileName("Casey Observer")
         assertEquals("Casey Observer", store.savedProfiles.single().profileName)
@@ -702,7 +702,7 @@ class TestUltiObserverAppViewModel {
     @Test
     fun persistentStoreWritesArchivedSummariesSeparatelyFromCurrentGameSnapshot() {
         val storeDir = temporaryFolder.newFolder()
-        val viewModel = UltiObserverAppViewModel(FileAppStateStorage(storeDir))
+        val viewModel = AppViewModel(FileAppStateStorage(storeDir))
 
         // Complete and archive a game that still has live-only countdown and undo state.
         viewModel.startNewGame()
@@ -730,7 +730,7 @@ class TestUltiObserverAppViewModel {
         assertTrue(File(File(storeDir, "archived_games"), "00000.json").exists())
 
         // Restore from disk and verify the archived game keeps only summary-relevant state.
-        val restored = UltiObserverAppViewModel(FileAppStateStorage(storeDir))
+        val restored = AppViewModel(FileAppStateStorage(storeDir))
         assertEquals(AppScreen.HOME, restored.screen)
         assertNull(restored.liveState)
         assertEquals(1, restored.archivedGames.size)
@@ -824,7 +824,7 @@ class TestUltiObserverAppViewModel {
         assertEquals(SetupMode.NEW_GAME, recoveredState.setupMode)
         assertEquals(setOf(PersistedData.GAME_STATE), store.resetPersistedDataAreas)
 
-        val recoveredViewModel = UltiObserverAppViewModel(FileAppStateStorage(storeDir))
+        val recoveredViewModel = AppViewModel(FileAppStateStorage(storeDir))
         assertNull(recoveredViewModel.liveState)
         assertEquals("Casey Observer", recoveredViewModel.profileName)
         assertEquals(timingPreferences, recoveredViewModel.timingAlertPreferences)
@@ -874,7 +874,7 @@ class TestUltiObserverAppViewModel {
         assertEquals(listOf(archivedTwo), archiveStore.loadArchivedGames())
         assertEquals(setOf(PersistedData.ARCHIVED_GAMES), archiveStore.resetPersistedDataAreas)
 
-        val archiveViewModel = UltiObserverAppViewModel(FileAppStateStorage(archiveStoreDir))
+        val archiveViewModel = AppViewModel(FileAppStateStorage(archiveStoreDir))
         assertEquals(listOf(archivedTwo), archiveViewModel.archivedGames)
         assertEquals(
             "Sorry, some phone data was corrupt, so UltiObserver had to revert to default values for Archived Games.",
@@ -884,7 +884,7 @@ class TestUltiObserverAppViewModel {
         val repairedArchiveStore = FileAppStateStorage(archiveStoreDir)
         assertEquals(listOf(archivedTwo), repairedArchiveStore.loadArchivedGames())
         assertTrue(repairedArchiveStore.resetPersistedDataAreas.isEmpty())
-        val restoredAfterRecovery = UltiObserverAppViewModel(FileAppStateStorage(archiveStoreDir))
+        val restoredAfterRecovery = AppViewModel(FileAppStateStorage(archiveStoreDir))
         assertEquals(listOf(archivedTwo), restoredAfterRecovery.archivedGames)
         assertNull(restoredAfterRecovery.startupRecoveryNotice)
     }
@@ -1064,7 +1064,7 @@ class TestUltiObserverAppViewModel {
         File(storeDir, "profile.json").writeText("{not-json")
         File(storeDir, "settings.json").writeText("{not-json")
 
-        val viewModel = UltiObserverAppViewModel(FileAppStateStorage(storeDir))
+        val viewModel = AppViewModel(FileAppStateStorage(storeDir))
 
         assertEquals(AppScreen.HOME, viewModel.screen)
         assertNull(viewModel.liveState)
