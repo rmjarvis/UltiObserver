@@ -142,10 +142,9 @@ internal fun CountdownState.dueTimingCue(now: Long): TimingCueDisplay? {
  * @param now The current epoch millis used to evaluate countdown and cap cue windows.
  */
 internal fun LiveGameState.dueTimingAlerts(now: Long): List<TimingCueDisplay> {
-    return listOfNotNull(
-        countdown?.dueTimingCue(now),
-        dueCapTimingCue(now),
-    ).sortedBy { cue -> cue.targetEpoch }
+    val countdownCue = countdown?.dueTimingCue(now)
+    val capCue = dueCapTimingCue(now)
+    return orderedTimingCues(countdownCue, capCue)
 }
 
 /**
@@ -154,12 +153,31 @@ internal fun LiveGameState.dueTimingAlerts(now: Long): List<TimingCueDisplay> {
  * @param now The current epoch millis used to rank countdown and cap cues.
  */
 internal fun LiveGameState.nextTimingAlert(now: Long): TimingCueDisplay? {
-    return listOfNotNull(
-        countdown?.nextTimingCue(now),
-        nextCapTimingCue(now),
-    )
-        .sortedBy { cue -> cue.targetEpoch }
-        .firstOrNull()
+    val countdownCue = countdown?.nextTimingCue(now)
+    val capCue = nextCapTimingCue(now)
+    return when {
+        countdownCue == null -> capCue
+        capCue == null -> countdownCue
+        countdownCue.targetEpoch <= capCue.targetEpoch -> countdownCue
+        else -> capCue
+    }
+}
+
+/**
+ * Return the non-null timing cues in target-time order.
+ * This compares the two possible cue sources directly instead of allocating and sorting a tiny list.
+ *
+ * @param first The first optional timing cue.
+ * @param second The second optional timing cue.
+ */
+private fun orderedTimingCues(first: TimingCueDisplay?, second: TimingCueDisplay?): List<TimingCueDisplay> {
+    return when {
+        first == null && second == null -> emptyList()
+        first == null -> listOf(second!!)
+        second == null -> listOf(first)
+        first.targetEpoch <= second.targetEpoch -> listOf(first, second)
+        else -> listOf(second, first)
+    }
 }
 
 /// List the configured cue offsets for a countdown.
