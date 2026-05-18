@@ -28,16 +28,16 @@ internal enum class SetupMode {
 }
 
 internal class UltiObserverAppViewModel(
-    private val appStateStore: AppStateStore = NoOpAppStateStore,
+    private val appStateStorage: AppStateStorage,
     // Injected so tests can make random avatar selection deterministic.
     private val chooseAvatarIndex: (Int) -> Int = { size -> Random.nextInt(size) },
 ) : ViewModel() {
-    private val persistedCurrentGameState = appStateStore.loadCurrentGameState()
-    private val persistedProfile = appStateStore.loadProfile()
-    private val persistedSettings = appStateStore.loadSettings()
+    private val persistedCurrentGameState = appStateStorage.loadCurrentGameState()
+    private val persistedProfile = appStateStorage.loadProfile()
+    private val persistedSettings = appStateStorage.loadSettings()
     private val restoredSetupDraft = persistedCurrentGameState?.hasSetupDraft ?: false
-    private val restoredArchivedGames = appStateStore.loadArchivedGames()
-    private val recoveredPersistedDataAreas = appStateStore.resetPersistedDataAreas
+    private val restoredArchivedGames = appStateStorage.loadArchivedGames()
+    private val recoveredPersistedDataAreas = appStateStorage.resetPersistedDataAreas
 
     var screen by mutableStateOf(AppScreen.HOME)
         private set
@@ -487,7 +487,7 @@ internal class UltiObserverAppViewModel(
 
     /// Persist the current/setup game bucket.
     private fun persistCurrentGameState() {
-        appStateStore.saveCurrentGameState(
+        appStateStorage.saveCurrentGameState(
             CurrentGameSnapshot(
                 setupState = setupState,
                 liveState = liveState,
@@ -499,7 +499,7 @@ internal class UltiObserverAppViewModel(
 
     /// Persist the profile bucket.
     private fun persistProfileState() {
-        appStateStore.saveProfile(
+        appStateStorage.saveProfile(
             Profile(
                 profileName = profileName,
                 avatarPreference = avatarPreference,
@@ -509,7 +509,7 @@ internal class UltiObserverAppViewModel(
 
     /// Persist the settings bucket.
     private fun persistSettingsState() {
-        appStateStore.saveSettings(
+        appStateStorage.saveSettings(
             Settings(
                 automaticallyAdvanceCountdowns = automaticallyAdvanceCountdowns,
                 automaticallyLockLivePoint = automaticallyLockLivePoint,
@@ -520,7 +520,7 @@ internal class UltiObserverAppViewModel(
 
     /// Persist the archived-games bucket.
     private fun persistArchivedGames() {
-        appStateStore.saveArchivedGames(archivedGames)
+        appStateStorage.saveArchivedGames(archivedGames)
     }
 
     /**

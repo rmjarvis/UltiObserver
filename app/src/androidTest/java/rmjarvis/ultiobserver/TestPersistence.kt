@@ -27,13 +27,13 @@ class TestPersistence {
 
     /// Test Android app-private storage for each persisted app-data bucket.
     @Test
-    fun fileStorePersistsStateOnDeviceStorage() {
+    fun fileStoragePersistsStateInAppPrivateFiles() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val storeDir = File(context.filesDir, "persistence-test-${System.nanoTime()}")
+        val storageDir = File(context.filesDir, "persistence-test-${System.nanoTime()}")
 
         try {
-            // Save current live state with undo history through the Android file-backed store.
-            val store = FileAppStateStore(storeDir)
+            // Save current live state with undo history through Android file-backed storage.
+            val storage = FileAppStateStorage(storageDir)
             val setup = GameSetupState(
                 startDate = LocalDate.of(2026, 5, 11),
                 startTime = LocalTime.of(10, 0),
@@ -46,19 +46,19 @@ class TestPersistence {
                 scoringTeam = TeamId.TEAM_ONE,
                 now = livePointState.startEpoch + 5 * 60_000L,
             )
-            store.saveCurrentGameState(
+            storage.saveCurrentGameState(
                 CurrentGameSnapshot(
                     setupState = setup,
                     liveState = scoredState,
                     setupMode = SetupMode.NEW_GAME,
                 )
             )
-            store.saveProfile(Profile(profileName = "Casey Observer"))
+            storage.saveProfile(Profile(profileName = "Casey Observer"))
             val timingPreferences = TimingAlertPreferences(
                 globalMode = TimingAlertGlobalMode.VIBRATION_ONLY,
                 soundVolume = 0.4f,
             )
-            store.saveSettings(
+            storage.saveSettings(
                 Settings(
                     automaticallyAdvanceCountdowns = false,
                     automaticallyLockLivePoint = false,
@@ -72,14 +72,14 @@ class TestPersistence {
                 countdown = null,
                 undoEntry = null,
             )
-            store.saveArchivedGames(listOf(ArchivedGame(archivedSummary, "")))
+            storage.saveArchivedGames(listOf(ArchivedGame(archivedSummary, "")))
 
-            // Load through a fresh store instance to verify the on-device files round-trip.
-            val restoredStore = FileAppStateStore(storeDir)
-            val restoredCurrentGameState = restoredStore.loadCurrentGameState()!!
-            val restoredProfile = restoredStore.loadProfile()!!
-            val restoredSettings = restoredStore.loadSettings()!!
-            val restoredArchivedGame = restoredStore.loadArchivedGames().single()
+            // Load through a fresh storage instance to verify the on-device files round-trip.
+            val restoredStorage = FileAppStateStorage(storageDir)
+            val restoredCurrentGameState = restoredStorage.loadCurrentGameState()!!
+            val restoredProfile = restoredStorage.loadProfile()!!
+            val restoredSettings = restoredStorage.loadSettings()!!
+            val restoredArchivedGame = restoredStorage.loadArchivedGames().single()
 
             assertEquals(scoredState, restoredCurrentGameState.liveState)
             val undoRestoredState = restoredCurrentGameState.liveState!!.undoLastAction()
@@ -93,7 +93,7 @@ class TestPersistence {
             assertNull(restoredArchivedGame.state.undoEntry)
             assertNull(restoredArchivedGame.state.redoEntry)
         } finally {
-            storeDir.deleteRecursively()
+            storageDir.deleteRecursively()
         }
     }
 
@@ -101,7 +101,7 @@ class TestPersistence {
     @Test
     fun startupRecoveryNoticeCanBeDismissed() {
         val viewModel = UltiObserverAppViewModel(
-            StartupRecoveryNoticeStore(
+            StartupRecoveryNoticeStorage(
                 setOf(PersistedData.PROFILE, PersistedData.SETTINGS)
             )
         )
@@ -125,9 +125,9 @@ class TestPersistence {
     }
 }
 
-private class StartupRecoveryNoticeStore(
+private class StartupRecoveryNoticeStorage(
     override val resetPersistedDataAreas: Set<PersistedData>,
-) : AppStateStore {
+) : AppStateStorage {
     /// Load no current game for the startup-recovery notice fixture.
     override fun loadCurrentGameState(): CurrentGameSnapshot? = null
 

@@ -34,7 +34,7 @@ class MainActivity : ComponentActivity() {
              * @param modelClass The ViewModel class requested by the Android lifecycle owner.
              */
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return modelClass.cast(UltiObserverAppViewModel(FileAppStateStore(filesDir)))!!
+                return modelClass.cast(UltiObserverAppViewModel(FileAppStateStorage(filesDir)))!!
             }
         }
     }

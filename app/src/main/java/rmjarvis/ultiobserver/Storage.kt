@@ -91,7 +91,9 @@ internal data class RecoveryNotice(
         }
 }
 
-internal interface AppStateStore {
+// Tests provide alternate storage implementations so ViewModel behavior can be exercised
+// without Android file I/O, while production uses the file-backed implementation below.
+internal interface AppStateStorage {
     val resetPersistedDataAreas: Set<PersistedData>
 
     /// Load the persisted current/setup game bucket, if one exists.
@@ -135,46 +137,18 @@ internal interface AppStateStore {
     fun saveArchivedGames(games: List<ArchivedGame>)
 }
 
-internal object NoOpAppStateStore : AppStateStore {
-    override val resetPersistedDataAreas: Set<PersistedData> = emptySet()
-
-    /// Load no current-game state for in-memory/no-persistence runs.
-    override fun loadCurrentGameState(): CurrentGameSnapshot? = null
-
-    /// Ignore current-game saves for in-memory/no-persistence runs.
-    override fun saveCurrentGameState(state: CurrentGameSnapshot) = Unit
-
-    /// Load no profile state for in-memory/no-persistence runs.
-    override fun loadProfile(): Profile? = null
-
-    /// Ignore profile saves for in-memory/no-persistence runs.
-    override fun saveProfile(state: Profile) = Unit
-
-    /// Load no settings state for in-memory/no-persistence runs.
-    override fun loadSettings(): Settings? = null
-
-    /// Ignore settings saves for in-memory/no-persistence runs.
-    override fun saveSettings(state: Settings) = Unit
-
-    /// Load no archived games for in-memory/no-persistence runs.
-    override fun loadArchivedGames(): List<ArchivedGame> = emptyList()
-
-    /// Ignore archived-game saves for in-memory/no-persistence runs.
-    override fun saveArchivedGames(games: List<ArchivedGame>) = Unit
-}
-
 internal val appStateJson = Json {
     encodeDefaults = true
     ignoreUnknownKeys = true
     prettyPrint = true
 }
 
-internal class FileAppStateStore(
+internal class FileAppStateStorage(
     private val rootDir: File,
     // Keep file moves injectable so tests can force platform-specific fallback paths.
     private val moveFileAtomically: (File, File) -> Unit = ::moveFileAtomically,
     private val replaceFile: (File, File) -> Unit = ::replaceFile,
-) : AppStateStore {
+) : AppStateStorage {
     private val currentGameStateFile = File(rootDir, "current_game_state.json")
     private val profileFile = File(rootDir, "profile.json")
     private val settingsFile = File(rootDir, "settings.json")
