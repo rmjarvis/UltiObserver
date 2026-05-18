@@ -14,6 +14,16 @@ fun formatClockTime(time: LocalTime): String {
 }
 
 /**
+ * Return a singular or plural noun for a count.
+ *
+ * @param count The count controlling pluralization.
+ * @param singular The singular noun form.
+ */
+internal fun pluralize(count: Int, singular: String): String {
+    return if (count == 1) singular else "${singular}s"
+}
+
+/**
  * Format a player number for display.
  *
  * @param jerseyNumber The stored jersey number, or the unknown-player sentinel.

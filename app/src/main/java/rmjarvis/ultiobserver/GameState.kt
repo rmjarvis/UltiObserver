@@ -442,6 +442,36 @@ sealed interface GameEvent {
     ) : GameEvent
 }
 
+// Keep these as extensions instead of GameEvent members. If they become members, Kotlin
+// resolves same-named subtype extension helpers to the member and recursively calls this dispatcher.
+/// Format UI-facing text for this model event in the current Android app.
+fun GameEvent.formatMessage(): String {
+    // This when block does runtime resolution to call the correct subtype's extension function.
+    return when (this) {
+        is GameEvent.TimeoutCharged -> this.formatMessage()
+        is GameEvent.TimeoutUnavailable -> this.formatMessage()
+        is GameEvent.TeamOutOfTimeouts -> this.formatMessage()
+        is GameEvent.TeamCardsChanged -> this.formatMessage()
+        is GameEvent.TechnicalFoulsChanged -> this.formatMessage()
+        is GameEvent.PullInfractionRecorded -> this.formatMessage()
+        is GameEvent.TimeViolationRecorded -> this.formatMessage()
+    }
+}
+
+/// Format the title for an event-driven popup.
+fun GameEvent.formatPopupTitle(): String {
+    // This when block does runtime resolution to call the correct subtype's extension function.
+    return when (this) {
+        is GameEvent.TimeoutCharged -> this.formatPopupTitle()
+        is GameEvent.TimeoutUnavailable -> this.formatPopupTitle()
+        is GameEvent.TeamOutOfTimeouts -> this.formatPopupTitle()
+        is GameEvent.TeamCardsChanged -> this.formatPopupTitle()
+        is GameEvent.TechnicalFoulsChanged -> this.formatPopupTitle()
+        is GameEvent.PullInfractionRecorded -> this.formatPopupTitle()
+        is GameEvent.TimeViolationRecorded -> this.formatPopupTitle()
+    }
+}
+
 sealed interface GamePrompt {
     data class ApplyCap(
         val state: LiveGameState,
