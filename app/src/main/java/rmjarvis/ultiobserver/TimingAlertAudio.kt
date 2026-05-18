@@ -202,14 +202,7 @@ private suspend fun playTimingSound(
 ) {
     timingAlertPlayer.play(sound, repeatCount, timingAlertPreferences.soundVolume)
     if (timingAlertPreferences.vibrateWithSounds) {
-        repeat(repeatCount) { pulseIndex ->
-            context.performTimingCueHaptic(
-                timingAlertPreferences.vibrationDurationMillis,
-            )
-            if (pulseIndex < repeatCount - 1) {
-                delay(timingAlertPreferences.vibrationRepeatSpacingMillis())
-            }
-        }
+        context.performTimingCueHaptic(timingAlertPreferences.vibrationDurationMillis)
     }
 }
 
