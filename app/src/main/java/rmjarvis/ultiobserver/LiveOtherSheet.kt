@@ -7,9 +7,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -190,6 +192,52 @@ internal fun OtherSheet(
             },
         )
     }
+}
+
+/**
+ * Render the manual score correction dialog from the Other sheet.
+ *
+ * @param state The current live game state whose score is being edited.
+ * @param onDismiss Callback closing the dialog without changing the score.
+ * @param onConfirm Callback receiving the corrected team-one and team-two scores.
+ */
+@Composable
+private fun AdjustScoreDialog(
+    state: LiveGameState,
+    onDismiss: () -> Unit,
+    onConfirm: (Int, Int) -> Unit,
+) {
+    var teamOneScore by remember { mutableStateOf(state.teamOne.score) }
+    var teamTwoScore by remember { mutableStateOf(state.teamTwo.score) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Adjust Score") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                SmallCountEditor(
+                    label = state.teamOne.name,
+                    value = teamOneScore,
+                    onValueChange = { teamOneScore = it.coerceAtLeast(0) },
+                )
+                SmallCountEditor(
+                    label = state.teamTwo.name,
+                    value = teamTwoScore,
+                    onValueChange = { teamTwoScore = it.coerceAtLeast(0) },
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(teamOneScore, teamTwoScore) }) {
+                Text("Set")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+    )
 }
 
 /**

@@ -167,3 +167,20 @@ internal fun SectionCard(
         }
     }
 }
+
+/**
+ * Render a small labeled section used inside correction dialogs.
+ *
+ * @param title The section title, normally a team name.
+ * @param content The correction controls for that section.
+ */
+@Composable
+internal fun TeamCorrectionSection(
+    title: String,
+    content: @Composable () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(title, fontWeight = FontWeight.SemiBold)
+        content()
+    }
+}
