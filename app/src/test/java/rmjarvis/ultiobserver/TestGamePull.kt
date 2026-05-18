@@ -13,6 +13,7 @@ import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+/// Tests for pull infractions and pull time-violation model behavior.
 class TestGamePull : GameModelTestFixtures() {
     /**
      * Test pull infractions from the observer-facing actions.

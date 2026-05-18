@@ -1,7 +1,7 @@
 package rmjarvis.ultiobserver
 
 /**
- * Represent the state and optional popup event from trying to charge a timeout.
+ * State and optional popup event from trying to charge a timeout.
  *
  * @param state The live state after the timeout attempt.
  * @param event The observer-facing event to show, or null when no popup is needed.

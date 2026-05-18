@@ -17,6 +17,7 @@ import kotlinx.serialization.encoding.Encoder
 
 // Absolute Long timestamps in the game model are Unix epoch milliseconds.
 
+/// Serializer for LocalDate values as stable ISO-8601 strings in app-state JSON.
 object LocalDateAsStringSerializer : KSerializer<LocalDate> {
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor("LocalDateAsString", PrimitiveKind.STRING)
@@ -41,6 +42,7 @@ object LocalDateAsStringSerializer : KSerializer<LocalDate> {
     }
 }
 
+/// Serializer for LocalTime values as stable ISO-8601 strings in app-state JSON.
 object LocalTimeAsStringSerializer : KSerializer<LocalTime> {
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor("LocalTimeAsString", PrimitiveKind.STRING)
@@ -65,6 +67,7 @@ object LocalTimeAsStringSerializer : KSerializer<LocalTime> {
     }
 }
 
+/// Serializer for ZoneId values by their stable time-zone id in app-state JSON.
 object ZoneIdAsStringSerializer : KSerializer<ZoneId> {
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor("ZoneIdAsString", PrimitiveKind.STRING)
@@ -126,6 +129,7 @@ internal fun localTimeFromEpoch(epoch: Long, timeZone: ZoneId): LocalTime {
     return localDateTimeFromEpoch(epoch, timeZone).toLocalTime()
 }
 
+/// Identity of one of the two teams in setup and live game state.
 @Serializable
 enum class TeamId {
     TEAM_ONE,
@@ -136,6 +140,7 @@ enum class TeamId {
         return if (this == TEAM_ONE) TEAM_TWO else TEAM_ONE
     }
 }
+/// Identity of the field end nearest or farthest from the observer.
 @Serializable
 enum class FieldEnd {
     NEAR,
@@ -146,6 +151,7 @@ enum class FieldEnd {
         return if (this == NEAR) FAR else NEAR
     }
 }
+/// Broad phase of a live game.
 @Serializable
 enum class LivePhase {
     PRE_GAME,
@@ -154,6 +160,13 @@ enum class LivePhase {
     HALFTIME,
     GAME_OVER,
 }
+/**
+ * Selectable team jersey color and the display colors that go with it.
+ *
+ * @param label The user-facing color name.
+ * @param accentArgb The background color matching the nominal jersey color.
+ * @param contentArgb A text color with good contrast to the accent color.
+ */
 @Serializable
 enum class TeamColorChoice(
     val label: String,
@@ -169,11 +182,18 @@ enum class TeamColorChoice(
     PINK("Pink", 0xFFFF4FA3, 0xFF2F1022),
     GRAY("Gray", 0xFF708090, 0xFFF7F8FA),
 }
+/**
+ * Setup-screen team identity fields before a live game starts.
+ *
+ * @param name The team name entered in setup; blank means no explicit name yet.
+ * @param color The selected jersey color for this team.
+ */
 @Serializable
 data class TeamSetup(
     val name: String = "",
     val color: TeamColorChoice = TeamColorChoice.WHITE,
 )
+/// Configurable rules that affect scoring, caps, halftime, and timeout allowances.
 @Serializable
 data class GameRules(
     val gameTo: Int = 15,
@@ -187,6 +207,7 @@ data class GameRules(
     val timeoutsPerHalf: Int = 2,
     val hasFloaterTimeout: Boolean = false,
 )
+/// Setup-screen fields needed to create or edit a live game.
 @Serializable
 data class GameSetupState(
     @Serializable(with = LocalDateAsStringSerializer::class)
@@ -202,6 +223,11 @@ data class GameSetupState(
     val pullingTeam: TeamId = TeamId.TEAM_ONE,
     val pullingFromEnd: FieldEnd = FieldEnd.FAR,
 )
+/**
+ * Live counters and display identity for one team.
+ *
+ * @param firstHalfTimeoutsUsed Stored after halftime so floater-timeout carryover can be derived.
+ */
 @Serializable
 data class TeamLiveState(
     val name: String,
@@ -220,6 +246,15 @@ data class TeamLiveState(
         return copy(timeoutsUsedThisHalf = timeoutsUsedThisHalf + 1)
     }
 }
+/**
+ * Active countdown and the information needed to display, adjust, and transition it.
+ *
+ * @param kind The model meaning of this countdown.
+ * @param label The short UI label shown next to the remaining time.
+ * @param durationSeconds The original countdown length.
+ * @param targetEpoch The epoch millis when the countdown reaches zero.
+ * @param betweenPointsTarget The offense-ready or pull target for between-points countdowns.
+ */
 @Serializable
 data class CountdownState(
     val kind: CountdownKind,
@@ -245,6 +280,7 @@ data class CountdownState(
     }
 
 }
+/// Model behavior attached to an active countdown.
 @Serializable
 enum class CountdownKind {
     OPENING_PULL,
@@ -261,6 +297,17 @@ enum class CountdownKind {
     }
 }
 
+/**
+ * Complete mutable state of one setup/live/completed game.
+ *
+ * @param startEpoch Epoch millis for the scheduled game start.
+ * @param endEpoch Epoch millis when the game ended, or null while active.
+ * @param nearAttackingTeam The team attacking the observer's near end.
+ * @param pullingFromEnd The field end occupied by the pulling team.
+ * @param openingPullingTeam The team that pulled to start the game.
+ * @param openingPullingFromEnd The field end used by the opening pull.
+ * @param pendingCapOffer The cap currently being offered to the observer for yes/no application.
+ */
 @Serializable
 data class LiveGameState(
     @Serializable(with = LocalDateAsStringSerializer::class)
@@ -470,26 +517,59 @@ fun LiveGameState.toSetupState(): GameSetupState {
     )
 }
 
+/**
+ * Undo label and previous state for a reversible live-game action.
+ *
+ * @param label The user-facing undo button label.
+ * @param previous The live state restored by undoing the action.
+ */
 @Serializable
 data class UndoEntry(
     val label: String,
     val previous: LiveGameState,
 )
+/// Model events that need observer-facing popup text.
 sealed interface GameEvent {
+    /**
+     * Event reporting that a timeout was successfully charged to a team.
+     *
+     * @param state The live state after charging the timeout.
+     * @param team The team charged with the timeout.
+     */
     data class TimeoutCharged(
         val state: LiveGameState,
         val team: TeamId,
     ) : GameEvent
 
+    /**
+     * Event reporting that timeout entry is not legal in the current game state.
+     *
+     * @param state The live state that rejected the timeout.
+     */
     data class TimeoutUnavailable(
         val state: LiveGameState,
     ) : GameEvent
 
+    /**
+     * Event reporting that a team requested a timeout with none remaining.
+     *
+     * @param state The live state that rejected the timeout.
+     * @param team The team that has no remaining timeouts.
+     */
     data class TeamOutOfTimeouts(
         val state: LiveGameState,
         val team: TeamId,
     ) : GameEvent
 
+    /**
+     * Event reporting a changed team-card total, with optional player-card context.
+     *
+     * @param state The live state after the card action.
+     * @param team The team whose card total changed.
+     * @param teamCardTotal The team-card point total after the action.
+     * @param playerCardType The player-card event type, or null for team-only card changes.
+     * @param playerCardJerseyNumber The player jersey number when playerCardType is present.
+     */
     data class TeamCardsChanged(
         val state: LiveGameState,
         val team: TeamId,
@@ -502,12 +582,27 @@ sealed interface GameEvent {
         }
     }
 
+    /**
+     * Event reporting a changed technical-foul total.
+     *
+     * @param state The live state after the technical foul.
+     * @param team The team whose technical-foul total changed.
+     * @param technicalFoulTotal The team technical-foul total after the action.
+     */
     data class TechnicalFoulsChanged(
         val state: LiveGameState,
         val team: TeamId,
         val technicalFoulTotal: Int,
     ) : GameEvent
 
+    /**
+     * Event reporting an offsides or false-start pull infraction.
+     *
+     * @param state The live state after recording the infraction.
+     * @param team The team that committed the infraction.
+     * @param infraction The type of pull infraction recorded.
+     * @param totalPullViolations The team's combined pull-violation total after the action.
+     */
     data class PullInfractionRecorded(
         val state: LiveGameState,
         val team: TeamId,
@@ -515,6 +610,13 @@ sealed interface GameEvent {
         val totalPullViolations: Int,
     ) : GameEvent
 
+    /**
+     * Event reporting a pull time violation and its rule outcome.
+     *
+     * @param state The live state after assessing the violation.
+     * @param team The team that committed the time violation.
+     * @param outcome The warning, timeout, or no-timeout outcome.
+     */
     data class TimeViolationRecorded(
         val state: LiveGameState,
         val team: TeamId,
@@ -552,20 +654,42 @@ fun GameEvent.formatPopupTitle(): String {
     }
 }
 
+/// Model prompts that require an observer decision or acknowledgement.
 sealed interface GamePrompt {
+    /**
+     * Prompt asking whether to apply a due cap now.
+     *
+     * @param state The live state with a pending cap offer.
+     * @param capType The cap being offered.
+     */
     data class ApplyCap(
         val state: LiveGameState,
         val capType: CapType,
     ) : GamePrompt
 
+    /**
+     * Prompt asking whether live-point misconduct was against the offense or defense.
+     *
+     * @param event The card or technical-foul event that triggered the misconduct prompt.
+     */
     data class LivePointMisconduct(
         val event: GameEvent,
     ) : GamePrompt
 
+    /**
+     * Prompt notifying the observer that halftime has started.
+     *
+     * @param state The live state after entering halftime.
+     */
     data class HalftimeStarted(
         val state: LiveGameState,
     ) : GamePrompt
 
+    /**
+     * Prompt notifying the observer that the game has ended.
+     *
+     * @param state The completed live state.
+     */
     data class GameOver(
         val state: LiveGameState,
     ) : GamePrompt

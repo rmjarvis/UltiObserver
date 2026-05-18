@@ -600,6 +600,11 @@ internal fun LiveGameScreen(
     }
 }
 
+/**
+ * Responsive live-screen measurements derived from the available height.
+ *
+ * @param field The nested field-specific layout metrics.
+ */
 private data class LiveLayoutMetrics(
     val pagePadding: Dp,
     val sectionSpacing: Dp,

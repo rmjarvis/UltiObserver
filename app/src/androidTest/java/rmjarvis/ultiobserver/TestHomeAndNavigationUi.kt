@@ -21,6 +21,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Test
 import org.junit.runner.RunWith
 
+/// Tests for Home, top-level navigation, profile, settings, and archived-game UI pathways.
 @RunWith(AndroidJUnit4::class)
 class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
     /**

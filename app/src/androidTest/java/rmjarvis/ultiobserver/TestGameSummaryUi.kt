@@ -16,6 +16,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Test
 import org.junit.runner.RunWith
 
+/// Tests for game-over summary UI states.
 @RunWith(AndroidJUnit4::class)
 class TestGameSummaryUi : MainActivityUiTestFixtures() {
     /// Test the game-over summary branch for teams with no player-specific cards.

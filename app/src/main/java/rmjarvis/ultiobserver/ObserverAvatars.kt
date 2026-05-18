@@ -3,6 +3,7 @@ package rmjarvis.ultiobserver
 import androidx.annotation.DrawableRes
 import kotlinx.serialization.Serializable
 
+/// Observer avatar preference stored in Profile and shown on Home.
 @Serializable
 internal enum class ObserverAvatarPreference {
     RANDOM,

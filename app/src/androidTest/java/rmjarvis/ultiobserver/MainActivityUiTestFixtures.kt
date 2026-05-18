@@ -18,6 +18,7 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 import org.junit.Rule
 
+/// Shared Compose UI navigation and state-seeding helpers for instrumentation tests.
 abstract class MainActivityUiTestFixtures {
     @get:Rule
     val composeRule = createAndroidComposeRule<MainActivity>()

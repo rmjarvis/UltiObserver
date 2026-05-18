@@ -16,6 +16,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
+/// Tests for app-level navigation, persistence coordination, and lifecycle state owned by AppViewModel.
 class TestAppViewModel {
     @get:Rule
     val temporaryFolder = TemporaryFolder()
@@ -1197,6 +1198,7 @@ private fun File.replaceText(oldValue: String, newValue: String) {
     writeText(readText().replace(oldValue, newValue))
 }
 
+/// Recording fake for AppViewModel persistence writes without touching the file system.
 private class RecordingAppStateStorage : AppStateStorage {
     val savedCurrentGameStates = mutableListOf<CurrentGameSnapshot>()
     val savedProfiles = mutableListOf<Profile>()

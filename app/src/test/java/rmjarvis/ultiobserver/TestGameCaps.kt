@@ -13,6 +13,7 @@ import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+/// Tests for cap relevance, prompting, application, and timing cues in the game model.
 class TestGameCaps : GameModelTestFixtures() {
     /**
      * Test cap prompting and cap application as rule-visible state transitions.

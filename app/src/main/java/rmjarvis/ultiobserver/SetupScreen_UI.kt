@@ -59,6 +59,12 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneOffset
 
+/**
+ * Numeric game-rule editor dialog target.
+ *
+ * @param dialogTitle The title for the editor dialog.
+ * @param fieldLabel The label for the numeric field in the dialog.
+ */
 private enum class RuleEditTarget(
     val dialogTitle: String,
     val fieldLabel: String,
@@ -85,6 +91,7 @@ private enum class RuleEditTarget(
     ),
 }
 
+/// Setup subsection dialog currently open.
 private enum class SetupEditor {
     START_TIME,
     STARTING_PULL,

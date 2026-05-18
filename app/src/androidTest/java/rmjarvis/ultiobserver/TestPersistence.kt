@@ -20,6 +20,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 
+/// Tests for Android file-backed persistence and startup recovery UI behavior.
 @RunWith(AndroidJUnit4::class)
 class TestPersistence {
     @get:Rule
@@ -125,6 +126,11 @@ class TestPersistence {
     }
 }
 
+/**
+ * Startup-recovery storage fake that reports selected reset buckets.
+ *
+ * @param resetPersistedDataAreas The buckets the fake should report as repaired.
+ */
 private class StartupRecoveryNoticeStorage(
     override val resetPersistedDataAreas: Set<PersistedData>,
 ) : AppStateStorage {

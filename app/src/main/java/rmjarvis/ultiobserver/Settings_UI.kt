@@ -560,6 +560,12 @@ private val timingAlertOptions = listOf(
 
 private val timingAlertRepeatOptions = listOf(2, 3)
 
+/**
+ * Timing cues grouped into one settings section.
+ *
+ * @param title The section title shown in settings.
+ * @param cues The cue ids displayed in this section.
+ */
 private data class TimingCueSection(
     val title: String,
     val cues: List<TimingCueId>,

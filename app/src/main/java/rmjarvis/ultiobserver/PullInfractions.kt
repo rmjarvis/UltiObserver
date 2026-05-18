@@ -2,6 +2,7 @@ package rmjarvis.ultiobserver
 
 import kotlinx.serialization.Serializable
 
+/// Type of pull infraction recorded during a pull sequence.
 @Serializable
 enum class PullInfractionType {
     OFFSIDES,
@@ -9,7 +10,7 @@ enum class PullInfractionType {
 }
 
 /**
- * Represent the state and optional popup event from trying to record a pull infraction.
+ * State and optional popup event from trying to record a pull infraction.
  *
  * @param state The live state after the pull-infraction attempt.
  * @param event The observer-facing event to show, or null when no popup is needed.

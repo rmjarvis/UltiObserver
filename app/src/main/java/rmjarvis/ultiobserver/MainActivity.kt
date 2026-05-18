@@ -7,6 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 
+/// Android Activity entry point for the Compose app.
 class MainActivity : ComponentActivity() {
     internal val appViewModel: AppViewModel by viewModels { appViewModelFactory(filesDir) }
 

@@ -4,6 +4,12 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 
+/**
+ * Stored archived game summary and its completed game state.
+ *
+ * @param state The completed game state saved for read-only review.
+ * @param subtitle Optional archive-list context such as why an active game was closed.
+ */
 @Serializable
 internal data class ArchivedGame(
     val state: LiveGameState,

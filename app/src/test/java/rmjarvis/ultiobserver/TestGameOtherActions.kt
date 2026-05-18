@@ -13,6 +13,7 @@ import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+/// Tests for model actions that are surfaced through the live game's Other menu.
 class TestGameOtherActions : GameModelTestFixtures() {
     /**
      * Test manual correction and less-common actions that are surfaced through the Other menu.

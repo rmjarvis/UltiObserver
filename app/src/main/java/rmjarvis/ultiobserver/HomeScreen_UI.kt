@@ -33,11 +33,23 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.time.format.DateTimeFormatter
 
+/**
+ * Compact current/completed game row on Home.
+ *
+ * @param title The main row text, usually compact start date/time.
+ * @param subtitle The supporting row text, usually resume context or score.
+ */
 internal data class GameListEntry(
     val title: String,
     val subtitle: String,
 )
 
+/**
+ * Archived-game row in the archived games list.
+ *
+ * @param startDateTime Compact start date/time text.
+ * @param scoreLine Final score text.
+ */
 internal data class ArchivedGameListEntry(
     val startDateTime: String,
     val scoreLine: String,

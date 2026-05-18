@@ -7,6 +7,7 @@ import java.time.LocalTime
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
 
+/// Shared deterministic setup and assertion helpers for GameModel-focused unit tests.
 abstract class GameModelTestFixtures {
     protected val testTimeZone: ZoneId = ZoneId.of("America/New_York")
 

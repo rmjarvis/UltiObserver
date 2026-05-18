@@ -13,6 +13,7 @@ import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+/// Tests for undo and redo behavior across representative model actions.
 class TestGameUndo : GameModelTestFixtures() {
     /**
      * Test the undo mechanism through user-visible actions rather than private snapshots.

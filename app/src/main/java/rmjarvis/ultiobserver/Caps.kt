@@ -5,11 +5,18 @@ import kotlinx.serialization.Serializable
 import kotlin.math.max
 import kotlin.math.min
 
+/**
+ * Representation of the next relevant cap status shown on the live screen.
+ *
+ * @param label The user-facing cap label.
+ * @param remaining The time remaining until that cap reaches its scheduled time.
+ */
 data class CapStatus(
     val label: String,
     val remaining: Duration,
 )
 
+/// Identity of the game cap rule being displayed, prompted, or applied.
 @Serializable
 enum class CapType {
     HALF,

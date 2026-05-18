@@ -26,6 +26,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 
+/**
+ * Team awaiting an unknown-player yellow-card disambiguation.
+ *
+ * @param team The team receiving the yellow card.
+ */
 private data class PendingUnknownYellowChoice(
     val team: TeamId,
 )

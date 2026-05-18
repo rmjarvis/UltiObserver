@@ -209,6 +209,7 @@ internal fun StatusLine(
     }
 }
 
+/// Responsive measurements used to draw the live field view.
 internal data class FieldLayoutMetrics(
     val fieldHeight: Dp,
     val teamRowHeight: Dp,
@@ -699,11 +700,22 @@ internal fun CountdownLine(
     }
 }
 
+/**
+ * Callbacks shown after undoing an automatic start-point transition.
+ *
+ * @param onTimeViolation Callback for assessing a time violation.
+ * @param onRestartPullCountdown Callback for restarting the pull countdown.
+ */
 internal data class ExpiredPullActions(
     val onTimeViolation: () -> Unit,
     val onRestartPullCountdown: () -> Unit,
 )
 
+/**
+ * Callback for manually starting a pending misconduct countdown.
+ *
+ * @param onStart Callback invoked when the observer starts the misconduct countdown.
+ */
 internal data class MisconductCountdownAction(
     val onStart: () -> Unit,
 )
@@ -713,6 +725,13 @@ private fun TeamLiveState.pullViolationCount(): Int {
     return offsides + falseStarts
 }
 
+/**
+ * Countdown text and next-cue details currently shown on the live screen.
+ *
+ * @param label The short countdown label.
+ * @param remaining The clamped time remaining.
+ * @param nextCue The next cue inside the active countdown, if one is available.
+ */
 internal data class ActiveCountdownDisplay(
     val label: String,
     val remaining: Duration,

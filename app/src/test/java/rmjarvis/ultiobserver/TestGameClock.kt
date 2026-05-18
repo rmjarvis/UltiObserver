@@ -14,6 +14,7 @@ import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+/// Tests for clock, countdown, formatting, timing cue, and timing alert audio helpers.
 class TestGameClock : GameModelTestFixtures() {
     /**
      * Test deterministic clock and countdown helpers that are public model surface.
@@ -592,6 +593,7 @@ class TestGameClock : GameModelTestFixtures() {
     }
 }
 
+/// Fake timing-alert sound backend that records plays and exposes manual load completion for unit tests.
 private class FakeTimingAlertSoundPlayer : TimingAlertSoundPlayer {
     private lateinit var listener: (sampleId: Int, status: Int) -> Unit
 
@@ -648,6 +650,12 @@ private class FakeTimingAlertSoundPlayer : TimingAlertSoundPlayer {
     }
 }
 
+/**
+ * Recorded sound play requested by the fake timing-alert sound backend.
+ *
+ * @param soundId The fake loaded sound id.
+ * @param volume The clamped volume requested by production code.
+ */
 private data class PlayedTimingAlertSound(
     val soundId: Int,
     val volume: Float,

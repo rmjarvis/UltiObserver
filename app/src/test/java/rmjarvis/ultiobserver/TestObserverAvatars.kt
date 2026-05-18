@@ -5,6 +5,7 @@ import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+/// Tests for observer avatar metadata used by Profile and Home.
 class TestObserverAvatars {
     /// Verify every selectable observer avatar has stable copy and a concrete drawable resource.
     @Test

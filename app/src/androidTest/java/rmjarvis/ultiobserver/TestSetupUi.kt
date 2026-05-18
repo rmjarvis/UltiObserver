@@ -16,6 +16,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Test
 import org.junit.runner.RunWith
 
+/// Tests for setup screen editors and setup-specific navigation.
 @RunWith(AndroidJUnit4::class)
 class TestSetupUi : MainActivityUiTestFixtures() {
     /**

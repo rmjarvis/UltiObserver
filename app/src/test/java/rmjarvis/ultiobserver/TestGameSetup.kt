@@ -13,6 +13,7 @@ import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+/// Tests for setup-state conversion and applying setup edits to live games.
 class TestGameSetup : GameModelTestFixtures() {
     /**
      * Test setup conversion and applying setup edits to a live game.

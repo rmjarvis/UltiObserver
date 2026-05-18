@@ -13,6 +13,7 @@ import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+/// Tests for game phase transitions from setup through live play, halftime, and game over.
 class TestGameTransitions : GameModelTestFixtures() {
     /**
      * Test a representative complete game from setup through halftime to final score.

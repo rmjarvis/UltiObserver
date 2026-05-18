@@ -22,6 +22,11 @@ internal fun buildHalftimeCountdown(
     )
 }
 
+/**
+ * Configured timing cue and its user-facing cue label.
+ *
+ * @param label The message shown or spoken when the cue is delivered.
+ */
 @Serializable
 enum class TimingCueId(
     val label: String,
@@ -51,11 +56,26 @@ enum class TimingCueId(
     HARD_CAP("Hard cap"),
 }
 
+/**
+ * Cue offset within a countdown.
+ *
+ * @param id The timing cue to deliver.
+ * @param remainingSeconds The countdown time remaining when this cue fires.
+ */
 internal data class TimingCue(
     val id: TimingCueId,
     val remainingSeconds: Int,
 )
 
+/**
+ * Timing cue prepared for display or alert delivery.
+ *
+ * @param id The timing cue being displayed or delivered.
+ * @param message The user-facing cue message.
+ * @param remaining The real time until the cue fires.
+ * @param countdownTime The countdown value associated with the cue.
+ * @param targetEpoch The epoch millis when the cue should fire.
+ */
 internal data class TimingCueDisplay(
     val id: TimingCueId,
     val message: String,

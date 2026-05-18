@@ -3,6 +3,14 @@ package rmjarvis.ultiobserver
 import kotlinx.serialization.Serializable
 import kotlin.math.max
 
+/**
+ * Tournament carryover cards for one player before the current game starts.
+ *
+ * @param team The player's team.
+ * @param jerseyNumber The player's jersey number, or `N/A` when unknown.
+ * @param priorYellows Yellow cards issued in previous games of the current tournament.
+ * @param priorReds Red cards issued in previous games of the current tournament.
+ */
 @Serializable
 data class PlayerCardRecord(
     val team: TeamId,
@@ -11,11 +19,23 @@ data class PlayerCardRecord(
     val priorReds: Int,
 )
 
+/**
+ * Player-card type being assigned or reconciled.
+ *
+ * @param label The user-facing card label.
+ */
 enum class CardType(val label: String) {
     YELLOW("Yellow"),
     RED("Red"),
 }
 
+/**
+ * In-game yellow/red card record for one player.
+ *
+ * @param jerseyNumber The player's jersey number, or `N/A` when unknown.
+ * @param yellows The number of in-game yellows represented by this player's record.
+ * @param reds The number of in-game reds represented by this player's record.
+ */
 @Serializable
 data class InGamePlayerCardRecord(
     val jerseyNumber: String,
@@ -58,6 +78,13 @@ internal fun displayPlayerNumber(jerseyNumber: String): String {
     }
 }
 
+/**
+ * State and popup needs from assessing a card or technical foul.
+ *
+ * @param state The live state after the assessment.
+ * @param event The observer-facing event to show.
+ * @param needsMisconductChoice Whether the UI must ask offense/defense before resolving live-point misconduct.
+ */
 data class CardAssessmentResult(
     val state: LiveGameState,
     val event: GameEvent,
@@ -65,11 +92,13 @@ data class CardAssessmentResult(
         event.needsMisconductChoice(),
 )
 
+/// Mode describing whether a red-card outcome came from the Red action or an automatic second yellow.
 enum class RedCardMode {
     RED,
     SECOND_YELLOW,
 }
 
+/// Player-card event type used when formatting card popups.
 enum class PlayerCardEventType {
     YELLOW,
     RED,
@@ -434,15 +463,29 @@ private fun CountdownState.toBetweenPointsMisconductCountdown(): CountdownState 
         targetEpoch = sequenceStart + durationSeconds * 1000L,
     )
 }
+/// Mode describing whether a player-card reconciliation step adds or removes a card.
 enum class PlayerCardAdjustmentMode {
     ADD,
     REMOVE,
 }
+/**
+ * Explicit player-card add/remove prompt needed to reconcile corrected totals.
+ *
+ * @param team The team whose player-card record is being adjusted.
+ * @param cardType The card type being added or removed.
+ * @param mode Whether this step adds or removes one card.
+ */
 data class PlayerCardAdjustmentStep(
     val team: TeamId,
     val cardType: CardType,
     val mode: PlayerCardAdjustmentMode,
 )
+/**
+ * Player with a removable card during manual reconciliation.
+ *
+ * @param jerseyNumber The player's jersey number, or `N/A` when unknown.
+ * @param cardCount The number of cards of the requested type currently on that record.
+ */
 data class PlayerCardRemovalCandidate(
     val jerseyNumber: String,
     val cardCount: Int,

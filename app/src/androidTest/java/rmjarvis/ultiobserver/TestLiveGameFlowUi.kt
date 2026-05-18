@@ -21,6 +21,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
+/// Tests for representative live-game UI flows from setup through play.
 @RunWith(AndroidJUnit4::class)
 class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
     /**

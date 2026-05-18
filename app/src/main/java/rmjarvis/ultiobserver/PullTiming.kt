@@ -3,6 +3,13 @@ package rmjarvis.ultiobserver
 import java.time.Duration
 import kotlinx.serialization.Serializable
 
+/**
+ * Between-points responsibility the near-side observer is timing.
+ *
+ * @param label The short countdown label shown on the live screen.
+ * @param standardDurationSeconds The normal between-points duration for this target.
+ * @param openingDurationSeconds The shorter opening-pull duration for this target.
+ */
 @Serializable
 enum class BetweenPointsCountdownTarget(
     val label: String,
@@ -39,11 +46,18 @@ enum class BetweenPointsCountdownTarget(
     }
 }
 
+/**
+ * State and optional popup event from assessing a pull time violation.
+ *
+ * @param state The live state after the assessment.
+ * @param event The observer-facing event to show, or null when no popup is needed.
+ */
 data class TimeViolationAssessmentResult(
     val state: LiveGameState,
     val event: GameEvent? = null,
 )
 
+/// Rule outcome from assessing a team's pull time violation.
 enum class TimeViolationOutcome {
     WARNING,
     TIMEOUT,

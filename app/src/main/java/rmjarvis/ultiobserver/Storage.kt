@@ -17,11 +17,25 @@ import kotlinx.serialization.json.jsonObject
 internal val APP_STATE_VERSION_NAME: String = BuildConfig.VERSION_NAME
 internal val APP_STATE_VERSION_CODE: Int = BuildConfig.VERSION_CODE
 
+/**
+ * App version metadata read from one persisted JSON bucket.
+ *
+ * @param versionName The human-readable version string.
+ * @param versionCode The integer version used for decode and migration decisions.
+ */
 internal data class AppVersion(
     val versionName: String,
     val versionCode: Int,
 )
 
+/**
+ * Current game, setup draft, and setup mode stored as one persistence bucket.
+ *
+ * @param setupState The current setup form state, including resumable drafts.
+ * @param liveState The current live or completed game, or null before setup is finished.
+ * @param setupMode Whether setup will create a new game or edit the current live game.
+ * @param hasSetupDraft Whether Home should offer a resumable setup draft.
+ */
 @Serializable
 internal data class CurrentGameSnapshot(
     val versionName: String = APP_STATE_VERSION_NAME,
@@ -61,6 +75,11 @@ internal data class CurrentGameSnapshot(
     }
 }
 
+/**
+ * Independently recoverable persisted app-data bucket.
+ *
+ * @param label The user-facing name shown in startup recovery notices.
+ */
 internal enum class PersistedData(val label: String) {
     GAME_STATE("Current Game"),
     PROFILE("Profile"),
@@ -68,6 +87,11 @@ internal enum class PersistedData(val label: String) {
     ARCHIVED_GAMES("Archived Games"),
 }
 
+/**
+ * Description of persisted data that had to be reset or partially recovered on startup.
+ *
+ * @param resetAreas The nonempty set of persisted buckets that were repaired.
+ */
 internal data class RecoveryNotice(
     val resetAreas: Set<PersistedData>,
 ) {
@@ -91,8 +115,11 @@ internal data class RecoveryNotice(
         }
 }
 
-// Tests provide alternate storage implementations so ViewModel behavior can be exercised
-// without Android file I/O, while production uses the file-backed implementation below.
+/**
+ * App-state persistence boundary used by AppViewModel.
+ * Tests provide alternate implementations so ViewModel behavior can be exercised without Android file I/O,
+ * while production uses the file-backed implementation below.
+ */
 internal interface AppStateStorage {
     val resetPersistedDataAreas: Set<PersistedData>
 
@@ -143,6 +170,13 @@ internal val appStateJson = Json {
     prettyPrint = true
 }
 
+/**
+ * File-backed app state storage using JSON files in Android app-private storage.
+ *
+ * @param rootDir The app-private directory where persistence files live.
+ * @param moveFileAtomically File move operation injected so tests can force fallback behavior.
+ * @param replaceFile Non-atomic replacement operation injected so tests can observe fallback behavior.
+ */
 internal class FileAppStateStorage(
     private val rootDir: File,
     // Keep file moves injectable so tests can force platform-specific fallback paths.

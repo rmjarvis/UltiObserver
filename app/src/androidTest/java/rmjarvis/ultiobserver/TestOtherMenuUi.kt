@@ -17,6 +17,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
+/// Tests for live-game Other menu dialogs and correction flows.
 @RunWith(AndroidJUnit4::class)
 class TestOtherMenuUi : MainActivityUiTestFixtures() {
     /**

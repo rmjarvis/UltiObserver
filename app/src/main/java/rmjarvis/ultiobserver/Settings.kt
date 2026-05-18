@@ -4,6 +4,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 
+/// Per-cue alert choice before the global alert mode is applied.
 @Serializable
 enum class TimingAlertMode {
     NONE,
@@ -25,6 +26,11 @@ enum class TimingAlertMode {
     }
 }
 
+/**
+ * Base sound family used for audible timing alerts.
+ *
+ * @param label The user-facing sound name shown in settings.
+ */
 @Serializable
 enum class TimingAlertSound(
     val label: String,
@@ -35,6 +41,11 @@ enum class TimingAlertSound(
     DING("Ding"),
 }
 
+/**
+ * App-wide timing-alert policy that constrains per-cue settings.
+ *
+ * @param label The user-facing mode name shown in settings.
+ */
 enum class TimingAlertGlobalMode(
     val label: String,
 ) {
@@ -43,6 +54,16 @@ enum class TimingAlertGlobalMode(
     SOUNDS_ON("Sounds On"),
 }
 
+/**
+ * User-configurable timing alert behavior.
+ *
+ * @param globalMode The app-wide mode controlling whether alerts are off, vibration-only, or sound-enabled.
+ * @param soundVolume Playback volume for sound alerts.
+ * @param vibrationDurationMillis Vibration length for vibration alerts.
+ * @param vibrateWithSounds Whether sound alerts should also vibrate.
+ * @param cueModes Per-cue alert mode overrides.
+ * @param cueRepeatCounts Per-cue sound/vibration repeat counts.
+ */
 @Serializable
 data class TimingAlertPreferences(
     val globalMode: TimingAlertGlobalMode = TimingAlertGlobalMode.VIBRATION_ONLY,
@@ -150,6 +171,13 @@ const val MIN_TIMING_ALERT_REPEAT_COUNT = 1
 const val MAX_TIMING_ALERT_REPEAT_COUNT = 3
 const val DEFAULT_TIMING_ALERT_REPEAT_COUNT = 1
 
+/**
+ * User settings stored as one persistence bucket.
+ *
+ * @param automaticallyAdvanceCountdowns Whether expired countdowns should drive model transitions.
+ * @param automaticallyLockLivePoint Whether automatic live-point entry should lock the live screen.
+ * @param timingAlertPreferences User-configurable timing cue alert behavior.
+ */
 @Serializable
 internal data class Settings(
     val versionName: String = APP_STATE_VERSION_NAME,

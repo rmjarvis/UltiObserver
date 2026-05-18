@@ -9,6 +9,12 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import kotlinx.coroutines.delay
 
+/**
+ * Timing alert sound preloader and player for the platform sound backend.
+ *
+ * @param soundPlayer The platform-specific sound backend.
+ * @param loadSound Function used to load one clip into the backend; injectable for tests.
+ */
 internal class TimingAlertPlayer internal constructor(
     private val soundPlayer: TimingAlertSoundPlayer,
     loadSound: (TimingAlertSoundPlayer, TimingAlertSoundClip) -> Int,
@@ -89,6 +95,12 @@ internal class TimingAlertPlayer internal constructor(
     }
 }
 
+/**
+ * Pre-rendered timing alert sound clip.
+ *
+ * @param sound The base sound family.
+ * @param repeatCount The number of repeated cues encoded in the clip.
+ */
 internal data class TimingAlertSoundClip(val sound: TimingAlertSound, val repeatCount: Int)
 
 /// List every sound clip that should be preloaded for timing alerts.
@@ -100,6 +112,7 @@ private fun timingAlertSoundClips(): List<TimingAlertSoundClip> {
     }
 }
 
+/// Abstraction over SoundPool operations so timing alert audio can be tested without Android audio hardware.
 internal interface TimingAlertSoundPlayer {
     /**
      * Register a listener for sound-load completion.
@@ -133,6 +146,7 @@ internal interface TimingAlertSoundPlayer {
     fun release()
 }
 
+/// Android SoundPool adapter for the TimingAlertSoundPlayer interface.
 private class AndroidTimingAlertSoundPlayer : TimingAlertSoundPlayer {
     private val soundPool = SoundPool.Builder()
         .setMaxStreams(1)

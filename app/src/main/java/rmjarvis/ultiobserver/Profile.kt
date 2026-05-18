@@ -4,6 +4,12 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 
+/**
+ * Observer profile information stored as one persistence bucket.
+ *
+ * @param profileName The observer name entered in Profile.
+ * @param avatarPreference The preferred Home-screen observer avatar, or random.
+ */
 @Serializable
 internal data class Profile(
     val versionName: String = APP_STATE_VERSION_NAME,

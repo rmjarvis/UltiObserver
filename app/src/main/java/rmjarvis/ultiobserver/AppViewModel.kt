@@ -9,6 +9,7 @@ import java.time.ZoneId
 import kotlinx.serialization.Serializable
 import kotlin.random.Random
 
+/// Identity of the top-level app screen currently routed by the app shell.
 @Serializable
 internal enum class AppScreen {
     HOME,
@@ -21,6 +22,7 @@ internal enum class AppScreen {
     LIVE,
 }
 
+/// Mode describing whether the setup screen is creating a new game or editing the current one.
 @Serializable
 internal enum class SetupMode {
     NEW_GAME,
@@ -28,7 +30,7 @@ internal enum class SetupMode {
 }
 
 /**
- * Coordinate app-level state for the Android UI.
+ * App-level state coordinator for the Android UI.
  *
  * An Android ViewModel is a lifecycle-aware state holder scoped to an Activity or UI flow.
  * It survives normal Activity recreation, such as rotation, so the UI can be rebuilt without
