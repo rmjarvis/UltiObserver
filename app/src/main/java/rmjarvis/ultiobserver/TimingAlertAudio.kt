@@ -99,8 +99,10 @@ private class AndroidTimingAlertSoundPlayer : TimingAlertSoundPlayer {
 
 private fun TimingAlertSound.rawResourceId(): Int {
     return when (this) {
+        // CC0 excerpt from Wikimedia Commons: Clicker_sound.ogg.
         TimingAlertSound.TICK -> R.raw.timing_tick
         TimingAlertSound.BEEP -> R.raw.timing_beep
+        // Excerpt from Pixabay Content License sound: Ding~ by u_31vnwfmzt6.
         TimingAlertSound.DING -> R.raw.timing_ding
         // Public-domain excerpt from Wikimedia Commons: Knocking_on_wood_or_door.ogg.
         TimingAlertSound.KNOCK -> R.raw.timing_knock
