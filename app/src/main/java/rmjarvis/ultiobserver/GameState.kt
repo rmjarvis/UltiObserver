@@ -243,15 +243,15 @@ enum class TimingAlertMode {
     VIBRATE,
     TICK,
     BEEP,
-    DING,
-    KNOCK;
+    KNOCK,
+    DING;
 
     fun toTimingAlertSound(): TimingAlertSound {
         return when (this) {
             TICK -> TimingAlertSound.TICK
             BEEP -> TimingAlertSound.BEEP
-            DING -> TimingAlertSound.DING
             KNOCK -> TimingAlertSound.KNOCK
+            DING -> TimingAlertSound.DING
             NONE, VIBRATE -> error("$this is not a sound timing alert mode.")
         }
     }
@@ -262,8 +262,8 @@ enum class TimingAlertSound(
 ) {
     TICK("Tick"),
     BEEP("Beep"),
-    DING("Ding"),
     KNOCK("Knock"),
+    DING("Ding"),
 }
 @Serializable
 data class TimingAlertPreferences(

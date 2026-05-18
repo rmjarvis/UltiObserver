@@ -125,7 +125,7 @@ class TestGameClock : GameModelTestFixtures() {
         assertEquals(TimingAlertSound.DING, TimingAlertMode.DING.toTimingAlertSound())
         assertEquals(TimingAlertSound.KNOCK, TimingAlertMode.KNOCK.toTimingAlertSound())
         assertEquals(
-            listOf(TimingAlertSound.TICK, TimingAlertSound.BEEP, TimingAlertSound.DING, TimingAlertSound.KNOCK),
+            listOf(TimingAlertSound.TICK, TimingAlertSound.BEEP, TimingAlertSound.KNOCK, TimingAlertSound.DING),
             TimingAlertSound.entries,
         )
         val nonSoundModeException = assertThrows(IllegalStateException::class.java) {

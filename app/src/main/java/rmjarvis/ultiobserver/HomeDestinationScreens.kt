@@ -644,8 +644,8 @@ private fun TimingAlertMode.settingsLabel(): String {
         TimingAlertMode.VIBRATE -> "Vibrate"
         TimingAlertMode.TICK -> "Tick"
         TimingAlertMode.BEEP -> "Beep"
-        TimingAlertMode.DING -> "Ding"
         TimingAlertMode.KNOCK -> "Knock"
+        TimingAlertMode.DING -> "Ding"
     }
 }
 
@@ -654,8 +654,8 @@ private val timingAlertOptions = listOf(
     TimingAlertMode.VIBRATE,
     TimingAlertMode.TICK,
     TimingAlertMode.BEEP,
-    TimingAlertMode.DING,
     TimingAlertMode.KNOCK,
+    TimingAlertMode.DING,
 )
 
 private val timingAlertRepeatOptions = listOf(2, 3)
