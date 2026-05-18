@@ -23,8 +23,10 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
-    // Test the basic launch story from home to setup to live play.
-    // Keep this focused on the first-run path and the live-use lock affordance.
+    /**
+     * Test the basic launch story from home to setup to live play.
+     * Keep this focused on the first-run path and the live-use lock affordance.
+     */
     @Test
     fun launchHomeAndStartGame() {
         // Verify the app opens on the home screen with the primary navigation affordances.
@@ -66,7 +68,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText("Slide right to unlock")
     }
 
-    // Test the home-screen and update-setup buttons that wire into app-level routing state.
+    /// Test the home-screen and update-setup buttons that wire into app-level routing state.
     @Test
     fun homeCurrentGameResumeAndUpdateSetupPath() {
         startLiveGameProgrammatically()
@@ -89,7 +91,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         assertLiveScreen()
     }
 
-    // Test the explicit app-bar Back buttons mirror Android back navigation on main screens.
+    /// Test the explicit app-bar Back buttons mirror Android back navigation on main screens.
     @Test
     fun topLevelScreensHaveVisibleBackButtons() {
         openNewGameSetup()
@@ -106,9 +108,10 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText("Current Game")
     }
 
-    // Test the new home destinations that are present before their full feature work exists.
+    /// Test the new home destinations that are present before their full feature work exists.
     @Test
     fun homeDestinationButtonsOpenStubPages() {
+        // About should behave like a quiet informational destination that returns cleanly to Home.
         composeRule.onNodeWithText("About").performClick()
         composeRule.onNodeWithTag("about-screen").assertIsDisplayed()
         composeRule.onNodeWithText("Version ${BuildConfig.VERSION_NAME}").assertIsDisplayed()
@@ -116,6 +119,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         pressAppBack()
         waitForText("Start New Game")
 
+        // Profile should save both the observer name and selected avatar across navigation.
         composeRule.onNodeWithText("Profile").performClick()
         waitForText("Name")
         waitForText("Home avatar")
@@ -130,6 +134,8 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNode(hasContentDescription("Man with blue ponytail and glasses")).assertIsDisplayed()
         pressAppBack()
         waitForText("Start New Game")
+
+        // Seed settings directly so this UI-focused test can start at a meaningful cue state.
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.appViewModel.updateTimingAlertGlobalMode(TimingAlertGlobalMode.VIBRATION_ONLY)
             activity.appViewModel.updateTimingAlertVibrateWithSounds(false)
@@ -138,6 +144,8 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
                 TimingAlertMode.NONE,
             )
         }
+
+        // Settings should expose automatic live-play options and hide sound controls when sounds are off.
         composeRule.onNodeWithText("Settings").performClick()
         waitForText("Automatically start live play when a countdown expires?")
         composeRule.onNodeWithTag("settings-auto-advance-countdowns-value").assertTextEquals("Yes")
@@ -156,6 +164,8 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onAllNodesWithTag("settings-vibrate-with-sounds").assertCountEquals(0)
         composeRule.onNodeWithText("Sound Settings for Individual Cues").performClick()
         waitForText("Cue Sound Settings")
+
+        // Cue settings should show disabled-sound context, support default reset, and persist per-cue edits.
         waitForText("Reset all to defaults")
         waitForText("Note -- sounds are currently not enabled. If you want sounds, enable them on the previous page.")
         composeRule.onNodeWithTag("settings-RECEIVING_TWENTY_FOR_HAND-NONE").assertIsSelected()
@@ -170,6 +180,8 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText("Ear buds are recommended when using sounds with UltiObserver.")
         waitForText("Sound volume 50%")
         waitForText("Also vibrate on cues that use sound?")
+
+        // Re-enabled sound settings should expose vibration, preview, and repeat-count controls.
         composeRule.onNodeWithTag("settings-vibrate-with-sounds-value").assertTextEquals("No")
         composeRule.onNodeWithTag("settings-sound-volume").assertIsEnabled()
         composeRule.onNodeWithTag("settings-vibrate-with-sounds").assertIsEnabled()
@@ -202,6 +214,8 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText("Use sounds and vibration for timing cues?")
         pressAppBack()
         waitForText("Start New Game")
+
+        // Previous Games should be reachable from Home even before archived-game flows are populated.
         composeRule.onNodeWithText("Previous Games").performClick()
         composeRule.onNodeWithTag("previous-games-screen").assertIsDisplayed()
     }

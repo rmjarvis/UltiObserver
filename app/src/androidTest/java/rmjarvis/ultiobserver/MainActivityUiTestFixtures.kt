@@ -22,16 +22,26 @@ abstract class MainActivityUiTestFixtures {
     @get:Rule
     val composeRule = createAndroidComposeRule<MainActivity>()
 
+    /// Open the new-game setup screen from Home.
     protected fun openNewGameSetup() {
         composeRule.onNodeWithText("Start New Game").performClick()
         waitForText("UltiObserver Setup")
     }
 
+    /// Start a live game through the public Home and setup UI path.
     protected fun startLiveGame() {
         openNewGameSetup()
         startGameFromSetup()
     }
 
+    /**
+     * Start a live game by seeding ViewModel state directly.
+     *
+     * This lets UI test functions start with a well-defined game state rather than having to get to that
+     * state via UI actions.
+     *
+     * @param setup The setup state to use; direct injection keeps slow prerequisites out of UI-focused tests.
+     */
     protected fun startLiveGameProgrammatically(setup: GameSetupState = newGameSetupState()) {
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.appViewModel.deleteCurrentGame()
@@ -42,15 +52,30 @@ abstract class MainActivityUiTestFixtures {
         assertLiveScreen()
     }
 
+    /// Finish the currently visible setup form and verify the live screen appears.
     protected fun startGameFromSetup() {
         composeRule.onNodeWithText("Start Game").performClick()
         assertLiveScreen()
     }
 
+    /**
+     * Replace one setup team-name field.
+     *
+     * @param fieldLabel The setup field label used in the team's test tag.
+     * @param teamName The new team name to enter.
+     */
     protected fun replaceSetupTeamName(fieldLabel: String, teamName: String) {
         composeRule.onNodeWithTag("setup-$fieldLabel-name").performScrollTo().performTextReplacement(teamName)
     }
 
+    /**
+     * Set an integer rule through the setup game-rules editor.
+     *
+     * @param buttonText The row text that opens the specific rule dialog.
+     * @param dialogTitle The title expected after opening the rule dialog.
+     * @param fieldLabel The numeric text-field label to replace.
+     * @param value The integer text to enter.
+     */
     protected fun setIntegerSetupValue(
         buttonText: String,
         dialogTitle: String,
@@ -67,6 +92,11 @@ abstract class MainActivityUiTestFixtures {
         waitForText("Start Game")
     }
 
+    /**
+     * Set setup start time through the Material time input.
+     *
+     * @param startTime The local time to enter.
+     */
     protected fun setStartTime(startTime: LocalTime) {
         val hour = startTime.hour % 12
         val hourText = (if (hour == 0) 12 else hour).toString()
@@ -91,14 +121,24 @@ abstract class MainActivityUiTestFixtures {
         waitForText("Start Game")
     }
 
+    /// Set setup start time to midnight so tests can create a cap-due state without waiting.
     protected fun setStartTimeToRecentPast() {
         setStartTime(LocalTime.MIDNIGHT)
     }
 
+    /// Set setup start time to the next minute so tests can exercise near-future timing.
     protected fun setStartTimeToFutureMinute() {
         setStartTime(LocalTime.now().plusMinutes(1))
     }
 
+    /**
+     * Set a cap rule's minute offset through setup.
+     *
+     * @param rowLabel The rules row label that opens the cap dialog.
+     * @param dialogTitle The cap dialog title and None-toggle test-tag stem.
+     * @param value The minute offset text to enter.
+     * @param enableFromNone Whether the helper should first toggle the cap back on from None.
+     */
     protected fun setCapRuleValue(
         rowLabel: String,
         dialogTitle: String,
@@ -118,6 +158,12 @@ abstract class MainActivityUiTestFixtures {
         waitForText("Start Game")
     }
 
+    /**
+     * Disable a cap rule through setup.
+     *
+     * @param rowLabel The rules row label that opens the cap dialog.
+     * @param dialogTitle The cap dialog title and None-toggle test-tag stem.
+     */
     protected fun setCapRuleToNone(rowLabel: String, dialogTitle: String) {
         openGameRulesSetupEditor()
         composeRule.onNodeWithText(rowLabel).performScrollTo().performClick()
@@ -129,6 +175,12 @@ abstract class MainActivityUiTestFixtures {
         waitForText("Start Game")
     }
 
+    /**
+     * Set timeout rules through setup.
+     *
+     * @param timeoutsPerHalf The timeout count text to enter.
+     * @param hasFloater Whether to enable the optional floater timeout.
+     */
     protected fun setTimeoutRules(timeoutsPerHalf: String, hasFloater: Boolean) {
         openGameRulesSetupEditor()
         composeRule.onNodeWithText("Timeouts").performScrollTo().performClick()
@@ -143,6 +195,14 @@ abstract class MainActivityUiTestFixtures {
         waitForText("Start Game")
     }
 
+    /**
+     * Add a prior-card holder through setup.
+     *
+     * @param teamName The displayed team name expected in the added row.
+     * @param jersey The jersey number to enter.
+     * @param yellows The prior yellow count to set.
+     * @param reds The prior red count to set.
+     */
     protected fun addPriorCardHolder(teamName: String, jersey: String, yellows: Int, reds: Int) {
         openPriorCardsSetupEditor()
         composeRule.onNodeWithText("Add Card Holder").performScrollTo().performClick()
@@ -161,6 +221,14 @@ abstract class MainActivityUiTestFixtures {
         waitForText("Start Game")
     }
 
+    /**
+     * Start a live game whose selected cap is already due.
+     *
+     * This lets UI tests open cap-prompt flows from a known cap state without waiting for wall-clock time.
+     *
+     * @param rowLabel The setup row label identifying the cap.
+     * @param dialogTitle The setup dialog title identifying the cap.
+     */
     protected fun startLiveGameWithDueCap(rowLabel: String, dialogTitle: String) {
         val capType = capTypeForSetupLabels(rowLabel, dialogTitle)
         startLiveGameProgrammatically(
@@ -172,6 +240,14 @@ abstract class MainActivityUiTestFixtures {
         )
     }
 
+    /**
+     * Start a live game where the selected cap becomes due during halftime.
+     *
+     * This lets UI tests validate halftime cap prompts without playing through real elapsed cap time.
+     *
+     * @param rowLabel The setup row label identifying the cap.
+     * @param dialogTitle The setup dialog title identifying the cap.
+     */
     protected fun startLiveGameWithCapDuringHalftime(rowLabel: String, dialogTitle: String) {
         val capType = capTypeForSetupLabels(rowLabel, dialogTitle)
         val start = LocalDateTime.now().plusMinutes(1)
@@ -184,22 +260,31 @@ abstract class MainActivityUiTestFixtures {
         )
     }
 
+    /// Return from the game screen to Home using app back navigation.
     protected fun returnHomeFromGame() {
         pressAppBack()
         waitForText("Start New Game")
     }
 
+    /**
+     * Tap a team's goal button and wait for the expected undo label.
+     *
+     * @param team The team that should score.
+     * @param undoLabel The undo text expected after the goal.
+     */
     protected fun recordGoal(team: TeamId, undoLabel: String) {
         composeRule.onNodeWithTag(teamActionTag(team, "goal")).performClick()
         waitForText(undoLabel)
     }
 
+    /// Start the point, wait for lock mode, and unlock the live screen.
     protected fun startPointAndUnlock() {
         composeRule.onNodeWithText("Start Point").performClick()
         waitForText("Slide right to unlock")
         unlockLiveScreen()
     }
 
+    /// Verify a too-short unlock swipe does not unlock, then complete the unlock flow.
     protected fun startPointWithFailedSwipeThenUnlock() {
         composeRule.onNodeWithText("Start Point").performClick()
         waitForText("Slide right to unlock")
@@ -216,12 +301,18 @@ abstract class MainActivityUiTestFixtures {
         unlockLiveScreen()
     }
 
+    /// Continue play after an in-point countdown and unlock the live screen.
     protected fun continuePointAndUnlock() {
         composeRule.onNodeWithText("Continue Point").performClick()
         waitForText("Slide right to unlock")
         unlockLiveScreen()
     }
 
+    /**
+     * Clear archived games by calling the ViewModel directly.
+     *
+     * This lets UI tests start from a known archive state without deleting existing rows through the UI.
+     */
     protected fun clearArchivedGamesProgrammatically() {
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.appViewModel.deleteAllArchivedGames()
@@ -229,6 +320,15 @@ abstract class MainActivityUiTestFixtures {
         composeRule.waitForIdle()
     }
 
+    /**
+     * Seed one archived completed game by calling the ViewModel directly.
+     *
+     * This lets UI tests validate Previous Games behavior without first playing and archiving a game
+     * through UI actions.
+     *
+     * @param teamOneName The archived game Team 1 name.
+     * @param teamTwoName The archived game Team 2 name.
+     */
     protected fun seedArchivedGameProgrammatically(teamOneName: String, teamTwoName: String) {
         composeRule.activityRule.scenario.onActivity { activity ->
             val setup = newGameSetupState().copy(
@@ -246,6 +346,15 @@ abstract class MainActivityUiTestFixtures {
         composeRule.waitForIdle()
     }
 
+    /**
+     * Seed in-game player card records by calling the ViewModel directly.
+     *
+     * This lets UI tests open card adjustment paths from a precise card history without recording every
+     * prerequisite card through the UI.
+     *
+     * @param teamOneCards The Team 1 player-card records to install.
+     * @param teamTwoCards The Team 2 player-card records to install.
+     */
     protected fun seedInGamePlayerCardsProgrammatically(
         teamOneCards: List<InGamePlayerCardRecord> = emptyList(),
         teamTwoCards: List<InGamePlayerCardRecord> = emptyList(),
@@ -262,6 +371,11 @@ abstract class MainActivityUiTestFixtures {
         composeRule.waitForIdle()
     }
 
+    /**
+     * End the current game through the model and wait for the game-over prompt.
+     *
+     * This lets UI tests reach summary/delete/archive flows without scoring through a full game in the UI.
+     */
     protected fun endCurrentGameProgrammatically() {
         composeRule.activityRule.scenario.onActivity { activity ->
             val current = activity.appViewModel.liveState!!
@@ -270,6 +384,13 @@ abstract class MainActivityUiTestFixtures {
         waitForText("Game Over")
     }
 
+    /**
+     * Move the active countdown target relative to now by direct ViewModel state update.
+     *
+     * This lets UI tests exercise expired-countdown behavior deterministically without waiting for real time to pass.
+     *
+     * @param secondsRemaining The desired countdown seconds remaining; negative values force expiry.
+     */
     protected fun setActiveCountdownRemainingProgrammatically(secondsRemaining: Int) {
         composeRule.activityRule.scenario.onActivity { activity ->
             val current = activity.appViewModel.liveState!!
@@ -285,6 +406,7 @@ abstract class MainActivityUiTestFixtures {
         composeRule.waitForIdle()
     }
 
+    /// Complete the live-screen unlock gesture and wait for unlocked controls.
     protected fun unlockLiveScreen() {
         composeRule.onNodeWithTag("live-unlock-slider").performTouchInput {
             swipeRight()
@@ -292,6 +414,11 @@ abstract class MainActivityUiTestFixtures {
         waitForText("Lock")
     }
 
+    /**
+     * Confirm a destructive delete dialog with its slide control.
+     *
+     * @param dialogTitle The dialog title to wait for before sliding.
+     */
     protected fun confirmDeleteWithSlider(dialogTitle: String = "Delete Game?") {
         waitForText(dialogTitle)
         composeRule.onNodeWithTag("confirm-delete-slider").performTouchInput {
@@ -299,6 +426,12 @@ abstract class MainActivityUiTestFixtures {
         }
     }
 
+    /**
+     * Charge a timeout to a team and dismiss the confirmation popup.
+     *
+     * @param team The team requesting the timeout.
+     * @param undoLabel The undo text expected after the timeout is recorded.
+     */
     protected fun recordTimeout(team: TeamId, undoLabel: String) {
         composeRule.onNodeWithTag(teamActionTag(team, "timeout")).performClick()
         waitForText("Timeout charged to", substring = true)
@@ -306,6 +439,7 @@ abstract class MainActivityUiTestFixtures {
         waitForText(undoLabel)
     }
 
+    /// Exercise the score adjustment dialog with a small nonzero correction.
     protected fun applyScoreAdjustment() {
         openOtherSheet()
         composeRule.onNodeWithText("Adjust Score").performClick()
@@ -317,6 +451,7 @@ abstract class MainActivityUiTestFixtures {
         waitForText("Undo Score Adjustment")
     }
 
+    /// Exercise the timeout adjustment dialog with a small nonzero correction.
     protected fun applyTimeoutAdjustment() {
         openOtherSheet()
         composeRule.onNodeWithText("Adjust Timeouts").performClick()
@@ -328,6 +463,7 @@ abstract class MainActivityUiTestFixtures {
         waitForText("Undo Timeout Adjustment")
     }
 
+    /// Exercise the pull-infraction adjustment dialog with a small nonzero correction.
     protected fun applyPullInfractionAdjustment() {
         openOtherSheet()
         composeRule.onNodeWithText("Adjust Pull Infractions").performClick()
@@ -341,6 +477,7 @@ abstract class MainActivityUiTestFixtures {
         waitForText("Undo Pull Infraction Adjustment")
     }
 
+    /// Exercise the Cards / TF adjustment dialog without changing counts.
     protected fun applyNoOpCardAdjustment() {
         openOtherSheet()
         composeRule.onNodeWithText("Adjust Cards / TF").performClick()
@@ -349,6 +486,16 @@ abstract class MainActivityUiTestFixtures {
         waitForText("Undo Cards / TF Adjustment")
     }
 
+    /**
+     * Record a yellow card through the Cards / TF sheet.
+     *
+     * @param team The team receiving the yellow.
+     * @param playerNumber The player number to enter; blank chooses `N/A`.
+     * @param expectedMessage The popup text expected after recording.
+     * @param misconductChoice Optional misconduct choice to tap when the card reaches a live-point threshold.
+     * @param expectedMisconductMessage Optional threshold-resolution text expected after choosing offense/defense.
+     * @param substring Whether expected-message matching should allow substring matches.
+     */
     protected fun recordYellowCard(
         team: TeamId,
         playerNumber: String,
@@ -377,6 +524,13 @@ abstract class MainActivityUiTestFixtures {
         composeRule.onNodeWithText("OK").performClick()
     }
 
+    /**
+     * Record a red card through the Cards / TF sheet.
+     *
+     * @param team The team receiving the red.
+     * @param playerNumber The player number to enter.
+     * @param expectedMessage The popup text expected after recording.
+     */
     protected fun recordRedCard(team: TeamId, playerNumber: String, expectedMessage: String) {
         openCardsSheet()
         composeRule.onAllNodesWithText("Red")[teamCardButtonIndex(team)].performClick()
@@ -387,10 +541,21 @@ abstract class MainActivityUiTestFixtures {
         composeRule.onNodeWithText("OK").performClick()
     }
 
+    /**
+     * Enter a player number into the active card dialog.
+     *
+     * @param playerNumber The player number text to enter.
+     */
     protected fun enterCardPlayerNumber(playerNumber: String) {
         composeRule.onNodeWithTag("card-player-number").performTextReplacement(playerNumber)
     }
 
+    /**
+     * Record a blue card through the Cards / TF sheet.
+     *
+     * @param team The team receiving the blue card.
+     * @param expectedMessage The popup text expected after recording.
+     */
     protected fun recordBlueCard(team: TeamId, expectedMessage: String) {
         openCardsSheet()
         composeRule.onAllNodesWithText("Blue")[teamCardButtonIndex(team)].performClick()
@@ -398,6 +563,13 @@ abstract class MainActivityUiTestFixtures {
         composeRule.onNodeWithText("OK").performClick()
     }
 
+    /**
+     * Record a technical foul through the Cards / TF sheet.
+     *
+     * @param team The team receiving the technical foul.
+     * @param expectedMessage The popup text expected after recording.
+     * @param substring Whether expected-message matching should allow substring matches.
+     */
     protected fun recordTechnicalFoul(
         team: TeamId,
         expectedMessage: String,
@@ -409,16 +581,28 @@ abstract class MainActivityUiTestFixtures {
         composeRule.onNodeWithText("OK").performClick()
     }
 
+    /**
+     * Return the zero-based card-button index for a team in the Cards / TF sheet.
+     *
+     * @param team The team whose row button index is needed.
+     */
     protected fun teamCardButtonIndex(team: TeamId): Int {
         return if (team == TeamId.TEAM_ONE) 0 else 1
     }
 
+    /// Assert that the live screen's main controls are visible.
     protected fun assertLiveScreen() {
         waitForText("Cards / TF")
         composeRule.onNodeWithText("Cards / TF").assertIsDisplayed()
         composeRule.onNodeWithText("Other").assertIsDisplayed()
     }
 
+    /**
+     * Open a setup dialog from Game Rules, verify it appears, then cancel it.
+     *
+     * @param buttonText The row text that opens the dialog.
+     * @param dialogTitle The title expected after opening the dialog.
+     */
     protected fun openSetupDialog(buttonText: String, dialogTitle: String) {
         openGameRulesSetupEditor()
         composeRule.onNodeWithText(buttonText).performScrollTo().performClick()
@@ -429,40 +613,52 @@ abstract class MainActivityUiTestFixtures {
         closeSetupEditor()
     }
 
+    /// Open the setup start-time editor.
     protected fun openStartTimeSetupEditor() {
         composeRule.onNodeWithTag("setup-edit-start-time").performScrollTo().performClick()
         waitForText("Date")
     }
 
+    /// Open the setup starting-pull editor.
     protected fun openStartingPullSetupEditor() {
         composeRule.onNodeWithTag("setup-edit-starting-pull").performScrollTo().performClick()
         waitForText("Pulling team")
     }
 
+    /// Open the setup game-rules editor.
     protected fun openGameRulesSetupEditor() {
         composeRule.onNodeWithTag("setup-edit-game-rules").performScrollTo().performClick()
         waitForText("Game to")
     }
 
+    /// Open the setup prior-cards editor.
     protected fun openPriorCardsSetupEditor() {
         composeRule.onNodeWithTag("setup-edit-prior-cards").performScrollTo().performClick()
         waitForText("Add Card Holder")
     }
 
+    /// Close the current setup overview editor dialog.
     protected fun closeSetupEditor() {
         composeRule.onNodeWithText("Done").performClick()
     }
 
+    /// Open the live Cards / TF sheet.
     protected fun openCardsSheet() {
         composeRule.onNodeWithText("Cards / TF").performClick()
         waitForText("Cards / Technical Fouls")
     }
 
+    /// Open the live Other sheet.
     protected fun openOtherSheet() {
         composeRule.onAllNodesWithText("Other").onFirst().performClick()
         waitForText("Update Game Setup")
     }
 
+    /**
+     * Open a dialog from the Other sheet and cancel it.
+     *
+     * @param label The Other-sheet action label that opens the dialog.
+     */
     protected fun openOtherDialogAndCancel(label: String) {
         composeRule.onNodeWithText(label).performClick()
         composeRule.onNodeWithText("Cancel").assertIsDisplayed()
@@ -470,22 +666,41 @@ abstract class MainActivityUiTestFixtures {
         waitForText("Update Game Setup")
     }
 
+    /// Trigger app-level Android back handling from the activity.
     protected fun pressAppBack() {
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.onBackPressedDispatcher.onBackPressed()
         }
     }
 
+    /**
+     * Wait until text appears in the Compose semantics tree.
+     *
+     * @param text The text to wait for.
+     * @param substring Whether substring matching should be used.
+     */
     protected fun waitForText(text: String, substring: Boolean = false) {
         composeRule.waitUntil(timeoutMillis = 10_000) {
             composeRule.onAllNodesWithText(text, substring = substring).fetchSemanticsNodes().isNotEmpty()
         }
     }
 
+    /**
+     * Build the test tag for one team action on the live field.
+     *
+     * @param team The team whose action button is targeted.
+     * @param action The action suffix, such as `goal`, `timeout`, or `pull-infraction`.
+     */
     protected fun teamActionTag(team: TeamId, action: String): String {
         return "live-${team.name}-$action"
     }
 
+    /**
+     * Map setup labels to the cap type they identify.
+     *
+     * @param rowLabel The setup row label.
+     * @param dialogTitle The setup dialog title.
+     */
     private fun capTypeForSetupLabels(rowLabel: String, dialogTitle: String): CapType {
         return when (rowLabel to dialogTitle) {
             "Half cap" to "Half Cap" -> CapType.HALF
@@ -495,6 +710,12 @@ abstract class MainActivityUiTestFixtures {
         }
     }
 
+    /**
+     * Build game rules with exactly one cap enabled.
+     *
+     * @param capType The cap type to enable.
+     * @param capMinutes The enabled cap's offset in minutes.
+     */
     private fun singleEnabledCapRules(capType: CapType, capMinutes: Int): GameRules {
         return GameRules(
             gameTo = 5,

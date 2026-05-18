@@ -18,8 +18,10 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class TestSetupUi : MainActivityUiTestFixtures() {
-    // Test the setup form's modal editors and prior-card entry point.
-    // These are broad wiring checks rather than detailed rule-state assertions.
+    /**
+     * Test the setup form's modal editors and prior-card entry point.
+     * These are broad wiring checks rather than detailed rule-state assertions.
+     */
     @Test
     fun setupEditorsOpenAndReturnToSetup() {
         openNewGameSetup()
@@ -72,8 +74,10 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         assertLiveScreen()
     }
 
-    // Test a comprehensive setup pass that changes every editable pregame section.
-    // This protects the setup screen's user-facing editors without asserting model internals.
+    /**
+     * Test a comprehensive setup pass that changes every editable pregame section.
+     * This protects the setup screen's user-facing editors without asserting model internals.
+     */
     @Test
     fun setupScreenCanEditEveryField() {
         val aardvarks = "Aardvarks"
@@ -153,8 +157,10 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText(beagles).assertIsDisplayed()
     }
 
-    // Test the live screen fallback labels for blank setup team names.
-    // This covers the same public setup route an observer would use, not helper-only state.
+    /**
+     * Test the live screen fallback labels for blank setup team names.
+     * This covers the same public setup route an observer would use, not helper-only state.
+     */
     @Test
     fun blankTeamNamesUseDefaultLabels() {
         openNewGameSetup()

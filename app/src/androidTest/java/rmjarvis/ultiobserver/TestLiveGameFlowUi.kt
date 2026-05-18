@@ -23,8 +23,10 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
-    // Test a representative complete game from setup through halftime to final score.
-    // Keep this as a user-visible UI story that checks flow, not detailed model accounting.
+    /**
+     * Test a representative complete game from setup through halftime to final score.
+     * Keep this as a user-visible UI story that checks flow, not detailed model accounting.
+     */
     @Test
     fun normalGamePath() {
         clearArchivedGamesProgrammatically()
@@ -194,12 +196,15 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         waitForText("Start New Game")
     }
 
+    /// Assert that the game-over confirmation dialog is not currently visible.
     private fun assertNoGameOverDialog() {
         assertTrue(composeRule.onAllNodesWithText("Game Over").fetchSemanticsNodes().isEmpty())
     }
 
-    // Test the primary live screen actions that should be available directly from the phone.
-    // Keep the assertions at the visible undo/message level; GameModel owns detailed state checks.
+    /**
+     * Test the primary live screen actions that should be available directly from the phone.
+     * Keep the assertions at the visible undo/message level; GameModel owns detailed state checks.
+     */
     @Test
     fun livePrimaryActionsAndUndoPath() {
         startLiveGameProgrammatically()
@@ -228,10 +233,12 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         recordTimeout(TeamId.TEAM_ONE, "Undo Timeout by Team 1")
     }
 
+    /// Verify expired-pull actions and timing alert delivery are still wired through the live screen.
     @Test
     fun expiredPullActionsAndTimingAlertsAreWired() {
         startLiveGameProgrammatically()
 
+        // Drive each global/cue combination directly to verify alert delivery stays wired.
         triggerDueTimeoutTwentyCue(
             globalMode = TimingAlertGlobalMode.VIBRATION_ONLY,
             cueMode = TimingAlertMode.VIBRATE,
@@ -254,6 +261,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             vibrateWithSounds = false,
         )
 
+        // Seed an expired-pull surface so the test can focus on the visible correction actions.
         composeRule.activityRule.scenario.onActivity { activity ->
             val current = activity.appViewModel.liveState!!
             activity.appViewModel.updateLiveGame(
@@ -266,6 +274,8 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         }
         waitForText("Time Violation")
         waitForText("Restart Countdown")
+
+        // Locking the live screen should hide expired-pull correction actions until unlocked.
         composeRule.onNodeWithTag("live-top-lock").performClick()
         waitForText("Slide right to unlock")
         composeRule.onAllNodesWithTag("live-time-violation").assertCountEquals(0)
@@ -274,12 +284,14 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         waitForText("Time Violation")
         waitForText("Restart Countdown")
 
+        // Restart Countdown should be undoable and return the expired-pull action surface.
         composeRule.onNodeWithText("Restart Countdown").performClick()
         waitForText("Undo Restart Pull Countdown")
         composeRule.onNodeWithText("Undo Restart Pull Countdown").performClick()
         waitForText("Redo")
         waitForText("Time Violation")
 
+        // Time Violation should ask for the violating team and report the warning consequence.
         composeRule.onNodeWithText("Time Violation").performClick()
         waitForText("Which team committed the time violation?")
         composeRule.onAllNodesWithText("Team 2").onLast().performClick()
@@ -287,6 +299,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("OK").performClick()
     }
 
+    /// Verify the reserved countdown row prevents field diagram movement when the countdown clears.
     @Test
     fun fieldDiagramDoesNotMoveWhenCountdownClears() {
         startLiveGameProgrammatically()
@@ -304,6 +317,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         assertEquals(fieldTopBeforeStartPoint, fieldTopAfterStartPoint, 0.5f)
     }
 
+    /// Verify automatic countdown expiration enters live play and locks the screen when settings allow it.
     @Test
     fun automaticCountdownTransitionsLockScreen() {
         startLiveGameProgrammatically()
@@ -345,6 +359,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "timeout")).assertIsNotEnabled()
     }
 
+    /// Verify disabling automatic countdown advancement leaves expired countdowns on the observer-facing controls.
     @Test
     fun automaticCountdownTransitionsCanBeDisabled() {
         startLiveGameProgrammatically()
@@ -372,6 +387,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         }
     }
 
+    /// Verify disabling automatic live-point locking leaves the point live but unlocked after timer expiration.
     @Test
     fun automaticLivePointLockCanBeDisabled() {
         startLiveGameProgrammatically()
@@ -399,6 +415,14 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         }
     }
 
+    /**
+     * Drive a timeout twenty-second cue through the activity with a specific alert configuration.
+     *
+     * @param globalMode The global timing alert mode to apply before the cue fires.
+     * @param cueMode The per-cue alert mode for the timeout twenty-second cue.
+     * @param vibrateWithSounds Whether sound cues should also vibrate.
+     * @param waitAfterDueMillis How long to wait after the cue's due time so asynchronous delivery can run.
+     */
     private fun triggerDueTimeoutTwentyCue(
         globalMode: TimingAlertGlobalMode,
         cueMode: TimingAlertMode,

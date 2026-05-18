@@ -25,7 +25,7 @@ class TestPersistence {
     @get:Rule
     val composeRule = createComposeRule()
 
-    // Test Android app-private storage for each persisted app-data bucket.
+    /// Test Android app-private storage for each persisted app-data bucket.
     @Test
     fun fileStorePersistsStateOnDeviceStorage() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -97,7 +97,7 @@ class TestPersistence {
         }
     }
 
-    // Test the startup recovery dialog that appears after persisted phone data is reset.
+    /// Test the startup recovery dialog that appears after persisted phone data is reset.
     @Test
     fun startupRecoveryNoticeCanBeDismissed() {
         val viewModel = UltiObserverAppViewModel(
@@ -128,19 +128,27 @@ class TestPersistence {
 private class StartupRecoveryNoticeStore(
     override val resetPersistedDataAreas: Set<PersistedDataArea>,
 ) : AppStateStore {
+    /// Load no current game for the startup-recovery notice fixture.
     override fun loadCurrentGameState(): PersistedCurrentGameState? = null
 
+    /// Ignore current-game saves for the startup-recovery notice fixture.
     override fun saveCurrentGameState(state: PersistedCurrentGameState) = Unit
 
+    /// Load no profile for the startup-recovery notice fixture.
     override fun loadProfile(): PersistedProfile? = null
 
+    /// Ignore profile saves for the startup-recovery notice fixture.
     override fun saveProfile(state: PersistedProfile) = Unit
 
+    /// Load no settings for the startup-recovery notice fixture.
     override fun loadSettings(): PersistedSettings? = null
 
+    /// Ignore settings saves for the startup-recovery notice fixture.
     override fun saveSettings(state: PersistedSettings) = Unit
 
+    /// Load no archived games for the startup-recovery notice fixture.
     override fun loadArchivedGames(): List<ArchivedGame> = emptyList()
 
+    /// Ignore archived-game saves for the startup-recovery notice fixture.
     override fun saveArchivedGames(games: List<ArchivedGame>) = Unit
 }

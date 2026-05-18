@@ -18,8 +18,10 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class TestCapsUi : MainActivityUiTestFixtures() {
-    // Test the cap confirmation prompts that appear after a point ends with a due cap.
-    // Each cap gets its own short game because the prompt state blocks normal live interaction.
+    /**
+     * Test the cap confirmation prompts that appear after a point ends with a due cap.
+     * Each cap gets its own short game because the prompt state blocks normal live interaction.
+     */
     @Test
     fun capPromptPathways() {
         // Half cap can be applied from its confirmation prompt.

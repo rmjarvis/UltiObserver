@@ -18,7 +18,7 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class TestGameSummaryUi : MainActivityUiTestFixtures() {
-    // Test the game-over summary branch for teams with no player-specific cards.
+    /// Test the game-over summary branch for teams with no player-specific cards.
     @Test
     fun gameSummaryShowsNoIssuedPlayerCards() {
         startLiveGameProgrammatically()

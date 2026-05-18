@@ -19,8 +19,10 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class TestCardsUi : MainActivityUiTestFixtures() {
-    // Test the card and technical-foul bottom sheet from the live screen.
-    // This covers the phone-facing dialog sequence, not the full card-accounting matrix.
+    /**
+     * Test the card and technical-foul bottom sheet from the live screen.
+     * This covers the phone-facing dialog sequence, not the full card-accounting matrix.
+     */
     @Test
     fun cardsAndTechnicalFoulSheetPath() {
         startLiveGameProgrammatically()
@@ -82,7 +84,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("OK").performClick()
     }
 
-    // The Cards / TF sheet should keep pull/receive role labels visible during halftime.
+    /// The Cards / TF sheet should keep pull/receive role labels visible during halftime.
     @Test
     fun cardsSheetShowsPullRolesDuringHalftime() {
         startLiveGameProgrammatically()
@@ -99,8 +101,10 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Team 2 (pulling)").assertIsDisplayed()
     }
 
-    // Test the card-specific edge cases that route through setup, Cards / TF, and Adjust Cards / TF.
-    // This is still a UI-flow test; GameModel owns the detailed card-counting invariants.
+    /**
+     * Test the card-specific edge cases that route through setup, Cards / TF, and Adjust Cards / TF.
+     * This is still a UI-flow test; GameModel owns the detailed card-counting invariants.
+     */
     @Test
     fun cardEdgeCasesAndAdjustments() {
         openNewGameSetup()
@@ -227,7 +231,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         waitForText("N/A: Two yellow cards")
     }
 
-    // Test card dialogs that require follow-up choices for already-carded players.
+    /// Test card dialogs that require follow-up choices for already-carded players.
     @Test
     fun repeatedPlayerCardChoiceDialogs() {
         startLiveGameProgrammatically()
