@@ -181,6 +181,7 @@ internal fun OtherSheet(
     }
 
     if (showDeleteGameDialog) {
+        // DeleteGameDialog lives in ArchivedGames_UI.kt because game deletion is mostly archived-game UI.
         DeleteGameDialog(
             onDismiss = { showDeleteGameDialog = false },
             onConfirmDelete = {

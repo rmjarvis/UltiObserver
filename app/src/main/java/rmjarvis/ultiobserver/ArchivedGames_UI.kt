@@ -10,10 +10,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -151,4 +153,48 @@ private fun ArchivedGameRow(
             )
         }
     }
+}
+
+/**
+ * Render irreversible delete confirmation using the same drag interaction as live-screen unlock.
+ *
+ * @param onDismiss Callback closing the dialog without deleting.
+ * @param onConfirmDelete Callback invoked after the confirmation slide completes.
+ * @param title The dialog title.
+ * @param message The warning body text.
+ */
+@Composable
+internal fun DeleteGameDialog(
+    onDismiss: () -> Unit,
+    onConfirmDelete: () -> Unit,
+    title: String = "Delete Game?",
+    message: String = "Completely delete the data for this game? This cannot be undone.",
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                SlideToConfirmControl(
+                    instructionText = "Slide right to confirm delete",
+                    trackText = "Confirm Delete",
+                    testTag = "confirm-delete-slider",
+                    onConfirmed = onConfirmDelete,
+                    modifier = Modifier.padding(top = 20.dp),
+                )
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+    )
 }
