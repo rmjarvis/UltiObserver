@@ -425,6 +425,34 @@ class TestUltiObserverAppViewModel {
     }
 
     @Test
+    fun timingCueDefaultsCanBeRestoredWithoutChangingGlobalSoundSettings() {
+        val viewModel = UltiObserverAppViewModel()
+
+        viewModel.updateTimingAlertGlobalMode(TimingAlertGlobalMode.SOUNDS_ON)
+        viewModel.updateTimingAlertSoundVolume(0.4f)
+        viewModel.updateTimingAlertVibrationDuration(420L)
+        viewModel.updateTimingAlertVibrateWithSounds(true)
+        viewModel.updateTimingCueMode(TimingCueId.RECEIVING_TWENTY_FOR_HAND, TimingAlertMode.NONE)
+        viewModel.updateTimingCueRepeatCount(TimingCueId.RECEIVING_TWENTY_FOR_HAND, 3)
+        viewModel.updateTimingCueMode(TimingCueId.HARD_CAP, TimingAlertMode.BEEP)
+        viewModel.updateTimingCueRepeatCount(TimingCueId.HARD_CAP, 1)
+
+        viewModel.resetTimingCueSettingsToDefaults()
+
+        assertEquals(TimingAlertGlobalMode.SOUNDS_ON, viewModel.timingAlertPreferences.globalMode)
+        assertEquals(0.4f, viewModel.timingAlertPreferences.soundVolume, 0f)
+        assertEquals(420L, viewModel.timingAlertPreferences.vibrationDurationMillis)
+        assertTrue(viewModel.timingAlertPreferences.vibrateWithSounds)
+        assertEquals(
+            TimingAlertMode.TICK,
+            viewModel.timingAlertPreferences.settingsModeFor(TimingCueId.RECEIVING_TWENTY_FOR_HAND),
+        )
+        assertEquals(2, viewModel.timingAlertPreferences.repeatCountFor(TimingCueId.RECEIVING_TWENTY_FOR_HAND))
+        assertEquals(TimingAlertMode.DING, viewModel.timingAlertPreferences.settingsModeFor(TimingCueId.HARD_CAP))
+        assertEquals(3, viewModel.timingAlertPreferences.repeatCountFor(TimingCueId.HARD_CAP))
+    }
+
+    @Test
     fun randomAvatarPreferenceResolvesHomeAvatarOnStartup() {
         // Use a fixed chooser to verify random-avatar timing without relying on randomness.
         val viewModel = UltiObserverAppViewModel(

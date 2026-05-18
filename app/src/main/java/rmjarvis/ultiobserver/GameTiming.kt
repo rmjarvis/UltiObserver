@@ -94,6 +94,25 @@ internal fun defaultTimingCueModes(): Map<TimingCueId, TimingAlertMode> {
     return TimingCueId.entries.associateWith { it.defaultAlertMode() }
 }
 
+internal fun defaultTimingCueRepeatCounts(): Map<TimingCueId, Int> {
+    return TimingCueId.entries.associateWith { it.defaultRepeatCount() }
+}
+
+internal fun TimingCueId.defaultRepeatCount(): Int {
+    return when (this) {
+        TimingCueId.RECEIVING_TWENTY_FOR_HAND,
+        TimingCueId.TIMEOUT_OFFENSE_TWENTY,
+        TimingCueId.MISCONDUCT_OFFENSE_TWENTY,
+        TimingCueId.HALFTIME_FIVE_MINUTES,
+        TimingCueId.HALFTIME_TWO_MINUTES,
+        TimingCueId.HALF_CAP,
+        TimingCueId.SOFT_CAP,
+        -> 2
+        TimingCueId.HARD_CAP -> 3
+        else -> DEFAULT_TIMING_ALERT_REPEAT_COUNT
+    }
+}
+
 internal fun CountdownState.nextTimingCue(now: Long): TimingCueDisplay? {
     return timingCues()
         .firstNotNullOfOrNull { cue ->

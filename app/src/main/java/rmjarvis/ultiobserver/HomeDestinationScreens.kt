@@ -27,6 +27,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -396,6 +397,7 @@ internal fun TimingCueSettingsScreen(
     timingAlertPreferences: TimingAlertPreferences,
     onTimingCueModeChange: (TimingCueId, TimingAlertMode) -> Unit,
     onTimingCueRepeatCountChange: (TimingCueId, Int) -> Unit,
+    onResetTimingCueSettings: () -> Unit,
     onBackSettings: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -436,6 +438,17 @@ internal fun TimingCueSettingsScreen(
 
             timingCueSections.forEach { section ->
                 HorizontalDivider()
+                if (section == timingCueSections.first()) {
+                    OutlinedButton(
+                        onClick = onResetTimingCueSettings,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("settings-reset-timing-cue-defaults"),
+                        shape = RoundedCornerShape(28.dp),
+                    ) {
+                        Text("Reset all to defaults")
+                    }
+                }
                 Text(
                     text = section.title,
                     style = MaterialTheme.typography.titleMedium,

@@ -229,14 +229,25 @@ enum class TimingCueId(
     fun defaultAlertMode(): TimingAlertMode {
         return when (this) {
             RECEIVING_TWENTY_FOR_HAND,
-            PULLING_TWENTY_TO_PULL,
+            RECEIVING_TEN_FOR_HAND,
             TIMEOUT_OFFENSE_TWENTY,
+            TIMEOUT_OFFENSE_TEN,
             MISCONDUCT_OFFENSE_TWENTY,
-            MISCONDUCT_DEFENSE_TWENTY,
+            MISCONDUCT_OFFENSE_TEN,
+            -> TimingAlertMode.TICK
+            TIMEOUT_CLEAR_FIELD,
+            TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND,
+            TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL,
+            -> TimingAlertMode.BEEP
+            HALFTIME_FIVE_MINUTES,
             HALFTIME_TWO_MINUTES,
+            -> TimingAlertMode.KNOCK
             HALF_CAP,
             SOFT_CAP,
             HARD_CAP,
+            -> TimingAlertMode.DING
+            PULLING_TWENTY_TO_PULL,
+            MISCONDUCT_DEFENSE_TWENTY,
             -> TimingAlertMode.VIBRATE
             else -> TimingAlertMode.NONE
         }
@@ -277,7 +288,7 @@ data class TimingAlertPreferences(
     val vibrationDurationMillis: Long = DEFAULT_TIMING_CUE_VIBRATION_MS,
     val vibrateWithSounds: Boolean = false,
     val cueModes: Map<TimingCueId, TimingAlertMode> = defaultTimingCueModes(),
-    val cueRepeatCounts: Map<TimingCueId, Int> = emptyMap(),
+    val cueRepeatCounts: Map<TimingCueId, Int> = defaultTimingCueRepeatCounts(),
 ) {
     // The configured per-cue setting shown in Settings, before the global alert mode is applied.
     fun settingsModeFor(cueId: TimingCueId): TimingAlertMode {
@@ -287,7 +298,7 @@ data class TimingAlertPreferences(
     fun repeatCountFor(cueId: TimingCueId): Int {
         return cueRepeatCounts[cueId]
             ?.coerceIn(MIN_TIMING_ALERT_REPEAT_COUNT, MAX_TIMING_ALERT_REPEAT_COUNT)
-            ?: DEFAULT_TIMING_ALERT_REPEAT_COUNT
+            ?: cueId.defaultRepeatCount()
     }
 
     // The effective alert mode to use when a timing cue fires.

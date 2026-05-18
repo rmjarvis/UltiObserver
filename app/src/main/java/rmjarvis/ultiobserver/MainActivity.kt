@@ -132,6 +132,7 @@ internal fun UltiObserverApp(viewModel: UltiObserverAppViewModel) {
                 timingAlertPreferences = viewModel.timingAlertPreferences,
                 onTimingCueModeChange = viewModel::updateTimingCueMode,
                 onTimingCueRepeatCountChange = viewModel::updateTimingCueRepeatCount,
+                onResetTimingCueSettings = viewModel::resetTimingCueSettingsToDefaults,
                 onBackSettings = viewModel::openSettings,
             )
         }

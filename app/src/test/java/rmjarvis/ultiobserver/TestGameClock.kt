@@ -53,26 +53,65 @@ class TestGameClock : GameModelTestFixtures() {
         assertEquals(TimingAlertGlobalMode.VIBRATION_ONLY, defaultTimingAlertPreferences.globalMode)
         assertEquals(0.5f, defaultTimingAlertPreferences.soundVolume, 0f)
         assertFalse(defaultTimingAlertPreferences.vibrateWithSounds)
+        val expectedDefaultModes = mapOf(
+            TimingCueId.RECEIVING_TWENTY_FOR_HAND to TimingAlertMode.TICK,
+            TimingCueId.RECEIVING_TEN_FOR_HAND to TimingAlertMode.TICK,
+            TimingCueId.PULLING_TWENTY_TO_PULL to TimingAlertMode.VIBRATE,
+            TimingCueId.TIMEOUT_CLEAR_FIELD to TimingAlertMode.BEEP,
+            TimingCueId.TIMEOUT_OFFENSE_TWENTY to TimingAlertMode.TICK,
+            TimingCueId.TIMEOUT_OFFENSE_TEN to TimingAlertMode.TICK,
+            TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND to TimingAlertMode.BEEP,
+            TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL to TimingAlertMode.BEEP,
+            TimingCueId.MISCONDUCT_OFFENSE_TWENTY to TimingAlertMode.TICK,
+            TimingCueId.MISCONDUCT_OFFENSE_TEN to TimingAlertMode.TICK,
+            TimingCueId.MISCONDUCT_DEFENSE_TWENTY to TimingAlertMode.VIBRATE,
+            TimingCueId.HALFTIME_FIVE_MINUTES to TimingAlertMode.KNOCK,
+            TimingCueId.HALFTIME_TWO_MINUTES to TimingAlertMode.KNOCK,
+            TimingCueId.HALF_CAP to TimingAlertMode.DING,
+            TimingCueId.SOFT_CAP to TimingAlertMode.DING,
+            TimingCueId.HARD_CAP to TimingAlertMode.DING,
+        )
+        TimingCueId.entries.forEach { cueId ->
+            assertEquals(
+                "Default alert mode for $cueId",
+                expectedDefaultModes[cueId] ?: TimingAlertMode.NONE,
+                defaultTimingAlertPreferences.settingsModeFor(cueId),
+            )
+        }
+        val expectedDefaultRepeatCounts = mapOf(
+            TimingCueId.RECEIVING_TWENTY_FOR_HAND to 2,
+            TimingCueId.TIMEOUT_OFFENSE_TWENTY to 2,
+            TimingCueId.MISCONDUCT_OFFENSE_TWENTY to 2,
+            TimingCueId.HALFTIME_FIVE_MINUTES to 2,
+            TimingCueId.HALFTIME_TWO_MINUTES to 2,
+            TimingCueId.HALF_CAP to 2,
+            TimingCueId.SOFT_CAP to 2,
+            TimingCueId.HARD_CAP to 3,
+        )
+        TimingCueId.entries.forEach { cueId ->
+            assertEquals(
+                "Default repeat count for $cueId",
+                expectedDefaultRepeatCounts[cueId] ?: 1,
+                defaultTimingAlertPreferences.repeatCountFor(cueId),
+            )
+        }
         val vibrationDefaultCues = TimingCueId.entries.filter { cueId ->
-            defaultTimingAlertPreferences.cueModes[cueId] == TimingAlertMode.VIBRATE
+            defaultTimingAlertPreferences.alertModeFor(cueId) == TimingAlertMode.VIBRATE
         }
         assertEquals(
-            listOf(
-                TimingCueId.RECEIVING_TWENTY_FOR_HAND,
-                TimingCueId.PULLING_TWENTY_TO_PULL,
-                TimingCueId.TIMEOUT_OFFENSE_TWENTY,
-                TimingCueId.MISCONDUCT_OFFENSE_TWENTY,
-                TimingCueId.MISCONDUCT_DEFENSE_TWENTY,
-                TimingCueId.HALFTIME_TWO_MINUTES,
-                TimingCueId.HALF_CAP,
-                TimingCueId.SOFT_CAP,
-                TimingCueId.HARD_CAP,
-            ),
+            TimingCueId.entries.filter { cueId ->
+                defaultTimingAlertPreferences.settingsModeFor(cueId) != TimingAlertMode.NONE
+            },
             vibrationDefaultCues,
         )
         assertEquals(
-            TimingCueId.entries.size - vibrationDefaultCues.size,
-            defaultTimingAlertPreferences.cueModes.values.count { mode -> mode == TimingAlertMode.NONE },
+            listOf(
+                TimingCueId.PULLING_TWENTY_TO_PULL,
+                TimingCueId.MISCONDUCT_DEFENSE_TWENTY,
+            ),
+            TimingCueId.entries.filter { cueId ->
+                defaultTimingAlertPreferences.settingsModeFor(cueId) == TimingAlertMode.VIBRATE
+            },
         )
         assertEquals(
             TimingAlertMode.BEEP,

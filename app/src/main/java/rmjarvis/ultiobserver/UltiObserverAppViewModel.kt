@@ -206,6 +206,14 @@ internal class UltiObserverAppViewModel(
         persistSettingsState()
     }
 
+    fun resetTimingCueSettingsToDefaults() {
+        timingAlertPreferences = timingAlertPreferences.copy(
+            cueModes = defaultTimingCueModes(),
+            cueRepeatCounts = defaultTimingCueRepeatCounts(),
+        )
+        persistSettingsState()
+    }
+
     fun dismissStartupRecoveryNotice() {
         startupRecoveryNotice = null
     }
