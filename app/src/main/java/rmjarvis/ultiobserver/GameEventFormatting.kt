@@ -23,7 +23,7 @@ fun GameEvent.formatPopupTitle(): String {
         is GameEvent.TeamOutOfTimeouts -> this.formatPopupTitle()
         is GameEvent.TeamCardsChanged -> if (teamCardTotal >= 3) "Misconduct Penalty" else "Misconduct"
         is GameEvent.TechnicalFoulsChanged -> if (technicalFoulTotal >= 3) "Misconduct Penalty" else "Misconduct"
-        is GameEvent.PullInfractionRecorded -> "Pull Infraction"
+        is GameEvent.PullInfractionRecorded -> this.formatPopupTitle()
         is GameEvent.TimeViolationRecorded -> "Time Violation"
     }
 }
@@ -144,18 +144,6 @@ private fun GameEvent.TechnicalFoulsChanged.formatMessage(): String {
         team = team,
         thresholdCount = technicalFoulTotal,
     )
-}
-
-/// Format a pull-infraction event message with the field-position consequence.
-private fun GameEvent.PullInfractionRecorded.formatMessage(): String {
-    return when (infraction) {
-        PullInfractionType.OFFSIDES -> if (totalPullViolations <= 1) {
-            "Start at brick mark"
-        } else {
-            "Start at midfield"
-        }
-        PullInfractionType.FALSE_START -> "Defense gets to set up."
-    }
 }
 
 /// Format a time-violation event message with warning, timeout, or no-timeout consequences.

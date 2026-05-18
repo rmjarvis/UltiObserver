@@ -452,10 +452,6 @@ data class CardAssessmentResult(
     val needsMisconductChoice: Boolean =
         event.needsMisconductChoice(),
 )
-data class PullInfractionAssessmentResult(
-    val state: LiveGameState,
-    val event: GameEvent? = null,
-)
 data class TimeViolationAssessmentResult(
     val state: LiveGameState,
     val event: GameEvent? = null,
@@ -514,11 +510,6 @@ enum class CapType {
             HARD -> TimingCueId.HARD_CAP
         }
     }
-}
-@Serializable
-enum class PullInfractionType {
-    OFFSIDES,
-    FALSE_START,
 }
 enum class TimeViolationOutcome {
     WARNING,
