@@ -80,6 +80,8 @@ internal data class PersistedProfile(
 internal data class PersistedSettings(
     val versionName: String = APP_STATE_VERSION_NAME,
     val versionCode: Int = APP_STATE_VERSION_CODE,
+    val automaticallyAdvanceCountdowns: Boolean = true,
+    val automaticallyLockLivePoint: Boolean = true,
     val timingAlertPreferences: TimingAlertPreferences = TimingAlertPreferences(),
 ) {
     companion object {

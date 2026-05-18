@@ -46,6 +46,8 @@ import java.time.LocalTime
 internal fun LiveGameScreen(
     state: LiveGameState,
     readOnlySummary: Boolean,
+    automaticallyAdvanceCountdowns: Boolean,
+    automaticallyLockLivePoint: Boolean,
     onStateChange: (LiveGameState) -> Unit,
     onUpdateGameSetup: () -> Unit,
     onDeleteGame: () -> Unit,
@@ -108,13 +110,17 @@ internal fun LiveGameScreen(
     }
 
     // Let countdown expiration move the model forward without requiring an observer tap.
-    LaunchedEffect(state, now, readOnlySummary) {
+    LaunchedEffect(state, now, readOnlySummary, automaticallyAdvanceCountdowns, automaticallyLockLivePoint) {
         val suppressAutoLock = suppressNextAutoLock
         suppressNextAutoLock = false
-        if (!readOnlySummary) {
+        if (!readOnlySummary && automaticallyAdvanceCountdowns) {
             val advancedState = state.advanceGameClock(now)
             if (advancedState != state) {
-                if (advancedState.phase == LivePhase.LIVE_POINT && !suppressAutoLock) {
+                if (
+                    advancedState.phase == LivePhase.LIVE_POINT &&
+                    automaticallyLockLivePoint &&
+                    !suppressAutoLock
+                ) {
                     locked = true
                 }
                 onStateChange(advancedState)
@@ -246,7 +252,9 @@ internal fun LiveGameScreen(
                             OutlinedButton(
                                 onClick = {
                                     onStateChange(state.beginLivePoint())
-                                    locked = true
+                                    if (automaticallyLockLivePoint) {
+                                        locked = true
+                                    }
                                 },
                                 modifier = Modifier.height(layoutMetrics.centerButtonHeight),
                                 shape = RoundedCornerShape(12.dp),
@@ -267,7 +275,9 @@ internal fun LiveGameScreen(
                             OutlinedButton(
                                 onClick = {
                                     onStateChange(state.continueLivePoint())
-                                    locked = true
+                                    if (automaticallyLockLivePoint) {
+                                        locked = true
+                                    }
                                 },
                                 modifier = Modifier.height(layoutMetrics.centerButtonHeight),
                                 shape = RoundedCornerShape(12.dp),

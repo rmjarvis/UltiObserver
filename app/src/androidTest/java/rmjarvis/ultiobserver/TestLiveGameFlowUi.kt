@@ -307,6 +307,10 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
     @Test
     fun automaticCountdownTransitionsLockScreen() {
         startLiveGameProgrammatically()
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appViewModel.updateAutomaticallyAdvanceCountdowns(true)
+            activity.appViewModel.updateAutomaticallyLockLivePoint(true)
+        }
 
         composeRule.activityRule.scenario.onActivity { activity ->
             val current = activity.appViewModel.liveState!!
@@ -339,6 +343,60 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         }
         waitForText("Slide right to unlock")
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "timeout")).assertIsNotEnabled()
+    }
+
+    @Test
+    fun automaticCountdownTransitionsCanBeDisabled() {
+        startLiveGameProgrammatically()
+        val checkAfter = System.currentTimeMillis() + 1_200L
+
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appViewModel.updateAutomaticallyAdvanceCountdowns(false)
+            val current = activity.appViewModel.liveState!!
+            activity.appViewModel.updateLiveGame(
+                current.copy(
+                    countdown = current.countdown!!.copy(targetEpoch = System.currentTimeMillis() - 1_000L),
+                )
+            )
+        }
+
+        composeRule.waitUntil(timeoutMillis = 2_000) {
+            System.currentTimeMillis() >= checkAfter
+        }
+        assertEquals(LivePhase.BETWEEN_POINTS, composeRule.activity.appViewModel.liveState!!.phase)
+        waitForText("Start Point")
+        composeRule.onAllNodesWithText("Slide right to unlock").assertCountEquals(0)
+
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appViewModel.updateAutomaticallyAdvanceCountdowns(true)
+        }
+    }
+
+    @Test
+    fun automaticLivePointLockCanBeDisabled() {
+        startLiveGameProgrammatically()
+
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appViewModel.updateAutomaticallyAdvanceCountdowns(true)
+            activity.appViewModel.updateAutomaticallyLockLivePoint(false)
+            val current = activity.appViewModel.liveState!!
+            activity.appViewModel.updateLiveGame(
+                current.copy(
+                    countdown = current.countdown!!.copy(targetEpoch = System.currentTimeMillis() - 1_000L),
+                )
+            )
+        }
+
+        composeRule.waitUntil(timeoutMillis = 2_000) {
+            composeRule.activity.appViewModel.liveState!!.phase == LivePhase.LIVE_POINT
+        }
+        waitForText("Undo Start Point")
+        composeRule.onAllNodesWithText("Slide right to unlock").assertCountEquals(0)
+        composeRule.onNodeWithTag("live-top-lock").assertIsDisplayed()
+
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appViewModel.updateAutomaticallyLockLivePoint(true)
+        }
     }
 
     private fun triggerDueTimeoutTwentyCue(

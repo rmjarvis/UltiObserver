@@ -113,7 +113,11 @@ internal fun UltiObserverApp(viewModel: UltiObserverAppViewModel) {
 
         AppScreen.SETTINGS -> {
             SettingsScreen(
+                automaticallyAdvanceCountdowns = viewModel.automaticallyAdvanceCountdowns,
+                automaticallyLockLivePoint = viewModel.automaticallyLockLivePoint,
                 timingAlertPreferences = viewModel.timingAlertPreferences,
+                onAutomaticallyAdvanceCountdownsChange = viewModel::updateAutomaticallyAdvanceCountdowns,
+                onAutomaticallyLockLivePointChange = viewModel::updateAutomaticallyLockLivePoint,
                 onGlobalModeChange = viewModel::updateTimingAlertGlobalMode,
                 onSoundVolumeChange = viewModel::updateTimingAlertSoundVolume,
                 onVibrationDurationChange = viewModel::updateTimingAlertVibrationDuration,
@@ -158,6 +162,8 @@ internal fun UltiObserverApp(viewModel: UltiObserverAppViewModel) {
             LiveGameScreen(
                 state = currentLiveState,
                 readOnlySummary = viewModel.viewingReadOnlySummary,
+                automaticallyAdvanceCountdowns = viewModel.automaticallyAdvanceCountdowns,
+                automaticallyLockLivePoint = viewModel.automaticallyLockLivePoint,
                 onStateChange = viewModel::updateLiveGame,
                 onUpdateGameSetup = {
                     viewModel.editCurrentGame(currentLiveState)

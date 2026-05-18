@@ -278,7 +278,11 @@ private fun AvatarPreferenceButton(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun SettingsScreen(
+    automaticallyAdvanceCountdowns: Boolean,
+    automaticallyLockLivePoint: Boolean,
     timingAlertPreferences: TimingAlertPreferences,
+    onAutomaticallyAdvanceCountdownsChange: (Boolean) -> Unit,
+    onAutomaticallyLockLivePointChange: (Boolean) -> Unit,
     onGlobalModeChange: (TimingAlertGlobalMode) -> Unit,
     onSoundVolumeChange: (Float) -> Unit,
     onVibrationDurationChange: (Long) -> Unit,
@@ -306,6 +310,22 @@ internal fun SettingsScreen(
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            SettingsSwitchRow(
+                label = "Automatically start live play when a countdown expires?",
+                checked = automaticallyAdvanceCountdowns,
+                onCheckedChange = onAutomaticallyAdvanceCountdownsChange,
+                testTag = "settings-auto-advance-countdowns",
+            )
+
+            SettingsSwitchRow(
+                label = "Automatically lock screen when play becomes live?",
+                checked = automaticallyLockLivePoint,
+                onCheckedChange = onAutomaticallyLockLivePointChange,
+                testTag = "settings-auto-lock-live-point",
+            )
+
+            HorizontalDivider()
+
             TimingAlertGlobalModeSelector(
                 selectedMode = timingAlertPreferences.globalMode,
                 onModeChange = onGlobalModeChange,
@@ -331,6 +351,41 @@ internal fun SettingsScreen(
             ) {
                 Text("Sound Settings for Individual Cues")
             }
+        }
+    }
+}
+
+@Composable
+private fun SettingsSwitchRow(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    testTag: String,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.weight(1f),
+        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = if (checked) "Yes" else "No",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.testTag("$testTag-value"),
+            )
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                modifier = Modifier.testTag(testTag),
+            )
         }
     }
 }

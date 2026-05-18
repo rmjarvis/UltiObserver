@@ -59,6 +59,14 @@ internal class UltiObserverAppViewModel(
         persistedSettings?.timingAlertPreferences ?: TimingAlertPreferences()
     )
         private set
+    var automaticallyAdvanceCountdowns by mutableStateOf(
+        persistedSettings?.automaticallyAdvanceCountdowns ?: true
+    )
+        private set
+    var automaticallyLockLivePoint by mutableStateOf(
+        persistedSettings?.automaticallyLockLivePoint ?: true
+    )
+        private set
     var archivedGames by mutableStateOf(restoredArchivedGames)
         private set
     var viewingArchivedGame by mutableStateOf<ArchivedGame?>(null)
@@ -162,6 +170,16 @@ internal class UltiObserverAppViewModel(
 
     fun updateTimingAlertVibrateWithSounds(vibrateWithSounds: Boolean) {
         timingAlertPreferences = timingAlertPreferences.copy(vibrateWithSounds = vibrateWithSounds)
+        persistSettingsState()
+    }
+
+    fun updateAutomaticallyAdvanceCountdowns(automaticallyAdvance: Boolean) {
+        automaticallyAdvanceCountdowns = automaticallyAdvance
+        persistSettingsState()
+    }
+
+    fun updateAutomaticallyLockLivePoint(automaticallyLock: Boolean) {
+        automaticallyLockLivePoint = automaticallyLock
         persistSettingsState()
     }
 
@@ -381,7 +399,11 @@ internal class UltiObserverAppViewModel(
 
     private fun persistSettingsState() {
         appStateStore.saveSettings(
-            PersistedSettings(timingAlertPreferences = timingAlertPreferences)
+            PersistedSettings(
+                automaticallyAdvanceCountdowns = automaticallyAdvanceCountdowns,
+                automaticallyLockLivePoint = automaticallyLockLivePoint,
+                timingAlertPreferences = timingAlertPreferences,
+            )
         )
     }
 

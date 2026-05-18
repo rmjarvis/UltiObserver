@@ -58,7 +58,13 @@ class TestPersistence {
                 globalMode = TimingAlertGlobalMode.VIBRATION_ONLY,
                 soundVolume = 0.4f,
             )
-            store.saveSettings(PersistedSettings(timingAlertPreferences = timingPreferences))
+            store.saveSettings(
+                PersistedSettings(
+                    automaticallyAdvanceCountdowns = false,
+                    automaticallyLockLivePoint = false,
+                    timingAlertPreferences = timingPreferences,
+                )
+            )
 
             // Save an archived summary separately, without countdown or undo state.
             val archivedSummary = scoredState.copy(
@@ -80,6 +86,8 @@ class TestPersistence {
             assertEquals(livePointState, undoRestoredState.copy(redoEntry = null))
             assertNotNull(undoRestoredState.redoEntry)
             assertEquals("Casey Observer", restoredProfile.profileName)
+            assertEquals(false, restoredSettings.automaticallyAdvanceCountdowns)
+            assertEquals(false, restoredSettings.automaticallyLockLivePoint)
             assertEquals(timingPreferences, restoredSettings.timingAlertPreferences)
             assertEquals(archivedSummary, restoredArchivedGame.state)
             assertNull(restoredArchivedGame.state.undoEntry)
