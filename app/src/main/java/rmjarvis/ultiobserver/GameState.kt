@@ -69,18 +69,18 @@ enum class CardType(val label: String) {
 data class InGamePlayerCardRecord(
     val jerseyNumber: String,
     val yellows: Int = 0,
-    val directReds: Int = 0,
+    val reds: Int = 0,
 ) {
     fun hasLegalCounts(): Boolean {
         return yellows <= 2 &&
-            directReds <= 1 &&
-            (yellows < 2 || directReds == 0)
+            reds <= 1 &&
+            (yellows < 2 || reds == 0)
     }
 
     fun cardCount(cardType: CardType): Int {
         return when (cardType) {
             CardType.YELLOW -> yellows
-            CardType.RED -> directReds
+            CardType.RED -> reds
         }
     }
 }
@@ -421,7 +421,7 @@ data class TimeViolationAssessmentResult(
     val event: GameEvent? = null,
 )
 enum class RedCardMode {
-    DIRECT_RED,
+    RED,
     SECOND_YELLOW,
 }
 @Serializable

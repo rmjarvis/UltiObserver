@@ -131,7 +131,7 @@ private fun InGamePlayerCardRecord.summaryIssuedCardText(): String {
             1 -> add("Yellow card")
             2 -> add("Two yellow cards")
         }
-        when (directReds) {
+        when (reds) {
             1 -> add("Red card")
         }
     }

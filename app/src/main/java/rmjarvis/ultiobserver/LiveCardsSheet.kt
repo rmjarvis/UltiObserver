@@ -92,7 +92,7 @@ internal fun CardsSheet(
             onDismiss = { pendingRedTeam = null },
             onConfirm = { jerseyNumber ->
                 if (canAddPlayerCardAssignment(state.playerCards(pendingRedTeam!!), jerseyNumber, CardType.RED)) {
-                    onAssessment(state.assessRedCard(pendingRedTeam!!, jerseyNumber, RedCardMode.DIRECT_RED))
+                    onAssessment(state.assessRedCard(pendingRedTeam!!, jerseyNumber, RedCardMode.RED))
                 } else {
                     invalidCardAssignmentMessage =
                         "${state.teamFor(pendingRedTeam!!).name} #$jerseyNumber already has the maximum valid card combination."
@@ -256,8 +256,8 @@ private fun InGamePlayerCardRecord.issuedCardSummary(): String {
         if (yellows > 0) {
             add("Y $yellows")
         }
-        if (directReds > 0) {
-            add("R $directReds")
+        if (reds > 0) {
+            add("R $reds")
         }
     }
     return "${displayPlayerNumber(jerseyNumber)}: ${parts.joinToString("  ")}"

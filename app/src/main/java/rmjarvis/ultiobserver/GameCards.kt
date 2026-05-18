@@ -34,7 +34,7 @@ fun LiveGameState.adjustCardsAndTf(
 }
 // Make failures obvious if a caller bypasses the normal player-card adjustment flow.
 private fun requirePlayerCardRecordsValid(records: List<InGamePlayerCardRecord>) {
-    require(records.all { it.yellows >= 0 && it.directReds >= 0 }) {
+    require(records.all { it.yellows >= 0 && it.reds >= 0 }) {
         "Player card records cannot have negative card counts."
     }
     require(records.all { it.hasLegalCounts() }) {
@@ -54,7 +54,7 @@ fun canAddPlayerCardAssignment(
         ?: InGamePlayerCardRecord(jerseyNumber = jerseyNumber)
     val updatedRecord = when (cardType) {
         CardType.YELLOW -> existingRecord.copy(yellows = existingRecord.yellows + 1)
-        CardType.RED -> existingRecord.copy(directReds = existingRecord.directReds + 1)
+        CardType.RED -> existingRecord.copy(reds = existingRecord.reds + 1)
     }
     return updatedRecord.hasLegalCounts()
 }
@@ -109,7 +109,7 @@ fun addPlayerCardAssignment(
     return updatePlayerCardRecord(records, jerseyNumber) { record ->
         when (cardType) {
             CardType.YELLOW -> record.copy(yellows = record.yellows + 1)
-            CardType.RED -> record.copy(directReds = record.directReds + 1)
+            CardType.RED -> record.copy(reds = record.reds + 1)
         }
     }
 }
@@ -129,9 +129,9 @@ fun removePlayerCardAssignment(
         } else {
             val updated = when (cardType) {
                 CardType.YELLOW -> record.copy(yellows = max(0, record.yellows - 1))
-                CardType.RED -> record.copy(directReds = max(0, record.directReds - 1))
+                CardType.RED -> record.copy(reds = max(0, record.reds - 1))
             }
-            if (updated.yellows == 0 && updated.directReds == 0) null else updated
+            if (updated.yellows == 0 && updated.reds == 0) null else updated
         }
     }
 }
@@ -225,7 +225,7 @@ fun LiveGameState.assessRedCard(
     mode: RedCardMode,
 ): CardAssessmentResult {
     var updatedState = when (mode) {
-        RedCardMode.DIRECT_RED -> this.addInGameDirectRed(team, jerseyNumber)
+        RedCardMode.RED -> this.addInGameRedCard(team, jerseyNumber)
             .withUndo(this, playerCardUndoLabel("Red", team, jerseyNumber))
         RedCardMode.SECOND_YELLOW -> this.addInGameSecondYellow(team, jerseyNumber)
             .withUndo(this, playerCardUndoLabel("Second Yellow", team, jerseyNumber))
@@ -239,7 +239,7 @@ fun LiveGameState.assessRedCard(
             team = team,
             teamCardTotal = cardTotal,
             playerCardType = when (mode) {
-                RedCardMode.DIRECT_RED -> PlayerCardEventType.RED
+                RedCardMode.RED -> PlayerCardEventType.RED
                 RedCardMode.SECOND_YELLOW -> PlayerCardEventType.SECOND_YELLOW
             },
             playerCardJerseyNumber = jerseyNumber,
@@ -311,14 +311,14 @@ private fun LiveGameState.addInGameSecondYellow(team: TeamId, jerseyNumber: Stri
     )
 }
 // Add a red card to a specific player
-private fun LiveGameState.addInGameDirectRed(team: TeamId, jerseyNumber: String): LiveGameState {
+private fun LiveGameState.addInGameRedCard(team: TeamId, jerseyNumber: String): LiveGameState {
     return withPlayerCards(
         team = team,
         records = updatePlayerCardRecord(
             records = playerCardsFor(team),
             jerseyNumber = jerseyNumber,
         ) { record ->
-            record.copy(directReds = record.directReds + 1)
+            record.copy(reds = record.reds + 1)
         },
         lastEvent = "Red card for ${teamName(team)} #$jerseyNumber.",
     )
@@ -354,7 +354,7 @@ fun LiveGameState.teamYellowCards(team: TeamId): Int {
 }
 // Count in-game red cards from the player-card records.
 fun LiveGameState.teamRedCards(team: TeamId): Int {
-    return this.playerCardsFor(team).sumOf { it.directReds }
+    return this.playerCardsFor(team).sumOf { it.reds }
 }
 // Count the total number of cards a team has.
 fun LiveGameState.teamCardTotal(team: TeamId): Int {

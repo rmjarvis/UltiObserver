@@ -110,7 +110,7 @@ private fun LiveGameState.playerHasTournamentSuspension(team: TeamId, jerseyNumb
         .sumOf { it.priorReds }
     val inGameRecord = playerCards(team).firstOrNull { it.jerseyNumber == jerseyNumber }
     val totalYellows = priorYellows + (inGameRecord?.yellows ?: 0)
-    val totalReds = priorReds + (inGameRecord?.directReds ?: 0)
+    val totalReds = priorReds + (inGameRecord?.reds ?: 0)
     return totalYellows + 2 * totalReds >= 3
 }
 

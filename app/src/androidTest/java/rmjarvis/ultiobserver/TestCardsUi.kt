@@ -237,7 +237,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         startLiveGameProgrammatically()
         seedInGamePlayerCardsProgrammatically(
             teamOneCards = listOf(InGamePlayerCardRecord(UNKNOWN_PLAYER_NUMBER, yellows = 1)),
-            teamTwoCards = listOf(InGamePlayerCardRecord("6", yellows = 1, directReds = 1)),
+            teamTwoCards = listOf(InGamePlayerCardRecord("6", yellows = 1, reds = 1)),
         )
 
         // A second yellow on N/A can be recorded as the same unknown player.

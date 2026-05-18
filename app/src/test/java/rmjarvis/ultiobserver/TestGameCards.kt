@@ -137,7 +137,7 @@ class TestGameCards : GameModelTestFixtures() {
 
         // A red for a player with no prior yellow counts as two team card points and records a red.
         state = standardLiveGameState()
-        cardResult = state.assessRedCard(ANIMAL, "23", RedCardMode.DIRECT_RED)
+        cardResult = state.assessRedCard(ANIMAL, "23", RedCardMode.RED)
         state = cardResult.state
         assertFalse(cardResult.needsMisconductChoice)
         assertEquals(
@@ -150,13 +150,13 @@ class TestGameCards : GameModelTestFixtures() {
         assertEquals(0, state.teamYellowCards(ANIMAL))
         assertEquals(1, state.teamRedCards(ANIMAL))
         assertEquals(2, state.teamCardTotal(ANIMAL))
-        assertEquals(InGamePlayerCardRecord("23", directReds = 1), playerRecord(state, ANIMAL, "23"))
+        assertEquals(InGamePlayerCardRecord("23", reds = 1), playerRecord(state, ANIMAL, "23"))
         assertUndoRestores(cardResult.state.undoEntry!!.previous, state)
 
         // During a live point, a red that reaches the misconduct threshold needs an offense/defense choice.
         state = standardLiveGameState().beginLivePoint()
         state = state.assessYellowCard(ANIMAL, "8").state
-        cardResult = state.assessRedCard(ANIMAL, "23", RedCardMode.DIRECT_RED)
+        cardResult = state.assessRedCard(ANIMAL, "23", RedCardMode.RED)
         state = cardResult.state
         assertTrue(cardResult.needsMisconductChoice)
         assertEquals(
@@ -180,13 +180,13 @@ class TestGameCards : GameModelTestFixtures() {
         // A red for a player who already has a yellow is distinct from recording the red as a second yellow.
         state = standardLiveGameState()
         state = state.assessYellowCard(ANIMAL, "8").state
-        cardResult = state.assessRedCard(ANIMAL, "8", RedCardMode.DIRECT_RED)
+        cardResult = state.assessRedCard(ANIMAL, "8", RedCardMode.RED)
         state = cardResult.state
         assertFalse(cardResult.needsMisconductChoice)
         assertEquals(1, state.teamYellowCards(ANIMAL))
         assertEquals(1, state.teamRedCards(ANIMAL))
         assertEquals(3, state.teamCardTotal(ANIMAL))
-        assertEquals(InGamePlayerCardRecord("8", yellows = 1, directReds = 1), playerRecord(state, ANIMAL, "8"))
+        assertEquals(InGamePlayerCardRecord("8", yellows = 1, reds = 1), playerRecord(state, ANIMAL, "8"))
         assertEquals(
             "Red card on player 8.\n" +
                 "Player 8 is suspended for the rest of the tournament.\n" +
@@ -258,7 +258,7 @@ class TestGameCards : GameModelTestFixtures() {
                 priorCards = listOf(PlayerCardRecord(ANIMAL, "31", priorYellows = 0, priorReds = 1)),
             )
         )
-        cardResult = state.assessRedCard(ANIMAL, "31", RedCardMode.DIRECT_RED)
+        cardResult = state.assessRedCard(ANIMAL, "31", RedCardMode.RED)
         assertEquals(
             "Red card on player 31.\n" +
                 "Player 31 is suspended for the rest of the tournament.\n" +
@@ -270,7 +270,7 @@ class TestGameCards : GameModelTestFixtures() {
             phase = LivePhase.BETWEEN_POINTS,
             halftimeTaken = true,
         )
-        cardResult = state.assessRedCard(ANIMAL, "29", RedCardMode.DIRECT_RED)
+        cardResult = state.assessRedCard(ANIMAL, "29", RedCardMode.RED)
         assertEquals(
             "Red card on player 29.\n" +
                 "Player 29 receives a game suspension.\n" +
@@ -283,7 +283,7 @@ class TestGameCards : GameModelTestFixtures() {
             phase = LivePhase.HALFTIME,
             halftimeTaken = true,
         )
-        cardResult = state.assessRedCard(ANIMAL, "30", RedCardMode.DIRECT_RED)
+        cardResult = state.assessRedCard(ANIMAL, "30", RedCardMode.RED)
         assertEquals(
             "Red card on player 30.\n" +
                 "Player 30 receives a game suspension.\n" +
@@ -296,7 +296,7 @@ class TestGameCards : GameModelTestFixtures() {
             phase = LivePhase.GAME_OVER,
             halftimeTaken = true,
         )
-        cardResult = state.assessRedCard(ANIMAL, "32", RedCardMode.DIRECT_RED)
+        cardResult = state.assessRedCard(ANIMAL, "32", RedCardMode.RED)
         assertEquals(
             "Red card on player 32.\n" +
                 "Player 32 receives a game suspension.\n" +
@@ -432,11 +432,11 @@ class TestGameCards : GameModelTestFixtures() {
         cardAssignments = addPlayerCardAssignment(cardAssignments, "17", CardType.YELLOW)
         assertEquals(listOf(InGamePlayerCardRecord("17", yellows = 1)), cardAssignments)
         cardAssignments = addPlayerCardAssignment(cardAssignments, "17", CardType.RED)
-        assertEquals(listOf(InGamePlayerCardRecord("17", yellows = 1, directReds = 1)), cardAssignments)
+        assertEquals(listOf(InGamePlayerCardRecord("17", yellows = 1, reds = 1)), cardAssignments)
         cardAssignments = removePlayerCardAssignment(cardAssignments, "8", CardType.YELLOW)
-        assertEquals(listOf(InGamePlayerCardRecord("17", yellows = 1, directReds = 1)), cardAssignments)
+        assertEquals(listOf(InGamePlayerCardRecord("17", yellows = 1, reds = 1)), cardAssignments)
         cardAssignments = removePlayerCardAssignment(cardAssignments, "17", CardType.YELLOW)
-        assertEquals(listOf(InGamePlayerCardRecord("17", directReds = 1)), cardAssignments)
+        assertEquals(listOf(InGamePlayerCardRecord("17", reds = 1)), cardAssignments)
         cardAssignments = addPlayerCardAssignment(cardAssignments, "17", CardType.YELLOW)
         cardAssignments = removePlayerCardAssignment(cardAssignments, "17", CardType.RED)
         assertEquals(listOf(InGamePlayerCardRecord("17", yellows = 1)), cardAssignments)
@@ -445,15 +445,15 @@ class TestGameCards : GameModelTestFixtures() {
         assertEquals(listOf(InGamePlayerCardRecord("17", yellows = 1)), cardAssignments)
         cardAssignments = listOf(
             InGamePlayerCardRecord("17", yellows = 1),
-            InGamePlayerCardRecord("8", directReds = 1),
+            InGamePlayerCardRecord("8", reds = 1),
         )
         cardAssignments = removePlayerCardAssignment(cardAssignments, "17", CardType.YELLOW)
-        assertEquals(listOf(InGamePlayerCardRecord("8", directReds = 1)), cardAssignments)
+        assertEquals(listOf(InGamePlayerCardRecord("8", reds = 1)), cardAssignments)
         cardAssignments = addPlayerCardAssignment(cardAssignments, "23", CardType.YELLOW)
         cardAssignments = addPlayerCardAssignment(cardAssignments, "8", CardType.YELLOW)
         assertEquals(
             listOf(
-                InGamePlayerCardRecord("8", yellows = 1, directReds = 1),
+                InGamePlayerCardRecord("8", yellows = 1, reds = 1),
                 InGamePlayerCardRecord("23", yellows = 1),
             ),
             cardAssignments,
@@ -489,7 +489,7 @@ class TestGameCards : GameModelTestFixtures() {
         )
         assertFalse(
             canAddPlayerCardAssignment(
-                listOf(InGamePlayerCardRecord("17", directReds = 1)),
+                listOf(InGamePlayerCardRecord("17", reds = 1)),
                 "17",
                 CardType.RED,
             ),
@@ -508,7 +508,7 @@ class TestGameCards : GameModelTestFixtures() {
         val adjustmentStepState = standardLiveGameState().copy(
             teamOnePlayerCards = listOf(
                 InGamePlayerCardRecord("17", yellows = 1),
-                InGamePlayerCardRecord("23", directReds = 1),
+                InGamePlayerCardRecord("23", reds = 1),
             ),
             teamTwoPlayerCards = listOf(
                 InGamePlayerCardRecord("8", yellows = 2),
@@ -541,7 +541,7 @@ class TestGameCards : GameModelTestFixtures() {
             "Player card records must be no cards, one yellow, second yellow, red, or one yellow plus red."
         val invalidAssignmentException = assertThrows(IllegalArgumentException::class.java) {
             addPlayerCardAssignment(
-                listOf(InGamePlayerCardRecord("17", directReds = 1)),
+                listOf(InGamePlayerCardRecord("17", reds = 1)),
                 "17",
                 CardType.RED,
             )
@@ -566,7 +566,7 @@ class TestGameCards : GameModelTestFixtures() {
                 teamOneTechnicalFouls = 0,
                 teamTwoBlues = 0,
                 teamTwoTechnicalFouls = 0,
-                teamOnePlayerCards = listOf(InGamePlayerCardRecord("17", directReds = -1)),
+                teamOnePlayerCards = listOf(InGamePlayerCardRecord("17", reds = -1)),
                 teamTwoPlayerCards = emptyList(),
             )
         }
@@ -584,29 +584,29 @@ class TestGameCards : GameModelTestFixtures() {
         }
         assertEquals(invalidPlayerCardMessage, tooManyYellowsException.message)
 
-        val tooManyDirectRedsException = assertThrows(IllegalArgumentException::class.java) {
+        val tooManyRedsException = assertThrows(IllegalArgumentException::class.java) {
             standardLiveGameState().adjustCardsAndTf(
                 teamOneBlues = 0,
                 teamOneTechnicalFouls = 0,
                 teamTwoBlues = 0,
                 teamTwoTechnicalFouls = 0,
-                teamOnePlayerCards = listOf(InGamePlayerCardRecord("17", directReds = 2)),
+                teamOnePlayerCards = listOf(InGamePlayerCardRecord("17", reds = 2)),
                 teamTwoPlayerCards = emptyList(),
             )
         }
-        assertEquals(invalidPlayerCardMessage, tooManyDirectRedsException.message)
+        assertEquals(invalidPlayerCardMessage, tooManyRedsException.message)
 
-        val secondYellowAndDirectRedException = assertThrows(IllegalArgumentException::class.java) {
+        val secondYellowAndRedException = assertThrows(IllegalArgumentException::class.java) {
             standardLiveGameState().adjustCardsAndTf(
                 teamOneBlues = 0,
                 teamOneTechnicalFouls = 0,
                 teamTwoBlues = 0,
                 teamTwoTechnicalFouls = 0,
-                teamOnePlayerCards = listOf(InGamePlayerCardRecord("17", yellows = 2, directReds = 1)),
+                teamOnePlayerCards = listOf(InGamePlayerCardRecord("17", yellows = 2, reds = 1)),
                 teamTwoPlayerCards = emptyList(),
             )
         }
-        assertEquals(invalidPlayerCardMessage, secondYellowAndDirectRedException.message)
+        assertEquals(invalidPlayerCardMessage, secondYellowAndRedException.message)
 
         val duplicateCardException = assertThrows(IllegalArgumentException::class.java) {
             standardLiveGameState().adjustCardsAndTf(
@@ -616,7 +616,7 @@ class TestGameCards : GameModelTestFixtures() {
                 teamTwoTechnicalFouls = 0,
                 teamOnePlayerCards = listOf(
                     InGamePlayerCardRecord("17", yellows = 1),
-                    InGamePlayerCardRecord("17", directReds = 1),
+                    InGamePlayerCardRecord("17", reds = 1),
                 ),
                 teamTwoPlayerCards = emptyList(),
             )
@@ -626,10 +626,10 @@ class TestGameCards : GameModelTestFixtures() {
         // Manual cards/TF correction clamps visible team counts and derives yellow/red totals from player records.
         val correctedTeamOnePlayerCards = listOf(
             InGamePlayerCardRecord("17", yellows = 1),
-            InGamePlayerCardRecord(UNKNOWN_PLAYER_NUMBER, yellows = 1, directReds = 1),
+            InGamePlayerCardRecord(UNKNOWN_PLAYER_NUMBER, yellows = 1, reds = 1),
         )
         val correctedTeamTwoPlayerCards = listOf(
-            InGamePlayerCardRecord("23", directReds = 1),
+            InGamePlayerCardRecord("23", reds = 1),
         )
         val beforeCardsAdjustment = state
         state = state.adjustCardsAndTf(
