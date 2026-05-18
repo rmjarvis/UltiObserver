@@ -168,6 +168,11 @@ internal class UltiObserverAppViewModel(
     fun updateTimingCueMode(cueId: TimingCueId, mode: TimingAlertMode) {
         timingAlertPreferences = timingAlertPreferences.copy(
             cueModes = timingAlertPreferences.cueModes + (cueId to mode),
+            cueRepeatCounts = if (mode == TimingAlertMode.NONE) {
+                timingAlertPreferences.cueRepeatCounts + (cueId to DEFAULT_TIMING_ALERT_REPEAT_COUNT)
+            } else {
+                timingAlertPreferences.cueRepeatCounts
+            },
         )
         persistSettingsState()
     }
