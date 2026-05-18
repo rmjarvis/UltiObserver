@@ -31,7 +31,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import java.time.format.DateTimeFormatter
 
 /**
  * Compact current/completed game row on Home.
@@ -116,11 +115,11 @@ internal fun GameSetupState.gameListEntry(): GameListEntry {
 }
 
 private fun LiveGameState.compactStartDateTime(): String {
-    return "${startDate.format(DateTimeFormatter.ofPattern("M/d/yy"))} ${formatClockTime(startTime)}"
+    return formatCompactStartDateTime(startDate, startTime)
 }
 
 private fun GameSetupState.compactStartDateTime(): String {
-    return "${startDate.format(DateTimeFormatter.ofPattern("M/d/yy"))} ${formatClockTime(startTime)}"
+    return formatCompactStartDateTime(startDate, startTime)
 }
 
 private fun LiveGameState.scoreLine(): String {

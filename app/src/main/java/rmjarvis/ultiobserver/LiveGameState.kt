@@ -233,9 +233,13 @@ data class TeamLiveState(
 
 /// Return teams ordered with the higher-scoring team first for summary display.
 internal fun LiveGameState.winnerFirstTeams(): List<TeamLiveState> {
-    return listOf(teamOne, teamTwo).sortedWith(
-        compareByDescending<TeamLiveState> { it.score }.thenBy { it.name }
-    )
+    val teamOneFirst = teamOne.score > teamTwo.score ||
+        (teamOne.score == teamTwo.score && teamOne.name <= teamTwo.name)
+    return if (teamOneFirst) {
+        listOf(teamOne, teamTwo)
+    } else {
+        listOf(teamTwo, teamOne)
+    }
 }
 /**
  * Active countdown and the information needed to display, adjust, and transition it.

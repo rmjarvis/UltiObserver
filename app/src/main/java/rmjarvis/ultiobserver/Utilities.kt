@@ -6,6 +6,10 @@ import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.max
 
+private val CLOCK_TIME_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("h:mm a")
+private val START_DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy")
+private val COMPACT_START_DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("M/d/yy")
+
 /**
  * Format a local clock time for user-facing display.
  * For example, `3:30 PM`.
@@ -13,7 +17,7 @@ import kotlin.math.max
  * @param time The local time value to show.
  */
 fun formatClockTime(time: LocalTime): String {
-    return time.format(DateTimeFormatter.ofPattern("h:mm a"))
+    return time.format(CLOCK_TIME_FORMATTER)
 }
 
 /**
@@ -23,7 +27,18 @@ fun formatClockTime(time: LocalTime): String {
  * @param date The local date to format.
  */
 internal fun formatStartDate(date: LocalDate): String {
-    return date.format(DateTimeFormatter.ofPattern("MMM d, yyyy"))
+    return date.format(START_DATE_FORMATTER)
+}
+
+/**
+ * Format a compact local game start date/time for list rows.
+ * For example, `4/5/26 3:30 PM`.
+ *
+ * @param date The local date to format.
+ * @param time The local time to format.
+ */
+internal fun formatCompactStartDateTime(date: LocalDate, time: LocalTime): String {
+    return "${date.format(COMPACT_START_DATE_FORMATTER)} ${formatClockTime(time)}"
 }
 
 /**

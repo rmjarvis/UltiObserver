@@ -7,6 +7,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import java.io.File
@@ -128,8 +129,11 @@ internal fun UltiObserverApp(viewModel: AppViewModel) {
         }
 
         AppScreen.ARCHIVED_GAMES -> {
+            val archivedGameEntries = remember(appState.archivedGames) {
+                appState.archivedGames.map { it.state.archivedGameListEntry() }
+            }
             ArchivedGamesScreen(
-                archivedGames = appState.archivedGames.map { it.state.archivedGameListEntry() },
+                archivedGames = archivedGameEntries,
                 onOpenArchivedGame = viewModel::openArchivedGame,
                 onDeleteArchivedGame = viewModel::deleteArchivedGame,
                 onDeleteAllArchivedGames = viewModel::deleteAllArchivedGames,

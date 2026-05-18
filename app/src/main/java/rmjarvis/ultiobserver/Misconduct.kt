@@ -754,12 +754,14 @@ private fun LiveGameState.gameSuspensionStartedInSecondHalf(): Boolean {
  * @param jerseyNumber The player number, or the unknown-player sentinel.
  */
 private fun LiveGameState.playerHasTournamentSuspension(team: TeamId, jerseyNumber: String): Boolean {
-    val priorYellows = priorCards
-        .filter { it.team == team && it.jerseyNumber == jerseyNumber }
-        .sumOf { it.priorYellows }
-    val priorReds = priorCards
-        .filter { it.team == team && it.jerseyNumber == jerseyNumber }
-        .sumOf { it.priorReds }
+    var priorYellows = 0
+    var priorReds = 0
+    priorCards.forEach { record ->
+        if (record.team == team && record.jerseyNumber == jerseyNumber) {
+            priorYellows += record.priorYellows
+            priorReds += record.priorReds
+        }
+    }
     val inGameRecord = playerCards(team).firstOrNull { it.jerseyNumber == jerseyNumber }
     val totalYellows = priorYellows + (inGameRecord?.yellows ?: 0)
     val totalReds = priorReds + (inGameRecord?.reds ?: 0)
