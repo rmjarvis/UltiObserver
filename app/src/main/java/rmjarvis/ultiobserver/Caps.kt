@@ -1,10 +1,66 @@
 package rmjarvis.ultiobserver
 
 import java.time.Duration
-import java.time.LocalTime
-import java.time.format.DateTimeFormatter
+import kotlinx.serialization.Serializable
 import kotlin.math.max
 import kotlin.math.min
+
+data class CapStatus(
+    val label: String,
+    val remaining: Duration,
+)
+
+@Serializable
+enum class CapType {
+    HALF,
+    SOFT,
+    HARD;
+
+    val label: String
+        get() = when (this) {
+            HALF -> "Half cap"
+            SOFT -> "Soft cap"
+            HARD -> "Hard cap"
+        }
+
+    val titleLabel: String
+        get() = label.replace(" cap", " Cap")
+
+    /**
+     * Return this cap's configured offset from game start.
+     *
+     * @param rules The rules that contain the cap offsets.
+     */
+    fun offsetMinutes(rules: GameRules): Int {
+        return when (this) {
+            HALF -> rules.halfCapMinutes
+            SOFT -> rules.softCapMinutes
+            HARD -> rules.hardCapMinutes
+        }
+    }
+
+    /**
+     * Return rules with this cap enabled while preserving the other rule values.
+     *
+     * @param rules The rule set to update.
+     */
+    fun rulesWithCapEnabled(rules: GameRules): GameRules {
+        return when (this) {
+            HALF -> rules.copy(useHalfCap = true)
+            SOFT -> rules.copy(useSoftCap = true)
+            HARD -> rules.copy(useHardCap = true)
+        }
+    }
+
+    /// Return the timing cue id that announces this cap.
+    fun timingCueId(): TimingCueId {
+        return when (this) {
+            HALF -> TimingCueId.HALF_CAP
+            SOFT -> TimingCueId.SOFT_CAP
+            HARD -> TimingCueId.HARD_CAP
+        }
+    }
+}
 
 /**
  * Reposition the selected cap so it is due at the current time.
@@ -166,15 +222,6 @@ internal fun LiveGameState.nextCapTimingCue(now: Long): TimingCueDisplay? {
         }
 }
 
-/**
- * Format a local clock time for user-facing display.
- * For example, `3:30 PM`.
- *
- * @param time The local time value to show.
- */
-fun formatClockTime(time: LocalTime): String {
-    return time.format(DateTimeFormatter.ofPattern("h:mm a"))
-}
 /// List cap types that still affect the current game.
 private fun LiveGameState.relevantCapTypes(): List<CapType> {
     return listOfNotNull(
@@ -265,4 +312,37 @@ private fun halfCapCanChangeHalftime(rules: GameRules, teamOneScore: Int, teamTw
  */
 internal fun LiveGameState.capEpoch(capType: CapType): Long {
     return startEpoch + capType.offsetMinutes(rules) * 60_000L
+}
+
+/// Return the lower-case cap label used in an apply-cap prompt title.
+internal fun GamePrompt.ApplyCap.label(): String {
+    return capType.label.lowercase()
+}
+
+/// Format the prompt body for an offered cap.
+internal fun GamePrompt.ApplyCap.formatMessage(): String {
+    val wasAt = if (state.phase == LivePhase.HALFTIME) "is scheduled for" else "was at"
+    val endWhen = if (state.phase == LivePhase.HALFTIME) "during halftime" else "now"
+    return when (capType) {
+        CapType.HALF -> {
+            val target = max(state.teamOne.score, state.teamTwo.score) + 1
+            "Half cap was at ${capClockTime()}. Halftime target would become $target. Apply now?"
+        }
+        CapType.SOFT -> {
+            val target = max(state.teamOne.score, state.teamTwo.score) + 1
+            "Soft cap $wasAt ${capClockTime()}. Winning score would become $target. Apply now?"
+        }
+        CapType.HARD -> {
+            if (state.teamOne.score == state.teamTwo.score) {
+                "Hard cap $wasAt ${capClockTime()}. Score is tied, so one more point would be played. Apply now?"
+            } else {
+                "Hard cap $wasAt ${capClockTime()}. Score is not tied, so the game would end $endWhen. Apply now?"
+            }
+        }
+    }
+}
+
+/// Format the scheduled clock time for an offered cap.
+private fun GamePrompt.ApplyCap.capClockTime(): String {
+    return formatClockTime(localTimeFromEpoch(state.capEpoch(capType), state.timeZone))
 }

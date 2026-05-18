@@ -390,66 +390,11 @@ data class LiveGameState(
         ).withUndo(this, "Undo Swap Pulling Team")
     }
 }
-data class CapStatus(
-    val label: String,
-    val remaining: Duration,
-)
 @Serializable
 data class UndoEntry(
     val label: String,
     val previous: LiveGameState,
 )
-@Serializable
-enum class CapType {
-    HALF,
-    SOFT,
-    HARD;
-
-    val label: String
-        get() = when (this) {
-            HALF -> "Half cap"
-            SOFT -> "Soft cap"
-            HARD -> "Hard cap"
-        }
-
-    val titleLabel: String
-        get() = label.replace(" cap", " Cap")
-
-    /**
-     * Return this cap's configured offset from game start.
-     *
-     * @param rules The rules that contain the cap offsets.
-     */
-    fun offsetMinutes(rules: GameRules): Int {
-        return when (this) {
-            HALF -> rules.halfCapMinutes
-            SOFT -> rules.softCapMinutes
-            HARD -> rules.hardCapMinutes
-        }
-    }
-
-    /**
-     * Return rules with this cap enabled while preserving the other rule values.
-     *
-     * @param rules The rule set to update.
-     */
-    fun rulesWithCapEnabled(rules: GameRules): GameRules {
-        return when (this) {
-            HALF -> rules.copy(useHalfCap = true)
-            SOFT -> rules.copy(useSoftCap = true)
-            HARD -> rules.copy(useHardCap = true)
-        }
-    }
-
-    /// Return the timing cue id that announces this cap.
-    fun timingCueId(): TimingCueId {
-        return when (this) {
-            HALF -> TimingCueId.HALF_CAP
-            SOFT -> TimingCueId.SOFT_CAP
-            HARD -> TimingCueId.HARD_CAP
-        }
-    }
-}
 sealed interface GameEvent {
     data class TimeoutCharged(
         val state: LiveGameState,

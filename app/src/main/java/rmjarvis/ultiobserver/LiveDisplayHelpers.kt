@@ -1,5 +1,18 @@
 package rmjarvis.ultiobserver
 
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+
+/**
+ * Format a local clock time for user-facing display.
+ * For example, `3:30 PM`.
+ *
+ * @param time The local time value to show.
+ */
+fun formatClockTime(time: LocalTime): String {
+    return time.format(DateTimeFormatter.ofPattern("h:mm a"))
+}
+
 /**
  * Format a player number for display.
  *
