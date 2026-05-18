@@ -607,7 +607,13 @@ fun LiveGameState.teamRedCards(team: TeamId): Int {
  */
 fun LiveGameState.teamCardTotal(team: TeamId): Int {
     val currentTeam = if (team == TeamId.TEAM_ONE) this.teamOne else this.teamTwo
-    return this.teamYellowCards(team) + currentTeam.blueCards + (2 * this.teamRedCards(team))
+    var yellowCards = 0
+    var redCards = 0
+    playerCardsFor(team).forEach { record ->
+        yellowCards += record.yellows
+        redCards += record.reds
+    }
+    return yellowCards + currentTeam.blueCards + (2 * redCards)
 }
 /**
  * Return the stored player-card records for one team.
