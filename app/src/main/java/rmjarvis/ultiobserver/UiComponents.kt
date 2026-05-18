@@ -34,7 +34,17 @@ internal val TeamColorChoice.accent: Color
 internal val TeamColorChoice.content: Color
     get() = Color(contentArgb)
 
-// Small general-purpose outlined action button.
+/**
+ * Render a small general-purpose outlined action button.
+ *
+ * @param label The button label.
+ * @param modifier Optional layout modifier.
+ * @param enabled Whether the button is enabled.
+ * @param containerColor Button background color.
+ * @param contentColor Button text color.
+ * @param borderColor Button border color.
+ * @param onClick Callback invoked when the button is tapped.
+ */
 @Composable
 internal fun SmallActionButton(
     label: String,
@@ -66,7 +76,15 @@ internal fun SmallActionButton(
     }
 }
 
-// Smaller, denser version of the action button used on team rows.
+/**
+ * Render the smaller, denser action button used on live team rows.
+ *
+ * @param label The button label.
+ * @param modifier Optional layout modifier.
+ * @param enabled Whether the button is enabled.
+ * @param height The fixed button height from live layout metrics.
+ * @param onClick Callback invoked when the button is tapped.
+ */
 @Composable
 internal fun CompactActionButton(
     label: String,
@@ -99,7 +117,13 @@ internal fun CompactActionButton(
     }
 }
 
-// Shared section wrapper used across home and setup screens.
+/**
+ * Render a shared section wrapper used across home and setup screens.
+ *
+ * @param title The section title.
+ * @param subtitle Optional right-side subtitle.
+ * @param content The section body content.
+ */
 @Composable
 internal fun SectionCard(
     title: String,

@@ -40,7 +40,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.time.LocalTime
 
-// Main live-game screen, including the field view, modal flows, and pop-up cues.
+/**
+ * Render the main live-game screen, including the field view, modal flows, and popup cues.
+ *
+ * @param state The live game state to render.
+ * @param readOnlySummary Whether this is an archived summary that should ignore live controls.
+ * @param automaticallyAdvanceCountdowns Whether expired countdowns should advance model state automatically.
+ * @param automaticallyLockLivePoint Whether automatic live-point transitions should lock the screen.
+ * @param onStateChange Callback receiving updated live state from user actions and timer transitions.
+ * @param onUpdateGameSetup Callback reopening setup for the current game.
+ * @param onDeleteGame Callback deleting the current game.
+ * @param onBackHome Callback returning to Home or setup according to ViewModel navigation rules.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun LiveGameScreen(
@@ -63,15 +74,28 @@ internal fun LiveGameScreen(
     var previouslyObservedPhase by remember { mutableStateOf(state.phase) }
     var suppressNextPhasePrompt by remember { mutableStateOf(false) }
     var suppressNextAutoLock by remember { mutableStateOf(false) }
+
+    /**
+     * Show a transient action-info popup.
+     *
+     * @param message The popup body text.
+     * @param title The popup title.
+     */
     fun showActionInfo(message: String, title: String) {
         actionInfoMessage = message
         actionInfoTitle = title
     }
 
+    /// Dismiss the transient action-info popup.
     fun dismissActionInfo() {
         actionInfoMessage = null
     }
 
+    /**
+     * Apply undo while suppressing phase-change prompts and automatic locking caused by restored state.
+     *
+     * @param updatedState The state produced by undo.
+     */
     fun undoWithoutPhasePrompt(updatedState: LiveGameState) {
         suppressNextPhasePrompt = updatedState.phase != state.phase
         suppressNextAutoLock = true
@@ -423,6 +447,11 @@ internal fun LiveGameScreen(
     }
 
     if (showTimeViolationTeamPrompt) {
+        /**
+         * Assess a time violation for the chosen team and show its result popup.
+         *
+         * @param team The team selected in the time-violation prompt.
+         */
         fun assessTimeViolationFor(team: TeamId) {
             val result = state.assessTimeViolation(team, now)
             onStateChange(result.state)
@@ -583,6 +612,11 @@ private data class LiveLayoutMetrics(
     val field: FieldLayoutMetrics,
 )
 
+/**
+ * Derive the live screen's responsive layout metrics from available content height.
+ *
+ * @param contentHeight The height inside the scaffold content area.
+ */
 private fun liveLayoutMetrics(contentHeight: Dp): LiveLayoutMetrics {
     val pagePadding = (contentHeight.value * 0.014f).dp.coerceIn(8.dp, 16.dp)
     val sectionSpacing = (contentHeight.value * 0.011f).dp.coerceIn(6.dp, 12.dp)
@@ -614,7 +648,15 @@ private fun liveLayoutMetrics(contentHeight: Dp): LiveLayoutMetrics {
     )
 }
 
-// Bottom action bar for undo plus immediate redo after an undo.
+/**
+ * Render the bottom action bar for undo plus immediate redo after an undo.
+ *
+ * @param state The live state whose undo/redo entries are displayed.
+ * @param enabled Whether undo/redo buttons are enabled.
+ * @param height The fixed bar height.
+ * @param onUndo Callback receiving the state produced by undo.
+ * @param onRedo Callback receiving the state produced by redo.
+ */
 @Composable
 private fun UndoRedoBar(
     state: LiveGameState,

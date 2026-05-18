@@ -1,6 +1,11 @@
 package rmjarvis.ultiobserver
 
-// Manually adjust the number of timeouts
+/**
+ * Replace the number of timeouts used by each team as a manual correction.
+ *
+ * @param teamOneTimeoutsUsed The corrected count of team-one timeouts used in the current half.
+ * @param teamTwoTimeoutsUsed The corrected count of team-two timeouts used in the current half.
+ */
 fun LiveGameState.adjustTimeouts(
     teamOneTimeoutsUsed: Int,
     teamTwoTimeoutsUsed: Int,
@@ -15,8 +20,13 @@ fun LiveGameState.adjustTimeouts(
         lastEvent = "Timeouts adjusted.",
     ).withUndo(this, "Undo Timeout Adjustment")
 }
-// Someone called a timeout.
-// This records another used timeout and starts or extends the appropriate countdown.
+/**
+ * Validate and charge a timeout request, returning the popup event that should be shown.
+ * This records another used timeout and reports whether the timeout was accepted or rejected.
+ *
+ * @param team The team requesting the timeout.
+ * @param now The current epoch millis used to advance expired countdowns and start timeout timing.
+ */
 fun LiveGameState.assessTimeout(
     team: TeamId,
     now: Long,
@@ -32,6 +42,13 @@ fun LiveGameState.assessTimeout(
         event = GameEvent.TimeoutCharged(state = chargedState, team = team),
     )
 }
+/**
+ * Charge a timeout directly and update the relevant countdown.
+ * Between points this extends the current timer; during a live point it starts an offense-set timer.
+ *
+ * @param team The team whose used-timeout count should increase.
+ * @param now The epoch millis used as the start of a live-point timeout countdown.
+ */
 fun LiveGameState.chargeTimeout(
     team: TeamId,
     now: Long,
@@ -62,7 +79,11 @@ fun LiveGameState.chargeTimeout(
     return applyLivePointTimeout(updatedState, now)
         .withUndo(this, "Undo Timeout by ${timeoutState.teamName(team)}")
 }
-// Calculate how many time outs are allowed in the current half according to the rules.
+/**
+ * Calculate how many timeouts a team is allowed in the current half under the active rules.
+ *
+ * @param team The team whose first-half floater carryover must be considered.
+ */
 fun LiveGameState.timeoutsAllowedThisHalf(team: TeamId): Int {
     val firstHalfAllowance = this.rules.timeoutsPerHalf + if (this.rules.hasFloaterTimeout) 1 else 0
     if (!this.halftimeTaken) {
@@ -73,12 +94,21 @@ fun LiveGameState.timeoutsAllowedThisHalf(team: TeamId): Int {
     val floaterCarries = this.rules.hasFloaterTimeout && firstHalfTimeoutsUsed < firstHalfAllowance
     return this.rules.timeoutsPerHalf + if (floaterCarries) 1 else 0
 }
-// Calculate how many time outs are still available in the current half.
+/**
+ * Calculate how many timeouts a team still has available in the current half.
+ *
+ * @param team The team whose remaining timeout count should be reported.
+ */
 fun LiveGameState.timeoutsRemaining(team: TeamId): Int {
     val usedThisHalf = this.teamFor(team).timeoutsUsedThisHalf
     return (this.timeoutsAllowedThisHalf(team) - usedThisHalf).coerceAtLeast(0)
 }
-// Return the state in which a timeout may be charged, if the rules allow one now.
+/**
+ * Return the clock-advanced state in which a timeout may be charged, if one is legal now.
+ * This treats an expired between-points countdown as live play before deciding how the timeout works.
+ *
+ * @param now The current epoch millis, used to treat an expired between-points countdown as live play.
+ */
 private fun LiveGameState.timeoutEligibleState(now: Long): LiveGameState? {
     val advancedState = advanceGameClock(now)
     return when (advancedState.phase) {
@@ -88,7 +118,12 @@ private fun LiveGameState.timeoutEligibleState(now: Long): LiveGameState? {
         else -> null
     }
 }
-// Apply a timeout between points.  (Basically just adds 70 sec to the timer.)
+/**
+ * Extend a between-points countdown after a timeout is charged before the pull.
+ * This is the rules branch that adds 70 seconds to the existing timer.
+ *
+ * @param state The already-charged timeout state whose countdown should be extended.
+ */
 private fun applyBetweenPointsTimeout(
     state: LiveGameState,
 ): LiveGameState {
@@ -100,7 +135,12 @@ private fun applyBetweenPointsTimeout(
         )
     )
 }
-// Apply a timeout by the thrower during a live point.
+/**
+ * Start the offense-set countdown for a timeout during a live point.
+ *
+ * @param state The already-charged timeout state to decorate with an in-point countdown.
+ * @param now The epoch millis used as the countdown start.
+ */
 private fun applyLivePointTimeout(
     state: LiveGameState,
     now: Long,

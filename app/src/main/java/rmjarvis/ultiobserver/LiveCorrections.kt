@@ -315,7 +315,13 @@ private fun AssignedCardRemovalDialog(
     )
 }
 
-// Manual offsides/false-start correction dialog.
+/**
+ * Render the manual offsides/false-start correction dialog.
+ *
+ * @param state The live state whose current pull-infraction counts seed the dialog.
+ * @param onDismiss Callback closing the dialog without changes.
+ * @param onConfirm Callback receiving team-one offsides, team-one false starts, team-two offsides, and team-two false starts.
+ */
 @Composable
 internal fun AdjustPullInfractionsDialog(
     state: LiveGameState,
@@ -357,7 +363,12 @@ internal fun AdjustPullInfractionsDialog(
     )
 }
 
-// Small labeled section used inside the adjust dialogs.
+/**
+ * Render a small labeled section used inside correction dialogs.
+ *
+ * @param title The section title, normally a team name.
+ * @param content The correction controls for that section.
+ */
 @Composable
 private fun TeamCorrectionSection(
     title: String,

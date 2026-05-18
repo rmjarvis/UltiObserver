@@ -2,7 +2,7 @@ package rmjarvis.ultiobserver
 
 import kotlin.math.max
 
-// Title text for prompts that need a dialog title in the current Android app.
+/// Format title text for prompts that need a dialog title in the current Android app.
 fun GamePrompt.formatTitle(): String {
     return when (this) {
         is GamePrompt.ApplyCap -> "Apply ${this.label()}?"
@@ -12,7 +12,7 @@ fun GamePrompt.formatTitle(): String {
     }
 }
 
-// Main text shown to the observer for this prompt.
+/// Format the main text shown to the observer for a prompt.
 fun GamePrompt.formatMessage(): String {
     return when (this) {
         is GamePrompt.ApplyCap -> this.formatMessage()
@@ -22,16 +22,22 @@ fun GamePrompt.formatMessage(): String {
     }
 }
 
-// Full live-point misconduct message after the observer chooses offense or defense.
+/**
+ * Format the full live-point misconduct message after the observer chooses offense or defense.
+ *
+ * @param againstOffense Whether the penalty is against the offense rather than the defense.
+ */
 fun GamePrompt.LivePointMisconduct.resolutionMessage(againstOffense: Boolean): String {
     val baseMessage = this.event.formatMessage()
     return "$baseMessage\n\n${misconductResolution(againstOffense)}"
 }
 
+/// Return the lower-case cap label used in an apply-cap prompt title.
 private fun GamePrompt.ApplyCap.label(): String {
     return capType.label.lowercase()
 }
 
+/// Format the prompt body for an offered cap.
 private fun GamePrompt.ApplyCap.formatMessage(): String {
     val wasAt = if (state.phase == LivePhase.HALFTIME) "is scheduled for" else "was at"
     val endWhen = if (state.phase == LivePhase.HALFTIME) "during halftime" else "now"
@@ -54,15 +60,18 @@ private fun GamePrompt.ApplyCap.formatMessage(): String {
     }
 }
 
+/// Format the prompt body that asks which side committed live-point misconduct.
 private fun GamePrompt.LivePointMisconduct.formatMessage(): String {
     val baseMessage = event.formatMessage()
     return "$baseMessage\n\nWas this against the offense or defense?"
 }
 
+/// Format the scheduled clock time for an offered cap.
 private fun GamePrompt.ApplyCap.capClockTime(): String {
     return formatClockTime(localTimeFromEpoch(state.capEpoch(capType), state.timeZone))
 }
 
+/// Format the game-over prompt body with the winner first.
 private fun GamePrompt.GameOver.formatMessage(): String {
     val orderedTeams = state.winnerFirstTeams()
     return buildString {
@@ -71,6 +80,11 @@ private fun GamePrompt.GameOver.formatMessage(): String {
     }
 }
 
+/**
+ * Format the live-point misconduct consequence after offense/defense is chosen.
+ *
+ * @param againstOffense Whether the penalty is against the offense rather than the defense.
+ */
 private fun misconductResolution(againstOffense: Boolean): String {
     return if (againstOffense) {
         "Misconduct penalty against offense.\nReverse brick. Defense may instead leave the disc where it stopped.\n\n" +

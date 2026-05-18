@@ -19,7 +19,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
-// Read-only summary view shown once the game is over.
+/**
+ * Render the read-only summary view shown once the game is over.
+ *
+ * @param state The completed game state to summarize.
+ * @param onUndo Callback undoing game end when undo is available.
+ * @param showUndo Whether to show the fixed Undo End Game action.
+ */
 @Composable
 internal fun GameOverSummary(
     state: LiveGameState,
@@ -95,7 +101,12 @@ internal fun GameOverSummary(
     }
 }
 
-// Team-level section inside the game-over summary.
+/**
+ * Render one team-level section inside the game-over summary.
+ *
+ * @param team The team state to summarize.
+ * @param issuedCards Player-specific yellow/red records issued in this game.
+ */
 @Composable
 private fun GameOverTeamSummary(
     team: TeamLiveState,
@@ -124,7 +135,7 @@ private fun GameOverTeamSummary(
     }
 }
 
-// More readable game-over summary for one player's issued cards.
+/// Return game-over summary text for one player's issued cards.
 private fun InGamePlayerCardRecord.summaryIssuedCardText(): String {
     val parts = buildList {
         when (yellows) {
@@ -138,7 +149,7 @@ private fun InGamePlayerCardRecord.summaryIssuedCardText(): String {
     return "${displayPlayerNumber(jerseyNumber)}: ${parts.joinToString("; ")}"
 }
 
-// Put the higher-scoring team first for summary display.
+/// Return teams ordered with the higher-scoring team first for summary display.
 internal fun LiveGameState.winnerFirstTeams(): List<TeamLiveState> {
     return listOf(teamOne, teamTwo).sortedWith(
         compareByDescending<TeamLiveState> { it.score }.thenBy { it.name }

@@ -23,7 +23,7 @@ internal enum class ObserverAvatarPreference {
 internal val concreteObserverAvatarPreferences =
     ObserverAvatarPreference.entries.filterNot { it == ObserverAvatarPreference.RANDOM }
 
-// Screen-reader labels for the image-only avatar selector buttons.
+/// Return the screen-reader label for an image-only avatar selector button.
 internal val ObserverAvatarPreference.label: String
     get() {
         return when (this) {

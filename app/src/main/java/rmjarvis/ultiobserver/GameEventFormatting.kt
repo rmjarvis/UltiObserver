@@ -1,6 +1,6 @@
 package rmjarvis.ultiobserver
 
-// UI-facing text for this model event in the current Android app.
+/// Format UI-facing text for a model event in the current Android app.
 fun GameEvent.formatMessage(): String {
     return when (this) {
         is GameEvent.TimeoutCharged -> this.formatMessage()
@@ -13,7 +13,7 @@ fun GameEvent.formatMessage(): String {
     }
 }
 
-// Title for event-driven popups.
+/// Format the title for an event-driven popup.
 fun GameEvent.formatPopupTitle(): String {
     return when (this) {
         is GameEvent.TimeoutCharged -> "Timeout Charged"
@@ -26,7 +26,7 @@ fun GameEvent.formatPopupTitle(): String {
     }
 }
 
-// Does this event need the observer to choose offense/defense before showing the penalty cue?
+/// Report whether this event needs an offense/defense choice before showing the penalty cue.
 fun GameEvent.needsMisconductChoice(): Boolean {
     return when (this) {
         is GameEvent.TeamCardsChanged -> teamCardTotal >= 3 && state.phase == LivePhase.LIVE_POINT
@@ -35,6 +35,7 @@ fun GameEvent.needsMisconductChoice(): Boolean {
     }
 }
 
+/// Format a team-card event message, including player-card and misconduct cue details.
 private fun GameEvent.TeamCardsChanged.formatMessage(): String {
     val totalMessage = "${state.teamName(team)} has $teamCardTotal ${pluralize(teamCardTotal, "card")}."
     val baseMessage = if (playerCardType == null) {
@@ -50,12 +51,19 @@ private fun GameEvent.TeamCardsChanged.formatMessage(): String {
     )
 }
 
+/// Format a timeout-charged event message with the remaining timeout count.
 private fun GameEvent.TimeoutCharged.formatMessage(): String {
     val timeoutCount = state.timeoutsRemaining(team)
     return "Timeout charged to ${state.teamName(team)}. " +
         "They have $timeoutCount ${pluralize(timeoutCount, "timeout")} remaining in this half."
 }
 
+/**
+ * Build the player-specific message lines for a yellow, red, or second-yellow event.
+ *
+ * @param playerCardType The player-card event type to describe.
+ * @param jerseyNumber The player number, or the unknown-player sentinel.
+ */
 private fun GameEvent.TeamCardsChanged.playerCardEventLines(
     playerCardType: PlayerCardEventType,
     jerseyNumber: String,
@@ -89,18 +97,35 @@ private fun GameEvent.TeamCardsChanged.playerCardEventLines(
     }
 }
 
+/**
+ * Format a player reference for use in the middle of a sentence.
+ *
+ * @param jerseyNumber The player number, or the unknown-player sentinel.
+ */
 private fun playerReference(jerseyNumber: String): String {
     return if (jerseyNumber == UNKNOWN_PLAYER_NUMBER) "player N/A" else "player $jerseyNumber"
 }
 
+/**
+ * Format a player reference for use as the subject of a sentence.
+ *
+ * @param jerseyNumber The player number, or the unknown-player sentinel.
+ */
 private fun playerSentenceSubject(jerseyNumber: String): String {
     return if (jerseyNumber == UNKNOWN_PLAYER_NUMBER) "The player" else "Player $jerseyNumber"
 }
 
+/// Report whether a game suspension started in the second half or later.
 private fun LiveGameState.gameSuspensionStartedInSecondHalf(): Boolean {
     return halftimeTaken
 }
 
+/**
+ * Report whether the player's prior and in-game cards reach tournament suspension thresholds.
+ *
+ * @param team The player's team.
+ * @param jerseyNumber The player number, or the unknown-player sentinel.
+ */
 private fun LiveGameState.playerHasTournamentSuspension(team: TeamId, jerseyNumber: String): Boolean {
     val priorYellows = priorCards
         .filter { it.team == team && it.jerseyNumber == jerseyNumber }
@@ -114,6 +139,7 @@ private fun LiveGameState.playerHasTournamentSuspension(team: TeamId, jerseyNumb
     return totalYellows + 2 * totalReds >= 3
 }
 
+/// Format a technical-foul event message, including misconduct cue details when needed.
 private fun GameEvent.TechnicalFoulsChanged.formatMessage(): String {
     val baseMessage =
         "${state.teamName(team)} has $technicalFoulTotal technical " +
@@ -125,6 +151,7 @@ private fun GameEvent.TechnicalFoulsChanged.formatMessage(): String {
     )
 }
 
+/// Format a pull-infraction event message with the field-position consequence.
 private fun GameEvent.PullInfractionRecorded.formatMessage(): String {
     return when (infraction) {
         PullInfractionType.OFFSIDES -> if (totalPullViolations <= 1) {
@@ -136,6 +163,7 @@ private fun GameEvent.PullInfractionRecorded.formatMessage(): String {
     }
 }
 
+/// Format a time-violation event message with warning, timeout, or no-timeout consequences.
 private fun GameEvent.TimeViolationRecorded.formatMessage(): String {
     return when (outcome) {
         TimeViolationOutcome.WARNING -> {
@@ -156,6 +184,13 @@ private fun GameEvent.TimeViolationRecorded.formatMessage(): String {
     }
 }
 
+/**
+ * Append a between-points misconduct cue when a threshold event has an immediate no-pull consequence.
+ *
+ * @param state The live state after the threshold event.
+ * @param team The team that reached the threshold.
+ * @param thresholdCount The team-card or technical-foul count after the event.
+ */
 private fun String.withMisconductCue(
     state: LiveGameState,
     team: TeamId,
@@ -168,6 +203,11 @@ private fun String.withMisconductCue(
     }
 }
 
+/**
+ * Format the between-points misconduct consequence for the penalized team.
+ *
+ * @param team The team that reached the misconduct threshold.
+ */
 private fun LiveGameState.betweenPointsMisconductCue(team: TeamId): String {
     val receivingTeam = pullingTeam.flip()
     return if (team == receivingTeam) {
@@ -177,6 +217,12 @@ private fun LiveGameState.betweenPointsMisconductCue(team: TeamId): String {
     }
 }
 
+/**
+ * Return a singular or plural noun for a count.
+ *
+ * @param count The count controlling pluralization.
+ * @param singular The singular noun form.
+ */
 private fun pluralize(count: Int, singular: String): String {
     return if (count == 1) singular else "${singular}s"
 }

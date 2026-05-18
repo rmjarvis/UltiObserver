@@ -47,7 +47,11 @@ import androidx.compose.ui.unit.sp
 import java.time.Duration
 import java.time.LocalTime
 
-// Full-width unlock slider that only activates if the drag starts on the left side.
+/**
+ * Render the live-field unlock slider.
+ *
+ * @param onUnlock Callback invoked once the observer completes the required slide gesture.
+ */
 @Composable
 internal fun FieldUnlockControl(
     onUnlock: () -> Unit,
@@ -64,7 +68,19 @@ internal fun FieldUnlockControl(
     )
 }
 
-// Full-width confirmation slider that only activates if the drag starts on the left side.
+/**
+ * Render a full-width confirmation slider that only activates when the drag starts on the left side.
+ *
+ * @param instructionText Instruction text shown above the slider.
+ * @param trackText Text shown inside the slider track.
+ * @param testTag Test tag attached to the draggable track.
+ * @param onConfirmed Callback invoked after a successful slide.
+ * @param modifier Optional layout modifier.
+ * @param textColor Color used for instruction and track text.
+ * @param trackColor Slider track color.
+ * @param thumbColor Slider thumb color.
+ * @param borderColor Slider border color.
+ */
 @Composable
 internal fun SlideToConfirmControl(
     instructionText: String,
@@ -158,7 +174,13 @@ internal fun SlideToConfirmControl(
     }
 }
 
-// Top status line showing the real clock and the next relevant cap.
+/**
+ * Render the top status line showing the real clock and next relevant cap.
+ *
+ * @param currentTime The local clock time to display.
+ * @param capStatus The next cap status, or null when all caps are passed or irrelevant.
+ * @param height The reserved status-line height used for responsive live layout.
+ */
 @Composable
 internal fun StatusLine(
     currentTime: LocalTime,
@@ -204,6 +226,11 @@ internal data class FieldLayoutMetrics(
     val detailLineHeight: androidx.compose.ui.unit.TextUnit,
 ) {
     companion object {
+        /**
+         * Derive field layout metrics from the measured available field height.
+         *
+         * @param fieldHeight The height available for the full field diagram.
+         */
         fun fromFieldHeight(fieldHeight: Dp): FieldLayoutMetrics {
             val centerHeight = (fieldHeight.value * 0.22f)
                 .coerceIn(64f, 120f)
@@ -250,7 +277,18 @@ internal data class FieldLayoutMetrics(
     }
 }
 
-// Draw the field as top/bottom end zones plus a center strip for pull direction and controls.
+/**
+ * Draw the field as top/bottom end zones plus a center strip for pull direction and controls.
+ *
+ * @param state The live game state to render.
+ * @param interactionsEnabled Whether team action controls should be enabled.
+ * @param showPullIndicator Whether the center strip should show pull direction.
+ * @param metrics The precomputed field layout metrics.
+ * @param centerContent The live action or unlock content rendered in the center strip.
+ * @param onGoal Callback receiving the team that scored.
+ * @param onTimeout Callback receiving the team requesting timeout.
+ * @param onPullInfraction Callback receiving the team with a pull infraction.
+ */
 @Composable
 internal fun FieldSketchCard(
     state: LiveGameState,
@@ -344,7 +382,22 @@ internal fun FieldSketchCard(
     }
 }
 
-// One team row on the field, with score/state info and the main live actions.
+/**
+ * Render one team row on the field, with score/state info and the main live actions.
+ *
+ * @param teamId The team represented by this end-zone row.
+ * @param team The live team state to display.
+ * @param cardPoints The derived team card-point total.
+ * @param timeoutsRemaining The derived timeout count remaining in this half.
+ * @param background The team-color background for the row.
+ * @param interactionsEnabled Whether live action buttons should be enabled.
+ * @param isPulling Whether this team is currently pulling.
+ * @param pullInfractionEnabled Whether this team can still record its pull infraction for this pull.
+ * @param metrics The measured layout metrics for compact or roomy phone heights.
+ * @param onGoal Callback recording a goal for this team.
+ * @param onTimeout Callback charging a timeout to this team.
+ * @param onPullInfraction Callback recording this team's pull infraction.
+ */
 @Composable
 private fun EndZonePanel(
     teamId: TeamId,
@@ -459,7 +512,12 @@ private fun EndZonePanel(
     }
 }
 
-// Center-field arrow showing which end the pull comes from.
+/**
+ * Render the center-field arrow showing which end the pull comes from.
+ *
+ * @param pullingFromEnd The field end occupied by the pulling team.
+ * @param modifier Optional layout modifier for the indicator column.
+ */
 @Composable
 private fun PullDirectionIndicator(
     pullingFromEnd: FieldEnd,
@@ -482,6 +540,11 @@ private fun PullDirectionIndicator(
     }
 }
 
+/**
+ * Draw the pull-direction arrow.
+ *
+ * @param pointsTowardNearEnd Whether the arrow should point toward the observer's near end.
+ */
 @Composable
 private fun PullDirectionArrow(pointsTowardNearEnd: Boolean) {
     Canvas(
@@ -519,6 +582,7 @@ private fun PullDirectionArrow(pointsTowardNearEnd: Boolean) {
     }
 }
 
+/// Render the `Pull` label beside the pull-direction arrow.
 @Composable
 private fun PullDirectionLabel() {
     Text(
@@ -529,7 +593,16 @@ private fun PullDirectionLabel() {
     )
 }
 
-// Active countdown plus the quick -5/+5 correction buttons.
+/**
+ * Render the active countdown row, expired-pull actions, or misconduct countdown action.
+ *
+ * @param countdown The visible countdown state, or null when no countdown is active.
+ * @param enabled Whether countdown actions should be enabled.
+ * @param onAdjust Callback receiving signed second adjustments from the quick buttons.
+ * @param expiredPullActions Actions to show after undoing an automatic start point.
+ * @param misconductCountdownAction Action to show before starting a live-point misconduct countdown.
+ * @param height Reserved row height so the field layout does not shift when content changes.
+ */
 @Composable
 internal fun CountdownLine(
     countdown: ActiveCountdownDisplay?,
@@ -635,7 +708,7 @@ internal data class MisconductCountdownAction(
     val onStart: () -> Unit,
 )
 
-// Offsides and false starts are combined for pull-violation display/rules.
+/// Count combined offsides and false-start pull violations for display.
 private fun TeamLiveState.pullViolationCount(): Int {
     return offsides + falseStarts
 }
@@ -646,7 +719,11 @@ internal data class ActiveCountdownDisplay(
     val nextCue: TimingCueDisplay?,
 )
 
-// Compute the countdown text currently visible on the live screen.
+/**
+ * Compute the countdown text currently visible on the live screen.
+ *
+ * @param now The current epoch millis used to compute remaining time and next cue.
+ */
 internal fun LiveGameState.activeCountdownDisplay(now: Long): ActiveCountdownDisplay? {
     val countdown = countdown ?: return null
     return if (countdown.kind == CountdownKind.HALFTIME) {
@@ -676,7 +753,11 @@ internal fun LiveGameState.activeCountdownDisplay(now: Long): ActiveCountdownDis
     }
 }
 
-// Halftime can become Start Point once the halftime countdown itself has elapsed.
+/**
+ * Report whether halftime has elapsed and the live screen can show `Start Point`.
+ *
+ * @param now The current epoch millis used to compare against halftime's target time.
+ */
 internal fun LiveGameState.halftimeTransitionReady(now: Long): Boolean {
     val countdown = countdown ?: return false
     return phase == LivePhase.HALFTIME &&

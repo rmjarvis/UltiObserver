@@ -23,10 +23,17 @@ private val LightColorScheme = lightColorScheme(
     surface = SandSurface,
 )
 
+/**
+ * Apply the UltiObserver Material theme.
+ *
+ * @param darkTheme Whether to use the dark color scheme.
+ * @param dynamicColor Whether Android 12+ dynamic colors may override the fixed palette.
+ * @param content The themed composable content.
+ */
 @Composable
 fun UltiObserverTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
+    // Dynamic color is available on Android 12+.
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {

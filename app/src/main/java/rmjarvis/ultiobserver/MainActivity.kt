@@ -28,12 +28,22 @@ import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 class MainActivity : ComponentActivity() {
     internal val appViewModel: UltiObserverAppViewModel by viewModels {
         object : ViewModelProvider.Factory {
+            /**
+             * Create the app ViewModel with file-backed persistence.
+             *
+             * @param modelClass The ViewModel class requested by the Android lifecycle owner.
+             */
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 return modelClass.cast(UltiObserverAppViewModel(FileAppStateStore(filesDir)))!!
             }
         }
     }
 
+    /**
+     * Initialize edge-to-edge Compose content for the app.
+     *
+     * @param savedInstanceState Android activity state supplied during recreation.
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -45,7 +55,11 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// Switch between home, setup, and live screens from the app ViewModel state.
+/**
+ * Switch between home, setup, and live screens from the app ViewModel state.
+ *
+ * @param viewModel The app-level ViewModel owning navigation and persisted state.
+ */
 @Composable
 internal fun UltiObserverApp(viewModel: UltiObserverAppViewModel) {
     // Back returns to setup from the initial live preview, otherwise to home.
@@ -189,7 +203,12 @@ internal fun UltiObserverApp(viewModel: UltiObserverAppViewModel) {
     }
 }
 
-// Keep active-game timing cues alive even when the observer leaves the live screen.
+/**
+ * Keep active-game timing cues alive even when the observer leaves the live screen.
+ *
+ * @param liveState The active current-game state, or null when no audible/vibration cues should run.
+ * @param timingAlertPreferences The current timing alert settings.
+ */
 @Composable
 private fun TimingAlertCueListener(
     liveState: LiveGameState?,
@@ -257,6 +276,16 @@ private fun TimingAlertCueListener(
     }
 }
 
+/**
+ * Play all due timing alerts and mark them as played before async playback starts.
+ *
+ * @param timingAlerts The timing cues to play.
+ * @param timingAlertPreferences The alert settings controlling sound, vibration, and repeat count.
+ * @param context Android context used for haptics.
+ * @param timingAlertPlayer Sound player used for audible cues.
+ * @param alertPlaybackScope Coroutine scope for background playback.
+ * @param onAlertKeysPlayed Callback recording cue keys so recomposition does not replay them.
+ */
 private fun playTimingAlerts(
     timingAlerts: List<TimingCueDisplay>,
     timingAlertPreferences: TimingAlertPreferences,
@@ -280,6 +309,7 @@ private fun playTimingAlerts(
     }
 }
 
+/// Build a stable deduplication key for a timing cue.
 private fun TimingCueDisplay.alertKey(): String {
     return "${id.name}:$targetEpoch"
 }

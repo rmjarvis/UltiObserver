@@ -11,7 +11,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-// Irreversible delete confirmation using the same drag interaction as live-screen unlock.
+/**
+ * Render irreversible delete confirmation using the same drag interaction as live-screen unlock.
+ *
+ * @param onDismiss Callback closing the dialog without deleting.
+ * @param onConfirmDelete Callback invoked after the confirmation slide completes.
+ * @param title The dialog title.
+ * @param message The warning body text.
+ */
 @Composable
 internal fun DeleteGameDialog(
     onDismiss: () -> Unit,

@@ -4,16 +4,27 @@ import java.time.Duration
 import java.time.LocalTime
 import kotlin.math.max
 
-// Format a duration into a nice format like "0:32"
+/**
+ * Format a duration as a clamped minute-second countdown string.
+ * For example, 32 seconds is shown as `0:32`.
+ *
+ * @param duration The duration to display; negative values are shown as zero.
+ */
 fun formatDuration(duration: Duration): String {
     val totalSeconds = max(0L, duration.seconds)
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
     return "$minutes:${seconds.toString().padStart(2, '0')}"
 }
-// Build a countdown after a goal is scored.
-// This is different depending on whether the observer is on the side of the pulling
-// or receiving team.  (Observer is assumed on the near end.)
+/**
+ * Build the countdown that applies between points for the observer's end of the field.
+ * The exact target depends on whether the observer is on the pulling or receiving side;
+ * the observer is assumed to be on the near end.
+ *
+ * @param pullingFromEnd The field end the pulling team occupies, which determines the observer's responsibility.
+ * @param sequenceStart The epoch millis when the between-points sequence starts.
+ * @param kind The between-points countdown kind, used to distinguish normal, opening, and reset timing.
+ */
 internal fun buildBetweenPointsCountdown(
     pullingFromEnd: FieldEnd,
     sequenceStart: Long,
@@ -32,6 +43,11 @@ internal fun buildBetweenPointsCountdown(
         betweenPointsTarget = target,
     )
 }
+/**
+ * Select the timing target the near-side observer is responsible for between points.
+ *
+ * @param pullingFromEnd The field end the pulling team occupies.
+ */
 private fun betweenPointsCountdownTargetFor(pullingFromEnd: FieldEnd): BetweenPointsCountdownTarget {
     return if (pullingFromEnd == FieldEnd.NEAR) {
         BetweenPointsCountdownTarget.PULL
@@ -39,7 +55,14 @@ private fun betweenPointsCountdownTargetFor(pullingFromEnd: FieldEnd): BetweenPo
         BetweenPointsCountdownTarget.OFFENSE_READY
     }
 }
-// Visible between-points countdown text for the currently responsible side of the field.
+/**
+ * Compute the label and remaining time for the visible between-points countdown.
+ *
+ * @param pullingFromEnd The field end the pulling team occupies.
+ * @param sequenceStart The epoch millis when the between-points sequence started.
+ * @param now The epoch millis used to compute remaining time.
+ * @param kind The between-points countdown kind to display.
+ */
 fun betweenPointsDisplay(
     pullingFromEnd: FieldEnd,
     sequenceStart: Long,
@@ -49,7 +72,12 @@ fun betweenPointsDisplay(
     val countdown = buildBetweenPointsCountdown(pullingFromEnd, sequenceStart, kind)
     return countdown.label to Duration.ofMillis((countdown.targetEpoch - now).coerceAtLeast(0L))
 }
-// Build a countdown for half time.
+/**
+ * Build the halftime countdown from the configured halftime length.
+ *
+ * @param halftimeMinutes The number of minutes halftime should last.
+ * @param sequenceStart The epoch millis when halftime starts.
+ */
 internal fun buildHalftimeCountdown(
     halftimeMinutes: Int,
     sequenceStart: Long,
@@ -62,7 +90,12 @@ internal fun buildHalftimeCountdown(
         targetEpoch = sequenceStart + durationSeconds * 1000L,
     )
 }
-// The default start time for a game is the next even half hour after the reference time.
+/**
+ * Round a reference time to the default setup start time.
+ * The default game start is the next even half hour after the reference time.
+ *
+ * @param referenceTime The time to round up to the next half-hour boundary.
+ */
 fun nextHalfHourFrom(referenceTime: LocalTime): LocalTime {
     val roundedMinute = when {
         referenceTime.minute == 0 && referenceTime.second == 0 -> 0
@@ -90,14 +123,17 @@ internal data class TimingCueDisplay(
     val targetEpoch: Long,
 )
 
+/// Build the default timing-alert mode map for every cue.
 internal fun defaultTimingCueModes(): Map<TimingCueId, TimingAlertMode> {
     return TimingCueId.entries.associateWith { it.defaultAlertMode() }
 }
 
+/// Build the default repeat-count map for every timing cue.
 internal fun defaultTimingCueRepeatCounts(): Map<TimingCueId, Int> {
     return TimingCueId.entries.associateWith { it.defaultRepeatCount() }
 }
 
+/// Return the default sound/vibration repeat count for a cue.
 internal fun TimingCueId.defaultRepeatCount(): Int {
     return when (this) {
         TimingCueId.RECEIVING_TWENTY_FOR_HAND,
@@ -113,6 +149,11 @@ internal fun TimingCueId.defaultRepeatCount(): Int {
     }
 }
 
+/**
+ * Return the next future cue within this countdown.
+ *
+ * @param now The current epoch millis used to compute the next cue and its time remaining.
+ */
 internal fun CountdownState.nextTimingCue(now: Long): TimingCueDisplay? {
     return timingCues()
         .firstNotNullOfOrNull { cue ->
@@ -131,6 +172,11 @@ internal fun CountdownState.nextTimingCue(now: Long): TimingCueDisplay? {
         }
 }
 
+/**
+ * Return a cue that is due now within the short alert-delivery window.
+ *
+ * @param now The current epoch millis used to compare cue times against the delivery window.
+ */
 internal fun CountdownState.dueTimingCue(now: Long): TimingCueDisplay? {
     return timingCues()
         .firstNotNullOfOrNull { cue ->
@@ -150,6 +196,11 @@ internal fun CountdownState.dueTimingCue(now: Long): TimingCueDisplay? {
         }
 }
 
+/**
+ * List timing alerts due at the current moment for the active countdown and relevant caps.
+ *
+ * @param now The current epoch millis used to evaluate countdown and cap cue windows.
+ */
 internal fun LiveGameState.dueTimingAlerts(now: Long): List<TimingCueDisplay> {
     return listOfNotNull(
         countdown?.dueTimingCue(now),
@@ -157,6 +208,11 @@ internal fun LiveGameState.dueTimingAlerts(now: Long): List<TimingCueDisplay> {
     ).sortedBy { cue -> cue.targetEpoch }
 }
 
+/**
+ * Return the next visible or audible timing alert for the active game state.
+ *
+ * @param now The current epoch millis used to rank countdown and cap cues.
+ */
 internal fun LiveGameState.nextTimingAlert(now: Long): TimingCueDisplay? {
     return listOfNotNull(
         countdown?.nextTimingCue(now),
@@ -166,6 +222,7 @@ internal fun LiveGameState.nextTimingAlert(now: Long): TimingCueDisplay? {
         .firstOrNull()
 }
 
+/// List the configured cue offsets for a countdown.
 private fun CountdownState.timingCues(): List<TimingCue> {
     return when (kind) {
         CountdownKind.OPENING_PULL, CountdownKind.BETWEEN_POINTS, CountdownKind.PULL_RESET -> betweenPointsTimingCues()
@@ -176,6 +233,7 @@ private fun CountdownState.timingCues(): List<TimingCue> {
     }
 }
 
+/// List normal between-points cues, including timeout-extension cues when applicable.
 private fun CountdownState.betweenPointsTimingCues(): List<TimingCue> {
     val target = betweenPointsTarget!!
     val timeoutCues = if (durationSeconds > target.baseDurationSeconds(kind)) {
@@ -197,6 +255,7 @@ private fun CountdownState.betweenPointsTimingCues(): List<TimingCue> {
     }
 }
 
+/// List cues for live-point timeout and live-point misconduct countdowns.
 private fun CountdownState.timeoutTimingCues(): List<TimingCue> {
     val openingCues = if (durationSeconds > 30) {
         listOf(TimingCue(TimingCueId.TIMEOUT_CLEAR_FIELD, 30))
@@ -211,6 +270,7 @@ private fun CountdownState.timeoutTimingCues(): List<TimingCue> {
     )
 }
 
+/// List cues for between-points misconduct offense-set timing.
 private fun misconductTimingCues(): List<TimingCue> {
     return listOf(
         TimingCue(TimingCueId.MISCONDUCT_OFFENSE_TWENTY, 20),
@@ -220,12 +280,14 @@ private fun misconductTimingCues(): List<TimingCue> {
     )
 }
 
+/// List cues for the defense check-in window after offense sets early.
 private fun misconductDefenseCheckTimingCues(): List<TimingCue> {
     return listOf(
         TimingCue(TimingCueId.MISCONDUCT_DEFENSE_TWENTY, 20),
     )
 }
 
+/// List halftime cues that fit within the configured halftime duration.
 private fun CountdownState.halftimeTimingCues(): List<TimingCue> {
     return listOf(
         TimingCue(TimingCueId.HALFTIME_FIVE_MINUTES, 5 * 60),

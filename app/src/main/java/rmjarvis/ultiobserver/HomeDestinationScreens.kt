@@ -356,6 +356,14 @@ internal fun SettingsScreen(
     }
 }
 
+/**
+ * Render one labeled switch row in Settings.
+ *
+ * @param label The setting label.
+ * @param checked Whether the switch is currently on.
+ * @param onCheckedChange Callback receiving the new switch state.
+ * @param testTag The test tag attached to the switch and value text.
+ */
 @Composable
 private fun SettingsSwitchRow(
     label: String,
@@ -391,6 +399,15 @@ private fun SettingsSwitchRow(
     }
 }
 
+/**
+ * Render the per-cue timing alert settings screen.
+ *
+ * @param timingAlertPreferences The current alert preferences to display.
+ * @param onTimingCueModeChange Callback receiving cue-specific mode changes.
+ * @param onTimingCueRepeatCountChange Callback receiving cue-specific repeat-count changes.
+ * @param onResetTimingCueSettings Callback restoring all cue settings to defaults.
+ * @param onBackSettings Callback returning to the main Settings screen.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun TimingCueSettingsScreen(
@@ -467,6 +484,12 @@ internal fun TimingCueSettingsScreen(
     }
 }
 
+/**
+ * Render the global timing-alert mode selector.
+ *
+ * @param selectedMode The currently selected global alert mode.
+ * @param onModeChange Callback receiving the newly selected global mode.
+ */
 @Composable
 private fun TimingAlertGlobalModeSelector(
     selectedMode: TimingAlertGlobalMode,
@@ -497,6 +520,14 @@ private fun TimingAlertGlobalModeSelector(
     }
 }
 
+/**
+ * Render volume, vibration length, and sound-vibration controls.
+ *
+ * @param timingAlertPreferences The current alert preferences to display.
+ * @param onSoundVolumeChange Callback receiving sound volume changes.
+ * @param onVibrationDurationChange Callback receiving vibration duration changes in milliseconds.
+ * @param onVibrateWithSoundsChange Callback receiving the sound-plus-vibration toggle state.
+ */
 @Composable
 private fun TimingAlertSoundControls(
     timingAlertPreferences: TimingAlertPreferences,
@@ -572,6 +603,14 @@ private fun TimingAlertSoundControls(
     }
 }
 
+/**
+ * Render sound preview chips for the available cue sounds.
+ *
+ * @param title The section title.
+ * @param sounds The sound choices to preview.
+ * @param note Optional explanatory note shown below the chips.
+ * @param onPreview Callback receiving the sound selected for preview.
+ */
 @Composable
 private fun SoundPreviewRow(
     title: String,
@@ -606,6 +645,7 @@ private fun SoundPreviewRow(
     }
 }
 
+/// Return the explanatory note to show beside sound previews under the current global mode.
 private fun TimingAlertPreferences.soundPreviewNote(): String? {
     if (globalMode == TimingAlertGlobalMode.SOUNDS_ON) {
         return null
@@ -619,6 +659,15 @@ private fun TimingAlertPreferences.soundPreviewNote(): String? {
         "If you want sounds, enable them on the previous page."
 }
 
+/**
+ * Render one timing cue's alert-mode and repeat-count controls.
+ *
+ * @param cueId The cue being configured.
+ * @param mode The currently selected alert mode for the cue.
+ * @param repeatCount The currently selected repeat count for the cue.
+ * @param onModeChange Callback receiving mode changes for the cue.
+ * @param onRepeatCountChange Callback receiving repeat-count changes for the cue.
+ */
 @Composable
 private fun TimingCueSettingRow(
     cueId: TimingCueId,
@@ -670,6 +719,7 @@ private fun TimingCueSettingRow(
     }
 }
 
+/// Return the settings label for a timing cue.
 private fun TimingCueId.settingsLabel(): String {
     return when (this) {
         TimingCueId.MISCONDUCT_DEFENSE_TWENTY -> "20 seconds, defense (if offense is ready early)"
@@ -677,6 +727,15 @@ private fun TimingCueId.settingsLabel(): String {
     }
 }
 
+/**
+ * Render a compact selectable timing-alert option.
+ *
+ * @param selected Whether this option is currently selected.
+ * @param label The visible option label.
+ * @param modifier Optional layout and test-tag modifier.
+ * @param horizontalPadding Horizontal text padding in density-independent pixels.
+ * @param onClick Callback selecting this option.
+ */
 @Composable
 private fun CompactTimingAlertOption(
     selected: Boolean,
@@ -703,6 +762,7 @@ private fun CompactTimingAlertOption(
     }
 }
 
+/// Return the settings-page message for a global timing-alert mode.
 private fun TimingAlertGlobalMode.settingsMessage(): String {
     return when (this) {
         TimingAlertGlobalMode.OFF -> "No sound or vibration will be used for any timing cues."
@@ -713,6 +773,7 @@ private fun TimingAlertGlobalMode.settingsMessage(): String {
     }
 }
 
+/// Return the compact settings label for a timing-alert mode.
 private fun TimingAlertMode.settingsLabel(): String {
     return when (this) {
         TimingAlertMode.NONE -> "Off"
@@ -801,7 +862,15 @@ private val timingCueSections = listOf(
     ),
 )
 
-// Archived game list, separated from Home so the launch screen has more room.
+/**
+ * Render the archived game list, separated from Home so the launch screen has more room.
+ *
+ * @param previousGames The archived game rows to display.
+ * @param onOpenPreviousGame Callback opening an archived game by index.
+ * @param onDeletePreviousGame Callback deleting an archived game by index.
+ * @param onDeleteAllPreviousGames Callback deleting every archived game after confirmation.
+ * @param onBackHome Callback returning to Home.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun PreviousGamesScreen(
@@ -883,7 +952,13 @@ internal fun PreviousGamesScreen(
     }
 }
 
-// Archived game row with a separate right-side delete action.
+/**
+ * Render an archived game row with a separate right-side delete action.
+ *
+ * @param entry The archived game list entry to display.
+ * @param onClick Callback opening this archived game.
+ * @param onDelete Callback requesting deletion of this archived game.
+ */
 @Composable
 private fun ArchivedGameRow(
     entry: ArchivedGameListEntry,

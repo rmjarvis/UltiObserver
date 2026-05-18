@@ -20,7 +20,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
-// Bottom sheet for manual corrections and less-common game actions.
+/**
+ * Render the bottom sheet for manual corrections and less-common game actions.
+ *
+ * @param state The current live game state.
+ * @param now The current epoch millis for actions that depend on clock time.
+ * @param onUpdateGameSetup Callback reopening setup for the current game.
+ * @param onDeleteGame Callback deleting the current game after confirmation.
+ * @param onAction Callback receiving an updated live game state after a model action.
+ */
 @Composable
 internal fun OtherSheet(
     state: LiveGameState,
@@ -183,7 +191,12 @@ internal fun OtherSheet(
     }
 }
 
-// Simple menu button that fills the width of its column in the Other sheet.
+/**
+ * Render a simple menu button that fills the width of its column in the Other sheet.
+ *
+ * @param label The button label.
+ * @param onClick Callback invoked when the button is tapped.
+ */
 @Composable
 private fun OtherMenuButton(
     label: String,

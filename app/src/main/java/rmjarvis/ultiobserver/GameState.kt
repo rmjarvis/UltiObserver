@@ -13,6 +13,7 @@ enum class TeamId {
     TEAM_ONE,
     TEAM_TWO;
 
+    /// Return the other team identifier.
     fun flip(): TeamId {
         return if (this == TEAM_ONE) TEAM_TWO else TEAM_ONE
     }
@@ -22,6 +23,7 @@ enum class FieldEnd {
     NEAR,
     FAR;
 
+    /// Return the opposite field end.
     fun flip(): FieldEnd {
         return if (this == NEAR) FAR else NEAR
     }
@@ -71,12 +73,18 @@ data class InGamePlayerCardRecord(
     val yellows: Int = 0,
     val reds: Int = 0,
 ) {
+    /// Report whether this per-player card combination is allowed by the app's card model.
     fun hasLegalCounts(): Boolean {
         return yellows <= 2 &&
             reds <= 1 &&
             (yellows < 2 || reds == 0)
     }
 
+    /**
+     * Count this player's cards of the requested type.
+     *
+     * @param cardType The card type whose count should be returned.
+     */
     fun cardCount(cardType: CardType): Int {
         return when (cardType) {
             CardType.YELLOW -> yellows
@@ -127,6 +135,7 @@ data class TeamLiveState(
     val technicalFouls: Int = 0,
     val blueCards: Int = 0,
 ) {
+    /// Return this team state with one additional timeout used in the current half.
     fun withAddedTimeout(): TeamLiveState {
         return copy(timeoutsUsedThisHalf = timeoutsUsedThisHalf + 1)
     }
@@ -139,6 +148,7 @@ data class CountdownState(
     val targetEpoch: Long,          // Clock time when the countdown reaches zero.
     val betweenPointsTarget: BetweenPointsCountdownTarget? = null,
 ) {
+    /// Swap the countdown's offensive/defensive between-points target when the field responsibility flips.
     fun swapOD(): CountdownState {
         if (!kind.usesBetweenPointsTarget()) {
             return this
@@ -165,6 +175,7 @@ enum class CountdownKind {
     TIME_OUT,
     HALFTIME;
 
+    /// Report whether this countdown kind depends on the between-points target side.
     fun usesBetweenPointsTarget(): Boolean {
         return this == OPENING_PULL || this == BETWEEN_POINTS || this == PULL_RESET
     }
@@ -178,6 +189,11 @@ enum class BetweenPointsCountdownTarget(
     OFFENSE_READY("Signal in", 60, 20),
     PULL("Pull in", 80, 40);
 
+    /**
+     * Return the base countdown duration for this target and countdown kind.
+     *
+     * @param kind The countdown kind whose opening/reset rules may override the standard duration.
+     */
     fun baseDurationSeconds(kind: CountdownKind): Int {
         return when (kind) {
             CountdownKind.OPENING_PULL -> openingDurationSeconds
@@ -186,10 +202,12 @@ enum class BetweenPointsCountdownTarget(
         }
     }
 
+    /// Return the opposite between-points timing target.
     fun flip(): BetweenPointsCountdownTarget {
         return if (this == OFFENSE_READY) PULL else OFFENSE_READY
     }
 
+    /// Return the alert cue used when a timeout extension adds one minute to this target.
     fun timeoutCueId(): TimingCueId {
         return when (this) {
             OFFENSE_READY -> TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND
@@ -226,6 +244,7 @@ enum class TimingCueId(
     SOFT_CAP("Soft cap"),
     HARD_CAP("Hard cap");
 
+    /// Return the default alert mode for this cue before global settings are applied.
     fun defaultAlertMode(): TimingAlertMode {
         return when (this) {
             RECEIVING_TWENTY_FOR_HAND,
@@ -262,6 +281,7 @@ enum class TimingAlertMode {
     KNOCK,
     DING;
 
+    /// Convert a sound-producing alert mode into its concrete sound clip family.
     fun toTimingAlertSound(): TimingAlertSound {
         return when (this) {
             TICK -> TimingAlertSound.TICK
@@ -290,18 +310,31 @@ data class TimingAlertPreferences(
     val cueModes: Map<TimingCueId, TimingAlertMode> = defaultTimingCueModes(),
     val cueRepeatCounts: Map<TimingCueId, Int> = defaultTimingCueRepeatCounts(),
 ) {
-    // The configured per-cue setting shown in Settings, before the global alert mode is applied.
+    /**
+     * Return the configured per-cue setting shown in Settings, before the global alert mode is applied.
+     *
+     * @param cueId The timing cue whose configured mode should be returned.
+     */
     fun settingsModeFor(cueId: TimingCueId): TimingAlertMode {
         return cueModes[cueId] ?: cueId.defaultAlertMode()
     }
 
+    /**
+     * Return the repeat count for a cue, clamped to the supported range.
+     *
+     * @param cueId The timing cue whose repeat count should be returned.
+     */
     fun repeatCountFor(cueId: TimingCueId): Int {
         return cueRepeatCounts[cueId]
             ?.coerceIn(MIN_TIMING_ALERT_REPEAT_COUNT, MAX_TIMING_ALERT_REPEAT_COUNT)
             ?: cueId.defaultRepeatCount()
     }
 
-    // The effective alert mode to use when a timing cue fires.
+    /**
+     * Return the effective alert mode to use when a timing cue fires.
+     *
+     * @param cueId The timing cue being delivered.
+     */
     fun alertModeFor(cueId: TimingCueId): TimingAlertMode {
         val configuredMode = settingsModeFor(cueId)
         return when (globalMode) {
@@ -368,6 +401,7 @@ data class LiveGameState(
     val redoEntry: LiveGameState? = null,
     val lastEvent: String = "Pregame setup complete.",
 ) {
+    /// Report whether this state is the pre-pull live preview created directly from setup.
     fun isInitialLivePreview(): Boolean {
         return phase == LivePhase.BETWEEN_POINTS &&
             teamOne.score == 0 &&
@@ -376,7 +410,7 @@ data class LiveGameState(
             !halftimeTaken
     }
 
-    // Archived/completed games keep summary data but drop live countdown and undo/redo state.
+    /// Drop live-only countdown and undo/redo state before archiving a completed game.
     fun pruneUndoHistory(): LiveGameState {
         return copy(
             countdown = null,
@@ -385,10 +419,20 @@ data class LiveGameState(
         )
     }
 
+    /**
+     * Return the live team state for a team id.
+     *
+     * @param team The team whose live state should be returned.
+     */
     fun teamFor(team: TeamId): TeamLiveState {
         return if (team == TeamId.TEAM_ONE) teamOne else teamTwo
     }
 
+    /**
+     * Return the current display name for a team.
+     *
+     * @param team The team whose name should be returned.
+     */
     fun teamName(team: TeamId): String {
         return teamFor(team).name
     }
@@ -440,6 +484,11 @@ enum class CapType {
     val titleLabel: String
         get() = label.replace(" cap", " Cap")
 
+    /**
+     * Return this cap's configured offset from game start.
+     *
+     * @param rules The rules that contain the cap offsets.
+     */
     fun offsetMinutes(rules: GameRules): Int {
         return when (this) {
             HALF -> rules.halfCapMinutes
@@ -448,6 +497,11 @@ enum class CapType {
         }
     }
 
+    /**
+     * Return rules with this cap enabled while preserving the other rule values.
+     *
+     * @param rules The rule set to update.
+     */
     fun rulesWithCapEnabled(rules: GameRules): GameRules {
         return when (this) {
             HALF -> rules.copy(useHalfCap = true)
@@ -456,6 +510,7 @@ enum class CapType {
         }
     }
 
+    /// Return the timing cue id that announces this cap.
     fun timingCueId(): TimingCueId {
         return when (this) {
             HALF -> TimingCueId.HALF_CAP

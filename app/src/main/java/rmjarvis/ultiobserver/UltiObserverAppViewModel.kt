@@ -101,11 +101,13 @@ internal class UltiObserverAppViewModel(
             }
         }
 
+    /// Navigate to Home and clear any read-only archived-game view.
     fun goHome() {
         screen = AppScreen.HOME
         clearViewedArchivedGame()
     }
 
+    /// Navigate back according to the current top-level screen and live-game state.
     fun goBackFromCurrentScreen() {
         if (screen == AppScreen.TIMING_CUE_SETTINGS) {
             openSettings()
@@ -126,6 +128,11 @@ internal class UltiObserverAppViewModel(
         goHome()
     }
 
+    /**
+     * Replace setup form state and preserve a new-game draft when appropriate.
+     *
+     * @param updatedSetup The setup form state produced by the UI.
+     */
     fun updateSetup(updatedSetup: GameSetupState) {
         setupState = updatedSetup
         if (setupMode == SetupMode.NEW_GAME) {
@@ -134,6 +141,11 @@ internal class UltiObserverAppViewModel(
         persistCurrentGameState()
     }
 
+    /**
+     * Replace the mutable live game when the app is not viewing an archived summary.
+     *
+     * @param updatedGame The live-game state returned from a model action.
+     */
     fun updateLiveGame(updatedGame: LiveGameState) {
         if (viewingArchivedGame == null) {
             // All live game event logging flows through this ViewModel boundary.
@@ -142,47 +154,93 @@ internal class UltiObserverAppViewModel(
         }
     }
 
+    /**
+     * Update the observer profile name.
+     *
+     * @param updatedName The profile name entered by the user.
+     */
     fun updateProfileName(updatedName: String) {
         profileName = updatedName
         persistProfileState()
     }
 
+    /**
+     * Update the preferred observer avatar and resolve a home-screen avatar if random is selected.
+     *
+     * @param updatedPreference The newly selected avatar preference.
+     */
     fun updateAvatarPreference(updatedPreference: ObserverAvatarPreference) {
         avatarPreference = updatedPreference
         homeAvatarPreference = resolveHomeAvatarPreference(updatedPreference)
         persistProfileState()
     }
 
+    /**
+     * Update the global timing-alert mode.
+     *
+     * @param mode The global mode controlling whether cues are off, vibration-only, or sound-enabled.
+     */
     fun updateTimingAlertGlobalMode(mode: TimingAlertGlobalMode) {
         timingAlertPreferences = timingAlertPreferences.copy(globalMode = mode)
         persistSettingsState()
     }
 
+    /**
+     * Update timing-alert playback volume.
+     *
+     * @param volume The new sound volume value from settings.
+     */
     fun updateTimingAlertSoundVolume(volume: Float) {
         timingAlertPreferences = timingAlertPreferences.copy(soundVolume = volume)
         persistSettingsState()
     }
 
+    /**
+     * Update timing-alert vibration length.
+     *
+     * @param durationMillis The requested vibration duration in milliseconds.
+     */
     fun updateTimingAlertVibrationDuration(durationMillis: Long) {
         timingAlertPreferences = timingAlertPreferences.copy(vibrationDurationMillis = durationMillis)
         persistSettingsState()
     }
 
+    /**
+     * Update whether sound cues should also vibrate.
+     *
+     * @param vibrateWithSounds Whether vibration should accompany sound alerts.
+     */
     fun updateTimingAlertVibrateWithSounds(vibrateWithSounds: Boolean) {
         timingAlertPreferences = timingAlertPreferences.copy(vibrateWithSounds = vibrateWithSounds)
         persistSettingsState()
     }
 
+    /**
+     * Update whether countdowns advance automatically when their timers expire.
+     *
+     * @param automaticallyAdvance Whether timer expiry should drive model transitions.
+     */
     fun updateAutomaticallyAdvanceCountdowns(automaticallyAdvance: Boolean) {
         automaticallyAdvanceCountdowns = automaticallyAdvance
         persistSettingsState()
     }
 
+    /**
+     * Update whether automatic transitions into live play should lock the live screen.
+     *
+     * @param automaticallyLock Whether automatic live-point entry should enable lock mode.
+     */
     fun updateAutomaticallyLockLivePoint(automaticallyLock: Boolean) {
         automaticallyLockLivePoint = automaticallyLock
         persistSettingsState()
     }
 
+    /**
+     * Update the alert mode for one timing cue.
+     *
+     * @param cueId The cue whose alert mode should change.
+     * @param mode The cue-specific alert mode selected in settings.
+     */
     fun updateTimingCueMode(cueId: TimingCueId, mode: TimingAlertMode) {
         timingAlertPreferences = timingAlertPreferences.copy(
             cueModes = timingAlertPreferences.cueModes + (cueId to mode),
@@ -195,6 +253,12 @@ internal class UltiObserverAppViewModel(
         persistSettingsState()
     }
 
+    /**
+     * Update the repeat count for one timing cue.
+     *
+     * @param cueId The cue whose repeat count should change.
+     * @param repeatCount The requested repeat count, required to be within the supported range.
+     */
     fun updateTimingCueRepeatCount(cueId: TimingCueId, repeatCount: Int) {
         require(repeatCount in MIN_TIMING_ALERT_REPEAT_COUNT..MAX_TIMING_ALERT_REPEAT_COUNT) {
             "Timing alert repeat count must be between $MIN_TIMING_ALERT_REPEAT_COUNT and " +
@@ -206,6 +270,7 @@ internal class UltiObserverAppViewModel(
         persistSettingsState()
     }
 
+    /// Restore all per-cue timing alert modes and repeat counts to defaults.
     fun resetTimingCueSettingsToDefaults() {
         timingAlertPreferences = timingAlertPreferences.copy(
             cueModes = defaultTimingCueModes(),
@@ -214,35 +279,42 @@ internal class UltiObserverAppViewModel(
         persistSettingsState()
     }
 
+    /// Clear the startup recovery notice after the user dismisses it.
     fun dismissStartupRecoveryNotice() {
         startupRecoveryNotice = null
     }
 
+    /// Open the profile screen.
     fun openProfile() {
         clearViewedArchivedGame()
         screen = AppScreen.PROFILE
     }
 
+    /// Open the About screen.
     fun openAbout() {
         clearViewedArchivedGame()
         screen = AppScreen.ABOUT
     }
 
+    /// Open the settings screen.
     fun openSettings() {
         clearViewedArchivedGame()
         screen = AppScreen.SETTINGS
     }
 
+    /// Open the timing cue settings screen.
     fun openTimingCueSettings() {
         clearViewedArchivedGame()
         screen = AppScreen.TIMING_CUE_SETTINGS
     }
 
+    /// Open the previous games screen.
     fun openPreviousGames() {
         clearViewedArchivedGame()
         screen = AppScreen.PREVIOUS_GAMES
     }
 
+    /// Resume the current setup draft, initial live preview, or active live game from Home.
     fun resumeCurrentGame() {
         val current = liveState
         if (current == null) {
@@ -259,6 +331,7 @@ internal class UltiObserverAppViewModel(
         }
     }
 
+    /// Resume a saved setup draft when no live game exists yet.
     fun resumeSetupDraft() {
         if (liveState == null && hasSetupDraft) {
             clearViewedArchivedGame()
@@ -268,6 +341,7 @@ internal class UltiObserverAppViewModel(
         }
     }
 
+    /// Open the current completed game summary from Home.
     fun openCompletedGame() {
         val current = liveState ?: return
         if (current.phase == LivePhase.GAME_OVER) {
@@ -276,12 +350,18 @@ internal class UltiObserverAppViewModel(
         }
     }
 
+    /**
+     * Open one archived game as a read-only summary.
+     *
+     * @param index The archived-game index in the displayed Previous Games list.
+     */
     fun openPreviousGame(index: Int) {
         val archived = archivedGames.getOrNull(index) ?: return
         viewingArchivedGame = archived
         screen = AppScreen.LIVE
     }
 
+    /// Move the current completed game into the archived games list.
     fun archiveCompletedGame() {
         val completed = liveState ?: return
         if (completed.phase != LivePhase.GAME_OVER) {
@@ -297,6 +377,7 @@ internal class UltiObserverAppViewModel(
         persistCurrentGameState()
     }
 
+    /// Delete the current live/setup/completed game state and return Home.
     fun deleteCurrentGame() {
         liveState = null
         clearViewedArchivedGame()
@@ -306,6 +387,11 @@ internal class UltiObserverAppViewModel(
         persistCurrentGameState()
     }
 
+    /**
+     * Delete one archived game by index.
+     *
+     * @param index The archived-game index to remove.
+     */
     fun deleteArchivedGame(index: Int) {
         if (archivedGames.getOrNull(index) == null) {
             return
@@ -315,12 +401,14 @@ internal class UltiObserverAppViewModel(
         persistArchivedGames()
     }
 
+    /// Delete all archived games.
     fun deleteAllArchivedGames() {
         archivedGames = emptyList()
         clearViewedArchivedGame()
         persistArchivedGames()
     }
 
+    /// Start a new game setup, archiving any existing current game first.
     fun startNewGame() {
         liveState?.let { existing ->
             archivedGames = archivedGames + ArchivedGame(
@@ -345,6 +433,11 @@ internal class UltiObserverAppViewModel(
         persistCurrentGameState()
     }
 
+    /**
+     * Finish setup and enter or update the live game.
+     *
+     * @param now The epoch millis used when applying setup edits to an existing pre-play countdown.
+     */
     fun finishSetup(now: Long = System.currentTimeMillis()) {
         liveState = if (setupMode == SetupMode.NEW_GAME) {
             createLiveGameState(setupState)
@@ -358,6 +451,11 @@ internal class UltiObserverAppViewModel(
         persistCurrentGameState()
     }
 
+    /**
+     * Reopen setup for the current live game when editing is allowed.
+     *
+     * @param currentGame The live-game state whose setup fields should be edited.
+     */
     fun editCurrentGame(currentGame: LiveGameState) {
         if (viewingArchivedGame != null) {
             return
@@ -372,6 +470,7 @@ internal class UltiObserverAppViewModel(
         persistCurrentGameState()
     }
 
+    /// Convert the initial live preview back into a resumable setup draft.
     private fun reopenSetupDraftFromInitialPreview() {
         liveState = null
         clearViewedArchivedGame()
@@ -381,10 +480,12 @@ internal class UltiObserverAppViewModel(
         persistCurrentGameState()
     }
 
+    /// Clear any archived-game summary currently being viewed.
     private fun clearViewedArchivedGame() {
         viewingArchivedGame = null
     }
 
+    /// Persist the current/setup game bucket.
     private fun persistCurrentGameState() {
         appStateStore.saveCurrentGameState(
             PersistedCurrentGameState(
@@ -396,6 +497,7 @@ internal class UltiObserverAppViewModel(
         )
     }
 
+    /// Persist the profile bucket.
     private fun persistProfileState() {
         appStateStore.saveProfile(
             PersistedProfile(
@@ -405,6 +507,7 @@ internal class UltiObserverAppViewModel(
         )
     }
 
+    /// Persist the settings bucket.
     private fun persistSettingsState() {
         appStateStore.saveSettings(
             PersistedSettings(
@@ -415,10 +518,16 @@ internal class UltiObserverAppViewModel(
         )
     }
 
+    /// Persist the archived-games bucket.
     private fun persistArchivedGames() {
         appStateStore.saveArchivedGames(archivedGames)
     }
 
+    /**
+     * Rewrite any buckets that were reset during startup recovery.
+     *
+     * @param resetAreas The app-data buckets that were repaired to defaults or readable subsets.
+     */
     private fun persistRecoveredDataAreas(resetAreas: Set<PersistedDataArea>) {
         if (PersistedDataArea.GAME_STATE in resetAreas) {
             persistCurrentGameState()
@@ -434,6 +543,11 @@ internal class UltiObserverAppViewModel(
         }
     }
 
+    /**
+     * Resolve the avatar shown on Home for a stored avatar preference.
+     *
+     * @param preference The stored avatar preference; random is resolved through the injected chooser for tests.
+     */
     private fun resolveHomeAvatarPreference(preference: ObserverAvatarPreference): ObserverAvatarPreference {
         if (preference != ObserverAvatarPreference.RANDOM) {
             return preference
@@ -442,6 +556,12 @@ internal class UltiObserverAppViewModel(
     }
 }
 
+/**
+ * Build the default setup state for a new game.
+ *
+ * @param now The reference local date-time for choosing the next half-hour start; injectable for tests.
+ * @param rules The rules to prefill, usually defaults or the most recent game's rules.
+ */
 internal fun newGameSetupState(
     now: LocalDateTime = LocalDateTime.now(),
     rules: GameRules = GameRules(),

@@ -40,10 +40,23 @@ internal class TimingAlertPlayer internal constructor(
         }
     }
 
+    /**
+     * Play a timing alert sound once.
+     *
+     * @param sound The sound family to play.
+     * @param volume The requested playback volume, clamped to the SoundPool range.
+     */
     fun play(sound: TimingAlertSound, volume: Float) {
         play(sound, DEFAULT_TIMING_ALERT_REPEAT_COUNT, volume)
     }
 
+    /**
+     * Play a timing alert sound with a repeated clip.
+     *
+     * @param sound The sound family to play.
+     * @param repeatCount The number of repeats encoded in the clip to play.
+     * @param volume The requested playback volume, clamped to the SoundPool range.
+     */
     fun play(sound: TimingAlertSound, repeatCount: Int, volume: Float) {
         require(repeatCount in MIN_TIMING_ALERT_REPEAT_COUNT..MAX_TIMING_ALERT_REPEAT_COUNT) {
             "Timing alert repeat count must be between $MIN_TIMING_ALERT_REPEAT_COUNT and " +
@@ -58,11 +71,18 @@ internal class TimingAlertPlayer internal constructor(
         }
     }
 
+    /// Release sound resources and discard pending plays.
     fun release() {
         pendingPlays.clear()
         soundPlayer.release()
     }
 
+    /**
+     * Play a sound clip that has already finished loading.
+     *
+     * @param clip The loaded sound clip to play.
+     * @param volume The clamped playback volume.
+     */
     private fun playLoaded(clip: TimingAlertSoundClip, volume: Float) {
         val soundId = soundIds[clip]!!
         soundPlayer.play(soundId, volume, volume, 1, 0, 1f)
@@ -71,6 +91,7 @@ internal class TimingAlertPlayer internal constructor(
 
 internal data class TimingAlertSoundClip(val sound: TimingAlertSound, val repeatCount: Int)
 
+/// List every sound clip that should be preloaded for timing alerts.
 private fun timingAlertSoundClips(): List<TimingAlertSoundClip> {
     return TimingAlertSound.entries.flatMap { sound ->
         (MIN_TIMING_ALERT_REPEAT_COUNT..MAX_TIMING_ALERT_REPEAT_COUNT).map { repeatCount ->
@@ -80,9 +101,35 @@ private fun timingAlertSoundClips(): List<TimingAlertSoundClip> {
 }
 
 internal interface TimingAlertSoundPlayer {
+    /**
+     * Register a listener for sound-load completion.
+     *
+     * @param listener Callback receiving SoundPool sample id and load status.
+     */
     fun setOnLoadCompleteListener(listener: (sampleId: Int, status: Int) -> Unit)
+
+    /**
+     * Load one raw sound resource.
+     *
+     * @param context Android context used by SoundPool.
+     * @param resId Raw resource id to load.
+     * @param priority SoundPool load priority.
+     */
     fun load(context: Context, resId: Int, priority: Int): Int
+
+    /**
+     * Play one loaded sound id.
+     *
+     * @param soundId Loaded sound id returned by SoundPool.
+     * @param leftVolume Left channel volume.
+     * @param rightVolume Right channel volume.
+     * @param priority SoundPool playback priority.
+     * @param loop SoundPool loop count.
+     * @param rate SoundPool playback rate.
+     */
     fun play(soundId: Int, leftVolume: Float, rightVolume: Float, priority: Int, loop: Int, rate: Float)
+
+    /// Release all underlying audio resources.
     fun release()
 }
 
@@ -97,25 +144,49 @@ private class AndroidTimingAlertSoundPlayer : TimingAlertSoundPlayer {
         )
         .build()
 
+    /**
+     * Register the Android SoundPool load-complete listener.
+     *
+     * @param listener Callback receiving loaded sample id and status.
+     */
     override fun setOnLoadCompleteListener(listener: (sampleId: Int, status: Int) -> Unit) {
         soundPool.setOnLoadCompleteListener { _, sampleId, status ->
             listener(sampleId, status)
         }
     }
 
+    /**
+     * Load one Android raw sound resource into SoundPool.
+     *
+     * @param context Android context used to resolve the raw resource.
+     * @param resId Raw resource id to load.
+     * @param priority SoundPool load priority.
+     */
     override fun load(context: Context, resId: Int, priority: Int): Int {
         return soundPool.load(context, resId, priority)
     }
 
+    /**
+     * Play one loaded SoundPool sound.
+     *
+     * @param soundId Loaded SoundPool sound id.
+     * @param leftVolume Left channel volume.
+     * @param rightVolume Right channel volume.
+     * @param priority SoundPool playback priority.
+     * @param loop SoundPool loop count.
+     * @param rate SoundPool playback rate.
+     */
     override fun play(soundId: Int, leftVolume: Float, rightVolume: Float, priority: Int, loop: Int, rate: Float) {
         soundPool.play(soundId, leftVolume, rightVolume, priority, loop, rate)
     }
 
+    /// Release the Android SoundPool.
     override fun release() {
         soundPool.release()
     }
 }
 
+/// Return the raw resource id for a timing alert sound clip.
 private fun TimingAlertSoundClip.rawResourceId(): Int {
     return when (sound) {
         // CC0 excerpts from Wikimedia Commons: Clicker_sound.ogg.
@@ -148,6 +219,16 @@ private fun TimingAlertSoundClip.rawResourceId(): Int {
     }
 }
 
+/**
+ * Play one timing alert cue through sound and/or haptics.
+ *
+ * @param cue The cue to play.
+ * @param timingAlertPreferences The current alert settings.
+ * @param context Android context used for haptics.
+ * @param timingAlertPlayer Sound player used for audible cues.
+ * @param playedTimingAlertKeys Cue keys already played by the caller.
+ * @param onAlertKeyPlayed Callback recording this cue key before playback.
+ */
 internal suspend fun playTimingAlertOnce(
     cue: TimingCueDisplay,
     timingAlertPreferences: TimingAlertPreferences,
@@ -193,6 +274,15 @@ internal suspend fun playTimingAlertOnce(
     }
 }
 
+/**
+ * Play the sound portion of a timing alert and optional paired haptic.
+ *
+ * @param sound The sound family to play.
+ * @param repeatCount The configured repeat count.
+ * @param timingAlertPreferences Current alert preferences for volume and haptic pairing.
+ * @param context Android context used for haptics.
+ * @param timingAlertPlayer Sound player used for audible cues.
+ */
 private suspend fun playTimingSound(
     sound: TimingAlertSound,
     repeatCount: Int,
@@ -206,10 +296,16 @@ private suspend fun playTimingSound(
     }
 }
 
+/// Return spacing between repeated haptic pulses for this preference set.
 private fun TimingAlertPreferences.vibrationRepeatSpacingMillis(): Long {
     return vibrationDurationMillis + TIMING_ALERT_REPEAT_HAPTIC_GAP_MS
 }
 
+/**
+ * Perform a timing-cue haptic pulse when the device supports vibration.
+ *
+ * @param durationMillis The requested vibration duration in milliseconds.
+ */
 internal fun Context.performTimingCueHaptic(durationMillis: Long) {
     val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         getSystemService(VibratorManager::class.java)?.defaultVibrator

@@ -93,7 +93,15 @@ private enum class SetupEditor {
     PRIOR_CARDS,
 }
 
-// Pregame/edit-game setup form for start time, teams, pull, rules, and prior cards.
+/**
+ * Render the pregame/edit-game setup form for start time, teams, pull, rules, and prior cards.
+ *
+ * @param state The setup state currently being edited.
+ * @param onStateChange Callback receiving setup changes from fields and dialogs.
+ * @param primaryButtonLabel Label for the fixed bottom action.
+ * @param onPrimaryAction Callback starting the game or returning to the live screen.
+ * @param onBackHome Callback returning to Home.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun SetupScreen(
@@ -381,7 +389,12 @@ internal fun SetupScreen(
     }
 }
 
-// Setup overview box with an understated field label.
+/**
+ * Render a setup overview box with an understated field label.
+ *
+ * @param title The small label shown above the field content.
+ * @param content The composable body rendered inside the box.
+ */
 @Composable
 private fun SetupFieldBox(
     title: String,
@@ -414,7 +427,14 @@ private fun SetupFieldBox(
     }
 }
 
-// Compact overview row for setup categories that open detailed editors.
+/**
+ * Render a compact setup summary row with plain text summary content.
+ *
+ * @param title The row label.
+ * @param summary The prominent summary text for the current setting.
+ * @param editTag The test tag attached to the row's Edit button.
+ * @param onEdit Callback invoked when the Edit button is tapped.
+ */
 @Composable
 private fun SetupSummaryRow(
     title: String,
@@ -435,7 +455,14 @@ private fun SetupSummaryRow(
     }
 }
 
-// Compact overview row for setup categories with custom summary content.
+/**
+ * Render a compact setup summary row with caller-provided summary content.
+ *
+ * @param title The row label.
+ * @param editTag The test tag attached to the row's Edit button.
+ * @param onEdit Callback invoked when the Edit button is tapped.
+ * @param summaryContent The composable summary body for rows that need more than plain text.
+ */
 @Composable
 private fun SetupSummaryRow(
     title: String,
@@ -482,7 +509,11 @@ private fun SetupSummaryRow(
     }
 }
 
-// Flowing summary keeps each rule value on one line on narrower phones.
+/**
+ * Render the compact game-rules summary used on the setup overview.
+ *
+ * @param rules The current rules to summarize.
+ */
 @Composable
 private fun GameRulesSummary(rules: GameRules) {
     FlowRow(
@@ -497,6 +528,11 @@ private fun GameRulesSummary(rules: GameRules) {
     }
 }
 
+/**
+ * Render one prominent value inside a setup summary.
+ *
+ * @param text The summary value to display.
+ */
 @Composable
 private fun SetupSummaryValue(text: String) {
     Text(
@@ -508,7 +544,15 @@ private fun SetupSummaryValue(text: String) {
     )
 }
 
-// Start-date and start-time controls shown from the compact setup overview.
+/**
+ * Render the start date/time editor dialog.
+ *
+ * @param state The setup state whose date/time are being edited.
+ * @param onStateChange Callback receiving state after +/- date or time nudges.
+ * @param onEditDate Callback opening the exact date picker.
+ * @param onEditTime Callback opening the exact time picker.
+ * @param onDismiss Callback closing the dialog.
+ */
 @Composable
 private fun StartTimeSetupDialog(
     state: GameSetupState,
@@ -577,7 +621,13 @@ private fun StartTimeSetupDialog(
     )
 }
 
-// Opening pull controls shown from the compact setup overview.
+/**
+ * Render the opening pull editor dialog.
+ *
+ * @param state The setup state whose pull team and pull end are being edited.
+ * @param onStateChange Callback receiving updated setup state.
+ * @param onDismiss Callback closing the dialog.
+ */
 @Composable
 private fun StartingPullSetupDialog(
     state: GameSetupState,
@@ -617,7 +667,15 @@ private fun StartingPullSetupDialog(
     )
 }
 
-// Rule rows shown from the compact setup overview.
+/**
+ * Render the game-rules editor dialog.
+ *
+ * @param rules The current rules to display.
+ * @param onEditRule Callback opening a focused editor for one simple rule.
+ * @param onEditTimeouts Callback opening the timeout-rules editor.
+ * @param onUseUsauDefaults Callback resetting the rule bundle to USAU defaults.
+ * @param onDismiss Callback closing the dialog.
+ */
 @Composable
 private fun GameRulesSetupDialog(
     rules: GameRules,
@@ -682,7 +740,14 @@ private fun GameRulesSetupDialog(
     )
 }
 
-// Prior-card controls shown from the compact setup overview.
+/**
+ * Render the prior-card setup dialog.
+ *
+ * @param state The setup state whose prior-card records are displayed.
+ * @param onStateChange Callback receiving setup state after a prior-card removal.
+ * @param onAddPlayer Callback opening the add-prior-card dialog.
+ * @param onDismiss Callback closing the dialog.
+ */
 @Composable
 private fun PriorCardsSetupDialog(
     state: GameSetupState,
@@ -726,7 +791,13 @@ private fun PriorCardsSetupDialog(
     )
 }
 
-// Standard Material date picker for the setup start date.
+/**
+ * Render the Material date picker for setup start date.
+ *
+ * @param initialDate The date initially selected in the picker.
+ * @param onDismiss Callback closing the picker without changing state.
+ * @param onConfirm Callback receiving the selected local date.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun StartDateDialog(
@@ -768,7 +839,13 @@ private fun StartDateDialog(
     }
 }
 
-// Standard Material time input dialog for the setup start time.
+/**
+ * Render the Material time input dialog for setup start time.
+ *
+ * @param initialTime The time initially selected in the picker.
+ * @param onDismiss Callback closing the picker without changing state.
+ * @param onConfirm Callback receiving the selected local time.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ExactTimeDialog(
@@ -804,7 +881,15 @@ private fun ExactTimeDialog(
     }
 }
 
-// Reusable integer-entry dialog for simple numeric rule values.
+/**
+ * Render a reusable integer-entry dialog for simple numeric rule values.
+ *
+ * @param title The dialog title.
+ * @param fieldLabel The text-field label.
+ * @param initialValue The current numeric value shown when the dialog opens.
+ * @param onDismiss Callback closing the dialog without applying a value.
+ * @param onConfirm Callback receiving the parsed non-negative value.
+ */
 @Composable
 private fun IntegerEditDialog(
     title: String,
@@ -846,7 +931,18 @@ private fun IntegerEditDialog(
     )
 }
 
-// Integer-entry dialog for a cap rule, with an explicit None toggle.
+/**
+ * Render an integer-entry dialog for a cap rule with an explicit None toggle.
+ *
+ * @param title The dialog title and test-tag stem.
+ * @param fieldLabel The text-field label.
+ * @param prefixText The explanatory text shown above the numeric field.
+ * @param suffixText The explanatory text shown below the numeric field.
+ * @param initialValue The current cap offset in minutes.
+ * @param initiallyEnabled Whether the cap is currently enabled.
+ * @param onDismiss Callback closing the dialog without applying changes.
+ * @param onConfirm Callback receiving the enabled flag and parsed non-negative offset.
+ */
 @Composable
 private fun CapRuleEditDialog(
     title: String,
@@ -907,7 +1003,13 @@ private fun CapRuleEditDialog(
     )
 }
 
-// Editor for per-half timeouts and the optional floater.
+/**
+ * Render the timeout rules editor.
+ *
+ * @param rules The current rules whose timeout fields are being edited.
+ * @param onDismiss Callback closing the dialog without applying changes.
+ * @param onConfirm Callback receiving rules updated with the timeout values.
+ */
 @Composable
 private fun TimeoutRulesDialog(
     rules: GameRules,
@@ -965,7 +1067,14 @@ private fun TimeoutRulesDialog(
     )
 }
 
-// Setup dialog for recording a player who already has cards from earlier games.
+/**
+ * Render the setup dialog for a player carrying cards from earlier games.
+ *
+ * @param firstTeamName The Team 1 label shown in the team selector.
+ * @param secondTeamName The Team 2 label shown in the team selector.
+ * @param onDismiss Callback closing the dialog without adding a record.
+ * @param onConfirm Callback receiving the new prior-card record.
+ */
 @Composable
 private fun AddPlayerCardDialog(
     firstTeamName: String,
@@ -1034,7 +1143,13 @@ private fun AddPlayerCardDialog(
     )
 }
 
-// Name-and-color editor for one setup team.
+/**
+ * Render the name-and-color editor for one setup team.
+ *
+ * @param fieldLabel The team field label and test-tag stem.
+ * @param team The current team setup values.
+ * @param onTeamChange Callback receiving the updated team setup.
+ */
 @Composable
 private fun TeamEditor(
     fieldLabel: String,
@@ -1060,7 +1175,13 @@ private fun TeamEditor(
     }
 }
 
-// Clickable setup field that looks like a compact form control.
+/**
+ * Render a clickable setup field that looks like a compact form control.
+ *
+ * @param value The formatted value shown inside the field.
+ * @param testTag The test tag attached to the clickable surface.
+ * @param onClick Callback opening the focused editor for this value.
+ */
 @Composable
 private fun DateTimeDisplayField(
     value: String,
@@ -1094,7 +1215,13 @@ private fun DateTimeDisplayField(
     }
 }
 
-// Button-styled row for setup values that open an editor dialog.
+/**
+ * Render a button-styled row for setup values that open an editor dialog.
+ *
+ * @param label The quiet row label.
+ * @param value The current value shown on the right.
+ * @param onClick Callback opening the editor.
+ */
 @Composable
 private fun EditableValueRow(
     label: String,
@@ -1116,7 +1243,13 @@ private fun EditableValueRow(
     }
 }
 
-// Single-row palette for choosing the team color.
+/**
+ * Render a single-row palette for choosing the team color.
+ *
+ * @param selected The currently selected color.
+ * @param testTagPrefix Prefix used to build test tags for each color swatch.
+ * @param onSelected Callback receiving the newly selected color.
+ */
 @Composable
 private fun ColorChoiceRow(
     selected: TeamColorChoice,
@@ -1160,7 +1293,15 @@ private fun ColorChoiceRow(
     }
 }
 
-// Two-choice row for Team 1 vs Team 2 selection.
+/**
+ * Render a two-choice row for Team 1 vs Team 2 selection.
+ *
+ * @param firstLabel Label for Team 1, with fallback display applied locally.
+ * @param secondLabel Label for Team 2, with fallback display applied locally.
+ * @param selected The currently selected team.
+ * @param testTagPrefix Optional prefix for generated chip test tags.
+ * @param onSelected Callback receiving the selected team.
+ */
 @Composable
 private fun TeamChoiceRow(
     firstLabel: String,
@@ -1185,7 +1326,12 @@ private fun TeamChoiceRow(
     }
 }
 
-// Two-choice row for Far end vs Near end selection.
+/**
+ * Render a two-choice row for Far end vs Near end selection.
+ *
+ * @param selected The currently selected field end.
+ * @param onSelected Callback receiving the selected field end.
+ */
 @Composable
 private fun FieldEndChoiceRow(
     selected: FieldEnd,
@@ -1205,7 +1351,13 @@ private fun FieldEndChoiceRow(
     }
 }
 
-// Small +/- editor for integer setup/correction values.
+/**
+ * Render a small +/- editor for integer setup and correction values.
+ *
+ * @param label The count label.
+ * @param value The current count value.
+ * @param onValueChange Callback receiving the adjusted count.
+ */
 @Composable
 internal fun SmallCountEditor(
     label: String,
@@ -1234,7 +1386,13 @@ internal fun SmallCountEditor(
     }
 }
 
-// One row in the setup list of players carrying prior cards.
+/**
+ * Render one row in the setup list of players carrying prior cards.
+ *
+ * @param label The player/team label.
+ * @param detail The compact prior-card detail.
+ * @param onRemove Callback removing this prior-card record.
+ */
 @Composable
 private fun PlayerRecordRow(
     label: String,
@@ -1263,7 +1421,7 @@ private fun PlayerRecordRow(
     }
 }
 
-// Compact setup summary for prior yellows/reds.
+/// Return the compact setup summary for a player's prior yellows and reds.
 private fun PlayerCardRecord.playerCardDetail(): String {
     return if (priorReds > 0) {
         "Y $priorYellows  R $priorReds"
@@ -1272,14 +1430,21 @@ private fun PlayerCardRecord.playerCardDetail(): String {
     }
 }
 
+/// Return the compact setup summary for game start date and time.
 private fun GameSetupState.startTimeSummary(): String {
     return "${formatStartDate(startDate)} ${formatClockTime(startTime)}"
 }
 
+/// Return the compact setup summary for the starting pull.
 private fun GameSetupState.startingPullSummary(): String {
     return "${pullingTeam.setupName(this)} pulls from ${pullingFromEnd.displayText()}"
 }
 
+/**
+ * Return a setup-display team name, using fallback labels only for display.
+ *
+ * @param state The setup state containing team names.
+ */
 private fun TeamId.setupName(state: GameSetupState): String {
     val name = if (this == TeamId.TEAM_ONE) state.teamOne.name else state.teamTwo.name
     return name.ifBlank {
@@ -1287,6 +1452,7 @@ private fun TeamId.setupName(state: GameSetupState): String {
     }
 }
 
+/// Return user-facing text for a field end.
 private fun FieldEnd.displayText(): String {
     return when (this) {
         FieldEnd.FAR -> "Far end"
@@ -1294,20 +1460,29 @@ private fun FieldEnd.displayText(): String {
     }
 }
 
+/// Return the compact half/soft/hard cap summary.
 private fun GameRules.capRulesSummary(): String {
     return "${capSummary(useHalfCap, halfCapMinutes)}/" +
         "${capSummary(useSoftCap, softCapMinutes)}/" +
         capSummary(useHardCap, hardCapMinutes)
 }
 
+/**
+ * Return the compact display for one cap rule.
+ *
+ * @param enabled Whether the cap is enabled.
+ * @param minutes The cap offset in minutes when enabled.
+ */
 private fun capSummary(enabled: Boolean, minutes: Int): String {
     return if (enabled) "+$minutes" else "-"
 }
 
+/// Return the compact timeout-rule summary.
 private fun GameRules.timeoutSummary(): String {
     return if (hasFloaterTimeout) "$timeoutsPerHalf+1" else timeoutsPerHalf.toString()
 }
 
+/// Return the compact setup summary for prior-card records.
 private fun GameSetupState.priorCardsSummary(): String {
     return when (priorCards.size) {
         0 -> "No previous cards."
@@ -1316,19 +1491,34 @@ private fun GameSetupState.priorCardsSummary(): String {
     }
 }
 
+/**
+ * Format the setup start date for display.
+ *
+ * @param date The local date to format.
+ */
 internal fun formatStartDate(date: LocalDate): String {
     return date.format(DateTimeFormatter.ofPattern("MMM d, yyyy"))
 }
 
+/**
+ * Convert a local date into the UTC timestamp expected by the Material date picker.
+ *
+ * @param date The local date to convert.
+ */
 private fun dateToPickerTimestamp(date: LocalDate): Long {
     return date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
 }
 
+/**
+ * Convert a Material date-picker timestamp back into a local date.
+ *
+ * @param timestamp The UTC midnight timestamp supplied by the picker.
+ */
 private fun pickerTimestampToDate(timestamp: Long): LocalDate {
     return Instant.ofEpochMilli(timestamp).atZone(ZoneOffset.UTC).toLocalDate()
 }
 
-// Display timeout rules in the compact setup format.
+/// Format timeout rules for the setup editor row.
 private fun GameRules.formatTimeoutRules(): String {
     return buildString {
         append("$timeoutsPerHalf/half")

@@ -28,7 +28,12 @@ private data class PendingUnknownYellowChoice(
     val team: TeamId,
 )
 
-// Bottom sheet for recording cards and technical fouls for either team.
+/**
+ * Render the bottom sheet for recording cards and technical fouls for either team.
+ *
+ * @param state The current live game state used for team names, card summaries, and assessments.
+ * @param onAssessment Callback receiving the model assessment after the observer records a card or technical foul.
+ */
 @Composable
 internal fun CardsSheet(
     state: LiveGameState,
@@ -142,7 +147,16 @@ internal fun CardsSheet(
     }
 }
 
-// Card/TF actions and current-game issued-card summary for one team.
+/**
+ * Render Card/TF actions and current-game issued-card summary for one team.
+ *
+ * @param label The team label, including pull/receive role when applicable.
+ * @param issuedCards The team's current-game player-card records.
+ * @param onYellow Callback starting the yellow-card flow.
+ * @param onRed Callback starting the red-card flow.
+ * @param onBlue Callback recording a blue card.
+ * @param onTech Callback recording a technical foul.
+ */
 @Composable
 private fun TeamActionSection(
     label: String,
@@ -174,7 +188,14 @@ private fun TeamActionSection(
     }
 }
 
-// Jersey-number prompt shared by the card flows. Blank records as N/A.
+/**
+ * Render the jersey-number prompt shared by the card flows.
+ *
+ * @param title The dialog title describing the card type.
+ * @param teamName The team receiving the player card.
+ * @param onDismiss Callback closing the dialog without recording.
+ * @param onConfirm Callback receiving the entered jersey number, or the unknown-player sentinel for blank/N/A.
+ */
 @Composable
 internal fun PlayerNumberDialog(
     title: String,
@@ -218,7 +239,14 @@ internal fun PlayerNumberDialog(
     )
 }
 
-// Resolve whether a second yellow on N/A is the same unknown player as before.
+/**
+ * Resolve whether a second yellow on N/A is the same unknown player as before.
+ *
+ * @param teamName The team receiving the unknown-player yellow.
+ * @param onDismiss Callback closing the dialog without recording.
+ * @param onSamePlayer Callback treating the yellow as a second yellow for the existing unknown player.
+ * @param onDifferentPlayer Callback treating the yellow as a standalone yellow for another unknown player.
+ */
 @Composable
 private fun UnknownYellowDialog(
     teamName: String,
@@ -250,7 +278,7 @@ private fun UnknownYellowDialog(
     )
 }
 
-// Compact live-game summary for one player's current-game cards.
+/// Return a compact live-game summary for one player's current-game cards.
 private fun InGamePlayerCardRecord.issuedCardSummary(): String {
     val parts = buildList {
         if (yellows > 0) {
@@ -263,7 +291,11 @@ private fun InGamePlayerCardRecord.issuedCardSummary(): String {
     return "${displayPlayerNumber(jerseyNumber)}: ${parts.joinToString("  ")}"
 }
 
-// Between points, tag each team as pulling or receiving in the Cards / TF sheet.
+/**
+ * Return the Cards / TF role suffix for a team while between points or at halftime.
+ *
+ * @param team The team whose pulling/receiving role should be displayed.
+ */
 private fun LiveGameState.cardsRoleSuffix(team: TeamId): String {
     return if (phase == LivePhase.BETWEEN_POINTS || phase == LivePhase.HALFTIME) {
         if (team == pullingTeam) " (pulling)" else " (receiving)"

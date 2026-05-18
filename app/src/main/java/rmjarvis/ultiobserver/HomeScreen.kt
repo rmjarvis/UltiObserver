@@ -326,6 +326,15 @@ internal fun HomeScreen(
     }
 }
 
+/**
+ * Render the main Home action cluster.
+ *
+ * @param onStartNewGame Callback starting a new setup flow.
+ * @param onOpenPreviousGames Callback opening Previous Games.
+ * @param onOpenProfile Callback opening Profile.
+ * @param onOpenSettings Callback opening Settings.
+ * @param modifier Optional layout modifier for the action column.
+ */
 @Composable
 private fun HomeActions(
     onStartNewGame: () -> Unit,
@@ -370,6 +379,11 @@ private fun HomeActions(
     }
 }
 
+/**
+ * Render a single-line Home button label.
+ *
+ * @param text The label text.
+ */
 @Composable
 private fun HomeActionText(text: String) {
     Text(
@@ -380,7 +394,13 @@ private fun HomeActionText(text: String) {
     )
 }
 
-// Tappable row for a game listed on the home or previous-games screen.
+/**
+ * Render a tappable game row from a list-entry object.
+ *
+ * @param entry The game-list entry containing title and subtitle.
+ * @param modifier Optional row modifier.
+ * @param onClick Callback opening the game.
+ */
 @Composable
 internal fun GameListRow(
     entry: GameListEntry,
@@ -395,7 +415,14 @@ internal fun GameListRow(
     )
 }
 
-// Tappable game row with date/time above the score line.
+/**
+ * Render a tappable game row with date/time above the score line.
+ *
+ * @param startDateTime The compact start date/time line.
+ * @param scoreLine The teams and score line.
+ * @param modifier Optional row modifier.
+ * @param onClick Callback opening the game.
+ */
 @Composable
 internal fun GameListRow(
     startDateTime: String,

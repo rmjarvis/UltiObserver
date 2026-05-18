@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 
-// IDE preview for the app's first screen.
+/// Render the IDE preview for the app's first screen.
 @Preview(showBackground = true)
 @Composable
 private fun MainActivityPreview() {
