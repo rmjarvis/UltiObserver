@@ -1,9 +1,10 @@
 package rmjarvis.ultiobserver
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 import kotlin.random.Random
 
@@ -19,6 +20,41 @@ internal enum class AppScreen {
     SETUP,
     LIVE,
 }
+
+/**
+ * Snapshot of app-level UI/session state owned by AppViewModel.
+ *
+ * @param screen The top-level app screen currently routed by the app shell.
+ * @param setupState The current setup form state, including drafts and setup edits.
+ * @param liveState The mutable current game, or null when only a setup draft exists.
+ * @param setupMode Whether setup is creating a new game or editing the current game.
+ * @param profileName The observer profile name.
+ * @param avatarPreference The stored observer avatar preference.
+ * @param homeAvatarPreference The concrete avatar shown on Home after resolving random choices.
+ * @param timingAlertPreferences The current timing cue alert settings.
+ * @param automaticallyAdvanceCountdowns Whether active countdowns transition automatically at expiry.
+ * @param automaticallyLockLivePoint Whether automatic live-point transitions enable lock mode.
+ * @param archivedGames The archived game summaries loaded into the app session.
+ * @param viewingArchivedGame The archived game currently open as a read-only summary.
+ * @param hasSetupDraft Whether Home should expose a resumable setup draft.
+ * @param startupRecoveryNotice The startup data-recovery notice, if corrupted app data was reset.
+ */
+internal data class AppUiState(
+    val screen: AppScreen = AppScreen.HOME,
+    val setupState: GameSetupState,
+    val liveState: LiveGameState?,
+    val setupMode: SetupMode,
+    val profileName: String,
+    val avatarPreference: ObserverAvatarPreference,
+    val homeAvatarPreference: ObserverAvatarPreference,
+    val timingAlertPreferences: TimingAlertPreferences,
+    val automaticallyAdvanceCountdowns: Boolean,
+    val automaticallyLockLivePoint: Boolean,
+    val archivedGames: List<ArchivedGame>,
+    val viewingArchivedGame: ArchivedGame?,
+    val hasSetupDraft: Boolean,
+    val startupRecoveryNotice: RecoveryNotice?,
+)
 
 /**
  * App-level state coordinator for the Android UI.
@@ -47,46 +83,100 @@ internal class AppViewModel(
     private val restoredArchivedGames = appStateStorage.loadArchivedGames()
     private val recoveredPersistedDataAreas = appStateStorage.resetPersistedDataAreas
 
-    var screen by mutableStateOf(AppScreen.HOME)
-        private set
-    var setupState by mutableStateOf(persistedCurrentGameState?.setupState ?: newGameSetupState())
-        private set
-    var liveState by mutableStateOf(persistedCurrentGameState?.liveState)
-        private set
-    var setupMode by mutableStateOf(persistedCurrentGameState?.setupMode ?: SetupMode.NEW_GAME)
-        private set
-    var profileName by mutableStateOf(persistedProfile?.profileName ?: "")
-        private set
-    var avatarPreference by mutableStateOf(
-        persistedProfile?.avatarPreference ?: ObserverAvatarPreference.RANDOM
+    private val _state = MutableStateFlow(
+        AppUiState(
+            setupState = persistedCurrentGameState?.setupState ?: newGameSetupState(),
+            liveState = persistedCurrentGameState?.liveState,
+            setupMode = persistedCurrentGameState?.setupMode ?: SetupMode.NEW_GAME,
+            profileName = persistedProfile?.profileName ?: "",
+            avatarPreference = persistedProfile?.avatarPreference ?: ObserverAvatarPreference.RANDOM,
+            homeAvatarPreference = resolveHomeAvatarPreference(
+                persistedProfile?.avatarPreference ?: ObserverAvatarPreference.RANDOM
+            ),
+            timingAlertPreferences = persistedSettings?.timingAlertPreferences ?: TimingAlertPreferences(),
+            automaticallyAdvanceCountdowns = persistedSettings?.automaticallyAdvanceCountdowns ?: true,
+            automaticallyLockLivePoint = persistedSettings?.automaticallyLockLivePoint ?: true,
+            archivedGames = restoredArchivedGames,
+            viewingArchivedGame = null,
+            hasSetupDraft = restoredSetupDraft,
+            startupRecoveryNotice = recoveredPersistedDataAreas.takeIf { it.isNotEmpty() }?.let { resetAreas ->
+                RecoveryNotice(resetAreas)
+            },
+        )
     )
-        private set
-    var homeAvatarPreference by mutableStateOf(resolveHomeAvatarPreference(avatarPreference))
-        private set
-    var timingAlertPreferences by mutableStateOf(
-        persistedSettings?.timingAlertPreferences ?: TimingAlertPreferences()
-    )
-        private set
-    var automaticallyAdvanceCountdowns by mutableStateOf(
-        persistedSettings?.automaticallyAdvanceCountdowns ?: true
-    )
-        private set
-    var automaticallyLockLivePoint by mutableStateOf(
-        persistedSettings?.automaticallyLockLivePoint ?: true
-    )
-        private set
-    var archivedGames by mutableStateOf(restoredArchivedGames)
-        private set
-    var viewingArchivedGame by mutableStateOf<ArchivedGame?>(null)
-        private set
-    var hasSetupDraft by mutableStateOf(restoredSetupDraft)
-        private set
-    var startupRecoveryNotice by mutableStateOf(
-        recoveredPersistedDataAreas.takeIf { it.isNotEmpty() }?.let { resetAreas ->
-            RecoveryNotice(resetAreas)
+
+    val state: StateFlow<AppUiState> = _state.asStateFlow()
+
+    var screen: AppScreen
+        get() = state.value.screen
+        private set(value) {
+            _state.update { it.copy(screen = value) }
         }
-    )
-        private set
+    var setupState: GameSetupState
+        get() = state.value.setupState
+        private set(value) {
+            _state.update { it.copy(setupState = value) }
+        }
+    var liveState: LiveGameState?
+        get() = state.value.liveState
+        private set(value) {
+            _state.update { it.copy(liveState = value) }
+        }
+    var setupMode: SetupMode
+        get() = state.value.setupMode
+        private set(value) {
+            _state.update { it.copy(setupMode = value) }
+        }
+    var profileName: String
+        get() = state.value.profileName
+        private set(value) {
+            _state.update { it.copy(profileName = value) }
+        }
+    var avatarPreference: ObserverAvatarPreference
+        get() = state.value.avatarPreference
+        private set(value) {
+            _state.update { it.copy(avatarPreference = value) }
+        }
+    var homeAvatarPreference: ObserverAvatarPreference
+        get() = state.value.homeAvatarPreference
+        private set(value) {
+            _state.update { it.copy(homeAvatarPreference = value) }
+        }
+    var timingAlertPreferences: TimingAlertPreferences
+        get() = state.value.timingAlertPreferences
+        private set(value) {
+            _state.update { it.copy(timingAlertPreferences = value) }
+        }
+    var automaticallyAdvanceCountdowns: Boolean
+        get() = state.value.automaticallyAdvanceCountdowns
+        private set(value) {
+            _state.update { it.copy(automaticallyAdvanceCountdowns = value) }
+        }
+    var automaticallyLockLivePoint: Boolean
+        get() = state.value.automaticallyLockLivePoint
+        private set(value) {
+            _state.update { it.copy(automaticallyLockLivePoint = value) }
+        }
+    var archivedGames: List<ArchivedGame>
+        get() = state.value.archivedGames
+        private set(value) {
+            _state.update { it.copy(archivedGames = value) }
+        }
+    var viewingArchivedGame: ArchivedGame?
+        get() = state.value.viewingArchivedGame
+        private set(value) {
+            _state.update { it.copy(viewingArchivedGame = value) }
+        }
+    var hasSetupDraft: Boolean
+        get() = state.value.hasSetupDraft
+        private set(value) {
+            _state.update { it.copy(hasSetupDraft = value) }
+        }
+    var startupRecoveryNotice: RecoveryNotice?
+        get() = state.value.startupRecoveryNotice
+        private set(value) {
+            _state.update { it.copy(startupRecoveryNotice = value) }
+        }
 
     init {
         persistRecoveredDataAreas(recoveredPersistedDataAreas)

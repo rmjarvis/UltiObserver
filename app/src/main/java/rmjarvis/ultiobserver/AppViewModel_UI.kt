@@ -5,6 +5,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import java.io.File
@@ -34,25 +36,27 @@ internal fun appViewModelFactory(filesDir: File): ViewModelProvider.Factory {
  */
 @Composable
 internal fun UltiObserverApp(viewModel: AppViewModel) {
+    val appState by viewModel.state.collectAsState()
+
     // Back returns to setup from the initial live preview, otherwise to home.
-    BackHandler(enabled = viewModel.screen != AppScreen.HOME) {
+    BackHandler(enabled = appState.screen != AppScreen.HOME) {
         viewModel.goBackFromCurrentScreen()
     }
 
     TimingAlertCueListener(
-        liveState = viewModel.liveState.takeUnless { state -> state?.phase == LivePhase.GAME_OVER },
-        timingAlertPreferences = viewModel.timingAlertPreferences,
+        liveState = appState.liveState.takeUnless { state -> state?.phase == LivePhase.GAME_OVER },
+        timingAlertPreferences = appState.timingAlertPreferences,
     )
 
     // Route to the current top-level screen.
-    when (viewModel.screen) {
+    when (appState.screen) {
         AppScreen.HOME -> {
-            val liveState = viewModel.liveState
+            val liveState = appState.liveState
             val currentGame: GameListEntry?
             val completedGamePendingArchive: GameListEntry?
             if (liveState == null) {
-                currentGame = if (viewModel.hasSetupDraft) {
-                    viewModel.setupState.gameListEntry()
+                currentGame = if (appState.hasSetupDraft) {
+                    appState.setupState.gameListEntry()
                 } else {
                     null
                 }
@@ -65,7 +69,7 @@ internal fun UltiObserverApp(viewModel: AppViewModel) {
                 completedGamePendingArchive = null
             }
             HomeScreen(
-                avatarPreference = viewModel.homeAvatarPreference,
+                avatarPreference = appState.homeAvatarPreference,
                 currentGame = currentGame,
                 currentGameSectionSubtitle = viewModel.currentGameHomeSubtitle,
                 completedGamePendingArchive = completedGamePendingArchive,
@@ -89,8 +93,8 @@ internal fun UltiObserverApp(viewModel: AppViewModel) {
 
         AppScreen.PROFILE -> {
             ProfileScreen(
-                name = viewModel.profileName,
-                avatarPreference = viewModel.avatarPreference,
+                name = appState.profileName,
+                avatarPreference = appState.avatarPreference,
                 onNameChange = viewModel::updateProfileName,
                 onAvatarPreferenceChange = viewModel::updateAvatarPreference,
                 onBackHome = viewModel::goHome,
@@ -99,9 +103,9 @@ internal fun UltiObserverApp(viewModel: AppViewModel) {
 
         AppScreen.SETTINGS -> {
             SettingsScreen(
-                automaticallyAdvanceCountdowns = viewModel.automaticallyAdvanceCountdowns,
-                automaticallyLockLivePoint = viewModel.automaticallyLockLivePoint,
-                timingAlertPreferences = viewModel.timingAlertPreferences,
+                automaticallyAdvanceCountdowns = appState.automaticallyAdvanceCountdowns,
+                automaticallyLockLivePoint = appState.automaticallyLockLivePoint,
+                timingAlertPreferences = appState.timingAlertPreferences,
                 onAutomaticallyAdvanceCountdownsChange = viewModel::updateAutomaticallyAdvanceCountdowns,
                 onAutomaticallyLockLivePointChange = viewModel::updateAutomaticallyLockLivePoint,
                 onGlobalModeChange = viewModel::updateTimingAlertGlobalMode,
@@ -115,7 +119,7 @@ internal fun UltiObserverApp(viewModel: AppViewModel) {
 
         AppScreen.TIMING_CUE_SETTINGS -> {
             TimingCueSettingsScreen(
-                timingAlertPreferences = viewModel.timingAlertPreferences,
+                timingAlertPreferences = appState.timingAlertPreferences,
                 onTimingCueModeChange = viewModel::updateTimingCueMode,
                 onTimingCueRepeatCountChange = viewModel::updateTimingCueRepeatCount,
                 onResetTimingCueSettings = viewModel::resetTimingCueSettingsToDefaults,
@@ -125,7 +129,7 @@ internal fun UltiObserverApp(viewModel: AppViewModel) {
 
         AppScreen.ARCHIVED_GAMES -> {
             ArchivedGamesScreen(
-                archivedGames = viewModel.archivedGames.map { it.state.archivedGameListEntry() },
+                archivedGames = appState.archivedGames.map { it.state.archivedGameListEntry() },
                 onOpenArchivedGame = viewModel::openArchivedGame,
                 onDeleteArchivedGame = viewModel::deleteArchivedGame,
                 onDeleteAllArchivedGames = viewModel::deleteAllArchivedGames,
@@ -135,9 +139,9 @@ internal fun UltiObserverApp(viewModel: AppViewModel) {
 
         AppScreen.SETUP -> {
             SetupScreen(
-                state = viewModel.setupState,
+                state = appState.setupState,
                 onStateChange = viewModel::updateSetup,
-                primaryButtonLabel = if (viewModel.setupMode == SetupMode.NEW_GAME) "Start Game" else "Back to Game Screen",
+                primaryButtonLabel = if (appState.setupMode == SetupMode.NEW_GAME) "Start Game" else "Back to Game Screen",
                 onPrimaryAction = { viewModel.finishSetup() },
                 onBackHome = viewModel::goHome,
             )
@@ -145,12 +149,12 @@ internal fun UltiObserverApp(viewModel: AppViewModel) {
 
         AppScreen.LIVE -> {
             // Archived games reuse the live-game screen, but in a read-only summary mode.
-            val currentLiveState = viewModel.currentLiveState!!
+            val currentLiveState = appState.viewingArchivedGame?.state ?: appState.liveState!!
             LiveGameScreen(
                 state = currentLiveState,
-                readOnlySummary = viewModel.viewingReadOnlySummary,
-                automaticallyAdvanceCountdowns = viewModel.automaticallyAdvanceCountdowns,
-                automaticallyLockLivePoint = viewModel.automaticallyLockLivePoint,
+                readOnlySummary = appState.viewingArchivedGame != null,
+                automaticallyAdvanceCountdowns = appState.automaticallyAdvanceCountdowns,
+                automaticallyLockLivePoint = appState.automaticallyLockLivePoint,
                 onStateChange = viewModel::updateLiveGame,
                 onUpdateGameSetup = {
                     viewModel.editCurrentGame(currentLiveState)
@@ -161,7 +165,7 @@ internal fun UltiObserverApp(viewModel: AppViewModel) {
         }
     }
 
-    viewModel.startupRecoveryNotice?.let { notice ->
+    appState.startupRecoveryNotice?.let { notice ->
         AlertDialog(
             onDismissRequest = viewModel::dismissStartupRecoveryNotice,
             title = { Text(notice.title) },
