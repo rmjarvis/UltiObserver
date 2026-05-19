@@ -543,6 +543,10 @@ class TestGameClock : GameDomainTestFixtures() {
         )
         assertEquals(TimingCueId.HALFTIME_FIVE_MINUTES, halftimeCountdown.nextTimingCue(1_000L)?.id)
         assertEquals(TimingCueId.HALFTIME_TWO_MINUTES, halftimeCountdown.dueTimingCue(301_000L)?.id)
+        val halftimeState = state.copy(phase = LivePhase.HALFTIME, countdown = halftimeCountdown)
+        assertFalse(halftimeState.halftimeTransitionReady(halftimeCountdown.targetEpoch - 1L))
+        assertTrue(halftimeState.halftimeTransitionReady(halftimeCountdown.targetEpoch))
+        assertFalse(halftimeState.copy(countdown = standardPullCountdown).halftimeTransitionReady(halftimeCountdown.targetEpoch))
         val shortHalftimeCountdown = buildHalftimeCountdown(
             halftimeMinutes = 2,
             sequenceStart = 1_000L,

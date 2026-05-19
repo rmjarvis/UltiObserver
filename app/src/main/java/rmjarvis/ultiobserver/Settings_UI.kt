@@ -315,7 +315,9 @@ private fun TimingAlertSoundControls(
                 )
                 Slider(
                     value = timingAlertPreferences.vibrationDurationMillis.toFloat(),
-                    onValueChange = { onVibrationDurationChange(it.roundToLong()) },
+                    onValueChange = {
+                        onVibrationDurationChange(it.roundToLong())
+                    },
                     valueRange = MIN_TIMING_CUE_VIBRATION_MS.toFloat()..MAX_TIMING_CUE_VIBRATION_MS.toFloat(),
                     modifier = Modifier
                         .fillMaxWidth()

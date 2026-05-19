@@ -933,6 +933,12 @@ class TestAppViewModel {
         assertEquals(APP_STATE_VERSION_CODE, Settings().versionCode)
         assertEquals(APP_STATE_VERSION_NAME, ArchivedGame(createLiveGameState(setup), "").versionName)
         assertEquals(APP_STATE_VERSION_CODE, ArchivedGame(createLiveGameState(setup), "").versionCode)
+        val persistedVersion = AppVersion(
+            versionName = "0.1.0-debug",
+            versionCode = APP_STATE_VERSION_CODE,
+        )
+        assertEquals("0.1.0-debug", persistedVersion.versionName)
+        assertEquals(APP_STATE_VERSION_CODE, persistedVersion.versionCode)
 
         // Missing version names should reset each affected split-state area.
         store.saveProfile(savedProfile)

@@ -12,7 +12,6 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.swipeRight
-import androidx.test.espresso.Espresso.pressBack
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import java.time.LocalTime
 import org.junit.Assert.assertTrue
@@ -34,7 +33,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         openCardsSheet()
         composeRule.onNodeWithText("Team 1 (pulling)").assertIsDisplayed()
         composeRule.onNodeWithText("Team 2 (receiving)").assertIsDisplayed()
-        pressBack()
+        pressDialogBack()
         composeRule.onAllNodesWithText("Cards / Technical Fouls").assertCountEquals(0)
         openCardsSheet()
         composeRule.onNodeWithText("Team 1 (pulling)").assertIsDisplayed()
@@ -254,7 +253,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         enterCardPlayerNumber("21")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Invalid Card Assignment")
-        pressBack()
+        pressDialogBack()
         waitForText("Add Yellow")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Invalid Card Assignment")
@@ -278,7 +277,10 @@ class TestCardsUi : MainActivityUiTestFixtures() {
     fun repeatedPlayerCardChoiceDialogs() {
         startLiveGameProgrammatically()
         seedInGamePlayerCardsProgrammatically(
-            teamOneCards = listOf(InGamePlayerCardRecord(UNKNOWN_PLAYER_NUMBER, yellows = 1)),
+            teamOneCards = listOf(
+                InGamePlayerCardRecord(UNKNOWN_PLAYER_NUMBER, yellows = 1),
+                InGamePlayerCardRecord("10", yellows = 1),
+            ),
             teamTwoCards = listOf(InGamePlayerCardRecord("6", yellows = 1, reds = 1)),
         )
         composeRule.activityRule.scenario.onActivity { activity ->
@@ -304,14 +306,21 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("N/A").performClick()
         waitForText("Unknown Player Number")
         composeRule.onNodeWithText("Yes").performClick()
-        waitForText("Second yellow on player N/A.", substring = true)
+        waitForText("Misconduct Penalty")
+        pressDialogBack()
+        waitForText("Unknown Player Number")
+        composeRule.onNodeWithText("Yes").performClick()
+        waitForText("Misconduct Penalty")
+        composeRule.onNodeWithText("Offense").performClick()
+        waitForText("Reverse brick", substring = true)
         composeRule.onNodeWithText("OK").performClick()
+        waitForText("Start Misconduct Countdown")
 
         // Back from a blue-card misconduct choice should cancel that card and return to Cards / TF.
         openCardsSheet()
         composeRule.onAllNodesWithText("Blue")[teamCardButtonIndex(TeamId.TEAM_ONE)].performClick()
         waitForText("Misconduct Penalty")
-        pressBack()
+        pressDialogBack()
         waitForText("Cards / Technical Fouls")
         composeRule.onAllNodesWithText("Misconduct Penalty").assertCountEquals(0)
         composeRule.onAllNodesWithText("Blue")[teamCardButtonIndex(TeamId.TEAM_ONE)].performClick()
@@ -328,7 +337,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         enterCardPlayerNumber("6")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("maximum valid card combination", substring = true)
-        pressBack()
+        pressDialogBack()
         waitForText("Cards / Technical Fouls")
         composeRule.onAllNodesWithText("Red")[teamCardButtonIndex(TeamId.TEAM_TWO)].performClick()
         waitForText("Red Card")

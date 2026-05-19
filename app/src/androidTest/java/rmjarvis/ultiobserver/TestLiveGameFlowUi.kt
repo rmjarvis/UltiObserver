@@ -1,6 +1,4 @@
 package rmjarvis.ultiobserver
-
-import android.view.KeyEvent
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -17,7 +15,6 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.swipeRight
 import java.time.LocalTime
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -100,6 +97,14 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             expectedMessage = "$viscousCoupling has 4 cards.",
             misconductChoice = "Defense",
             expectedMisconductMessage = "Brick nearest attacking end zone",
+        )
+        recordRedCard(
+            team = TeamId.TEAM_ONE,
+            playerNumber = "12",
+            expectedMessage = "$viscousCoupling has 6 cards.",
+            misconductChoice = "Defense",
+            expectedMisconductMessage = "Brick nearest attacking end zone",
+            verifyMisconductBackReturnsToNumberDialog = true,
         )
 
         // Viscous Coupling scores the first point, then Animal false-starts and that entry is undone.
@@ -556,9 +561,4 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.waitForIdle()
     }
 
-    /// Send platform Back without relying on Espresso's root-window focus.
-    private fun pressDialogBack() {
-        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
-        composeRule.waitForIdle()
-    }
 }

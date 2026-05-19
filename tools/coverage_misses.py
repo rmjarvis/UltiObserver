@@ -19,8 +19,9 @@ ALLOWED_MISS_COMMENTS = (
     (re.compile(r"\bno else branch\b", re.IGNORECASE), "documented exhaustive when without else"),
 )
 ALLOWED_COMMENT_LOOKBACK_LINES = 5
+CALLBACK_NAME_PATTERN = r"(?:on[A-Za-z]\w*|performHaptic)"
 CALLBACK_LAMBDA_OPENER = re.compile(
-    r"^on[A-Z]\w*\s*=\s*\{\s*"
+    rf"^{CALLBACK_NAME_PATTERN}\s*=\s*\{{\s*"
     r"(?:(?:[A-Za-z_]\w*\s*,\s*)*[A-Za-z_]\w*\s*->\s*)?$"
 )
 
@@ -101,7 +102,15 @@ def line_allowed_reason(
         line_number,
         coverage_by_line,
         counters,
-    ) or composable_restart_epilogue_reason(source_lines, line_number, counters)
+    ) or composable_restart_epilogue_reason(
+        source_lines,
+        line_number,
+        counters,
+    ) or resource_cleanup_scaffold_reason(
+        source_lines,
+        line_number,
+        counters,
+    )
 
 
 def documented_allowed_miss_reason(source_lines: list[str], line_number: int) -> str | None:
@@ -242,6 +251,23 @@ def composable_restart_epilogue_reason(
         return None
 
     return "Compose restart-scope epilogue"
+
+
+def resource_cleanup_scaffold_reason(
+    source_lines: list[str],
+    line_number: int,
+    counters: LineCounters,
+) -> str | None:
+    """Return a reason for Kotlin/JDK cleanup bytecode from `use {}`."""
+
+    source = source_lines[line_number - 1].strip()
+    if ".use {" not in source:
+        return None
+    if counters.covered_instructions == 0:
+        return None
+    if counters.missed_branches != 0 or counters.covered_branches != 0:
+        return None
+    return "Kotlin resource-cleanup scaffold"
 
 
 def lambda_body_is_covered(

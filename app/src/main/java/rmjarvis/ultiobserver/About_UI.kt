@@ -71,7 +71,11 @@ internal fun AboutScreen(
             )
             Text(
                 text = SOURCE_CODE_URL,
-                modifier = Modifier.clickable { uriHandler.openUri(SOURCE_CODE_URL) },
+                modifier = Modifier.clickable(
+                    onClick = {
+                        uriHandler.openUri(SOURCE_CODE_URL)
+                    },
+                ),
                 color = MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.bodyLarge,
             )

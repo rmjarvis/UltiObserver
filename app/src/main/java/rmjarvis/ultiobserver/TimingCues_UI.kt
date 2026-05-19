@@ -51,9 +51,13 @@ internal fun TimingAlertCueListener(
                     timingAlerts = unplayedTimingAlerts,
                     timingAlertPreferences = timingAlertPreferences,
                     timingAlertPlayer = timingAlertPlayer,
-                    performHaptic = { durationMillis -> context.performTimingCueHaptic(durationMillis) },
+                    performHaptic = { durationMillis ->
+                        context.performTimingCueHaptic(durationMillis)
+                    },
                     alertPlaybackScope = alertPlaybackScope,
-                    onAlertKeysPlayed = { alertKeys -> playedTimingAlertKeys += alertKeys },
+                    onAlertKeysPlayed = { alertKeys ->
+                        playedTimingAlertKeys += alertKeys
+                    },
                 )
                 continue
             }

@@ -319,12 +319,12 @@ private fun TimingAlertPreferences.vibrationRepeatSpacingMillis(): Long {
  */
 internal fun Context.performTimingCueHaptic(durationMillis: Long) {
     val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        getSystemService(VibratorManager::class.java)?.defaultVibrator
+        getSystemService(VibratorManager::class.java).defaultVibrator
     } else {
         getSystemService(Vibrator::class.java)
     }
     // Devices without usable vibration hardware should ignore haptic cues without crashing.
-    if (vibrator == null || !vibrator.hasVibrator()) {
+    if (!vibrator.hasVibrator()) {
         return
     }
     vibrator.vibrate(VibrationEffect.createOneShot(durationMillis, VibrationEffect.DEFAULT_AMPLITUDE))

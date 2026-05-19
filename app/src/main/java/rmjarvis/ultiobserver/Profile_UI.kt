@@ -95,7 +95,9 @@ private fun AvatarPreferenceSelector(
 
         RandomAvatarPreferenceButton(
             selected = avatarPreference == ObserverAvatarPreference.RANDOM,
-            onClick = { onAvatarPreferenceChange(ObserverAvatarPreference.RANDOM) },
+            onClick = {
+                onAvatarPreferenceChange(ObserverAvatarPreference.RANDOM)
+            },
         )
 
         Text(
@@ -117,7 +119,9 @@ private fun AvatarPreferenceSelector(
                         AvatarPreferenceButton(
                             preference = preference,
                             selected = avatarPreference == preference,
-                            onClick = { onAvatarPreferenceChange(preference) },
+                            onClick = {
+                                onAvatarPreferenceChange(preference)
+                            },
                             modifier = Modifier.weight(1f),
                         )
                     }

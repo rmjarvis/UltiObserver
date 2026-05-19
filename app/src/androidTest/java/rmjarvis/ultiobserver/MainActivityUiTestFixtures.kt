@@ -1,5 +1,6 @@
 package rmjarvis.ultiobserver
 
+import android.view.KeyEvent
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.hasContentDescription
@@ -14,7 +15,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.swipeRight
-import androidx.test.espresso.Espresso.pressBack
+import androidx.test.platform.app.InstrumentationRegistry
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -271,6 +272,12 @@ abstract class MainActivityUiTestFixtures {
         waitForText("Start New Game")
     }
 
+    /// Send platform Back without relying on Espresso's root-window focus.
+    protected fun pressDialogBack() {
+        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+        composeRule.waitForIdle()
+    }
+
     /**
      * Tap a team's goal button and wait for the expected undo label.
      *
@@ -289,7 +296,7 @@ abstract class MainActivityUiTestFixtures {
         unlockLiveScreen()
     }
 
-    /// Verify a too-short unlock swipe does not unlock, then complete the unlock flow.
+    /// Verify interrupted and too-short unlock swipes do not unlock, then complete the unlock flow.
     protected fun startPointWithFailedSwipeThenUnlock() {
         composeRule.onNodeWithText("Start Point").performClick()
         waitForText("Slide right to unlock")
@@ -297,6 +304,10 @@ abstract class MainActivityUiTestFixtures {
             down(center)
             moveBy(androidx.compose.ui.geometry.Offset(40f, 0f))
             cancel()
+        }
+        waitForText("Slide right to unlock")
+        composeRule.onNodeWithTag("live-unlock-slider").performTouchInput {
+            swipeRight(startX = left, endX = left + 40f)
         }
         waitForText("Slide right to unlock")
         composeRule.onNodeWithTag("live-unlock-slider").performTouchInput {
@@ -526,7 +537,7 @@ abstract class MainActivityUiTestFixtures {
         } else {
             waitForText("Misconduct Penalty")
             if (verifyMisconductBackReturnsToNumberDialog) {
-                pressBack()
+                pressDialogBack()
                 waitForText("Yellow Card")
                 if (playerNumber.isNotBlank()) {
                     val restoredNumber = composeRule.onNodeWithTag("card-player-number")
@@ -550,14 +561,42 @@ abstract class MainActivityUiTestFixtures {
      * @param team The team receiving the red.
      * @param playerNumber The player number to enter.
      * @param expectedMessage The popup text expected after recording.
+     * @param misconductChoice Optional misconduct choice to tap when the card reaches a live-point threshold.
+     * @param expectedMisconductMessage Optional threshold-resolution text expected after choosing offense/defense.
+     * @param verifyMisconductBackReturnsToNumberDialog Whether to exercise Back from misconduct choice and verify number-dialog restoration.
      */
-    protected fun recordRedCard(team: TeamId, playerNumber: String, expectedMessage: String) {
+    protected fun recordRedCard(
+        team: TeamId,
+        playerNumber: String,
+        expectedMessage: String,
+        misconductChoice: String? = null,
+        expectedMisconductMessage: String? = null,
+        verifyMisconductBackReturnsToNumberDialog: Boolean = false,
+    ) {
         openCardsSheet()
         composeRule.onAllNodesWithText("Red")[teamCardButtonIndex(team)].performClick()
         waitForText("Red Card")
         enterCardPlayerNumber(playerNumber)
         composeRule.onNodeWithText("Record").performClick()
-        waitForText(expectedMessage, substring = true)
+
+        if (misconductChoice == null) {
+            waitForText(expectedMessage, substring = true)
+        } else {
+            waitForText("Misconduct Penalty")
+            if (verifyMisconductBackReturnsToNumberDialog) {
+                pressDialogBack()
+                waitForText("Red Card")
+                val restoredNumber = composeRule.onNodeWithTag("card-player-number")
+                    .fetchSemanticsNode()
+                    .config[SemanticsProperties.EditableText]
+                    .text
+                assertEquals(playerNumber, restoredNumber)
+                composeRule.onNodeWithText("Record").performClick()
+                waitForText("Misconduct Penalty")
+            }
+            composeRule.onNodeWithText(misconductChoice).performClick()
+            waitForText(expectedMisconductMessage ?: expectedMessage, substring = true)
+        }
         composeRule.onNodeWithText("OK").performClick()
     }
 
