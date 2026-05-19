@@ -52,6 +52,9 @@ class TestGamePull : GameDomainTestFixtures() {
         // Verify the first pull-violation message sends play to the brick mark.
         assertEquals("Start at brick mark", pullInfractionResult.message())
         assertEquals("Pull Infraction", pullInfractionResult.event!!.formatPopupTitle())
+        val pullInfractionEvent = pullInfractionResult.event as GameEvent.PullInfractionRecorded
+        assertEquals(state, pullInfractionEvent.state)
+        assertEquals(VC, pullInfractionEvent.team)
         assertFalse(pullInfractionResult.event!!.needsMisconductChoice())
 
         // Verify the same pull sequence cannot record a second offsides for the same team.
@@ -114,6 +117,8 @@ class TestGamePull : GameDomainTestFixtures() {
         assertEquals(ANIMAL, warningEvent.team)
         assertEquals(TimeViolationOutcome.WARNING, warningEvent.outcome)
         assertEquals("Time Violation", warningEvent.formatPopupTitle())
+        val warningGameEvent: GameEvent = warningEvent
+        assertEquals("Time Violation", warningGameEvent.formatPopupTitle())
         assertTrue(timeViolationState.teamTwo.timeViolationWarningIssued)
         assertFalse(timeViolationState.teamOne.timeViolationWarningIssued)
         assertEquals(CountdownKind.PULL_RESET, timeViolationState.countdown?.kind)

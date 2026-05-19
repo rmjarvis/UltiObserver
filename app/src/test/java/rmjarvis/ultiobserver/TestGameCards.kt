@@ -186,11 +186,19 @@ class TestGameCards : GameDomainTestFixtures() {
         )
         val misconductPrompt = cardResult.misconductPrompt()
         assertEquals("Misconduct Penalty", misconductPrompt.formatTitle())
+        val misconductGamePrompt: GamePrompt = misconductPrompt
+        assertEquals("Misconduct Penalty", misconductGamePrompt.formatTitle())
         assertEquals(
             "Red card on player 23.\n" +
                 "Player 23 receives a game suspension.\n" +
                 "Animal has 3 cards.\n\nWas this against the offense or defense?",
             misconductPrompt.formatMessage(),
+        )
+        assertEquals(
+            "Red card on player 23.\n" +
+                "Player 23 receives a game suspension.\n" +
+                "Animal has 3 cards.\n\nWas this against the offense or defense?",
+            misconductGamePrompt.formatMessage(),
         )
         assertTrue(misconductPrompt.resolutionMessage(againstOffense = true).contains("Reverse brick"))
         assertTrue(misconductPrompt.resolutionMessage(againstOffense = false).contains("Brick nearest attacking end zone"))

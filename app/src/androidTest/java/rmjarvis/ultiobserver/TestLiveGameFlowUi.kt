@@ -14,6 +14,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.swipeRight
+import androidx.test.espresso.Espresso.pressBack
 import java.time.LocalTime
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
@@ -81,6 +82,11 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             misconductChoice = "Offense",
             expectedMisconductMessage = "Reverse brick",
         )
+        waitForText("Start Misconduct Countdown")
+        composeRule.onNodeWithTag("live-top-lock").performClick()
+        waitForText("Slide right to unlock")
+        composeRule.onAllNodesWithTag("live-start-misconduct-countdown").assertCountEquals(0)
+        unlockLiveScreen()
         waitForText("Start Misconduct Countdown")
         composeRule.onNodeWithTag("live-start-misconduct-countdown").performClick()
         waitForText("Offense set in", substring = true)
@@ -230,8 +236,13 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Redo").performClick()
         waitForText("Undo Goal by Team 1")
 
-        // Timeout should remain wired after the undo path.
+        // Timeout should remain wired after the undo path, including undo when redo is also available.
         recordTimeout(TeamId.TEAM_ONE, "Undo Timeout by Team 1")
+        composeRule.onNodeWithText("Undo Timeout by Team 1").performClick()
+        waitForText("Undo Goal by Team 1")
+        waitForText("Redo")
+        composeRule.onNodeWithText("Undo Goal by Team 1").performClick()
+        waitForText("Redo")
     }
 
     /// Verify expired-pull actions and timing alert delivery are still wired through the live screen.
@@ -276,6 +287,56 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         waitForText("Time Violation")
         waitForText("Restart Countdown")
 
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val current = activity.appViewModel.liveState!!
+            activity.appViewModel.updateLiveGame(current.copy(pendingCapOffer = CapType.HALF))
+        }
+        waitForText("Apply half cap?")
+        pressBack()
+        waitForText("Apply half cap?")
+        composeRule.onNodeWithText("No").performClick()
+
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val current = activity.appViewModel.liveState!!
+            activity.appViewModel.updateLiveGame(current.copy(pendingCapOffer = CapType.SOFT))
+        }
+        waitForText("Apply soft cap?")
+        composeRule.onNodeWithText("Apply").performClick()
+        waitForText("Undo Apply Soft Cap")
+
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val current = activity.appViewModel.liveState!!
+            val targetEpoch = System.currentTimeMillis() + 90_000L
+            activity.appViewModel.updateLiveGame(
+                current.copy(
+                    phase = LivePhase.BETWEEN_POINTS,
+                    countdown = CountdownState(
+                        kind = CountdownKind.MISCONDUCT_BETWEEN_POINTS,
+                        label = "Offense set in",
+                        durationSeconds = 100,
+                        targetEpoch = targetEpoch,
+                    ),
+                    pullCountdownExpired = false,
+                )
+            )
+        }
+        waitForText("Offense is set")
+        composeRule.onNodeWithText("Offense is set").performClick()
+        waitForText("Defense check in", substring = true)
+
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val current = activity.appViewModel.liveState!!
+            activity.appViewModel.updateLiveGame(
+                current.copy(
+                    phase = LivePhase.BETWEEN_POINTS,
+                    countdown = null,
+                    pullCountdownExpired = true,
+                )
+            )
+        }
+        waitForText("Time Violation")
+        waitForText("Restart Countdown")
+
         // Locking the live screen should hide expired-pull correction actions until unlocked.
         composeRule.onNodeWithTag("live-top-lock").performClick()
         waitForText("Slide right to unlock")
@@ -295,9 +356,31 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         // Time Violation should ask for the violating team and report the warning consequence.
         composeRule.onNodeWithText("Time Violation").performClick()
         waitForText("Which team committed the time violation?")
-        composeRule.onAllNodesWithText("Team 2").onLast().performClick()
+        pressBack()
+        composeRule.onAllNodesWithText("Which team committed the time violation?").assertCountEquals(0)
+        composeRule.onNodeWithText("Time Violation").performClick()
+        waitForText("Which team committed the time violation?")
+        composeRule.onAllNodesWithText("Team 1").onLast().performClick()
         waitForText("now has 30 seconds", substring = true)
         composeRule.onNodeWithText("OK").performClick()
+
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val current = activity.appViewModel.liveState!!
+            activity.appViewModel.updateLiveGame(
+                current.copy(
+                    phase = LivePhase.BETWEEN_POINTS,
+                    countdown = null,
+                    pullCountdownExpired = true,
+                )
+            )
+        }
+        waitForText("Time Violation")
+        composeRule.onNodeWithText("Time Violation").performClick()
+        waitForText("Which team committed the time violation?")
+        composeRule.onAllNodesWithText("Team 2").onLast().performClick()
+        waitForText("now has 30 seconds", substring = true)
+        pressBack()
+        composeRule.onAllNodesWithText("now has 30 seconds", substring = true).assertCountEquals(0)
     }
 
     /// Verify the reserved countdown row prevents field diagram movement when the countdown clears.
@@ -393,6 +476,18 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
     fun automaticLivePointLockCanBeDisabled() {
         startLiveGameProgrammatically()
 
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appViewModel.updateAutomaticallyLockLivePoint(false)
+        }
+        composeRule.onNodeWithText("Start Point").performClick()
+        waitForText("Lock")
+        composeRule.onAllNodesWithText("Slide right to unlock").assertCountEquals(0)
+        recordTimeout(TeamId.TEAM_ONE, "Undo Timeout by Team 1")
+        composeRule.onNodeWithText("Continue Point").performClick()
+        waitForText("Lock")
+        composeRule.onAllNodesWithText("Slide right to unlock").assertCountEquals(0)
+
+        startLiveGameProgrammatically()
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.appViewModel.updateAutomaticallyAdvanceCountdowns(true)
             activity.appViewModel.updateAutomaticallyLockLivePoint(false)

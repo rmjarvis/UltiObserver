@@ -1,6 +1,7 @@
 package rmjarvis.ultiobserver
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
@@ -12,6 +13,7 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.swipeRight
 import java.time.LocalTime
+import androidx.test.espresso.Espresso.pressBack
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -29,6 +31,9 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         startLiveGameProgrammatically()
 
         // Manual correction dialogs should open and return to the Other sheet cleanly.
+        openOtherSheet()
+        pressBack()
+        composeRule.onAllNodesWithText("Update Game Setup").assertCountEquals(0)
         openOtherSheet()
         openOtherDialogAndCancel("Adjust Score")
         openOtherDialogAndCancel("Adjust Timeouts")
@@ -69,7 +74,8 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         openOtherSheet()
         composeRule.onNodeWithText("Start Halftime").performClick()
         waitForText("Halftime")
-        composeRule.onNodeWithText("OK").performClick()
+        // Back dismissal and OK are equivalent acknowledgements for this prompt.
+        pressBack()
         assertLiveScreen()
     }
 

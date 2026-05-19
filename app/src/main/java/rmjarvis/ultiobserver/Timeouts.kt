@@ -8,7 +8,7 @@ package rmjarvis.ultiobserver
  */
 data class TimeoutAssessmentResult(
     val state: LiveGameState,
-    val event: GameEvent? = null,
+    val event: GameEvent,
 )
 
 /**

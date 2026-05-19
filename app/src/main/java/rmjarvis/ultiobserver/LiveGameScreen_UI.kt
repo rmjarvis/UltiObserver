@@ -344,13 +344,10 @@ internal fun LiveGameScreen(
                     onTimeout = { team ->
                         val result = state.assessTimeout(team, now)
                         onStateChange(result.state)
-                        val message = result.event?.formatMessage()
-                        if (message != null) {
-                            showActionInfo(
-                                message = message,
-                                title = result.event.formatPopupTitle(),
-                            )
-                        }
+                        showActionInfo(
+                            message = result.event.formatMessage(),
+                            title = result.event.formatPopupTitle(),
+                        )
                     },
                     onPullInfraction = { team ->
                         val result = state.assessPullInfraction(team)

@@ -2,6 +2,7 @@ package rmjarvis.ultiobserver
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
@@ -30,6 +31,11 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         startLiveGameProgrammatically()
 
         // The Cards / TF sheet should show both team sections with their pull roles.
+        openCardsSheet()
+        composeRule.onNodeWithText("Team 1 (pulling)").assertIsDisplayed()
+        composeRule.onNodeWithText("Team 2 (receiving)").assertIsDisplayed()
+        pressBack()
+        composeRule.onAllNodesWithText("Cards / Technical Fouls").assertCountEquals(0)
         openCardsSheet()
         composeRule.onNodeWithText("Team 1 (pulling)").assertIsDisplayed()
         composeRule.onNodeWithText("Team 2 (receiving)").assertIsDisplayed()

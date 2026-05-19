@@ -187,8 +187,8 @@ abstract class GameDomainTestFixtures {
     }
 
     /// Return the formatted popup message for a timeout assessment.
-    protected fun TimeoutAssessmentResult.message(): String? {
-        return event?.formatMessage()
+    protected fun TimeoutAssessmentResult.message(): String {
+        return event.formatMessage()
     }
 
     /// Return the formatted popup message for a pull-infraction assessment.

@@ -647,6 +647,34 @@ class TestGameClock : GameDomainTestFixtures() {
         val gameOverPrompt = GamePrompt.GameOver(gameOverState)
         assertEquals("Game Over", gameOverPrompt.formatTitle())
         assertEquals("Animal 5\nViscous Coupling 3", gameOverPrompt.formatMessage())
+        // Game-over summaries show the winner first, or Team 1 first when tied.
+        assertEquals(
+            "Viscous Coupling 5\nAnimal 3",
+            GamePrompt.GameOver(
+                gameOverState.copy(
+                    teamOne = gameOverState.teamOne.copy(score = 5),
+                    teamTwo = gameOverState.teamTwo.copy(score = 3),
+                )
+            ).formatMessage(),
+        )
+        assertEquals(
+            "Alpha 4\nBeta 4",
+            GamePrompt.GameOver(
+                gameOverState.copy(
+                    teamOne = gameOverState.teamOne.copy(name = "Alpha", score = 4),
+                    teamTwo = gameOverState.teamTwo.copy(name = "Beta", score = 4),
+                )
+            ).formatMessage(),
+        )
+        assertEquals(
+            "Alpha 4\nBeta 4",
+            GamePrompt.GameOver(
+                gameOverState.copy(
+                    teamOne = gameOverState.teamOne.copy(name = "Beta", score = 4),
+                    teamTwo = gameOverState.teamTwo.copy(name = "Alpha", score = 4),
+                )
+            ).formatMessage(),
+        )
 
         val invalidCardEventException = assertThrows(IllegalArgumentException::class.java) {
             GameEvent.TeamCardsChanged(

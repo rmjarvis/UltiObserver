@@ -171,6 +171,7 @@ class TestGameTimeouts : GameDomainTestFixtures() {
         timeoutResult = state.assessTimeout(VC, halftimeEnd - 1L)
         assertEquals("Timeouts are not available now.", timeoutResult.message())
         assertEquals("Invalid Timeout", timeoutResult.event?.formatPopupTitle())
+        assertEquals(state, (timeoutResult.event as GameEvent.TimeoutUnavailable).state)
         assertEquals(state, timeoutResult.state)
 
         // The UI hides timeout actions after game over; stale timeout commands are idempotent no-ops.
