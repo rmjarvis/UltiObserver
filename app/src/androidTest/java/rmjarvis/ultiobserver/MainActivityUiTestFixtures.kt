@@ -232,10 +232,11 @@ abstract class MainActivityUiTestFixtures {
      */
     protected fun startLiveGameWithDueCap(rowLabel: String, dialogTitle: String) {
         val capType = capTypeForSetupLabels(rowLabel, dialogTitle)
+        val start = LocalDateTime.now().minusSeconds(5)
         startLiveGameProgrammatically(
             newGameSetupState().copy(
-                startDate = LocalDate.now(),
-                startTime = LocalTime.MIDNIGHT,
+                startDate = start.toLocalDate(),
+                startTime = start.toLocalTime(),
                 rules = singleEnabledCapRules(capType, capMinutes = 0),
             )
         )

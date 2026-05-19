@@ -67,7 +67,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onAllNodesWithText("Red").onFirst().performClick()
         composeRule.onNodeWithText("Red Card").assertIsDisplayed()
         composeRule.onNodeWithText("N/A").performClick()
-        waitForText("The player is suspended for the rest of the tournament.")
+        waitForText("The player is suspended for the rest of the tournament.", substring = true)
         assertTrue(
             composeRule.onAllNodesWithText("The player receives a game suspension.")
                 .fetchSemanticsNodes()

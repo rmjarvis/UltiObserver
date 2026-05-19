@@ -163,7 +163,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText("Vibration will be used for any cues that are set to use sound.")
         composeRule.onAllNodesWithTag("settings-sound-volume").assertCountEquals(0)
         composeRule.onAllNodesWithTag("settings-vibrate-with-sounds").assertCountEquals(0)
-        composeRule.onNodeWithText("Sound Settings for Individual Cues").performClick()
+        composeRule.onNodeWithTag("settings-open-timing-cue-settings").performScrollTo().performClick()
         waitForText("Cue Sound Settings")
 
         // Cue settings should show disabled-sound context, support default reset, and persist per-cue edits.
@@ -194,7 +194,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onAllNodesWithTag("settings-vibrate-with-sounds").assertCountEquals(0)
         composeRule.onNodeWithTag("settings-global-alert-SOUNDS_ON").performClick()
         waitForText("Sound Settings for Individual Cues")
-        composeRule.onNodeWithText("Sound Settings for Individual Cues").performClick()
+        composeRule.onNodeWithTag("settings-open-timing-cue-settings").performScrollTo().performClick()
         waitForText("Cue Sound Settings")
         waitForText("Sound previews")
         composeRule.onAllNodesWithText("Note -- sounds are currently not enabled.").assertCountEquals(0)
