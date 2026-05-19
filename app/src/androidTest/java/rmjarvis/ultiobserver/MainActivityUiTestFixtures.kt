@@ -1,6 +1,7 @@
 package rmjarvis.ultiobserver
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -13,9 +14,11 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.swipeRight
+import androidx.test.espresso.Espresso.pressBack
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 
 /// Shared Compose UI navigation and state-seeding helpers for instrumentation tests.
@@ -496,6 +499,7 @@ abstract class MainActivityUiTestFixtures {
      * @param expectedMessage The popup text expected after recording.
      * @param misconductChoice Optional misconduct choice to tap when the card reaches a live-point threshold.
      * @param expectedMisconductMessage Optional threshold-resolution text expected after choosing offense/defense.
+     * @param verifyMisconductBackReturnsToNumberDialog Whether to exercise Back from misconduct choice and verify number-dialog restoration.
      * @param substring Whether expected-message matching should allow substring matches.
      */
     protected fun recordYellowCard(
@@ -504,6 +508,7 @@ abstract class MainActivityUiTestFixtures {
         expectedMessage: String,
         misconductChoice: String? = null,
         expectedMisconductMessage: String? = null,
+        verifyMisconductBackReturnsToNumberDialog: Boolean = false,
         substring: Boolean = false,
     ) {
         openCardsSheet()
@@ -520,6 +525,19 @@ abstract class MainActivityUiTestFixtures {
             waitForText(expectedMessage, substring = substring)
         } else {
             waitForText("Misconduct Penalty")
+            if (verifyMisconductBackReturnsToNumberDialog) {
+                pressBack()
+                waitForText("Yellow Card")
+                if (playerNumber.isNotBlank()) {
+                    val restoredNumber = composeRule.onNodeWithTag("card-player-number")
+                        .fetchSemanticsNode()
+                        .config[SemanticsProperties.EditableText]
+                        .text
+                    assertEquals(playerNumber, restoredNumber)
+                }
+                composeRule.onNodeWithText("Record").performClick()
+                waitForText("Misconduct Penalty")
+            }
             composeRule.onNodeWithText(misconductChoice).performClick()
             waitForText(expectedMisconductMessage ?: expectedMessage, substring = true)
         }

@@ -307,6 +307,20 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         waitForText("Second yellow on player N/A.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
 
+        // Back from a blue-card misconduct choice should cancel that card and return to Cards / TF.
+        openCardsSheet()
+        composeRule.onAllNodesWithText("Blue")[teamCardButtonIndex(TeamId.TEAM_ONE)].performClick()
+        waitForText("Misconduct Penalty")
+        pressBack()
+        waitForText("Cards / Technical Fouls")
+        composeRule.onAllNodesWithText("Misconduct Penalty").assertCountEquals(0)
+        composeRule.onAllNodesWithText("Blue")[teamCardButtonIndex(TeamId.TEAM_ONE)].performClick()
+        waitForText("Misconduct Penalty")
+        composeRule.onNodeWithText("Defense").performClick()
+        waitForText("Brick nearest attacking end zone", substring = true)
+        composeRule.onNodeWithText("OK").performClick()
+        waitForText("Start Misconduct Countdown")
+
         // A player with both a yellow and red has no valid additional red card.
         openCardsSheet()
         composeRule.onAllNodesWithText("Red")[teamCardButtonIndex(TeamId.TEAM_TWO)].performClick()

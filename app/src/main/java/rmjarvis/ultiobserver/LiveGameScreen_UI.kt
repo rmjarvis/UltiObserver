@@ -409,18 +409,12 @@ internal fun LiveGameScreen(
         ModalBottomSheet(onDismissRequest = { showCardsSheet = false }) {
             CardsSheet(
                 state = state,
-                onAssessment = { result ->
-                    onStateChange(result.state)
-                    if (result.needsMisconductChoice) {
-                        activeGamePrompt = GamePrompt.LivePointMisconduct(
-                            event = result.event,
-                        )
-                    } else {
-                        showActionInfo(
-                            message = result.event.formatMessage(),
-                            title = result.event.formatPopupTitle(),
-                        )
-                    }
+                onAssessment = { updatedState, message, title ->
+                    onStateChange(updatedState)
+                    showActionInfo(
+                        message = message,
+                        title = title,
+                    )
                     showCardsSheet = false
                 },
             )
@@ -532,68 +526,21 @@ internal fun LiveGameScreen(
     // Prominent game prompts that are not tied to bottom-sheet workflows.
     if (activeGamePrompt != null) {
         val prompt = activeGamePrompt!!
-        if (prompt is GamePrompt.LivePointMisconduct) {
-            AlertDialog(
-                onDismissRequest = { activeGamePrompt = null },
-                title = { Text(prompt.formatTitle()) },
-                text = {
-                    Text(
-                        text = prompt.formatMessage(),
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            showActionInfo(
-                                message = prompt.resolutionMessage(
-                                    againstOffense = true,
-                                ),
-                                title = prompt.formatTitle(),
-                            )
-                            onStateChange(state.withPendingMisconductCountdown())
-                            activeGamePrompt = null
-                        }
-                    ) {
-                        Text("Offense")
-                    }
-                },
-                dismissButton = {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(
-                            onClick = {
-                                showActionInfo(
-                                    message = prompt.resolutionMessage(
-                                        againstOffense = false,
-                                    ),
-                                    title = prompt.formatTitle(),
-                                )
-                                onStateChange(state.withPendingMisconductCountdown())
-                                activeGamePrompt = null
-                            }
-                        ) {
-                            Text("Defense")
-                        }
-                    }
-                },
-            )
-        } else {
-            AlertDialog(
-                onDismissRequest = { activeGamePrompt = null },
-                title = { Text(prompt.formatTitle()) },
-                text = {
-                    Text(
-                        text = prompt.formatMessage(),
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                },
-                confirmButton = {
-                    TextButton(onClick = { activeGamePrompt = null }) {
-                        Text("OK")
-                    }
-                },
-            )
-        }
+        AlertDialog(
+            onDismissRequest = { activeGamePrompt = null },
+            title = { Text(prompt.formatTitle()) },
+            text = {
+                Text(
+                    text = prompt.formatMessage(),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { activeGamePrompt = null }) {
+                    Text("OK")
+                }
+            },
+        )
     }
 }
 

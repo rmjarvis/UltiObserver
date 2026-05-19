@@ -35,6 +35,24 @@ private data class PendingUnknownYellowChoice(
     val team: TeamId,
 )
 
+/// Previous Cards / TF step to restore when dismissing a live-point misconduct choice.
+private sealed interface PendingMisconductReturn {
+    data class YellowNumber(val team: TeamId, val jerseyNumber: String) : PendingMisconductReturn
+    data class RedNumber(val team: TeamId, val jerseyNumber: String) : PendingMisconductReturn
+    data class UnknownYellow(val team: TeamId) : PendingMisconductReturn
+}
+
+/**
+ * Live-point misconduct assessment waiting for the observer to choose offense or defense.
+ *
+ * @param result The assessed card or technical-foul result before the side choice is applied.
+ * @param returnTo The previous UI step to reopen if the observer dismisses the side-choice prompt.
+ */
+private data class PendingMisconductChoice(
+    val result: CardAssessmentResult,
+    val returnTo: PendingMisconductReturn?,
+)
+
 // Manual card/TF correction dialog, including the per-player reconciliation flow.
 @Composable
 internal fun AdjustCardsDialog(
@@ -199,17 +217,54 @@ internal fun AdjustCardsDialog(
  * Render the bottom sheet for recording cards and technical fouls for either team.
  *
  * @param state The current live game state used for team names, card summaries, and assessments.
- * @param onAssessment Callback receiving the model assessment after the observer records a card or technical foul.
+ * @param onAssessment Callback receiving the completed state plus popup text after a card or technical foul.
  */
 @Composable
 internal fun CardsSheet(
     state: LiveGameState,
-    onAssessment: (CardAssessmentResult) -> Unit,
+    onAssessment: (LiveGameState, String, String) -> Unit,
 ) {
     var pendingYellowTeam by remember { mutableStateOf<TeamId?>(null) }
+    var pendingYellowInitialNumber by remember { mutableStateOf("") }
     var pendingRedTeam by remember { mutableStateOf<TeamId?>(null) }
+    var pendingRedInitialNumber by remember { mutableStateOf("") }
     var pendingUnknownYellowChoice by remember { mutableStateOf<PendingUnknownYellowChoice?>(null) }
+    var pendingMisconductChoice by remember { mutableStateOf<PendingMisconductChoice?>(null) }
     var invalidCardAssignmentMessage by remember { mutableStateOf<String?>(null) }
+
+    fun completeAssessment(result: CardAssessmentResult) {
+        onAssessment(
+            result.state,
+            result.event.formatMessage(),
+            result.event.formatPopupTitle(),
+        )
+    }
+
+    fun presentAssessment(result: CardAssessmentResult, returnTo: PendingMisconductReturn?) {
+        if (result.needsMisconductChoice) {
+            pendingMisconductChoice = PendingMisconductChoice(result, returnTo)
+        } else {
+            completeAssessment(result)
+        }
+    }
+
+    fun restoreMisconductReturn(returnTo: PendingMisconductReturn?) {
+        pendingMisconductChoice = null
+        when (returnTo) {
+            is PendingMisconductReturn.YellowNumber -> {
+                pendingYellowInitialNumber = returnTo.jerseyNumber
+                pendingYellowTeam = returnTo.team
+            }
+            is PendingMisconductReturn.RedNumber -> {
+                pendingRedInitialNumber = returnTo.jerseyNumber
+                pendingRedTeam = returnTo.team
+            }
+            is PendingMisconductReturn.UnknownYellow -> {
+                pendingUnknownYellowChoice = PendingUnknownYellowChoice(returnTo.team)
+            }
+            null -> Unit
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -224,10 +279,10 @@ internal fun CardsSheet(
             onYellow = { pendingYellowTeam = TeamId.TEAM_ONE },
             onRed = { pendingRedTeam = TeamId.TEAM_ONE },
             onBlue = {
-                onAssessment(state.assessBlueCard(TeamId.TEAM_ONE))
+                presentAssessment(state.assessBlueCard(TeamId.TEAM_ONE), returnTo = null)
             },
             onTech = {
-                onAssessment(state.assessTechnicalFoul(TeamId.TEAM_ONE))
+                presentAssessment(state.assessTechnicalFoul(TeamId.TEAM_ONE), returnTo = null)
             },
         )
         TeamActionSection(
@@ -236,10 +291,10 @@ internal fun CardsSheet(
             onYellow = { pendingYellowTeam = TeamId.TEAM_TWO },
             onRed = { pendingRedTeam = TeamId.TEAM_TWO },
             onBlue = {
-                onAssessment(state.assessBlueCard(TeamId.TEAM_TWO))
+                presentAssessment(state.assessBlueCard(TeamId.TEAM_TWO), returnTo = null)
             },
             onTech = {
-                onAssessment(state.assessTechnicalFoul(TeamId.TEAM_TWO))
+                presentAssessment(state.assessTechnicalFoul(TeamId.TEAM_TWO), returnTo = null)
             },
         )
         Spacer(modifier = Modifier.height(24.dp))
@@ -249,17 +304,26 @@ internal fun CardsSheet(
         PlayerNumberDialog(
             title = "Yellow Card",
             teamName = state.teamFor(pendingYellowTeam!!).name,
-            onDismiss = { pendingYellowTeam = null },
+            initialJerseyNumber = pendingYellowInitialNumber,
+            onDismiss = {
+                pendingYellowInitialNumber = ""
+                pendingYellowTeam = null
+            },
             onConfirm = { jerseyNumber ->
+                val team = pendingYellowTeam!!
                 // Yellow on N/A needs a follow-up question if an unknown player already has one.
                 if (
                     jerseyNumber == UNKNOWN_PLAYER_NUMBER &&
-                    state.playerHasYellowThisGame(pendingYellowTeam!!, UNKNOWN_PLAYER_NUMBER)
+                    state.playerHasYellowThisGame(team, UNKNOWN_PLAYER_NUMBER)
                 ) {
-                    pendingUnknownYellowChoice = PendingUnknownYellowChoice(pendingYellowTeam!!)
+                    pendingUnknownYellowChoice = PendingUnknownYellowChoice(team)
                 } else {
-                    onAssessment(state.assessYellowCard(pendingYellowTeam!!, jerseyNumber))
+                    presentAssessment(
+                        state.assessYellowCard(team, jerseyNumber),
+                        PendingMisconductReturn.YellowNumber(team, jerseyNumber),
+                    )
                 }
+                pendingYellowInitialNumber = ""
                 pendingYellowTeam = null
             },
         )
@@ -269,14 +333,23 @@ internal fun CardsSheet(
         PlayerNumberDialog(
             title = "Red Card",
             teamName = state.teamFor(pendingRedTeam!!).name,
-            onDismiss = { pendingRedTeam = null },
+            initialJerseyNumber = pendingRedInitialNumber,
+            onDismiss = {
+                pendingRedInitialNumber = ""
+                pendingRedTeam = null
+            },
             onConfirm = { jerseyNumber ->
-                if (canAddPlayerCardAssignment(state.playerCards(pendingRedTeam!!), jerseyNumber, CardType.RED)) {
-                    onAssessment(state.assessRedCard(pendingRedTeam!!, jerseyNumber, RedCardMode.RED))
+                val team = pendingRedTeam!!
+                if (canAddPlayerCardAssignment(state.playerCards(team), jerseyNumber, CardType.RED)) {
+                    presentAssessment(
+                        state.assessRedCard(team, jerseyNumber, RedCardMode.RED),
+                        PendingMisconductReturn.RedNumber(team, jerseyNumber),
+                    )
                 } else {
                     invalidCardAssignmentMessage =
-                        "${state.teamFor(pendingRedTeam!!).name} #$jerseyNumber already has the maximum valid card combination."
+                        "${state.teamFor(team).name} #$jerseyNumber already has the maximum valid card combination."
                 }
+                pendingRedInitialNumber = ""
                 pendingRedTeam = null
             },
         )
@@ -300,23 +373,69 @@ internal fun CardsSheet(
             teamName = state.teamFor(pendingUnknownYellowChoice!!.team).name,
             onDismiss = { pendingUnknownYellowChoice = null },
             onSamePlayer = {
-                onAssessment(
+                val team = pendingUnknownYellowChoice!!.team
+                presentAssessment(
                     state.assessRedCard(
-                        pendingUnknownYellowChoice!!.team,
+                        team,
                         UNKNOWN_PLAYER_NUMBER,
                         RedCardMode.SECOND_YELLOW,
-                    )
+                    ),
+                    PendingMisconductReturn.UnknownYellow(team),
                 )
                 pendingUnknownYellowChoice = null
             },
             onDifferentPlayer = {
-                onAssessment(
+                val team = pendingUnknownYellowChoice!!.team
+                presentAssessment(
                     state.assessStandaloneYellowCard(
-                        pendingUnknownYellowChoice!!.team,
+                        team,
                         UNKNOWN_PLAYER_NUMBER,
-                    )
+                    ),
+                    PendingMisconductReturn.UnknownYellow(team),
                 )
                 pendingUnknownYellowChoice = null
+            },
+        )
+    }
+
+    pendingMisconductChoice?.let { pending ->
+        val prompt = GamePrompt.LivePointMisconduct(pending.result.event)
+        AlertDialog(
+            onDismissRequest = { restoreMisconductReturn(pending.returnTo) },
+            title = { Text(prompt.formatTitle()) },
+            text = {
+                Text(
+                    text = prompt.formatMessage(),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onAssessment(
+                            pending.result.state.withPendingMisconductCountdown(),
+                            prompt.resolutionMessage(againstOffense = true),
+                            prompt.formatTitle(),
+                        )
+                        pendingMisconductChoice = null
+                    }
+                ) {
+                    Text("Offense")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        onAssessment(
+                            pending.result.state.withPendingMisconductCountdown(),
+                            prompt.resolutionMessage(againstOffense = false),
+                            prompt.formatTitle(),
+                        )
+                        pendingMisconductChoice = null
+                    }
+                ) {
+                    Text("Defense")
+                }
             },
         )
     }
@@ -434,10 +553,13 @@ private fun AssignedCardRemovalDialog(
 internal fun PlayerNumberDialog(
     title: String,
     teamName: String,
+    initialJerseyNumber: String = "",
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit,
 ) {
-    var jerseyNumber by remember { mutableStateOf("") }
+    var jerseyNumber by remember(initialJerseyNumber) {
+        mutableStateOf(initialJerseyNumber.takeUnless { it == UNKNOWN_PLAYER_NUMBER } ?: "")
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,

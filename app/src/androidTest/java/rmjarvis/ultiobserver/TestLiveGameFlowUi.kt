@@ -73,6 +73,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         continuePointAndUnlock()
 
         // Viscous Coupling gets two early card points, then a third card that needs a misconduct choice.
+        // Back from that choice should return to the player-number dialog with the entered number intact.
         recordYellowCard(TeamId.TEAM_ONE, "17", "Yellow card on player 17.\n$viscousCoupling has 1 card.")
         recordBlueCard(TeamId.TEAM_ONE, "$viscousCoupling has 2 cards.")
         recordYellowCard(
@@ -81,6 +82,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             expectedMessage = "$viscousCoupling has 3 cards.",
             misconductChoice = "Offense",
             expectedMisconductMessage = "Reverse brick",
+            verifyMisconductBackReturnsToNumberDialog = true,
         )
         waitForText("Start Misconduct Countdown")
         composeRule.onNodeWithTag("live-top-lock").performClick()
