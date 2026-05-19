@@ -1,10 +1,10 @@
 package rmjarvis.ultiobserver
 
 /**
- * State and optional popup event from trying to charge a timeout.
+ * State and popup event from trying to charge a timeout.
  *
  * @param state The live state after the timeout attempt.
- * @param event The observer-facing event to show, or null when no popup is needed.
+ * @param event The observer-facing event to show.
  */
 data class TimeoutAssessmentResult(
     val state: LiveGameState,

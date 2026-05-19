@@ -2,6 +2,7 @@ package rmjarvis.ultiobserver
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertTextEquals
@@ -139,7 +140,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         // Seed settings directly so this UI-focused test can start at a meaningful cue state.
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.appViewModel.updateTimingAlertGlobalMode(TimingAlertGlobalMode.VIBRATION_ONLY)
-            activity.appViewModel.updateTimingAlertVibrateWithSounds(false)
+            activity.appViewModel.updateTimingAlertVibrateWithSounds(true)
             activity.appViewModel.updateTimingCueMode(
                 TimingCueId.RECEIVING_TWENTY_FOR_HAND,
                 TimingAlertMode.NONE,
@@ -168,7 +169,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
 
         // Cue settings should show disabled-sound context, support default reset, and persist per-cue edits.
         waitForText("Reset all to defaults")
-        waitForText("Note -- sounds are currently not enabled. If you want sounds, enable them on the previous page.")
+        waitForText("The phone will currently vibrate instead for any cues with sounds.", substring = true)
         composeRule.onNodeWithTag("settings-RECEIVING_TWENTY_FOR_HAND-NONE").assertIsSelected()
         composeRule.onNodeWithTag("settings-reset-timing-cue-defaults").performClick()
         composeRule.onNodeWithTag("settings-RECEIVING_TWENTY_FOR_HAND-TICK").assertIsSelected()
@@ -183,15 +184,20 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText("Also vibrate on cues that use sound?")
 
         // Re-enabled sound settings should expose vibration, preview, and repeat-count controls.
-        composeRule.onNodeWithTag("settings-vibrate-with-sounds-value").assertTextEquals("No")
+        composeRule.onNodeWithTag("settings-vibrate-with-sounds-value").assertTextEquals("Yes")
         composeRule.onNodeWithTag("settings-sound-volume").assertIsEnabled()
         composeRule.onNodeWithTag("settings-vibrate-with-sounds").assertIsEnabled()
         composeRule.onNodeWithTag("settings-vibrate-with-sounds").performClick()
-        composeRule.onNodeWithTag("settings-vibrate-with-sounds-value").assertTextEquals("Yes")
+        composeRule.onNodeWithTag("settings-vibrate-with-sounds-value").assertTextEquals("No")
         composeRule.onNodeWithText("Off").performClick()
         waitForText("No sound or vibration will be used for any timing cues.")
         composeRule.onAllNodesWithTag("settings-sound-volume").assertCountEquals(0)
         composeRule.onAllNodesWithTag("settings-vibrate-with-sounds").assertCountEquals(0)
+        composeRule.onNodeWithTag("settings-open-timing-cue-settings").performScrollTo().performClick()
+        waitForText("Cue Sound Settings")
+        waitForText("Note -- sounds are currently not enabled. If you want sounds", substring = true)
+        pressAppBack()
+        waitForText("Use sounds and vibration for timing cues?")
         composeRule.onNodeWithTag("settings-global-alert-SOUNDS_ON").performClick()
         waitForText("Sound Settings for Individual Cues")
         composeRule.onNodeWithTag("settings-open-timing-cue-settings").performScrollTo().performClick()
@@ -204,6 +210,8 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText("x3")
         composeRule.onNodeWithTag("settings-HALF_CAP-REPEAT_3").performScrollTo().performClick()
         composeRule.onNodeWithTag("settings-HALF_CAP-REPEAT_3").assertIsSelected()
+        composeRule.onNodeWithTag("settings-HALF_CAP-REPEAT_3").performClick()
+        composeRule.onNodeWithTag("settings-HALF_CAP-REPEAT_3").assertIsNotSelected()
         waitForText("Before Pull - Offense")
         waitForText("Timeout Between Points")
         waitForText("Caps")

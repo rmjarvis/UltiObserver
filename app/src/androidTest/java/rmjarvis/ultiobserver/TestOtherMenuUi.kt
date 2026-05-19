@@ -147,12 +147,18 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         val firstArchivedTitle = "$firstTeamOne 0 - 0 $firstTeamTwo"
         val secondArchivedTitle = "$secondTeamOne 0 - 0 $secondTeamTwo"
 
-        // Verify the bulk delete path removes every archived row after slider confirmation.
+        // Cancel once from bulk delete, then confirm it removes every archived row.
         seedArchivedGameProgrammatically(firstTeamOne, firstTeamTwo)
         seedArchivedGameProgrammatically(secondTeamOne, secondTeamTwo)
         openArchivedGamesScreen()
         waitForText(firstArchivedTitle)
         waitForText(secondArchivedTitle)
+        composeRule.onNodeWithTag("delete-all-archived-games").performClick()
+        waitForText("This cannot be undone", substring = true)
+        composeRule.onNodeWithText("Cancel").performClick()
+        composeRule.onNodeWithText(firstArchivedTitle).assertIsDisplayed()
+        composeRule.onNodeWithText(secondArchivedTitle).assertIsDisplayed()
+
         composeRule.onNodeWithTag("delete-all-archived-games").performClick()
         waitForText("This cannot be undone", substring = true)
         confirmDeleteWithSlider("Delete All Games?")

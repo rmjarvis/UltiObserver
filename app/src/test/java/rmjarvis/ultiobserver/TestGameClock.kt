@@ -164,6 +164,18 @@ class TestGameClock : GameDomainTestFixtures() {
             )
                 .repeatCountFor(TimingCueId.PULLING_TWENTY_TO_PULL),
         )
+        assertEquals(
+            1,
+            defaultTimingAlertPreferences.copy(
+                cueRepeatCounts = mapOf(TimingCueId.PULLING_TWENTY_TO_PULL to 0),
+            )
+                .repeatCountFor(TimingCueId.PULLING_TWENTY_TO_PULL),
+        )
+        assertEquals(
+            1,
+            defaultTimingAlertPreferences.copy(cueRepeatCounts = emptyMap())
+                .repeatCountFor(TimingCueId.PULLING_TWENTY_TO_PULL),
+        )
         assertEquals(TimingAlertSound.TICK, TimingAlertMode.TICK.toTimingAlertSound())
         assertEquals(TimingAlertSound.BEEP, TimingAlertMode.BEEP.toTimingAlertSound())
         assertEquals(TimingAlertSound.DING, TimingAlertMode.DING.toTimingAlertSound())
@@ -719,6 +731,50 @@ class TestGameClock : GameDomainTestFixtures() {
         assertEquals(2, dueAlertIds.size)
         assertTrue(TimingCueId.TIMEOUT_OFFENSE_FREEZE_DEFENSE_TWENTY in dueAlertIds)
         assertTrue(TimingCueId.HALF_CAP in dueAlertIds)
+
+        val countdownCueBeforeCap = state.copy(
+            countdown = CountdownState(
+                kind = CountdownKind.TIME_OUT,
+                label = "Offense set in",
+                durationSeconds = 70,
+                targetEpoch = halfCapTime + 25_000L,
+            )
+        )
+        assertEquals(
+            TimingCueId.TIMEOUT_CLEAR_FIELD,
+            countdownCueBeforeCap.nextTimingAlert(halfCapTime - 10_000L)?.id,
+        )
+
+        val capCueBeforeCountdown = state.copy(
+            countdown = CountdownState(
+                kind = CountdownKind.TIME_OUT,
+                label = "Offense set in",
+                durationSeconds = 70,
+                targetEpoch = halfCapTime + 60_000L,
+            )
+        )
+        assertEquals(
+            TimingCueId.HALF_CAP,
+            capCueBeforeCountdown.nextTimingAlert(halfCapTime - 10_000L)?.id,
+        )
+
+        val dueAlertsWithEarlierCap = state.copy(
+            countdown = CountdownState(
+                kind = CountdownKind.TIME_OUT,
+                label = "Offense set in",
+                durationSeconds = 70,
+                targetEpoch = halfCapTime + 20_500L,
+            )
+        ).dueTimingAlerts(halfCapTime + 500L).map { cue -> cue.id }
+        assertEquals(
+            listOf(TimingCueId.HALF_CAP, TimingCueId.TIMEOUT_OFFENSE_TWENTY),
+            dueAlertsWithEarlierCap,
+        )
+
+        val dueAlertsWithoutCap = stateWithDueCountdown.copy(halfCapApplied = true)
+            .dueTimingAlerts(halfCapTime)
+            .map { cue -> cue.id }
+        assertEquals(listOf(TimingCueId.TIMEOUT_OFFENSE_FREEZE_DEFENSE_TWENTY), dueAlertsWithoutCap)
 
         state = state.copy(halfCapApplied = true)
         assertEquals(TimingCueId.SOFT_CAP, state.dueCapTimingCue(state.startEpoch + 90 * 60_000L)?.id)
