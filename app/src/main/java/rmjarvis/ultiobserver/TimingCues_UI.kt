@@ -1,6 +1,5 @@
 package rmjarvis.ultiobserver
 
-import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -51,8 +50,8 @@ internal fun TimingAlertCueListener(
                 playTimingAlerts(
                     timingAlerts = unplayedTimingAlerts,
                     timingAlertPreferences = timingAlertPreferences,
-                    context = context,
                     timingAlertPlayer = timingAlertPlayer,
+                    performHaptic = { durationMillis -> context.performTimingCueHaptic(durationMillis) },
                     alertPlaybackScope = alertPlaybackScope,
                     onAlertKeysPlayed = { alertKeys -> playedTimingAlertKeys += alertKeys },
                 )
@@ -79,8 +78,8 @@ internal fun TimingAlertCueListener(
                 playTimingAlerts(
                     timingAlerts = listOf(nextTimingAlert),
                     timingAlertPreferences = timingAlertPreferences,
-                    context = context,
                     timingAlertPlayer = timingAlertPlayer,
+                    performHaptic = { durationMillis -> context.performTimingCueHaptic(durationMillis) },
                     alertPlaybackScope = alertPlaybackScope,
                     onAlertKeysPlayed = { alertKeys -> playedTimingAlertKeys += alertKeys },
                 )
@@ -94,16 +93,16 @@ internal fun TimingAlertCueListener(
  *
  * @param timingAlerts The timing cues to play.
  * @param timingAlertPreferences The alert settings controlling sound, vibration, and repeat count.
- * @param context Android context used for haptics.
  * @param timingAlertPlayer Sound player used for audible cues.
+ * @param performHaptic Callback that performs one haptic pulse.
  * @param alertPlaybackScope Coroutine scope for background playback.
  * @param onAlertKeysPlayed Callback recording cue keys so recomposition does not replay them.
  */
 private fun playTimingAlerts(
     timingAlerts: List<TimingCueDisplay>,
     timingAlertPreferences: TimingAlertPreferences,
-    context: Context,
     timingAlertPlayer: TimingAlertPlayer,
+    performHaptic: suspend (Long) -> Unit,
     alertPlaybackScope: CoroutineScope,
     onAlertKeysPlayed: (Set<String>) -> Unit,
 ) {
@@ -113,8 +112,8 @@ private fun playTimingAlerts(
             playTimingAlertOnce(
                 cue = cue,
                 timingAlertPreferences = timingAlertPreferences,
-                context = context,
                 timingAlertPlayer = timingAlertPlayer,
+                performHaptic = performHaptic,
                 playedTimingAlertKeys = emptySet(),
                 onAlertKeyPlayed = {},
             )

@@ -64,10 +64,6 @@ internal class TimingAlertPlayer internal constructor(
      * @param volume The requested playback volume, clamped to the SoundPool range.
      */
     fun play(sound: TimingAlertSound, repeatCount: Int, volume: Float) {
-        require(repeatCount in MIN_TIMING_ALERT_REPEAT_COUNT..MAX_TIMING_ALERT_REPEAT_COUNT) {
-            "Timing alert repeat count must be between $MIN_TIMING_ALERT_REPEAT_COUNT and " +
-                "$MAX_TIMING_ALERT_REPEAT_COUNT."
-        }
         val clip = TimingAlertSoundClip(sound, repeatCount)
         val playVolume = volume.coerceIn(0f, 1f)
         if (clip in loadedSounds) {
@@ -101,7 +97,14 @@ internal class TimingAlertPlayer internal constructor(
  * @param sound The base sound family.
  * @param repeatCount The number of repeated cues encoded in the clip.
  */
-internal data class TimingAlertSoundClip(val sound: TimingAlertSound, val repeatCount: Int)
+internal data class TimingAlertSoundClip(val sound: TimingAlertSound, val repeatCount: Int) {
+    init {
+        require(repeatCount in MIN_TIMING_ALERT_REPEAT_COUNT..MAX_TIMING_ALERT_REPEAT_COUNT) {
+            "Timing alert repeat count must be between $MIN_TIMING_ALERT_REPEAT_COUNT and " +
+                "$MAX_TIMING_ALERT_REPEAT_COUNT."
+        }
+    }
+}
 
 /// List every sound clip that should be preloaded for timing alerts.
 private fun timingAlertSoundClips(): List<TimingAlertSoundClip> {
@@ -200,37 +203,36 @@ private class AndroidTimingAlertSoundPlayer : TimingAlertSoundPlayer {
     }
 }
 
+private val timingAlertRawResources = mapOf(
+    // Repeated cues are pre-rendered raw resources so playback uses one SoundPool call at runtime.
+    // CC0 excerpts from Wikimedia Commons: Clicker_sound.ogg.
+    TimingAlertSound.TICK to listOf(
+        R.raw.timing_tick,
+        R.raw.timing_tick_x2,
+        R.raw.timing_tick_x3,
+    ),
+    TimingAlertSound.BEEP to listOf(
+        R.raw.timing_beep,
+        R.raw.timing_beep_x2,
+        R.raw.timing_beep_x3,
+    ),
+    // Excerpts from Pixabay Content License sound: Ding~ by u_31vnwfmzt6.
+    TimingAlertSound.DING to listOf(
+        R.raw.timing_ding,
+        R.raw.timing_ding_x2,
+        R.raw.timing_ding_x3,
+    ),
+    // Public-domain excerpts from Wikimedia Commons: Knocking_on_wood_or_door.ogg.
+    TimingAlertSound.KNOCK to listOf(
+        R.raw.timing_knock,
+        R.raw.timing_knock_x2,
+        R.raw.timing_knock_x3,
+    ),
+)
+
 /// Return the raw resource id for a timing alert sound clip.
-private fun TimingAlertSoundClip.rawResourceId(): Int {
-    return when (sound) {
-        // CC0 excerpts from Wikimedia Commons: Clicker_sound.ogg.
-        TimingAlertSound.TICK -> when (repeatCount) {
-            1 -> R.raw.timing_tick
-            2 -> R.raw.timing_tick_x2
-            3 -> R.raw.timing_tick_x3
-            else -> error("Unsupported repeat count: $repeatCount")
-        }
-        TimingAlertSound.BEEP -> when (repeatCount) {
-            1 -> R.raw.timing_beep
-            2 -> R.raw.timing_beep_x2
-            3 -> R.raw.timing_beep_x3
-            else -> error("Unsupported repeat count: $repeatCount")
-        }
-        // Excerpts from Pixabay Content License sound: Ding~ by u_31vnwfmzt6.
-        TimingAlertSound.DING -> when (repeatCount) {
-            1 -> R.raw.timing_ding
-            2 -> R.raw.timing_ding_x2
-            3 -> R.raw.timing_ding_x3
-            else -> error("Unsupported repeat count: $repeatCount")
-        }
-        // Public-domain excerpts from Wikimedia Commons: Knocking_on_wood_or_door.ogg.
-        TimingAlertSound.KNOCK -> when (repeatCount) {
-            1 -> R.raw.timing_knock
-            2 -> R.raw.timing_knock_x2
-            3 -> R.raw.timing_knock_x3
-            else -> error("Unsupported repeat count: $repeatCount")
-        }
-    }
+internal fun TimingAlertSoundClip.rawResourceId(): Int {
+    return timingAlertRawResources.getValue(sound)[repeatCount - MIN_TIMING_ALERT_REPEAT_COUNT]
 }
 
 /**
@@ -238,16 +240,16 @@ private fun TimingAlertSoundClip.rawResourceId(): Int {
  *
  * @param cue The cue to play.
  * @param timingAlertPreferences The current alert settings.
- * @param context Android context used for haptics.
  * @param timingAlertPlayer Sound player used for audible cues.
+ * @param performHaptic Callback that performs one haptic pulse.
  * @param playedTimingAlertKeys Cue keys already played by the caller.
  * @param onAlertKeyPlayed Callback recording this cue key before playback.
  */
 internal suspend fun playTimingAlertOnce(
     cue: TimingCueDisplay,
     timingAlertPreferences: TimingAlertPreferences,
-    context: Context,
     timingAlertPlayer: TimingAlertPlayer,
+    performHaptic: suspend (Long) -> Unit,
     playedTimingAlertKeys: Set<String>,
     onAlertKeyPlayed: (String) -> Unit,
 ) {
@@ -263,27 +265,22 @@ internal suspend fun playTimingAlertOnce(
     }
 
     val repeatCount = timingAlertPreferences.repeatCountFor(cue.id)
-    when (alertMode) {
-        TimingAlertMode.NONE -> Unit
-        TimingAlertMode.VIBRATE -> {
-            repeat(repeatCount) { pulseIndex ->
-                context.performTimingCueHaptic(
-                    timingAlertPreferences.vibrationDurationMillis,
-                )
-                if (pulseIndex < repeatCount - 1) {
-                    delay(timingAlertPreferences.vibrationRepeatSpacingMillis())
-                }
+    if (alertMode == TimingAlertMode.VIBRATE) {
+        repeat(repeatCount) { pulseIndex ->
+            performHaptic(
+                timingAlertPreferences.vibrationDurationMillis,
+            )
+            if (pulseIndex < repeatCount - 1) {
+                delay(timingAlertPreferences.vibrationRepeatSpacingMillis())
             }
         }
-        TimingAlertMode.TICK,
-        TimingAlertMode.BEEP,
-        TimingAlertMode.DING,
-        TimingAlertMode.KNOCK -> playTimingSound(
+    } else {
+        playTimingSound(
             alertMode.toTimingAlertSound(),
             repeatCount,
             timingAlertPreferences,
-            context,
             timingAlertPlayer,
+            performHaptic,
         )
     }
 }
@@ -294,19 +291,19 @@ internal suspend fun playTimingAlertOnce(
  * @param sound The sound family to play.
  * @param repeatCount The configured repeat count.
  * @param timingAlertPreferences Current alert preferences for volume and haptic pairing.
- * @param context Android context used for haptics.
  * @param timingAlertPlayer Sound player used for audible cues.
+ * @param performHaptic Callback that performs one haptic pulse.
  */
 private suspend fun playTimingSound(
     sound: TimingAlertSound,
     repeatCount: Int,
     timingAlertPreferences: TimingAlertPreferences,
-    context: Context,
     timingAlertPlayer: TimingAlertPlayer,
+    performHaptic: suspend (Long) -> Unit,
 ) {
     timingAlertPlayer.play(sound, repeatCount, timingAlertPreferences.soundVolume)
     if (timingAlertPreferences.vibrateWithSounds) {
-        context.performTimingCueHaptic(timingAlertPreferences.vibrationDurationMillis)
+        performHaptic(timingAlertPreferences.vibrationDurationMillis)
     }
 }
 

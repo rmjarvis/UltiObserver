@@ -6,6 +6,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -171,6 +172,21 @@ class TestGameClock : GameDomainTestFixtures() {
             listOf(TimingAlertSound.TICK, TimingAlertSound.BEEP, TimingAlertSound.KNOCK, TimingAlertSound.DING),
             TimingAlertSound.entries,
         )
+        val expectedRawResources = mapOf(
+            TimingAlertSound.TICK to listOf(R.raw.timing_tick, R.raw.timing_tick_x2, R.raw.timing_tick_x3),
+            TimingAlertSound.BEEP to listOf(R.raw.timing_beep, R.raw.timing_beep_x2, R.raw.timing_beep_x3),
+            TimingAlertSound.KNOCK to listOf(R.raw.timing_knock, R.raw.timing_knock_x2, R.raw.timing_knock_x3),
+            TimingAlertSound.DING to listOf(R.raw.timing_ding, R.raw.timing_ding_x2, R.raw.timing_ding_x3),
+        )
+        expectedRawResources.forEach { (sound, rawResources) ->
+            rawResources.forEachIndexed { repeatIndex, rawResource ->
+                assertEquals(
+                    "Raw resource for $sound x${repeatIndex + MIN_TIMING_ALERT_REPEAT_COUNT}",
+                    rawResource,
+                    TimingAlertSoundClip(sound, repeatIndex + MIN_TIMING_ALERT_REPEAT_COUNT).rawResourceId(),
+                )
+            }
+        }
         val nonSoundModeException = assertThrows(IllegalStateException::class.java) {
             TimingAlertMode.VIBRATE.toTimingAlertSound()
         }
@@ -228,14 +244,108 @@ class TestGameClock : GameDomainTestFixtures() {
         val invalidRepeatCountException = assertThrows(IllegalArgumentException::class.java) {
             timingAlertPlayer.play(TimingAlertSound.TICK, 4, 0.5f)
         }
+        assertThrows(IllegalArgumentException::class.java) {
+            timingAlertPlayer.play(TimingAlertSound.TICK, 0, 0.5f)
+        }
         assertEquals(
             "Timing alert repeat count must be between 1 and 3.",
             invalidRepeatCountException.message,
         )
+        // Deliver cue alerts through the same helper used by the app-level listener.
+        val alertKeys = mutableListOf<String>()
+        val performedHaptics = mutableListOf<Long>()
+        val soundCue = TimingCueDisplay(
+            id = TimingCueId.HALF_CAP,
+            message = "Half cap",
+            remaining = Duration.ZERO,
+            countdownTime = Duration.ZERO,
+            targetEpoch = 123_000L,
+        )
+        runBlocking {
+            playTimingAlertOnce(
+                cue = soundCue,
+                timingAlertPreferences = TimingAlertPreferences(
+                    globalMode = TimingAlertGlobalMode.SOUNDS_ON,
+                    soundVolume = 0.25f,
+                    vibrateWithSounds = true,
+                    vibrationDurationMillis = 80L,
+                    cueModes = mapOf(TimingCueId.HALF_CAP to TimingAlertMode.DING),
+                    cueRepeatCounts = mapOf(TimingCueId.HALF_CAP to 3),
+                ),
+                timingAlertPlayer = timingAlertPlayer,
+                performHaptic = { durationMillis -> performedHaptics += durationMillis },
+                playedTimingAlertKeys = emptySet(),
+                onAlertKeyPlayed = { alertKey -> alertKeys += alertKey },
+            )
+        }
+        assertEquals(listOf("HALF_CAP:123000"), alertKeys)
+        soundPlayer.completeLoad(soundIds.getValue(TimingAlertSoundClip(TimingAlertSound.DING, 3)))
+        assertEquals(
+            PlayedTimingAlertSound(soundIds.getValue(TimingAlertSoundClip(TimingAlertSound.DING, 3)), 0.25f),
+            soundPlayer.playedSounds.last(),
+        )
+
+        runBlocking {
+            playTimingAlertOnce(
+                cue = soundCue.copy(targetEpoch = 123_500L),
+                timingAlertPreferences = TimingAlertPreferences(
+                    globalMode = TimingAlertGlobalMode.SOUNDS_ON,
+                    soundVolume = 0.6f,
+                    vibrateWithSounds = false,
+                    cueModes = mapOf(TimingCueId.HALF_CAP to TimingAlertMode.TICK),
+                    cueRepeatCounts = mapOf(TimingCueId.HALF_CAP to 1),
+                ),
+                timingAlertPlayer = timingAlertPlayer,
+                performHaptic = { durationMillis -> performedHaptics += durationMillis },
+                playedTimingAlertKeys = emptySet(),
+                onAlertKeyPlayed = {},
+            )
+        }
+        assertEquals(
+            PlayedTimingAlertSound(soundIds.getValue(tickClip), 0.6f),
+            soundPlayer.playedSounds.last(),
+        )
+
+        val mutedAlertKeys = mutableListOf<String>()
+        runBlocking {
+            playTimingAlertOnce(
+                cue = soundCue.copy(targetEpoch = 124_000L),
+                timingAlertPreferences = TimingAlertPreferences(
+                    cueModes = mapOf(TimingCueId.HALF_CAP to TimingAlertMode.NONE),
+                ),
+                timingAlertPlayer = timingAlertPlayer,
+                performHaptic = { durationMillis -> performedHaptics += durationMillis },
+                playedTimingAlertKeys = emptySet(),
+                onAlertKeyPlayed = { alertKey -> mutedAlertKeys += alertKey },
+            )
+        }
+        assertEquals(listOf("HALF_CAP:124000"), mutedAlertKeys)
+        assertEquals(
+            PlayedTimingAlertSound(soundIds.getValue(tickClip), 0.6f),
+            soundPlayer.playedSounds.last(),
+        )
+
+        runBlocking {
+            playTimingAlertOnce(
+                cue = soundCue.copy(id = TimingCueId.MISCONDUCT_DEFENSE_TWENTY, targetEpoch = 125_000L),
+                timingAlertPreferences = TimingAlertPreferences(
+                    cueModes = mapOf(TimingCueId.MISCONDUCT_DEFENSE_TWENTY to TimingAlertMode.VIBRATE),
+                    cueRepeatCounts = mapOf(TimingCueId.MISCONDUCT_DEFENSE_TWENTY to 2),
+                    vibrationDurationMillis = 0L,
+                ),
+                timingAlertPlayer = timingAlertPlayer,
+                performHaptic = { durationMillis -> performedHaptics += durationMillis },
+                playedTimingAlertKeys = emptySet(),
+                onAlertKeyPlayed = {},
+            )
+        }
+        assertEquals(listOf(80L, 0L, 0L), performedHaptics)
+
+        val playedBeforeRelease = soundPlayer.playedSounds.toList()
         timingAlertPlayer.play(TimingAlertSound.BEEP, 0.25f)
         timingAlertPlayer.release()
         soundPlayer.completeLoad(soundIds.getValue(beepClip))
-        assertEquals(4, soundPlayer.playedSounds.size)
+        assertEquals(playedBeforeRelease, soundPlayer.playedSounds)
         assertTrue(soundPlayer.released)
 
         val failedSoundPlayer = FakeTimingAlertSoundPlayer()
