@@ -92,12 +92,6 @@ data class CardAssessmentResult(
         event.needsMisconductChoice(),
 )
 
-/// Mode describing whether a red-card outcome came from the Red action or an automatic second yellow.
-enum class RedCardMode {
-    RED,
-    SECOND_YELLOW,
-}
-
 /// Player-card event type used when formatting card popups.
 enum class PlayerCardEventType {
     YELLOW,
@@ -364,9 +358,9 @@ fun LiveGameState.assessTechnicalFoul(team: TeamId): CardAssessmentResult {
 fun LiveGameState.assessYellowCard(team: TeamId, jerseyNumber: String): CardAssessmentResult {
     val currentRecord = this.playerCardFor(team, jerseyNumber)
     return if (currentRecord?.yellows ?: 0 >= 1) {
-        this.assessRedCard(team, jerseyNumber, RedCardMode.SECOND_YELLOW)
+        this.assessSecondYellowCard(team, jerseyNumber)
     } else {
-        this.assessStandaloneYellowCard(team, jerseyNumber)
+        this.assessFirstYellowCard(team, jerseyNumber)
     }
 }
 /**
@@ -375,7 +369,7 @@ fun LiveGameState.assessYellowCard(team: TeamId, jerseyNumber: String): CardAsse
  * @param team The team receiving the yellow card.
  * @param jerseyNumber The player receiving the card, or `N/A` when the player is unknown.
  */
-fun LiveGameState.assessStandaloneYellowCard(team: TeamId, jerseyNumber: String): CardAssessmentResult {
+fun LiveGameState.assessFirstYellowCard(team: TeamId, jerseyNumber: String): CardAssessmentResult {
     var updatedState = this.addInGameYellowCard(team, jerseyNumber)
         .withUndo(this, playerCardUndoLabel("Yellow", team, jerseyNumber))
     val cardTotal = updatedState.teamCardTotal(team)
@@ -392,23 +386,17 @@ fun LiveGameState.assessStandaloneYellowCard(team: TeamId, jerseyNumber: String)
     )
 }
 /**
- * Record a red-card outcome and determine any misconduct consequence.
+ * Record a red card and determine any misconduct consequence.
  *
- * @param team The team receiving the red-card outcome.
- * @param jerseyNumber The player receiving the card, or `N/A` when the player is unknown.
- * @param mode Whether this red-card outcome came from the Red action or the second-yellow path.
+ * @param team The team receiving the red card.
+ * @param jerseyNumber The player receiving the red card, or `N/A` when the player is unknown.
  */
 fun LiveGameState.assessRedCard(
     team: TeamId,
     jerseyNumber: String,
-    mode: RedCardMode,
 ): CardAssessmentResult {
-    var updatedState = when (mode) {
-        RedCardMode.RED -> this.addInGameRedCard(team, jerseyNumber)
-            .withUndo(this, playerCardUndoLabel("Red", team, jerseyNumber))
-        RedCardMode.SECOND_YELLOW -> this.addInGameSecondYellow(team, jerseyNumber)
-            .withUndo(this, playerCardUndoLabel("Second Yellow", team, jerseyNumber))
-    }
+    var updatedState = this.addInGameRedCard(team, jerseyNumber)
+        .withUndo(this, playerCardUndoLabel("Red", team, jerseyNumber))
     val cardTotal = updatedState.teamCardTotal(team)
     updatedState = updatedState.withSkippedPullForMisconductThreshold(cardTotal)
     return CardAssessmentResult(
@@ -417,10 +405,30 @@ fun LiveGameState.assessRedCard(
             state = updatedState,
             team = team,
             teamCardTotal = cardTotal,
-            playerCardType = when (mode) {
-                RedCardMode.RED -> PlayerCardEventType.RED
-                RedCardMode.SECOND_YELLOW -> PlayerCardEventType.SECOND_YELLOW
-            },
+            playerCardType = PlayerCardEventType.RED,
+            playerCardJerseyNumber = jerseyNumber,
+        ),
+    )
+}
+
+/**
+ * Record a second yellow card and determine any misconduct consequence.
+ *
+ * @param team The team receiving the second yellow.
+ * @param jerseyNumber The player receiving the second yellow, or `N/A` when the player is unknown.
+ */
+fun LiveGameState.assessSecondYellowCard(team: TeamId, jerseyNumber: String): CardAssessmentResult {
+    var updatedState = this.addInGameSecondYellow(team, jerseyNumber)
+        .withUndo(this, playerCardUndoLabel("Second Yellow", team, jerseyNumber))
+    val cardTotal = updatedState.teamCardTotal(team)
+    updatedState = updatedState.withSkippedPullForMisconductThreshold(cardTotal)
+    return CardAssessmentResult(
+        state = updatedState,
+        event = GameEvent.TeamCardsChanged(
+            state = updatedState,
+            team = team,
+            teamCardTotal = cardTotal,
+            playerCardType = PlayerCardEventType.SECOND_YELLOW,
             playerCardJerseyNumber = jerseyNumber,
         ),
     )

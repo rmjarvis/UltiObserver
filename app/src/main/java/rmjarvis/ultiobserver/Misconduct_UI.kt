@@ -343,7 +343,7 @@ internal fun CardsSheet(
                 val team = pendingRedTeam!!
                 if (canAddPlayerCardAssignment(state.playerCards(team), jerseyNumber, CardType.RED)) {
                     presentAssessment(
-                        state.assessRedCard(team, jerseyNumber, RedCardMode.RED),
+                        state.assessRedCard(team, jerseyNumber),
                         PendingMisconductReturn.RedNumber(team, jerseyNumber),
                     )
                 } else {
@@ -376,11 +376,7 @@ internal fun CardsSheet(
             onSamePlayer = {
                 val team = pendingUnknownYellowChoice!!.team
                 presentAssessment(
-                    state.assessRedCard(
-                        team,
-                        UNKNOWN_PLAYER_NUMBER,
-                        RedCardMode.SECOND_YELLOW,
-                    ),
+                    state.assessSecondYellowCard(team, UNKNOWN_PLAYER_NUMBER),
                     PendingMisconductReturn.UnknownYellow(team),
                 )
                 pendingUnknownYellowChoice = null
@@ -388,7 +384,7 @@ internal fun CardsSheet(
             onDifferentPlayer = {
                 val team = pendingUnknownYellowChoice!!.team
                 presentAssessment(
-                    state.assessStandaloneYellowCard(
+                    state.assessFirstYellowCard(
                         team,
                         UNKNOWN_PLAYER_NUMBER,
                     ),
@@ -602,7 +598,7 @@ internal fun PlayerNumberDialog(
  * @param teamName The team receiving the unknown-player yellow.
  * @param onDismiss Callback closing the dialog without recording.
  * @param onSamePlayer Callback treating the yellow as a second yellow for the existing unknown player.
- * @param onDifferentPlayer Callback treating the yellow as a standalone yellow for another unknown player.
+ * @param onDifferentPlayer Callback treating the yellow as a first yellow for another unknown player.
  */
 @Composable
 private fun UnknownYellowDialog(

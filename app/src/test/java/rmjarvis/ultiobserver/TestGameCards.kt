@@ -144,7 +144,7 @@ class TestGameCards : GameDomainTestFixtures() {
         )
         assertEquals(CountdownKind.MISCONDUCT_BETWEEN_POINTS, cardResult.state.countdown?.kind)
 
-        // During a live point, a standalone yellow that reaches the misconduct threshold needs an offense/defense choice.
+        // During a live point, a first yellow that reaches the misconduct threshold needs an offense/defense choice.
         state = standardLiveGameState().beginLivePoint()
         state = state.assessBlueCard(VC).state
         state = state.assessBlueCard(VC).state
@@ -156,7 +156,7 @@ class TestGameCards : GameDomainTestFixtures() {
 
         // A red for a player with no prior yellow counts as two team card points and records a red.
         state = standardLiveGameState()
-        cardResult = state.assessRedCard(ANIMAL, "23", RedCardMode.RED)
+        cardResult = state.assessRedCard(ANIMAL, "23")
         state = cardResult.state
         assertFalse(cardResult.needsMisconductChoice)
         assertEquals(
@@ -175,7 +175,7 @@ class TestGameCards : GameDomainTestFixtures() {
         // During a live point, a red that reaches the misconduct threshold needs an offense/defense choice.
         state = standardLiveGameState().beginLivePoint()
         state = state.assessYellowCard(ANIMAL, "8").state
-        cardResult = state.assessRedCard(ANIMAL, "23", RedCardMode.RED)
+        cardResult = state.assessRedCard(ANIMAL, "23")
         state = cardResult.state
         assertTrue(cardResult.needsMisconductChoice)
         assertEquals(
@@ -207,7 +207,7 @@ class TestGameCards : GameDomainTestFixtures() {
         // A red for a player who already has a yellow is distinct from recording the red as a second yellow.
         state = standardLiveGameState()
         state = state.assessYellowCard(ANIMAL, "8").state
-        cardResult = state.assessRedCard(ANIMAL, "8", RedCardMode.RED)
+        cardResult = state.assessRedCard(ANIMAL, "8")
         state = cardResult.state
         assertFalse(cardResult.needsMisconductChoice)
         assertEquals(1, state.teamYellowCards(ANIMAL))
@@ -227,7 +227,7 @@ class TestGameCards : GameDomainTestFixtures() {
 
         state = standardLiveGameState()
         state = state.assessYellowCard(ANIMAL, "8").state
-        cardResult = state.assessRedCard(ANIMAL, "8", RedCardMode.SECOND_YELLOW)
+        cardResult = state.assessSecondYellowCard(ANIMAL, "8")
         state = cardResult.state
         assertFalse(cardResult.needsMisconductChoice)
         assertEquals(2, state.teamYellowCards(ANIMAL))
@@ -241,11 +241,11 @@ class TestGameCards : GameDomainTestFixtures() {
             cardResult.message(),
         )
 
-        // The N/A pathways distinguish same-unknown-player second yellow from a standalone yellow.
+        // The N/A pathways distinguish same-unknown-player second yellow from a first yellow.
         state = standardLiveGameState()
         state = state.assessYellowCard(VC, UNKNOWN_PLAYER_NUMBER).state
         assertTrue(state.playerHasYellowThisGame(VC, UNKNOWN_PLAYER_NUMBER))
-        cardResult = state.assessRedCard(VC, UNKNOWN_PLAYER_NUMBER, RedCardMode.SECOND_YELLOW)
+        cardResult = state.assessSecondYellowCard(VC, UNKNOWN_PLAYER_NUMBER)
         state = cardResult.state
         assertEquals(2, state.teamYellowCards(VC))
         assertEquals(0, state.teamRedCards(VC))
@@ -259,7 +259,7 @@ class TestGameCards : GameDomainTestFixtures() {
 
         state = standardLiveGameState()
         state = state.assessYellowCard(VC, UNKNOWN_PLAYER_NUMBER).state
-        cardResult = state.assessStandaloneYellowCard(VC, UNKNOWN_PLAYER_NUMBER)
+        cardResult = state.assessFirstYellowCard(VC, UNKNOWN_PLAYER_NUMBER)
         state = cardResult.state
         assertEquals(2, state.teamYellowCards(VC))
         assertEquals(0, state.teamRedCards(VC))
@@ -289,7 +289,7 @@ class TestGameCards : GameDomainTestFixtures() {
                 priorCards = listOf(PlayerCardRecord(ANIMAL, "31", priorYellows = 0, priorReds = 1)),
             )
         )
-        cardResult = state.assessRedCard(ANIMAL, "31", RedCardMode.RED)
+        cardResult = state.assessRedCard(ANIMAL, "31")
         assertEquals(
             "Red card on player 31.\n" +
                 "Player 31 is suspended for the rest of the tournament.\n" +
@@ -305,7 +305,7 @@ class TestGameCards : GameDomainTestFixtures() {
             phase = LivePhase.HALFTIME,
             halftimeTaken = true,
         )
-        cardResult = state.assessRedCard(ANIMAL, "35", RedCardMode.RED)
+        cardResult = state.assessRedCard(ANIMAL, "35")
         assertEquals(
             "Red card on player 35.\n" +
                 "Player 35 is suspended for the rest of the tournament.\n" +
@@ -334,7 +334,7 @@ class TestGameCards : GameDomainTestFixtures() {
             phase = LivePhase.BETWEEN_POINTS,
             halftimeTaken = true,
         )
-        cardResult = state.assessRedCard(ANIMAL, "29", RedCardMode.RED)
+        cardResult = state.assessRedCard(ANIMAL, "29")
         assertEquals(
             "Red card on player 29.\n" +
                 "Player 29 receives a game suspension.\n" +
@@ -347,7 +347,7 @@ class TestGameCards : GameDomainTestFixtures() {
             phase = LivePhase.HALFTIME,
             halftimeTaken = true,
         )
-        cardResult = state.assessRedCard(ANIMAL, "30", RedCardMode.RED)
+        cardResult = state.assessRedCard(ANIMAL, "30")
         assertEquals(
             "Red card on player 30.\n" +
                 "Player 30 receives a game suspension.\n" +
@@ -360,7 +360,7 @@ class TestGameCards : GameDomainTestFixtures() {
             phase = LivePhase.GAME_OVER,
             halftimeTaken = true,
         )
-        cardResult = state.assessRedCard(ANIMAL, "32", RedCardMode.RED)
+        cardResult = state.assessRedCard(ANIMAL, "32")
         assertEquals(
             "Red card on player 32.\n" +
                 "Player 32 receives a game suspension.\n" +
