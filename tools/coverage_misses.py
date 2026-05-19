@@ -13,12 +13,9 @@ import xml.etree.ElementTree as ET
 
 DEFAULT_REPORT = Path("app/build/reports/jacoco/filtered/filteredCoverageReport.xml")
 DEFAULT_SOURCE_ROOT = Path("app/src/main/java")
-ALLOWED_MISS_COMMENTS = (
-    (re.compile(r"\bnot user-reachable\b", re.IGNORECASE), "documented unreachable coroutine epilogue"),
-    (re.compile(r"\bdefensive\b.*\bguard\b", re.IGNORECASE), "documented defensive guard"),
-    (re.compile(r"\bno else branch\b", re.IGNORECASE), "documented exhaustive when without else"),
-)
 ALLOWED_COMMENT_LOOKBACK_LINES = 5
+DEFENSIVE_GUARD_COMMENT = re.compile(r"\bdefensive\b.*\bguard\b", re.IGNORECASE)
+EXHAUSTIVE_WHEN_COMMENT = re.compile(r"\bno else branch\b", re.IGNORECASE)
 CALLBACK_NAME_PATTERN = r"(?:on[A-Za-z]\w*|performHaptic)"
 CALLBACK_LAMBDA_OPENER = re.compile(
     rf"^{CALLBACK_NAME_PATTERN}\s*=\s*\{{\s*"
@@ -93,11 +90,17 @@ def line_allowed_reason(
 ) -> str | None:
     """Return the explicit marker or narrow source pattern allowing this miss."""
 
-    documented_reason = documented_allowed_miss_reason(source_lines, line_number)
-    if documented_reason is not None:
-        return documented_reason
-
-    return callback_lambda_scaffold_reason(
+    return pointer_input_coroutine_epilogue_reason(
+        source_lines,
+        line_number,
+        counters,
+    ) or defensive_guard_reason(
+        source_lines,
+        line_number,
+    ) or exhaustive_when_without_else_reason(
+        source_lines,
+        line_number,
+    ) or callback_lambda_scaffold_reason(
         source_lines,
         line_number,
         coverage_by_line,
@@ -106,6 +109,26 @@ def line_allowed_reason(
         source_lines,
         line_number,
         counters,
+    ) or composable_declaration_scaffold_reason(
+        source_lines,
+        line_number,
+        coverage_by_line,
+        counters,
+    ) or compose_canvas_lambda_scaffold_reason(
+        source_lines,
+        line_number,
+        coverage_by_line,
+        counters,
+    ) or compose_remember_lambda_scaffold_reason(
+        source_lines,
+        line_number,
+        coverage_by_line,
+        counters,
+    ) or launched_effect_scaffold_reason(
+        source_lines,
+        line_number,
+        coverage_by_line,
+        counters,
     ) or resource_cleanup_scaffold_reason(
         source_lines,
         line_number,
@@ -113,49 +136,153 @@ def line_allowed_reason(
     )
 
 
-def documented_allowed_miss_reason(source_lines: list[str], line_number: int) -> str | None:
-    """Return the reason from a nearby explicit comment that marks an allowed miss."""
+def pointer_input_coroutine_epilogue_reason(
+    source_lines: list[str],
+    line_number: int,
+    counters: LineCounters,
+) -> str | None:
+    """
+    Return a reason for Kotlin's unreachable pointer-input coroutine epilogue.
+
+    A long-running `pointerInput` detector, such as the live-screen unlock slider,
+    normally exits because Compose cancels/restarts its coroutine.  The Kotlin compiler
+    still emits a theoretical normal-return epilogue after the suspending detector call:
+
+        .pointerInput(trackWidthPx) {
+            detectDragGestures(...)
+        },
+
+    JaCoCo maps that epilogue to two source locations: the `detectDragGestures(` call
+    line and the closing brace of the enclosing `pointerInput` block.  A user cannot
+    deliberately exercise that normal-return path because Compose owns the coroutine
+    lifecycle.
+
+    The source shape is the guardrail.  This rule only accepts a `detectDragGestures(`
+    call line or the matching `pointerInput` closing line, and only with the no-branch
+    instruction-miss profiles seen for this generated epilogue.  Real drag callback
+    misses stay actionable because their source lines sit inside the detector lambda,
+    not on the detector call or enclosing `pointerInput` close.
+    """
 
     line_index = line_number - 1
-    first_line_index = max(0, line_index - ALLOWED_COMMENT_LOOKBACK_LINES)
-    for comment_index in range(line_index, first_line_index - 1, -1):
-        source = source_lines[comment_index]
-        stripped = source.strip()
-        if not stripped.startswith("//"):
-            continue
-        for pattern, reason in ALLOWED_MISS_COMMENTS:
-            if pattern.search(stripped):
-                allowed_range = documented_allowed_range(source_lines, comment_index, reason)
-                if allowed_range is not None and line_index in allowed_range:
-                    return reason
-    return None
+    statement = source_lines[line_index].strip()
+    if statement == "detectDragGestures(":
+        if counters.missed_instructions != 1 or counters.covered_instructions == 0:
+            return None
+        if counters.missed_branches != 0 or counters.covered_branches != 0:
+            return None
+        if nearest_enclosing_pointer_input_index(source_lines, line_index) is None:
+            return None
+        return "pointerInput coroutine call epilogue"
+
+    if statement not in {"}", "},"}:
+        return None
+
+    if counters.missed_instructions != 1 or counters.covered_instructions != 0:
+        return None
+    if counters.missed_branches != 0 or counters.covered_branches != 0:
+        return None
+
+    opening_index = matching_opening_brace_index(source_lines, line_index)
+    if opening_index is None or "pointerInput(" not in source_lines[opening_index]:
+        return None
+    if not block_contains_detect_drag_gestures(source_lines, opening_index, line_index):
+        return None
+
+    return "pointerInput coroutine closing epilogue"
 
 
-def documented_allowed_range(
+def block_contains_detect_drag_gestures(
     source_lines: list[str],
-    comment_index: int,
-    reason: str,
-) -> range | None:
-    """Return the narrow source-line range authorized by an allowed-miss comment."""
+    opening_index: int,
+    closing_index: int,
+) -> bool:
+    """Return whether the block contains a direct `detectDragGestures(` call."""
+
+    for index in range(opening_index + 1, closing_index):
+        if source_lines[index].strip() == "detectDragGestures(":
+            return True
+    return False
+
+
+def defensive_guard_reason(source_lines: list[str], line_number: int) -> str | None:
+    """
+    Return a reason for a documented defensive UI timing guard.
+
+    A few UI flows intentionally keep tiny guard branches for awkward timing windows:
+    recomposition, restored prompt state, or other Compose lifecycle edges that are
+    difficult to drive deterministically through a realistic emulator story.  Those are
+    allowed only when a nearby comment explicitly describes the code as a defensive
+    guard and the missed line falls in the guarded statement/block.
+
+    Model/JVM code should not use this escape hatch; those impossible states should
+    usually fail loudly or be covered directly.  The filter itself stays source-local:
+    it does not accept an arbitrary line merely because some earlier comment says
+    "defensive guard".
+    """
+
+    line_index = line_number - 1
+    comment_index = nearby_comment_index_before(source_lines, line_index, DEFENSIVE_GUARD_COMMENT)
+    if comment_index is None:
+        return None
 
     statement_index = next_code_line_after(source_lines, comment_index)
     if statement_index is None:
         return None
 
-    statement = source_lines[statement_index].strip()
-    if reason == "documented unreachable coroutine epilogue":
-        if statement in {"}", "},", ")", "),"}:
-            return range(statement_index, statement_index + 1)
+    allowed_range = defensive_guard_range(source_lines, statement_index)
+    if allowed_range is None or line_index not in allowed_range:
         return None
 
-    if reason == "documented defensive guard":
-        return defensive_guard_range(source_lines, statement_index)
+    return "documented defensive guard"
 
-    if reason == "documented exhaustive when without else":
-        if statement.startswith("when ("):
-            return range(statement_index, statement_index + 1)
+
+def exhaustive_when_without_else_reason(source_lines: list[str], line_number: int) -> str | None:
+    """
+    Return a reason for Kotlin's synthetic default on a documented exhaustive `when`.
+
+    For nullable enums we sometimes write every real value plus `null` and deliberately
+    omit `else`:
+
+        // No else branch: every SetupEditor value plus null is handled
+        when (activeEditor) {
+            ...
+            null -> Unit
+        }
+
+    Kotlin can still emit a synthetic default branch as a runtime safety net for enum
+    binaries that do not match the source the compiler saw.  That branch is not a user
+    pathway in this app.  This recognizer accepts only the `when (` line immediately
+    documented by the "No else branch" comment.
+    """
+
+    line_index = line_number - 1
+    if not source_lines[line_index].strip().startswith("when ("):
         return None
 
+    comment_index = nearby_comment_index_before(source_lines, line_index, EXHAUSTIVE_WHEN_COMMENT)
+    if comment_index is None:
+        return None
+    if next_code_line_after(source_lines, comment_index) != line_index:
+        return None
+
+    return "documented exhaustive when without else"
+
+
+def nearby_comment_index_before(
+    source_lines: list[str],
+    line_index: int,
+    pattern: re.Pattern[str],
+) -> int | None:
+    """Return the nearest preceding comment line matching `pattern` within the allowed lookback."""
+
+    first_line_index = max(0, line_index - ALLOWED_COMMENT_LOOKBACK_LINES)
+    for comment_index in range(line_index, first_line_index - 1, -1):
+        stripped = source_lines[comment_index].strip()
+        if not stripped.startswith("//"):
+            continue
+        if pattern.search(stripped):
+            return comment_index
     return None
 
 
@@ -212,7 +339,26 @@ def callback_lambda_scaffold_reason(
     coverage_by_line: dict[int, LineCounters],
     counters: LineCounters,
 ) -> str | None:
-    """Return a reason for a covered callback body with missed lambda wrapper branches."""
+    """
+    Return a reason for a covered named-callback body with missed lambda wrapper branches.
+
+    Compose and Kotlin generate branchy adapter code around callback parameters such as:
+
+        onConfirm = { jerseyNumber ->
+            recordYellowCard(jerseyNumber)
+        }
+
+    JaCoCo can report a branch miss on the `onConfirm = { ...` opener even when the
+    body line that records the card was covered by a real UI action.  This recognizer
+    intentionally accepts only named callback openers (`onClick`, `onConfirm`,
+    `onValueChange`, etc., plus the very specific `performHaptic` callback used by
+    timing-alert plumbing).  It does not accept one-line lambdas such as
+    `onClick = { doThing() }`, because then the body and wrapper share one source line
+    and the script cannot prove that `doThing()` actually ran.
+
+    The body check is the important guardrail: if any executable line inside the lambda
+    still has missed instructions or missed branches, the opener stays actionable.
+    """
 
     if counters.missed_branches == 0 or counters.covered_branches == 0:
         return None
@@ -233,7 +379,25 @@ def composable_restart_epilogue_reason(
     line_number: int,
     counters: LineCounters,
 ) -> str | None:
-    """Return a reason for Compose restart-scope bookkeeping on a function close."""
+    """
+    Return a reason for Compose restart-scope bookkeeping on a Composable close brace.
+
+    The Compose compiler rewrites each `@Composable` function into a restartable group.
+    At the end of the generated method it records an `updateScope { ... }` callback so
+    Compose can re-run the function later if state read by that group changes:
+
+        @Composable
+        private fun SetupScreen(...) {
+            ...
+        }
+
+    JaCoCo sometimes maps a tiny piece of that generated restart epilogue to the final
+    `}` of the function.  A user cannot deliberately exercise this close-brace bytecode
+    through app behavior; the meaningful coverage is whether the body of the Composable
+    rendered and its callbacks ran.  This rule is narrow: it only allows a lone `}` that
+    closes a real `@Composable` function and has the characteristic tiny miss profile
+    we have seen from the generated restart-scope epilogue.
+    """
 
     if counters.missed_instructions != 1 or counters.missed_branches != 1:
         return None
@@ -253,12 +417,306 @@ def composable_restart_epilogue_reason(
     return "Compose restart-scope epilogue"
 
 
+def composable_declaration_scaffold_reason(
+    source_lines: list[str],
+    line_number: int,
+    coverage_by_line: dict[int, LineCounters],
+    counters: LineCounters,
+) -> str | None:
+    """
+    Return a reason for Compose declaration prologue/default/restart-skip scaffolding.
+
+    Compose rewrites a declaration like:
+
+        @Composable
+        private fun HomeActions(
+            onStartNewGame: () -> Unit,
+            modifier: Modifier = Modifier,
+        ) {
+            Column(...)
+        }
+
+    into a method with hidden `Composer`, changed-flags, and default-flags parameters.
+    Before the body runs, generated code calls `composer.changed(...)` for parameters,
+    checks `composer.shouldExecute(...)`, and either runs the body or calls
+    `composer.skipToGroupEnd()`.  After the body it records restart information via
+    `endRestartGroup()?.updateScope { ... }`.
+
+    JaCoCo maps parts of that generated machinery back to source lines that are not
+    themselves user behavior:
+
+    * The function opener `) {` can receive the `shouldExecute` / skip branch.
+      Example pattern: `HomeActions(...) { ... }` or `GameListRow(...) { ... }`.
+
+    * Defaulted parameters can receive generated default-mask branches.
+      Example pattern: `modifier: Modifier = Modifier,` or `enabled: Boolean = true,`.
+      Tests commonly cover either "caller supplied a value" or "Kotlin/Compose used
+      the default", but not every generated mask path.
+
+    * In some cases, such as `SmallActionButton`, JaCoCo maps restart/skip code all
+      the way back to the `@Composable` annotation line.  The annotation is not
+      executable app logic; it is just where the compiler-associated bookkeeping lands.
+
+    This recognizer only applies when the line belongs to a real `@Composable fun`
+    declaration.  For the annotation-line case, it also requires evidence that the
+    function body has covered executable code, so an unrendered Composable is not hidden
+    merely because it has an annotation.
+    """
+
+    line_index = line_number - 1
+    source = source_lines[line_index].strip()
+    opening_index = composable_declaration_opening_index(source_lines, line_index)
+    if opening_index is None:
+        return None
+
+    if source == ") {" and counters.covered_instructions > 0 and counters.covered_branches > 0:
+        return "Compose function prologue scaffold"
+
+    if composable_default_parameter_source(source) and counters.covered_instructions > 0:
+        return "Compose default-parameter scaffold"
+
+    if (
+        source == "@Composable" and
+        counters.covered_instructions > 0 and
+        composable_body_has_covered_code(source_lines, opening_index, coverage_by_line)
+    ):
+        return "Compose restart-skip scaffold"
+
+    return None
+
+
+def composable_declaration_opening_index(source_lines: list[str], line_index: int) -> int | None:
+    """Return the function-opening line if this line belongs to a Composable declaration."""
+
+    for index in range(line_index, min(len(source_lines), line_index + 60)):
+        stripped = source_lines[index].strip()
+        if not stripped:
+            return None
+        if "{" not in stripped:
+            continue
+        if opens_composable_function(source_lines, index):
+            return index
+        return None
+    return None
+
+
+def composable_default_parameter_source(source: str) -> bool:
+    """Return whether a source line is a defaulted function parameter."""
+
+    return ":" in source and " = " in source and source.endswith(",")
+
+
+def composable_body_has_covered_code(
+    source_lines: list[str],
+    opening_index: int,
+    coverage_by_line: dict[int, LineCounters],
+) -> bool:
+    """Return whether a Composable body has any covered executable line."""
+
+    end_index = block_end_index(source_lines, opening_index)
+    for index in range(opening_index + 1, end_index):
+        counters = coverage_by_line.get(index + 1)
+        if counters is None:
+            continue
+        if counters.covered_instructions > 0 or counters.covered_branches > 0:
+            return True
+    return False
+
+
+def compose_canvas_lambda_scaffold_reason(
+    source_lines: list[str],
+    line_number: int,
+    coverage_by_line: dict[int, LineCounters],
+    counters: LineCounters,
+) -> str | None:
+    """
+    Return a reason for Compose Canvas draw-lambda wrapper branches.
+
+    A Canvas call has a draw lambda:
+
+        Canvas(
+            modifier = Modifier
+                .width(28.dp)
+                .height(48.dp),
+        ) {
+            val centerX = size.width / 2f
+            ...
+        }
+
+    Compose wraps that draw lambda in generated callback machinery.  JaCoCo may report
+    a missed branch on the `) {` opener even when the drawing statements inside the
+    lambda have all run.  This is not the same as a Composable function prologue: the
+    line opens the Canvas draw callback, not a function declaration.
+
+    The rule is intentionally specific to nearby `Canvas(` calls and it requires the
+    draw-lambda body to be covered.  If the arrow/path drawing lines themselves are
+    missed, this recognizer will not hide the opener.
+    """
+
+    line_index = line_number - 1
+    if source_lines[line_index].strip() != ") {":
+        return None
+    if counters.covered_instructions == 0 or counters.covered_branches == 0:
+        return None
+
+    for index in range(line_index - 1, max(-1, line_index - 8), -1):
+        stripped = source_lines[index].strip()
+        if stripped.startswith("Canvas("):
+            if lambda_body_is_covered(source_lines, line_index, coverage_by_line):
+                return "Compose Canvas lambda scaffold"
+            return None
+        if stripped.endswith(") {") or stripped == "}":
+            return None
+    return None
+
+
+def compose_remember_lambda_scaffold_reason(
+    source_lines: list[str],
+    line_number: int,
+    coverage_by_line: dict[int, LineCounters],
+    counters: LineCounters,
+) -> str | None:
+    """
+    Return a reason for Compose `remember` cache-wrapper branches.
+
+    A remembered value such as:
+
+        val capStatus = remember(now, state) {
+            state.computeNextCapStatus(now)
+        }
+
+    is compiled into cache bookkeeping: compare the keys, check the remembered slot,
+    either reuse the existing value or execute the lambda and store a new value.  UI
+    tests naturally prove the app behavior by rendering the screen and covering the
+    lambda body, but they do not need to force every cache-hit/cache-miss branch of
+    Compose's runtime implementation.
+
+    This recognizer only accepts `val ... = remember(...) {` opener lines and only when
+    the remembered lambda body is covered.  In the example above, the
+    `state.computeNextCapStatus(now)` line still has to run; otherwise the remember
+    opener remains actionable.
+    """
+
+    line_index = line_number - 1
+    source = source_lines[line_index].strip()
+    if not (source.startswith("val ") and " = remember(" in source and source.endswith("{")):
+        return None
+    if counters.covered_instructions == 0 or counters.covered_branches == 0:
+        return None
+    if not lambda_body_is_covered(source_lines, line_index, coverage_by_line):
+        return None
+    return "Compose remember cache scaffold"
+
+
+def launched_effect_scaffold_reason(
+    source_lines: list[str],
+    line_number: int,
+    coverage_by_line: dict[int, LineCounters],
+    counters: LineCounters,
+) -> str | None:
+    """
+    Return a reason for `LaunchedEffect` coroutine state-machine scaffolding.
+
+    A `LaunchedEffect` body is compiled as a `SuspendLambda`.  Even when the effect
+    body itself is ordinary straight-line UI behavior, Kotlin emits a coroutine state
+    machine with an impossible "resumed before invoke" guard.  JaCoCo maps that guard
+    back to the source opener:
+
+        LaunchedEffect(state.phase, readOnlySummary) {
+            val previousPhase = previouslyObservedPhase
+            ...
+        }
+
+    or to the opening line of the same block when the keys are split across lines:
+
+        LaunchedEffect(
+            state,
+            now,
+            readOnlySummary,
+        ) {
+            val suppressAutoLock = suppressNextAutoLock
+            ...
+        }
+
+    The app cannot reach that generated error path through user behavior; the useful
+    coverage is on the effect body lines.  This recognizer is intentionally narrower
+    than "anything named LaunchedEffect": it only accepts the line that opens the
+    lambda body, verifies that line belongs to a `LaunchedEffect` call, requires the
+    characteristic `mi=4` / `mb=3` state-machine profile we see from these compiled
+    effects, and requires covered executable code inside the effect block.  If the body
+    line that changes state, opens a prompt, or calls the model is missed, that body
+    line remains actionable.
+    """
+
+    line_index = line_number - 1
+    if not line_opens_launched_effect_body(source_lines, line_index):
+        return None
+    if counters.missed_instructions != 4 or counters.missed_branches != 3:
+        return None
+    if counters.covered_instructions == 0 or counters.covered_branches == 0:
+        return None
+    if not composable_body_has_covered_code(source_lines, line_index, coverage_by_line):
+        return None
+    return "Compose LaunchedEffect coroutine scaffold"
+
+
+def line_opens_launched_effect_body(source_lines: list[str], line_index: int) -> bool:
+    """Return whether a source line opens the lambda body of a `LaunchedEffect` call."""
+
+    source = source_lines[line_index].strip()
+    if not source.endswith("{"):
+        return False
+    if source.startswith("LaunchedEffect("):
+        return True
+    if source != ") {":
+        return False
+
+    for index in range(line_index - 1, max(-1, line_index - 20), -1):
+        stripped = source_lines[index].strip()
+        if stripped.startswith("LaunchedEffect("):
+            return True
+        if stripped.endswith("{") or stripped == "}":
+            return False
+    return False
+
+
+def nearest_enclosing_pointer_input_index(source_lines: list[str], line_index: int) -> int | None:
+    """Return the closest preceding source line that opens an enclosing `pointerInput` block."""
+
+    for index in range(line_index - 1, max(-1, line_index - 20), -1):
+        code = source_lines[index].split("//", 1)[0]
+        if "pointerInput(" not in code:
+            continue
+        if block_end_index(source_lines, index) >= line_index:
+            return index
+    return None
+
+
 def resource_cleanup_scaffold_reason(
     source_lines: list[str],
     line_number: int,
     counters: LineCounters,
 ) -> str | None:
-    """Return a reason for Kotlin/JDK cleanup bytecode from `use {}`."""
+    """
+    Return a reason for Kotlin/JDK cleanup bytecode from `use {}`.
+
+    Kotlin's `use` is the closeable-resource helper behind code such as:
+
+        tmpFile.outputStream().use { output ->
+            output.write(bytes)
+            output.fd.sync()
+        }
+
+    The normal app behavior is opening the stream, writing the bytes, syncing, and
+    closing the stream.  Kotlin/JDK also emits exceptional cleanup paths, including
+    suppression logic for cases such as "the body threw and close also threw".  JaCoCo
+    can map those cleanup instructions back to the `.use {` line even though our tests
+    already covered the real write path.
+
+    This rule only accepts partially covered `.use {` lines with no branch counters.
+    If opening the resource never ran, or if JaCoCo reports branch behavior on that
+    line, the miss remains actionable.
+    """
 
     source = source_lines[line_number - 1].strip()
     if ".use {" not in source:
@@ -325,6 +783,10 @@ def opens_composable_function(source_lines: list[str], opening_index: int) -> bo
 
     if function_index is None:
         return False
+
+    for index in range(function_index, opening_index):
+        if "{" in source_lines[index].split("//", 1)[0]:
+            return False
 
     for index in range(function_index - 1, max(-1, function_index - 10), -1):
         stripped = source_lines[index].strip()

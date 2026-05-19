@@ -150,8 +150,6 @@ internal fun SlideToConfirmControl(
                             thumbOffsetPx = (thumbOffsetPx + dragAmount.x).coerceIn(0f, maxOffset)
                         }
                     }
-                    // Compose cancels/restarts this pointerInput coroutine in normal use; the
-                    // suspend-lambda epilogue after detectDragGestures returns is not user-reachable.
                 },
         ) {
             Text(
