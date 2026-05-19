@@ -1,5 +1,6 @@
 package rmjarvis.ultiobserver
 
+import android.view.KeyEvent
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -14,9 +15,9 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.swipeRight
-import androidx.test.espresso.Espresso.pressBack
 import java.time.LocalTime
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -294,7 +295,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             activity.appViewModel.updateLiveGame(current.copy(pendingCapOffer = CapType.HALF))
         }
         waitForText("Apply half cap?")
-        pressBack()
+        pressDialogBack()
         waitForText("Apply half cap?")
         composeRule.onNodeWithText("No").performClick()
 
@@ -358,7 +359,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         // Time Violation should ask for the violating team and report the warning consequence.
         composeRule.onNodeWithText("Time Violation").performClick()
         waitForText("Which team committed the time violation?")
-        pressBack()
+        pressDialogBack()
         composeRule.onAllNodesWithText("Which team committed the time violation?").assertCountEquals(0)
         composeRule.onNodeWithText("Time Violation").performClick()
         waitForText("Which team committed the time violation?")
@@ -381,7 +382,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         waitForText("Which team committed the time violation?")
         composeRule.onAllNodesWithText("Team 2").onLast().performClick()
         waitForText("now has 30 seconds", substring = true)
-        pressBack()
+        pressDialogBack()
         composeRule.onAllNodesWithText("now has 30 seconds", substring = true).assertCountEquals(0)
     }
 
@@ -552,6 +553,12 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.waitUntil(timeoutMillis = 3_000) {
             System.currentTimeMillis() >= dueEpoch + waitAfterDueMillis
         }
+        composeRule.waitForIdle()
+    }
+
+    /// Send platform Back without relying on Espresso's root-window focus.
+    private fun pressDialogBack() {
+        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
         composeRule.waitForIdle()
     }
 }
