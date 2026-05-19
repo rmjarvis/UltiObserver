@@ -447,7 +447,7 @@ private fun LiveGameState.withSkippedPullForMisconductThreshold(thresholdCount: 
         return this
     }
     return this.copy(
-        countdown = this.countdown?.toBetweenPointsMisconductCountdown(),
+        countdown = this.countdown!!.toBetweenPointsMisconductCountdown(),
         pullSkippedForCurrentPoint = true,
     )
 }
@@ -768,9 +768,9 @@ private fun LiveGameState.playerHasTournamentSuspension(team: TeamId, jerseyNumb
             priorReds += record.priorReds
         }
     }
-    val inGameRecord = playerCards(team).firstOrNull { it.jerseyNumber == jerseyNumber }
-    val totalYellows = priorYellows + (inGameRecord?.yellows ?: 0)
-    val totalReds = priorReds + (inGameRecord?.reds ?: 0)
+    val inGameRecord = playerCards(team).first { it.jerseyNumber == jerseyNumber }
+    val totalYellows = priorYellows + inGameRecord.yellows
+    val totalReds = priorReds + inGameRecord.reds
     return totalYellows + 2 * totalReds >= 3
 }
 

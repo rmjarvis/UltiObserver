@@ -107,76 +107,34 @@ internal class AppViewModel(
 
     val state: StateFlow<AppUiState> = _state.asStateFlow()
 
-    var screen: AppScreen
+    val screen: AppScreen
         get() = state.value.screen
-        private set(value) {
-            _state.update { it.copy(screen = value) }
-        }
-    var setupState: GameSetupState
+    val setupState: GameSetupState
         get() = state.value.setupState
-        private set(value) {
-            _state.update { it.copy(setupState = value) }
-        }
-    var liveState: LiveGameState?
+    val liveState: LiveGameState?
         get() = state.value.liveState
-        private set(value) {
-            _state.update { it.copy(liveState = value) }
-        }
-    var setupMode: SetupMode
+    val setupMode: SetupMode
         get() = state.value.setupMode
-        private set(value) {
-            _state.update { it.copy(setupMode = value) }
-        }
-    var profileName: String
+    val profileName: String
         get() = state.value.profileName
-        private set(value) {
-            _state.update { it.copy(profileName = value) }
-        }
-    var avatarPreference: ObserverAvatarPreference
+    val avatarPreference: ObserverAvatarPreference
         get() = state.value.avatarPreference
-        private set(value) {
-            _state.update { it.copy(avatarPreference = value) }
-        }
-    var homeAvatarPreference: ObserverAvatarPreference
+    val homeAvatarPreference: ObserverAvatarPreference
         get() = state.value.homeAvatarPreference
-        private set(value) {
-            _state.update { it.copy(homeAvatarPreference = value) }
-        }
-    var timingAlertPreferences: TimingAlertPreferences
+    val timingAlertPreferences: TimingAlertPreferences
         get() = state.value.timingAlertPreferences
-        private set(value) {
-            _state.update { it.copy(timingAlertPreferences = value) }
-        }
-    var automaticallyAdvanceCountdowns: Boolean
+    val automaticallyAdvanceCountdowns: Boolean
         get() = state.value.automaticallyAdvanceCountdowns
-        private set(value) {
-            _state.update { it.copy(automaticallyAdvanceCountdowns = value) }
-        }
-    var automaticallyLockLivePoint: Boolean
+    val automaticallyLockLivePoint: Boolean
         get() = state.value.automaticallyLockLivePoint
-        private set(value) {
-            _state.update { it.copy(automaticallyLockLivePoint = value) }
-        }
-    var archivedGames: List<ArchivedGame>
+    val archivedGames: List<ArchivedGame>
         get() = state.value.archivedGames
-        private set(value) {
-            _state.update { it.copy(archivedGames = value) }
-        }
-    var viewingArchivedGame: ArchivedGame?
+    val viewingArchivedGame: ArchivedGame?
         get() = state.value.viewingArchivedGame
-        private set(value) {
-            _state.update { it.copy(viewingArchivedGame = value) }
-        }
-    var hasSetupDraft: Boolean
+    val hasSetupDraft: Boolean
         get() = state.value.hasSetupDraft
-        private set(value) {
-            _state.update { it.copy(hasSetupDraft = value) }
-        }
-    var startupRecoveryNotice: RecoveryNotice?
+    val startupRecoveryNotice: RecoveryNotice?
         get() = state.value.startupRecoveryNotice
-        private set(value) {
-            _state.update { it.copy(startupRecoveryNotice = value) }
-        }
 
     init {
         persistRecoveredDataAreas(recoveredPersistedDataAreas)
@@ -236,9 +194,9 @@ internal class AppViewModel(
      * @param updatedSetup The setup form state produced by the UI.
      */
     fun updateSetup(updatedSetup: GameSetupState) {
-        setupState = updatedSetup
+        _state.update { it.copy(setupState = updatedSetup) }
         if (setupMode == SetupMode.NEW_GAME) {
-            hasSetupDraft = true
+            _state.update { it.copy(hasSetupDraft = true) }
         }
         persistCurrentGameState()
     }
@@ -251,7 +209,7 @@ internal class AppViewModel(
     fun updateLiveGame(updatedGame: LiveGameState) {
         if (viewingArchivedGame == null) {
             // All live game event logging flows through this ViewModel boundary.
-            liveState = updatedGame
+            _state.update { it.copy(liveState = updatedGame) }
             persistCurrentGameState()
         }
     }
@@ -262,7 +220,7 @@ internal class AppViewModel(
      * @param updatedName The profile name entered by the user.
      */
     fun updateProfileName(updatedName: String) {
-        profileName = updatedName
+        _state.update { it.copy(profileName = updatedName) }
         persistProfileState()
     }
 
@@ -287,7 +245,7 @@ internal class AppViewModel(
      * @param mode The global mode controlling whether cues are off, vibration-only, or sound-enabled.
      */
     fun updateTimingAlertGlobalMode(mode: TimingAlertGlobalMode) {
-        timingAlertPreferences = timingAlertPreferences.copy(globalMode = mode)
+        _state.update { it.copy(timingAlertPreferences = it.timingAlertPreferences.copy(globalMode = mode)) }
         persistSettingsState()
     }
 
@@ -297,7 +255,7 @@ internal class AppViewModel(
      * @param volume The new sound volume value from settings.
      */
     fun updateTimingAlertSoundVolume(volume: Float) {
-        timingAlertPreferences = timingAlertPreferences.copy(soundVolume = volume)
+        _state.update { it.copy(timingAlertPreferences = it.timingAlertPreferences.copy(soundVolume = volume)) }
         persistSettingsState()
     }
 
@@ -307,7 +265,13 @@ internal class AppViewModel(
      * @param durationMillis The requested vibration duration in milliseconds.
      */
     fun updateTimingAlertVibrationDuration(durationMillis: Long) {
-        timingAlertPreferences = timingAlertPreferences.copy(vibrationDurationMillis = durationMillis)
+        _state.update {
+            it.copy(
+                timingAlertPreferences = it.timingAlertPreferences.copy(
+                    vibrationDurationMillis = durationMillis,
+                ),
+            )
+        }
         persistSettingsState()
     }
 
@@ -317,7 +281,13 @@ internal class AppViewModel(
      * @param vibrateWithSounds Whether vibration should accompany sound alerts.
      */
     fun updateTimingAlertVibrateWithSounds(vibrateWithSounds: Boolean) {
-        timingAlertPreferences = timingAlertPreferences.copy(vibrateWithSounds = vibrateWithSounds)
+        _state.update {
+            it.copy(
+                timingAlertPreferences = it.timingAlertPreferences.copy(
+                    vibrateWithSounds = vibrateWithSounds,
+                ),
+            )
+        }
         persistSettingsState()
     }
 
@@ -327,7 +297,7 @@ internal class AppViewModel(
      * @param automaticallyAdvance Whether timer expiry should drive model transitions.
      */
     fun updateAutomaticallyAdvanceCountdowns(automaticallyAdvance: Boolean) {
-        automaticallyAdvanceCountdowns = automaticallyAdvance
+        _state.update { it.copy(automaticallyAdvanceCountdowns = automaticallyAdvance) }
         persistSettingsState()
     }
 
@@ -337,7 +307,7 @@ internal class AppViewModel(
      * @param automaticallyLock Whether automatic live-point entry should enable lock mode.
      */
     fun updateAutomaticallyLockLivePoint(automaticallyLock: Boolean) {
-        automaticallyLockLivePoint = automaticallyLock
+        _state.update { it.copy(automaticallyLockLivePoint = automaticallyLock) }
         persistSettingsState()
     }
 
@@ -348,14 +318,19 @@ internal class AppViewModel(
      * @param mode The cue-specific alert mode selected in settings.
      */
     fun updateTimingCueMode(cueId: TimingCueId, mode: TimingAlertMode) {
-        timingAlertPreferences = timingAlertPreferences.copy(
-            cueModes = timingAlertPreferences.cueModes + (cueId to mode),
-            cueRepeatCounts = if (mode == TimingAlertMode.NONE) {
-                timingAlertPreferences.cueRepeatCounts + (cueId to DEFAULT_TIMING_ALERT_REPEAT_COUNT)
-            } else {
-                timingAlertPreferences.cueRepeatCounts
-            },
-        )
+        _state.update {
+            val currentPreferences = it.timingAlertPreferences
+            it.copy(
+                timingAlertPreferences = currentPreferences.copy(
+                    cueModes = currentPreferences.cueModes + (cueId to mode),
+                    cueRepeatCounts = if (mode == TimingAlertMode.NONE) {
+                        currentPreferences.cueRepeatCounts + (cueId to DEFAULT_TIMING_ALERT_REPEAT_COUNT)
+                    } else {
+                        currentPreferences.cueRepeatCounts
+                    },
+                ),
+            )
+        }
         persistSettingsState()
     }
 
@@ -370,24 +345,32 @@ internal class AppViewModel(
             "Timing alert repeat count must be between $MIN_TIMING_ALERT_REPEAT_COUNT and " +
                 "$MAX_TIMING_ALERT_REPEAT_COUNT."
         }
-        timingAlertPreferences = timingAlertPreferences.copy(
-            cueRepeatCounts = timingAlertPreferences.cueRepeatCounts + (cueId to repeatCount),
-        )
+        _state.update {
+            it.copy(
+                timingAlertPreferences = it.timingAlertPreferences.copy(
+                    cueRepeatCounts = it.timingAlertPreferences.cueRepeatCounts + (cueId to repeatCount),
+                ),
+            )
+        }
         persistSettingsState()
     }
 
     /// Restore all per-cue timing alert modes and repeat counts to defaults.
     fun resetTimingCueSettingsToDefaults() {
-        timingAlertPreferences = timingAlertPreferences.copy(
-            cueModes = defaultTimingCueModes(),
-            cueRepeatCounts = defaultTimingCueRepeatCounts(),
-        )
+        _state.update {
+            it.copy(
+                timingAlertPreferences = it.timingAlertPreferences.copy(
+                    cueModes = defaultTimingCueModes(),
+                    cueRepeatCounts = defaultTimingCueRepeatCounts(),
+                ),
+            )
+        }
         persistSettingsState()
     }
 
     /// Clear the startup recovery notice after the user dismisses it.
     fun dismissStartupRecoveryNotice() {
-        startupRecoveryNotice = null
+        _state.update { it.copy(startupRecoveryNotice = null) }
     }
 
     /// Open the profile screen.

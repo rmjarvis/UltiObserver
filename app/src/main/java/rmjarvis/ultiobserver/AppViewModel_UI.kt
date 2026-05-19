@@ -49,7 +49,7 @@ internal fun UltiObserverApp(viewModel: AppViewModel) {
         timingAlertPreferences = appState.timingAlertPreferences,
     )
 
-    // Route to the current top-level screen.
+    // No else branch: every AppScreen value is handled.
     when (appState.screen) {
         AppScreen.HOME -> {
             val liveState = appState.liveState

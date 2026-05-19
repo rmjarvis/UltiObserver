@@ -52,8 +52,18 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
 
         // Less-common game-state actions should be reachable and leave a visible result.
         openOtherSheet()
+        composeRule.onNodeWithText("Apply Half Cap Now").performClick()
+        waitForText("Undo Half Cap Now")
+        assertLiveScreen()
+
+        openOtherSheet()
         composeRule.onNodeWithText("Apply Soft Cap Now").performClick()
         waitForText("Undo Soft Cap Now")
+        assertLiveScreen()
+
+        openOtherSheet()
+        composeRule.onNodeWithText("Apply Hard Cap Now").performClick()
+        waitForText("Undo Hard Cap Now")
         assertLiveScreen()
 
         openOtherSheet()

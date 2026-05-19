@@ -204,6 +204,7 @@ internal fun SetupScreen(
         }
     }
 
+    // No else branch: every SetupEditor value plus null is handled
     when (setupEditor) {
         SetupEditor.START_TIME -> {
             StartTimeSetupDialog(
@@ -228,7 +229,9 @@ internal fun SetupScreen(
                 rules = state.rules,
                 onEditRule = { editingRule = it },
                 onEditTimeouts = { showTimeoutRulesDialog = true },
-                onUseUsauDefaults = { onStateChange(state.copy(rules = GameRules())) },
+                onUseUsauDefaults = {
+                    onStateChange(state.copy(rules = GameRules()))
+                },
                 onDismiss = { setupEditor = null },
             )
         }
@@ -285,6 +288,7 @@ internal fun SetupScreen(
     // Modal rule editors for the currently selected rules field.
     if (editingRule != null) {
         val target = editingRule!!
+        // No else branch: every RuleEditTarget value is handled
         when (target) {
             RuleEditTarget.GAME_TO -> {
                 IntegerEditDialog(
@@ -1165,7 +1169,9 @@ private fun TeamEditor(
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(
             value = team.name,
-            onValueChange = { onTeamChange(team.copy(name = it)) },
+            onValueChange = {
+                onTeamChange(team.copy(name = it))
+            },
             label = { Text(fieldLabel) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
@@ -1176,7 +1182,9 @@ private fun TeamEditor(
         ColorChoiceRow(
             selected = team.color,
             testTagPrefix = "setup-$fieldLabel-color",
-            onSelected = { onTeamChange(team.copy(color = it)) },
+            onSelected = {
+                onTeamChange(team.copy(color = it))
+            },
         )
     }
 }
@@ -1293,7 +1301,11 @@ private fun ColorChoiceRow(
                         shape = RoundedCornerShape(4.dp),
                     )
                     .background(colorChoice.accent, RoundedCornerShape(4.dp))
-                    .clickable { onSelected(colorChoice) }
+                    .clickable(
+                        onClick = {
+                            onSelected(colorChoice)
+                        },
+                    )
             )
         }
     }
@@ -1305,7 +1317,7 @@ private fun ColorChoiceRow(
  * @param firstLabel Label for Team 1, with fallback display applied locally.
  * @param secondLabel Label for Team 2, with fallback display applied locally.
  * @param selected The currently selected team.
- * @param testTagPrefix Optional prefix for generated chip test tags.
+ * @param testTagPrefix Prefix for generated chip test tags.
  * @param onSelected Callback receiving the selected team.
  */
 @Composable
@@ -1313,20 +1325,24 @@ private fun TeamChoiceRow(
     firstLabel: String,
     secondLabel: String,
     selected: TeamId,
-    testTagPrefix: String? = null,
+    testTagPrefix: String,
     onSelected: (TeamId) -> Unit,
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         FilterChip(
             selected = selected == TeamId.TEAM_ONE,
-            onClick = { onSelected(TeamId.TEAM_ONE) },
-            modifier = testTagPrefix?.let { Modifier.testTag("$it-${TeamId.TEAM_ONE.name}") } ?: Modifier,
+            onClick = {
+                onSelected(TeamId.TEAM_ONE)
+            },
+            modifier = Modifier.testTag("$testTagPrefix-${TeamId.TEAM_ONE.name}"),
             label = { Text(firstLabel.ifBlank { "Team 1" }) },
         )
         FilterChip(
             selected = selected == TeamId.TEAM_TWO,
-            onClick = { onSelected(TeamId.TEAM_TWO) },
-            modifier = testTagPrefix?.let { Modifier.testTag("$it-${TeamId.TEAM_TWO.name}") } ?: Modifier,
+            onClick = {
+                onSelected(TeamId.TEAM_TWO)
+            },
+            modifier = Modifier.testTag("$testTagPrefix-${TeamId.TEAM_TWO.name}"),
             label = { Text(secondLabel.ifBlank { "Team 2" }) },
         )
     }
@@ -1346,12 +1362,16 @@ private fun FieldEndChoiceRow(
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         FilterChip(
             selected = selected == FieldEnd.FAR,
-            onClick = { onSelected(FieldEnd.FAR) },
+            onClick = {
+                onSelected(FieldEnd.FAR)
+            },
             label = { Text("Far end") },
         )
         FilterChip(
             selected = selected == FieldEnd.NEAR,
-            onClick = { onSelected(FieldEnd.NEAR) },
+            onClick = {
+                onSelected(FieldEnd.NEAR)
+            },
             label = { Text("Near end") },
         )
     }
@@ -1377,17 +1397,23 @@ internal fun SmallCountEditor(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            SmallActionButton(label = "-1") {
-                onValueChange((value - 1).coerceAtLeast(0))
-            }
+            SmallActionButton(
+                label = "-1",
+                onClick = {
+                    onValueChange((value - 1).coerceAtLeast(0))
+                },
+            )
             Text(
                 value.toString(),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
             )
-            SmallActionButton(label = "+1") {
-                onValueChange(value + 1)
-            }
+            SmallActionButton(
+                label = "+1",
+                onClick = {
+                    onValueChange(value + 1)
+                },
+            )
         }
     }
 }

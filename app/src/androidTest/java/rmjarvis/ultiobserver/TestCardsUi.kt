@@ -11,8 +11,9 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.swipeRight
-import java.time.LocalTime
+import androidx.test.espresso.Espresso.pressBack
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import java.time.LocalTime
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -58,12 +59,20 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onAllNodesWithText("Yellow").onFirst().performClick()
         composeRule.onNodeWithText("Yellow Card").assertIsDisplayed()
         composeRule.onNodeWithText("Player number").assertIsDisplayed()
+        composeRule.onNodeWithText("Cancel").performClick()
+        waitForText("Cards / Technical Fouls")
+        composeRule.onAllNodesWithText("Yellow").onFirst().performClick()
+        composeRule.onNodeWithText("Yellow Card").assertIsDisplayed()
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Yellow card on player N/A.\nTeam 1 has 2 cards.")
         composeRule.onNodeWithText("OK").performClick()
 
         // A red on a player with a yellow records as a red.
         openCardsSheet()
+        composeRule.onAllNodesWithText("Red").onFirst().performClick()
+        composeRule.onNodeWithText("Red Card").assertIsDisplayed()
+        composeRule.onNodeWithText("Cancel").performClick()
+        waitForText("Cards / Technical Fouls")
         composeRule.onAllNodesWithText("Red").onFirst().performClick()
         composeRule.onNodeWithText("Red Card").assertIsDisplayed()
         composeRule.onNodeWithText("N/A").performClick()
@@ -162,6 +171,16 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("#7 (Yellow 2)").performClick()
         waitForText("Undo Cards / TF Adjustment")
 
+        // A small team-count-only correction covers Team 1 blue and technical-foul edits.
+        openOtherSheet()
+        composeRule.onNodeWithText("Adjust Cards / TF").performClick()
+        waitForText("Adjust Cards / TF")
+        composeRule.onAllNodesWithText("-1")[1].performClick()
+        composeRule.onAllNodesWithText("+1")[3].performClick()
+        composeRule.onAllNodesWithText("-1")[3].performClick()
+        composeRule.onNodeWithText("Set").performClick()
+        waitForText("Undo Cards / TF Adjustment")
+
         // A fuller correction pass covers adding/removing player-backed cards on both teams.
         openOtherSheet()
         composeRule.onNodeWithText("Adjust Cards / TF").performClick()
@@ -208,6 +227,17 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         recordYellowCard(TeamId.TEAM_TWO, "21", "Team 2 has", substring = true)
         recordYellowCard(TeamId.TEAM_TWO, "21", "Second yellow on player 21.", substring = true)
 
+        // Removing a player-backed card can be canceled without applying a partial correction.
+        openOtherSheet()
+        composeRule.onNodeWithText("Adjust Cards / TF").performClick()
+        waitForText("Adjust Cards / TF")
+        composeRule.onAllNodesWithText("-1")[4].performClick()
+        composeRule.onNodeWithText("Set").performClick()
+        waitForText("Remove Yellow")
+        composeRule.onAllNodesWithText("Cancel")[1].performClick()
+        composeRule.onNodeWithText("Cancel").performClick()
+        waitForText("Update Game Setup")
+
         // Trying to add another yellow to the maxed-out player should show the invalid assignment warning.
         openOtherSheet()
         composeRule.onNodeWithText("Adjust Cards / TF").performClick()
@@ -218,7 +248,12 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         enterCardPlayerNumber("21")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Invalid Card Assignment")
+        pressBack()
+        waitForText("Add Yellow")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Invalid Card Assignment")
         composeRule.onNodeWithText("OK").performClick()
+        waitForText("Add Yellow")
         composeRule.onAllNodesWithText("Cancel")[1].performClick()
         composeRule.onNodeWithText("Cancel").performClick()
         waitForText("Update Game Setup")
@@ -240,9 +275,24 @@ class TestCardsUi : MainActivityUiTestFixtures() {
             teamOneCards = listOf(InGamePlayerCardRecord(UNKNOWN_PLAYER_NUMBER, yellows = 1)),
             teamTwoCards = listOf(InGamePlayerCardRecord("6", yellows = 1, reds = 1)),
         )
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val current = activity.appViewModel.liveState!!
+            activity.appViewModel.updateLiveGame(current.beginLivePoint())
+        }
+        composeRule.waitForIdle()
 
         // A second yellow on N/A can be recorded as the same unknown player.
         openCardsSheet()
+        composeRule.onAllNodesWithText("Team 1").onFirst().assertIsDisplayed()
+        composeRule.onAllNodesWithText("Team 2").onFirst().assertIsDisplayed()
+        assertTrue(composeRule.onAllNodesWithText("Team 1 (pulling)").fetchSemanticsNodes().isEmpty())
+        assertTrue(composeRule.onAllNodesWithText("Team 2 (receiving)").fetchSemanticsNodes().isEmpty())
+        composeRule.onAllNodesWithText("Yellow")[teamCardButtonIndex(TeamId.TEAM_ONE)].performClick()
+        waitForText("Yellow Card")
+        composeRule.onNodeWithText("N/A").performClick()
+        waitForText("Unknown Player Number")
+        composeRule.onNodeWithText("Cancel").performClick()
+        waitForText("Cards / Technical Fouls")
         composeRule.onAllNodesWithText("Yellow")[teamCardButtonIndex(TeamId.TEAM_ONE)].performClick()
         waitForText("Yellow Card")
         composeRule.onNodeWithText("N/A").performClick()
@@ -253,6 +303,13 @@ class TestCardsUi : MainActivityUiTestFixtures() {
 
         // A player with both a yellow and red has no valid additional red card.
         openCardsSheet()
+        composeRule.onAllNodesWithText("Red")[teamCardButtonIndex(TeamId.TEAM_TWO)].performClick()
+        waitForText("Red Card")
+        enterCardPlayerNumber("6")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("maximum valid card combination", substring = true)
+        pressBack()
+        waitForText("Cards / Technical Fouls")
         composeRule.onAllNodesWithText("Red")[teamCardButtonIndex(TeamId.TEAM_TWO)].performClick()
         waitForText("Red Card")
         enterCardPlayerNumber("6")

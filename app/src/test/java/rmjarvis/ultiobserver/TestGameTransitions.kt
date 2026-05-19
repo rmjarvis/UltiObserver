@@ -121,6 +121,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
             cardResult.misconductPrompt().resolutionMessage(againstOffense = true)
                 .contains("Offense has 30 seconds to set. Then defense has 20 seconds to check the disc in."),
         )
+        assertEquals(state, state.startMisconductCountdown(1_010_000L))
         state = state.withPendingMisconductCountdown()
         assertTrue(state.pendingMisconductCountdown)
         assertNull(state.countdown)

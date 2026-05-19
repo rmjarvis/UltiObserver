@@ -147,13 +147,16 @@ internal fun AdjustCardsDialog(
     )
 
     pendingSteps.firstOrNull()?.let { step ->
+        // No else branch: every PlayerCardAdjustmentMode value is handled
         when (step.mode) {
             PlayerCardAdjustmentMode.ADD -> {
                 PlayerNumberDialog(
                     title = "Add ${step.cardType.label}",
                     teamName = state.teamFor(step.team).name,
                     onDismiss = { pendingSteps = emptyList() },
-                    onConfirm = { applyCardAssignment(it) },
+                    onConfirm = { jerseyNumber ->
+                        applyCardAssignment(jerseyNumber)
+                    },
                 )
             }
             PlayerCardAdjustmentMode.REMOVE -> {
@@ -170,7 +173,9 @@ internal fun AdjustCardsDialog(
                     ),
                     cardType = step.cardType,
                     onDismiss = { pendingSteps = emptyList() },
-                    onConfirm = { applyCardAssignment(it) },
+                    onConfirm = { jerseyNumber ->
+                        applyCardAssignment(jerseyNumber)
+                    },
                 )
             }
         }
@@ -218,16 +223,24 @@ internal fun CardsSheet(
             issuedCards = state.playerCards(TeamId.TEAM_ONE),
             onYellow = { pendingYellowTeam = TeamId.TEAM_ONE },
             onRed = { pendingRedTeam = TeamId.TEAM_ONE },
-            onBlue = { onAssessment(state.assessBlueCard(TeamId.TEAM_ONE)) },
-            onTech = { onAssessment(state.assessTechnicalFoul(TeamId.TEAM_ONE)) },
+            onBlue = {
+                onAssessment(state.assessBlueCard(TeamId.TEAM_ONE))
+            },
+            onTech = {
+                onAssessment(state.assessTechnicalFoul(TeamId.TEAM_ONE))
+            },
         )
         TeamActionSection(
             label = "${state.teamTwo.name}${state.cardsRoleSuffix(TeamId.TEAM_TWO)}",
             issuedCards = state.playerCards(TeamId.TEAM_TWO),
             onYellow = { pendingYellowTeam = TeamId.TEAM_TWO },
             onRed = { pendingRedTeam = TeamId.TEAM_TWO },
-            onBlue = { onAssessment(state.assessBlueCard(TeamId.TEAM_TWO)) },
-            onTech = { onAssessment(state.assessTechnicalFoul(TeamId.TEAM_TWO)) },
+            onBlue = {
+                onAssessment(state.assessBlueCard(TeamId.TEAM_TWO))
+            },
+            onTech = {
+                onAssessment(state.assessTechnicalFoul(TeamId.TEAM_TWO))
+            },
         )
         Spacer(modifier = Modifier.height(24.dp))
     }

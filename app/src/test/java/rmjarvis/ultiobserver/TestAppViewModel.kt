@@ -27,6 +27,7 @@ class TestAppViewModel {
         // Start from a clean Home state with no current or archived game.
         val viewModel = AppViewModel(NoOpAppStateStorage)
         assertEquals(AppScreen.HOME, viewModel.screen)
+        assertEquals(AppScreen.HOME, viewModel.state.value.screen)
         assertNull(viewModel.liveState)
         assertTrue(viewModel.archivedGames.isEmpty())
         assertNull(viewModel.currentGameHomeSubtitle)
@@ -69,6 +70,7 @@ class TestAppViewModel {
                 teamOne = viewModel.setupState.teamOne.copy(name = "Alpha Prime"),
             )
         )
+        assertFalse(viewModel.hasSetupDraft)
         viewModel.finishSetup()
         assertEquals(AppScreen.LIVE, viewModel.screen)
         assertEquals("Alpha Prime", viewModel.liveState!!.teamOne.name)
@@ -390,6 +392,15 @@ class TestAppViewModel {
             3,
             viewModel.timingAlertPreferences.repeatCountFor(TimingCueId.PULLING_TIME_VIOLATION),
         )
+        assertThrows(IllegalArgumentException::class.java) {
+            viewModel.updateTimingCueRepeatCount(TimingCueId.PULLING_TIME_VIOLATION, 0)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            viewModel.updateTimingCueRepeatCount(
+                TimingCueId.PULLING_TIME_VIOLATION,
+                MAX_TIMING_ALERT_REPEAT_COUNT + 1,
+            )
+        }
         viewModel.updateTimingCueMode(TimingCueId.PULLING_TIME_VIOLATION, TimingAlertMode.NONE)
         assertEquals(
             1,
@@ -412,6 +423,8 @@ class TestAppViewModel {
         )
         viewModel.openArchivedGames()
         assertEquals(AppScreen.ARCHIVED_GAMES, viewModel.screen)
+        viewModel.openAbout()
+        assertEquals(AppScreen.ABOUT, viewModel.screen)
         assertTrue(File(storeDir, "profile.json").exists())
         assertTrue(File(storeDir, "settings.json").exists())
 

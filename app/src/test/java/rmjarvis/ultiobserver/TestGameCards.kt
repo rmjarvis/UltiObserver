@@ -86,6 +86,7 @@ class TestGameCards : GameDomainTestFixtures() {
         assertEquals("Offense set in", state.countdown?.label)
         assertEquals(90, state.countdown?.durationSeconds)
         assertEquals(state.startEpoch + 90_000L, state.countdown?.targetEpoch)
+        assertEquals(state, state.withPendingMisconductCountdown())
         assertFalse(state.canRecordPullInfraction(VC))
         assertFalse(state.canRecordPullInfraction(ANIMAL))
         assertEquals(state, state.assessPullInfraction(VC).state)
@@ -104,16 +105,33 @@ class TestGameCards : GameDomainTestFixtures() {
         assertFalse(state.canReportMisconductOffenseSet(state.startEpoch + 85_000L))
         assertEquals(state, state.reportMisconductOffenseSet(state.startEpoch + 85_000L))
         assertFalse(state.canReportMisconductOffenseSet(state.countdown!!.targetEpoch))
+        assertFalse(standardLiveGameState().canReportMisconductOffenseSet(state.startEpoch))
+        assertFalse(
+            state.copy(phase = LivePhase.LIVE_POINT)
+                .canReportMisconductOffenseSet(state.startEpoch + 70_000L),
+        )
         state = state.applyExpiredCountdownTransitions(state.countdown!!.targetEpoch)
         assertEquals(LivePhase.LIVE_POINT, state.phase)
         assertFalse(state.pullSkippedForCurrentPoint)
         assertNull(state.countdown)
         assertEquals("Point is live.", state.lastEvent)
+        assertFalse(state.canReportMisconductOffenseSet(state.startEpoch + 91_000L))
+        assertEquals(state, state.reportMisconductOffenseSet(state.startEpoch + 91_000L))
 
         // The no-pull restriction is only for the current point sequence.
         state = recordGoalFromCurrentStateAt(state, VC, LocalTime.of(12, 5))
         assertFalse(state.pullSkippedForCurrentPoint)
         assertTrue(state.canRecordPullInfraction(VC))
+
+        val missingCountdownException = assertThrows(NullPointerException::class.java) {
+            val baseState = standardLiveGameState()
+            baseState.copy(
+                countdown = null,
+                teamOne = baseState.teamOne.copy(blueCards = 2),
+            ).assessBlueCard(VC)
+        }
+        assertNull(missingCountdownException.message)
+        assertEquals(standardLiveGameState(), standardLiveGameState().startMisconductCountdown(1_010_000L))
 
         state = standardLiveGameState()
         state = state.copy(teamOne = state.teamOne.copy(blueCards = 2))
@@ -243,7 +261,11 @@ class TestGameCards : GameDomainTestFixtures() {
         // Prior cards from this tournament surface the tournament suspension thresholds.
         state = createLiveGameState(
             standardGameSetup(startTime = LocalTime.of(11, 0)).copy(
-                priorCards = listOf(PlayerCardRecord(VC, "44", priorYellows = 2, priorReds = 0)),
+                priorCards = listOf(
+                    PlayerCardRecord(ANIMAL, "44", priorYellows = 2, priorReds = 0),
+                    PlayerCardRecord(VC, "45", priorYellows = 2, priorReds = 0),
+                    PlayerCardRecord(VC, "44", priorYellows = 2, priorReds = 0),
+                ),
             )
         )
         cardResult = state.assessYellowCard(VC, "44")
@@ -263,6 +285,39 @@ class TestGameCards : GameDomainTestFixtures() {
         assertEquals(
             "Red card on player 31.\n" +
                 "Player 31 is suspended for the rest of the tournament.\n" +
+                "Animal has 2 cards.",
+            cardResult.message(),
+        )
+
+        state = createLiveGameState(
+            standardGameSetup(startTime = LocalTime.of(11, 0)).copy(
+                priorCards = listOf(PlayerCardRecord(ANIMAL, "35", priorYellows = 0, priorReds = 1)),
+            )
+        ).copy(
+            phase = LivePhase.HALFTIME,
+            halftimeTaken = true,
+        )
+        cardResult = state.assessRedCard(ANIMAL, "35", RedCardMode.RED)
+        assertEquals(
+            "Red card on player 35.\n" +
+                "Player 35 is suspended for the rest of the tournament.\n" +
+                "Animal has 2 cards.",
+            cardResult.message(),
+        )
+
+        state = createLiveGameState(
+            standardGameSetup(startTime = LocalTime.of(11, 0)).copy(
+                priorCards = listOf(PlayerCardRecord(ANIMAL, "36", priorYellows = 1, priorReds = 0)),
+            )
+        )
+        state = state.assessYellowCard(ANIMAL, "36").state.copy(
+            phase = LivePhase.HALFTIME,
+            halftimeTaken = true,
+        )
+        cardResult = state.assessYellowCard(ANIMAL, "36")
+        assertEquals(
+            "Second yellow on player 36.\n" +
+                "Player 36 is suspended for the rest of the tournament.\n" +
                 "Animal has 2 cards.",
             cardResult.message(),
         )
@@ -515,23 +570,75 @@ class TestGameCards : GameDomainTestFixtures() {
                 InGamePlayerCardRecord("8", yellows = 2),
             ),
         )
+        val adjustmentSteps = adjustmentStepState.buildPlayerCardAdjustmentSteps(
+            teamOneYellows = 2,
+            teamOneReds = 0,
+            teamTwoYellows = 1,
+            teamTwoReds = 0,
+        )
+        val expectedAdjustmentSteps = listOf(
+            PlayerCardAdjustmentStep(VC, CardType.YELLOW, PlayerCardAdjustmentMode.ADD),
+            PlayerCardAdjustmentStep(VC, CardType.RED, PlayerCardAdjustmentMode.REMOVE),
+            PlayerCardAdjustmentStep(ANIMAL, CardType.YELLOW, PlayerCardAdjustmentMode.REMOVE),
+        )
+        assertEquals(expectedAdjustmentSteps, adjustmentSteps)
+        val (firstStepTeam, firstStepType, firstStepMode) = adjustmentSteps.first()
+        assertEquals(VC, firstStepTeam)
+        assertEquals(CardType.YELLOW, firstStepType)
+        assertEquals(PlayerCardAdjustmentMode.ADD, firstStepMode)
+        assertEquals(VC, adjustmentSteps.first().team)
+        assertEquals(CardType.YELLOW, adjustmentSteps.first().cardType)
+        assertEquals(PlayerCardAdjustmentMode.ADD, adjustmentSteps.first().mode)
         assertEquals(
-            listOf(
-                PlayerCardAdjustmentStep(VC, CardType.YELLOW, PlayerCardAdjustmentMode.ADD),
-                PlayerCardAdjustmentStep(VC, CardType.RED, PlayerCardAdjustmentMode.REMOVE),
-                PlayerCardAdjustmentStep(ANIMAL, CardType.YELLOW, PlayerCardAdjustmentMode.REMOVE),
+            expectedAdjustmentSteps.first(),
+            adjustmentSteps.first().copy(),
+        )
+        assertEquals(
+            PlayerCardAdjustmentStep(ANIMAL, CardType.RED, PlayerCardAdjustmentMode.REMOVE),
+            adjustmentSteps.first().copy(
+                team = ANIMAL,
+                cardType = CardType.RED,
+                mode = PlayerCardAdjustmentMode.REMOVE,
             ),
-            adjustmentStepState.buildPlayerCardAdjustmentSteps(
-                teamOneYellows = 2,
-                teamOneReds = 0,
-                teamTwoYellows = 1,
-                teamTwoReds = 0,
-            ),
+        )
+        assertTrue(adjustmentSteps.first().toString().contains("mode=ADD"))
+        assertEquals(
+            PlayerCardAdjustmentStep(VC, CardType.YELLOW, PlayerCardAdjustmentMode.ADD).hashCode(),
+            adjustmentSteps.first().hashCode(),
+        )
+        assertFalse(adjustmentSteps.first() == adjustmentSteps.first().copy(team = ANIMAL))
+        assertFalse(adjustmentSteps.first() == adjustmentSteps.first().copy(cardType = CardType.RED))
+        assertFalse(adjustmentSteps.first() == adjustmentSteps.first().copy(mode = PlayerCardAdjustmentMode.REMOVE))
+        assertFalse(adjustmentSteps.first().equals("not a card adjustment step"))
+        val yellowRemovalCandidates = playerCardRemovalCandidates(
+            adjustmentStepState.teamTwoPlayerCards,
+            CardType.YELLOW,
         )
         assertEquals(
             listOf(PlayerCardRemovalCandidate("8", cardCount = 2)),
-            playerCardRemovalCandidates(adjustmentStepState.teamTwoPlayerCards, CardType.YELLOW),
+            yellowRemovalCandidates,
         )
+        val (candidateJerseyNumber, candidateCardCount) = yellowRemovalCandidates.single()
+        assertEquals("8", candidateJerseyNumber)
+        assertEquals(2, candidateCardCount)
+        assertEquals("8", yellowRemovalCandidates.single().jerseyNumber)
+        assertEquals(2, yellowRemovalCandidates.single().cardCount)
+        assertEquals(
+            PlayerCardRemovalCandidate("8", cardCount = 2),
+            yellowRemovalCandidates.single().copy(),
+        )
+        assertEquals(
+            PlayerCardRemovalCandidate("9", cardCount = 1),
+            yellowRemovalCandidates.single().copy(jerseyNumber = "9", cardCount = 1),
+        )
+        assertTrue(yellowRemovalCandidates.single().toString().contains("cardCount=2"))
+        assertEquals(
+            PlayerCardRemovalCandidate("8", cardCount = 2).hashCode(),
+            yellowRemovalCandidates.single().hashCode(),
+        )
+        assertFalse(yellowRemovalCandidates.single() == yellowRemovalCandidates.single().copy(jerseyNumber = "9"))
+        assertFalse(yellowRemovalCandidates.single() == yellowRemovalCandidates.single().copy(cardCount = 1))
+        assertFalse(yellowRemovalCandidates.single().equals("not a removal candidate"))
         assertEquals(
             emptyList<PlayerCardRemovalCandidate>(),
             playerCardRemovalCandidates(adjustmentStepState.teamTwoPlayerCards, CardType.RED),
