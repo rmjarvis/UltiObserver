@@ -12,8 +12,10 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.swipeRight
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import java.time.LocalTime
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -324,6 +326,28 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         waitForText("Cards / Technical Fouls")
         composeRule.onAllNodesWithText("Misconduct Penalty").assertCountEquals(0)
         composeRule.onAllNodesWithText("Blue")[teamCardButtonIndex(TeamId.TEAM_ONE)].performClick()
+        waitForText("Misconduct Penalty")
+        composeRule.onNodeWithText("Defense").performClick()
+        waitForText("Brick nearest attacking end zone", substring = true)
+        composeRule.onNodeWithText("OK").performClick()
+        waitForText("Start Misconduct Countdown")
+
+        // Back from a red-card N/A misconduct choice should restore a blank number dialog.
+        openCardsSheet()
+        composeRule.onAllNodesWithText("Red")[teamCardButtonIndex(TeamId.TEAM_TWO)].performClick()
+        waitForText("Red Card")
+        composeRule.onNodeWithText("N/A").performClick()
+        waitForText("Misconduct Penalty")
+        pressDialogBack()
+        waitForText("Red Card")
+        assertEquals(
+            "",
+            composeRule.onNodeWithTag("card-player-number")
+                .fetchSemanticsNode()
+                .config[SemanticsProperties.EditableText]
+                .text,
+        )
+        composeRule.onNodeWithText("N/A").performClick()
         waitForText("Misconduct Penalty")
         composeRule.onNodeWithText("Defense").performClick()
         waitForText("Brick nearest attacking end zone", substring = true)

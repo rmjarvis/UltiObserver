@@ -1,17 +1,22 @@
 package rmjarvis.ultiobserver
 
+import android.app.Activity
+import android.app.Instrumentation
+import android.content.Intent
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.percentOffset
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
@@ -19,6 +24,9 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.swipeRight
 import java.time.LocalTime
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -117,7 +125,30 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("About").performClick()
         composeRule.onNodeWithTag("about-screen").assertIsDisplayed()
         composeRule.onNodeWithText("Version ${BuildConfig.VERSION_NAME}").assertIsDisplayed()
-        composeRule.onNodeWithText("https://github.com/rmjarvis/UltiObserver").assertIsDisplayed()
+        val sourceCodeUrl = "https://github.com/rmjarvis/UltiObserver"
+        composeRule.onNodeWithText(sourceCodeUrl).assertIsDisplayed()
+
+        // The app should hand the source-code link to Android without actually leaving this test.
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        var openedIntent: Intent? = null
+        val sourceCodeMonitor = object : Instrumentation.ActivityMonitor() {
+            override fun onStartActivity(intent: Intent): Instrumentation.ActivityResult? {
+                if (intent.action == Intent.ACTION_VIEW && intent.dataString == sourceCodeUrl) {
+                    openedIntent = intent
+                    return Instrumentation.ActivityResult(Activity.RESULT_OK, null)
+                }
+                return null
+            }
+        }
+        instrumentation.addMonitor(sourceCodeMonitor)
+        try {
+            composeRule.onNodeWithText(sourceCodeUrl).performClick()
+            composeRule.waitUntil(timeoutMillis = 5_000) { openedIntent != null }
+        } finally {
+            instrumentation.removeMonitor(sourceCodeMonitor)
+        }
+        assertEquals(Intent.ACTION_VIEW, openedIntent?.action)
+        assertEquals(sourceCodeUrl, openedIntent?.dataString)
         pressAppBack()
         waitForText("Start New Game")
 
@@ -134,7 +165,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Profile").performClick()
         composeRule.onNodeWithTag("profile-avatar-BLUE").performScrollTo()
         composeRule.onNode(hasContentDescription("Man with blue ponytail and glasses")).assertIsDisplayed()
-        pressAppBack()
+        composeRule.onNodeWithTag("profile-avatar-RANDOM").performScrollTo().performClick()
         waitForText("Start New Game")
 
         // Seed settings directly so this UI-focused test can start at a meaningful cue state.
@@ -162,6 +193,17 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText("Vibration Only")
         composeRule.onNodeWithText("Vibration Only").performClick()
         waitForText("Vibration will be used for any cues that are set to use sound.")
+        composeRule.onNodeWithTag("settings-vibration-length").performScrollTo().performTouchInput {
+            click(percentOffset(0.95f, 0.5f))
+        }
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.activity.appViewModel.timingAlertPreferences.vibrationDurationMillis >
+                DEFAULT_TIMING_CUE_VIBRATION_MS
+        }
+        assertTrue(
+            composeRule.activity.appViewModel.timingAlertPreferences.vibrationDurationMillis >
+                DEFAULT_TIMING_CUE_VIBRATION_MS
+        )
         composeRule.onAllNodesWithTag("settings-sound-volume").assertCountEquals(0)
         composeRule.onAllNodesWithTag("settings-vibrate-with-sounds").assertCountEquals(0)
         composeRule.onNodeWithTag("settings-open-timing-cue-settings").performScrollTo().performClick()

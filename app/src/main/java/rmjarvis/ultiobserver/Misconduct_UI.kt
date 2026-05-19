@@ -250,6 +250,8 @@ internal fun CardsSheet(
 
     fun restoreMisconductReturn(returnTo: PendingMisconductReturn?) {
         pendingMisconductChoice = null
+        if (returnTo == null) return
+        // No else branch: every PendingMisconductReturn value is handled
         when (returnTo) {
             is PendingMisconductReturn.YellowNumber -> {
                 pendingYellowInitialNumber = returnTo.jerseyNumber
@@ -262,7 +264,6 @@ internal fun CardsSheet(
             is PendingMisconductReturn.UnknownYellow -> {
                 pendingUnknownYellowChoice = PendingUnknownYellowChoice(returnTo.team)
             }
-            null -> Unit
         }
     }
 

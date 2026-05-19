@@ -263,12 +263,16 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             globalMode = TimingAlertGlobalMode.VIBRATION_ONLY,
             cueMode = TimingAlertMode.VIBRATE,
             vibrateWithSounds = false,
+            cueAlreadyDue = true,
             waitAfterDueMillis = 1_500L,
         )
         triggerDueTimeoutTwentyCue(
             globalMode = TimingAlertGlobalMode.SOUNDS_ON,
             cueMode = TimingAlertMode.TICK,
             vibrateWithSounds = true,
+            // Keep this below the listener's polling interval but high enough that the
+            // emulator should not turn it into the already-due path before the first check.
+            cueDueInMillis = 240L,
         )
         triggerDueTimeoutTwentyCue(
             globalMode = TimingAlertGlobalMode.SOUNDS_ON,
@@ -449,6 +453,34 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         }
         waitForText("Slide right to unlock")
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "timeout")).assertIsNotEnabled()
+        unlockLiveScreen()
+
+        // If auto-advance is re-enabled before undoing a manual start from an expired countdown,
+        // undo should not immediately relock the observer out of the restored live screen.
+        startLiveGameProgrammatically()
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appViewModel.updateAutomaticallyAdvanceCountdowns(false)
+            activity.appViewModel.updateAutomaticallyLockLivePoint(true)
+            val current = activity.appViewModel.liveState!!
+            activity.appViewModel.updateLiveGame(
+                current.copy(
+                    countdown = current.countdown!!.copy(targetEpoch = System.currentTimeMillis() - 1_000L),
+                )
+            )
+        }
+        waitForText("Start Point")
+        composeRule.onNodeWithText("Start Point").performClick()
+        waitForText("Slide right to unlock")
+        unlockLiveScreen()
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appViewModel.updateAutomaticallyAdvanceCountdowns(true)
+        }
+        composeRule.onNodeWithText("Undo Start Point").performClick()
+        composeRule.waitUntil(timeoutMillis = 2_000) {
+            composeRule.activity.appViewModel.liveState!!.phase == LivePhase.LIVE_POINT
+        }
+        waitForText("Lock")
+        composeRule.onAllNodesWithText("Slide right to unlock").assertCountEquals(0)
     }
 
     /// Verify disabling automatic countdown advancement leaves expired countdowns on the observer-facing controls.
@@ -525,18 +557,22 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
      * @param globalMode The global timing alert mode to apply before the cue fires.
      * @param cueMode The per-cue alert mode for the timeout twenty-second cue.
      * @param vibrateWithSounds Whether sound cues should also vibrate.
+     * @param cueAlreadyDue Whether the cue should already be due when the listener sees the countdown.
+     * @param cueDueInMillis How soon a scheduled cue should fire when it is not already due.
      * @param waitAfterDueMillis How long to wait after the cue's due time so asynchronous delivery can run.
      */
     private fun triggerDueTimeoutTwentyCue(
         globalMode: TimingAlertGlobalMode,
         cueMode: TimingAlertMode,
         vibrateWithSounds: Boolean,
+        cueAlreadyDue: Boolean = false,
+        cueDueInMillis: Long = 500L,
         waitAfterDueMillis: Long = 300L,
     ) {
         var dueEpoch = 0L
         composeRule.activityRule.scenario.onActivity { activity ->
             val now = System.currentTimeMillis()
-            dueEpoch = now + 500L
+            dueEpoch = if (cueAlreadyDue) now - 500L else now + cueDueInMillis
             activity.appViewModel.updateTimingAlertGlobalMode(globalMode)
             activity.appViewModel.updateTimingAlertVibrateWithSounds(vibrateWithSounds)
             activity.appViewModel.updateTimingCueMode(TimingCueId.TIMEOUT_OFFENSE_TWENTY, cueMode)

@@ -134,7 +134,13 @@ internal fun LiveGameScreen(
     }
 
     // Let countdown expiration move the model forward without requiring an observer tap.
-    LaunchedEffect(state, now, readOnlySummary, automaticallyAdvanceCountdowns, automaticallyLockLivePoint) {
+    LaunchedEffect(
+        state,
+        now,
+        readOnlySummary,
+        automaticallyAdvanceCountdowns,
+        automaticallyLockLivePoint,
+    ) {
         val suppressAutoLock = suppressNextAutoLock
         suppressNextAutoLock = false
         if (!readOnlySummary && automaticallyAdvanceCountdowns) {
