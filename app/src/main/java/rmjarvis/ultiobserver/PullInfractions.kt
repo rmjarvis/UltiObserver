@@ -33,18 +33,50 @@ fun LiveGameState.adjustPullInfractions(
     teamOneFalseStarts: Int,
     teamTwoOffsides: Int,
     teamTwoFalseStarts: Int,
+    now: Long,
 ): LiveGameState {
+    val adjustedTeamOneOffsides = teamOneOffsides.coerceAtLeast(0)
+    val adjustedTeamOneFalseStarts = teamOneFalseStarts.coerceAtLeast(0)
+    val adjustedTeamTwoOffsides = teamTwoOffsides.coerceAtLeast(0)
+    val adjustedTeamTwoFalseStarts = teamTwoFalseStarts.coerceAtLeast(0)
+    val entries = buildList {
+        // this@adjustPullInfractions is the LiveGameState receiver; plain this is the list being built.
+        addPullInfractionDelta(
+            now = now,
+            team = TeamId.TEAM_ONE,
+            infraction = PullInfractionType.OFFSIDES,
+            delta = adjustedTeamOneOffsides - this@adjustPullInfractions.teamOne.offsides,
+        )
+        addPullInfractionDelta(
+            now = now,
+            team = TeamId.TEAM_ONE,
+            infraction = PullInfractionType.FALSE_START,
+            delta = adjustedTeamOneFalseStarts - this@adjustPullInfractions.teamOne.falseStarts,
+        )
+        addPullInfractionDelta(
+            now = now,
+            team = TeamId.TEAM_TWO,
+            infraction = PullInfractionType.OFFSIDES,
+            delta = adjustedTeamTwoOffsides - this@adjustPullInfractions.teamTwo.offsides,
+        )
+        addPullInfractionDelta(
+            now = now,
+            team = TeamId.TEAM_TWO,
+            infraction = PullInfractionType.FALSE_START,
+            delta = adjustedTeamTwoFalseStarts - this@adjustPullInfractions.teamTwo.falseStarts,
+        )
+    }
     return this.copy(
         teamOne = this.teamOne.copy(
-            offsides = teamOneOffsides.coerceAtLeast(0),
-            falseStarts = teamOneFalseStarts.coerceAtLeast(0),
+            offsides = adjustedTeamOneOffsides,
+            falseStarts = adjustedTeamOneFalseStarts,
         ),
         teamTwo = this.teamTwo.copy(
-            offsides = teamTwoOffsides.coerceAtLeast(0),
-            falseStarts = teamTwoFalseStarts.coerceAtLeast(0),
+            offsides = adjustedTeamTwoOffsides,
+            falseStarts = adjustedTeamTwoFalseStarts,
         ),
         lastEvent = "Pull infractions adjusted.",
-    ).withUndo(this, "Undo Pull Infraction Adjustment")
+    ).withEventLogEntries(entries).withUndo(this, "Undo Pull Infraction Adjustment")
 }
 
 /**
@@ -52,7 +84,7 @@ fun LiveGameState.adjustPullInfractions(
  *
  * @param team The team that committed the pull infraction.
  */
-fun LiveGameState.assessPullInfraction(team: TeamId): PullInfractionAssessmentResult {
+fun LiveGameState.assessPullInfraction(team: TeamId, now: Long): PullInfractionAssessmentResult {
     if (!this.canRecordPullInfraction(team)) {
         return PullInfractionAssessmentResult(this)
     }
@@ -62,8 +94,8 @@ fun LiveGameState.assessPullInfraction(team: TeamId): PullInfractionAssessmentRe
         PullInfractionType.FALSE_START
     }
     val updatedState = when (infraction) {
-        PullInfractionType.OFFSIDES -> this.recordOffsides()
-        PullInfractionType.FALSE_START -> this.recordFalseStart()
+        PullInfractionType.OFFSIDES -> this.recordOffsides(now)
+        PullInfractionType.FALSE_START -> this.recordFalseStart(now)
     }
     return PullInfractionAssessmentResult(
         state = updatedState,
@@ -93,7 +125,7 @@ fun LiveGameState.canRecordPullInfraction(team: TeamId): Boolean {
 }
 
 /// Record offsides against the current pulling team.
-fun LiveGameState.recordOffsides(): LiveGameState {
+fun LiveGameState.recordOffsides(now: Long): LiveGameState {
     if (this.pullSkippedForCurrentPoint || this.pullSequenceOffsidesRecorded) {
         return this
     }
@@ -114,11 +146,17 @@ fun LiveGameState.recordOffsides(): LiveGameState {
         pullCountdownExpired = false,
         pullSequenceOffsidesRecorded = true,
         lastEvent = "Offsides on ${this.teamName(team)}.",
+    ).withEventLogEntry(
+        EventLogEntry(
+            timestampEpoch = now,
+            type = EventLogType.OFFSIDES,
+            team = team,
+        )
     ).withUndo(this, "Undo Offsides on ${this.teamName(team)}")
 }
 
 /// Record false start against the current receiving team.
-fun LiveGameState.recordFalseStart(): LiveGameState {
+fun LiveGameState.recordFalseStart(now: Long): LiveGameState {
     if (this.pullSkippedForCurrentPoint || this.pullSequenceFalseStartRecorded) {
         return this
     }
@@ -137,7 +175,47 @@ fun LiveGameState.recordFalseStart(): LiveGameState {
         pullCountdownExpired = false,
         pullSequenceFalseStartRecorded = true,
         lastEvent = "False start on ${this.teamName(team)}.",
+    ).withEventLogEntry(
+        EventLogEntry(
+            timestampEpoch = now,
+            type = EventLogType.FALSE_START,
+            team = team,
+        )
     ).withUndo(this, "Undo False Start on ${this.teamName(team)}")
+}
+
+/**
+ * Add a pull-infraction correction entry when a count changed.
+ *
+ * @param now The correction timestamp.
+ * @param team The team whose count changed.
+ * @param infraction The pull-infraction count that changed.
+ * @param delta The signed count change.
+ */
+private fun MutableList<EventLogEntry>.addPullInfractionDelta(
+    now: Long,
+    team: TeamId,
+    infraction: PullInfractionType,
+    delta: Int,
+) {
+    if (delta != 0) {
+        add(
+            EventLogEntry(
+                timestampEpoch = now,
+                type = infraction.eventLogType(),
+                team = team,
+                delta = delta,
+            )
+        )
+    }
+}
+
+/// Return the event-log type represented by this pull-infraction type.
+private fun PullInfractionType.eventLogType(): EventLogType {
+    return when (this) {
+        PullInfractionType.OFFSIDES -> EventLogType.OFFSIDES
+        PullInfractionType.FALSE_START -> EventLogType.FALSE_START
+    }
 }
 
 /**

@@ -58,6 +58,7 @@ data class TimeViolationAssessmentResult(
 )
 
 /// Rule outcome from assessing a team's pull time violation.
+@Serializable
 enum class TimeViolationOutcome {
     WARNING,
     TIMEOUT,
@@ -178,7 +179,7 @@ fun LiveGameState.assessTimeViolation(team: TeamId, now: Long): TimeViolationAss
     val updatedState = when (outcome) {
         TimeViolationOutcome.WARNING -> this.recordTimeViolationWarning(team, now)
         TimeViolationOutcome.TIMEOUT -> this.recordTimeViolationTimeout(team, now)
-        TimeViolationOutcome.NO_TIMEOUT -> this.recordTimeViolationWithoutTimeout(team)
+        TimeViolationOutcome.NO_TIMEOUT -> this.recordTimeViolationWithoutTimeout(team, now)
     }
     return TimeViolationAssessmentResult(
         state = updatedState,
@@ -220,6 +221,13 @@ private fun LiveGameState.recordTimeViolationWarning(team: TeamId, now: Long): L
         },
         pullCountdownExpired = false,
         lastEvent = "Time violation warning on ${this.teamName(team)}.",
+    ).withEventLogEntry(
+        EventLogEntry(
+            timestampEpoch = now,
+            type = EventLogType.TIME_VIOLATION,
+            team = team,
+            timeViolationOutcome = TimeViolationOutcome.WARNING,
+        )
     ).withUndo(this, "Undo Time Violation Warning on ${this.teamName(team)}")
 }
 
@@ -261,6 +269,13 @@ private fun LiveGameState.recordTimeViolationTimeout(team: TeamId, now: Long): L
         ),
         pullCountdownExpired = false,
         lastEvent = "Timeout charged to ${this.teamName(team)} for time violation.",
+    ).withEventLogEntry(
+        EventLogEntry(
+            timestampEpoch = now,
+            type = EventLogType.TIME_VIOLATION,
+            team = team,
+            timeViolationOutcome = TimeViolationOutcome.TIMEOUT,
+        )
     ).withUndo(this, "Undo Time Violation Timeout on ${this.teamName(team)}")
 }
 
@@ -314,12 +329,19 @@ internal fun LiveGameState.isNearSideTeam(team: TeamId): Boolean {
  *
  * @param team The violating team.
  */
-private fun LiveGameState.recordTimeViolationWithoutTimeout(team: TeamId): LiveGameState {
+private fun LiveGameState.recordTimeViolationWithoutTimeout(team: TeamId, now: Long): LiveGameState {
     return this.copy(
         countdown = null,
         pullCountdownExpired = false,
         pullSkippedForCurrentPoint = true,
         lastEvent = "Time violation on ${this.teamName(team)}.",
+    ).withEventLogEntry(
+        EventLogEntry(
+            timestampEpoch = now,
+            type = EventLogType.TIME_VIOLATION,
+            team = team,
+            timeViolationOutcome = TimeViolationOutcome.NO_TIMEOUT,
+        )
     ).withUndo(this, "Undo Time Violation on ${this.teamName(team)}")
 }
 

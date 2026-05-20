@@ -20,16 +20,43 @@ data class TimeoutAssessmentResult(
 fun LiveGameState.adjustTimeouts(
     teamOneTimeoutsUsed: Int,
     teamTwoTimeoutsUsed: Int,
+    now: Long,
 ): LiveGameState {
+    val adjustedTeamOneTimeouts = teamOneTimeoutsUsed.coerceAtLeast(0)
+    val adjustedTeamTwoTimeouts = teamTwoTimeoutsUsed.coerceAtLeast(0)
+    val entries = buildList {
+        val teamOneDelta = adjustedTeamOneTimeouts - this@adjustTimeouts.teamOne.timeoutsUsedThisHalf
+        if (teamOneDelta != 0) {
+            add(
+                EventLogEntry(
+                    timestampEpoch = now,
+                    type = EventLogType.TIMEOUT,
+                    team = TeamId.TEAM_ONE,
+                    delta = teamOneDelta,
+                )
+            )
+        }
+        val teamTwoDelta = adjustedTeamTwoTimeouts - this@adjustTimeouts.teamTwo.timeoutsUsedThisHalf
+        if (teamTwoDelta != 0) {
+            add(
+                EventLogEntry(
+                    timestampEpoch = now,
+                    type = EventLogType.TIMEOUT,
+                    team = TeamId.TEAM_TWO,
+                    delta = teamTwoDelta,
+                )
+            )
+        }
+    }
     return this.copy(
         teamOne = this.teamOne.copy(
-            timeoutsUsedThisHalf = teamOneTimeoutsUsed,
+            timeoutsUsedThisHalf = adjustedTeamOneTimeouts,
         ),
         teamTwo = this.teamTwo.copy(
-            timeoutsUsedThisHalf = teamTwoTimeoutsUsed,
+            timeoutsUsedThisHalf = adjustedTeamTwoTimeouts,
         ),
         lastEvent = "Timeouts adjusted.",
-    ).withUndo(this, "Undo Timeout Adjustment")
+    ).withEventLogEntries(entries).withUndo(this, "Undo Timeout Adjustment")
 }
 /**
  * Validate and charge a timeout request, returning the popup event that should be shown.
@@ -85,9 +112,23 @@ fun LiveGameState.chargeTimeout(
 
     if (timeoutState.phase == LivePhase.BETWEEN_POINTS) {
         return applyBetweenPointsTimeout(updatedState)
+            .withEventLogEntry(
+                EventLogEntry(
+                    timestampEpoch = now,
+                    type = EventLogType.TIMEOUT,
+                    team = team,
+                )
+            )
             .withUndo(this, "Undo Timeout by ${timeoutState.teamName(team)}")
     }
     return applyLivePointTimeout(updatedState, now)
+        .withEventLogEntry(
+            EventLogEntry(
+                timestampEpoch = now,
+                type = EventLogType.TIMEOUT,
+                team = team,
+            )
+        )
         .withUndo(this, "Undo Timeout by ${timeoutState.teamName(team)}")
 }
 /**

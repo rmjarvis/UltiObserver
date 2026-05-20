@@ -152,6 +152,173 @@ abstract class GameDomainTestFixtures {
     }
 
     /**
+     * Start a point at a dummy timestamp when exact event-log timing is not under test.
+     *
+     * @receiver The state whose point should be started.
+     */
+    protected fun LiveGameState.beginLivePoint(): LiveGameState {
+        return beginLivePoint(0L)
+    }
+
+    /**
+     * Record a yellow-card action at a dummy timestamp when timing is not under test.
+     *
+     * @receiver The state receiving the card action.
+     * @param team The team receiving the card.
+     * @param jerseyNumber The player receiving the card, or `N/A`.
+     */
+    protected fun LiveGameState.assessYellowCard(team: TeamId, jerseyNumber: String): CardAssessmentResult {
+        return assessYellowCard(team, jerseyNumber, 0L)
+    }
+
+    /**
+     * Record a first-yellow action at a dummy timestamp when timing is not under test.
+     *
+     * @receiver The state receiving the card action.
+     * @param team The team receiving the card.
+     * @param jerseyNumber The player receiving the card, or `N/A`.
+     */
+    protected fun LiveGameState.assessFirstYellowCard(team: TeamId, jerseyNumber: String): CardAssessmentResult {
+        return assessFirstYellowCard(team, jerseyNumber, 0L)
+    }
+
+    /**
+     * Record a second-yellow action at a dummy timestamp when timing is not under test.
+     *
+     * @receiver The state receiving the card action.
+     * @param team The team receiving the card.
+     * @param jerseyNumber The player receiving the card, or `N/A`.
+     */
+    protected fun LiveGameState.assessSecondYellowCard(team: TeamId, jerseyNumber: String): CardAssessmentResult {
+        return assessSecondYellowCard(team, jerseyNumber, 0L)
+    }
+
+    /**
+     * Record a red-card action at a dummy timestamp when timing is not under test.
+     *
+     * @receiver The state receiving the card action.
+     * @param team The team receiving the card.
+     * @param jerseyNumber The player receiving the card, or `N/A`.
+     */
+    protected fun LiveGameState.assessRedCard(team: TeamId, jerseyNumber: String): CardAssessmentResult {
+        return assessRedCard(team, jerseyNumber, 0L)
+    }
+
+    /**
+     * Record a blue-card action at a dummy timestamp when timing is not under test.
+     *
+     * @receiver The state receiving the card action.
+     * @param team The team receiving the card.
+     */
+    protected fun LiveGameState.assessBlueCard(team: TeamId): CardAssessmentResult {
+        return assessBlueCard(team, 0L)
+    }
+
+    /**
+     * Record a technical foul at a dummy timestamp when timing is not under test.
+     *
+     * @receiver The state receiving the technical-foul action.
+     * @param team The team receiving the technical foul.
+     */
+    protected fun LiveGameState.assessTechnicalFoul(team: TeamId): CardAssessmentResult {
+        return assessTechnicalFoul(team, 0L)
+    }
+
+    /**
+     * Record a pull infraction at a dummy timestamp when timing is not under test.
+     *
+     * @receiver The state receiving the pull-infraction action.
+     * @param team The team committing the pull infraction.
+     */
+    protected fun LiveGameState.assessPullInfraction(team: TeamId): PullInfractionAssessmentResult {
+        return assessPullInfraction(team, 0L)
+    }
+
+    /**
+     * Record offsides at a dummy timestamp when timing is not under test.
+     *
+     * @receiver The state receiving the offsides action.
+     */
+    protected fun LiveGameState.recordOffsides(): LiveGameState {
+        return recordOffsides(0L)
+    }
+
+    /**
+     * Record a false start at a dummy timestamp when timing is not under test.
+     *
+     * @receiver The state receiving the false-start action.
+     */
+    protected fun LiveGameState.recordFalseStart(): LiveGameState {
+        return recordFalseStart(0L)
+    }
+
+    /**
+     * Apply a score correction at a dummy timestamp when timing is not under test.
+     *
+     * @receiver The state being corrected.
+     * @param teamOneScore The corrected team-one score.
+     * @param teamTwoScore The corrected team-two score.
+     */
+    protected fun LiveGameState.adjustScore(teamOneScore: Int, teamTwoScore: Int): LiveGameState {
+        return adjustScore(teamOneScore, teamTwoScore, 0L)
+    }
+
+    /**
+     * Apply a timeout correction at a dummy timestamp when timing is not under test.
+     *
+     * @receiver The state being corrected.
+     * @param teamOneTimeoutsUsed The corrected team-one timeout count.
+     * @param teamTwoTimeoutsUsed The corrected team-two timeout count.
+     */
+    protected fun LiveGameState.adjustTimeouts(teamOneTimeoutsUsed: Int, teamTwoTimeoutsUsed: Int): LiveGameState {
+        return adjustTimeouts(teamOneTimeoutsUsed, teamTwoTimeoutsUsed, 0L)
+    }
+
+    /**
+     * Apply a pull-infraction correction at a dummy timestamp when timing is not under test.
+     *
+     * @receiver The state being corrected.
+     */
+    protected fun LiveGameState.adjustPullInfractions(
+        teamOneOffsides: Int,
+        teamOneFalseStarts: Int,
+        teamTwoOffsides: Int,
+        teamTwoFalseStarts: Int,
+    ): LiveGameState {
+        return adjustPullInfractions(
+            teamOneOffsides,
+            teamOneFalseStarts,
+            teamTwoOffsides,
+            teamTwoFalseStarts,
+            0L,
+        )
+    }
+
+    /**
+     * Apply a card/technical-foul correction at a dummy timestamp when timing is not under test.
+     *
+     * @receiver The state being corrected.
+     */
+    protected fun LiveGameState.adjustCardsAndTf(
+        teamOneBlues: Int,
+        teamOneTechnicalFouls: Int,
+        teamTwoBlues: Int,
+        teamTwoTechnicalFouls: Int,
+        teamOnePlayerCards: List<InGamePlayerCardRecord>,
+        teamTwoPlayerCards: List<InGamePlayerCardRecord>,
+    ): LiveGameState {
+        return adjustCardsAndTf(
+            teamOneBlues,
+            teamOneTechnicalFouls,
+            teamTwoBlues,
+            teamTwoTechnicalFouls,
+            teamOnePlayerCards,
+            teamTwoPlayerCards,
+            0L,
+        )
+    }
+
+    /**
      * Manually start halftime at a local clock time.
      *
      * @param state The live state before halftime.

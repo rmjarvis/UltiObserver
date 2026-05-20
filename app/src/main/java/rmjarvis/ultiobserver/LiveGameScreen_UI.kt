@@ -66,6 +66,7 @@ internal fun LiveGameScreen(
 ) {
     var showCardsSheet by remember { mutableStateOf(false) }
     var showOtherSheet by remember { mutableStateOf(false) }
+    var showEventLogSheet by remember { mutableStateOf(false) }
     var showTimeViolationTeamPrompt by remember { mutableStateOf(false) }
     var locked by remember { mutableStateOf(false) }
     var actionInfoMessage by remember { mutableStateOf<String?>(null) }
@@ -215,9 +216,14 @@ internal fun LiveGameScreen(
             ) {
                 // If the game is over, replace the live controls with the summary screen.
                 if (state.phase == LivePhase.GAME_OVER) {
-                    GameOverSummary(state = state, onUndo = {
-                        undoWithoutPhasePrompt(state.undoLastAction())
-                    }, showUndo = !readOnlySummary)
+                    GameOverSummary(
+                        state = state,
+                        onShowEventLog = { showEventLogSheet = true },
+                        onUndo = {
+                            undoWithoutPhasePrompt(state.undoLastAction())
+                        },
+                        showUndo = !readOnlySummary,
+                    )
                 } else {
                 // Show the current clock and next relevant cap.
                 StatusLine(
@@ -281,7 +287,7 @@ internal fun LiveGameScreen(
                         } else if (canStartPoint) {
                             OutlinedButton(
                                 onClick = {
-                                    onStateChange(state.beginLivePoint())
+                                    onStateChange(state.beginLivePoint(now))
                                     if (automaticallyLockLivePoint) {
                                         locked = true
                                     }
@@ -356,7 +362,7 @@ internal fun LiveGameScreen(
                         )
                     },
                     onPullInfraction = { team ->
-                        val result = state.assessPullInfraction(team)
+                        val result = state.assessPullInfraction(team, now)
                         onStateChange(result.state)
                         // Defensive stale-callback guard for a weird timing state.
                         val message = result.event?.formatMessage()
@@ -415,6 +421,7 @@ internal fun LiveGameScreen(
         ModalBottomSheet(onDismissRequest = { showCardsSheet = false }) {
             CardsSheet(
                 state = state,
+                now = now,
                 onAssessment = { updatedState, message, title ->
                     onStateChange(updatedState)
                     showActionInfo(
@@ -434,12 +441,22 @@ internal fun LiveGameScreen(
                 state = state,
                 now = now,
                 onUpdateGameSetup = onUpdateGameSetup,
+                onShowEventLog = {
+                    showOtherSheet = false
+                    showEventLogSheet = true
+                },
                 onDeleteGame = onDeleteGame,
                 onAction = { updatedState ->
                     onStateChange(updatedState)
                     showOtherSheet = false
                 },
             )
+        }
+    }
+
+    if (showEventLogSheet) {
+        ModalBottomSheet(onDismissRequest = { showEventLogSheet = false }) {
+            EventLogSheet(state = state)
         }
     }
 

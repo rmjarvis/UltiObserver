@@ -301,6 +301,7 @@ enum class CountdownKind {
  * @param pullingFromEnd The field end occupied by the pulling team.
  * @param openingPullingTeam The team that pulled to start the game.
  * @param openingPullingFromEnd The field end used by the opening pull.
+ * @param eventLog Persisted log of significant game events and manual corrections.
  * @param pendingCapOffer The cap currently being offered to the observer for yes/no application.
  */
 @Serializable
@@ -319,6 +320,7 @@ data class LiveGameState(
     val priorCards: List<PlayerCardRecord>,
     val teamOnePlayerCards: List<InGamePlayerCardRecord> = emptyList(),
     val teamTwoPlayerCards: List<InGamePlayerCardRecord> = emptyList(),
+    val eventLog: List<EventLogEntry> = emptyList(),
     val nearAttackingTeam: TeamId,
     val pullingTeam: TeamId,
     val pullingFromEnd: FieldEnd,
@@ -427,12 +429,26 @@ data class LiveGameState(
      * @param teamOneScore The corrected team-one score, clamped at zero.
      * @param teamTwoScore The corrected team-two score, clamped at zero.
      */
-    fun adjustScore(teamOneScore: Int, teamTwoScore: Int): LiveGameState {
+    fun adjustScore(teamOneScore: Int, teamTwoScore: Int, now: Long): LiveGameState {
+        val adjustedTeamOneScore = teamOneScore.coerceAtLeast(0)
+        val adjustedTeamTwoScore = teamTwoScore.coerceAtLeast(0)
+        val entries = if (adjustedTeamOneScore != this.teamOne.score || adjustedTeamTwoScore != this.teamTwo.score) {
+            listOf(
+                EventLogEntry(
+                    timestampEpoch = now,
+                    type = EventLogType.SCORE_ADJUSTED,
+                    teamOneScore = adjustedTeamOneScore,
+                    teamTwoScore = adjustedTeamTwoScore,
+                )
+            )
+        } else {
+            emptyList()
+        }
         return this.copy(
             teamOne = this.teamOne.copy(score = teamOneScore.coerceAtLeast(0)),
             teamTwo = this.teamTwo.copy(score = teamTwoScore.coerceAtLeast(0)),
             lastEvent = "Score adjusted.",
-        ).withUndo(this, "Undo Score Adjustment")
+        ).withEventLogEntries(entries).withUndo(this, "Undo Score Adjustment")
     }
 }
 

@@ -57,6 +57,7 @@ private data class PendingMisconductChoice(
 @Composable
 internal fun AdjustCardsDialog(
     state: LiveGameState,
+    now: Long,
     onDismiss: () -> Unit,
     onConfirm: (LiveGameState) -> Unit,
 ) {
@@ -82,6 +83,7 @@ internal fun AdjustCardsDialog(
                 teamTwoTechnicalFouls = teamTwoTf,
                 teamOnePlayerCards = workingTeamOnePlayerCards,
                 teamTwoPlayerCards = workingTeamTwoPlayerCards,
+                now = now,
             )
         )
     }
@@ -217,11 +219,13 @@ internal fun AdjustCardsDialog(
  * Render the bottom sheet for recording cards and technical fouls for either team.
  *
  * @param state The current live game state used for team names, card summaries, and assessments.
+ * @param now The current epoch millis for event logging.
  * @param onAssessment Callback receiving the completed state plus popup text after a card or technical foul.
  */
 @Composable
 internal fun CardsSheet(
     state: LiveGameState,
+    now: Long,
     onAssessment: (LiveGameState, String, String) -> Unit,
 ) {
     var pendingYellowTeam by remember { mutableStateOf<TeamId?>(null) }
@@ -280,10 +284,10 @@ internal fun CardsSheet(
             onYellow = { pendingYellowTeam = TeamId.TEAM_ONE },
             onRed = { pendingRedTeam = TeamId.TEAM_ONE },
             onBlue = {
-                presentAssessment(state.assessBlueCard(TeamId.TEAM_ONE), returnTo = null)
+                presentAssessment(state.assessBlueCard(TeamId.TEAM_ONE, now), returnTo = null)
             },
             onTech = {
-                presentAssessment(state.assessTechnicalFoul(TeamId.TEAM_ONE), returnTo = null)
+                presentAssessment(state.assessTechnicalFoul(TeamId.TEAM_ONE, now), returnTo = null)
             },
         )
         TeamActionSection(
@@ -292,10 +296,10 @@ internal fun CardsSheet(
             onYellow = { pendingYellowTeam = TeamId.TEAM_TWO },
             onRed = { pendingRedTeam = TeamId.TEAM_TWO },
             onBlue = {
-                presentAssessment(state.assessBlueCard(TeamId.TEAM_TWO), returnTo = null)
+                presentAssessment(state.assessBlueCard(TeamId.TEAM_TWO, now), returnTo = null)
             },
             onTech = {
-                presentAssessment(state.assessTechnicalFoul(TeamId.TEAM_TWO), returnTo = null)
+                presentAssessment(state.assessTechnicalFoul(TeamId.TEAM_TWO, now), returnTo = null)
             },
         )
         Spacer(modifier = Modifier.height(24.dp))
@@ -320,7 +324,7 @@ internal fun CardsSheet(
                     pendingUnknownYellowChoice = PendingUnknownYellowChoice(team)
                 } else {
                     presentAssessment(
-                        state.assessYellowCard(team, jerseyNumber),
+                        state.assessYellowCard(team, jerseyNumber, now),
                         PendingMisconductReturn.YellowNumber(team, jerseyNumber),
                     )
                 }
@@ -343,7 +347,7 @@ internal fun CardsSheet(
                 val team = pendingRedTeam!!
                 if (canAddPlayerCardAssignment(state.playerCards(team), jerseyNumber, CardType.RED)) {
                     presentAssessment(
-                        state.assessRedCard(team, jerseyNumber),
+                        state.assessRedCard(team, jerseyNumber, now),
                         PendingMisconductReturn.RedNumber(team, jerseyNumber),
                     )
                 } else {
@@ -376,7 +380,7 @@ internal fun CardsSheet(
             onSamePlayer = {
                 val team = pendingUnknownYellowChoice!!.team
                 presentAssessment(
-                    state.assessSecondYellowCard(team, UNKNOWN_PLAYER_NUMBER),
+                    state.assessSecondYellowCard(team, UNKNOWN_PLAYER_NUMBER, now),
                     PendingMisconductReturn.UnknownYellow(team),
                 )
                 pendingUnknownYellowChoice = null
@@ -387,6 +391,7 @@ internal fun CardsSheet(
                     state.assessFirstYellowCard(
                         team,
                         UNKNOWN_PLAYER_NUMBER,
+                        now,
                     ),
                     PendingMisconductReturn.UnknownYellow(team),
                 )

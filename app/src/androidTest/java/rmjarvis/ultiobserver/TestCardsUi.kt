@@ -287,7 +287,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         )
         composeRule.activityRule.scenario.onActivity { activity ->
             val current = activity.appViewModel.liveState!!
-            activity.appViewModel.updateLiveGame(current.beginLivePoint())
+            activity.appViewModel.updateLiveGame(current.beginLivePoint(0L))
         }
         composeRule.waitForIdle()
 

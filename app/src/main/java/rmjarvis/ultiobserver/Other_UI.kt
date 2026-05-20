@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
  * @param state The current live game state.
  * @param now The current epoch millis for actions that depend on clock time.
  * @param onUpdateGameSetup Callback reopening setup for the current game.
+ * @param onShowEventLog Callback opening the current game's event log.
  * @param onDeleteGame Callback deleting the current game after confirmation.
  * @param onAction Callback receiving an updated live game state after a model action.
  */
@@ -36,6 +37,7 @@ internal fun OtherSheet(
     state: LiveGameState,
     now: Long,
     onUpdateGameSetup: () -> Unit,
+    onShowEventLog: () -> Unit,
     onDeleteGame: () -> Unit,
     onAction: (LiveGameState) -> Unit,
 ) {
@@ -94,6 +96,10 @@ internal fun OtherSheet(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                OtherMenuButton(
+                    label = "Event Log",
+                    onClick = onShowEventLog,
+                )
                 if (!state.halftimeTaken && state.phase == LivePhase.BETWEEN_POINTS) {
                     OtherMenuButton(
                         label = "Start Halftime",
@@ -136,7 +142,7 @@ internal fun OtherSheet(
             state = state,
             onDismiss = { showAdjustScoreDialog = false },
             onConfirm = { teamOneScore, teamTwoScore ->
-                onAction(state.adjustScore(teamOneScore, teamTwoScore))
+                onAction(state.adjustScore(teamOneScore, teamTwoScore, now))
                 showAdjustScoreDialog = false
             },
         )
@@ -147,7 +153,7 @@ internal fun OtherSheet(
             state = state,
             onDismiss = { showAdjustTimeoutsDialog = false },
             onConfirm = { teamOneTimeoutsUsed, teamTwoTimeoutsUsed ->
-                onAction(state.adjustTimeouts(teamOneTimeoutsUsed, teamTwoTimeoutsUsed))
+                onAction(state.adjustTimeouts(teamOneTimeoutsUsed, teamTwoTimeoutsUsed, now))
                 showAdjustTimeoutsDialog = false
             },
         )
@@ -156,6 +162,7 @@ internal fun OtherSheet(
     if (showAdjustCardsDialog) {
         AdjustCardsDialog(
             state = state,
+            now = now,
             onDismiss = { showAdjustCardsDialog = false },
             onConfirm = { updatedState ->
                 onAction(updatedState)
@@ -175,6 +182,7 @@ internal fun OtherSheet(
                         teamOneFalseStarts,
                         teamTwoOffsides,
                         teamTwoFalseStarts,
+                        now,
                     )
                 )
                 showAdjustPullInfractionsDialog = false

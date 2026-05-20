@@ -28,5 +28,9 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("OK").performClick()
         waitForText("Game Summary")
         waitForText("No yellow or red cards issued.")
+        composeRule.onNodeWithText("Event Log").performClick()
+        waitForText("Event Log")
+        waitForText("Game Over", substring = true)
+        pressDialogBack()
     }
 }

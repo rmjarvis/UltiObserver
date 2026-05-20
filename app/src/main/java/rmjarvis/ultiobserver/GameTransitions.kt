@@ -125,6 +125,12 @@ fun LiveGameState.recordGoal(
             winningScore = this.winningScore,
             pendingCapOffer = null,
             lastEvent = "${this.teamName(scoringTeam)} scored.",
+        ).withEventLogEntry(
+            EventLogEntry(
+                timestampEpoch = now,
+                type = EventLogType.GOAL,
+                team = scoringTeam,
+            )
         ).withUndo(this, "Undo Goal by ${this.teamName(scoringTeam)}")
         return afterGoalState.copy(
             endEpoch = now,
@@ -133,6 +139,11 @@ fun LiveGameState.recordGoal(
             pullCountdownExpired = false,
             winningScore = gameWinningScore,
             lastEvent = "Game over.",
+        ).withEventLogEntry(
+            EventLogEntry(
+                timestampEpoch = now,
+                type = EventLogType.GAME_OVER,
+            )
         ).withUndo(afterGoalState, "Undo End Game")
     }
 
@@ -155,8 +166,19 @@ fun LiveGameState.recordGoal(
     // A point-end cap offer is still only pending; the observer can apply or defer it.
     // Start halftime and surface that offer from the halftime state.
     if (halftimeReached) {
+        val goalState = this.copy(
+            teamOne = updatedTeamOne,
+            teamTwo = updatedTeamTwo,
+            lastEvent = "${this.teamName(scoringTeam)} scored.",
+        ).withEventLogEntry(
+            EventLogEntry(
+                timestampEpoch = now,
+                type = EventLogType.GOAL,
+                team = scoringTeam,
+            )
+        )
         return startHalftime(
-            state = this,
+            state = goalState,
             teamOne = updatedTeamOne,
             teamTwo = updatedTeamTwo,
             existingCapOffer = pendingCapOffer,
@@ -193,6 +215,12 @@ fun LiveGameState.recordGoal(
         hardCapApplied = this.hardCapApplied,
         pendingCapOffer = pendingCapOffer,
         lastEvent = "${this.teamName(scoringTeam)} scored.",
+    ).withEventLogEntry(
+        EventLogEntry(
+            timestampEpoch = now,
+            type = EventLogType.GOAL,
+            team = scoringTeam,
+        )
     ).withUndo(this, "Undo Goal by ${this.teamName(scoringTeam)}")
 }
 /**
@@ -281,6 +309,11 @@ private fun startHalftime(
         halftimeTaken = true,
         pendingCapOffer = pendingCapOffer,
         lastEvent = "Halftime.",
+    ).withEventLogEntry(
+        EventLogEntry(
+            timestampEpoch = now,
+            type = EventLogType.HALFTIME,
+        )
     ).withUndo(undoPrevious, undoLabel)
 }
 /**
@@ -302,10 +335,26 @@ fun LiveGameState.endGameNow(
         pendingMisconductCountdown = false,
         pendingCapOffer = null,
         lastEvent = "Game over.",
+    ).withEventLogEntry(
+        EventLogEntry(
+            timestampEpoch = now,
+            type = EventLogType.GAME_OVER,
+        )
     ).withUndo(this, "Undo End Game")
 }
 /// Mark the pull as complete and enter live-point play.
-fun LiveGameState.beginLivePoint(): LiveGameState {
+fun LiveGameState.beginLivePoint(now: Long): LiveGameState {
+    val firstPullEntry = if (this.eventLog.isEmpty()) {
+        listOf(
+            EventLogEntry(
+                timestampEpoch = this.firstPullLogTimestamp(now),
+                type = EventLogType.FIRST_PULL,
+                team = this.pullingTeam,
+            )
+        )
+    } else {
+        emptyList()
+    }
     return this.copy(
         phase = LivePhase.LIVE_POINT,
         countdown = null,
@@ -315,7 +364,7 @@ fun LiveGameState.beginLivePoint(): LiveGameState {
         pullSkippedForCurrentPoint = false,
         pendingMisconductCountdown = false,
         lastEvent = "Point is live.",
-    ).withUndo(this, "Undo Start Point")
+    ).withEventLogEntries(firstPullEntry).withUndo(this, "Undo Start Point")
 }
 /**
  * Record a goal while treating a between-points state as implicitly started.
@@ -329,7 +378,7 @@ fun LiveGameState.recordGoalFromCurrentState(
     now: Long,
 ): LiveGameState {
     val livePointState = if (this.phase == LivePhase.BETWEEN_POINTS) {
-        this.beginLivePoint()
+        this.beginLivePoint(now)
     } else {
         this
     }
@@ -356,13 +405,13 @@ fun LiveGameState.applyExpiredCountdownTransitions(now: Long): LiveGameState {
     }
     return when {
         this.phase == LivePhase.BETWEEN_POINTS && countdown.kind.usesBetweenPointsTarget() -> {
-            this.automaticLivePointState()
+            this.automaticLivePointState(now)
         }
         this.phase == LivePhase.BETWEEN_POINTS && countdown.kind == CountdownKind.MISCONDUCT_BETWEEN_POINTS -> {
-            this.automaticLivePointState()
+            this.automaticLivePointState(now)
         }
         this.phase == LivePhase.BETWEEN_POINTS && countdown.kind == CountdownKind.MISCONDUCT_DEFENSE_CHECK -> {
-            this.automaticLivePointState()
+            this.automaticLivePointState(now)
         }
         this.phase == LivePhase.LIVE_POINT && countdown.kind == CountdownKind.TIME_OUT -> {
             this.automaticContinueLivePointState()
@@ -395,8 +444,19 @@ fun LiveGameState.redoLastAction(): LiveGameState {
     return this.redoEntry ?: this
 }
 /// Enter live-point play from an expired countdown while preserving undo back to the expired-pull actions.
-private fun LiveGameState.automaticLivePointState(): LiveGameState {
+private fun LiveGameState.automaticLivePointState(now: Long): LiveGameState {
     val previous = this.expiredPullDecisionState()
+    val firstPullEntry = if (this.eventLog.isEmpty()) {
+        listOf(
+            EventLogEntry(
+                timestampEpoch = this.firstPullLogTimestamp(now),
+                type = EventLogType.FIRST_PULL,
+                team = this.pullingTeam,
+            )
+        )
+    } else {
+        emptyList()
+    }
     return copy(
         phase = LivePhase.LIVE_POINT,
         countdown = null,
@@ -406,7 +466,7 @@ private fun LiveGameState.automaticLivePointState(): LiveGameState {
         pullSkippedForCurrentPoint = false,
         pendingMisconductCountdown = false,
         lastEvent = "Point is live.",
-    ).withUndo(previous, "Undo Start Point")
+    ).withEventLogEntries(firstPullEntry).withUndo(previous, "Undo Start Point")
 }
 /// Clear an expired in-point countdown without replacing the undo entry for the action that started it.
 private fun LiveGameState.automaticContinueLivePointState(): LiveGameState {

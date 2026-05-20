@@ -42,7 +42,7 @@ class TestPersistence {
                 teamOne = TeamSetup("Viscous Coupling", TeamColorChoice.BLUE),
                 teamTwo = TeamSetup("Animal", TeamColorChoice.PINK),
             )
-            val livePointState = createLiveGameState(setup).beginLivePoint()
+            val livePointState = createLiveGameState(setup).beginLivePoint(0L)
             val scoredState = livePointState.recordGoal(
                 scoringTeam = TeamId.TEAM_ONE,
                 now = livePointState.startEpoch + 5 * 60_000L,

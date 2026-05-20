@@ -17,7 +17,7 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
 /// Tests for app-level navigation, persistence coordination, and lifecycle state owned by AppViewModel.
-class TestAppViewModel {
+class TestAppViewModel : GameDomainTestFixtures() {
     @get:Rule
     val temporaryFolder = TemporaryFolder()
 
@@ -732,6 +732,19 @@ class TestAppViewModel {
                 betweenPointsTarget = BetweenPointsCountdownTarget.PULL,
             ),
             undoEntry = UndoEntry("Undo End Game", beforeEndGame),
+        ).withEventLogEntries(
+            listOf(
+                EventLogEntry(
+                    timestampEpoch = beforeEndGame.startEpoch,
+                    type = EventLogType.FIRST_PULL,
+                    team = TeamId.TEAM_ONE,
+                ),
+                EventLogEntry(
+                    timestampEpoch = beforeEndGame.startEpoch + 60_000L,
+                    type = EventLogType.GOAL,
+                    team = TeamId.TEAM_TWO,
+                ),
+            )
         )
         viewModel.updateLiveGame(completedGame)
         viewModel.goHome()
@@ -752,6 +765,7 @@ class TestAppViewModel {
         assertNull(restored.archivedGames.single().state.undoEntry)
         assertNull(restored.archivedGames.single().state.redoEntry)
         assertEquals(LivePhase.GAME_OVER, restored.archivedGames.single().state.phase)
+        assertEquals(completedGame.eventLog, restored.archivedGames.single().state.eventLog)
     }
 
     /// Verify persistence handles ordinary empty/corrupt filesystem shapes without inventing app state.

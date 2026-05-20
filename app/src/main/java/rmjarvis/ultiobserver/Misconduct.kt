@@ -116,6 +116,7 @@ fun LiveGameState.adjustCardsAndTf(
     teamTwoTechnicalFouls: Int,
     teamOnePlayerCards: List<InGamePlayerCardRecord>,
     teamTwoPlayerCards: List<InGamePlayerCardRecord>,
+    now: Long,
 ): LiveGameState {
     requirePlayerCardRecordsValid(teamOnePlayerCards)
     requirePlayerCardRecordsValid(teamTwoPlayerCards)
@@ -123,6 +124,15 @@ fun LiveGameState.adjustCardsAndTf(
     val adjustedTeamOneTechnicalFouls = teamOneTechnicalFouls.coerceAtLeast(0)
     val adjustedTeamTwoBlues = teamTwoBlues.coerceAtLeast(0)
     val adjustedTeamTwoTechnicalFouls = teamTwoTechnicalFouls.coerceAtLeast(0)
+    val entries = buildCardAndTfAdjustmentEntries(
+        teamOneBlues = adjustedTeamOneBlues,
+        teamOneTechnicalFouls = adjustedTeamOneTechnicalFouls,
+        teamTwoBlues = adjustedTeamTwoBlues,
+        teamTwoTechnicalFouls = adjustedTeamTwoTechnicalFouls,
+        teamOnePlayerCards = teamOnePlayerCards,
+        teamTwoPlayerCards = teamTwoPlayerCards,
+        now = now,
+    )
 
     return this.copy(
         teamOne = this.teamOne.copy(
@@ -136,8 +146,125 @@ fun LiveGameState.adjustCardsAndTf(
         teamOnePlayerCards = teamOnePlayerCards,
         teamTwoPlayerCards = teamTwoPlayerCards,
         lastEvent = "Cards and technical fouls adjusted.",
-    ).withUndo(this, "Undo Cards / TF Adjustment")
+    ).withEventLogEntries(entries).withUndo(this, "Undo Cards / TF Adjustment")
 }
+
+/**
+ * Build event-log entries that describe each card and technical-foul correction delta.
+ *
+ * @param teamOneBlues The corrected blue-card count for team one.
+ * @param teamOneTechnicalFouls The corrected technical-foul count for team one.
+ * @param teamTwoBlues The corrected blue-card count for team two.
+ * @param teamTwoTechnicalFouls The corrected technical-foul count for team two.
+ * @param teamOnePlayerCards The corrected player-card records for team one.
+ * @param teamTwoPlayerCards The corrected player-card records for team two.
+ * @param now The correction timestamp.
+ */
+private fun LiveGameState.buildCardAndTfAdjustmentEntries(
+    teamOneBlues: Int,
+    teamOneTechnicalFouls: Int,
+    teamTwoBlues: Int,
+    teamTwoTechnicalFouls: Int,
+    teamOnePlayerCards: List<InGamePlayerCardRecord>,
+    teamTwoPlayerCards: List<InGamePlayerCardRecord>,
+    now: Long,
+): List<EventLogEntry> {
+    return buildList {
+        addCardCountDelta(now, TeamId.TEAM_ONE, EventLogType.BLUE_CARD, teamOneBlues - teamOne.blueCards)
+        addTechnicalFoulDelta(now, TeamId.TEAM_ONE, teamOneTechnicalFouls - teamOne.technicalFouls)
+        addPlayerCardDeltas(now, TeamId.TEAM_ONE, this@buildCardAndTfAdjustmentEntries.teamOnePlayerCards, teamOnePlayerCards)
+        addCardCountDelta(now, TeamId.TEAM_TWO, EventLogType.BLUE_CARD, teamTwoBlues - teamTwo.blueCards)
+        addTechnicalFoulDelta(now, TeamId.TEAM_TWO, teamTwoTechnicalFouls - teamTwo.technicalFouls)
+        addPlayerCardDeltas(now, TeamId.TEAM_TWO, this@buildCardAndTfAdjustmentEntries.teamTwoPlayerCards, teamTwoPlayerCards)
+    }
+}
+
+/**
+ * Add entries for player-card count differences between two record lists.
+ *
+ * @param now The correction timestamp.
+ * @param team The team whose records changed.
+ * @param beforeRecords The records before correction.
+ * @param afterRecords The records after correction.
+ */
+private fun MutableList<EventLogEntry>.addPlayerCardDeltas(
+    now: Long,
+    team: TeamId,
+    beforeRecords: List<InGamePlayerCardRecord>,
+    afterRecords: List<InGamePlayerCardRecord>,
+) {
+    val jerseyNumbers = (beforeRecords.map { it.jerseyNumber } + afterRecords.map { it.jerseyNumber }).distinct()
+    jerseyNumbers.forEach { jerseyNumber ->
+        val before = beforeRecords.firstOrNull { it.jerseyNumber == jerseyNumber } ?: InGamePlayerCardRecord(jerseyNumber)
+        val after = afterRecords.firstOrNull { it.jerseyNumber == jerseyNumber } ?: InGamePlayerCardRecord(jerseyNumber)
+        addCardCountDelta(
+            now = now,
+            team = team,
+            type = EventLogType.YELLOW_CARD,
+            delta = after.yellows - before.yellows,
+            playerNumber = jerseyNumber,
+        )
+        addCardCountDelta(
+            now = now,
+            team = team,
+            type = EventLogType.RED_CARD,
+            delta = after.reds - before.reds,
+            playerNumber = jerseyNumber,
+        )
+    }
+}
+
+/**
+ * Add one or more card-count correction entries.
+ *
+ * @param now The correction timestamp.
+ * @param team The team whose card count changed.
+ * @param type The card event type whose count changed.
+ * @param delta The signed count change.
+ * @param playerNumber The player number for player-card corrections.
+ */
+private fun MutableList<EventLogEntry>.addCardCountDelta(
+    now: Long,
+    team: TeamId,
+    type: EventLogType,
+    delta: Int,
+    playerNumber: String? = null,
+) {
+    if (delta != 0) {
+        repeat(kotlin.math.abs(delta)) {
+            add(
+                EventLogEntry(
+                    timestampEpoch = now,
+                    type = type,
+                    team = team,
+                    playerNumber = playerNumber,
+                    delta = if (delta > 0) 1 else -1,
+                )
+            )
+        }
+    }
+}
+
+/**
+ * Add a technical-foul correction entry when a count changed.
+ *
+ * @param now The correction timestamp.
+ * @param team The team whose technical-foul count changed.
+ * @param delta The signed count change.
+ */
+private fun MutableList<EventLogEntry>.addTechnicalFoulDelta(now: Long, team: TeamId, delta: Int) {
+    if (delta != 0) {
+        add(
+            EventLogEntry(
+                timestampEpoch = now,
+                type = EventLogType.TECHNICAL_FOUL,
+                team = team,
+                delta = delta,
+            )
+        )
+    }
+}
+
 /**
  * Reject impossible per-player card records before they enter live state.
  * This makes failures obvious if a caller bypasses the normal player-card adjustment flow.
@@ -289,7 +416,7 @@ fun removePlayerCardAssignment(
  *
  * @param team The team receiving the blue card.
  */
-fun LiveGameState.assessBlueCard(team: TeamId): CardAssessmentResult {
+fun LiveGameState.assessBlueCard(team: TeamId, now: Long): CardAssessmentResult {
     var updatedState = this.copy(
         teamOne = if (team == TeamId.TEAM_ONE) {
             this.teamOne.copy(blueCards = this.teamOne.blueCards + 1)
@@ -302,6 +429,12 @@ fun LiveGameState.assessBlueCard(team: TeamId): CardAssessmentResult {
             this.teamTwo
         },
         lastEvent = "Blue card assessed to ${this.teamName(team)}.",
+    ).withEventLogEntry(
+        EventLogEntry(
+            timestampEpoch = now,
+            type = EventLogType.BLUE_CARD,
+            team = team,
+        )
     ).withUndo(this, "Undo Blue Card on ${this.teamName(team)}")
     val cardTotal = updatedState.teamCardTotal(team)
     updatedState = updatedState.withSkippedPullForMisconductThreshold(cardTotal)
@@ -319,7 +452,7 @@ fun LiveGameState.assessBlueCard(team: TeamId): CardAssessmentResult {
  *
  * @param team The team receiving the technical foul.
  */
-fun LiveGameState.assessTechnicalFoul(team: TeamId): CardAssessmentResult {
+fun LiveGameState.assessTechnicalFoul(team: TeamId, now: Long): CardAssessmentResult {
     var updatedState = this.copy(
         teamOne = if (team == TeamId.TEAM_ONE) {
             this.teamOne.copy(technicalFouls = this.teamOne.technicalFouls + 1)
@@ -332,6 +465,12 @@ fun LiveGameState.assessTechnicalFoul(team: TeamId): CardAssessmentResult {
             this.teamTwo
         },
         lastEvent = "Technical foul on ${this.teamName(team)}.",
+    ).withEventLogEntry(
+        EventLogEntry(
+            timestampEpoch = now,
+            type = EventLogType.TECHNICAL_FOUL,
+            team = team,
+        )
     ).withUndo(this, "Undo Technical Foul on ${this.teamName(team)}")
     val technicalFouls = if (team == TeamId.TEAM_ONE) {
         updatedState.teamOne.technicalFouls
@@ -355,12 +494,12 @@ fun LiveGameState.assessTechnicalFoul(team: TeamId): CardAssessmentResult {
  * @param team The team receiving the yellow-card action.
  * @param jerseyNumber The player receiving the card, or `N/A` when the player is unknown.
  */
-fun LiveGameState.assessYellowCard(team: TeamId, jerseyNumber: String): CardAssessmentResult {
+fun LiveGameState.assessYellowCard(team: TeamId, jerseyNumber: String, now: Long): CardAssessmentResult {
     val currentRecord = this.playerCardFor(team, jerseyNumber)
     return if (currentRecord?.yellows ?: 0 >= 1) {
-        this.assessSecondYellowCard(team, jerseyNumber)
+        this.assessSecondYellowCard(team, jerseyNumber, now)
     } else {
-        this.assessFirstYellowCard(team, jerseyNumber)
+        this.assessFirstYellowCard(team, jerseyNumber, now)
     }
 }
 /**
@@ -369,9 +508,16 @@ fun LiveGameState.assessYellowCard(team: TeamId, jerseyNumber: String): CardAsse
  * @param team The team receiving the yellow card.
  * @param jerseyNumber The player receiving the card, or `N/A` when the player is unknown.
  */
-fun LiveGameState.assessFirstYellowCard(team: TeamId, jerseyNumber: String): CardAssessmentResult {
+fun LiveGameState.assessFirstYellowCard(team: TeamId, jerseyNumber: String, now: Long): CardAssessmentResult {
     var updatedState = this.addInGameYellowCard(team, jerseyNumber)
-        .withUndo(this, playerCardUndoLabel("Yellow", team, jerseyNumber))
+        .withEventLogEntry(
+            EventLogEntry(
+                timestampEpoch = now,
+                type = EventLogType.SECOND_YELLOW,
+                team = team,
+                playerNumber = jerseyNumber,
+            )
+        ).withUndo(this, playerCardUndoLabel("Yellow", team, jerseyNumber))
     val cardTotal = updatedState.teamCardTotal(team)
     updatedState = updatedState.withSkippedPullForMisconductThreshold(cardTotal)
     return CardAssessmentResult(
@@ -394,9 +540,17 @@ fun LiveGameState.assessFirstYellowCard(team: TeamId, jerseyNumber: String): Car
 fun LiveGameState.assessRedCard(
     team: TeamId,
     jerseyNumber: String,
+    now: Long,
 ): CardAssessmentResult {
     var updatedState = this.addInGameRedCard(team, jerseyNumber)
-        .withUndo(this, playerCardUndoLabel("Red", team, jerseyNumber))
+        .withEventLogEntry(
+            EventLogEntry(
+                timestampEpoch = now,
+                type = EventLogType.RED_CARD,
+                team = team,
+                playerNumber = jerseyNumber,
+            )
+        ).withUndo(this, playerCardUndoLabel("Red", team, jerseyNumber))
     val cardTotal = updatedState.teamCardTotal(team)
     updatedState = updatedState.withSkippedPullForMisconductThreshold(cardTotal)
     return CardAssessmentResult(
@@ -417,9 +571,16 @@ fun LiveGameState.assessRedCard(
  * @param team The team receiving the second yellow.
  * @param jerseyNumber The player receiving the second yellow, or `N/A` when the player is unknown.
  */
-fun LiveGameState.assessSecondYellowCard(team: TeamId, jerseyNumber: String): CardAssessmentResult {
+fun LiveGameState.assessSecondYellowCard(team: TeamId, jerseyNumber: String, now: Long): CardAssessmentResult {
     var updatedState = this.addInGameSecondYellow(team, jerseyNumber)
-        .withUndo(this, playerCardUndoLabel("Second Yellow", team, jerseyNumber))
+        .withEventLogEntry(
+            EventLogEntry(
+                timestampEpoch = now,
+                type = EventLogType.YELLOW_CARD,
+                team = team,
+                playerNumber = jerseyNumber,
+            )
+        ).withUndo(this, playerCardUndoLabel("Second Yellow", team, jerseyNumber))
     val cardTotal = updatedState.teamCardTotal(team)
     updatedState = updatedState.withSkippedPullForMisconductThreshold(cardTotal)
     return CardAssessmentResult(

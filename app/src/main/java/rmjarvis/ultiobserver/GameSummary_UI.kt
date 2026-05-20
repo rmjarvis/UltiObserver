@@ -23,12 +23,14 @@ import androidx.compose.ui.unit.dp
  * Render the read-only summary view shown once the game is over.
  *
  * @param state The completed game state to summarize.
+ * @param onShowEventLog Callback opening the completed game's event log.
  * @param onUndo Callback undoing game end when undo is available.
  * @param showUndo Whether to show the fixed Undo End Game action.
  */
 @Composable
 internal fun GameOverSummary(
     state: LiveGameState,
+    onShowEventLog: () -> Unit,
     onUndo: () -> Unit,
     showUndo: Boolean,
 ) {
@@ -83,6 +85,12 @@ internal fun GameOverSummary(
                 team = state.teamTwo,
                 issuedCards = state.playerCards(TeamId.TEAM_TWO),
             )
+            OutlinedButton(
+                onClick = onShowEventLog,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Event Log")
+            }
         }
 
         if (showUndo) {
