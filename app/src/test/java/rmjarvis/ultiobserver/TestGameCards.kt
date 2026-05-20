@@ -200,8 +200,19 @@ class TestGameCards : GameDomainTestFixtures() {
                 "Animal has 3 total blue cards.\n\nWas this against the offense or defense?",
             misconductGamePrompt.formatMessage(),
         )
-        assertTrue(misconductPrompt.resolutionMessage(againstOffense = true).contains("Reverse brick"))
-        assertTrue(misconductPrompt.resolutionMessage(againstOffense = false).contains("Brick nearest attacking end zone"))
+        assertEquals(
+            "Red card on player 23.\n" +
+                "Player 23 receives a game suspension.\n" +
+                "Animal has 3 total blue cards.\n\n" +
+                "Disc moves to the reverse brick in the end zone being defended. " +
+                "Defense may instead leave the disc where it stopped.\n\n" +
+                "Offense has 30 seconds to set. Then defense has 20 seconds to check the disc in.",
+            misconductPrompt.resolutionMessage(againstOffense = true),
+        )
+        assertTrue(
+            misconductPrompt.resolutionMessage(againstOffense = false)
+                .contains("Disc moves to the brick nearest the attacking end zone."),
+        )
         assertEquals(3, state.teamCardTotal(ANIMAL))
 
         // A red for a player who already has a yellow is distinct from recording the red as a second yellow.
@@ -470,11 +481,11 @@ class TestGameCards : GameDomainTestFixtures() {
         assertTrue(prompt.contains("Was this against the offense or defense?"))
         assertTrue(
             cardResult.misconductPrompt().resolutionMessage(againstOffense = true)
-                .contains("Reverse brick"),
+                .contains("Disc moves to the reverse brick in the end zone being defended."),
         )
         assertTrue(
             cardResult.misconductPrompt().resolutionMessage(againstOffense = false)
-                .contains("Brick nearest attacking end zone"),
+                .contains("Disc moves to the brick nearest the attacking end zone."),
         )
 
         // Technical fouls hit the same live-point misconduct choice when Viscous Coupling reaches the threshold.
@@ -488,7 +499,7 @@ class TestGameCards : GameDomainTestFixtures() {
         assertEquals("Viscous Coupling has 3 technical fouls.", technicalFoulResult.message())
         assertTrue(
             technicalFoulResult.misconductPrompt().resolutionMessage(againstOffense = true)
-                .contains("Reverse brick"),
+                .contains("Disc moves to the reverse brick in the end zone being defended."),
         )
 
         // Exercise the player-card assignment helpers used by the UI reconciliation prompts.

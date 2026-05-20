@@ -115,7 +115,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         )
         assertTrue(
             cardResult.misconductPrompt().resolutionMessage(againstOffense = true)
-                .contains("Reverse brick"),
+                .contains("Disc moves to the reverse brick in the end zone being defended."),
         )
         assertTrue(
             cardResult.misconductPrompt().resolutionMessage(againstOffense = true)

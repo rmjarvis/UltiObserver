@@ -79,7 +79,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             playerNumber = "8",
             expectedMessage = "$viscousCoupling has 3 total blue cards.",
             misconductChoice = "Offense",
-            expectedMisconductMessage = "Reverse brick",
+            expectedMisconductMessage = "Disc moves to the reverse brick in the end zone being defended.",
             verifyMisconductBackReturnsToNumberDialog = true,
         )
         waitForText("Start Misconduct Countdown")
@@ -96,14 +96,14 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             playerNumber = "9",
             expectedMessage = "$viscousCoupling has 4 total blue cards.",
             misconductChoice = "Defense",
-            expectedMisconductMessage = "Brick nearest attacking end zone",
+            expectedMisconductMessage = "Disc moves to the brick nearest the attacking end zone.",
         )
         recordRedCard(
             team = TeamId.TEAM_ONE,
             playerNumber = "12",
             expectedMessage = "$viscousCoupling has 6 total blue cards.",
             misconductChoice = "Defense",
-            expectedMisconductMessage = "Brick nearest attacking end zone",
+            expectedMisconductMessage = "Disc moves to the brick nearest the attacking end zone.",
             verifyMisconductBackReturnsToNumberDialog = true,
         )
 

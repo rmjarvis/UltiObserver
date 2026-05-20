@@ -1027,10 +1027,12 @@ fun GamePrompt.LivePointMisconduct.resolutionMessage(againstOffense: Boolean): S
  */
 private fun misconductResolution(againstOffense: Boolean): String {
     return if (againstOffense) {
-        "Misconduct penalty against offense.\nReverse brick. Defense may instead leave the disc where it stopped.\n\n" +
+        "Disc moves to the reverse brick in the end zone being defended. " +
+            "Defense may instead leave the disc where it stopped.\n\n" +
             "Offense has 30 seconds to set. Then defense has 20 seconds to check the disc in."
     } else {
-        "Misconduct penalty against defense.\nBrick nearest attacking end zone. Offense may instead leave it or center it.\n\n" +
+        "Disc moves to the brick nearest the attacking end zone. " +
+            "Offense may instead leave it or center it.\n\n" +
             "Offense has 30 seconds to set. Then defense has 20 seconds to check the disc in."
     }
 }

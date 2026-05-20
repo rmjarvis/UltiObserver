@@ -314,7 +314,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Yes").performClick()
         waitForText("Misconduct Penalty")
         composeRule.onNodeWithText("Offense").performClick()
-        waitForText("Reverse brick", substring = true)
+        waitForText("Disc moves to the reverse brick in the end zone being defended.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
         waitForText("Start Misconduct Countdown")
 
@@ -328,7 +328,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onAllNodesWithText("Blue")[teamCardButtonIndex(TeamId.TEAM_ONE)].performClick()
         waitForText("Misconduct Penalty")
         composeRule.onNodeWithText("Defense").performClick()
-        waitForText("Brick nearest attacking end zone", substring = true)
+        waitForText("Disc moves to the brick nearest the attacking end zone.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
         waitForText("Start Misconduct Countdown")
 
@@ -350,7 +350,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("N/A").performClick()
         waitForText("Misconduct Penalty")
         composeRule.onNodeWithText("Defense").performClick()
-        waitForText("Brick nearest attacking end zone", substring = true)
+        waitForText("Disc moves to the brick nearest the attacking end zone.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
         waitForText("Start Misconduct Countdown")
 
