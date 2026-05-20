@@ -227,6 +227,52 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertEquals(viewModel.archivedGames.single().state, viewModel.currentLiveState)
     }
 
+    /// Verify archived-game restore paths handle missing selections and restoration with no current game.
+    @Test
+    fun archivedGameRestoreHandlesMissingSelectionAndEmptyCurrentGame() {
+        val viewModel = AppViewModel(NoOpAppStateStorage)
+
+        viewModel.restoreViewingArchivedGame()
+        viewModel.restoreArchivedGame(0)
+
+        assertEquals(AppScreen.HOME, viewModel.screen)
+        assertNull(viewModel.liveState)
+        assertTrue(viewModel.archivedGames.isEmpty())
+
+        viewModel.startNewGame()
+        viewModel.finishSetup()
+        viewModel.updateLiveGame(
+            viewModel.liveState!!.copy(
+                phase = GamePhase.GAME_OVER,
+                teamOne = TeamLiveState("First Archive", TeamColorChoice.WHITE),
+            )
+        )
+        viewModel.archiveCompletedGame()
+
+        viewModel.startNewGame()
+        viewModel.finishSetup()
+        viewModel.updateLiveGame(
+            viewModel.liveState!!.copy(
+                phase = GamePhase.GAME_OVER,
+                teamOne = TeamLiveState("Second Archive", TeamColorChoice.WHITE),
+            )
+        )
+        viewModel.archiveCompletedGame()
+
+        viewModel.restoreArchivedGame(99)
+        assertNull(viewModel.liveState)
+        assertEquals(2, viewModel.archivedGames.size)
+
+        viewModel.openArchivedGame(1)
+        viewModel.restoreViewingArchivedGame()
+
+        assertEquals(AppScreen.LIVE, viewModel.screen)
+        assertFalse(viewModel.viewingReadOnlySummary)
+        assertEquals("Second Archive", viewModel.liveState!!.teamOne.name)
+        assertEquals(1, viewModel.archivedGames.size)
+        assertEquals("First Archive", viewModel.archivedGames.single().state.teamOne.name)
+    }
+
     /// Verify deleting current, single archived, and all archived games clears the right ViewModel state.
     @Test
     fun currentAndArchivedGamesCanBeDeleted() {

@@ -47,6 +47,7 @@ class TestGameSummary : GameDomainTestFixtures() {
                 technicalFouls = 1,
             ),
             teamTwo = TeamLiveState("Animal", TeamColorChoice.RED),
+            teamTwoPlayerCards = listOf(InGamePlayerCardRecord(jerseyNumber = "99")),
             teamOnePlayerCards = listOf(
                 InGamePlayerCardRecord(jerseyNumber = "7", yellows = 1),
                 InGamePlayerCardRecord(jerseyNumber = "12", yellows = 2),
