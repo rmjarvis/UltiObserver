@@ -13,14 +13,14 @@ import kotlinx.serialization.json.decodeFromJsonElement
  */
 @Serializable
 internal data class ArchivedGame(
-    val state: LiveGameState,
+    val state: GameState,
     val subtitle: String,
-    val restorableState: LiveGameState? = null,
+    val restorableState: GameState? = null,
     val versionName: String = APP_STATE_VERSION_NAME,
     val versionCode: Int = APP_STATE_VERSION_CODE,
 ) {
     /// Return the live state that should become current when this archive is restored.
-    fun stateForRestore(): LiveGameState {
+    fun stateForRestore(): GameState {
         return restorableState ?: state
     }
 

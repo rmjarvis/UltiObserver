@@ -72,7 +72,7 @@ abstract class GameDomainTestFixtures {
         timeZone: ZoneId = testTimeZone,
         pullingTeam: TeamId = TeamId.TEAM_ONE,
         pullingFromEnd: FieldEnd = FieldEnd.FAR,
-    ): LiveGameState {
+    ): GameState {
         return createLiveGameState(
             standardGameSetup(
                 startDate = startDate,
@@ -91,7 +91,7 @@ abstract class GameDomainTestFixtures {
      * @param state The state whose start epoch anchors the timestamp.
      * @param minutes The number of minutes after game start.
      */
-    protected fun timestampAfterStart(state: LiveGameState, minutes: Int): Long {
+    protected fun timestampAfterStart(state: GameState, minutes: Int): Long {
         return state.startEpoch + Duration.ofMinutes(minutes.toLong()).toMillis()
     }
 
@@ -114,7 +114,7 @@ abstract class GameDomainTestFixtures {
      * @param state The state whose date and time zone anchor the timestamp.
      * @param time The local time to convert.
      */
-    protected fun timestampAt(state: LiveGameState, time: LocalTime): Long {
+    protected fun timestampAt(state: GameState, time: LocalTime): Long {
         return LocalDateTime.of(state.startDate, time)
             .atZone(state.timeZone)
             .toInstant()
@@ -129,10 +129,10 @@ abstract class GameDomainTestFixtures {
      * @param time The local time assigned to the goal.
      */
     protected fun recordGoalAt(
-        state: LiveGameState,
+        state: GameState,
         scoringTeam: TeamId,
         time: LocalTime,
-    ): LiveGameState {
+    ): GameState {
         return state.recordGoal(scoringTeam, timestampAt(state, time))
     }
 
@@ -144,10 +144,10 @@ abstract class GameDomainTestFixtures {
      * @param time The local time assigned to the goal.
      */
     protected fun recordGoalFromCurrentStateAt(
-        state: LiveGameState,
+        state: GameState,
         scoringTeam: TeamId,
         time: LocalTime,
-    ): LiveGameState {
+    ): GameState {
         return state.recordGoalFromCurrentState(scoringTeam, timestampAt(state, time))
     }
 
@@ -156,7 +156,7 @@ abstract class GameDomainTestFixtures {
      *
      * @receiver The state whose point should be started.
      */
-    protected fun LiveGameState.beginLivePoint(): LiveGameState {
+    protected fun GameState.beginLivePoint(): GameState {
         return beginLivePoint(0L)
     }
 
@@ -167,7 +167,7 @@ abstract class GameDomainTestFixtures {
      * @param team The team receiving the card.
      * @param jerseyNumber The player receiving the card, or `N/A`.
      */
-    protected fun LiveGameState.assessYellowCard(team: TeamId, jerseyNumber: String): CardAssessmentResult {
+    protected fun GameState.assessYellowCard(team: TeamId, jerseyNumber: String): CardAssessmentResult {
         return assessYellowCard(team, jerseyNumber, 0L)
     }
 
@@ -178,7 +178,7 @@ abstract class GameDomainTestFixtures {
      * @param team The team receiving the card.
      * @param jerseyNumber The player receiving the card, or `N/A`.
      */
-    protected fun LiveGameState.assessFirstYellowCard(team: TeamId, jerseyNumber: String): CardAssessmentResult {
+    protected fun GameState.assessFirstYellowCard(team: TeamId, jerseyNumber: String): CardAssessmentResult {
         return assessFirstYellowCard(team, jerseyNumber, 0L)
     }
 
@@ -189,7 +189,7 @@ abstract class GameDomainTestFixtures {
      * @param team The team receiving the card.
      * @param jerseyNumber The player receiving the card, or `N/A`.
      */
-    protected fun LiveGameState.assessSecondYellowCard(team: TeamId, jerseyNumber: String): CardAssessmentResult {
+    protected fun GameState.assessSecondYellowCard(team: TeamId, jerseyNumber: String): CardAssessmentResult {
         return assessSecondYellowCard(team, jerseyNumber, 0L)
     }
 
@@ -200,7 +200,7 @@ abstract class GameDomainTestFixtures {
      * @param team The team receiving the card.
      * @param jerseyNumber The player receiving the card, or `N/A`.
      */
-    protected fun LiveGameState.assessRedCard(team: TeamId, jerseyNumber: String): CardAssessmentResult {
+    protected fun GameState.assessRedCard(team: TeamId, jerseyNumber: String): CardAssessmentResult {
         return assessRedCard(team, jerseyNumber, 0L)
     }
 
@@ -210,7 +210,7 @@ abstract class GameDomainTestFixtures {
      * @receiver The state receiving the card action.
      * @param team The team receiving the card.
      */
-    protected fun LiveGameState.assessBlueCard(team: TeamId): CardAssessmentResult {
+    protected fun GameState.assessBlueCard(team: TeamId): CardAssessmentResult {
         return assessBlueCard(team, 0L)
     }
 
@@ -220,7 +220,7 @@ abstract class GameDomainTestFixtures {
      * @receiver The state receiving the technical-foul action.
      * @param team The team receiving the technical foul.
      */
-    protected fun LiveGameState.assessTechnicalFoul(team: TeamId): CardAssessmentResult {
+    protected fun GameState.assessTechnicalFoul(team: TeamId): CardAssessmentResult {
         return assessTechnicalFoul(team, 0L)
     }
 
@@ -230,7 +230,7 @@ abstract class GameDomainTestFixtures {
      * @receiver The state receiving the pull-infraction action.
      * @param team The team committing the pull infraction.
      */
-    protected fun LiveGameState.assessPullInfraction(team: TeamId): PullInfractionAssessmentResult {
+    protected fun GameState.assessPullInfraction(team: TeamId): PullInfractionAssessmentResult {
         return assessPullInfraction(team, 0L)
     }
 
@@ -239,7 +239,7 @@ abstract class GameDomainTestFixtures {
      *
      * @receiver The state receiving the offsides action.
      */
-    protected fun LiveGameState.recordOffsides(): LiveGameState {
+    protected fun GameState.recordOffsides(): GameState {
         return recordOffsides(0L)
     }
 
@@ -248,7 +248,7 @@ abstract class GameDomainTestFixtures {
      *
      * @receiver The state receiving the false-start action.
      */
-    protected fun LiveGameState.recordFalseStart(): LiveGameState {
+    protected fun GameState.recordFalseStart(): GameState {
         return recordFalseStart(0L)
     }
 
@@ -259,7 +259,7 @@ abstract class GameDomainTestFixtures {
      * @param teamOneScore The corrected team-one score.
      * @param teamTwoScore The corrected team-two score.
      */
-    protected fun LiveGameState.adjustScore(teamOneScore: Int, teamTwoScore: Int): LiveGameState {
+    protected fun GameState.adjustScore(teamOneScore: Int, teamTwoScore: Int): GameState {
         return adjustScore(teamOneScore, teamTwoScore, 0L)
     }
 
@@ -270,7 +270,7 @@ abstract class GameDomainTestFixtures {
      * @param teamOneTimeoutsUsed The corrected team-one timeout count.
      * @param teamTwoTimeoutsUsed The corrected team-two timeout count.
      */
-    protected fun LiveGameState.adjustTimeouts(teamOneTimeoutsUsed: Int, teamTwoTimeoutsUsed: Int): LiveGameState {
+    protected fun GameState.adjustTimeouts(teamOneTimeoutsUsed: Int, teamTwoTimeoutsUsed: Int): GameState {
         return adjustTimeouts(teamOneTimeoutsUsed, teamTwoTimeoutsUsed, 0L)
     }
 
@@ -279,12 +279,12 @@ abstract class GameDomainTestFixtures {
      *
      * @receiver The state being corrected.
      */
-    protected fun LiveGameState.adjustPullInfractions(
+    protected fun GameState.adjustPullInfractions(
         teamOneOffsides: Int,
         teamOneFalseStarts: Int,
         teamTwoOffsides: Int,
         teamTwoFalseStarts: Int,
-    ): LiveGameState {
+    ): GameState {
         return adjustPullInfractions(
             teamOneOffsides,
             teamOneFalseStarts,
@@ -299,14 +299,14 @@ abstract class GameDomainTestFixtures {
      *
      * @receiver The state being corrected.
      */
-    protected fun LiveGameState.adjustCardsAndTf(
+    protected fun GameState.adjustCardsAndTf(
         teamOneBlues: Int,
         teamOneTechnicalFouls: Int,
         teamTwoBlues: Int,
         teamTwoTechnicalFouls: Int,
         teamOnePlayerCards: List<InGamePlayerCardRecord>,
         teamTwoPlayerCards: List<InGamePlayerCardRecord>,
-    ): LiveGameState {
+    ): GameState {
         return adjustCardsAndTf(
             teamOneBlues,
             teamOneTechnicalFouls,
@@ -324,7 +324,7 @@ abstract class GameDomainTestFixtures {
      * @param state The live state before halftime.
      * @param time The local time assigned to the manual halftime start.
      */
-    protected fun startHalftimeNowAt(state: LiveGameState, time: LocalTime): LiveGameState {
+    protected fun startHalftimeNowAt(state: GameState, time: LocalTime): GameState {
         return state.startHalftimeNow(timestampAt(state, time))
     }
 
@@ -334,7 +334,7 @@ abstract class GameDomainTestFixtures {
      * @param state The live state before game end.
      * @param time The local time assigned to the manual game end.
      */
-    protected fun endGameNowAt(state: LiveGameState, time: LocalTime): LiveGameState {
+    protected fun endGameNowAt(state: GameState, time: LocalTime): GameState {
         return state.endGameNow(timestampAt(state, time))
     }
 
@@ -344,7 +344,7 @@ abstract class GameDomainTestFixtures {
      * @param state The live state with a pending cap offer.
      * @param time The local time assigned to applying the cap.
      */
-    protected fun applyPendingCapAt(state: LiveGameState, time: LocalTime): LiveGameState {
+    protected fun applyPendingCapAt(state: GameState, time: LocalTime): GameState {
         return state.applyPendingCap(timestampAt(state, time))
     }
 
@@ -375,9 +375,9 @@ abstract class GameDomainTestFixtures {
      * @param state The undo-backed state to exercise.
      */
     protected fun assertUndoRestores(
-        expectedPrevious: LiveGameState,
-        state: LiveGameState,
-    ): LiveGameState {
+        expectedPrevious: GameState,
+        state: GameState,
+    ): GameState {
         val undoneState = state.undoLastAction()
         assertEquals(expectedPrevious, undoneState.copy(redoEntry = null))
         assertEquals(state, undoneState.redoLastAction())
@@ -385,7 +385,7 @@ abstract class GameDomainTestFixtures {
     }
 
     /// Build an apply-cap prompt from a state with a pending cap offer.
-    protected fun LiveGameState.capPrompt(): GamePrompt.ApplyCap {
+    protected fun GameState.capPrompt(): GamePrompt.ApplyCap {
         return GamePrompt.ApplyCap(this, pendingCapOffer!!)
     }
 

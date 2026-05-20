@@ -53,7 +53,7 @@ enum class BetweenPointsCountdownTarget(
  * @param event The observer-facing event to show, or null when no popup is needed.
  */
 data class TimeViolationAssessmentResult(
-    val state: LiveGameState,
+    val state: GameState,
     val event: GameEvent? = null,
 )
 
@@ -147,12 +147,12 @@ internal fun CountdownState.betweenPointsTimingCues(): List<TimingCue> {
 }
 
 /// Report whether the expired-pull action surface should be available.
-fun LiveGameState.hasExpiredPullActions(): Boolean {
+fun GameState.hasExpiredPullActions(): Boolean {
     return this.phase == LivePhase.BETWEEN_POINTS && this.pullCountdownExpired
 }
 
 /// Build the state restored by undoing automatic start point so time violation can still be assessed.
-internal fun LiveGameState.expiredPullDecisionState(): LiveGameState {
+internal fun GameState.expiredPullDecisionState(): GameState {
     return this.copy(
         countdown = null,
         pullCountdownExpired = true,
@@ -167,7 +167,7 @@ internal fun LiveGameState.expiredPullDecisionState(): LiveGameState {
  * @param team The team that violated the pull-readiness or pull-timing requirement.
  * @param now The epoch millis used to start any resulting countdown.
  */
-fun LiveGameState.assessTimeViolation(team: TeamId, now: Long): TimeViolationAssessmentResult {
+fun GameState.assessTimeViolation(team: TeamId, now: Long): TimeViolationAssessmentResult {
     if (!this.hasExpiredPullActions()) {
         return TimeViolationAssessmentResult(this)
     }
@@ -198,7 +198,7 @@ fun LiveGameState.assessTimeViolation(team: TeamId, now: Long): TimeViolationAss
  * @param team The team receiving its warning.
  * @param now The epoch millis used to start the warning countdown.
  */
-private fun LiveGameState.recordTimeViolationWarning(team: TeamId, now: Long): LiveGameState {
+private fun GameState.recordTimeViolationWarning(team: TeamId, now: Long): GameState {
     return this.copy(
         teamOne = if (team == TeamId.TEAM_ONE) {
             this.teamOne.copy(timeViolationWarningIssued = true)
@@ -236,7 +236,7 @@ private fun LiveGameState.recordTimeViolationWarning(team: TeamId, now: Long): L
  *
  * @param now The epoch millis used as the restarted countdown's sequence start.
  */
-fun LiveGameState.restartPullCountdown(now: Long): LiveGameState {
+fun GameState.restartPullCountdown(now: Long): GameState {
     if (!this.hasExpiredPullActions()) {
         return this
     }
@@ -257,7 +257,7 @@ fun LiveGameState.restartPullCountdown(now: Long): LiveGameState {
  * @param team The team being charged a timeout.
  * @param now The epoch millis used to start the reset countdown.
  */
-private fun LiveGameState.recordTimeViolationTimeout(team: TeamId, now: Long): LiveGameState {
+private fun GameState.recordTimeViolationTimeout(team: TeamId, now: Long): GameState {
     val durationSeconds = if (this.pullingFromEnd == FieldEnd.FAR) 70 else 90
     return this.copy(
         teamOne = if (team == TeamId.TEAM_ONE) this.teamOne.withAddedTimeout() else this.teamOne,
@@ -286,7 +286,7 @@ private fun LiveGameState.recordTimeViolationTimeout(team: TeamId, now: Long): L
  * @param durationSeconds The length of the reset countdown.
  * @param kind The countdown kind so warning and timeout resets can use different cue behavior.
  */
-private fun LiveGameState.buildTimeViolationCountdownForCurrentSide(
+private fun GameState.buildTimeViolationCountdownForCurrentSide(
     now: Long,
     durationSeconds: Int,
     kind: CountdownKind,
@@ -302,7 +302,7 @@ private fun LiveGameState.buildTimeViolationCountdownForCurrentSide(
 }
 
 /// Return the between-points timing target for the observer's current side of the field.
-private fun LiveGameState.currentSideCountdownTarget(): BetweenPointsCountdownTarget {
+private fun GameState.currentSideCountdownTarget(): BetweenPointsCountdownTarget {
     return if (this.pullingFromEnd == FieldEnd.NEAR) {
         BetweenPointsCountdownTarget.PULL
     } else {
@@ -315,7 +315,7 @@ private fun LiveGameState.currentSideCountdownTarget(): BetweenPointsCountdownTa
  *
  * @param team The team to compare with the near-side pull responsibility.
  */
-internal fun LiveGameState.isNearSideTeam(team: TeamId): Boolean {
+internal fun GameState.isNearSideTeam(team: TeamId): Boolean {
     return team == if (this.pullingFromEnd == FieldEnd.NEAR) {
         this.pullingTeam
     } else {
@@ -329,7 +329,7 @@ internal fun LiveGameState.isNearSideTeam(team: TeamId): Boolean {
  *
  * @param team The violating team.
  */
-private fun LiveGameState.recordTimeViolationWithoutTimeout(team: TeamId, now: Long): LiveGameState {
+private fun GameState.recordTimeViolationWithoutTimeout(team: TeamId, now: Long): GameState {
     return this.copy(
         countdown = null,
         pullCountdownExpired = false,
@@ -350,7 +350,7 @@ private fun LiveGameState.recordTimeViolationWithoutTimeout(team: TeamId, now: L
  *
  * @param team The team whose warning flag should be read.
  */
-private fun LiveGameState.timeViolationWarningIssued(team: TeamId): Boolean {
+private fun GameState.timeViolationWarningIssued(team: TeamId): Boolean {
     return if (team == TeamId.TEAM_ONE) {
         this.teamOne.timeViolationWarningIssued
     } else {

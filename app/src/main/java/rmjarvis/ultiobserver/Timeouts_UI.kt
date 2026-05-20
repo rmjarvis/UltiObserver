@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
  */
 @Composable
 internal fun AdjustTimeoutsDialog(
-    state: LiveGameState,
+    state: GameState,
     onDismiss: () -> Unit,
     onConfirm: (Int, Int) -> Unit,
 ) {

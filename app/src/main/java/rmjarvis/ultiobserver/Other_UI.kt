@@ -34,12 +34,12 @@ import androidx.compose.ui.unit.dp
  */
 @Composable
 internal fun OtherSheet(
-    state: LiveGameState,
+    state: GameState,
     now: Long,
     onUpdateGameSetup: () -> Unit,
     onShowEventLog: () -> Unit,
     onDeleteGame: () -> Unit,
-    onAction: (LiveGameState) -> Unit,
+    onAction: (GameState) -> Unit,
 ) {
     var showAdjustScoreDialog by remember { mutableStateOf(false) }
     var showAdjustTimeoutsDialog by remember { mutableStateOf(false) }
@@ -211,7 +211,7 @@ internal fun OtherSheet(
  */
 @Composable
 private fun AdjustScoreDialog(
-    state: LiveGameState,
+    state: GameState,
     onDismiss: () -> Unit,
     onConfirm: (Int, Int) -> Unit,
 ) {

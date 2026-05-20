@@ -7,7 +7,7 @@ package rmjarvis.ultiobserver
  * @param event The observer-facing event to show.
  */
 data class TimeoutAssessmentResult(
-    val state: LiveGameState,
+    val state: GameState,
     val event: GameEvent,
 )
 
@@ -17,11 +17,11 @@ data class TimeoutAssessmentResult(
  * @param teamOneTimeoutsUsed The corrected count of team-one timeouts used in the current half.
  * @param teamTwoTimeoutsUsed The corrected count of team-two timeouts used in the current half.
  */
-fun LiveGameState.adjustTimeouts(
+fun GameState.adjustTimeouts(
     teamOneTimeoutsUsed: Int,
     teamTwoTimeoutsUsed: Int,
     now: Long,
-): LiveGameState {
+): GameState {
     val adjustedTeamOneTimeouts = teamOneTimeoutsUsed.coerceAtLeast(0)
     val adjustedTeamTwoTimeouts = teamTwoTimeoutsUsed.coerceAtLeast(0)
     val entries = buildList {
@@ -65,7 +65,7 @@ fun LiveGameState.adjustTimeouts(
  * @param team The team requesting the timeout.
  * @param now The current epoch millis used to advance expired countdowns and start timeout timing.
  */
-fun LiveGameState.assessTimeout(
+fun GameState.assessTimeout(
     team: TeamId,
     now: Long,
 ): TimeoutAssessmentResult {
@@ -87,10 +87,10 @@ fun LiveGameState.assessTimeout(
  * @param team The team whose used-timeout count should increase.
  * @param now The epoch millis used as the start of a live-point timeout countdown.
  */
-fun LiveGameState.chargeTimeout(
+fun GameState.chargeTimeout(
     team: TeamId,
     now: Long,
-): LiveGameState {
+): GameState {
     val timeoutState = this.timeoutEligibleState(now) ?: return this
     if (timeoutState.timeoutsRemaining(team) <= 0) {
         return this
@@ -136,7 +136,7 @@ fun LiveGameState.chargeTimeout(
  *
  * @param team The team whose first-half floater carryover must be considered.
  */
-fun LiveGameState.timeoutsAllowedThisHalf(team: TeamId): Int {
+fun GameState.timeoutsAllowedThisHalf(team: TeamId): Int {
     val firstHalfAllowance = this.rules.timeoutsPerHalf + if (this.rules.hasFloaterTimeout) 1 else 0
     if (!this.halftimeTaken) {
         return firstHalfAllowance
@@ -151,7 +151,7 @@ fun LiveGameState.timeoutsAllowedThisHalf(team: TeamId): Int {
  *
  * @param team The team whose remaining timeout count should be reported.
  */
-fun LiveGameState.timeoutsRemaining(team: TeamId): Int {
+fun GameState.timeoutsRemaining(team: TeamId): Int {
     val usedThisHalf = this.teamFor(team).timeoutsUsedThisHalf
     return (this.timeoutsAllowedThisHalf(team) - usedThisHalf).coerceAtLeast(0)
 }
@@ -161,7 +161,7 @@ fun LiveGameState.timeoutsRemaining(team: TeamId): Int {
  *
  * @param now The current epoch millis, used to treat an expired between-points countdown as live play.
  */
-private fun LiveGameState.timeoutEligibleState(now: Long): LiveGameState? {
+private fun GameState.timeoutEligibleState(now: Long): GameState? {
     val transitionedState = applyExpiredCountdownTransitions(now)
     return when (transitionedState.phase) {
         LivePhase.BETWEEN_POINTS -> if (transitionedState.countdown != null) transitionedState else null
@@ -177,8 +177,8 @@ private fun LiveGameState.timeoutEligibleState(now: Long): LiveGameState? {
  * @param state The already-charged timeout state whose countdown should be extended.
  */
 private fun applyBetweenPointsTimeout(
-    state: LiveGameState,
-): LiveGameState {
+    state: GameState,
+): GameState {
     val countdown = state.countdown!!
     return state.copy(
         countdown = countdown.copy(
@@ -194,9 +194,9 @@ private fun applyBetweenPointsTimeout(
  * @param now The epoch millis used as the countdown start.
  */
 private fun applyLivePointTimeout(
-    state: LiveGameState,
+    state: GameState,
     now: Long,
-): LiveGameState {
+): GameState {
     return state.copy(
         countdown = CountdownState(
             kind = CountdownKind.TIME_OUT,

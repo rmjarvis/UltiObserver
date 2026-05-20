@@ -76,10 +76,10 @@ enum class CapType {
  * @param capType The cap whose scheduled offset should be enabled and aligned to now.
  * @param now The epoch millis that should become the cap's scheduled instant.
  */
-fun LiveGameState.makeCapNow(
+fun GameState.makeCapNow(
     capType: CapType,
     now: Long,
-): LiveGameState {
+): GameState {
     val offsetMinutes = capType.offsetMinutes(rules)
     val offset = offsetMinutes * 60_000L
     val adjustedStart = localDateTimeFromEpoch(now - offset, this.timeZone)
@@ -98,9 +98,9 @@ fun LiveGameState.makeCapNow(
  *
  * @param now The epoch millis used as the end time if hard cap immediately ends the game.
  */
-fun LiveGameState.applyPendingCap(
+fun GameState.applyPendingCap(
     now: Long,
-): LiveGameState {
+): GameState {
     val pendingCap = this.pendingCapOffer!!
     val currentHigherScore = max(this.teamOne.score, this.teamTwo.score)
     return when (pendingCap) {
@@ -144,7 +144,7 @@ fun LiveGameState.applyPendingCap(
  * This is run when the app has asked whether to apply the next pending cap and the
  * observer decides not to apply it yet.
  */
-fun LiveGameState.deferPendingCap(): LiveGameState {
+fun GameState.deferPendingCap(): GameState {
     return this.copy(
         pendingCapOffer = null,
         lastEvent = "Cap offer deferred.",
@@ -155,7 +155,7 @@ fun LiveGameState.deferPendingCap(): LiveGameState {
  *
  * @param now The current epoch millis used to turn scheduled cap times into remaining durations.
  */
-fun LiveGameState.computeNextCapStatus(now: Long): CapStatus? {
+fun GameState.computeNextCapStatus(now: Long): CapStatus? {
     // `to` in Kotlin makes pairs. So `first to second` makes a pair (first, second).
     // Here we make pairs with second being another pair:
     // (isCapRelevant, (capName, capTime))
@@ -185,7 +185,7 @@ fun LiveGameState.computeNextCapStatus(now: Long): CapStatus? {
  *
  * @param now The current epoch millis, checked against cap instants with a short delivery window.
  */
-internal fun LiveGameState.dueCapTimingCue(now: Long): TimingCueDisplay? {
+internal fun GameState.dueCapTimingCue(now: Long): TimingCueDisplay? {
     return relevantCapTypes()
         .map { capType -> capType to capEpoch(capType) }
         .sortedBy { (_, capTime) -> capTime }
@@ -210,7 +210,7 @@ internal fun LiveGameState.dueCapTimingCue(now: Long): TimingCueDisplay? {
  *
  * @param now The current epoch millis used to select the next future cap and compute time remaining.
  */
-internal fun LiveGameState.nextCapTimingCue(now: Long): TimingCueDisplay? {
+internal fun GameState.nextCapTimingCue(now: Long): TimingCueDisplay? {
     return relevantCapTypes()
         .map { capType -> capType to capEpoch(capType) }
         .sortedBy { (_, capTime) -> capTime }
@@ -230,7 +230,7 @@ internal fun LiveGameState.nextCapTimingCue(now: Long): TimingCueDisplay? {
 }
 
 /// List cap types that still affect the current game.
-private fun LiveGameState.relevantCapTypes(): List<CapType> {
+private fun GameState.relevantCapTypes(): List<CapType> {
     return listOfNotNull(
         CapType.HALF.takeIf { halfCapRelevant(teamOne.score, teamTwo.score) },
         CapType.SOFT.takeIf { softCapRelevant() },
@@ -243,18 +243,18 @@ private fun LiveGameState.relevantCapTypes(): List<CapType> {
  * @param teamOneScore The score to evaluate for team one, often the post-goal score being considered.
  * @param teamTwoScore The score to evaluate for team two, often the post-goal score being considered.
  */
-internal fun LiveGameState.halfCapRelevant(teamOneScore: Int, teamTwoScore: Int): Boolean {
+internal fun GameState.halfCapRelevant(teamOneScore: Int, teamTwoScore: Int): Boolean {
     return rules.useHalfCap &&
         !halftimeTaken &&
         !halfCapApplied &&
         halfCapCanChangeHalftime(rules, teamOneScore, teamTwoScore)
 }
 /// Report whether soft cap is enabled and has not already been applied.
-internal fun LiveGameState.softCapRelevant(): Boolean {
+internal fun GameState.softCapRelevant(): Boolean {
     return rules.useSoftCap && !softCapApplied
 }
 /// Report whether hard cap is enabled and has not already been applied.
-internal fun LiveGameState.hardCapRelevant(): Boolean {
+internal fun GameState.hardCapRelevant(): Boolean {
     return rules.useHardCap && !hardCapApplied
 }
 /**
@@ -264,7 +264,7 @@ internal fun LiveGameState.hardCapRelevant(): Boolean {
  * @param teamTwoScore The score to evaluate for team two.
  * @param now The epoch millis to compare with the scheduled half-cap time.
  */
-internal fun LiveGameState.halfCapReached(
+internal fun GameState.halfCapReached(
     teamOneScore: Int,
     teamTwoScore: Int,
     now: Long,
@@ -277,7 +277,7 @@ internal fun LiveGameState.halfCapReached(
  *
  * @param now The epoch millis to compare with the scheduled soft-cap time.
  */
-internal fun LiveGameState.softCapReached(now: Long): Boolean {
+internal fun GameState.softCapReached(now: Long): Boolean {
     return softCapRelevant() &&
         now >= capEpoch(CapType.SOFT)
 }
@@ -286,7 +286,7 @@ internal fun LiveGameState.softCapReached(now: Long): Boolean {
  *
  * @param now The epoch millis to compare with the scheduled hard-cap time.
  */
-internal fun LiveGameState.hardCapReached(now: Long): Boolean {
+internal fun GameState.hardCapReached(now: Long): Boolean {
     return hardCapRelevant() &&
         now >= capEpoch(CapType.HARD)
 }
@@ -317,7 +317,7 @@ private fun halfCapCanChangeHalftime(rules: GameRules, teamOneScore: Int, teamTw
  *
  * @param capType The cap whose configured offset should be used.
  */
-internal fun LiveGameState.capEpoch(capType: CapType): Long {
+internal fun GameState.capEpoch(capType: CapType): Long {
     return startEpoch + capType.offsetMinutes(rules) * 60_000L
 }
 

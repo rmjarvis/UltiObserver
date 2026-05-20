@@ -42,7 +42,7 @@ internal enum class AppScreen {
 internal data class AppUiState(
     val screen: AppScreen = AppScreen.HOME,
     val setupState: GameSetupState,
-    val liveState: LiveGameState?,
+    val liveState: GameState?,
     val setupMode: SetupMode,
     val profileName: String,
     val avatarPreference: ObserverAvatarPreference,
@@ -111,7 +111,7 @@ internal class AppViewModel(
         get() = state.value.screen
     val setupState: GameSetupState
         get() = state.value.setupState
-    val liveState: LiveGameState?
+    val liveState: GameState?
         get() = state.value.liveState
     val setupMode: SetupMode
         get() = state.value.setupMode
@@ -140,7 +140,7 @@ internal class AppViewModel(
         persistRecoveredDataAreas(recoveredPersistedDataAreas)
     }
 
-    val currentLiveState: LiveGameState?
+    val currentLiveState: GameState?
         get() = viewingArchivedGame?.state ?: liveState
 
     val viewingReadOnlySummary: Boolean
@@ -206,7 +206,7 @@ internal class AppViewModel(
      *
      * @param updatedGame The live-game state returned from a model action.
      */
-    fun updateLiveGame(updatedGame: LiveGameState) {
+    fun updateLiveGame(updatedGame: GameState) {
         if (viewingArchivedGame == null) {
             // All live game event logging flows through this ViewModel boundary.
             _state.update { it.copy(liveState = updatedGame) }
@@ -602,7 +602,7 @@ internal class AppViewModel(
      *
      * @param currentGame The live-game state whose setup fields should be edited.
      */
-    fun editCurrentGame(currentGame: LiveGameState) {
+    fun editCurrentGame(currentGame: GameState) {
         if (viewingArchivedGame != null) {
             return
         }
@@ -653,7 +653,7 @@ internal class AppViewModel(
      *
      * @param current The live or completed current game being moved out of the current slot.
      */
-    private fun archivedGameFor(current: LiveGameState): ArchivedGame {
+    private fun archivedGameFor(current: GameState): ArchivedGame {
         if (current.phase == LivePhase.GAME_OVER) {
             return ArchivedGame(
                 state = current.pruneUndoHistory(),

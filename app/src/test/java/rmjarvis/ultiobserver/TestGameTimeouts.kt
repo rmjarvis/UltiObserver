@@ -50,10 +50,10 @@ class TestGameTimeouts : GameDomainTestFixtures() {
          * @param start The epoch millis assigned to the first goal in the sequence.
          */
         fun scoreToHalftime(
-            startingState: LiveGameState,
+            startingState: GameState,
             scoringTeam: TeamId,
             start: Long,
-        ): LiveGameState {
+        ): GameState {
             var current = startingState
             var pointNumber = 0
             while (current.phase != LivePhase.HALFTIME) {

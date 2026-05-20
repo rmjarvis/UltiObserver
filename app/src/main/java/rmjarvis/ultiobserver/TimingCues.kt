@@ -141,7 +141,7 @@ internal fun CountdownState.dueTimingCue(now: Long): TimingCueDisplay? {
  *
  * @param now The current epoch millis used to evaluate countdown and cap cue windows.
  */
-internal fun LiveGameState.dueTimingAlerts(now: Long): List<TimingCueDisplay> {
+internal fun GameState.dueTimingAlerts(now: Long): List<TimingCueDisplay> {
     val countdownCue = countdown?.dueTimingCue(now)
     val capCue = dueCapTimingCue(now)
     return orderedTimingCues(countdownCue, capCue)
@@ -152,7 +152,7 @@ internal fun LiveGameState.dueTimingAlerts(now: Long): List<TimingCueDisplay> {
  *
  * @param now The current epoch millis used to rank countdown and cap cues.
  */
-internal fun LiveGameState.nextTimingAlert(now: Long): TimingCueDisplay? {
+internal fun GameState.nextTimingAlert(now: Long): TimingCueDisplay? {
     val countdownCue = countdown?.nextTimingCue(now)
     val capCue = nextCapTimingCue(now)
     return when {

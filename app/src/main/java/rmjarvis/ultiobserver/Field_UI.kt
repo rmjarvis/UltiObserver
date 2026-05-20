@@ -290,7 +290,7 @@ internal data class FieldLayoutMetrics(
  */
 @Composable
 internal fun FieldSketchCard(
-    state: LiveGameState,
+    state: GameState,
     interactionsEnabled: Boolean,
     showPullIndicator: Boolean,
     metrics: FieldLayoutMetrics,
@@ -741,7 +741,7 @@ internal data class ActiveCountdownDisplay(
  *
  * @param now The current epoch millis used to compute remaining time and next cue.
  */
-internal fun LiveGameState.activeCountdownDisplay(now: Long): ActiveCountdownDisplay? {
+internal fun GameState.activeCountdownDisplay(now: Long): ActiveCountdownDisplay? {
     val countdown = countdown ?: return null
     return if (countdown.kind == CountdownKind.HALFTIME) {
         val halftimeRemaining = countdown.targetEpoch - now
@@ -775,7 +775,7 @@ internal fun LiveGameState.activeCountdownDisplay(now: Long): ActiveCountdownDis
  *
  * @param now The current epoch millis used to compare against halftime's target time.
  */
-internal fun LiveGameState.halftimeTransitionReady(now: Long): Boolean {
+internal fun GameState.halftimeTransitionReady(now: Long): Boolean {
     val countdown = countdown ?: return false
     return phase == LivePhase.HALFTIME &&
         countdown.kind == CountdownKind.HALFTIME &&

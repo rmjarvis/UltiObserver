@@ -56,10 +56,10 @@ private data class PendingMisconductChoice(
 // Manual card/TF correction dialog, including the per-player reconciliation flow.
 @Composable
 internal fun AdjustCardsDialog(
-    state: LiveGameState,
+    state: GameState,
     now: Long,
     onDismiss: () -> Unit,
-    onConfirm: (LiveGameState) -> Unit,
+    onConfirm: (GameState) -> Unit,
 ) {
     var teamOneY by remember { mutableStateOf(state.teamYellowCards(TeamId.TEAM_ONE)) }
     var teamOneB by remember { mutableStateOf(state.teamOne.blueCards) }
@@ -224,9 +224,9 @@ internal fun AdjustCardsDialog(
  */
 @Composable
 internal fun CardsSheet(
-    state: LiveGameState,
+    state: GameState,
     now: Long,
-    onAssessment: (LiveGameState, String, String) -> Unit,
+    onAssessment: (GameState, String, String) -> Unit,
 ) {
     var pendingYellowTeam by remember { mutableStateOf<TeamId?>(null) }
     var pendingYellowInitialNumber by remember { mutableStateOf("") }
@@ -654,7 +654,7 @@ private fun InGamePlayerCardRecord.issuedCardSummary(): String {
  *
  * @param team The team whose pulling/receiving role should be displayed.
  */
-private fun LiveGameState.cardsRoleSuffix(team: TeamId): String {
+private fun GameState.cardsRoleSuffix(team: TeamId): String {
     return if (phase == LivePhase.BETWEEN_POINTS || phase == LivePhase.HALFTIME) {
         if (team == pullingTeam) " (pulling)" else " (receiving)"
     } else {

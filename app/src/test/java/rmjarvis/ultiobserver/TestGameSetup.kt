@@ -90,7 +90,7 @@ class TestGameSetup : GameDomainTestFixtures() {
         assertEquals(beforeSetupEditBeforePlay, state.undoEntry?.previous)
 
         // The raw live-state defaults represent a pregame state before the setup-to-live transition.
-        val pregameState = LiveGameState(
+        val pregameState = GameState(
             startDate = setup.startDate,
             startTime = setup.startTime,
             timeZone = setup.timeZone,

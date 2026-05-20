@@ -40,7 +40,7 @@ internal data class ArchivedGameListEntry(
 )
 
 /// Return the archived-games row summary with compact start time above the final score.
-internal fun LiveGameState.archivedGameListEntry(): ArchivedGameListEntry {
+internal fun GameState.archivedGameListEntry(): ArchivedGameListEntry {
     return ArchivedGameListEntry(
         startDateTime = formatCompactStartDateTime(startDate, startTime),
         scoreLine = "${teamOne.name} ${teamOne.score} - ${teamTwo.score} ${teamTwo.name}",

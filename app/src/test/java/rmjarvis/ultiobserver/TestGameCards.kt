@@ -32,7 +32,7 @@ class TestGameCards : GameDomainTestFixtures() {
          * @param jerseyNumber The player number expected to have exactly one record.
          */
         fun playerRecord(
-            state: LiveGameState,
+            state: GameState,
             team: TeamId,
             jerseyNumber: String,
         ): InGamePlayerCardRecord {

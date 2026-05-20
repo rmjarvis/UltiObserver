@@ -54,10 +54,10 @@ import java.time.LocalTime
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun LiveGameScreen(
-    state: LiveGameState,
+    state: GameState,
     automaticallyAdvanceCountdowns: Boolean,
     automaticallyLockLivePoint: Boolean,
-    onStateChange: (LiveGameState) -> Unit,
+    onStateChange: (GameState) -> Unit,
     onUpdateGameSetup: () -> Unit,
     onDeleteGame: () -> Unit,
     onBackHome: () -> Unit,
@@ -96,7 +96,7 @@ internal fun LiveGameScreen(
      *
      * @param updatedState The state produced by undo.
      */
-    fun undoWithoutPhasePrompt(updatedState: LiveGameState) {
+    fun undoWithoutPhasePrompt(updatedState: GameState) {
         suppressNextPhasePrompt = updatedState.phase != state.phase
         suppressNextAutoLock = true
         activeGamePrompt = null
@@ -628,11 +628,11 @@ private fun liveLayoutMetrics(contentHeight: Dp): LiveLayoutMetrics {
  */
 @Composable
 private fun UndoRedoBar(
-    state: LiveGameState,
+    state: GameState,
     enabled: Boolean,
     height: Dp,
-    onUndo: (LiveGameState) -> Unit,
-    onRedo: (LiveGameState) -> Unit,
+    onUndo: (GameState) -> Unit,
+    onRedo: (GameState) -> Unit,
 ) {
     val undoEntry = state.undoEntry
     val redoEntry = state.redoEntry

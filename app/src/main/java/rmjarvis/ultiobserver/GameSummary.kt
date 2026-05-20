@@ -5,7 +5,7 @@ package rmjarvis.ultiobserver
  *
  * @receiver The completed game state to summarize.
  */
-internal fun LiveGameState.gameSummaryShareText(): String {
+internal fun GameState.gameSummaryShareText(): String {
     val orderedTeams = winnerFirstTeams()
     val startLinePrefix = tournamentName.takeIf { it.isNotBlank() }?.let { "${it.trim()} - " } ?: ""
     val misconductLines = misconductShareLines()
@@ -24,7 +24,7 @@ internal fun LiveGameState.gameSummaryShareText(): String {
 }
 
 /// Return compact per-team misconduct lines for the share summary.
-private fun LiveGameState.misconductShareLines(): List<String> {
+private fun GameState.misconductShareLines(): List<String> {
     return listOfNotNull(
         misconductShareLine(TeamId.TEAM_ONE),
         misconductShareLine(TeamId.TEAM_TWO),
@@ -36,7 +36,7 @@ private fun LiveGameState.misconductShareLines(): List<String> {
  *
  * @param teamId The team whose misconduct should be summarized.
  */
-private fun LiveGameState.misconductShareLine(teamId: TeamId): String? {
+private fun GameState.misconductShareLine(teamId: TeamId): String? {
     val team = teamFor(teamId)
     val playerParts = playerCards(teamId)
         .filter { it.yellows > 0 || it.reds > 0 }

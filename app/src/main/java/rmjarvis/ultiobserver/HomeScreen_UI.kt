@@ -99,7 +99,7 @@ private val PREFERRED_TOTAL_HEIGHT = PREFERRED_IDENTITY_TEXT_HEIGHT + PREFERRED_
 private val PREFERRED_GROWTH_HEIGHT = PREFERRED_TOTAL_HEIGHT - MIN_TOTAL_HEIGHT
 
 // Home-screen summary for a live or completed game.
-internal fun LiveGameState.gameListEntry(): GameListEntry {
+internal fun GameState.gameListEntry(): GameListEntry {
     return GameListEntry(
         title = compactStartDateTime(),
         subtitle = scoreLine(),
@@ -114,7 +114,7 @@ internal fun GameSetupState.gameListEntry(): GameListEntry {
     )
 }
 
-private fun LiveGameState.compactStartDateTime(): String {
+private fun GameState.compactStartDateTime(): String {
     return formatCompactStartDateTime(startDate, startTime)
 }
 
@@ -122,7 +122,7 @@ private fun GameSetupState.compactStartDateTime(): String {
     return formatCompactStartDateTime(startDate, startTime)
 }
 
-private fun LiveGameState.scoreLine(): String {
+private fun GameState.scoreLine(): String {
     return "${teamOne.name} ${teamOne.score} - ${teamTwo.score} ${teamTwo.name}"
 }
 

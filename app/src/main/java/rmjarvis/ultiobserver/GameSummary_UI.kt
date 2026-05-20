@@ -44,7 +44,7 @@ import androidx.compose.ui.unit.dp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ArchivedGameSummaryScreen(
-    state: LiveGameState,
+    state: GameState,
     onRestoreGame: () -> Unit,
     onBackHome: () -> Unit,
 ) {
@@ -97,7 +97,7 @@ internal fun ArchivedGameSummaryScreen(
  */
 @Composable
 internal fun GameOverSummary(
-    state: LiveGameState,
+    state: GameState,
     onShowEventLog: () -> Unit,
     onShareSummary: () -> Unit,
     summaryActionText: String,
@@ -202,7 +202,7 @@ internal fun GameOverSummary(
  *
  * @param state The completed game state being shared.
  */
-internal fun Context.shareGameSummary(state: LiveGameState) {
+internal fun Context.shareGameSummary(state: GameState) {
     val sendIntent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
         putExtra(Intent.EXTRA_SUBJECT, "UltiObserver Game Summary")

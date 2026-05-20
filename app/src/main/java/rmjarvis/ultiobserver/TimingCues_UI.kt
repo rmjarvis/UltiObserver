@@ -23,7 +23,7 @@ import kotlinx.coroutines.launch
  */
 @Composable
 internal fun TimingAlertCueListener(
-    liveState: LiveGameState?,
+    liveState: GameState?,
     timingAlertPreferences: TimingAlertPreferences,
 ) {
     var playedTimingAlertKeys by remember(liveState?.startEpoch) {

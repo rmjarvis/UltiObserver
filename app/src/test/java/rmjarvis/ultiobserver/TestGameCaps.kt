@@ -36,7 +36,7 @@ class TestGameCaps : GameDomainTestFixtures() {
          *
          * @param rules The cap rules to install for this scenario.
          */
-        fun newCapState(rules: GameRules = capRules): LiveGameState {
+        fun newCapState(rules: GameRules = capRules): GameState {
             return standardLiveGameState(startTime = startTime, rules = rules)
         }
 
@@ -48,10 +48,10 @@ class TestGameCaps : GameDomainTestFixtures() {
          * @param minute The minute after game start assigned to the goal.
          */
         fun scoreAt(
-            state: LiveGameState,
+            state: GameState,
             scoringTeam: TeamId,
             minute: Int,
-        ): LiveGameState {
+        ): GameState {
             return state.recordGoalFromCurrentState(
                 scoringTeam = scoringTeam,
                 now = timestampAfterStart(state, minute),

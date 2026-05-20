@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
  */
 @Composable
 internal fun AdjustPullInfractionsDialog(
-    state: LiveGameState,
+    state: GameState,
     onDismiss: () -> Unit,
     onConfirm: (Int, Int, Int, Int) -> Unit,
 ) {

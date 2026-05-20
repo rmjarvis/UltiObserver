@@ -67,7 +67,7 @@ data class EventLogEntry(
  *
  * @param entry The event-log entry to append.
  */
-internal fun LiveGameState.withEventLogEntry(entry: EventLogEntry): LiveGameState {
+internal fun GameState.withEventLogEntry(entry: EventLogEntry): GameState {
     return copy(eventLog = eventLog + entry)
 }
 
@@ -76,7 +76,7 @@ internal fun LiveGameState.withEventLogEntry(entry: EventLogEntry): LiveGameStat
  *
  * @param entries The event-log entries to append in display order.
  */
-internal fun LiveGameState.withEventLogEntries(entries: List<EventLogEntry>): LiveGameState {
+internal fun GameState.withEventLogEntries(entries: List<EventLogEntry>): GameState {
     return if (entries.isEmpty()) this else copy(eventLog = eventLog + entries)
 }
 
@@ -85,7 +85,7 @@ internal fun LiveGameState.withEventLogEntries(entries: List<EventLogEntry>): Li
  *
  * @param now The clock time when the point was actually started.
  */
-internal fun LiveGameState.firstPullLogTimestamp(now: Long): Long {
+internal fun GameState.firstPullLogTimestamp(now: Long): Long {
     return if (now < startEpoch) now else startEpoch
 }
 
@@ -94,7 +94,7 @@ internal fun LiveGameState.firstPullLogTimestamp(now: Long): Long {
  *
  * @param entry The entry to format.
  */
-fun LiveGameState.formatEventLogLine(entry: EventLogEntry): String {
+fun GameState.formatEventLogLine(entry: EventLogEntry): String {
     val time = localTimeFromEpoch(entry.timestampEpoch, timeZone).format(EVENT_LOG_TIME_FORMATTER)
     return "$time  ${formatEventLogDescription(entry)}"
 }
@@ -102,7 +102,7 @@ fun LiveGameState.formatEventLogLine(entry: EventLogEntry): String {
 /**
  * Format every persisted event-log entry for display.
  */
-fun LiveGameState.formatEventLogLines(): List<String> {
+fun GameState.formatEventLogLines(): List<String> {
     return eventLog.map { entry -> formatEventLogLine(entry) }
 }
 
@@ -111,7 +111,7 @@ fun LiveGameState.formatEventLogLines(): List<String> {
  *
  * @param entry The entry to format.
  */
-private fun LiveGameState.formatEventLogDescription(entry: EventLogEntry): String {
+private fun GameState.formatEventLogDescription(entry: EventLogEntry): String {
     return when (entry.type) {
         EventLogType.FIRST_PULL -> firstPullDescription(entry)
         EventLogType.GOAL -> goalDescription(entry)
@@ -131,17 +131,17 @@ private fun LiveGameState.formatEventLogDescription(entry: EventLogEntry): Strin
 }
 
 /// Return display text for the first pull.
-private fun LiveGameState.firstPullDescription(entry: EventLogEntry): String {
+private fun GameState.firstPullDescription(entry: EventLogEntry): String {
     return "First pull by ${teamName(entry.team!!)}"
 }
 
 /// Return display text for a goal event.
-private fun LiveGameState.goalDescription(entry: EventLogEntry): String {
+private fun GameState.goalDescription(entry: EventLogEntry): String {
     return "${teamName(entry.team!!)} Goal"
 }
 
 /// Return display text for a card event or card correction.
-private fun LiveGameState.cardEventDescription(entry: EventLogEntry): String {
+private fun GameState.cardEventDescription(entry: EventLogEntry): String {
     val label = entry.type.cardLabel()
     val delta = entry.delta
     return if (delta == null) {
@@ -152,14 +152,14 @@ private fun LiveGameState.cardEventDescription(entry: EventLogEntry): String {
 }
 
 /// Return display text for a manual card-correction target.
-private fun LiveGameState.cardAdjustmentTarget(entry: EventLogEntry): String {
+private fun GameState.cardAdjustmentTarget(entry: EventLogEntry): String {
     val teamText = teamName(entry.team!!)
     val player = entry.playerNumber
     return if (player == null) teamText else "$teamText ${displayPlayerNumber(player)}"
 }
 
 /// Return display text for a timeout event or timeout correction.
-private fun LiveGameState.timeoutDescription(entry: EventLogEntry): String {
+private fun GameState.timeoutDescription(entry: EventLogEntry): String {
     val delta = entry.delta
     return if (delta == null) {
         "Timeout by ${teamName(entry.team!!)}"
@@ -169,7 +169,7 @@ private fun LiveGameState.timeoutDescription(entry: EventLogEntry): String {
 }
 
 /// Return display text for a technical-foul event or technical-foul correction.
-private fun LiveGameState.technicalFoulDescription(entry: EventLogEntry): String {
+private fun GameState.technicalFoulDescription(entry: EventLogEntry): String {
     val delta = entry.delta
     return if (delta == null) {
         "Technical Foul on ${teamName(entry.team!!)}"
@@ -179,7 +179,7 @@ private fun LiveGameState.technicalFoulDescription(entry: EventLogEntry): String
 }
 
 /// Return display text for a pull-infraction event or pull-infraction correction.
-private fun LiveGameState.pullInfractionDescription(entry: EventLogEntry): String {
+private fun GameState.pullInfractionDescription(entry: EventLogEntry): String {
     val delta = entry.delta
     val label = entry.type.pullInfractionCorrectionLabel()
     return if (delta == null) {
@@ -190,7 +190,7 @@ private fun LiveGameState.pullInfractionDescription(entry: EventLogEntry): Strin
 }
 
 /// Return display text for a time-violation event.
-private fun LiveGameState.timeViolationDescription(entry: EventLogEntry): String {
+private fun GameState.timeViolationDescription(entry: EventLogEntry): String {
     val outcome = entry.timeViolationOutcome!!
     val suffix = when (outcome) {
         TimeViolationOutcome.WARNING -> " warning"
@@ -201,7 +201,7 @@ private fun LiveGameState.timeViolationDescription(entry: EventLogEntry): String
 }
 
 /// Return display text for a score correction.
-private fun LiveGameState.scoreAdjustedDescription(entry: EventLogEntry): String {
+private fun GameState.scoreAdjustedDescription(entry: EventLogEntry): String {
     return "Adjusted score: ${teamOne.name} ${entry.teamOneScore!!} - ${teamTwo.name} ${entry.teamTwoScore!!}"
 }
 

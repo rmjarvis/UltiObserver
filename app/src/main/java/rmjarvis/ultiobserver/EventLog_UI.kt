@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.dp
  * @param state The game whose persisted event log should be shown.
  */
 @Composable
-internal fun EventLogSheet(state: LiveGameState) {
+internal fun EventLogSheet(state: GameState) {
     val rows = state.formatEventLogLines()
     Column(
         modifier = Modifier

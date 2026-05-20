@@ -232,7 +232,7 @@ data class TeamLiveState(
 }
 
 /// Return teams ordered with the higher-scoring team first for summary display.
-internal fun LiveGameState.winnerFirstTeams(): List<TeamLiveState> {
+internal fun GameState.winnerFirstTeams(): List<TeamLiveState> {
     val teamOneFirst = teamOne.score > teamTwo.score ||
         (teamOne.score == teamTwo.score && teamOne.name <= teamTwo.name)
     return if (teamOneFirst) {
@@ -306,7 +306,7 @@ enum class CountdownKind {
  * @param pendingCapOffer The cap currently being offered to the observer for yes/no application.
  */
 @Serializable
-data class LiveGameState(
+data class GameState(
     @Serializable(with = LocalDateAsStringSerializer::class)
     val startDate: LocalDate,
     @Serializable(with = LocalTimeAsStringSerializer::class)
@@ -343,7 +343,7 @@ data class LiveGameState(
     val hardCapApplied: Boolean = false,
     val pendingCapOffer: CapType? = null,  // Set when asking whether to apply the next cap
     val undoEntry: UndoEntry? = null,
-    val redoEntry: LiveGameState? = null,
+    val redoEntry: GameState? = null,
     val lastEvent: String = "Pregame setup complete.",
 ) {
     /// Report whether this state is the pre-pull live preview created directly from setup.
@@ -360,7 +360,7 @@ data class LiveGameState(
      *
      * @param clearCountdown Whether to clear an active countdown from the returned state.
      */
-    fun pruneUndoHistory(clearCountdown: Boolean = true): LiveGameState {
+    fun pruneUndoHistory(clearCountdown: Boolean = true): GameState {
         return copy(
             countdown = if (clearCountdown) null else countdown,
             undoEntry = null,
@@ -387,7 +387,7 @@ data class LiveGameState(
     }
 
     /// Swap the teams' field ends while keeping the same team pulling.
-    fun swapFieldEnds(): LiveGameState {
+    fun swapFieldEnds(): GameState {
         val newPullingFromEnd = this.pullingFromEnd.flip()
         return this.copy(
             nearAttackingTeam = this.nearAttackingTeam.flip(),
@@ -400,7 +400,7 @@ data class LiveGameState(
     }
 
     /// Swap the pulling team while leaving the teams' attacking orientation otherwise intact.
-    fun swapPullingTeam(): LiveGameState {
+    fun swapPullingTeam(): GameState {
         val newPullingTeam = this.pullingTeam.flip()
         val newPullingFromEnd = this.pullingFromEnd.flip()
         return this.copy(
@@ -418,7 +418,7 @@ data class LiveGameState(
      *
      * @param seconds The signed countdown adjustment; negative values move the target earlier.
      */
-    fun addTimeToCountdown(seconds: Int): LiveGameState {
+    fun addTimeToCountdown(seconds: Int): GameState {
         val countdown = this.countdown ?: return this
         val sign = if (seconds < 0) "-" else ""
         val absoluteSeconds = abs(seconds)
@@ -435,7 +435,7 @@ data class LiveGameState(
      * @param teamOneScore The corrected team-one score, clamped at zero.
      * @param teamTwoScore The corrected team-two score, clamped at zero.
      */
-    fun adjustScore(teamOneScore: Int, teamTwoScore: Int, now: Long): LiveGameState {
+    fun adjustScore(teamOneScore: Int, teamTwoScore: Int, now: Long): GameState {
         val adjustedTeamOneScore = teamOneScore.coerceAtLeast(0)
         val adjustedTeamTwoScore = teamTwoScore.coerceAtLeast(0)
         val entries = if (adjustedTeamOneScore != this.teamOne.score || adjustedTeamTwoScore != this.teamTwo.score) {
@@ -467,10 +467,10 @@ data class LiveGameState(
  * @param now The epoch millis for rebuilding the opening pull countdown when pre-play orientation changes.
  */
 fun applySetupToLiveGame(
-    existing: LiveGameState,
+    existing: GameState,
     setup: GameSetupState,
     now: Long,
-): LiveGameState {
+): GameState {
     val openingNearAttackingTeam = if (setup.pullingFromEnd == FieldEnd.FAR) {
         setup.pullingTeam
     } else {
@@ -515,7 +515,7 @@ fun applySetupToLiveGame(
 }
 
 /// Extract only the setup-screen fields from live state so the setup editor can reopen prefilled.
-fun LiveGameState.toSetupState(): GameSetupState {
+fun GameState.toSetupState(): GameSetupState {
     return GameSetupState(
         startDate = startDate,
         startTime = startTime,
@@ -545,5 +545,5 @@ fun LiveGameState.toSetupState(): GameSetupState {
 @Serializable
 data class UndoEntry(
     val label: String,
-    val previous: LiveGameState,
+    val previous: GameState,
 )

@@ -9,7 +9,7 @@ sealed interface GameEvent {
      * @param team The team charged with the timeout.
      */
     data class TimeoutCharged(
-        val state: LiveGameState,
+        val state: GameState,
         val team: TeamId,
     ) : GameEvent
 
@@ -19,7 +19,7 @@ sealed interface GameEvent {
      * @param state The live state that rejected the timeout.
      */
     data class TimeoutUnavailable(
-        val state: LiveGameState,
+        val state: GameState,
     ) : GameEvent
 
     /**
@@ -29,7 +29,7 @@ sealed interface GameEvent {
      * @param team The team with no remaining timeouts.
      */
     data class TeamOutOfTimeouts(
-        val state: LiveGameState,
+        val state: GameState,
         val team: TeamId,
     ) : GameEvent
 
@@ -43,7 +43,7 @@ sealed interface GameEvent {
      * @param playerCardJerseyNumber The player jersey number when playerCardType is present.
      */
     data class TeamCardsChanged(
-        val state: LiveGameState,
+        val state: GameState,
         val team: TeamId,
         val teamCardTotal: Int,
         val playerCardType: PlayerCardEventType? = null,
@@ -62,7 +62,7 @@ sealed interface GameEvent {
      * @param technicalFoulTotal The team's technical-foul total after the action.
      */
     data class TechnicalFoulsChanged(
-        val state: LiveGameState,
+        val state: GameState,
         val team: TeamId,
         val technicalFoulTotal: Int,
     ) : GameEvent
@@ -76,7 +76,7 @@ sealed interface GameEvent {
      * @param totalPullViolations The team's combined pull-violation total after the action.
      */
     data class PullInfractionRecorded(
-        val state: LiveGameState,
+        val state: GameState,
         val team: TeamId,
         val infraction: PullInfractionType,
         val totalPullViolations: Int,
@@ -90,7 +90,7 @@ sealed interface GameEvent {
      * @param outcome The warning, timeout, or no-timeout outcome.
      */
     data class TimeViolationRecorded(
-        val state: LiveGameState,
+        val state: GameState,
         val team: TeamId,
         val outcome: TimeViolationOutcome,
     ) : GameEvent
@@ -135,7 +135,7 @@ sealed interface GamePrompt {
      * @param capType The cap being offered.
      */
     data class ApplyCap(
-        val state: LiveGameState,
+        val state: GameState,
         val capType: CapType,
     ) : GamePrompt
 
@@ -154,7 +154,7 @@ sealed interface GamePrompt {
      * @param state The live state after entering halftime.
      */
     data class HalftimeStarted(
-        val state: LiveGameState,
+        val state: GameState,
     ) : GamePrompt
 
     /**
@@ -163,7 +163,7 @@ sealed interface GamePrompt {
      * @param state The completed live state.
      */
     data class GameOver(
-        val state: LiveGameState,
+        val state: GameState,
     ) : GamePrompt
 }
 

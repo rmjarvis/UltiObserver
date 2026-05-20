@@ -16,7 +16,7 @@ enum class PullInfractionType {
  * @param event The observer-facing event to show, or null when no popup is needed.
  */
 data class PullInfractionAssessmentResult(
-    val state: LiveGameState,
+    val state: GameState,
     val event: GameEvent? = null,
 )
 
@@ -28,19 +28,19 @@ data class PullInfractionAssessmentResult(
  * @param teamTwoOffsides The corrected offsides count for team two.
  * @param teamTwoFalseStarts The corrected false-start count for team two.
  */
-fun LiveGameState.adjustPullInfractions(
+fun GameState.adjustPullInfractions(
     teamOneOffsides: Int,
     teamOneFalseStarts: Int,
     teamTwoOffsides: Int,
     teamTwoFalseStarts: Int,
     now: Long,
-): LiveGameState {
+): GameState {
     val adjustedTeamOneOffsides = teamOneOffsides.coerceAtLeast(0)
     val adjustedTeamOneFalseStarts = teamOneFalseStarts.coerceAtLeast(0)
     val adjustedTeamTwoOffsides = teamTwoOffsides.coerceAtLeast(0)
     val adjustedTeamTwoFalseStarts = teamTwoFalseStarts.coerceAtLeast(0)
     val entries = buildList {
-        // this@adjustPullInfractions is the LiveGameState receiver; plain this is the list being built.
+        // this@adjustPullInfractions is the GameState receiver; plain this is the list being built.
         addPullInfractionDelta(
             now = now,
             team = TeamId.TEAM_ONE,
@@ -84,7 +84,7 @@ fun LiveGameState.adjustPullInfractions(
  *
  * @param team The team that committed the pull infraction.
  */
-fun LiveGameState.assessPullInfraction(team: TeamId, now: Long): PullInfractionAssessmentResult {
+fun GameState.assessPullInfraction(team: TeamId, now: Long): PullInfractionAssessmentResult {
     if (!this.canRecordPullInfraction(team)) {
         return PullInfractionAssessmentResult(this)
     }
@@ -113,7 +113,7 @@ fun LiveGameState.assessPullInfraction(team: TeamId, now: Long): PullInfractionA
  *
  * @param team The team whose infraction button or action is being considered.
  */
-fun LiveGameState.canRecordPullInfraction(team: TeamId): Boolean {
+fun GameState.canRecordPullInfraction(team: TeamId): Boolean {
     if (this.pullSkippedForCurrentPoint) {
         return false
     }
@@ -125,7 +125,7 @@ fun LiveGameState.canRecordPullInfraction(team: TeamId): Boolean {
 }
 
 /// Record offsides against the current pulling team.
-fun LiveGameState.recordOffsides(now: Long): LiveGameState {
+fun GameState.recordOffsides(now: Long): GameState {
     if (this.pullSkippedForCurrentPoint || this.pullSequenceOffsidesRecorded) {
         return this
     }
@@ -156,7 +156,7 @@ fun LiveGameState.recordOffsides(now: Long): LiveGameState {
 }
 
 /// Record false start against the current receiving team.
-fun LiveGameState.recordFalseStart(now: Long): LiveGameState {
+fun GameState.recordFalseStart(now: Long): GameState {
     if (this.pullSkippedForCurrentPoint || this.pullSequenceFalseStartRecorded) {
         return this
     }
@@ -223,7 +223,7 @@ private fun PullInfractionType.eventLogType(): EventLogType {
  *
  * @param teamId The team whose offsides and false-start counts should be combined.
  */
-private fun LiveGameState.pullViolationTotal(teamId: TeamId): Int {
+private fun GameState.pullViolationTotal(teamId: TeamId): Int {
     val team = if (teamId == TeamId.TEAM_ONE) this.teamOne else this.teamTwo
     return team.offsides + team.falseStarts
 }

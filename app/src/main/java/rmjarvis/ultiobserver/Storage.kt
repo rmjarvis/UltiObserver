@@ -41,7 +41,7 @@ internal data class CurrentGameSnapshot(
     val versionName: String = APP_STATE_VERSION_NAME,
     val versionCode: Int = APP_STATE_VERSION_CODE,
     val setupState: GameSetupState = newGameSetupState(),
-    val liveState: LiveGameState? = null,
+    val liveState: GameState? = null,
     val setupMode: SetupMode = SetupMode.NEW_GAME,
     val hasSetupDraft: Boolean = false,
 ) {

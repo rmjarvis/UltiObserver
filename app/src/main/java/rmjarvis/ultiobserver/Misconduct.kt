@@ -86,7 +86,7 @@ internal fun displayPlayerNumber(jerseyNumber: String): String {
  * @param needsMisconductChoice Whether the UI must ask offense/defense before resolving live-point misconduct.
  */
 data class CardAssessmentResult(
-    val state: LiveGameState,
+    val state: GameState,
     val event: GameEvent,
     val needsMisconductChoice: Boolean =
         event.needsMisconductChoice(),
@@ -109,7 +109,7 @@ enum class PlayerCardEventType {
  * @param teamOnePlayerCards The reconciled per-player yellow/red records for team one.
  * @param teamTwoPlayerCards The reconciled per-player yellow/red records for team two.
  */
-fun LiveGameState.adjustCardsAndTf(
+fun GameState.adjustCardsAndTf(
     teamOneBlues: Int,
     teamOneTechnicalFouls: Int,
     teamTwoBlues: Int,
@@ -117,7 +117,7 @@ fun LiveGameState.adjustCardsAndTf(
     teamOnePlayerCards: List<InGamePlayerCardRecord>,
     teamTwoPlayerCards: List<InGamePlayerCardRecord>,
     now: Long,
-): LiveGameState {
+): GameState {
     requirePlayerCardRecordsValid(teamOnePlayerCards)
     requirePlayerCardRecordsValid(teamTwoPlayerCards)
     val adjustedTeamOneBlues = teamOneBlues.coerceAtLeast(0)
@@ -160,7 +160,7 @@ fun LiveGameState.adjustCardsAndTf(
  * @param teamTwoPlayerCards The corrected player-card records for team two.
  * @param now The correction timestamp.
  */
-private fun LiveGameState.buildCardAndTfAdjustmentEntries(
+private fun GameState.buildCardAndTfAdjustmentEntries(
     teamOneBlues: Int,
     teamOneTechnicalFouls: Int,
     teamTwoBlues: Int,
@@ -310,7 +310,7 @@ fun canAddPlayerCardAssignment(
  * @param teamTwoYellows The desired in-game yellow count for team two.
  * @param teamTwoReds The desired in-game red count for team two.
  */
-fun LiveGameState.buildPlayerCardAdjustmentSteps(
+fun GameState.buildPlayerCardAdjustmentSteps(
     teamOneYellows: Int,
     teamOneReds: Int,
     teamTwoYellows: Int,
@@ -416,7 +416,7 @@ fun removePlayerCardAssignment(
  *
  * @param team The team receiving the blue card.
  */
-fun LiveGameState.assessBlueCard(team: TeamId, now: Long): CardAssessmentResult {
+fun GameState.assessBlueCard(team: TeamId, now: Long): CardAssessmentResult {
     var updatedState = this.copy(
         teamOne = if (team == TeamId.TEAM_ONE) {
             this.teamOne.copy(blueCards = this.teamOne.blueCards + 1)
@@ -452,7 +452,7 @@ fun LiveGameState.assessBlueCard(team: TeamId, now: Long): CardAssessmentResult 
  *
  * @param team The team receiving the technical foul.
  */
-fun LiveGameState.assessTechnicalFoul(team: TeamId, now: Long): CardAssessmentResult {
+fun GameState.assessTechnicalFoul(team: TeamId, now: Long): CardAssessmentResult {
     var updatedState = this.copy(
         teamOne = if (team == TeamId.TEAM_ONE) {
             this.teamOne.copy(technicalFouls = this.teamOne.technicalFouls + 1)
@@ -494,7 +494,7 @@ fun LiveGameState.assessTechnicalFoul(team: TeamId, now: Long): CardAssessmentRe
  * @param team The team receiving the yellow-card action.
  * @param jerseyNumber The player receiving the card, or `N/A` when the player is unknown.
  */
-fun LiveGameState.assessYellowCard(team: TeamId, jerseyNumber: String, now: Long): CardAssessmentResult {
+fun GameState.assessYellowCard(team: TeamId, jerseyNumber: String, now: Long): CardAssessmentResult {
     val currentRecord = this.playerCardFor(team, jerseyNumber)
     return if (currentRecord?.yellows ?: 0 >= 1) {
         this.assessSecondYellowCard(team, jerseyNumber, now)
@@ -508,7 +508,7 @@ fun LiveGameState.assessYellowCard(team: TeamId, jerseyNumber: String, now: Long
  * @param team The team receiving the yellow card.
  * @param jerseyNumber The player receiving the card, or `N/A` when the player is unknown.
  */
-fun LiveGameState.assessFirstYellowCard(team: TeamId, jerseyNumber: String, now: Long): CardAssessmentResult {
+fun GameState.assessFirstYellowCard(team: TeamId, jerseyNumber: String, now: Long): CardAssessmentResult {
     var updatedState = this.addInGameYellowCard(team, jerseyNumber)
         .withEventLogEntry(
             EventLogEntry(
@@ -537,7 +537,7 @@ fun LiveGameState.assessFirstYellowCard(team: TeamId, jerseyNumber: String, now:
  * @param team The team receiving the red card.
  * @param jerseyNumber The player receiving the red card, or `N/A` when the player is unknown.
  */
-fun LiveGameState.assessRedCard(
+fun GameState.assessRedCard(
     team: TeamId,
     jerseyNumber: String,
     now: Long,
@@ -571,7 +571,7 @@ fun LiveGameState.assessRedCard(
  * @param team The team receiving the second yellow.
  * @param jerseyNumber The player receiving the second yellow, or `N/A` when the player is unknown.
  */
-fun LiveGameState.assessSecondYellowCard(team: TeamId, jerseyNumber: String, now: Long): CardAssessmentResult {
+fun GameState.assessSecondYellowCard(team: TeamId, jerseyNumber: String, now: Long): CardAssessmentResult {
     var updatedState = this.addInGameSecondYellow(team, jerseyNumber)
         .withEventLogEntry(
             EventLogEntry(
@@ -602,7 +602,7 @@ fun LiveGameState.assessSecondYellowCard(team: TeamId, jerseyNumber: String, now
  * @param team The team whose name should appear in the undo label.
  * @param jerseyNumber The player identifier to include in the undo label.
  */
-private fun LiveGameState.playerCardUndoLabel(action: String, team: TeamId, jerseyNumber: String): String {
+private fun GameState.playerCardUndoLabel(action: String, team: TeamId, jerseyNumber: String): String {
     return "Undo $action on #$jerseyNumber of ${this.teamName(team)}"
 }
 
@@ -611,7 +611,7 @@ private fun LiveGameState.playerCardUndoLabel(action: String, team: TeamId, jers
  *
  * @param thresholdCount The team-card or technical-foul count after the recorded action.
  */
-private fun LiveGameState.withSkippedPullForMisconductThreshold(thresholdCount: Int): LiveGameState {
+private fun GameState.withSkippedPullForMisconductThreshold(thresholdCount: Int): GameState {
     if (thresholdCount < 3 || this.phase == LivePhase.LIVE_POINT || this.phase == LivePhase.GAME_OVER) {
         return this
     }
@@ -665,7 +665,7 @@ data class PlayerCardRemovalCandidate(
  * @param team The team receiving the yellow card.
  * @param jerseyNumber The player receiving the card, or `N/A` when the player is unknown.
  */
-private fun LiveGameState.addInGameYellowCard(team: TeamId, jerseyNumber: String): LiveGameState {
+private fun GameState.addInGameYellowCard(team: TeamId, jerseyNumber: String): GameState {
     return withPlayerCards(
         team = team,
         records = updatePlayerCardRecord(
@@ -683,7 +683,7 @@ private fun LiveGameState.addInGameYellowCard(team: TeamId, jerseyNumber: String
  * @param team The team receiving the second yellow.
  * @param jerseyNumber The player receiving the card, or `N/A` when the player is unknown.
  */
-private fun LiveGameState.addInGameSecondYellow(team: TeamId, jerseyNumber: String): LiveGameState {
+private fun GameState.addInGameSecondYellow(team: TeamId, jerseyNumber: String): GameState {
     return withPlayerCards(
         team = team,
         records = updatePlayerCardRecord(
@@ -701,7 +701,7 @@ private fun LiveGameState.addInGameSecondYellow(team: TeamId, jerseyNumber: Stri
  * @param team The team receiving the red card.
  * @param jerseyNumber The player receiving the card, or `N/A` when the player is unknown.
  */
-private fun LiveGameState.addInGameRedCard(team: TeamId, jerseyNumber: String): LiveGameState {
+private fun GameState.addInGameRedCard(team: TeamId, jerseyNumber: String): GameState {
     return withPlayerCards(
         team = team,
         records = updatePlayerCardRecord(
@@ -742,7 +742,7 @@ private fun updatePlayerCardRecord(
  * @param team The team whose player-card records should be searched.
  * @param jerseyNumber The player to check, or `N/A` for an unknown-player record.
  */
-fun LiveGameState.playerHasYellowThisGame(team: TeamId, jerseyNumber: String): Boolean {
+fun GameState.playerHasYellowThisGame(team: TeamId, jerseyNumber: String): Boolean {
     return (this.playerCardFor(team, jerseyNumber)?.yellows ?: 0) > 0
 }
 /**
@@ -750,7 +750,7 @@ fun LiveGameState.playerHasYellowThisGame(team: TeamId, jerseyNumber: String): B
  *
  * @param team The team whose player-card records should be returned.
  */
-fun LiveGameState.playerCards(team: TeamId): List<InGamePlayerCardRecord> {
+fun GameState.playerCards(team: TeamId): List<InGamePlayerCardRecord> {
     return this.playerCardsFor(team)
 }
 /**
@@ -758,7 +758,7 @@ fun LiveGameState.playerCards(team: TeamId): List<InGamePlayerCardRecord> {
  *
  * @param team The team whose yellow cards should be counted.
  */
-fun LiveGameState.teamYellowCards(team: TeamId): Int {
+fun GameState.teamYellowCards(team: TeamId): Int {
     return this.playerCardsFor(team).sumOf { it.yellows }
 }
 /**
@@ -766,7 +766,7 @@ fun LiveGameState.teamYellowCards(team: TeamId): Int {
  *
  * @param team The team whose red cards should be counted.
  */
-fun LiveGameState.teamRedCards(team: TeamId): Int {
+fun GameState.teamRedCards(team: TeamId): Int {
     return this.playerCardsFor(team).sumOf { it.reds }
 }
 /**
@@ -774,7 +774,7 @@ fun LiveGameState.teamRedCards(team: TeamId): Int {
  *
  * @param team The team whose card total should be counted.
  */
-fun LiveGameState.teamCardTotal(team: TeamId): Int {
+fun GameState.teamCardTotal(team: TeamId): Int {
     val currentTeam = if (team == TeamId.TEAM_ONE) this.teamOne else this.teamTwo
     var yellowCards = 0
     var redCards = 0
@@ -789,7 +789,7 @@ fun LiveGameState.teamCardTotal(team: TeamId): Int {
  *
  * @param team The team whose player-card list should be selected.
  */
-private fun LiveGameState.playerCardsFor(team: TeamId): List<InGamePlayerCardRecord> {
+private fun GameState.playerCardsFor(team: TeamId): List<InGamePlayerCardRecord> {
     return if (team == TeamId.TEAM_ONE) teamOnePlayerCards else teamTwoPlayerCards
 }
 /**
@@ -799,11 +799,11 @@ private fun LiveGameState.playerCardsFor(team: TeamId): List<InGamePlayerCardRec
  * @param records The validated player-card records to store.
  * @param lastEvent The short event text for the live state.
  */
-private fun LiveGameState.withPlayerCards(
+private fun GameState.withPlayerCards(
     team: TeamId,
     records: List<InGamePlayerCardRecord>,
     lastEvent: String,
-): LiveGameState {
+): GameState {
     return when (team) {
         TeamId.TEAM_ONE -> copy(
             teamOnePlayerCards = records,
@@ -821,7 +821,7 @@ private fun LiveGameState.withPlayerCards(
  * @param team The team whose player-card records should be searched.
  * @param jerseyNumber The player identifier to find.
  */
-private fun LiveGameState.playerCardFor(team: TeamId, jerseyNumber: String): InGamePlayerCardRecord? {
+private fun GameState.playerCardFor(team: TeamId, jerseyNumber: String): InGamePlayerCardRecord? {
     return playerCardsFor(team).firstOrNull { it.jerseyNumber == jerseyNumber }
 }
 
@@ -931,7 +931,7 @@ private fun playerSentenceSubject(jerseyNumber: String): String {
 }
 
 /// Report whether a game suspension started in the second half or later.
-private fun LiveGameState.gameSuspensionStartedInSecondHalf(): Boolean {
+private fun GameState.gameSuspensionStartedInSecondHalf(): Boolean {
     return halftimeTaken
 }
 
@@ -941,7 +941,7 @@ private fun LiveGameState.gameSuspensionStartedInSecondHalf(): Boolean {
  * @param team The player's team.
  * @param jerseyNumber The player number, or the unknown-player sentinel.
  */
-private fun LiveGameState.playerHasTournamentSuspension(team: TeamId, jerseyNumber: String): Boolean {
+private fun GameState.playerHasTournamentSuspension(team: TeamId, jerseyNumber: String): Boolean {
     var priorYellows = 0
     var priorReds = 0
     priorCards.forEach { record ->
@@ -976,7 +976,7 @@ internal fun GameEvent.TechnicalFoulsChanged.formatMessage(): String {
  * @param thresholdCount The team-card or technical-foul count after the event.
  */
 private fun String.withMisconductCue(
-    state: LiveGameState,
+    state: GameState,
     team: TeamId,
     thresholdCount: Int,
 ): String {
@@ -992,7 +992,7 @@ private fun String.withMisconductCue(
  *
  * @param team The team that reached the misconduct threshold.
  */
-private fun LiveGameState.betweenPointsMisconductCue(team: TeamId): String {
+private fun GameState.betweenPointsMisconductCue(team: TeamId): String {
     val receivingTeam = pullingTeam.flip()
     return if (team == receivingTeam) {
         "Penalty against receiving team. No pull. Disc at negative brick in defending end zone."
@@ -1055,7 +1055,7 @@ internal fun misconductDefenseCheckTimingCues(): List<TimingCue> {
 }
 
 /// Offer a live-point misconduct countdown without starting it before the observer is ready.
-fun LiveGameState.withPendingMisconductCountdown(): LiveGameState {
+fun GameState.withPendingMisconductCountdown(): GameState {
     if (phase != LivePhase.LIVE_POINT) {
         return this
     }
@@ -1070,7 +1070,7 @@ fun LiveGameState.withPendingMisconductCountdown(): LiveGameState {
  *
  * @param now The epoch millis to use as the countdown start.
  */
-fun LiveGameState.startMisconductCountdown(now: Long): LiveGameState {
+fun GameState.startMisconductCountdown(now: Long): GameState {
     if (phase != LivePhase.LIVE_POINT || !pendingMisconductCountdown) {
         return this
     }
@@ -1092,7 +1092,7 @@ fun LiveGameState.startMisconductCountdown(now: Long): LiveGameState {
  *
  * @param now The current epoch millis, used to hide the early-set option once only the normal hand count remains.
  */
-fun LiveGameState.canReportMisconductOffenseSet(now: Long): Boolean {
+fun GameState.canReportMisconductOffenseSet(now: Long): Boolean {
     val countdown = countdown ?: return false
     return phase == LivePhase.BETWEEN_POINTS &&
         countdown.kind == CountdownKind.MISCONDUCT_BETWEEN_POINTS &&
@@ -1105,7 +1105,7 @@ fun LiveGameState.canReportMisconductOffenseSet(now: Long): Boolean {
  *
  * @param now The epoch millis when offense is reported set, used to compute the later of the rule deadlines.
  */
-fun LiveGameState.reportMisconductOffenseSet(now: Long): LiveGameState {
+fun GameState.reportMisconductOffenseSet(now: Long): GameState {
     val countdown = countdown ?: return this
     if (!canReportMisconductOffenseSet(now)) {
         return this

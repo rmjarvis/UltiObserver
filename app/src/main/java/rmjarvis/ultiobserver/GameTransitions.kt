@@ -7,7 +7,7 @@ import kotlin.math.max
  *
  * @param setup The pregame setup choices that define teams, rules, start time, and opening pull orientation.
  */
-fun createLiveGameState(setup: GameSetupState): LiveGameState {
+fun createLiveGameState(setup: GameSetupState): GameState {
     val nearAttackingTeam = if (setup.pullingFromEnd == FieldEnd.FAR) {
         setup.pullingTeam
     } else {
@@ -20,7 +20,7 @@ fun createLiveGameState(setup: GameSetupState): LiveGameState {
         kind = CountdownKind.OPENING_PULL,
     )
 
-    return LiveGameState(
+    return GameState(
         startDate = setup.startDate,
         startTime = setup.startTime,
         timeZone = setup.timeZone,
@@ -51,9 +51,9 @@ fun createLiveGameState(setup: GameSetupState): LiveGameState {
  *
  * @param now The epoch millis to use as the countdown start so tests and live clock ticks are deterministic.
  */
-fun LiveGameState.startPullSequence(
+fun GameState.startPullSequence(
     now: Long,
-): LiveGameState {
+): GameState {
     val countdown = buildBetweenPointsCountdown(
         pullingFromEnd = this.pullingFromEnd,
         sequenceStart = now,
@@ -75,10 +75,10 @@ fun LiveGameState.startPullSequence(
  * @param scoringTeam The team that scored the just-finished point.
  * @param now The epoch millis of the goal, used for countdown starts, cap checks, and game end time.
  */
-fun LiveGameState.recordGoal(
+fun GameState.recordGoal(
     scoringTeam: TeamId,
     now: Long,
-): LiveGameState {
+): GameState {
     if (this.phase == LivePhase.GAME_OVER) {
         return this
     }
@@ -229,9 +229,9 @@ fun LiveGameState.recordGoal(
  *
  * @param now The epoch millis when the observer starts halftime, used for the halftime countdown and cap checks.
  */
-fun LiveGameState.startHalftimeNow(
+fun GameState.startHalftimeNow(
     now: Long,
-): LiveGameState {
+): GameState {
     if (this.halftimeTaken || this.phase != LivePhase.BETWEEN_POINTS) {
         return this
     }
@@ -257,14 +257,14 @@ fun LiveGameState.startHalftimeNow(
  * @param undoLabel The user-facing undo label for the action that started halftime.
  */
 private fun startHalftime(
-    state: LiveGameState,
+    state: GameState,
     teamOne: TeamLiveState,
     teamTwo: TeamLiveState,
     existingCapOffer: CapType?,
     now: Long,
-    undoPrevious: LiveGameState,
+    undoPrevious: GameState,
     undoLabel: String,
-): LiveGameState {
+): GameState {
     val secondHalfPullingTeam = state.openingPullingTeam.flip()
     val secondHalfPullingFromEnd = state.openingPullingFromEnd
     val secondHalfNearAttackingTeam = if (secondHalfPullingFromEnd == FieldEnd.FAR) {
@@ -322,9 +322,9 @@ private fun startHalftime(
  *
  * @param now The epoch millis to store as the actual game end time.
  */
-fun LiveGameState.endGameNow(
+fun GameState.endGameNow(
     now: Long,
-): LiveGameState {
+): GameState {
     if (this.phase == LivePhase.GAME_OVER) {
         return this
     }
@@ -344,7 +344,7 @@ fun LiveGameState.endGameNow(
     ).withUndo(this, "Undo End Game")
 }
 /// Mark the pull as complete and enter live-point play.
-fun LiveGameState.beginLivePoint(now: Long): LiveGameState {
+fun GameState.beginLivePoint(now: Long): GameState {
     val firstPullEntry = if (this.eventLog.isEmpty()) {
         listOf(
             EventLogEntry(
@@ -374,10 +374,10 @@ fun LiveGameState.beginLivePoint(now: Long): LiveGameState {
  * @param scoringTeam The team that scored the point.
  * @param now The epoch millis of the goal for timers, cap checks, and game-end bookkeeping.
  */
-fun LiveGameState.recordGoalFromCurrentState(
+fun GameState.recordGoalFromCurrentState(
     scoringTeam: TeamId,
     now: Long,
-): LiveGameState {
+): GameState {
     val livePointState = if (this.phase == LivePhase.BETWEEN_POINTS) {
         this.beginLivePoint(now)
     } else {
@@ -386,7 +386,7 @@ fun LiveGameState.recordGoalFromCurrentState(
     return livePointState.recordGoal(scoringTeam, now)
 }
 /// Clear a timeout or similar in-point interruption countdown and resume normal live-point play.
-fun LiveGameState.continueLivePoint(): LiveGameState {
+fun GameState.continueLivePoint(): GameState {
     return this.copy(
         phase = LivePhase.LIVE_POINT,
         countdown = null,
@@ -399,7 +399,7 @@ fun LiveGameState.continueLivePoint(): LiveGameState {
  *
  * @param now The current epoch millis so tests and background ticks can drive deterministic transitions.
  */
-fun LiveGameState.applyExpiredCountdownTransitions(now: Long): LiveGameState {
+fun GameState.applyExpiredCountdownTransitions(now: Long): GameState {
     val countdown = this.countdown ?: return this
     if (now < countdown.targetEpoch) {
         return this
@@ -434,18 +434,18 @@ fun LiveGameState.applyExpiredCountdownTransitions(now: Long): LiveGameState {
     }
 }
 /// Restore the state saved by the most recent undo-backed user action.
-fun LiveGameState.undoLastAction(): LiveGameState {
+fun GameState.undoLastAction(): GameState {
     val entry = this.undoEntry ?: return this
     return entry.previous.copy(
         redoEntry = this,
     )
 }
 /// Reapply the state that was just undone, if redo is still available.
-fun LiveGameState.redoLastAction(): LiveGameState {
+fun GameState.redoLastAction(): GameState {
     return this.redoEntry ?: this
 }
 /// Enter live-point play from an expired countdown while preserving undo back to the expired-pull actions.
-private fun LiveGameState.automaticLivePointState(now: Long): LiveGameState {
+private fun GameState.automaticLivePointState(now: Long): GameState {
     val previous = this.expiredPullDecisionState()
     val firstPullEntry = if (this.eventLog.isEmpty()) {
         listOf(
@@ -470,7 +470,7 @@ private fun LiveGameState.automaticLivePointState(now: Long): LiveGameState {
     ).withEventLogEntries(firstPullEntry).withUndo(previous, "Undo Start Point")
 }
 /// Clear an expired in-point countdown without replacing the undo entry for the action that started it.
-private fun LiveGameState.automaticContinueLivePointState(): LiveGameState {
+private fun GameState.automaticContinueLivePointState(): GameState {
     return copy(
         phase = LivePhase.LIVE_POINT,
         countdown = null,
@@ -487,7 +487,7 @@ private fun LiveGameState.automaticContinueLivePointState(): LiveGameState {
  * @param previous The state to restore if the observer taps undo.
  * @param label The user-facing undo label that describes the action being reversed.
  */
-internal fun LiveGameState.withUndo(previous: LiveGameState, label: String): LiveGameState {
+internal fun GameState.withUndo(previous: GameState, label: String): GameState {
     return copy(
         undoEntry = UndoEntry(label = label, previous = previous.copy(redoEntry = null)),
         redoEntry = null,
