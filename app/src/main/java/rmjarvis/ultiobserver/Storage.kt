@@ -67,7 +67,7 @@ internal data class CurrentGameSnapshot(
          */
         private fun decodeCurrentJson(jsonObject: JsonObject): CurrentGameSnapshot? {
             return try {
-                appStateJson.decodeFromJsonElement(jsonObject)
+                decodeCurrentGameSnapshot(jsonObject)
             } catch (_: RuntimeException) {
                 null
             }
@@ -170,6 +170,16 @@ internal val appStateJson = Json {
     prettyPrint = true
 }
 
+/// Encode a current-game bucket using compact undo/redo storage.
+internal fun encodeCurrentGameSnapshot(state: CurrentGameSnapshot): String {
+    return appStateJson.encodeToString(PersistedCurrentGameSnapshot.fromCurrentGameSnapshot(state))
+}
+
+/// Decode a current-game bucket from compact undo/redo storage.
+private fun decodeCurrentGameSnapshot(jsonObject: JsonObject): CurrentGameSnapshot {
+    return appStateJson.decodeFromJsonElement<PersistedCurrentGameSnapshot>(jsonObject).toCurrentGameSnapshot()
+}
+
 /**
  * File-backed app state storage using JSON files in Android app-private storage.
  *
@@ -222,7 +232,7 @@ internal class FileAppStateStorage(
      */
     override fun saveCurrentGameState(state: CurrentGameSnapshot) {
         rootDir.mkdirs()
-        currentGameStateFile.writeAtomically(appStateJson.encodeToString(state), moveFileAtomically, replaceFile)
+        currentGameStateFile.writeAtomically(encodeCurrentGameSnapshot(state), moveFileAtomically, replaceFile)
     }
 
     /// Load profile state from app-private JSON.

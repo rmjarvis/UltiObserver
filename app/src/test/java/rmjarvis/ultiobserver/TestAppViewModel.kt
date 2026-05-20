@@ -10,6 +10,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -755,6 +756,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertEquals(scoredState, gameRestored.liveState)
         assertEquals(persistedRules, gameRestored.liveState!!.rules)
         assertNotNull(gameRestored.liveState!!.undoEntry)
+        assertSame(gameRestored.liveState!!.rules, gameRestored.liveState!!.undoEntry!!.previous.rules)
         gameRestored.resumeCurrentGame()
         assertEquals(AppScreen.LIVE, gameRestored.screen)
         val undoRestoredState = gameRestored.liveState!!.undoLastAction()

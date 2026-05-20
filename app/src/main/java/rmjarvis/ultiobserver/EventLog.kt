@@ -1,6 +1,9 @@
+@file:OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
+
 package rmjarvis.ultiobserver
 
 import java.time.format.DateTimeFormatter
+import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.Serializable
 
 private val EVENT_LOG_TIME_FORMATTER = DateTimeFormatter.ofPattern("h:mm")
@@ -54,11 +57,17 @@ enum class EventLogType {
 data class EventLogEntry(
     val timestampEpoch: Long,
     val type: EventLogType,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val team: TeamId? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val playerNumber: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val timeViolationOutcome: TimeViolationOutcome? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val teamOneScore: Int? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val teamTwoScore: Int? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val delta: Int? = null,
 )
 
