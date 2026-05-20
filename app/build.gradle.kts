@@ -1,3 +1,4 @@
+import org.gradle.api.tasks.testing.Test
 import org.gradle.testing.jacoco.tasks.JacocoReport
 
 plugins {
@@ -123,4 +124,16 @@ tasks.register<JacocoReport>("filteredCoverageReport") {
             )
         }
     )
+}
+
+tasks.register<JavaExec>("estimateBackupSize") {
+    group = "verification"
+    description = "Serializes a high-activity representative game and reports Android backup JSON sizes."
+
+    val unitTestTask = tasks.named<Test>("testDebugUnitTest")
+    dependsOn("compileDebugUnitTestKotlin")
+
+    mainClass.set("rmjarvis.ultiobserver.BackupSizeEstimateToolKt")
+    classpath = unitTestTask.get().classpath
+    workingDir = rootProject.projectDir
 }
