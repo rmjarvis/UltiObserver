@@ -639,19 +639,32 @@ def launched_effect_scaffold_reason(
         }
 
     The app cannot reach that generated error path through user behavior; the useful
-    coverage is on the effect body lines.  This recognizer is intentionally narrower
-    than "anything named LaunchedEffect": it only accepts the line that opens the
-    lambda body, verifies that line belongs to a `LaunchedEffect` call, requires the
-    characteristic `mi=4` / `mb=3` state-machine profile we see from these compiled
-    effects, and requires covered executable code inside the effect block.  If the body
-    line that changes state, opens a prompt, or calls the model is missed, that body
-    line remains actionable.
+    coverage is on the effect body lines.  The Kotlin/Compose generated scaffolding
+    around a `LaunchedEffect` opener has shown two counter profiles in this codebase:
+    sometimes JaCoCo reports missed guard instructions and branches, and sometimes
+    those guard instructions are covered while only generated branches remain missed.
+
+    This recognizer is intentionally narrower than "anything named LaunchedEffect":
+    it only accepts the line that opens the lambda body, verifies that line belongs to
+    a `LaunchedEffect` call, requires one of the observed generated-scaffold counter
+    profiles, and requires covered executable code inside the effect block.  If the
+    body line that changes state, opens a prompt, or calls the model is missed, that
+    body line remains actionable.
     """
 
     line_index = line_number - 1
     if not line_opens_launched_effect_body(source_lines, line_index):
         return None
-    if counters.missed_instructions != 4 or counters.missed_branches != 3:
+    observed_launched_effect_scaffold_profiles = {
+        # Generated coroutine guard branches mapped to the effect opener.
+        (4, 3),
+        # Same generated scaffolding when the guard instructions are covered but branch counters remain.
+        (0, 2),
+    }
+    if (
+        counters.missed_instructions,
+        counters.missed_branches,
+    ) not in observed_launched_effect_scaffold_profiles:
         return None
     if counters.covered_instructions == 0 or counters.covered_branches == 0:
         return None
