@@ -44,7 +44,6 @@ import java.time.LocalTime
  * Render the main live-game screen, including the field view, modal flows, and popup cues.
  *
  * @param state The live game state to render.
- * @param readOnlySummary Whether this is an archived summary that should ignore live controls.
  * @param automaticallyAdvanceCountdowns Whether expired countdowns should advance model state automatically.
  * @param automaticallyLockLivePoint Whether automatic live-point transitions should lock the screen.
  * @param onStateChange Callback receiving updated live state from user actions and timer transitions.
@@ -56,7 +55,6 @@ import java.time.LocalTime
 @Composable
 internal fun LiveGameScreen(
     state: LiveGameState,
-    readOnlySummary: Boolean,
     automaticallyAdvanceCountdowns: Boolean,
     automaticallyLockLivePoint: Boolean,
     onStateChange: (LiveGameState) -> Unit,
@@ -138,13 +136,12 @@ internal fun LiveGameScreen(
     LaunchedEffect(
         state,
         now,
-        readOnlySummary,
         automaticallyAdvanceCountdowns,
         automaticallyLockLivePoint,
     ) {
         val suppressAutoLock = suppressNextAutoLock
         suppressNextAutoLock = false
-        if (!readOnlySummary && automaticallyAdvanceCountdowns) {
+        if (automaticallyAdvanceCountdowns) {
             val transitionedState = state.applyExpiredCountdownTransitions(now)
             if (transitionedState != state) {
                 if (
@@ -160,7 +157,7 @@ internal fun LiveGameScreen(
     }
 
     // Only show the large halftime/game-over prompts when those states first become visible.
-    LaunchedEffect(state.phase, readOnlySummary) {
+    LaunchedEffect(state.phase) {
         val previousPhase = previouslyObservedPhase
         if (suppressNextPhasePrompt) {
             previouslyObservedPhase = state.phase
@@ -172,7 +169,7 @@ internal fun LiveGameScreen(
             activeGamePrompt = GamePrompt.HalftimeStarted(state)
         }
         // Defensive transition guard so recomposition does not reshow the game-over prompt.
-        if (!readOnlySummary && state.phase == LivePhase.GAME_OVER && previousPhase != LivePhase.GAME_OVER) {
+        if (state.phase == LivePhase.GAME_OVER && previousPhase != LivePhase.GAME_OVER) {
             activeGamePrompt = GamePrompt.GameOver(state)
         }
         previouslyObservedPhase = state.phase
@@ -219,10 +216,8 @@ internal fun LiveGameScreen(
                     GameOverSummary(
                         state = state,
                         onShowEventLog = { showEventLogSheet = true },
-                        onUndo = {
-                            undoWithoutPhasePrompt(state.undoLastAction())
-                        },
-                        showUndo = !readOnlySummary,
+                        summaryActionText = "Undo End Game",
+                        onSummaryAction = { undoWithoutPhasePrompt(state.undoLastAction()) },
                     )
                 } else {
                 // Show the current clock and next relevant cap.

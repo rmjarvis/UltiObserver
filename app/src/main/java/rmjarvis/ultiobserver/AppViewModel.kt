@@ -457,10 +457,7 @@ internal class AppViewModel(
         if (completed.phase != LivePhase.GAME_OVER) {
             return
         }
-        val updatedArchivedGames = archivedGames + ArchivedGame(
-            completed.pruneUndoHistory(),
-            "",
-        )
+        val updatedArchivedGames = archivedGames + archivedGameFor(completed)
         _state.update {
             it.copy(
                 archivedGames = updatedArchivedGames,
@@ -470,6 +467,45 @@ internal class AppViewModel(
         }
         persistArchivedGames()
         persistCurrentGameState()
+    }
+
+    /**
+     * Restore one archived game as the current game.
+     *
+     * @param index The archived-game index to restore.
+     */
+    fun restoreArchivedGame(index: Int) {
+        val archived = archivedGames.getOrNull(index) ?: return
+        val updatedArchivedGames = archivedGames.toMutableList().also { games ->
+            games.removeAt(index)
+            liveState?.let { current ->
+                games += archivedGameFor(current)
+            }
+        }
+        val restoredState = archived.stateForRestore()
+        _state.update {
+            it.copy(
+                archivedGames = updatedArchivedGames,
+                setupState = restoredState.toSetupState(),
+                liveState = restoredState,
+                viewingArchivedGame = null,
+                setupMode = SetupMode.EDIT_CURRENT_GAME,
+                hasSetupDraft = false,
+                screen = AppScreen.LIVE,
+            )
+        }
+        persistArchivedGames()
+        persistCurrentGameState()
+    }
+
+    /// Restore the archived game currently open as a read-only summary.
+    fun restoreViewingArchivedGame() {
+        val archived = viewingArchivedGame ?: return
+        val index = archivedGames.indexOfFirst { it === archived }
+        if (index == -1) {
+            return
+        }
+        restoreArchivedGame(index)
     }
 
     /// Delete the current live/setup/completed game state and return Home.
@@ -521,17 +557,7 @@ internal class AppViewModel(
         var shouldPersistArchivedGames = false
         var updatedArchivedGames = archivedGames
         liveState?.let { existing ->
-            updatedArchivedGames = updatedArchivedGames + ArchivedGame(
-                if (existing.phase == LivePhase.GAME_OVER) {
-                    existing
-                } else {
-                    existing.copy(
-                        phase = LivePhase.GAME_OVER,
-                        endEpoch = System.currentTimeMillis(),
-                    )
-                }.pruneUndoHistory(),
-                if (existing.phase == LivePhase.GAME_OVER) "" else "Closed when new game started",
-            )
+            updatedArchivedGames = updatedArchivedGames + archivedGameFor(existing)
             shouldPersistArchivedGames = true
         }
         _state.update {
@@ -623,6 +649,28 @@ internal class AppViewModel(
                 screen = targetScreen,
             )
         }
+    }
+
+    /**
+     * Build the archive entry for a current game without losing the active state needed for restore.
+     *
+     * @param current The live or completed current game being moved out of the current slot.
+     */
+    private fun archivedGameFor(current: LiveGameState): ArchivedGame {
+        if (current.phase == LivePhase.GAME_OVER) {
+            return ArchivedGame(
+                state = current.pruneUndoHistory(),
+                subtitle = "",
+            )
+        }
+        return ArchivedGame(
+            state = current.copy(
+                phase = LivePhase.GAME_OVER,
+                endEpoch = System.currentTimeMillis(),
+            ).pruneUndoHistory(),
+            subtitle = "Closed when new game started",
+            restorableState = current.pruneUndoHistory(clearCountdown = false),
+        )
     }
 
     /// Persist the current/setup game bucket.

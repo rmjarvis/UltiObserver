@@ -353,10 +353,14 @@ data class LiveGameState(
             !halftimeTaken
     }
 
-    /// Drop live-only countdown and undo/redo state before archiving a completed game.
-    fun pruneUndoHistory(): LiveGameState {
+    /**
+     * Drop undo/redo state, optionally dropping live-only countdown state for archive summaries.
+     *
+     * @param clearCountdown Whether to clear an active countdown from the returned state.
+     */
+    fun pruneUndoHistory(clearCountdown: Boolean = true): LiveGameState {
         return copy(
-            countdown = null,
+            countdown = if (clearCountdown) null else countdown,
             undoEntry = null,
             redoEntry = null,
         )

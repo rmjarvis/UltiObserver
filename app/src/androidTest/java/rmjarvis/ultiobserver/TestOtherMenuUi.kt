@@ -139,6 +139,66 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         assertTrue(composeRule.onAllNodesWithText("Current Game").fetchSemanticsNodes().isEmpty())
     }
 
+    /// Test that an active game accidentally archived by Start New Game can be restored from Archived Games.
+    @Test
+    fun archivedGamesCanRestoreAccidentallyArchivedActiveGame() {
+        clearArchivedGamesProgrammatically()
+        val suffix = System.currentTimeMillis().toString().takeLast(6)
+        val teamOneName = "RestoreA$suffix"
+        val teamTwoName = "RestoreB$suffix"
+        val archivedTitle = "$teamOneName 0 - 0 $teamTwoName"
+        val currentTeamOneName = "CurrentA$suffix"
+        val currentTeamTwoName = "CurrentB$suffix"
+        val currentArchivedTitle = "$currentTeamOneName 0 - 0 $currentTeamTwoName"
+
+        // Archive one active live-point game, then start another current game before restoring the first.
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appViewModel.deleteCurrentGame()
+            activity.appViewModel.startNewGame()
+            activity.appViewModel.updateSetup(
+                newGameSetupState().copy(
+                    teamOne = TeamSetup(name = teamOneName, color = TeamColorChoice.WHITE),
+                    teamTwo = TeamSetup(name = teamTwoName, color = TeamColorChoice.BLUE),
+                )
+            )
+            activity.appViewModel.finishSetup()
+            activity.appViewModel.updateLiveGame(activity.appViewModel.liveState!!.beginLivePoint(0L))
+            activity.appViewModel.startNewGame()
+            activity.appViewModel.updateSetup(
+                newGameSetupState().copy(
+                    teamOne = TeamSetup(name = currentTeamOneName, color = TeamColorChoice.WHITE),
+                    teamTwo = TeamSetup(name = currentTeamTwoName, color = TeamColorChoice.BLUE),
+                )
+            )
+            activity.appViewModel.finishSetup()
+            activity.appViewModel.updateLiveGame(activity.appViewModel.liveState!!.beginLivePoint(0L))
+            activity.appViewModel.goHome()
+        }
+        composeRule.waitForIdle()
+
+        openArchivedGamesScreen()
+        waitForText(archivedTitle)
+        composeRule.onNodeWithText(archivedTitle).performClick()
+        waitForText("Game Summary")
+        composeRule.onNodeWithText("Restore Game").performClick()
+
+        waitForText("Cards / TF")
+        waitForText("Other")
+        composeRule.onNodeWithText(teamOneName).assertIsDisplayed()
+        composeRule.onNodeWithText(teamTwoName).assertIsDisplayed()
+        assertTrue(composeRule.onAllNodesWithText(currentTeamOneName, substring = true).fetchSemanticsNodes().isEmpty())
+        assertTrue(composeRule.onAllNodesWithText(currentTeamTwoName, substring = true).fetchSemanticsNodes().isEmpty())
+        assertTrue(composeRule.onAllNodesWithText("Undo Start Point").fetchSemanticsNodes().isEmpty())
+
+        composeRule.onNodeWithText("Back").performClick()
+        waitForText("Current Game")
+        openArchivedGamesScreen()
+        waitForText(currentArchivedTitle)
+        composeRule.onNodeWithText(currentTeamOneName, substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText(currentTeamTwoName, substring = true).assertIsDisplayed()
+        assertTrue(composeRule.onAllNodesWithText(archivedTitle).fetchSemanticsNodes().isEmpty())
+    }
+
     /// Test that archived games can be deleted in bulk and one at a time from Archived Games.
     @Test
     fun archivedGamesCanDeleteArchivedGameAfterSliderConfirmation() {

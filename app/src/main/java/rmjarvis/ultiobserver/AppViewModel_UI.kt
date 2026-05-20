@@ -152,20 +152,27 @@ internal fun UltiObserverApp(viewModel: AppViewModel) {
         }
 
         AppScreen.LIVE -> {
-            // Archived games reuse the live-game screen, but in a read-only summary mode.
-            val currentLiveState = appState.viewingArchivedGame?.state ?: appState.liveState!!
-            LiveGameScreen(
-                state = currentLiveState,
-                readOnlySummary = appState.viewingArchivedGame != null,
-                automaticallyAdvanceCountdowns = appState.automaticallyAdvanceCountdowns,
-                automaticallyLockLivePoint = appState.automaticallyLockLivePoint,
-                onStateChange = viewModel::updateLiveGame,
-                onUpdateGameSetup = {
-                    viewModel.editCurrentGame(currentLiveState)
-                },
-                onDeleteGame = viewModel::deleteCurrentGame,
-                onBackHome = viewModel::goBackFromCurrentScreen,
-            )
+            val archivedGame = appState.viewingArchivedGame
+            if (archivedGame != null) {
+                ArchivedGameSummaryScreen(
+                    state = archivedGame.state,
+                    onRestoreGame = viewModel::restoreViewingArchivedGame,
+                    onBackHome = viewModel::goBackFromCurrentScreen,
+                )
+            } else {
+                val currentLiveState = appState.liveState!!
+                LiveGameScreen(
+                    state = currentLiveState,
+                    automaticallyAdvanceCountdowns = appState.automaticallyAdvanceCountdowns,
+                    automaticallyLockLivePoint = appState.automaticallyLockLivePoint,
+                    onStateChange = viewModel::updateLiveGame,
+                    onUpdateGameSetup = {
+                        viewModel.editCurrentGame(currentLiveState)
+                    },
+                    onDeleteGame = viewModel::deleteCurrentGame,
+                    onBackHome = viewModel::goBackFromCurrentScreen,
+                )
+            }
         }
     }
 

@@ -10,29 +10,88 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 /**
+ * Render an archived game as a read-only summary with archive-level actions.
+ *
+ * @param state The archived game state to summarize.
+ * @param onRestoreGame Callback restoring this archived game as the current game.
+ * @param onBackHome Callback returning to Home.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun ArchivedGameSummaryScreen(
+    state: LiveGameState,
+    onRestoreGame: () -> Unit,
+    onBackHome: () -> Unit,
+) {
+    var showEventLogSheet by remember { mutableStateOf(false) }
+
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("UltiObserver") },
+                navigationIcon = {
+                    TextButton(onClick = onBackHome) {
+                        Text("Back")
+                    }
+                },
+            )
+        },
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(16.dp),
+        ) {
+            GameOverSummary(
+                state = state,
+                onShowEventLog = { showEventLogSheet = true },
+                summaryActionText = "Restore Game",
+                onSummaryAction = onRestoreGame,
+            )
+        }
+    }
+
+    if (showEventLogSheet) {
+        ModalBottomSheet(onDismissRequest = { showEventLogSheet = false }) {
+            EventLogSheet(state = state)
+        }
+    }
+}
+
+/**
  * Render the read-only summary view shown once the game is over.
  *
  * @param state The completed game state to summarize.
  * @param onShowEventLog Callback opening the completed game's event log.
- * @param onUndo Callback undoing game end when undo is available.
- * @param showUndo Whether to show the fixed Undo End Game action.
+ * @param summaryActionText Fixed bottom action label, such as Undo End Game or Restore Game.
+ * @param onSummaryAction Callback invoked by the fixed bottom action.
  */
 @Composable
 internal fun GameOverSummary(
     state: LiveGameState,
     onShowEventLog: () -> Unit,
-    onUndo: () -> Unit,
-    showUndo: Boolean,
+    summaryActionText: String,
+    onSummaryAction: () -> Unit,
 ) {
     val orderedTeams = state.winnerFirstTeams()
     Column(
@@ -93,18 +152,16 @@ internal fun GameOverSummary(
             }
         }
 
-        if (showUndo) {
-            OutlinedButton(
-                onClick = onUndo,
-                modifier = Modifier.fillMaxWidth(),
-                colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
-                    containerColor = Color.White,
-                    contentColor = Color.Black,
-                ),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
-            ) {
-                Text("Undo End Game")
-            }
+        OutlinedButton(
+            onClick = onSummaryAction,
+            modifier = Modifier.fillMaxWidth(),
+            colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                containerColor = Color.White,
+                contentColor = Color.Black,
+            ),
+            border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
+        ) {
+            Text(summaryActionText)
         }
     }
 }

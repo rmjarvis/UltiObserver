@@ -542,9 +542,69 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertEquals(1, viewModel.archivedGames.size)
         assertEquals("", viewModel.archivedGames.single().subtitle)
         assertEquals(LivePhase.GAME_OVER, viewModel.archivedGames.single().state.phase)
+        assertNull(viewModel.archivedGames.single().restorableState)
         assertNull(viewModel.archivedGames.single().state.countdown)
         assertNull(viewModel.archivedGames.single().state.undoEntry)
         assertNull(viewModel.archivedGames.single().state.redoEntry)
+    }
+
+    /// Verify restoring an accidentally archived active game makes it current again without old undo state.
+    @Test
+    fun archivedActiveGameCanBeRestoredAsCurrentGame() {
+        val storeDir = temporaryFolder.newFolder()
+        val viewModel = AppViewModel(FileAppStateStorage(storeDir))
+        viewModel.startNewGame()
+        val setup = viewModel.setupState.copy(
+            teamOne = TeamSetup("Viscous Coupling", TeamColorChoice.BLUE),
+            teamTwo = TeamSetup("Animal", TeamColorChoice.PINK),
+        )
+        viewModel.updateSetup(setup)
+        viewModel.finishSetup()
+        val activeGame = viewModel.liveState!!.beginLivePoint()
+        assertNotNull(activeGame.undoEntry)
+        viewModel.updateLiveGame(activeGame)
+
+        // Starting a new game archives a completed summary but keeps the original live state for restore.
+        viewModel.startNewGame()
+        assertEquals(AppScreen.SETUP, viewModel.screen)
+        assertTrue(viewModel.hasSetupDraft)
+        assertNull(viewModel.liveState)
+        assertEquals(1, viewModel.archivedGames.size)
+        val archivedGame = viewModel.archivedGames.single()
+        assertEquals(LivePhase.GAME_OVER, archivedGame.state.phase)
+        assertEquals(LivePhase.LIVE_POINT, archivedGame.restorableState!!.phase)
+        assertNull(archivedGame.restorableState.undoEntry)
+        assertNull(archivedGame.restorableState.redoEntry)
+
+        // Reload the ViewModel to verify the recoverable active state survives phone storage.
+        val restoredViewModel = AppViewModel(FileAppStateStorage(storeDir))
+        assertEquals(archivedGame, restoredViewModel.archivedGames.single())
+        val replacementSetup = restoredViewModel.setupState.copy(
+            teamOne = TeamSetup("Replacement Current", TeamColorChoice.WHITE),
+            teamTwo = TeamSetup("Replacement Opponent", TeamColorChoice.BLUE),
+        )
+        restoredViewModel.updateSetup(replacementSetup)
+        restoredViewModel.finishSetup()
+        val replacementCurrent = restoredViewModel.liveState!!.beginLivePoint()
+        restoredViewModel.updateLiveGame(replacementCurrent)
+
+        restoredViewModel.restoreArchivedGame(0)
+
+        assertEquals(AppScreen.LIVE, restoredViewModel.screen)
+        assertEquals(1, restoredViewModel.archivedGames.size)
+        val replacementArchive = restoredViewModel.archivedGames.single()
+        assertEquals(LivePhase.GAME_OVER, replacementArchive.state.phase)
+        assertEquals(replacementSetup.teamOne.name, replacementArchive.state.teamOne.name)
+        assertEquals(replacementSetup.teamTwo.name, replacementArchive.state.teamTwo.name)
+        assertEquals(replacementCurrent.pruneUndoHistory(clearCountdown = false), replacementArchive.restorableState)
+        assertFalse(restoredViewModel.hasSetupDraft)
+        assertEquals(SetupMode.EDIT_CURRENT_GAME, restoredViewModel.setupMode)
+        assertEquals(activeGame.pruneUndoHistory(clearCountdown = false), restoredViewModel.liveState)
+        assertEquals(LivePhase.LIVE_POINT, restoredViewModel.liveState!!.phase)
+        assertNull(restoredViewModel.liveState!!.undoEntry)
+        assertNull(restoredViewModel.liveState!!.redoEntry)
+        assertEquals(setup.teamOne.name, restoredViewModel.setupState.teamOne.name)
+        assertEquals(setup.teamTwo.name, restoredViewModel.setupState.teamTwo.name)
     }
 
     /// Verify new-game setup defaults to the next half hour and rolls the setup date across midnight.
