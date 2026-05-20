@@ -174,7 +174,17 @@ internal class AppViewModel(
             return
         }
 
-        if (screen != AppScreen.LIVE || viewingArchivedGame != null) {
+        if (viewingArchivedGame != null) {
+            _state.update {
+                it.copy(
+                    screen = AppScreen.ARCHIVED_GAMES,
+                    viewingArchivedGame = null,
+                )
+            }
+            return
+        }
+
+        if (screen != AppScreen.LIVE) {
             goHome()
             return
         }

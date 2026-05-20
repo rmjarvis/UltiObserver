@@ -180,6 +180,12 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertNull(viewModel.liveState)
         assertEquals(archivedGame, viewModel.currentLiveState)
 
+        viewModel.goBackFromCurrentScreen()
+        assertEquals(AppScreen.ARCHIVED_GAMES, viewModel.screen)
+        assertFalse(viewModel.viewingReadOnlySummary)
+        assertNull(viewModel.currentLiveState)
+
+        viewModel.openArchivedGame(0)
         viewModel.editCurrentGame(archivedGame)
         assertEquals(AppScreen.LIVE, viewModel.screen)
         assertEquals(SetupMode.EDIT_CURRENT_GAME, viewModel.setupMode)
