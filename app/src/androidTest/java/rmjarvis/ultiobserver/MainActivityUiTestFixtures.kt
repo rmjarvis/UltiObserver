@@ -352,7 +352,7 @@ abstract class MainActivityUiTestFixtures {
                 teamTwo = TeamSetup(name = teamTwoName, color = TeamColorChoice.BLUE),
             )
             val completed = createLiveGameState(setup).copy(
-                phase = LivePhase.GAME_OVER,
+                phase = GamePhase.GAME_OVER,
                 endEpoch = System.currentTimeMillis(),
                 countdown = null,
             )

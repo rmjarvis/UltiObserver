@@ -105,7 +105,7 @@ class TestGameSetup : GameDomainTestFixtures() {
             openingPullingTeam = VC,
             openingPullingFromEnd = FieldEnd.FAR,
         )
-        assertEquals(LivePhase.PRE_GAME, pregameState.phase)
+        assertEquals(GamePhase.PRE_GAME, pregameState.phase)
         assertNull(pregameState.countdown)
 
         // Edit setup after play has begun and verify opening pull metadata changes without rewriting current field state.

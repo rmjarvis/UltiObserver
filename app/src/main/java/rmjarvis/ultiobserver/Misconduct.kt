@@ -612,7 +612,7 @@ private fun GameState.playerCardUndoLabel(action: String, team: TeamId, jerseyNu
  * @param thresholdCount The team-card or technical-foul count after the recorded action.
  */
 private fun GameState.withSkippedPullForMisconductThreshold(thresholdCount: Int): GameState {
-    if (thresholdCount < 3 || this.phase == LivePhase.LIVE_POINT || this.phase == LivePhase.GAME_OVER) {
+    if (thresholdCount < 3 || this.phase == GamePhase.LIVE_POINT || this.phase == GamePhase.GAME_OVER) {
         return this
     }
     return this.copy(
@@ -838,8 +838,8 @@ internal fun GameEvent.TechnicalFoulsChanged.formatPopupTitle(): String {
 /// Report whether this event needs an offense/defense choice before showing the penalty cue.
 fun GameEvent.needsMisconductChoice(): Boolean {
     return when (this) {
-        is GameEvent.TeamCardsChanged -> teamCardTotal >= 3 && state.phase == LivePhase.LIVE_POINT
-        is GameEvent.TechnicalFoulsChanged -> technicalFoulTotal >= 3 && state.phase == LivePhase.LIVE_POINT
+        is GameEvent.TeamCardsChanged -> teamCardTotal >= 3 && state.phase == GamePhase.LIVE_POINT
+        is GameEvent.TechnicalFoulsChanged -> technicalFoulTotal >= 3 && state.phase == GamePhase.LIVE_POINT
         else -> false
     }
 }
@@ -980,7 +980,7 @@ private fun String.withMisconductCue(
     team: TeamId,
     thresholdCount: Int,
 ): String {
-    return if (thresholdCount < 3 || state.phase == LivePhase.LIVE_POINT) {
+    return if (thresholdCount < 3 || state.phase == GamePhase.LIVE_POINT) {
         this
     } else {
         "$this\n\n${state.betweenPointsMisconductCue(team)}"
@@ -1056,7 +1056,7 @@ internal fun misconductDefenseCheckTimingCues(): List<TimingCue> {
 
 /// Offer a live-point misconduct countdown without starting it before the observer is ready.
 fun GameState.withPendingMisconductCountdown(): GameState {
-    if (phase != LivePhase.LIVE_POINT) {
+    if (phase != GamePhase.LIVE_POINT) {
         return this
     }
     return copy(
@@ -1071,7 +1071,7 @@ fun GameState.withPendingMisconductCountdown(): GameState {
  * @param now The epoch millis to use as the countdown start.
  */
 fun GameState.startMisconductCountdown(now: Long): GameState {
-    if (phase != LivePhase.LIVE_POINT || !pendingMisconductCountdown) {
+    if (phase != GamePhase.LIVE_POINT || !pendingMisconductCountdown) {
         return this
     }
     return copy(
@@ -1094,7 +1094,7 @@ fun GameState.startMisconductCountdown(now: Long): GameState {
  */
 fun GameState.canReportMisconductOffenseSet(now: Long): Boolean {
     val countdown = countdown ?: return false
-    return phase == LivePhase.BETWEEN_POINTS &&
+    return phase == GamePhase.BETWEEN_POINTS &&
         countdown.kind == CountdownKind.MISCONDUCT_BETWEEN_POINTS &&
         now < countdown.targetEpoch - 10_000L
 }

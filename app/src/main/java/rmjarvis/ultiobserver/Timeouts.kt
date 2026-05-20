@@ -110,7 +110,7 @@ fun GameState.chargeTimeout(
         lastEvent = "Timeout charged to ${timeoutState.teamName(team)}."
     )
 
-    if (timeoutState.phase == LivePhase.BETWEEN_POINTS) {
+    if (timeoutState.phase == GamePhase.BETWEEN_POINTS) {
         return applyBetweenPointsTimeout(updatedState)
             .withEventLogEntry(
                 EventLogEntry(
@@ -164,9 +164,9 @@ fun GameState.timeoutsRemaining(team: TeamId): Int {
 private fun GameState.timeoutEligibleState(now: Long): GameState? {
     val transitionedState = applyExpiredCountdownTransitions(now)
     return when (transitionedState.phase) {
-        LivePhase.BETWEEN_POINTS -> if (transitionedState.countdown != null) transitionedState else null
-        LivePhase.LIVE_POINT -> transitionedState
-        LivePhase.HALFTIME -> null
+        GamePhase.BETWEEN_POINTS -> if (transitionedState.countdown != null) transitionedState else null
+        GamePhase.LIVE_POINT -> transitionedState
+        GamePhase.HALFTIME -> null
         else -> null
     }
 }

@@ -124,7 +124,7 @@ internal fun LiveGameScreen(
         state.activeCountdownDisplay(now)
     }
     val canStartPoint = remember(state, now) {
-        state.phase == LivePhase.BETWEEN_POINTS || state.halftimeTransitionReady(now)
+        state.phase == GamePhase.BETWEEN_POINTS || state.halftimeTransitionReady(now)
     }
     val hasExpiredPullActions = remember(state) {
         state.hasExpiredPullActions()
@@ -146,7 +146,7 @@ internal fun LiveGameScreen(
             val transitionedState = state.applyExpiredCountdownTransitions(now)
             if (transitionedState != state) {
                 if (
-                    transitionedState.phase == LivePhase.LIVE_POINT &&
+                    transitionedState.phase == GamePhase.LIVE_POINT &&
                     automaticallyLockLivePoint &&
                     !suppressAutoLock
                 ) {
@@ -166,11 +166,11 @@ internal fun LiveGameScreen(
             return@LaunchedEffect
         }
         // Defensive transition guard so recomposition does not reshow the halftime prompt.
-        if (state.phase == LivePhase.HALFTIME && previousPhase != LivePhase.HALFTIME) {
+        if (state.phase == GamePhase.HALFTIME && previousPhase != GamePhase.HALFTIME) {
             activeGamePrompt = GamePrompt.HalftimeStarted(state)
         }
         // Defensive transition guard so recomposition does not reshow the game-over prompt.
-        if (state.phase == LivePhase.GAME_OVER && previousPhase != LivePhase.GAME_OVER) {
+        if (state.phase == GamePhase.GAME_OVER && previousPhase != GamePhase.GAME_OVER) {
             activeGamePrompt = GamePrompt.GameOver(state)
         }
         previouslyObservedPhase = state.phase
@@ -187,7 +187,7 @@ internal fun LiveGameScreen(
                     }
                 },
                 actions = {
-                    if (!locked && state.phase != LivePhase.GAME_OVER) {
+                    if (!locked && state.phase != GamePhase.GAME_OVER) {
                         TextButton(
                             onClick = { locked = true },
                             modifier = Modifier.testTag("live-top-lock"),
@@ -213,7 +213,7 @@ internal fun LiveGameScreen(
                 verticalArrangement = Arrangement.spacedBy(layoutMetrics.sectionSpacing),
             ) {
                 // If the game is over, replace the live controls with the summary screen.
-                if (state.phase == LivePhase.GAME_OVER) {
+                if (state.phase == GamePhase.GAME_OVER) {
                     GameOverSummary(
                         state = state,
                         onShowEventLog = { showEventLogSheet = true },
@@ -304,7 +304,7 @@ internal fun LiveGameScreen(
                                     ),
                                 )
                             }
-                        } else if (state.phase == LivePhase.LIVE_POINT && state.countdown != null) {
+                        } else if (state.phase == GamePhase.LIVE_POINT && state.countdown != null) {
                             OutlinedButton(
                                 onClick = {
                                     onStateChange(state.continueLivePoint())
@@ -327,7 +327,7 @@ internal fun LiveGameScreen(
                                     ),
                                 )
                             }
-                        } else if (state.phase == LivePhase.LIVE_POINT) {
+                        } else if (state.phase == GamePhase.LIVE_POINT) {
                             OutlinedButton(
                                 onClick = { locked = true },
                                 modifier = Modifier

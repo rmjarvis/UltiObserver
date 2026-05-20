@@ -151,9 +151,9 @@ enum class FieldEnd {
         return if (this == NEAR) FAR else NEAR
     }
 }
-/// Broad phase of a live game.
+/// Broad phase of a game.
 @Serializable
-enum class LivePhase {
+enum class GamePhase {
     PRE_GAME,
     BETWEEN_POINTS,
     LIVE_POINT,
@@ -328,7 +328,7 @@ data class GameState(
     val pullingFromEnd: FieldEnd,
     val openingPullingTeam: TeamId,
     val openingPullingFromEnd: FieldEnd,
-    val phase: LivePhase = LivePhase.PRE_GAME,
+    val phase: GamePhase = GamePhase.PRE_GAME,
     val countdown: CountdownState? = null,
     val pullCountdownExpired: Boolean = false,
     val pullSequenceOffsidesRecorded: Boolean = false,
@@ -348,7 +348,7 @@ data class GameState(
 ) {
     /// Report whether this state is the pre-pull live preview created directly from setup.
     fun isInitialLivePreview(): Boolean {
-        return phase == LivePhase.BETWEEN_POINTS &&
+        return phase == GamePhase.BETWEEN_POINTS &&
             teamOne.score == 0 &&
             teamTwo.score == 0 &&
             undoEntry == null &&
@@ -478,7 +478,7 @@ fun applySetupToLiveGame(
     }
     val shouldResyncPullState = existing.teamOne.score == 0 &&
         existing.teamTwo.score == 0 &&
-        existing.phase != LivePhase.LIVE_POINT
+        existing.phase != GamePhase.LIVE_POINT
 
     val base = existing.copy(
         startDate = setup.startDate,

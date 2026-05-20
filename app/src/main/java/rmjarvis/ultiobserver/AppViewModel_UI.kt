@@ -45,7 +45,7 @@ internal fun UltiObserverApp(viewModel: AppViewModel) {
     }
 
     TimingAlertCueListener(
-        liveState = appState.liveState.takeUnless { state -> state?.phase == LivePhase.GAME_OVER },
+        liveState = appState.liveState.takeUnless { state -> state?.phase == GamePhase.GAME_OVER },
         timingAlertPreferences = appState.timingAlertPreferences,
     )
 
@@ -62,7 +62,7 @@ internal fun UltiObserverApp(viewModel: AppViewModel) {
                     null
                 }
                 completedGamePendingArchive = null
-            } else if (liveState.phase == LivePhase.GAME_OVER) {
+            } else if (liveState.phase == GamePhase.GAME_OVER) {
                 currentGame = null
                 completedGamePendingArchive = liveState.gameListEntry()
             } else {

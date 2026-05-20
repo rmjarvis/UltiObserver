@@ -42,7 +42,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
 
         // Start the game and verify the first between-points sequence matches the setup.
         var state = createLiveGameState(setup)
-        assertEquals(LivePhase.BETWEEN_POINTS, state.phase)
+        assertEquals(GamePhase.BETWEEN_POINTS, state.phase)
         assertEquals("Viscous Coupling", state.teamOne.name)
         assertEquals("Animal", state.teamTwo.name)
         assertEquals(0, state.teamOne.score)
@@ -62,7 +62,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
 
         // The opening pull starts the first live point and clears the initial countdown.
         state = state.beginLivePoint()
-        assertEquals(LivePhase.LIVE_POINT, state.phase)
+        assertEquals(GamePhase.LIVE_POINT, state.phase)
         assertNull(state.countdown)
         assertEquals("Undo Start Point", state.undoEntry?.label)
 
@@ -73,7 +73,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         state = firstTimeout.state
         assertEquals(1, state.teamTwo.timeoutsUsedThisHalf)
         assertEquals(1, state.timeoutsRemaining(ANIMAL))
-        assertEquals(LivePhase.LIVE_POINT, state.phase)
+        assertEquals(GamePhase.LIVE_POINT, state.phase)
         assertEquals(CountdownKind.TIME_OUT, state.countdown?.kind)
         assertEquals("Offense set in", state.countdown?.label)
         assertEquals(70, state.countdown?.durationSeconds)
@@ -81,7 +81,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertEquals("Undo Timeout by Animal", state.undoEntry?.label)
 
         state = state.continueLivePoint()
-        assertEquals(LivePhase.LIVE_POINT, state.phase)
+        assertEquals(GamePhase.LIVE_POINT, state.phase)
         assertNull(state.countdown)
 
         // Viscous Coupling gets a yellow on #17, then a blue card.  No yardage penalty yet.
@@ -132,14 +132,14 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertEquals(30, state.countdown?.durationSeconds)
         assertEquals(1_040_000L, state.countdown?.targetEpoch)
         state = state.applyExpiredCountdownTransitions(1_040_000L)
-        assertEquals(LivePhase.LIVE_POINT, state.phase)
+        assertEquals(GamePhase.LIVE_POINT, state.phase)
         assertNull(state.countdown)
         assertEquals("Point continued.", state.lastEvent)
 
         // Viscous Coupling scores the first point, so they pull the next point from the far end.
         val firstGoalTime = timestampAt(state, LocalTime.of(10, 5))
         state = state.recordGoal(VC, firstGoalTime)
-        assertEquals(LivePhase.BETWEEN_POINTS, state.phase)
+        assertEquals(GamePhase.BETWEEN_POINTS, state.phase)
         assertEquals(1, state.teamOne.score)
         assertEquals(0, state.teamTwo.score)
         assertEquals(VC, state.pullingTeam)
@@ -155,7 +155,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         state = pullInfractionResult.state
         assertEquals(1, state.teamOne.offsides)
         assertEquals(0, state.teamTwo.offsides)
-        assertEquals(LivePhase.LIVE_POINT, state.phase)
+        assertEquals(GamePhase.LIVE_POINT, state.phase)
         assertNull(state.countdown)
         assertEquals("Start at brick mark", pullInfractionResult.message())
         assertEquals("Undo Offsides on Viscous Coupling", state.undoEntry?.label)
@@ -199,19 +199,19 @@ class TestGameTransitions : GameDomainTestFixtures() {
         )
         state = secondTimeout.state
         assertEquals(1, state.timeoutsRemaining(VC))
-        assertEquals(LivePhase.LIVE_POINT, state.phase)
+        assertEquals(GamePhase.LIVE_POINT, state.phase)
         assertEquals(CountdownKind.TIME_OUT, state.countdown?.kind)
         assertEquals("Offense set in", state.countdown?.label)
         assertEquals(70, state.countdown?.durationSeconds)
         assertEquals(secondTimeoutTime + 70_000L, state.countdown?.targetEpoch)
 
         state = state.continueLivePoint()
-        assertEquals(LivePhase.LIVE_POINT, state.phase)
+        assertEquals(GamePhase.LIVE_POINT, state.phase)
         assertNull(state.countdown)
 
         // Animal scores next to finish the live point.
         state = recordGoalAt(state, ANIMAL, LocalTime.of(10, 10))
-        assertEquals(LivePhase.BETWEEN_POINTS, state.phase)
+        assertEquals(GamePhase.BETWEEN_POINTS, state.phase)
         assertEquals(1, state.teamOne.score)
         assertEquals(1, state.teamTwo.score)
         assertEquals(ANIMAL, state.pullingTeam)
@@ -228,13 +228,13 @@ class TestGameTransitions : GameDomainTestFixtures() {
 
         // Viscous Coupling scores the next two points, reaching halftime in this game-to-5 setup.
         state = recordGoalFromCurrentStateAt(state, VC, LocalTime.of(10, 15))
-        assertEquals(LivePhase.BETWEEN_POINTS, state.phase)
+        assertEquals(GamePhase.BETWEEN_POINTS, state.phase)
         assertEquals(2, state.teamOne.score)
         assertEquals(1, state.teamTwo.score)
 
         val halftimeGoalTime = timestampAt(state, LocalTime.of(10, 20))
         state = state.recordGoalFromCurrentState(VC, halftimeGoalTime)
-        assertEquals(LivePhase.HALFTIME, state.phase)
+        assertEquals(GamePhase.HALFTIME, state.phase)
         assertEquals(3, state.teamOne.score)
         assertEquals(1, state.teamTwo.score)
         assertTrue(state.halftimeTaken)
@@ -255,12 +255,12 @@ class TestGameTransitions : GameDomainTestFixtures() {
 
         // After halftime, the next pull can start and should behave like a normal live point.
         state = state.beginLivePoint()
-        assertEquals(LivePhase.LIVE_POINT, state.phase)
+        assertEquals(GamePhase.LIVE_POINT, state.phase)
         assertNull(state.countdown)
 
         // Animal scores after halftime, then uses one second-half timeout before the next pull.
         state = recordGoalAt(state, ANIMAL, LocalTime.of(10, 30))
-        assertEquals(LivePhase.BETWEEN_POINTS, state.phase)
+        assertEquals(GamePhase.BETWEEN_POINTS, state.phase)
         assertEquals(3, state.teamOne.score)
         assertEquals(2, state.teamTwo.score)
 
@@ -276,22 +276,22 @@ class TestGameTransitions : GameDomainTestFixtures() {
         state = recordGoalFromCurrentStateAt(state, ANIMAL, LocalTime.of(10, 35))
         assertEquals(3, state.teamOne.score)
         assertEquals(3, state.teamTwo.score)
-        assertEquals(LivePhase.BETWEEN_POINTS, state.phase)
+        assertEquals(GamePhase.BETWEEN_POINTS, state.phase)
 
         // Viscous Coupling gets one more point, but Animal answers and then wins on universe.
         state = recordGoalFromCurrentStateAt(state, VC, LocalTime.of(10, 40))
         assertEquals(4, state.teamOne.score)
         assertEquals(3, state.teamTwo.score)
-        assertEquals(LivePhase.BETWEEN_POINTS, state.phase)
+        assertEquals(GamePhase.BETWEEN_POINTS, state.phase)
 
         state = recordGoalFromCurrentStateAt(state, ANIMAL, LocalTime.of(10, 45))
         assertEquals(4, state.teamOne.score)
         assertEquals(4, state.teamTwo.score)
-        assertEquals(LivePhase.BETWEEN_POINTS, state.phase)
+        assertEquals(GamePhase.BETWEEN_POINTS, state.phase)
 
         // The final Animal goal ends the game and clears live-only timing state.
         state = recordGoalFromCurrentStateAt(state, ANIMAL, LocalTime.of(10, 50))
-        assertEquals(LivePhase.GAME_OVER, state.phase)
+        assertEquals(GamePhase.GAME_OVER, state.phase)
         assertEquals(4, state.teamOne.score)
         assertEquals(5, state.teamTwo.score)
         assertEquals(timestampAt(state, LocalTime.of(10, 50)), state.endEpoch)
@@ -301,7 +301,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertEquals("Game over.", state.lastEvent)
         assertNotNull(state.undoEntry)
         assertEquals("Undo End Game", state.undoEntry?.label)
-        assertEquals(LivePhase.BETWEEN_POINTS, state.undoEntry?.previous?.phase)
+        assertEquals(GamePhase.BETWEEN_POINTS, state.undoEntry?.previous?.phase)
         assertEquals(4, state.undoEntry?.previous?.teamOne?.score)
         assertEquals(5, state.undoEntry?.previous?.teamTwo?.score)
     }

@@ -122,7 +122,7 @@ fun GameState.applyPendingCap(
             if (this.teamOne.score != this.teamTwo.score) {
                 this.copy(
                     endEpoch = now,
-                    phase = LivePhase.GAME_OVER,
+                    phase = GamePhase.GAME_OVER,
                     countdown = null,
                     hardCapApplied = true,
                     pendingCapOffer = null,
@@ -331,8 +331,8 @@ internal fun GamePrompt.ApplyCap.formatTitle(): String = "Apply ${this.label()}?
 
 /// Format the prompt body for an offered cap.
 internal fun GamePrompt.ApplyCap.formatMessage(): String {
-    val wasAt = if (state.phase == LivePhase.HALFTIME) "is scheduled for" else "was at"
-    val endWhen = if (state.phase == LivePhase.HALFTIME) "during halftime" else "now"
+    val wasAt = if (state.phase == GamePhase.HALFTIME) "is scheduled for" else "was at"
+    val endWhen = if (state.phase == GamePhase.HALFTIME) "during halftime" else "now"
     return when (capType) {
         CapType.HALF -> {
             val target = max(state.teamOne.score, state.teamTwo.score) + 1

@@ -777,7 +777,7 @@ internal fun GameState.activeCountdownDisplay(now: Long): ActiveCountdownDisplay
  */
 internal fun GameState.halftimeTransitionReady(now: Long): Boolean {
     val countdown = countdown ?: return false
-    return phase == LivePhase.HALFTIME &&
+    return phase == GamePhase.HALFTIME &&
         countdown.kind == CountdownKind.HALFTIME &&
         now >= countdown.targetEpoch
 }

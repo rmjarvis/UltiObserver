@@ -655,7 +655,7 @@ private fun InGamePlayerCardRecord.issuedCardSummary(): String {
  * @param team The team whose pulling/receiving role should be displayed.
  */
 private fun GameState.cardsRoleSuffix(team: TeamId): String {
-    return if (phase == LivePhase.BETWEEN_POINTS || phase == LivePhase.HALFTIME) {
+    return if (phase == GamePhase.BETWEEN_POINTS || phase == GamePhase.HALFTIME) {
         if (team == pullingTeam) " (pulling)" else " (receiving)"
     } else {
         ""

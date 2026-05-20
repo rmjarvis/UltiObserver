@@ -84,7 +84,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertTrue(viewModel.hasSetupDraft)
         assertEquals(1, viewModel.archivedGames.size)
         assertEquals("Closed when new game started", viewModel.archivedGames.single().subtitle)
-        assertEquals(LivePhase.GAME_OVER, viewModel.archivedGames.single().state.phase)
+        assertEquals(GamePhase.GAME_OVER, viewModel.archivedGames.single().state.phase)
         assertNull(viewModel.liveState)
         assertEquals("Tap to resume", viewModel.currentGameHomeSubtitle)
     }
@@ -147,7 +147,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         viewModel.goHome()
         viewModel.resumeCurrentGame()
         assertEquals(AppScreen.LIVE, viewModel.screen)
-        assertEquals(LivePhase.LIVE_POINT, viewModel.liveState!!.phase)
+        assertEquals(GamePhase.LIVE_POINT, viewModel.liveState!!.phase)
         assertFalse(viewModel.hasSetupDraft)
         assertEquals(livePreview.teamOne.name, viewModel.liveState!!.teamOne.name)
     }
@@ -159,7 +159,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         viewModel.startNewGame()
         viewModel.finishSetup()
 
-        val finishedGame = viewModel.liveState!!.copy(phase = LivePhase.GAME_OVER)
+        val finishedGame = viewModel.liveState!!.copy(phase = GamePhase.GAME_OVER)
         viewModel.updateLiveGame(finishedGame)
         viewModel.goHome()
         viewModel.archiveCompletedGame()
@@ -167,7 +167,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertNull(viewModel.liveState)
         assertEquals(1, viewModel.archivedGames.size)
         val archivedGame = viewModel.archivedGames.single().state
-        assertEquals(LivePhase.GAME_OVER, archivedGame.phase)
+        assertEquals(GamePhase.GAME_OVER, archivedGame.phase)
 
         viewModel.openArchivedGame(0)
         assertEquals(AppScreen.LIVE, viewModel.screen)
@@ -205,7 +205,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         viewModel.startNewGame()
         viewModel.finishSetup()
 
-        val completedGame = viewModel.liveState!!.copy(phase = LivePhase.GAME_OVER)
+        val completedGame = viewModel.liveState!!.copy(phase = GamePhase.GAME_OVER)
         viewModel.updateLiveGame(completedGame)
         assertNull(viewModel.currentGameHomeSubtitle)
         viewModel.goHome()
@@ -240,7 +240,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertNull(viewModel.liveState)
         assertNull(viewModel.currentLiveState)
 
-        viewModel.updateLiveGame(currentGame.copy(phase = LivePhase.GAME_OVER))
+        viewModel.updateLiveGame(currentGame.copy(phase = GamePhase.GAME_OVER))
         viewModel.archiveCompletedGame()
         assertEquals(1, viewModel.archivedGames.size)
 
@@ -252,11 +252,11 @@ class TestAppViewModel : GameDomainTestFixtures() {
         viewModel.deleteArchivedGame(0)
         assertTrue(viewModel.archivedGames.isEmpty())
 
-        viewModel.updateLiveGame(currentGame.copy(phase = LivePhase.GAME_OVER))
+        viewModel.updateLiveGame(currentGame.copy(phase = GamePhase.GAME_OVER))
         viewModel.archiveCompletedGame()
         viewModel.updateLiveGame(
             currentGame.copy(
-                phase = LivePhase.GAME_OVER,
+                phase = GamePhase.GAME_OVER,
                 teamOne = currentGame.teamOne.copy(name = "Second archived game"),
             ),
         )
@@ -339,7 +339,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertEquals(activeGame, viewModel.liveState)
 
         // A completed current game stays on Home until opened through the completed-game path.
-        val completedGame = activeGame.copy(phase = LivePhase.GAME_OVER)
+        val completedGame = activeGame.copy(phase = GamePhase.GAME_OVER)
         viewModel.updateLiveGame(completedGame)
         viewModel.resumeCurrentGame()
         assertEquals(AppScreen.HOME, viewModel.screen)
@@ -353,7 +353,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         viewModel.updateLiveGame(activeGame.beginLivePoint())
         viewModel.resumeSetupDraft()
         assertEquals(AppScreen.HOME, viewModel.screen)
-        assertEquals(LivePhase.LIVE_POINT, viewModel.liveState!!.phase)
+        assertEquals(GamePhase.LIVE_POINT, viewModel.liveState!!.phase)
 
         viewModel.resumeCurrentGame()
         assertEquals(AppScreen.LIVE, viewModel.screen)
@@ -527,7 +527,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
 
         val beforeUndoAction = viewModel.liveState!!
         val completedGame = beforeUndoAction.copy(
-            phase = LivePhase.GAME_OVER,
+            phase = GamePhase.GAME_OVER,
             countdown = CountdownState(
                 kind = CountdownKind.BETWEEN_POINTS,
                 label = "Pull in",
@@ -544,7 +544,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertNull(viewModel.liveState)
         assertEquals(1, viewModel.archivedGames.size)
         assertEquals("", viewModel.archivedGames.single().subtitle)
-        assertEquals(LivePhase.GAME_OVER, viewModel.archivedGames.single().state.phase)
+        assertEquals(GamePhase.GAME_OVER, viewModel.archivedGames.single().state.phase)
         assertNull(viewModel.archivedGames.single().restorableState)
         assertNull(viewModel.archivedGames.single().state.countdown)
         assertNull(viewModel.archivedGames.single().state.undoEntry)
@@ -574,8 +574,8 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertNull(viewModel.liveState)
         assertEquals(1, viewModel.archivedGames.size)
         val archivedGame = viewModel.archivedGames.single()
-        assertEquals(LivePhase.GAME_OVER, archivedGame.state.phase)
-        assertEquals(LivePhase.LIVE_POINT, archivedGame.restorableState!!.phase)
+        assertEquals(GamePhase.GAME_OVER, archivedGame.state.phase)
+        assertEquals(GamePhase.LIVE_POINT, archivedGame.restorableState!!.phase)
         assertNull(archivedGame.restorableState.undoEntry)
         assertNull(archivedGame.restorableState.redoEntry)
 
@@ -596,14 +596,14 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertEquals(AppScreen.LIVE, restoredViewModel.screen)
         assertEquals(1, restoredViewModel.archivedGames.size)
         val replacementArchive = restoredViewModel.archivedGames.single()
-        assertEquals(LivePhase.GAME_OVER, replacementArchive.state.phase)
+        assertEquals(GamePhase.GAME_OVER, replacementArchive.state.phase)
         assertEquals(replacementSetup.teamOne.name, replacementArchive.state.teamOne.name)
         assertEquals(replacementSetup.teamTwo.name, replacementArchive.state.teamTwo.name)
         assertEquals(replacementCurrent.pruneUndoHistory(clearCountdown = false), replacementArchive.restorableState)
         assertFalse(restoredViewModel.hasSetupDraft)
         assertEquals(SetupMode.EDIT_CURRENT_GAME, restoredViewModel.setupMode)
         assertEquals(activeGame.pruneUndoHistory(clearCountdown = false), restoredViewModel.liveState)
-        assertEquals(LivePhase.LIVE_POINT, restoredViewModel.liveState!!.phase)
+        assertEquals(GamePhase.LIVE_POINT, restoredViewModel.liveState!!.phase)
         assertNull(restoredViewModel.liveState!!.undoEntry)
         assertNull(restoredViewModel.liveState!!.redoEntry)
         assertEquals(setup.teamOne.name, restoredViewModel.setupState.teamOne.name)
@@ -642,7 +642,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         )
         viewModel.updateSetup(viewModel.setupState.copy(rules = tournamentRules))
         viewModel.finishSetup()
-        viewModel.updateLiveGame(viewModel.liveState!!.copy(phase = LivePhase.GAME_OVER))
+        viewModel.updateLiveGame(viewModel.liveState!!.copy(phase = GamePhase.GAME_OVER))
         viewModel.archiveCompletedGame()
 
         viewModel.startNewGame()
@@ -786,7 +786,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         viewModel.finishSetup()
         val beforeEndGame = viewModel.liveState!!
         val completedGame = beforeEndGame.copy(
-            phase = LivePhase.GAME_OVER,
+            phase = GamePhase.GAME_OVER,
             countdown = CountdownState(
                 kind = CountdownKind.BETWEEN_POINTS,
                 label = "Pull in",
@@ -827,7 +827,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertNull(restored.archivedGames.single().state.countdown)
         assertNull(restored.archivedGames.single().state.undoEntry)
         assertNull(restored.archivedGames.single().state.redoEntry)
-        assertEquals(LivePhase.GAME_OVER, restored.archivedGames.single().state.phase)
+        assertEquals(GamePhase.GAME_OVER, restored.archivedGames.single().state.phase)
         assertEquals(completedGame.eventLog, restored.archivedGames.single().state.eventLog)
     }
 
@@ -857,7 +857,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertEquals(setOf(PersistedData.GAME_STATE), store.resetPersistedDataAreas)
 
         val archivedOne = ArchivedGame(
-            createLiveGameState(setup).copy(phase = LivePhase.GAME_OVER),
+            createLiveGameState(setup).copy(phase = GamePhase.GAME_OVER),
             "First",
         )
         val archivedTwo = archivedOne.copy(subtitle = "Second")
@@ -895,7 +895,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
             setupMode = SetupMode.EDIT_CURRENT_GAME,
         )
         val savedArchive = ArchivedGame(
-            createLiveGameState(setup).copy(phase = LivePhase.GAME_OVER),
+            createLiveGameState(setup).copy(phase = GamePhase.GAME_OVER),
             "Final",
         )
         store.saveCurrentGameState(savedCurrentGameState)
@@ -997,7 +997,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
             timingAlertPreferences = TimingAlertPreferences(soundVolume = 0.35f),
         )
         val savedArchive = ArchivedGame(
-            createLiveGameState(setup).copy(phase = LivePhase.GAME_OVER),
+            createLiveGameState(setup).copy(phase = GamePhase.GAME_OVER),
             "Final",
         )
 

@@ -56,7 +56,7 @@ class TestGameTimeouts : GameDomainTestFixtures() {
         ): GameState {
             var current = startingState
             var pointNumber = 0
-            while (current.phase != LivePhase.HALFTIME) {
+            while (current.phase != GamePhase.HALFTIME) {
                 current = current.recordGoalFromCurrentState(
                     scoringTeam,
                     now = start + pointNumber * 10_000L,
@@ -133,7 +133,7 @@ class TestGameTimeouts : GameDomainTestFixtures() {
         state = timeoutResult.state
         assertEquals(2, state.teamOne.timeoutsUsedThisHalf)
         assertEquals(0, state.timeoutsRemaining(VC))
-        assertEquals(LivePhase.LIVE_POINT, state.phase)
+        assertEquals(GamePhase.LIVE_POINT, state.phase)
         assertEquals(CountdownKind.TIME_OUT, state.countdown?.kind)
         assertEquals("Offense set in", state.countdown?.label)
         assertEquals(70, state.countdown?.durationSeconds)
@@ -142,7 +142,7 @@ class TestGameTimeouts : GameDomainTestFixtures() {
         // Once the live-point timeout countdown expires, the model automatically continues the point.
         assertEquals(state, state.applyExpiredCountdownTransitions(1_070_000L - 1L))
         state = state.applyExpiredCountdownTransitions(1_070_000L)
-        assertEquals(LivePhase.LIVE_POINT, state.phase)
+        assertEquals(GamePhase.LIVE_POINT, state.phase)
         assertNull(state.countdown)
         assertEquals("Point continued.", state.lastEvent)
         assertEquals("Undo Timeout by Viscous Coupling", state.undoEntry?.label)
@@ -156,7 +156,7 @@ class TestGameTimeouts : GameDomainTestFixtures() {
 
         // In the ordinary two-per-half rules, both teams return to two timeouts at halftime.
         state = scoreToHalftime(state, VC, 1_100_000L)
-        assertEquals(LivePhase.HALFTIME, state.phase)
+        assertEquals(GamePhase.HALFTIME, state.phase)
         assertEquals(2, state.teamOne.firstHalfTimeoutsUsed)
         assertEquals(0, state.teamOne.timeoutsUsedThisHalf)
         assertEquals(2, state.timeoutsAllowedThisHalf(VC))
@@ -181,7 +181,7 @@ class TestGameTimeouts : GameDomainTestFixtures() {
             VC,
             1_150_000L,
         )
-        assertEquals(LivePhase.GAME_OVER, gameOverTimeoutState.phase)
+        assertEquals(GamePhase.GAME_OVER, gameOverTimeoutState.phase)
         timeoutResult = gameOverTimeoutState.assessTimeout(VC, 1_160_000L)
         assertEquals("Timeouts are not available now.", timeoutResult.message())
         assertEquals(gameOverTimeoutState, timeoutResult.state)
@@ -194,7 +194,7 @@ class TestGameTimeouts : GameDomainTestFixtures() {
             timeoutResult.message(),
         )
         val afterHalftimeTimeoutState = timeoutResult.state
-        assertEquals(LivePhase.BETWEEN_POINTS, afterHalftimeTimeoutState.phase)
+        assertEquals(GamePhase.BETWEEN_POINTS, afterHalftimeTimeoutState.phase)
         assertEquals(1, afterHalftimeTimeoutState.teamOne.timeoutsUsedThisHalf)
         assertEquals(1, afterHalftimeTimeoutState.timeoutsRemaining(VC))
         assertEquals("Signal in", afterHalftimeTimeoutState.countdown?.label)
@@ -205,7 +205,7 @@ class TestGameTimeouts : GameDomainTestFixtures() {
         val expiredPullState = createLiveGameState(setupWithRules(GameRules(useHalfCap = false)))
         val expiredCountdownNow = expiredPullState.countdown!!.targetEpoch + 1L
         val transitionedPullState = expiredPullState.applyExpiredCountdownTransitions(expiredCountdownNow)
-        assertEquals(LivePhase.LIVE_POINT, transitionedPullState.phase)
+        assertEquals(GamePhase.LIVE_POINT, transitionedPullState.phase)
         assertNull(transitionedPullState.countdown)
         assertEquals("Undo Start Point", transitionedPullState.undoEntry?.label)
         val expiredPullDecisionState = expiredPullState.copy(
@@ -224,7 +224,7 @@ class TestGameTimeouts : GameDomainTestFixtures() {
         )
         val expiredTimeoutState = timeoutResult.state
         assertEquals("Timeout charged to Animal. They have 1 timeout remaining in this half.", timeoutResult.message())
-        assertEquals(LivePhase.LIVE_POINT, expiredTimeoutState.phase)
+        assertEquals(GamePhase.LIVE_POINT, expiredTimeoutState.phase)
         assertEquals(CountdownKind.TIME_OUT, expiredTimeoutState.countdown?.kind)
         assertEquals("Offense set in", expiredTimeoutState.countdown?.label)
         assertEquals(70, expiredTimeoutState.countdown?.durationSeconds)

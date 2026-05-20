@@ -152,7 +152,7 @@ internal class AppViewModel(
             return when {
                 current?.isInitialLivePreview() == true -> "Tap to resume"
                 current == null && hasSetupDraft -> "Tap to resume"
-                current != null && current.phase != LivePhase.GAME_OVER -> "Tap to resume"
+                current != null && current.phase != GamePhase.GAME_OVER -> "Tap to resume"
                 else -> null
             }
         }
@@ -409,7 +409,7 @@ internal class AppViewModel(
             reopenSetupDraftFromInitialPreview()
             return
         }
-        if (current.phase != LivePhase.GAME_OVER) {
+        if (current.phase != GamePhase.GAME_OVER) {
             openScreen(AppScreen.LIVE)
         }
     }
@@ -431,7 +431,7 @@ internal class AppViewModel(
     /// Open the current completed game summary from Home.
     fun openCompletedGame() {
         val current = liveState ?: return
-        if (current.phase == LivePhase.GAME_OVER) {
+        if (current.phase == GamePhase.GAME_OVER) {
             openScreen(AppScreen.LIVE)
         }
     }
@@ -454,7 +454,7 @@ internal class AppViewModel(
     /// Move the current completed game into the archived games list.
     fun archiveCompletedGame() {
         val completed = liveState ?: return
-        if (completed.phase != LivePhase.GAME_OVER) {
+        if (completed.phase != GamePhase.GAME_OVER) {
             return
         }
         val updatedArchivedGames = archivedGames + archivedGameFor(completed)
@@ -654,7 +654,7 @@ internal class AppViewModel(
      * @param current The live or completed current game being moved out of the current slot.
      */
     private fun archivedGameFor(current: GameState): ArchivedGame {
-        if (current.phase == LivePhase.GAME_OVER) {
+        if (current.phase == GamePhase.GAME_OVER) {
             return ArchivedGame(
                 state = current.pruneUndoHistory(),
                 subtitle = "",
@@ -662,7 +662,7 @@ internal class AppViewModel(
         }
         return ArchivedGame(
             state = current.copy(
-                phase = LivePhase.GAME_OVER,
+                phase = GamePhase.GAME_OVER,
                 endEpoch = System.currentTimeMillis(),
             ).pruneUndoHistory(),
             subtitle = "Closed when new game started",

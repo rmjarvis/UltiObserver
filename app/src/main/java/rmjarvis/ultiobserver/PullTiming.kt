@@ -148,7 +148,7 @@ internal fun CountdownState.betweenPointsTimingCues(): List<TimingCue> {
 
 /// Report whether the expired-pull action surface should be available.
 fun GameState.hasExpiredPullActions(): Boolean {
-    return this.phase == LivePhase.BETWEEN_POINTS && this.pullCountdownExpired
+    return this.phase == GamePhase.BETWEEN_POINTS && this.pullCountdownExpired
 }
 
 /// Build the state restored by undoing automatic start point so time violation can still be assessed.

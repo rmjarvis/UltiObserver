@@ -53,7 +53,7 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
     fun gameSummaryShareButtonInvokesCallback() {
         var shared = false
         val state = createLiveGameState(newGameSetupState()).copy(
-            phase = LivePhase.GAME_OVER,
+            phase = GamePhase.GAME_OVER,
             endEpoch = System.currentTimeMillis(),
         )
 

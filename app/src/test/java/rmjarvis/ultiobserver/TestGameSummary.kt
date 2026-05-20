@@ -15,7 +15,7 @@ class TestGameSummary : GameDomainTestFixtures() {
             startTime = LocalTime.of(10, 0),
         ).copy(
             tournamentName = "Philly Open",
-            phase = LivePhase.GAME_OVER,
+            phase = GamePhase.GAME_OVER,
             teamOne = TeamLiveState("Viscous Coupling", TeamColorChoice.WHITE, score = 12),
             teamTwo = TeamLiveState(
                 name = "Animal",
@@ -49,7 +49,7 @@ class TestGameSummary : GameDomainTestFixtures() {
             startDate = LocalDate.of(2026, 5, 19),
             startTime = LocalTime.of(10, 0),
         ).copy(
-            phase = LivePhase.GAME_OVER,
+            phase = GamePhase.GAME_OVER,
             teamOne = TeamLiveState("Viscous Coupling", TeamColorChoice.WHITE, score = 15),
             teamTwo = TeamLiveState("Animal", TeamColorChoice.RED, score = 12),
             teamOnePlayerCards = listOf(InGamePlayerCardRecord(jerseyNumber = "99")),
@@ -73,7 +73,7 @@ class TestGameSummary : GameDomainTestFixtures() {
             startDate = LocalDate.of(2026, 5, 19),
             startTime = LocalTime.of(10, 0),
         ).copy(
-            phase = LivePhase.GAME_OVER,
+            phase = GamePhase.GAME_OVER,
             teamOne = TeamLiveState("Viscous Coupling", TeamColorChoice.WHITE, score = 15),
             teamTwo = TeamLiveState(
                 name = "Animal",

@@ -69,7 +69,7 @@ class TestPersistence {
 
             // Save an archived summary separately, without countdown or undo state.
             val archivedSummary = scoredState.copy(
-                phase = LivePhase.GAME_OVER,
+                phase = GamePhase.GAME_OVER,
                 countdown = null,
                 undoEntry = null,
             )

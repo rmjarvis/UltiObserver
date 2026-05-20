@@ -51,7 +51,7 @@ class TestGameUndo : GameDomainTestFixtures() {
         val betweenPointsBeforeGoal = state
         state = recordGoalFromCurrentStateAt(state, VC, LocalTime.of(11, 5))
         val implicitLiveState = state.undoLastAction()
-        assertEquals(LivePhase.LIVE_POINT, implicitLiveState.phase)
+        assertEquals(GamePhase.LIVE_POINT, implicitLiveState.phase)
         assertNull(implicitLiveState.countdown)
         assertEquals(0, implicitLiveState.teamOne.score)
         assertEquals(0, implicitLiveState.teamTwo.score)
@@ -170,14 +170,14 @@ class TestGameUndo : GameDomainTestFixtures() {
             rules = GameRules(gameTo = 1, useHalfCap = false, useSoftCap = false, useHardCap = false)
         )
         val gameOverByScore = recordGoalFromCurrentStateAt(state, VC, LocalTime.of(11, 25))
-        assertEquals(LivePhase.GAME_OVER, gameOverByScore.phase)
+        assertEquals(GamePhase.GAME_OVER, gameOverByScore.phase)
         val scoreEndedUndo = gameOverByScore.undoLastAction()
-        assertEquals(LivePhase.BETWEEN_POINTS, scoreEndedUndo.phase)
+        assertEquals(GamePhase.BETWEEN_POINTS, scoreEndedUndo.phase)
         assertEquals(1, scoreEndedUndo.teamOne.score)
         assertEquals(0, scoreEndedUndo.teamTwo.score)
         assertNull(scoreEndedUndo.endEpoch)
         assertEquals("Viscous Coupling scored.", scoreEndedUndo.lastEvent)
-        assertEquals(LivePhase.LIVE_POINT, scoreEndedUndo.undoLastAction().phase)
+        assertEquals(GamePhase.LIVE_POINT, scoreEndedUndo.undoLastAction().phase)
 
         // Unavailable game-over commands are idempotent no-ops; the UI normally hides these pathways.
         assertEquals(gameOverByScore, recordGoalAt(gameOverByScore, ANIMAL, LocalTime.of(11, 26)))

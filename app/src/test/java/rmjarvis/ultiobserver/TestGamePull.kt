@@ -26,7 +26,7 @@ class TestGamePull : GameDomainTestFixtures() {
 
         // Start from a pull sequence with Viscous Coupling pulling to Animal.
         var state = standardLiveGameState()
-        assertEquals(LivePhase.BETWEEN_POINTS, state.phase)
+        assertEquals(GamePhase.BETWEEN_POINTS, state.phase)
         assertEquals(VC, state.pullingTeam)
         assertEquals(0, state.teamOne.offsides)
         assertEquals(0, state.teamOne.falseStarts)
@@ -38,7 +38,7 @@ class TestGamePull : GameDomainTestFixtures() {
         // Record offsides and verify only the pulling team's offsides count increments.
         var pullInfractionResult = state.assessPullInfraction(VC)
         state = pullInfractionResult.state
-        assertEquals(LivePhase.LIVE_POINT, state.phase)
+        assertEquals(GamePhase.LIVE_POINT, state.phase)
         assertNull(state.countdown)
         assertEquals(1, state.teamOne.offsides)
         assertEquals(0, state.teamOne.falseStarts)
@@ -67,7 +67,7 @@ class TestGamePull : GameDomainTestFixtures() {
         state = standardLiveGameState(pullingTeam = ANIMAL)
         pullInfractionResult = state.assessPullInfraction(ANIMAL)
         state = pullInfractionResult.state
-        assertEquals(LivePhase.LIVE_POINT, state.phase)
+        assertEquals(GamePhase.LIVE_POINT, state.phase)
         assertEquals(0, state.teamOne.offsides)
         assertEquals(1, state.teamTwo.offsides)
         assertEquals("Offsides on Animal.", state.lastEvent)
@@ -77,7 +77,7 @@ class TestGamePull : GameDomainTestFixtures() {
         state = standardLiveGameState()
         pullInfractionResult = state.assessPullInfraction(ANIMAL)
         state = pullInfractionResult.state
-        assertEquals(LivePhase.BETWEEN_POINTS, state.phase)
+        assertEquals(GamePhase.BETWEEN_POINTS, state.phase)
         assertNotNull(state.countdown)
         assertEquals(0, state.teamOne.offsides)
         assertEquals(0, state.teamOne.falseStarts)
@@ -105,7 +105,7 @@ class TestGamePull : GameDomainTestFixtures() {
         assertEquals(state, state.restartPullCountdown(firstViolationMoment))
         assertFalse(
             state.copy(
-                phase = LivePhase.LIVE_POINT,
+                phase = GamePhase.LIVE_POINT,
                 pullCountdownExpired = true,
             ).hasExpiredPullActions()
         )
@@ -211,7 +211,7 @@ class TestGamePull : GameDomainTestFixtures() {
         timeViolationState = timeViolationResult.state
         assertEquals(ANIMAL, receivingNoTimeoutEvent.team)
         assertEquals(TimeViolationOutcome.NO_TIMEOUT, receivingNoTimeoutEvent.outcome)
-        assertEquals(LivePhase.BETWEEN_POINTS, timeViolationState.phase)
+        assertEquals(GamePhase.BETWEEN_POINTS, timeViolationState.phase)
         assertNull(timeViolationState.countdown)
         assertTrue(timeViolationState.pullSkippedForCurrentPoint)
         assertEquals(timeViolationState, timeViolationState.recordFalseStart())
@@ -267,7 +267,7 @@ class TestGamePull : GameDomainTestFixtures() {
 
         // Score the point and verify pull-sequence infraction locks reset for the next pull.
         state = recordGoalFromCurrentStateAt(state, VC, LocalTime.of(12, 5))
-        assertEquals(LivePhase.BETWEEN_POINTS, state.phase)
+        assertEquals(GamePhase.BETWEEN_POINTS, state.phase)
         assertEquals(VC, state.pullingTeam)
         assertEquals(1, state.teamOne.score)
         assertEquals(0, state.teamTwo.score)

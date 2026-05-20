@@ -71,10 +71,10 @@ class TestGameOtherActions : GameDomainTestFixtures() {
         // Swapping during a live point with no active countdown keeps the point live and countdown-free.
         state = standardLiveGameState().beginLivePoint()
         state = state.swapFieldEnds()
-        assertEquals(LivePhase.LIVE_POINT, state.phase)
+        assertEquals(GamePhase.LIVE_POINT, state.phase)
         assertNull(state.countdown)
         state = state.swapPullingTeam()
-        assertEquals(LivePhase.LIVE_POINT, state.phase)
+        assertEquals(GamePhase.LIVE_POINT, state.phase)
         assertNull(state.countdown)
 
         // Timeout-extended between-points countdowns still swap between offense-ready and pull timing.
@@ -127,7 +127,7 @@ class TestGameOtherActions : GameDomainTestFixtures() {
         val beforeManualHalftime = state
         val manualHalftimeStartTime = timestampAt(state, LocalTime.of(11, 10))
         state = state.startHalftimeNow(manualHalftimeStartTime)
-        assertEquals(LivePhase.HALFTIME, state.phase)
+        assertEquals(GamePhase.HALFTIME, state.phase)
         assertTrue(state.halftimeTaken)
         assertEquals(1, state.teamOne.firstHalfTimeoutsUsed)
         assertEquals(0, state.teamOne.timeoutsUsedThisHalf)
@@ -158,7 +158,7 @@ class TestGameOtherActions : GameDomainTestFixtures() {
         // Manually end the game and verify end time, phase, countdown clearing, and undo entry.
         val beforeManualEnd = standardLiveGameState()
         state = endGameNowAt(beforeManualEnd, LocalTime.of(11, 40))
-        assertEquals(LivePhase.GAME_OVER, state.phase)
+        assertEquals(GamePhase.GAME_OVER, state.phase)
         assertEquals(timestampAt(state, LocalTime.of(11, 40)), state.endEpoch)
         assertNull(state.countdown)
         assertNull(state.pendingCapOffer)

@@ -100,7 +100,7 @@ internal fun OtherSheet(
                     label = "Event Log",
                     onClick = onShowEventLog,
                 )
-                if (!state.halftimeTaken && state.phase == LivePhase.BETWEEN_POINTS) {
+                if (!state.halftimeTaken && state.phase == GamePhase.BETWEEN_POINTS) {
                     OtherMenuButton(
                         label = "Start Halftime",
                         onClick = { onAction(state.startHalftimeNow(now)) },

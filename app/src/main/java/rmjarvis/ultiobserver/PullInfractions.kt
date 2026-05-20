@@ -141,7 +141,7 @@ fun GameState.recordOffsides(now: Long): GameState {
         } else {
             this.teamTwo
         },
-        phase = LivePhase.LIVE_POINT,
+        phase = GamePhase.LIVE_POINT,
         countdown = null,
         pullCountdownExpired = false,
         pullSequenceOffsidesRecorded = true,

@@ -41,7 +41,7 @@ fun createLiveGameState(setup: GameSetupState): GameState {
         pullingFromEnd = setup.pullingFromEnd,
         openingPullingTeam = setup.pullingTeam,
         openingPullingFromEnd = setup.pullingFromEnd,
-        phase = LivePhase.BETWEEN_POINTS,
+        phase = GamePhase.BETWEEN_POINTS,
         countdown = initialCountdown,
     )
 }
@@ -59,7 +59,7 @@ fun GameState.startPullSequence(
         sequenceStart = now,
     )
     return this.copy(
-        phase = LivePhase.BETWEEN_POINTS,
+        phase = GamePhase.BETWEEN_POINTS,
         countdown = countdown,
         pullCountdownExpired = false,
         pullSequenceOffsidesRecorded = false,
@@ -79,7 +79,7 @@ fun GameState.recordGoal(
     scoringTeam: TeamId,
     now: Long,
 ): GameState {
-    if (this.phase == LivePhase.GAME_OVER) {
+    if (this.phase == GamePhase.GAME_OVER) {
         return this
     }
 
@@ -113,7 +113,7 @@ fun GameState.recordGoal(
             pullingTeam = nextPullingTeam,
             nearAttackingTeam = nextNearAttackingTeam,
             pullingFromEnd = nextPullingFromEnd,
-            phase = LivePhase.BETWEEN_POINTS,
+            phase = GamePhase.BETWEEN_POINTS,
             countdown = buildBetweenPointsCountdown(
                 pullingFromEnd = nextPullingFromEnd,
                 sequenceStart = now,
@@ -135,7 +135,7 @@ fun GameState.recordGoal(
         ).withUndo(this, "Undo Goal by ${this.teamName(scoringTeam)}")
         return afterGoalState.copy(
             endEpoch = now,
-            phase = LivePhase.GAME_OVER,
+            phase = GamePhase.GAME_OVER,
             countdown = null,
             pullCountdownExpired = false,
             winningScore = gameWinningScore,
@@ -201,7 +201,7 @@ fun GameState.recordGoal(
         pullingTeam = nextPullingTeam,
         nearAttackingTeam = nextNearAttackingTeam,
         pullingFromEnd = nextPullingFromEnd,
-        phase = LivePhase.BETWEEN_POINTS,
+        phase = GamePhase.BETWEEN_POINTS,
         countdown = countdown,
         pullCountdownExpired = false,
         pullSequenceOffsidesRecorded = false,
@@ -232,7 +232,7 @@ fun GameState.recordGoal(
 fun GameState.startHalftimeNow(
     now: Long,
 ): GameState {
-    if (this.halftimeTaken || this.phase != LivePhase.BETWEEN_POINTS) {
+    if (this.halftimeTaken || this.phase != GamePhase.BETWEEN_POINTS) {
         return this
     }
     return startHalftime(
@@ -300,7 +300,7 @@ private fun startHalftime(
         pullingTeam = secondHalfPullingTeam,
         pullingFromEnd = secondHalfPullingFromEnd,
         nearAttackingTeam = secondHalfNearAttackingTeam,
-        phase = LivePhase.HALFTIME,
+        phase = GamePhase.HALFTIME,
         countdown = halftimeCountdown,
         pullCountdownExpired = false,
         pullSequenceOffsidesRecorded = false,
@@ -325,12 +325,12 @@ private fun startHalftime(
 fun GameState.endGameNow(
     now: Long,
 ): GameState {
-    if (this.phase == LivePhase.GAME_OVER) {
+    if (this.phase == GamePhase.GAME_OVER) {
         return this
     }
     return this.copy(
         endEpoch = now,
-        phase = LivePhase.GAME_OVER,
+        phase = GamePhase.GAME_OVER,
         countdown = null,
         pullCountdownExpired = false,
         pendingMisconductCountdown = false,
@@ -357,7 +357,7 @@ fun GameState.beginLivePoint(now: Long): GameState {
         emptyList()
     }
     return this.copy(
-        phase = LivePhase.LIVE_POINT,
+        phase = GamePhase.LIVE_POINT,
         countdown = null,
         pullCountdownExpired = false,
         pullSequenceOffsidesRecorded = false,
@@ -378,7 +378,7 @@ fun GameState.recordGoalFromCurrentState(
     scoringTeam: TeamId,
     now: Long,
 ): GameState {
-    val livePointState = if (this.phase == LivePhase.BETWEEN_POINTS) {
+    val livePointState = if (this.phase == GamePhase.BETWEEN_POINTS) {
         this.beginLivePoint(now)
     } else {
         this
@@ -388,7 +388,7 @@ fun GameState.recordGoalFromCurrentState(
 /// Clear a timeout or similar in-point interruption countdown and resume normal live-point play.
 fun GameState.continueLivePoint(): GameState {
     return this.copy(
-        phase = LivePhase.LIVE_POINT,
+        phase = GamePhase.LIVE_POINT,
         countdown = null,
         pendingMisconductCountdown = false,
         lastEvent = "Point continued.",
@@ -405,21 +405,21 @@ fun GameState.applyExpiredCountdownTransitions(now: Long): GameState {
         return this
     }
     return when {
-        this.phase == LivePhase.BETWEEN_POINTS && countdown.kind.usesBetweenPointsTarget() -> {
+        this.phase == GamePhase.BETWEEN_POINTS && countdown.kind.usesBetweenPointsTarget() -> {
             this.automaticLivePointState(now)
         }
-        this.phase == LivePhase.BETWEEN_POINTS && countdown.kind == CountdownKind.MISCONDUCT_BETWEEN_POINTS -> {
+        this.phase == GamePhase.BETWEEN_POINTS && countdown.kind == CountdownKind.MISCONDUCT_BETWEEN_POINTS -> {
             this.automaticLivePointState(now)
         }
-        this.phase == LivePhase.BETWEEN_POINTS && countdown.kind == CountdownKind.MISCONDUCT_DEFENSE_CHECK -> {
+        this.phase == GamePhase.BETWEEN_POINTS && countdown.kind == CountdownKind.MISCONDUCT_DEFENSE_CHECK -> {
             this.automaticLivePointState(now)
         }
-        this.phase == LivePhase.LIVE_POINT && countdown.kind == CountdownKind.TIME_OUT -> {
+        this.phase == GamePhase.LIVE_POINT && countdown.kind == CountdownKind.TIME_OUT -> {
             this.automaticContinueLivePointState()
         }
-        this.phase == LivePhase.HALFTIME && countdown.kind == CountdownKind.HALFTIME -> {
+        this.phase == GamePhase.HALFTIME && countdown.kind == CountdownKind.HALFTIME -> {
             val betweenPointsState = this.copy(
-                phase = LivePhase.BETWEEN_POINTS,
+                phase = GamePhase.BETWEEN_POINTS,
                 countdown = buildBetweenPointsCountdown(
                     pullingFromEnd = this.pullingFromEnd,
                     sequenceStart = countdown.targetEpoch,
@@ -459,7 +459,7 @@ private fun GameState.automaticLivePointState(now: Long): GameState {
         emptyList()
     }
     return copy(
-        phase = LivePhase.LIVE_POINT,
+        phase = GamePhase.LIVE_POINT,
         countdown = null,
         pullCountdownExpired = false,
         pullSequenceOffsidesRecorded = false,
@@ -472,7 +472,7 @@ private fun GameState.automaticLivePointState(now: Long): GameState {
 /// Clear an expired in-point countdown without replacing the undo entry for the action that started it.
 private fun GameState.automaticContinueLivePointState(): GameState {
     return copy(
-        phase = LivePhase.LIVE_POINT,
+        phase = GamePhase.LIVE_POINT,
         countdown = null,
         pullCountdownExpired = false,
         pendingMisconductCountdown = false,

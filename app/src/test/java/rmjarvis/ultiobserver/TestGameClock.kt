@@ -543,7 +543,7 @@ class TestGameClock : GameDomainTestFixtures() {
         )
         assertEquals(TimingCueId.HALFTIME_FIVE_MINUTES, halftimeCountdown.nextTimingCue(1_000L)?.id)
         assertEquals(TimingCueId.HALFTIME_TWO_MINUTES, halftimeCountdown.dueTimingCue(301_000L)?.id)
-        val halftimeState = state.copy(phase = LivePhase.HALFTIME, countdown = halftimeCountdown)
+        val halftimeState = state.copy(phase = GamePhase.HALFTIME, countdown = halftimeCountdown)
         assertFalse(halftimeState.halftimeTransitionReady(halftimeCountdown.targetEpoch - 1L))
         assertTrue(halftimeState.halftimeTransitionReady(halftimeCountdown.targetEpoch))
         assertFalse(halftimeState.copy(countdown = standardPullCountdown).halftimeTransitionReady(halftimeCountdown.targetEpoch))
@@ -586,7 +586,7 @@ class TestGameClock : GameDomainTestFixtures() {
         }
 
         // A countdown kind that does not match the phase is an impossible model state, so fail loudly.
-        val mismatchedCountdownState = standardLiveGameState().copy(phase = LivePhase.LIVE_POINT)
+        val mismatchedCountdownState = standardLiveGameState().copy(phase = GamePhase.LIVE_POINT)
         val mismatchException = assertThrows(IllegalStateException::class.java) {
             mismatchedCountdownState.applyExpiredCountdownTransitions(mismatchedCountdownState.countdown!!.targetEpoch)
         }
@@ -605,7 +605,7 @@ class TestGameClock : GameDomainTestFixtures() {
             betweenPointsMismatchException.message,
         )
         val halftimeWithBetweenPointsCountdown = standardLiveGameState().copy(
-            phase = LivePhase.HALFTIME,
+            phase = GamePhase.HALFTIME,
         )
         val halftimeMismatchException = assertThrows(IllegalStateException::class.java) {
             halftimeWithBetweenPointsCountdown.applyExpiredCountdownTransitions(halftimeWithBetweenPointsCountdown.countdown!!.targetEpoch)
@@ -620,7 +620,7 @@ class TestGameClock : GameDomainTestFixtures() {
         val betweenPointsCountdown = state.countdown!!
         assertEquals(state, state.applyExpiredCountdownTransitions(betweenPointsCountdown.targetEpoch - 1L))
         val automaticStartState = state.applyExpiredCountdownTransitions(betweenPointsCountdown.targetEpoch)
-        assertEquals(LivePhase.LIVE_POINT, automaticStartState.phase)
+        assertEquals(GamePhase.LIVE_POINT, automaticStartState.phase)
         assertNull(automaticStartState.countdown)
         assertEquals("Point is live.", automaticStartState.lastEvent)
         assertEquals("Undo Start Point", automaticStartState.undoEntry?.label)
@@ -649,14 +649,14 @@ class TestGameClock : GameDomainTestFixtures() {
         val timeoutCountdown = state.countdown!!
         assertEquals(state, state.applyExpiredCountdownTransitions(timeoutCountdown.targetEpoch - 1L))
         state = state.applyExpiredCountdownTransitions(timeoutCountdown.targetEpoch)
-        assertEquals(LivePhase.LIVE_POINT, state.phase)
+        assertEquals(GamePhase.LIVE_POINT, state.phase)
         assertNull(state.countdown)
 
         val halftimePrompt = GamePrompt.HalftimeStarted(state)
         assertEquals("Halftime", halftimePrompt.formatTitle())
         assertEquals("Announce halftime.", halftimePrompt.formatMessage())
         val gameOverState = state.copy(
-            phase = LivePhase.GAME_OVER,
+            phase = GamePhase.GAME_OVER,
             teamOne = state.teamOne.copy(score = 3),
             teamTwo = state.teamTwo.copy(score = 5),
         )

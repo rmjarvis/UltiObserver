@@ -98,7 +98,7 @@ class TestGameCards : GameDomainTestFixtures() {
         assertEquals(30, earlySetState.countdown?.durationSeconds)
         assertEquals(state.startEpoch + 100_000L, earlySetState.countdown?.targetEpoch)
         assertEquals(
-            LivePhase.LIVE_POINT,
+            GamePhase.LIVE_POINT,
             earlySetState.applyExpiredCountdownTransitions(earlySetState.countdown!!.targetEpoch).phase,
         )
         assertEquals("Point is live.", earlySetState.applyExpiredCountdownTransitions(earlySetState.countdown!!.targetEpoch).lastEvent)
@@ -107,11 +107,11 @@ class TestGameCards : GameDomainTestFixtures() {
         assertFalse(state.canReportMisconductOffenseSet(state.countdown!!.targetEpoch))
         assertFalse(standardLiveGameState().canReportMisconductOffenseSet(state.startEpoch))
         assertFalse(
-            state.copy(phase = LivePhase.LIVE_POINT)
+            state.copy(phase = GamePhase.LIVE_POINT)
                 .canReportMisconductOffenseSet(state.startEpoch + 70_000L),
         )
         state = state.applyExpiredCountdownTransitions(state.countdown!!.targetEpoch)
-        assertEquals(LivePhase.LIVE_POINT, state.phase)
+        assertEquals(GamePhase.LIVE_POINT, state.phase)
         assertFalse(state.pullSkippedForCurrentPoint)
         assertNull(state.countdown)
         assertEquals("Point is live.", state.lastEvent)
@@ -313,7 +313,7 @@ class TestGameCards : GameDomainTestFixtures() {
                 priorCards = listOf(PlayerCardRecord(ANIMAL, "35", priorYellows = 0, priorReds = 1)),
             )
         ).copy(
-            phase = LivePhase.HALFTIME,
+            phase = GamePhase.HALFTIME,
             halftimeTaken = true,
         )
         cardResult = state.assessRedCard(ANIMAL, "35")
@@ -330,7 +330,7 @@ class TestGameCards : GameDomainTestFixtures() {
             )
         )
         state = state.assessYellowCard(ANIMAL, "36").state.copy(
-            phase = LivePhase.HALFTIME,
+            phase = GamePhase.HALFTIME,
             halftimeTaken = true,
         )
         cardResult = state.assessYellowCard(ANIMAL, "36")
@@ -342,7 +342,7 @@ class TestGameCards : GameDomainTestFixtures() {
         )
 
         state = standardLiveGameState().copy(
-            phase = LivePhase.BETWEEN_POINTS,
+            phase = GamePhase.BETWEEN_POINTS,
             halftimeTaken = true,
         )
         cardResult = state.assessRedCard(ANIMAL, "29")
@@ -355,7 +355,7 @@ class TestGameCards : GameDomainTestFixtures() {
         )
 
         state = standardLiveGameState().copy(
-            phase = LivePhase.HALFTIME,
+            phase = GamePhase.HALFTIME,
             halftimeTaken = true,
         )
         cardResult = state.assessRedCard(ANIMAL, "30")
@@ -368,7 +368,7 @@ class TestGameCards : GameDomainTestFixtures() {
         )
 
         state = standardLiveGameState().copy(
-            phase = LivePhase.GAME_OVER,
+            phase = GamePhase.GAME_OVER,
             halftimeTaken = true,
         )
         cardResult = state.assessRedCard(ANIMAL, "32")
@@ -419,12 +419,12 @@ class TestGameCards : GameDomainTestFixtures() {
 
         // After game over, stale card actions can arrive from UI timing, but should not create no-pull guidance.
         state = standardLiveGameState().copy(
-            phase = LivePhase.GAME_OVER,
+            phase = GamePhase.GAME_OVER,
             teamOne = standardLiveGameState().teamOne.copy(blueCards = 2),
         )
         cardResult = state.assessBlueCard(VC)
         state = cardResult.state
-        assertEquals(LivePhase.GAME_OVER, state.phase)
+        assertEquals(GamePhase.GAME_OVER, state.phase)
         assertEquals(3, state.teamOne.blueCards)
         assertFalse(state.pullSkippedForCurrentPoint)
 
@@ -473,7 +473,7 @@ class TestGameCards : GameDomainTestFixtures() {
         state = state.assessBlueCard(VC).state
         cardResult = state.assessBlueCard(VC)
         state = cardResult.state
-        assertEquals(LivePhase.LIVE_POINT, state.phase)
+        assertEquals(GamePhase.LIVE_POINT, state.phase)
         assertTrue(cardResult.needsMisconductChoice)
         assertEquals("Viscous Coupling has 3 blue cards.", cardResult.message())
 
@@ -494,7 +494,7 @@ class TestGameCards : GameDomainTestFixtures() {
         state = state.assessTechnicalFoul(VC).state
         technicalFoulResult = state.assessTechnicalFoul(VC)
         state = technicalFoulResult.state
-        assertEquals(LivePhase.LIVE_POINT, state.phase)
+        assertEquals(GamePhase.LIVE_POINT, state.phase)
         assertTrue(technicalFoulResult.needsMisconductChoice)
         assertEquals("Viscous Coupling has 3 technical fouls.", technicalFoulResult.message())
         assertTrue(
