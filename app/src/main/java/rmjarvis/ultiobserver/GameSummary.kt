@@ -1,6 +1,72 @@
 package rmjarvis.ultiobserver
 
 /**
+ * Text content for the top card on a completed-game summary.
+ *
+ * @param title Heading for the summary card.
+ * @param startLine Formatted scheduled start date and time.
+ * @param endLine Formatted game end time.
+ * @param scoreLines Winner-first team score lines.
+ */
+internal data class GameOverSummaryText(
+    val title: String,
+    val startLine: String,
+    val endLine: String,
+    val scoreLines: List<String>,
+)
+
+/**
+ * Text content for one team's completed-game summary section.
+ *
+ * @param teamName Name of the team being summarized.
+ * @param issuedCardLines Player yellow/red card lines, or a no-cards line.
+ * @param blueCardsLine Team blue-card count line.
+ * @param technicalFoulsLine Team technical-foul count line.
+ */
+internal data class GameOverTeamSummaryText(
+    val teamName: String,
+    val issuedCardLines: List<String>,
+    val blueCardsLine: String,
+    val technicalFoulsLine: String,
+)
+
+/**
+ * Build text content for the top card on a completed-game summary.
+ *
+ * @receiver The completed game state to summarize.
+ */
+internal fun GameState.gameOverSummaryText(): GameOverSummaryText {
+    val endTime = localTimeFromEpoch(endEpoch!!, timeZone)
+    return GameOverSummaryText(
+        title = "Game Summary",
+        startLine = "Start ${formatStartDate(startDate)} ${formatClockTime(startTime)}",
+        endLine = "End time ${formatClockTime(endTime)}",
+        scoreLines = winnerFirstTeams().map { team -> "${team.name} ${team.score}" },
+    )
+}
+
+/**
+ * Build text content for one team's completed-game summary section.
+ *
+ * @param teamId The team whose section should be summarized.
+ */
+internal fun GameState.gameOverTeamSummaryText(teamId: TeamId): GameOverTeamSummaryText {
+    val team = teamFor(teamId)
+    val issuedCardLines = playerCards(teamId)
+        .filter { record -> record.yellows > 0 || record.reds > 0 }
+        .takeIf { it.isNotEmpty() }
+        ?.map { record -> record.summaryIssuedCardText() }
+        ?: listOf("No yellow or red cards issued.")
+
+    return GameOverTeamSummaryText(
+        teamName = team.name,
+        issuedCardLines = issuedCardLines,
+        blueCardsLine = "Blue cards ${team.blueCards}",
+        technicalFoulsLine = "Technical fouls ${team.technicalFouls}",
+    )
+}
+
+/**
  * Build the compact text shared from a completed game summary.
  *
  * @receiver The completed game state to summarize.
@@ -73,4 +139,18 @@ private fun InGamePlayerCardRecord.shareText(): String {
         "R".takeIf { reds == 1 },
     ).joinToString("+")
     return "${displayPlayerNumber(jerseyNumber)} ($cardText)"
+}
+
+/// Return game-over summary text for one player's issued cards.
+private fun InGamePlayerCardRecord.summaryIssuedCardText(): String {
+    val parts = buildList {
+        when (yellows) {
+            1 -> add("Yellow card")
+            2 -> add("Two yellow cards")
+        }
+        when (reds) {
+            1 -> add("Red card")
+        }
+    }
+    return "${displayPlayerNumber(jerseyNumber)}: ${parts.joinToString("; ")}"
 }

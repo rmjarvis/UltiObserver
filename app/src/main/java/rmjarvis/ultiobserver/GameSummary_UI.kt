@@ -103,7 +103,7 @@ internal fun GameOverSummary(
     summaryActionText: String,
     onSummaryAction: () -> Unit,
 ) {
-    val orderedTeams = state.winnerFirstTeams()
+    val summaryText = state.gameOverSummaryText()
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -126,19 +126,18 @@ internal fun GameOverSummary(
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text("Game Summary", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text(summaryText.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     Text(
-                        text = "Start ${formatStartDate(state.startDate)} ${formatClockTime(state.startTime)}",
+                        text = summaryText.startLine,
                         style = MaterialTheme.typography.bodyMedium,
                     )
-                    val endTime = localTimeFromEpoch(state.endEpoch!!, state.timeZone)
                     Text(
-                        text = "End time ${formatClockTime(endTime)}",
+                        text = summaryText.endLine,
                         style = MaterialTheme.typography.bodyMedium,
                     )
-                    orderedTeams.forEach { team ->
+                    summaryText.scoreLines.forEach { scoreLine ->
                         Text(
-                            text = "${team.name} ${team.score}",
+                            text = scoreLine,
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold,
                         )
@@ -147,12 +146,10 @@ internal fun GameOverSummary(
             }
 
             GameOverTeamSummary(
-                team = state.teamOne,
-                issuedCards = state.playerCards(TeamId.TEAM_ONE),
+                summaryText = state.gameOverTeamSummaryText(TeamId.TEAM_ONE),
             )
             GameOverTeamSummary(
-                team = state.teamTwo,
-                issuedCards = state.playerCards(TeamId.TEAM_TWO),
+                summaryText = state.gameOverTeamSummaryText(TeamId.TEAM_TWO),
             )
         }
 
@@ -214,13 +211,11 @@ internal fun Context.shareGameSummary(state: GameState) {
 /**
  * Render one team-level section inside the game-over summary.
  *
- * @param team The team state to summarize.
- * @param issuedCards Player-specific yellow/red records issued in this game.
+ * @param summaryText Text content for the team summary section.
  */
 @Composable
 private fun GameOverTeamSummary(
-    team: TeamLiveState,
-    issuedCards: List<InGamePlayerCardRecord>,
+    summaryText: GameOverTeamSummaryText,
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -231,30 +226,12 @@ private fun GameOverTeamSummary(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(team.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            if (issuedCards.isEmpty()) {
-                Text("No yellow or red cards issued.", style = MaterialTheme.typography.bodyMedium)
-            } else {
-                issuedCards.forEach { record ->
-                    Text(record.summaryIssuedCardText(), style = MaterialTheme.typography.bodyMedium)
-                }
+            Text(summaryText.teamName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            summaryText.issuedCardLines.forEach { line ->
+                Text(line, style = MaterialTheme.typography.bodyMedium)
             }
-            Text("Blue cards ${team.blueCards}", style = MaterialTheme.typography.bodyMedium)
-            Text("Technical fouls ${team.technicalFouls}", style = MaterialTheme.typography.bodyMedium)
+            Text(summaryText.blueCardsLine, style = MaterialTheme.typography.bodyMedium)
+            Text(summaryText.technicalFoulsLine, style = MaterialTheme.typography.bodyMedium)
         }
     }
-}
-
-/// Return game-over summary text for one player's issued cards.
-private fun InGamePlayerCardRecord.summaryIssuedCardText(): String {
-    val parts = buildList {
-        when (yellows) {
-            1 -> add("Yellow card")
-            2 -> add("Two yellow cards")
-        }
-        when (reds) {
-            1 -> add("Red card")
-        }
-    }
-    return "${displayPlayerNumber(jerseyNumber)}: ${parts.joinToString("; ")}"
 }
