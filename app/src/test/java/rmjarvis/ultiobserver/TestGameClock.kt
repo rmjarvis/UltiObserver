@@ -17,6 +17,33 @@ import org.junit.Test
 
 /// Tests for clock, countdown, formatting, timing cue, and timing alert audio helpers.
 class TestGameClock : GameDomainTestFixtures() {
+    /// Verify timing-alert delivery-window waits are deterministic outside the Compose listener.
+    @Test
+    fun timingAlertDeliveryWindowWaitsDeterministicallyNearCueTime() {
+        val checkMillis = 250L
+
+        assertEquals(
+            TimingAlertDeliveryWindowResult(false, listOf(250L)),
+            captureTimingAlertDeliveryWindow(millisUntilNextAlert = 501L, scheduleCheckMillis = checkMillis),
+        )
+        assertEquals(
+            TimingAlertDeliveryWindowResult(true, listOf(500L)),
+            captureTimingAlertDeliveryWindow(millisUntilNextAlert = 500L, scheduleCheckMillis = checkMillis),
+        )
+        assertEquals(
+            TimingAlertDeliveryWindowResult(true, listOf(1L)),
+            captureTimingAlertDeliveryWindow(millisUntilNextAlert = 1L, scheduleCheckMillis = checkMillis),
+        )
+        assertEquals(
+            TimingAlertDeliveryWindowResult(true, emptyList()),
+            captureTimingAlertDeliveryWindow(millisUntilNextAlert = 0L, scheduleCheckMillis = checkMillis),
+        )
+        assertEquals(
+            TimingAlertDeliveryWindowResult(true, emptyList()),
+            captureTimingAlertDeliveryWindow(millisUntilNextAlert = -1L, scheduleCheckMillis = checkMillis),
+        )
+    }
+
     /**
      * Test deterministic clock and countdown helpers that are public model surface.
      * These tests should pin time behavior without relying on the wall clock.
@@ -790,6 +817,38 @@ class TestGameClock : GameDomainTestFixtures() {
         assertNull(state.dueCapTimingCue(state.startEpoch + 105 * 60_000L))
     }
 }
+
+/**
+ * Capture the listener-ready result and requested delays from the timing-alert delivery-window helper.
+ *
+ * @param millisUntilNextAlert Milliseconds between now and the next alert target.
+ * @param scheduleCheckMillis Normal listener polling cadence in milliseconds.
+ */
+private fun captureTimingAlertDeliveryWindow(
+    millisUntilNextAlert: Long,
+    scheduleCheckMillis: Long,
+): TimingAlertDeliveryWindowResult {
+    val delays = mutableListOf<Long>()
+    val readyToPlay = runBlocking {
+        waitForTimingAlertDeliveryWindow(
+            millisUntilNextAlert = millisUntilNextAlert,
+            scheduleCheckMillis = scheduleCheckMillis,
+            delayMillis = { millis -> delays += millis },
+        )
+    }
+    return TimingAlertDeliveryWindowResult(readyToPlay, delays)
+}
+
+/**
+ * Captured timing-alert delivery-window behavior.
+ *
+ * @param readyToPlay Whether the caller should deliver the alert after the helper returns.
+ * @param delays The delay durations requested before returning.
+ */
+private data class TimingAlertDeliveryWindowResult(
+    val readyToPlay: Boolean,
+    val delays: List<Long>,
+)
 
 /// Fake timing-alert sound backend that records plays and exposes manual load completion for unit tests.
 private class FakeTimingAlertSoundPlayer : TimingAlertSoundPlayer {

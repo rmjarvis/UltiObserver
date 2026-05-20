@@ -90,6 +90,28 @@ internal fun TimingCueDisplay.alertKey(): String {
 }
 
 /**
+ * Wait until a timing alert is ready to deliver, or return false when the listener should poll later.
+ *
+ * @param millisUntilNextAlert Milliseconds between now and the next alert target.
+ * @param scheduleCheckMillis Normal listener polling cadence in milliseconds.
+ * @param delayMillis Suspended delay implementation, injectable so tests can capture waits deterministically.
+ */
+internal suspend fun waitForTimingAlertDeliveryWindow(
+    millisUntilNextAlert: Long,
+    scheduleCheckMillis: Long,
+    delayMillis: suspend (Long) -> Unit,
+): Boolean {
+    if (millisUntilNextAlert > 2 * scheduleCheckMillis) {
+        delayMillis(scheduleCheckMillis)
+        return false
+    }
+    if (millisUntilNextAlert > 0L) {
+        delayMillis(millisUntilNextAlert)
+    }
+    return true
+}
+
+/**
  * Return the next future cue within this countdown.
  *
  * @param now The current epoch millis used to compute the next cue and its time remaining.

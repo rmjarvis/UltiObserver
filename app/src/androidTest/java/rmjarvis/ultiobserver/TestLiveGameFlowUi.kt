@@ -270,9 +270,9 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             globalMode = TimingAlertGlobalMode.SOUNDS_ON,
             cueMode = TimingAlertMode.TICK,
             vibrateWithSounds = true,
-            // Keep this below the listener's polling interval but high enough that the
-            // emulator should not turn it into the already-due path before the first check.
-            cueDueInMillis = 240L,
+            // Start outside the direct-handling window, then let the listener re-check and wait until due.
+            cueDueInMillis = 650L,
+            waitAfterDueMillis = 700L,
         )
         triggerDueTimeoutTwentyCue(
             globalMode = TimingAlertGlobalMode.SOUNDS_ON,

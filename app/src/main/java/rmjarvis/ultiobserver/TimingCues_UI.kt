@@ -69,13 +69,13 @@ internal fun TimingAlertCueListener(
             }
 
             val millisUntilNextAlert = nextTimingAlert.targetEpoch - now
-            if (millisUntilNextAlert > TIMING_ALERT_SCHEDULE_CHECK_MS) {
-                delay(TIMING_ALERT_SCHEDULE_CHECK_MS)
+            val readyToPlay = waitForTimingAlertDeliveryWindow(
+                millisUntilNextAlert = millisUntilNextAlert,
+                scheduleCheckMillis = TIMING_ALERT_SCHEDULE_CHECK_MS,
+                delayMillis = { millis -> delay(millis) },
+            )
+            if (!readyToPlay) {
                 continue
-            }
-
-            if (millisUntilNextAlert > 0L) {
-                delay(millisUntilNextAlert)
             }
             val alertKey = nextTimingAlert.alertKey()
             if (alertKey !in playedTimingAlertKeys) {
