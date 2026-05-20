@@ -559,13 +559,15 @@ internal class AppViewModel(
         persistArchivedGames()
     }
 
-    /// Start a new game setup, archiving any existing current game first.
+    /// Start a new game setup, archiving any existing started current game first.
     fun startNewGame() {
         var shouldPersistArchivedGames = false
         var updatedArchivedGames = archivedGames
         liveState?.let { existing ->
-            updatedArchivedGames = updatedArchivedGames + archivedGameFor(existing)
-            shouldPersistArchivedGames = true
+            if (!existing.isInitialLivePreview()) {
+                updatedArchivedGames = updatedArchivedGames + archivedGameFor(existing)
+                shouldPersistArchivedGames = true
+            }
         }
         _state.update {
             it.copy(

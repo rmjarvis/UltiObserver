@@ -151,6 +151,17 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertEquals(GamePhase.LIVE_POINT, viewModel.liveState!!.phase)
         assertFalse(viewModel.hasSetupDraft)
         assertEquals(livePreview.teamOne.name, viewModel.liveState!!.teamOne.name)
+
+        // Starting over before the first real point should discard setup-only state, not archive it.
+        val prePullViewModel = AppViewModel(NoOpAppStateStorage)
+        prePullViewModel.startNewGame()
+        prePullViewModel.finishSetup()
+        prePullViewModel.goHome()
+        prePullViewModel.startNewGame()
+        assertEquals(AppScreen.SETUP, prePullViewModel.screen)
+        assertTrue(prePullViewModel.hasSetupDraft)
+        assertNull(prePullViewModel.liveState)
+        assertTrue(prePullViewModel.archivedGames.isEmpty())
     }
 
     /// Verify archived games open as read-only summaries and ignore live-game mutation callbacks.
@@ -713,6 +724,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         val currentRules = GameRules(gameTo = 11, hardCapMinutes = 80, hasFloaterTimeout = true)
         viewModel.updateSetup(viewModel.setupState.copy(rules = currentRules))
         viewModel.finishSetup()
+        viewModel.updateLiveGame(viewModel.liveState!!.beginLivePoint())
 
         viewModel.startNewGame()
 
