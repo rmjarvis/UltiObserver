@@ -1047,7 +1047,8 @@ class TestAppViewModel : GameDomainTestFixtures() {
             "Final",
         )
 
-        assertEquals("0.1.0", BuildConfig.VERSION_NAME)
+        val debugVersionName = "${BuildConfig.VERSION_NAME}-debug"
+
         assertEquals(APP_STATE_VERSION_NAME, CurrentGameSnapshot().versionName)
         assertEquals(APP_STATE_VERSION_CODE, CurrentGameSnapshot().versionCode)
         assertEquals(APP_STATE_VERSION_NAME, Profile().versionName)
@@ -1057,10 +1058,10 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertEquals(APP_STATE_VERSION_NAME, ArchivedGame(createLiveGameState(setup), "").versionName)
         assertEquals(APP_STATE_VERSION_CODE, ArchivedGame(createLiveGameState(setup), "").versionCode)
         val persistedVersion = AppVersion(
-            versionName = "0.1.0-debug",
+            versionName = debugVersionName,
             versionCode = APP_STATE_VERSION_CODE,
         )
-        assertEquals("0.1.0-debug", persistedVersion.versionName)
+        assertEquals(debugVersionName, persistedVersion.versionName)
         assertEquals(APP_STATE_VERSION_CODE, persistedVersion.versionCode)
 
         // Missing version names should reset each affected split-state area.
@@ -1084,7 +1085,8 @@ class TestAppViewModel : GameDomainTestFixtures() {
 
         // Wrongly typed version fields and unsupported version codes should also reset narrowly.
         store.saveCurrentGameState(savedCurrentGameState)
-        File(storeDir, "current_game_state.json").replaceText("\"versionName\": \"0.1.0\"", "\"versionName\": 1")
+        File(storeDir, "current_game_state.json")
+            .replaceText("\"versionName\": \"${BuildConfig.VERSION_NAME}\"", "\"versionName\": 1")
         assertEquals(CurrentGameSnapshot(), store.loadCurrentGameState())
         assertEquals(
             setOf(
@@ -1164,8 +1166,9 @@ class TestAppViewModel : GameDomainTestFixtures() {
 
         // Debug-style version names are accepted while later unsupported version codes are rejected.
         store.saveProfile(savedProfile)
-        File(storeDir, "profile.json").replaceText("\"versionName\": \"0.1.0\"", "\"versionName\": \"0.1.0-debug\"")
-        assertEquals(savedProfile.copy(versionName = "0.1.0-debug"), store.loadProfile())
+        File(storeDir, "profile.json")
+            .replaceText("\"versionName\": \"${BuildConfig.VERSION_NAME}\"", "\"versionName\": \"$debugVersionName\"")
+        assertEquals(savedProfile.copy(versionName = debugVersionName), store.loadProfile())
         assertEquals(setOf(PersistedData.GAME_STATE, PersistedData.SETTINGS, PersistedData.ARCHIVED_GAMES), store.resetPersistedDataAreas)
 
         store.saveSettings(savedSettings)
@@ -1182,8 +1185,8 @@ class TestAppViewModel : GameDomainTestFixtures() {
 
         store.saveArchivedGames(listOf(savedArchive))
         File(File(storeDir, "archived_games"), "00000.json")
-            .replaceText("\"versionName\": \"0.1.0\"", "\"versionName\": \"0.1.0-debug\"")
-        assertEquals(listOf(savedArchive.copy(versionName = "0.1.0-debug")), store.loadArchivedGames())
+            .replaceText("\"versionName\": \"${BuildConfig.VERSION_NAME}\"", "\"versionName\": \"$debugVersionName\"")
+        assertEquals(listOf(savedArchive.copy(versionName = debugVersionName)), store.loadArchivedGames())
         assertEquals(
             setOf(PersistedData.GAME_STATE, PersistedData.SETTINGS),
             store.resetPersistedDataAreas,
