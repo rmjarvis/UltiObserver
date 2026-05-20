@@ -88,7 +88,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         var cardResult = state.assessYellowCard(VC, "17")
         state = cardResult.state
         assertFalse(cardResult.needsMisconductChoice)
-        assertEquals("Yellow card on player 17.\nViscous Coupling has 1 card.", cardResult.message())
+        assertEquals("Yellow card on player 17.\nViscous Coupling has 1 blue card.", cardResult.message())
         assertEquals(1, state.teamYellowCards(VC))
         assertEquals(
             InGamePlayerCardRecord("17", yellows = 1),
@@ -98,7 +98,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         cardResult = state.assessBlueCard(VC)
         state = cardResult.state
         assertFalse(cardResult.needsMisconductChoice)
-        assertEquals("Viscous Coupling has 2 cards.", cardResult.message())
+        assertEquals("Viscous Coupling has 2 total blue cards.", cardResult.message())
         assertEquals(1, state.teamOne.blueCards)
 
         // Viscous Coupling reaches three team card points with a yellow on #8 during a live point.
@@ -106,7 +106,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         cardResult = state.assessYellowCard(VC, "8")
         state = cardResult.state
         assertTrue(cardResult.needsMisconductChoice)
-        assertEquals("Yellow card on player 8.\nViscous Coupling has 3 cards.", cardResult.message())
+        assertEquals("Yellow card on player 8.\nViscous Coupling has 3 total blue cards.", cardResult.message())
         assertEquals(2, state.teamYellowCards(VC))
         assertEquals("Undo Yellow on #8 of Viscous Coupling", state.undoEntry?.label)
         assertEquals(
@@ -163,7 +163,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         // Animal picks up yellow cards for #23 and #8
         cardResult = state.assessYellowCard(ANIMAL, "23")
         state = cardResult.state
-        assertEquals("Yellow card on player 23.\nAnimal has 1 card.", cardResult.message())
+        assertEquals("Yellow card on player 23.\nAnimal has 1 blue card.", cardResult.message())
         assertEquals(1, state.teamYellowCards(ANIMAL))
         assertEquals(
             InGamePlayerCardRecord("23", yellows = 1),
@@ -172,7 +172,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
 
         cardResult = state.assessYellowCard(ANIMAL, "8")
         state = cardResult.state
-        assertEquals("Yellow card on player 8.\nAnimal has 2 cards.", cardResult.message())
+        assertEquals("Yellow card on player 8.\nAnimal has 2 total blue cards.", cardResult.message())
         assertEquals(2, state.teamYellowCards(ANIMAL))
         assertEquals(
             InGamePlayerCardRecord("8", yellows = 1),

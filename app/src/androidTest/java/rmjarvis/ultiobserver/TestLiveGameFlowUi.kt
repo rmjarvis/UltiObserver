@@ -72,12 +72,12 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
 
         // Viscous Coupling gets two early card points, then a third card that needs a misconduct choice.
         // Back from that choice should return to the player-number dialog with the entered number intact.
-        recordYellowCard(TeamId.TEAM_ONE, "17", "Yellow card on player 17.\n$viscousCoupling has 1 card.")
-        recordBlueCard(TeamId.TEAM_ONE, "$viscousCoupling has 2 cards.")
+        recordYellowCard(TeamId.TEAM_ONE, "17", "Yellow card on player 17.\n$viscousCoupling has 1 blue card.")
+        recordBlueCard(TeamId.TEAM_ONE, "$viscousCoupling has 2 total blue cards.")
         recordYellowCard(
             team = TeamId.TEAM_ONE,
             playerNumber = "8",
-            expectedMessage = "$viscousCoupling has 3 cards.",
+            expectedMessage = "$viscousCoupling has 3 total blue cards.",
             misconductChoice = "Offense",
             expectedMisconductMessage = "Reverse brick",
             verifyMisconductBackReturnsToNumberDialog = true,
@@ -94,14 +94,14 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         recordYellowCard(
             team = TeamId.TEAM_ONE,
             playerNumber = "9",
-            expectedMessage = "$viscousCoupling has 4 cards.",
+            expectedMessage = "$viscousCoupling has 4 total blue cards.",
             misconductChoice = "Defense",
             expectedMisconductMessage = "Brick nearest attacking end zone",
         )
         recordRedCard(
             team = TeamId.TEAM_ONE,
             playerNumber = "12",
-            expectedMessage = "$viscousCoupling has 6 cards.",
+            expectedMessage = "$viscousCoupling has 6 total blue cards.",
             misconductChoice = "Defense",
             expectedMisconductMessage = "Brick nearest attacking end zone",
             verifyMisconductBackReturnsToNumberDialog = true,
@@ -121,8 +121,8 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-infraction")).assertIsNotEnabled()
 
         // Animal picks up two yellows and two technical fouls during the live point.
-        recordYellowCard(TeamId.TEAM_TWO, "23", "Yellow card on player 23.\n$animal has 1 card.")
-        recordYellowCard(TeamId.TEAM_TWO, "8", "Yellow card on player 8.\n$animal has 2 cards.")
+        recordYellowCard(TeamId.TEAM_TWO, "23", "Yellow card on player 23.\n$animal has 1 blue card.")
+        recordYellowCard(TeamId.TEAM_TWO, "8", "Yellow card on player 8.\n$animal has 2 total blue cards.")
         recordTechnicalFoul(TeamId.TEAM_TWO, "$animal has 1 technical foul.")
         recordTechnicalFoul(TeamId.TEAM_TWO, "$animal has 2 technical fouls.")
 

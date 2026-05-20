@@ -846,7 +846,7 @@ fun GameEvent.needsMisconductChoice(): Boolean {
 
 /// Format a team-card event message, including player-card and misconduct cue details.
 internal fun GameEvent.TeamCardsChanged.formatMessage(): String {
-    val totalMessage = "${state.teamName(team)} has $teamCardTotal ${pluralize(teamCardTotal, "card")}."
+    val totalMessage = this.totalBlueCardMessage()
     val baseMessage = if (playerCardType == null) {
         totalMessage
     } else {
@@ -858,6 +858,19 @@ internal fun GameEvent.TeamCardsChanged.formatMessage(): String {
         team = team,
         thresholdCount = teamCardTotal,
     )
+}
+
+/// Format the team blue-card total, marking mixed yellow/red/blue totals explicitly.
+private fun GameEvent.TeamCardsChanged.totalBlueCardMessage(): String {
+    val totalModifier = if (
+        teamCardTotal > 1 &&
+        (state.teamYellowCards(team) > 0 || state.teamRedCards(team) > 0)
+    ) {
+        "total "
+    } else {
+        ""
+    }
+    return "${state.teamName(team)} has $teamCardTotal $totalModifier${pluralize(teamCardTotal, "blue card")}."
 }
 
 /**

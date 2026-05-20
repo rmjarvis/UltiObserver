@@ -43,7 +43,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
 
         // Blue cards and technical fouls should close the sheet and show the consequence cue.
         composeRule.onAllNodesWithText("Blue").onFirst().performClick()
-        waitForText("Team 1 has 1 card.")
+        waitForText("Team 1 has 1 blue card.")
         composeRule.onNodeWithText("OK").performClick()
 
         openCardsSheet()
@@ -53,7 +53,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
 
         openCardsSheet()
         composeRule.onAllNodesWithText("Blue")[teamCardButtonIndex(TeamId.TEAM_TWO)].performClick()
-        waitForText("Team 2 has 1 card.")
+        waitForText("Team 2 has 1 blue card.")
         composeRule.onNodeWithText("OK").performClick()
 
         openCardsSheet()
@@ -71,7 +71,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onAllNodesWithText("Yellow").onFirst().performClick()
         composeRule.onNodeWithText("Yellow Card").assertIsDisplayed()
         composeRule.onNodeWithText("Record").performClick()
-        waitForText("Yellow card on player N/A.\nTeam 1 has 2 cards.")
+        waitForText("Yellow card on player N/A.\nTeam 1 has 2 total blue cards.")
         composeRule.onNodeWithText("OK").performClick()
 
         // A red on a player with a yellow records as a red.
@@ -89,7 +89,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
                 .fetchSemanticsNodes()
                 .isEmpty(),
         )
-        waitForText("Team 1 has 4 cards.", substring = true)
+        waitForText("Team 1 has 4 total blue cards.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
 
         openCardsSheet()
@@ -97,7 +97,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         waitForText("Yellow Card")
         enterCardPlayerNumber("8")
         composeRule.onNodeWithText("Record").performClick()
-        waitForText("Yellow card on player 8.\nTeam 2 has 2 cards.")
+        waitForText("Yellow card on player 8.\nTeam 2 has 2 total blue cards.")
         composeRule.onNodeWithText("OK").performClick()
     }
 
@@ -143,22 +143,22 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         recordRedCard(
             TeamId.TEAM_ONE,
             "5",
-            "Red card on player 5.\nPlayer 5 receives a game suspension.\nTeam 1 has 2 cards.",
+            "Red card on player 5.\nPlayer 5 receives a game suspension.\nTeam 1 has 2 total blue cards.",
         )
 
         // A second yellow comes from issuing another yellow, not from pressing Red.
-        recordYellowCard(TeamId.TEAM_TWO, "7", "Yellow card on player 7.\nTeam 2 has 1 card.")
+        recordYellowCard(TeamId.TEAM_TWO, "7", "Yellow card on player 7.\nTeam 2 has 1 blue card.")
         recordYellowCard(TeamId.TEAM_TWO, "7", "Second yellow on player 7.", substring = true)
 
         // Reusing N/A for a yellow should support recording a different unknown player.
-        recordYellowCard(TeamId.TEAM_ONE, "", "Team 1 has 3 cards.", substring = true)
+        recordYellowCard(TeamId.TEAM_ONE, "", "Team 1 has 3 total blue cards.", substring = true)
         openCardsSheet()
         composeRule.onAllNodesWithText("Yellow")[teamCardButtonIndex(TeamId.TEAM_ONE)].performClick()
         waitForText("Yellow Card")
         composeRule.onNodeWithText("N/A").performClick()
         waitForText("Unknown Player Number")
         composeRule.onNodeWithText("No").performClick()
-        waitForText("Team 1 has 4 cards.", substring = true)
+        waitForText("Team 1 has 4 total blue cards.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
 
         // Apply a manual card correction that adds a player red, removes a player yellow, and changes a team count.
