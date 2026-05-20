@@ -297,6 +297,7 @@ enum class CountdownKind {
  *
  * @param startEpoch Epoch millis for the scheduled game start.
  * @param endEpoch Epoch millis when the game ended, or null while active.
+ * @param tournamentName Optional tournament name used in completed-game summaries.
  * @param nearAttackingTeam The team attacking the observer's near end.
  * @param pullingFromEnd The field end occupied by the pulling team.
  * @param openingPullingTeam The team that pulled to start the game.
@@ -314,6 +315,7 @@ data class LiveGameState(
     val timeZone: ZoneId,
     val startEpoch: Long,
     val endEpoch: Long? = null,
+    val tournamentName: String = "",
     val rules: GameRules,
     val teamOne: TeamLiveState,
     val teamTwo: TeamLiveState,
@@ -483,6 +485,7 @@ fun applySetupToLiveGame(
         startTime = setup.startTime,
         timeZone = setup.timeZone,
         startEpoch = epochTimestamp(setup.startDate, setup.startTime, setup.timeZone),
+        tournamentName = setup.tournamentName,
         rules = setup.rules,
         teamOne = existing.teamOne.copy(
             name = setup.teamOne.name.ifBlank { "Team 1" },
@@ -517,6 +520,7 @@ fun LiveGameState.toSetupState(): GameSetupState {
         startDate = startDate,
         startTime = startTime,
         timeZone = timeZone,
+        tournamentName = tournamentName,
         rules = rules,
         teamOne = TeamSetup(
             name = teamOne.name,

@@ -132,6 +132,9 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         waitForText("+105")
         closeSetupEditor()
 
+        // Tournament name is optional but should accept a simple text value near prior-card setup.
+        composeRule.onNodeWithTag("setup-tournament-name").performScrollTo().performTextReplacement("Philly Open")
+
         // Prior-card entry should support cancel, team selection, yellow/red counts, and removal.
         openPriorCardsSetupEditor()
         composeRule.onNodeWithText("Add Card Holder").performScrollTo().performClick()

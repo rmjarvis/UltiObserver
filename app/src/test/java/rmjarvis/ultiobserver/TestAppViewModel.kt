@@ -190,9 +190,12 @@ class TestAppViewModel : GameDomainTestFixtures() {
         val currentPreview = viewModel.liveState!!
         assertTrue(currentPreview.isInitialLivePreview())
         viewModel.openArchivedGame(0)
-        viewModel.goBackFromCurrentScreen()
-        assertEquals(AppScreen.HOME, viewModel.screen)
-        assertEquals(currentPreview, viewModel.liveState)
+        viewModel.restoreViewingArchivedGame()
+        assertEquals(AppScreen.LIVE, viewModel.screen)
+        assertFalse(viewModel.viewingReadOnlySummary)
+        assertEquals(archivedGame, viewModel.liveState)
+        assertEquals(1, viewModel.archivedGames.size)
+        assertEquals(currentPreview.teamOne.name, viewModel.archivedGames.single().state.teamOne.name)
     }
 
     /// Verify a completed current game can be reopened from Home, then archived into Archived Games.

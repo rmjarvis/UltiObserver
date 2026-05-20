@@ -1,13 +1,18 @@
 package rmjarvis.ultiobserver
 
+import android.content.Context
+import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -25,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
@@ -43,6 +49,7 @@ internal fun ArchivedGameSummaryScreen(
     onBackHome: () -> Unit,
 ) {
     var showEventLogSheet by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -65,6 +72,7 @@ internal fun ArchivedGameSummaryScreen(
             GameOverSummary(
                 state = state,
                 onShowEventLog = { showEventLogSheet = true },
+                onShareSummary = { context.shareGameSummary(state) },
                 summaryActionText = "Restore Game",
                 onSummaryAction = onRestoreGame,
             )
@@ -83,6 +91,7 @@ internal fun ArchivedGameSummaryScreen(
  *
  * @param state The completed game state to summarize.
  * @param onShowEventLog Callback opening the completed game's event log.
+ * @param onShareSummary Callback opening Android's text-share sheet for this game summary.
  * @param summaryActionText Fixed bottom action label, such as Undo End Game or Restore Game.
  * @param onSummaryAction Callback invoked by the fixed bottom action.
  */
@@ -90,6 +99,7 @@ internal fun ArchivedGameSummaryScreen(
 internal fun GameOverSummary(
     state: LiveGameState,
     onShowEventLog: () -> Unit,
+    onShareSummary: () -> Unit,
     summaryActionText: String,
     onSummaryAction: () -> Unit,
 ) {
@@ -144,26 +154,61 @@ internal fun GameOverSummary(
                 team = state.teamTwo,
                 issuedCards = state.playerCards(TeamId.TEAM_TWO),
             )
-            OutlinedButton(
-                onClick = onShowEventLog,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Event Log")
-            }
         }
 
-        OutlinedButton(
-            onClick = onSummaryAction,
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
-                containerColor = Color.White,
-                contentColor = Color.Black,
-            ),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(summaryActionText)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedButton(
+                    onClick = onShowEventLog,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Event Log")
+                }
+                Button(
+                    onClick = onShareSummary,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF1565C0),
+                        contentColor = Color.White,
+                    ),
+                ) {
+                    Text("Share")
+                }
+            }
+
+            OutlinedButton(
+                onClick = onSummaryAction,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = Color.White,
+                    contentColor = Color.Black,
+                ),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
+            ) {
+                Text(summaryActionText)
+            }
         }
     }
+}
+
+/**
+ * Open Android's standard text sharesheet for a completed-game summary.
+ *
+ * @param state The completed game state being shared.
+ */
+internal fun Context.shareGameSummary(state: LiveGameState) {
+    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_SUBJECT, "UltiObserver Game Summary")
+        putExtra(Intent.EXTRA_TEXT, state.gameSummaryShareText())
+    }
+    startActivity(Intent.createChooser(sendIntent, "Share Game Summary"))
 }
 
 /**

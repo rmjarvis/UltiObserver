@@ -161,18 +161,23 @@ internal fun SetupScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            // Team names and colors.
-            SetupFieldBox(title = "Teams") {
+            // Team and tournament identity.
+            SetupFieldBox {
                 TeamEditor(
                     fieldLabel = "Team 1",
                     team = state.teamOne,
                     onTeamChange = { onStateChange(state.copy(teamOne = it)) },
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 TeamEditor(
                     fieldLabel = "Team 2",
                     team = state.teamTwo,
                     onTeamChange = { onStateChange(state.copy(teamTwo = it)) },
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                TournamentEditor(
+                    tournamentName = state.tournamentName,
+                    onTournamentNameChange = { onStateChange(state.copy(tournamentName = it)) },
                 )
             }
 
@@ -400,14 +405,12 @@ internal fun SetupScreen(
 }
 
 /**
- * Render a setup overview box with an understated field label.
+ * Render a setup overview box.
  *
- * @param title The small label shown above the field content.
  * @param content The composable body rendered inside the box.
  */
 @Composable
 private fun SetupFieldBox(
-    title: String,
     content: @Composable () -> Unit,
 ) {
     Surface(
@@ -427,11 +430,6 @@ private fun SetupFieldBox(
                 .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
             content()
         }
     }
@@ -517,6 +515,29 @@ private fun SetupSummaryRow(
             }
         }
     }
+}
+
+/**
+ * Render the optional tournament-name setup text field.
+ *
+ * @param tournamentName The current tournament name.
+ * @param onTournamentNameChange Callback receiving text updates.
+ */
+@Composable
+private fun TournamentEditor(
+    tournamentName: String,
+    onTournamentNameChange: (String) -> Unit,
+) {
+    OutlinedTextField(
+        value = tournamentName,
+        onValueChange = onTournamentNameChange,
+        label = { Text("Tournament name") },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("setup-tournament-name"),
+    )
 }
 
 /**

@@ -34,6 +34,12 @@ class TestGameOtherActions : GameDomainTestFixtures() {
         assertEquals("Undo Score Adjustment", state.undoEntry?.label)
         assertEquals(beforeScoreAdjustment, state.undoEntry?.previous)
 
+        // Reapplying the same score is still undo-backed, but should not create a correction log entry.
+        val eventLogBeforeNoopScoreAdjustment = state.eventLog
+        state = state.adjustScore(teamOneScore = 0, teamTwoScore = 4)
+        assertEquals(eventLogBeforeNoopScoreAdjustment, state.eventLog)
+        assertEquals("Score adjusted.", state.lastEvent)
+
         // Swap field ends and verify near-attacking team, pulling end, countdown label, and undo entry.
         state = standardLiveGameState(pullingTeam = VC, pullingFromEnd = FieldEnd.FAR)
         val countdownBeforeSwapEnds = state.countdown!!

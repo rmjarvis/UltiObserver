@@ -19,6 +19,7 @@ internal enum class SetupMode {
  * @param startDate The local date selected for the scheduled game start.
  * @param startTime The local clock time selected for the scheduled game start.
  * @param timeZone The time zone that gives the local start date/time its real instant.
+ * @param tournamentName Optional tournament name used in completed-game summaries.
  * @param rules The scoring, cap, halftime, and timeout rules selected for the game.
  * @param teamOne The setup identity for Team 1 before live field orientation is applied.
  * @param teamTwo The setup identity for Team 2 before live field orientation is applied.
@@ -34,6 +35,7 @@ data class GameSetupState(
     val startTime: LocalTime,
     @Serializable(with = ZoneIdAsStringSerializer::class)
     val timeZone: ZoneId,
+    val tournamentName: String = "",
     val rules: GameRules = GameRules(),
     val teamOne: TeamSetup = TeamSetup(name = "", color = TeamColorChoice.WHITE),
     val teamTwo: TeamSetup = TeamSetup(name = "", color = TeamColorChoice.BLUE),

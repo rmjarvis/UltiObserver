@@ -73,6 +73,7 @@ internal fun LiveGameScreen(
     var previouslyObservedPhase by remember { mutableStateOf(state.phase) }
     var suppressNextPhasePrompt by remember { mutableStateOf(false) }
     var suppressNextAutoLock by remember { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     /**
      * Show a transient action-info popup.
@@ -216,6 +217,7 @@ internal fun LiveGameScreen(
                     GameOverSummary(
                         state = state,
                         onShowEventLog = { showEventLogSheet = true },
+                        onShareSummary = { context.shareGameSummary(state) },
                         summaryActionText = "Undo End Game",
                         onSummaryAction = { undoWithoutPhasePrompt(state.undoLastAction()) },
                     )

@@ -502,9 +502,6 @@ internal class AppViewModel(
     fun restoreViewingArchivedGame() {
         val archived = viewingArchivedGame ?: return
         val index = archivedGames.indexOfFirst { it === archived }
-        if (index == -1) {
-            return
-        }
         restoreArchivedGame(index)
     }
 

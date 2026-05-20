@@ -222,6 +222,7 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         // Opening an archived row should expose the read-only summary and its persisted event log.
         composeRule.onNodeWithText(firstArchivedTitle).performClick()
         waitForText("Game Summary")
+        composeRule.onNodeWithText("Share").assertIsDisplayed()
         composeRule.onNodeWithText("Event Log").performClick()
         waitForText("Event Log")
         waitForText("No events logged yet.")
