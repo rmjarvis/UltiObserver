@@ -1,5 +1,27 @@
 import org.gradle.api.tasks.testing.Test
 import org.gradle.testing.jacoco.tasks.JacocoReport
+import java.util.Properties
+
+val releaseSigningPropertiesFile = rootProject.file("release-signing.properties")
+val releaseSigningProperties = Properties().apply {
+    if (releaseSigningPropertiesFile.isFile) {
+        releaseSigningPropertiesFile.inputStream().use { load(it) }
+    }
+}
+val releaseSigningPropertyNames = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
+val missingReleaseSigningProperties = releaseSigningPropertyNames.filter { name ->
+    releaseSigningPropertiesFile.isFile && releaseSigningProperties.getProperty(name).isNullOrBlank()
+}
+require(missingReleaseSigningProperties.isEmpty()) {
+    "Missing release signing properties in ${releaseSigningPropertiesFile.name}: " +
+        missingReleaseSigningProperties.joinToString(", ")
+}
+val hasReleaseSigningProperties = releaseSigningPropertiesFile.isFile
+
+fun releaseSigningProperty(name: String): String {
+    return releaseSigningProperties.getProperty(name)
+        ?: error("Missing release signing property: $name")
+}
 
 plugins {
     alias(libs.plugins.android.application)
@@ -32,6 +54,17 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (hasReleaseSigningProperties) {
+            create("localRelease") {
+                storeFile = rootProject.file(releaseSigningProperty("storeFile"))
+                storePassword = releaseSigningProperty("storePassword")
+                keyAlias = releaseSigningProperty("keyAlias")
+                keyPassword = releaseSigningProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             enableUnitTestCoverage = true
@@ -43,6 +76,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (hasReleaseSigningProperties) {
+                signingConfig = signingConfigs.getByName("localRelease")
+            }
         }
     }
     compileOptions {

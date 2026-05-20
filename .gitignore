@@ -1,6 +1,12 @@
 AGENTS.md
 agent-notes/
 local.properties
+release-signing.properties
+keystores/
+*.jks
+*.keystore
+*.p12
+*.pfx
 .gradle/
 .gradle-local/
 .kotlin/
