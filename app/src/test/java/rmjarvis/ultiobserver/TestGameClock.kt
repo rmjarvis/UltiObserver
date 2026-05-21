@@ -52,7 +52,7 @@ class TestGameClock : GameDomainTestFixtures() {
     fun clockAndCountdownDisplays() {
         val VC = TeamId.TEAM_ONE
 
-        // Verify simple model defaults and labels used by setup display surfaces.
+        // Verify simple model defaults and labels used by setup, settings, and timing display surfaces.
         assertEquals("Pink", TeamColorChoice.PINK.label)
         assertEquals(0xFFFF4FA3, TeamColorChoice.PINK.accentArgb)
         assertEquals(0xFF2F1022, TeamColorChoice.PINK.contentArgb)
@@ -71,8 +71,15 @@ class TestGameClock : GameDomainTestFixtures() {
         assertEquals(0, priorCardRecord.priorReds)
         assertEquals("Yellow", CardType.YELLOW.label)
         assertEquals("Tick", TimingAlertSound.TICK.label)
+        assertEquals("Sounds On", TimingAlertGlobalMode.SOUNDS_ON.label)
         assertEquals("N/A", displayPlayerNumber(UNKNOWN_PLAYER_NUMBER))
         assertEquals("#8", displayPlayerNumber("8"))
+        val defaultSetupState = GameSetupState(
+            startDate = LocalDate.of(2026, 1, 1),
+            startTime = LocalTime.of(10, 0),
+            timeZone = ZoneId.of("America/New_York"),
+        )
+        assertEquals(GameRules(), defaultSetupState.rules)
         val timeoutCountdownWithDefaultTarget = CountdownState(
             kind = CountdownKind.TIME_OUT,
             label = "Offense set in",
@@ -421,7 +428,10 @@ class TestGameClock : GameDomainTestFixtures() {
             startTime = LocalTime.of(10, 0),
             rules = GameRules(gameTo = 15, halfCapMinutes = 45, softCapMinutes = 90, hardCapMinutes = 100),
         )
-        assertEquals(CapStatus("Half cap", Duration.ofMinutes(30)), state.computeNextCapStatus(timestampAfterStart(state, 15)))
+        val halfCapStatus = state.computeNextCapStatus(timestampAfterStart(state, 15))!!
+        assertEquals("Half cap", halfCapStatus.label)
+        assertEquals(Duration.ofMinutes(30), halfCapStatus.remaining)
+        assertEquals(CapStatus("Half cap", Duration.ofMinutes(30)), halfCapStatus)
         assertEquals(
             CapStatus("Soft cap", Duration.ofMinutes(30)),
             state.copy(halfCapApplied = true).computeNextCapStatus(timestampAfterStart(state, 60)),
@@ -580,7 +590,7 @@ class TestGameClock : GameDomainTestFixtures() {
         )
         assertEquals(TimingCueId.HALFTIME_TWO_MINUTES, shortHalftimeCountdown.nextTimingCue(1_000L)?.id)
 
-        // Verify manual countdown adjustments move only the target time and format positive/negative changes.
+        // Verify manual countdown adjustments move only the target time and keep normal remaining-time math running.
         state = standardLiveGameState()
         val originalCountdown = state.countdown!!
         state = state.addTimeToCountdown(65)
@@ -591,10 +601,38 @@ class TestGameClock : GameDomainTestFixtures() {
         state = state.addTimeToCountdown(-5)
         assertEquals(originalCountdown.targetEpoch + 60_000L, state.countdown?.targetEpoch)
         assertEquals(originalCountdown.durationSeconds, state.countdown?.durationSeconds)
+        assertEquals(Duration.ofMillis(state.countdown!!.targetEpoch - 10_000L), state.countdown!!.remainingDuration(10_000L))
         assertEquals("Adjusted timer by -0:05.", state.lastEvent)
+
+        // Verify pausing freezes display time, suppresses cues/transitions, and resumes from the same countdown value.
+        // Direct duplicate pause/resume calls are not normal UI paths, but can happen if callbacks race recomposition.
+        state = state.toggleCountdownPaused(10_000L)
+        val pausedCountdown = state.countdown!!
+        assertTrue(pausedCountdown.isPaused())
+        assertEquals(10_000L, pausedCountdown.pausedAtEpoch)
+        assertEquals(pausedCountdown, pausedCountdown.pause(20_000L))
+        assertEquals(originalCountdown.targetEpoch + 60_000L, pausedCountdown.targetEpoch)
+        assertEquals(Duration.ofMillis(pausedCountdown.targetEpoch - 10_000L), pausedCountdown.remainingDuration(30_000L))
+        assertEquals(Duration.ofMillis(pausedCountdown.targetEpoch - 10_000L), state.activeCountdownDisplay(30_000L)?.remaining)
+        assertTrue(state.activeCountdownDisplay(30_000L)?.isPaused == true)
+        assertNull(pausedCountdown.nextTimingCue(30_000L))
+        assertTrue(state.dueTimingAlerts(pausedCountdown.targetEpoch).isEmpty())
+        assertEquals(state, state.applyExpiredCountdownTransitions(pausedCountdown.targetEpoch + 1_000L))
+
+        state = state.addTimeToCountdown(5)
+        assertEquals(pausedCountdown.targetEpoch + 5_000L, state.countdown?.targetEpoch)
+        assertEquals(10_000L, state.countdown?.pausedAtEpoch)
+
+        state = state.toggleCountdownPaused(25_000L)
+        assertFalse(state.countdown!!.isPaused())
+        assertNull(state.countdown?.pausedAtEpoch)
+        assertEquals(pausedCountdown.targetEpoch + 20_000L, state.countdown?.targetEpoch)
+        assertEquals(state.countdown, state.countdown?.resume(30_000L))
+        assertEquals("Timer resumed.", state.lastEvent)
 
         val livePointWithoutCountdown = state.beginLivePoint()
         assertEquals(livePointWithoutCountdown, livePointWithoutCountdown.addTimeToCountdown(5))
+        assertEquals(livePointWithoutCountdown, livePointWithoutCountdown.toggleCountdownPaused(5_000L))
 
         // Countdown target swapping is a no-op for non-between-points countdowns and fails on malformed ones.
         val inPointTimeoutCountdown = livePointWithoutCountdown.assessTimeout(VC, 600_000L).state.countdown!!
@@ -763,6 +801,16 @@ class TestGameClock : GameDomainTestFixtures() {
         assertTrue(TimingCueId.TIMEOUT_OFFENSE_FREEZE_DEFENSE_TWENTY in dueAlertIds)
         assertTrue(TimingCueId.HALF_CAP in dueAlertIds)
 
+        // Pin the cue payload used by the alert player and its deduplication key.
+        val dueCountdownCue = stateWithDueCountdown.countdown!!.dueTimingCue(halfCapTime)!!
+        assertEquals(TimingCueId.TIMEOUT_OFFENSE_FREEZE_DEFENSE_TWENTY.label, dueCountdownCue.message)
+        assertEquals("TIMEOUT_OFFENSE_FREEZE_DEFENSE_TWENTY:$halfCapTime", dueCountdownCue.alertKey())
+
+        // Exercise alert merging when only zero, only cap, or only countdown cues are available.
+        assertTrue(state.copy(halfCapApplied = true).dueTimingAlerts(halfCapTime).isEmpty())
+        assertEquals(listOf(TimingCueId.HALF_CAP), state.copy(countdown = null).dueTimingAlerts(halfCapTime).map { it.id })
+        assertEquals(TimingCueId.HALF_CAP, state.copy(countdown = null).nextTimingAlert(halfCapTime - 10_000L)?.id)
+
         val countdownCueBeforeCap = state.copy(
             countdown = CountdownState(
                 kind = CountdownKind.TIME_OUT,
@@ -774,6 +822,19 @@ class TestGameClock : GameDomainTestFixtures() {
         assertEquals(
             TimingCueId.TIMEOUT_CLEAR_FIELD,
             countdownCueBeforeCap.nextTimingAlert(halfCapTime - 10_000L)?.id,
+        )
+        // If cap cues are not relevant, the next countdown cue is still reported.
+        assertEquals(
+            TimingCueId.TIMEOUT_CLEAR_FIELD,
+            countdownCueBeforeCap.copy(halfCapApplied = true).nextTimingAlert(halfCapTime - 10_000L)?.id,
+        )
+        assertEquals(
+            TimingCueId.TIMEOUT_CLEAR_FIELD,
+            countdownCueBeforeCap.copy(
+                halfCapApplied = true,
+                softCapApplied = true,
+                hardCapApplied = true,
+            ).nextTimingAlert(halfCapTime - 10_000L)?.id,
         )
 
         val capCueBeforeCountdown = state.copy(
@@ -815,6 +876,11 @@ class TestGameClock : GameDomainTestFixtures() {
 
         state = state.copy(hardCapApplied = true)
         assertNull(state.dueCapTimingCue(state.startEpoch + 105 * 60_000L))
+        state = state.copy(halfCapApplied = false, softCapApplied = false, hardCapApplied = false)
+
+        // Future cap cue lookup skips past elapsed caps and returns null once all scheduled caps are in the past.
+        assertEquals(TimingCueId.SOFT_CAP, state.nextCapTimingCue(state.startEpoch + 60 * 60_000L)?.id)
+        assertNull(state.nextCapTimingCue(state.startEpoch + 106 * 60_000L))
     }
 }
 

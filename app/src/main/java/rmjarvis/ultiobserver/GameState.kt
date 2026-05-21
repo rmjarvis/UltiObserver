@@ -1,3 +1,5 @@
+@file:OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
+
 package rmjarvis.ultiobserver
 
 import java.time.Duration
@@ -7,6 +9,7 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
 import kotlin.math.abs
+import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -249,6 +252,7 @@ internal fun GameState.winnerFirstTeams(): List<TeamLiveState> {
  * @param durationSeconds The original countdown length.
  * @param targetEpoch The epoch millis when the countdown reaches zero.
  * @param betweenPointsTarget The offense-ready or pull target for between-points countdowns.
+ * @param pausedAtEpoch The epoch millis when the countdown was paused, or null while running.
  */
 @Serializable
 data class CountdownState(
@@ -257,6 +261,8 @@ data class CountdownState(
     val durationSeconds: Int,       // Original countdown length.
     val targetEpoch: Long,          // Clock time when the countdown reaches zero.
     val betweenPointsTarget: BetweenPointsCountdownTarget? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val pausedAtEpoch: Long? = null,
 ) {
     /// Swap the countdown's offensive/defensive between-points target when the field responsibility flips.
     fun swapOD(): CountdownState {
@@ -274,6 +280,51 @@ data class CountdownState(
         )
     }
 
+    /// Return whether this countdown is currently paused.
+    fun isPaused(): Boolean {
+        return pausedAtEpoch != null
+    }
+
+    /**
+     * Return the remaining countdown duration, freezing time at the pause point when paused.
+     *
+     * @param now The current epoch millis used for running countdowns.
+     */
+    fun remainingDuration(now: Long): Duration {
+        val effectiveNow = pausedAtEpoch ?: now
+        return Duration.ofMillis((targetEpoch - effectiveNow).coerceAtLeast(0L))
+    }
+
+    /**
+     * Return a copy paused at the given time.
+     *
+     * @param now The epoch millis at which the observer paused the countdown.
+     */
+    fun pause(now: Long): CountdownState {
+        return if (pausedAtEpoch == null) {
+            copy(pausedAtEpoch = now)
+        } else {
+            // Duplicate UI callbacks can race with recomposition; keep the original pause point.
+            this
+        }
+    }
+
+    /**
+     * Return a copy resumed at the given time, preserving the remaining countdown duration.
+     *
+     * @param now The epoch millis at which the observer resumed the countdown.
+     */
+    fun resume(now: Long): CountdownState {
+        val pausedAt = pausedAtEpoch
+        if (pausedAt == null) {
+            // Duplicate UI callbacks can race with recomposition; keep the already-running countdown unchanged.
+            return this
+        }
+        return copy(
+            targetEpoch = targetEpoch + (now - pausedAt),
+            pausedAtEpoch = null,
+        )
+    }
 }
 /// Model behavior attached to an active countdown.
 @Serializable
@@ -426,6 +477,24 @@ data class GameState(
             countdown = countdown.copy(targetEpoch = countdown.targetEpoch + seconds * 1000L),
             lastEvent = "Adjusted timer by $sign${absoluteSeconds / 60}:" +
                 "${(absoluteSeconds % 60).toString().padStart(2, '0')}.",
+        )
+    }
+
+    /**
+     * Pause or resume the active countdown while preserving the displayed remaining time.
+     *
+     * @param now The epoch millis when the observer toggled the countdown.
+     */
+    fun toggleCountdownPaused(now: Long): GameState {
+        val countdown = this.countdown ?: return this
+        val updatedCountdown = if (countdown.isPaused()) {
+            countdown.resume(now)
+        } else {
+            countdown.pause(now)
+        }
+        return copy(
+            countdown = updatedCountdown,
+            lastEvent = if (updatedCountdown.isPaused()) "Timer paused." else "Timer resumed.",
         )
     }
 

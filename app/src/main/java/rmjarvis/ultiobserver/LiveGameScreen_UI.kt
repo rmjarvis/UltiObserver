@@ -234,6 +234,7 @@ internal fun LiveGameScreen(
                     countdown = activeCountdown,
                     enabled = !locked,
                     onAdjust = { seconds -> onStateChange(state.addTimeToCountdown(seconds)) },
+                    onTogglePaused = { onStateChange(state.toggleCountdownPaused(now)) },
                     expiredPullActions = if (hasExpiredPullActions && !locked) {
                         ExpiredPullActions(
                             onTimeViolation = { showTimeViolationTeamPrompt = true },

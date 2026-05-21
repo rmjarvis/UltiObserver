@@ -401,6 +401,9 @@ fun GameState.continueLivePoint(): GameState {
  */
 fun GameState.applyExpiredCountdownTransitions(now: Long): GameState {
     val countdown = this.countdown ?: return this
+    if (countdown.isPaused()) {
+        return this
+    }
     if (now < countdown.targetEpoch) {
         return this
     }

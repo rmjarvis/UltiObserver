@@ -1,5 +1,6 @@
 package rmjarvis.ultiobserver
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.Canvas
@@ -7,7 +8,9 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,11 +20,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.input.pointer.pointerInput
@@ -37,6 +45,8 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -598,6 +608,7 @@ private fun PullDirectionLabel() {
  * @param countdown The visible countdown state, or null when no countdown is active.
  * @param enabled Whether countdown actions should be enabled.
  * @param onAdjust Callback receiving signed second adjustments from the quick buttons.
+ * @param onTogglePaused Callback for pausing or resuming the countdown.
  * @param expiredPullActions Actions to show after undoing an automatic start point.
  * @param misconductCountdownAction Action to show before starting a live-point misconduct countdown.
  * @param height Reserved row height so the field layout does not shift when content changes.
@@ -607,6 +618,7 @@ internal fun CountdownLine(
     countdown: ActiveCountdownDisplay?,
     enabled: Boolean,
     onAdjust: (Int) -> Unit,
+    onTogglePaused: () -> Unit,
     expiredPullActions: ExpiredPullActions? = null,
     misconductCountdownAction: MisconductCountdownAction? = null,
     height: Dp,
@@ -669,10 +681,18 @@ internal fun CountdownLine(
             } else {
                 Text(
                     text = "${displayCountdown.label} ${formatDuration(displayCountdown.remaining)}",
+                    modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.titleLarge.copy(fontSize = titleFontSize),
                     fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    CountdownPauseToggleButton(
+                        isPaused = displayCountdown.isPaused,
+                        enabled = enabled && visible,
+                        onClick = onTogglePaused,
+                    )
                     SmallActionButton(label = "-5", enabled = enabled && visible) {
                         onAdjust(-5)
                     }
@@ -685,6 +705,8 @@ internal fun CountdownLine(
         Text(
             text = if (countdown == null && (expiredPullActions != null || misconductCountdownAction != null)) {
                 ""
+            } else if (displayCountdown.isPaused) {
+                "Paused"
             } else {
                 displayCountdown.nextCue?.let { cue ->
                     "Next cue at ${formatDuration(cue.countdownTime)} - ${cue.message}"
@@ -695,6 +717,71 @@ internal fun CountdownLine(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+    }
+}
+
+/**
+ * Render the pause/resume countdown control with classic media symbols.
+ *
+ * @param isPaused Whether the button should show the resume/play symbol.
+ * @param enabled Whether the button can be pressed.
+ * @param onClick Callback invoked when the observer toggles pause state.
+ */
+@Composable
+private fun CountdownPauseToggleButton(
+    isPaused: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val contentColor = if (enabled) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+    }
+    val description = if (isPaused) "Resume countdown" else "Pause countdown"
+    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+        OutlinedButton(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = Modifier
+                .defaultMinSize(minWidth = 34.dp, minHeight = 34.dp)
+                .testTag(if (isPaused) "live-resume-countdown" else "live-pause-countdown")
+                .semantics { contentDescription = description },
+            colors = ButtonDefaults.outlinedButtonColors(
+                containerColor = Color.Transparent,
+                contentColor = contentColor,
+            ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
+        ) {
+            Canvas(modifier = Modifier.size(14.dp)) {
+                if (isPaused) {
+                    val path = Path().apply {
+                        moveTo(size.width * 0.25f, size.height * 0.15f)
+                        lineTo(size.width * 0.25f, size.height * 0.85f)
+                        lineTo(size.width * 0.82f, size.height * 0.5f)
+                        close()
+                    }
+                    drawPath(path, contentColor)
+                } else {
+                    val barWidth = size.width * 0.24f
+                    val gap = size.width * 0.18f
+                    val barHeight = size.height * 0.7f
+                    val top = size.height * 0.15f
+                    val left = (size.width - 2 * barWidth - gap) / 2f
+                    drawRect(
+                        color = contentColor,
+                        topLeft = Offset(left, top),
+                        size = Size(barWidth, barHeight),
+                    )
+                    drawRect(
+                        color = contentColor,
+                        topLeft = Offset(left + barWidth + gap, top),
+                        size = Size(barWidth, barHeight),
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -729,11 +816,13 @@ private fun TeamLiveState.pullViolationCount(): Int {
  * @param label The short countdown label.
  * @param remaining The clamped time remaining.
  * @param nextCue The next cue inside the active countdown, if one is available.
+ * @param isPaused Whether the countdown is currently paused.
  */
 internal data class ActiveCountdownDisplay(
     val label: String,
     val remaining: Duration,
     val nextCue: TimingCueDisplay?,
+    val isPaused: Boolean = false,
 )
 
 /**
@@ -743,13 +832,14 @@ internal data class ActiveCountdownDisplay(
  */
 internal fun GameState.activeCountdownDisplay(now: Long): ActiveCountdownDisplay? {
     val countdown = countdown ?: return null
+    val remaining = countdown.remainingDuration(now)
     return if (countdown.kind == CountdownKind.HALFTIME) {
-        val halftimeRemaining = countdown.targetEpoch - now
-        if (halftimeRemaining > 0L) {
+        if (!remaining.isZero) {
             ActiveCountdownDisplay(
                 label = countdown.label,
-                remaining = Duration.ofMillis(halftimeRemaining),
+                remaining = remaining,
                 nextCue = countdown.nextTimingCue(now),
+                isPaused = countdown.isPaused(),
             )
         } else {
             // Once halftime expires, show the follow-on between-points countdown immediately.
@@ -759,13 +849,15 @@ internal fun GameState.activeCountdownDisplay(now: Long): ActiveCountdownDisplay
                 label = followOn.first,
                 remaining = followOn.second,
                 nextCue = followOnCountdown.nextTimingCue(now),
+                isPaused = countdown.isPaused(),
             )
         }
     } else {
         ActiveCountdownDisplay(
             label = countdown.label,
-            remaining = Duration.ofMillis((countdown.targetEpoch - now).coerceAtLeast(0L)),
+            remaining = remaining,
             nextCue = countdown.nextTimingCue(now),
+            isPaused = countdown.isPaused(),
         )
     }
 }

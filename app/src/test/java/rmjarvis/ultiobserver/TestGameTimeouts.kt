@@ -566,5 +566,19 @@ class TestGameTimeouts : GameDomainTestFixtures() {
         assertEquals("Timeouts adjusted.", state.lastEvent)
         assertEquals("Undo Timeout Adjustment", state.undoEntry?.label)
         assertEquals(beforeTimeoutAdjustment, state.undoEntry?.previous)
+
+        // If only one team's timeout count changes, only that team's correction is logged.
+        val beforeSingleTeamTimeoutAdjustment = state
+        state = state.adjustTimeouts(
+            teamOneTimeoutsUsed = state.teamOne.timeoutsUsedThisHalf,
+            teamTwoTimeoutsUsed = 0,
+        )
+        assertEquals(4, state.teamOne.timeoutsUsedThisHalf)
+        assertEquals(0, state.teamTwo.timeoutsUsedThisHalf)
+        val timeoutAdjustmentEntry = state.eventLog.last()
+        assertEquals(EventLogType.TIMEOUT, timeoutAdjustmentEntry.type)
+        assertEquals(TeamId.TEAM_TWO, timeoutAdjustmentEntry.team)
+        assertEquals(-1, timeoutAdjustmentEntry.delta)
+        assertEquals(beforeSingleTeamTimeoutAdjustment, state.undoEntry?.previous)
     }
 }

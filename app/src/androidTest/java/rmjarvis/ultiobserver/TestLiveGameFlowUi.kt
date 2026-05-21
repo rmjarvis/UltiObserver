@@ -489,6 +489,16 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         startLiveGameProgrammatically()
         val checkAfter = System.currentTimeMillis() + 1_200L
 
+        // The visible countdown can be paused and resumed before exercising expiration behavior.
+        composeRule.onNodeWithTag("live-pause-countdown").performClick()
+        waitForText("Paused")
+        composeRule.onNodeWithTag("live-resume-countdown").assertIsDisplayed()
+        assertTrue(composeRule.activity.appViewModel.liveState!!.countdown!!.isPaused())
+        composeRule.onNodeWithTag("live-resume-countdown").performClick()
+        composeRule.onAllNodesWithText("Paused").assertCountEquals(0)
+        composeRule.onNodeWithTag("live-pause-countdown").assertIsDisplayed()
+        assertTrue(!composeRule.activity.appViewModel.liveState!!.countdown!!.isPaused())
+
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.appViewModel.updateAutomaticallyAdvanceCountdowns(false)
             val current = activity.appViewModel.liveState!!

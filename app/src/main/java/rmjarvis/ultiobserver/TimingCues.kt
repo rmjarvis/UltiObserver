@@ -117,6 +117,9 @@ internal suspend fun waitForTimingAlertDeliveryWindow(
  * @param now The current epoch millis used to compute the next cue and its time remaining.
  */
 internal fun CountdownState.nextTimingCue(now: Long): TimingCueDisplay? {
+    if (isPaused()) {
+        return null
+    }
     return timingCues()
         .firstNotNullOfOrNull { cue ->
             val cueEpoch = targetEpoch - cue.remainingSeconds * 1000L
@@ -140,6 +143,9 @@ internal fun CountdownState.nextTimingCue(now: Long): TimingCueDisplay? {
  * @param now The current epoch millis used to compare cue times against the delivery window.
  */
 internal fun CountdownState.dueTimingCue(now: Long): TimingCueDisplay? {
+    if (isPaused()) {
+        return null
+    }
     return timingCues()
         .firstNotNullOfOrNull { cue ->
             val cueEpoch = targetEpoch - cue.remainingSeconds * 1000L
