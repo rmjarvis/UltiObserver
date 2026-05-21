@@ -2,6 +2,7 @@ AGENTS.md
 agent-notes/
 local.properties
 release-signing.properties
+install-*
 keystores/
 *.jks
 *.keystore
