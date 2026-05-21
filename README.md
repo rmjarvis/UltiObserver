@@ -109,6 +109,8 @@ depending on your phone and Google account backup settings.
 If you share a game summary, that uses Android's normal share sheet, so the data
 goes only to the app or person you choose.
 
+For more detail, see the [UltiObserver privacy policy](PRIVACY.md).
+
 Payments
 --------
 

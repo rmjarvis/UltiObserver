@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 
 private const val SOURCE_CODE_URL = "https://github.com/rmjarvis/UltiObserver"
+private const val PRIVACY_POLICY_URL = "https://github.com/rmjarvis/UltiObserver/blob/main/PRIVACY.md"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,6 +82,21 @@ internal fun AboutScreen(
             )
             Text(
                 text = "If you notice any bugs or have requests for features to add, please go to the above GitHub page and make an issue.",
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            HorizontalDivider()
+            Text(
+                text = "Privacy policy",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = PRIVACY_POLICY_URL,
+                modifier = Modifier.clickable(
+                    onClick = {
+                        uriHandler.openUri(PRIVACY_POLICY_URL)
+                    },
+                ),
+                color = MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.bodyLarge,
             )
         }

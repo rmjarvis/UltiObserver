@@ -126,29 +126,36 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("about-screen").assertIsDisplayed()
         composeRule.onNodeWithText("Version ${BuildConfig.VERSION_NAME}").assertIsDisplayed()
         val sourceCodeUrl = "https://github.com/rmjarvis/UltiObserver"
+        val privacyPolicyUrl = "https://github.com/rmjarvis/UltiObserver/blob/main/PRIVACY.md"
         composeRule.onNodeWithText(sourceCodeUrl).assertIsDisplayed()
+        composeRule.onNodeWithText(privacyPolicyUrl).assertIsDisplayed()
 
-        // The app should hand the source-code link to Android without actually leaving this test.
-        val instrumentation = InstrumentationRegistry.getInstrumentation()
-        var openedIntent: Intent? = null
-        val sourceCodeMonitor = object : Instrumentation.ActivityMonitor() {
-            override fun onStartActivity(intent: Intent): Instrumentation.ActivityResult? {
-                if (intent.action == Intent.ACTION_VIEW && intent.dataString == sourceCodeUrl) {
-                    openedIntent = intent
-                    return Instrumentation.ActivityResult(Activity.RESULT_OK, null)
+        // The app should hand external links to Android without actually leaving this test.
+        fun assertOpensUrl(url: String) {
+            val instrumentation = InstrumentationRegistry.getInstrumentation()
+            var openedIntent: Intent? = null
+            val monitor = object : Instrumentation.ActivityMonitor() {
+                override fun onStartActivity(intent: Intent): Instrumentation.ActivityResult? {
+                    if (intent.action == Intent.ACTION_VIEW && intent.dataString == url) {
+                        openedIntent = intent
+                        return Instrumentation.ActivityResult(Activity.RESULT_OK, null)
+                    }
+                    return null
                 }
-                return null
             }
+            instrumentation.addMonitor(monitor)
+            try {
+                composeRule.onNodeWithText(url).performClick()
+                composeRule.waitUntil(timeoutMillis = 5_000) { openedIntent != null }
+            } finally {
+                instrumentation.removeMonitor(monitor)
+            }
+            assertEquals(Intent.ACTION_VIEW, openedIntent?.action)
+            assertEquals(url, openedIntent?.dataString)
         }
-        instrumentation.addMonitor(sourceCodeMonitor)
-        try {
-            composeRule.onNodeWithText(sourceCodeUrl).performClick()
-            composeRule.waitUntil(timeoutMillis = 5_000) { openedIntent != null }
-        } finally {
-            instrumentation.removeMonitor(sourceCodeMonitor)
-        }
-        assertEquals(Intent.ACTION_VIEW, openedIntent?.action)
-        assertEquals(sourceCodeUrl, openedIntent?.dataString)
+
+        assertOpensUrl(sourceCodeUrl)
+        assertOpensUrl(privacyPolicyUrl)
         pressAppBack()
         waitForText("Start New Game")
 
