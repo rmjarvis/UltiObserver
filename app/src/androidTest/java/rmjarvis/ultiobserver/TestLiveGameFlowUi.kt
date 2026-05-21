@@ -208,6 +208,8 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         assertNoGameOverDialog()
         composeRule.onNodeWithText("$animal 5").assertIsDisplayed()
         composeRule.onNodeWithText("Back").performClick()
+        waitForText("Archived Games")
+        composeRule.onNodeWithText("Back").performClick()
         waitForText("Start New Game")
     }
 

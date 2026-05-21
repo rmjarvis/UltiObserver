@@ -228,7 +228,7 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         waitForText("No events logged yet.")
         pressBack()
         composeRule.onNodeWithText("Back").performClick()
-        openArchivedGamesScreen()
+        waitForText("Archived Games")
         waitForText(firstArchivedTitle)
         waitForText(secondArchivedTitle)
 
