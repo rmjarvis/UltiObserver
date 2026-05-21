@@ -19,6 +19,19 @@ probably warn you that the app is from an unknown source, since it did not come
 through the Play Store. You will need to allow installation from your browser or
 file manager to continue.
 
+Screenshots
+-----------
+
+<p>
+  <img src="screen_shots/home-current-game.png" alt="Home screen showing a current game in progress" width="180">
+  <img src="screen_shots/game-setup.png" alt="Game setup screen with team names, colors, start time, pull direction, and rules" width="180">
+  <img src="screen_shots/pull-timing-cue.png" alt="Live game screen showing pull timing cues and field orientation" width="180">
+</p>
+<p>
+  <img src="screen_shots/timeout-warning.png" alt="Timeout message showing remaining timeouts for the half" width="180">
+  <img src="screen_shots/game-summary.png" alt="Game summary screen after the game is over" width="180">
+</p>
+
 Current features
 ----------------
 
