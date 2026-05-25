@@ -245,6 +245,42 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertEquals(viewModel.archivedGames.single().state, viewModel.currentLiveState)
     }
 
+    /// Verify a restored completed archive can undo the end-game action without restoring older undo history.
+    @Test
+    fun completedArchiveRestoreKeepsOnlyEndGameUndo() {
+        val viewModel = AppViewModel(NoOpAppStateStorage)
+        viewModel.startNewGame()
+        viewModel.finishSetup()
+
+        val initialLiveState = viewModel.liveState!!
+        val beforeEndGame = initialLiveState.copy(
+            undoEntry = UndoEntry("Undo Start Point", initialLiveState),
+        )
+        val completedGame = beforeEndGame.copy(
+            phase = GamePhase.GAME_OVER,
+            undoEntry = UndoEntry("Undo End Game", beforeEndGame),
+            redoEntry = beforeEndGame,
+        )
+        viewModel.updateLiveGame(completedGame)
+        viewModel.archiveCompletedGame()
+
+        val archivedState = viewModel.archivedGames.single().state
+        val prunedBeforeEndGame = beforeEndGame.pruneUndoHistory()
+        assertEquals("Undo End Game", archivedState.undoEntry?.label)
+        assertEquals(prunedBeforeEndGame, archivedState.undoEntry!!.previous)
+        assertNull(archivedState.redoEntry)
+
+        viewModel.openArchivedGame(0)
+        viewModel.restoreViewingArchivedGame()
+        val restoredGame = viewModel.liveState!!
+        val restoredUndo = restoredGame.undoLastAction()
+
+        assertEquals(GamePhase.GAME_OVER, restoredGame.phase)
+        assertEquals("Undo End Game", restoredGame.undoEntry?.label)
+        assertEquals(prunedBeforeEndGame, restoredUndo.copy(redoEntry = null))
+        assertNotNull(restoredUndo.redoEntry)
+    }
+
     /// Verify archived-game restore paths handle missing selections and restoration with no current game.
     @Test
     fun archivedGameRestoreHandlesMissingSelectionAndEmptyCurrentGame() {
@@ -611,7 +647,8 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertEquals(GamePhase.GAME_OVER, viewModel.archivedGames.single().state.phase)
         assertNull(viewModel.archivedGames.single().restorableState)
         assertNull(viewModel.archivedGames.single().state.countdown)
-        assertNull(viewModel.archivedGames.single().state.undoEntry)
+        assertEquals("Undo End Game", viewModel.archivedGames.single().state.undoEntry?.label)
+        assertEquals(beforeUndoAction.pruneUndoHistory(), viewModel.archivedGames.single().state.undoEntry!!.previous)
         assertNull(viewModel.archivedGames.single().state.redoEntry)
     }
 
@@ -885,13 +922,17 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertFalse(File(storeDir, "settings.json").exists())
         assertTrue(File(File(storeDir, "archived_games"), "00000.json").exists())
 
-        // Restore from disk and verify the archived game keeps only summary-relevant state.
+        // Restore from disk and verify the archived game keeps summary state plus the end-game undo.
         val restored = AppViewModel(FileAppStateStorage(storeDir))
         assertEquals(AppScreen.HOME, restored.screen)
         assertNull(restored.liveState)
         assertEquals(1, restored.archivedGames.size)
         assertNull(restored.archivedGames.single().state.countdown)
-        assertNull(restored.archivedGames.single().state.undoEntry)
+        assertEquals("Undo End Game", restored.archivedGames.single().state.undoEntry?.label)
+        assertEquals(
+            beforeEndGame.pruneUndoHistory(),
+            restored.archivedGames.single().state.undoEntry!!.previous,
+        )
         assertNull(restored.archivedGames.single().state.redoEntry)
         assertEquals(GamePhase.GAME_OVER, restored.archivedGames.single().state.phase)
         assertEquals(completedGame.eventLog, restored.archivedGames.single().state.eventLog)

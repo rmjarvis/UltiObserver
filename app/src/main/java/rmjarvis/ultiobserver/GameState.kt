@@ -407,14 +407,22 @@ data class GameState(
     }
 
     /**
-     * Drop undo/redo state, optionally dropping live-only countdown state for archive summaries.
+     * Drop undo/redo state, optionally keeping the immediate end-game undo for archived summaries.
      *
      * @param clearCountdown Whether to clear an active countdown from the returned state.
      */
     fun pruneUndoHistory(clearCountdown: Boolean = true): GameState {
+        val prunedUndoEntry = undoEntry
+            ?.takeIf { it.label == "Undo End Game" }
+            ?.let { entry ->
+                UndoEntry(
+                    label = entry.label,
+                    previous = entry.previous.pruneUndoHistory(clearCountdown = clearCountdown),
+                )
+            }
         return copy(
             countdown = if (clearCountdown) null else countdown,
-            undoEntry = null,
+            undoEntry = prunedUndoEntry,
             redoEntry = null,
         )
     }
