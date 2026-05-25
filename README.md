@@ -14,10 +14,21 @@ For now, UltiObserver is available as an Android APK from the
 Eventually I plan to put it on the Google Play Store as well, but the APK is the
 first way I am making it available for testing.
 
-To install the APK, download it on your Android device and open it. Android will
-probably warn you that the app is from an unknown source, since it did not come
-through the Play Store. You will need to allow installation from your browser or
-file manager to continue.
+To install the APK, download it on your Android device and open it. Make sure
+you download the `.apk` file from the release, not one of GitHub's "Source code"
+downloads. Android will probably warn you that the app is from an unknown
+source, since it did not come through the Play Store.
+
+If Android blocks the install, this usually means the app you used to download
+or open the APK is not allowed to install unknown apps yet. When Android shows
+that message, tap Settings, enable "Allow from this source" for your browser,
+file manager, or GitHub app, then go back and tap Install again. You can turn
+that permission back off after UltiObserver is installed.
+
+If Play Protect says the app is harmful, or if Android blocks the install
+without offering an install-anyway option, do not bypass the warning. Please
+open an issue or contact me with the exact message and your phone model so I can
+help figure out what happened.
 
 Screenshots
 -----------
