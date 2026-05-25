@@ -73,7 +73,6 @@ internal fun LiveGameScreen(
     var previouslyObservedPhase by remember { mutableStateOf(state.phase) }
     var suppressNextPhasePrompt by remember { mutableStateOf(false) }
     var suppressNextAutoLock by remember { mutableStateOf(false) }
-    val context = androidx.compose.ui.platform.LocalContext.current
 
     /**
      * Show a transient action-info popup.
@@ -176,6 +175,18 @@ internal fun LiveGameScreen(
         previouslyObservedPhase = state.phase
     }
 
+    if (state.phase == GamePhase.GAME_OVER) {
+        GameOverSummaryScreen(
+            state = state,
+            summaryActionText = "Undo End Game",
+            onSummaryAction = { undoWithoutPhasePrompt(state.undoLastAction()) },
+            onBack = onBackHome,
+            gameOverPrompt = activeGamePrompt,
+            onDismissGameOverPrompt = { activeGamePrompt = null },
+        )
+        return
+    }
+
     // Compose the major elements of the live game screen.
     Scaffold(
         topBar = {
@@ -187,7 +198,7 @@ internal fun LiveGameScreen(
                     }
                 },
                 actions = {
-                    if (!locked && state.phase != GamePhase.GAME_OVER) {
+                    if (!locked) {
                         TextButton(
                             onClick = { locked = true },
                             modifier = Modifier.testTag("live-top-lock"),
@@ -205,23 +216,12 @@ internal fun LiveGameScreen(
                 .padding(innerPadding),
         ) {
             val layoutMetrics = liveLayoutMetrics(maxHeight)
-
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(layoutMetrics.pagePadding),
                 verticalArrangement = Arrangement.spacedBy(layoutMetrics.sectionSpacing),
             ) {
-                // If the game is over, replace the live controls with the summary screen.
-                if (state.phase == GamePhase.GAME_OVER) {
-                    GameOverSummary(
-                        state = state,
-                        onShowEventLog = { showEventLogSheet = true },
-                        onShareSummary = { context.shareGameSummary(state) },
-                        summaryActionText = "Undo End Game",
-                        onSummaryAction = { undoWithoutPhasePrompt(state.undoLastAction()) },
-                    )
-                } else {
                 // Show the current clock and next relevant cap.
                 StatusLine(
                     currentTime = currentClockTime,
@@ -409,7 +409,6 @@ internal fun LiveGameScreen(
                     onUndo = { undoWithoutPhasePrompt(it) },
                     onRedo = onStateChange,
                 )
-                }
             }
         }
     }

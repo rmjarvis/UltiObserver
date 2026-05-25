@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -35,18 +36,24 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 /**
- * Render an archived game as a read-only summary with archive-level actions.
+ * Render a completed game as a read-only summary screen.
  *
- * @param state The archived game state to summarize.
- * @param onRestoreGame Callback restoring this archived game as the current game.
- * @param onBackHome Callback returning to Home.
+ * @param state The completed game state to summarize.
+ * @param summaryActionText Fixed bottom action label, such as Undo End Game or Restore Game.
+ * @param onSummaryAction Callback invoked by the fixed bottom action.
+ * @param onBack Callback returning to the previous screen.
+ * @param gameOverPrompt Optional prompt shown when a live game has just ended.
+ * @param onDismissGameOverPrompt Callback dismissing the optional game-over prompt.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun ArchivedGameSummaryScreen(
+internal fun GameOverSummaryScreen(
     state: GameState,
-    onRestoreGame: () -> Unit,
-    onBackHome: () -> Unit,
+    summaryActionText: String,
+    onSummaryAction: () -> Unit,
+    onBack: () -> Unit,
+    gameOverPrompt: GamePrompt?,
+    onDismissGameOverPrompt: () -> Unit,
 ) {
     var showEventLogSheet by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -56,7 +63,7 @@ internal fun ArchivedGameSummaryScreen(
             CenterAlignedTopAppBar(
                 title = { Text("UltiObserver") },
                 navigationIcon = {
-                    TextButton(onClick = onBackHome) {
+                    TextButton(onClick = onBack) {
                         Text("Back")
                     }
                 },
@@ -67,14 +74,14 @@ internal fun ArchivedGameSummaryScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(16.dp),
+                .padding(8.dp),
         ) {
             GameOverSummary(
                 state = state,
                 onShowEventLog = { showEventLogSheet = true },
                 onShareSummary = { context.shareGameSummary(state) },
-                summaryActionText = "Restore Game",
-                onSummaryAction = onRestoreGame,
+                summaryActionText = summaryActionText,
+                onSummaryAction = onSummaryAction,
             )
         }
     }
@@ -83,6 +90,24 @@ internal fun ArchivedGameSummaryScreen(
         ModalBottomSheet(onDismissRequest = { showEventLogSheet = false }) {
             EventLogSheet(state = state)
         }
+    }
+
+    if (gameOverPrompt != null) {
+        AlertDialog(
+            onDismissRequest = onDismissGameOverPrompt,
+            title = { Text(gameOverPrompt.formatTitle()) },
+            text = {
+                Text(
+                    text = gameOverPrompt.formatMessage(),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = onDismissGameOverPrompt) {
+                    Text("OK")
+                }
+            },
+        )
     }
 }
 

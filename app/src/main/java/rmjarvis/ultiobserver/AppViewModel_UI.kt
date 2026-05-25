@@ -154,10 +154,13 @@ internal fun UltiObserverApp(viewModel: AppViewModel) {
         AppScreen.LIVE -> {
             val archivedGame = appState.viewingArchivedGame
             if (archivedGame != null) {
-                ArchivedGameSummaryScreen(
+                GameOverSummaryScreen(
                     state = archivedGame.state,
-                    onRestoreGame = viewModel::restoreViewingArchivedGame,
-                    onBackHome = viewModel::goBackFromCurrentScreen,
+                    summaryActionText = "Restore Game",
+                    onSummaryAction = viewModel::restoreViewingArchivedGame,
+                    onBack = viewModel::goBackFromCurrentScreen,
+                    gameOverPrompt = null,
+                    onDismissGameOverPrompt = {},
                 )
             } else {
                 val currentLiveState = appState.liveState!!
