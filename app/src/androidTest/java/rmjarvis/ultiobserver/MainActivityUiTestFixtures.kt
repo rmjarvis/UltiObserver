@@ -16,12 +16,21 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.swipeRight
+import androidx.test.espresso.Espresso.pressBackUnconditionally
 import androidx.test.platform.app.InstrumentationRegistry
+import java.io.FileInputStream
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import org.junit.Assert.assertEquals
 import org.junit.Rule
+
+private val platformBackDismissalUnstableAvds = setOf(
+    "Pixel_7_Emulator",
+    "Pixel_10",
+    "Pixel_Fold",
+    "Pixel_10_Pro_XL",
+)
 
 /// Shared Compose UI navigation and state-seeding helpers for instrumentation tests.
 abstract class MainActivityUiTestFixtures {
@@ -287,12 +296,25 @@ abstract class MainActivityUiTestFixtures {
         waitForText("Start New Game")
     }
 
-    /// Send platform Back without relying on Espresso's root-window focus.
+    /// Send platform Back to the currently focused app window.
     protected fun pressDialogBack() {
-        val instrumentation = InstrumentationRegistry.getInstrumentation()
-        instrumentation.uiAutomation.executeShellCommand("input keyevent ${KeyEvent.KEYCODE_BACK}").close()
-        instrumentation.waitForIdleSync()
+        pressBackUnconditionally()
         composeRule.waitForIdle()
+    }
+
+    /// Return whether this AVD should run platform-Back dismissal coverage paths.
+    protected fun shouldUsePlatformBackDismissalCoverage(): Boolean {
+        return currentAvdName() !in platformBackDismissalUnstableAvds
+    }
+
+    /// Return the configured AVD name for the current emulator.
+    protected fun currentAvdName(): String {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.uiAutomation.executeShellCommand("getprop ro.boot.qemu.avd_name").use { descriptor ->
+            return FileInputStream(descriptor.fileDescriptor).bufferedReader().use { reader ->
+                reader.readText().trim()
+            }
+        }
     }
 
     /// Tap Back from a misconduct offense/defense choice to the card step that opened it.

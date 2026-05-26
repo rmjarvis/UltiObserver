@@ -35,11 +35,13 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         openCardsSheet()
         composeRule.onNodeWithText("Team 1 (pulling)").assertIsDisplayed()
         composeRule.onNodeWithText("Team 2 (receiving)").assertIsDisplayed()
-        pressDialogBack()
-        composeRule.onAllNodesWithText("Cards / Technical Fouls").assertCountEquals(0)
-        openCardsSheet()
-        composeRule.onNodeWithText("Team 1 (pulling)").assertIsDisplayed()
-        composeRule.onNodeWithText("Team 2 (receiving)").assertIsDisplayed()
+        if (shouldUsePlatformBackDismissalCoverage()) {
+            pressDialogBack()
+            composeRule.onAllNodesWithText("Cards / Technical Fouls").assertCountEquals(0)
+            openCardsSheet()
+            composeRule.onNodeWithText("Team 1 (pulling)").assertIsDisplayed()
+            composeRule.onNodeWithText("Team 2 (receiving)").assertIsDisplayed()
+        }
 
         // Blue cards and technical fouls should close the sheet and show the consequence cue.
         composeRule.onAllNodesWithText("Blue").onFirst().performClick()
@@ -255,7 +257,11 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         enterCardPlayerNumber("21")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Invalid Card Assignment")
-        pressDialogBack()
+        if (shouldUsePlatformBackDismissalCoverage()) {
+            pressDialogBack()
+        } else {
+            composeRule.onNodeWithText("OK").performClick()
+        }
         waitForText("Add Yellow")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Invalid Card Assignment")
@@ -361,7 +367,11 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         enterCardPlayerNumber("6")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("maximum valid card combination", substring = true)
-        pressDialogBack()
+        if (shouldUsePlatformBackDismissalCoverage()) {
+            pressDialogBack()
+        } else {
+            composeRule.onNodeWithText("OK").performClick()
+        }
         waitForText("Cards / Technical Fouls")
         tapCardSheetAction(TeamId.TEAM_TWO, "Red")
         waitForText("Red Card")

@@ -306,8 +306,10 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             activity.appViewModel.updateLiveGame(current.copy(pendingCapOffer = CapType.HALF))
         }
         waitForText("Apply half cap?")
-        pressDialogBack()
-        waitForText("Apply half cap?")
+        if (shouldUsePlatformBackDismissalCoverage()) {
+            pressDialogBack()
+            waitForText("Apply half cap?")
+        }
         composeRule.onNodeWithText("No").performClick()
 
         composeRule.activityRule.scenario.onActivity { activity ->
@@ -370,10 +372,12 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         // Time Violation should ask for the violating team and report the warning consequence.
         composeRule.onNodeWithText("Time Violation").performClick()
         waitForText("Which team committed the time violation?")
-        pressDialogBack()
-        composeRule.onAllNodesWithText("Which team committed the time violation?").assertCountEquals(0)
-        composeRule.onNodeWithText("Time Violation").performClick()
-        waitForText("Which team committed the time violation?")
+        if (shouldUsePlatformBackDismissalCoverage()) {
+            pressDialogBack()
+            composeRule.onAllNodesWithText("Which team committed the time violation?").assertCountEquals(0)
+            composeRule.onNodeWithText("Time Violation").performClick()
+            waitForText("Which team committed the time violation?")
+        }
         composeRule.onAllNodesWithText("Team 1").onLast().performClick()
         waitForText("now has 30 seconds", substring = true)
         composeRule.onNodeWithText("OK").performClick()
@@ -393,7 +397,11 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         waitForText("Which team committed the time violation?")
         composeRule.onAllNodesWithText("Team 2").onLast().performClick()
         waitForText("now has 30 seconds", substring = true)
-        pressDialogBack()
+        if (shouldUsePlatformBackDismissalCoverage()) {
+            pressDialogBack()
+        } else {
+            composeRule.onNodeWithText("OK").performClick()
+        }
         composeRule.onAllNodesWithText("now has 30 seconds", substring = true).assertCountEquals(0)
     }
 

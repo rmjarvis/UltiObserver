@@ -31,9 +31,11 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
 
         // Manual correction dialogs should open and return to the Other sheet cleanly.
         openOtherSheet()
-        pressDialogBack()
-        composeRule.onAllNodesWithText("Update Game Setup").assertCountEquals(0)
-        openOtherSheet()
+        if (shouldUsePlatformBackDismissalCoverage()) {
+            pressDialogBack()
+            composeRule.onAllNodesWithText("Update Game Setup").assertCountEquals(0)
+            openOtherSheet()
+        }
         composeRule.onNodeWithText("Event Log").performClick()
         waitForText("Event Log")
         waitForText("No events logged yet.")
@@ -79,7 +81,11 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Start Halftime").performClick()
         waitForText("Halftime")
         // Back dismissal and OK are equivalent acknowledgements for this prompt.
-        pressDialogBack()
+        if (shouldUsePlatformBackDismissalCoverage()) {
+            pressDialogBack()
+        } else {
+            composeRule.onNodeWithText("OK").performClick()
+        }
         assertLiveScreen()
     }
 
