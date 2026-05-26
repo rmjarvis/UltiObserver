@@ -88,11 +88,15 @@ internal fun OtherSheet(
                 )
                 OtherMenuButton(
                     label = "Swap Ends of Field",
-                    onClick = { onAction(state.swapFieldEnds()) },
+                    onClick = {
+                        onAction(state.swapFieldEnds())
+                    },
                 )
                 OtherMenuButton(
                     label = "Swap Pulling Team",
-                    onClick = { onAction(state.swapPullingTeam()) },
+                    onClick = {
+                        onAction(state.swapPullingTeam())
+                    },
                 )
             }
             Column(
@@ -106,29 +110,39 @@ internal fun OtherSheet(
                 if (!state.halftimeTaken && state.phase == GamePhase.BETWEEN_POINTS) {
                     OtherMenuButton(
                         label = "Start Halftime",
-                        onClick = { onAction(state.startHalftimeNow(now)) },
+                        onClick = {
+                            onAction(state.startHalftimeNow(now))
+                        },
                     )
                 }
                 OtherMenuButton(
                     label = "End Game",
-                    onClick = { onAction(state.endGameNow(now)) },
+                    onClick = {
+                        onAction(state.endGameNow(now))
+                    },
                 )
                 if (!state.halftimeTaken && !state.halfCapApplied) {
                     OtherMenuButton(
                         label = "Apply Half Cap Now",
-                        onClick = { onAction(state.makeCapNow(CapType.HALF, now)) },
+                        onClick = {
+                            onAction(state.makeCapNow(CapType.HALF, now))
+                        },
                     )
                 }
                 if (!state.softCapApplied) {
                     OtherMenuButton(
                         label = "Apply Soft Cap Now",
-                        onClick = { onAction(state.makeCapNow(CapType.SOFT, now)) },
+                        onClick = {
+                            onAction(state.makeCapNow(CapType.SOFT, now))
+                        },
                     )
                 }
                 if (!state.hardCapApplied) {
                     OtherMenuButton(
                         label = "Apply Hard Cap Now",
-                        onClick = { onAction(state.makeCapNow(CapType.HARD, now)) },
+                        onClick = {
+                            onAction(state.makeCapNow(CapType.HARD, now))
+                        },
                     )
                 }
                 OtherMenuButton(

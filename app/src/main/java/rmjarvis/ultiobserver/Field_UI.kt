@@ -752,9 +752,10 @@ private fun CountdownAdjustButton(
         label = label,
         enabled = enabled,
         modifier = Modifier.width(42.dp),
-    ) {
-        onClick()
-    }
+        onClick = {
+            onClick()
+        },
+    )
 }
 
 /**

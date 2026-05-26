@@ -409,7 +409,9 @@ internal fun CardsSheet(
     pendingMisconductChoice?.let { pending ->
         val prompt = GamePrompt.LivePointMisconduct(pending.result.event)
         AlertDialog(
-            onDismissRequest = { restoreMisconductReturn(pending.returnTo) },
+            onDismissRequest = {
+                restoreMisconductReturn(pending.returnTo)
+            },
             title = { Text(prompt.formatTitle()) },
             text = {
                 Text(

@@ -325,6 +325,14 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         waitForText("Start Misconduct Countdown")
 
         // Back from a blue-card misconduct choice should cancel that card and return to Cards / TF.
+        if (shouldUsePlatformBackDismissalCoverage()) {
+            openCardsSheet()
+            tapCardSheetAction(TeamId.TEAM_ONE, "Blue")
+            waitForText("Misconduct Penalty")
+            pressDialogBack()
+            waitForText("Cards / Technical Fouls")
+            composeRule.onAllNodesWithText("Misconduct Penalty").assertCountEquals(0)
+        }
         openCardsSheet()
         tapCardSheetAction(TeamId.TEAM_ONE, "Blue")
         waitForText("Misconduct Penalty")
