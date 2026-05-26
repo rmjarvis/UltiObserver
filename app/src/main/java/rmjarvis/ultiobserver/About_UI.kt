@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -18,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 private const val SOURCE_CODE_URL = "https://github.com/rmjarvis/UltiObserver"
@@ -48,22 +50,22 @@ internal fun AboutScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(20.dp)
+                .padding(16.dp)
                 .testTag("about-screen"),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
                 text = "UltiObserver",
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.titleLarge,
             )
             Text(
                 text = "Version $versionName",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyMedium,
             )
             Text(
                 text = "A game management app for Ultimate observers to take the place of physical game cards and a stopwatch.",
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyMedium,
             )
             HorizontalDivider()
             Text(
@@ -72,17 +74,21 @@ internal fun AboutScreen(
             )
             Text(
                 text = SOURCE_CODE_URL,
-                modifier = Modifier.clickable(
-                    onClick = {
-                        uriHandler.openUri(SOURCE_CODE_URL)
-                    },
-                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(
+                        onClick = {
+                            uriHandler.openUri(SOURCE_CODE_URL)
+                        },
+                    ),
                 color = MaterialTheme.colorScheme.primary,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = "If you notice any bugs or have requests for features to add, please go to the above GitHub page and make an issue.",
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyMedium,
             )
             HorizontalDivider()
             Text(
@@ -91,13 +97,17 @@ internal fun AboutScreen(
             )
             Text(
                 text = PRIVACY_POLICY_URL,
-                modifier = Modifier.clickable(
-                    onClick = {
-                        uriHandler.openUri(PRIVACY_POLICY_URL)
-                    },
-                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(
+                        onClick = {
+                            uriHandler.openUri(PRIVACY_POLICY_URL)
+                        },
+                    ),
                 color = MaterialTheme.colorScheme.primary,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }

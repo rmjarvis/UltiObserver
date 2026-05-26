@@ -127,8 +127,8 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Version ${BuildConfig.VERSION_NAME}").assertIsDisplayed()
         val sourceCodeUrl = "https://github.com/rmjarvis/UltiObserver"
         val privacyPolicyUrl = "https://github.com/rmjarvis/UltiObserver/blob/main/PRIVACY.md"
-        composeRule.onNodeWithText(sourceCodeUrl).assertIsDisplayed()
-        composeRule.onNodeWithText(privacyPolicyUrl).assertIsDisplayed()
+        composeRule.onNodeWithText(sourceCodeUrl).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText(privacyPolicyUrl).performScrollTo().assertIsDisplayed()
 
         // The app should hand external links to Android without actually leaving this test.
         fun assertOpensUrl(url: String) {
@@ -145,7 +145,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             }
             instrumentation.addMonitor(monitor)
             try {
-                composeRule.onNodeWithText(url).performClick()
+                composeRule.onNodeWithText(url).performScrollTo().performClick()
                 composeRule.waitUntil(timeoutMillis = 5_000) { openedIntent != null }
             } finally {
                 instrumentation.removeMonitor(monitor)
@@ -233,6 +233,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText("Also vibrate on cues that use sound?")
 
         // Re-enabled sound settings should expose vibration, preview, and repeat-count controls.
+        composeRule.onNodeWithTag("settings-vibrate-with-sounds").performScrollTo()
         composeRule.onNodeWithTag("settings-vibrate-with-sounds-value").assertTextEquals("Yes")
         composeRule.onNodeWithTag("settings-sound-volume").assertIsEnabled()
         composeRule.onNodeWithTag("settings-vibrate-with-sounds").assertIsEnabled()
