@@ -178,6 +178,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         // Seed settings directly so this UI-focused test can start at a meaningful cue state.
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.appViewModel.updateTimingAlertGlobalMode(TimingAlertGlobalMode.VIBRATION_ONLY)
+            activity.appViewModel.updateTimingAlertSoundVolume(0.5f)
             activity.appViewModel.updateTimingAlertVibrateWithSounds(true)
             activity.appViewModel.updateTimingCueMode(
                 TimingCueId.RECEIVING_TWENTY_FOR_HAND,
