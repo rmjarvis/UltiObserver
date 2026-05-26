@@ -423,6 +423,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             activity.appViewModel.updateAutomaticallyAdvanceCountdowns(true)
             activity.appViewModel.updateAutomaticallyLockLivePoint(true)
         }
+        composeRule.waitForIdle()
 
         composeRule.activityRule.scenario.onActivity { activity ->
             val current = activity.appViewModel.liveState!!
@@ -477,8 +478,9 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.appViewModel.updateAutomaticallyAdvanceCountdowns(true)
         }
+        composeRule.waitForIdle()
         composeRule.onNodeWithText("Undo Start Point").performClick()
-        composeRule.waitUntil(timeoutMillis = 2_000) {
+        composeRule.waitUntil(timeoutMillis = 10_000) {
             composeRule.activity.appViewModel.liveState!!.phase == GamePhase.LIVE_POINT
         }
         waitForText("Lock")

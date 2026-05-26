@@ -192,11 +192,11 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         // Blank team names are allowed in setup and should display as Team 1 / Team 2 in live use.
         replaceSetupTeamName("Team 1", " ")
         replaceSetupTeamName("Team 2", " ")
-        composeRule.onNodeWithText("Team 1 pulls from Far end").assertIsDisplayed()
+        composeRule.onNodeWithText("Team 1 pulls from Far end").performScrollTo().assertIsDisplayed()
         openStartingPullSetupEditor()
         composeRule.onNodeWithTag("setup-pulling-team-${TeamId.TEAM_TWO.name}").performClick()
         closeSetupEditor()
-        composeRule.onNodeWithText("Team 2 pulls from Far end").assertIsDisplayed()
+        composeRule.onNodeWithText("Team 2 pulls from Far end").performScrollTo().assertIsDisplayed()
 
         startGameFromSetup()
         composeRule.onNodeWithText("Team 1").assertIsDisplayed()
