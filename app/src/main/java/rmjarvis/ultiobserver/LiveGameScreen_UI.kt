@@ -72,7 +72,7 @@ internal fun LiveGameScreen(
     var activeGamePrompt by remember { mutableStateOf<GamePrompt?>(null) }
     var previouslyObservedPhase by remember { mutableStateOf(state.phase) }
     var suppressNextPhasePrompt by remember { mutableStateOf(false) }
-    var suppressNextAutoLock by remember { mutableStateOf(false) }
+    var autoLockSuppressionState by remember { mutableStateOf<GameState?>(null) }
 
     /**
      * Show a transient action-info popup.
@@ -97,7 +97,7 @@ internal fun LiveGameScreen(
      */
     fun undoWithoutPhasePrompt(updatedState: GameState) {
         suppressNextPhasePrompt = updatedState.phase != state.phase
-        suppressNextAutoLock = true
+        autoLockSuppressionState = updatedState
         activeGamePrompt = null
         onStateChange(updatedState)
     }
@@ -139,11 +139,13 @@ internal fun LiveGameScreen(
         automaticallyAdvanceCountdowns,
         automaticallyLockLivePoint,
     ) {
-        val suppressAutoLock = suppressNextAutoLock
-        suppressNextAutoLock = false
         if (automaticallyAdvanceCountdowns) {
             val transitionedState = state.applyExpiredCountdownTransitions(now)
             if (transitionedState != state) {
+                val suppressAutoLock = autoLockSuppressionState == state
+                if (suppressAutoLock) {
+                    autoLockSuppressionState = null
+                }
                 if (
                     transitionedState.phase == GamePhase.LIVE_POINT &&
                     automaticallyLockLivePoint &&
