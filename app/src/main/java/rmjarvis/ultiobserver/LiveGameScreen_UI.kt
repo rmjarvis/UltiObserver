@@ -181,10 +181,14 @@ internal fun LiveGameScreen(
         GameOverSummaryScreen(
             state = state,
             summaryActionText = "Undo End Game",
-            onSummaryAction = { undoWithoutPhasePrompt(state.undoLastAction()) },
+            onSummaryAction = {
+                undoWithoutPhasePrompt(state.undoLastAction())
+            },
             onBack = onBackHome,
             gameOverPrompt = activeGamePrompt,
-            onDismissGameOverPrompt = { activeGamePrompt = null },
+            onDismissGameOverPrompt = {
+                activeGamePrompt = null
+            },
         )
         return
     }

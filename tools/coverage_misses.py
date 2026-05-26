@@ -21,6 +21,9 @@ CALLBACK_LAMBDA_OPENER = re.compile(
     rf"^{CALLBACK_NAME_PATTERN}\s*=\s*\{{\s*"
     r"(?:(?:[A-Za-z_]\w*\s*,\s*)*[A-Za-z_]\w*\s*->\s*)?$"
 )
+NO_OP_CALLBACK_LAMBDA = re.compile(
+    rf"^{CALLBACK_NAME_PATTERN}\s*=\s*\{{\}},?$"
+)
 
 
 @dataclass(frozen=True)
@@ -358,13 +361,24 @@ def callback_lambda_scaffold_reason(
 
     The body check is the important guardrail: if any executable line inside the lambda
     still has missed instructions or missed branches, the opener stays actionable.
+
+    The exception is a named no-op callback lambda, so lines like
+    `onDismissGameOverPrompt = {},` are accepted with the no-branch instruction-only
+    profile because there is no function body to check coverage for.
     """
+
+    line_index = line_number - 1
+    source = source_lines[line_index].strip()
+    if NO_OP_CALLBACK_LAMBDA.fullmatch(source) is not None:
+        if counters.missed_branches != 0 or counters.covered_branches != 0:
+            return None
+        if counters.missed_instructions == 0 or counters.covered_instructions == 0:
+            return None
+        return "UI no-op callback lambda scaffold"
 
     if counters.missed_branches == 0 or counters.covered_branches == 0:
         return None
 
-    line_index = line_number - 1
-    source = source_lines[line_index].strip()
     if CALLBACK_LAMBDA_OPENER.fullmatch(source) is None:
         return None
 
