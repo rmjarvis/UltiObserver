@@ -24,11 +24,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -83,21 +85,6 @@ private val GAME_ROW_HEIGHT =
 // Height of the three central action rows plus the gap before a bottom game section.
 private val ACTIONS_HEIGHT = BUTTON_HEIGHT * 3 + BUTTON_SPACER * 3
 
-// Current-game card height: header row, game row, padding, and one SectionCard gap.
-private val CURRENT_GAME_CARD_HEIGHT =
-    SECTION_VERTICAL_PADDING + SECTION_TITLE_LINE_HEIGHT + GAME_ROW_HEIGHT + SECTION_ITEM_GAP
-
-// Completed-game card height: title, row, explicit spacer, archive button, padding, and three SectionCard gaps.
-private val COMPLETED_GAME_CARD_HEIGHT =
-    SECTION_VERTICAL_PADDING + SECTION_TITLE_LINE_HEIGHT + GAME_ROW_HEIGHT +
-        BUTTON_SPACER + BUTTON_HEIGHT + SECTION_ITEM_GAP * 3
-
-// Calculate the total desired growth from min values to preferred.
-// This is used to scale up from the minimum fonts and sizes once we know how much space we have.
-private val MIN_TOTAL_HEIGHT = MIN_IDENTITY_TEXT_HEIGHT + MIN_ARTWORK_HEIGHT
-private val PREFERRED_TOTAL_HEIGHT = PREFERRED_IDENTITY_TEXT_HEIGHT + PREFERRED_ARTWORK_HEIGHT
-private val PREFERRED_GROWTH_HEIGHT = PREFERRED_TOTAL_HEIGHT - MIN_TOTAL_HEIGHT
-
 // Home-screen summary for a live or completed game.
 internal fun GameState.gameListEntry(): GameListEntry {
     return GameListEntry(
@@ -146,6 +133,8 @@ internal fun HomeScreen(
     onOpenSettings: () -> Unit,
     onOpenArchivedGames: () -> Unit,
 ) {
+    val fontScale = LocalDensity.current.fontScale
+
     // Compose the home screen as an app identity area with navigation and game resume cards.
     Scaffold { innerPadding ->
         BoxWithConstraints(
@@ -166,47 +155,61 @@ internal fun HomeScreen(
             // Identity spacing is the tighter artwork/title/subtitle gap. 1.3%
             // scales from compact spacing on short screens to 12 dp on roomier screens.
             val identitySpacing = (usableHeight.value * 0.013f).dp.coerceIn(6.dp, 12.dp)
+            val hasBottomGameSection = currentGame != null || completedGamePendingArchive != null
+
+            fun Dp.scaledByFont(): Dp {
+                return (value * fontScale).dp
+            }
+            val identityTextHeight = MIN_IDENTITY_TEXT_HEIGHT.scaledByFont()
+            val preferredIdentityTextHeight = PREFERRED_IDENTITY_TEXT_HEIGHT.scaledByFont()
+            val sectionTitleLineHeight = SECTION_TITLE_LINE_HEIGHT.scaledByFont()
+            val gameRowHeight =
+                GAME_ROW_VERTICAL_PADDING + GAME_ROW_DATE_LINE_HEIGHT.scaledByFont() +
+                    GAME_ROW_LINE_GAP + GAME_ROW_SCORE_LINE_HEIGHT.scaledByFont()
+            val currentGameCardHeight =
+                SECTION_VERTICAL_PADDING + sectionTitleLineHeight + gameRowHeight + SECTION_ITEM_GAP
+            val completedGameCardHeight =
+                SECTION_VERTICAL_PADDING + sectionTitleLineHeight + gameRowHeight +
+                    BUTTON_SPACER + BUTTON_HEIGHT + SECTION_ITEM_GAP * 3
+            val minimumArtworkHeight = if (hasBottomGameSection) 0.dp else MIN_ARTWORK_HEIGHT
+            val preferredGrowthHeight =
+                preferredIdentityTextHeight - identityTextHeight +
+                    PREFERRED_ARTWORK_HEIGHT - minimumArtworkHeight
 
             // Central content is the minimum identity text plus the three home action rows.
             // The artwork itself is excluded because it is the value we solve for.
             val minCentralContentHeight =
-                MIN_IDENTITY_TEXT_HEIGHT + identitySpacing * 2 + mainSpacing + ACTIONS_HEIGHT
+                identityTextHeight + identitySpacing * 2 + mainSpacing + ACTIONS_HEIGHT
 
             // Bottom section height is based on the concrete card that will render, if any.
             val bottomGameSectionHeight = when {
-                currentGame != null -> CURRENT_GAME_CARD_HEIGHT
-                completedGamePendingArchive != null -> COMPLETED_GAME_CARD_HEIGHT
+                currentGame != null -> currentGameCardHeight
+                completedGamePendingArchive != null -> completedGameCardHeight
                 else -> 0.dp
             }
-            val hasBottomGameSection = currentGame != null || completedGamePendingArchive != null
 
             // Figure out how much to scale the artwork and identity text between the
             // minimum sizes and the preferred sizes.
             // When this is 0, there is no extra room beyond the minimum sizes.
             // When this is 1, we can scale all the way up to the preferred sizes.
-            val growthScale = if (hasBottomGameSection) {
-                (
-                    // When a bottom game card exists, find how much height remains after the min
-                    // identity/artwork budget, then use that to scale toward preferred size.
-                    usableHeight -
-                        pagePadding * 2 -
-                        minCentralContentHeight -
-                        bottomGameSectionHeight -
-                        MIN_ARTWORK_HEIGHT
-                    ).value
-                    .div(PREFERRED_GROWTH_HEIGHT.value)
-                    .coerceIn(0f, 1f)
-            } else {
-                // With no bottom section, we can use the preferred size.
-                1f
-            }
+            val growthScale = (
+                // Find how much height remains after the minimum identity/artwork
+                // budget, then use that to scale toward preferred size.
+                usableHeight -
+                    pagePadding * 2 -
+                    minCentralContentHeight -
+                    bottomGameSectionHeight -
+                    minimumArtworkHeight
+                ).value
+                .div(preferredGrowthHeight.value)
+                .coerceIn(0f, 1f)
 
             // Scale artwork and identity text with the same minimum-to-preferred factor.
             fun scaledHeightValue(min: Float, max: Float): Float {
                 return min + growthScale * (max - min)
             }
             val artworkHeight = scaledHeightValue(
-                min = MIN_ARTWORK_HEIGHT.value,
+                min = minimumArtworkHeight.value,
                 max = PREFERRED_ARTWORK_HEIGHT.value,
             ).dp
             val titleFontSize = scaledHeightValue(min = 32f, max = 45f).sp
