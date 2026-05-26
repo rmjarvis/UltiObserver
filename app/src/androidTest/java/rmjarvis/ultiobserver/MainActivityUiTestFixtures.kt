@@ -278,6 +278,11 @@ abstract class MainActivityUiTestFixtures {
         composeRule.waitForIdle()
     }
 
+    /// Tap Back from a misconduct offense/defense choice to the card step that opened it.
+    protected fun tapBackFromMisconductODChoice() {
+        composeRule.onNodeWithTag("misconduct-choice-back").performClick()
+    }
+
     /**
      * Tap a team's goal button and wait for the expected undo label.
      *
@@ -537,7 +542,7 @@ abstract class MainActivityUiTestFixtures {
         } else {
             waitForText("Misconduct Penalty")
             if (verifyMisconductBackReturnsToNumberDialog) {
-                pressDialogBack()
+                tapBackFromMisconductODChoice()
                 waitForText("Yellow Card")
                 if (playerNumber.isNotBlank()) {
                     val restoredNumber = composeRule.onNodeWithTag("card-player-number")
@@ -584,7 +589,7 @@ abstract class MainActivityUiTestFixtures {
         } else {
             waitForText("Misconduct Penalty")
             if (verifyMisconductBackReturnsToNumberDialog) {
-                pressDialogBack()
+                tapBackFromMisconductODChoice()
                 waitForText("Red Card")
                 val restoredNumber = composeRule.onNodeWithTag("card-player-number")
                     .fetchSemanticsNode()

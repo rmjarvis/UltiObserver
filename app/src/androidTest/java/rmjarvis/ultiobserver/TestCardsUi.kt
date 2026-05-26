@@ -309,7 +309,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         waitForText("Unknown Player Number")
         composeRule.onNodeWithText("Yes").performClick()
         waitForText("Misconduct Penalty")
-        pressDialogBack()
+        tapBackFromMisconductODChoice()
         waitForText("Unknown Player Number")
         composeRule.onNodeWithText("Yes").performClick()
         waitForText("Misconduct Penalty")
@@ -322,7 +322,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         openCardsSheet()
         composeRule.onAllNodesWithText("Blue")[teamCardButtonIndex(TeamId.TEAM_ONE)].performClick()
         waitForText("Misconduct Penalty")
-        pressDialogBack()
+        tapBackFromMisconductODChoice()
         waitForText("Cards / Technical Fouls")
         composeRule.onAllNodesWithText("Misconduct Penalty").assertCountEquals(0)
         composeRule.onAllNodesWithText("Blue")[teamCardButtonIndex(TeamId.TEAM_ONE)].performClick()
@@ -338,7 +338,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         waitForText("Red Card")
         composeRule.onNodeWithText("N/A").performClick()
         waitForText("Misconduct Penalty")
-        pressDialogBack()
+        tapBackFromMisconductODChoice()
         waitForText("Red Card")
         assertEquals(
             "",

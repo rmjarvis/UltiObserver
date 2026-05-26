@@ -426,17 +426,25 @@ internal fun CardsSheet(
                 }
             },
             dismissButton = {
-                TextButton(
-                    onClick = {
-                        onAssessment(
-                            pending.result.state.withPendingMisconductCountdown(),
-                            prompt.resolutionMessage(againstOffense = false),
-                            prompt.formatTitle(),
-                        )
-                        pendingMisconductChoice = null
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(
+                        onClick = { restoreMisconductReturn(pending.returnTo) },
+                        modifier = Modifier.testTag("misconduct-choice-back"),
+                    ) {
+                        Text("Back")
                     }
-                ) {
-                    Text("Defense")
+                    TextButton(
+                        onClick = {
+                            onAssessment(
+                                pending.result.state.withPendingMisconductCountdown(),
+                                prompt.resolutionMessage(againstOffense = false),
+                                prompt.formatTitle(),
+                            )
+                            pendingMisconductChoice = null
+                        }
+                    ) {
+                        Text("Defense")
+                    }
                 }
             },
         )
