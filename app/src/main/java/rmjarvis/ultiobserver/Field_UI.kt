@@ -693,10 +693,10 @@ internal fun CountdownLine(
                         enabled = enabled && visible,
                         onClick = onTogglePaused,
                     )
-                    SmallActionButton(label = "-5", enabled = enabled && visible) {
+                    CountdownAdjustButton(label = "-5", enabled = enabled && visible) {
                         onAdjust(-5)
                     }
-                    SmallActionButton(label = "+5", enabled = enabled && visible) {
+                    CountdownAdjustButton(label = "+5", enabled = enabled && visible) {
                         onAdjust(5)
                     }
                 }
@@ -717,6 +717,28 @@ internal fun CountdownLine(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+    }
+}
+
+/**
+ * Render a narrow button for five-second countdown adjustments.
+ *
+ * @param label The adjustment label, normally `-5` or `+5`.
+ * @param enabled Whether the adjustment can be applied.
+ * @param onClick Callback invoked when the observer taps the button.
+ */
+@Composable
+private fun CountdownAdjustButton(
+    label: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    SmallActionButton(
+        label = label,
+        enabled = enabled,
+        modifier = Modifier.width(42.dp),
+    ) {
+        onClick()
     }
 }
 
