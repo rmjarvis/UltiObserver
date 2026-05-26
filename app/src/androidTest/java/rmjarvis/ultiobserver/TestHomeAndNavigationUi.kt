@@ -118,9 +118,9 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText("Current Game")
     }
 
-    /// Test the new home destinations that are present before their full feature work exists.
+    /// Test About, Profile, and Settings navigation plus their persisted UI state.
     @Test
-    fun homeDestinationButtonsOpenStubPages() {
+    fun homeDestinationsSupportAboutProfileAndSettings() {
         // About should behave like a quiet informational destination that returns cleanly to Home.
         composeRule.onNodeWithText("About").performClick()
         composeRule.onNodeWithTag("about-screen").assertIsDisplayed()
