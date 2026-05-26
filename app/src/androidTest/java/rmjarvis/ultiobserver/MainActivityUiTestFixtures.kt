@@ -1,6 +1,5 @@
 package rmjarvis.ultiobserver
 
-import android.view.KeyEvent
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.hasContentDescription
@@ -11,6 +10,7 @@ import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextReplacement
@@ -213,7 +213,7 @@ abstract class MainActivityUiTestFixtures {
         composeRule.onNodeWithText("Add Card Holder").performScrollTo().performClick()
         waitForText("Add player cards")
         composeRule.onNodeWithTag("setup-prior-card-team-${TeamId.TEAM_TWO.name}").performClick()
-        composeRule.onNodeWithTag("setup-prior-card-jersey").performTextReplacement(jersey)
+        enterPriorCardJersey(jersey)
         repeat((yellows - 1).coerceAtLeast(0)) {
             composeRule.onAllNodesWithText("+1")[0].performClick()
         }
@@ -224,6 +224,16 @@ abstract class MainActivityUiTestFixtures {
         composeRule.onNodeWithText("$teamName #$jersey").performScrollTo().assertIsDisplayed()
         closeSetupEditor()
         waitForText("Start Game")
+    }
+
+    /**
+     * Enter a jersey number in the setup prior-card holder dialog.
+     *
+     * @param jersey The jersey number text to enter.
+     */
+    protected fun enterPriorCardJersey(jersey: String) {
+        composeRule.onNodeWithTag("setup-prior-card-jersey").performTextReplacement(jersey)
+        composeRule.onNodeWithTag("setup-prior-card-jersey").performImeAction()
     }
 
     /**
@@ -612,6 +622,7 @@ abstract class MainActivityUiTestFixtures {
      */
     protected fun enterCardPlayerNumber(playerNumber: String) {
         composeRule.onNodeWithTag("card-player-number").performTextReplacement(playerNumber)
+        composeRule.onNodeWithTag("card-player-number").performImeAction()
     }
 
     /**

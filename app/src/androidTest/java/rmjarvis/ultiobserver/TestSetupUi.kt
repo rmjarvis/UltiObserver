@@ -150,7 +150,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         waitForText("Add player cards")
         composeRule.onNodeWithTag("setup-prior-card-team-${TeamId.TEAM_TWO.name}").performClick()
         composeRule.onNodeWithTag("setup-prior-card-team-${TeamId.TEAM_ONE.name}").performClick()
-        composeRule.onNodeWithTag("setup-prior-card-jersey").performTextReplacement("66")
+        enterPriorCardJersey("66")
         composeRule.onAllNodesWithText("+1")[0].performClick()
         composeRule.onAllNodesWithText("-1")[0].performClick()
         composeRule.onAllNodesWithText("+1")[0].performClick()

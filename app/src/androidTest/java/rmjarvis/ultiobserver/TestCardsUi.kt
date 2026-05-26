@@ -130,7 +130,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         openPriorCardsSetupEditor()
         composeRule.onNodeWithText("Add Card Holder").performScrollTo().performClick()
         waitForText("Add player cards")
-        composeRule.onNodeWithTag("setup-prior-card-jersey").performTextReplacement("42")
+        enterPriorCardJersey("42")
         composeRule.onAllNodesWithText("+1")[1].performClick()
         composeRule.onNodeWithText("Add").performClick()
         composeRule.onNodeWithText("Y 1  R 1").performScrollTo().assertIsDisplayed()

@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -48,8 +49,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -1117,6 +1120,7 @@ private fun AddPlayerCardDialog(
     var jerseyNumber by remember { mutableStateOf("") }
     var priorYellows by remember { mutableStateOf(1) }
     var priorReds by remember { mutableStateOf(0) }
+    val focusManager = LocalFocusManager.current
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1134,7 +1138,8 @@ private fun AddPlayerCardDialog(
                     value = jerseyNumber,
                     onValueChange = { jerseyNumber = it.filter(Char::isDigit) },
                     label = { Text("Jersey number") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus(force = true) }),
                     singleLine = true,
                     modifier = Modifier.testTag("setup-prior-card-jersey"),
                 )
