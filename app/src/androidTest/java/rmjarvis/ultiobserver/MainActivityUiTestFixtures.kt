@@ -2,6 +2,7 @@ package rmjarvis.ultiobserver
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -50,10 +51,14 @@ abstract class MainActivityUiTestFixtures {
     protected fun startLiveGameProgrammatically(setup: GameSetupState = newGameSetupState()) {
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.appViewModel.deleteCurrentGame()
+        }
+        composeRule.waitForIdle()
+        composeRule.activityRule.scenario.onActivity { activity ->
             activity.appViewModel.startNewGame()
             activity.appViewModel.updateSetup(setup)
             activity.appViewModel.finishSetup()
         }
+        composeRule.waitForIdle()
         assertLiveScreen()
     }
 
@@ -284,7 +289,9 @@ abstract class MainActivityUiTestFixtures {
 
     /// Send platform Back without relying on Espresso's root-window focus.
     protected fun pressDialogBack() {
-        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.uiAutomation.executeShellCommand("input keyevent ${KeyEvent.KEYCODE_BACK}").close()
+        instrumentation.waitForIdleSync()
         composeRule.waitForIdle()
     }
 
@@ -504,7 +511,9 @@ abstract class MainActivityUiTestFixtures {
         composeRule.onAllNodesWithText("+1")[2].performClick()
         composeRule.onAllNodesWithText("+1")[3].performClick()
         composeRule.onAllNodesWithText("-1")[1].performClick()
-        composeRule.onNodeWithText("Set").performClick()
+        composeRule.onNodeWithTag("adjust-pull-infractions-confirm").performTouchInput {
+            click()
+        }
         waitForText("Undo Pull Infraction Adjustment")
     }
 
@@ -538,7 +547,7 @@ abstract class MainActivityUiTestFixtures {
         substring: Boolean = false,
     ) {
         openCardsSheet()
-        composeRule.onAllNodesWithText("Yellow")[teamCardButtonIndex(team)].performClick()
+        tapCardSheetAction(team, "Yellow")
         waitForText("Yellow Card")
         if (playerNumber.isBlank()) {
             composeRule.onNodeWithText("N/A").performClick()
@@ -589,7 +598,7 @@ abstract class MainActivityUiTestFixtures {
         verifyMisconductBackReturnsToNumberDialog: Boolean = false,
     ) {
         openCardsSheet()
-        composeRule.onAllNodesWithText("Red")[teamCardButtonIndex(team)].performClick()
+        tapCardSheetAction(team, "Red")
         waitForText("Red Card")
         enterCardPlayerNumber(playerNumber)
         composeRule.onNodeWithText("Record").performClick()
@@ -633,7 +642,7 @@ abstract class MainActivityUiTestFixtures {
      */
     protected fun recordBlueCard(team: TeamId, expectedMessage: String) {
         openCardsSheet()
-        composeRule.onAllNodesWithText("Blue")[teamCardButtonIndex(team)].performClick()
+        tapCardSheetAction(team, "Blue")
         waitForText(expectedMessage)
         composeRule.onNodeWithText("OK").performClick()
     }
@@ -651,9 +660,19 @@ abstract class MainActivityUiTestFixtures {
         substring: Boolean = false,
     ) {
         openCardsSheet()
-        composeRule.onAllNodesWithText("Tech")[teamCardButtonIndex(team)].performClick()
+        tapCardSheetAction(team, "Tech")
         waitForText(expectedMessage, substring = substring)
         composeRule.onNodeWithText("OK").performClick()
+    }
+
+    /**
+     * Tap one team action in the Cards / TF sheet, scrolling it into view when needed.
+     *
+     * @param team The team whose action should be tapped.
+     * @param label The action label to tap.
+     */
+    protected fun tapCardSheetAction(team: TeamId, label: String) {
+        composeRule.onAllNodesWithText(label)[teamCardButtonIndex(team)].performScrollTo().performClick()
     }
 
     /**
@@ -746,6 +765,7 @@ abstract class MainActivityUiTestFixtures {
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.onBackPressedDispatcher.onBackPressed()
         }
+        composeRule.waitForIdle()
     }
 
     /**

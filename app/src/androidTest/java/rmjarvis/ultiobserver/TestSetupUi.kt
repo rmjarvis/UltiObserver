@@ -35,7 +35,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         // Exercise the standard start-date picker.
         openStartTimeSetupEditor()
         composeRule.onNodeWithTag("setup-start-date-field").performClick()
-        composeRule.onNodeWithText("Set Start Date").assertIsDisplayed()
+        waitForText("Set Start Date")
         composeRule.onNodeWithText("Cancel").performClick()
         waitForText("Date")
         closeSetupEditor()

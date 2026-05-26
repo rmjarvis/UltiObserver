@@ -13,7 +13,6 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.swipeRight
 import java.time.LocalTime
-import androidx.test.espresso.Espresso.pressBack
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -32,13 +31,13 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
 
         // Manual correction dialogs should open and return to the Other sheet cleanly.
         openOtherSheet()
-        pressBack()
+        pressDialogBack()
         composeRule.onAllNodesWithText("Update Game Setup").assertCountEquals(0)
         openOtherSheet()
         composeRule.onNodeWithText("Event Log").performClick()
         waitForText("Event Log")
         waitForText("No events logged yet.")
-        pressBack()
+        pressDialogBack()
         openOtherSheet()
         openOtherDialogAndCancel("Adjust Score")
         openOtherDialogAndCancel("Adjust Timeouts")
@@ -80,7 +79,7 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Start Halftime").performClick()
         waitForText("Halftime")
         // Back dismissal and OK are equivalent acknowledgements for this prompt.
-        pressBack()
+        pressDialogBack()
         assertLiveScreen()
     }
 
@@ -226,7 +225,7 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Event Log").performClick()
         waitForText("Event Log")
         waitForText("No events logged yet.")
-        pressBack()
+        pressDialogBack()
         composeRule.onNodeWithText("Back").performClick()
         waitForText("Archived Games")
         waitForText(firstArchivedTitle)

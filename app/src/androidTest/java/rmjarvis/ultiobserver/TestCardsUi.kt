@@ -52,12 +52,12 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("OK").performClick()
 
         openCardsSheet()
-        composeRule.onAllNodesWithText("Blue")[teamCardButtonIndex(TeamId.TEAM_TWO)].performClick()
+        tapCardSheetAction(TeamId.TEAM_TWO, "Blue")
         waitForText("Team 2 has 1 blue card.")
         composeRule.onNodeWithText("OK").performClick()
 
         openCardsSheet()
-        composeRule.onAllNodesWithText("Tech")[teamCardButtonIndex(TeamId.TEAM_TWO)].performClick()
+        tapCardSheetAction(TeamId.TEAM_TWO, "Tech")
         waitForText("Team 2 has 1 technical foul.")
         composeRule.onNodeWithText("OK").performClick()
 
@@ -93,7 +93,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("OK").performClick()
 
         openCardsSheet()
-        composeRule.onAllNodesWithText("Yellow")[teamCardButtonIndex(TeamId.TEAM_TWO)].performClick()
+        tapCardSheetAction(TeamId.TEAM_TWO, "Yellow")
         waitForText("Yellow Card")
         enterCardPlayerNumber("8")
         composeRule.onNodeWithText("Record").performClick()
@@ -153,7 +153,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         // Reusing N/A for a yellow should support recording a different unknown player.
         recordYellowCard(TeamId.TEAM_ONE, "", "Team 1 has 3 total blue cards.", substring = true)
         openCardsSheet()
-        composeRule.onAllNodesWithText("Yellow")[teamCardButtonIndex(TeamId.TEAM_ONE)].performClick()
+        tapCardSheetAction(TeamId.TEAM_ONE, "Yellow")
         waitForText("Yellow Card")
         composeRule.onNodeWithText("N/A").performClick()
         waitForText("Unknown Player Number")
@@ -297,13 +297,13 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onAllNodesWithText("Team 2").onFirst().assertIsDisplayed()
         assertTrue(composeRule.onAllNodesWithText("Team 1 (pulling)").fetchSemanticsNodes().isEmpty())
         assertTrue(composeRule.onAllNodesWithText("Team 2 (receiving)").fetchSemanticsNodes().isEmpty())
-        composeRule.onAllNodesWithText("Yellow")[teamCardButtonIndex(TeamId.TEAM_ONE)].performClick()
+        tapCardSheetAction(TeamId.TEAM_ONE, "Yellow")
         waitForText("Yellow Card")
         composeRule.onNodeWithText("N/A").performClick()
         waitForText("Unknown Player Number")
         composeRule.onNodeWithText("Cancel").performClick()
         waitForText("Cards / Technical Fouls")
-        composeRule.onAllNodesWithText("Yellow")[teamCardButtonIndex(TeamId.TEAM_ONE)].performClick()
+        tapCardSheetAction(TeamId.TEAM_ONE, "Yellow")
         waitForText("Yellow Card")
         composeRule.onNodeWithText("N/A").performClick()
         waitForText("Unknown Player Number")
@@ -320,12 +320,12 @@ class TestCardsUi : MainActivityUiTestFixtures() {
 
         // Back from a blue-card misconduct choice should cancel that card and return to Cards / TF.
         openCardsSheet()
-        composeRule.onAllNodesWithText("Blue")[teamCardButtonIndex(TeamId.TEAM_ONE)].performClick()
+        tapCardSheetAction(TeamId.TEAM_ONE, "Blue")
         waitForText("Misconduct Penalty")
         tapBackFromMisconductODChoice()
         waitForText("Cards / Technical Fouls")
         composeRule.onAllNodesWithText("Misconduct Penalty").assertCountEquals(0)
-        composeRule.onAllNodesWithText("Blue")[teamCardButtonIndex(TeamId.TEAM_ONE)].performClick()
+        tapCardSheetAction(TeamId.TEAM_ONE, "Blue")
         waitForText("Misconduct Penalty")
         composeRule.onNodeWithText("Defense").performClick()
         waitForText("Disc moves to the brick nearest the attacking end zone.", substring = true)
@@ -334,7 +334,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
 
         // Back from a red-card N/A misconduct choice should restore a blank number dialog.
         openCardsSheet()
-        composeRule.onAllNodesWithText("Red")[teamCardButtonIndex(TeamId.TEAM_TWO)].performClick()
+        tapCardSheetAction(TeamId.TEAM_TWO, "Red")
         waitForText("Red Card")
         composeRule.onNodeWithText("N/A").performClick()
         waitForText("Misconduct Penalty")
@@ -356,14 +356,14 @@ class TestCardsUi : MainActivityUiTestFixtures() {
 
         // A player with both a yellow and red has no valid additional red card.
         openCardsSheet()
-        composeRule.onAllNodesWithText("Red")[teamCardButtonIndex(TeamId.TEAM_TWO)].performClick()
+        tapCardSheetAction(TeamId.TEAM_TWO, "Red")
         waitForText("Red Card")
         enterCardPlayerNumber("6")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("maximum valid card combination", substring = true)
         pressDialogBack()
         waitForText("Cards / Technical Fouls")
-        composeRule.onAllNodesWithText("Red")[teamCardButtonIndex(TeamId.TEAM_TWO)].performClick()
+        tapCardSheetAction(TeamId.TEAM_TWO, "Red")
         waitForText("Red Card")
         enterCardPlayerNumber("6")
         composeRule.onNodeWithText("Record").performClick()
