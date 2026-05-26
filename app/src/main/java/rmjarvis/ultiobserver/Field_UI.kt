@@ -679,15 +679,30 @@ internal fun CountdownLine(
                     )
                 }
             } else {
-                Text(
-                    text = "${displayCountdown.label} ${formatDuration(displayCountdown.remaining)}",
+                Row(
                     modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.titleLarge.copy(fontSize = titleFontSize),
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = displayCountdown.label,
+                        modifier = Modifier.weight(1f, fill = false),
+                        style = MaterialTheme.typography.titleLarge.copy(fontSize = titleFontSize),
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = formatDuration(displayCountdown.remaining),
+                        style = MaterialTheme.typography.titleLarge.copy(fontSize = titleFontSize),
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                    )
+                }
+                Row(
+                    modifier = Modifier.padding(start = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
                     CountdownPauseToggleButton(
                         isPaused = displayCountdown.isPaused,
                         enabled = enabled && visible,
