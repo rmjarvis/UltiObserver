@@ -1,7 +1,7 @@
 UltiObserver
 ============
 
-UltiObserver is an Android (so far) app to help Ultimate Observers manage the
+UltiObserver is an Android (so far) app to help Ultimate observers manage the
 time, score, cards, and other items that need to be recorded.
 It is intended to take the place of both the paper score sheets we typically
 use to keep track of things and the stopwatch for keeping time.
