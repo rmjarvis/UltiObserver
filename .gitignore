@@ -22,3 +22,4 @@ __pycache__/
 .externalNativeBuild/
 .cxx/
 tools/detekt/*.jar
+play-store-assets
