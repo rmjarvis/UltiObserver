@@ -7,11 +7,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -22,6 +23,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -30,9 +32,11 @@ import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -55,6 +59,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import java.time.Instant
@@ -182,11 +187,12 @@ internal fun SetupScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            // Team and tournament identity.
+            // Team identity.
             SetupFieldBox {
                 TeamEditor(
                     fieldLabel = "Team 1",
                     team = state.teamOne,
+                    priorCards = state.priorCards.filter { it.team == TeamId.TEAM_ONE },
                     onTeamChange = { onStateChange(state.copy(teamOne = it)) },
                     onEditColor = {
                         teamEditorTarget = TeamEditorTarget(TeamId.TEAM_ONE, TeamSetupEditor.COLOR)
@@ -198,10 +204,11 @@ internal fun SetupScreen(
                         teamEditorTarget = TeamEditorTarget(TeamId.TEAM_ONE, TeamSetupEditor.PRIOR_CARDS)
                     },
                 )
-                Spacer(modifier = Modifier.height(6.dp))
+                TeamSetupDivider()
                 TeamEditor(
                     fieldLabel = "Team 2",
                     team = state.teamTwo,
+                    priorCards = state.priorCards.filter { it.team == TeamId.TEAM_TWO },
                     onTeamChange = { onStateChange(state.copy(teamTwo = it)) },
                     onEditColor = {
                         teamEditorTarget = TeamEditorTarget(TeamId.TEAM_TWO, TeamSetupEditor.COLOR)
@@ -213,7 +220,10 @@ internal fun SetupScreen(
                         teamEditorTarget = TeamEditorTarget(TeamId.TEAM_TWO, TeamSetupEditor.PRIOR_CARDS)
                     },
                 )
-                Spacer(modifier = Modifier.height(6.dp))
+            }
+
+            // Game and tournament identity.
+            SetupFieldBox {
                 TournamentEditor(
                     tournamentName = state.tournamentName,
                     onTournamentNameChange = { onStateChange(state.copy(tournamentName = it)) },
@@ -498,6 +508,16 @@ private fun SetupFieldBox(
             content()
         }
     }
+}
+
+/// Render the separator between the two team setup blocks.
+@Composable
+private fun TeamSetupDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(vertical = 2.dp),
+        thickness = 2.dp,
+        color = MaterialTheme.colorScheme.outlineVariant,
+    )
 }
 
 /**
@@ -1247,56 +1267,206 @@ private fun AddPlayerCardDialog(
  *
  * @param fieldLabel The team field label and test-tag stem.
  * @param team The current team setup values.
+ * @param priorCards Prior-card records entered for this team.
  * @param onTeamChange Callback receiving the updated team setup.
+ * @param onEditColor Callback opening the color editor.
+ * @param onEditNames Callback opening the coach/captain names editor.
+ * @param onEditCards Callback opening the prior-card editor.
  */
 @Composable
 private fun TeamEditor(
     fieldLabel: String,
     team: TeamSetup,
+    priorCards: List<PlayerCardRecord>,
     onTeamChange: (TeamSetup) -> Unit,
     onEditColor: () -> Unit,
     onEditNames: () -> Unit,
     onEditCards: () -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedTextField(
-            value = team.name,
-            onValueChange = {
-                onTeamChange(team.copy(name = it))
-            },
-            label = { Text(fieldLabel) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("setup-$fieldLabel-name"),
-        )
-        FlowRow(
+    val namesSummary = team.namesSummary()
+    val cardsSummary = priorCards.teamPriorCardsSummary()
+
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
+            OutlinedTextField(
+                value = team.name,
+                onValueChange = {
+                    onTeamChange(team.copy(name = it))
+                },
+                placeholder = {
+                    Text(
+                        text = fieldLabel,
+                        color = team.color.content.copy(alpha = 0.65f),
+                    )
+                },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+                colors = coloredTeamNameFieldColors(team.color),
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("setup-$fieldLabel-name"),
+            )
             OutlinedButton(
                 onClick = onEditColor,
                 modifier = Modifier.testTag("setup-$fieldLabel-color-button"),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
+                contentPadding = compactSetupButtonPadding(),
             ) {
-                Text("Color")
+                Text(
+                    text = "Edit\nColor",
+                    style = MaterialTheme.typography.labelMedium,
+                    textAlign = TextAlign.Center,
+                    lineHeight = MaterialTheme.typography.labelMedium.fontSize,
+                )
             }
+        }
+        TeamSetupDetailColumns(
+            fieldLabel = fieldLabel,
+            namesSummary = namesSummary,
+            cardsSummary = cardsSummary,
+            onEditNames = onEditNames,
+            onEditCards = onEditCards,
+        )
+    }
+}
+
+/// Return colored text-field colors that preview how the team name appears on the field screen.
+@Composable
+private fun coloredTeamNameFieldColors(colorChoice: TeamColorChoice) = OutlinedTextFieldDefaults.colors(
+    focusedContainerColor = colorChoice.accent,
+    unfocusedContainerColor = colorChoice.accent,
+    focusedTextColor = colorChoice.content,
+    unfocusedTextColor = colorChoice.content,
+    focusedLabelColor = colorChoice.content.copy(alpha = 0.85f),
+    unfocusedLabelColor = colorChoice.content.copy(alpha = 0.85f),
+    cursorColor = colorChoice.content,
+    focusedBorderColor = colorChoice.content.copy(alpha = 0.85f),
+    unfocusedBorderColor = colorChoice.content.copy(alpha = 0.5f),
+)
+
+/// Return compact padding for setup team action buttons.
+private fun compactSetupButtonPadding(): PaddingValues {
+    return PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+}
+
+/**
+ * Render compact team setup detail actions and summaries.
+ *
+ * @param fieldLabel The team field label and test-tag stem.
+ * @param namesSummary Labeled coach/captain summary rows for the left side.
+ * @param cardsSummary Prior-card text summary for the right side.
+ * @param onEditNames Callback opening the coach/captain names editor.
+ * @param onEditCards Callback opening the prior-card editor.
+ */
+@Composable
+private fun TeamSetupDetailColumns(
+    fieldLabel: String,
+    namesSummary: List<LabeledSetupSummary>,
+    cardsSummary: String,
+    onEditNames: () -> Unit,
+    onEditCards: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Column(
+            modifier = Modifier.weight(2f),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
             OutlinedButton(
                 onClick = onEditNames,
-                modifier = Modifier.testTag("setup-$fieldLabel-names-button"),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("setup-$fieldLabel-names-button"),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = Color.White,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                ),
+                contentPadding = compactSetupButtonPadding(),
             ) {
-                Text("Names")
+                Text("Coach/Captains")
             }
+            TeamNamesInlineSummary(namesSummary = namesSummary)
+        }
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
             OutlinedButton(
                 onClick = onEditCards,
-                modifier = Modifier.testTag("setup-$fieldLabel-cards-button"),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("setup-$fieldLabel-cards-button"),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = Color(0xFFFFD600),
+                    contentColor = Color.Black,
+                ),
+                contentPadding = compactSetupButtonPadding(),
             ) {
                 Text("Cards")
+            }
+            Text(
+                text = cardsSummary,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+/**
+ * Render compact team-name details with labels in a fixed-width column.
+ *
+ * @param namesSummary Labeled coach/captain summary rows.
+ * @param modifier Modifier applied to the summary column.
+ */
+@Composable
+private fun TeamNamesInlineSummary(
+    namesSummary: List<LabeledSetupSummary>,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(1.dp),
+    ) {
+        namesSummary.forEach { summary ->
+            Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    text = summary.label,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.width(40.dp),
+                )
+                Text(
+                    text = summary.value,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
     }
 }
+
+/**
+ * One compact labeled row in the setup overview.
+ *
+ * @param label The short fixed-width label.
+ * @param value The free-form text shown to the right of the label.
+ */
+private data class LabeledSetupSummary(
+    val label: String,
+    val value: String,
+)
 
 /**
  * Render the team-color setup dialog.
@@ -1698,6 +1868,38 @@ private fun PlayerCardRecord.playerCardDetail(): String {
         "Y $priorYellows  R $priorReds"
     } else {
         "Y $priorYellows"
+    }
+}
+
+/// Return compact coach and captain rows for the setup overview.
+private fun TeamSetup.namesSummary(): List<LabeledSetupSummary> {
+    return listOfNotNull(
+        coaches.compactLabeledSummary("Coach:"),
+        fieldCaptains.compactLabeledSummary("Field:"),
+        spiritCaptains.compactLabeledSummary("Spirit:"),
+    )
+}
+
+/**
+ * Return compact labeled text for display in a two-column summary row.
+ *
+ * @param label The short label shown before the first line.
+ */
+private fun String.compactLabeledSummary(label: String): LabeledSetupSummary? {
+    val lines = trim()
+        .lines()
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+    if (lines.isEmpty()) {
+        return null
+    }
+    return LabeledSetupSummary(label = label, value = lines.joinToString("\n"))
+}
+
+/// Return compact prior-card text for one team in the setup overview.
+private fun List<PlayerCardRecord>.teamPriorCardsSummary(): String {
+    return joinToString("\n") { record ->
+        "#${record.jerseyNumber}: ${record.playerCardDetail()}"
     }
 }
 

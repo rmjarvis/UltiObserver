@@ -35,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -56,6 +57,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.time.Duration
 import java.time.LocalTime
+
+private val FieldDiagramShape = RoundedCornerShape(8.dp)
+private val TopEndZoneShape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
+private val BottomEndZoneShape = RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp)
+private val FieldPanelBorderColor = Color(0xFF9E9A8D)
 
 /**
  * Render the live-field unlock slider.
@@ -327,7 +333,9 @@ internal fun FieldSketchCard(
             .testTag("live-field-diagram"),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant,
-        )
+        ),
+        shape = FieldDiagramShape,
+        border = BorderStroke(1.dp, FieldPanelBorderColor),
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             // Top end zone/team row.
@@ -336,7 +344,8 @@ internal fun FieldSketchCard(
                 team = topTeam,
                 cardPoints = state.teamCardTotal(topSlot),
                 timeoutsRemaining = state.timeoutsRemaining(topSlot),
-                background = topTeam.color.accent.copy(alpha = 0.85f),
+                background = topTeam.color.accent,
+                shape = TopEndZoneShape,
                 interactionsEnabled = interactionsEnabled,
                 isPulling = state.pullingTeam == topSlot,
                 pullInfractionEnabled = state.canRecordPullInfraction(topSlot),
@@ -379,6 +388,7 @@ internal fun FieldSketchCard(
                 cardPoints = state.teamCardTotal(bottomSlot),
                 timeoutsRemaining = state.timeoutsRemaining(bottomSlot),
                 background = bottomTeam.color.accent,
+                shape = BottomEndZoneShape,
                 interactionsEnabled = interactionsEnabled,
                 isPulling = state.pullingTeam == bottomSlot,
                 pullInfractionEnabled = state.canRecordPullInfraction(bottomSlot),
@@ -414,6 +424,7 @@ private fun EndZonePanel(
     cardPoints: Int,
     timeoutsRemaining: Int,
     background: Color,
+    shape: RoundedCornerShape,
     interactionsEnabled: Boolean,
     isPulling: Boolean,
     pullInfractionEnabled: Boolean,
@@ -430,11 +441,11 @@ private fun EndZonePanel(
         fontSize = metrics.detailFontSize,
         lineHeight = metrics.detailLineHeight,
     )
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(metrics.teamRowHeight)
+            .clip(shape)
             .background(background)
             .padding(metrics.teamRowPadding),
         horizontalArrangement = Arrangement.spacedBy(metrics.teamRowGap),

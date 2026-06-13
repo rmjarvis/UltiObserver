@@ -176,7 +176,7 @@ enum class TeamColorChoice(
     val accentArgb: Long,    // The background color matching the nominal jersey color.
     val contentArgb: Long,   // A text color with good contrast to the accent color.
 ) {
-    WHITE("White", 0xFFF5F2E8, 0xFF1F1A17),
+    WHITE("White", 0xFFF8F9FA, 0xFF1F1A17),
     BLACK("Black", 0xFF232220, 0xFFF6F2E8),
     RED("Red", 0xFFC23B2A, 0xFFFFF8F5),
     BLUE("Blue", 0xFF2A5CAA, 0xFFF7FAFF),

@@ -144,7 +144,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         waitForText("+105")
         closeSetupEditor()
 
-        // Tournament name is optional but should accept a simple text value near prior-card setup.
+        // Tournament name is optional and lives outside the team identity section.
         composeRule.onNodeWithTag("setup-tournament-name").performScrollTo().performTextReplacement("Philly Open")
 
         // Prior-card entry should support cancel, team selection, yellow/red counts, and removal.
@@ -180,12 +180,12 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         closeSetupEditor()
         addPriorCardHolder(teamName = beagles, jersey = "88", yellows = 2, reds = 1)
         addPriorCardHolder(teamName = beagles, jersey = "77", yellows = 1, reds = 0)
-        waitForText("2 players carry cards.")
+        waitForText("#88: Y 2", substring = true)
         openPriorCardsSetupEditor()
         composeRule.onAllNodesWithText("Remove").onFirst().performScrollTo().performClick()
         composeRule.onNodeWithText("$beagles #77").performScrollTo().assertIsDisplayed()
         closeSetupEditor()
-        waitForText("1 player carries cards.")
+        waitForText("#77: Y 1", substring = true)
 
         // The edited setup launches a live game carrying the visible team names forward.
         startGameFromSetup()
