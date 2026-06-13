@@ -99,8 +99,25 @@ private enum class SetupEditor {
     START_TIME,
     STARTING_PULL,
     GAME_RULES,
+}
+
+/// Team-specific setup dialog kind currently open.
+private enum class TeamSetupEditor {
+    COLOR,
+    NAMES,
     PRIOR_CARDS,
 }
+
+/**
+ * Team-specific setup dialog target.
+ *
+ * @param teamId The team whose setup button opened the dialog.
+ * @param editor The team-specific setup dialog kind.
+ */
+private data class TeamEditorTarget(
+    val teamId: TeamId,
+    val editor: TeamSetupEditor,
+)
 
 /**
  * Render the pregame/edit-game setup form for start time, teams, pull, rules, and prior cards.
@@ -126,6 +143,7 @@ internal fun SetupScreen(
     var editingRule by remember { mutableStateOf<RuleEditTarget?>(null) }
     var showTimeoutRulesDialog by remember { mutableStateOf(false) }
     var setupEditor by remember { mutableStateOf<SetupEditor?>(null) }
+    var teamEditorTarget by remember { mutableStateOf<TeamEditorTarget?>(null) }
     val scrollState = rememberScrollState()
 
     // Compose the setup screen as compact overview rows plus modal editors.
@@ -170,12 +188,30 @@ internal fun SetupScreen(
                     fieldLabel = "Team 1",
                     team = state.teamOne,
                     onTeamChange = { onStateChange(state.copy(teamOne = it)) },
+                    onEditColor = {
+                        teamEditorTarget = TeamEditorTarget(TeamId.TEAM_ONE, TeamSetupEditor.COLOR)
+                    },
+                    onEditNames = {
+                        teamEditorTarget = TeamEditorTarget(TeamId.TEAM_ONE, TeamSetupEditor.NAMES)
+                    },
+                    onEditCards = {
+                        teamEditorTarget = TeamEditorTarget(TeamId.TEAM_ONE, TeamSetupEditor.PRIOR_CARDS)
+                    },
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 TeamEditor(
                     fieldLabel = "Team 2",
                     team = state.teamTwo,
                     onTeamChange = { onStateChange(state.copy(teamTwo = it)) },
+                    onEditColor = {
+                        teamEditorTarget = TeamEditorTarget(TeamId.TEAM_TWO, TeamSetupEditor.COLOR)
+                    },
+                    onEditNames = {
+                        teamEditorTarget = TeamEditorTarget(TeamId.TEAM_TWO, TeamSetupEditor.NAMES)
+                    },
+                    onEditCards = {
+                        teamEditorTarget = TeamEditorTarget(TeamId.TEAM_TWO, TeamSetupEditor.PRIOR_CARDS)
+                    },
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 TournamentEditor(
@@ -203,12 +239,6 @@ internal fun SetupScreen(
             ) {
                 GameRulesSummary(state.rules)
             }
-            SetupSummaryRow(
-                title = "Cards from Previous Games",
-                summary = state.priorCardsSummary(),
-                editTag = "setup-edit-prior-cards",
-                onEdit = { setupEditor = SetupEditor.PRIOR_CARDS },
-            )
         }
     }
 
@@ -244,16 +274,47 @@ internal fun SetupScreen(
             )
         }
 
-        SetupEditor.PRIOR_CARDS -> {
-            PriorCardsSetupDialog(
-                state = state,
-                onStateChange = onStateChange,
-                onAddPlayer = { showPlayerDialog = true },
-                onDismiss = { setupEditor = null },
-            )
-        }
-
         null -> Unit
+    }
+
+    val target = teamEditorTarget
+    if (target != null) {
+        val targetLabel = target.teamId.setupName(state)
+        val targetTeam = target.teamId.setupTeam(state)
+        val onTargetTeamChange: (TeamSetup) -> Unit = { updatedTeam ->
+            onStateChange(state.withSetupTeam(target.teamId, updatedTeam))
+        }
+        // No else branch: every TeamSetupEditor value is handled
+        when (target.editor) {
+            TeamSetupEditor.COLOR -> {
+                TeamColorSetupDialog(
+                    teamLabel = targetLabel,
+                    teamFieldLabel = target.teamId.setupFieldLabel(),
+                    team = targetTeam,
+                    onTeamChange = onTargetTeamChange,
+                    onDismiss = { teamEditorTarget = null },
+                )
+            }
+
+            TeamSetupEditor.NAMES -> {
+                TeamNamesSetupDialog(
+                    teamLabel = targetLabel,
+                    teamFieldLabel = target.teamId.setupFieldLabel(),
+                    team = targetTeam,
+                    onTeamChange = onTargetTeamChange,
+                    onDismiss = { teamEditorTarget = null },
+                )
+            }
+
+            TeamSetupEditor.PRIOR_CARDS -> {
+                PriorCardsSetupDialog(
+                    state = state,
+                    onStateChange = onStateChange,
+                    onAddPlayer = { showPlayerDialog = true },
+                    onDismiss = { teamEditorTarget = null },
+                )
+            }
+        }
     }
 
     // Modal for adding a player who already has cards from earlier games.
@@ -261,6 +322,7 @@ internal fun SetupScreen(
         AddPlayerCardDialog(
             firstTeamName = state.teamOne.name,
             secondTeamName = state.teamTwo.name,
+            initialTeam = teamEditorTarget?.teamId ?: TeamId.TEAM_ONE,
             onDismiss = { showPlayerDialog = false },
             onConfirm = { record ->
                 onStateChange(state.copy(priorCards = state.priorCards + record))
@@ -1113,10 +1175,11 @@ private fun TimeoutRulesDialog(
 private fun AddPlayerCardDialog(
     firstTeamName: String,
     secondTeamName: String,
+    initialTeam: TeamId,
     onDismiss: () -> Unit,
     onConfirm: (PlayerCardRecord) -> Unit,
 ) {
-    var selectedTeam by remember { mutableStateOf(TeamId.TEAM_ONE) }
+    var selectedTeam by remember { mutableStateOf(initialTeam) }
     var jerseyNumber by remember { mutableStateOf("") }
     var priorYellows by remember { mutableStateOf(1) }
     var priorReds by remember { mutableStateOf(0) }
@@ -1191,6 +1254,9 @@ private fun TeamEditor(
     fieldLabel: String,
     team: TeamSetup,
     onTeamChange: (TeamSetup) -> Unit,
+    onEditColor: () -> Unit,
+    onEditNames: () -> Unit,
+    onEditCards: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(
@@ -1205,14 +1271,161 @@ private fun TeamEditor(
                 .fillMaxWidth()
                 .testTag("setup-$fieldLabel-name"),
         )
-        ColorChoiceRow(
-            selected = team.color,
-            testTagPrefix = "setup-$fieldLabel-color",
-            onSelected = {
-                onTeamChange(team.copy(color = it))
-            },
-        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            OutlinedButton(
+                onClick = onEditColor,
+                modifier = Modifier.testTag("setup-$fieldLabel-color-button"),
+            ) {
+                Text("Color")
+            }
+            OutlinedButton(
+                onClick = onEditNames,
+                modifier = Modifier.testTag("setup-$fieldLabel-names-button"),
+            ) {
+                Text("Names")
+            }
+            OutlinedButton(
+                onClick = onEditCards,
+                modifier = Modifier.testTag("setup-$fieldLabel-cards-button"),
+            ) {
+                Text("Cards")
+            }
+        }
     }
+}
+
+/**
+ * Render the team-color setup dialog.
+ *
+ * @param teamLabel The display name for the team being edited.
+ * @param teamFieldLabel The stable setup field label used for test tags.
+ * @param team The team setup values being edited.
+ * @param onTeamChange Callback receiving updated team setup values.
+ * @param onDismiss Callback closing the dialog.
+ */
+@Composable
+private fun TeamColorSetupDialog(
+    teamLabel: String,
+    teamFieldLabel: String,
+    team: TeamSetup,
+    onTeamChange: (TeamSetup) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("$teamLabel Color") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = team.color.label,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                ColorChoiceRow(
+                    selected = team.color,
+                    testTagPrefix = "setup-$teamFieldLabel-color",
+                    onSelected = {
+                        onTeamChange(team.copy(color = it))
+                    },
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Done")
+            }
+        },
+    )
+}
+
+/**
+ * Render the free-form coach and captain names dialog for one team.
+ *
+ * @param teamLabel The display name for the team being edited.
+ * @param teamFieldLabel The stable setup field label used for test tags.
+ * @param team The team setup values being edited.
+ * @param onTeamChange Callback receiving updated team setup values.
+ * @param onDismiss Callback closing the dialog.
+ */
+@Composable
+private fun TeamNamesSetupDialog(
+    teamLabel: String,
+    teamFieldLabel: String,
+    team: TeamSetup,
+    onTeamChange: (TeamSetup) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("$teamLabel Names") },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                TeamNamesTextField(
+                    value = team.coaches,
+                    label = "Coach(es)",
+                    testTag = "setup-$teamFieldLabel-coaches",
+                    onValueChange = {
+                        onTeamChange(team.copy(coaches = it))
+                    },
+                )
+                TeamNamesTextField(
+                    value = team.fieldCaptains,
+                    label = "Field captain(s)",
+                    testTag = "setup-$teamFieldLabel-field-captains",
+                    onValueChange = {
+                        onTeamChange(team.copy(fieldCaptains = it))
+                    },
+                )
+                TeamNamesTextField(
+                    value = team.spiritCaptains,
+                    label = "Spirit captain(s)",
+                    testTag = "setup-$teamFieldLabel-spirit-captains",
+                    onValueChange = {
+                        onTeamChange(team.copy(spiritCaptains = it))
+                    },
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Done")
+            }
+        },
+    )
+}
+
+/**
+ * Render one multi-line free-form team names field.
+ *
+ * @param value The current free-form text.
+ * @param label The field label.
+ * @param testTag The test tag attached to the text field.
+ * @param onValueChange Callback receiving updated text.
+ */
+@Composable
+private fun TeamNamesTextField(
+    value: String,
+    label: String,
+    testTag: String,
+    onValueChange: (String) -> Unit,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        minLines = 2,
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(testTag),
+    )
 }
 
 /**
@@ -1508,6 +1721,30 @@ private fun TeamId.setupName(state: GameSetupState): String {
     return name.ifBlank {
         if (this == TeamId.TEAM_ONE) "Team 1" else "Team 2"
     }
+}
+
+/// Return the stable setup field label for a team.
+private fun TeamId.setupFieldLabel(): String {
+    return if (this == TeamId.TEAM_ONE) "Team 1" else "Team 2"
+}
+
+/**
+ * Return the setup fields for a team.
+ *
+ * @param state The setup state containing both teams.
+ */
+private fun TeamId.setupTeam(state: GameSetupState): TeamSetup {
+    return if (this == TeamId.TEAM_ONE) state.teamOne else state.teamTwo
+}
+
+/**
+ * Return setup state with one team's setup fields replaced.
+ *
+ * @param teamId The team to replace.
+ * @param team The updated team setup fields.
+ */
+private fun GameSetupState.withSetupTeam(teamId: TeamId, team: TeamSetup): GameSetupState {
+    return if (teamId == TeamId.TEAM_ONE) copy(teamOne = team) else copy(teamTwo = team)
 }
 
 /// Return user-facing text for a field end.

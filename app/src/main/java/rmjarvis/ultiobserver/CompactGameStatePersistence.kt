@@ -354,6 +354,12 @@ internal data class TeamLiveStatePatch(
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val color: TeamColorChoice? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val coaches: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val fieldCaptains: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val spiritCaptains: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val score: Int? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val timeoutsUsedThisHalf: Int? = null,
@@ -379,6 +385,9 @@ internal data class TeamLiveStatePatch(
         return later.copy(
             name = name ?: later.name,
             color = color ?: later.color,
+            coaches = coaches ?: later.coaches,
+            fieldCaptains = fieldCaptains ?: later.fieldCaptains,
+            spiritCaptains = spiritCaptains ?: later.spiritCaptains,
             score = score ?: later.score,
             timeoutsUsedThisHalf = timeoutsUsedThisHalf ?: later.timeoutsUsedThisHalf,
             firstHalfTimeoutsUsed = firstHalfTimeoutsUsed ?: later.firstHalfTimeoutsUsed,
@@ -404,6 +413,9 @@ internal data class TeamLiveStatePatch(
             return TeamLiveStatePatch(
                 name = previous.name.takeIfChangedFrom(later.name),
                 color = previous.color.takeIfChangedFrom(later.color),
+                coaches = previous.coaches.takeIfChangedFrom(later.coaches),
+                fieldCaptains = previous.fieldCaptains.takeIfChangedFrom(later.fieldCaptains),
+                spiritCaptains = previous.spiritCaptains.takeIfChangedFrom(later.spiritCaptains),
                 score = previous.score.takeIfChangedFrom(later.score),
                 timeoutsUsedThisHalf = previous.timeoutsUsedThisHalf.takeIfChangedFrom(later.timeoutsUsedThisHalf),
                 firstHalfTimeoutsUsed = previous.firstHalfTimeoutsUsed.takeIfChangedFrom(later.firstHalfTimeoutsUsed),

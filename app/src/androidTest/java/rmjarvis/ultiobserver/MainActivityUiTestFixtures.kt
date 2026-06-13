@@ -747,9 +747,14 @@ abstract class MainActivityUiTestFixtures {
         waitForText("Game to")
     }
 
-    /// Open the setup prior-cards editor.
-    protected fun openPriorCardsSetupEditor() {
-        composeRule.onNodeWithTag("setup-edit-prior-cards").performScrollTo().performClick()
+    /**
+     * Open the setup prior-cards editor from one team's setup button.
+     *
+     * @param team The team whose Cards button should open the editor.
+     */
+    protected fun openPriorCardsSetupEditor(team: TeamId = TeamId.TEAM_TWO) {
+        val fieldLabel = if (team == TeamId.TEAM_ONE) "Team 1" else "Team 2"
+        composeRule.onNodeWithTag("setup-$fieldLabel-cards-button").performScrollTo().performClick()
         waitForText("Add Card Holder")
     }
 

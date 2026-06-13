@@ -30,10 +30,16 @@ fun createLiveGameState(setup: GameSetupState): GameState {
         teamOne = TeamLiveState(
             name = setup.teamOne.name.ifBlank { "Team 1" },
             color = setup.teamOne.color,
+            coaches = setup.teamOne.coaches,
+            fieldCaptains = setup.teamOne.fieldCaptains,
+            spiritCaptains = setup.teamOne.spiritCaptains,
         ),
         teamTwo = TeamLiveState(
             name = setup.teamTwo.name.ifBlank { "Team 2" },
             color = setup.teamTwo.color,
+            coaches = setup.teamTwo.coaches,
+            fieldCaptains = setup.teamTwo.fieldCaptains,
+            spiritCaptains = setup.teamTwo.spiritCaptains,
         ),
         priorCards = setup.priorCards,
         nearAttackingTeam = nearAttackingTeam,

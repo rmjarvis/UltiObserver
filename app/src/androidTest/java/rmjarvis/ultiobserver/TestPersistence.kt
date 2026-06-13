@@ -39,8 +39,20 @@ class TestPersistence {
                 startDate = LocalDate.of(2026, 5, 11),
                 startTime = LocalTime.of(10, 0),
                 timeZone = ZoneId.of("America/New_York"),
-                teamOne = TeamSetup("Viscous Coupling", TeamColorChoice.BLUE),
-                teamTwo = TeamSetup("Animal", TeamColorChoice.PINK),
+                teamOne = TeamSetup(
+                    name = "Viscous Coupling",
+                    color = TeamColorChoice.BLUE,
+                    coaches = "Casey Coach",
+                    fieldCaptains = "Casey Field",
+                    spiritCaptains = "Casey Spirit",
+                ),
+                teamTwo = TeamSetup(
+                    name = "Animal",
+                    color = TeamColorChoice.PINK,
+                    coaches = "Riley Coach",
+                    fieldCaptains = "Riley Field",
+                    spiritCaptains = "Riley Spirit",
+                ),
             )
             val livePointState = createLiveGameState(setup).beginLivePoint(0L)
             val scoredState = livePointState.recordGoal(
@@ -83,6 +95,7 @@ class TestPersistence {
             val restoredArchivedGame = restoredStorage.loadArchivedGames().single()
 
             assertEquals(scoredState, restoredCurrentGameState.liveState)
+            assertEquals(setup, restoredCurrentGameState.setupState)
             val undoRestoredState = restoredCurrentGameState.liveState!!.undoLastAction()
             assertEquals(livePointState, undoRestoredState.copy(redoEntry = null))
             assertNotNull(undoRestoredState.redoEntry)

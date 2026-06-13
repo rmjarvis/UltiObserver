@@ -43,12 +43,26 @@ class TestGameSetup : GameDomainTestFixtures() {
             pullingTeam = VC,
             pullingFromEnd = FieldEnd.FAR,
         ).copy(
-            teamOne = TeamSetup("Viscous Coupling", TeamColorChoice.GREEN),
-            teamTwo = TeamSetup("Animal", TeamColorChoice.YELLOW),
+            teamOne = TeamSetup(
+                name = "Viscous Coupling",
+                color = TeamColorChoice.GREEN,
+                coaches = "Coach VC",
+                fieldCaptains = "VC field captain",
+                spiritCaptains = "VC spirit captain",
+            ),
+            teamTwo = TeamSetup(
+                name = "Animal",
+                color = TeamColorChoice.YELLOW,
+                coaches = "Animal coaches",
+                fieldCaptains = "Animal field captains",
+                spiritCaptains = "Animal spirit captains",
+            ),
             priorCards = priorCards,
         )
         var state = createLiveGameState(setup)
         assertEquals(setup, state.toSetupState())
+        assertEquals("Coach VC", state.teamOne.coaches)
+        assertEquals("Animal field captains", state.teamTwo.fieldCaptains)
         assertEquals(VC, state.openingPullingTeam)
         assertEquals(FieldEnd.FAR, state.openingPullingFromEnd)
         assertEquals(VC, state.pullingTeam)
@@ -60,8 +74,20 @@ class TestGameSetup : GameDomainTestFixtures() {
         val editedBeforePlay = setup.copy(
             startTime = LocalTime.of(8, 45),
             rules = setup.rules.copy(gameTo = 15, timeoutsPerHalf = 2),
-            teamOne = TeamSetup("VC", TeamColorChoice.WHITE),
-            teamTwo = TeamSetup("Animal Ultimate", TeamColorChoice.RED),
+            teamOne = TeamSetup(
+                name = "VC",
+                color = TeamColorChoice.WHITE,
+                coaches = "Coach edits",
+                fieldCaptains = "Field captain edits",
+                spiritCaptains = "Spirit captain edits",
+            ),
+            teamTwo = TeamSetup(
+                name = "Animal Ultimate",
+                color = TeamColorChoice.RED,
+                coaches = "Other coach edits",
+                fieldCaptains = "Other field captain edits",
+                spiritCaptains = "Other spirit captain edits",
+            ),
             priorCards = priorCards + PlayerCardRecord(VC, "8", priorYellows = 2, priorReds = 0),
             pullingTeam = ANIMAL,
             pullingFromEnd = FieldEnd.NEAR,
@@ -73,8 +99,14 @@ class TestGameSetup : GameDomainTestFixtures() {
         assertEquals(2, state.rules.timeoutsPerHalf)
         assertEquals("VC", state.teamOne.name)
         assertEquals(TeamColorChoice.WHITE, state.teamOne.color)
+        assertEquals("Coach edits", state.teamOne.coaches)
+        assertEquals("Field captain edits", state.teamOne.fieldCaptains)
+        assertEquals("Spirit captain edits", state.teamOne.spiritCaptains)
         assertEquals("Animal Ultimate", state.teamTwo.name)
         assertEquals(TeamColorChoice.RED, state.teamTwo.color)
+        assertEquals("Other coach edits", state.teamTwo.coaches)
+        assertEquals("Other field captain edits", state.teamTwo.fieldCaptains)
+        assertEquals("Other spirit captain edits", state.teamTwo.spiritCaptains)
         assertEquals(editedBeforePlay.priorCards, state.priorCards)
         assertEquals(ANIMAL, state.openingPullingTeam)
         assertEquals(FieldEnd.NEAR, state.openingPullingFromEnd)
@@ -117,8 +149,20 @@ class TestGameSetup : GameDomainTestFixtures() {
         val editedAfterPlay = editedBeforePlay.copy(
             startTime = LocalTime.of(9, 0),
             rules = editedBeforePlay.rules.copy(gameTo = 17, hasFloaterTimeout = false),
-            teamOne = TeamSetup("Viscous", TeamColorChoice.BLACK),
-            teamTwo = TeamSetup("Animal", TeamColorChoice.BLUE),
+            teamOne = TeamSetup(
+                name = "Viscous",
+                color = TeamColorChoice.BLACK,
+                coaches = "Post-play coach",
+                fieldCaptains = "Post-play field captain",
+                spiritCaptains = "Post-play spirit captain",
+            ),
+            teamTwo = TeamSetup(
+                name = "Animal",
+                color = TeamColorChoice.BLUE,
+                coaches = "Post-play other coach",
+                fieldCaptains = "Post-play other field captain",
+                spiritCaptains = "Post-play other spirit captain",
+            ),
             priorCards = emptyList(),
             pullingTeam = VC,
             pullingFromEnd = FieldEnd.FAR,
@@ -130,8 +174,14 @@ class TestGameSetup : GameDomainTestFixtures() {
         assertFalse(state.rules.hasFloaterTimeout)
         assertEquals("Viscous", state.teamOne.name)
         assertEquals(TeamColorChoice.BLACK, state.teamOne.color)
+        assertEquals("Post-play coach", state.teamOne.coaches)
+        assertEquals("Post-play field captain", state.teamOne.fieldCaptains)
+        assertEquals("Post-play spirit captain", state.teamOne.spiritCaptains)
         assertEquals("Animal", state.teamTwo.name)
         assertEquals(TeamColorChoice.BLUE, state.teamTwo.color)
+        assertEquals("Post-play other coach", state.teamTwo.coaches)
+        assertEquals("Post-play other field captain", state.teamTwo.fieldCaptains)
+        assertEquals("Post-play other spirit captain", state.teamTwo.spiritCaptains)
         assertEquals(fieldStateAfterGoal.teamOne.score, state.teamOne.score)
         assertEquals(fieldStateAfterGoal.teamTwo.score, state.teamTwo.score)
         assertEquals(fieldStateAfterGoal.playerCards(VC), state.playerCards(VC))

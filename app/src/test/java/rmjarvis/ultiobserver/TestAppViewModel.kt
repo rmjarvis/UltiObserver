@@ -957,7 +957,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertEquals(currentGameState, store.loadCurrentGameState())
 
         val currentGameStateFile = File(storeDir, "current_game_state.json")
-        currentGameStateFile.replaceText("\"versionCode\": 1", "\"versionCode\": 99")
+        currentGameStateFile.replaceText("\"versionCode\": ${BuildConfig.VERSION_CODE}", "\"versionCode\": 99")
         val recoveredState = store.loadCurrentGameState()!!
         assertNull(recoveredState.liveState)
         assertEquals(SetupMode.NEW_GAME, recoveredState.setupMode)
@@ -1160,7 +1160,8 @@ class TestAppViewModel : GameDomainTestFixtures() {
         )
 
         store.saveProfile(savedProfile)
-        File(storeDir, "profile.json").replaceText("\"versionCode\": 1", "\"versionCode\": \"bad\"")
+        File(storeDir, "profile.json")
+            .replaceText("\"versionCode\": ${BuildConfig.VERSION_CODE}", "\"versionCode\": \"bad\"")
         assertEquals(Profile(), store.loadProfile())
         assertEquals(
             setOf(
@@ -1186,7 +1187,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         )
 
         store.saveProfile(savedProfile)
-        File(storeDir, "profile.json").replaceText("\"versionCode\": 1", "\"versionCode\": 99")
+        File(storeDir, "profile.json").replaceText("\"versionCode\": ${BuildConfig.VERSION_CODE}", "\"versionCode\": 99")
         assertEquals(Profile(), store.loadProfile())
         assertEquals(
             setOf(
@@ -1199,7 +1200,8 @@ class TestAppViewModel : GameDomainTestFixtures() {
         )
 
         store.saveSettings(savedSettings)
-        File(storeDir, "settings.json").replaceText("\"versionCode\": 1", "\"versionCode\": \"bad\"")
+        File(storeDir, "settings.json")
+            .replaceText("\"versionCode\": ${BuildConfig.VERSION_CODE}", "\"versionCode\": \"bad\"")
         assertEquals(Settings(), store.loadSettings())
         assertEquals(
             setOf(
@@ -1213,7 +1215,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
 
         store.saveArchivedGames(listOf(savedArchive))
         File(File(storeDir, "archived_games"), "00000.json")
-            .replaceText("\"versionCode\": 1", "\"versionCode\": \"bad\"")
+            .replaceText("\"versionCode\": ${BuildConfig.VERSION_CODE}", "\"versionCode\": \"bad\"")
         assertTrue(store.loadArchivedGames().isEmpty())
         assertEquals(
             setOf(
@@ -1233,7 +1235,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertEquals(setOf(PersistedData.GAME_STATE, PersistedData.SETTINGS, PersistedData.ARCHIVED_GAMES), store.resetPersistedDataAreas)
 
         store.saveSettings(savedSettings)
-        File(storeDir, "settings.json").replaceText("\"versionCode\": 1", "\"versionCode\": 99")
+        File(storeDir, "settings.json").replaceText("\"versionCode\": ${BuildConfig.VERSION_CODE}", "\"versionCode\": 99")
         assertEquals(Settings(), store.loadSettings())
         assertEquals(
             setOf(
@@ -1255,7 +1257,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
 
         store.saveArchivedGames(listOf(savedArchive))
         File(File(storeDir, "archived_games"), "00000.json")
-            .replaceText("\"versionCode\": 1", "\"versionCode\": 99")
+            .replaceText("\"versionCode\": ${BuildConfig.VERSION_CODE}", "\"versionCode\": 99")
         assertTrue(store.loadArchivedGames().isEmpty())
         assertEquals(
             setOf(PersistedData.GAME_STATE, PersistedData.SETTINGS, PersistedData.ARCHIVED_GAMES),

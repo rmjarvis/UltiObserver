@@ -127,6 +127,9 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
     private fun assertTeamPatchProperties(patch: TeamLiveStatePatch, previous: TeamLiveState) {
         assertEquals(previous.name, patch.name)
         assertEquals(previous.color, patch.color)
+        assertEquals(previous.coaches, patch.coaches)
+        assertEquals(previous.fieldCaptains, patch.fieldCaptains)
+        assertEquals(previous.spiritCaptains, patch.spiritCaptains)
         assertEquals(previous.score, patch.score)
         assertEquals(previous.timeoutsUsedThisHalf, patch.timeoutsUsedThisHalf)
         assertEquals(previous.firstHalfTimeoutsUsed, patch.firstHalfTimeoutsUsed)
@@ -188,6 +191,9 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
             teamOne = TeamLiveState(
                 name = "Later One",
                 color = TeamColorChoice.BLUE,
+                coaches = "Later one coach",
+                fieldCaptains = "Later one field captain",
+                spiritCaptains = "Later one spirit captain",
                 score = 7,
                 timeoutsUsedThisHalf = 2,
                 firstHalfTimeoutsUsed = 1,
@@ -200,6 +206,9 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
             teamTwo = TeamLiveState(
                 name = "Later Two",
                 color = TeamColorChoice.PINK,
+                coaches = "Later two coach",
+                fieldCaptains = "Later two field captain",
+                spiritCaptains = "Later two spirit captain",
                 score = 8,
                 timeoutsUsedThisHalf = 1,
                 firstHalfTimeoutsUsed = 2,
@@ -263,6 +272,9 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
             teamOne = TeamLiveState(
                 name = "Previous One",
                 color = TeamColorChoice.WHITE,
+                coaches = "Previous one coach",
+                fieldCaptains = "Previous one field captain",
+                spiritCaptains = "Previous one spirit captain",
                 score = 1,
                 timeoutsUsedThisHalf = 0,
                 firstHalfTimeoutsUsed = 0,
@@ -275,6 +287,9 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
             teamTwo = TeamLiveState(
                 name = "Previous Two",
                 color = TeamColorChoice.RED,
+                coaches = "Previous two coach",
+                fieldCaptains = "Previous two field captain",
+                spiritCaptains = "Previous two spirit captain",
                 score = 2,
                 timeoutsUsedThisHalf = 0,
                 firstHalfTimeoutsUsed = 0,

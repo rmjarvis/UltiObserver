@@ -190,11 +190,17 @@ enum class TeamColorChoice(
  *
  * @param name The team name entered in setup; blank means no explicit name yet.
  * @param color The selected jersey color for this team.
+ * @param coaches Free-form coach name/details entered for this team.
+ * @param fieldCaptains Free-form field-captain name/details entered for this team.
+ * @param spiritCaptains Free-form spirit-captain name/details entered for this team.
  */
 @Serializable
 data class TeamSetup(
     val name: String = "",
     val color: TeamColorChoice = TeamColorChoice.WHITE,
+    val coaches: String = "",
+    val fieldCaptains: String = "",
+    val spiritCaptains: String = "",
 )
 /// Configurable rules that affect scoring, caps, halftime, and timeout allowances.
 @Serializable
@@ -213,12 +219,22 @@ data class GameRules(
 /**
  * Live counters and display identity for one team.
  *
+ * @param name The team display name used during live and summary screens.
+ * @param color The selected jersey color for this team.
+ * @param coaches Free-form coach name/details entered for this team.
+ * @param fieldCaptains Free-form field-captain name/details entered for this team.
+ * @param spiritCaptains Free-form spirit-captain name/details entered for this team.
+ * @param score The team's current score.
+ * @param timeoutsUsedThisHalf Number of timeouts this team has used in the current half.
  * @param firstHalfTimeoutsUsed Stored after halftime so floater-timeout carryover can be derived.
  */
 @Serializable
 data class TeamLiveState(
     val name: String,
     val color: TeamColorChoice,
+    val coaches: String = "",
+    val fieldCaptains: String = "",
+    val spiritCaptains: String = "",
     val score: Int = 0,
     val timeoutsUsedThisHalf: Int = 0,
     val firstHalfTimeoutsUsed: Int = 0,
@@ -567,10 +583,16 @@ fun applySetupToLiveGame(
         teamOne = existing.teamOne.copy(
             name = setup.teamOne.name.ifBlank { "Team 1" },
             color = setup.teamOne.color,
+            coaches = setup.teamOne.coaches,
+            fieldCaptains = setup.teamOne.fieldCaptains,
+            spiritCaptains = setup.teamOne.spiritCaptains,
         ),
         teamTwo = existing.teamTwo.copy(
             name = setup.teamTwo.name.ifBlank { "Team 2" },
             color = setup.teamTwo.color,
+            coaches = setup.teamTwo.coaches,
+            fieldCaptains = setup.teamTwo.fieldCaptains,
+            spiritCaptains = setup.teamTwo.spiritCaptains,
         ),
         priorCards = setup.priorCards,
         teamOnePlayerCards = existing.teamOnePlayerCards,
@@ -602,10 +624,16 @@ fun GameState.toSetupState(): GameSetupState {
         teamOne = TeamSetup(
             name = teamOne.name,
             color = teamOne.color,
+            coaches = teamOne.coaches,
+            fieldCaptains = teamOne.fieldCaptains,
+            spiritCaptains = teamOne.spiritCaptains,
         ),
         teamTwo = TeamSetup(
             name = teamTwo.name,
             color = teamTwo.color,
+            coaches = teamTwo.coaches,
+            fieldCaptains = teamTwo.fieldCaptains,
+            spiritCaptains = teamTwo.spiritCaptains,
         ),
         priorCards = priorCards,
         pullingTeam = openingPullingTeam,

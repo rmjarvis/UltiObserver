@@ -103,11 +103,23 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         closeSetupEditor()
         setStartTime(LocalTime.of(11, 45))
 
-        // Team fields include name text and the compact color swatch rows.
+        // Team fields include names plus compact buttons for color, contacts, and prior cards.
         replaceSetupTeamName("Team 1", aardvarks)
         replaceSetupTeamName("Team 2", beagles)
+        composeRule.onNodeWithTag("setup-Team 1-color-button").performScrollTo().performClick()
+        waitForText("$aardvarks Color")
         composeRule.onNodeWithTag("setup-Team 1-color-${TeamColorChoice.BLUE.name}").performScrollTo().performClick()
+        closeSetupEditor()
+        composeRule.onNodeWithTag("setup-Team 2-color-button").performScrollTo().performClick()
+        waitForText("$beagles Color")
         composeRule.onNodeWithTag("setup-Team 2-color-${TeamColorChoice.YELLOW.name}").performScrollTo().performClick()
+        closeSetupEditor()
+        composeRule.onNodeWithTag("setup-Team 1-names-button").performScrollTo().performClick()
+        waitForText("$aardvarks Names")
+        composeRule.onNodeWithTag("setup-Team 1-coaches").performTextReplacement("Coach Alpha\nCoach Beta")
+        composeRule.onNodeWithTag("setup-Team 1-field-captains").performTextReplacement("Field Captain")
+        composeRule.onNodeWithTag("setup-Team 1-spirit-captains").performTextReplacement("Spirit Captain")
+        closeSetupEditor()
 
         // Starting-pull setup should accept either team and either field end.
         openStartingPullSetupEditor()
