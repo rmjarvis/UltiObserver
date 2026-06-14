@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -22,6 +23,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -34,6 +38,8 @@ import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -116,6 +122,8 @@ private enum class TeamSetupDialog {
     CUSTOM_COLOR,
     NAMES,
     PRIOR_CARDS,
+    ADD_PRIOR_CARD,
+    EDIT_PRIOR_CARD,
 }
 
 /**
@@ -123,10 +131,12 @@ private enum class TeamSetupDialog {
  *
  * @param teamId The team whose setup button opened the dialog.
  * @param dialog The team-specific setup dialog kind.
+ * @param priorCardIndex Original setup prior-card index, used only by edit-player dialogs.
  */
 private data class TeamDialog(
     val teamId: TeamId,
     val dialog: TeamSetupDialog,
+    val priorCardIndex: Int? = null,
 )
 
 /**
@@ -147,7 +157,6 @@ internal fun SetupScreen(
     onPrimaryAction: () -> Unit,
     onBackHome: () -> Unit,
 ) {
-    var showPlayerDialog by remember { mutableStateOf(false) }
     var showStartDateDialog by remember { mutableStateOf(false) }
     var showStartTimeDialog by remember { mutableStateOf(false) }
     var editingRule by remember { mutableStateOf<RuleEditTarget?>(null) }
@@ -360,27 +369,64 @@ internal fun SetupScreen(
             TeamSetupDialog.PRIOR_CARDS -> {
                 PriorCardsSetupDialog(
                     state = state,
-                    onStateChange = onStateChange,
-                    onAddPlayer = { showPlayerDialog = true },
+                    teamId = target.teamId,
+                    teamName = targetLabel,
+                    onAddPlayer = {
+                        teamDialog = TeamDialog(target.teamId, TeamSetupDialog.ADD_PRIOR_CARD)
+                    },
+                    onEditPlayer = { index ->
+                        teamDialog = TeamDialog(target.teamId, TeamSetupDialog.EDIT_PRIOR_CARD, index)
+                    },
+                    onRemovePlayer = { index ->
+                        onStateChange(state.copy(priorCards = state.priorCards.filterIndexed { i, _ -> i != index }))
+                    },
                     onDismiss = { teamDialog = null },
                 )
             }
-        }
-    }
 
-    // If showPlayerDialog is true, then on this re-render, open the dialog for adding
-    // cards from earlier games for some players.
-    if (showPlayerDialog) {
-        AddPlayerCardDialog(
-            firstTeamName = state.teamOne.name,
-            secondTeamName = state.teamTwo.name,
-            initialTeam = teamDialog?.teamId ?: TeamId.TEAM_ONE,
-            onDismiss = { showPlayerDialog = false },
-            onConfirm = { record ->
-                onStateChange(state.copy(priorCards = state.priorCards + record))
-                showPlayerDialog = false
-            },
-        )
+            TeamSetupDialog.ADD_PRIOR_CARD -> {
+                PriorCardPlayerDialog(
+                    teamId = target.teamId,
+                    teamName = targetLabel,
+                    initialRecord = null,
+                    onDismiss = {
+                        teamDialog = TeamDialog(target.teamId, TeamSetupDialog.PRIOR_CARDS)
+                    },
+                    onConfirm = { record ->
+                        onStateChange(state.copy(priorCards = state.priorCards + record))
+                        teamDialog = TeamDialog(target.teamId, TeamSetupDialog.PRIOR_CARDS)
+                    },
+                )
+            }
+
+            TeamSetupDialog.EDIT_PRIOR_CARD -> {
+                val recordIndex = requireNotNull(target.priorCardIndex) {
+                    "Edit prior-card dialog requires a prior-card index."
+                }
+                PriorCardPlayerDialog(
+                    teamId = target.teamId,
+                    teamName = targetLabel,
+                    initialRecord = state.priorCards[recordIndex],
+                    onDismiss = {
+                        teamDialog = TeamDialog(target.teamId, TeamSetupDialog.PRIOR_CARDS)
+                    },
+                    onConfirm = { updatedRecord ->
+                        onStateChange(
+                            state.copy(
+                                priorCards = state.priorCards.mapIndexed { index, record ->
+                                    if (index == recordIndex) updatedRecord else record
+                                },
+                            )
+                        )
+                        teamDialog = TeamDialog(target.teamId, TeamSetupDialog.PRIOR_CARDS)
+                    },
+                    onRemove = {
+                        onStateChange(state.copy(priorCards = state.priorCards.filterIndexed { i, _ -> i != recordIndex }))
+                        teamDialog = TeamDialog(target.teamId, TeamSetupDialog.PRIOR_CARDS)
+                    },
+                )
+            }
+        }
     }
 
     // If showStartDateDialog is true, then on this re-render, open the dialog for setting
@@ -905,38 +951,49 @@ private fun GameRulesSetupDialog(
  * Render the prior-card setup dialog.
  *
  * @param state The setup state whose prior-card records are displayed.
- * @param onStateChange Callback receiving setup state after a prior-card removal.
+ * @param teamId The team whose prior-card records are edited.
+ * @param teamName The team label shown in the dialog title.
  * @param onAddPlayer Callback opening the add-prior-card dialog.
+ * @param onEditPlayer Callback opening an existing prior-card record by original setup index.
+ * @param onRemovePlayer Callback removing an existing prior-card record by original setup index.
  * @param onDismiss Callback closing the dialog.
  */
 @Composable
 private fun PriorCardsSetupDialog(
     state: GameSetupState,
-    onStateChange: (GameSetupState) -> Unit,
+    teamId: TeamId,
+    teamName: String,
     onAddPlayer: () -> Unit,
+    onEditPlayer: (Int) -> Unit,
+    onRemovePlayer: (Int) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val teamPriorCards = state.priorCards.withIndex().filter { it.value.team == teamId }
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Cards from Previous Games") },
+        title = { Text("$teamName Cards from Previous Games") },
         text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                if (state.priorCards.isEmpty()) {
-                    Text("No prior cards recorded yet.")
-                } else {
-                    state.priorCards.forEachIndexed { index, record ->
-                        PlayerRecordRow(
-                            label = "${record.team.setupName(state)} #${record.jerseyNumber}",
-                            detail = record.playerCardDetail(),
-                            onRemove = {
-                                onStateChange(
-                                    state.copy(priorCards = state.priorCards.filterIndexed { i, _ -> i != index })
-                                )
-                            },
-                        )
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 320.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    if (teamPriorCards.isEmpty()) {
+                        Text("No prior cards recorded yet.")
+                    } else {
+                        teamPriorCards.forEach { (index, record) ->
+                            PlayerRecordRow(
+                                label = record.playerCardIdentity(compact = false),
+                                detail = record.playerCardDetail(),
+                                editTag = "setup-prior-card-edit-$index",
+                                removeTag = "setup-prior-card-remove-$index",
+                                onEdit = { onEditPlayer(index) },
+                                onRemove = { onRemovePlayer(index) },
+                            )
+                        }
                     }
                 }
                 OutlinedButton(onClick = onAddPlayer) {
@@ -1229,55 +1286,76 @@ private fun TimeoutRulesDialog(
 }
 
 /**
- * Render the setup dialog for a player carrying cards from earlier games.
+ * Render the setup dialog for adding or editing a player carrying cards from earlier games.
  *
- * @param firstTeamName The Team 1 label shown in the team selector.
- * @param secondTeamName The Team 2 label shown in the team selector.
- * @param onDismiss Callback closing the dialog without adding a record.
- * @param onConfirm Callback receiving the new prior-card record.
+ * @param teamId The team whose player is carrying prior cards.
+ * @param teamName The team label shown in the dialog.
+ * @param initialRecord Existing record when editing, or null when adding.
+ * @param onDismiss Callback closing the dialog without applying changes.
+ * @param onConfirm Callback receiving the added or updated prior-card record.
+ * @param onRemove Callback removing the edited prior-card record, or null when adding.
  */
 @Composable
-private fun AddPlayerCardDialog(
-    firstTeamName: String,
-    secondTeamName: String,
-    initialTeam: TeamId,
+private fun PriorCardPlayerDialog(
+    teamId: TeamId,
+    teamName: String,
+    initialRecord: PlayerCardRecord?,
     onDismiss: () -> Unit,
     onConfirm: (PlayerCardRecord) -> Unit,
+    onRemove: (() -> Unit)? = null,
 ) {
-    var selectedTeam by remember { mutableStateOf(initialTeam) }
-    var jerseyNumber by remember { mutableStateOf("") }
-    var priorYellows by remember { mutableStateOf(1) }
-    var priorReds by remember { mutableStateOf(0) }
+    val isEditing = initialRecord != null
+    var jerseyNumber by remember(initialRecord) { mutableStateOf(initialRecord?.jerseyNumber ?: "") }
+    var playerName by remember(initialRecord) { mutableStateOf(initialRecord?.playerName ?: "") }
+    var priorYellows by remember(initialRecord) { mutableStateOf(initialRecord?.priorYellows ?: 1) }
+    var priorReds by remember(initialRecord) { mutableStateOf(initialRecord?.priorReds ?: 0) }
+    val trimmedJerseyNumber = jerseyNumber.trim()
+    val trimmedPlayerName = playerName.trim()
+    val hasPlayerIdentity = trimmedJerseyNumber.isNotEmpty() || trimmedPlayerName.isNotEmpty()
+    val hasPriorCard = priorYellows > 0 || priorReds > 0
+    val confirmLabel = when {
+        !hasPriorCard && isEditing -> "Remove"
+        !hasPriorCard -> "Cancel"
+        isEditing -> "Update"
+        else -> "Add"
+    }
     val focusManager = LocalFocusManager.current
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add player cards") },
+        title = { Text(if (isEditing) "Edit Previous Game Card Holder" else "Add Previous Game Card Holder") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TeamChoiceRow(
-                    firstLabel = firstTeamName,
-                    secondLabel = secondTeamName,
-                    selected = selectedTeam,
-                    testTagPrefix = "setup-prior-card-team",
-                    onSelected = { selectedTeam = it },
+                Text(
+                    text = teamName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
                 )
                 OutlinedTextField(
                     value = jerseyNumber,
                     onValueChange = { jerseyNumber = it.filter(Char::isDigit) },
-                    label = { Text("Jersey number") },
+                    label = { Text("Number") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus(force = true) }),
                     singleLine = true,
                     modifier = Modifier.testTag("setup-prior-card-jersey"),
                 )
+                OutlinedTextField(
+                    value = playerName,
+                    onValueChange = { playerName = it },
+                    label = { Text("Name") },
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus(force = true) }),
+                    singleLine = true,
+                    modifier = Modifier.testTag("setup-prior-card-name"),
+                )
                 SmallCountEditor(
-                    label = "Prior yellows",
+                    label = "Yellow",
                     value = priorYellows,
                     onValueChange = { priorYellows = it.coerceAtLeast(0) },
                 )
                 SmallCountEditor(
-                    label = "Prior reds",
+                    label = "Red",
                     value = priorReds,
                     onValueChange = { priorReds = it.coerceAtLeast(0) },
                 )
@@ -1285,23 +1363,31 @@ private fun AddPlayerCardDialog(
         },
         confirmButton = {
             TextButton(
+                enabled = !hasPriorCard || hasPlayerIdentity,
                 onClick = {
-                    onConfirm(
-                        PlayerCardRecord(
-                            team = selectedTeam,
-                            jerseyNumber = jerseyNumber.ifBlank { "0" },
-                            priorYellows = priorYellows,
-                            priorReds = priorReds,
+                    if (!hasPriorCard) {
+                        onRemove?.invoke() ?: onDismiss()
+                    } else {
+                        onConfirm(
+                            PlayerCardRecord(
+                                team = teamId,
+                                jerseyNumber = trimmedJerseyNumber,
+                                priorYellows = priorYellows,
+                                priorReds = priorReds,
+                                playerName = trimmedPlayerName,
+                            )
                         )
-                    )
+                    }
                 }
             ) {
-                Text("Add")
+                Text(confirmLabel)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
+            if (confirmLabel != "Cancel") {
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel")
+                }
             }
         },
     )
@@ -1463,6 +1549,8 @@ private fun TeamSetupDetailColumns(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth(),
+                maxLines = 4,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
@@ -2059,31 +2147,35 @@ internal fun SmallCountEditor(
     value: Int,
     onValueChange: (Int) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(label, fontWeight = FontWeight.SemiBold)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            SmallActionButton(
-                label = "-1",
-                onClick = {
-                    onValueChange((value - 1).coerceAtLeast(0))
-                },
-            )
-            Text(
-                value.toString(),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-            )
-            SmallActionButton(
-                label = "+1",
-                onClick = {
-                    onValueChange(value + 1)
-                },
-            )
-        }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            text = label,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.width(104.dp),
+        )
+        SmallActionButton(
+            label = "-1",
+            onClick = {
+                onValueChange((value - 1).coerceAtLeast(0))
+            },
+        )
+        Text(
+            value.toString(),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.width(24.dp),
+        )
+        SmallActionButton(
+            label = "+1",
+            onClick = {
+                onValueChange(value + 1)
+            },
+        )
     }
 }
 
@@ -2092,12 +2184,18 @@ internal fun SmallCountEditor(
  *
  * @param label The player/team label.
  * @param detail The compact prior-card detail.
+ * @param editTag Test tag for the edit icon button.
+ * @param removeTag Test tag for the remove icon button.
+ * @param onEdit Callback opening this prior-card record for editing.
  * @param onRemove Callback removing this prior-card record.
  */
 @Composable
 private fun PlayerRecordRow(
     label: String,
     detail: String,
+    editTag: String,
+    removeTag: String,
+    onEdit: () -> Unit,
     onRemove: () -> Unit,
 ) {
     Card(
@@ -2111,23 +2209,42 @@ private fun PlayerRecordRow(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column {
-                Text(label, fontWeight = FontWeight.SemiBold)
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = label,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 Text(detail)
             }
-            TextButton(onClick = onRemove) {
-                Text("Remove")
+            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                IconButton(
+                    onClick = onEdit,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .testTag(editTag),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Edit,
+                        contentDescription = "Edit $label",
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+                IconButton(
+                    onClick = onRemove,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .testTag(removeTag),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Delete,
+                        contentDescription = "Remove $label",
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
             }
         }
-    }
-}
-
-/// Return the compact setup summary for a player's prior yellows and reds.
-private fun PlayerCardRecord.playerCardDetail(): String {
-    return if (priorReds > 0) {
-        "Y $priorYellows  R $priorReds"
-    } else {
-        "Y $priorYellows"
     }
 }
 
@@ -2159,7 +2276,7 @@ private fun String.compactLabeledSummary(label: String): LabeledSetupSummary? {
 /// Return compact prior-card text for one team in the setup overview.
 private fun List<PlayerCardRecord>.teamPriorCardsSummary(): String {
     return joinToString("\n") { record ->
-        "#${record.jerseyNumber}: ${record.playerCardDetail()}"
+        "${record.playerCardIdentity(compact = true)}: ${record.playerCardDetail()}"
     }
 }
 
@@ -2237,15 +2354,6 @@ private fun capSummary(enabled: Boolean, minutes: Int): String {
 /// Return the compact timeout-rule summary.
 private fun GameRules.timeoutSummary(): String {
     return if (hasFloaterTimeout) "$timeoutsPerHalf+1" else timeoutsPerHalf.toString()
-}
-
-/// Return the compact setup summary for prior-card records.
-private fun GameSetupState.priorCardsSummary(): String {
-    return when (priorCards.size) {
-        0 -> "No previous cards."
-        1 -> "1 player carries cards."
-        else -> "${priorCards.size} players carry cards."
-    }
 }
 
 /**

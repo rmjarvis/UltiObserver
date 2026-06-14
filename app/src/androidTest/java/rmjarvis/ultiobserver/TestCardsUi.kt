@@ -1,7 +1,6 @@
 package rmjarvis.ultiobserver
 
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
@@ -130,15 +129,17 @@ class TestCardsUi : MainActivityUiTestFixtures() {
 
         // Add a prior-card holder in setup and verify the compact prior-card summary renders.
         openPriorCardsSetupEditor()
-        composeRule.onNodeWithText("Add Card Holder").performScrollTo().performClick()
-        waitForText("Add player cards")
+        composeRule.onNodeWithText("Add Card Holder").performClick()
+        waitForText("Add Previous Game Card Holder")
         enterPriorCardJersey("42")
+        composeRule.onAllNodesWithText("-1")[0].performClick()
+        composeRule.onNodeWithText("Cancel").assertIsDisplayed()
         composeRule.onAllNodesWithText("+1")[1].performClick()
         composeRule.onNodeWithText("Add").performClick()
-        composeRule.onNodeWithText("Y 1  R 1").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("R 1").performScrollTo().assertIsDisplayed()
         closeSetupEditor()
         waitForText("Start Game")
-        composeRule.onNodeWithText("1 player carries cards.").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("#42: R 1").performScrollTo().assertIsDisplayed()
         startGameFromSetup()
 
         // A red without an existing yellow should record immediately.

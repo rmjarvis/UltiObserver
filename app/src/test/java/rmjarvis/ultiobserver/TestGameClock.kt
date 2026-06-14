@@ -80,8 +80,38 @@ class TestGameClock : GameDomainTestFixtures() {
         )
         assertEquals(VC, priorCardRecord.team)
         assertEquals("8", priorCardRecord.jerseyNumber)
+        assertEquals("", priorCardRecord.playerName)
         assertEquals(1, priorCardRecord.priorYellows)
         assertEquals(0, priorCardRecord.priorReds)
+        assertEquals("#8", priorCardRecord.playerCardIdentity(compact = true))
+        assertEquals("#8", priorCardRecord.playerCardIdentity(compact = false))
+        assertEquals("Y 1", priorCardRecord.playerCardDetail())
+        val namedPriorCardRecord = PlayerCardRecord(
+            team = VC,
+            jerseyNumber = "12",
+            priorYellows = 1,
+            priorReds = 1,
+            playerName = "Casey Handler",
+        )
+        assertEquals("#12", namedPriorCardRecord.playerCardIdentity(compact = true))
+        assertEquals("#12 Casey Handler", namedPriorCardRecord.playerCardIdentity(compact = false))
+        assertEquals("Y 1  R 1", namedPriorCardRecord.playerCardDetail())
+        val numberlessPriorCardRecord = PlayerCardRecord(
+            team = VC,
+            jerseyNumber = "",
+            priorYellows = 0,
+            priorReds = 1,
+            playerName = "No Number",
+        )
+        assertEquals("No Number", numberlessPriorCardRecord.playerCardIdentity(compact = true))
+        assertEquals("No Number", numberlessPriorCardRecord.playerCardIdentity(compact = false))
+        assertEquals("R 1", numberlessPriorCardRecord.playerCardDetail())
+        assertThrows(IllegalArgumentException::class.java) {
+            PlayerCardRecord(VC, "", priorYellows = 1, priorReds = 0)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            PlayerCardRecord(VC, "8", priorYellows = 0, priorReds = 0)
+        }
         assertEquals("Yellow", CardType.YELLOW.label)
         assertEquals("Tick", TimingAlertSound.TICK.label)
         assertEquals("Sounds On", TimingAlertGlobalMode.SOUNDS_ON.label)

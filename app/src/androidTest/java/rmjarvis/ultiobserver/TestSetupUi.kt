@@ -1,7 +1,6 @@
 package rmjarvis.ultiobserver
 
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
@@ -63,9 +62,9 @@ class TestSetupUi : MainActivityUiTestFixtures() {
 
         // Add a prior-card holder and make sure the form remains usable afterwards.
         openPriorCardsSetupEditor()
-        composeRule.onNodeWithText("Add Card Holder").performScrollTo().performClick()
-        composeRule.onNodeWithText("Add player cards").assertIsDisplayed()
-        composeRule.onNodeWithText("Add").performClick()
+        composeRule.onNodeWithText("Add Card Holder").performClick()
+        composeRule.onNodeWithText("Add Previous Game Card Holder").assertIsDisplayed()
+        composeRule.onNodeWithText("Cancel").performClick()
         waitForText("Add Card Holder")
         closeSetupEditor()
         waitForText("Start Game")
@@ -152,21 +151,19 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         // Tournament name is optional and lives outside the team identity section.
         composeRule.onNodeWithTag("setup-tournament-name").performScrollTo().performTextReplacement("Philly Open")
 
-        // Prior-card entry should support cancel, team selection, yellow/red counts, and removal.
+        // Prior-card entry should support cancel, team-scoped entry, editing, zero-card removal, and name-only rows.
         openPriorCardsSetupEditor()
-        composeRule.onNodeWithText("Add Card Holder").performScrollTo().performClick()
-        waitForText("Add player cards")
+        composeRule.onNodeWithText("Add Card Holder").performClick()
+        waitForText("Add Previous Game Card Holder")
         composeRule.onNodeWithText("Cancel").performClick()
         waitForText("Add Card Holder")
         closeSetupEditor()
         waitForText("Start Game")
 
-        // Add one card holder through a realistic correction path: switch the team back and reduce counts.
-        openPriorCardsSetupEditor()
-        composeRule.onNodeWithText("Add Card Holder").performScrollTo().performClick()
-        waitForText("Add player cards")
-        composeRule.onNodeWithTag("setup-prior-card-team-${TeamId.TEAM_TWO.name}").performClick()
-        composeRule.onNodeWithTag("setup-prior-card-team-${TeamId.TEAM_ONE.name}").performClick()
+        // Add one Team 1 card holder through a realistic correction path that reduces counts.
+        openPriorCardsSetupEditor(TeamId.TEAM_ONE)
+        composeRule.onNodeWithText("Add Card Holder").performClick()
+        waitForText("Add Previous Game Card Holder")
         enterPriorCardJersey("66")
         composeRule.onAllNodesWithText("+1")[0].performClick()
         composeRule.onAllNodesWithText("-1")[0].performClick()
@@ -175,22 +172,39 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onAllNodesWithText("+1")[1].performClick()
         composeRule.onAllNodesWithText("-1")[1].performClick()
         composeRule.onNodeWithText("Add").performClick()
-        composeRule.onNodeWithText("$aardvarks #66").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("#66").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Y 2").assertIsDisplayed()
         closeSetupEditor()
         waitForText("Start Game")
-        openPriorCardsSetupEditor()
-        composeRule.onNodeWithText("Remove").performScrollTo().performClick()
+        openPriorCardsSetupEditor(TeamId.TEAM_ONE)
+        composeRule.onNodeWithTag("setup-prior-card-edit-0").performScrollTo().performClick()
+        waitForText("Edit Previous Game Card Holder")
+        enterPriorCardJersey("67")
+        enterPriorCardName("Sideline Caller")
+        composeRule.onNodeWithText("Update").performClick()
+        composeRule.onNodeWithText("#67 Sideline Caller").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("setup-prior-card-edit-0").performScrollTo().performClick()
+        waitForText("Edit Previous Game Card Holder")
+        composeRule.onAllNodesWithText("-1")[0].performClick()
+        composeRule.onAllNodesWithText("-1")[0].performClick()
+        composeRule.onNodeWithText("Remove").performClick()
         waitForText("No prior cards recorded yet.")
         closeSetupEditor()
-        addPriorCardHolder(teamName = beagles, jersey = "88", yellows = 2, reds = 1)
-        addPriorCardHolder(teamName = beagles, jersey = "77", yellows = 1, reds = 0)
+        addPriorCardHolder(team = TeamId.TEAM_TWO, jersey = "88", playerName = "Numbered Player", yellows = 2, reds = 1)
+        addPriorCardHolder(
+            team = TeamId.TEAM_TWO,
+            jersey = "",
+            playerName = "A Very Long Player Name With No Number",
+            yellows = 1,
+            reds = 0,
+        )
         waitForText("#88: Y 2", substring = true)
         openPriorCardsSetupEditor()
-        composeRule.onAllNodesWithText("Remove").onFirst().performScrollTo().performClick()
-        composeRule.onNodeWithText("$beagles #77").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("#88 Numbered Player").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("setup-prior-card-remove-0").performScrollTo().performClick()
+        composeRule.onNodeWithText("A Very Long Player Name With No Number").performScrollTo().assertIsDisplayed()
         closeSetupEditor()
-        waitForText("#77: Y 1", substring = true)
+        waitForText("A Very Long Player Name With No Number: Y 1", substring = true)
 
         // The edited setup launches a live game carrying the visible team names forward.
         startGameFromSetup()

@@ -217,17 +217,18 @@ abstract class MainActivityUiTestFixtures {
     /**
      * Add a prior-card holder through setup.
      *
-     * @param teamName The displayed team name expected in the added row.
+     * @param team The team whose Cards button was pressed.
      * @param jersey The jersey number to enter.
+     * @param playerName The player name to enter.
      * @param yellows The prior yellow count to set.
      * @param reds The prior red count to set.
      */
-    protected fun addPriorCardHolder(teamName: String, jersey: String, yellows: Int, reds: Int) {
-        openPriorCardsSetupEditor()
-        composeRule.onNodeWithText("Add Card Holder").performScrollTo().performClick()
-        waitForText("Add player cards")
-        composeRule.onNodeWithTag("setup-prior-card-team-${TeamId.TEAM_TWO.name}").performClick()
+    protected fun addPriorCardHolder(team: TeamId, jersey: String, playerName: String, yellows: Int, reds: Int) {
+        openPriorCardsSetupEditor(team)
+        composeRule.onNodeWithText("Add Card Holder").performClick()
+        waitForText("Add Previous Game Card Holder")
         enterPriorCardJersey(jersey)
+        enterPriorCardName(playerName)
         repeat((yellows - 1).coerceAtLeast(0)) {
             composeRule.onAllNodesWithText("+1")[0].performClick()
         }
@@ -235,7 +236,7 @@ abstract class MainActivityUiTestFixtures {
             composeRule.onAllNodesWithText("+1")[1].performClick()
         }
         composeRule.onNodeWithText("Add").performClick()
-        composeRule.onNodeWithText("$teamName #$jersey").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText(priorCardIdentity(jersey, playerName)).performScrollTo().assertIsDisplayed()
         closeSetupEditor()
         waitForText("Start Game")
     }
@@ -248,6 +249,25 @@ abstract class MainActivityUiTestFixtures {
     protected fun enterPriorCardJersey(jersey: String) {
         composeRule.onNodeWithTag("setup-prior-card-jersey").performTextReplacement(jersey)
         composeRule.onNodeWithTag("setup-prior-card-jersey").performImeAction()
+    }
+
+    /**
+     * Enter a player name in the setup prior-card holder dialog.
+     *
+     * @param playerName The player name text to enter.
+     */
+    protected fun enterPriorCardName(playerName: String) {
+        composeRule.onNodeWithTag("setup-prior-card-name").performTextReplacement(playerName)
+        composeRule.onNodeWithTag("setup-prior-card-name").performImeAction()
+    }
+
+    /// Return the setup display identity for a prior-card holder.
+    protected fun priorCardIdentity(jersey: String, playerName: String): String {
+        return when {
+            jersey.isNotBlank() && playerName.isNotBlank() -> "#$jersey $playerName"
+            jersey.isNotBlank() -> "#$jersey"
+            else -> playerName
+        }
     }
 
     /**

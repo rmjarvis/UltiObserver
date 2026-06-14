@@ -7,7 +7,8 @@ import kotlin.math.max
  * Tournament carryover cards for one player before the current game starts.
  *
  * @param team The player's team.
- * @param jerseyNumber The player's jersey number, or `N/A` when unknown.
+ * @param jerseyNumber The player's jersey number, or blank when unknown.
+ * @param playerName The player's name, or blank when unknown.
  * @param priorYellows Yellow cards issued in previous games of the current tournament.
  * @param priorReds Red cards issued in previous games of the current tournament.
  */
@@ -17,7 +18,40 @@ data class PlayerCardRecord(
     val jerseyNumber: String,
     val priorYellows: Int,    // Cards issued in previous games of the current tournament.
     val priorReds: Int,
-)
+    val playerName: String = "",
+) {
+    init {
+        require(jerseyNumber.isNotBlank() || playerName.isNotBlank()) {
+            "A prior-card record requires a jersey number or player name."
+        }
+        require(priorYellows > 0 || priorReds > 0) {
+            "A prior-card record requires at least one prior card."
+        }
+    }
+}
+
+/// Return the compact setup summary for a player's prior yellows and reds.
+internal fun PlayerCardRecord.playerCardDetail(): String {
+    return listOfNotNull(
+        if (priorYellows > 0) "Y $priorYellows" else null,
+        if (priorReds > 0) "R $priorReds" else null,
+    ).joinToString("  ")
+}
+
+/**
+ * Return the setup identity for a player carrying prior cards.
+ *
+ * @param compact Whether to omit the name when a jersey number is available.
+ */
+internal fun PlayerCardRecord.playerCardIdentity(compact: Boolean): String {
+    val number = jerseyNumber.trim()
+    val name = playerName.trim()
+    return if (number.isNotEmpty()) {
+        if (!compact && name.isNotEmpty()) "#$number $name" else "#$number"
+    } else {
+        name
+    }
+}
 
 /**
  * Player-card type being assigned or reconciled.
