@@ -26,6 +26,8 @@ fun createLiveGameState(setup: GameSetupState): GameState {
         timeZone = setup.timeZone,
         startEpoch = startEpoch,
         tournamentName = setup.tournamentName,
+        division = setup.division,
+        gameContext = setup.gameContext,
         rules = setup.rules,
         teamOne = TeamLiveState(
             name = setup.teamOne.name.ifBlank { "Team 1" },

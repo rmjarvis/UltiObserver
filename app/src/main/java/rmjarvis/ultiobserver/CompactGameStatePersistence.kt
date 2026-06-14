@@ -126,6 +126,10 @@ internal data class GameStatePatch(
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val tournamentName: String? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val division: NullablePatchValue<GameDivision>? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val gameContext: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val rules: GameRules? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val teamOne: TeamLiveStatePatch? = null,
@@ -193,6 +197,8 @@ internal data class GameStatePatch(
             startEpoch = startEpoch ?: later.startEpoch,
             endEpoch = if (endEpoch != null) endEpoch.value else later.endEpoch,
             tournamentName = tournamentName ?: later.tournamentName,
+            division = if (division != null) division.value else later.division,
+            gameContext = gameContext ?: later.gameContext,
             rules = rules ?: later.rules,
             teamOne = teamOne?.applyTo(later.teamOne) ?: later.teamOne,
             teamTwo = teamTwo?.applyTo(later.teamTwo) ?: later.teamTwo,
@@ -240,6 +246,8 @@ internal data class GameStatePatch(
                 startEpoch = previous.startEpoch.takeIfChangedFrom(later.startEpoch),
                 endEpoch = nullablePatch(later.endEpoch, previous.endEpoch),
                 tournamentName = previous.tournamentName.takeIfChangedFrom(later.tournamentName),
+                division = nullablePatch(later.division, previous.division),
+                gameContext = previous.gameContext.takeIfChangedFrom(later.gameContext),
                 rules = previous.rules.takeIfChangedFrom(later.rules),
                 teamOne = TeamLiveStatePatch.fromLaterAndPrevious(later.teamOne, previous.teamOne),
                 teamTwo = TeamLiveStatePatch.fromLaterAndPrevious(later.teamTwo, previous.teamTwo),

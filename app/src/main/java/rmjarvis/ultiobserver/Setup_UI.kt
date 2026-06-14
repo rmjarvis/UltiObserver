@@ -111,7 +111,7 @@ private enum class RuleEditTarget(
 
 /// Setup dialog currently open.
 private enum class SetupDialog {
-    START_TIME,
+    GAME_INFORMATION,
     STARTING_PULL,
     GAME_RULES,
 }
@@ -206,8 +206,6 @@ internal fun SetupScreen(
     onPrimaryAction: () -> Unit,
     onBackHome: () -> Unit,
 ) {
-    var showStartDateDialog by remember { mutableStateOf(false) }
-    var showStartTimeDialog by remember { mutableStateOf(false) }
     var editingRule by remember { mutableStateOf<RuleEditTarget?>(null) }
     var showTimeoutRulesDialog by remember { mutableStateOf(false) }
     var setupDialog by remember { mutableStateOf<SetupDialog?>(null) }
@@ -357,20 +355,14 @@ internal fun SetupScreen(
                 )
             }
 
-            // Game and tournament identity.
-            SetupFieldBox {
-                TournamentEditor(
-                    tournamentName = state.tournamentName,
-                    onTournamentNameChange = { onStateChange(state.copy(tournamentName = it)) },
-                )
+            SetupSummaryRow(
+                title = "Game Information",
+                editTag = "setup-edit-game-information",
+                onEdit = { setupDialog = SetupDialog.GAME_INFORMATION },
+            ) {
+                GameInformationSummary(state)
             }
 
-            SetupSummaryRow(
-                title = "Start Time",
-                summary = state.startTimeSummary(),
-                editTag = "setup-edit-start-time",
-                onEdit = { setupDialog = SetupDialog.START_TIME },
-            )
             SetupSummaryRow(
                 title = "Starting Pull",
                 summary = state.startingPullSummary(),
@@ -390,12 +382,10 @@ internal fun SetupScreen(
     // If setupDialog is set, then on this re-render, open the corresponding dialog box.
     // No else branch: every SetupDialog value plus null is handled
     when (setupDialog) {
-        SetupDialog.START_TIME -> {
-            StartTimeSetupDialog(
+        SetupDialog.GAME_INFORMATION -> {
+            GameInformationSetupDialog(
                 state = state,
                 onStateChange = onStateChange,
-                onEditDate = { showStartDateDialog = true },
-                onEditTime = { showStartTimeDialog = true },
                 onDismiss = { setupDialog = null },
             )
         }
@@ -640,32 +630,6 @@ internal fun SetupScreen(
         )
     }
 
-    // If showStartDateDialog is true, then on this re-render, open the dialog for setting
-    // the exact start-date entry.
-    if (showStartDateDialog) {
-        StartDateDialog(
-            initialDate = state.startDate,
-            onDismiss = { showStartDateDialog = false },
-            onConfirm = {
-                onStateChange(state.copy(startDate = it))
-                showStartDateDialog = false
-            },
-        )
-    }
-
-    // If showStartTimeDialog is true, then on this re-render, open the dialog for setting
-    // the exact start-time entry.
-    if (showStartTimeDialog) {
-        ExactTimeDialog(
-            initialTime = state.startTime,
-            onDismiss = { showStartTimeDialog = false },
-            onConfirm = {
-                onStateChange(state.copy(startTime = it))
-                showStartTimeDialog = false
-            },
-        )
-    }
-
     // If editingRule is set, then on this re-render, open the dialog for specifying rules.
     if (editingRule != null) {
         val target = editingRule!!
@@ -905,26 +869,220 @@ private fun SetupSummaryRow(
 }
 
 /**
- * Render the optional tournament-name setup text field.
+ * Render the game-information setup dialog.
  *
- * @param tournamentName The current tournament name.
- * @param onTournamentNameChange Callback receiving text updates.
+ * @param state The setup state whose tournament and game context are being edited.
+ * @param onStateChange Callback receiving updated setup state.
+ * @param onDismiss Callback closing the dialog.
  */
 @Composable
-private fun TournamentEditor(
-    tournamentName: String,
-    onTournamentNameChange: (String) -> Unit,
+private fun GameInformationSetupDialog(
+    state: GameSetupState,
+    onStateChange: (GameSetupState) -> Unit,
+    onDismiss: () -> Unit,
 ) {
-    OutlinedTextField(
-        value = tournamentName,
-        onValueChange = onTournamentNameChange,
-        label = { Text("Tournament name") },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag("setup-tournament-name"),
+    var startDate by remember { mutableStateOf(state.startDate) }
+    var startTime by remember { mutableStateOf(state.startTime) }
+    var tournamentName by remember { mutableStateOf(state.tournamentName) }
+    var division by remember { mutableStateOf(state.division) }
+    var gameContext by remember { mutableStateOf(state.gameContext) }
+    var showStartDateDialog by remember { mutableStateOf(false) }
+    var showStartTimeDialog by remember { mutableStateOf(false) }
+
+    fun saveAndDismiss() {
+        onStateChange(
+            state.copy(
+                startDate = startDate,
+                startTime = startTime,
+                tournamentName = tournamentName,
+                division = division,
+                gameContext = gameContext,
+            )
+        )
+        onDismiss()
+    }
+
+    AlertDialog(
+        onDismissRequest = ::saveAndDismiss,
+        title = { Text("Game Information") },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text = "Date",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                DateTimeDisplayField(
+                    value = formatStartDate(startDate),
+                    testTag = "setup-start-date-field",
+                    onClick = { showStartDateDialog = true },
+                )
+
+                Text(
+                    text = "Start time",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                DateTimeDisplayField(
+                    value = formatClockTime(startTime),
+                    testTag = "setup-start-time-field",
+                    onClick = { showStartTimeDialog = true },
+                )
+
+                Text("Division", fontWeight = FontWeight.SemiBold)
+                GameDivisionChoiceRow(
+                    selected = division,
+                    onSelected = { division = it },
+                )
+
+                OutlinedTextField(
+                    value = tournamentName,
+                    onValueChange = { tournamentName = it },
+                    label = { Text("Tournament name") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("setup-tournament-name"),
+                )
+                OutlinedTextField(
+                    value = gameContext,
+                    onValueChange = { gameContext = it },
+                    label = { Text("Game context") },
+                    placeholder = { Text("Pool play, Semi-finals, etc.") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("setup-game-context"),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = ::saveAndDismiss) {
+                Text("Done")
+            }
+        },
     )
+
+    if (showStartDateDialog) {
+        StartDateDialog(
+            initialDate = startDate,
+            onDismiss = { showStartDateDialog = false },
+            onConfirm = {
+                startDate = it
+                showStartDateDialog = false
+            },
+        )
+    }
+
+    if (showStartTimeDialog) {
+        ExactTimeDialog(
+            initialTime = startTime,
+            onDismiss = { showStartTimeDialog = false },
+            onConfirm = {
+                startTime = it
+                showStartTimeDialog = false
+            },
+        )
+    }
+}
+
+/**
+ * Render the division chooser for the game-information setup dialog.
+ *
+ * @param selected The currently selected division value, or null when unset.
+ * @param onSelected Callback receiving the selected division, or null to clear it.
+ */
+@Composable
+private fun GameDivisionChoiceRow(
+    selected: GameDivision?,
+    onSelected: (GameDivision?) -> Unit,
+) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        orderedSetupDivisions().forEach { division ->
+            CompactDivisionChip(
+                label = division?.displayText ?: "N/A",
+                selected = selected == division,
+                onClick = { onSelected(division) },
+                modifier = Modifier.testTag("setup-game-division-${division?.name ?: "NA"}"),
+            )
+        }
+    }
+}
+
+/**
+ * Render one compact division selector.
+ *
+ * @param label The user-facing division text.
+ * @param selected Whether this division is currently selected.
+ * @param onClick Callback selecting this division.
+ * @param modifier Modifier applied by the caller, usually for test tags.
+ */
+@Composable
+private fun CompactDivisionChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val shape = RoundedCornerShape(50)
+    val backgroundColor = if (selected) {
+        MaterialTheme.colorScheme.secondaryContainer
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+    val contentColor = if (selected) {
+        MaterialTheme.colorScheme.onSecondaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+    val borderColor = if (selected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.outline
+    }
+    Box(
+        modifier = modifier
+            .border(width = 1.dp, color = borderColor, shape = shape)
+            .background(color = backgroundColor, shape = shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 7.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            color = contentColor,
+            style = MaterialTheme.typography.labelLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/**
+ * Render the compact game-information summary used on the setup overview.
+ *
+ * @param state The current setup state to summarize.
+ */
+@Composable
+private fun GameInformationSummary(state: GameSetupState) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        state.gameInformationSummaryLines().forEach { line ->
+            Text(
+                text = line,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+    }
 }
 
 /**
@@ -959,83 +1117,6 @@ private fun SetupSummaryValue(text: String) {
         fontWeight = FontWeight.SemiBold,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
-    )
-}
-
-/**
- * Render the start date/time editor dialog.
- *
- * @param state The setup state whose date/time are being edited.
- * @param onStateChange Callback receiving state after +/- date or time nudges.
- * @param onEditDate Callback opening the exact date picker.
- * @param onEditTime Callback opening the exact time picker.
- * @param onDismiss Callback closing the dialog.
- */
-@Composable
-private fun StartTimeSetupDialog(
-    state: GameSetupState,
-    onStateChange: (GameSetupState) -> Unit,
-    onEditDate: () -> Unit,
-    onEditTime: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Start Time") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    text = "Date",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                DateTimeDisplayField(
-                    value = formatStartDate(state.startDate),
-                    testTag = "setup-start-date-field",
-                    onClick = onEditDate,
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    SmallActionButton(label = "-1d") {
-                        onStateChange(state.copy(startDate = state.startDate.minusDays(1)))
-                    }
-                    SmallActionButton(label = "+1d") {
-                        onStateChange(state.copy(startDate = state.startDate.plusDays(1)))
-                    }
-                }
-
-                Text(
-                    text = "Time",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                DateTimeDisplayField(
-                    value = formatClockTime(state.startTime),
-                    testTag = "setup-start-time-field",
-                    onClick = onEditTime,
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    SmallActionButton(label = "-5m") {
-                        onStateChange(state.copy(startTime = state.startTime.minusMinutes(5)))
-                    }
-                    SmallActionButton(label = "+5m") {
-                        onStateChange(state.copy(startTime = state.startTime.plusMinutes(5)))
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Done")
-            }
-        },
     )
 }
 
@@ -1258,12 +1339,7 @@ private fun StartDateDialog(
     ) {
         DatePicker(
             state = datePickerState,
-            title = {
-                Text(
-                    text = "Set Start Date",
-                    modifier = Modifier.padding(horizontal = 24.dp),
-                )
-            },
+            title = null,
         )
     }
 }
@@ -1290,7 +1366,7 @@ private fun ExactTimeDialog(
 
     TimePickerDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Set Start Time") },
+        title = {},
         confirmButton = {
             TextButton(
                 onClick = {
@@ -1803,17 +1879,6 @@ private fun TeamNamesInlineSummary(
 }
 
 /**
- * One compact labeled row in the setup overview.
- *
- * @param label The short fixed-width label.
- * @param value The free-form text shown to the right of the label.
- */
-private data class LabeledSetupSummary(
-    val label: String,
-    val value: String,
-)
-
-/**
  * Render the team-color setup dialog.
  *
  * @param teamLabel The display name for the team being edited.
@@ -2067,11 +2132,11 @@ private fun DateTimeDisplayField(
                     color = MaterialTheme.colorScheme.outline,
                     shape = RoundedCornerShape(12.dp),
                 )
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .padding(horizontal = 14.dp, vertical = 12.dp),
         ) {
             Text(
                 text = value,
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
         }
@@ -2460,114 +2525,6 @@ private fun PlayerRecordRow(
     }
 }
 
-/// Return compact coach and captain rows for the setup overview.
-private fun TeamSetup.namesSummary(): List<LabeledSetupSummary> {
-    return listOfNotNull(
-        coaches.compactLabeledSummary("Coach:"),
-        fieldCaptains.compactLabeledSummary("Field:"),
-        spiritCaptains.compactLabeledSummary("Spirit:"),
-    )
-}
-
-/**
- * Return compact labeled text for display in a two-column summary row.
- *
- * @param label The short label shown before the first line.
- */
-private fun String.compactLabeledSummary(label: String): LabeledSetupSummary? {
-    val lines = trim()
-        .lines()
-        .map { it.trim() }
-        .filter { it.isNotEmpty() }
-    if (lines.isEmpty()) {
-        return null
-    }
-    return LabeledSetupSummary(label = label, value = lines.joinToString("\n"))
-}
-
-/// Return compact prior-card text for one team in the setup overview.
-private fun List<PlayerCardRecord>.teamPriorCardsSummary(): String {
-    return joinToString("\n") { record ->
-        "${record.playerCardIdentity(compact = true)}: ${record.playerCardDetail()}"
-    }
-}
-
-/// Return the compact setup summary for game start date and time.
-private fun GameSetupState.startTimeSummary(): String {
-    return "${formatStartDate(startDate)} ${formatClockTime(startTime)}"
-}
-
-/// Return the compact setup summary for the starting pull.
-private fun GameSetupState.startingPullSummary(): String {
-    return "${pullingTeam.setupName(this)} pulls from ${pullingFromEnd.displayText()}"
-}
-
-/**
- * Return a setup-display team name, using fallback labels only for display.
- *
- * @param state The setup state containing team names.
- */
-private fun TeamId.setupName(state: GameSetupState): String {
-    val name = if (this == TeamId.TEAM_ONE) state.teamOne.name else state.teamTwo.name
-    return name.ifBlank {
-        if (this == TeamId.TEAM_ONE) "Team 1" else "Team 2"
-    }
-}
-
-/// Return the stable setup field label for a team.
-private fun TeamId.setupFieldLabel(): String {
-    return if (this == TeamId.TEAM_ONE) "Team 1" else "Team 2"
-}
-
-/**
- * Return the setup fields for a team.
- *
- * @param state The setup state containing both teams.
- */
-private fun TeamId.setupTeam(state: GameSetupState): TeamSetup {
-    return if (this == TeamId.TEAM_ONE) state.teamOne else state.teamTwo
-}
-
-/**
- * Return setup state with one team's setup fields replaced.
- *
- * @param teamId The team to replace.
- * @param team The updated team setup fields.
- */
-private fun GameSetupState.withSetupTeam(teamId: TeamId, team: TeamSetup): GameSetupState {
-    return if (teamId == TeamId.TEAM_ONE) copy(teamOne = team) else copy(teamTwo = team)
-}
-
-/// Return user-facing text for a field end.
-private fun FieldEnd.displayText(): String {
-    return when (this) {
-        FieldEnd.FAR -> "Far end"
-        FieldEnd.NEAR -> "Near end"
-    }
-}
-
-/// Return the compact half/soft/hard cap summary.
-private fun GameRules.capRulesSummary(): String {
-    return "${capSummary(useHalfCap, halfCapMinutes)}/" +
-        "${capSummary(useSoftCap, softCapMinutes)}/" +
-        capSummary(useHardCap, hardCapMinutes)
-}
-
-/**
- * Return the compact display for one cap rule.
- *
- * @param enabled Whether the cap is enabled.
- * @param minutes The cap offset in minutes when enabled.
- */
-private fun capSummary(enabled: Boolean, minutes: Int): String {
-    return if (enabled) "+$minutes" else "-"
-}
-
-/// Return the compact timeout-rule summary.
-private fun GameRules.timeoutSummary(): String {
-    return if (hasFloaterTimeout) "$timeoutsPerHalf+1" else timeoutsPerHalf.toString()
-}
-
 /**
  * Convert a local date into the UTC timestamp expected by the Material date picker.
  *
@@ -2584,14 +2541,4 @@ private fun dateToPickerTimestamp(date: LocalDate): Long {
  */
 private fun pickerTimestampToDate(timestamp: Long): LocalDate {
     return Instant.ofEpochMilli(timestamp).atZone(ZoneOffset.UTC).toLocalDate()
-}
-
-/// Format timeout rules for the setup editor row.
-private fun GameRules.formatTimeoutRules(): String {
-    return buildString {
-        append("$timeoutsPerHalf/half")
-        if (hasFloaterTimeout) {
-            append(" + floater")
-        }
-    }
 }

@@ -124,7 +124,7 @@ abstract class MainActivityUiTestFixtures {
 
         openStartTimeSetupEditor()
         composeRule.onNodeWithTag("setup-start-time-field").performClick()
-        waitForText("Set Start Time")
+        waitForText("Cancel")
         composeRule.onNode(
             hasSetTextAction() and hasContentDescription("hour", substring = true, ignoreCase = true),
             useUnmergedTree = true,
@@ -751,7 +751,7 @@ abstract class MainActivityUiTestFixtures {
 
     /// Open the setup start-time editor.
     protected fun openStartTimeSetupEditor() {
-        composeRule.onNodeWithTag("setup-edit-start-time").performScrollTo().performClick()
+        composeRule.onNodeWithTag("setup-edit-game-information").performScrollTo().performClick()
         waitForText("Date")
     }
 
@@ -765,6 +765,12 @@ abstract class MainActivityUiTestFixtures {
     protected fun openGameRulesSetupEditor() {
         composeRule.onNodeWithTag("setup-edit-game-rules").performScrollTo().performClick()
         waitForText("Game to")
+    }
+
+    /// Open the setup game-information editor.
+    protected fun openGameInformationSetupEditor() {
+        composeRule.onNodeWithTag("setup-edit-game-information").performScrollTo().performClick()
+        waitForText("Tournament name")
     }
 
     /**

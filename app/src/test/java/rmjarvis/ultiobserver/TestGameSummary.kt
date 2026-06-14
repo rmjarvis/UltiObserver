@@ -173,17 +173,26 @@ class TestGameSummary : GameDomainTestFixtures() {
         )
     }
 
-    /// Verify tournament name travels from setup into live state and back through setup editing.
+    /// Verify game information travels from setup into live state and back through setup editing.
     @Test
-    fun tournamentNameTravelsThroughSetupAndLiveState() {
+    fun gameInformationTravelsThroughSetupAndLiveState() {
         val setup = standardGameSetup(
             startDate = LocalDate.of(2026, 5, 19),
             startTime = LocalTime.of(10, 0),
-        ).copy(tournamentName = "Philly Open")
+        ).copy(
+            tournamentName = "Philly Open",
+            division = GameDivision.MIXED,
+            gameContext = "Semifinals",
+        )
 
         val state = createLiveGameState(setup)
 
         assertEquals("Philly Open", state.tournamentName)
+        assertEquals(GameDivision.MIXED, state.division)
+        assertEquals("Semifinals", state.gameContext)
         assertEquals("Philly Open", state.toSetupState().tournamentName)
+        assertEquals(GameDivision.MIXED, state.toSetupState().division)
+        assertEquals("Semifinals", state.toSetupState().gameContext)
+        assertEquals(true, state.toSetupState().usesMixedDivision())
     }
 }

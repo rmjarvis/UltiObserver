@@ -1,5 +1,3 @@
-@file:OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
-
 package rmjarvis.ultiobserver
 
 import java.time.Duration
@@ -9,7 +7,6 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
 import kotlin.math.abs
-import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -294,7 +291,6 @@ data class CountdownState(
     val durationSeconds: Int,       // Original countdown length.
     val targetEpoch: Long,          // Clock time when the countdown reaches zero.
     val betweenPointsTarget: BetweenPointsCountdownTarget? = null,
-    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val pausedAtEpoch: Long? = null,
 ) {
     /// Swap the countdown's offensive/defensive between-points target when the field responsibility flips.
@@ -382,6 +378,8 @@ enum class CountdownKind {
  * @param startEpoch Epoch millis for the scheduled game start.
  * @param endEpoch Epoch millis when the game ended, or null while active.
  * @param tournamentName Optional tournament name used in completed-game summaries.
+ * @param division Optional division context for the game.
+ * @param gameContext Optional game-stage or round context, such as pool play or semifinals.
  * @param nearAttackingTeam The team attacking the observer's near end.
  * @param pullingFromEnd The field end occupied by the pulling team.
  * @param openingPullingTeam The team that pulled to start the game.
@@ -400,6 +398,8 @@ data class GameState(
     val startEpoch: Long,
     val endEpoch: Long? = null,
     val tournamentName: String = "",
+    val division: GameDivision? = null,
+    val gameContext: String = "",
     val rules: GameRules,
     val teamOne: TeamLiveState,
     val teamTwo: TeamLiveState,
@@ -596,6 +596,8 @@ fun applySetupToLiveGame(
         timeZone = setup.timeZone,
         startEpoch = epochTimestamp(setup.startDate, setup.startTime, setup.timeZone),
         tournamentName = setup.tournamentName,
+        division = setup.division,
+        gameContext = setup.gameContext,
         rules = setup.rules,
         teamOne = existing.teamOne.copy(
             name = setup.teamOne.name.ifBlank { "Team 1" },
@@ -639,6 +641,8 @@ fun GameState.toSetupState(): GameSetupState {
         startTime = startTime,
         timeZone = timeZone,
         tournamentName = tournamentName,
+        division = division,
+        gameContext = gameContext,
         rules = rules,
         teamOne = TeamSetup(
             name = teamOne.name,

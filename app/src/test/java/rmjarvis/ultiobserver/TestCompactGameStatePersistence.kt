@@ -94,6 +94,8 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
         assertEquals(previous.startEpoch, patch.startEpoch)
         assertEquals(previous.endEpoch, patch.endEpoch!!.value)
         assertEquals(previous.tournamentName, patch.tournamentName)
+        assertEquals(previous.division, patch.division!!.value)
+        assertEquals(previous.gameContext, patch.gameContext)
         assertEquals(previous.rules, patch.rules)
         assertTeamPatchProperties(patch.teamOne!!, previous.teamOne)
         assertTeamPatchProperties(patch.teamTwo!!, previous.teamTwo)
@@ -164,6 +166,7 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
         assertFalse(json.contains("\"tournamentName\": null"))
         assertFalse(json.contains("\"replacement\": null"))
         assertFalse(json.contains("\"previousSize\": null"))
+        assertFalse(json.contains("\"gameContext\": null"))
     }
 
     /// Verify invalid list patch representations fail loudly.
@@ -189,6 +192,8 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
         ).copy(
             endEpoch = 2_000L,
             tournamentName = "Later Tournament",
+            division = GameDivision.WOMENS,
+            gameContext = "Later semifinal",
             teamOne = TeamLiveState(
                 name = "Later One",
                 color = TeamColorChoice.CUSTOM,
@@ -271,6 +276,8 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
         ).copy(
             endEpoch = null,
             tournamentName = "Previous Tournament",
+            division = null,
+            gameContext = "Previous pool game",
             teamOne = TeamLiveState(
                 name = "Previous One",
                 color = TeamColorChoice.WHITE,

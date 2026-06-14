@@ -35,7 +35,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         // Exercise the standard start-date picker.
         openStartTimeSetupEditor()
         composeRule.onNodeWithTag("setup-start-date-field").performClick()
-        waitForText("Set Start Date")
+        waitForText("Set")
         composeRule.onNodeWithText("Cancel").performClick()
         waitForText("Date")
         closeSetupEditor()
@@ -43,7 +43,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         // Exercise the exact start-time dialog without depending on the current clock.
         openStartTimeSetupEditor()
         composeRule.onNodeWithTag("setup-start-time-field").performClick()
-        composeRule.onNodeWithText("Set Start Time").assertIsDisplayed()
+        composeRule.onNodeWithText("Cancel").assertIsDisplayed()
         composeRule.onNodeWithText("Cancel").performClick()
         waitForText("Date")
         closeSetupEditor()
@@ -60,6 +60,12 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         setIntegerSetupValue("Game to", "Game To", "Points", "")
         setCapRuleValue("Half cap", "Half Cap", "")
         setTimeoutRules(timeoutsPerHalf = "", hasFloater = false)
+
+        // Game information is optional and initially does not display an unset division.
+        composeRule.onAllNodesWithText("N/A Division").assertCountEquals(0)
+        openGameInformationSetupEditor()
+        composeRule.onNodeWithText("N/A").assertIsDisplayed()
+        closeSetupEditor()
 
         // Add a prior-card holder and make sure the form remains usable afterwards.
         openPriorCardsSetupEditor()
@@ -86,18 +92,14 @@ class TestSetupUi : MainActivityUiTestFixtures() {
 
         openNewGameSetup()
 
-        // Start time supports both quick nudges and the exact-time dialog cancel/set paths.
+        // Start time supports exact date and time dialog cancel/set paths.
         openStartTimeSetupEditor()
-        composeRule.onNodeWithText("-1d").performClick()
-        composeRule.onNodeWithText("+1d").performClick()
         composeRule.onNodeWithTag("setup-start-date-field").performClick()
-        waitForText("Set Start Date")
+        waitForText("Set")
         composeRule.onNodeWithText("Set").performClick()
         waitForText("Date")
-        composeRule.onNodeWithText("-5m").performClick()
-        composeRule.onNodeWithText("+5m").performClick()
         composeRule.onNodeWithTag("setup-start-time-field").performClick()
-        waitForText("Set Start Time")
+        waitForText("Cancel")
         composeRule.onNodeWithText("Cancel").performClick()
         waitForText("Date")
         closeSetupEditor()
@@ -149,8 +151,15 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         waitForText("+105")
         closeSetupEditor()
 
-        // Tournament name is optional and lives outside the team identity section.
-        composeRule.onNodeWithTag("setup-tournament-name").performScrollTo().performTextReplacement("Philly Open")
+        // Game information is optional.
+        openGameInformationSetupEditor()
+        composeRule.onNodeWithTag("setup-tournament-name").performTextReplacement("College Nationals")
+        composeRule.onNodeWithTag("setup-game-division-${GameDivision.OPEN.name}").performClick()
+        composeRule.onNodeWithTag("setup-game-context").performTextReplacement("Semifinals")
+        closeSetupEditor()
+        waitForText("College Nationals")
+        waitForText("Open Division")
+        waitForText("Semifinals")
 
         // Prior-card entry should support cancel, team-scoped entry, editing, zero-card removal, and name-only rows.
         openPriorCardsSetupEditor()
