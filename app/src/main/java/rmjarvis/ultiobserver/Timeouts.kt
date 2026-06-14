@@ -220,7 +220,7 @@ internal fun GameEvent.TeamOutOfTimeouts.formatPopupTitle(): String = "Invalid T
 internal fun GameEvent.TimeoutCharged.formatMessage(): String {
     val timeoutCount = state.timeoutsRemaining(team)
     return "Timeout charged to ${state.teamName(team)}. " +
-        "They have $timeoutCount ${pluralize(timeoutCount, "timeout")} remaining in this half."
+        "They have ${countedNounPhrase(timeoutCount, "timeout")} remaining in this half."
 }
 
 /// Format a timeout-unavailable event message.

@@ -83,3 +83,13 @@ fun nextHalfHourFrom(referenceTime: LocalTime): LocalTime {
 internal fun pluralize(count: Int, singular: String): String {
     return if (count == 1) singular else "${singular}s"
 }
+
+/**
+ * Return a count plus singular or plural noun.
+ *
+ * @param count The count to include.
+ * @param singular The singular noun form.
+ */
+internal fun countedNounPhrase(count: Int, singular: String): String {
+    return "$count ${pluralize(count, singular)}"
+}

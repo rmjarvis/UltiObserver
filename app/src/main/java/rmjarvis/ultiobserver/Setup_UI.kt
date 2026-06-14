@@ -132,11 +132,60 @@ private enum class TeamSetupDialog {
  * @param teamId The team whose setup button opened the dialog.
  * @param dialog The team-specific setup dialog kind.
  * @param priorCardIndex Original setup prior-card index, used only by edit-player dialogs.
+ * @param priorCardDraft Optional entered values to preload when reopening a prior-card edit dialog.
  */
 private data class TeamDialog(
     val teamId: TeamId,
     val dialog: TeamSetupDialog,
     val priorCardIndex: Int? = null,
+    val priorCardDraft: PlayerCardRecord? = null,
+)
+
+/**
+ * Notice shown before reopening an already-listed card holder for editing.
+ *
+ * @param teamId The team whose existing card holder will be edited.
+ * @param existingIndex Existing prior-card record index.
+ * @param draftForEdit Entered values to preload in the edit dialog.
+ * @param existingCardDetail Existing card counts shown in the notice.
+ */
+private data class ExistingPriorCardNotice(
+    val teamId: TeamId,
+    val existingIndex: Int,
+    val draftForEdit: PlayerCardRecord,
+    val existingCardDetail: String,
+)
+
+/**
+ * Confirmation state for rare duplicate jersey numbers with different names.
+ *
+ * @param record Prior-card record to save if the observer confirms.
+ * @param editingIndex Existing record index being edited, or null when adding.
+ * @param existingIdentity Existing same-number card holder shown in the confirmation.
+ * @param proposedIdentity Newly entered same-number card holder shown in the confirmation.
+ */
+private data class SameNumberPriorCardConfirmation(
+    val record: PlayerCardRecord,
+    val editingIndex: Int?,
+    val existingIdentity: String,
+    val proposedIdentity: String,
+)
+
+/**
+ * Notice shown after two prior-card holder entries were merged into one.
+ *
+ * @param mergedIdentity Identity kept after the merge.
+ * @param removedIdentity Identity removed by the merge.
+ * @param priorCardsBeforeMerge Prior-card records to restore if the observer cancels the merge.
+ * @param editingIndex Original edited record index to reopen if the observer cancels the merge.
+ * @param editDraft Merging values to show again if the observer cancels the merge.
+ */
+private data class PriorCardMergeNotice(
+    val mergedIdentity: String,
+    val removedIdentity: String,
+    val priorCardsBeforeMerge: List<PlayerCardRecord>,
+    val editingIndex: Int,
+    val editDraft: PlayerCardRecord,
 )
 
 /**
@@ -163,7 +212,79 @@ internal fun SetupScreen(
     var showTimeoutRulesDialog by remember { mutableStateOf(false) }
     var setupDialog by remember { mutableStateOf<SetupDialog?>(null) }
     var teamDialog by remember { mutableStateOf<TeamDialog?>(null) }
+    var existingPriorCardNotice by remember { mutableStateOf<ExistingPriorCardNotice?>(null) }
+    var sameNumberPriorCardConfirmation by remember { mutableStateOf<SameNumberPriorCardConfirmation?>(null) }
+    var priorCardMergeNotice by remember { mutableStateOf<PriorCardMergeNotice?>(null) }
     val scrollState = rememberScrollState()
+
+    fun savePriorCardRecord(record: PlayerCardRecord, editingIndex: Int?, duplicateIndex: Int? = null) {
+        onStateChange(
+            state.copy(
+                priorCards = state.priorCards.withSavedPriorCardRecord(
+                    record = record,
+                    editingIndex = editingIndex,
+                    duplicateIndex = duplicateIndex,
+                ),
+            )
+        )
+        teamDialog = TeamDialog(record.team, TeamSetupDialog.PRIOR_CARDS)
+    }
+
+    fun handlePriorCardSave(record: PlayerCardRecord, editingIndex: Int?) {
+        // No else branch: null plus every CardHolderEntryCheck subtype is handled.
+        when (val entryCheck = state.priorCards.cardHolderEntryCheck(record, editingIndex)) {
+            null -> savePriorCardRecord(record, editingIndex)
+            is CardHolderEntryCheck.ExistingCardHolder -> {
+                val existingRecord = state.priorCards[entryCheck.existingIndex]
+                if (editingIndex == null) {
+                    teamDialog = null
+                    existingPriorCardNotice = ExistingPriorCardNotice(
+                        teamId = record.team,
+                        existingIndex = entryCheck.existingIndex,
+                        draftForEdit = entryCheck.draftForEdit,
+                        existingCardDetail = existingRecord.playerCardNoticeDetail(),
+                    )
+                } else {
+                    savePriorCardRecord(
+                        record = entryCheck.draftForEdit,
+                        editingIndex = editingIndex,
+                        duplicateIndex = entryCheck.existingIndex,
+                    )
+                    priorCardMergeNotice = PriorCardMergeNotice(
+                        mergedIdentity = entryCheck.draftForEdit.playerCardIdentity(compact = false),
+                        removedIdentity = existingRecord.playerCardIdentity(compact = false),
+                        priorCardsBeforeMerge = state.priorCards,
+                        editingIndex = editingIndex,
+                        editDraft = record,
+                    )
+                }
+            }
+            is CardHolderEntryCheck.SameNumberDifferentName -> {
+                val existingRecord = state.priorCards[entryCheck.existingIndex]
+                teamDialog = null
+                sameNumberPriorCardConfirmation = SameNumberPriorCardConfirmation(
+                    record = record,
+                    editingIndex = editingIndex,
+                    existingIdentity = existingRecord.playerCardIdentity(compact = false),
+                    proposedIdentity = record.playerCardIdentity(compact = false),
+                )
+            }
+        }
+    }
+
+    fun returnToSameNumberPriorCardEntry(confirmation: SameNumberPriorCardConfirmation) {
+        sameNumberPriorCardConfirmation = null
+        teamDialog = TeamDialog(
+            teamId = confirmation.record.team,
+            dialog = if (confirmation.editingIndex == null) {
+                TeamSetupDialog.ADD_PRIOR_CARD
+            } else {
+                TeamSetupDialog.EDIT_PRIOR_CARD
+            },
+            priorCardIndex = confirmation.editingIndex,
+            priorCardDraft = confirmation.record,
+        )
+    }
 
     // Compose the setup screen as compact overview rows plus modal editors.
     Scaffold(
@@ -388,13 +509,13 @@ internal fun SetupScreen(
                 PriorCardPlayerDialog(
                     teamId = target.teamId,
                     teamName = targetLabel,
-                    initialRecord = null,
+                    initialRecord = target.priorCardDraft,
+                    isEditing = false,
                     onDismiss = {
                         teamDialog = TeamDialog(target.teamId, TeamSetupDialog.PRIOR_CARDS)
                     },
                     onConfirm = { record ->
-                        onStateChange(state.copy(priorCards = state.priorCards + record))
-                        teamDialog = TeamDialog(target.teamId, TeamSetupDialog.PRIOR_CARDS)
+                        handlePriorCardSave(record, editingIndex = null)
                     },
                 )
             }
@@ -406,19 +527,13 @@ internal fun SetupScreen(
                 PriorCardPlayerDialog(
                     teamId = target.teamId,
                     teamName = targetLabel,
-                    initialRecord = state.priorCards[recordIndex],
+                    initialRecord = target.priorCardDraft ?: state.priorCards[recordIndex],
+                    isEditing = true,
                     onDismiss = {
                         teamDialog = TeamDialog(target.teamId, TeamSetupDialog.PRIOR_CARDS)
                     },
                     onConfirm = { updatedRecord ->
-                        onStateChange(
-                            state.copy(
-                                priorCards = state.priorCards.mapIndexed { index, record ->
-                                    if (index == recordIndex) updatedRecord else record
-                                },
-                            )
-                        )
-                        teamDialog = TeamDialog(target.teamId, TeamSetupDialog.PRIOR_CARDS)
+                        handlePriorCardSave(updatedRecord, editingIndex = recordIndex)
                     },
                     onRemove = {
                         onStateChange(state.copy(priorCards = state.priorCards.filterIndexed { i, _ -> i != recordIndex }))
@@ -427,6 +542,102 @@ internal fun SetupScreen(
                 )
             }
         }
+    }
+
+    existingPriorCardNotice?.let { notice ->
+        AlertDialog(
+            onDismissRequest = { existingPriorCardNotice = null },
+            title = { Text("Card Holder Already Listed") },
+            text = {
+                Text(
+                    "This player is already listed as a card holder with " +
+                        "${notice.existingCardDetail}. Opening that entry for editing."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        existingPriorCardNotice = null
+                        teamDialog = TeamDialog(
+                            teamId = notice.teamId,
+                            dialog = TeamSetupDialog.EDIT_PRIOR_CARD,
+                            priorCardIndex = notice.existingIndex,
+                            priorCardDraft = notice.draftForEdit,
+                        )
+                    }
+                ) {
+                    Text("OK")
+                }
+            },
+        )
+    }
+
+    sameNumberPriorCardConfirmation?.let { confirmation ->
+        AlertDialog(
+            onDismissRequest = {
+                returnToSameNumberPriorCardEntry(confirmation)
+            },
+            title = { Text("Same Number, Different Names") },
+            text = {
+                Text(
+                    "${confirmation.existingIdentity} is already listed. Add " +
+                        "${confirmation.proposedIdentity} as a different player with the same number?"
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        sameNumberPriorCardConfirmation = null
+                        savePriorCardRecord(confirmation.record, confirmation.editingIndex)
+                    }
+                ) {
+                    Text(if (confirmation.editingIndex == null) "Add" else "Update")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        returnToSameNumberPriorCardEntry(confirmation)
+                    }
+                ) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
+
+    priorCardMergeNotice?.let { notice ->
+        AlertDialog(
+            onDismissRequest = { priorCardMergeNotice = null },
+            title = { Text("Card Holder Entries Merged") },
+            text = {
+                Text(
+                    "${notice.removedIdentity} matched ${notice.mergedIdentity}, " +
+                        "so the duplicate entry was removed."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { priorCardMergeNotice = null }) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        priorCardMergeNotice = null
+                        onStateChange(state.copy(priorCards = notice.priorCardsBeforeMerge))
+                        teamDialog = TeamDialog(
+                            teamId = notice.editDraft.team,
+                            dialog = TeamSetupDialog.EDIT_PRIOR_CARD,
+                            priorCardIndex = notice.editingIndex,
+                            priorCardDraft = notice.editDraft,
+                        )
+                    }
+                ) {
+                    Text("Cancel")
+                }
+            },
+        )
     }
 
     // If showStartDateDialog is true, then on this re-render, open the dialog for setting
@@ -1290,7 +1501,8 @@ private fun TimeoutRulesDialog(
  *
  * @param teamId The team whose player is carrying prior cards.
  * @param teamName The team label shown in the dialog.
- * @param initialRecord Existing record when editing, or null when adding.
+ * @param initialRecord Existing or entered values to show initially, or null for a blank add dialog.
+ * @param isEditing Whether confirmation updates an existing record rather than adding a new one.
  * @param onDismiss Callback closing the dialog without applying changes.
  * @param onConfirm Callback receiving the added or updated prior-card record.
  * @param onRemove Callback removing the edited prior-card record, or null when adding.
@@ -1300,11 +1512,11 @@ private fun PriorCardPlayerDialog(
     teamId: TeamId,
     teamName: String,
     initialRecord: PlayerCardRecord?,
+    isEditing: Boolean,
     onDismiss: () -> Unit,
     onConfirm: (PlayerCardRecord) -> Unit,
     onRemove: (() -> Unit)? = null,
 ) {
-    val isEditing = initialRecord != null
     var jerseyNumber by remember(initialRecord) { mutableStateOf(initialRecord?.jerseyNumber ?: "") }
     var playerName by remember(initialRecord) { mutableStateOf(initialRecord?.playerName ?: "") }
     var priorYellows by remember(initialRecord) { mutableStateOf(initialRecord?.priorYellows ?: 1) }

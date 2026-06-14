@@ -30,12 +30,110 @@ data class PlayerCardRecord(
     }
 }
 
+/// Result of comparing an entered card holder with existing records.
+sealed class CardHolderEntryCheck {
+    /**
+     * Existing card holder that should be reopened instead of adding a new record.
+     *
+     * @param existingIndex Index of the matching existing record in the full card-holder list.
+     * @param draftForEdit Record to show when opening the existing record for editing.
+     */
+    data class ExistingCardHolder(
+        val existingIndex: Int,
+        val draftForEdit: PlayerCardRecord,
+    ) : CardHolderEntryCheck()
+
+    /**
+     * Existing same-number card holder with a different nonblank name.
+     *
+     * @param existingIndex Index of the same-number existing record in the full card-holder list.
+     */
+    data class SameNumberDifferentName(
+        val existingIndex: Int,
+    ) : CardHolderEntryCheck()
+}
+
+/**
+ * Return the duplicate/conflict result for an entered card holder.
+ *
+ * @param proposed The card holder the observer is trying to save.
+ * @param editingIndex Existing record index to ignore when validating an edit, or null when adding.
+ */
+internal fun List<PlayerCardRecord>.cardHolderEntryCheck(
+    proposed: PlayerCardRecord,
+    editingIndex: Int?,
+): CardHolderEntryCheck? {
+    val proposedNumber = proposed.jerseyNumber.trim()
+    val proposedName = proposed.playerName.normalizedPlayerName()
+    forEachIndexed { index, existing ->
+        if (index == editingIndex || existing.team != proposed.team) {
+            return@forEachIndexed
+        }
+        val existingNumber = existing.jerseyNumber.trim()
+        val existingName = existing.playerName.normalizedPlayerName()
+        if (proposedNumber.isNotEmpty() && existingNumber == proposedNumber) {
+            if (proposedName.isEmpty() || existingName.isEmpty() || proposedName == existingName) {
+                return CardHolderEntryCheck.ExistingCardHolder(
+                    existingIndex = index,
+                    draftForEdit = existing.draftWithEnteredPriorCards(proposed),
+                )
+            }
+            return CardHolderEntryCheck.SameNumberDifferentName(existingIndex = index)
+        }
+        if (proposedName.isNotEmpty() && existingName == proposedName &&
+            (proposedNumber.isEmpty() || existingNumber.isEmpty())
+        ) {
+            return CardHolderEntryCheck.ExistingCardHolder(
+                existingIndex = index,
+                draftForEdit = existing.draftWithEnteredPriorCards(proposed),
+            )
+        }
+    }
+    return null
+}
+
+/**
+ * Return prior-card records after adding, editing, or collapsing one card holder.
+ *
+ * @param record Prior-card record to save.
+ * @param editingIndex Existing record index to replace, or null when adding.
+ * @param duplicateIndex Existing duplicate record index to remove while saving an edit.
+ */
+internal fun List<PlayerCardRecord>.withSavedPriorCardRecord(
+    record: PlayerCardRecord,
+    editingIndex: Int?,
+    duplicateIndex: Int? = null,
+): List<PlayerCardRecord> {
+    require(editingIndex != null || duplicateIndex == null) {
+        "Duplicate prior-card records can only be collapsed while editing."
+    }
+    return if (editingIndex == null) {
+        this + record
+    } else {
+        mapIndexedNotNull { index, existing ->
+            when (index) {
+                duplicateIndex -> null
+                editingIndex -> record
+                else -> existing
+            }
+        }
+    }
+}
+
 /// Return the compact setup summary for a player's prior yellows and reds.
 internal fun PlayerCardRecord.playerCardDetail(): String {
     return listOfNotNull(
         if (priorYellows > 0) "Y $priorYellows" else null,
         if (priorReds > 0) "R $priorReds" else null,
     ).joinToString("  ")
+}
+
+/// Return a prose setup notice summary for a player's prior yellows and reds.
+internal fun PlayerCardRecord.playerCardNoticeDetail(): String {
+    return listOfNotNull(
+        if (priorYellows > 0) countedNounPhrase(priorYellows, "yellow card") else null,
+        if (priorReds > 0) countedNounPhrase(priorReds, "red card") else null,
+    ).joinToString(" and ")
 }
 
 /**
@@ -51,6 +149,33 @@ internal fun PlayerCardRecord.playerCardIdentity(compact: Boolean): String {
     } else {
         name
     }
+}
+
+/// Return the name used for player-card identity comparisons.
+private fun String.normalizedPlayerName(): String {
+    return trim()
+        .split(Regex("\\s+"))
+        .filter { it.isNotEmpty() }
+        .joinToString(" ")
+        .lowercase()
+}
+
+/// Return an existing record preloaded with the latest entered identity details and prior-card counts.
+private fun PlayerCardRecord.draftWithEnteredPriorCards(proposed: PlayerCardRecord): PlayerCardRecord {
+    val proposedNumber = proposed.jerseyNumber.trim()
+    val proposedName = proposed.playerName.trim()
+    return copy(
+        jerseyNumber = when {
+            jerseyNumber.isBlank() && proposedNumber.isNotEmpty() -> proposedNumber
+            else -> jerseyNumber.trim()
+        },
+        playerName = when {
+            playerName.isBlank() && proposedName.isNotEmpty() -> proposedName
+            else -> playerName.trim()
+        },
+        priorYellows = proposed.priorYellows,
+        priorReds = proposed.priorReds,
+    )
 }
 
 /**
@@ -904,7 +1029,7 @@ private fun GameEvent.TeamCardsChanged.totalBlueCardMessage(): String {
     } else {
         ""
     }
-    return "${state.teamName(team)} has $teamCardTotal $totalModifier${pluralize(teamCardTotal, "blue card")}."
+    return "${state.teamName(team)} has ${countedNounPhrase(teamCardTotal, "${totalModifier}blue card")}."
 }
 
 /**
@@ -993,8 +1118,7 @@ private fun GameState.playerHasTournamentSuspension(team: TeamId, jerseyNumber: 
 /// Format a technical-foul event message, including misconduct cue details when needed.
 internal fun GameEvent.TechnicalFoulsChanged.formatMessage(): String {
     val baseMessage =
-        "${state.teamName(team)} has $technicalFoulTotal technical " +
-            "${pluralize(technicalFoulTotal, "foul")}."
+        "${state.teamName(team)} has ${countedNounPhrase(technicalFoulTotal, "technical foul")}."
     return baseMessage.withMisconductCue(
         state = state,
         team = team,
