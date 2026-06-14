@@ -22,6 +22,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -29,10 +30,41 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 internal val TeamColorChoice.accent: Color
-    get() = Color(accentArgb)
+    get() {
+        require(this != TeamColorChoice.CUSTOM) {
+            "CUSTOM does not have a built-in accent color."
+        }
+        return Color(accentArgb)
+    }
 
 internal val TeamColorChoice.content: Color
-    get() = Color(contentArgb)
+    get() {
+        require(this != TeamColorChoice.CUSTOM) {
+            "CUSTOM does not have a built-in content color."
+        }
+        return Color(contentArgb)
+    }
+
+internal val TeamSetup.accent: Color
+    get() = if (color == TeamColorChoice.CUSTOM) Color(customColorArgb!!) else color.accent
+
+internal val TeamSetup.content: Color
+    get() = if (color == TeamColorChoice.CUSTOM) readableContentColor(Color(customColorArgb!!)) else color.content
+
+internal val TeamLiveState.accent: Color
+    get() = if (color == TeamColorChoice.CUSTOM) Color(customColorArgb!!) else color.accent
+
+internal val TeamLiveState.content: Color
+    get() = if (color == TeamColorChoice.CUSTOM) readableContentColor(Color(customColorArgb!!)) else color.content
+
+/// Return a black-or-white text color for custom jersey colors.
+internal fun readableContentColor(background: Color): Color {
+    return if (background.luminance() > 0.5f) {
+        Color(0xFF1F1A17)
+    } else {
+        Color.White
+    }
+}
 
 /**
  * Render a small general-purpose outlined action button.

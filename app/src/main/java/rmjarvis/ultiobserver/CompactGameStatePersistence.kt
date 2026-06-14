@@ -354,6 +354,8 @@ internal data class TeamLiveStatePatch(
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val color: TeamColorChoice? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val customColorArgb: NullablePatchValue<Long>? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val coaches: String? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val fieldCaptains: String? = null,
@@ -385,6 +387,7 @@ internal data class TeamLiveStatePatch(
         return later.copy(
             name = name ?: later.name,
             color = color ?: later.color,
+            customColorArgb = if (customColorArgb != null) customColorArgb.value else later.customColorArgb,
             coaches = coaches ?: later.coaches,
             fieldCaptains = fieldCaptains ?: later.fieldCaptains,
             spiritCaptains = spiritCaptains ?: later.spiritCaptains,
@@ -413,6 +416,7 @@ internal data class TeamLiveStatePatch(
             return TeamLiveStatePatch(
                 name = previous.name.takeIfChangedFrom(later.name),
                 color = previous.color.takeIfChangedFrom(later.color),
+                customColorArgb = nullablePatch(later.customColorArgb, previous.customColorArgb),
                 coaches = previous.coaches.takeIfChangedFrom(later.coaches),
                 fieldCaptains = previous.fieldCaptains.takeIfChangedFrom(later.fieldCaptains),
                 spiritCaptains = previous.spiritCaptains.takeIfChangedFrom(later.spiritCaptains),

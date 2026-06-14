@@ -344,7 +344,7 @@ internal fun FieldSketchCard(
                 team = topTeam,
                 cardPoints = state.teamCardTotal(topSlot),
                 timeoutsRemaining = state.timeoutsRemaining(topSlot),
-                background = topTeam.color.accent,
+                background = topTeam.accent,
                 shape = TopEndZoneShape,
                 interactionsEnabled = interactionsEnabled,
                 isPulling = state.pullingTeam == topSlot,
@@ -387,7 +387,7 @@ internal fun FieldSketchCard(
                 team = bottomTeam,
                 cardPoints = state.teamCardTotal(bottomSlot),
                 timeoutsRemaining = state.timeoutsRemaining(bottomSlot),
-                background = bottomTeam.color.accent,
+                background = bottomTeam.accent,
                 shape = BottomEndZoneShape,
                 interactionsEnabled = interactionsEnabled,
                 isPulling = state.pullingTeam == bottomSlot,
@@ -463,7 +463,7 @@ private fun EndZonePanel(
                 ) {
                     Text(
                         text = team.name,
-                        color = team.color.content,
+                        color = team.content,
                         modifier = Modifier.weight(1f, fill = false),
                         style = titleTextStyle,
                         fontWeight = FontWeight.Bold,
@@ -472,32 +472,32 @@ private fun EndZonePanel(
                     )
                     Text(
                         text = team.score.toString(),
-                        color = team.color.content,
+                        color = team.content,
                         style = titleTextStyle,
                         fontWeight = FontWeight.Bold,
                     )
                 }
                 Text(
                     text = "TO $timeoutsRemaining",
-                    color = team.color.content,
+                    color = team.content,
                     style = detailTextStyle,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
                     text = "Cards $cardPoints",
-                    color = team.color.content,
+                    color = team.content,
                     style = detailTextStyle,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
                     text = "TF ${team.technicalFouls}",
-                    color = team.color.content,
+                    color = team.content,
                     style = detailTextStyle,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
                     text = "Pull violations ${team.pullViolationCount()}",
-                    color = team.color.content,
+                    color = team.content,
                     style = detailTextStyle,
                     fontWeight = FontWeight.SemiBold,
                 )

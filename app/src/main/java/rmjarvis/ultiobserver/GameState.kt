@@ -167,8 +167,8 @@ enum class GamePhase {
  * Selectable team jersey color and the display colors that go with it.
  *
  * @param label The user-facing color name.
- * @param accentArgb The background color matching the nominal jersey color.
- * @param contentArgb A text color with good contrast to the accent color.
+ * @param accentArgb The background color matching the nominal jersey color; ignored for CUSTOM.
+ * @param contentArgb A text color with good contrast to the accent color; ignored for CUSTOM.
  */
 @Serializable
 enum class TeamColorChoice(
@@ -184,12 +184,14 @@ enum class TeamColorChoice(
     YELLOW("Yellow", 0xFFE7A51E, 0xFF2E2400),
     PINK("Pink", 0xFFFF4FA3, 0xFF2F1022),
     GRAY("Gray", 0xFF708090, 0xFFF7F8FA),
+    CUSTOM("Custom", 0x00000000, 0x00000000),
 }
 /**
  * Setup-screen team identity fields before a live game starts.
  *
  * @param name The team name entered in setup; blank means no explicit name yet.
- * @param color The selected jersey color for this team.
+ * @param color The active jersey color for this team.
+ * @param customColorArgb Opaque ARGB value for a saved custom jersey color, or null when none has been picked.
  * @param coaches Free-form coach name/details entered for this team.
  * @param fieldCaptains Free-form field-captain name/details entered for this team.
  * @param spiritCaptains Free-form spirit-captain name/details entered for this team.
@@ -198,10 +200,17 @@ enum class TeamColorChoice(
 data class TeamSetup(
     val name: String = "",
     val color: TeamColorChoice = TeamColorChoice.WHITE,
+    val customColorArgb: Long? = null,
     val coaches: String = "",
     val fieldCaptains: String = "",
     val spiritCaptains: String = "",
-)
+) {
+    init {
+        require(color != TeamColorChoice.CUSTOM || customColorArgb != null) {
+            "customColorArgb is required when color is CUSTOM."
+        }
+    }
+}
 /// Configurable rules that affect scoring, caps, halftime, and timeout allowances.
 @Serializable
 data class GameRules(
@@ -220,7 +229,8 @@ data class GameRules(
  * Live counters and display identity for one team.
  *
  * @param name The team display name used during live and summary screens.
- * @param color The selected jersey color for this team.
+ * @param color The active jersey color for this team.
+ * @param customColorArgb Opaque ARGB value for a saved custom jersey color, or null when none has been picked.
  * @param coaches Free-form coach name/details entered for this team.
  * @param fieldCaptains Free-form field-captain name/details entered for this team.
  * @param spiritCaptains Free-form spirit-captain name/details entered for this team.
@@ -232,6 +242,7 @@ data class GameRules(
 data class TeamLiveState(
     val name: String,
     val color: TeamColorChoice,
+    val customColorArgb: Long? = null,
     val coaches: String = "",
     val fieldCaptains: String = "",
     val spiritCaptains: String = "",
@@ -244,6 +255,12 @@ data class TeamLiveState(
     val technicalFouls: Int = 0,
     val blueCards: Int = 0,
 ) {
+    init {
+        require(color != TeamColorChoice.CUSTOM || customColorArgb != null) {
+            "customColorArgb is required when color is CUSTOM."
+        }
+    }
+
     /// Return this team state with one additional timeout used in the current half.
     fun withAddedTimeout(): TeamLiveState {
         return copy(timeoutsUsedThisHalf = timeoutsUsedThisHalf + 1)
@@ -583,6 +600,7 @@ fun applySetupToLiveGame(
         teamOne = existing.teamOne.copy(
             name = setup.teamOne.name.ifBlank { "Team 1" },
             color = setup.teamOne.color,
+            customColorArgb = setup.teamOne.customColorArgb,
             coaches = setup.teamOne.coaches,
             fieldCaptains = setup.teamOne.fieldCaptains,
             spiritCaptains = setup.teamOne.spiritCaptains,
@@ -590,6 +608,7 @@ fun applySetupToLiveGame(
         teamTwo = existing.teamTwo.copy(
             name = setup.teamTwo.name.ifBlank { "Team 2" },
             color = setup.teamTwo.color,
+            customColorArgb = setup.teamTwo.customColorArgb,
             coaches = setup.teamTwo.coaches,
             fieldCaptains = setup.teamTwo.fieldCaptains,
             spiritCaptains = setup.teamTwo.spiritCaptains,
@@ -624,6 +643,7 @@ fun GameState.toSetupState(): GameSetupState {
         teamOne = TeamSetup(
             name = teamOne.name,
             color = teamOne.color,
+            customColorArgb = teamOne.customColorArgb,
             coaches = teamOne.coaches,
             fieldCaptains = teamOne.fieldCaptains,
             spiritCaptains = teamOne.spiritCaptains,
@@ -631,6 +651,7 @@ fun GameState.toSetupState(): GameSetupState {
         teamTwo = TeamSetup(
             name = teamTwo.name,
             color = teamTwo.color,
+            customColorArgb = teamTwo.customColorArgb,
             coaches = teamTwo.coaches,
             fieldCaptains = teamTwo.fieldCaptains,
             spiritCaptains = teamTwo.spiritCaptains,

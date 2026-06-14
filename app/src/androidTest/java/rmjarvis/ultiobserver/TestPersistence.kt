@@ -41,7 +41,8 @@ class TestPersistence {
                 timeZone = ZoneId.of("America/New_York"),
                 teamOne = TeamSetup(
                     name = "Viscous Coupling",
-                    color = TeamColorChoice.BLUE,
+                    color = TeamColorChoice.CUSTOM,
+                    customColorArgb = 0xFF336699L,
                     coaches = "Casey Coach",
                     fieldCaptains = "Casey Field",
                     spiritCaptains = "Casey Spirit",

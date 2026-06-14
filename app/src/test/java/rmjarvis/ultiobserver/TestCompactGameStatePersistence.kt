@@ -127,6 +127,7 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
     private fun assertTeamPatchProperties(patch: TeamLiveStatePatch, previous: TeamLiveState) {
         assertEquals(previous.name, patch.name)
         assertEquals(previous.color, patch.color)
+        assertEquals(previous.customColorArgb, patch.customColorArgb!!.value)
         assertEquals(previous.coaches, patch.coaches)
         assertEquals(previous.fieldCaptains, patch.fieldCaptains)
         assertEquals(previous.spiritCaptains, patch.spiritCaptains)
@@ -190,7 +191,8 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
             tournamentName = "Later Tournament",
             teamOne = TeamLiveState(
                 name = "Later One",
-                color = TeamColorChoice.BLUE,
+                color = TeamColorChoice.CUSTOM,
+                customColorArgb = 0xFF102030L,
                 coaches = "Later one coach",
                 fieldCaptains = "Later one field captain",
                 spiritCaptains = "Later one spirit captain",
@@ -286,7 +288,8 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
             ),
             teamTwo = TeamLiveState(
                 name = "Previous Two",
-                color = TeamColorChoice.RED,
+                color = TeamColorChoice.CUSTOM,
+                customColorArgb = 0xFF304050L,
                 coaches = "Previous two coach",
                 fieldCaptains = "Previous two field captain",
                 spiritCaptains = "Previous two spirit captain",

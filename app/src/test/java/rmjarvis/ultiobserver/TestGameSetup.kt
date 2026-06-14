@@ -45,7 +45,8 @@ class TestGameSetup : GameDomainTestFixtures() {
         ).copy(
             teamOne = TeamSetup(
                 name = "Viscous Coupling",
-                color = TeamColorChoice.GREEN,
+                color = TeamColorChoice.CUSTOM,
+                customColorArgb = 0xFF123456L,
                 coaches = "Coach VC",
                 fieldCaptains = "VC field captain",
                 spiritCaptains = "VC spirit captain",
@@ -61,6 +62,9 @@ class TestGameSetup : GameDomainTestFixtures() {
         )
         var state = createLiveGameState(setup)
         assertEquals(setup, state.toSetupState())
+        assertEquals(TeamColorChoice.CUSTOM, state.teamOne.color)
+        assertEquals(0xFF123456L, state.teamOne.customColorArgb)
+        assertNull(state.teamTwo.customColorArgb)
         assertEquals("Coach VC", state.teamOne.coaches)
         assertEquals("Animal field captains", state.teamTwo.fieldCaptains)
         assertEquals(VC, state.openingPullingTeam)
@@ -77,6 +81,7 @@ class TestGameSetup : GameDomainTestFixtures() {
             teamOne = TeamSetup(
                 name = "VC",
                 color = TeamColorChoice.WHITE,
+                customColorArgb = 0xFF123456L,
                 coaches = "Coach edits",
                 fieldCaptains = "Field captain edits",
                 spiritCaptains = "Spirit captain edits",
@@ -99,6 +104,7 @@ class TestGameSetup : GameDomainTestFixtures() {
         assertEquals(2, state.rules.timeoutsPerHalf)
         assertEquals("VC", state.teamOne.name)
         assertEquals(TeamColorChoice.WHITE, state.teamOne.color)
+        assertEquals(0xFF123456L, state.teamOne.customColorArgb)
         assertEquals("Coach edits", state.teamOne.coaches)
         assertEquals("Field captain edits", state.teamOne.fieldCaptains)
         assertEquals("Spirit captain edits", state.teamOne.spiritCaptains)
@@ -158,7 +164,8 @@ class TestGameSetup : GameDomainTestFixtures() {
             ),
             teamTwo = TeamSetup(
                 name = "Animal",
-                color = TeamColorChoice.BLUE,
+                color = TeamColorChoice.CUSTOM,
+                customColorArgb = 0xFFABCDEFL,
                 coaches = "Post-play other coach",
                 fieldCaptains = "Post-play other field captain",
                 spiritCaptains = "Post-play other spirit captain",
@@ -178,7 +185,8 @@ class TestGameSetup : GameDomainTestFixtures() {
         assertEquals("Post-play field captain", state.teamOne.fieldCaptains)
         assertEquals("Post-play spirit captain", state.teamOne.spiritCaptains)
         assertEquals("Animal", state.teamTwo.name)
-        assertEquals(TeamColorChoice.BLUE, state.teamTwo.color)
+        assertEquals(TeamColorChoice.CUSTOM, state.teamTwo.color)
+        assertEquals(0xFFABCDEFL, state.teamTwo.customColorArgb)
         assertEquals("Post-play other coach", state.teamTwo.coaches)
         assertEquals("Post-play other field captain", state.teamTwo.fieldCaptains)
         assertEquals("Post-play other spirit captain", state.teamTwo.spiritCaptains)

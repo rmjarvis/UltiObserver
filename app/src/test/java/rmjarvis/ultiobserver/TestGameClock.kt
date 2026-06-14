@@ -56,9 +56,22 @@ class TestGameClock : GameDomainTestFixtures() {
         assertEquals("Pink", TeamColorChoice.PINK.label)
         assertEquals(0xFFFF4FA3, TeamColorChoice.PINK.accentArgb)
         assertEquals(0xFF2F1022, TeamColorChoice.PINK.contentArgb)
+        assertThrows(IllegalArgumentException::class.java) {
+            TeamColorChoice.CUSTOM.accent
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            TeamColorChoice.CUSTOM.content
+        }
         val defaultTeamSetup = TeamSetup()
         assertEquals("", defaultTeamSetup.name)
         assertEquals(TeamColorChoice.WHITE, defaultTeamSetup.color)
+        assertNull(defaultTeamSetup.customColorArgb)
+        assertThrows(IllegalArgumentException::class.java) {
+            TeamSetup(color = TeamColorChoice.CUSTOM)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            TeamLiveState("Custom", TeamColorChoice.CUSTOM)
+        }
         val priorCardRecord = PlayerCardRecord(
             team = VC,
             jerseyNumber = "8",

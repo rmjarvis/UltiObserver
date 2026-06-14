@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -53,6 +54,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -66,6 +68,8 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneOffset
+import com.github.skydoves.colorpicker.compose.HsvColorPicker
+import com.github.skydoves.colorpicker.compose.rememberColorPickerController
 
 /**
  * Numeric game-rule editor dialog target.
@@ -99,29 +103,30 @@ private enum class RuleEditTarget(
     ),
 }
 
-/// Setup subsection dialog currently open.
-private enum class SetupEditor {
+/// Setup dialog currently open.
+private enum class SetupDialog {
     START_TIME,
     STARTING_PULL,
     GAME_RULES,
 }
 
 /// Team-specific setup dialog kind currently open.
-private enum class TeamSetupEditor {
+private enum class TeamSetupDialog {
     COLOR,
+    CUSTOM_COLOR,
     NAMES,
     PRIOR_CARDS,
 }
 
 /**
- * Team-specific setup dialog target.
+ * Team-specific setup dialog currently open.
  *
  * @param teamId The team whose setup button opened the dialog.
- * @param editor The team-specific setup dialog kind.
+ * @param dialog The team-specific setup dialog kind.
  */
-private data class TeamEditorTarget(
+private data class TeamDialog(
     val teamId: TeamId,
-    val editor: TeamSetupEditor,
+    val dialog: TeamSetupDialog,
 )
 
 /**
@@ -147,8 +152,8 @@ internal fun SetupScreen(
     var showStartTimeDialog by remember { mutableStateOf(false) }
     var editingRule by remember { mutableStateOf<RuleEditTarget?>(null) }
     var showTimeoutRulesDialog by remember { mutableStateOf(false) }
-    var setupEditor by remember { mutableStateOf<SetupEditor?>(null) }
-    var teamEditorTarget by remember { mutableStateOf<TeamEditorTarget?>(null) }
+    var setupDialog by remember { mutableStateOf<SetupDialog?>(null) }
+    var teamDialog by remember { mutableStateOf<TeamDialog?>(null) }
     val scrollState = rememberScrollState()
 
     // Compose the setup screen as compact overview rows plus modal editors.
@@ -195,13 +200,13 @@ internal fun SetupScreen(
                     priorCards = state.priorCards.filter { it.team == TeamId.TEAM_ONE },
                     onTeamChange = { onStateChange(state.copy(teamOne = it)) },
                     onEditColor = {
-                        teamEditorTarget = TeamEditorTarget(TeamId.TEAM_ONE, TeamSetupEditor.COLOR)
+                        teamDialog = TeamDialog(TeamId.TEAM_ONE, TeamSetupDialog.COLOR)
                     },
                     onEditNames = {
-                        teamEditorTarget = TeamEditorTarget(TeamId.TEAM_ONE, TeamSetupEditor.NAMES)
+                        teamDialog = TeamDialog(TeamId.TEAM_ONE, TeamSetupDialog.NAMES)
                     },
                     onEditCards = {
-                        teamEditorTarget = TeamEditorTarget(TeamId.TEAM_ONE, TeamSetupEditor.PRIOR_CARDS)
+                        teamDialog = TeamDialog(TeamId.TEAM_ONE, TeamSetupDialog.PRIOR_CARDS)
                     },
                 )
                 TeamSetupDivider()
@@ -211,13 +216,13 @@ internal fun SetupScreen(
                     priorCards = state.priorCards.filter { it.team == TeamId.TEAM_TWO },
                     onTeamChange = { onStateChange(state.copy(teamTwo = it)) },
                     onEditColor = {
-                        teamEditorTarget = TeamEditorTarget(TeamId.TEAM_TWO, TeamSetupEditor.COLOR)
+                        teamDialog = TeamDialog(TeamId.TEAM_TWO, TeamSetupDialog.COLOR)
                     },
                     onEditNames = {
-                        teamEditorTarget = TeamEditorTarget(TeamId.TEAM_TWO, TeamSetupEditor.NAMES)
+                        teamDialog = TeamDialog(TeamId.TEAM_TWO, TeamSetupDialog.NAMES)
                     },
                     onEditCards = {
-                        teamEditorTarget = TeamEditorTarget(TeamId.TEAM_TWO, TeamSetupEditor.PRIOR_CARDS)
+                        teamDialog = TeamDialog(TeamId.TEAM_TWO, TeamSetupDialog.PRIOR_CARDS)
                     },
                 )
             }
@@ -234,45 +239,46 @@ internal fun SetupScreen(
                 title = "Start Time",
                 summary = state.startTimeSummary(),
                 editTag = "setup-edit-start-time",
-                onEdit = { setupEditor = SetupEditor.START_TIME },
+                onEdit = { setupDialog = SetupDialog.START_TIME },
             )
             SetupSummaryRow(
                 title = "Starting Pull",
                 summary = state.startingPullSummary(),
                 editTag = "setup-edit-starting-pull",
-                onEdit = { setupEditor = SetupEditor.STARTING_PULL },
+                onEdit = { setupDialog = SetupDialog.STARTING_PULL },
             )
             SetupSummaryRow(
                 title = "Game Rules",
                 editTag = "setup-edit-game-rules",
-                onEdit = { setupEditor = SetupEditor.GAME_RULES },
+                onEdit = { setupDialog = SetupDialog.GAME_RULES },
             ) {
                 GameRulesSummary(state.rules)
             }
         }
     }
 
-    // No else branch: every SetupEditor value plus null is handled
-    when (setupEditor) {
-        SetupEditor.START_TIME -> {
+    // If setupDialog is set, then on this re-render, open the corresponding dialog box.
+    // No else branch: every SetupDialog value plus null is handled
+    when (setupDialog) {
+        SetupDialog.START_TIME -> {
             StartTimeSetupDialog(
                 state = state,
                 onStateChange = onStateChange,
                 onEditDate = { showStartDateDialog = true },
                 onEditTime = { showStartTimeDialog = true },
-                onDismiss = { setupEditor = null },
+                onDismiss = { setupDialog = null },
             )
         }
 
-        SetupEditor.STARTING_PULL -> {
+        SetupDialog.STARTING_PULL -> {
             StartingPullSetupDialog(
                 state = state,
                 onStateChange = onStateChange,
-                onDismiss = { setupEditor = null },
+                onDismiss = { setupDialog = null },
             )
         }
 
-        SetupEditor.GAME_RULES -> {
+        SetupDialog.GAME_RULES -> {
             GameRulesSetupDialog(
                 rules = state.rules,
                 onEditRule = { editingRule = it },
@@ -280,59 +286,95 @@ internal fun SetupScreen(
                 onUseUsauDefaults = {
                     onStateChange(state.copy(rules = GameRules()))
                 },
-                onDismiss = { setupEditor = null },
+                onDismiss = { setupDialog = null },
             )
         }
 
         null -> Unit
     }
 
-    val target = teamEditorTarget
+    // If teamDialog is set, then on this re-render, open the corresponding dialog box
+    // for the team set in the teamId field for the dialog.
+    val target = teamDialog
     if (target != null) {
         val targetLabel = target.teamId.setupName(state)
         val targetTeam = target.teamId.setupTeam(state)
         val onTargetTeamChange: (TeamSetup) -> Unit = { updatedTeam ->
             onStateChange(state.withSetupTeam(target.teamId, updatedTeam))
         }
-        // No else branch: every TeamSetupEditor value is handled
-        when (target.editor) {
-            TeamSetupEditor.COLOR -> {
+        // No else branch: every TeamSetupDialog value is handled
+        when (target.dialog) {
+            TeamSetupDialog.COLOR -> {
                 TeamColorSetupDialog(
                     teamLabel = targetLabel,
                     teamFieldLabel = target.teamId.setupFieldLabel(),
                     team = targetTeam,
-                    onTeamChange = onTargetTeamChange,
-                    onDismiss = { teamEditorTarget = null },
+                    onPresetColorSelected = { color ->
+                        onTargetTeamChange(targetTeam.copy(color = color))
+                        teamDialog = null
+                    },
+                    onCustomColorSelected = { colorArgb ->
+                        onTargetTeamChange(
+                            targetTeam.copy(
+                                color = TeamColorChoice.CUSTOM,
+                                customColorArgb = colorArgb,
+                            ),
+                        )
+                        teamDialog = null
+                    },
+                    onMoreColors = {
+                        teamDialog = TeamDialog(target.teamId, TeamSetupDialog.CUSTOM_COLOR)
+                    },
+                    onDismiss = { teamDialog = null },
                 )
             }
 
-            TeamSetupEditor.NAMES -> {
+            TeamSetupDialog.CUSTOM_COLOR -> {
+                CustomTeamColorSetupDialog(
+                    teamLabel = targetLabel,
+                    teamFieldLabel = target.teamId.setupFieldLabel(),
+                    team = targetTeam,
+                    onCustomColorSelected = { colorArgb ->
+                        onTargetTeamChange(
+                            targetTeam.copy(
+                                color = TeamColorChoice.CUSTOM,
+                                customColorArgb = colorArgb,
+                            ),
+                        )
+                        teamDialog = null
+                    },
+                    onDismiss = { teamDialog = null },
+                )
+            }
+
+            TeamSetupDialog.NAMES -> {
                 TeamNamesSetupDialog(
                     teamLabel = targetLabel,
                     teamFieldLabel = target.teamId.setupFieldLabel(),
                     team = targetTeam,
                     onTeamChange = onTargetTeamChange,
-                    onDismiss = { teamEditorTarget = null },
+                    onDismiss = { teamDialog = null },
                 )
             }
 
-            TeamSetupEditor.PRIOR_CARDS -> {
+            TeamSetupDialog.PRIOR_CARDS -> {
                 PriorCardsSetupDialog(
                     state = state,
                     onStateChange = onStateChange,
                     onAddPlayer = { showPlayerDialog = true },
-                    onDismiss = { teamEditorTarget = null },
+                    onDismiss = { teamDialog = null },
                 )
             }
         }
     }
 
-    // Modal for adding a player who already has cards from earlier games.
+    // If showPlayerDialog is true, then on this re-render, open the dialog for adding
+    // cards from earlier games for some players.
     if (showPlayerDialog) {
         AddPlayerCardDialog(
             firstTeamName = state.teamOne.name,
             secondTeamName = state.teamTwo.name,
-            initialTeam = teamEditorTarget?.teamId ?: TeamId.TEAM_ONE,
+            initialTeam = teamDialog?.teamId ?: TeamId.TEAM_ONE,
             onDismiss = { showPlayerDialog = false },
             onConfirm = { record ->
                 onStateChange(state.copy(priorCards = state.priorCards + record))
@@ -341,7 +383,8 @@ internal fun SetupScreen(
         )
     }
 
-    // Modal for exact start-date entry.
+    // If showStartDateDialog is true, then on this re-render, open the dialog for setting
+    // the exact start-date entry.
     if (showStartDateDialog) {
         StartDateDialog(
             initialDate = state.startDate,
@@ -353,7 +396,8 @@ internal fun SetupScreen(
         )
     }
 
-    // Modal for exact start-time entry.
+    // If showStartTimeDialog is true, then on this re-render, open the dialog for setting
+    // the exact start-time entry.
     if (showStartTimeDialog) {
         ExactTimeDialog(
             initialTime = state.startTime,
@@ -365,7 +409,7 @@ internal fun SetupScreen(
         )
     }
 
-    // Modal rule editors for the currently selected rules field.
+    // If editingRule is set, then on this re-render, open the dialog for specifying rules.
     if (editingRule != null) {
         val target = editingRule!!
         // No else branch: every RuleEditTarget value is handled
@@ -466,7 +510,8 @@ internal fun SetupScreen(
         }
     }
 
-    // Modal editor for the timeout rule bundle.
+    // If showTimeoutRulesDialog is true, then on this re-render, open the dialog for
+    // setting the number of timeouts per half.
     if (showTimeoutRulesDialog) {
         TimeoutRulesDialog(
             rules = state.rules,
@@ -1300,12 +1345,12 @@ private fun TeamEditor(
                 placeholder = {
                     Text(
                         text = fieldLabel,
-                        color = team.color.content.copy(alpha = 0.65f),
+                        color = team.content.copy(alpha = 0.65f),
                     )
                 },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
-                colors = coloredTeamNameFieldColors(team.color),
+                colors = teamNameFieldColors(team),
                 modifier = Modifier
                     .weight(1f)
                     .testTag("setup-$fieldLabel-name"),
@@ -1339,16 +1384,16 @@ private fun TeamEditor(
 
 /// Return colored text-field colors that preview how the team name appears on the field screen.
 @Composable
-private fun coloredTeamNameFieldColors(colorChoice: TeamColorChoice) = OutlinedTextFieldDefaults.colors(
-    focusedContainerColor = colorChoice.accent,
-    unfocusedContainerColor = colorChoice.accent,
-    focusedTextColor = colorChoice.content,
-    unfocusedTextColor = colorChoice.content,
-    focusedLabelColor = colorChoice.content.copy(alpha = 0.85f),
-    unfocusedLabelColor = colorChoice.content.copy(alpha = 0.85f),
-    cursorColor = colorChoice.content,
-    focusedBorderColor = colorChoice.content.copy(alpha = 0.85f),
-    unfocusedBorderColor = colorChoice.content.copy(alpha = 0.5f),
+private fun teamNameFieldColors(team: TeamSetup) = OutlinedTextFieldDefaults.colors(
+    focusedContainerColor = team.accent,
+    unfocusedContainerColor = team.accent,
+    focusedTextColor = team.content,
+    unfocusedTextColor = team.content,
+    focusedLabelColor = team.content.copy(alpha = 0.85f),
+    unfocusedLabelColor = team.content.copy(alpha = 0.85f),
+    cursorColor = team.content,
+    focusedBorderColor = team.content.copy(alpha = 0.85f),
+    unfocusedBorderColor = team.content.copy(alpha = 0.5f),
 )
 
 /// Return compact padding for setup team action buttons.
@@ -1474,7 +1519,9 @@ private data class LabeledSetupSummary(
  * @param teamLabel The display name for the team being edited.
  * @param teamFieldLabel The stable setup field label used for test tags.
  * @param team The team setup values being edited.
- * @param onTeamChange Callback receiving updated team setup values.
+ * @param onPresetColorSelected Callback receiving the selected preset team color.
+ * @param onCustomColorSelected Callback receiving the selected custom team color as opaque ARGB.
+ * @param onMoreColors Callback opening the full custom color picker.
  * @param onDismiss Callback closing the dialog.
  */
 @Composable
@@ -1482,7 +1529,9 @@ private fun TeamColorSetupDialog(
     teamLabel: String,
     teamFieldLabel: String,
     team: TeamSetup,
-    onTeamChange: (TeamSetup) -> Unit,
+    onPresetColorSelected: (TeamColorChoice) -> Unit,
+    onCustomColorSelected: (Long) -> Unit,
+    onMoreColors: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
@@ -1490,26 +1539,117 @@ private fun TeamColorSetupDialog(
         title = { Text("$teamLabel Color") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(
-                    text = team.color.label,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
                 ColorChoiceRow(
-                    selected = team.color,
+                    selected = team.color.takeUnless { it == TeamColorChoice.CUSTOM },
                     testTagPrefix = "setup-$teamFieldLabel-color",
                     onSelected = {
-                        onTeamChange(team.copy(color = it))
+                        onPresetColorSelected(it)
                     },
                 )
+                if (team.customColorArgb != null) {
+                    CustomColorChoiceRow(
+                        color = Color(team.customColorArgb),
+                        selected = team.color == TeamColorChoice.CUSTOM,
+                        testTag = "setup-$teamFieldLabel-color-custom",
+                        onClick = {
+                            onCustomColorSelected(team.customColorArgb)
+                        },
+                    )
+                }
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Done")
-            }
+            TeamColorDialogActions(
+                confirmText = "More Colors",
+                confirmTestTag = "setup-$teamFieldLabel-color-more",
+                onCancel = onDismiss,
+                onConfirm = onMoreColors,
+            )
         },
     )
+}
+
+/**
+ * Render the full custom team-color picker dialog.
+ *
+ * @param teamLabel The display name for the team being edited.
+ * @param teamFieldLabel The stable setup field label used for test tags.
+ * @param team The team setup values being edited.
+ * @param onCustomColorSelected Callback receiving the selected custom team color as opaque ARGB.
+ * @param onDismiss Callback closing the dialog.
+ */
+@Composable
+private fun CustomTeamColorSetupDialog(
+    teamLabel: String,
+    teamFieldLabel: String,
+    team: TeamSetup,
+    onCustomColorSelected: (Long) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var customColor by remember(team.customColorArgb, team.color) {
+        mutableStateOf(team.customColorArgb?.let(::Color) ?: team.accent)
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("$teamLabel Color") },
+        text = {
+            CustomColorPicker(
+                initialColor = customColor,
+                testTagPrefix = "setup-$teamFieldLabel-color",
+                onColorChange = {
+                    customColor = it
+                },
+            )
+        },
+        confirmButton = {
+            TeamColorDialogActions(
+                confirmText = "Use this color",
+                confirmTestTag = null,
+                onCancel = onDismiss,
+                onConfirm = {
+                    onCustomColorSelected(customColor.toOpaqueArgbLong())
+                },
+            )
+        },
+    )
+}
+
+/**
+ * Render the color dialog action row with cancel on the left and the next action on the right.
+ *
+ * @param confirmText Text for the right-side action.
+ * @param confirmTestTag Optional test tag for the right-side action.
+ * @param onCancel Callback closing the dialog without applying a new color.
+ * @param onConfirm Callback running the right-side color action.
+ */
+@Composable
+private fun TeamColorDialogActions(
+    confirmText: String,
+    confirmTestTag: String?,
+    onCancel: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TextButton(
+            onClick = onCancel,
+            modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 1.dp),
+            contentPadding = PaddingValues(horizontal = 0.dp, vertical = 8.dp),
+        ) {
+            Text("Cancel")
+        }
+        TextButton(
+            onClick = onConfirm,
+            modifier = (confirmTestTag?.let { Modifier.testTag(it) } ?: Modifier)
+                .defaultMinSize(minWidth = 1.dp, minHeight = 1.dp),
+            contentPadding = PaddingValues(horizontal = 0.dp, vertical = 8.dp),
+        ) {
+            Text(confirmText)
+        }
+    }
 }
 
 /**
@@ -1675,7 +1815,7 @@ private fun EditableValueRow(
  */
 @Composable
 private fun ColorChoiceRow(
-    selected: TeamColorChoice,
+    selected: TeamColorChoice?,
     testTagPrefix: String,
     onSelected: (TeamColorChoice) -> Unit,
 ) {
@@ -1683,41 +1823,161 @@ private fun ColorChoiceRow(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        TeamColorChoice.entries.forEach { colorChoice ->
-            Box(
+        presetTeamColorChoices.forEach { colorChoice ->
+            ColorSwatch(
+                color = colorChoice.accent,
+                selected = selected == colorChoice,
+                testTag = "$testTagPrefix-${colorChoice.name}",
                 modifier = Modifier
                     .weight(1f)
-                    .height(28.dp)
-                    .testTag("$testTagPrefix-${colorChoice.name}")
-                    .background(
-                        color = if (selected == colorChoice) Color.Black else Color.Transparent,
-                        shape = RoundedCornerShape(6.dp),
-                    )
-                    .padding(if (selected == colorChoice) 1.dp else 0.dp)
-                    .background(
-                        color = if (selected == colorChoice) Color(0xFFF2D23C) else Color.Transparent,
-                        shape = RoundedCornerShape(6.dp),
-                    )
-                    .padding(if (selected == colorChoice) 3.dp else 0.dp)
-                    .background(
-                        color = if (selected == colorChoice) Color.Black else Color.Transparent,
-                        shape = RoundedCornerShape(5.dp),
-                    )
-                    .padding(if (selected == colorChoice) 1.dp else 0.dp)
-                    .border(
-                        width = if (selected == colorChoice) 0.dp else 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant,
-                        shape = RoundedCornerShape(4.dp),
-                    )
-                    .background(colorChoice.accent, RoundedCornerShape(4.dp))
-                    .clickable(
-                        onClick = {
-                            onSelected(colorChoice)
-                        },
-                    )
+                    .height(28.dp),
+                onClick = {
+                    onSelected(colorChoice)
+                },
             )
         }
     }
+}
+
+private val presetTeamColorChoices: List<TeamColorChoice>
+    get() = TeamColorChoice.entries.filter { it != TeamColorChoice.CUSTOM }
+
+/**
+ * Render the saved custom color as a second-row swatch.
+ *
+ * @param color The saved custom jersey color.
+ * @param selected Whether the saved custom color is currently selected.
+ * @param testTag Test tag attached to the swatch.
+ * @param onClick Callback invoked when the swatch is tapped.
+ */
+@Composable
+private fun CustomColorChoiceRow(
+    color: Color,
+    selected: Boolean,
+    testTag: String,
+    onClick: () -> Unit,
+) {
+    Row(modifier = Modifier.fillMaxWidth()) {
+        ColorSwatch(
+            color = color,
+            selected = selected,
+            testTag = testTag,
+            modifier = Modifier.size(32.dp),
+            onClick = onClick,
+        )
+    }
+}
+
+/**
+ * Render one selectable color swatch using the setup palette selection highlight.
+ *
+ * @param color Color shown inside the swatch.
+ * @param selected Whether the swatch is currently selected.
+ * @param testTag Test tag attached to the swatch.
+ * @param modifier Modifier controlling swatch size and placement.
+ * @param onClick Callback invoked when the swatch is tapped.
+ */
+@Composable
+private fun ColorSwatch(
+    color: Color,
+    selected: Boolean,
+    testTag: String,
+    modifier: Modifier,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = modifier
+            .testTag(testTag)
+            .background(
+                color = if (selected) Color.Black else Color.Transparent,
+                shape = RoundedCornerShape(6.dp),
+            )
+            .padding(if (selected) 1.dp else 0.dp)
+            .background(
+                color = if (selected) Color(0xFFF2D23C) else Color.Transparent,
+                shape = RoundedCornerShape(6.dp),
+            )
+            .padding(if (selected) 3.dp else 0.dp)
+            .background(
+                color = if (selected) Color.Black else Color.Transparent,
+                shape = RoundedCornerShape(5.dp),
+            )
+            .padding(if (selected) 1.dp else 0.dp)
+            .border(
+                width = if (selected) 0.dp else 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant,
+                shape = RoundedCornerShape(4.dp),
+            )
+            .background(color, RoundedCornerShape(4.dp))
+            .clickable(onClick = onClick),
+    )
+}
+
+/**
+ * Render a simple HSV color picker for custom jersey colors.
+ *
+ * @param initialColor Color used to initialize the picker and preview.
+ * @param testTagPrefix Prefix used to build custom picker test tags.
+ * @param onColorChange Callback receiving the currently selected custom color.
+ */
+@Composable
+private fun CustomColorPicker(
+    initialColor: Color,
+    testTagPrefix: String,
+    onColorChange: (Color) -> Unit,
+) {
+    val controller = rememberColorPickerController()
+    var previewColor by remember(initialColor) { mutableStateOf(initialColor) }
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        HsvColorPicker(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(220.dp)
+                .testTag("$testTagPrefix-custom-picker"),
+            controller = controller,
+            initialColor = initialColor,
+            onColorChanged = { colorEnvelope ->
+                previewColor = colorEnvelope.color.copy(alpha = 1f)
+                onColorChange(previewColor)
+            },
+        )
+        CustomColorPreview(
+            color = previewColor,
+            testTag = "$testTagPrefix-custom-preview",
+            onClick = {
+                onColorChange(previewColor)
+            },
+        )
+    }
+}
+
+/**
+ * Render the selected custom color as a preview bar.
+ *
+ * @param color The custom jersey color to display.
+ * @param testTag Test tag attached to the preview.
+ * @param onClick Callback invoked when the preview is tapped.
+ */
+@Composable
+private fun CustomColorPreview(
+    color: Color,
+    testTag: String,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(36.dp)
+            .testTag(testTag)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(6.dp))
+            .background(color, RoundedCornerShape(6.dp))
+            .clickable(onClick = onClick),
+    )
+}
+
+/// Return an opaque ARGB long for a Compose color.
+private fun Color.toOpaqueArgbLong(): Long {
+    return copy(alpha = 1f).toArgb().toLong() and 0xFFFFFFFFL
 }
 
 /**
