@@ -66,7 +66,7 @@ internal fun LiveGameScreen(
     var showCardsSheet by remember { mutableStateOf(false) }
     var showMoreActionsDialog by remember { mutableStateOf(false) }
     var showEventLogSheet by remember { mutableStateOf(false) }
-    var showTimeViolationTeamPrompt by remember { mutableStateOf(false) }
+    var pendingTimeViolation by remember { mutableStateOf<TimeViolationAssessmentResult?>(null) }
     var teamInfoSheetTeam by remember { mutableStateOf<TeamId?>(null) }
     var locked by remember { mutableStateOf(false) }
     var actionInfoMessage by remember { mutableStateOf<String?>(null) }
@@ -245,7 +245,6 @@ internal fun LiveGameScreen(
                     onTogglePaused = { onStateChange(state.toggleCountdownPaused(now)) },
                     expiredPullActions = if (hasExpiredPullActions && !locked) {
                         ExpiredPullActions(
-                            onTimeViolation = { showTimeViolationTeamPrompt = true },
                             onRestartPullCountdown = { onStateChange(state.restartPullCountdown(now)) },
                         )
                     } else {
@@ -367,6 +366,12 @@ internal fun LiveGameScreen(
                             title = result.event.formatPopupTitle(),
                         )
                     },
+                    onTimeViolation = { team ->
+                        val result = state.assessTimeViolation(team, now)
+                        if (result.event != null) {
+                            pendingTimeViolation = result
+                        }
+                    },
                     onPullInfraction = { team ->
                         val result = state.assessPullInfraction(team, now)
                         onStateChange(result.state)
@@ -468,43 +473,30 @@ internal fun LiveGameScreen(
         )
     }
 
-    if (showTimeViolationTeamPrompt) {
-        /**
-         * Assess a time violation for the chosen team and show its result popup.
-         *
-         * @param team The team selected in the time-violation prompt.
-         */
-        fun assessTimeViolationFor(team: TeamId) {
-            val result = state.assessTimeViolation(team, now)
-            onStateChange(result.state)
-            // Defensive stale-callback guard for a weird timing state.
-            val message = result.event?.formatMessage()
-            if (message != null) {
-                showActionInfo(
-                    message = message,
-                    title = result.event.formatPopupTitle(),
-                )
-            }
-            showTimeViolationTeamPrompt = false
-        }
-
+    pendingTimeViolation?.let { result ->
+        val event = result.event
         AlertDialog(
-            onDismissRequest = { showTimeViolationTeamPrompt = false },
-            title = { Text("Time violation") },
+            onDismissRequest = { pendingTimeViolation = null },
+            title = { Text(event?.formatPopupTitle() ?: "Time violation") },
             text = {
                 Text(
-                    text = "Which team committed the time violation?",
+                    text = event?.formatMessage() ?: "",
                     style = MaterialTheme.typography.bodyLarge,
                 )
             },
             confirmButton = {
-                TextButton(onClick = { assessTimeViolationFor(TeamId.TEAM_TWO) }) {
-                    Text(state.teamName(TeamId.TEAM_TWO))
+                TextButton(
+                    onClick = {
+                        onStateChange(result.state)
+                        pendingTimeViolation = null
+                    },
+                ) {
+                    Text("Apply")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { assessTimeViolationFor(TeamId.TEAM_ONE) }) {
-                    Text(state.teamName(TeamId.TEAM_ONE))
+                TextButton(onClick = { pendingTimeViolation = null }) {
+                    Text("Cancel")
                 }
             },
         )

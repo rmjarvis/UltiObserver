@@ -298,7 +298,6 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
                 )
             )
         }
-        waitForText("Time violation")
         waitForText("Restart countdown")
 
         composeRule.activityRule.scenario.onActivity { activity ->
@@ -350,37 +349,39 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
                 )
             )
         }
-        waitForText("Time violation")
         waitForText("Restart countdown")
 
         // Locking the live screen should hide expired-pull correction actions until unlocked.
         composeRule.onNodeWithTag("live-top-lock").performClick()
         waitForText("Slide right to unlock")
-        composeRule.onAllNodesWithTag("live-time-violation").assertCountEquals(0)
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "time-violation")).assertIsNotEnabled()
         composeRule.onAllNodesWithTag("live-restart-pull-countdown").assertCountEquals(0)
         unlockLiveScreen()
-        waitForText("Time violation")
         waitForText("Restart countdown")
 
         // Restart countdown should be undoable and return the expired-pull action surface.
         composeRule.onNodeWithText("Restart countdown").performClick()
-        waitForText("Undo Restart pull countdown")
-        composeRule.onNodeWithText("Undo Restart pull countdown").performClick()
+        waitForText("Undo Restart countdown")
+        composeRule.onNodeWithText("Undo Restart countdown").performClick()
         waitForText("Redo")
-        waitForText("Time violation")
+        waitForText("Restart countdown")
 
-        // Time violation should ask for the violating team and report the warning consequence.
-        composeRule.onNodeWithText("Time violation").performClick()
-        waitForText("Which team committed the time violation?")
+        // Time violation should preview the consequence and allow cancellation.
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "time-violation")).performClick()
+        waitForText("now has 30 seconds to pull.", substring = true)
         if (shouldUsePlatformBackDismissalCoverage()) {
             pressDialogBack()
-            composeRule.onAllNodesWithText("Which team committed the time violation?").assertCountEquals(0)
-            composeRule.onNodeWithText("Time violation").performClick()
-            waitForText("Which team committed the time violation?")
+            assertTrue(composeRule.onAllNodesWithText("now has 30 seconds to pull.", substring = true).fetchSemanticsNodes().isEmpty())
+            composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "time-violation")).performClick()
+            waitForText("now has 30 seconds to pull.", substring = true)
+        } else {
+            composeRule.onNodeWithText("Cancel").performClick()
+            assertTrue(composeRule.onAllNodesWithText("now has 30 seconds to pull.", substring = true).fetchSemanticsNodes().isEmpty())
+            composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "time-violation")).performClick()
+            waitForText("now has 30 seconds to pull.", substring = true)
         }
-        composeRule.onAllNodesWithText("Team 1").onLast().performClick()
-        waitForText("now has 30 seconds", substring = true)
-        composeRule.onNodeWithText("OK").performClick()
+        composeRule.onNodeWithText("Apply").performClick()
+        waitForText("Undo Time violation warning on", substring = true)
 
         composeRule.activityRule.scenario.onActivity { activity ->
             val current = activity.appViewModel.liveState!!
@@ -392,17 +393,15 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
                 )
             )
         }
-        waitForText("Time violation")
-        composeRule.onNodeWithText("Time violation").performClick()
-        waitForText("Which team committed the time violation?")
-        composeRule.onAllNodesWithText("Team 2").onLast().performClick()
-        waitForText("now has 30 seconds", substring = true)
+        waitForText("Restart countdown")
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "time-violation")).performClick()
+        waitForText("now has 20 seconds to signal readiness.", substring = true)
         if (shouldUsePlatformBackDismissalCoverage()) {
             pressDialogBack()
         } else {
-            composeRule.onNodeWithText("OK").performClick()
+            composeRule.onNodeWithText("Cancel").performClick()
         }
-        composeRule.onAllNodesWithText("now has 30 seconds", substring = true).assertCountEquals(0)
+        assertTrue(composeRule.onAllNodesWithText("now has 20 seconds to signal readiness.", substring = true).fetchSemanticsNodes().isEmpty())
     }
 
     /// Verify the reserved countdown row prevents field diagram movement when the countdown clears.

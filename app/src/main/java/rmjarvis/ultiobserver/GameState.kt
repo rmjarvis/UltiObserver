@@ -294,6 +294,38 @@ internal fun GameState.winnerFirstTeams(): List<TeamLiveState> {
     }
 }
 /**
+ * Offense-ready and pull deadlines for a pull-style countdown.
+ *
+ * @param offenseReadySeconds Seconds from countdown start until the receiving team must signal readiness.
+ * @param pullSeconds Seconds from countdown start until the pulling team must pull.
+ */
+@Serializable
+data class PullTimingSeconds(
+    val offenseReadySeconds: Int,
+    val pullSeconds: Int,
+) {
+    /// Return this timing's countdown length for one between-points target.
+    fun durationSecondsFor(target: BetweenPointsCountdownTarget): Int {
+        return when (target) {
+            BetweenPointsCountdownTarget.OFFENSE_READY -> offenseReadySeconds
+            BetweenPointsCountdownTarget.PULL,
+            BetweenPointsCountdownTarget.BOTH,
+            BetweenPointsCountdownTarget.NEITHER -> pullSeconds
+        }
+    }
+
+    /// Return the countdown time for a cue that happens before offense readiness.
+    fun remainingSecondsBeforeOffenseReady(secondsBeforeReady: Int, target: BetweenPointsCountdownTarget): Int {
+        return when (target) {
+            BetweenPointsCountdownTarget.OFFENSE_READY -> secondsBeforeReady
+            BetweenPointsCountdownTarget.BOTH -> pullSeconds - offenseReadySeconds + secondsBeforeReady
+            BetweenPointsCountdownTarget.PULL,
+            BetweenPointsCountdownTarget.NEITHER -> error("Target $target does not include offense-ready cues.")
+        }
+    }
+}
+
+/**
  * Active countdown and the information needed to display, adjust, and transition it.
  *
  * @param kind The model meaning of this countdown.
@@ -301,6 +333,7 @@ internal fun GameState.winnerFirstTeams(): List<TeamLiveState> {
  * @param durationSeconds The original countdown length.
  * @param targetEpoch The epoch millis when the countdown reaches zero.
  * @param betweenPointsTarget The offense-ready or pull target for between-points countdowns.
+ * @param pullTiming Offense-ready and pull deadlines for between-points-style countdowns.
  * @param pausedAtEpoch The epoch millis when the countdown was paused, or null while running.
  */
 @Serializable
@@ -310,6 +343,7 @@ data class CountdownState(
     val durationSeconds: Int,       // Original countdown length.
     val targetEpoch: Long,          // Clock time when the countdown reaches zero.
     val betweenPointsTarget: BetweenPointsCountdownTarget? = null,
+    val pullTiming: PullTimingSeconds? = null,
     val pausedAtEpoch: Long? = null,
 ) {
     /// Swap the countdown's offensive/defensive between-points target when the field responsibility flips.
@@ -319,7 +353,8 @@ data class CountdownState(
         }
         val currentTarget = betweenPointsTarget!!
         val newTarget = currentTarget.flip()
-        val deltaSeconds = newTarget.baseDurationSeconds(kind) - currentTarget.baseDurationSeconds(kind)
+        val timing = pullTiming ?: defaultPullTimingSeconds(kind)
+        val deltaSeconds = timing.durationSecondsFor(newTarget) - timing.durationSecondsFor(currentTarget)
         return copy(
             label = newTarget.label,
             durationSeconds = durationSeconds + deltaSeconds,

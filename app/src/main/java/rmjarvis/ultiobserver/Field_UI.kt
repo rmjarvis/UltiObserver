@@ -70,6 +70,8 @@ private val FieldActionPanelColor = Color(0xCCFFFFFF)
 private val FieldGoalButtonColor = Color(0xFF2E7D32)
 private val FieldCardButtonColor = Color(0xFFFDD835)
 private val FieldTechButtonColor = Color(0xFFFFB74D)
+private val FieldTimeoutButtonColor = Color(0xFF1976D2)
+private val FieldNeutralButtonColor = Color(0xFFF7F2EA)
 
 /**
  * Render the live-field unlock slider.
@@ -295,6 +297,7 @@ internal data class FieldLayoutMetrics(
  * @param centerContent The live action or unlock content rendered in the center strip.
  * @param onGoal Callback receiving the team that scored.
  * @param onTimeout Callback receiving the team requesting timeout.
+ * @param onTimeViolation Callback receiving the team committing a time violation.
  * @param onPullInfraction Callback receiving the team with a pull infraction.
  * @param onCardsAndTechnicalFouls Callback opening the card and technical-foul workflow.
  * @param onTeamInfo Callback opening the coach/captain information for a team.
@@ -308,6 +311,7 @@ internal fun FieldSketchCard(
     centerContent: @Composable () -> Unit,
     onGoal: (TeamId) -> Unit,
     onTimeout: (TeamId) -> Unit,
+    onTimeViolation: (TeamId) -> Unit,
     onPullInfraction: (TeamId) -> Unit,
     onCardsAndTechnicalFouls: (TeamId) -> Unit,
     onTeamInfo: (TeamId) -> Unit,
@@ -347,12 +351,14 @@ internal fun FieldSketchCard(
                 shape = TopEndZoneShape,
                 interactionsEnabled = interactionsEnabled,
                 isPulling = state.pullingTeam == topSlot,
+                timeViolationEnabled = state.canAssessTimeViolation(),
                 pullInfractionEnabled = state.canRecordPullInfraction(topSlot),
                 fieldEndName = state.fieldEndDisplayName(topEnd),
                 fieldEndLabelAtTop = true,
                 metrics = metrics,
                 onGoal = { onGoal(topSlot) },
                 onTimeout = { onTimeout(topSlot) },
+                onTimeViolation = { onTimeViolation(topSlot) },
                 onPullInfraction = { onPullInfraction(topSlot) },
                 onCardsAndTechnicalFouls = { onCardsAndTechnicalFouls(topSlot) },
                 onTeamInfo = { onTeamInfo(topSlot) },
@@ -396,12 +402,14 @@ internal fun FieldSketchCard(
                 shape = BottomEndZoneShape,
                 interactionsEnabled = interactionsEnabled,
                 isPulling = state.pullingTeam == bottomSlot,
+                timeViolationEnabled = state.canAssessTimeViolation(),
                 pullInfractionEnabled = state.canRecordPullInfraction(bottomSlot),
                 fieldEndName = state.fieldEndDisplayName(bottomEnd),
                 fieldEndLabelAtTop = false,
                 metrics = metrics,
                 onGoal = { onGoal(bottomSlot) },
                 onTimeout = { onTimeout(bottomSlot) },
+                onTimeViolation = { onTimeViolation(bottomSlot) },
                 onPullInfraction = { onPullInfraction(bottomSlot) },
                 onCardsAndTechnicalFouls = { onCardsAndTechnicalFouls(bottomSlot) },
                 onTeamInfo = { onTeamInfo(bottomSlot) },
@@ -420,12 +428,14 @@ internal fun FieldSketchCard(
  * @param background The team-color background for the row.
  * @param interactionsEnabled Whether live action buttons should be enabled.
  * @param isPulling Whether this team is currently pulling.
+ * @param timeViolationEnabled Whether this team can record a time violation for this pull.
  * @param pullInfractionEnabled Whether this team can still record its pull infraction for this pull.
  * @param fieldEndName Display name for the field end represented by this row.
  * @param fieldEndLabelAtTop Whether the field-end label belongs in the top-right corner.
  * @param metrics The measured layout metrics for compact or roomy phone heights.
  * @param onGoal Callback recording a goal for this team.
  * @param onTimeout Callback charging a timeout to this team.
+ * @param onTimeViolation Callback recording a time violation for this team.
  * @param onPullInfraction Callback recording this team's pull infraction.
  * @param onCardsAndTechnicalFouls Callback opening the card and technical-foul workflow.
  * @param onTeamInfo Callback opening coach/captain information for this team.
@@ -440,12 +450,14 @@ private fun EndZonePanel(
     shape: RoundedCornerShape,
     interactionsEnabled: Boolean,
     isPulling: Boolean,
+    timeViolationEnabled: Boolean,
     pullInfractionEnabled: Boolean,
     fieldEndName: String,
     fieldEndLabelAtTop: Boolean,
     metrics: FieldLayoutMetrics,
     onGoal: () -> Unit,
     onTimeout: () -> Unit,
+    onTimeViolation: () -> Unit,
     onPullInfraction: () -> Unit,
     onCardsAndTechnicalFouls: () -> Unit,
     onTeamInfo: () -> Unit,
@@ -511,10 +523,12 @@ private fun EndZonePanel(
             timeoutsRemaining = timeoutsRemaining,
             interactionsEnabled = interactionsEnabled,
             isPulling = isPulling,
+            timeViolationEnabled = timeViolationEnabled,
             pullInfractionEnabled = pullInfractionEnabled,
             metrics = metrics,
             onGoal = onGoal,
             onTimeout = onTimeout,
+            onTimeViolation = onTimeViolation,
             onPullInfraction = onPullInfraction,
             onCardsAndTechnicalFouls = onCardsAndTechnicalFouls,
         )
@@ -542,10 +556,12 @@ private fun EndZonePanel(
  * @param timeoutsRemaining Timeouts remaining in the current half.
  * @param interactionsEnabled Whether the observer can press live actions.
  * @param isPulling Whether this team is currently pulling.
+ * @param timeViolationEnabled Whether this team may record a time violation for this pull sequence.
  * @param pullInfractionEnabled Whether this team may record a pull infraction for this pull sequence.
  * @param metrics The measured field layout metrics.
  * @param onGoal Callback recording a goal for this team.
  * @param onTimeout Callback charging a timeout to this team.
+ * @param onTimeViolation Callback recording a time violation for this team.
  * @param onPullInfraction Callback recording the team's pull infraction.
  * @param onCardsAndTechnicalFouls Callback opening the card and technical-foul workflow.
  * @param modifier Optional layout modifier.
@@ -558,10 +574,12 @@ private fun TeamActionGrid(
     timeoutsRemaining: Int,
     interactionsEnabled: Boolean,
     isPulling: Boolean,
+    timeViolationEnabled: Boolean,
     pullInfractionEnabled: Boolean,
     metrics: FieldLayoutMetrics,
     onGoal: () -> Unit,
     onTimeout: () -> Unit,
+    onTimeViolation: () -> Unit,
     onPullInfraction: () -> Unit,
     onCardsAndTechnicalFouls: () -> Unit,
     modifier: Modifier = Modifier,
@@ -573,7 +591,8 @@ private fun TeamActionGrid(
     }
     val cardLabel = countedActionLabel("Card", cardPoints)
     val techLabel = countedActionLabel("Tech", team.technicalFouls)
-    val timeoutLabel = "Timeout ($timeoutsRemaining)"
+    val timeViolationLabel = "Time viol."
+    val timeoutLabel = "TO ($timeoutsRemaining)"
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val buttonTextStyle = MaterialTheme.typography.labelMedium
@@ -587,10 +606,11 @@ private fun TeamActionGrid(
         val panelPadding = 4.dp
         val gap = metrics.actionGap
         val naturalGoalWidth = measuredButtonWidth(listOf("Goal"))
-        val naturalMiddleWidth = measuredButtonWidth(listOf(timeoutLabel, pullInfractionLabel))
+        val naturalMiddleWidth = measuredButtonWidth(listOf(timeViolationLabel, pullInfractionLabel))
         val naturalRightWidth = measuredButtonWidth(listOf(cardLabel, techLabel))
-        val naturalButtonWidth = naturalGoalWidth + naturalMiddleWidth + naturalRightWidth
-        val availableButtonWidth = (maxWidth - panelPadding * 2f - gap * 2f).coerceAtLeast(0.dp)
+        val naturalTimeoutWidth = measuredButtonWidth(listOf(timeoutLabel))
+        val naturalButtonWidth = naturalGoalWidth + naturalMiddleWidth + naturalRightWidth + naturalTimeoutWidth
+        val availableButtonWidth = (maxWidth - panelPadding * 2f - gap * 3f).coerceAtLeast(0.dp)
         val widthScale = if (naturalButtonWidth > availableButtonWidth && naturalButtonWidth.value > 0f) {
             availableButtonWidth.value / naturalButtonWidth.value
         } else {
@@ -599,7 +619,8 @@ private fun TeamActionGrid(
         val goalWidth = naturalGoalWidth * widthScale
         val middleWidth = naturalMiddleWidth * widthScale
         val rightWidth = naturalRightWidth * widthScale
-        val panelWidth = (goalWidth + middleWidth + rightWidth + panelPadding * 2f + gap * 2f)
+        val timeoutWidth = naturalTimeoutWidth * widthScale
+        val panelWidth = (goalWidth + middleWidth + rightWidth + timeoutWidth + panelPadding * 2f + gap * 3f)
             .coerceAtMost(maxWidth)
         Row(
             modifier = Modifier
@@ -625,13 +646,14 @@ private fun TeamActionGrid(
                 verticalArrangement = Arrangement.spacedBy(gap),
             ) {
                 TeamFieldActionButton(
-                    label = timeoutLabel,
+                    label = timeViolationLabel,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(metrics.actionButtonHeight)
-                        .testTag("live-${teamId.name}-timeout"),
-                    enabled = interactionsEnabled,
-                    onClick = onTimeout,
+                        .testTag("live-${teamId.name}-time-violation"),
+                    enabled = interactionsEnabled && timeViolationEnabled,
+                    containerColor = FieldNeutralButtonColor,
+                    onClick = onTimeViolation,
                 )
                 TeamFieldActionButton(
                     label = pullInfractionLabel,
@@ -640,6 +662,7 @@ private fun TeamActionGrid(
                         .height(metrics.actionButtonHeight)
                         .testTag("live-${teamId.name}-pull-infraction"),
                     enabled = interactionsEnabled && pullInfractionEnabled,
+                    containerColor = FieldNeutralButtonColor,
                     onClick = onPullInfraction,
                 )
             }
@@ -668,6 +691,17 @@ private fun TeamActionGrid(
                     onClick = onCardsAndTechnicalFouls,
                 )
             }
+            TeamFieldActionButton(
+                label = timeoutLabel,
+                modifier = Modifier
+                    .width(timeoutWidth)
+                    .height(metrics.actionButtonHeight * 2f + gap)
+                    .testTag("live-${teamId.name}-timeout"),
+                enabled = interactionsEnabled,
+                containerColor = FieldTimeoutButtonColor,
+                contentColor = Color.White,
+                onClick = onTimeout,
+            )
         }
     }
 }
@@ -912,24 +946,13 @@ internal fun CountdownLine(
             } else if (expiredPullActions != null) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.Center,
                 ) {
-                    SmallActionButton(
-                        label = "Time violation",
-                        enabled = enabled,
-                        containerColor = Color(0xFFE53935),
-                        contentColor = Color.Black,
-                        borderColor = Color.Black,
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("live-time-violation"),
-                        onClick = expiredPullActions.onTimeViolation,
-                    )
                     SmallActionButton(
                         label = "Restart countdown",
                         enabled = enabled,
                         modifier = Modifier
-                            .weight(1f)
+                            .fillMaxWidth()
                             .testTag("live-restart-pull-countdown"),
                         onClick = expiredPullActions.onRestartPullCountdown,
                     )
@@ -1082,11 +1105,9 @@ private fun CountdownPauseToggleButton(
 /**
  * Callbacks shown after undoing an automatic start-point transition.
  *
- * @param onTimeViolation Callback for assessing a time violation.
  * @param onRestartPullCountdown Callback for restarting the pull countdown.
  */
 internal data class ExpiredPullActions(
-    val onTimeViolation: () -> Unit,
     val onRestartPullCountdown: () -> Unit,
 )
 

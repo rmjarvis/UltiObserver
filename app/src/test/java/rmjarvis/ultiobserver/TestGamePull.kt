@@ -101,7 +101,7 @@ class TestGamePull : GameDomainTestFixtures() {
         state = standardLiveGameState()
         val firstViolationMoment = state.countdown!!.targetEpoch
         assertFalse(state.hasExpiredPullActions())
-        assertEquals(state, state.assessTimeViolation(ANIMAL, firstViolationMoment).state)
+        assertTrue(state.canAssessTimeViolation())
         assertEquals(state, state.restartPullCountdown(firstViolationMoment))
         assertFalse(
             state.copy(
@@ -109,9 +109,7 @@ class TestGamePull : GameDomainTestFixtures() {
                 pullCountdownExpired = true,
             ).hasExpiredPullActions()
         )
-        var timeViolationDecisionState = state.expiredPullDecisionState()
-        assertTrue(timeViolationDecisionState.hasExpiredPullActions())
-        var timeViolationResult = timeViolationDecisionState.assessTimeViolation(ANIMAL, firstViolationMoment)
+        var timeViolationResult = state.assessTimeViolation(ANIMAL, firstViolationMoment)
         val warningEvent = timeViolationResult.event as GameEvent.TimeViolationRecorded
         var timeViolationState = timeViolationResult.state
         assertEquals(ANIMAL, warningEvent.team)
@@ -123,15 +121,16 @@ class TestGamePull : GameDomainTestFixtures() {
         assertFalse(timeViolationState.teamOne.timeViolationWarningIssued)
         assertEquals(CountdownKind.PULL_RESET, timeViolationState.countdown?.kind)
         assertEquals("Signal in", timeViolationState.countdown?.label)
-        assertEquals(30, timeViolationState.countdown?.durationSeconds)
-        assertEquals(firstViolationMoment + 30_000L, timeViolationState.countdown?.targetEpoch)
-        assertEquals("Animal now has 30 seconds to signal readiness.", timeViolationResult.message())
-        assertUndoRestores(timeViolationDecisionState, timeViolationState)
+        assertEquals(20, timeViolationState.countdown?.durationSeconds)
+        assertEquals(firstViolationMoment + 20_000L, timeViolationState.countdown?.targetEpoch)
+        assertEquals(TimingCueId.RECEIVING_TWENTY_FOR_HAND, timeViolationState.countdown?.nextTimingCue(firstViolationMoment)?.id)
+        assertEquals(TimingCueId.RECEIVING_GIVE_HAND, timeViolationState.countdown?.nextTimingCue(firstViolationMoment + 20_000L)?.id)
+        assertEquals("Animal now has 20 seconds to signal readiness.", timeViolationResult.message())
+        assertUndoRestores(state, timeViolationState)
 
         // The next offense time violation by that team charges a 70-second timeout clock.
         val secondViolationMoment = timeViolationState.countdown!!.targetEpoch
-        timeViolationDecisionState = timeViolationState.expiredPullDecisionState()
-        timeViolationResult = timeViolationDecisionState.assessTimeViolation(ANIMAL, secondViolationMoment)
+        timeViolationResult = timeViolationState.assessTimeViolation(ANIMAL, secondViolationMoment)
         val timeoutEvent = timeViolationResult.event as GameEvent.TimeViolationRecorded
         timeViolationState = timeViolationResult.state
         assertEquals(ANIMAL, timeoutEvent.team)
@@ -146,7 +145,7 @@ class TestGamePull : GameDomainTestFixtures() {
         // A defense time violation warning also gets a 30-second reset, and the next timeout clock is 90 seconds.
         state = standardLiveGameState(pullingFromEnd = FieldEnd.NEAR)
         assertEquals("Pull in", state.countdown?.label)
-        timeViolationResult = state.expiredPullDecisionState().assessTimeViolation(VC, state.countdown!!.targetEpoch)
+        timeViolationResult = state.assessTimeViolation(VC, state.countdown!!.targetEpoch)
         timeViolationState = timeViolationResult.state
         val defenseWarningEvent = timeViolationResult.event as GameEvent.TimeViolationRecorded
         assertEquals(VC, defenseWarningEvent.team)
@@ -155,7 +154,7 @@ class TestGamePull : GameDomainTestFixtures() {
         assertEquals("Pull in", timeViolationState.countdown?.label)
         assertEquals(30, timeViolationState.countdown?.durationSeconds)
         val defenseSecondViolationMoment = timeViolationState.countdown!!.targetEpoch
-        timeViolationResult = timeViolationState.expiredPullDecisionState().assessTimeViolation(VC, defenseSecondViolationMoment)
+        timeViolationResult = timeViolationState.assessTimeViolation(VC, defenseSecondViolationMoment)
         timeViolationState = timeViolationResult.state
         val defenseTimeoutEvent = timeViolationResult.event as GameEvent.TimeViolationRecorded
         assertEquals(TimeViolationOutcome.TIMEOUT, defenseTimeoutEvent.outcome)
@@ -168,14 +167,14 @@ class TestGamePull : GameDomainTestFixtures() {
         state = standardLiveGameState(pullingFromEnd = FieldEnd.FAR).withPullPromptTarget(PullPromptTarget.FAR)
         assertEquals(FieldEnd.FAR, state.fieldEndForTeam(VC))
         assertEquals("Pull in", state.countdown?.label)
-        timeViolationResult = state.expiredPullDecisionState().assessTimeViolation(VC, state.countdown!!.targetEpoch)
+        timeViolationResult = state.assessTimeViolation(VC, state.countdown!!.targetEpoch)
         timeViolationState = timeViolationResult.state
         assertEquals(VC, (timeViolationResult.event as GameEvent.TimeViolationRecorded).team)
         assertEquals(TimeViolationOutcome.WARNING, timeViolationResult.event.outcome)
         assertEquals("Pull in", timeViolationState.countdown?.label)
         assertEquals(30, timeViolationState.countdown?.durationSeconds)
         val farDefenseSecondViolationMoment = timeViolationState.countdown!!.targetEpoch
-        timeViolationResult = timeViolationState.expiredPullDecisionState().assessTimeViolation(VC, farDefenseSecondViolationMoment)
+        timeViolationResult = timeViolationState.assessTimeViolation(VC, farDefenseSecondViolationMoment)
         timeViolationState = timeViolationResult.state
         assertEquals(TimeViolationOutcome.TIMEOUT, (timeViolationResult.event as GameEvent.TimeViolationRecorded).outcome)
         assertEquals("Pull in", timeViolationState.countdown?.label)
@@ -184,61 +183,72 @@ class TestGamePull : GameDomainTestFixtures() {
         state = standardLiveGameState(pullingFromEnd = FieldEnd.NEAR).withPullPromptTarget(PullPromptTarget.FAR)
         assertEquals(FieldEnd.FAR, state.fieldEndForTeam(ANIMAL))
         assertEquals("Signal in", state.countdown?.label)
-        timeViolationResult = state.expiredPullDecisionState().assessTimeViolation(ANIMAL, state.countdown!!.targetEpoch)
+        timeViolationResult = state.assessTimeViolation(ANIMAL, state.countdown!!.targetEpoch)
         timeViolationState = timeViolationResult.state
         assertEquals(ANIMAL, (timeViolationResult.event as GameEvent.TimeViolationRecorded).team)
         assertEquals(TimeViolationOutcome.WARNING, timeViolationResult.event.outcome)
         assertEquals("Signal in", timeViolationState.countdown?.label)
-        assertEquals(30, timeViolationState.countdown?.durationSeconds)
+        assertEquals(20, timeViolationState.countdown?.durationSeconds)
+        assertEquals(TimingCueId.RECEIVING_TWENTY_FOR_HAND, timeViolationState.countdown?.nextTimingCue(state.countdown!!.targetEpoch)?.id)
+        assertEquals(TimingCueId.RECEIVING_GIVE_HAND, timeViolationState.countdown?.nextTimingCue(state.countdown!!.targetEpoch + 20_000L)?.id)
         val farOffenseSecondViolationMoment = timeViolationState.countdown!!.targetEpoch
-        timeViolationResult = timeViolationState.expiredPullDecisionState().assessTimeViolation(ANIMAL, farOffenseSecondViolationMoment)
+        timeViolationResult = timeViolationState.assessTimeViolation(ANIMAL, farOffenseSecondViolationMoment)
         timeViolationState = timeViolationResult.state
         assertEquals(TimeViolationOutcome.TIMEOUT, (timeViolationResult.event as GameEvent.TimeViolationRecorded).outcome)
         assertEquals("Signal in", timeViolationState.countdown?.label)
         assertEquals(70, timeViolationState.countdown?.durationSeconds)
 
-        // A far-side warning records the team's warning without starting a countdown for this observer.
+        // A violation on either side starts that side's reset timer, even after an automatic live-point transition.
         state = standardLiveGameState()
         val farPullingWarningMoment = state.countdown!!.targetEpoch
-        timeViolationResult = state.expiredPullDecisionState().assessTimeViolation(VC, farPullingWarningMoment)
+        timeViolationResult = state.applyExpiredCountdownTransitions(farPullingWarningMoment)
+            .assessTimeViolation(VC, farPullingWarningMoment)
         timeViolationState = timeViolationResult.state
         assertEquals(VC, (timeViolationResult.event as GameEvent.TimeViolationRecorded).team)
         assertEquals(TimeViolationOutcome.WARNING, timeViolationResult.event.outcome)
         assertTrue(timeViolationState.teamOne.timeViolationWarningIssued)
-        assertNull(timeViolationState.countdown)
-        assertFalse(timeViolationState.hasExpiredPullActions())
+        assertEquals(GamePhase.BETWEEN_POINTS, timeViolationState.phase)
+        assertEquals("Pull in", timeViolationState.countdown?.label)
+        assertEquals(30, timeViolationState.countdown?.durationSeconds)
         assertEquals("Viscous Coupling now has 30 seconds to pull.", timeViolationResult.message())
 
         state = standardLiveGameState(pullingFromEnd = FieldEnd.NEAR)
         val farReceivingWarningMoment = state.countdown!!.targetEpoch
-        timeViolationResult = state.expiredPullDecisionState().assessTimeViolation(ANIMAL, farReceivingWarningMoment)
+        timeViolationResult = state.applyExpiredCountdownTransitions(farReceivingWarningMoment)
+            .assessTimeViolation(ANIMAL, farReceivingWarningMoment)
         timeViolationState = timeViolationResult.state
         assertEquals(ANIMAL, (timeViolationResult.event as GameEvent.TimeViolationRecorded).team)
         assertEquals(TimeViolationOutcome.WARNING, timeViolationResult.event.outcome)
         assertTrue(timeViolationState.teamTwo.timeViolationWarningIssued)
-        assertNull(timeViolationState.countdown)
-        assertEquals("Animal now has 30 seconds to signal readiness.", timeViolationResult.message())
+        assertEquals(GamePhase.BETWEEN_POINTS, timeViolationState.phase)
+        assertEquals("Pull in", timeViolationState.countdown?.label)
+        assertEquals(50, timeViolationState.countdown?.durationSeconds)
+        assertEquals(TimingCueId.PULLING_TWENTY_TO_PULL, timeViolationState.countdown?.nextTimingCue(farReceivingWarningMoment)?.id)
+        assertEquals("Animal now has 20 seconds to signal readiness.", timeViolationResult.message())
 
-        // A far-side timeout still starts the countdown for this observer's side.
+        // A forced timeout uses ordinary timeout-between-points timing even when the pulling team violated.
         state = standardLiveGameState()
         state = state.copy(teamOne = state.teamOne.copy(timeViolationWarningIssued = true))
-        timeViolationResult = state.expiredPullDecisionState().assessTimeViolation(VC, state.countdown!!.targetEpoch)
+        timeViolationResult = state.assessTimeViolation(VC, state.countdown!!.targetEpoch)
         timeViolationState = timeViolationResult.state
         assertEquals(TimeViolationOutcome.TIMEOUT, (timeViolationResult.event as GameEvent.TimeViolationRecorded).outcome)
         assertEquals(1, timeViolationState.teamOne.timeoutsUsedThisHalf)
         assertEquals("Signal in", timeViolationState.countdown?.label)
         assertEquals(70, timeViolationState.countdown?.durationSeconds)
+        assertEquals(TimingCueId.RECEIVING_TWENTY_FOR_HAND, timeViolationState.countdown?.nextTimingCue(state.countdown!!.targetEpoch)?.id)
 
-        // Both-end prompts start warning resets for either side; Neither records warnings without prompt resets.
+        // Both-end prompts restart the full receiving-team reset, but only the pull-side reset for the pulling team.
         state = standardLiveGameState().withPullPromptTarget(PullPromptTarget.BOTH)
-        timeViolationResult = state.expiredPullDecisionState().assessTimeViolation(ANIMAL, state.countdown!!.targetEpoch)
+        timeViolationResult = state.assessTimeViolation(ANIMAL, state.countdown!!.targetEpoch)
         timeViolationState = timeViolationResult.state
         assertEquals(ANIMAL, (timeViolationResult.event as GameEvent.TimeViolationRecorded).team)
-        assertEquals("Signal in", timeViolationState.countdown?.label)
-        assertEquals(30, timeViolationState.countdown?.durationSeconds)
+        assertEquals("Pull in", timeViolationState.countdown?.label)
+        assertEquals(50, timeViolationState.countdown?.durationSeconds)
+        assertEquals(TimingCueId.RECEIVING_TWENTY_FOR_HAND, timeViolationState.countdown?.nextTimingCue(state.countdown!!.targetEpoch)?.id)
+        assertEquals(TimingCueId.PULLING_TWENTY_TO_PULL, timeViolationState.countdown?.nextTimingCue(timeViolationState.countdown!!.targetEpoch - 20_000L)?.id)
 
         state = standardLiveGameState().withPullPromptTarget(PullPromptTarget.BOTH)
-        timeViolationResult = state.expiredPullDecisionState().assessTimeViolation(VC, state.countdown!!.targetEpoch)
+        timeViolationResult = state.assessTimeViolation(VC, state.countdown!!.targetEpoch)
         timeViolationState = timeViolationResult.state
         assertEquals(VC, (timeViolationResult.event as GameEvent.TimeViolationRecorded).team)
         assertEquals("Pull in", timeViolationState.countdown?.label)
@@ -246,19 +256,21 @@ class TestGamePull : GameDomainTestFixtures() {
 
         state = standardLiveGameState().withPullPromptTarget(PullPromptTarget.NEITHER)
         assertNull(state.countdown?.nextTimingCue(state.countdown!!.targetEpoch - 20_000L))
-        timeViolationResult = state.expiredPullDecisionState().assessTimeViolation(ANIMAL, state.countdown!!.targetEpoch)
+        timeViolationResult = state.assessTimeViolation(ANIMAL, state.countdown!!.targetEpoch)
         timeViolationState = timeViolationResult.state
         assertEquals(ANIMAL, (timeViolationResult.event as GameEvent.TimeViolationRecorded).team)
         assertTrue(timeViolationState.teamTwo.timeViolationWarningIssued)
-        assertNull(timeViolationState.countdown)
+        assertEquals("Pull in", timeViolationState.countdown?.label)
+        assertEquals(50, timeViolationState.countdown?.durationSeconds)
+        assertNull(timeViolationState.countdown?.nextTimingCue(timeViolationState.countdown!!.targetEpoch - 20_000L))
 
         state = standardLiveGameState().withPullPromptTarget(PullPromptTarget.NEITHER)
             .copy(teamTwo = standardLiveGameState().teamTwo.copy(timeViolationWarningIssued = true))
-        timeViolationResult = state.expiredPullDecisionState().assessTimeViolation(ANIMAL, state.countdown!!.targetEpoch)
+        timeViolationResult = state.assessTimeViolation(ANIMAL, state.countdown!!.targetEpoch)
         timeViolationState = timeViolationResult.state
         assertEquals(TimeViolationOutcome.TIMEOUT, (timeViolationResult.event as GameEvent.TimeViolationRecorded).outcome)
         assertEquals("Pull in", timeViolationState.countdown?.label)
-        assertEquals(70, timeViolationState.countdown?.durationSeconds)
+        assertEquals(90, timeViolationState.countdown?.durationSeconds)
         assertNull(timeViolationState.countdown?.nextTimingCue(timeViolationState.countdown!!.targetEpoch - 20_000L))
 
         // If the receiving team has no timeout left after its warning, the point starts with no pull.
@@ -271,7 +283,7 @@ class TestGamePull : GameDomainTestFixtures() {
         )
         state = standardLiveGameState(rules = noTimeoutRules)
         state = state.copy(teamTwo = state.teamTwo.copy(timeViolationWarningIssued = true))
-        timeViolationResult = state.expiredPullDecisionState().assessTimeViolation(ANIMAL, state.countdown!!.targetEpoch)
+        timeViolationResult = state.assessTimeViolation(ANIMAL, state.countdown!!.targetEpoch)
         val receivingNoTimeoutEvent = timeViolationResult.event as GameEvent.TimeViolationRecorded
         timeViolationState = timeViolationResult.state
         assertEquals(ANIMAL, receivingNoTimeoutEvent.team)
@@ -279,6 +291,7 @@ class TestGamePull : GameDomainTestFixtures() {
         assertEquals(GamePhase.BETWEEN_POINTS, timeViolationState.phase)
         assertNull(timeViolationState.countdown)
         assertTrue(timeViolationState.pullSkippedForCurrentPoint)
+        assertFalse(timeViolationState.canAssessTimeViolation())
         assertEquals(timeViolationState, timeViolationState.recordFalseStart())
         assertEquals(timeViolationState, timeViolationState.recordOffsides())
         assertEquals(
@@ -293,7 +306,7 @@ class TestGamePull : GameDomainTestFixtures() {
         )
         state = state.copy(teamOne = state.teamOne.copy(timeViolationWarningIssued = true))
         assertEquals("Pull in", state.countdown?.label)
-        timeViolationResult = state.expiredPullDecisionState().assessTimeViolation(VC, state.countdown!!.targetEpoch)
+        timeViolationResult = state.assessTimeViolation(VC, state.countdown!!.targetEpoch)
         val pullingNoTimeoutEvent = timeViolationResult.event as GameEvent.TimeViolationRecorded
         timeViolationState = timeViolationResult.state
         assertEquals(VC, pullingNoTimeoutEvent.team)
@@ -307,13 +320,13 @@ class TestGamePull : GameDomainTestFixtures() {
 
         // Restarting the expired pull countdown restores the ordinary countdown and clears the action surface.
         state = standardLiveGameState()
-        timeViolationDecisionState = state.expiredPullDecisionState()
-        timeViolationState = timeViolationDecisionState.restartPullCountdown(state.countdown!!.targetEpoch)
+        val expiredPullDecisionState = state.expiredPullDecisionState()
+        timeViolationState = expiredPullDecisionState.restartPullCountdown(state.countdown!!.targetEpoch)
         assertEquals(CountdownKind.BETWEEN_POINTS, timeViolationState.countdown?.kind)
         assertEquals("Signal in", timeViolationState.countdown?.label)
         assertEquals(60, timeViolationState.countdown?.durationSeconds)
         assertFalse(timeViolationState.hasExpiredPullActions())
-        assertEquals("Undo Restart pull countdown", timeViolationState.undoEntry?.label)
+        assertEquals("Undo Restart countdown", timeViolationState.undoEntry?.label)
 
         // Record offsides and false start on the same pull and verify both counts and both consequences apply.
         state = standardLiveGameState()

@@ -74,6 +74,20 @@ enum class TimeViolationOutcome {
     NO_TIMEOUT,
 }
 
+private val StandardPullTiming = PullTimingSeconds(offenseReadySeconds = 60, pullSeconds = 80)
+private val OpeningPullTiming = PullTimingSeconds(offenseReadySeconds = 20, pullSeconds = 40)
+private val ReceivingTeamWarningResetTiming = PullTimingSeconds(offenseReadySeconds = 20, pullSeconds = 50)
+private val PullingTeamWarningResetTiming = PullTimingSeconds(offenseReadySeconds = 0, pullSeconds = 30)
+private val TimeViolationTimeoutResetTiming = PullTimingSeconds(offenseReadySeconds = 70, pullSeconds = 90)
+
+/// Return the default pull deadlines for one between-points countdown kind.
+internal fun defaultPullTimingSeconds(kind: CountdownKind): PullTimingSeconds {
+    return when (kind) {
+        CountdownKind.OPENING_PULL -> OpeningPullTiming
+        else -> StandardPullTiming
+    }
+}
+
 /**
  * Build the countdown that applies between points for the configured pull prompts.
  * The exact target depends on whether the prompted end is on the pulling or receiving side.
@@ -92,17 +106,19 @@ internal fun buildBetweenPointsCountdown(
     require(kind.usesBetweenPointsTarget()) {
         "Countdown kind $kind does not use between-points timing."
     }
+    val timing = defaultPullTimingSeconds(kind)
     val target = betweenPointsCountdownTarget(
         pullingFromEnd = pullingFromEnd,
         promptTarget = promptTarget,
     )
-    val durationSeconds = target.baseDurationSeconds(kind)
+    val durationSeconds = timing.durationSecondsFor(target)
     return CountdownState(
         kind = kind,
         label = target.label,
         durationSeconds = durationSeconds,
         targetEpoch = sequenceStart + durationSeconds * 1000L,
         betweenPointsTarget = target,
+        pullTiming = timing,
     )
 }
 
@@ -168,14 +184,16 @@ internal fun CountdownState.withPullPromptTarget(
     if (currentTarget == newTarget) {
         return this
     }
-    val extensionSeconds = durationSeconds - currentTarget.baseDurationSeconds(kind)
-    val newDurationSeconds = newTarget.baseDurationSeconds(kind) + extensionSeconds
+    val timing = pullTiming ?: defaultPullTimingSeconds(kind)
+    val extensionSeconds = durationSeconds - timing.durationSecondsFor(currentTarget)
+    val newDurationSeconds = timing.durationSecondsFor(newTarget) + extensionSeconds
     val sequenceStart = targetEpoch - durationSeconds * 1000L
     return copy(
         label = newTarget.label,
         durationSeconds = newDurationSeconds,
         targetEpoch = sequenceStart + newDurationSeconds * 1000L,
         betweenPointsTarget = newTarget,
+        pullTiming = timing,
     )
 }
 
@@ -202,33 +220,44 @@ fun betweenPointsDisplay(
 /// List normal between-points cues, including timeout-extension cues when applicable.
 internal fun CountdownState.betweenPointsTimingCues(): List<TimingCue> {
     val target = betweenPointsTarget!!
-    val timeoutCues = if (durationSeconds > target.baseDurationSeconds(kind)) {
+    val timing = pullTiming ?: defaultPullTimingSeconds(kind)
+    val timeoutCues = if (kind != CountdownKind.PULL_RESET && durationSeconds > timing.durationSecondsFor(target)) {
         target.timeoutCueIds().map { cueId -> TimingCue(cueId, 60) }
     } else {
         emptyList()
     }
     return timeoutCues + when (target) {
         BetweenPointsCountdownTarget.OFFENSE_READY -> listOf(
-            TimingCue(TimingCueId.RECEIVING_TWENTY_FOR_HAND, 20),
-            TimingCue(TimingCueId.RECEIVING_TEN_FOR_HAND, 10),
-            TimingCue(TimingCueId.RECEIVING_GIVE_HAND, 0),
+            TimingCue(TimingCueId.RECEIVING_TWENTY_FOR_HAND, timing.remainingSecondsBeforeOffenseReady(20, target)),
+            TimingCue(TimingCueId.RECEIVING_TEN_FOR_HAND, timing.remainingSecondsBeforeOffenseReady(10, target)),
+            TimingCue(TimingCueId.RECEIVING_GIVE_HAND, timing.remainingSecondsBeforeOffenseReady(0, target)),
         )
         BetweenPointsCountdownTarget.PULL -> listOf(
             TimingCue(TimingCueId.PULLING_TWENTY_TO_PULL, 20),
             TimingCue(TimingCueId.PULLING_TEN_TO_PULL, 10),
             TimingCue(TimingCueId.PULLING_TIME_VIOLATION, 0),
         )
-        BetweenPointsCountdownTarget.BOTH -> listOf(
-            TimingCue(TimingCueId.RECEIVING_TWENTY_FOR_HAND, 40),
-            TimingCue(TimingCueId.RECEIVING_TEN_FOR_HAND, 30),
-            TimingCue(
-                id = TimingCueId.PULLING_TWENTY_TO_PULL,
-                remainingSeconds = 20,
-                message = "Give hand. 20 seconds to pull",
-            ),
-            TimingCue(TimingCueId.PULLING_TEN_TO_PULL, 10),
-            TimingCue(TimingCueId.PULLING_TIME_VIOLATION, 0),
-        )
+        BetweenPointsCountdownTarget.BOTH -> {
+            val giveHandRemaining = timing.remainingSecondsBeforeOffenseReady(0, target)
+            buildList {
+                add(TimingCue(TimingCueId.RECEIVING_TWENTY_FOR_HAND, timing.remainingSecondsBeforeOffenseReady(20, target)))
+                add(TimingCue(TimingCueId.RECEIVING_TEN_FOR_HAND, timing.remainingSecondsBeforeOffenseReady(10, target)))
+                if (giveHandRemaining == 20) {
+                    add(
+                        TimingCue(
+                            id = TimingCueId.PULLING_TWENTY_TO_PULL,
+                            remainingSeconds = 20,
+                            message = "Give hand. 20 seconds to pull",
+                        )
+                    )
+                } else {
+                    add(TimingCue(TimingCueId.RECEIVING_GIVE_HAND, giveHandRemaining))
+                    add(TimingCue(TimingCueId.PULLING_TWENTY_TO_PULL, 20))
+                }
+                add(TimingCue(TimingCueId.PULLING_TEN_TO_PULL, 10))
+                add(TimingCue(TimingCueId.PULLING_TIME_VIOLATION, 0))
+            }
+        }
         BetweenPointsCountdownTarget.NEITHER -> emptyList()
     }
 }
@@ -236,6 +265,12 @@ internal fun CountdownState.betweenPointsTimingCues(): List<TimingCue> {
 /// Report whether the expired-pull action surface should be available.
 fun GameState.hasExpiredPullActions(): Boolean {
     return this.phase == GamePhase.BETWEEN_POINTS && this.pullCountdownExpired
+}
+
+/// Report whether a pull time violation can be recorded for the current pull sequence.
+fun GameState.canAssessTimeViolation(): Boolean {
+    return !this.pullSkippedForCurrentPoint &&
+        (this.phase == GamePhase.BETWEEN_POINTS || this.phase == GamePhase.LIVE_POINT)
 }
 
 /// Build the state restored by undoing automatic start point so time violation can still be assessed.
@@ -247,7 +282,7 @@ internal fun GameState.expiredPullDecisionState(): GameState {
 }
 
 /**
- * Record a pull time violation from the expired-pull action surface.
+ * Record a pull time violation for a team.
  * First violations are warnings, later violations charge a timeout when available, and no-timeout
  * violations skip the pull and show field-position guidance.
  *
@@ -255,7 +290,7 @@ internal fun GameState.expiredPullDecisionState(): GameState {
  * @param now The epoch millis used to start any resulting countdown.
  */
 fun GameState.assessTimeViolation(team: TeamId, now: Long): TimeViolationAssessmentResult {
-    if (!this.hasExpiredPullActions()) {
+    if (!this.canAssessTimeViolation()) {
         return TimeViolationAssessmentResult(this)
     }
     val outcome = when {
@@ -279,18 +314,14 @@ fun GameState.assessTimeViolation(team: TeamId, now: Long): TimeViolationAssessm
 }
 
 /**
- * Record a team's first time violation warning and start prompted-side timing when applicable.
- * An unprompted-side warning is recorded without starting a countdown for this observer.
+ * Record a team's first time violation warning and start the appropriate reset countdown.
  *
  * @param team The team receiving its warning.
  * @param now The epoch millis used to start the warning countdown.
  */
 private fun GameState.recordTimeViolationWarning(team: TeamId, now: Long): GameState {
-    val violatingTeamEnd = fieldEndForTeam(team)
-    val resetTarget = betweenPointsCountdownTargetForEnd(
-        pullingFromEnd = pullingFromEnd,
-        promptEnd = violatingTeamEnd,
-    )
+    val countdownTarget = timeViolationWarningCountdownTarget(team)
+    val timing = timeViolationWarningPullTiming(team)
     return this.copy(
         teamOne = if (team == TeamId.TEAM_ONE) {
             this.teamOne.copy(timeViolationWarningIssued = true)
@@ -302,16 +333,13 @@ private fun GameState.recordTimeViolationWarning(team: TeamId, now: Long): GameS
         } else {
             this.teamTwo
         },
-        countdown = if (pullPromptTarget.includesFieldEnd(violatingTeamEnd)) {
-            this.buildTimeViolationCountdown(
-                now = now,
-                durationSeconds = 30,
-                kind = CountdownKind.PULL_RESET,
-                target = resetTarget,
-            )
-        } else {
-            null
-        },
+        phase = GamePhase.BETWEEN_POINTS,
+        countdown = this.buildTimeViolationCountdown(
+            now = now,
+            kind = CountdownKind.PULL_RESET,
+            target = countdownTarget,
+            timing = timing,
+        ),
         pullCountdownExpired = false,
         lastEvent = "Time violation warning on ${this.teamName(team)}.",
     ).withEventLogEntry(
@@ -341,7 +369,7 @@ fun GameState.restartPullCountdown(now: Long): GameState {
         ),
         pullCountdownExpired = false,
         lastEvent = "Pull countdown restarted.",
-    ).withUndo(this, "Undo Restart pull countdown")
+    ).withUndo(this, "Undo Restart countdown")
 }
 
 /**
@@ -352,21 +380,16 @@ fun GameState.restartPullCountdown(now: Long): GameState {
  * @param now The epoch millis used to start the reset countdown.
  */
 private fun GameState.recordTimeViolationTimeout(team: TeamId, now: Long): GameState {
-    val durationTarget = timeViolationTimeoutDurationTarget(team)
-    val durationSeconds = when (durationTarget) {
-        BetweenPointsCountdownTarget.OFFENSE_READY -> 70
-        BetweenPointsCountdownTarget.PULL -> 90
-        BetweenPointsCountdownTarget.BOTH,
-        BetweenPointsCountdownTarget.NEITHER -> error("Team-specific time violations must resolve to one side.")
-    }
+    val countdownTarget = timeViolationTimeoutCountdownTarget()
     return this.copy(
         teamOne = if (team == TeamId.TEAM_ONE) this.teamOne.withAddedTimeout() else this.teamOne,
         teamTwo = if (team == TeamId.TEAM_TWO) this.teamTwo.withAddedTimeout() else this.teamTwo,
+        phase = GamePhase.BETWEEN_POINTS,
         countdown = buildTimeViolationCountdown(
             now = now,
-            durationSeconds = durationSeconds,
             kind = CountdownKind.BETWEEN_POINTS,
-            target = timeViolationTimeoutCountdownTarget(team),
+            target = countdownTarget,
+            timing = TimeViolationTimeoutResetTiming,
         ),
         pullCountdownExpired = false,
         lastEvent = "Timeout charged to ${this.teamName(team)} for time violation.",
@@ -381,7 +404,7 @@ private fun GameState.recordTimeViolationTimeout(team: TeamId, now: Long): GameS
 }
 
 /**
- * Build the countdown used after a prompted-side time violation.
+ * Build the countdown used after a time violation.
  *
  * @param now The epoch millis used as the countdown start.
  * @param durationSeconds The length of the reset countdown.
@@ -390,50 +413,43 @@ private fun GameState.recordTimeViolationTimeout(team: TeamId, now: Long): GameS
  */
 private fun GameState.buildTimeViolationCountdown(
     now: Long,
-    durationSeconds: Int,
     kind: CountdownKind,
     target: BetweenPointsCountdownTarget = currentCountdownTarget(),
+    timing: PullTimingSeconds,
 ): CountdownState {
+    val durationSeconds = timing.durationSecondsFor(target)
     return CountdownState(
         kind = kind,
         label = target.label,
         durationSeconds = durationSeconds,
         targetEpoch = now + durationSeconds * 1000L,
         betweenPointsTarget = target,
+        pullTiming = timing,
     )
 }
 
-/**
- * Return the countdown target that determines a pull-time-violation timeout reset length.
- *
- * @param team The team whose time violation caused the timeout.
- */
-private fun GameState.timeViolationTimeoutDurationTarget(team: TeamId): BetweenPointsCountdownTarget {
-    return when (pullPromptTarget) {
-        PullPromptTarget.BOTH,
-        PullPromptTarget.NEITHER -> betweenPointsCountdownTargetForEnd(
-            pullingFromEnd = pullingFromEnd,
-            promptEnd = fieldEndForTeam(team),
-        )
-        PullPromptTarget.NEAR,
-        PullPromptTarget.FAR -> currentCountdownTarget()
+/// Return the countdown target to show after a pull time-violation warning.
+private fun GameState.timeViolationWarningCountdownTarget(team: TeamId): BetweenPointsCountdownTarget {
+    return if (team == pullingTeam) {
+        if (pullPromptTarget.includesEnd(pullingFromEnd)) {
+            BetweenPointsCountdownTarget.PULL
+        } else {
+            BetweenPointsCountdownTarget.NEITHER
+        }
+    } else {
+        currentCountdownTarget()
     }
 }
 
-/**
- * Return the countdown target to show after a timeout charged for a pull time violation.
- *
- * @param team The team whose time violation caused the timeout.
- */
-private fun GameState.timeViolationTimeoutCountdownTarget(team: TeamId): BetweenPointsCountdownTarget {
-    return when (pullPromptTarget) {
-        PullPromptTarget.BOTH -> betweenPointsCountdownTargetForEnd(
-            pullingFromEnd = pullingFromEnd,
-            promptEnd = fieldEndForTeam(team),
-        )
-        PullPromptTarget.NEITHER -> BetweenPointsCountdownTarget.NEITHER
-        PullPromptTarget.NEAR,
-        PullPromptTarget.FAR -> currentCountdownTarget()
+/// Return the countdown target to show after a timeout charged for a pull time violation.
+private fun GameState.timeViolationTimeoutCountdownTarget(): BetweenPointsCountdownTarget = currentCountdownTarget()
+
+/// Return the pull deadlines for a time-violation warning reset.
+private fun GameState.timeViolationWarningPullTiming(team: TeamId): PullTimingSeconds {
+    return if (team == pullingTeam) {
+        PullingTeamWarningResetTiming
+    } else {
+        ReceivingTeamWarningResetTiming
     }
 }
 
@@ -458,12 +474,8 @@ private fun GameState.currentCountdownTarget(): BetweenPointsCountdownTarget {
     )
 }
 
-/**
- * Report whether a pull-prompt target includes one field end.
- *
- * @param end The field end being checked.
- */
-private fun PullPromptTarget.includesFieldEnd(end: FieldEnd): Boolean {
+/// Report whether a pull-prompt target includes one field end.
+private fun PullPromptTarget.includesEnd(end: FieldEnd): Boolean {
     return when (this) {
         PullPromptTarget.NEAR -> end == FieldEnd.NEAR
         PullPromptTarget.FAR -> end == FieldEnd.FAR
@@ -480,6 +492,7 @@ private fun PullPromptTarget.includesFieldEnd(end: FieldEnd): Boolean {
  */
 private fun GameState.recordTimeViolationWithoutTimeout(team: TeamId, now: Long): GameState {
     return this.copy(
+        phase = GamePhase.BETWEEN_POINTS,
         countdown = null,
         pullCountdownExpired = false,
         pullSkippedForCurrentPoint = true,
@@ -517,7 +530,7 @@ internal fun GameEvent.TimeViolationRecorded.formatMessage(): String {
             if (team == state.pullingTeam) {
                 "${state.teamName(team)} now has 30 seconds to pull."
             } else {
-                "${state.teamName(team)} now has 30 seconds to signal readiness."
+                "${state.teamName(team)} now has 20 seconds to signal readiness."
             }
         }
         TimeViolationOutcome.TIMEOUT -> "Timeout charged to ${state.teamName(team)}. Reset pull timing."
