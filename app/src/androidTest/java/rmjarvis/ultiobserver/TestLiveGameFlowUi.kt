@@ -380,8 +380,13 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "time-violation")).performClick()
             waitForText("now has 30 seconds to pull.", substring = true)
         }
-        composeRule.onNodeWithText("Apply").performClick()
+        Thread.sleep(1200)
+        val beforeConfirmingTimeViolation = System.currentTimeMillis()
+        composeRule.onNodeWithText("OK").performClick()
         waitForText("Undo Time violation warning on", substring = true)
+        val timeViolationCountdown = composeRule.activity.appViewModel.liveState!!.countdown!!
+        assertTrue(timeViolationCountdown.targetEpoch >= beforeConfirmingTimeViolation + 29_000L)
+        assertTrue(timeViolationCountdown.targetEpoch <= System.currentTimeMillis() + 31_000L)
 
         composeRule.activityRule.scenario.onActivity { activity ->
             val current = activity.appViewModel.liveState!!

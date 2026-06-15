@@ -396,7 +396,7 @@ internal data class TeamLiveStatePatch(
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val falseStarts: Int? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
-    val timeViolationWarningIssued: Boolean? = null,
+    val timeViolations: Int? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val technicalFouls: Int? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
@@ -420,7 +420,7 @@ internal data class TeamLiveStatePatch(
             firstHalfTimeoutsUsed = firstHalfTimeoutsUsed ?: later.firstHalfTimeoutsUsed,
             offsides = offsides ?: later.offsides,
             falseStarts = falseStarts ?: later.falseStarts,
-            timeViolationWarningIssued = timeViolationWarningIssued ?: later.timeViolationWarningIssued,
+            timeViolations = timeViolations ?: later.timeViolations,
             technicalFouls = technicalFouls ?: later.technicalFouls,
             blueCards = blueCards ?: later.blueCards,
         )
@@ -449,9 +449,7 @@ internal data class TeamLiveStatePatch(
                 firstHalfTimeoutsUsed = previous.firstHalfTimeoutsUsed.takeIfChangedFrom(later.firstHalfTimeoutsUsed),
                 offsides = previous.offsides.takeIfChangedFrom(later.offsides),
                 falseStarts = previous.falseStarts.takeIfChangedFrom(later.falseStarts),
-                timeViolationWarningIssued = previous.timeViolationWarningIssued.takeIfChangedFrom(
-                    later.timeViolationWarningIssued,
-                ),
+                timeViolations = previous.timeViolations.takeIfChangedFrom(later.timeViolations),
                 technicalFouls = previous.technicalFouls.takeIfChangedFrom(later.technicalFouls),
                 blueCards = previous.blueCards.takeIfChangedFrom(later.blueCards),
             )

@@ -141,7 +141,7 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
         assertEquals(previous.firstHalfTimeoutsUsed, patch.firstHalfTimeoutsUsed)
         assertEquals(previous.offsides, patch.offsides)
         assertEquals(previous.falseStarts, patch.falseStarts)
-        assertEquals(previous.timeViolationWarningIssued, patch.timeViolationWarningIssued)
+        assertEquals(previous.timeViolations, patch.timeViolations)
         assertEquals(previous.technicalFouls, patch.technicalFouls)
         assertEquals(previous.blueCards, patch.blueCards)
     }
@@ -211,7 +211,7 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
                 firstHalfTimeoutsUsed = 1,
                 offsides = 3,
                 falseStarts = 4,
-                timeViolationWarningIssued = true,
+                timeViolations = 1,
                 technicalFouls = 5,
                 blueCards = 6,
             ),
@@ -226,7 +226,7 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
                 firstHalfTimeoutsUsed = 2,
                 offsides = 4,
                 falseStarts = 3,
-                timeViolationWarningIssued = true,
+                timeViolations = 1,
                 technicalFouls = 6,
                 blueCards = 5,
             ),
@@ -297,7 +297,7 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
                 firstHalfTimeoutsUsed = 0,
                 offsides = 0,
                 falseStarts = 0,
-                timeViolationWarningIssued = false,
+                timeViolations = 0,
                 technicalFouls = 0,
                 blueCards = 0,
             ),
@@ -313,7 +313,7 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
                 firstHalfTimeoutsUsed = 0,
                 offsides = 0,
                 falseStarts = 0,
-                timeViolationWarningIssued = false,
+                timeViolations = 0,
                 technicalFouls = 0,
                 blueCards = 0,
             ),

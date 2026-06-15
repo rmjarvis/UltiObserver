@@ -66,6 +66,15 @@ data class TimeViolationAssessmentResult(
     val event: GameEvent? = null,
 )
 
+/**
+ * Confirmation details for a time violation before the observer applies it.
+ *
+ * @param event The event-shaped preview used to render the confirmation dialog.
+ */
+data class TimeViolationAssessmentPreview(
+    val event: GameEvent? = null,
+)
+
 /// Rule outcome from assessing a team's pull time violation.
 @Serializable
 enum class TimeViolationOutcome {
@@ -293,11 +302,7 @@ fun GameState.assessTimeViolation(team: TeamId, now: Long): TimeViolationAssessm
     if (!this.canAssessTimeViolation()) {
         return TimeViolationAssessmentResult(this)
     }
-    val outcome = when {
-        !this.timeViolationWarningIssued(team) -> TimeViolationOutcome.WARNING
-        this.timeoutsRemaining(team) > 0 -> TimeViolationOutcome.TIMEOUT
-        else -> TimeViolationOutcome.NO_TIMEOUT
-    }
+    val outcome = this.timeViolationOutcome(team)
     val updatedState = when (outcome) {
         TimeViolationOutcome.WARNING -> this.recordTimeViolationWarning(team, now)
         TimeViolationOutcome.TIMEOUT -> this.recordTimeViolationTimeout(team, now)
@@ -314,6 +319,56 @@ fun GameState.assessTimeViolation(team: TeamId, now: Long): TimeViolationAssessm
 }
 
 /**
+ * Build confirmation details for a pull time violation without changing game state.
+ *
+ * @param team The team that would receive the time violation.
+ */
+fun GameState.previewTimeViolation(team: TeamId): TimeViolationAssessmentPreview {
+    if (!this.canAssessTimeViolation()) {
+        return TimeViolationAssessmentPreview()
+    }
+    val outcome = timeViolationOutcome(team)
+    val previewState = this.withPreviewTimeViolation(team, outcome)
+    return TimeViolationAssessmentPreview(
+        event = GameEvent.TimeViolationRecorded(
+            state = previewState,
+            team = team,
+            outcome = outcome,
+        ),
+    )
+}
+
+/// Return the time-violation outcome for the selected team in the current state.
+private fun GameState.timeViolationOutcome(team: TeamId): TimeViolationOutcome {
+    return when {
+        this.teamFor(team).timeViolations == 0 -> TimeViolationOutcome.WARNING
+        this.timeoutsRemaining(team) > 0 -> TimeViolationOutcome.TIMEOUT
+        else -> TimeViolationOutcome.NO_TIMEOUT
+    }
+}
+
+/**
+ * Return a state shaped like the result of a time violation for message preview only.
+ *
+ * @param team The team that would receive the time violation.
+ * @param outcome The consequence that would be applied.
+ */
+private fun GameState.withPreviewTimeViolation(team: TeamId, outcome: TimeViolationOutcome): GameState {
+    return this.copy(
+        teamOne = if (team == TeamId.TEAM_ONE) {
+            teamOne.withAddedTimeViolation().let { if (outcome == TimeViolationOutcome.TIMEOUT) it.withAddedTimeout() else it }
+        } else {
+            teamOne
+        },
+        teamTwo = if (team == TeamId.TEAM_TWO) {
+            teamTwo.withAddedTimeViolation().let { if (outcome == TimeViolationOutcome.TIMEOUT) it.withAddedTimeout() else it }
+        } else {
+            teamTwo
+        },
+    )
+}
+
+/**
  * Record a team's first time violation warning and start the appropriate reset countdown.
  *
  * @param team The team receiving its warning.
@@ -324,12 +379,12 @@ private fun GameState.recordTimeViolationWarning(team: TeamId, now: Long): GameS
     val timing = timeViolationWarningPullTiming(team)
     return this.copy(
         teamOne = if (team == TeamId.TEAM_ONE) {
-            this.teamOne.copy(timeViolationWarningIssued = true)
+            this.teamOne.withAddedTimeViolation()
         } else {
             this.teamOne
         },
         teamTwo = if (team == TeamId.TEAM_TWO) {
-            this.teamTwo.copy(timeViolationWarningIssued = true)
+            this.teamTwo.withAddedTimeViolation()
         } else {
             this.teamTwo
         },
@@ -382,8 +437,16 @@ fun GameState.restartPullCountdown(now: Long): GameState {
 private fun GameState.recordTimeViolationTimeout(team: TeamId, now: Long): GameState {
     val countdownTarget = timeViolationTimeoutCountdownTarget()
     return this.copy(
-        teamOne = if (team == TeamId.TEAM_ONE) this.teamOne.withAddedTimeout() else this.teamOne,
-        teamTwo = if (team == TeamId.TEAM_TWO) this.teamTwo.withAddedTimeout() else this.teamTwo,
+        teamOne = if (team == TeamId.TEAM_ONE) {
+            this.teamOne.withAddedTimeViolation().withAddedTimeout()
+        } else {
+            this.teamOne
+        },
+        teamTwo = if (team == TeamId.TEAM_TWO) {
+            this.teamTwo.withAddedTimeViolation().withAddedTimeout()
+        } else {
+            this.teamTwo
+        },
         phase = GamePhase.BETWEEN_POINTS,
         countdown = buildTimeViolationCountdown(
             now = now,
@@ -492,6 +555,8 @@ private fun PullPromptTarget.includesEnd(end: FieldEnd): Boolean {
  */
 private fun GameState.recordTimeViolationWithoutTimeout(team: TeamId, now: Long): GameState {
     return this.copy(
+        teamOne = if (team == TeamId.TEAM_ONE) this.teamOne.withAddedTimeViolation() else this.teamOne,
+        teamTwo = if (team == TeamId.TEAM_TWO) this.teamTwo.withAddedTimeViolation() else this.teamTwo,
         phase = GamePhase.BETWEEN_POINTS,
         countdown = null,
         pullCountdownExpired = false,
@@ -507,17 +572,9 @@ private fun GameState.recordTimeViolationWithoutTimeout(team: TeamId, now: Long)
     ).withUndo(this, "Undo Time violation on ${this.teamName(team)}")
 }
 
-/**
- * Report whether a team has already received its pull time-violation warning.
- *
- * @param team The team whose warning flag should be read.
- */
-private fun GameState.timeViolationWarningIssued(team: TeamId): Boolean {
-    return if (team == TeamId.TEAM_ONE) {
-        this.teamOne.timeViolationWarningIssued
-    } else {
-        this.teamTwo.timeViolationWarningIssued
-    }
+/// Return this team state with one additional time violation.
+private fun TeamLiveState.withAddedTimeViolation(): TeamLiveState {
+    return copy(timeViolations = timeViolations + 1)
 }
 
 /// Format a time-violation event popup title.
@@ -525,21 +582,34 @@ internal fun GameEvent.TimeViolationRecorded.formatPopupTitle(): String = "Time 
 
 /// Format a time-violation event message with warning, timeout, or no-timeout consequences.
 internal fun GameEvent.TimeViolationRecorded.formatMessage(): String {
-    return when (outcome) {
+    val teamName = state.teamName(team)
+    val violationLine = "This is $teamName's ${state.teamFor(team).timeViolations.ordinalText()} time violation."
+    val consequence = when (outcome) {
         TimeViolationOutcome.WARNING -> {
             if (team == state.pullingTeam) {
-                "${state.teamName(team)} now has 30 seconds to pull."
+                "The first time violation is a warning. $teamName now has 30 seconds to pull."
             } else {
-                "${state.teamName(team)} now has 20 seconds to signal readiness."
+                "The first time violation is a warning. $teamName now has 20 seconds to signal readiness."
             }
         }
-        TimeViolationOutcome.TIMEOUT -> "Timeout charged to ${state.teamName(team)}. Reset pull timing."
-        TimeViolationOutcome.NO_TIMEOUT -> {
-            if (team == state.pullingTeam.flip()) {
-                "No timeouts remaining. No pull. Receiving team starts at midpoint of defending end zone."
+        TimeViolationOutcome.TIMEOUT -> {
+            val timeoutsRemainingBeforeCharge = state.timeoutsRemaining(team) + 1
+            val timeoutPhrase = if (timeoutsRemainingBeforeCharge == 1) {
+                "their last remaining timeout for this half"
             } else {
-                "No timeouts remaining. No pull. Receiving team starts at midfield."
+                "one of their $timeoutsRemainingBeforeCharge remaining timeouts available for this half"
             }
+            "$teamName is required to use $timeoutPhrase. Reset pull timing to the usual timeout duration."
+        }
+        TimeViolationOutcome.NO_TIMEOUT -> {
+            val receivingTeamName = state.teamName(state.pullingTeam.flip())
+            val penalty = if (team == state.pullingTeam.flip()) {
+                "No pull. $receivingTeamName starts at midpoint of their defending end zone."
+            } else {
+                "No pull. $receivingTeamName starts at midfield."
+            }
+            "$teamName has no time outs remaining for this half, so a yardage penalty is assessed. $penalty"
         }
     }
+    return "$violationLine\n\n$consequence"
 }

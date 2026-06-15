@@ -66,7 +66,7 @@ internal fun LiveGameScreen(
     var showCardsSheet by remember { mutableStateOf(false) }
     var showMoreActionsDialog by remember { mutableStateOf(false) }
     var showEventLogSheet by remember { mutableStateOf(false) }
-    var pendingTimeViolation by remember { mutableStateOf<TimeViolationAssessmentResult?>(null) }
+    var pendingTimeViolationTeam by remember { mutableStateOf<TeamId?>(null) }
     var teamInfoSheetTeam by remember { mutableStateOf<TeamId?>(null) }
     var locked by remember { mutableStateOf(false) }
     var actionInfoMessage by remember { mutableStateOf<String?>(null) }
@@ -367,9 +367,9 @@ internal fun LiveGameScreen(
                         )
                     },
                     onTimeViolation = { team ->
-                        val result = state.assessTimeViolation(team, now)
-                        if (result.event != null) {
-                            pendingTimeViolation = result
+                        val preview = state.previewTimeViolation(team)
+                        if (preview.event != null) {
+                            pendingTimeViolationTeam = team
                         }
                     },
                     onPullInfraction = { team ->
@@ -473,10 +473,10 @@ internal fun LiveGameScreen(
         )
     }
 
-    pendingTimeViolation?.let { result ->
-        val event = result.event
+    pendingTimeViolationTeam?.let { team ->
+        val event = state.previewTimeViolation(team).event
         AlertDialog(
-            onDismissRequest = { pendingTimeViolation = null },
+            onDismissRequest = { pendingTimeViolationTeam = null },
             title = { Text(event?.formatPopupTitle() ?: "Time violation") },
             text = {
                 Text(
@@ -487,15 +487,16 @@ internal fun LiveGameScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
+                        val result = state.assessTimeViolation(team, System.currentTimeMillis())
                         onStateChange(result.state)
-                        pendingTimeViolation = null
+                        pendingTimeViolationTeam = null
                     },
                 ) {
-                    Text("Apply")
+                    Text("OK")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { pendingTimeViolation = null }) {
+                TextButton(onClick = { pendingTimeViolationTeam = null }) {
                     Text("Cancel")
                 }
             },

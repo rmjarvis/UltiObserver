@@ -243,6 +243,9 @@ data class GameRules(
  * @param score The team's current score.
  * @param timeoutsUsedThisHalf Number of timeouts this team has used in the current half.
  * @param firstHalfTimeoutsUsed Stored after halftime so floater-timeout carryover can be derived.
+ * @param offsides Number of offsides infractions recorded for this team.
+ * @param falseStarts Number of false-start infractions recorded for this team.
+ * @param timeViolations Number of time violations recorded for this team.
  */
 @Serializable
 data class TeamLiveState(
@@ -257,7 +260,7 @@ data class TeamLiveState(
     val firstHalfTimeoutsUsed: Int = 0,
     val offsides: Int = 0,
     val falseStarts: Int = 0,
-    val timeViolationWarningIssued: Boolean = false,
+    val timeViolations: Int = 0,
     val technicalFouls: Int = 0,
     val blueCards: Int = 0,
 ) {

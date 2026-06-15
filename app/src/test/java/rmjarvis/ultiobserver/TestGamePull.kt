@@ -117,15 +117,19 @@ class TestGamePull : GameDomainTestFixtures() {
         assertEquals("Time violation", warningEvent.formatPopupTitle())
         val warningGameEvent: GameEvent = warningEvent
         assertEquals("Time violation", warningGameEvent.formatPopupTitle())
-        assertTrue(timeViolationState.teamTwo.timeViolationWarningIssued)
-        assertFalse(timeViolationState.teamOne.timeViolationWarningIssued)
+        assertEquals(1, timeViolationState.teamTwo.timeViolations)
+        assertEquals(0, timeViolationState.teamOne.timeViolations)
         assertEquals(CountdownKind.PULL_RESET, timeViolationState.countdown?.kind)
         assertEquals("Signal in", timeViolationState.countdown?.label)
         assertEquals(20, timeViolationState.countdown?.durationSeconds)
         assertEquals(firstViolationMoment + 20_000L, timeViolationState.countdown?.targetEpoch)
         assertEquals(TimingCueId.RECEIVING_TWENTY_FOR_HAND, timeViolationState.countdown?.nextTimingCue(firstViolationMoment)?.id)
         assertEquals(TimingCueId.RECEIVING_GIVE_HAND, timeViolationState.countdown?.nextTimingCue(firstViolationMoment + 20_000L)?.id)
-        assertEquals("Animal now has 20 seconds to signal readiness.", timeViolationResult.message())
+        assertEquals(
+            "This is Animal's 1st time violation.\n\n" +
+                "The first time violation is a warning. Animal now has 20 seconds to signal readiness.",
+            timeViolationResult.message(),
+        )
         assertUndoRestores(state, timeViolationState)
 
         // The next offense time violation by that team charges a 70-second timeout clock.
@@ -140,7 +144,12 @@ class TestGamePull : GameDomainTestFixtures() {
         assertEquals("Signal in", timeViolationState.countdown?.label)
         assertEquals(70, timeViolationState.countdown?.durationSeconds)
         assertEquals(secondViolationMoment + 70_000L, timeViolationState.countdown?.targetEpoch)
-        assertEquals("Timeout charged to Animal. Reset pull timing.", timeViolationResult.message())
+        assertEquals(
+            "This is Animal's 2nd time violation.\n\n" +
+                "Animal is required to use one of their 2 remaining timeouts available for this half. " +
+                "Reset pull timing to the usual timeout duration.",
+            timeViolationResult.message(),
+        )
 
         // A defense time violation warning also gets a 30-second reset, and the next timeout clock is 90 seconds.
         state = standardLiveGameState(pullingFromEnd = FieldEnd.NEAR)
@@ -206,11 +215,15 @@ class TestGamePull : GameDomainTestFixtures() {
         timeViolationState = timeViolationResult.state
         assertEquals(VC, (timeViolationResult.event as GameEvent.TimeViolationRecorded).team)
         assertEquals(TimeViolationOutcome.WARNING, timeViolationResult.event.outcome)
-        assertTrue(timeViolationState.teamOne.timeViolationWarningIssued)
+        assertEquals(1, timeViolationState.teamOne.timeViolations)
         assertEquals(GamePhase.BETWEEN_POINTS, timeViolationState.phase)
         assertEquals("Pull in", timeViolationState.countdown?.label)
         assertEquals(30, timeViolationState.countdown?.durationSeconds)
-        assertEquals("Viscous Coupling now has 30 seconds to pull.", timeViolationResult.message())
+        assertEquals(
+            "This is Viscous Coupling's 1st time violation.\n\n" +
+                "The first time violation is a warning. Viscous Coupling now has 30 seconds to pull.",
+            timeViolationResult.message(),
+        )
 
         state = standardLiveGameState(pullingFromEnd = FieldEnd.NEAR)
         val farReceivingWarningMoment = state.countdown!!.targetEpoch
@@ -219,16 +232,20 @@ class TestGamePull : GameDomainTestFixtures() {
         timeViolationState = timeViolationResult.state
         assertEquals(ANIMAL, (timeViolationResult.event as GameEvent.TimeViolationRecorded).team)
         assertEquals(TimeViolationOutcome.WARNING, timeViolationResult.event.outcome)
-        assertTrue(timeViolationState.teamTwo.timeViolationWarningIssued)
+        assertEquals(1, timeViolationState.teamTwo.timeViolations)
         assertEquals(GamePhase.BETWEEN_POINTS, timeViolationState.phase)
         assertEquals("Pull in", timeViolationState.countdown?.label)
         assertEquals(50, timeViolationState.countdown?.durationSeconds)
         assertEquals(TimingCueId.PULLING_TWENTY_TO_PULL, timeViolationState.countdown?.nextTimingCue(farReceivingWarningMoment)?.id)
-        assertEquals("Animal now has 20 seconds to signal readiness.", timeViolationResult.message())
+        assertEquals(
+            "This is Animal's 1st time violation.\n\n" +
+                "The first time violation is a warning. Animal now has 20 seconds to signal readiness.",
+            timeViolationResult.message(),
+        )
 
         // A forced timeout uses ordinary timeout-between-points timing even when the pulling team violated.
         state = standardLiveGameState()
-        state = state.copy(teamOne = state.teamOne.copy(timeViolationWarningIssued = true))
+        state = state.copy(teamOne = state.teamOne.copy(timeViolations = 1))
         timeViolationResult = state.assessTimeViolation(VC, state.countdown!!.targetEpoch)
         timeViolationState = timeViolationResult.state
         assertEquals(TimeViolationOutcome.TIMEOUT, (timeViolationResult.event as GameEvent.TimeViolationRecorded).outcome)
@@ -236,6 +253,16 @@ class TestGamePull : GameDomainTestFixtures() {
         assertEquals("Signal in", timeViolationState.countdown?.label)
         assertEquals(70, timeViolationState.countdown?.durationSeconds)
         assertEquals(TimingCueId.RECEIVING_TWENTY_FOR_HAND, timeViolationState.countdown?.nextTimingCue(state.countdown!!.targetEpoch)?.id)
+
+        state = standardLiveGameState(rules = GameRules(timeoutsPerHalf = 1))
+        state = state.copy(teamOne = state.teamOne.copy(timeViolations = 1))
+        timeViolationResult = state.assessTimeViolation(VC, state.countdown!!.targetEpoch)
+        assertEquals(
+            "This is Viscous Coupling's 2nd time violation.\n\n" +
+                "Viscous Coupling is required to use their last remaining timeout for this half. " +
+                "Reset pull timing to the usual timeout duration.",
+            timeViolationResult.message(),
+        )
 
         // Both-end prompts restart the full receiving-team reset, but only the pull-side reset for the pulling team.
         state = standardLiveGameState().withPullPromptTarget(PullPromptTarget.BOTH)
@@ -259,13 +286,13 @@ class TestGamePull : GameDomainTestFixtures() {
         timeViolationResult = state.assessTimeViolation(ANIMAL, state.countdown!!.targetEpoch)
         timeViolationState = timeViolationResult.state
         assertEquals(ANIMAL, (timeViolationResult.event as GameEvent.TimeViolationRecorded).team)
-        assertTrue(timeViolationState.teamTwo.timeViolationWarningIssued)
+        assertEquals(1, timeViolationState.teamTwo.timeViolations)
         assertEquals("Pull in", timeViolationState.countdown?.label)
         assertEquals(50, timeViolationState.countdown?.durationSeconds)
         assertNull(timeViolationState.countdown?.nextTimingCue(timeViolationState.countdown!!.targetEpoch - 20_000L))
 
         state = standardLiveGameState().withPullPromptTarget(PullPromptTarget.NEITHER)
-            .copy(teamTwo = standardLiveGameState().teamTwo.copy(timeViolationWarningIssued = true))
+            .copy(teamTwo = standardLiveGameState().teamTwo.copy(timeViolations = 1))
         timeViolationResult = state.assessTimeViolation(ANIMAL, state.countdown!!.targetEpoch)
         timeViolationState = timeViolationResult.state
         assertEquals(TimeViolationOutcome.TIMEOUT, (timeViolationResult.event as GameEvent.TimeViolationRecorded).outcome)
@@ -282,7 +309,7 @@ class TestGamePull : GameDomainTestFixtures() {
             timeoutsPerHalf = 0,
         )
         state = standardLiveGameState(rules = noTimeoutRules)
-        state = state.copy(teamTwo = state.teamTwo.copy(timeViolationWarningIssued = true))
+        state = state.copy(teamTwo = state.teamTwo.copy(timeViolations = 1))
         timeViolationResult = state.assessTimeViolation(ANIMAL, state.countdown!!.targetEpoch)
         val receivingNoTimeoutEvent = timeViolationResult.event as GameEvent.TimeViolationRecorded
         timeViolationState = timeViolationResult.state
@@ -295,7 +322,9 @@ class TestGamePull : GameDomainTestFixtures() {
         assertEquals(timeViolationState, timeViolationState.recordFalseStart())
         assertEquals(timeViolationState, timeViolationState.recordOffsides())
         assertEquals(
-            "No timeouts remaining. No pull. Receiving team starts at midpoint of defending end zone.",
+                "This is Animal's 2nd time violation.\n\n" +
+                "Animal has no time outs remaining for this half, so a yardage penalty is assessed. " +
+                "No pull. Animal starts at midpoint of their defending end zone.",
             timeViolationResult.message(),
         )
 
@@ -304,7 +333,7 @@ class TestGamePull : GameDomainTestFixtures() {
             rules = noTimeoutRules,
             pullingFromEnd = FieldEnd.NEAR,
         )
-        state = state.copy(teamOne = state.teamOne.copy(timeViolationWarningIssued = true))
+        state = state.copy(teamOne = state.teamOne.copy(timeViolations = 1))
         assertEquals("Pull in", state.countdown?.label)
         timeViolationResult = state.assessTimeViolation(VC, state.countdown!!.targetEpoch)
         val pullingNoTimeoutEvent = timeViolationResult.event as GameEvent.TimeViolationRecorded
@@ -314,7 +343,9 @@ class TestGamePull : GameDomainTestFixtures() {
         assertNull(timeViolationState.countdown)
         assertTrue(timeViolationState.pullSkippedForCurrentPoint)
         assertEquals(
-            "No timeouts remaining. No pull. Receiving team starts at midfield.",
+                "This is Viscous Coupling's 2nd time violation.\n\n" +
+                "Viscous Coupling has no time outs remaining for this half, so a yardage penalty is assessed. " +
+                "No pull. Animal starts at midfield.",
             timeViolationResult.message(),
         )
 

@@ -103,3 +103,18 @@ internal fun countedNounPhrase(count: Int, singular: String): String {
 internal fun countedActionLabel(baseLabel: String, count: Int): String {
     return if (count > 0) "$baseLabel ($count)" else baseLabel
 }
+
+/// Return a positive integer with its ordinal suffix for UI copy.
+internal fun Int.ordinalText(): String {
+    val suffix = if (this % 100 in 11..13) {
+        "th"
+    } else {
+        when (this % 10) {
+            1 -> "st"
+            2 -> "nd"
+            3 -> "rd"
+            else -> "th"
+        }
+    }
+    return "$this$suffix"
+}
