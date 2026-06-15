@@ -164,6 +164,39 @@ class TestGamePull : GameDomainTestFixtures() {
         assertEquals(90, timeViolationState.countdown?.durationSeconds)
         assertEquals(defenseSecondViolationMoment + 90_000L, timeViolationState.countdown?.targetEpoch)
 
+        // Far-end prompts apply the same warning and timeout reset rules to the far side.
+        state = standardLiveGameState(pullingFromEnd = FieldEnd.FAR).withPullPromptTarget(PullPromptTarget.FAR)
+        assertEquals(FieldEnd.FAR, state.fieldEndForTeam(VC))
+        assertEquals("Pull in", state.countdown?.label)
+        timeViolationResult = state.expiredPullDecisionState().assessTimeViolation(VC, state.countdown!!.targetEpoch)
+        timeViolationState = timeViolationResult.state
+        assertEquals(VC, (timeViolationResult.event as GameEvent.TimeViolationRecorded).team)
+        assertEquals(TimeViolationOutcome.WARNING, timeViolationResult.event.outcome)
+        assertEquals("Pull in", timeViolationState.countdown?.label)
+        assertEquals(30, timeViolationState.countdown?.durationSeconds)
+        val farDefenseSecondViolationMoment = timeViolationState.countdown!!.targetEpoch
+        timeViolationResult = timeViolationState.expiredPullDecisionState().assessTimeViolation(VC, farDefenseSecondViolationMoment)
+        timeViolationState = timeViolationResult.state
+        assertEquals(TimeViolationOutcome.TIMEOUT, (timeViolationResult.event as GameEvent.TimeViolationRecorded).outcome)
+        assertEquals("Pull in", timeViolationState.countdown?.label)
+        assertEquals(90, timeViolationState.countdown?.durationSeconds)
+
+        state = standardLiveGameState(pullingFromEnd = FieldEnd.NEAR).withPullPromptTarget(PullPromptTarget.FAR)
+        assertEquals(FieldEnd.FAR, state.fieldEndForTeam(ANIMAL))
+        assertEquals("Signal in", state.countdown?.label)
+        timeViolationResult = state.expiredPullDecisionState().assessTimeViolation(ANIMAL, state.countdown!!.targetEpoch)
+        timeViolationState = timeViolationResult.state
+        assertEquals(ANIMAL, (timeViolationResult.event as GameEvent.TimeViolationRecorded).team)
+        assertEquals(TimeViolationOutcome.WARNING, timeViolationResult.event.outcome)
+        assertEquals("Signal in", timeViolationState.countdown?.label)
+        assertEquals(30, timeViolationState.countdown?.durationSeconds)
+        val farOffenseSecondViolationMoment = timeViolationState.countdown!!.targetEpoch
+        timeViolationResult = timeViolationState.expiredPullDecisionState().assessTimeViolation(ANIMAL, farOffenseSecondViolationMoment)
+        timeViolationState = timeViolationResult.state
+        assertEquals(TimeViolationOutcome.TIMEOUT, (timeViolationResult.event as GameEvent.TimeViolationRecorded).outcome)
+        assertEquals("Signal in", timeViolationState.countdown?.label)
+        assertEquals(70, timeViolationState.countdown?.durationSeconds)
+
         // A far-side warning records the team's warning without starting a countdown for this observer.
         state = standardLiveGameState()
         val farPullingWarningMoment = state.countdown!!.targetEpoch

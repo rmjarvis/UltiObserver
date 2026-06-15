@@ -154,6 +154,8 @@ internal data class GameStatePatch(
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val pullingFromEnd: FieldEnd? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val topDisplayedEnd: FieldEnd? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val pullPromptTarget: PullPromptTarget? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val openingPullingTeam: TeamId? = null,
@@ -217,6 +219,7 @@ internal data class GameStatePatch(
             nearAttackingTeam = nearAttackingTeam ?: later.nearAttackingTeam,
             pullingTeam = pullingTeam ?: later.pullingTeam,
             pullingFromEnd = pullingFromEnd ?: later.pullingFromEnd,
+            topDisplayedEnd = topDisplayedEnd ?: later.topDisplayedEnd,
             pullPromptTarget = pullPromptTarget ?: later.pullPromptTarget,
             openingPullingTeam = openingPullingTeam ?: later.openingPullingTeam,
             openingPullingFromEnd = openingPullingFromEnd ?: later.openingPullingFromEnd,
@@ -275,6 +278,7 @@ internal data class GameStatePatch(
                 nearAttackingTeam = previous.nearAttackingTeam.takeIfChangedFrom(later.nearAttackingTeam),
                 pullingTeam = previous.pullingTeam.takeIfChangedFrom(later.pullingTeam),
                 pullingFromEnd = previous.pullingFromEnd.takeIfChangedFrom(later.pullingFromEnd),
+                topDisplayedEnd = previous.topDisplayedEnd.takeIfChangedFrom(later.topDisplayedEnd),
                 pullPromptTarget = previous.pullPromptTarget.takeIfChangedFrom(later.pullPromptTarget),
                 openingPullingTeam = previous.openingPullingTeam.takeIfChangedFrom(later.openingPullingTeam),
                 openingPullingFromEnd = previous.openingPullingFromEnd.takeIfChangedFrom(later.openingPullingFromEnd),

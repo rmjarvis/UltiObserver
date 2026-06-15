@@ -54,7 +54,16 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
 
         // Orientation controls should update state without breaking the live screen.
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Swap ends of field").performClick()
+        composeRule.onNodeWithText("Flip field display").performClick()
+        waitForText("Undo Flip field display")
+        assertLiveScreen()
+
+        openMoreActionsDialog()
+        composeRule.onNodeWithText("Change pull prompts").performClick()
+        waitForText("Change pull prompts")
+        composeRule.onNodeWithTag("more-actions-pull-prompts-BOTH").performClick()
+        composeRule.onNodeWithText("Set").performClick()
+        waitForText("Undo Change pull prompts")
         assertLiveScreen()
 
         openMoreActionsDialog()

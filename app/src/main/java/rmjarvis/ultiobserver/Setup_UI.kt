@@ -1240,31 +1240,7 @@ private fun StartingPullSetupDialog(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                OutlinedTextField(
-                    value = nearEndName,
-                    onValueChange = { nearEndName = it },
-                    label = { Text("Near/bottom end name") },
-                    placeholder = { Text(FieldEnd.NEAR.defaultDisplayText()) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Sentences,
-                        imeAction = ImeAction.Done,
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onDone = {
-                            commitNearEndLabel()
-                            focusManager.clearFocus()
-                        },
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .onFocusChanged {
-                            if (!it.isFocused) {
-                                commitNearEndLabel()
-                            }
-                        }
-                        .testTag("setup-near-end-name"),
-                )
+                Text("Give whatever names you want for the two ends of the field. E.g. Road, Parking Lot, Trees, etc. (default is Near end and Far end).")
                 OutlinedTextField(
                     value = farEndName,
                     onValueChange = { farEndName = it },
@@ -1289,6 +1265,31 @@ private fun StartingPullSetupDialog(
                             }
                         }
                         .testTag("setup-far-end-name"),
+                )
+                OutlinedTextField(
+                    value = nearEndName,
+                    onValueChange = { nearEndName = it },
+                    label = { Text("Near/bottom end name") },
+                    placeholder = { Text(FieldEnd.NEAR.defaultDisplayText()) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Sentences,
+                        imeAction = ImeAction.Done,
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = {
+                            commitNearEndLabel()
+                            focusManager.clearFocus()
+                        },
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onFocusChanged {
+                            if (!it.isFocused) {
+                                commitNearEndLabel()
+                            }
+                        }
+                        .testTag("setup-near-end-name"),
                 )
                 Text("Pulling team", fontWeight = FontWeight.SemiBold)
                 TeamChoiceRow(
@@ -2581,42 +2582,42 @@ private fun FieldEndChoiceRow(
  * @param selected The currently selected prompt target.
  * @param nearLabel The display label for the near field end.
  * @param farLabel The display label for the far field end.
+ * @param testTagPrefix Prefix used for choice test tags.
  * @param onSelected Callback receiving the selected prompt target.
  */
 @Composable
-private fun PullPromptTargetChoiceRow(
+internal fun PullPromptTargetChoiceRow(
     selected: PullPromptTarget,
     nearLabel: String,
     farLabel: String,
+    testTagPrefix: String = "setup-pull-prompts",
     onSelected: (PullPromptTarget) -> Unit,
 ) {
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    @Composable
+    fun ChoiceChip(target: PullPromptTarget) {
+        SetupChoiceChip(
+            label = target.choiceLabel(nearLabel = nearLabel, farLabel = farLabel),
+            selected = selected == target,
+            onClick = { onSelected(target) },
+            modifier = Modifier.testTag("$testTagPrefix-${target.name}"),
+        )
+    }
+
+    Column(
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        PullPromptTarget.entries.forEach { target ->
-            SetupChoiceChip(
-                label = target.choiceLabel(nearLabel = nearLabel, farLabel = farLabel),
-                selected = selected == target,
-                onClick = { onSelected(target) },
-                modifier = Modifier.testTag("setup-pull-prompts-${target.name}"),
-            )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            ChoiceChip(PullPromptTarget.NEAR)
+            ChoiceChip(PullPromptTarget.FAR)
         }
-    }
-}
-
-/**
- * Return the setup-display text for one pull-prompt target choice.
- *
- * @param nearLabel The display label for the near field end.
- * @param farLabel The display label for the far field end.
- */
-private fun PullPromptTarget.choiceLabel(nearLabel: String, farLabel: String): String {
-    return when (this) {
-        PullPromptTarget.NEAR -> nearLabel
-        PullPromptTarget.FAR -> farLabel
-        PullPromptTarget.BOTH -> "Both"
-        PullPromptTarget.NEITHER -> "Neither"
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            ChoiceChip(PullPromptTarget.BOTH)
+            ChoiceChip(PullPromptTarget.NEITHER)
+        }
     }
 }
 

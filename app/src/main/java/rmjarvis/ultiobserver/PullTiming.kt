@@ -67,22 +67,26 @@ enum class TimeViolationOutcome {
 
 /**
  * Build the countdown that applies between points for the observer's end of the field.
- * The exact target depends on whether the observer is on the pulling or receiving side;
- * the observer is assumed to be on the near end.
+ * The exact target depends on whether the prompted end is on the pulling or receiving side.
  *
  * @param pullingFromEnd The field end the pulling team occupies, which determines the observer's responsibility.
  * @param sequenceStart The epoch millis when the between-points sequence starts.
  * @param kind The between-points countdown kind, used to distinguish normal, opening, and reset timing.
+ * @param promptEnd The single field end whose timing prompts should be generated.
  */
 internal fun buildBetweenPointsCountdown(
     pullingFromEnd: FieldEnd,
     sequenceStart: Long,
     kind: CountdownKind = CountdownKind.BETWEEN_POINTS,
+    promptEnd: FieldEnd = FieldEnd.NEAR,
 ): CountdownState {
     require(kind.usesBetweenPointsTarget()) {
         "Countdown kind $kind does not use between-points timing."
     }
-    val target = betweenPointsCountdownTargetFor(pullingFromEnd)
+    val target = betweenPointsCountdownTargetFor(
+        pullingFromEnd = pullingFromEnd,
+        promptEnd = promptEnd,
+    )
     val durationSeconds = target.baseDurationSeconds(kind)
     return CountdownState(
         kind = kind,
@@ -94,16 +98,52 @@ internal fun buildBetweenPointsCountdown(
 }
 
 /**
- * Select the timing target the near-side observer is responsible for between points.
+ * Select the timing target the prompted field end is responsible for between points.
  *
  * @param pullingFromEnd The field end the pulling team occupies.
+ * @param promptEnd The field end whose timing prompts should be generated.
  */
-private fun betweenPointsCountdownTargetFor(pullingFromEnd: FieldEnd): BetweenPointsCountdownTarget {
-    return if (pullingFromEnd == FieldEnd.NEAR) {
+private fun betweenPointsCountdownTargetFor(
+    pullingFromEnd: FieldEnd,
+    promptEnd: FieldEnd,
+): BetweenPointsCountdownTarget {
+    return if (pullingFromEnd == promptEnd) {
         BetweenPointsCountdownTarget.PULL
     } else {
         BetweenPointsCountdownTarget.OFFENSE_READY
     }
+}
+
+/**
+ * Return this countdown retargeted to the chosen prompt end, preserving any timeout extension.
+ *
+ * @param pullingFromEnd The field end the pulling team occupies.
+ * @param promptEnd The field end whose timing prompts should be generated.
+ */
+internal fun CountdownState.withPromptEnd(
+    pullingFromEnd: FieldEnd,
+    promptEnd: FieldEnd,
+): CountdownState {
+    if (!kind.usesBetweenPointsTarget()) {
+        return this
+    }
+    val currentTarget = betweenPointsTarget!!
+    val newTarget = betweenPointsCountdownTargetFor(
+        pullingFromEnd = pullingFromEnd,
+        promptEnd = promptEnd,
+    )
+    if (currentTarget == newTarget) {
+        return this
+    }
+    val extensionSeconds = durationSeconds - currentTarget.baseDurationSeconds(kind)
+    val newDurationSeconds = newTarget.baseDurationSeconds(kind) + extensionSeconds
+    val sequenceStart = targetEpoch - durationSeconds * 1000L
+    return copy(
+        label = newTarget.label,
+        durationSeconds = newDurationSeconds,
+        targetEpoch = sequenceStart + newDurationSeconds * 1000L,
+        betweenPointsTarget = newTarget,
+    )
 }
 
 /**
@@ -113,15 +153,32 @@ private fun betweenPointsCountdownTargetFor(pullingFromEnd: FieldEnd): BetweenPo
  * @param sequenceStart The epoch millis when the between-points sequence started.
  * @param now The epoch millis used to compute remaining time.
  * @param kind The between-points countdown kind to display.
+ * @param promptEnd The single field end whose timing prompts should be generated.
  */
 fun betweenPointsDisplay(
     pullingFromEnd: FieldEnd,
     sequenceStart: Long,
     now: Long,
     kind: CountdownKind = CountdownKind.BETWEEN_POINTS,
+    promptEnd: FieldEnd = FieldEnd.NEAR,
 ): Pair<String, Duration> {
-    val countdown = buildBetweenPointsCountdown(pullingFromEnd, sequenceStart, kind)
+    val countdown = buildBetweenPointsCountdown(pullingFromEnd, sequenceStart, kind, promptEnd)
     return countdown.label to Duration.ofMillis((countdown.targetEpoch - now).coerceAtLeast(0L))
+}
+
+/// Return the single field end selected for pull prompts, or null for multi/off modes.
+internal fun PullPromptTarget.singlePromptEndOrNull(): FieldEnd? {
+    return when (this) {
+        PullPromptTarget.NEAR -> FieldEnd.NEAR
+        PullPromptTarget.FAR -> FieldEnd.FAR
+        PullPromptTarget.BOTH -> null
+        PullPromptTarget.NEITHER -> null
+    }
+}
+
+/// Return the single prompt end currently supported by countdown generation.
+internal fun PullPromptTarget.countdownPromptEnd(): FieldEnd {
+    return singlePromptEndOrNull() ?: FieldEnd.NEAR
 }
 
 /// List normal between-points cues, including timeout-extension cues when applicable.
@@ -192,13 +249,14 @@ fun GameState.assessTimeViolation(team: TeamId, now: Long): TimeViolationAssessm
 }
 
 /**
- * Record a team's first time violation warning and start near-side timing when applicable.
- * A far-side warning is recorded without starting a countdown for the near-side observer.
+ * Record a team's first time violation warning and start prompted-side timing when applicable.
+ * An unprompted-side warning is recorded without starting a countdown for this observer.
  *
  * @param team The team receiving its warning.
  * @param now The epoch millis used to start the warning countdown.
  */
 private fun GameState.recordTimeViolationWarning(team: TeamId, now: Long): GameState {
+    val violatingTeamEnd = fieldEndForTeam(team)
     return this.copy(
         teamOne = if (team == TeamId.TEAM_ONE) {
             this.teamOne.copy(timeViolationWarningIssued = true)
@@ -210,8 +268,8 @@ private fun GameState.recordTimeViolationWarning(team: TeamId, now: Long): GameS
         } else {
             this.teamTwo
         },
-        countdown = if (this.isNearSideTeam(team)) {
-            this.buildTimeViolationCountdownForCurrentSide(
+        countdown = if (violatingTeamEnd == pullPromptTarget.countdownPromptEnd()) {
+            this.buildTimeViolationCountdown(
                 now = now,
                 durationSeconds = 30,
                 kind = CountdownKind.PULL_RESET,
@@ -244,6 +302,7 @@ fun GameState.restartPullCountdown(now: Long): GameState {
         countdown = buildBetweenPointsCountdown(
             pullingFromEnd = this.pullingFromEnd,
             sequenceStart = now,
+            promptEnd = this.pullPromptTarget.countdownPromptEnd(),
         ),
         pullCountdownExpired = false,
         lastEvent = "Pull countdown restarted.",
@@ -252,17 +311,21 @@ fun GameState.restartPullCountdown(now: Long): GameState {
 
 /**
  * Record a later time violation that charges a timeout and starts the appropriate reset countdown.
- * Timeout resets are 70 seconds when the near-side team is offense and 90 seconds when it is defense.
+ * Timeout resets are 70 seconds when the prompted side is offense and 90 seconds when it is defense.
  *
  * @param team The team being charged a timeout.
  * @param now The epoch millis used to start the reset countdown.
  */
 private fun GameState.recordTimeViolationTimeout(team: TeamId, now: Long): GameState {
-    val durationSeconds = if (this.pullingFromEnd == FieldEnd.FAR) 70 else 90
+    val target = this.currentCountdownTarget()
+    val durationSeconds = when (target) {
+        BetweenPointsCountdownTarget.OFFENSE_READY -> 70
+        BetweenPointsCountdownTarget.PULL -> 90
+    }
     return this.copy(
         teamOne = if (team == TeamId.TEAM_ONE) this.teamOne.withAddedTimeout() else this.teamOne,
         teamTwo = if (team == TeamId.TEAM_TWO) this.teamTwo.withAddedTimeout() else this.teamTwo,
-        countdown = this.buildTimeViolationCountdownForCurrentSide(
+        countdown = buildTimeViolationCountdown(
             now = now,
             durationSeconds = durationSeconds,
             kind = CountdownKind.BETWEEN_POINTS,
@@ -280,18 +343,18 @@ private fun GameState.recordTimeViolationTimeout(team: TeamId, now: Long): GameS
 }
 
 /**
- * Build the near-side countdown used after a time violation.
+ * Build the countdown used after a prompted-side time violation.
  *
  * @param now The epoch millis used as the countdown start.
  * @param durationSeconds The length of the reset countdown.
  * @param kind The countdown kind so warning and timeout resets can use different cue behavior.
  */
-private fun GameState.buildTimeViolationCountdownForCurrentSide(
+private fun GameState.buildTimeViolationCountdown(
     now: Long,
     durationSeconds: Int,
     kind: CountdownKind,
 ): CountdownState {
-    val target = this.currentSideCountdownTarget()
+    val target = this.currentCountdownTarget()
     return CountdownState(
         kind = kind,
         label = target.label,
@@ -301,26 +364,25 @@ private fun GameState.buildTimeViolationCountdownForCurrentSide(
     )
 }
 
-/// Return the between-points timing target for the observer's current side of the field.
-private fun GameState.currentSideCountdownTarget(): BetweenPointsCountdownTarget {
-    return if (this.pullingFromEnd == FieldEnd.NEAR) {
-        BetweenPointsCountdownTarget.PULL
+/**
+ * Return the field end occupied by a team for the current pull.
+ *
+ * @param team The team whose field end should be returned.
+ */
+internal fun GameState.fieldEndForTeam(team: TeamId): FieldEnd {
+    return if (team == pullingTeam) {
+        pullingFromEnd
     } else {
-        BetweenPointsCountdownTarget.OFFENSE_READY
+        pullingFromEnd.flip()
     }
 }
 
-/**
- * Report whether the selected team is on the observer's near side for the current pull.
- *
- * @param team The team to compare with the near-side pull responsibility.
- */
-internal fun GameState.isNearSideTeam(team: TeamId): Boolean {
-    return team == if (this.pullingFromEnd == FieldEnd.NEAR) {
-        this.pullingTeam
-    } else {
-        this.pullingTeam.flip()
-    }
+/// Return the between-points timing target for the currently prompted side of the field.
+private fun GameState.currentCountdownTarget(): BetweenPointsCountdownTarget {
+    return betweenPointsCountdownTargetFor(
+        pullingFromEnd = pullingFromEnd,
+        promptEnd = pullPromptTarget.countdownPromptEnd(),
+    )
 }
 
 /**

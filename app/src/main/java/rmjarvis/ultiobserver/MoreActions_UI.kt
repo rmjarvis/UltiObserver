@@ -21,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 /**
@@ -46,6 +47,7 @@ internal fun MoreActionsContent(
     var showAdjustTimeoutsDialog by remember { mutableStateOf(false) }
     var showAdjustCardsDialog by remember { mutableStateOf(false) }
     var showAdjustPullInfractionsDialog by remember { mutableStateOf(false) }
+    var showChangePullPromptsDialog by remember { mutableStateOf(false) }
     var showDeleteGameDialog by remember { mutableStateOf(false) }
 
     Column(
@@ -69,25 +71,15 @@ internal fun MoreActionsContent(
                     onClick = onUpdateGameSetup,
                 )
                 OtherMenuButton(
-                    label = "Adjust score",
-                    onClick = { showAdjustScoreDialog = true },
-                )
-                OtherMenuButton(
-                    label = "Adjust timeouts",
-                    onClick = { showAdjustTimeoutsDialog = true },
-                )
-                OtherMenuButton(
-                    label = "Adjust cards / TF",
-                    onClick = { showAdjustCardsDialog = true },
-                )
-                OtherMenuButton(
-                    label = "Adjust pull infractions",
-                    onClick = { showAdjustPullInfractionsDialog = true },
-                )
-                OtherMenuButton(
-                    label = "Swap ends of field",
+                    label = "Flip field display",
                     onClick = {
-                        onAction(state.swapFieldEnds())
+                        onAction(state.flipFieldDisplay())
+                    },
+                )
+                OtherMenuButton(
+                    label = "Change pull prompts",
+                    onClick = {
+                        showChangePullPromptsDialog = true
                     },
                 )
                 OtherMenuButton(
@@ -96,11 +88,27 @@ internal fun MoreActionsContent(
                         onAction(state.swapPullingTeam())
                     },
                 )
+                OtherMenuButton(
+                    label = "Adjust score",
+                    onClick = { showAdjustScoreDialog = true },
+                )
+                OtherMenuButton(
+                    label = "Adjust timeouts",
+                    onClick = { showAdjustTimeoutsDialog = true },
+                )
+                OtherMenuButton(
+                    label = "Adjust pull infractions",
+                    onClick = { showAdjustPullInfractionsDialog = true },
+                )
             }
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                OtherMenuButton(
+                    label = "Adjust cards / TF",
+                    onClick = { showAdjustCardsDialog = true },
+                )
                 OtherMenuButton(
                     label = "Event log",
                     onClick = onShowEventLog,
@@ -205,6 +213,17 @@ internal fun MoreActionsContent(
         )
     }
 
+    if (showChangePullPromptsDialog) {
+        ChangePullPromptsDialog(
+            state = state,
+            onDismiss = { showChangePullPromptsDialog = false },
+            onConfirm = { target ->
+                onAction(state.withPullPromptTarget(target))
+                showChangePullPromptsDialog = false
+            },
+        )
+    }
+
     if (showDeleteGameDialog) {
         // DeleteGameDialog lives in ArchivedGames_UI.kt because game deletion is mostly archived-game UI.
         DeleteGameDialog(
@@ -215,6 +234,54 @@ internal fun MoreActionsContent(
             },
         )
     }
+}
+
+/**
+ * Render the pull-prompt target editor reachable during a live game.
+ *
+ * @param state The live game whose pull-prompt target is being edited.
+ * @param onDismiss Callback closing the dialog without changing prompts.
+ * @param onConfirm Callback receiving the selected pull-prompt target.
+ */
+@Composable
+private fun ChangePullPromptsDialog(
+    state: GameState,
+    onDismiss: () -> Unit,
+    onConfirm: (PullPromptTarget) -> Unit,
+) {
+    var selected by remember { mutableStateOf(state.pullPromptTarget) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Change pull prompts") },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text = "For which end do you want timing prompts related to the pull?",
+                    fontWeight = FontWeight.SemiBold,
+                )
+                PullPromptTargetChoiceRow(
+                    selected = selected,
+                    nearLabel = state.fieldEndDisplayName(FieldEnd.NEAR),
+                    farLabel = state.fieldEndDisplayName(FieldEnd.FAR),
+                    testTagPrefix = "more-actions-pull-prompts",
+                    onSelected = { selected = it },
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(selected) }) {
+                Text("Set")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+    )
 }
 
 /**

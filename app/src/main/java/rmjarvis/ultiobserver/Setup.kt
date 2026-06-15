@@ -237,6 +237,21 @@ internal fun PullPromptTarget.displayText(state: GameSetupState): String {
     }
 }
 
+/**
+ * Return the setup-display text for one pull-prompt target choice.
+ *
+ * @param nearLabel The display label for the near field end.
+ * @param farLabel The display label for the far field end.
+ */
+internal fun PullPromptTarget.choiceLabel(nearLabel: String, farLabel: String): String {
+    return when (this) {
+        PullPromptTarget.NEAR -> nearLabel
+        PullPromptTarget.FAR -> farLabel
+        PullPromptTarget.BOTH -> "Both"
+        PullPromptTarget.NEITHER -> "Neither"
+    }
+}
+
 /// Return the compact half/soft/hard cap summary.
 internal fun GameRules.capRulesSummary(): String {
     return "${capSummary(useHalfCap, halfCapMinutes)}/" +

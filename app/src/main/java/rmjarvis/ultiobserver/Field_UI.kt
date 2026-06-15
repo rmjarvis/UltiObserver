@@ -312,8 +312,10 @@ internal fun FieldSketchCard(
     onCardsAndTechnicalFouls: (TeamId) -> Unit,
     onTeamInfo: (TeamId) -> Unit,
 ) {
-    // Translate the game's pulling orientation into fixed top/bottom screen slots.
-    val topSlot = if (state.pullingFromEnd == FieldEnd.FAR) {
+    // Translate the game's pulling orientation into the currently displayed top/bottom slots.
+    val topEnd = state.topDisplayedEnd
+    val bottomEnd = topEnd.flip()
+    val topSlot = if (state.pullingFromEnd == topEnd) {
         state.pullingTeam
     } else {
         state.pullingTeam.flip()
@@ -346,7 +348,7 @@ internal fun FieldSketchCard(
                 interactionsEnabled = interactionsEnabled,
                 isPulling = state.pullingTeam == topSlot,
                 pullInfractionEnabled = state.canRecordPullInfraction(topSlot),
-                fieldEndName = state.fieldEndDisplayName(FieldEnd.FAR),
+                fieldEndName = state.fieldEndDisplayName(topEnd),
                 fieldEndLabelAtTop = true,
                 metrics = metrics,
                 onGoal = { onGoal(topSlot) },
@@ -371,6 +373,7 @@ internal fun FieldSketchCard(
                     if (showPullIndicator) {
                         PullDirectionIndicator(
                             pullingFromEnd = pullFrom,
+                            topDisplayedEnd = topEnd,
                             modifier = Modifier.padding(start = 8.dp),
                         )
                         Box(modifier = Modifier.width(54.dp))
@@ -394,7 +397,7 @@ internal fun FieldSketchCard(
                 interactionsEnabled = interactionsEnabled,
                 isPulling = state.pullingTeam == bottomSlot,
                 pullInfractionEnabled = state.canRecordPullInfraction(bottomSlot),
-                fieldEndName = state.fieldEndDisplayName(FieldEnd.NEAR),
+                fieldEndName = state.fieldEndDisplayName(bottomEnd),
                 fieldEndLabelAtTop = false,
                 metrics = metrics,
                 onGoal = { onGoal(bottomSlot) },
@@ -776,11 +779,13 @@ private fun FieldEndCornerLabel(name: String, contentColor: Color) {
  * Render the center-field arrow showing which end the pull comes from.
  *
  * @param pullingFromEnd The field end occupied by the pulling team.
+ * @param topDisplayedEnd The field end currently displayed at the top of the field.
  * @param modifier Optional layout modifier for the indicator column.
  */
 @Composable
 private fun PullDirectionIndicator(
     pullingFromEnd: FieldEnd,
+    topDisplayedEnd: FieldEnd,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -790,11 +795,11 @@ private fun PullDirectionIndicator(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceEvenly,
     ) {
-        if (pullingFromEnd == FieldEnd.FAR) {
+        if (pullingFromEnd == topDisplayedEnd) {
             PullDirectionLabel()
         }
-        PullDirectionArrow(pointsTowardNearEnd = pullingFromEnd == FieldEnd.FAR)
-        if (pullingFromEnd == FieldEnd.NEAR) {
+        PullDirectionArrow(pointsTowardBottom = pullingFromEnd == topDisplayedEnd)
+        if (pullingFromEnd == topDisplayedEnd.flip()) {
             PullDirectionLabel()
         }
     }
@@ -803,10 +808,10 @@ private fun PullDirectionIndicator(
 /**
  * Draw the pull-direction arrow.
  *
- * @param pointsTowardNearEnd Whether the arrow should point toward the observer's near end.
+ * @param pointsTowardBottom Whether the arrow should point toward the displayed bottom end.
  */
 @Composable
-private fun PullDirectionArrow(pointsTowardNearEnd: Boolean) {
+private fun PullDirectionArrow(pointsTowardBottom: Boolean) {
     Canvas(
         modifier = Modifier
             .width(28.dp)
@@ -817,14 +822,14 @@ private fun PullDirectionArrow(pointsTowardNearEnd: Boolean) {
         val headHeight = 13.dp.toPx()
         val headHalfWidth = 10.dp.toPx()
         val shaftInset = 2.dp.toPx()
-        val headBaseY = if (pointsTowardNearEnd) {
+        val headBaseY = if (pointsTowardBottom) {
             size.height - headHeight
         } else {
             headHeight
         }
-        val tipY = if (pointsTowardNearEnd) size.height else 0f
-        val shaftStartY = if (pointsTowardNearEnd) shaftInset else headBaseY
-        val shaftEndY = if (pointsTowardNearEnd) headBaseY else size.height - shaftInset
+        val tipY = if (pointsTowardBottom) size.height else 0f
+        val shaftStartY = if (pointsTowardBottom) shaftInset else headBaseY
+        val shaftEndY = if (pointsTowardBottom) headBaseY else size.height - shaftInset
 
         drawLine(
             color = Color.Black,
@@ -1127,8 +1132,17 @@ internal fun GameState.activeCountdownDisplay(now: Long): ActiveCountdownDisplay
             )
         } else {
             // Once halftime expires, show the follow-on between-points countdown immediately.
-            val followOn = betweenPointsDisplay(pullingFromEnd, countdown.targetEpoch, now)
-            val followOnCountdown = buildBetweenPointsCountdown(pullingFromEnd, countdown.targetEpoch)
+            val followOn = betweenPointsDisplay(
+                pullingFromEnd = pullingFromEnd,
+                sequenceStart = countdown.targetEpoch,
+                now = now,
+                promptEnd = pullPromptTarget.countdownPromptEnd(),
+            )
+            val followOnCountdown = buildBetweenPointsCountdown(
+                pullingFromEnd = pullingFromEnd,
+                sequenceStart = countdown.targetEpoch,
+                promptEnd = pullPromptTarget.countdownPromptEnd(),
+            )
             ActiveCountdownDisplay(
                 label = followOn.first,
                 remaining = followOn.second,

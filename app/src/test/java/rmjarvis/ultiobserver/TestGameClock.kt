@@ -603,6 +603,24 @@ class TestGameClock : GameDomainTestFixtures() {
         assertEquals("Signal in" to Duration.ofSeconds(30), betweenPointsDisplay(FieldEnd.FAR, 1_000L, 31_000L))
         assertEquals("Signal in" to Duration.ZERO, betweenPointsDisplay(FieldEnd.FAR, 1_000L, 70_000L))
         assertEquals("Pull in" to Duration.ofSeconds(80), betweenPointsDisplay(FieldEnd.NEAR, 2_000L, 2_000L))
+        assertEquals(
+            "Pull in" to Duration.ofSeconds(80),
+            betweenPointsDisplay(
+                pullingFromEnd = FieldEnd.FAR,
+                sequenceStart = 2_000L,
+                now = 2_000L,
+                promptEnd = FieldEnd.FAR,
+            ),
+        )
+        assertEquals(
+            "Signal in" to Duration.ofSeconds(60),
+            betweenPointsDisplay(
+                pullingFromEnd = FieldEnd.NEAR,
+                sequenceStart = 2_000L,
+                now = 2_000L,
+                promptEnd = FieldEnd.FAR,
+            ),
+        )
         val standardPullCountdown = buildBetweenPointsCountdown(FieldEnd.NEAR, 2_000L)
         assertEquals(TimingCueId.PULLING_TWENTY_TO_PULL, standardPullCountdown.nextTimingCue(2_000L)?.id)
         assertEquals(60, BetweenPointsCountdownTarget.OFFENSE_READY.baseDurationSeconds(CountdownKind.BETWEEN_POINTS))
@@ -634,6 +652,15 @@ class TestGameClock : GameDomainTestFixtures() {
         assertEquals(TimingCueId.PULLING_TWENTY_TO_PULL, openingPullCountdown.nextTimingCue(1_000L)?.id)
         assertEquals(Duration.ofSeconds(20), openingPullCountdown.nextTimingCue(1_000L)?.remaining)
         assertEquals(Duration.ofSeconds(20), openingPullCountdown.nextTimingCue(1_000L)?.countdownTime)
+        val farEndOpeningPullCountdown = buildBetweenPointsCountdown(
+            pullingFromEnd = FieldEnd.FAR,
+            sequenceStart = 1_000L,
+            kind = CountdownKind.OPENING_PULL,
+            promptEnd = FieldEnd.FAR,
+        )
+        assertEquals("Pull in", farEndOpeningPullCountdown.label)
+        assertEquals(40, farEndOpeningPullCountdown.durationSeconds)
+        assertEquals(TimingCueId.PULLING_TWENTY_TO_PULL, farEndOpeningPullCountdown.nextTimingCue(1_000L)?.id)
 
         val invalidBetweenPointsKindException = assertThrows(IllegalArgumentException::class.java) {
             buildBetweenPointsCountdown(

@@ -79,6 +79,9 @@ class TestGameSetup : GameDomainTestFixtures() {
         assertEquals(FieldEnd.FAR, state.pullingFromEnd)
         assertEquals(VC, state.nearAttackingTeam)
         assertEquals(priorCards, state.priorCards)
+        assertEquals("Pull in", state.countdown?.label)
+        assertEquals(40, state.countdown?.durationSeconds)
+        assertEquals(state.startEpoch + 40_000L, state.countdown?.targetEpoch)
 
         // Edit setup before the first point and verify opening pull changes resync current pull and field state.
         val editedBeforePlay = setup.copy(

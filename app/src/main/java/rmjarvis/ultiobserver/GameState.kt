@@ -403,6 +403,7 @@ enum class CountdownKind {
  * @param farEndName Optional custom label for the far field end.
  * @param nearAttackingTeam The team attacking the observer's near end.
  * @param pullingFromEnd The field end occupied by the pulling team.
+ * @param topDisplayedEnd The field end shown at the top of the live field display.
  * @param pullPromptTarget Which field end or ends should receive pulling prompts.
  * @param openingPullingTeam The team that pulled to start the game.
  * @param openingPullingFromEnd The field end used by the opening pull.
@@ -434,6 +435,7 @@ data class GameState(
     val nearAttackingTeam: TeamId,
     val pullingTeam: TeamId,
     val pullingFromEnd: FieldEnd,
+    val topDisplayedEnd: FieldEnd = FieldEnd.FAR,
     val pullPromptTarget: PullPromptTarget = PullPromptTarget.NEAR,
     val openingPullingTeam: TeamId,
     val openingPullingFromEnd: FieldEnd,
@@ -516,17 +518,35 @@ data class GameState(
         return customName.ifEmpty { end.defaultDisplayText() }
     }
 
-    /// Swap the teams' field ends while keeping the same team pulling.
-    fun swapFieldEnds(): GameState {
-        val newPullingFromEnd = this.pullingFromEnd.flip()
+    /// Flip only which field end appears at the top of the live field display.
+    fun flipFieldDisplay(): GameState {
         return this.copy(
-            nearAttackingTeam = this.nearAttackingTeam.flip(),
-            pullingFromEnd = newPullingFromEnd,
-            countdown = this.countdown?.swapOD(),
-            pullSequenceOffsidesRecorded = false,
-            pullSequenceFalseStartRecorded = false,
-            lastEvent = "Field ends swapped.",
-        ).withUndo(this, "Undo Swap ends of field")
+            topDisplayedEnd = this.topDisplayedEnd.flip(),
+            lastEvent = "Field display flipped.",
+        ).withUndo(this, "Undo Flip field display")
+    }
+
+    /**
+     * Return this state with an updated pull-prompt target.
+     *
+     * @param target The field end or ends that should receive pull timing prompts.
+     */
+    fun withPullPromptTarget(target: PullPromptTarget): GameState {
+        return if (target == pullPromptTarget) {
+            this
+        } else {
+            val updatedCountdown = target.singlePromptEndOrNull()?.let { promptEnd ->
+                countdown?.withPromptEnd(
+                    pullingFromEnd = pullingFromEnd,
+                    promptEnd = promptEnd,
+                )
+            } ?: countdown
+            copy(
+                pullPromptTarget = target,
+                countdown = updatedCountdown,
+                lastEvent = "Pull prompts changed.",
+            ).withUndo(this, "Undo Change pull prompts")
+        }
     }
 
     /// Swap the pulling team while leaving the teams' attacking orientation otherwise intact.
@@ -662,15 +682,23 @@ fun applySetupToLiveGame(
         openingPullingTeam = setup.pullingTeam,
         openingPullingFromEnd = setup.pullingFromEnd,
     )
+    val promptAdjustedBase = base.copy(
+        countdown = setup.pullPromptTarget.singlePromptEndOrNull()?.let { promptEnd ->
+            base.countdown?.withPromptEnd(
+                pullingFromEnd = base.pullingFromEnd,
+                promptEnd = promptEnd,
+            )
+        } ?: base.countdown,
+    )
 
     val updatedState = if (shouldResyncPullState) {
-        base.copy(
+        promptAdjustedBase.copy(
             nearAttackingTeam = openingNearAttackingTeam,
             pullingTeam = setup.pullingTeam,
             pullingFromEnd = setup.pullingFromEnd,
         ).startPullSequence(now)
     } else {
-        base
+        promptAdjustedBase
     }
     return updatedState.withUndo(existing, "Undo Update game setup")
 }

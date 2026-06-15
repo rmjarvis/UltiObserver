@@ -40,42 +40,69 @@ class TestGameOtherActions : GameDomainTestFixtures() {
         assertEquals(eventLogBeforeNoopScoreAdjustment, state.eventLog)
         assertEquals("Score adjusted.", state.lastEvent)
 
-        // Swap field ends and verify near-attacking team, pulling end, countdown label, and undo entry.
+        // Flip field display and verify game orientation, countdown, and pull prompts are unchanged.
         state = standardLiveGameState(pullingTeam = VC, pullingFromEnd = FieldEnd.FAR)
-        val countdownBeforeSwapEnds = state.countdown!!
+        val countdownBeforeFlip = state.countdown!!
+        assertEquals(FieldEnd.FAR, state.topDisplayedEnd)
         assertEquals(VC, state.nearAttackingTeam)
         assertEquals(VC, state.pullingTeam)
         assertEquals(FieldEnd.FAR, state.pullingFromEnd)
-        assertEquals(CountdownKind.OPENING_PULL, countdownBeforeSwapEnds.kind)
-        assertEquals("Signal in", countdownBeforeSwapEnds.label)
-        assertEquals(20, countdownBeforeSwapEnds.durationSeconds)
-        state = state.swapFieldEnds()
-        assertEquals(ANIMAL, state.nearAttackingTeam)
+        assertEquals(PullPromptTarget.NEAR, state.pullPromptTarget)
+        assertEquals(CountdownKind.OPENING_PULL, countdownBeforeFlip.kind)
+        assertEquals("Signal in", countdownBeforeFlip.label)
+        assertEquals(20, countdownBeforeFlip.durationSeconds)
+        state = state.flipFieldDisplay()
+        assertEquals(FieldEnd.NEAR, state.topDisplayedEnd)
+        assertEquals(VC, state.nearAttackingTeam)
         assertEquals(VC, state.pullingTeam)
-        assertEquals(FieldEnd.NEAR, state.pullingFromEnd)
-        assertEquals(CountdownKind.OPENING_PULL, state.countdown?.kind)
-        assertEquals("Pull in", state.countdown?.label)
-        assertEquals(40, state.countdown?.durationSeconds)
-        assertEquals(countdownBeforeSwapEnds.targetEpoch + 20_000L, state.countdown?.targetEpoch)
-        assertEquals("Field ends swapped.", state.lastEvent)
-        assertEquals("Undo Swap ends of field", state.undoEntry?.label)
+        assertEquals(FieldEnd.FAR, state.pullingFromEnd)
+        assertEquals(PullPromptTarget.NEAR, state.pullPromptTarget)
+        assertEquals(countdownBeforeFlip, state.countdown)
+        assertEquals("Field display flipped.", state.lastEvent)
+        assertEquals("Undo Flip field display", state.undoEntry?.label)
+        assertUndoRestores(state.undoEntry!!.previous, state)
 
-        // Swapping while an in-point timeout countdown is active should preserve that timeout countdown.
+        // Flipping while an in-point timeout countdown is active should preserve that timeout countdown.
         state = standardLiveGameState().beginLivePoint()
         state = state.assessTimeout(VC, 100_000L).state
-        val liveTimeoutCountdownBeforeSwap = state.countdown
-        state = state.swapFieldEnds()
+        val liveTimeoutCountdownBeforeFlip = state.countdown
+        state = state.flipFieldDisplay()
         assertEquals(CountdownKind.TIME_OUT, state.countdown?.kind)
-        assertEquals(liveTimeoutCountdownBeforeSwap, state.countdown)
+        assertEquals(liveTimeoutCountdownBeforeFlip, state.countdown)
 
-        // Swapping during a live point with no active countdown keeps the point live and countdown-free.
+        // Flipping display during a live point with no active countdown keeps the point live and countdown-free.
         state = standardLiveGameState().beginLivePoint()
-        state = state.swapFieldEnds()
+        state = state.flipFieldDisplay()
         assertEquals(GamePhase.LIVE_POINT, state.phase)
         assertNull(state.countdown)
         state = state.swapPullingTeam()
         assertEquals(GamePhase.LIVE_POINT, state.phase)
         assertNull(state.countdown)
+
+        // Pull-prompt changes are independent of display orientation and field positions.
+        state = standardLiveGameState(pullingTeam = VC, pullingFromEnd = FieldEnd.FAR)
+        state = state.flipFieldDisplay()
+        val flippedDisplayState = state
+        state = state.withPullPromptTarget(PullPromptTarget.BOTH)
+        assertEquals(FieldEnd.NEAR, state.topDisplayedEnd)
+        assertEquals(VC, state.nearAttackingTeam)
+        assertEquals(VC, state.pullingTeam)
+        assertEquals(FieldEnd.FAR, state.pullingFromEnd)
+        assertEquals(PullPromptTarget.BOTH, state.pullPromptTarget)
+        assertEquals("Pull prompts changed.", state.lastEvent)
+        assertEquals("Undo Change pull prompts", state.undoEntry?.label)
+        assertUndoRestores(flippedDisplayState, state)
+
+        // Changing from near-end to far-end pull prompts retargets an active pull countdown.
+        state = standardLiveGameState(pullingTeam = VC, pullingFromEnd = FieldEnd.FAR)
+        val nearPromptCountdown = state.countdown!!
+        assertEquals("Signal in", nearPromptCountdown.label)
+        assertEquals(20, nearPromptCountdown.durationSeconds)
+        state = state.withPullPromptTarget(PullPromptTarget.FAR)
+        assertEquals(PullPromptTarget.FAR, state.pullPromptTarget)
+        assertEquals("Pull in", state.countdown?.label)
+        assertEquals(40, state.countdown?.durationSeconds)
+        assertEquals(nearPromptCountdown.targetEpoch + 20_000L, state.countdown?.targetEpoch)
 
         // Timeout-extended between-points countdowns still swap between offense-ready and pull timing.
         state = standardLiveGameState()
@@ -142,11 +169,11 @@ class TestGameOtherActions : GameDomainTestFixtures() {
         assertEquals("Undo Start halftime", state.undoEntry?.label)
         assertEquals(beforeManualHalftime, state.undoEntry?.previous)
 
-        // Swapping field ends during halftime changes field metadata but preserves the halftime clock itself.
-        val halftimeCountdownBeforeSwap = state.countdown
-        state = state.swapFieldEnds()
+        // Flipping field display during halftime preserves the halftime clock itself.
+        val halftimeCountdownBeforeFlip = state.countdown
+        state = state.flipFieldDisplay()
         assertEquals(CountdownKind.HALFTIME, state.countdown?.kind)
-        assertEquals(halftimeCountdownBeforeSwap, state.countdown)
+        assertEquals(halftimeCountdownBeforeFlip, state.countdown)
 
         // The UI hides Start halftime outside between-points state; the model rejects those calls too.
         assertEquals(state, state.startHalftimeNow(timestampAt(state, LocalTime.of(11, 11))))
