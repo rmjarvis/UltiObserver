@@ -583,7 +583,7 @@ internal fun GameEvent.TimeViolationRecorded.formatPopupTitle(): String = "Time 
 /// Format a time-violation event message with warning, timeout, or no-timeout consequences.
 internal fun GameEvent.TimeViolationRecorded.formatMessage(): String {
     val teamName = state.teamName(team)
-    val violationLine = "This is $teamName's ${state.teamFor(team).timeViolations.ordinalText()} time violation."
+    val violationLine = "This is $teamName's ${state.teamFor(team).timeViolations.ordinalWordText()} time violation."
     val consequence = when (outcome) {
         TimeViolationOutcome.WARNING -> {
             if (team == state.pullingTeam) {

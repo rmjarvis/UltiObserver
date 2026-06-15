@@ -118,3 +118,13 @@ internal fun Int.ordinalText(): String {
     }
     return "$this$suffix"
 }
+
+/// Return a small ordinal as a word, falling back to a numeric ordinal.
+internal fun Int.ordinalWordText(): String {
+    return when (this) {
+        1 -> "first"
+        2 -> "second"
+        3 -> "third"
+        else -> ordinalText()
+    }
+}

@@ -110,13 +110,13 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         // Viscous Coupling scores the first point, then Animal false-starts and that entry is undone.
         recordGoal(TeamId.TEAM_ONE, "Undo Goal by $viscousCoupling")
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "pull-infraction")).performClick()
-        waitForText("Defense gets to set up.")
+        waitForText("$viscousCoupling gets to set up on defense.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
         composeRule.onNodeWithText("Undo False start on $animal").performClick()
 
         // Viscous Coupling then records an offsides; the duplicate offsides button is disabled.
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-infraction")).performClick()
-        waitForText("Start at brick mark")
+        waitForText("$animal starts at the brick mark.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-infraction")).assertIsNotEnabled()
 
@@ -228,12 +228,16 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
 
         // Each side can record only one pull infraction of its type for the current pull sequence.
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "pull-infraction")).performClick()
-        waitForText("Defense gets to set up.")
+        waitForText("Team 1 gets to set up on defense.", substring = true)
+        composeRule.onNodeWithText("Cancel").performClick()
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "pull-infraction")).assertIsDisplayed()
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "pull-infraction")).performClick()
+        waitForText("Team 1 gets to set up on defense.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "pull-infraction")).assertIsNotEnabled()
 
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-infraction")).performClick()
-        waitForText("Start at brick mark")
+        waitForText("Team 2 starts at the brick mark.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-infraction")).assertIsNotEnabled()
 

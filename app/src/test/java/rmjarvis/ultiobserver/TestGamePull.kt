@@ -50,8 +50,13 @@ class TestGamePull : GameDomainTestFixtures() {
         assertEquals("Undo Offsides on Viscous Coupling", state.undoEntry?.label)
 
         // Verify the first pull-violation message sends play to the brick mark.
-        assertEquals("Start at brick mark", pullInfractionResult.message())
-        assertEquals("Pull infraction", pullInfractionResult.event!!.formatPopupTitle())
+        assertEquals(
+            "This is Viscous Coupling's first pull violation.\n\n" +
+                "Animal starts at the brick mark.\n\n" +
+                "The disc is live -- no defensive check is required.",
+            pullInfractionResult.message(),
+        )
+        assertEquals("Offsides", pullInfractionResult.event!!.formatPopupTitle())
         val pullInfractionEvent = pullInfractionResult.event as GameEvent.PullInfractionRecorded
         assertEquals(state, pullInfractionEvent.state)
         assertEquals(VC, pullInfractionEvent.team)
@@ -71,7 +76,12 @@ class TestGamePull : GameDomainTestFixtures() {
         assertEquals(0, state.teamOne.offsides)
         assertEquals(1, state.teamTwo.offsides)
         assertEquals("Offsides on Animal.", state.lastEvent)
-        assertEquals("Start at brick mark", pullInfractionResult.message())
+        assertEquals(
+            "This is Animal's first pull violation.\n\n" +
+                "Viscous Coupling starts at the brick mark.\n\n" +
+                "The disc is live -- no defensive check is required.",
+            pullInfractionResult.message(),
+        )
 
         // In a fresh pull sequence, record false start and verify only the receiving team's count increments.
         state = standardLiveGameState()
@@ -89,7 +99,17 @@ class TestGamePull : GameDomainTestFixtures() {
         assertEquals("Undo False start on Animal", state.undoEntry?.label)
 
         // Verify false-start guidance says the defense gets to set up.
-        assertEquals("Defense gets to set up.", pullInfractionResult.message())
+        assertEquals(
+            "This is Animal's first pull violation.\n\n" +
+                "Viscous Coupling gets to set up on defense.",
+            pullInfractionResult.message(),
+        )
+        assertEquals("False start", pullInfractionResult.event!!.formatPopupTitle())
+        assertEquals(
+            "This is Viscous Coupling's first pull violation.\n\n" +
+                "Animal starts at the brick mark.",
+            state.assessPullInfraction(VC).message(),
+        )
 
         // The same pull sequence cannot record a second false start.
         pullInfractionResult = state.assessPullInfraction(ANIMAL)
@@ -126,7 +146,7 @@ class TestGamePull : GameDomainTestFixtures() {
         assertEquals(TimingCueId.RECEIVING_TWENTY_FOR_HAND, timeViolationState.countdown?.nextTimingCue(firstViolationMoment)?.id)
         assertEquals(TimingCueId.RECEIVING_GIVE_HAND, timeViolationState.countdown?.nextTimingCue(firstViolationMoment + 20_000L)?.id)
         assertEquals(
-            "This is Animal's 1st time violation.\n\n" +
+            "This is Animal's first time violation.\n\n" +
                 "The first time violation is a warning. Animal now has 20 seconds to signal readiness.",
             timeViolationResult.message(),
         )
@@ -145,7 +165,7 @@ class TestGamePull : GameDomainTestFixtures() {
         assertEquals(70, timeViolationState.countdown?.durationSeconds)
         assertEquals(secondViolationMoment + 70_000L, timeViolationState.countdown?.targetEpoch)
         assertEquals(
-            "This is Animal's 2nd time violation.\n\n" +
+            "This is Animal's second time violation.\n\n" +
                 "Animal is required to use one of their 2 remaining timeouts available for this half. " +
                 "Reset pull timing to the usual timeout duration.",
             timeViolationResult.message(),
@@ -220,7 +240,7 @@ class TestGamePull : GameDomainTestFixtures() {
         assertEquals("Pull in", timeViolationState.countdown?.label)
         assertEquals(30, timeViolationState.countdown?.durationSeconds)
         assertEquals(
-            "This is Viscous Coupling's 1st time violation.\n\n" +
+            "This is Viscous Coupling's first time violation.\n\n" +
                 "The first time violation is a warning. Viscous Coupling now has 30 seconds to pull.",
             timeViolationResult.message(),
         )
@@ -238,7 +258,7 @@ class TestGamePull : GameDomainTestFixtures() {
         assertEquals(50, timeViolationState.countdown?.durationSeconds)
         assertEquals(TimingCueId.PULLING_TWENTY_TO_PULL, timeViolationState.countdown?.nextTimingCue(farReceivingWarningMoment)?.id)
         assertEquals(
-            "This is Animal's 1st time violation.\n\n" +
+            "This is Animal's first time violation.\n\n" +
                 "The first time violation is a warning. Animal now has 20 seconds to signal readiness.",
             timeViolationResult.message(),
         )
@@ -258,7 +278,7 @@ class TestGamePull : GameDomainTestFixtures() {
         state = state.copy(teamOne = state.teamOne.copy(timeViolations = 1))
         timeViolationResult = state.assessTimeViolation(VC, state.countdown!!.targetEpoch)
         assertEquals(
-            "This is Viscous Coupling's 2nd time violation.\n\n" +
+            "This is Viscous Coupling's second time violation.\n\n" +
                 "Viscous Coupling is required to use their last remaining timeout for this half. " +
                 "Reset pull timing to the usual timeout duration.",
             timeViolationResult.message(),
@@ -322,7 +342,7 @@ class TestGamePull : GameDomainTestFixtures() {
         assertEquals(timeViolationState, timeViolationState.recordFalseStart())
         assertEquals(timeViolationState, timeViolationState.recordOffsides())
         assertEquals(
-                "This is Animal's 2nd time violation.\n\n" +
+                "This is Animal's second time violation.\n\n" +
                 "Animal has no time outs remaining for this half, so a yardage penalty is assessed. " +
                 "No pull. Animal starts at midpoint of their defending end zone.",
             timeViolationResult.message(),
@@ -343,7 +363,7 @@ class TestGamePull : GameDomainTestFixtures() {
         assertNull(timeViolationState.countdown)
         assertTrue(timeViolationState.pullSkippedForCurrentPoint)
         assertEquals(
-                "This is Viscous Coupling's 2nd time violation.\n\n" +
+                "This is Viscous Coupling's second time violation.\n\n" +
                 "Viscous Coupling has no time outs remaining for this half, so a yardage penalty is assessed. " +
                 "No pull. Animal starts at midfield.",
             timeViolationResult.message(),
@@ -371,8 +391,17 @@ class TestGamePull : GameDomainTestFixtures() {
         assertEquals(1, state.teamTwo.falseStarts)
         assertTrue(state.pullSequenceOffsidesRecorded)
         assertTrue(state.pullSequenceFalseStartRecorded)
-        assertEquals("Start at brick mark", offsidesResult.message())
-        assertEquals("Defense gets to set up.", falseStartResult.message())
+        assertEquals(
+            "This is Viscous Coupling's first pull violation.\n\n" +
+                "Animal starts at the brick mark.\n\n" +
+                "The disc is live -- no defensive check is required.",
+            offsidesResult.message(),
+        )
+        assertEquals(
+            "This is Animal's first pull violation.\n\n" +
+                "Viscous Coupling gets to set up on defense.",
+            falseStartResult.message(),
+        )
 
         // Score the point and verify pull-sequence infraction locks reset for the next pull.
         state = recordGoalFromCurrentStateAt(state, VC, LocalTime.of(12, 5))
@@ -390,7 +419,12 @@ class TestGamePull : GameDomainTestFixtures() {
         pullInfractionResult = state.assessPullInfraction(VC)
         state = pullInfractionResult.state
         assertEquals(2, state.teamOne.offsides)
-        assertEquals("Start at midfield", pullInfractionResult.message())
+        assertEquals(
+            "This is Viscous Coupling's second pull violation.\n\n" +
+                "Animal starts at midfield.\n\n" +
+                "The disc is live -- no defensive check is required.",
+            pullInfractionResult.message(),
+        )
 
         // A previous false start by Viscous Coupling also stacks with a later Viscous Coupling offsides.
         state = standardLiveGameState(pullingTeam = ANIMAL)
@@ -405,7 +439,12 @@ class TestGamePull : GameDomainTestFixtures() {
         state = pullInfractionResult.state
         assertEquals(1, state.teamOne.offsides)
         assertEquals(1, state.teamOne.falseStarts)
-        assertEquals("Start at midfield", pullInfractionResult.message())
+        assertEquals(
+            "This is Viscous Coupling's second pull violation.\n\n" +
+                "Animal starts at midfield.\n\n" +
+                "The disc is live -- no defensive check is required.",
+            pullInfractionResult.message(),
+        )
 
         // Manually adjust pull infractions and verify values are clamped and undo-backed.
         state = state.adjustPullInfractions(

@@ -21,6 +21,15 @@ data class PullInfractionAssessmentResult(
 )
 
 /**
+ * Confirmation details for a pull infraction before the observer applies it.
+ *
+ * @param event The event-shaped preview used to render the confirmation dialog.
+ */
+data class PullInfractionAssessmentPreview(
+    val event: GameEvent? = null,
+)
+
+/**
  * Replace each team's cumulative pull-infraction counts as a manual correction.
  *
  * @param teamOneOffsides The corrected offsides count for team one.
@@ -88,11 +97,7 @@ fun GameState.assessPullInfraction(team: TeamId, now: Long): PullInfractionAsses
     if (!this.canRecordPullInfraction(team)) {
         return PullInfractionAssessmentResult(this)
     }
-    val infraction = if (team == this.pullingTeam) {
-        PullInfractionType.OFFSIDES
-    } else {
-        PullInfractionType.FALSE_START
-    }
+    val infraction = this.pullInfractionTypeFor(team)
     val updatedState = when (infraction) {
         PullInfractionType.OFFSIDES -> this.recordOffsides(now)
         PullInfractionType.FALSE_START -> this.recordFalseStart(now)
@@ -106,6 +111,57 @@ fun GameState.assessPullInfraction(team: TeamId, now: Long): PullInfractionAsses
             totalPullViolations = updatedState.pullViolationTotal(team),
         ),
     )
+}
+
+/**
+ * Build confirmation details for a pull infraction without changing game state.
+ *
+ * @param team The team that would receive the pull infraction.
+ */
+fun GameState.previewPullInfraction(team: TeamId): PullInfractionAssessmentPreview {
+    if (!this.canRecordPullInfraction(team)) {
+        return PullInfractionAssessmentPreview()
+    }
+    val infraction = this.pullInfractionTypeFor(team)
+    val previewState = this.withPreviewPullInfraction(team, infraction)
+    return PullInfractionAssessmentPreview(
+        event = GameEvent.PullInfractionRecorded(
+            state = previewState,
+            team = team,
+            infraction = infraction,
+            totalPullViolations = previewState.pullViolationTotal(team),
+        ),
+    )
+}
+
+/// Return the pull-infraction type for the selected team on this pull sequence.
+private fun GameState.pullInfractionTypeFor(team: TeamId): PullInfractionType {
+    return if (team == this.pullingTeam) {
+        PullInfractionType.OFFSIDES
+    } else {
+        PullInfractionType.FALSE_START
+    }
+}
+
+/**
+ * Return a state shaped like the result of a pull infraction for message preview only.
+ *
+ * @param team The team that would receive the pull infraction.
+ * @param infraction The pull infraction that would be recorded.
+ */
+private fun GameState.withPreviewPullInfraction(team: TeamId, infraction: PullInfractionType): GameState {
+    return when (infraction) {
+        PullInfractionType.OFFSIDES -> copy(
+            teamOne = if (team == TeamId.TEAM_ONE) teamOne.copy(offsides = teamOne.offsides + 1) else teamOne,
+            teamTwo = if (team == TeamId.TEAM_TWO) teamTwo.copy(offsides = teamTwo.offsides + 1) else teamTwo,
+            pullSequenceOffsidesRecorded = true,
+        )
+        PullInfractionType.FALSE_START -> copy(
+            teamOne = if (team == TeamId.TEAM_ONE) teamOne.copy(falseStarts = teamOne.falseStarts + 1) else teamOne,
+            teamTwo = if (team == TeamId.TEAM_TWO) teamTwo.copy(falseStarts = teamTwo.falseStarts + 1) else teamTwo,
+            pullSequenceFalseStartRecorded = true,
+        )
+    }
 }
 
 /**
@@ -229,16 +285,30 @@ private fun GameState.pullViolationTotal(teamId: TeamId): Int {
 }
 
 /// Format a pull-infraction event popup title.
-internal fun GameEvent.PullInfractionRecorded.formatPopupTitle(): String = "Pull infraction"
+internal fun GameEvent.PullInfractionRecorded.formatPopupTitle(): String {
+    return when (infraction) {
+        PullInfractionType.OFFSIDES -> "Offsides"
+        PullInfractionType.FALSE_START -> "False start"
+    }
+}
 
 /// Format a pull-infraction event message with the field-position consequence.
 internal fun GameEvent.PullInfractionRecorded.formatMessage(): String {
-    return when (infraction) {
+    val teamName = state.teamName(team)
+    val violationLine = "This is $teamName's ${totalPullViolations.ordinalWordText()} pull violation."
+    val consequence = when (infraction) {
         PullInfractionType.OFFSIDES -> if (totalPullViolations <= 1) {
-            "Start at brick mark"
+            "${state.teamName(state.pullingTeam.flip())} starts at the brick mark."
         } else {
-            "Start at midfield"
+            "${state.teamName(state.pullingTeam.flip())} starts at midfield."
+        }.let { fieldPosition ->
+            if (state.pullSequenceFalseStartRecorded) {
+                fieldPosition
+            } else {
+                "$fieldPosition\n\nThe disc is live -- no defensive check is required."
+            }
         }
-        PullInfractionType.FALSE_START -> "Defense gets to set up."
+        PullInfractionType.FALSE_START -> "${state.teamName(state.pullingTeam)} gets to set up on defense."
     }
+    return "$violationLine\n\n$consequence"
 }

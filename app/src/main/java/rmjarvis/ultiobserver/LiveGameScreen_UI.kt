@@ -67,6 +67,7 @@ internal fun LiveGameScreen(
     var showMoreActionsDialog by remember { mutableStateOf(false) }
     var showEventLogSheet by remember { mutableStateOf(false) }
     var pendingTimeViolationTeam by remember { mutableStateOf<TeamId?>(null) }
+    var pendingPullInfractionTeam by remember { mutableStateOf<TeamId?>(null) }
     var teamInfoSheetTeam by remember { mutableStateOf<TeamId?>(null) }
     var locked by remember { mutableStateOf(false) }
     var actionInfoMessage by remember { mutableStateOf<String?>(null) }
@@ -373,15 +374,9 @@ internal fun LiveGameScreen(
                         }
                     },
                     onPullInfraction = { team ->
-                        val result = state.assessPullInfraction(team, now)
-                        onStateChange(result.state)
-                        // Defensive stale-callback guard for a weird timing state.
-                        val message = result.event?.formatMessage()
-                        if (message != null) {
-                            showActionInfo(
-                                message = message,
-                                title = result.event.formatPopupTitle(),
-                            )
+                        val preview = state.previewPullInfraction(team)
+                        if (preview.event != null) {
+                            pendingPullInfractionTeam = team
                         }
                     },
                     onCardsAndTechnicalFouls = { showCardsSheet = true },
@@ -497,6 +492,36 @@ internal fun LiveGameScreen(
             },
             dismissButton = {
                 TextButton(onClick = { pendingTimeViolationTeam = null }) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
+
+    pendingPullInfractionTeam?.let { team ->
+        val event = state.previewPullInfraction(team).event
+        AlertDialog(
+            onDismissRequest = { pendingPullInfractionTeam = null },
+            title = { Text(event?.formatPopupTitle() ?: "Pull infraction") },
+            text = {
+                Text(
+                    text = event?.formatMessage() ?: "",
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val result = state.assessPullInfraction(team, System.currentTimeMillis())
+                        onStateChange(result.state)
+                        pendingPullInfractionTeam = null
+                    },
+                ) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingPullInfractionTeam = null }) {
                     Text("Cancel")
                 }
             },

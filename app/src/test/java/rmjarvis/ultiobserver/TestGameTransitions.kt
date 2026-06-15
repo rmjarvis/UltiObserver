@@ -157,7 +157,12 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertEquals(0, state.teamTwo.offsides)
         assertEquals(GamePhase.LIVE_POINT, state.phase)
         assertNull(state.countdown)
-        assertEquals("Start at brick mark", pullInfractionResult.message())
+        assertEquals(
+            "This is Viscous Coupling's first pull violation.\n\n" +
+                "Animal starts at the brick mark.\n\n" +
+                "The disc is live -- no defensive check is required.",
+            pullInfractionResult.message(),
+        )
         assertEquals("Undo Offsides on Viscous Coupling", state.undoEntry?.label)
 
         // Animal picks up yellow cards for #23 and #8
