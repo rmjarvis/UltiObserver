@@ -229,6 +229,38 @@ class TestGamePull : GameDomainTestFixtures() {
         assertEquals("Signal in", timeViolationState.countdown?.label)
         assertEquals(70, timeViolationState.countdown?.durationSeconds)
 
+        // Both-end prompts start warning resets for either side; Neither records warnings without prompt resets.
+        state = standardLiveGameState().withPullPromptTarget(PullPromptTarget.BOTH)
+        timeViolationResult = state.expiredPullDecisionState().assessTimeViolation(ANIMAL, state.countdown!!.targetEpoch)
+        timeViolationState = timeViolationResult.state
+        assertEquals(ANIMAL, (timeViolationResult.event as GameEvent.TimeViolationRecorded).team)
+        assertEquals("Signal in", timeViolationState.countdown?.label)
+        assertEquals(30, timeViolationState.countdown?.durationSeconds)
+
+        state = standardLiveGameState().withPullPromptTarget(PullPromptTarget.BOTH)
+        timeViolationResult = state.expiredPullDecisionState().assessTimeViolation(VC, state.countdown!!.targetEpoch)
+        timeViolationState = timeViolationResult.state
+        assertEquals(VC, (timeViolationResult.event as GameEvent.TimeViolationRecorded).team)
+        assertEquals("Pull in", timeViolationState.countdown?.label)
+        assertEquals(30, timeViolationState.countdown?.durationSeconds)
+
+        state = standardLiveGameState().withPullPromptTarget(PullPromptTarget.NEITHER)
+        assertNull(state.countdown?.nextTimingCue(state.countdown!!.targetEpoch - 20_000L))
+        timeViolationResult = state.expiredPullDecisionState().assessTimeViolation(ANIMAL, state.countdown!!.targetEpoch)
+        timeViolationState = timeViolationResult.state
+        assertEquals(ANIMAL, (timeViolationResult.event as GameEvent.TimeViolationRecorded).team)
+        assertTrue(timeViolationState.teamTwo.timeViolationWarningIssued)
+        assertNull(timeViolationState.countdown)
+
+        state = standardLiveGameState().withPullPromptTarget(PullPromptTarget.NEITHER)
+            .copy(teamTwo = standardLiveGameState().teamTwo.copy(timeViolationWarningIssued = true))
+        timeViolationResult = state.expiredPullDecisionState().assessTimeViolation(ANIMAL, state.countdown!!.targetEpoch)
+        timeViolationState = timeViolationResult.state
+        assertEquals(TimeViolationOutcome.TIMEOUT, (timeViolationResult.event as GameEvent.TimeViolationRecorded).outcome)
+        assertEquals("Pull in", timeViolationState.countdown?.label)
+        assertEquals(70, timeViolationState.countdown?.durationSeconds)
+        assertNull(timeViolationState.countdown?.nextTimingCue(timeViolationState.countdown!!.targetEpoch - 20_000L))
+
         // If the receiving team has no timeout left after its warning, the point starts with no pull.
         val noTimeoutRules = GameRules(
             gameTo = 5,

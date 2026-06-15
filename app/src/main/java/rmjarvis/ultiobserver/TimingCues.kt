@@ -61,10 +61,12 @@ enum class TimingCueId(
  *
  * @param id The timing cue to deliver.
  * @param remainingSeconds The countdown time remaining when this cue fires.
+ * @param message The display message for the cue, defaulting to the cue id's label.
  */
 internal data class TimingCue(
     val id: TimingCueId,
     val remainingSeconds: Int,
+    val message: String = id.label,
 )
 
 /**
@@ -126,7 +128,7 @@ internal fun CountdownState.nextTimingCue(now: Long): TimingCueDisplay? {
             if (cueEpoch >= now) {
                 TimingCueDisplay(
                     id = cue.id,
-                    message = cue.id.label,
+                    message = cue.message,
                     remaining = Duration.ofMillis(cueEpoch - now),
                     countdownTime = Duration.ofSeconds(cue.remainingSeconds.toLong()),
                     targetEpoch = cueEpoch,
@@ -153,7 +155,7 @@ internal fun CountdownState.dueTimingCue(now: Long): TimingCueDisplay? {
             if (elapsedSinceCue in 0L..1_100L) {
                 TimingCueDisplay(
                     id = cue.id,
-                    message = cue.id.label,
+                    message = cue.message,
                     remaining = Duration.ZERO,
                     countdownTime = Duration.ofSeconds(cue.remainingSeconds.toLong()),
                     targetEpoch = cueEpoch,

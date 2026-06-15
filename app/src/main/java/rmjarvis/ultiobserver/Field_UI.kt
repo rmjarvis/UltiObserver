@@ -981,7 +981,7 @@ internal fun CountdownLine(
             } else {
                 displayCountdown.nextCue?.let { cue ->
                     "Next cue at ${formatDuration(cue.countdownTime)} - ${cue.message}"
-                } ?: "Next cue"
+                } ?: ""
             },
             style = MaterialTheme.typography.labelMedium.copy(fontSize = labelFontSize),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1136,12 +1136,12 @@ internal fun GameState.activeCountdownDisplay(now: Long): ActiveCountdownDisplay
                 pullingFromEnd = pullingFromEnd,
                 sequenceStart = countdown.targetEpoch,
                 now = now,
-                promptEnd = pullPromptTarget.countdownPromptEnd(),
+                promptTarget = pullPromptTarget,
             )
             val followOnCountdown = buildBetweenPointsCountdown(
                 pullingFromEnd = pullingFromEnd,
                 sequenceStart = countdown.targetEpoch,
-                promptEnd = pullPromptTarget.countdownPromptEnd(),
+                promptTarget = pullPromptTarget,
             )
             ActiveCountdownDisplay(
                 label = followOn.first,

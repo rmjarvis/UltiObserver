@@ -221,7 +221,10 @@ class TestGameSetup : GameDomainTestFixtures() {
         assertEquals(fieldStateAfterGoal.pullingFromEnd, state.pullingFromEnd)
         assertEquals(fieldStateAfterGoal.nearAttackingTeam, state.nearAttackingTeam)
         assertEquals(fieldStateAfterGoal.phase, state.phase)
-        assertEquals(fieldStateAfterGoal.countdown, state.countdown)
+        assertEquals(fieldStateAfterGoal.countdown?.targetEpoch, state.countdown?.targetEpoch)
+        assertEquals("Pull in", state.countdown?.label)
+        assertEquals(80, state.countdown?.durationSeconds)
+        assertNull(state.countdown?.nextTimingCue(state.countdown!!.targetEpoch - 20_000L))
         assertEquals(fieldStateAfterGoal.pendingCapOffer, state.pendingCapOffer)
         assertEquals(emptyList<PlayerCardRecord>(), state.priorCards)
         assertEquals("Undo Update game setup", state.undoEntry?.label)
@@ -246,7 +249,9 @@ class TestGameSetup : GameDomainTestFixtures() {
         val pendingCountdown = state.countdown
         state = applySetupToLiveGame(state, editedAfterPlay.copy(rules = editedAfterPlay.rules.copy(gameTo = 19)), 300_000L)
         assertEquals(CapType.SOFT, state.pendingCapOffer)
-        assertEquals(pendingCountdown, state.countdown)
+        assertEquals(pendingCountdown?.targetEpoch, state.countdown?.targetEpoch)
+        assertEquals("Pull in", state.countdown?.label)
+        assertNull(state.countdown?.nextTimingCue(state.countdown!!.targetEpoch - 20_000L))
         assertEquals(19, state.rules.gameTo)
         assertEquals("Undo Update game setup", state.undoEntry?.label)
 

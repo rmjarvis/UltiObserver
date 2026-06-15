@@ -4,7 +4,7 @@ import java.time.Duration
 import kotlinx.serialization.Serializable
 
 /**
- * Between-points responsibility the near-side observer is timing.
+ * Between-points countdown mode the observer is timing.
  *
  * @param label The short countdown label shown on the live screen.
  * @param standardDurationSeconds The normal between-points duration for this target.
@@ -17,7 +17,9 @@ enum class BetweenPointsCountdownTarget(
     private val openingDurationSeconds: Int,
 ) {
     OFFENSE_READY("Signal in", 60, 20),
-    PULL("Pull in", 80, 40);
+    PULL("Pull in", 80, 40),
+    BOTH("Pull in", 80, 40),
+    NEITHER("Pull in", 80, 40);
 
     /**
      * Return the base countdown duration for this target and countdown kind.
@@ -34,14 +36,21 @@ enum class BetweenPointsCountdownTarget(
 
     /// Return the opposite between-points timing target.
     fun flip(): BetweenPointsCountdownTarget {
-        return if (this == OFFENSE_READY) PULL else OFFENSE_READY
+        return when (this) {
+            OFFENSE_READY -> PULL
+            PULL -> OFFENSE_READY
+            BOTH -> BOTH
+            NEITHER -> NEITHER
+        }
     }
 
-    /// Return the alert cue used when a timeout extension adds one minute to this target.
-    fun timeoutCueId(): TimingCueId {
+    /// Return the alert cues used when a timeout extension adds one minute to this target.
+    fun timeoutCueIds(): List<TimingCueId> {
         return when (this) {
-            OFFENSE_READY -> TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND
-            PULL -> TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL
+            OFFENSE_READY -> listOf(TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND)
+            PULL -> listOf(TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL)
+            BOTH -> listOf(TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND)
+            NEITHER -> emptyList()
         }
     }
 }
@@ -66,26 +75,26 @@ enum class TimeViolationOutcome {
 }
 
 /**
- * Build the countdown that applies between points for the observer's end of the field.
+ * Build the countdown that applies between points for the configured pull prompts.
  * The exact target depends on whether the prompted end is on the pulling or receiving side.
  *
- * @param pullingFromEnd The field end the pulling team occupies, which determines the observer's responsibility.
+ * @param pullingFromEnd The field end the pulling team occupies.
  * @param sequenceStart The epoch millis when the between-points sequence starts.
  * @param kind The between-points countdown kind, used to distinguish normal, opening, and reset timing.
- * @param promptEnd The single field end whose timing prompts should be generated.
+ * @param promptTarget Which field end or ends should receive timing prompts.
  */
 internal fun buildBetweenPointsCountdown(
     pullingFromEnd: FieldEnd,
     sequenceStart: Long,
     kind: CountdownKind = CountdownKind.BETWEEN_POINTS,
-    promptEnd: FieldEnd = FieldEnd.NEAR,
+    promptTarget: PullPromptTarget = PullPromptTarget.NEAR,
 ): CountdownState {
     require(kind.usesBetweenPointsTarget()) {
         "Countdown kind $kind does not use between-points timing."
     }
-    val target = betweenPointsCountdownTargetFor(
+    val target = betweenPointsCountdownTarget(
         pullingFromEnd = pullingFromEnd,
-        promptEnd = promptEnd,
+        promptTarget = promptTarget,
     )
     val durationSeconds = target.baseDurationSeconds(kind)
     return CountdownState(
@@ -98,12 +107,36 @@ internal fun buildBetweenPointsCountdown(
 }
 
 /**
- * Select the timing target the prompted field end is responsible for between points.
+ * Select the timing target represented by the pull-prompt target.
+ *
+ * @param pullingFromEnd The field end the pulling team occupies.
+ * @param promptTarget Which field end or ends should receive timing prompts.
+ */
+private fun betweenPointsCountdownTarget(
+    pullingFromEnd: FieldEnd,
+    promptTarget: PullPromptTarget,
+): BetweenPointsCountdownTarget {
+    return when (promptTarget) {
+        PullPromptTarget.NEAR -> betweenPointsCountdownTargetForEnd(
+            pullingFromEnd = pullingFromEnd,
+            promptEnd = FieldEnd.NEAR,
+        )
+        PullPromptTarget.FAR -> betweenPointsCountdownTargetForEnd(
+            pullingFromEnd = pullingFromEnd,
+            promptEnd = FieldEnd.FAR,
+        )
+        PullPromptTarget.BOTH -> BetweenPointsCountdownTarget.BOTH
+        PullPromptTarget.NEITHER -> BetweenPointsCountdownTarget.NEITHER
+    }
+}
+
+/**
+ * Select the timing target for one field end.
  *
  * @param pullingFromEnd The field end the pulling team occupies.
  * @param promptEnd The field end whose timing prompts should be generated.
  */
-private fun betweenPointsCountdownTargetFor(
+private fun betweenPointsCountdownTargetForEnd(
     pullingFromEnd: FieldEnd,
     promptEnd: FieldEnd,
 ): BetweenPointsCountdownTarget {
@@ -115,22 +148,22 @@ private fun betweenPointsCountdownTargetFor(
 }
 
 /**
- * Return this countdown retargeted to the chosen prompt end, preserving any timeout extension.
+ * Return this countdown retargeted to the chosen pull-prompt target, preserving any timeout extension.
  *
  * @param pullingFromEnd The field end the pulling team occupies.
- * @param promptEnd The field end whose timing prompts should be generated.
+ * @param promptTarget Which field end or ends should receive timing prompts.
  */
-internal fun CountdownState.withPromptEnd(
+internal fun CountdownState.withPullPromptTarget(
     pullingFromEnd: FieldEnd,
-    promptEnd: FieldEnd,
+    promptTarget: PullPromptTarget,
 ): CountdownState {
     if (!kind.usesBetweenPointsTarget()) {
         return this
     }
     val currentTarget = betweenPointsTarget!!
-    val newTarget = betweenPointsCountdownTargetFor(
+    val newTarget = betweenPointsCountdownTarget(
         pullingFromEnd = pullingFromEnd,
-        promptEnd = promptEnd,
+        promptTarget = promptTarget,
     )
     if (currentTarget == newTarget) {
         return this
@@ -153,39 +186,24 @@ internal fun CountdownState.withPromptEnd(
  * @param sequenceStart The epoch millis when the between-points sequence started.
  * @param now The epoch millis used to compute remaining time.
  * @param kind The between-points countdown kind to display.
- * @param promptEnd The single field end whose timing prompts should be generated.
+ * @param promptTarget Which field end or ends should receive timing prompts.
  */
 fun betweenPointsDisplay(
     pullingFromEnd: FieldEnd,
     sequenceStart: Long,
     now: Long,
     kind: CountdownKind = CountdownKind.BETWEEN_POINTS,
-    promptEnd: FieldEnd = FieldEnd.NEAR,
+    promptTarget: PullPromptTarget = PullPromptTarget.NEAR,
 ): Pair<String, Duration> {
-    val countdown = buildBetweenPointsCountdown(pullingFromEnd, sequenceStart, kind, promptEnd)
+    val countdown = buildBetweenPointsCountdown(pullingFromEnd, sequenceStart, kind, promptTarget)
     return countdown.label to Duration.ofMillis((countdown.targetEpoch - now).coerceAtLeast(0L))
-}
-
-/// Return the single field end selected for pull prompts, or null for multi/off modes.
-internal fun PullPromptTarget.singlePromptEndOrNull(): FieldEnd? {
-    return when (this) {
-        PullPromptTarget.NEAR -> FieldEnd.NEAR
-        PullPromptTarget.FAR -> FieldEnd.FAR
-        PullPromptTarget.BOTH -> null
-        PullPromptTarget.NEITHER -> null
-    }
-}
-
-/// Return the single prompt end currently supported by countdown generation.
-internal fun PullPromptTarget.countdownPromptEnd(): FieldEnd {
-    return singlePromptEndOrNull() ?: FieldEnd.NEAR
 }
 
 /// List normal between-points cues, including timeout-extension cues when applicable.
 internal fun CountdownState.betweenPointsTimingCues(): List<TimingCue> {
     val target = betweenPointsTarget!!
     val timeoutCues = if (durationSeconds > target.baseDurationSeconds(kind)) {
-        listOf(TimingCue(target.timeoutCueId(), 60))
+        target.timeoutCueIds().map { cueId -> TimingCue(cueId, 60) }
     } else {
         emptyList()
     }
@@ -200,6 +218,18 @@ internal fun CountdownState.betweenPointsTimingCues(): List<TimingCue> {
             TimingCue(TimingCueId.PULLING_TEN_TO_PULL, 10),
             TimingCue(TimingCueId.PULLING_TIME_VIOLATION, 0),
         )
+        BetweenPointsCountdownTarget.BOTH -> listOf(
+            TimingCue(TimingCueId.RECEIVING_TWENTY_FOR_HAND, 40),
+            TimingCue(TimingCueId.RECEIVING_TEN_FOR_HAND, 30),
+            TimingCue(
+                id = TimingCueId.PULLING_TWENTY_TO_PULL,
+                remainingSeconds = 20,
+                message = "Give hand. 20 seconds to pull",
+            ),
+            TimingCue(TimingCueId.PULLING_TEN_TO_PULL, 10),
+            TimingCue(TimingCueId.PULLING_TIME_VIOLATION, 0),
+        )
+        BetweenPointsCountdownTarget.NEITHER -> emptyList()
     }
 }
 
@@ -257,6 +287,10 @@ fun GameState.assessTimeViolation(team: TeamId, now: Long): TimeViolationAssessm
  */
 private fun GameState.recordTimeViolationWarning(team: TeamId, now: Long): GameState {
     val violatingTeamEnd = fieldEndForTeam(team)
+    val resetTarget = betweenPointsCountdownTargetForEnd(
+        pullingFromEnd = pullingFromEnd,
+        promptEnd = violatingTeamEnd,
+    )
     return this.copy(
         teamOne = if (team == TeamId.TEAM_ONE) {
             this.teamOne.copy(timeViolationWarningIssued = true)
@@ -268,11 +302,12 @@ private fun GameState.recordTimeViolationWarning(team: TeamId, now: Long): GameS
         } else {
             this.teamTwo
         },
-        countdown = if (violatingTeamEnd == pullPromptTarget.countdownPromptEnd()) {
+        countdown = if (pullPromptTarget.includesFieldEnd(violatingTeamEnd)) {
             this.buildTimeViolationCountdown(
                 now = now,
                 durationSeconds = 30,
                 kind = CountdownKind.PULL_RESET,
+                target = resetTarget,
             )
         } else {
             null
@@ -302,7 +337,7 @@ fun GameState.restartPullCountdown(now: Long): GameState {
         countdown = buildBetweenPointsCountdown(
             pullingFromEnd = this.pullingFromEnd,
             sequenceStart = now,
-            promptEnd = this.pullPromptTarget.countdownPromptEnd(),
+            promptTarget = this.pullPromptTarget,
         ),
         pullCountdownExpired = false,
         lastEvent = "Pull countdown restarted.",
@@ -317,10 +352,12 @@ fun GameState.restartPullCountdown(now: Long): GameState {
  * @param now The epoch millis used to start the reset countdown.
  */
 private fun GameState.recordTimeViolationTimeout(team: TeamId, now: Long): GameState {
-    val target = this.currentCountdownTarget()
-    val durationSeconds = when (target) {
+    val durationTarget = timeViolationTimeoutDurationTarget(team)
+    val durationSeconds = when (durationTarget) {
         BetweenPointsCountdownTarget.OFFENSE_READY -> 70
         BetweenPointsCountdownTarget.PULL -> 90
+        BetweenPointsCountdownTarget.BOTH,
+        BetweenPointsCountdownTarget.NEITHER -> error("Team-specific time violations must resolve to one side.")
     }
     return this.copy(
         teamOne = if (team == TeamId.TEAM_ONE) this.teamOne.withAddedTimeout() else this.teamOne,
@@ -329,6 +366,7 @@ private fun GameState.recordTimeViolationTimeout(team: TeamId, now: Long): GameS
             now = now,
             durationSeconds = durationSeconds,
             kind = CountdownKind.BETWEEN_POINTS,
+            target = timeViolationTimeoutCountdownTarget(team),
         ),
         pullCountdownExpired = false,
         lastEvent = "Timeout charged to ${this.teamName(team)} for time violation.",
@@ -348,13 +386,14 @@ private fun GameState.recordTimeViolationTimeout(team: TeamId, now: Long): GameS
  * @param now The epoch millis used as the countdown start.
  * @param durationSeconds The length of the reset countdown.
  * @param kind The countdown kind so warning and timeout resets can use different cue behavior.
+ * @param target The countdown target to use for labels and cue generation.
  */
 private fun GameState.buildTimeViolationCountdown(
     now: Long,
     durationSeconds: Int,
     kind: CountdownKind,
+    target: BetweenPointsCountdownTarget = currentCountdownTarget(),
 ): CountdownState {
-    val target = this.currentCountdownTarget()
     return CountdownState(
         kind = kind,
         label = target.label,
@@ -362,6 +401,40 @@ private fun GameState.buildTimeViolationCountdown(
         targetEpoch = now + durationSeconds * 1000L,
         betweenPointsTarget = target,
     )
+}
+
+/**
+ * Return the countdown target that determines a pull-time-violation timeout reset length.
+ *
+ * @param team The team whose time violation caused the timeout.
+ */
+private fun GameState.timeViolationTimeoutDurationTarget(team: TeamId): BetweenPointsCountdownTarget {
+    return when (pullPromptTarget) {
+        PullPromptTarget.BOTH,
+        PullPromptTarget.NEITHER -> betweenPointsCountdownTargetForEnd(
+            pullingFromEnd = pullingFromEnd,
+            promptEnd = fieldEndForTeam(team),
+        )
+        PullPromptTarget.NEAR,
+        PullPromptTarget.FAR -> currentCountdownTarget()
+    }
+}
+
+/**
+ * Return the countdown target to show after a timeout charged for a pull time violation.
+ *
+ * @param team The team whose time violation caused the timeout.
+ */
+private fun GameState.timeViolationTimeoutCountdownTarget(team: TeamId): BetweenPointsCountdownTarget {
+    return when (pullPromptTarget) {
+        PullPromptTarget.BOTH -> betweenPointsCountdownTargetForEnd(
+            pullingFromEnd = pullingFromEnd,
+            promptEnd = fieldEndForTeam(team),
+        )
+        PullPromptTarget.NEITHER -> BetweenPointsCountdownTarget.NEITHER
+        PullPromptTarget.NEAR,
+        PullPromptTarget.FAR -> currentCountdownTarget()
+    }
 }
 
 /**
@@ -379,10 +452,24 @@ internal fun GameState.fieldEndForTeam(team: TeamId): FieldEnd {
 
 /// Return the between-points timing target for the currently prompted side of the field.
 private fun GameState.currentCountdownTarget(): BetweenPointsCountdownTarget {
-    return betweenPointsCountdownTargetFor(
+    return betweenPointsCountdownTarget(
         pullingFromEnd = pullingFromEnd,
-        promptEnd = pullPromptTarget.countdownPromptEnd(),
+        promptTarget = pullPromptTarget,
     )
+}
+
+/**
+ * Report whether a pull-prompt target includes one field end.
+ *
+ * @param end The field end being checked.
+ */
+private fun PullPromptTarget.includesFieldEnd(end: FieldEnd): Boolean {
+    return when (this) {
+        PullPromptTarget.NEAR -> end == FieldEnd.NEAR
+        PullPromptTarget.FAR -> end == FieldEnd.FAR
+        PullPromptTarget.BOTH -> true
+        PullPromptTarget.NEITHER -> false
+    }
 }
 
 /**

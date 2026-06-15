@@ -18,7 +18,7 @@ fun createLiveGameState(setup: GameSetupState): GameState {
         pullingFromEnd = setup.pullingFromEnd,
         sequenceStart = startEpoch,
         kind = CountdownKind.OPENING_PULL,
-        promptEnd = setup.pullPromptTarget.countdownPromptEnd(),
+        promptTarget = setup.pullPromptTarget,
     )
 
     return GameState(
@@ -71,7 +71,7 @@ fun GameState.startPullSequence(
     val countdown = buildBetweenPointsCountdown(
         pullingFromEnd = this.pullingFromEnd,
         sequenceStart = now,
-        promptEnd = this.pullPromptTarget.countdownPromptEnd(),
+        promptTarget = this.pullPromptTarget,
     )
     return this.copy(
         phase = GamePhase.BETWEEN_POINTS,
@@ -132,7 +132,7 @@ fun GameState.recordGoal(
             countdown = buildBetweenPointsCountdown(
                 pullingFromEnd = nextPullingFromEnd,
                 sequenceStart = now,
-                promptEnd = this.pullPromptTarget.countdownPromptEnd(),
+                promptTarget = this.pullPromptTarget,
             ),
             pullCountdownExpired = false,
             pullSequenceOffsidesRecorded = false,
@@ -209,7 +209,7 @@ fun GameState.recordGoal(
     val countdown = buildBetweenPointsCountdown(
         pullingFromEnd = nextPullingFromEnd,
         sequenceStart = now,
-        promptEnd = this.pullPromptTarget.countdownPromptEnd(),
+        promptTarget = this.pullPromptTarget,
     )
 
     return this.copy(
@@ -455,7 +455,7 @@ fun GameState.applyExpiredCountdownTransitions(now: Long): GameState {
                 countdown = buildBetweenPointsCountdown(
                     pullingFromEnd = this.pullingFromEnd,
                     sequenceStart = countdown.targetEpoch,
-                    promptEnd = this.pullPromptTarget.countdownPromptEnd(),
+                    promptTarget = this.pullPromptTarget,
                 ),
                 pullCountdownExpired = false,
                 pullSkippedForCurrentPoint = false,

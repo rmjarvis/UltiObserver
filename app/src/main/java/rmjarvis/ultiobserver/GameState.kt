@@ -535,12 +535,10 @@ data class GameState(
         return if (target == pullPromptTarget) {
             this
         } else {
-            val updatedCountdown = target.singlePromptEndOrNull()?.let { promptEnd ->
-                countdown?.withPromptEnd(
-                    pullingFromEnd = pullingFromEnd,
-                    promptEnd = promptEnd,
-                )
-            } ?: countdown
+            val updatedCountdown = countdown?.withPullPromptTarget(
+                pullingFromEnd = pullingFromEnd,
+                promptTarget = target,
+            )
             copy(
                 pullPromptTarget = target,
                 countdown = updatedCountdown,
@@ -683,12 +681,10 @@ fun applySetupToLiveGame(
         openingPullingFromEnd = setup.pullingFromEnd,
     )
     val promptAdjustedBase = base.copy(
-        countdown = setup.pullPromptTarget.singlePromptEndOrNull()?.let { promptEnd ->
-            base.countdown?.withPromptEnd(
-                pullingFromEnd = base.pullingFromEnd,
-                promptEnd = promptEnd,
-            )
-        } ?: base.countdown,
+        countdown = base.countdown?.withPullPromptTarget(
+            pullingFromEnd = base.pullingFromEnd,
+            promptTarget = setup.pullPromptTarget,
+        ),
     )
 
     val updatedState = if (shouldResyncPullState) {

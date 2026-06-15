@@ -122,6 +122,13 @@ class TestGameTimeouts : GameDomainTestFixtures() {
             TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL,
             pullSideTimeoutState.countdown?.nextTimingCue(pullSideTimeoutTime)?.id,
         )
+        val bothSideState = standardLiveGameState().withPullPromptTarget(PullPromptTarget.BOTH)
+        val bothSideTimeoutTime = bothSideState.countdown!!.targetEpoch - 1_000L
+        val bothSideTimeoutState = bothSideState.assessTimeout(ANIMAL, bothSideTimeoutTime).state
+        assertEquals(
+            TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND,
+            bothSideTimeoutState.countdown?.nextTimingCue(bothSideTimeoutTime)?.id,
+        )
 
         // A live-point timeout starts a fresh offense-set timeout countdown.
         state = state.beginLivePoint()

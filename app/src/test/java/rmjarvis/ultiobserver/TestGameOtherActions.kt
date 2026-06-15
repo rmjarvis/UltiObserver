@@ -89,6 +89,8 @@ class TestGameOtherActions : GameDomainTestFixtures() {
         assertEquals(VC, state.pullingTeam)
         assertEquals(FieldEnd.FAR, state.pullingFromEnd)
         assertEquals(PullPromptTarget.BOTH, state.pullPromptTarget)
+        assertEquals("Pull in", state.countdown?.label)
+        assertEquals(40, state.countdown?.durationSeconds)
         assertEquals("Pull prompts changed.", state.lastEvent)
         assertEquals("Undo Change pull prompts", state.undoEntry?.label)
         assertUndoRestores(flippedDisplayState, state)
@@ -103,6 +105,11 @@ class TestGameOtherActions : GameDomainTestFixtures() {
         assertEquals("Pull in", state.countdown?.label)
         assertEquals(40, state.countdown?.durationSeconds)
         assertEquals(nearPromptCountdown.targetEpoch + 20_000L, state.countdown?.targetEpoch)
+        state = state.withPullPromptTarget(PullPromptTarget.NEITHER)
+        assertEquals(PullPromptTarget.NEITHER, state.pullPromptTarget)
+        assertEquals("Pull in", state.countdown?.label)
+        assertEquals(40, state.countdown?.durationSeconds)
+        assertNull(state.countdown?.nextTimingCue(nearPromptCountdown.targetEpoch))
 
         // Timeout-extended between-points countdowns still swap between offense-ready and pull timing.
         state = standardLiveGameState()
