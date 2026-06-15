@@ -151,6 +151,15 @@ enum class FieldEnd {
         return if (this == NEAR) FAR else NEAR
     }
 }
+
+/// Observer preference for which field end should receive pulling prompts.
+@Serializable
+enum class PullPromptTarget {
+    NEAR,
+    FAR,
+    BOTH,
+    NEITHER,
+}
 /// Broad phase of a game.
 @Serializable
 enum class GamePhase {
@@ -380,8 +389,11 @@ enum class CountdownKind {
  * @param tournamentName Optional tournament name used in completed-game summaries.
  * @param division Optional division context for the game.
  * @param gameContext Optional game-stage or round context, such as pool play or semifinals.
+ * @param nearEndName Optional custom label for the near field end.
+ * @param farEndName Optional custom label for the far field end.
  * @param nearAttackingTeam The team attacking the observer's near end.
  * @param pullingFromEnd The field end occupied by the pulling team.
+ * @param pullPromptTarget Which field end or ends should receive pulling prompts.
  * @param openingPullingTeam The team that pulled to start the game.
  * @param openingPullingFromEnd The field end used by the opening pull.
  * @param eventLog Persisted log of significant game events and manual corrections.
@@ -400,6 +412,8 @@ data class GameState(
     val tournamentName: String = "",
     val division: GameDivision? = null,
     val gameContext: String = "",
+    val nearEndName: String = "",
+    val farEndName: String = "",
     val rules: GameRules,
     val teamOne: TeamLiveState,
     val teamTwo: TeamLiveState,
@@ -410,6 +424,7 @@ data class GameState(
     val nearAttackingTeam: TeamId,
     val pullingTeam: TeamId,
     val pullingFromEnd: FieldEnd,
+    val pullPromptTarget: PullPromptTarget = PullPromptTarget.NEAR,
     val openingPullingTeam: TeamId,
     val openingPullingFromEnd: FieldEnd,
     val phase: GamePhase = GamePhase.PRE_GAME,
@@ -598,6 +613,8 @@ fun applySetupToLiveGame(
         tournamentName = setup.tournamentName,
         division = setup.division,
         gameContext = setup.gameContext,
+        nearEndName = setup.nearEndName,
+        farEndName = setup.farEndName,
         rules = setup.rules,
         teamOne = existing.teamOne.copy(
             name = setup.teamOne.name.ifBlank { "Team 1" },
@@ -618,6 +635,7 @@ fun applySetupToLiveGame(
         priorCards = setup.priorCards,
         teamOnePlayerCards = existing.teamOnePlayerCards,
         teamTwoPlayerCards = existing.teamTwoPlayerCards,
+        pullPromptTarget = setup.pullPromptTarget,
         openingPullingTeam = setup.pullingTeam,
         openingPullingFromEnd = setup.pullingFromEnd,
     )
@@ -643,6 +661,8 @@ fun GameState.toSetupState(): GameSetupState {
         tournamentName = tournamentName,
         division = division,
         gameContext = gameContext,
+        nearEndName = nearEndName,
+        farEndName = farEndName,
         rules = rules,
         teamOne = TeamSetup(
             name = teamOne.name,
@@ -663,6 +683,7 @@ fun GameState.toSetupState(): GameSetupState {
         priorCards = priorCards,
         pullingTeam = openingPullingTeam,
         pullingFromEnd = openingPullingFromEnd,
+        pullPromptTarget = pullPromptTarget,
     )
 }
 

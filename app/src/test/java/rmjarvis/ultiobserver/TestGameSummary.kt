@@ -183,6 +183,10 @@ class TestGameSummary : GameDomainTestFixtures() {
             tournamentName = "Philly Open",
             division = GameDivision.MIXED,
             gameContext = "Semifinals",
+            nearEndName = "Road",
+            farEndName = "Trees",
+            pullingFromEnd = FieldEnd.NEAR,
+            pullPromptTarget = PullPromptTarget.BOTH,
         )
 
         val state = createLiveGameState(setup)
@@ -193,6 +197,15 @@ class TestGameSummary : GameDomainTestFixtures() {
         assertEquals("Philly Open", state.toSetupState().tournamentName)
         assertEquals(GameDivision.MIXED, state.toSetupState().division)
         assertEquals("Semifinals", state.toSetupState().gameContext)
+        assertEquals("Road", state.toSetupState().fieldEndName(FieldEnd.NEAR))
+        assertEquals("Trees", state.toSetupState().fieldEndName(FieldEnd.FAR))
+        assertEquals("Viscous Coupling pulls from Road", state.toSetupState().startingPullSummary())
+        assertEquals("Pull prompts for both ends", state.toSetupState().pullPromptSummary())
         assertEquals(true, state.toSetupState().usesMixedDivision())
+
+        val defaultEndsSetup = setup.copy(nearEndName = "", farEndName = "", pullPromptTarget = PullPromptTarget.NEAR)
+        assertEquals("Near end", defaultEndsSetup.fieldEndName(FieldEnd.NEAR))
+        assertEquals("Far end", defaultEndsSetup.fieldEndName(FieldEnd.FAR))
+        assertEquals("Pull prompts for Near end", defaultEndsSetup.pullPromptSummary())
     }
 }

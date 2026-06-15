@@ -36,7 +36,6 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -59,6 +58,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalFocusManager
@@ -364,11 +364,12 @@ internal fun SetupScreen(
             }
 
             SetupSummaryRow(
-                title = "Starting Pull",
-                summary = state.startingPullSummary(),
+                title = "Field/Starting Pull",
                 editTag = "setup-edit-starting-pull",
                 onEdit = { setupDialog = SetupDialog.STARTING_PULL },
-            )
+            ) {
+                FieldStartingPullSummary(state)
+            }
             SetupSummaryRow(
                 title = "Game Rules",
                 editTag = "setup-edit-game-rules",
@@ -1008,7 +1009,7 @@ private fun GameDivisionChoiceRow(
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         orderedSetupDivisions().forEach { division ->
-            CompactDivisionChip(
+            SetupChoiceChip(
                 label = division?.displayText ?: "N/A",
                 selected = selected == division,
                 onClick = { onSelected(division) },
@@ -1019,15 +1020,15 @@ private fun GameDivisionChoiceRow(
 }
 
 /**
- * Render one compact division selector.
+ * Render one compact setup-choice selector.
  *
- * @param label The user-facing division text.
- * @param selected Whether this division is currently selected.
- * @param onClick Callback selecting this division.
+ * @param label The user-facing choice text.
+ * @param selected Whether this choice is currently selected.
+ * @param onClick Callback selecting this choice.
  * @param modifier Modifier applied by the caller, usually for test tags.
  */
 @Composable
-private fun CompactDivisionChip(
+private fun SetupChoiceChip(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
@@ -1035,17 +1036,17 @@ private fun CompactDivisionChip(
 ) {
     val shape = RoundedCornerShape(50)
     val backgroundColor = if (selected) {
-        MaterialTheme.colorScheme.secondaryContainer
+        Color(0xFF1565C0)
     } else {
         MaterialTheme.colorScheme.surface
     }
     val contentColor = if (selected) {
-        MaterialTheme.colorScheme.onSecondaryContainer
+        Color.White
     } else {
         MaterialTheme.colorScheme.onSurface
     }
     val borderColor = if (selected) {
-        MaterialTheme.colorScheme.primary
+        Color(0xFF0D47A1)
     } else {
         MaterialTheme.colorScheme.outline
     }
@@ -1086,6 +1087,38 @@ private fun GameInformationSummary(state: GameSetupState) {
 }
 
 /**
+ * Render the compact field-end and starting-pull summary used on the setup overview.
+ *
+ * @param state The current setup state to summarize.
+ */
+@Composable
+private fun FieldStartingPullSummary(state: GameSetupState) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            text = "Field ends are called:",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            text = "${state.fieldEndName(FieldEnd.NEAR)} / ${state.fieldEndName(FieldEnd.FAR)}",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(start = 16.dp),
+        )
+        Text(
+            text = state.startingPullSummary(),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            text = state.pullPromptSummary(),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
+/**
  * Render the compact game-rules summary used on the setup overview.
  *
  * @param rules The current rules to summarize.
@@ -1121,9 +1154,9 @@ private fun SetupSummaryValue(text: String) {
 }
 
 /**
- * Render the opening pull editor dialog.
+ * Render the field-end and opening-pull editor dialog.
  *
- * @param state The setup state whose pull team and pull end are being edited.
+ * @param state The setup state whose field-end labels, pull team, and prompt target are being edited.
  * @param onStateChange Callback receiving updated setup state.
  * @param onDismiss Callback closing the dialog.
  */
@@ -1133,33 +1166,128 @@ private fun StartingPullSetupDialog(
     onStateChange: (GameSetupState) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val focusManager = LocalFocusManager.current
+    var nearEndName by remember { mutableStateOf(state.nearEndName) }
+    var farEndName by remember { mutableStateOf(state.farEndName) }
+    var committedNearEndName by remember { mutableStateOf(state.nearEndName) }
+    var committedFarEndName by remember { mutableStateOf(state.farEndName) }
+    var pullingTeam by remember { mutableStateOf(state.pullingTeam) }
+    var pullingFromEnd by remember { mutableStateOf(state.pullingFromEnd) }
+    var pullPromptTarget by remember { mutableStateOf(state.pullPromptTarget) }
+
+    fun commitNearEndLabel() {
+        committedNearEndName = nearEndName
+    }
+
+    fun commitFarEndLabel() {
+        committedFarEndName = farEndName
+    }
+
+    fun displayFieldEndName(end: FieldEnd): String {
+        val customName = when (end) {
+            FieldEnd.NEAR -> committedNearEndName
+            FieldEnd.FAR -> committedFarEndName
+        }.trim()
+        return customName.ifEmpty { end.defaultDisplayText() }
+    }
+
+    fun saveAndDismiss() {
+        onStateChange(
+            state.copy(
+                nearEndName = nearEndName,
+                farEndName = farEndName,
+                pullingTeam = pullingTeam,
+                pullingFromEnd = pullingFromEnd,
+                pullPromptTarget = pullPromptTarget,
+            )
+        )
+        onDismiss()
+    }
+
     AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Starting Pull") },
+        onDismissRequest = ::saveAndDismiss,
+        title = { Text("Field/Starting Pull") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                OutlinedTextField(
+                    value = nearEndName,
+                    onValueChange = { nearEndName = it },
+                    label = { Text("Near/bottom end name") },
+                    placeholder = { Text(FieldEnd.NEAR.defaultDisplayText()) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Sentences,
+                        imeAction = ImeAction.Done,
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = {
+                            commitNearEndLabel()
+                            focusManager.clearFocus()
+                        },
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onFocusChanged {
+                            if (!it.isFocused) {
+                                commitNearEndLabel()
+                            }
+                        }
+                        .testTag("setup-near-end-name"),
+                )
+                OutlinedTextField(
+                    value = farEndName,
+                    onValueChange = { farEndName = it },
+                    label = { Text("Far/top end name") },
+                    placeholder = { Text(FieldEnd.FAR.defaultDisplayText()) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Sentences,
+                        imeAction = ImeAction.Done,
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = {
+                            commitFarEndLabel()
+                            focusManager.clearFocus()
+                        },
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onFocusChanged {
+                            if (!it.isFocused) {
+                                commitFarEndLabel()
+                            }
+                        }
+                        .testTag("setup-far-end-name"),
+                )
                 Text("Pulling team", fontWeight = FontWeight.SemiBold)
                 TeamChoiceRow(
                     firstLabel = state.teamOne.name,
                     secondLabel = state.teamTwo.name,
-                    selected = state.pullingTeam,
+                    selected = pullingTeam,
                     testTagPrefix = "setup-pulling-team",
-                    onSelected = { onStateChange(state.copy(pullingTeam = it)) },
+                    onSelected = { pullingTeam = it },
                 )
                 Text("Pulling from", fontWeight = FontWeight.SemiBold)
                 FieldEndChoiceRow(
-                    selected = state.pullingFromEnd,
-                    onSelected = { onStateChange(state.copy(pullingFromEnd = it)) },
+                    selected = pullingFromEnd,
+                    nearLabel = displayFieldEndName(FieldEnd.NEAR),
+                    farLabel = displayFieldEndName(FieldEnd.FAR),
+                    onSelected = { pullingFromEnd = it },
                 )
-                Text(
-                    text = "Near end is the end of the field you are primarily responsible for covering.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                Text("For which end do you want timing prompts related to the pull?", fontWeight = FontWeight.SemiBold)
+                PullPromptTargetChoiceRow(
+                    selected = pullPromptTarget,
+                    nearLabel = displayFieldEndName(FieldEnd.NEAR),
+                    farLabel = displayFieldEndName(FieldEnd.FAR),
+                    onSelected = { pullPromptTarget = it },
                 )
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = ::saveAndDismiss) {
                 Text("Done")
             }
         },
@@ -2362,52 +2490,109 @@ private fun TeamChoiceRow(
     testTagPrefix: String,
     onSelected: (TeamId) -> Unit,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        FilterChip(
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        SetupChoiceChip(
+            label = firstLabel.ifBlank { "Team 1" },
             selected = selected == TeamId.TEAM_ONE,
             onClick = {
                 onSelected(TeamId.TEAM_ONE)
             },
             modifier = Modifier.testTag("$testTagPrefix-${TeamId.TEAM_ONE.name}"),
-            label = { Text(firstLabel.ifBlank { "Team 1" }) },
         )
-        FilterChip(
+        SetupChoiceChip(
+            label = secondLabel.ifBlank { "Team 2" },
             selected = selected == TeamId.TEAM_TWO,
             onClick = {
                 onSelected(TeamId.TEAM_TWO)
             },
             modifier = Modifier.testTag("$testTagPrefix-${TeamId.TEAM_TWO.name}"),
-            label = { Text(secondLabel.ifBlank { "Team 2" }) },
         )
     }
 }
 
 /**
- * Render a two-choice row for Far end vs Near end selection.
+ * Render a two-choice row for Near end vs Far end selection.
  *
  * @param selected The currently selected field end.
+ * @param nearLabel The display label for the near field end.
+ * @param farLabel The display label for the far field end.
  * @param onSelected Callback receiving the selected field end.
  */
 @Composable
 private fun FieldEndChoiceRow(
     selected: FieldEnd,
+    nearLabel: String,
+    farLabel: String,
     onSelected: (FieldEnd) -> Unit,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        FilterChip(
-            selected = selected == FieldEnd.FAR,
-            onClick = {
-                onSelected(FieldEnd.FAR)
-            },
-            label = { Text("Far end") },
-        )
-        FilterChip(
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        SetupChoiceChip(
+            label = nearLabel,
             selected = selected == FieldEnd.NEAR,
             onClick = {
                 onSelected(FieldEnd.NEAR)
             },
-            label = { Text("Near end") },
+            modifier = Modifier.testTag("setup-pulling-from-${FieldEnd.NEAR.name}"),
         )
+        SetupChoiceChip(
+            label = farLabel,
+            selected = selected == FieldEnd.FAR,
+            onClick = {
+                onSelected(FieldEnd.FAR)
+            },
+            modifier = Modifier.testTag("setup-pulling-from-${FieldEnd.FAR.name}"),
+        )
+    }
+}
+
+/**
+ * Render a choice row for which field end should receive pulling prompts.
+ *
+ * @param selected The currently selected prompt target.
+ * @param nearLabel The display label for the near field end.
+ * @param farLabel The display label for the far field end.
+ * @param onSelected Callback receiving the selected prompt target.
+ */
+@Composable
+private fun PullPromptTargetChoiceRow(
+    selected: PullPromptTarget,
+    nearLabel: String,
+    farLabel: String,
+    onSelected: (PullPromptTarget) -> Unit,
+) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        PullPromptTarget.entries.forEach { target ->
+            SetupChoiceChip(
+                label = target.choiceLabel(nearLabel = nearLabel, farLabel = farLabel),
+                selected = selected == target,
+                onClick = { onSelected(target) },
+                modifier = Modifier.testTag("setup-pull-prompts-${target.name}"),
+            )
+        }
+    }
+}
+
+/**
+ * Return the setup-display text for one pull-prompt target choice.
+ *
+ * @param nearLabel The display label for the near field end.
+ * @param farLabel The display label for the far field end.
+ */
+private fun PullPromptTarget.choiceLabel(nearLabel: String, farLabel: String): String {
+    return when (this) {
+        PullPromptTarget.NEAR -> nearLabel
+        PullPromptTarget.FAR -> farLabel
+        PullPromptTarget.BOTH -> "Both"
+        PullPromptTarget.NEITHER -> "Neither"
     }
 }
 

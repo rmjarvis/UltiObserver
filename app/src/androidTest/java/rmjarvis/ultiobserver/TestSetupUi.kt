@@ -128,14 +128,23 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("setup-Team 1-spirit-captains").performTextReplacement("Spirit Captain")
         closeSetupEditor()
 
-        // Starting-pull setup should accept either team and either field end.
+        // Field/Starting Pull setup should accept custom end names, either team, either field end, and prompt choices.
         openStartingPullSetupEditor()
+        composeRule.onNodeWithTag("setup-near-end-name").performTextReplacement("Road")
+        composeRule.onNodeWithTag("setup-far-end-name").performTextReplacement("Trees")
         composeRule.onNodeWithTag("setup-pulling-team-${TeamId.TEAM_TWO.name}").performClick()
         composeRule.onNodeWithTag("setup-pulling-team-${TeamId.TEAM_ONE.name}").performClick()
-        composeRule.onNodeWithText("Near end").performClick()
-        composeRule.onNodeWithText("Far end").performClick()
-        composeRule.onNodeWithText("Near end").performClick()
+        composeRule.onNodeWithTag("setup-pulling-from-${FieldEnd.NEAR.name}").performClick()
+        composeRule.onNodeWithTag("setup-pulling-from-${FieldEnd.FAR.name}").performClick()
+        composeRule.onNodeWithTag("setup-pulling-from-${FieldEnd.NEAR.name}").performClick()
+        composeRule.onNodeWithTag("setup-pull-prompts-${PullPromptTarget.FAR.name}").performClick()
+        composeRule.onNodeWithTag("setup-pull-prompts-${PullPromptTarget.NEITHER.name}").performClick()
+        composeRule.onNodeWithTag("setup-pull-prompts-${PullPromptTarget.BOTH.name}").performClick()
         closeSetupEditor()
+        waitForText("Field ends are called:")
+        waitForText("Road / Trees")
+        waitForText("$aardvarks pulls from Road")
+        waitForText("Pull prompts for both ends")
 
         // Rule editors cover numeric fields, enabled caps, disabled caps, and timeout floaters.
         setIntegerSetupValue("Game to", "Game To", "Points", "7")

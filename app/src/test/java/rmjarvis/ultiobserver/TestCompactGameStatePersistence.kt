@@ -96,6 +96,8 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
         assertEquals(previous.tournamentName, patch.tournamentName)
         assertEquals(previous.division, patch.division!!.value)
         assertEquals(previous.gameContext, patch.gameContext)
+        assertEquals(previous.nearEndName, patch.nearEndName)
+        assertEquals(previous.farEndName, patch.farEndName)
         assertEquals(previous.rules, patch.rules)
         assertTeamPatchProperties(patch.teamOne!!, previous.teamOne)
         assertTeamPatchProperties(patch.teamTwo!!, previous.teamTwo)
@@ -106,6 +108,7 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
         assertEquals(previous.nearAttackingTeam, patch.nearAttackingTeam)
         assertEquals(previous.pullingTeam, patch.pullingTeam)
         assertEquals(previous.pullingFromEnd, patch.pullingFromEnd)
+        assertEquals(previous.pullPromptTarget, patch.pullPromptTarget)
         assertEquals(previous.openingPullingTeam, patch.openingPullingTeam)
         assertEquals(previous.openingPullingFromEnd, patch.openingPullingFromEnd)
         assertEquals(previous.phase, patch.phase)
@@ -194,6 +197,8 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
             tournamentName = "Later Tournament",
             division = GameDivision.WOMENS,
             gameContext = "Later semifinal",
+            nearEndName = "Later near",
+            farEndName = "Later far",
             teamOne = TeamLiveState(
                 name = "Later One",
                 color = TeamColorChoice.CUSTOM,
@@ -238,6 +243,7 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
                 ),
             ),
             nearAttackingTeam = TeamId.TEAM_TWO,
+            pullPromptTarget = PullPromptTarget.BOTH,
             openingPullingTeam = TeamId.TEAM_TWO,
             openingPullingFromEnd = FieldEnd.NEAR,
             phase = GamePhase.GAME_OVER,
@@ -278,6 +284,8 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
             tournamentName = "Previous Tournament",
             division = null,
             gameContext = "Previous pool game",
+            nearEndName = "Previous near",
+            farEndName = "Previous far",
             teamOne = TeamLiveState(
                 name = "Previous One",
                 color = TeamColorChoice.WHITE,
@@ -314,6 +322,7 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
             teamTwoPlayerCards = listOf(InGamePlayerCardRecord("20", yellows = 1)),
             eventLog = listOf(EventLogEntry(timestampEpoch = 1_000L, type = EventLogType.FIRST_PULL)),
             nearAttackingTeam = TeamId.TEAM_ONE,
+            pullPromptTarget = PullPromptTarget.NEITHER,
             openingPullingTeam = TeamId.TEAM_ONE,
             openingPullingFromEnd = FieldEnd.FAR,
             phase = GamePhase.BETWEEN_POINTS,

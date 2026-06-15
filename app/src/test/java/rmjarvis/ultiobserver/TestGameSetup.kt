@@ -43,6 +43,8 @@ class TestGameSetup : GameDomainTestFixtures() {
             pullingTeam = VC,
             pullingFromEnd = FieldEnd.FAR,
         ).copy(
+            nearEndName = "Road",
+            farEndName = "Trees",
             teamOne = TeamSetup(
                 name = "Viscous Coupling",
                 color = TeamColorChoice.CUSTOM,
@@ -59,9 +61,13 @@ class TestGameSetup : GameDomainTestFixtures() {
                 spiritCaptains = "Animal spirit captains",
             ),
             priorCards = priorCards,
+            pullPromptTarget = PullPromptTarget.FAR,
         )
         var state = createLiveGameState(setup)
         assertEquals(setup, state.toSetupState())
+        assertEquals("Road", state.nearEndName)
+        assertEquals("Trees", state.farEndName)
+        assertEquals(PullPromptTarget.FAR, state.pullPromptTarget)
         assertEquals(TeamColorChoice.CUSTOM, state.teamOne.color)
         assertEquals(0xFF123456L, state.teamOne.customColorArgb)
         assertNull(state.teamTwo.customColorArgb)
@@ -77,6 +83,8 @@ class TestGameSetup : GameDomainTestFixtures() {
         // Edit setup before the first point and verify opening pull changes resync current pull and field state.
         val editedBeforePlay = setup.copy(
             startTime = LocalTime.of(8, 45),
+            nearEndName = "Parking",
+            farEndName = "Scoreboard",
             rules = setup.rules.copy(gameTo = 15, timeoutsPerHalf = 2),
             teamOne = TeamSetup(
                 name = "VC",
@@ -96,10 +104,14 @@ class TestGameSetup : GameDomainTestFixtures() {
             priorCards = priorCards + PlayerCardRecord(VC, "8", priorYellows = 2, priorReds = 0),
             pullingTeam = ANIMAL,
             pullingFromEnd = FieldEnd.NEAR,
+            pullPromptTarget = PullPromptTarget.BOTH,
         )
         val beforeSetupEditBeforePlay = state
         state = applySetupToLiveGame(state, editedBeforePlay, 10_000L)
         assertEquals(LocalTime.of(8, 45), state.startTime)
+        assertEquals("Parking", state.nearEndName)
+        assertEquals("Scoreboard", state.farEndName)
+        assertEquals(PullPromptTarget.BOTH, state.pullPromptTarget)
         assertEquals(15, state.rules.gameTo)
         assertEquals(2, state.rules.timeoutsPerHalf)
         assertEquals("VC", state.teamOne.name)
@@ -154,6 +166,8 @@ class TestGameSetup : GameDomainTestFixtures() {
 
         val editedAfterPlay = editedBeforePlay.copy(
             startTime = LocalTime.of(9, 0),
+            nearEndName = "South",
+            farEndName = "North",
             rules = editedBeforePlay.rules.copy(gameTo = 17, hasFloaterTimeout = false),
             teamOne = TeamSetup(
                 name = "Viscous",
@@ -173,10 +187,14 @@ class TestGameSetup : GameDomainTestFixtures() {
             priorCards = emptyList(),
             pullingTeam = VC,
             pullingFromEnd = FieldEnd.FAR,
+            pullPromptTarget = PullPromptTarget.NEITHER,
         )
         val beforeSetupEditAfterPlay = state
         state = applySetupToLiveGame(state, editedAfterPlay, 200_000L)
         assertEquals(LocalTime.of(9, 0), state.startTime)
+        assertEquals("South", state.nearEndName)
+        assertEquals("North", state.farEndName)
+        assertEquals(PullPromptTarget.NEITHER, state.pullPromptTarget)
         assertEquals(17, state.rules.gameTo)
         assertFalse(state.rules.hasFloaterTimeout)
         assertEquals("Viscous", state.teamOne.name)

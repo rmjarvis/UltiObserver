@@ -130,6 +130,10 @@ internal data class GameStatePatch(
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val gameContext: String? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val nearEndName: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val farEndName: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val rules: GameRules? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val teamOne: TeamLiveStatePatch? = null,
@@ -149,6 +153,8 @@ internal data class GameStatePatch(
     val pullingTeam: TeamId? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val pullingFromEnd: FieldEnd? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val pullPromptTarget: PullPromptTarget? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val openingPullingTeam: TeamId? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
@@ -199,6 +205,8 @@ internal data class GameStatePatch(
             tournamentName = tournamentName ?: later.tournamentName,
             division = if (division != null) division.value else later.division,
             gameContext = gameContext ?: later.gameContext,
+            nearEndName = nearEndName ?: later.nearEndName,
+            farEndName = farEndName ?: later.farEndName,
             rules = rules ?: later.rules,
             teamOne = teamOne?.applyTo(later.teamOne) ?: later.teamOne,
             teamTwo = teamTwo?.applyTo(later.teamTwo) ?: later.teamTwo,
@@ -209,6 +217,7 @@ internal data class GameStatePatch(
             nearAttackingTeam = nearAttackingTeam ?: later.nearAttackingTeam,
             pullingTeam = pullingTeam ?: later.pullingTeam,
             pullingFromEnd = pullingFromEnd ?: later.pullingFromEnd,
+            pullPromptTarget = pullPromptTarget ?: later.pullPromptTarget,
             openingPullingTeam = openingPullingTeam ?: later.openingPullingTeam,
             openingPullingFromEnd = openingPullingFromEnd ?: later.openingPullingFromEnd,
             phase = phase ?: later.phase,
@@ -248,6 +257,8 @@ internal data class GameStatePatch(
                 tournamentName = previous.tournamentName.takeIfChangedFrom(later.tournamentName),
                 division = nullablePatch(later.division, previous.division),
                 gameContext = previous.gameContext.takeIfChangedFrom(later.gameContext),
+                nearEndName = previous.nearEndName.takeIfChangedFrom(later.nearEndName),
+                farEndName = previous.farEndName.takeIfChangedFrom(later.farEndName),
                 rules = previous.rules.takeIfChangedFrom(later.rules),
                 teamOne = TeamLiveStatePatch.fromLaterAndPrevious(later.teamOne, previous.teamOne),
                 teamTwo = TeamLiveStatePatch.fromLaterAndPrevious(later.teamTwo, previous.teamTwo),
@@ -264,6 +275,7 @@ internal data class GameStatePatch(
                 nearAttackingTeam = previous.nearAttackingTeam.takeIfChangedFrom(later.nearAttackingTeam),
                 pullingTeam = previous.pullingTeam.takeIfChangedFrom(later.pullingTeam),
                 pullingFromEnd = previous.pullingFromEnd.takeIfChangedFrom(later.pullingFromEnd),
+                pullPromptTarget = previous.pullPromptTarget.takeIfChangedFrom(later.pullPromptTarget),
                 openingPullingTeam = previous.openingPullingTeam.takeIfChangedFrom(later.openingPullingTeam),
                 openingPullingFromEnd = previous.openingPullingFromEnd.takeIfChangedFrom(later.openingPullingFromEnd),
                 phase = previous.phase.takeIfChangedFrom(later.phase),

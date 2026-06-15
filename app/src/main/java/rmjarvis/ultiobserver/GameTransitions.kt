@@ -28,6 +28,8 @@ fun createLiveGameState(setup: GameSetupState): GameState {
         tournamentName = setup.tournamentName,
         division = setup.division,
         gameContext = setup.gameContext,
+        nearEndName = setup.nearEndName,
+        farEndName = setup.farEndName,
         rules = setup.rules,
         teamOne = TeamLiveState(
             name = setup.teamOne.name.ifBlank { "Team 1" },
@@ -49,6 +51,7 @@ fun createLiveGameState(setup: GameSetupState): GameState {
         nearAttackingTeam = nearAttackingTeam,
         pullingTeam = setup.pullingTeam,
         pullingFromEnd = setup.pullingFromEnd,
+        pullPromptTarget = setup.pullPromptTarget,
         openingPullingTeam = setup.pullingTeam,
         openingPullingFromEnd = setup.pullingFromEnd,
         phase = GamePhase.BETWEEN_POINTS,

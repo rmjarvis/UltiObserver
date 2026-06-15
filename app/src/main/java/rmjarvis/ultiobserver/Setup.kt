@@ -39,12 +39,15 @@ enum class GameDivision(val displayText: String) {
  * @param tournamentName Optional tournament name used in completed-game summaries.
  * @param division Optional division context for the game, hidden from summaries when not set.
  * @param gameContext Optional game-stage or round context, such as pool play or semifinals.
+ * @param nearEndName Optional custom label for the near/bottom field end.
+ * @param farEndName Optional custom label for the far/top field end.
  * @param rules The scoring, cap, halftime, and timeout rules selected for the game.
  * @param teamOne The setup identity for Team 1 before live field orientation is applied.
  * @param teamTwo The setup identity for Team 2 before live field orientation is applied.
  * @param priorCards Player cards carried in from previous games in the tournament.
  * @param pullingTeam The team selected to pull first.
  * @param pullingFromEnd The field end from which the first pull is selected to start.
+ * @param pullPromptTarget Which field end or ends should receive pulling prompts.
  */
 @Serializable
 data class GameSetupState(
@@ -57,12 +60,15 @@ data class GameSetupState(
     val tournamentName: String = "",
     val division: GameDivision? = null,
     val gameContext: String = "",
+    val nearEndName: String = "",
+    val farEndName: String = "",
     val rules: GameRules = GameRules(),
     val teamOne: TeamSetup = TeamSetup(name = "", color = TeamColorChoice.WHITE),
     val teamTwo: TeamSetup = TeamSetup(name = "", color = TeamColorChoice.BLUE),
     val priorCards: List<PlayerCardRecord> = emptyList(),
     val pullingTeam: TeamId = TeamId.TEAM_ONE,
     val pullingFromEnd: FieldEnd = FieldEnd.FAR,
+    val pullPromptTarget: PullPromptTarget = PullPromptTarget.NEAR,
 )
 
 /**
@@ -160,7 +166,21 @@ internal fun GameSetupState.gameInformationSummaryLines(): List<String> {
 
 /// Return the compact setup summary for the starting pull.
 internal fun GameSetupState.startingPullSummary(): String {
-    return "${pullingTeam.setupName(this)} pulls from ${pullingFromEnd.displayText()}"
+    return "${pullingTeam.setupName(this)} pulls from ${fieldEndName(pullingFromEnd)}"
+}
+
+/// Return the setup summary line for the current pull-prompt preference.
+internal fun GameSetupState.pullPromptSummary(): String {
+    return "Pull prompts for ${pullPromptTarget.displayText(this)}"
+}
+
+/// Return the display label for one field end, falling back when no custom name is set.
+internal fun GameSetupState.fieldEndName(end: FieldEnd): String {
+    val customName = when (end) {
+        FieldEnd.NEAR -> nearEndName
+        FieldEnd.FAR -> farEndName
+    }.trim()
+    return customName.ifEmpty { end.defaultDisplayText() }
 }
 
 /**
@@ -199,11 +219,21 @@ internal fun GameSetupState.withSetupTeam(teamId: TeamId, team: TeamSetup): Game
     return if (teamId == TeamId.TEAM_ONE) copy(teamOne = team) else copy(teamTwo = team)
 }
 
-/// Return user-facing text for a field end.
-internal fun FieldEnd.displayText(): String {
+/// Return the default user-facing text for a field end.
+internal fun FieldEnd.defaultDisplayText(): String {
     return when (this) {
         FieldEnd.FAR -> "Far end"
         FieldEnd.NEAR -> "Near end"
+    }
+}
+
+/// Return the setup-display text for a pull-prompt target.
+internal fun PullPromptTarget.displayText(state: GameSetupState): String {
+    return when (this) {
+        PullPromptTarget.NEAR -> state.fieldEndName(FieldEnd.NEAR)
+        PullPromptTarget.FAR -> state.fieldEndName(FieldEnd.FAR)
+        PullPromptTarget.BOTH -> "both ends"
+        PullPromptTarget.NEITHER -> "neither end"
     }
 }
 
