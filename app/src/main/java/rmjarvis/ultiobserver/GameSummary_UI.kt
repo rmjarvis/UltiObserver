@@ -39,7 +39,7 @@ import androidx.compose.ui.unit.dp
  * Render a completed game as a read-only summary screen.
  *
  * @param state The completed game state to summarize.
- * @param summaryActionText Fixed bottom action label, such as Undo End Game or Restore Game.
+ * @param summaryActionText Fixed bottom action label, such as Undo End game or Restore game.
  * @param onSummaryAction Callback invoked by the fixed bottom action.
  * @param onBack Callback returning to the previous screen.
  * @param gameOverPrompt Optional prompt shown when a live game has just ended.
@@ -117,7 +117,7 @@ internal fun GameOverSummaryScreen(
  * @param state The completed game state to summarize.
  * @param onShowEventLog Callback opening the completed game's event log.
  * @param onShareSummary Callback opening Android's text-share sheet for this game summary.
- * @param summaryActionText Fixed bottom action label, such as Undo End Game or Restore Game.
+ * @param summaryActionText Fixed bottom action label, such as Undo End game or Restore game.
  * @param onSummaryAction Callback invoked by the fixed bottom action.
  */
 @Composable
@@ -190,7 +190,7 @@ internal fun GameOverSummary(
                     onClick = onShowEventLog,
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text("Event Log")
+                    Text("Event log")
                 }
                 Button(
                     onClick = onShareSummary,
@@ -230,7 +230,7 @@ internal fun Context.shareGameSummary(state: GameState) {
         putExtra(Intent.EXTRA_SUBJECT, "UltiObserver Game Summary")
         putExtra(Intent.EXTRA_TEXT, state.gameSummaryShareText())
     }
-    startActivity(Intent.createChooser(sendIntent, "Share Game Summary"))
+    startActivity(Intent.createChooser(sendIntent, "Share game summary"))
 }
 
 /**

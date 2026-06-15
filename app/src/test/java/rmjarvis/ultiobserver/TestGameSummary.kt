@@ -23,7 +23,7 @@ class TestGameSummary : GameDomainTestFixtures() {
 
         assertEquals(
             GameOverSummaryText(
-                title = "Game Summary",
+                title = "Game summary",
                 startLine = "Start May 19, 2026 10:00 AM",
                 endLine = "End time 12:42 PM",
                 scoreLines = listOf("Animal 15", "Viscous Coupling 12"),
@@ -132,7 +132,7 @@ class TestGameSummary : GameDomainTestFixtures() {
             UltiObserver Game Summary
             May 19, 2026, 10:00 AM
             Viscous Coupling 15, Animal 12
-            No Misconduct Assessments
+            No misconduct assessments
             """.trimIndent(),
             state.gameSummaryShareText(),
         )

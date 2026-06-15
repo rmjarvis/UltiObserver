@@ -39,8 +39,8 @@ abstract class MainActivityUiTestFixtures {
 
     /// Open the new-game setup screen from Home.
     protected fun openNewGameSetup() {
-        composeRule.onNodeWithText("Start New Game").performClick()
-        waitForText("Setup Game")
+        composeRule.onNodeWithText("Start new game").performClick()
+        waitForText("Setup game")
     }
 
     /// Start a live game through the public Home and setup UI path.
@@ -73,7 +73,7 @@ abstract class MainActivityUiTestFixtures {
 
     /// Finish the currently visible setup form and verify the live screen appears.
     protected fun startGameFromSetup() {
-        composeRule.onNodeWithText("Start Game").performClick()
+        composeRule.onNodeWithText("Start game").performClick()
         assertLiveScreen()
     }
 
@@ -108,7 +108,7 @@ abstract class MainActivityUiTestFixtures {
         composeRule.onNodeWithText("Set").performClick()
         waitForText("Game to")
         closeSetupEditor()
-        waitForText("Start Game")
+        waitForText("Start game")
     }
 
     /**
@@ -137,7 +137,7 @@ abstract class MainActivityUiTestFixtures {
         composeRule.onNodeWithText("Set").performClick()
         waitForText("Date")
         closeSetupEditor()
-        waitForText("Start Game")
+        waitForText("Start game")
     }
 
     /// Set setup start time to midnight so tests can create a cap-due state without waiting.
@@ -174,7 +174,7 @@ abstract class MainActivityUiTestFixtures {
         composeRule.onNodeWithText("Set").performClick()
         waitForText("Game to")
         closeSetupEditor()
-        waitForText("Start Game")
+        waitForText("Start game")
     }
 
     /**
@@ -191,7 +191,7 @@ abstract class MainActivityUiTestFixtures {
         composeRule.onNodeWithText("Set").performClick()
         waitForText("Game to")
         closeSetupEditor()
-        waitForText("Start Game")
+        waitForText("Start game")
     }
 
     /**
@@ -203,7 +203,7 @@ abstract class MainActivityUiTestFixtures {
     protected fun setTimeoutRules(timeoutsPerHalf: String, hasFloater: Boolean) {
         openGameRulesSetupEditor()
         composeRule.onNodeWithText("Timeouts").performScrollTo().performClick()
-        waitForText("Timeout Rules")
+        waitForText("Timeout rules")
         composeRule.onNodeWithText("Timeouts per half").performTextReplacement(timeoutsPerHalf)
         if (hasFloater) {
             composeRule.onNodeWithTag("setup-timeouts-floater").performClick()
@@ -211,7 +211,7 @@ abstract class MainActivityUiTestFixtures {
         composeRule.onNodeWithText("Set").performClick()
         waitForText("Game to")
         closeSetupEditor()
-        waitForText("Start Game")
+        waitForText("Start game")
     }
 
     /**
@@ -225,8 +225,8 @@ abstract class MainActivityUiTestFixtures {
      */
     protected fun addPriorCardHolder(team: TeamId, jersey: String, playerName: String, yellows: Int, reds: Int) {
         openPriorCardsSetupEditor(team)
-        composeRule.onNodeWithText("Add Card Holder").performClick()
-        waitForText("Add Previous Game Card Holder")
+        composeRule.onNodeWithText("Add card holder").performClick()
+        waitForText("Add previous game card holder")
         enterPriorCardJersey(jersey)
         enterPriorCardName(playerName)
         repeat((yellows - 1).coerceAtLeast(0)) {
@@ -238,7 +238,7 @@ abstract class MainActivityUiTestFixtures {
         composeRule.onNodeWithText("Add").performClick()
         composeRule.onNodeWithText(priorCardIdentity(jersey, playerName)).performScrollTo().assertIsDisplayed()
         closeSetupEditor()
-        waitForText("Start Game")
+        waitForText("Start game")
     }
 
     /**
@@ -313,7 +313,7 @@ abstract class MainActivityUiTestFixtures {
     /// Return from the game screen to Home using app back navigation.
     protected fun returnHomeFromGame() {
         pressAppBack()
-        waitForText("Start New Game")
+        waitForText("Start new game")
     }
 
     /// Send platform Back to the currently focused app window.
@@ -355,14 +355,14 @@ abstract class MainActivityUiTestFixtures {
 
     /// Start the point, wait for lock mode, and unlock the live screen.
     protected fun startPointAndUnlock() {
-        composeRule.onNodeWithText("Start Point").performClick()
+        composeRule.onNodeWithText("Start point").performClick()
         waitForText("Slide right to unlock")
         unlockLiveScreen()
     }
 
     /// Verify interrupted and too-short unlock swipes do not unlock, then complete the unlock flow.
     protected fun startPointWithFailedSwipeThenUnlock() {
-        composeRule.onNodeWithText("Start Point").performClick()
+        composeRule.onNodeWithText("Start point").performClick()
         waitForText("Slide right to unlock")
         composeRule.onNodeWithTag("live-unlock-slider").performTouchInput {
             down(center)
@@ -383,7 +383,7 @@ abstract class MainActivityUiTestFixtures {
 
     /// Continue play after an in-point countdown and unlock the live screen.
     protected fun continuePointAndUnlock() {
-        composeRule.onNodeWithText("Continue Point").performClick()
+        composeRule.onNodeWithText("Continue point").performClick()
         waitForText("Slide right to unlock")
         unlockLiveScreen()
     }
@@ -403,7 +403,7 @@ abstract class MainActivityUiTestFixtures {
     /**
      * Seed one archived completed game by calling the ViewModel directly.
      *
-     * This lets UI tests validate Archived Games behavior without first playing and archiving a game
+     * This lets UI tests validate Archived games behavior without first playing and archiving a game
      * through UI actions.
      *
      * @param teamOneName The archived game Team 1 name.
@@ -461,7 +461,7 @@ abstract class MainActivityUiTestFixtures {
             val current = activity.appViewModel.liveState!!
             activity.appViewModel.updateLiveGame(current.endGameNow(System.currentTimeMillis()))
         }
-        waitForText("Game Over")
+        waitForText("Game over")
     }
 
     /**
@@ -499,7 +499,7 @@ abstract class MainActivityUiTestFixtures {
      *
      * @param dialogTitle The dialog title to wait for before sliding.
      */
-    protected fun confirmDeleteWithSlider(dialogTitle: String = "Delete Game?") {
+    protected fun confirmDeleteWithSlider(dialogTitle: String = "Delete game?") {
         waitForText(dialogTitle)
         composeRule.onNodeWithTag("confirm-delete-slider").performTouchInput {
             swipeRight()
@@ -522,32 +522,32 @@ abstract class MainActivityUiTestFixtures {
     /// Exercise the score adjustment dialog with a small nonzero correction.
     protected fun applyScoreAdjustment() {
         openOtherSheet()
-        composeRule.onNodeWithText("Adjust Score").performClick()
-        waitForText("Adjust Score")
+        composeRule.onNodeWithText("Adjust score").performClick()
+        waitForText("Adjust score")
         composeRule.onAllNodesWithText("+1")[0].performClick()
         composeRule.onAllNodesWithText("+1")[1].performClick()
         composeRule.onAllNodesWithText("-1")[0].performClick()
         composeRule.onNodeWithText("Set").performClick()
-        waitForText("Undo Score Adjustment")
+        waitForText("Undo Score adjustment")
     }
 
     /// Exercise the timeout adjustment dialog with a small nonzero correction.
     protected fun applyTimeoutAdjustment() {
         openOtherSheet()
-        composeRule.onNodeWithText("Adjust Timeouts").performClick()
-        waitForText("Adjust Timeouts")
+        composeRule.onNodeWithText("Adjust timeouts").performClick()
+        waitForText("Adjust timeouts")
         composeRule.onAllNodesWithText("+1")[0].performClick()
         composeRule.onAllNodesWithText("+1")[1].performClick()
         composeRule.onAllNodesWithText("-1")[0].performClick()
         composeRule.onNodeWithText("Set").performClick()
-        waitForText("Undo Timeout Adjustment")
+        waitForText("Undo Timeout adjustment")
     }
 
     /// Exercise the pull-infraction adjustment dialog with a small nonzero correction.
     protected fun applyPullInfractionAdjustment() {
         openOtherSheet()
-        composeRule.onNodeWithText("Adjust Pull Infractions").performClick()
-        waitForText("Adjust Pull Infractions")
+        composeRule.onNodeWithText("Adjust pull infractions").performClick()
+        waitForText("Adjust pull infractions")
         composeRule.onAllNodesWithText("+1")[0].performClick()
         composeRule.onAllNodesWithText("+1")[1].performClick()
         composeRule.onAllNodesWithText("+1")[2].performClick()
@@ -556,16 +556,16 @@ abstract class MainActivityUiTestFixtures {
         composeRule.onNodeWithTag("adjust-pull-infractions-confirm").performTouchInput {
             click()
         }
-        waitForText("Undo Pull Infraction Adjustment")
+        waitForText("Undo Pull infraction adjustment")
     }
 
     /// Exercise the Cards / TF adjustment dialog without changing counts.
     protected fun applyNoOpCardAdjustment() {
         openOtherSheet()
-        composeRule.onNodeWithText("Adjust Cards / TF").performClick()
-        waitForText("Adjust Cards / TF")
+        composeRule.onNodeWithText("Adjust cards / TF").performClick()
+        waitForText("Adjust cards / TF")
         composeRule.onNodeWithText("Set").performClick()
-        waitForText("Undo Cards / TF Adjustment")
+        waitForText("Undo Cards / TF adjustment")
     }
 
     /**
@@ -590,7 +590,7 @@ abstract class MainActivityUiTestFixtures {
     ) {
         openCardsSheet()
         tapCardSheetAction(team, "Yellow")
-        waitForText("Yellow Card")
+        waitForText("Yellow card")
         if (playerNumber.isBlank()) {
             composeRule.onNodeWithText("N/A").performClick()
         } else {
@@ -601,10 +601,10 @@ abstract class MainActivityUiTestFixtures {
         if (misconductChoice == null) {
             waitForText(expectedMessage, substring = substring)
         } else {
-            waitForText("Misconduct Penalty")
+            waitForText("Misconduct penalty")
             if (verifyMisconductBackReturnsToNumberDialog) {
                 tapBackFromMisconductODChoice()
-                waitForText("Yellow Card")
+                waitForText("Yellow card")
                 if (playerNumber.isNotBlank()) {
                     val restoredNumber = composeRule.onNodeWithTag("card-player-number")
                         .fetchSemanticsNode()
@@ -613,7 +613,7 @@ abstract class MainActivityUiTestFixtures {
                     assertEquals(playerNumber, restoredNumber)
                 }
                 composeRule.onNodeWithText("Record").performClick()
-                waitForText("Misconduct Penalty")
+                waitForText("Misconduct penalty")
             }
             composeRule.onNodeWithText(misconductChoice).performClick()
             waitForText(expectedMisconductMessage ?: expectedMessage, substring = true)
@@ -641,24 +641,24 @@ abstract class MainActivityUiTestFixtures {
     ) {
         openCardsSheet()
         tapCardSheetAction(team, "Red")
-        waitForText("Red Card")
+        waitForText("Red card")
         enterCardPlayerNumber(playerNumber)
         composeRule.onNodeWithText("Record").performClick()
 
         if (misconductChoice == null) {
             waitForText(expectedMessage, substring = true)
         } else {
-            waitForText("Misconduct Penalty")
+            waitForText("Misconduct penalty")
             if (verifyMisconductBackReturnsToNumberDialog) {
                 tapBackFromMisconductODChoice()
-                waitForText("Red Card")
+                waitForText("Red card")
                 val restoredNumber = composeRule.onNodeWithTag("card-player-number")
                     .fetchSemanticsNode()
                     .config[SemanticsProperties.EditableText]
                     .text
                 assertEquals(playerNumber, restoredNumber)
                 composeRule.onNodeWithText("Record").performClick()
-                waitForText("Misconduct Penalty")
+                waitForText("Misconduct penalty")
             }
             composeRule.onNodeWithText(misconductChoice).performClick()
             waitForText(expectedMisconductMessage ?: expectedMessage, substring = true)
@@ -734,7 +734,7 @@ abstract class MainActivityUiTestFixtures {
     }
 
     /**
-     * Open a setup dialog from Game Rules, verify it appears, then cancel it.
+     * Open a setup dialog from Game rules, verify it appears, then cancel it.
      *
      * @param buttonText The row text that opens the dialog.
      * @param dialogTitle The title expected after opening the dialog.
@@ -781,7 +781,7 @@ abstract class MainActivityUiTestFixtures {
     protected fun openPriorCardsSetupEditor(team: TeamId = TeamId.TEAM_TWO) {
         val fieldLabel = if (team == TeamId.TEAM_ONE) "Team 1" else "Team 2"
         composeRule.onNodeWithTag("setup-$fieldLabel-cards-button").performScrollTo().performClick()
-        waitForText("Add Card Holder")
+        waitForText("Add card holder")
     }
 
     /// Close the current setup overview editor dialog.
@@ -792,13 +792,13 @@ abstract class MainActivityUiTestFixtures {
     /// Open the live Cards / TF sheet.
     protected fun openCardsSheet() {
         composeRule.onNodeWithText("Cards / TF").performClick()
-        waitForText("Cards / Technical Fouls")
+        waitForText("Cards / technical fouls")
     }
 
     /// Open the live Other sheet.
     protected fun openOtherSheet() {
         composeRule.onAllNodesWithText("Other").onFirst().performClick()
-        waitForText("Update Game Setup")
+        waitForText("Update game setup")
     }
 
     /**
@@ -810,7 +810,7 @@ abstract class MainActivityUiTestFixtures {
         composeRule.onNodeWithText(label).performClick()
         composeRule.onNodeWithText("Cancel").assertIsDisplayed()
         composeRule.onNodeWithText("Cancel").performClick()
-        waitForText("Update Game Setup")
+        waitForText("Update game setup")
     }
 
     /// Trigger app-level Android back handling from the activity.
@@ -851,9 +851,9 @@ abstract class MainActivityUiTestFixtures {
      */
     private fun capTypeForSetupLabels(rowLabel: String, dialogTitle: String): CapType {
         return when (rowLabel to dialogTitle) {
-            "Half cap" to "Half Cap" -> CapType.HALF
-            "Soft cap" to "Soft Cap" -> CapType.SOFT
-            "Hard cap" to "Hard Cap" -> CapType.HARD
+            "Half cap" to "Half cap" -> CapType.HALF
+            "Soft cap" to "Soft cap" -> CapType.SOFT
+            "Hard cap" to "Hard cap" -> CapType.HARD
             else -> error("Unexpected cap setup labels: $rowLabel / $dialogTitle")
         }
     }

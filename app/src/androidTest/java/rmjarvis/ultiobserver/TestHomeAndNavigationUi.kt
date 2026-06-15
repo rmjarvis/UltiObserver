@@ -42,39 +42,39 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         // Verify the app opens on the home screen with the primary navigation affordances.
         composeRule.onNodeWithText("UltiObserver").assertIsDisplayed()
         composeRule.onNodeWithTag("home-artwork").assertIsDisplayed()
-        composeRule.onNodeWithText("Start New Game").assertIsDisplayed()
+        composeRule.onNodeWithText("Start new game").assertIsDisplayed()
         composeRule.onNodeWithText("Profile").assertIsDisplayed()
         composeRule.onNodeWithText("Settings").assertIsDisplayed()
-        composeRule.onNodeWithText("See Archived Games").assertIsDisplayed()
+        composeRule.onNodeWithText("See archived games").assertIsDisplayed()
 
         // Walk the default new-game path into the live screen.
         openNewGameSetup()
-        composeRule.onNodeWithText("Setup Game").assertIsDisplayed()
+        composeRule.onNodeWithText("Setup game").assertIsDisplayed()
 
         // A brand-new draft with blank setup names should use fallback names on Home.
         pressAppBack()
-        waitForText("Current Game")
+        waitForText("Current game")
         composeRule.onNodeWithText("Team 1 0 - 0 Team 2").performClick()
-        waitForText("Start Game")
+        waitForText("Start game")
         replaceSetupTeamName("Team 1", "Draft Team")
         replaceSetupTeamName("Team 2", "Draft Opponent")
 
         // Backing out of setup should keep a resumable setup draft on Home.
         pressAppBack()
-        waitForText("Current Game")
+        waitForText("Current game")
         composeRule.onNodeWithText("Tap to resume").assertIsDisplayed()
         composeRule.onNodeWithText("Draft Team 0 - 0 Draft Opponent").performClick()
-        waitForText("Start Game")
+        waitForText("Start game")
 
         // Before the first pull, Back should return to setup for quick field-layout corrections.
         startGameFromSetup()
         assertLiveScreen()
         pressAppBack()
-        waitForText("Start Game")
+        waitForText("Start game")
 
         // Starting a point should immediately switch the phone into locked live-use mode.
         startGameFromSetup()
-        composeRule.onNodeWithText("Start Point").performClick()
+        composeRule.onNodeWithText("Start point").performClick()
         waitForText("Slide right to unlock")
     }
 
@@ -82,22 +82,22 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
     @Test
     fun homeCurrentGameResumeAndUpdateSetupPath() {
         startLiveGameProgrammatically()
-        composeRule.onNodeWithText("Start Point").performClick()
+        composeRule.onNodeWithText("Start point").performClick()
         waitForText("Slide right to unlock")
 
         // After the first pull, Back navigation should expose the current-game resume path.
         pressAppBack()
-        waitForText("Current Game")
+        waitForText("Current game")
         composeRule.onNodeWithText("Tap to resume").assertIsDisplayed()
-        composeRule.onNodeWithText("Current Game").assertIsDisplayed()
+        composeRule.onNodeWithText("Current game").assertIsDisplayed()
         composeRule.onNodeWithText("Team 1 0 - 0 Team 2").performClick()
         assertLiveScreen()
 
         // The live Other menu should reopen setup in update mode and return to live.
         openOtherSheet()
-        composeRule.onNodeWithText("Update Game Setup").performClick()
-        waitForText("Back to Game Screen")
-        composeRule.onNodeWithText("Back to Game Screen").performClick()
+        composeRule.onNodeWithText("Update game setup").performClick()
+        waitForText("Back to game screen")
+        composeRule.onNodeWithText("Back to game screen").performClick()
         assertLiveScreen()
     }
 
@@ -106,16 +106,16 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
     fun topLevelScreensHaveVisibleBackButtons() {
         openNewGameSetup()
         composeRule.onNodeWithText("Back").performClick()
-        waitForText("Start New Game")
+        waitForText("Start new game")
 
         startLiveGameProgrammatically()
         composeRule.onNodeWithText("Back").performClick()
-        waitForText("Start Game")
+        waitForText("Start game")
         startGameFromSetup()
-        composeRule.onNodeWithText("Start Point").performClick()
+        composeRule.onNodeWithText("Start point").performClick()
         waitForText("Slide right to unlock")
         composeRule.onNodeWithText("Back").performClick()
-        waitForText("Current Game")
+        waitForText("Current game")
     }
 
     /// Test About, Profile, and Settings navigation plus their persisted UI state.
@@ -157,7 +157,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         assertOpensUrl(sourceCodeUrl)
         assertOpensUrl(privacyPolicyUrl)
         pressAppBack()
-        waitForText("Start New Game")
+        waitForText("Start new game")
 
         // Profile should save both the observer name and selected avatar across navigation.
         composeRule.onNodeWithText("Profile").performClick()
@@ -168,12 +168,12 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("profile-name-field").performTextReplacement("Casey Observer")
         composeRule.onNodeWithText("Casey Observer").assertIsDisplayed()
         composeRule.onNodeWithTag("profile-avatar-BLUE").performScrollTo().performClick()
-        waitForText("Start New Game")
+        waitForText("Start new game")
         composeRule.onNodeWithText("Profile").performClick()
         composeRule.onNodeWithTag("profile-avatar-BLUE").performScrollTo()
         composeRule.onNode(hasContentDescription("Man with blue ponytail and glasses")).assertIsDisplayed()
         composeRule.onNodeWithTag("profile-avatar-RANDOM").performScrollTo().performClick()
-        waitForText("Start New Game")
+        waitForText("Start new game")
 
         // Seed settings directly so this UI-focused test can start at a meaningful cue state.
         composeRule.activityRule.scenario.onActivity { activity ->
@@ -198,8 +198,8 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("settings-auto-advance-countdowns").performClick()
         composeRule.onNodeWithTag("settings-auto-lock-live-point").performClick()
         waitForText("Use sounds and vibration for timing cues?")
-        waitForText("Vibration Only")
-        composeRule.onNodeWithText("Vibration Only").performClick()
+        waitForText("Vibration only")
+        composeRule.onNodeWithText("Vibration only").performClick()
         waitForText("Vibration will be used for any cues that are set to use sound.")
         composeRule.onNodeWithTag("settings-vibration-length").performScrollTo().performTouchInput {
             click(percentOffset(0.95f, 0.5f))
@@ -215,7 +215,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onAllNodesWithTag("settings-sound-volume").assertCountEquals(0)
         composeRule.onAllNodesWithTag("settings-vibrate-with-sounds").assertCountEquals(0)
         composeRule.onNodeWithTag("settings-open-timing-cue-settings").performScrollTo().performClick()
-        waitForText("Cue Sound Settings")
+        waitForText("Cue sound settings")
 
         // Cue settings should show disabled-sound context, support default reset, and persist per-cue edits.
         waitForText("Reset all to defaults")
@@ -245,14 +245,14 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onAllNodesWithTag("settings-sound-volume").assertCountEquals(0)
         composeRule.onAllNodesWithTag("settings-vibrate-with-sounds").assertCountEquals(0)
         composeRule.onNodeWithTag("settings-open-timing-cue-settings").performScrollTo().performClick()
-        waitForText("Cue Sound Settings")
+        waitForText("Cue sound settings")
         waitForText("Note -- sounds are currently not enabled. If you want sounds", substring = true)
         pressAppBack()
         waitForText("Use sounds and vibration for timing cues?")
         composeRule.onNodeWithTag("settings-global-alert-SOUNDS_ON").performClick()
-        waitForText("Sound Settings for Individual Cues")
+        waitForText("Sound settings for individual cues")
         composeRule.onNodeWithTag("settings-open-timing-cue-settings").performScrollTo().performClick()
-        waitForText("Cue Sound Settings")
+        waitForText("Cue sound settings")
         waitForText("Sound previews")
         composeRule.onAllNodesWithText("Note -- sounds are currently not enabled.").assertCountEquals(0)
         waitForText("Knock")
@@ -263,8 +263,8 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("settings-HALF_CAP-REPEAT_3").assertIsSelected()
         composeRule.onNodeWithTag("settings-HALF_CAP-REPEAT_3").performClick()
         composeRule.onNodeWithTag("settings-HALF_CAP-REPEAT_3").assertIsNotSelected()
-        waitForText("Before Pull - Offense")
-        waitForText("Timeout Between Points")
+        waitForText("Before pull - offense")
+        waitForText("Timeout between points")
         waitForText("Caps")
         waitForText("Half cap")
         waitForText("Soft cap")
@@ -273,10 +273,10 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         pressAppBack()
         waitForText("Use sounds and vibration for timing cues?")
         pressAppBack()
-        waitForText("Start New Game")
+        waitForText("Start new game")
 
-        // Archived Games should be reachable from Home even before archived-game flows are populated.
-        composeRule.onNodeWithText("See Archived Games").performClick()
+        // Archived games should be reachable from Home even before archived-game flows are populated.
+        composeRule.onNodeWithText("See archived games").performClick()
         composeRule.onNodeWithTag("archived-games-screen").assertIsDisplayed()
     }
 }

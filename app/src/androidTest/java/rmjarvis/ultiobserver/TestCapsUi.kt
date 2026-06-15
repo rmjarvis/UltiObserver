@@ -26,37 +26,37 @@ class TestCapsUi : MainActivityUiTestFixtures() {
     @Test
     fun capPromptPathways() {
         // Half cap can be applied from its confirmation prompt.
-        startLiveGameWithDueCap("Half cap", "Half Cap")
+        startLiveGameWithDueCap("Half cap", "Half cap")
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
         waitForText("Apply half cap?")
         composeRule.onNodeWithText("Apply").performClick()
-        waitForText("Undo Apply Half Cap")
+        waitForText("Undo Apply half cap")
 
         // Half cap can also be deferred from its confirmation prompt.
-        startLiveGameWithDueCap("Half cap", "Half Cap")
+        startLiveGameWithDueCap("Half cap", "Half cap")
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
         waitForText("Apply half cap?")
         composeRule.onNodeWithText("No").performClick()
         assertLiveScreen()
 
         // Soft cap can be applied from its confirmation prompt.
-        startLiveGameWithDueCap("Soft cap", "Soft Cap")
+        startLiveGameWithDueCap("Soft cap", "Soft cap")
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
         waitForText("Apply soft cap?")
         composeRule.onNodeWithText("Apply").performClick()
-        waitForText("Undo Apply Soft Cap")
+        waitForText("Undo Apply soft cap")
 
         // Soft cap can also be deferred.
-        startLiveGameWithDueCap("Soft cap", "Soft Cap")
+        startLiveGameWithDueCap("Soft cap", "Soft cap")
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
         waitForText("Apply soft cap?")
         composeRule.onNodeWithText("No").performClick()
         assertLiveScreen()
 
         // A soft cap scheduled during halftime should say it is scheduled, not already past.
-        startLiveGameWithCapDuringHalftime("Soft cap", "Soft Cap")
+        startLiveGameWithCapDuringHalftime("Soft cap", "Soft cap")
         openOtherSheet()
-        composeRule.onNodeWithText("Start Halftime").performClick()
+        composeRule.onNodeWithText("Start halftime").performClick()
         waitForText("Apply soft cap?")
         waitForText("is scheduled for", substring = true)
         composeRule.onNodeWithText("No").performClick()
@@ -64,7 +64,7 @@ class TestCapsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("OK").performClick()
 
         // Hard cap can be deferred, then applied on a tied score to keep the game live.
-        startLiveGameWithDueCap("Hard cap", "Hard Cap")
+        startLiveGameWithDueCap("Hard cap", "Hard cap")
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
         waitForText("Apply hard cap?")
         composeRule.onNodeWithText("No").performClick()
@@ -72,7 +72,7 @@ class TestCapsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "goal")).performClick()
         waitForText("Apply hard cap?")
         composeRule.onNodeWithText("Apply").performClick()
-        waitForText("Undo Apply Hard Cap")
+        waitForText("Undo Apply hard cap")
         assertLiveScreen()
     }
 }

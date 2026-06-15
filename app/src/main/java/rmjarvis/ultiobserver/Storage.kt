@@ -81,10 +81,10 @@ internal data class CurrentGameSnapshot(
  * @param label The user-facing name shown in startup recovery notices.
  */
 internal enum class PersistedData(val label: String) {
-    GAME_STATE("Current Game"),
+    GAME_STATE("Current game"),
     PROFILE("Profile"),
     SETTINGS("Settings"),
-    ARCHIVED_GAMES("Archived Games"),
+    ARCHIVED_GAMES("Archived games"),
 }
 
 /**
@@ -101,7 +101,7 @@ internal data class RecoveryNotice(
         }
     }
 
-    val title: String = "Phone Data Reset"
+    val title: String = "Phone data reset"
 
     val message: String
         get() {

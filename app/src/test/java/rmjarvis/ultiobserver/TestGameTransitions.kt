@@ -64,12 +64,12 @@ class TestGameTransitions : GameDomainTestFixtures() {
         state = state.beginLivePoint()
         assertEquals(GamePhase.LIVE_POINT, state.phase)
         assertNull(state.countdown)
-        assertEquals("Undo Start Point", state.undoEntry?.label)
+        assertEquals("Undo Start point", state.undoEntry?.label)
 
         // Animal calls a live-point timeout; the point stays live but a thrower countdown starts.
         val firstTimeout = state.assessTimeout(ANIMAL, 1_000_000L)
         assertEquals("Timeout charged to Animal. They have 1 timeout remaining in this half.", firstTimeout.message())
-        assertEquals("Timeout Charged", firstTimeout.event?.formatPopupTitle())
+        assertEquals("Timeout charged", firstTimeout.event?.formatPopupTitle())
         state = firstTimeout.state
         assertEquals(1, state.teamTwo.timeoutsUsedThisHalf)
         assertEquals(1, state.timeoutsRemaining(ANIMAL))
@@ -224,7 +224,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertTrue(technicalFoulResult.message()!!.contains("Animal has 3 technical fouls."))
         assertTrue(technicalFoulResult.message()!!.contains("Penalty against pulling team."))
         assertTrue(technicalFoulResult.message()!!.contains("Receiving team starts at attacking brick."))
-        assertEquals("Undo Technical Foul on Animal", state.undoEntry?.label)
+        assertEquals("Undo Technical foul on Animal", state.undoEntry?.label)
 
         // Viscous Coupling scores the next two points, reaching halftime in this game-to-5 setup.
         state = recordGoalFromCurrentStateAt(state, VC, LocalTime.of(10, 15))
@@ -300,7 +300,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertNull(state.pendingCapOffer)
         assertEquals("Game over.", state.lastEvent)
         assertNotNull(state.undoEntry)
-        assertEquals("Undo End Game", state.undoEntry?.label)
+        assertEquals("Undo End game", state.undoEntry?.label)
         assertEquals(GamePhase.BETWEEN_POINTS, state.undoEntry?.previous?.phase)
         assertEquals(4, state.undoEntry?.previous?.teamOne?.score)
         assertEquals(5, state.undoEntry?.previous?.teamTwo?.score)

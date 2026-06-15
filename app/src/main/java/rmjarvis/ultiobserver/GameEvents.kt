@@ -191,7 +191,7 @@ fun GamePrompt.formatMessage(): String {
 private fun GamePrompt.HalftimeStarted.formatTitle(): String = "Halftime"
 
 /// Format the title for a game-over prompt.
-private fun GamePrompt.GameOver.formatTitle(): String = "Game Over"
+private fun GamePrompt.GameOver.formatTitle(): String = "Game over"
 
 /// Format the game-over prompt body with the winner first.
 private fun GamePrompt.GameOver.formatMessage(): String {

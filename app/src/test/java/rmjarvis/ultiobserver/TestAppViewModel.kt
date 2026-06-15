@@ -123,7 +123,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertEquals("", viewModel.setupState.teamOne.name)
         assertEquals("", viewModel.setupState.teamTwo.name)
 
-        // Home resume and Update Game Setup should both still treat the pre-pull game as a draft.
+        // Home resume and Update game setup should both still treat the pre-pull game as a draft.
         viewModel.finishSetup()
         val livePreview = viewModel.liveState!!
         viewModel.goHome()
@@ -216,7 +216,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertEquals(currentPreview.teamOne.name, viewModel.archivedGames.single().state.teamOne.name)
     }
 
-    /// Verify a completed current game can be reopened from Home, then archived into Archived Games.
+    /// Verify a completed current game can be reopened from Home, then archived into Archived games.
     @Test
     fun completedGameCanReopenFromHomeAndThenArchive() {
         val viewModel = AppViewModel(NoOpAppStateStorage)
@@ -254,11 +254,11 @@ class TestAppViewModel : GameDomainTestFixtures() {
 
         val initialLiveState = viewModel.liveState!!
         val beforeEndGame = initialLiveState.copy(
-            undoEntry = UndoEntry("Undo Start Point", initialLiveState),
+            undoEntry = UndoEntry("Undo Start point", initialLiveState),
         )
         val completedGame = beforeEndGame.copy(
             phase = GamePhase.GAME_OVER,
-            undoEntry = UndoEntry("Undo End Game", beforeEndGame),
+            undoEntry = UndoEntry("Undo End game", beforeEndGame),
             redoEntry = beforeEndGame,
         )
         viewModel.updateLiveGame(completedGame)
@@ -266,7 +266,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
 
         val archivedState = viewModel.archivedGames.single().state
         val prunedBeforeEndGame = beforeEndGame.pruneUndoHistory()
-        assertEquals("Undo End Game", archivedState.undoEntry?.label)
+        assertEquals("Undo End game", archivedState.undoEntry?.label)
         assertEquals(prunedBeforeEndGame, archivedState.undoEntry!!.previous)
         assertNull(archivedState.redoEntry)
 
@@ -276,7 +276,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         val restoredUndo = restoredGame.undoLastAction()
 
         assertEquals(GamePhase.GAME_OVER, restoredGame.phase)
-        assertEquals("Undo End Game", restoredGame.undoEntry?.label)
+        assertEquals("Undo End game", restoredGame.undoEntry?.label)
         assertEquals(prunedBeforeEndGame, restoredUndo.copy(redoEntry = null))
         assertNotNull(restoredUndo.redoEntry)
     }
@@ -635,7 +635,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
                 targetEpoch = 80_000L,
                 betweenPointsTarget = BetweenPointsCountdownTarget.PULL,
             ),
-            undoEntry = UndoEntry("Undo End Game", beforeUndoAction),
+            undoEntry = UndoEntry("Undo End game", beforeUndoAction),
         )
         viewModel.updateLiveGame(completedGame)
         viewModel.startNewGame()
@@ -647,7 +647,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertEquals(GamePhase.GAME_OVER, viewModel.archivedGames.single().state.phase)
         assertNull(viewModel.archivedGames.single().restorableState)
         assertNull(viewModel.archivedGames.single().state.countdown)
-        assertEquals("Undo End Game", viewModel.archivedGames.single().state.undoEntry?.label)
+        assertEquals("Undo End game", viewModel.archivedGames.single().state.undoEntry?.label)
         assertEquals(beforeUndoAction.pruneUndoHistory(), viewModel.archivedGames.single().state.undoEntry!!.previous)
         assertNull(viewModel.archivedGames.single().state.redoEntry)
     }
@@ -897,7 +897,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
                 targetEpoch = 80_000L,
                 betweenPointsTarget = BetweenPointsCountdownTarget.PULL,
             ),
-            undoEntry = UndoEntry("Undo End Game", beforeEndGame),
+            undoEntry = UndoEntry("Undo End game", beforeEndGame),
         ).withEventLogEntries(
             listOf(
                 EventLogEntry(
@@ -928,7 +928,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertNull(restored.liveState)
         assertEquals(1, restored.archivedGames.size)
         assertNull(restored.archivedGames.single().state.countdown)
-        assertEquals("Undo End Game", restored.archivedGames.single().state.undoEntry?.label)
+        assertEquals("Undo End game", restored.archivedGames.single().state.undoEntry?.label)
         assertEquals(
             beforeEndGame.pruneUndoHistory(),
             restored.archivedGames.single().state.undoEntry!!.previous,
@@ -1027,7 +1027,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertEquals("Casey Observer", recoveredViewModel.profileName)
         assertEquals(timingPreferences, recoveredViewModel.timingAlertPreferences)
         assertEquals(
-            "Sorry, some phone data was corrupt, so UltiObserver had to revert to default values for Current Game.",
+            "Sorry, some phone data was corrupt, so UltiObserver had to revert to default values for Current game.",
             recoveredViewModel.startupRecoveryNotice!!.message,
         )
         recoveredViewModel.dismissStartupRecoveryNotice()
@@ -1075,7 +1075,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         val archiveViewModel = AppViewModel(FileAppStateStorage(archiveStoreDir))
         assertEquals(listOf(archivedTwo), archiveViewModel.archivedGames)
         assertEquals(
-            "Sorry, some phone data was corrupt, so UltiObserver had to revert to default values for Archived Games.",
+            "Sorry, some phone data was corrupt, so UltiObserver had to revert to default values for Archived games.",
             archiveViewModel.startupRecoveryNotice!!.message,
         )
 
@@ -1287,9 +1287,9 @@ class TestAppViewModel : GameDomainTestFixtures() {
             ),
             viewModel.startupRecoveryNotice!!.resetAreas,
         )
-        assertEquals("Phone Data Reset", viewModel.startupRecoveryNotice!!.title)
+        assertEquals("Phone data reset", viewModel.startupRecoveryNotice!!.title)
         assertEquals(
-            "Sorry, some phone data was corrupt, so UltiObserver had to revert to default values for Current Game, Profile, and Settings.",
+            "Sorry, some phone data was corrupt, so UltiObserver had to revert to default values for Current game, Profile, and Settings.",
             viewModel.startupRecoveryNotice!!.message,
         )
 

@@ -145,7 +145,7 @@ internal fun UltiObserverApp(viewModel: AppViewModel) {
             SetupScreen(
                 state = appState.setupState,
                 onStateChange = viewModel::updateSetup,
-                primaryButtonLabel = if (appState.setupMode == SetupMode.NEW_GAME) "Start Game" else "Back to Game Screen",
+                primaryButtonLabel = if (appState.setupMode == SetupMode.NEW_GAME) "Start game" else "Back to game screen",
                 onPrimaryAction = { viewModel.finishSetup() },
                 onBackHome = viewModel::goHome,
             )
@@ -156,7 +156,7 @@ internal fun UltiObserverApp(viewModel: AppViewModel) {
             if (archivedGame != null) {
                 GameOverSummaryScreen(
                     state = archivedGame.state,
-                    summaryActionText = "Restore Game",
+                    summaryActionText = "Restore game",
                     onSummaryAction = viewModel::restoreViewingArchivedGame,
                     onBack = viewModel::goBackFromCurrentScreen,
                     gameOverPrompt = null,

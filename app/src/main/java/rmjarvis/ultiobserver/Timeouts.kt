@@ -56,7 +56,7 @@ fun GameState.adjustTimeouts(
             timeoutsUsedThisHalf = adjustedTeamTwoTimeouts,
         ),
         lastEvent = "Timeouts adjusted.",
-    ).withEventLogEntries(entries).withUndo(this, "Undo Timeout Adjustment")
+    ).withEventLogEntries(entries).withUndo(this, "Undo Timeout adjustment")
 }
 /**
  * Validate and charge a timeout request, returning the popup event that should be shown.
@@ -208,13 +208,13 @@ private fun applyLivePointTimeout(
 }
 
 /// Format a timeout event popup title.
-internal fun GameEvent.TimeoutCharged.formatPopupTitle(): String = "Timeout Charged"
+internal fun GameEvent.TimeoutCharged.formatPopupTitle(): String = "Timeout charged"
 
 /// Format an invalid-timeout event popup title.
-internal fun GameEvent.TimeoutUnavailable.formatPopupTitle(): String = "Invalid Timeout"
+internal fun GameEvent.TimeoutUnavailable.formatPopupTitle(): String = "Invalid timeout"
 
 /// Format an out-of-timeouts event popup title.
-internal fun GameEvent.TeamOutOfTimeouts.formatPopupTitle(): String = "Invalid Timeout"
+internal fun GameEvent.TeamOutOfTimeouts.formatPopupTitle(): String = "Invalid timeout"
 
 /// Format a timeout-charged event message with the remaining timeout count.
 internal fun GameEvent.TimeoutCharged.formatMessage(): String {

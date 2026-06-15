@@ -305,7 +305,7 @@ fun GameState.adjustCardsAndTf(
         teamOnePlayerCards = teamOnePlayerCards,
         teamTwoPlayerCards = teamTwoPlayerCards,
         lastEvent = "Cards and technical fouls adjusted.",
-    ).withEventLogEntries(entries).withUndo(this, "Undo Cards / TF Adjustment")
+    ).withEventLogEntries(entries).withUndo(this, "Undo Cards / TF adjustment")
 }
 
 /**
@@ -594,7 +594,7 @@ fun GameState.assessBlueCard(team: TeamId, now: Long): CardAssessmentResult {
             type = EventLogType.BLUE_CARD,
             team = team,
         )
-    ).withUndo(this, "Undo Blue Card on ${this.teamName(team)}")
+    ).withUndo(this, "Undo Blue card on ${this.teamName(team)}")
     val cardTotal = updatedState.teamCardTotal(team)
     updatedState = updatedState.withSkippedPullForMisconductThreshold(cardTotal)
     return CardAssessmentResult(
@@ -630,7 +630,7 @@ fun GameState.assessTechnicalFoul(team: TeamId, now: Long): CardAssessmentResult
             type = EventLogType.TECHNICAL_FOUL,
             team = team,
         )
-    ).withUndo(this, "Undo Technical Foul on ${this.teamName(team)}")
+    ).withUndo(this, "Undo Technical foul on ${this.teamName(team)}")
     val technicalFouls = if (team == TeamId.TEAM_ONE) {
         updatedState.teamOne.technicalFouls
     } else {
@@ -739,7 +739,7 @@ fun GameState.assessSecondYellowCard(team: TeamId, jerseyNumber: String, now: Lo
                 team = team,
                 playerNumber = jerseyNumber,
             )
-        ).withUndo(this, playerCardUndoLabel("Second Yellow", team, jerseyNumber))
+        ).withUndo(this, playerCardUndoLabel("Second yellow", team, jerseyNumber))
     val cardTotal = updatedState.teamCardTotal(team)
     updatedState = updatedState.withSkippedPullForMisconductThreshold(cardTotal)
     return CardAssessmentResult(
@@ -757,7 +757,7 @@ fun GameState.assessSecondYellowCard(team: TeamId, jerseyNumber: String, now: Lo
 /**
  * Build the undo label for a player-card action with the jersey number kept early for narrow UI.
  *
- * @param action The card action label, such as `Yellow`, `Second Yellow`, or `Red`.
+ * @param action The card action label, such as `Yellow`, `Second yellow`, or `Red`.
  * @param team The team whose name should appear in the undo label.
  * @param jerseyNumber The player identifier to include in the undo label.
  */
@@ -986,12 +986,12 @@ private fun GameState.playerCardFor(team: TeamId, jerseyNumber: String): InGameP
 
 /// Format the popup title for a team-card event.
 internal fun GameEvent.TeamCardsChanged.formatPopupTitle(): String {
-    return if (teamCardTotal >= 3) "Misconduct Penalty" else "Misconduct"
+    return if (teamCardTotal >= 3) "Misconduct penalty" else "Misconduct"
 }
 
 /// Format the popup title for a technical-foul event.
 internal fun GameEvent.TechnicalFoulsChanged.formatPopupTitle(): String {
-    return if (technicalFoulTotal >= 3) "Misconduct Penalty" else "Misconduct"
+    return if (technicalFoulTotal >= 3) "Misconduct penalty" else "Misconduct"
 }
 
 /// Report whether this event needs an offense/defense choice before showing the penalty cue.
@@ -1160,7 +1160,7 @@ private fun GameState.betweenPointsMisconductCue(team: TeamId): String {
 }
 
 /// Format the title for a live-point misconduct prompt.
-internal fun GamePrompt.LivePointMisconduct.formatTitle(): String = "Misconduct Penalty"
+internal fun GamePrompt.LivePointMisconduct.formatTitle(): String = "Misconduct penalty"
 
 /// Format the prompt body that asks which side committed live-point misconduct.
 internal fun GamePrompt.LivePointMisconduct.formatMessage(): String {

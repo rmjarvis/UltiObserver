@@ -89,7 +89,7 @@ private enum class RuleEditTarget(
     val fieldLabel: String,
 ) {
     GAME_TO(
-        dialogTitle = "Game To",
+        dialogTitle = "Game to",
         fieldLabel = "Points",
     ),
     HALFTIME(
@@ -97,15 +97,15 @@ private enum class RuleEditTarget(
         fieldLabel = "Minutes",
     ),
     HALF(
-        dialogTitle = "Half Cap",
+        dialogTitle = "Half cap",
         fieldLabel = "Minutes",
     ),
     SOFT(
-        dialogTitle = "Soft Cap",
+        dialogTitle = "Soft cap",
         fieldLabel = "Minutes",
     ),
     HARD(
-        dialogTitle = "Hard Cap",
+        dialogTitle = "Hard cap",
         fieldLabel = "Minutes",
     ),
 }
@@ -289,7 +289,7 @@ internal fun SetupScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Setup Game") },
+                title = { Text("Setup game") },
                 navigationIcon = {
                     TextButton(onClick = onBackHome) {
                         Text("Back")
@@ -323,7 +323,7 @@ internal fun SetupScreen(
         ) {
             SetupFieldBox {
                 Text(
-                    text = "Team Information",
+                    text = "Team information",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -361,7 +361,7 @@ internal fun SetupScreen(
             }
 
             SetupSummaryRow(
-                title = "Game Information",
+                title = "Game information",
                 editTag = "setup-edit-game-information",
                 onEdit = { setupDialog = SetupDialog.GAME_INFORMATION },
             ) {
@@ -369,14 +369,14 @@ internal fun SetupScreen(
             }
 
             SetupSummaryRow(
-                title = "Field/Starting Pull",
+                title = "Field/starting pull",
                 editTag = "setup-edit-starting-pull",
                 onEdit = { setupDialog = SetupDialog.STARTING_PULL },
             ) {
                 FieldStartingPullSummary(state)
             }
             SetupSummaryRow(
-                title = "Game Rules",
+                title = "Game rules",
                 editTag = "setup-edit-game-rules",
                 onEdit = { setupDialog = SetupDialog.GAME_RULES },
             ) {
@@ -543,7 +543,7 @@ internal fun SetupScreen(
     existingPriorCardNotice?.let { notice ->
         AlertDialog(
             onDismissRequest = { existingPriorCardNotice = null },
-            title = { Text("Card Holder Already Listed") },
+            title = { Text("Card holder already listed") },
             text = {
                 Text(
                     "This player is already listed as a card holder with " +
@@ -573,7 +573,7 @@ internal fun SetupScreen(
             onDismissRequest = {
                 returnToSameNumberPriorCardEntry(confirmation)
             },
-            title = { Text("Same Number, Different Names") },
+            title = { Text("Same number, different names") },
             text = {
                 Text(
                     "${confirmation.existingIdentity} is already listed. Add " +
@@ -605,7 +605,7 @@ internal fun SetupScreen(
     priorCardMergeNotice?.let { notice ->
         AlertDialog(
             onDismissRequest = { priorCardMergeNotice = null },
-            title = { Text("Card Holder Entries Merged") },
+            title = { Text("Card holder entries merged") },
             text = {
                 Text(
                     "${notice.removedIdentity} matched ${notice.mergedIdentity}, " +
@@ -679,7 +679,7 @@ internal fun SetupScreen(
                 CapRuleEditDialog(
                     title = target.dialogTitle,
                     fieldLabel = target.fieldLabel,
-                    prefixText = "Half Cap at:",
+                    prefixText = "Half cap at:",
                     suffixText = "minutes after start time.",
                     initialValue = state.rules.halfCapMinutes,
                     initiallyEnabled = state.rules.useHalfCap,
@@ -699,7 +699,7 @@ internal fun SetupScreen(
                 CapRuleEditDialog(
                     title = target.dialogTitle,
                     fieldLabel = target.fieldLabel,
-                    prefixText = "Soft Cap at:",
+                    prefixText = "Soft cap at:",
                     suffixText = "minutes after start time.",
                     initialValue = state.rules.softCapMinutes,
                     initiallyEnabled = state.rules.useSoftCap,
@@ -719,7 +719,7 @@ internal fun SetupScreen(
                 CapRuleEditDialog(
                     title = target.dialogTitle,
                     fieldLabel = target.fieldLabel,
-                    prefixText = "Hard Cap at:",
+                    prefixText = "Hard cap at:",
                     suffixText = "minutes after start time.",
                     initialValue = state.rules.hardCapMinutes,
                     initiallyEnabled = state.rules.useHardCap,
@@ -910,7 +910,7 @@ private fun GameInformationSetupDialog(
 
     AlertDialog(
         onDismissRequest = ::saveAndDismiss,
-        title = { Text("Game Information") },
+        title = { Text("Game information") },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -1234,7 +1234,7 @@ private fun StartingPullSetupDialog(
 
     AlertDialog(
         onDismissRequest = ::saveAndDismiss,
-        title = { Text("Field/Starting Pull") },
+        title = { Text("Field/starting pull") },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -1341,7 +1341,7 @@ private fun GameRulesSetupDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Game Rules") },
+        title = { Text("Game rules") },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -1383,7 +1383,7 @@ private fun GameRulesSetupDialog(
                         .fillMaxWidth()
                         .testTag("setup-usau-defaults"),
                 ) {
-                    Text("Reset to USAU Defaults")
+                    Text("Reset to USAU defaults")
                 }
             }
         },
@@ -1445,7 +1445,7 @@ private fun PriorCardsSetupDialog(
                     }
                 }
                 OutlinedButton(onClick = onAddPlayer) {
-                    Text("Add Card Holder")
+                    Text("Add card holder")
                 }
             }
         },
@@ -1682,7 +1682,7 @@ private fun TimeoutRulesDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Timeout Rules") },
+        title = { Text("Timeout rules") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
@@ -1767,7 +1767,7 @@ private fun PriorCardPlayerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (isEditing) "Edit Previous Game Card Holder" else "Add Previous Game Card Holder") },
+        title = { Text(if (isEditing) "Edit previous game card holder" else "Add previous game card holder") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
@@ -2077,7 +2077,7 @@ private fun TeamColorSetupDialog(
         },
         confirmButton = {
             TeamColorDialogActions(
-                confirmText = "More Colors",
+                confirmText = "More colors",
                 confirmTestTag = "setup-$teamFieldLabel-color-more",
                 onCancel = onDismiss,
                 onConfirm = onMoreColors,

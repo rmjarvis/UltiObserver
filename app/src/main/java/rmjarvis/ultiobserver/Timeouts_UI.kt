@@ -32,7 +32,7 @@ internal fun AdjustTimeoutsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Adjust Timeouts") },
+        title = { Text("Adjust timeouts") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 SmallCountEditor(

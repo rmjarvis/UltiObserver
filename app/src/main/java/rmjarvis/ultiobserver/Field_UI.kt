@@ -657,7 +657,7 @@ internal fun CountdownLine(
         ) {
             if (misconductCountdownAction != null) {
                 SmallActionButton(
-                    label = "Start Misconduct Countdown",
+                    label = "Start misconduct countdown",
                     enabled = enabled,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -670,7 +670,7 @@ internal fun CountdownLine(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     SmallActionButton(
-                        label = "Time Violation",
+                        label = "Time violation",
                         enabled = enabled,
                         containerColor = Color(0xFFE53935),
                         contentColor = Color.Black,
@@ -681,7 +681,7 @@ internal fun CountdownLine(
                         onClick = expiredPullActions.onTimeViolation,
                     )
                     SmallActionButton(
-                        label = "Restart Countdown",
+                        label = "Restart countdown",
                         enabled = enabled,
                         modifier = Modifier
                             .weight(1f)
@@ -912,7 +912,7 @@ internal fun GameState.activeCountdownDisplay(now: Long): ActiveCountdownDisplay
 }
 
 /**
- * Report whether halftime has elapsed and the live screen can show `Start Point`.
+ * Report whether halftime has elapsed and the live screen can show `Start point`.
  *
  * @param now The current epoch millis used to compare against halftime's target time.
  */

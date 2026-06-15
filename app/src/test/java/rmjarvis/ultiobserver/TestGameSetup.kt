@@ -136,7 +136,7 @@ class TestGameSetup : GameDomainTestFixtures() {
         assertEquals("Pull in", state.countdown?.label)
         assertEquals(80, state.countdown?.durationSeconds)
         assertEquals(90_000L, state.countdown?.targetEpoch)
-        assertEquals("Undo Update Game Setup", state.undoEntry?.label)
+        assertEquals("Undo Update game setup", state.undoEntry?.label)
         assertEquals(beforeSetupEditBeforePlay, state.undoEntry?.previous)
 
         // The raw live-state defaults represent a pregame state before the setup-to-live transition.
@@ -221,7 +221,7 @@ class TestGameSetup : GameDomainTestFixtures() {
         assertEquals(fieldStateAfterGoal.countdown, state.countdown)
         assertEquals(fieldStateAfterGoal.pendingCapOffer, state.pendingCapOffer)
         assertEquals(emptyList<PlayerCardRecord>(), state.priorCards)
-        assertEquals("Undo Update Game Setup", state.undoEntry?.label)
+        assertEquals("Undo Update game setup", state.undoEntry?.label)
         assertEquals(beforeSetupEditAfterPlay, state.undoEntry?.previous)
 
         // A game with only Team 2 on the scoreboard has still started, so setup edits
@@ -245,7 +245,7 @@ class TestGameSetup : GameDomainTestFixtures() {
         assertEquals(CapType.SOFT, state.pendingCapOffer)
         assertEquals(pendingCountdown, state.countdown)
         assertEquals(19, state.rules.gameTo)
-        assertEquals("Undo Update Game Setup", state.undoEntry?.label)
+        assertEquals("Undo Update game setup", state.undoEntry?.label)
 
         // Blank team names are normalized to default display names when setup is applied.
         state = applySetupToLiveGame(

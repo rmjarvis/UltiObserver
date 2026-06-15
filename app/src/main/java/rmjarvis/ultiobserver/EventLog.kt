@@ -8,14 +8,14 @@ import kotlinx.serialization.Serializable
 
 private val EVENT_LOG_TIME_FORMATTER = DateTimeFormatter.ofPattern("h:mm")
 private val CARD_LABELS = mapOf(
-    EventLogType.YELLOW_CARD to "Yellow Card",
-    EventLogType.SECOND_YELLOW to "Yellow Card",
-    EventLogType.RED_CARD to "Red Card",
-    EventLogType.BLUE_CARD to "Blue Card",
+    EventLogType.YELLOW_CARD to "Yellow card",
+    EventLogType.SECOND_YELLOW to "Yellow card",
+    EventLogType.RED_CARD to "Red card",
+    EventLogType.BLUE_CARD to "Blue card",
 )
 private val PULL_INFRACTION_EVENT_LABELS = mapOf(
     EventLogType.OFFSIDES to "Offsides",
-    EventLogType.FALSE_START to "False Start",
+    EventLogType.FALSE_START to "False start",
 )
 private val PULL_INFRACTION_CORRECTION_LABELS = mapOf(
     EventLogType.OFFSIDES to "offsides",
@@ -134,7 +134,7 @@ private fun GameState.formatEventLogDescription(entry: EventLogEntry): String {
         EventLogType.TIME_VIOLATION -> timeViolationDescription(entry)
         EventLogType.TIMEOUT -> timeoutDescription(entry)
         EventLogType.HALFTIME -> "Halftime"
-        EventLogType.GAME_OVER -> "Game Over"
+        EventLogType.GAME_OVER -> "Game over"
         EventLogType.SCORE_ADJUSTED -> scoreAdjustedDescription(entry)
     }
 }
@@ -156,7 +156,7 @@ private fun GameState.cardEventDescription(entry: EventLogEntry): String {
     return if (delta == null) {
         "$label on ${cardAdjustmentTarget(entry)}"
     } else {
-        "${delta.adjustmentVerb()} $label on ${cardAdjustmentTarget(entry)}"
+        "${delta.adjustmentVerb()} ${label.lowercase()} on ${cardAdjustmentTarget(entry)}"
     }
 }
 
@@ -181,7 +181,7 @@ private fun GameState.timeoutDescription(entry: EventLogEntry): String {
 private fun GameState.technicalFoulDescription(entry: EventLogEntry): String {
     val delta = entry.delta
     return if (delta == null) {
-        "Technical Foul on ${teamName(entry.team!!)}"
+        "Technical foul on ${teamName(entry.team!!)}"
     } else {
         "Adjusted ${teamName(entry.team!!)} technical fouls ${delta.formatDelta()}"
     }
@@ -206,7 +206,7 @@ private fun GameState.timeViolationDescription(entry: EventLogEntry): String {
         TimeViolationOutcome.TIMEOUT -> ", timeout charged"
         TimeViolationOutcome.NO_TIMEOUT -> ", no timeout remaining"
     }
-    return "Time Violation on ${teamName(entry.team!!)}$suffix"
+    return "Time violation on ${teamName(entry.team!!)}$suffix"
 }
 
 /// Return display text for a score correction.

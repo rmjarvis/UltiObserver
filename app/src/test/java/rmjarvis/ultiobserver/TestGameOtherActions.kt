@@ -31,7 +31,7 @@ class TestGameOtherActions : GameDomainTestFixtures() {
         assertEquals(0, state.teamOne.score)
         assertEquals(4, state.teamTwo.score)
         assertEquals("Score adjusted.", state.lastEvent)
-        assertEquals("Undo Score Adjustment", state.undoEntry?.label)
+        assertEquals("Undo Score adjustment", state.undoEntry?.label)
         assertEquals(beforeScoreAdjustment, state.undoEntry?.previous)
 
         // Reapplying the same score is still undo-backed, but should not create a correction log entry.
@@ -58,7 +58,7 @@ class TestGameOtherActions : GameDomainTestFixtures() {
         assertEquals(40, state.countdown?.durationSeconds)
         assertEquals(countdownBeforeSwapEnds.targetEpoch + 20_000L, state.countdown?.targetEpoch)
         assertEquals("Field ends swapped.", state.lastEvent)
-        assertEquals("Undo Swap Ends of Field", state.undoEntry?.label)
+        assertEquals("Undo Swap ends of field", state.undoEntry?.label)
 
         // Swapping while an in-point timeout countdown is active should preserve that timeout countdown.
         state = standardLiveGameState().beginLivePoint()
@@ -108,7 +108,7 @@ class TestGameOtherActions : GameDomainTestFixtures() {
         assertEquals(FieldEnd.NEAR, state.pullingFromEnd)
         assertEquals("Pull in", state.countdown?.label)
         assertEquals("Pulling team swapped.", state.lastEvent)
-        assertEquals("Undo Swap Pulling Team", state.undoEntry?.label)
+        assertEquals("Undo Swap pulling team", state.undoEntry?.label)
         assertUndoRestores(state.undoEntry!!.previous, state)
 
         // Manually start halftime and verify second-half pull orientation, timeout reset, countdown, and undo entry.
@@ -139,7 +139,7 @@ class TestGameOtherActions : GameDomainTestFixtures() {
         assertEquals(CountdownKind.HALFTIME, state.countdown?.kind)
         assertEquals(360, state.countdown?.durationSeconds)
         assertEquals(manualHalftimeStartTime + 360_000L, state.countdown?.targetEpoch)
-        assertEquals("Undo Start Halftime", state.undoEntry?.label)
+        assertEquals("Undo Start halftime", state.undoEntry?.label)
         assertEquals(beforeManualHalftime, state.undoEntry?.previous)
 
         // Swapping field ends during halftime changes field metadata but preserves the halftime clock itself.
@@ -148,7 +148,7 @@ class TestGameOtherActions : GameDomainTestFixtures() {
         assertEquals(CountdownKind.HALFTIME, state.countdown?.kind)
         assertEquals(halftimeCountdownBeforeSwap, state.countdown)
 
-        // The UI hides Start Halftime outside between-points state; the model rejects those calls too.
+        // The UI hides Start halftime outside between-points state; the model rejects those calls too.
         assertEquals(state, state.startHalftimeNow(timestampAt(state, LocalTime.of(11, 11))))
         val livePointState = standardLiveGameState().beginLivePoint()
         assertEquals(livePointState, livePointState.startHalftimeNow(timestampAt(livePointState, LocalTime.of(11, 11))))
@@ -163,10 +163,10 @@ class TestGameOtherActions : GameDomainTestFixtures() {
         assertNull(state.countdown)
         assertNull(state.pendingCapOffer)
         assertEquals("Game over.", state.lastEvent)
-        assertEquals("Undo End Game", state.undoEntry?.label)
+        assertEquals("Undo End game", state.undoEntry?.label)
         assertEquals(beforeManualEnd, state.undoEntry?.previous)
 
-        // Undo game over restores the saved live state from before End Game was applied.
+        // Undo game over restores the saved live state from before End game was applied.
         state = state.undoLastAction()
         assertEquals(beforeManualEnd, state.copy(redoEntry = null))
         assertNotNull(state.redoEntry)

@@ -114,7 +114,7 @@ internal fun SettingsScreen(
                     contentColor = Color.White,
                 ),
             ) {
-                Text("Sound Settings for Individual Cues")
+                Text("Sound settings for individual cues")
             }
         }
     }
@@ -191,7 +191,7 @@ internal fun TimingCueSettingsScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Cue Sound Settings") },
+                title = { Text("Cue sound settings") },
                 navigationIcon = {
                     TextButton(onClick = onBackSettings) {
                         Text("Back")
@@ -576,7 +576,7 @@ private data class TimingCueSection(
 
 private val timingCueSections = listOf(
     TimingCueSection(
-        title = "Before Pull - Offense",
+        title = "Before pull - offense",
         cues = listOf(
             TimingCueId.RECEIVING_TWENTY_FOR_HAND,
             TimingCueId.RECEIVING_TEN_FOR_HAND,
@@ -584,7 +584,7 @@ private val timingCueSections = listOf(
         ),
     ),
     TimingCueSection(
-        title = "Before Pull - Defense",
+        title = "Before pull - defense",
         cues = listOf(
             TimingCueId.PULLING_TWENTY_TO_PULL,
             TimingCueId.PULLING_TEN_TO_PULL,
@@ -592,7 +592,7 @@ private val timingCueSections = listOf(
         ),
     ),
     TimingCueSection(
-        title = "Timeout or Misconduct During Point",
+        title = "Timeout or misconduct during point",
         cues = listOf(
             TimingCueId.TIMEOUT_CLEAR_FIELD,
             TimingCueId.TIMEOUT_OFFENSE_TWENTY,
@@ -602,14 +602,14 @@ private val timingCueSections = listOf(
         ),
     ),
     TimingCueSection(
-        title = "Timeout Between Points",
+        title = "Timeout between points",
         cues = listOf(
             TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND,
             TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL,
         ),
     ),
     TimingCueSection(
-        title = "Misconduct Between Points",
+        title = "Misconduct between points",
         cues = listOf(
             TimingCueId.MISCONDUCT_OFFENSE_TWENTY,
             TimingCueId.MISCONDUCT_OFFENSE_TEN,

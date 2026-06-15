@@ -449,7 +449,7 @@ internal class AppViewModel(
     /**
      * Open one archived game as a read-only summary.
      *
-     * @param index The archived-game index in the displayed Archived Games list.
+     * @param index The archived-game index in the displayed Archived games list.
      */
     fun openArchivedGame(index: Int) {
         val archived = archivedGames.getOrNull(index) ?: return

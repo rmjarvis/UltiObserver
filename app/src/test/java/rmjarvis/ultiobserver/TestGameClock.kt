@@ -198,7 +198,7 @@ class TestGameClock : GameDomainTestFixtures() {
         )
         assertEquals("Yellow", CardType.YELLOW.label)
         assertEquals("Tick", TimingAlertSound.TICK.label)
-        assertEquals("Sounds On", TimingAlertGlobalMode.SOUNDS_ON.label)
+        assertEquals("Sounds on", TimingAlertGlobalMode.SOUNDS_ON.label)
         assertEquals("N/A", displayPlayerNumber(UNKNOWN_PLAYER_NUMBER))
         assertEquals("#8", displayPlayerNumber("8"))
         val defaultSetupState = GameSetupState(
@@ -815,7 +815,7 @@ class TestGameClock : GameDomainTestFixtures() {
         assertEquals(GamePhase.LIVE_POINT, automaticStartState.phase)
         assertNull(automaticStartState.countdown)
         assertEquals("Point is live.", automaticStartState.lastEvent)
-        assertEquals("Undo Start Point", automaticStartState.undoEntry?.label)
+        assertEquals("Undo Start point", automaticStartState.undoEntry?.label)
         val expiredPullDecisionState = state.copy(
             countdown = null,
             pullCountdownExpired = true,
@@ -853,7 +853,7 @@ class TestGameClock : GameDomainTestFixtures() {
             teamTwo = state.teamTwo.copy(score = 5),
         )
         val gameOverPrompt = GamePrompt.GameOver(gameOverState)
-        assertEquals("Game Over", gameOverPrompt.formatTitle())
+        assertEquals("Game over", gameOverPrompt.formatTitle())
         assertEquals("Animal 5\nViscous Coupling 3", gameOverPrompt.formatMessage())
         // Game-over summaries show the winner first, or Team 1 first when tied.
         assertEquals(

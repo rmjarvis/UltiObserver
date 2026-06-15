@@ -30,9 +30,6 @@ enum class CapType {
             HARD -> "Hard cap"
         }
 
-    val titleLabel: String
-        get() = label.replace(" cap", " Cap")
-
     /**
      * Return this cap's configured offset from game start.
      *
@@ -89,7 +86,7 @@ fun GameState.makeCapNow(
         startTime = adjustedStart.toLocalTime(),
         startEpoch = now - offset,
         lastEvent = "${capType.label} set to now.",
-    ).withUndo(this, "Undo ${capType.titleLabel} Now")
+    ).withUndo(this, "Undo ${capType.label} now")
 }
 /**
  * Apply the cap currently being offered to the observer.
@@ -109,14 +106,14 @@ fun GameState.applyPendingCap(
             halfCapApplied = true,
             pendingCapOffer = null,
             lastEvent = "Half cap applied.",
-        ).withUndo(this, "Undo Apply Half Cap")
+        ).withUndo(this, "Undo Apply half cap")
 
         CapType.SOFT -> this.copy(
             winningScore = currentHigherScore + 1,
             softCapApplied = true,
             pendingCapOffer = null,
             lastEvent = "Soft cap applied.",
-        ).withUndo(this, "Undo Apply Soft Cap")
+        ).withUndo(this, "Undo Apply soft cap")
 
         CapType.HARD -> {
             if (this.teamOne.score != this.teamTwo.score) {
@@ -127,14 +124,14 @@ fun GameState.applyPendingCap(
                     hardCapApplied = true,
                     pendingCapOffer = null,
                     lastEvent = "Game over.",
-                ).withUndo(this, "Undo Apply Hard Cap")
+                ).withUndo(this, "Undo Apply hard cap")
             } else {
                 this.copy(
                     winningScore = currentHigherScore + 1,
                     hardCapApplied = true,
                     pendingCapOffer = null,
                     lastEvent = "Hard cap applied.",
-                ).withUndo(this, "Undo Apply Hard Cap")
+                ).withUndo(this, "Undo Apply hard cap")
             }
         }
     }

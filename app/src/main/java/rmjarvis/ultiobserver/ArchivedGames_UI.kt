@@ -71,7 +71,7 @@ internal fun ArchivedGamesScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Archived Games") },
+                title = { Text("Archived games") },
                 navigationIcon = {
                     TextButton(onClick = onBackHome) {
                         Text("Back")
@@ -100,7 +100,7 @@ internal fun ArchivedGamesScreen(
                         onClick = { pendingDeleteAll = true },
                         modifier = Modifier.testTag("delete-all-archived-games"),
                     ) {
-                        Text("Delete All")
+                        Text("Delete all")
                     }
                 }
                 archivedGames.forEachIndexed { index, game ->
@@ -131,7 +131,7 @@ internal fun ArchivedGamesScreen(
                 pendingDeleteAll = false
                 onDeleteAllArchivedGames()
             },
-            title = "Delete All Games?",
+            title = "Delete all games?",
             message = "Completely delete all archived game data? This cannot be undone.",
         )
     }
@@ -186,7 +186,7 @@ private fun ArchivedGameRow(
 internal fun DeleteGameDialog(
     onDismiss: () -> Unit,
     onConfirmDelete: () -> Unit,
-    title: String = "Delete Game?",
+    title: String = "Delete game?",
     message: String = "Completely delete the data for this game? This cannot be undone.",
 ) {
     AlertDialog(
@@ -202,7 +202,7 @@ internal fun DeleteGameDialog(
                 )
                 SlideToConfirmControl(
                     instructionText = "Slide right to confirm delete",
-                    trackText = "Confirm Delete",
+                    trackText = "Confirm delete",
                     testTag = "confirm-delete-slider",
                     onConfirmed = onConfirmDelete,
                     modifier = Modifier.padding(top = 20.dp),

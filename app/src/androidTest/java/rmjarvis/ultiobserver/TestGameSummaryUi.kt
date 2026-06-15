@@ -39,12 +39,12 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
 
         endCurrentGameProgrammatically()
         composeRule.onNodeWithText("OK").performClick()
-        waitForText("Game Summary")
+        waitForText("Game summary")
         waitForText("No yellow or red cards issued.")
         composeRule.onNodeWithText("Share").assertIsDisplayed()
-        composeRule.onNodeWithText("Event Log").performClick()
-        waitForText("Event Log")
-        waitForText("Game Over", substring = true)
+        composeRule.onNodeWithText("Event log").performClick()
+        waitForText("Event log")
+        waitForText("Game over", substring = true)
         pressDialogBack()
     }
 
@@ -64,7 +64,7 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
                         state = state,
                         onShowEventLog = {},
                         onShareSummary = { shared = true },
-                        summaryActionText = "Undo End Game",
+                        summaryActionText = "Undo End game",
                         onSummaryAction = {},
                     )
                 }
@@ -119,17 +119,17 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
 
         endCurrentGameProgrammatically()
         composeRule.onNodeWithText("OK").performClick()
-        waitForText("Game Summary")
+        waitForText("Game summary")
         assertNextShareText(expectedShareText)
 
         composeRule.onNodeWithText("Back").performClick()
-        waitForText("Completed Game")
-        composeRule.onNodeWithText("Archive Completed Game").performClick()
-        waitForText("See Archived Games")
-        composeRule.onNodeWithText("See Archived Games").performClick()
-        waitForText("Archived Games")
+        waitForText("Completed game")
+        composeRule.onNodeWithText("Archive completed game").performClick()
+        waitForText("See archived games")
+        composeRule.onNodeWithText("See archived games").performClick()
+        waitForText("Archived games")
         composeRule.onNodeWithText("Viscous Coupling 12 - 15 Animal").performClick()
-        waitForText("Game Summary")
+        waitForText("Game summary")
         assertNextShareText(expectedShareText)
     }
 

@@ -180,7 +180,7 @@ internal fun LiveGameScreen(
     if (state.phase == GamePhase.GAME_OVER) {
         GameOverSummaryScreen(
             state = state,
-            summaryActionText = "Undo End Game",
+            summaryActionText = "Undo End game",
             onSummaryAction = {
                 undoWithoutPhasePrompt(state.undoLastAction())
             },
@@ -305,7 +305,7 @@ internal fun LiveGameScreen(
                                 border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
                             ) {
                                 Text(
-                                    "Start Point",
+                                    "Start point",
                                     style = MaterialTheme.typography.labelLarge.copy(
                                         fontSize = layoutMetrics.centerButtonFontSize,
                                     ),
@@ -328,7 +328,7 @@ internal fun LiveGameScreen(
                                 border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
                             ) {
                                 Text(
-                                    "Continue Point",
+                                    "Continue point",
                                     style = MaterialTheme.typography.labelLarge.copy(
                                         fontSize = layoutMetrics.centerButtonFontSize,
                                     ),
@@ -485,7 +485,7 @@ internal fun LiveGameScreen(
 
         AlertDialog(
             onDismissRequest = { showTimeViolationTeamPrompt = false },
-            title = { Text("Time Violation") },
+            title = { Text("Time violation") },
             text = {
                 Text(
                     text = "Which team committed the time violation?",

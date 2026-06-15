@@ -76,7 +76,7 @@ fun GameState.adjustPullInfractions(
             falseStarts = adjustedTeamTwoFalseStarts,
         ),
         lastEvent = "Pull infractions adjusted.",
-    ).withEventLogEntries(entries).withUndo(this, "Undo Pull Infraction Adjustment")
+    ).withEventLogEntries(entries).withUndo(this, "Undo Pull infraction adjustment")
 }
 
 /**
@@ -181,7 +181,7 @@ fun GameState.recordFalseStart(now: Long): GameState {
             type = EventLogType.FALSE_START,
             team = team,
         )
-    ).withUndo(this, "Undo False Start on ${this.teamName(team)}")
+    ).withUndo(this, "Undo False start on ${this.teamName(team)}")
 }
 
 /**
@@ -229,7 +229,7 @@ private fun GameState.pullViolationTotal(teamId: TeamId): Int {
 }
 
 /// Format a pull-infraction event popup title.
-internal fun GameEvent.PullInfractionRecorded.formatPopupTitle(): String = "Pull Infraction"
+internal fun GameEvent.PullInfractionRecorded.formatPopupTitle(): String = "Pull infraction"
 
 /// Format a pull-infraction event message with the field-position consequence.
 internal fun GameEvent.PullInfractionRecorded.formatMessage(): String {

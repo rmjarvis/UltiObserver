@@ -30,7 +30,7 @@ internal fun EventLogSheet(state: GameState) {
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text("Event Log", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text("Event log", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Column(
             modifier = Modifier
                 .fillMaxWidth()

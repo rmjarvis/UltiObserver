@@ -42,7 +42,7 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
     fun persistedGameStateRestoresUndoAndRedoChains() {
         val later = compactPatchLaterState()
         val previous = compactPatchPreviousState()
-        val undoBacked = later.copy(undoEntry = UndoEntry("Undo compact patch", previous))
+        val undoBacked = later.copy(undoEntry = UndoEntry("Undo Compact patch", previous))
         val undone = undoBacked.undoLastAction()
         val snapshot = CurrentGameSnapshot(
             setupState = standardGameSetup(startTime = LocalTime.of(8, 0)),
@@ -64,7 +64,7 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
         assertEquals(undone.copy(undoEntry = null, redoEntry = null), persistedLiveState.state)
         assertNull(persistedUndoEntry)
         assertEquals(undoBacked.copy(undoEntry = null, redoEntry = null), persistedLiveState.redoEntry!!.state)
-        assertEquals("Undo compact patch", persistedLiveState.redoEntry!!.undoEntry!!.label)
+        assertEquals("Undo Compact patch", persistedLiveState.redoEntry!!.undoEntry!!.label)
         assertEquals(
             GameStatePatch.fromLaterAndPrevious(undoBacked.copy(undoEntry = null), previous),
             persistedLiveState.redoEntry!!.undoEntry!!.patchToPrevious,
@@ -153,7 +153,7 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
         val previous = compactPatchPreviousState()
         val snapshot = CurrentGameSnapshot(
             setupState = standardGameSetup(startTime = LocalTime.of(8, 0)),
-            liveState = later.copy(undoEntry = UndoEntry("Undo compact patch", previous)),
+            liveState = later.copy(undoEntry = UndoEntry("Undo Compact patch", previous)),
             setupMode = SetupMode.EDIT_CURRENT_GAME,
             hasSetupDraft = false,
         )

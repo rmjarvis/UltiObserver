@@ -228,7 +228,7 @@ private fun GameState.recordTimeViolationWarning(team: TeamId, now: Long): GameS
             team = team,
             timeViolationOutcome = TimeViolationOutcome.WARNING,
         )
-    ).withUndo(this, "Undo Time Violation Warning on ${this.teamName(team)}")
+    ).withUndo(this, "Undo Time violation warning on ${this.teamName(team)}")
 }
 
 /**
@@ -247,7 +247,7 @@ fun GameState.restartPullCountdown(now: Long): GameState {
         ),
         pullCountdownExpired = false,
         lastEvent = "Pull countdown restarted.",
-    ).withUndo(this, "Undo Restart Pull Countdown")
+    ).withUndo(this, "Undo Restart pull countdown")
 }
 
 /**
@@ -276,7 +276,7 @@ private fun GameState.recordTimeViolationTimeout(team: TeamId, now: Long): GameS
             team = team,
             timeViolationOutcome = TimeViolationOutcome.TIMEOUT,
         )
-    ).withUndo(this, "Undo Time Violation Timeout on ${this.teamName(team)}")
+    ).withUndo(this, "Undo Time violation timeout on ${this.teamName(team)}")
 }
 
 /**
@@ -342,7 +342,7 @@ private fun GameState.recordTimeViolationWithoutTimeout(team: TeamId, now: Long)
             team = team,
             timeViolationOutcome = TimeViolationOutcome.NO_TIMEOUT,
         )
-    ).withUndo(this, "Undo Time Violation on ${this.teamName(team)}")
+    ).withUndo(this, "Undo Time violation on ${this.teamName(team)}")
 }
 
 /**
@@ -359,7 +359,7 @@ private fun GameState.timeViolationWarningIssued(team: TeamId): Boolean {
 }
 
 /// Format a time-violation event popup title.
-internal fun GameEvent.TimeViolationRecorded.formatPopupTitle(): String = "Time Violation"
+internal fun GameEvent.TimeViolationRecorded.formatPopupTitle(): String = "Time violation"
 
 /// Format a time-violation event message with warning, timeout, or no-timeout consequences.
 internal fun GameEvent.TimeViolationRecorded.formatMessage(): String {

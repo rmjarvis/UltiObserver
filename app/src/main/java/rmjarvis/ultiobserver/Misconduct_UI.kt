@@ -126,7 +126,7 @@ internal fun AdjustCardsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Adjust Cards / TF") },
+        title = { Text("Adjust cards / TF") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 TeamCorrectionSection(state.teamOne.name) {
@@ -176,7 +176,7 @@ internal fun AdjustCardsDialog(
         when (step.mode) {
             PlayerCardAdjustmentMode.ADD -> {
                 PlayerNumberDialog(
-                    title = "Add ${step.cardType.label}",
+                    title = "Add ${step.cardType.label.lowercase()}",
                     teamName = state.teamFor(step.team).name,
                     onDismiss = { pendingSteps = emptyList() },
                     onConfirm = { jerseyNumber ->
@@ -186,7 +186,7 @@ internal fun AdjustCardsDialog(
             }
             PlayerCardAdjustmentMode.REMOVE -> {
                 AssignedCardRemovalDialog(
-                    title = "Remove ${step.cardType.label}",
+                    title = "Remove ${step.cardType.label.lowercase()}",
                     teamName = state.teamFor(step.team).name,
                     candidates = playerCardRemovalCandidates(
                         records = if (step.team == TeamId.TEAM_ONE) {
@@ -209,7 +209,7 @@ internal fun AdjustCardsDialog(
     invalidCardAssignmentMessage?.let { message ->
         AlertDialog(
             onDismissRequest = { invalidCardAssignmentMessage = null },
-            title = { Text("Invalid Card Assignment") },
+            title = { Text("Invalid card assignment") },
             text = { Text(message) },
             confirmButton = {
                 TextButton(onClick = { invalidCardAssignmentMessage = null }) {
@@ -283,7 +283,7 @@ internal fun CardsSheet(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text("Cards / Technical Fouls", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text("Cards / technical fouls", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         TeamActionSection(
             label = "${state.teamOne.name}${state.cardsRoleSuffix(TeamId.TEAM_ONE)}",
             issuedCards = state.playerCards(TeamId.TEAM_ONE),
@@ -313,7 +313,7 @@ internal fun CardsSheet(
 
     if (pendingYellowTeam != null) {
         PlayerNumberDialog(
-            title = "Yellow Card",
+            title = "Yellow card",
             teamName = state.teamFor(pendingYellowTeam!!).name,
             initialJerseyNumber = pendingYellowInitialNumber,
             onDismiss = {
@@ -342,7 +342,7 @@ internal fun CardsSheet(
 
     if (pendingRedTeam != null) {
         PlayerNumberDialog(
-            title = "Red Card",
+            title = "Red card",
             teamName = state.teamFor(pendingRedTeam!!).name,
             initialJerseyNumber = pendingRedInitialNumber,
             onDismiss = {
@@ -369,7 +369,7 @@ internal fun CardsSheet(
     invalidCardAssignmentMessage?.let { message ->
         AlertDialog(
             onDismissRequest = { invalidCardAssignmentMessage = null },
-            title = { Text("Invalid Card Assignment") },
+            title = { Text("Invalid card assignment") },
             text = { Text(message) },
             confirmButton = {
                 TextButton(onClick = { invalidCardAssignmentMessage = null }) {
@@ -632,7 +632,7 @@ private fun UnknownYellowDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Unknown Player Number") },
+        title = { Text("Unknown player number") },
         text = {
             Text("$teamName already has a yellow assigned to N/A. Is this the same player?")
         },

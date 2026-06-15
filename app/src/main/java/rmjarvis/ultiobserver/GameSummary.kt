@@ -38,7 +38,7 @@ internal data class GameOverTeamSummaryText(
 internal fun GameState.gameOverSummaryText(): GameOverSummaryText {
     val endTime = localTimeFromEpoch(endEpoch!!, timeZone)
     return GameOverSummaryText(
-        title = "Game Summary",
+        title = "Game summary",
         startLine = "Start ${formatStartDate(startDate)} ${formatClockTime(startTime)}",
         endLine = "End time ${formatClockTime(endTime)}",
         scoreLines = winnerFirstTeams().map { team -> "${team.name} ${team.score}" },
@@ -81,7 +81,7 @@ internal fun GameState.gameSummaryShareText(): String {
         add("$startLinePrefix${formatStartDate(startDate)}, ${formatClockTime(startTime)}")
         add(orderedTeams.joinToString(", ") { team -> "${team.name} ${team.score}" })
         if (misconductLines.isEmpty()) {
-            add("No Misconduct Assessments")
+            add("No misconduct assessments")
         } else {
             add("Misconduct:")
             addAll(misconductLines)

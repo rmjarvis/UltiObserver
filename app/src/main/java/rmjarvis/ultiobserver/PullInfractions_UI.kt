@@ -34,16 +34,16 @@ internal fun AdjustPullInfractionsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Adjust Pull Infractions") },
+        title = { Text("Adjust pull infractions") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 TeamCorrectionSection(state.teamOne.name) {
                     SmallCountEditor("Offsides", teamOneOffsides) { teamOneOffsides = it.coerceAtLeast(0) }
-                    SmallCountEditor("False Starts", teamOneFalseStarts) { teamOneFalseStarts = it.coerceAtLeast(0) }
+                    SmallCountEditor("False starts", teamOneFalseStarts) { teamOneFalseStarts = it.coerceAtLeast(0) }
                 }
                 TeamCorrectionSection(state.teamTwo.name) {
                     SmallCountEditor("Offsides", teamTwoOffsides) { teamTwoOffsides = it.coerceAtLeast(0) }
-                    SmallCountEditor("False Starts", teamTwoFalseStarts) { teamTwoFalseStarts = it.coerceAtLeast(0) }
+                    SmallCountEditor("False starts", teamTwoFalseStarts) { teamTwoFalseStarts = it.coerceAtLeast(0) }
                 }
             }
         },

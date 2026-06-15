@@ -32,7 +32,7 @@ class TestGameUndo : GameDomainTestFixtures() {
         state = standardLiveGameState()
         val beforeStartPoint = state
         state = state.beginLivePoint()
-        assertEquals("Undo Start Point", state.undoEntry?.label)
+        assertEquals("Undo Start point", state.undoEntry?.label)
         val undoneStartPoint = assertUndoRestores(beforeStartPoint, state)
         val nudgedCountdown = undoneStartPoint.addTimeToCountdown(10)
         assertNotNull(nudgedCountdown.redoEntry)
@@ -118,7 +118,7 @@ class TestGameUndo : GameDomainTestFixtures() {
         )
         assertUndoRestores(beforeSetupUpdate, state)
 
-        // Undo apply half cap, soft cap, hard cap, force cap now, manual halftime, and manual end game.
+        // Undo Apply half cap, soft cap, hard cap, force cap now, manual halftime, and manual end game.
         state = standardLiveGameState(
             startTime = LocalTime.of(10, 0),
             rules = GameRules(gameTo = 15, halfCapMinutes = 10, useSoftCap = false, useHardCap = false),
@@ -183,7 +183,7 @@ class TestGameUndo : GameDomainTestFixtures() {
         assertEquals(gameOverByScore, recordGoalAt(gameOverByScore, ANIMAL, LocalTime.of(11, 26)))
         assertEquals(gameOverByScore, endGameNowAt(gameOverByScore, LocalTime.of(11, 26)))
 
-        // If the observer applies End Game again, the summary-relevant state matches the automatic game-over.
+        // If the observer applies End game again, the summary-relevant state matches the automatic game-over.
         val reappliedGameOver = endGameNowAt(scoreEndedUndo, LocalTime.of(11, 26))
         assertEquals(gameOverByScore.phase, reappliedGameOver.phase)
         assertEquals(gameOverByScore.teamOne.score, reappliedGameOver.teamOne.score)

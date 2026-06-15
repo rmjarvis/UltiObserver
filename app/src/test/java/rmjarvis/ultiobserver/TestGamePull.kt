@@ -51,7 +51,7 @@ class TestGamePull : GameDomainTestFixtures() {
 
         // Verify the first pull-violation message sends play to the brick mark.
         assertEquals("Start at brick mark", pullInfractionResult.message())
-        assertEquals("Pull Infraction", pullInfractionResult.event!!.formatPopupTitle())
+        assertEquals("Pull infraction", pullInfractionResult.event!!.formatPopupTitle())
         val pullInfractionEvent = pullInfractionResult.event as GameEvent.PullInfractionRecorded
         assertEquals(state, pullInfractionEvent.state)
         assertEquals(VC, pullInfractionEvent.team)
@@ -86,7 +86,7 @@ class TestGamePull : GameDomainTestFixtures() {
         assertFalse(state.pullSequenceOffsidesRecorded)
         assertTrue(state.pullSequenceFalseStartRecorded)
         assertEquals("False start on Animal.", state.lastEvent)
-        assertEquals("Undo False Start on Animal", state.undoEntry?.label)
+        assertEquals("Undo False start on Animal", state.undoEntry?.label)
 
         // Verify false-start guidance says the defense gets to set up.
         assertEquals("Defense gets to set up.", pullInfractionResult.message())
@@ -116,9 +116,9 @@ class TestGamePull : GameDomainTestFixtures() {
         var timeViolationState = timeViolationResult.state
         assertEquals(ANIMAL, warningEvent.team)
         assertEquals(TimeViolationOutcome.WARNING, warningEvent.outcome)
-        assertEquals("Time Violation", warningEvent.formatPopupTitle())
+        assertEquals("Time violation", warningEvent.formatPopupTitle())
         val warningGameEvent: GameEvent = warningEvent
-        assertEquals("Time Violation", warningGameEvent.formatPopupTitle())
+        assertEquals("Time violation", warningGameEvent.formatPopupTitle())
         assertTrue(timeViolationState.teamTwo.timeViolationWarningIssued)
         assertFalse(timeViolationState.teamOne.timeViolationWarningIssued)
         assertEquals(CountdownKind.PULL_RESET, timeViolationState.countdown?.kind)
@@ -248,7 +248,7 @@ class TestGamePull : GameDomainTestFixtures() {
         assertEquals("Signal in", timeViolationState.countdown?.label)
         assertEquals(60, timeViolationState.countdown?.durationSeconds)
         assertFalse(timeViolationState.hasExpiredPullActions())
-        assertEquals("Undo Restart Pull Countdown", timeViolationState.undoEntry?.label)
+        assertEquals("Undo Restart pull countdown", timeViolationState.undoEntry?.label)
 
         // Record offsides and false start on the same pull and verify both counts and both consequences apply.
         state = standardLiveGameState()
@@ -310,6 +310,6 @@ class TestGamePull : GameDomainTestFixtures() {
         assertEquals(3, state.teamTwo.offsides)
         assertEquals(0, state.teamTwo.falseStarts)
         assertEquals("Pull infractions adjusted.", state.lastEvent)
-        assertEquals("Undo Pull Infraction Adjustment", state.undoEntry?.label)
+        assertEquals("Undo Pull infraction adjustment", state.undoEntry?.label)
     }
 }

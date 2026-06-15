@@ -94,7 +94,7 @@ class TestGameTimeouts : GameDomainTestFixtures() {
             "Timeout charged to Viscous Coupling. They have 1 timeout remaining in this half.",
             timeoutResult.message(),
         )
-        assertEquals("Timeout Charged", timeoutResult.event?.formatPopupTitle())
+        assertEquals("Timeout charged", timeoutResult.event?.formatPopupTitle())
         state = timeoutResult.state
         assertEquals(1, state.teamOne.timeoutsUsedThisHalf)
         assertEquals(1, state.timeoutsRemaining(VC))
@@ -150,7 +150,7 @@ class TestGameTimeouts : GameDomainTestFixtures() {
         // With both first-half timeouts used, another timeout request leaves state unchanged and returns a message.
         timeoutResult = state.assessTimeout(VC, 1_010_000L)
         assertEquals("Viscous Coupling is out of timeouts.", timeoutResult.message())
-        assertEquals("Invalid Timeout", timeoutResult.event?.formatPopupTitle())
+        assertEquals("Invalid timeout", timeoutResult.event?.formatPopupTitle())
         assertEquals(state, timeoutResult.state)
         assertEquals(state, state.chargeTimeout(VC, 1_010_000L))
 
@@ -170,7 +170,7 @@ class TestGameTimeouts : GameDomainTestFixtures() {
         val halftimeEnd = state.countdown!!.targetEpoch
         timeoutResult = state.assessTimeout(VC, halftimeEnd - 1L)
         assertEquals("Timeouts are not available now.", timeoutResult.message())
-        assertEquals("Invalid Timeout", timeoutResult.event?.formatPopupTitle())
+        assertEquals("Invalid timeout", timeoutResult.event?.formatPopupTitle())
         assertEquals(state, (timeoutResult.event as GameEvent.TimeoutUnavailable).state)
         assertEquals(state, timeoutResult.state)
 
@@ -207,7 +207,7 @@ class TestGameTimeouts : GameDomainTestFixtures() {
         val transitionedPullState = expiredPullState.applyExpiredCountdownTransitions(expiredCountdownNow)
         assertEquals(GamePhase.LIVE_POINT, transitionedPullState.phase)
         assertNull(transitionedPullState.countdown)
-        assertEquals("Undo Start Point", transitionedPullState.undoEntry?.label)
+        assertEquals("Undo Start point", transitionedPullState.undoEntry?.label)
         val expiredPullDecisionState = expiredPullState.copy(
             countdown = null,
             pullCountdownExpired = true,
@@ -564,7 +564,7 @@ class TestGameTimeouts : GameDomainTestFixtures() {
         assertEquals(3, state.timeoutsAllowedThisHalf(ANIMAL))
         assertEquals(2, state.timeoutsRemaining(ANIMAL))
         assertEquals("Timeouts adjusted.", state.lastEvent)
-        assertEquals("Undo Timeout Adjustment", state.undoEntry?.label)
+        assertEquals("Undo Timeout adjustment", state.undoEntry?.label)
         assertEquals(beforeTimeoutAdjustment, state.undoEntry?.previous)
 
         // If only one team's timeout count changes, only that team's correction is logged.

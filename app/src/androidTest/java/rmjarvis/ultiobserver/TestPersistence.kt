@@ -127,16 +127,16 @@ class TestPersistence {
             }
         }
 
-        composeRule.onNodeWithText("Phone Data Reset").assertIsDisplayed()
+        composeRule.onNodeWithText("Phone data reset").assertIsDisplayed()
         composeRule.onNodeWithText(
             "Sorry, some phone data was corrupt, so UltiObserver had to revert to default values for Profile and Settings."
         ).assertIsDisplayed()
-        composeRule.onNodeWithText("Start New Game").assertIsDisplayed()
+        composeRule.onNodeWithText("Start new game").assertIsDisplayed()
 
         composeRule.onNodeWithText("OK").performClick()
 
-        composeRule.onAllNodesWithText("Phone Data Reset").assertCountEquals(0)
-        composeRule.onNodeWithText("Start New Game").assertIsDisplayed()
+        composeRule.onAllNodesWithText("Phone data reset").assertCountEquals(0)
+        composeRule.onNodeWithText("Start new game").assertIsDisplayed()
     }
 }
 

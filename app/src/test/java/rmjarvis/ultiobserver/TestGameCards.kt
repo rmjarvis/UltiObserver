@@ -66,7 +66,7 @@ class TestGameCards : GameDomainTestFixtures() {
         assertEquals(0, state.teamRedCards(VC))
         assertEquals(2, state.teamCardTotal(VC))
         assertEquals(InGamePlayerCardRecord("17", yellows = 2), playerRecord(state, VC, "17"))
-        assertEquals("Undo Second Yellow on #17 of Viscous Coupling", state.undoEntry?.label)
+        assertEquals("Undo Second yellow on #17 of Viscous Coupling", state.undoEntry?.label)
         assertUndoRestores(cardResult.state.undoEntry!!.previous, state)
 
         // A third team-card point between points gives the pulling-team misconduct field-position cue.
@@ -80,7 +80,7 @@ class TestGameCards : GameDomainTestFixtures() {
             "Viscous Coupling has 3 total blue cards.\n\nPenalty against pulling team. No pull. Receiving team starts at attacking brick.",
             cardResult.message(),
         )
-        assertEquals("Misconduct Penalty", cardResult.event.formatPopupTitle())
+        assertEquals("Misconduct penalty", cardResult.event.formatPopupTitle())
         assertTrue(state.pullSkippedForCurrentPoint)
         assertEquals(CountdownKind.MISCONDUCT_BETWEEN_POINTS, state.countdown?.kind)
         assertEquals("Offense set in", state.countdown?.label)
@@ -185,9 +185,9 @@ class TestGameCards : GameDomainTestFixtures() {
             cardResult.message(),
         )
         val misconductPrompt = cardResult.misconductPrompt()
-        assertEquals("Misconduct Penalty", misconductPrompt.formatTitle())
+        assertEquals("Misconduct penalty", misconductPrompt.formatTitle())
         val misconductGamePrompt: GamePrompt = misconductPrompt
-        assertEquals("Misconduct Penalty", misconductGamePrompt.formatTitle())
+        assertEquals("Misconduct penalty", misconductGamePrompt.formatTitle())
         assertEquals(
             "Red card on player 23.\n" +
                 "Player 23 receives a game suspension.\n" +
@@ -452,7 +452,7 @@ class TestGameCards : GameDomainTestFixtures() {
             "Animal has 3 technical fouls.\n\nPenalty against receiving team. No pull. Disc at negative brick in defending end zone.",
             technicalFoulResult.message(),
         )
-        assertEquals("Misconduct Penalty", technicalFoulResult.event.formatPopupTitle())
+        assertEquals("Misconduct penalty", technicalFoulResult.event.formatPopupTitle())
 
         // After Animal scores, they are the pulling team, so the next technical foul uses the pulling-team cue.
         state = recordGoalFromCurrentStateAt(state, ANIMAL, LocalTime.of(11, 5))
@@ -780,7 +780,7 @@ class TestGameCards : GameDomainTestFixtures() {
         assertEquals(correctedTeamOnePlayerCards, state.playerCards(VC))
         assertEquals(correctedTeamTwoPlayerCards, state.playerCards(ANIMAL))
         assertEquals("Cards and technical fouls adjusted.", state.lastEvent)
-        assertEquals("Undo Cards / TF Adjustment", state.undoEntry?.label)
+        assertEquals("Undo Cards / TF adjustment", state.undoEntry?.label)
         assertEquals(beforeCardsAdjustment, state.undoEntry?.previous)
     }
 }

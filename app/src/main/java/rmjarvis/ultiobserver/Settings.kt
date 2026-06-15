@@ -50,8 +50,8 @@ enum class TimingAlertGlobalMode(
     val label: String,
 ) {
     OFF("Off"),
-    VIBRATION_ONLY("Vibration Only"),
-    SOUNDS_ON("Sounds On"),
+    VIBRATION_ONLY("Vibration only"),
+    SOUNDS_ON("Sounds on"),
 }
 
 /**

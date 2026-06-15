@@ -90,7 +90,7 @@ class TestGameCaps : GameDomainTestFixtures() {
         assertEquals(2, state.halftimeTargetScore)
         assertNull(state.pendingCapOffer)
         assertEquals("Half cap applied.", state.lastEvent)
-        assertEquals("Undo Apply Half Cap", state.undoEntry?.label)
+        assertEquals("Undo Apply half cap", state.undoEntry?.label)
         assertEquals(beforeHalfCap, state.undoEntry?.previous)
 
         // The half-cap target becomes the live halftime target, so the next point starts halftime.
@@ -170,7 +170,7 @@ class TestGameCaps : GameDomainTestFixtures() {
         assertTrue(state.softCapApplied)
         assertEquals(2, state.winningScore)
         assertNull(state.pendingCapOffer)
-        assertEquals("Undo Apply Soft Cap", state.undoEntry?.label)
+        assertEquals("Undo Apply soft cap", state.undoEntry?.label)
         state = scoreAt(state, VC, 22)
         assertEquals(GamePhase.GAME_OVER, state.phase)
         assertEquals(2, state.teamOne.score)
@@ -196,8 +196,8 @@ class TestGameCaps : GameDomainTestFixtures() {
         assertEquals(timestampAt(state, LocalTime.of(10, 31)), state.endEpoch)
         assertNull(state.countdown)
         assertNull(state.pendingCapOffer)
-        assertEquals("Undo Apply Hard Cap", state.undoEntry?.label)
-        assertEquals("Game Over", GamePrompt.GameOver(state).formatTitle())
+        assertEquals("Undo Apply hard cap", state.undoEntry?.label)
+        assertEquals("Game over", GamePrompt.GameOver(state).formatTitle())
 
         // Hard cap while tied sets a one-point winning score instead of ending immediately.
         state = newCapState(capRules.copy(useHalfCap = false, useSoftCap = false))
@@ -287,7 +287,7 @@ class TestGameCaps : GameDomainTestFixtures() {
         assertNull(state.pendingCapOffer)
 
         // Manual halftime also catches a cap that became due after the last point
-        // but before the observer pressed Start Halftime.
+        // but before the observer pressed Start halftime.
         state = newCapState(
             capRules.copy(
                 gameTo = 7,
@@ -526,21 +526,21 @@ class TestGameCaps : GameDomainTestFixtures() {
         assertEquals(state.startDate, halfNow.startDate)
         assertEquals(LocalTime.of(10, 32), halfNow.startTime)
         assertEquals("Half cap set to now.", halfNow.lastEvent)
-        assertEquals("Undo Half Cap Now", halfNow.undoEntry?.label)
+        assertEquals("Undo Half cap now", halfNow.undoEntry?.label)
 
         val softNow = state.makeCapNow(CapType.SOFT, timestampAfterStart(state, 42))
         assertTrue(softNow.rules.useSoftCap)
         assertEquals(state.startDate, softNow.startDate)
         assertEquals(LocalTime.of(10, 22), softNow.startTime)
         assertEquals("Soft cap set to now.", softNow.lastEvent)
-        assertEquals("Undo Soft Cap Now", softNow.undoEntry?.label)
+        assertEquals("Undo Soft cap now", softNow.undoEntry?.label)
 
         val hardNow = state.makeCapNow(CapType.HARD, timestampAfterStart(state, 42))
         assertTrue(hardNow.rules.useHardCap)
         assertEquals(state.startDate, hardNow.startDate)
         assertEquals(LocalTime.of(10, 12), hardNow.startTime)
         assertEquals("Hard cap set to now.", hardNow.lastEvent)
-        assertEquals("Undo Hard Cap Now", hardNow.undoEntry?.label)
+        assertEquals("Undo Hard cap now", hardNow.undoEntry?.label)
 
         // Once the next half-cap target would equal normal halftime, half cap should not prompt.
         state = newCapState(

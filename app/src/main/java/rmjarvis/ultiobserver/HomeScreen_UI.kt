@@ -49,7 +49,7 @@ internal data class GameListEntry(
 // This lets us scale the identity area between minimum and preferred size.
 
 // Size and space for main buttons
-private val BUTTON_HEIGHT = 48.dp  // Start New Game button, and others.
+private val BUTTON_HEIGHT = 48.dp  // Start new game button, and others.
 private val BUTTON_SPACER = 8.dp   // Vertical space between buttons and other content
 
 // Minimum and preferred line heights for the title/subtitle text
@@ -282,7 +282,7 @@ internal fun HomeScreen(
                         // Show the currently active game, if there is one.
                         if (currentGame != null) {
                             SectionCard(
-                                title = "Current Game",
+                                title = "Current game",
                                 subtitle = currentGameSectionSubtitle,
                             ) {
                                 GameListRow(entry = currentGame, onClick = onResumeCurrentGame)
@@ -292,7 +292,7 @@ internal fun HomeScreen(
                         // Show a finished-but-not-yet-archived game, if there is one.
                         if (completedGamePendingArchive != null) {
                             SectionCard(
-                                title = "Completed Game",
+                                title = "Completed game",
                             ) {
                                 GameListRow(entry = completedGamePendingArchive, onClick = onOpenCompletedGame)
                                 Spacer(modifier = Modifier.height(8.dp))
@@ -300,7 +300,7 @@ internal fun HomeScreen(
                                     onClick = onArchiveCompletedGame,
                                     modifier = Modifier.fillMaxWidth(),
                                 ) {
-                                    Text("Archive Completed Game")
+                                    Text("Archive completed game")
                                 }
                             }
                         }
@@ -325,7 +325,7 @@ internal fun HomeScreen(
  * Render the main Home action cluster.
  *
  * @param onStartNewGame Callback starting a new setup flow.
- * @param onOpenArchivedGames Callback opening Archived Games.
+ * @param onOpenArchivedGames Callback opening Archived games.
  * @param onOpenProfile Callback opening Profile.
  * @param onOpenSettings Callback opening Settings.
  * @param modifier Optional layout modifier for the action column.
@@ -346,13 +346,13 @@ private fun HomeActions(
             onClick = onStartNewGame,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            HomeActionText("Start New Game")
+            HomeActionText("Start new game")
         }
         OutlinedButton(
             onClick = onOpenArchivedGames,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            HomeActionText("See Archived Games")
+            HomeActionText("See archived games")
         }
         Row(
             modifier = Modifier.fillMaxWidth(),

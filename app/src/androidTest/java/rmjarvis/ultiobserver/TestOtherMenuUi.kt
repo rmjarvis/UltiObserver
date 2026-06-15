@@ -33,18 +33,18 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         openOtherSheet()
         if (shouldUsePlatformBackDismissalCoverage()) {
             pressDialogBack()
-            composeRule.onAllNodesWithText("Update Game Setup").assertCountEquals(0)
+            composeRule.onAllNodesWithText("Update game setup").assertCountEquals(0)
             openOtherSheet()
         }
-        composeRule.onNodeWithText("Event Log").performClick()
-        waitForText("Event Log")
+        composeRule.onNodeWithText("Event log").performClick()
+        waitForText("Event log")
         waitForText("No events logged yet.")
         pressDialogBack()
         openOtherSheet()
-        openOtherDialogAndCancel("Adjust Score")
-        openOtherDialogAndCancel("Adjust Timeouts")
-        openOtherDialogAndCancel("Adjust Cards / TF")
-        openOtherDialogAndCancel("Adjust Pull Infractions")
+        openOtherDialogAndCancel("Adjust score")
+        openOtherDialogAndCancel("Adjust timeouts")
+        openOtherDialogAndCancel("Adjust cards / TF")
+        openOtherDialogAndCancel("Adjust pull infractions")
 
         // Manual correction dialogs should also apply their visible values.
         applyScoreAdjustment()
@@ -54,31 +54,31 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
 
         // Orientation controls should update state without breaking the live screen.
         openOtherSheet()
-        composeRule.onNodeWithText("Swap Ends of Field").performClick()
+        composeRule.onNodeWithText("Swap ends of field").performClick()
         assertLiveScreen()
 
         openOtherSheet()
-        composeRule.onNodeWithText("Swap Pulling Team").performClick()
+        composeRule.onNodeWithText("Swap pulling team").performClick()
         assertLiveScreen()
 
         // Less-common game-state actions should be reachable and leave a visible result.
         openOtherSheet()
-        composeRule.onNodeWithText("Apply Half Cap Now").performClick()
-        waitForText("Undo Half Cap Now")
+        composeRule.onNodeWithText("Apply half cap now").performClick()
+        waitForText("Undo Half cap now")
         assertLiveScreen()
 
         openOtherSheet()
-        composeRule.onNodeWithText("Apply Soft Cap Now").performClick()
-        waitForText("Undo Soft Cap Now")
+        composeRule.onNodeWithText("Apply soft cap now").performClick()
+        waitForText("Undo Soft cap now")
         assertLiveScreen()
 
         openOtherSheet()
-        composeRule.onNodeWithText("Apply Hard Cap Now").performClick()
-        waitForText("Undo Hard Cap Now")
+        composeRule.onNodeWithText("Apply hard cap now").performClick()
+        waitForText("Undo Hard cap now")
         assertLiveScreen()
 
         openOtherSheet()
-        composeRule.onNodeWithText("Start Halftime").performClick()
+        composeRule.onNodeWithText("Start halftime").performClick()
         waitForText("Halftime")
         // Back dismissal and OK are equivalent acknowledgements for this prompt.
         if (shouldUsePlatformBackDismissalCoverage()) {
@@ -107,9 +107,9 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         composeRule.waitForIdle()
 
         openOtherSheet()
-        assertTrue(composeRule.onAllNodesWithText("Apply Half Cap Now").fetchSemanticsNodes().isEmpty())
-        assertTrue(composeRule.onAllNodesWithText("Apply Soft Cap Now").fetchSemanticsNodes().isEmpty())
-        assertTrue(composeRule.onAllNodesWithText("Apply Hard Cap Now").fetchSemanticsNodes().isEmpty())
+        assertTrue(composeRule.onAllNodesWithText("Apply half cap now").fetchSemanticsNodes().isEmpty())
+        assertTrue(composeRule.onAllNodesWithText("Apply soft cap now").fetchSemanticsNodes().isEmpty())
+        assertTrue(composeRule.onAllNodesWithText("Apply hard cap now").fetchSemanticsNodes().isEmpty())
 
         composeRule.activityRule.scenario.onActivity { activity ->
             val current = activity.appViewModel.liveState!!
@@ -124,7 +124,7 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         }
         composeRule.waitForIdle()
 
-        assertTrue(composeRule.onAllNodesWithText("Apply Half Cap Now").fetchSemanticsNodes().isEmpty())
+        assertTrue(composeRule.onAllNodesWithText("Apply half cap now").fetchSemanticsNodes().isEmpty())
     }
 
     /// Test that deleting the current game is guarded by the slide confirmation.
@@ -133,18 +133,18 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         startLiveGameProgrammatically()
 
         openOtherSheet()
-        composeRule.onNodeWithText("Delete Game").performClick()
+        composeRule.onNodeWithText("Delete game").performClick()
         waitForText("This cannot be undone", substring = true)
         composeRule.onNodeWithText("Cancel").performClick()
-        waitForText("Update Game Setup")
+        waitForText("Update game setup")
 
-        composeRule.onNodeWithText("Delete Game").performClick()
+        composeRule.onNodeWithText("Delete game").performClick()
         confirmDeleteWithSlider()
-        waitForText("Start New Game")
-        assertTrue(composeRule.onAllNodesWithText("Current Game").fetchSemanticsNodes().isEmpty())
+        waitForText("Start new game")
+        assertTrue(composeRule.onAllNodesWithText("Current game").fetchSemanticsNodes().isEmpty())
     }
 
-    /// Test that an active game accidentally archived by Start New Game can be restored from Archived Games.
+    /// Test that an active game accidentally archived by Start new game can be restored from Archived games.
     @Test
     fun archivedGamesCanRestoreAccidentallyArchivedActiveGame() {
         clearArchivedGamesProgrammatically()
@@ -184,8 +184,8 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         openArchivedGamesScreen()
         waitForText(archivedTitle)
         composeRule.onNodeWithText(archivedTitle).performClick()
-        waitForText("Game Summary")
-        composeRule.onNodeWithText("Restore Game").performClick()
+        waitForText("Game summary")
+        composeRule.onNodeWithText("Restore game").performClick()
 
         waitForText("Cards / TF")
         waitForText("Other")
@@ -193,10 +193,10 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText(teamTwoName).assertIsDisplayed()
         assertTrue(composeRule.onAllNodesWithText(currentTeamOneName, substring = true).fetchSemanticsNodes().isEmpty())
         assertTrue(composeRule.onAllNodesWithText(currentTeamTwoName, substring = true).fetchSemanticsNodes().isEmpty())
-        assertTrue(composeRule.onAllNodesWithText("Undo Start Point").fetchSemanticsNodes().isEmpty())
+        assertTrue(composeRule.onAllNodesWithText("Undo Start point").fetchSemanticsNodes().isEmpty())
 
         composeRule.onNodeWithText("Back").performClick()
-        waitForText("Current Game")
+        waitForText("Current game")
         openArchivedGamesScreen()
         waitForText(currentArchivedTitle)
         composeRule.onNodeWithText(currentTeamOneName, substring = true).assertIsDisplayed()
@@ -204,7 +204,7 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         assertTrue(composeRule.onAllNodesWithText(archivedTitle).fetchSemanticsNodes().isEmpty())
     }
 
-    /// Test that archived games can be deleted in bulk and one at a time from Archived Games.
+    /// Test that archived games can be deleted in bulk and one at a time from Archived games.
     @Test
     fun archivedGamesCanDeleteArchivedGameAfterSliderConfirmation() {
         // Build two uniquely named archived rows so delete assertions cannot match stale test data.
@@ -226,14 +226,14 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
 
         // Opening an archived row should expose the read-only summary and its persisted event log.
         composeRule.onNodeWithText(firstArchivedTitle).performClick()
-        waitForText("Game Summary")
+        waitForText("Game summary")
         composeRule.onNodeWithText("Share").assertIsDisplayed()
-        composeRule.onNodeWithText("Event Log").performClick()
-        waitForText("Event Log")
+        composeRule.onNodeWithText("Event log").performClick()
+        waitForText("Event log")
         waitForText("No events logged yet.")
         pressDialogBack()
         composeRule.onNodeWithText("Back").performClick()
-        waitForText("Archived Games")
+        waitForText("Archived games")
         waitForText(firstArchivedTitle)
         waitForText(secondArchivedTitle)
 
@@ -245,7 +245,7 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
 
         composeRule.onNodeWithTag("delete-all-archived-games").performClick()
         waitForText("This cannot be undone", substring = true)
-        confirmDeleteWithSlider("Delete All Games?")
+        confirmDeleteWithSlider("Delete all games?")
         waitForText("No completed games yet.")
         assertTrue(composeRule.onAllNodesWithText(firstArchivedTitle).fetchSemanticsNodes().isEmpty())
         assertTrue(composeRule.onAllNodesWithText(secondArchivedTitle).fetchSemanticsNodes().isEmpty())
@@ -269,17 +269,17 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         waitForText(secondArchivedTitle)
         assertTrue(composeRule.onAllNodesWithText(firstArchivedTitle).fetchSemanticsNodes().isEmpty())
 
-        // Delete the last archived row and verify Archived Games returns to its empty state.
+        // Delete the last archived row and verify Archived games returns to its empty state.
         composeRule.onNodeWithTag("delete-archived-game-$secondArchivedTitle").performClick()
         confirmDeleteWithSlider()
         waitForText("No completed games yet.")
         assertTrue(composeRule.onAllNodesWithText(secondArchivedTitle).fetchSemanticsNodes().isEmpty())
     }
 
-    /// Open Archived Games from Home and wait until the page is visible.
+    /// Open Archived games from Home and wait until the page is visible.
     private fun openArchivedGamesScreen() {
-        composeRule.onNodeWithText("See Archived Games").performClick()
-        waitForText("Archived Games")
+        composeRule.onNodeWithText("See archived games").performClick()
+        waitForText("Archived games")
     }
 
 }

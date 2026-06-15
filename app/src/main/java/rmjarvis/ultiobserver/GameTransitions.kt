@@ -158,7 +158,7 @@ fun GameState.recordGoal(
                 timestampEpoch = now,
                 type = EventLogType.GAME_OVER,
             )
-        ).withUndo(afterGoalState, "Undo End Game")
+        ).withUndo(afterGoalState, "Undo End game")
     }
 
     // Caps are checked before halftime so hard cap takes precedence over soft, and soft over half.
@@ -255,7 +255,7 @@ fun GameState.startHalftimeNow(
         existingCapOffer = this.pendingCapOffer,
         now = now,
         undoPrevious = this,
-        undoLabel = "Undo Start Halftime",
+        undoLabel = "Undo Start halftime",
     )
 }
 /**
@@ -354,7 +354,7 @@ fun GameState.endGameNow(
             timestampEpoch = now,
             type = EventLogType.GAME_OVER,
         )
-    ).withUndo(this, "Undo End Game")
+    ).withUndo(this, "Undo End game")
 }
 /// Mark the pull as complete and enter live-point play.
 fun GameState.beginLivePoint(now: Long): GameState {
@@ -378,7 +378,7 @@ fun GameState.beginLivePoint(now: Long): GameState {
         pullSkippedForCurrentPoint = false,
         pendingMisconductCountdown = false,
         lastEvent = "Point is live.",
-    ).withEventLogEntries(firstPullEntry).withUndo(this, "Undo Start Point")
+    ).withEventLogEntries(firstPullEntry).withUndo(this, "Undo Start point")
 }
 /**
  * Record a goal while treating a between-points state as implicitly started.
@@ -483,7 +483,7 @@ private fun GameState.automaticLivePointState(now: Long): GameState {
         pullSkippedForCurrentPoint = false,
         pendingMisconductCountdown = false,
         lastEvent = "Point is live.",
-    ).withEventLogEntries(firstPullEntry).withUndo(previous, "Undo Start Point")
+    ).withEventLogEntries(firstPullEntry).withUndo(previous, "Undo Start point")
 }
 /// Clear an expired in-point countdown without replacing the undo entry for the action that started it.
 private fun GameState.automaticContinueLivePointState(): GameState {

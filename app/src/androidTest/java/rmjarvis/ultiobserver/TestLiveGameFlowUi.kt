@@ -39,13 +39,13 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         openNewGameSetup()
         replaceSetupTeamName("Team 1", viscousCoupling)
         replaceSetupTeamName("Team 2", animal)
-        setIntegerSetupValue("Game to", "Game To", "Points", "5")
+        setIntegerSetupValue("Game to", "Game to", "Points", "5")
         setIntegerSetupValue("Halftime", "Halftime", "Minutes", "1")
-        setCapRuleToNone("Half cap", "Half Cap")
-        setCapRuleToNone("Soft cap", "Soft Cap")
-        setCapRuleToNone("Hard cap", "Hard Cap")
+        setCapRuleToNone("Half cap", "Half cap")
+        setCapRuleToNone("Soft cap", "Soft cap")
+        setCapRuleToNone("Hard cap", "Hard cap")
         openStartingPullSetupEditor()
-        composeRule.onNodeWithText("Near end").performClick()
+        composeRule.onNodeWithTag("setup-pulling-from-${FieldEnd.NEAR.name}").performClick()
         closeSetupEditor()
         startGameFromSetup()
         composeRule.onNodeWithText(viscousCoupling).assertIsDisplayed()
@@ -82,12 +82,12 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             expectedMisconductMessage = "Disc moves to the reverse brick in the end zone being defended.",
             verifyMisconductBackReturnsToNumberDialog = true,
         )
-        waitForText("Start Misconduct Countdown")
+        waitForText("Start misconduct countdown")
         composeRule.onNodeWithTag("live-top-lock").performClick()
         waitForText("Slide right to unlock")
         composeRule.onAllNodesWithTag("live-start-misconduct-countdown").assertCountEquals(0)
         unlockLiveScreen()
-        waitForText("Start Misconduct Countdown")
+        waitForText("Start misconduct countdown")
         composeRule.onNodeWithTag("live-start-misconduct-countdown").performClick()
         waitForText("Offense set in", substring = true)
         continuePointAndUnlock()
@@ -112,7 +112,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "pull-infraction")).performClick()
         waitForText("Defense gets to set up.")
         composeRule.onNodeWithText("OK").performClick()
-        composeRule.onNodeWithText("Undo False Start on $animal").performClick()
+        composeRule.onNodeWithText("Undo False start on $animal").performClick()
 
         // Viscous Coupling then records an offsides; the duplicate offsides button is disabled.
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-infraction")).performClick()
@@ -160,7 +160,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.onAllNodesWithText("+5").onFirst().performClick()
         composeRule.onAllNodesWithText("-5").onFirst().performClick()
         setActiveCountdownRemainingProgrammatically(secondsRemaining = -1)
-        waitForText("Start Point")
+        waitForText("Start point")
 
         // After halftime, Animal scores and uses one second-half timeout before the next pull.
         startPointAndUnlock()
@@ -172,50 +172,50 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         recordGoal(TeamId.TEAM_ONE, "Undo Goal by $viscousCoupling")
         recordGoal(TeamId.TEAM_TWO, "Undo Goal by $animal")
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "goal")).performClick()
-        waitForText("Game Over")
+        waitForText("Game over")
         composeRule.onNodeWithText("OK").performClick()
-        composeRule.onNodeWithText("Game Summary").assertIsDisplayed()
+        composeRule.onNodeWithText("Game summary").assertIsDisplayed()
         composeRule.onNodeWithText("$viscousCoupling 4").assertIsDisplayed()
         composeRule.onNodeWithText("$animal 5").assertIsDisplayed()
         composeRule.onNodeWithText(viscousCoupling).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText(animal).performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("Undo End Game").performClick()
+        composeRule.onNodeWithText("Undo End game").performClick()
         assertLiveScreen()
 
         // Manually ending from the restored final state should return to the same summary.
         openOtherSheet()
-        composeRule.onNodeWithText("End Game").performClick()
-        waitForText("Game Over")
+        composeRule.onNodeWithText("End game").performClick()
+        waitForText("Game over")
         composeRule.onNodeWithText("OK").performClick()
-        composeRule.onNodeWithText("Game Summary").assertIsDisplayed()
+        composeRule.onNodeWithText("Game summary").assertIsDisplayed()
         composeRule.onNodeWithText("$viscousCoupling 4").assertIsDisplayed()
         composeRule.onNodeWithText("$animal 5").assertIsDisplayed()
 
-        // The finished game should go home from the visible Back action, archive, and then reopen from Archived Games.
+        // The finished game should go home from the visible Back action, archive, and then reopen from Archived games.
         composeRule.onNodeWithText("Back").performClick()
-        waitForText("Completed Game")
+        waitForText("Completed game")
         composeRule.onNodeWithText("$viscousCoupling 4 - 5 $animal").performClick()
-        waitForText("Game Summary")
+        waitForText("Game summary")
         assertNoGameOverDialog()
         composeRule.onNodeWithText("Back").performClick()
-        waitForText("Completed Game")
-        composeRule.onNodeWithText("Archive Completed Game").performClick()
-        waitForText("See Archived Games")
-        composeRule.onNodeWithText("See Archived Games").performClick()
+        waitForText("Completed game")
+        composeRule.onNodeWithText("Archive completed game").performClick()
+        waitForText("See archived games")
+        composeRule.onNodeWithText("See archived games").performClick()
         waitForText("$viscousCoupling 4 - 5 $animal")
         composeRule.onNodeWithTag("archived-game-$viscousCoupling 4 - 5 $animal").performClick()
-        waitForText("Game Summary")
+        waitForText("Game summary")
         assertNoGameOverDialog()
         composeRule.onNodeWithText("$animal 5").assertIsDisplayed()
         composeRule.onNodeWithText("Back").performClick()
-        waitForText("Archived Games")
+        waitForText("Archived games")
         composeRule.onNodeWithText("Back").performClick()
-        waitForText("Start New Game")
+        waitForText("Start new game")
     }
 
     /// Assert that the game-over confirmation dialog is not currently visible.
     private fun assertNoGameOverDialog() {
-        assertTrue(composeRule.onAllNodesWithText("Game Over").fetchSemanticsNodes().isEmpty())
+        assertTrue(composeRule.onAllNodesWithText("Game over").fetchSemanticsNodes().isEmpty())
     }
 
     /**
@@ -298,8 +298,8 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
                 )
             )
         }
-        waitForText("Time Violation")
-        waitForText("Restart Countdown")
+        waitForText("Time violation")
+        waitForText("Restart countdown")
 
         composeRule.activityRule.scenario.onActivity { activity ->
             val current = activity.appViewModel.liveState!!
@@ -318,7 +318,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         }
         waitForText("Apply soft cap?")
         composeRule.onNodeWithText("Apply").performClick()
-        waitForText("Undo Apply Soft Cap")
+        waitForText("Undo Apply soft cap")
 
         composeRule.activityRule.scenario.onActivity { activity ->
             val current = activity.appViewModel.liveState!!
@@ -350,8 +350,8 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
                 )
             )
         }
-        waitForText("Time Violation")
-        waitForText("Restart Countdown")
+        waitForText("Time violation")
+        waitForText("Restart countdown")
 
         // Locking the live screen should hide expired-pull correction actions until unlocked.
         composeRule.onNodeWithTag("live-top-lock").performClick()
@@ -359,23 +359,23 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.onAllNodesWithTag("live-time-violation").assertCountEquals(0)
         composeRule.onAllNodesWithTag("live-restart-pull-countdown").assertCountEquals(0)
         unlockLiveScreen()
-        waitForText("Time Violation")
-        waitForText("Restart Countdown")
+        waitForText("Time violation")
+        waitForText("Restart countdown")
 
-        // Restart Countdown should be undoable and return the expired-pull action surface.
-        composeRule.onNodeWithText("Restart Countdown").performClick()
-        waitForText("Undo Restart Pull Countdown")
-        composeRule.onNodeWithText("Undo Restart Pull Countdown").performClick()
+        // Restart countdown should be undoable and return the expired-pull action surface.
+        composeRule.onNodeWithText("Restart countdown").performClick()
+        waitForText("Undo Restart pull countdown")
+        composeRule.onNodeWithText("Undo Restart pull countdown").performClick()
         waitForText("Redo")
-        waitForText("Time Violation")
+        waitForText("Time violation")
 
-        // Time Violation should ask for the violating team and report the warning consequence.
-        composeRule.onNodeWithText("Time Violation").performClick()
+        // Time violation should ask for the violating team and report the warning consequence.
+        composeRule.onNodeWithText("Time violation").performClick()
         waitForText("Which team committed the time violation?")
         if (shouldUsePlatformBackDismissalCoverage()) {
             pressDialogBack()
             composeRule.onAllNodesWithText("Which team committed the time violation?").assertCountEquals(0)
-            composeRule.onNodeWithText("Time Violation").performClick()
+            composeRule.onNodeWithText("Time violation").performClick()
             waitForText("Which team committed the time violation?")
         }
         composeRule.onAllNodesWithText("Team 1").onLast().performClick()
@@ -392,8 +392,8 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
                 )
             )
         }
-        waitForText("Time Violation")
-        composeRule.onNodeWithText("Time Violation").performClick()
+        waitForText("Time violation")
+        composeRule.onNodeWithText("Time violation").performClick()
         waitForText("Which team committed the time violation?")
         composeRule.onAllNodesWithText("Team 2").onLast().performClick()
         waitForText("now has 30 seconds", substring = true)
@@ -414,7 +414,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             .fetchSemanticsNode()
             .boundsInRoot
             .top
-        composeRule.onNodeWithText("Start Point").performClick()
+        composeRule.onNodeWithText("Start point").performClick()
         waitForText("Slide right to unlock")
         val fieldTopAfterStartPoint = composeRule.onNodeWithTag("live-field-diagram")
             .fetchSemanticsNode()
@@ -444,7 +444,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         waitForText("Slide right to unlock")
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).assertIsNotEnabled()
         unlockLiveScreen()
-        composeRule.onNodeWithText("Undo Start Point").performClick()
+        composeRule.onNodeWithText("Undo Start point").performClick()
         waitForText("Lock")
         composeRule.onAllNodesWithText("Slide right to unlock").assertCountEquals(0)
         composeRule.onNodeWithText("Redo").performClick()
@@ -479,15 +479,15 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
                 )
             )
         }
-        waitForText("Start Point")
-        composeRule.onNodeWithText("Start Point").performClick()
+        waitForText("Start point")
+        composeRule.onNodeWithText("Start point").performClick()
         waitForText("Slide right to unlock")
         unlockLiveScreen()
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.appViewModel.updateAutomaticallyAdvanceCountdowns(true)
         }
         composeRule.waitForIdle()
-        composeRule.onNodeWithText("Undo Start Point").performClick()
+        composeRule.onNodeWithText("Undo Start point").performClick()
         composeRule.waitUntil(timeoutMillis = 10_000) {
             composeRule.activity.appViewModel.liveState!!.phase == GamePhase.LIVE_POINT
         }
@@ -525,7 +525,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             System.currentTimeMillis() >= checkAfter
         }
         assertEquals(GamePhase.BETWEEN_POINTS, composeRule.activity.appViewModel.liveState!!.phase)
-        waitForText("Start Point")
+        waitForText("Start point")
         composeRule.onAllNodesWithText("Slide right to unlock").assertCountEquals(0)
 
         composeRule.activityRule.scenario.onActivity { activity ->
@@ -541,11 +541,11 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.appViewModel.updateAutomaticallyLockLivePoint(false)
         }
-        composeRule.onNodeWithText("Start Point").performClick()
+        composeRule.onNodeWithText("Start point").performClick()
         waitForText("Lock")
         composeRule.onAllNodesWithText("Slide right to unlock").assertCountEquals(0)
         recordTimeout(TeamId.TEAM_ONE, "Undo Timeout by Team 1")
-        composeRule.onNodeWithText("Continue Point").performClick()
+        composeRule.onNodeWithText("Continue point").performClick()
         waitForText("Lock")
         composeRule.onAllNodesWithText("Slide right to unlock").assertCountEquals(0)
 
@@ -564,7 +564,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.waitUntil(timeoutMillis = 2_000) {
             composeRule.activity.appViewModel.liveState!!.phase == GamePhase.LIVE_POINT
         }
-        waitForText("Undo Start Point")
+        waitForText("Undo Start point")
         composeRule.onAllNodesWithText("Slide right to unlock").assertCountEquals(0)
         composeRule.onNodeWithTag("live-top-lock").assertIsDisplayed()
 

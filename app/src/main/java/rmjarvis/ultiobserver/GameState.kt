@@ -461,7 +461,7 @@ data class GameState(
      */
     fun pruneUndoHistory(clearCountdown: Boolean = true): GameState {
         val prunedUndoEntry = undoEntry
-            ?.takeIf { it.label == "Undo End Game" }
+            ?.takeIf { it.label == "Undo End game" }
             ?.let { entry ->
                 UndoEntry(
                     label = entry.label,
@@ -503,7 +503,7 @@ data class GameState(
             pullSequenceOffsidesRecorded = false,
             pullSequenceFalseStartRecorded = false,
             lastEvent = "Field ends swapped.",
-        ).withUndo(this, "Undo Swap Ends of Field")
+        ).withUndo(this, "Undo Swap ends of field")
     }
 
     /// Swap the pulling team while leaving the teams' attacking orientation otherwise intact.
@@ -517,7 +517,7 @@ data class GameState(
             pullSequenceOffsidesRecorded = false,
             pullSequenceFalseStartRecorded = false,
             lastEvent = "Pulling team swapped.",
-        ).withUndo(this, "Undo Swap Pulling Team")
+        ).withUndo(this, "Undo Swap pulling team")
     }
 
     /**
@@ -579,7 +579,7 @@ data class GameState(
             teamOne = this.teamOne.copy(score = teamOneScore.coerceAtLeast(0)),
             teamTwo = this.teamTwo.copy(score = teamTwoScore.coerceAtLeast(0)),
             lastEvent = "Score adjusted.",
-        ).withEventLogEntries(entries).withUndo(this, "Undo Score Adjustment")
+        ).withEventLogEntries(entries).withUndo(this, "Undo Score adjustment")
     }
 }
 
@@ -649,7 +649,7 @@ fun applySetupToLiveGame(
     } else {
         base
     }
-    return updatedState.withUndo(existing, "Undo Update Game Setup")
+    return updatedState.withUndo(existing, "Undo Update game setup")
 }
 
 /// Extract only the setup-screen fields from live state so the setup editor can reopen prefilled.

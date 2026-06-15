@@ -67,33 +67,33 @@ internal fun OtherSheet(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 OtherMenuButton(
-                    label = "Update Game Setup",
+                    label = "Update game setup",
                     onClick = onUpdateGameSetup,
                 )
                 OtherMenuButton(
-                    label = "Adjust Score",
+                    label = "Adjust score",
                     onClick = { showAdjustScoreDialog = true },
                 )
                 OtherMenuButton(
-                    label = "Adjust Timeouts",
+                    label = "Adjust timeouts",
                     onClick = { showAdjustTimeoutsDialog = true },
                 )
                 OtherMenuButton(
-                    label = "Adjust Cards / TF",
+                    label = "Adjust cards / TF",
                     onClick = { showAdjustCardsDialog = true },
                 )
                 OtherMenuButton(
-                    label = "Adjust Pull Infractions",
+                    label = "Adjust pull infractions",
                     onClick = { showAdjustPullInfractionsDialog = true },
                 )
                 OtherMenuButton(
-                    label = "Swap Ends of Field",
+                    label = "Swap ends of field",
                     onClick = {
                         onAction(state.swapFieldEnds())
                     },
                 )
                 OtherMenuButton(
-                    label = "Swap Pulling Team",
+                    label = "Swap pulling team",
                     onClick = {
                         onAction(state.swapPullingTeam())
                     },
@@ -104,26 +104,26 @@ internal fun OtherSheet(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 OtherMenuButton(
-                    label = "Event Log",
+                    label = "Event log",
                     onClick = onShowEventLog,
                 )
                 if (!state.halftimeTaken && state.phase == GamePhase.BETWEEN_POINTS) {
                     OtherMenuButton(
-                        label = "Start Halftime",
+                        label = "Start halftime",
                         onClick = {
                             onAction(state.startHalftimeNow(now))
                         },
                     )
                 }
                 OtherMenuButton(
-                    label = "End Game",
+                    label = "End game",
                     onClick = {
                         onAction(state.endGameNow(now))
                     },
                 )
                 if (!state.halftimeTaken && !state.halfCapApplied) {
                     OtherMenuButton(
-                        label = "Apply Half Cap Now",
+                        label = "Apply half cap now",
                         onClick = {
                             onAction(state.makeCapNow(CapType.HALF, now))
                         },
@@ -131,7 +131,7 @@ internal fun OtherSheet(
                 }
                 if (!state.softCapApplied) {
                     OtherMenuButton(
-                        label = "Apply Soft Cap Now",
+                        label = "Apply soft cap now",
                         onClick = {
                             onAction(state.makeCapNow(CapType.SOFT, now))
                         },
@@ -139,14 +139,14 @@ internal fun OtherSheet(
                 }
                 if (!state.hardCapApplied) {
                     OtherMenuButton(
-                        label = "Apply Hard Cap Now",
+                        label = "Apply hard cap now",
                         onClick = {
                             onAction(state.makeCapNow(CapType.HARD, now))
                         },
                     )
                 }
                 OtherMenuButton(
-                    label = "Delete Game",
+                    label = "Delete game",
                     onClick = { showDeleteGameDialog = true },
                 )
             }
@@ -237,7 +237,7 @@ private fun AdjustScoreDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Adjust Score") },
+        title = { Text("Adjust score") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 SmallCountEditor(
