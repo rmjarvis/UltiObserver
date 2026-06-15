@@ -49,7 +49,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
 
         // Walk the default new-game path into the live screen.
         openNewGameSetup()
-        composeRule.onNodeWithText("UltiObserver Setup").assertIsDisplayed()
+        composeRule.onNodeWithText("Setup Game").assertIsDisplayed()
 
         // A brand-new draft with blank setup names should use fallback names on Home.
         pressAppBack()

@@ -40,7 +40,7 @@ abstract class MainActivityUiTestFixtures {
     /// Open the new-game setup screen from Home.
     protected fun openNewGameSetup() {
         composeRule.onNodeWithText("Start New Game").performClick()
-        waitForText("UltiObserver Setup")
+        waitForText("Setup Game")
     }
 
     /// Start a live game through the public Home and setup UI path.

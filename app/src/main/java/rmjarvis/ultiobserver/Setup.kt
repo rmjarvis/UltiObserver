@@ -254,12 +254,7 @@ private fun capSummary(enabled: Boolean, minutes: Int): String {
     return if (enabled) "+$minutes" else "-"
 }
 
-/// Return the compact timeout-rule summary.
-internal fun GameRules.timeoutSummary(): String {
-    return if (hasFloaterTimeout) "$timeoutsPerHalf+1" else timeoutsPerHalf.toString()
-}
-
-/// Format timeout rules for the setup editor row.
+/// Format timeout rules for setup display.
 internal fun GameRules.formatTimeoutRules(): String {
     return buildString {
         append("$timeoutsPerHalf/half")

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -288,7 +289,7 @@ internal fun SetupScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("UltiObserver Setup") },
+                title = { Text("Setup Game") },
                 navigationIcon = {
                     TextButton(onClick = onBackHome) {
                         Text("Back")
@@ -320,8 +321,12 @@ internal fun SetupScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            // Team identity.
             SetupFieldBox {
+                Text(
+                    text = "Team Information",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 TeamEditor(
                     fieldLabel = "Team 1",
                     team = state.teamOne,
@@ -859,7 +864,7 @@ private fun SetupSummaryRow(
                 )
                 summaryContent()
             }
-            OutlinedButton(
+            SetupEditButton(
                 onClick = onEdit,
                 modifier = Modifier.testTag(editTag),
             ) {
@@ -1125,15 +1130,11 @@ private fun FieldStartingPullSummary(state: GameSetupState) {
  */
 @Composable
 private fun GameRulesSummary(rules: GameRules) {
-    FlowRow(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(28.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         SetupSummaryValue("Game to ${rules.gameTo}")
         SetupSummaryValue("Half: ${rules.halftimeMinutes} min")
-        SetupSummaryValue("Caps ${rules.capRulesSummary()}")
-        SetupSummaryValue("TO ${rules.timeoutSummary()}")
+        SetupSummaryValue("Caps: ${rules.capRulesSummary()}")
+        SetupSummaryValue("TO: ${rules.formatTimeoutRules()}")
     }
 }
 
@@ -1150,6 +1151,33 @@ private fun SetupSummaryValue(text: String) {
         fontWeight = FontWeight.SemiBold,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
+    )
+}
+
+/**
+ * Render a prominent green setup edit button.
+ *
+ * @param onClick Callback invoked when the button is tapped.
+ * @param modifier Modifier applied to the button.
+ * @param contentPadding Padding inside the button.
+ * @param content Button content.
+ */
+@Composable
+private fun SetupEditButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
+    content: @Composable RowScope.() -> Unit,
+) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = modifier,
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+        ),
+        contentPadding = contentPadding,
+        content = content,
     )
 }
 
@@ -1857,13 +1885,9 @@ private fun TeamEditor(
                     .weight(1f)
                     .testTag("setup-$fieldLabel-name"),
             )
-            OutlinedButton(
+            SetupEditButton(
                 onClick = onEditColor,
                 modifier = Modifier.testTag("setup-$fieldLabel-color-button"),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                ),
                 contentPadding = compactSetupButtonPadding(),
             ) {
                 Text(
