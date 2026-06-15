@@ -241,6 +241,20 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("OK").performClick()
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-infraction")).assertIsNotEnabled()
 
+        // A live-point timeout starts when the timeout button is pressed, not when the dialog is confirmed.
+        val timeoutRequestedAt = System.currentTimeMillis()
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "timeout")).performClick()
+        waitForText("Timeout charged to Team 1.", substring = true)
+        Thread.sleep(1200)
+        val beforeConfirmingTimeout = System.currentTimeMillis()
+        composeRule.onNodeWithText("OK").performClick()
+        waitForText("Continue point")
+        val timeoutCountdown = composeRule.activity.appViewModel.liveState!!.countdown!!
+        assertEquals(CountdownKind.TIME_OUT, timeoutCountdown.kind)
+        assertTrue(timeoutCountdown.targetEpoch >= timeoutRequestedAt + 69_000L)
+        assertTrue(timeoutCountdown.targetEpoch < beforeConfirmingTimeout + 69_500L)
+        continuePointAndUnlock()
+
         // A between-points goal implicitly starts the point and exposes a useful undo.
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
         waitForText("Undo Goal by Team 1")
@@ -251,6 +265,10 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         waitForText("Undo Goal by Team 1")
 
         // Timeout should remain wired after the undo path, including undo when redo is also available.
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "timeout")).performClick()
+        waitForText("Timeout charged to Team 1.", substring = true)
+        composeRule.onNodeWithText("Cancel").performClick()
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "timeout")).assertIsDisplayed()
         recordTimeout(TeamId.TEAM_ONE, "Undo Timeout by Team 1")
         composeRule.onNodeWithText("Undo Timeout by Team 1").performClick()
         waitForText("Undo Goal by Team 1")

@@ -69,7 +69,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         // Animal calls a live-point timeout; the point stays live but a thrower countdown starts.
         val firstTimeout = state.assessTimeout(ANIMAL, 1_000_000L)
         assertEquals("Timeout charged to Animal. They have 1 timeout remaining in this half.", firstTimeout.message())
-        assertEquals("Timeout charged", firstTimeout.event?.formatPopupTitle())
+        assertEquals("Timeout", firstTimeout.event?.formatPopupTitle())
         state = firstTimeout.state
         assertEquals(1, state.teamTwo.timeoutsUsedThisHalf)
         assertEquals(1, state.timeoutsRemaining(ANIMAL))

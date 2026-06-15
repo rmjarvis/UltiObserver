@@ -94,7 +94,7 @@ class TestGameTimeouts : GameDomainTestFixtures() {
             "Timeout charged to Viscous Coupling. They have 1 timeout remaining in this half.",
             timeoutResult.message(),
         )
-        assertEquals("Timeout charged", timeoutResult.event?.formatPopupTitle())
+        assertEquals("Timeout", timeoutResult.event?.formatPopupTitle())
         state = timeoutResult.state
         assertEquals(1, state.teamOne.timeoutsUsedThisHalf)
         assertEquals(1, state.timeoutsRemaining(VC))
@@ -156,7 +156,11 @@ class TestGameTimeouts : GameDomainTestFixtures() {
 
         // With both first-half timeouts used, another timeout request leaves state unchanged and returns a message.
         timeoutResult = state.assessTimeout(VC, 1_010_000L)
-        assertEquals("Viscous Coupling is out of timeouts.", timeoutResult.message())
+        assertEquals(
+            "Viscous Coupling is out of timeouts.\n\n" +
+                "Add three to the stall count. It is a turnover if that is 10 or more.",
+            timeoutResult.message(),
+        )
         assertEquals("Invalid timeout", timeoutResult.event?.formatPopupTitle())
         assertEquals(state, timeoutResult.state)
         assertEquals(state, state.chargeTimeout(VC, 1_010_000L))
@@ -177,7 +181,7 @@ class TestGameTimeouts : GameDomainTestFixtures() {
         val halftimeEnd = state.countdown!!.targetEpoch
         timeoutResult = state.assessTimeout(VC, halftimeEnd - 1L)
         assertEquals("Timeouts are not available now.", timeoutResult.message())
-        assertEquals("Invalid timeout", timeoutResult.event?.formatPopupTitle())
+        assertEquals("Timeout not possible now", timeoutResult.event?.formatPopupTitle())
         assertEquals(state, (timeoutResult.event as GameEvent.TimeoutUnavailable).state)
         assertEquals(state, timeoutResult.state)
 

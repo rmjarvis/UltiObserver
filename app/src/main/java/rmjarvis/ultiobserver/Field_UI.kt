@@ -292,6 +292,7 @@ internal data class FieldLayoutMetrics(
  *
  * @param state The live game state to render.
  * @param interactionsEnabled Whether team action controls should be enabled.
+ * @param timeoutEnabled Whether timeout handling is available in the current state.
  * @param showPullIndicator Whether the center strip should show pull direction.
  * @param metrics The precomputed field layout metrics.
  * @param centerContent The live action or unlock content rendered in the center strip.
@@ -306,6 +307,7 @@ internal data class FieldLayoutMetrics(
 internal fun FieldSketchCard(
     state: GameState,
     interactionsEnabled: Boolean,
+    timeoutEnabled: Boolean,
     showPullIndicator: Boolean,
     metrics: FieldLayoutMetrics,
     centerContent: @Composable () -> Unit,
@@ -347,6 +349,7 @@ internal fun FieldSketchCard(
                 team = topTeam,
                 cardPoints = state.teamCardTotal(topSlot),
                 timeoutsRemaining = state.timeoutsRemaining(topSlot),
+                timeoutEnabled = timeoutEnabled,
                 background = topTeam.accent,
                 shape = TopEndZoneShape,
                 interactionsEnabled = interactionsEnabled,
@@ -398,6 +401,7 @@ internal fun FieldSketchCard(
                 team = bottomTeam,
                 cardPoints = state.teamCardTotal(bottomSlot),
                 timeoutsRemaining = state.timeoutsRemaining(bottomSlot),
+                timeoutEnabled = timeoutEnabled,
                 background = bottomTeam.accent,
                 shape = BottomEndZoneShape,
                 interactionsEnabled = interactionsEnabled,
@@ -425,6 +429,7 @@ internal fun FieldSketchCard(
  * @param team The live team state to display.
  * @param cardPoints The derived team card-point total.
  * @param timeoutsRemaining The derived timeout count remaining in this half.
+ * @param timeoutEnabled Whether timeout handling is available in the current state.
  * @param background The team-color background for the row.
  * @param interactionsEnabled Whether live action buttons should be enabled.
  * @param isPulling Whether this team is currently pulling.
@@ -446,6 +451,7 @@ private fun EndZonePanel(
     team: TeamLiveState,
     cardPoints: Int,
     timeoutsRemaining: Int,
+    timeoutEnabled: Boolean,
     background: Color,
     shape: RoundedCornerShape,
     interactionsEnabled: Boolean,
@@ -521,6 +527,7 @@ private fun EndZonePanel(
             team = team,
             cardPoints = cardPoints,
             timeoutsRemaining = timeoutsRemaining,
+            timeoutEnabled = timeoutEnabled,
             interactionsEnabled = interactionsEnabled,
             isPulling = isPulling,
             timeViolationEnabled = timeViolationEnabled,
@@ -554,6 +561,7 @@ private fun EndZonePanel(
  * @param team The live team state used for count labels.
  * @param cardPoints The team's total blue-card count.
  * @param timeoutsRemaining Timeouts remaining in the current half.
+ * @param timeoutEnabled Whether timeout handling is available in the current state.
  * @param interactionsEnabled Whether the observer can press live actions.
  * @param isPulling Whether this team is currently pulling.
  * @param timeViolationEnabled Whether this team may record a time violation for this pull sequence.
@@ -572,6 +580,7 @@ private fun TeamActionGrid(
     team: TeamLiveState,
     cardPoints: Int,
     timeoutsRemaining: Int,
+    timeoutEnabled: Boolean,
     interactionsEnabled: Boolean,
     isPulling: Boolean,
     timeViolationEnabled: Boolean,
@@ -697,7 +706,7 @@ private fun TeamActionGrid(
                     .width(timeoutWidth)
                     .height(metrics.actionButtonHeight * 2f + gap)
                     .testTag("live-${teamId.name}-timeout"),
-                enabled = interactionsEnabled,
+                enabled = interactionsEnabled && timeoutEnabled,
                 containerColor = FieldTimeoutButtonColor,
                 contentColor = Color.White,
                 onClick = onTimeout,

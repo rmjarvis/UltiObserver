@@ -12,6 +12,15 @@ data class TimeoutAssessmentResult(
 )
 
 /**
+ * Confirmation details for a timeout request before the observer applies it.
+ *
+ * @param event The event-shaped preview used to render the confirmation dialog.
+ */
+data class TimeoutAssessmentPreview(
+    val event: GameEvent,
+)
+
+/**
  * Replace the number of timeouts used by each team as a manual correction.
  *
  * @param teamOneTimeoutsUsed The corrected count of team-one timeouts used in the current half.
@@ -72,7 +81,7 @@ fun GameState.assessTimeout(
     val timeoutState = this.timeoutEligibleState(now)
         ?: return TimeoutAssessmentResult(this, GameEvent.TimeoutUnavailable(this))
     if (timeoutState.timeoutsRemaining(team) <= 0) {
-        return TimeoutAssessmentResult(this, GameEvent.TeamOutOfTimeouts(state = this, team = team))
+        return TimeoutAssessmentResult(this, GameEvent.TeamOutOfTimeouts(state = timeoutState, team = team))
     }
     val chargedState = timeoutState.chargeTimeout(team, now)
     return TimeoutAssessmentResult(
@@ -80,6 +89,31 @@ fun GameState.assessTimeout(
         event = GameEvent.TimeoutCharged(state = chargedState, team = team),
     )
 }
+
+/**
+ * Build confirmation details for a timeout request without changing game state.
+ *
+ * @param team The team requesting the timeout.
+ * @param now The current epoch millis used to preview timeout eligibility.
+ */
+fun GameState.previewTimeout(
+    team: TeamId,
+    now: Long,
+): TimeoutAssessmentPreview {
+    val timeoutState = this.timeoutEligibleState(now)
+        ?: return TimeoutAssessmentPreview(GameEvent.TimeoutUnavailable(this))
+    if (timeoutState.timeoutsRemaining(team) <= 0) {
+        return TimeoutAssessmentPreview(GameEvent.TeamOutOfTimeouts(state = timeoutState, team = team))
+    }
+    val chargedState = timeoutState.chargeTimeout(team, now)
+    return TimeoutAssessmentPreview(GameEvent.TimeoutCharged(state = chargedState, team = team))
+}
+
+/// Report whether the current game state can process a timeout request.
+fun GameState.canRequestTimeout(now: Long): Boolean {
+    return this.timeoutEligibleState(now) != null
+}
+
 /**
  * Charge a timeout directly and update the relevant countdown.
  * Between points this extends the current timer; during a live point it starts an offense-set timer.
@@ -208,10 +242,10 @@ private fun applyLivePointTimeout(
 }
 
 /// Format a timeout event popup title.
-internal fun GameEvent.TimeoutCharged.formatPopupTitle(): String = "Timeout charged"
+internal fun GameEvent.TimeoutCharged.formatPopupTitle(): String = "Timeout"
 
 /// Format an invalid-timeout event popup title.
-internal fun GameEvent.TimeoutUnavailable.formatPopupTitle(): String = "Invalid timeout"
+internal fun GameEvent.TimeoutUnavailable.formatPopupTitle(): String = "Timeout not possible now"
 
 /// Format an out-of-timeouts event popup title.
 internal fun GameEvent.TeamOutOfTimeouts.formatPopupTitle(): String = "Invalid timeout"
@@ -230,5 +264,9 @@ internal fun GameEvent.TimeoutUnavailable.formatMessage(): String {
 
 /// Format an out-of-timeouts event message.
 internal fun GameEvent.TeamOutOfTimeouts.formatMessage(): String {
-    return "${this.state.teamName(this.team)} is out of timeouts."
+    val message = "${this.state.teamName(this.team)} is out of timeouts."
+    if (state.phase != GamePhase.LIVE_POINT) {
+        return message
+    }
+    return "$message\n\nAdd three to the stall count. It is a turnover if that is 10 or more."
 }

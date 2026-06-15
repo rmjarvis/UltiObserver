@@ -42,6 +42,17 @@ import androidx.compose.ui.unit.sp
 import java.time.LocalTime
 
 /**
+ * Timeout request waiting for observer confirmation.
+ *
+ * @param team The team requesting the timeout.
+ * @param requestedAt The epoch millis when the timeout was requested.
+ */
+private data class PendingTimeoutRequest(
+    val team: TeamId,
+    val requestedAt: Long,
+)
+
+/**
  * Render the main live-game screen, including the field view, modal flows, and popup cues.
  *
  * @param state The live game state to render.
@@ -66,6 +77,7 @@ internal fun LiveGameScreen(
     var showCardsSheet by remember { mutableStateOf(false) }
     var showMoreActionsDialog by remember { mutableStateOf(false) }
     var showEventLogSheet by remember { mutableStateOf(false) }
+    var pendingTimeoutRequest by remember { mutableStateOf<PendingTimeoutRequest?>(null) }
     var pendingTimeViolationTeam by remember { mutableStateOf<TeamId?>(null) }
     var pendingPullInfractionTeam by remember { mutableStateOf<TeamId?>(null) }
     var teamInfoSheetTeam by remember { mutableStateOf<TeamId?>(null) }
@@ -265,6 +277,7 @@ internal fun LiveGameScreen(
                 FieldSketchCard(
                     state = state,
                     interactionsEnabled = !locked,
+                    timeoutEnabled = state.canRequestTimeout(now),
                     showPullIndicator = !locked,
                     metrics = layoutMetrics.field,
                     centerContent = {
@@ -360,12 +373,7 @@ internal fun LiveGameScreen(
                     },
                     onGoal = { team -> onStateChange(state.recordGoalFromCurrentState(team, now)) },
                     onTimeout = { team ->
-                        val result = state.assessTimeout(team, now)
-                        onStateChange(result.state)
-                        showActionInfo(
-                            message = result.event.formatMessage(),
-                            title = result.event.formatPopupTitle(),
-                        )
+                        pendingTimeoutRequest = PendingTimeoutRequest(team, System.currentTimeMillis())
                     },
                     onTimeViolation = { team ->
                         val preview = state.previewTimeViolation(team)
@@ -465,6 +473,36 @@ internal fun LiveGameScreen(
         TeamNamesDialog(
             team = state.teamFor(team),
             onDismiss = { teamInfoSheetTeam = null },
+        )
+    }
+
+    pendingTimeoutRequest?.let { request ->
+        val event = state.previewTimeout(request.team, request.requestedAt).event
+        AlertDialog(
+            onDismissRequest = { pendingTimeoutRequest = null },
+            title = { Text(event.formatPopupTitle()) },
+            text = {
+                Text(
+                    text = event.formatMessage(),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val result = state.assessTimeout(request.team, request.requestedAt)
+                        onStateChange(result.state)
+                        pendingTimeoutRequest = null
+                    },
+                ) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingTimeoutRequest = null }) {
+                    Text("Cancel")
+                }
+            },
         )
     }
 
