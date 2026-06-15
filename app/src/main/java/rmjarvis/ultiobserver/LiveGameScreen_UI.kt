@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -63,9 +64,10 @@ internal fun LiveGameScreen(
     onBackHome: () -> Unit,
 ) {
     var showCardsSheet by remember { mutableStateOf(false) }
-    var showOtherSheet by remember { mutableStateOf(false) }
+    var showMoreActionsDialog by remember { mutableStateOf(false) }
     var showEventLogSheet by remember { mutableStateOf(false) }
     var showTimeViolationTeamPrompt by remember { mutableStateOf(false) }
+    var teamInfoSheetTeam by remember { mutableStateOf<TeamId?>(null) }
     var locked by remember { mutableStateOf(false) }
     var actionInfoMessage by remember { mutableStateOf<String?>(null) }
     var actionInfoTitle by remember { mutableStateOf("") }
@@ -377,36 +379,22 @@ internal fun LiveGameScreen(
                             )
                         }
                     },
+                    onCardsAndTechnicalFouls = { showCardsSheet = true },
+                    onTeamInfo = { team -> teamInfoSheetTeam = team },
                 )
 
-                // Cards / TF and Other sit directly below the field.
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    SmallActionButton(
-                        label = "Cards / TF",
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(layoutMetrics.bottomActionHeight),
-                        enabled = !locked,
-                        containerColor = Color.White,
-                        contentColor = Color.Black,
-                        borderColor = Color.Black,
-                        onClick = { showCardsSheet = true },
-                    )
-                    SmallActionButton(
-                        label = "Other",
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(layoutMetrics.bottomActionHeight),
-                        enabled = !locked,
-                        containerColor = Color.White,
-                        contentColor = Color.Black,
-                        borderColor = Color.Black,
-                        onClick = { showOtherSheet = true },
-                    )
-                }
+                // More actions keeps less-common game actions out of the field action grid.
+                SmallActionButton(
+                    label = "More actions",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(layoutMetrics.bottomActionHeight),
+                    enabled = !locked,
+                    containerColor = Color.White,
+                    contentColor = Color.Black,
+                    borderColor = Color.Black,
+                    onClick = { showMoreActionsDialog = true },
+                )
 
                 UndoRedoBar(
                     state = state,
@@ -437,30 +425,47 @@ internal fun LiveGameScreen(
         }
     }
 
-    // Bottom sheet for less-common actions and manual corrections.
-    if (showOtherSheet) {
-        ModalBottomSheet(onDismissRequest = { showOtherSheet = false }) {
-            OtherSheet(
-                state = state,
-                now = now,
-                onUpdateGameSetup = onUpdateGameSetup,
-                onShowEventLog = {
-                    showOtherSheet = false
-                    showEventLogSheet = true
-                },
-                onDeleteGame = onDeleteGame,
-                onAction = { updatedState ->
-                    onStateChange(updatedState)
-                    showOtherSheet = false
-                },
-            )
-        }
+    // Dialog for less-common actions and manual corrections.
+    if (showMoreActionsDialog) {
+        AlertDialog(
+            onDismissRequest = { showMoreActionsDialog = false },
+            title = { Text("More actions") },
+            text = {
+                MoreActionsContent(
+                    state = state,
+                    now = now,
+                    onUpdateGameSetup = onUpdateGameSetup,
+                    onShowEventLog = {
+                        showMoreActionsDialog = false
+                        showEventLogSheet = true
+                    },
+                    onDeleteGame = onDeleteGame,
+                    onAction = { updatedState ->
+                        onStateChange(updatedState)
+                        showMoreActionsDialog = false
+                    },
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showMoreActionsDialog = false }) {
+                    Text("Close")
+                }
+            },
+        )
     }
 
     if (showEventLogSheet) {
-        ModalBottomSheet(onDismissRequest = { showEventLogSheet = false }) {
-            EventLogSheet(state = state)
-        }
+        EventLogDialog(
+            state = state,
+            onDismiss = { showEventLogSheet = false },
+        )
+    }
+
+    teamInfoSheetTeam?.let { team ->
+        TeamNamesDialog(
+            team = state.teamFor(team),
+            onDismiss = { teamInfoSheetTeam = null },
+        )
     }
 
     if (showTimeViolationTeamPrompt) {
@@ -549,7 +554,7 @@ internal fun LiveGameScreen(
         )
     }
 
-    // Prominent game prompts that are not tied to bottom-sheet workflows.
+    // Prominent game prompts that are not tied to modal workflows.
     if (activeGamePrompt != null) {
         val prompt = activeGamePrompt!!
         AlertDialog(
@@ -568,6 +573,73 @@ internal fun LiveGameScreen(
             },
         )
     }
+}
+
+/**
+ * Render coach and captain names for quick live-game reference.
+ *
+ * @param team The team whose setup-entered names should be displayed.
+ * @param onDismiss Callback closing the dialog.
+ */
+@Composable
+private fun TeamNamesDialog(team: TeamLiveState, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(team.name) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                TeamNamesRow(singularLabel = "Coach", pluralLabel = "Coaches", value = team.coaches)
+                TeamNamesRow(
+                    singularLabel = "Field captain",
+                    pluralLabel = "Field captains",
+                    value = team.fieldCaptains,
+                )
+                TeamNamesRow(
+                    singularLabel = "Spirit captain",
+                    pluralLabel = "Spirit captains",
+                    value = team.spiritCaptains,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("OK")
+            }
+        },
+    )
+}
+
+/**
+ * Render one non-empty coach/captain names section.
+ *
+ * @param singularLabel The section label when one nonblank line was entered.
+ * @param pluralLabel The section label when multiple nonblank lines were entered.
+ * @param value The setup-entered names for that section.
+ */
+@Composable
+private fun TeamNamesRow(singularLabel: String, pluralLabel: String, value: String) {
+    val trimmedValue = value.trim()
+    if (trimmedValue.isBlank()) {
+        return
+    }
+    val label = if (trimmedValue.nonblankLineCount() == 1) singularLabel else pluralLabel
+    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            text = trimmedValue,
+            style = MaterialTheme.typography.bodyLarge,
+        )
+    }
+}
+
+/// Return the number of nonblank lines in a setup-entered coach/captain field.
+private fun String.nonblankLineCount(): Int {
+    return lineSequence().count { it.isNotBlank() }
 }
 
 /**

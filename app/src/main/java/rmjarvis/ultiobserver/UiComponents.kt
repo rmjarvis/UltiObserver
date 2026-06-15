@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
@@ -26,7 +25,6 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 internal val TeamColorChoice.accent: Color
@@ -98,47 +96,6 @@ internal fun SmallActionButton(
             ),
             border = BorderStroke(1.dp, borderColor),
             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
-        ) {
-            Text(
-                label,
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.labelLarge,
-            )
-        }
-    }
-}
-
-/**
- * Render the smaller, denser action button used on live team rows.
- *
- * @param label The button label.
- * @param modifier Optional layout modifier.
- * @param enabled Whether the button is enabled.
- * @param height The fixed button height from live layout metrics.
- * @param onClick Callback invoked when the button is tapped.
- */
-@Composable
-internal fun CompactActionButton(
-    label: String,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    height: Dp,
-    onClick: () -> Unit,
-) {
-    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-        OutlinedButton(
-            onClick = onClick,
-            enabled = enabled,
-            modifier = modifier
-                .height(height)
-                .defaultMinSize(minHeight = 0.dp),
-            shape = RoundedCornerShape(10.dp),
-            colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
-                containerColor = Color.White,
-                contentColor = Color.Black,
-            ),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 4.dp),
         ) {
             Text(
                 label,

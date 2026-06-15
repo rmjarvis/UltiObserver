@@ -273,6 +273,16 @@ data class TeamLiveState(
     }
 }
 
+/// Return whether this team has coach or captain details to show during the game.
+internal fun TeamLiveState.hasCoachOrCaptainInfo(): Boolean {
+    return coaches.isNotBlank() || fieldCaptains.isNotBlank() || spiritCaptains.isNotBlank()
+}
+
+/// Count combined offsides and false-start pull violations for display.
+internal fun TeamLiveState.pullViolationCount(): Int {
+    return offsides + falseStarts
+}
+
 /// Return teams ordered with the higher-scoring team first for summary display.
 internal fun GameState.winnerFirstTeams(): List<TeamLiveState> {
     val teamOneFirst = teamOne.score > teamTwo.score ||
@@ -491,6 +501,19 @@ data class GameState(
      */
     fun teamName(team: TeamId): String {
         return teamFor(team).name
+    }
+
+    /**
+     * Return a field-end name from game state, falling back to the default label.
+     *
+     * @param end The end whose display name should be returned.
+     */
+    fun fieldEndDisplayName(end: FieldEnd): String {
+        val customName = when (end) {
+            FieldEnd.NEAR -> nearEndName
+            FieldEnd.FAR -> farEndName
+        }.trim()
+        return customName.ifEmpty { end.defaultDisplayText() }
     }
 
     /// Swap the teams' field ends while keeping the same team pulling.

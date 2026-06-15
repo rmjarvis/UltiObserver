@@ -68,7 +68,7 @@ enum class CapType {
 
 /**
  * Reposition the selected cap so it is due at the current time.
- * This is the manual cap action from Other, rather than the normal scheduled cap prompt.
+ * This is the manual cap action from More actions, rather than the normal scheduled cap prompt.
  *
  * @param capType The cap whose scheduled offset should be enabled and aligned to now.
  * @param now The epoch millis that should become the cap's scheduled instant.

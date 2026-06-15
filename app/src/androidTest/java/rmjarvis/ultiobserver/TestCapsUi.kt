@@ -55,7 +55,7 @@ class TestCapsUi : MainActivityUiTestFixtures() {
 
         // A soft cap scheduled during halftime should say it is scheduled, not already past.
         startLiveGameWithCapDuringHalftime("Soft cap", "Soft cap")
-        openOtherSheet()
+        openMoreActionsDialog()
         composeRule.onNodeWithText("Start halftime").performClick()
         waitForText("Apply soft cap?")
         waitForText("is scheduled for", substring = true)

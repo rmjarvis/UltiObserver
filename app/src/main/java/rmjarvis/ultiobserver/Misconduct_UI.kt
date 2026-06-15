@@ -285,6 +285,7 @@ internal fun CardsSheet(
     ) {
         Text("Cards / technical fouls", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         TeamActionSection(
+            team = TeamId.TEAM_ONE,
             label = "${state.teamOne.name}${state.cardsRoleSuffix(TeamId.TEAM_ONE)}",
             issuedCards = state.playerCards(TeamId.TEAM_ONE),
             onYellow = { pendingYellowTeam = TeamId.TEAM_ONE },
@@ -297,6 +298,7 @@ internal fun CardsSheet(
             },
         )
         TeamActionSection(
+            team = TeamId.TEAM_TWO,
             label = "${state.teamTwo.name}${state.cardsRoleSuffix(TeamId.TEAM_TWO)}",
             issuedCards = state.playerCards(TeamId.TEAM_TWO),
             onYellow = { pendingYellowTeam = TeamId.TEAM_TWO },
@@ -462,6 +464,7 @@ internal fun CardsSheet(
 /**
  * Render Card/TF actions and current-game issued-card summary for one team.
  *
+ * @param team The team whose action test tags should be attached.
  * @param label The team label, including pull/receive role when applicable.
  * @param issuedCards The team's current-game player-card records.
  * @param onYellow Callback starting the yellow-card flow.
@@ -471,6 +474,7 @@ internal fun CardsSheet(
  */
 @Composable
 private fun TeamActionSection(
+    team: TeamId,
     label: String,
     issuedCards: List<InGamePlayerCardRecord>,
     onYellow: () -> Unit,
@@ -481,12 +485,36 @@ private fun TeamActionSection(
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(label, fontWeight = FontWeight.SemiBold)
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SmallActionButton(label = "Yellow", modifier = Modifier.weight(1f), onClick = onYellow)
-            SmallActionButton(label = "Red", modifier = Modifier.weight(1f), onClick = onRed)
+            SmallActionButton(
+                label = "Yellow",
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("cards-sheet-${team.name}-yellow"),
+                onClick = onYellow,
+            )
+            SmallActionButton(
+                label = "Red",
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("cards-sheet-${team.name}-red"),
+                onClick = onRed,
+            )
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SmallActionButton(label = "Blue", modifier = Modifier.weight(1f), onClick = onBlue)
-            SmallActionButton(label = "Tech", modifier = Modifier.weight(1f), onClick = onTech)
+            SmallActionButton(
+                label = "Blue",
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("cards-sheet-${team.name}-blue"),
+                onClick = onBlue,
+            )
+            SmallActionButton(
+                label = "Tech",
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("cards-sheet-${team.name}-tech"),
+                onClick = onTech,
+            )
         }
         if (issuedCards.isNotEmpty()) {
             Text("This game", fontWeight = FontWeight.Medium, style = MaterialTheme.typography.labelLarge)

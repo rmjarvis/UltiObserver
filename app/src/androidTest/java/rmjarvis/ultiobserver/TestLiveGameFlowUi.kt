@@ -183,7 +183,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         assertLiveScreen()
 
         // Manually ending from the restored final state should return to the same summary.
-        openOtherSheet()
+        openMoreActionsDialog()
         composeRule.onNodeWithText("End game").performClick()
         waitForText("Game over")
         composeRule.onNodeWithText("OK").performClick()

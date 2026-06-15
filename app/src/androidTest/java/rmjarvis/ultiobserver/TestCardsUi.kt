@@ -48,7 +48,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("OK").performClick()
 
         openCardsSheet()
-        composeRule.onAllNodesWithText("Tech").onFirst().performClick()
+        tapCardSheetAction(TeamId.TEAM_ONE, "Tech")
         waitForText("Team 1 has 1 technical foul.")
         composeRule.onNodeWithText("OK").performClick()
 
@@ -165,7 +165,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("OK").performClick()
 
         // Apply a manual card correction that adds a player red, removes a player yellow, and changes a team count.
-        openOtherSheet()
+        openMoreActionsDialog()
         composeRule.onNodeWithText("Adjust cards / TF").performClick()
         waitForText("Adjust cards / TF")
         composeRule.onAllNodesWithText("+1")[1].performClick()
@@ -182,7 +182,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         waitForText("Undo Cards / TF adjustment")
 
         // A small team-count-only correction covers Team 1 blue and technical-foul edits.
-        openOtherSheet()
+        openMoreActionsDialog()
         composeRule.onNodeWithText("Adjust cards / TF").performClick()
         waitForText("Adjust cards / TF")
         composeRule.onAllNodesWithText("-1")[1].performClick()
@@ -192,7 +192,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         waitForText("Undo Cards / TF adjustment")
 
         // A fuller correction pass covers adding/removing player-backed cards on both teams.
-        openOtherSheet()
+        openMoreActionsDialog()
         composeRule.onNodeWithText("Adjust cards / TF").performClick()
         waitForText("Adjust cards / TF")
         composeRule.onAllNodesWithText("+1")[0].performClick()
@@ -216,7 +216,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         waitForText("Undo Cards / TF adjustment")
 
         // A final correction removes the just-added player cards and non-player team counts.
-        openOtherSheet()
+        openMoreActionsDialog()
         composeRule.onNodeWithText("Adjust cards / TF").performClick()
         waitForText("Adjust cards / TF")
         composeRule.onAllNodesWithText("-1")[0].performClick()
@@ -238,7 +238,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         recordYellowCard(TeamId.TEAM_TWO, "21", "Second yellow on player 21.", substring = true)
 
         // Removing a player-backed card can be canceled without applying a partial correction.
-        openOtherSheet()
+        openMoreActionsDialog()
         composeRule.onNodeWithText("Adjust cards / TF").performClick()
         waitForText("Adjust cards / TF")
         composeRule.onAllNodesWithText("-1")[4].performClick()
@@ -249,7 +249,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         waitForText("Update game setup")
 
         // Trying to add another yellow to the maxed-out player should show the invalid assignment warning.
-        openOtherSheet()
+        openMoreActionsDialog()
         composeRule.onNodeWithText("Adjust cards / TF").performClick()
         waitForText("Adjust cards / TF")
         composeRule.onAllNodesWithText("+1")[4].performClick()
@@ -273,7 +273,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         waitForText("Update game setup")
 
         // Ending the game renders the summary forms for second-yellow and repeated-yellow records.
-        openOtherSheet()
+        openMoreActionsDialog()
         composeRule.onNodeWithText("End game").performClick()
         waitForText("Game over")
         composeRule.onNodeWithText("OK").performClick()

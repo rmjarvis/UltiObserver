@@ -19,7 +19,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -87,9 +86,10 @@ internal fun GameOverSummaryScreen(
     }
 
     if (showEventLogSheet) {
-        ModalBottomSheet(onDismissRequest = { showEventLogSheet = false }) {
-            EventLogSheet(state = state)
-        }
+        EventLogDialog(
+            state = state,
+            onDismiss = { showEventLogSheet = false },
+        )
     }
 
     if (gameOverPrompt != null) {

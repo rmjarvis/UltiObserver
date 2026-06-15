@@ -408,6 +408,18 @@ fun GameState.continueLivePoint(): GameState {
     )
 }
 /**
+ * Report whether halftime has elapsed and the live screen can show `Start point`.
+ *
+ * @param now The current epoch millis used to compare against halftime's target time.
+ */
+internal fun GameState.halftimeTransitionReady(now: Long): Boolean {
+    val countdown = countdown ?: return false
+    return phase == GamePhase.HALFTIME &&
+        countdown.kind == CountdownKind.HALFTIME &&
+        now >= countdown.targetEpoch
+}
+
+/**
  * Apply automatic timer expirations that do not require an observer button press.
  *
  * @param now The current epoch millis so tests and background ticks can drive deterministic transitions.

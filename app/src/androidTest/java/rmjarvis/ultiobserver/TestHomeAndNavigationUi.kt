@@ -93,8 +93,8 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Team 1 0 - 0 Team 2").performClick()
         assertLiveScreen()
 
-        // The live Other menu should reopen setup in update mode and return to live.
-        openOtherSheet()
+        // More actions should reopen setup in update mode and return to live.
+        openMoreActionsDialog()
         composeRule.onNodeWithText("Update game setup").performClick()
         waitForText("Back to game screen")
         composeRule.onNodeWithText("Back to game screen").performClick()

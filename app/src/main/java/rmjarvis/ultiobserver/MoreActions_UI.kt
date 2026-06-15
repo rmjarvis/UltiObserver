@@ -21,11 +21,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 /**
- * Render the bottom sheet for manual corrections and less-common game actions.
+ * Render the menu content for manual corrections and less-common game actions.
  *
  * @param state The current live game state.
  * @param now The current epoch millis for actions that depend on clock time.
@@ -35,7 +34,7 @@ import androidx.compose.ui.unit.dp
  * @param onAction Callback receiving an updated live game state after a model action.
  */
 @Composable
-internal fun OtherSheet(
+internal fun MoreActionsContent(
     state: GameState,
     now: Long,
     onUpdateGameSetup: () -> Unit,
@@ -53,10 +52,9 @@ internal fun OtherSheet(
         modifier = Modifier
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
-            .padding(20.dp),
+            .padding(top = 4.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("Other", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -220,7 +218,7 @@ internal fun OtherSheet(
 }
 
 /**
- * Render the manual score correction dialog from the Other sheet.
+ * Render the manual score correction dialog from More actions.
  *
  * @param state The current live game state whose score is being edited.
  * @param onDismiss Callback closing the dialog without changing the score.
@@ -266,7 +264,7 @@ private fun AdjustScoreDialog(
 }
 
 /**
- * Render a simple menu button that fills the width of its column in the Other sheet.
+ * Render a simple menu button that fills the width of its column in More actions.
  *
  * @param label The button label.
  * @param onClick Callback invoked when the button is tapped.

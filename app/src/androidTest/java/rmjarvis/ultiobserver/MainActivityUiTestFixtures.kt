@@ -521,7 +521,7 @@ abstract class MainActivityUiTestFixtures {
 
     /// Exercise the score adjustment dialog with a small nonzero correction.
     protected fun applyScoreAdjustment() {
-        openOtherSheet()
+        openMoreActionsDialog()
         composeRule.onNodeWithText("Adjust score").performClick()
         waitForText("Adjust score")
         composeRule.onAllNodesWithText("+1")[0].performClick()
@@ -533,7 +533,7 @@ abstract class MainActivityUiTestFixtures {
 
     /// Exercise the timeout adjustment dialog with a small nonzero correction.
     protected fun applyTimeoutAdjustment() {
-        openOtherSheet()
+        openMoreActionsDialog()
         composeRule.onNodeWithText("Adjust timeouts").performClick()
         waitForText("Adjust timeouts")
         composeRule.onAllNodesWithText("+1")[0].performClick()
@@ -545,7 +545,7 @@ abstract class MainActivityUiTestFixtures {
 
     /// Exercise the pull-infraction adjustment dialog with a small nonzero correction.
     protected fun applyPullInfractionAdjustment() {
-        openOtherSheet()
+        openMoreActionsDialog()
         composeRule.onNodeWithText("Adjust pull infractions").performClick()
         waitForText("Adjust pull infractions")
         composeRule.onAllNodesWithText("+1")[0].performClick()
@@ -561,7 +561,7 @@ abstract class MainActivityUiTestFixtures {
 
     /// Exercise the Cards / TF adjustment dialog without changing counts.
     protected fun applyNoOpCardAdjustment() {
-        openOtherSheet()
+        openMoreActionsDialog()
         composeRule.onNodeWithText("Adjust cards / TF").performClick()
         waitForText("Adjust cards / TF")
         composeRule.onNodeWithText("Set").performClick()
@@ -714,23 +714,15 @@ abstract class MainActivityUiTestFixtures {
      * @param label The action label to tap.
      */
     protected fun tapCardSheetAction(team: TeamId, label: String) {
-        composeRule.onAllNodesWithText(label)[teamCardButtonIndex(team)].performScrollTo().performClick()
-    }
-
-    /**
-     * Return the zero-based card-button index for a team in the Cards / TF sheet.
-     *
-     * @param team The team whose row button index is needed.
-     */
-    protected fun teamCardButtonIndex(team: TeamId): Int {
-        return if (team == TeamId.TEAM_ONE) 0 else 1
+        composeRule.onNodeWithTag("cards-sheet-${team.name}-${label.lowercase()}").performScrollTo().performClick()
     }
 
     /// Assert that the live screen's main controls are visible.
     protected fun assertLiveScreen() {
-        waitForText("Cards / TF")
-        composeRule.onNodeWithText("Cards / TF").assertIsDisplayed()
-        composeRule.onNodeWithText("Other").assertIsDisplayed()
+        waitForText("More actions")
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "card")).assertIsDisplayed()
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "tech")).assertIsDisplayed()
+        composeRule.onNodeWithText("More actions").assertIsDisplayed()
     }
 
     /**
@@ -791,22 +783,22 @@ abstract class MainActivityUiTestFixtures {
 
     /// Open the live Cards / TF sheet.
     protected fun openCardsSheet() {
-        composeRule.onNodeWithText("Cards / TF").performClick()
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "card")).performClick()
         waitForText("Cards / technical fouls")
     }
 
-    /// Open the live Other sheet.
-    protected fun openOtherSheet() {
-        composeRule.onAllNodesWithText("Other").onFirst().performClick()
+    /// Open the live More actions dialog.
+    protected fun openMoreActionsDialog() {
+        composeRule.onAllNodesWithText("More actions").onFirst().performClick()
         waitForText("Update game setup")
     }
 
     /**
-     * Open a dialog from the Other sheet and cancel it.
+     * Open a dialog from More actions and cancel it.
      *
-     * @param label The Other-sheet action label that opens the dialog.
+     * @param label The More actions item label that opens the dialog.
      */
-    protected fun openOtherDialogAndCancel(label: String) {
+    protected fun openMoreActionsDialogAndCancel(label: String) {
         composeRule.onNodeWithText(label).performClick()
         composeRule.onNodeWithText("Cancel").assertIsDisplayed()
         composeRule.onNodeWithText("Cancel").performClick()

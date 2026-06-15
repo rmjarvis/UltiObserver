@@ -93,3 +93,13 @@ internal fun pluralize(count: Int, singular: String): String {
 internal fun countedNounPhrase(count: Int, singular: String): String {
     return "$count ${pluralize(count, singular)}"
 }
+
+/**
+ * Return an action label with its count only after the first recorded item.
+ *
+ * @param baseLabel The action name.
+ * @param count The current count for the action.
+ */
+internal fun countedActionLabel(baseLabel: String, count: Int): String {
+    return if (count > 0) "$baseLabel ($count)" else baseLabel
+}

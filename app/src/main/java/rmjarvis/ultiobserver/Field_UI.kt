@@ -7,9 +7,11 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -48,7 +50,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -62,6 +66,10 @@ private val FieldDiagramShape = RoundedCornerShape(8.dp)
 private val TopEndZoneShape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
 private val BottomEndZoneShape = RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp)
 private val FieldPanelBorderColor = Color(0xFF9E9A8D)
+private val FieldActionPanelColor = Color(0xCCFFFFFF)
+private val FieldGoalButtonColor = Color(0xFF2E7D32)
+private val FieldCardButtonColor = Color(0xFFFDD835)
+private val FieldTechButtonColor = Color(0xFFFFB74D)
 
 /**
  * Render the live-field unlock slider.
@@ -230,15 +238,12 @@ internal data class FieldLayoutMetrics(
     val centerHeight: Dp,
     val centerVerticalPadding: Dp,
     val teamRowPadding: Dp,
-    val teamRowGap: Dp,
     val titleGap: Dp,
     val detailGap: Dp,
     val actionGap: Dp,
     val actionButtonHeight: Dp,
     val titleFontSize: androidx.compose.ui.unit.TextUnit,
     val titleLineHeight: androidx.compose.ui.unit.TextUnit,
-    val detailFontSize: androidx.compose.ui.unit.TextUnit,
-    val detailLineHeight: androidx.compose.ui.unit.TextUnit,
 ) {
     companion object {
         /**
@@ -262,31 +267,19 @@ internal data class FieldLayoutMetrics(
                 .coerceAtLeast(0f)
                 .dp
             val detailGap = (contentHeight.value * 0.01f).coerceIn(0f, 4f).dp
-            val lineBudget = (contentHeight.value - detailGap.value * 4f).coerceAtLeast(0f)
-            val detailLineHeightValue = (lineBudget / 5.35f).coerceIn(0f, 18f)
-            val titleLineHeightValue = (detailLineHeightValue * 1.35f).coerceAtMost(24f)
-            val actionButtonHeight = (contentHeight.value / 3.1f)
-                .coerceIn(0f, 34f)
-                .coerceAtMost(contentHeight.value / 3f)
-                .dp
-            val actionGap = ((contentHeight.value - 3f * actionButtonHeight.value) / 2f)
-                .coerceIn(0f, 6f)
-                .dp
+            val titleFontSizeValue = (teamRowHeight.value * 0.14f).coerceIn(20f, 28f)
             return FieldLayoutMetrics(
                 fieldHeight = fieldHeight,
                 teamRowHeight = teamRowHeight,
                 centerHeight = centerHeight,
                 centerVerticalPadding = (centerHeight.value * 0.05f).dp.coerceIn(4.dp, 12.dp),
                 teamRowPadding = rowPadding,
-                teamRowGap = (teamRowHeight.value * 0.045f).dp.coerceIn(5.dp, 12.dp),
                 titleGap = (teamRowHeight.value * 0.035f).dp.coerceIn(4.dp, 10.dp),
                 detailGap = detailGap,
-                actionGap = actionGap,
-                actionButtonHeight = actionButtonHeight,
-                titleFontSize = (titleLineHeightValue - 3f).coerceAtLeast(1f).sp,
-                titleLineHeight = titleLineHeightValue.sp,
-                detailFontSize = (detailLineHeightValue - 2f).coerceAtLeast(1f).sp,
-                detailLineHeight = detailLineHeightValue.sp,
+                actionGap = (contentHeight.value * 0.035f).dp.coerceIn(4.dp, 7.dp),
+                actionButtonHeight = (teamRowHeight.value * 0.17f).dp.coerceIn(28.dp, 34.dp),
+                titleFontSize = titleFontSizeValue.sp,
+                titleLineHeight = (titleFontSizeValue + 4f).sp,
             )
         }
     }
@@ -303,6 +296,8 @@ internal data class FieldLayoutMetrics(
  * @param onGoal Callback receiving the team that scored.
  * @param onTimeout Callback receiving the team requesting timeout.
  * @param onPullInfraction Callback receiving the team with a pull infraction.
+ * @param onCardsAndTechnicalFouls Callback opening the card and technical-foul workflow.
+ * @param onTeamInfo Callback opening the coach/captain information for a team.
  */
 @Composable
 internal fun FieldSketchCard(
@@ -314,6 +309,8 @@ internal fun FieldSketchCard(
     onGoal: (TeamId) -> Unit,
     onTimeout: (TeamId) -> Unit,
     onPullInfraction: (TeamId) -> Unit,
+    onCardsAndTechnicalFouls: (TeamId) -> Unit,
+    onTeamInfo: (TeamId) -> Unit,
 ) {
     // Translate the game's pulling orientation into fixed top/bottom screen slots.
     val topSlot = if (state.pullingFromEnd == FieldEnd.FAR) {
@@ -349,10 +346,14 @@ internal fun FieldSketchCard(
                 interactionsEnabled = interactionsEnabled,
                 isPulling = state.pullingTeam == topSlot,
                 pullInfractionEnabled = state.canRecordPullInfraction(topSlot),
+                fieldEndName = state.fieldEndDisplayName(FieldEnd.FAR),
+                fieldEndLabelAtTop = true,
                 metrics = metrics,
                 onGoal = { onGoal(topSlot) },
                 onTimeout = { onTimeout(topSlot) },
                 onPullInfraction = { onPullInfraction(topSlot) },
+                onCardsAndTechnicalFouls = { onCardsAndTechnicalFouls(topSlot) },
+                onTeamInfo = { onTeamInfo(topSlot) },
             )
             // Center field strip with pull direction and the main central control.
             Box(
@@ -372,6 +373,7 @@ internal fun FieldSketchCard(
                             pullingFromEnd = pullFrom,
                             modifier = Modifier.padding(start = 8.dp),
                         )
+                        Box(modifier = Modifier.width(54.dp))
                     }
                     Box(
                         modifier = Modifier.weight(1f),
@@ -392,10 +394,14 @@ internal fun FieldSketchCard(
                 interactionsEnabled = interactionsEnabled,
                 isPulling = state.pullingTeam == bottomSlot,
                 pullInfractionEnabled = state.canRecordPullInfraction(bottomSlot),
+                fieldEndName = state.fieldEndDisplayName(FieldEnd.NEAR),
+                fieldEndLabelAtTop = false,
                 metrics = metrics,
                 onGoal = { onGoal(bottomSlot) },
                 onTimeout = { onTimeout(bottomSlot) },
                 onPullInfraction = { onPullInfraction(bottomSlot) },
+                onCardsAndTechnicalFouls = { onCardsAndTechnicalFouls(bottomSlot) },
+                onTeamInfo = { onTeamInfo(bottomSlot) },
             )
         }
     }
@@ -412,10 +418,14 @@ internal fun FieldSketchCard(
  * @param interactionsEnabled Whether live action buttons should be enabled.
  * @param isPulling Whether this team is currently pulling.
  * @param pullInfractionEnabled Whether this team can still record its pull infraction for this pull.
+ * @param fieldEndName Display name for the field end represented by this row.
+ * @param fieldEndLabelAtTop Whether the field-end label belongs in the top-right corner.
  * @param metrics The measured layout metrics for compact or roomy phone heights.
  * @param onGoal Callback recording a goal for this team.
  * @param onTimeout Callback charging a timeout to this team.
  * @param onPullInfraction Callback recording this team's pull infraction.
+ * @param onCardsAndTechnicalFouls Callback opening the card and technical-foul workflow.
+ * @param onTeamInfo Callback opening coach/captain information for this team.
  */
 @Composable
 private fun EndZonePanel(
@@ -428,108 +438,338 @@ private fun EndZonePanel(
     interactionsEnabled: Boolean,
     isPulling: Boolean,
     pullInfractionEnabled: Boolean,
+    fieldEndName: String,
+    fieldEndLabelAtTop: Boolean,
     metrics: FieldLayoutMetrics,
     onGoal: () -> Unit,
     onTimeout: () -> Unit,
     onPullInfraction: () -> Unit,
+    onCardsAndTechnicalFouls: () -> Unit,
+    onTeamInfo: () -> Unit,
 ) {
     val titleTextStyle = MaterialTheme.typography.titleLarge.copy(
         fontSize = metrics.titleFontSize,
         lineHeight = metrics.titleLineHeight,
     )
-    val detailTextStyle = MaterialTheme.typography.bodyMedium.copy(
-        fontSize = metrics.detailFontSize,
-        lineHeight = metrics.detailLineHeight,
-    )
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .height(metrics.teamRowHeight)
             .clip(shape)
             .background(background)
             .padding(metrics.teamRowPadding),
-        horizontalArrangement = Arrangement.spacedBy(metrics.teamRowGap),
-        verticalAlignment = Alignment.Top,
+        verticalArrangement = Arrangement.spacedBy(metrics.detailGap.coerceAtLeast(3.dp)),
     ) {
         Row(
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(metrics.titleGap),
-            verticalAlignment = Alignment.Top,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(metrics.detailGap)) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(metrics.titleGap),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = team.name,
-                        color = team.content,
-                        modifier = Modifier.weight(1f, fill = false),
-                        style = titleTextStyle,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = team.score.toString(),
-                        color = team.content,
-                        style = titleTextStyle,
-                        fontWeight = FontWeight.Bold,
+            Text(
+                text = team.score.toString(),
+                color = team.content,
+                style = titleTextStyle,
+                fontWeight = FontWeight.Bold,
+            )
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(metrics.titleGap),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = team.name,
+                    color = team.content,
+                    modifier = Modifier.weight(1f, fill = false),
+                    style = titleTextStyle,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (team.hasCoachOrCaptainInfo()) {
+                    TeamInfoButton(
+                        teamName = team.name,
+                        contentColor = team.content,
+                        onClick = onTeamInfo,
+                        modifier = Modifier.testTag("live-${teamId.name}-team-info"),
                     )
                 }
-                Text(
-                    text = "TO $timeoutsRemaining",
-                    color = team.content,
-                    style = detailTextStyle,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = "Cards $cardPoints",
-                    color = team.content,
-                    style = detailTextStyle,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = "TF ${team.technicalFouls}",
-                    color = team.content,
-                    style = detailTextStyle,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = "Pull violations ${team.pullViolationCount()}",
-                    color = team.content,
-                    style = detailTextStyle,
-                    fontWeight = FontWeight.SemiBold,
+            }
+            if (fieldEndLabelAtTop) {
+                FieldEndCornerLabel(
+                    name = fieldEndName,
+                    contentColor = team.content,
                 )
             }
         }
-        Column(
-            horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.spacedBy(metrics.actionGap),
+        TeamActionGrid(
+            teamId = teamId,
+            team = team,
+            cardPoints = cardPoints,
+            timeoutsRemaining = timeoutsRemaining,
+            interactionsEnabled = interactionsEnabled,
+            isPulling = isPulling,
+            pullInfractionEnabled = pullInfractionEnabled,
+            metrics = metrics,
+            onGoal = onGoal,
+            onTimeout = onTimeout,
+            onPullInfraction = onPullInfraction,
+            onCardsAndTechnicalFouls = onCardsAndTechnicalFouls,
+        )
+        if (!fieldEndLabelAtTop) {
+            Spacer(modifier = Modifier.weight(1f))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                FieldEndCornerLabel(
+                    name = fieldEndName,
+                    contentColor = team.content,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Render the clustered live actions for one team.
+ *
+ * @param teamId The team whose test tags identify each action.
+ * @param team The live team state used for count labels.
+ * @param cardPoints The team's total blue-card count.
+ * @param timeoutsRemaining Timeouts remaining in the current half.
+ * @param interactionsEnabled Whether the observer can press live actions.
+ * @param isPulling Whether this team is currently pulling.
+ * @param pullInfractionEnabled Whether this team may record a pull infraction for this pull sequence.
+ * @param metrics The measured field layout metrics.
+ * @param onGoal Callback recording a goal for this team.
+ * @param onTimeout Callback charging a timeout to this team.
+ * @param onPullInfraction Callback recording the team's pull infraction.
+ * @param onCardsAndTechnicalFouls Callback opening the card and technical-foul workflow.
+ * @param modifier Optional layout modifier.
+ */
+@Composable
+private fun TeamActionGrid(
+    teamId: TeamId,
+    team: TeamLiveState,
+    cardPoints: Int,
+    timeoutsRemaining: Int,
+    interactionsEnabled: Boolean,
+    isPulling: Boolean,
+    pullInfractionEnabled: Boolean,
+    metrics: FieldLayoutMetrics,
+    onGoal: () -> Unit,
+    onTimeout: () -> Unit,
+    onPullInfraction: () -> Unit,
+    onCardsAndTechnicalFouls: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val pullInfractionLabel = if (isPulling) {
+        countedActionLabel("Offsides", team.offsides)
+    } else {
+        countedActionLabel("False start", team.falseStarts)
+    }
+    val cardLabel = countedActionLabel("Card", cardPoints)
+    val techLabel = countedActionLabel("Tech", team.technicalFouls)
+    val timeoutLabel = "Timeout ($timeoutsRemaining)"
+    val textMeasurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val buttonTextStyle = MaterialTheme.typography.labelMedium
+    fun measuredButtonWidth(labels: List<String>): Dp {
+        val labelWidthPx = labels.maxOf { label ->
+            textMeasurer.measure(AnnotatedString(label), style = buttonTextStyle).size.width
+        }
+        return with(density) { labelWidthPx.toDp() } + 20.dp
+    }
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        val panelPadding = 4.dp
+        val gap = metrics.actionGap
+        val naturalGoalWidth = measuredButtonWidth(listOf("Goal"))
+        val naturalMiddleWidth = measuredButtonWidth(listOf(timeoutLabel, pullInfractionLabel))
+        val naturalRightWidth = measuredButtonWidth(listOf(cardLabel, techLabel))
+        val naturalButtonWidth = naturalGoalWidth + naturalMiddleWidth + naturalRightWidth
+        val availableButtonWidth = (maxWidth - panelPadding * 2f - gap * 2f).coerceAtLeast(0.dp)
+        val widthScale = if (naturalButtonWidth > availableButtonWidth && naturalButtonWidth.value > 0f) {
+            availableButtonWidth.value / naturalButtonWidth.value
+        } else {
+            1f
+        }
+        val goalWidth = naturalGoalWidth * widthScale
+        val middleWidth = naturalMiddleWidth * widthScale
+        val rightWidth = naturalRightWidth * widthScale
+        val panelWidth = (goalWidth + middleWidth + rightWidth + panelPadding * 2f + gap * 2f)
+            .coerceAtMost(maxWidth)
+        Row(
+            modifier = Modifier
+                .width(panelWidth)
+                .clip(RoundedCornerShape(8.dp))
+                .background(FieldActionPanelColor)
+                .padding(panelPadding),
+            horizontalArrangement = Arrangement.spacedBy(gap),
         ) {
-            CompactActionButton(
+            TeamFieldActionButton(
                 label = "Goal",
-                modifier = Modifier.testTag("live-${teamId.name}-goal"),
+                modifier = Modifier
+                    .width(goalWidth)
+                    .height(metrics.actionButtonHeight * 2f + gap)
+                    .testTag("live-${teamId.name}-goal"),
                 enabled = interactionsEnabled,
-                height = metrics.actionButtonHeight,
+                containerColor = FieldGoalButtonColor,
+                contentColor = Color.White,
                 onClick = onGoal,
             )
-            CompactActionButton(
-                label = "Timeout",
-                modifier = Modifier.testTag("live-${teamId.name}-timeout"),
-                enabled = interactionsEnabled,
-                height = metrics.actionButtonHeight,
-                onClick = onTimeout,
-            )
-            CompactActionButton(
-                label = if (isPulling) "Offsides" else "False Start",
-                modifier = Modifier.testTag("live-${teamId.name}-pull-infraction"),
-                enabled = interactionsEnabled && pullInfractionEnabled,
-                height = metrics.actionButtonHeight,
-                onClick = onPullInfraction,
+            Column(
+                modifier = Modifier.width(middleWidth),
+                verticalArrangement = Arrangement.spacedBy(gap),
+            ) {
+                TeamFieldActionButton(
+                    label = timeoutLabel,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(metrics.actionButtonHeight)
+                        .testTag("live-${teamId.name}-timeout"),
+                    enabled = interactionsEnabled,
+                    onClick = onTimeout,
+                )
+                TeamFieldActionButton(
+                    label = pullInfractionLabel,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(metrics.actionButtonHeight)
+                        .testTag("live-${teamId.name}-pull-infraction"),
+                    enabled = interactionsEnabled && pullInfractionEnabled,
+                    onClick = onPullInfraction,
+                )
+            }
+            Column(
+                modifier = Modifier.width(rightWidth),
+                verticalArrangement = Arrangement.spacedBy(gap),
+            ) {
+                TeamFieldActionButton(
+                    label = cardLabel,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(metrics.actionButtonHeight)
+                        .testTag("live-${teamId.name}-card"),
+                    enabled = interactionsEnabled,
+                    containerColor = FieldCardButtonColor,
+                    onClick = onCardsAndTechnicalFouls,
+                )
+                TeamFieldActionButton(
+                    label = techLabel,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(metrics.actionButtonHeight)
+                        .testTag("live-${teamId.name}-tech"),
+                    enabled = interactionsEnabled,
+                    containerColor = FieldTechButtonColor,
+                    onClick = onCardsAndTechnicalFouls,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Render one field action with stable sizing inside the live-team action grid.
+ *
+ * @param label Text shown in the button.
+ * @param modifier Layout modifier supplied by the action grid.
+ * @param enabled Whether the button can be pressed.
+ * @param containerColor Button background color.
+ * @param contentColor Button text color.
+ * @param borderColor Button border color.
+ * @param onClick Callback invoked when the observer taps the action.
+ */
+@Composable
+private fun TeamFieldActionButton(
+    label: String,
+    modifier: Modifier,
+    enabled: Boolean,
+    containerColor: Color = Color.White,
+    contentColor: Color = Color.Black,
+    borderColor: Color = Color.Black,
+    onClick: () -> Unit,
+) {
+    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+        OutlinedButton(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = modifier.defaultMinSize(minWidth = 0.dp, minHeight = 0.dp),
+            shape = RoundedCornerShape(8.dp),
+            colors = ButtonDefaults.outlinedButtonColors(
+                containerColor = containerColor,
+                contentColor = contentColor,
+            ),
+            border = BorderStroke(1.dp, borderColor),
+            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
+}
+
+/**
+ * Render a compact circular information affordance next to a live team name.
+ *
+ * @param teamName The team name used in the accessibility label.
+ * @param contentColor Color that contrasts with the team background.
+ * @param modifier Optional layout modifier.
+ * @param onClick Callback opening the team information view.
+ */
+@Composable
+private fun TeamInfoButton(
+    teamName: String,
+    contentColor: Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+        OutlinedButton(
+            onClick = onClick,
+            modifier = modifier
+                .size(24.dp)
+                .semantics { contentDescription = "Show $teamName names" },
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.outlinedButtonColors(
+                containerColor = Color.Transparent,
+                contentColor = contentColor,
+            ),
+            border = BorderStroke(1.dp, contentColor),
+            contentPadding = PaddingValues(0.dp),
+        ) {
+            Text(
+                text = "i",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
+/**
+ * Render one compact field-end name in a team-section corner.
+ *
+ * @param name The field-end name to display.
+ * @param contentColor Color that contrasts with the team section.
+ */
+@Composable
+private fun FieldEndCornerLabel(name: String, contentColor: Color) {
+    Text(
+        text = name,
+        color = contentColor,
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.SemiBold,
+        textAlign = TextAlign.End,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
 }
 
 /**
@@ -854,11 +1094,6 @@ internal data class MisconductCountdownAction(
     val onStart: () -> Unit,
 )
 
-/// Count combined offsides and false-start pull violations for display.
-private fun TeamLiveState.pullViolationCount(): Int {
-    return offsides + falseStarts
-}
-
 /**
  * Countdown text and next-cue details currently shown on the live screen.
  *
@@ -909,16 +1144,4 @@ internal fun GameState.activeCountdownDisplay(now: Long): ActiveCountdownDisplay
             isPaused = countdown.isPaused(),
         )
     }
-}
-
-/**
- * Report whether halftime has elapsed and the live screen can show `Start point`.
- *
- * @param now The current epoch millis used to compare against halftime's target time.
- */
-internal fun GameState.halftimeTransitionReady(now: Long): Boolean {
-    val countdown = countdown ?: return false
-    return phase == GamePhase.HALFTIME &&
-        countdown.kind == CountdownKind.HALFTIME &&
-        now >= countdown.targetEpoch
 }

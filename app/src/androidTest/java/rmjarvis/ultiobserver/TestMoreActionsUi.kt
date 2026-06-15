@@ -18,33 +18,33 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/// Tests for live-game Other menu dialogs and correction flows.
+/// Tests for live-game More actions dialogs and correction flows.
 @RunWith(AndroidJUnit4::class)
 class TestOtherMenuUi : MainActivityUiTestFixtures() {
     /**
-     * Test the less-common live-game actions behind the Other menu.
+     * Test the less-common live-game actions behind More actions.
      * The goal is to catch broken dialogs, buttons, and return paths for observer-accessible tools.
      */
     @Test
     fun otherMenuPathways() {
         startLiveGameProgrammatically()
 
-        // Manual correction dialogs should open and return to the Other sheet cleanly.
-        openOtherSheet()
+        // Manual correction dialogs should open and return to More actions cleanly.
+        openMoreActionsDialog()
         if (shouldUsePlatformBackDismissalCoverage()) {
             pressDialogBack()
             composeRule.onAllNodesWithText("Update game setup").assertCountEquals(0)
-            openOtherSheet()
+            openMoreActionsDialog()
         }
         composeRule.onNodeWithText("Event log").performClick()
         waitForText("Event log")
         waitForText("No events logged yet.")
         pressDialogBack()
-        openOtherSheet()
-        openOtherDialogAndCancel("Adjust score")
-        openOtherDialogAndCancel("Adjust timeouts")
-        openOtherDialogAndCancel("Adjust cards / TF")
-        openOtherDialogAndCancel("Adjust pull infractions")
+        openMoreActionsDialog()
+        openMoreActionsDialogAndCancel("Adjust score")
+        openMoreActionsDialogAndCancel("Adjust timeouts")
+        openMoreActionsDialogAndCancel("Adjust cards / TF")
+        openMoreActionsDialogAndCancel("Adjust pull infractions")
 
         // Manual correction dialogs should also apply their visible values.
         applyScoreAdjustment()
@@ -53,31 +53,31 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         applyNoOpCardAdjustment()
 
         // Orientation controls should update state without breaking the live screen.
-        openOtherSheet()
+        openMoreActionsDialog()
         composeRule.onNodeWithText("Swap ends of field").performClick()
         assertLiveScreen()
 
-        openOtherSheet()
+        openMoreActionsDialog()
         composeRule.onNodeWithText("Swap pulling team").performClick()
         assertLiveScreen()
 
         // Less-common game-state actions should be reachable and leave a visible result.
-        openOtherSheet()
+        openMoreActionsDialog()
         composeRule.onNodeWithText("Apply half cap now").performClick()
         waitForText("Undo Half cap now")
         assertLiveScreen()
 
-        openOtherSheet()
+        openMoreActionsDialog()
         composeRule.onNodeWithText("Apply soft cap now").performClick()
         waitForText("Undo Soft cap now")
         assertLiveScreen()
 
-        openOtherSheet()
+        openMoreActionsDialog()
         composeRule.onNodeWithText("Apply hard cap now").performClick()
         waitForText("Undo Hard cap now")
         assertLiveScreen()
 
-        openOtherSheet()
+        openMoreActionsDialog()
         composeRule.onNodeWithText("Start halftime").performClick()
         waitForText("Halftime")
         // Back dismissal and OK are equivalent acknowledgements for this prompt.
@@ -89,7 +89,7 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         assertLiveScreen()
     }
 
-    /// Test Other menu visibility for game states where cap and halftime actions no longer apply.
+    /// Test More actions visibility for game states where cap and halftime actions no longer apply.
     @Test
     fun otherMenuHidesUnavailableCapActions() {
         startLiveGameProgrammatically()
@@ -106,7 +106,7 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         }
         composeRule.waitForIdle()
 
-        openOtherSheet()
+        openMoreActionsDialog()
         assertTrue(composeRule.onAllNodesWithText("Apply half cap now").fetchSemanticsNodes().isEmpty())
         assertTrue(composeRule.onAllNodesWithText("Apply soft cap now").fetchSemanticsNodes().isEmpty())
         assertTrue(composeRule.onAllNodesWithText("Apply hard cap now").fetchSemanticsNodes().isEmpty())
@@ -132,7 +132,7 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
     fun otherMenuCanDeleteCurrentGameAfterSliderConfirmation() {
         startLiveGameProgrammatically()
 
-        openOtherSheet()
+        openMoreActionsDialog()
         composeRule.onNodeWithText("Delete game").performClick()
         waitForText("This cannot be undone", substring = true)
         composeRule.onNodeWithText("Cancel").performClick()
@@ -187,8 +187,8 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         waitForText("Game summary")
         composeRule.onNodeWithText("Restore game").performClick()
 
-        waitForText("Cards / TF")
-        waitForText("Other")
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "card")).assertIsDisplayed()
+        waitForText("More actions")
         composeRule.onNodeWithText(teamOneName).assertIsDisplayed()
         composeRule.onNodeWithText(teamTwoName).assertIsDisplayed()
         assertTrue(composeRule.onAllNodesWithText(currentTeamOneName, substring = true).fetchSemanticsNodes().isEmpty())
