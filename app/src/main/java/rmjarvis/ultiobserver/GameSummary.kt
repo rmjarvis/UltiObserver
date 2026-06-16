@@ -53,9 +53,8 @@ internal fun GameState.gameOverSummaryText(): GameOverSummaryText {
 internal fun GameState.gameOverTeamSummaryText(teamId: TeamId): GameOverTeamSummaryText {
     val team = teamFor(teamId)
     val issuedCardLines = playerCards(teamId)
-        .filter { record -> record.yellows > 0 || record.reds > 0 }
+        .flatMap { record -> record.summaryIssuedCardLines() }
         .takeIf { it.isNotEmpty() }
-        ?.map { record -> record.summaryIssuedCardText() }
         ?: listOf("No yellow or red cards issued.")
 
     return GameOverTeamSummaryText(
@@ -105,8 +104,7 @@ private fun GameState.misconductShareLines(): List<String> {
 private fun GameState.misconductShareLine(teamId: TeamId): String? {
     val team = teamFor(teamId)
     val playerParts = playerCards(teamId)
-        .filter { it.yellows > 0 || it.reds > 0 }
-        .map { it.shareText() }
+        .flatMap { it.shareLines() }
     val teamParts = buildList {
         if (team.blueCards > 0) {
             add("${team.blueCards} Blue")
@@ -118,39 +116,47 @@ private fun GameState.misconductShareLine(teamId: TeamId): String? {
     if (playerParts.isEmpty() && teamParts.isEmpty()) {
         return null
     }
-    val suffix = if (playerParts.isEmpty()) {
-        teamParts.joinToString(", ")
-    } else if (teamParts.isEmpty()) {
-        playerParts.joinToString(", ")
-    } else {
-        "${playerParts.joinToString(", ")} + ${teamParts.joinToString(", ")}"
-    }
-    return "  ${team.name} $suffix"
+    return buildList {
+        add("  ${team.name}:")
+        playerParts.forEach { detail ->
+            add("    $detail")
+        }
+        if (teamParts.isNotEmpty()) {
+            add("    ${teamParts.joinToString(", ")}")
+        }
+    }.joinToString("\n")
 }
 
-/// Return compact share text for one player's issued yellow/red cards.
-private fun PlayerRecord.shareText(): String {
-    val cardText = listOfNotNull(
-        when (yellows) {
-            1 -> "Y"
-            2 -> "2Y"
-            else -> null
-        },
-        "R".takeIf { reds == 1 },
-    ).joinToString("+")
-    return "${playerIdentity(compact = false)} ($cardText)"
+/// Return share-text lines for this player's in-game yellow/red card events.
+private fun PlayerRecord.shareLines(): List<String> {
+    return cards.map { card ->
+        "${playerIdentity(compact = false)} ${card.shareLabel()}${card.shareReasonSuffix()}"
+    }
 }
 
-/// Return game-over summary text for one player's issued cards.
-private fun PlayerRecord.summaryIssuedCardText(): String {
-    val parts = buildList {
-        when (yellows) {
-            1 -> add("Yellow card")
-            2 -> add("Two yellow cards")
-        }
-        when (reds) {
-            1 -> add("Red card")
-        }
+/// Return game-over summary text lines for this player's in-game yellow/red card events.
+private fun PlayerRecord.summaryIssuedCardLines(): List<String> {
+    return cards.map { card ->
+        "${playerIdentity(compact = false)}: ${card.summaryLabel()}${card.summaryReasonSuffix()}"
     }
-    return "${playerIdentity(compact = false)}: ${parts.joinToString("; ")}"
+}
+
+/// Return the short share-text label for one player card.
+private fun InGamePlayerCardEvent.shareLabel(): String {
+    return cardType.label
+}
+
+/// Return the game-summary label for one player card.
+private fun InGamePlayerCardEvent.summaryLabel(): String {
+    return "${cardType.label} card"
+}
+
+/// Return the share-text reason suffix for one player card.
+private fun InGamePlayerCardEvent.shareReasonSuffix(): String {
+    return reason.trim().takeIf { it.isNotEmpty() }?.let { " -- $it" }.orEmpty()
+}
+
+/// Return the game-summary reason suffix for one player card.
+private fun InGamePlayerCardEvent.summaryReasonSuffix(): String {
+    return reason.trim().takeIf { it.isNotEmpty() }?.let { " -- $it" }.orEmpty()
 }

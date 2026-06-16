@@ -59,6 +59,11 @@ class PlayerIdentity private constructor(
         return keyNumber to name
     }
 
+    /// Report whether this identity is the repeatable unknown-player placeholder.
+    internal fun isRepeatableUnknown(): Boolean {
+        return jerseyNumber == UNKNOWN_PLAYER_NUMBER && playerName.isBlank()
+    }
+
     /**
      * Report whether this identity matches another using player-card matching rules.
      *
@@ -193,12 +198,27 @@ data class PlayerRecord(
         return identity().displayText(compact)
     }
 
-    /// Return the compact setup summary for this player's prior yellows and reds.
-    internal fun playerCardDetail(): String {
+    /**
+     * Return compact card detail for this player.
+     *
+     * @param includeGame Whether to include in-game card counts with previous-game card counts.
+     */
+    internal fun cardDetail(includeGame: Boolean = false): String {
         val priorDetail = listOfNotNull(
             if (priorYellows > 0) "Y $priorYellows" else null,
             if (priorReds > 0) "R $priorReds" else null,
         ).joinToString("  ")
+        if (includeGame) {
+            val labeledPriorDetail = priorDetail.takeIf { it.isNotBlank() }?.let { "prior $it" }
+            val inGameDetail = listOfNotNull(
+                if (yellows > 0) "Y $yellows" else null,
+                if (reds > 0) "R $reds" else null,
+            ).joinToString("  ")
+            return listOfNotNull(
+                labeledPriorDetail,
+                inGameDetail.takeIf { it.isNotBlank() },
+            ).joinToString(" + ")
+        }
         return priorDetail.ifBlank { "No prior cards" }
     }
 
@@ -327,6 +347,49 @@ internal fun List<PlayerRecord>.withSavedPriorCardRecord(
 enum class CardType(val label: String) {
     YELLOW("Yellow"),
     RED("Red"),
+}
+
+/**
+ * Return preset card reasons for the chosen card color.
+ *
+ * @param cardType The card type being assessed.
+ */
+internal fun cardReasonPresets(cardType: CardType): List<String> {
+    return when (cardType) {
+        CardType.YELLOW -> listOf(
+            "Dangerous play",
+            "Pushing",
+            "Egregious foul",
+            "Deliberate infraction",
+            "Repeated fouling",
+            "Knowingly invalid calls",
+            "Taunting",
+            "Verbal abuse",
+        )
+        CardType.RED -> listOf(
+            "Battery/fighting",
+            "Egregious dangerous play",
+            "Physical aggression",
+            "Egregious verbal abuse",
+        )
+    }
+}
+
+/**
+ * Return reason text from preset and free-text reason fields.
+ *
+ * @param selectedPreset The selected preset, or blank when none is selected.
+ * @param otherReason The custom reason entered for Other.
+ * @param details Additional context text entered by the observer.
+ */
+internal fun cardReasonText(selectedPreset: String, otherReason: String, details: String): String {
+    val base = if (selectedPreset == "Other") otherReason.trim() else selectedPreset.trim()
+    val detail = details.trim()
+    return when {
+        base.isNotEmpty() && detail.isNotEmpty() -> "$base: $detail"
+        base.isNotEmpty() -> base
+        else -> detail
+    }
 }
 
 /**
@@ -606,7 +669,8 @@ private fun requirePlayerRecordsValid(records: List<PlayerRecord>) {
     require(records.all { it.hasLegalCounts() }) {
         "Player records must be no cards, one yellow, second yellow, red, or one yellow plus red."
     }
-    require(records.distinctBy { it.identity().key() }.size == records.size) {
+    val nonRepeatableRecords = records.filterNot { it.identity().isRepeatableUnknown() }
+    require(nonRepeatableRecords.distinctBy { it.identity().key() }.size == nonRepeatableRecords.size) {
         "Player records cannot contain duplicate player entries."
     }
 }
@@ -624,7 +688,7 @@ fun canAddPlayerCardAssignment(
     cardType: CardType,
 ): Boolean {
     val identity = PlayerIdentity(jerseyNumber, playerName)
-    val existingRecord = records.firstOrNull { it.identity().matches(identity) }
+    val existingRecord = records.firstOrNull { it.identity().matches(identity) && !identity.isRepeatableUnknown() }
         ?: PlayerRecord(jerseyNumber = identity.jerseyNumber, playerName = identity.playerName)
     val updatedRecord = when (cardType) {
         CardType.YELLOW -> existingRecord.withAddedCard(CardType.YELLOW)
@@ -1132,6 +1196,7 @@ private fun GameState.addInGameYellowCard(
             records = playerCardsFor(team),
             jerseyNumber = jerseyNumber,
             playerName = playerName,
+            matchRepeatableUnknown = false,
         ) { record ->
             record.withAddedCard(CardType.YELLOW, reason)
         },
@@ -1156,6 +1221,7 @@ private fun GameState.addInGameSecondYellow(
             records = playerCardsFor(team),
             jerseyNumber = jerseyNumber,
             playerName = playerName,
+            matchRepeatableUnknown = true,
         ) { record ->
             record.withAddedCard(CardType.YELLOW, reason)
         },
@@ -1180,6 +1246,7 @@ private fun GameState.addInGameRedCard(
             records = playerCardsFor(team),
             jerseyNumber = jerseyNumber,
             playerName = playerName,
+            matchRepeatableUnknown = false,
         ) { record ->
             record.withAddedCard(CardType.RED, reason)
         },
@@ -1197,10 +1264,13 @@ private fun updatePlayerCardRecord(
     records: List<PlayerRecord>,
     jerseyNumber: String,
     playerName: String = "",
+    matchRepeatableUnknown: Boolean = false,
     transform: (PlayerRecord) -> PlayerRecord,
 ): List<PlayerRecord> {
     val identity = PlayerIdentity(jerseyNumber, playerName)
-    val existingIndex = records.indexOfFirst { it.identity().matches(identity) }
+    val existingIndex = records.indexOfFirst { record ->
+        record.identity().matches(identity) && (matchRepeatableUnknown || !identity.isRepeatableUnknown())
+    }
     val updatedRecords = if (existingIndex >= 0) {
         records.mapIndexed { index, record ->
             if (index == existingIndex) {

@@ -49,9 +49,18 @@ class TestGameSummary : GameDomainTestFixtures() {
             teamTwo = TeamLiveState("Animal", TeamColorChoice.RED),
             teamTwoPlayers = listOf(PlayerRecord(jerseyNumber = "99")),
             teamOnePlayers = listOf(
-                playerRecordWithCards(jerseyNumber = "7", playerName = "Casey Handler", yellows = 1),
-                playerRecordWithCards(jerseyNumber = "12", yellows = 2),
-                playerRecordWithCards(jerseyNumber = "", playerName = "No Number", reds = 1),
+                playerRecordWithCards(jerseyNumber = "7", playerName = "Casey Handler", yellows = 1).copy(
+                    cards = listOf(InGamePlayerCardEvent(CardType.YELLOW, reason = "Dangerous play")),
+                ),
+                playerRecordWithCards(jerseyNumber = "12", yellows = 2).copy(
+                    cards = listOf(
+                        InGamePlayerCardEvent(CardType.YELLOW, reason = "Taunting"),
+                        InGamePlayerCardEvent(CardType.YELLOW, reason = "Dangerous play"),
+                    ),
+                ),
+                playerRecordWithCards(jerseyNumber = "", playerName = "No Number", reds = 1).copy(
+                    cards = listOf(InGamePlayerCardEvent(CardType.RED, reason = "Egregious dangerous play")),
+                ),
             ),
         )
 
@@ -59,9 +68,10 @@ class TestGameSummary : GameDomainTestFixtures() {
             GameOverTeamSummaryText(
                 teamName = "Viscous Coupling",
                 issuedCardLines = listOf(
-                    "#7 Casey Handler: Yellow card",
-                    "#12: Two yellow cards",
-                    "No Number: Red card",
+                    "#7 Casey Handler: Yellow card -- Dangerous play",
+                    "#12: Yellow card -- Taunting",
+                    "#12: Yellow card -- Dangerous play",
+                    "No Number: Red card -- Egregious dangerous play",
                 ),
                 blueCardsLine = "Blue cards 2",
                 technicalFoulsLine = "Technical fouls 1",
@@ -97,8 +107,15 @@ class TestGameSummary : GameDomainTestFixtures() {
                 blueCards = 1,
             ),
             teamTwoPlayers = listOf(
-                playerRecordWithCards(jerseyNumber = "7", playerName = "Casey Handler", yellows = 2),
-                playerRecordWithCards(jerseyNumber = "", playerName = "No Number", reds = 1),
+                playerRecordWithCards(jerseyNumber = "7", playerName = "Casey Handler", yellows = 2).copy(
+                    cards = listOf(
+                        InGamePlayerCardEvent(CardType.YELLOW, reason = "Taunting"),
+                        InGamePlayerCardEvent(CardType.YELLOW, reason = "Dangerous play"),
+                    ),
+                ),
+                playerRecordWithCards(jerseyNumber = "", playerName = "No Number", reds = 1).copy(
+                    cards = listOf(InGamePlayerCardEvent(CardType.RED, reason = "Egregious dangerous play")),
+                ),
             ),
         )
 
@@ -108,7 +125,11 @@ class TestGameSummary : GameDomainTestFixtures() {
             Philly Open - May 19, 2026, 10:00 AM
             Animal 15, Viscous Coupling 12
             Misconduct:
-              Animal #7 Casey Handler (2Y), No Number (R) + 1 Blue, 2 Techs
+              Animal:
+                #7 Casey Handler Yellow -- Taunting
+                #7 Casey Handler Yellow -- Dangerous play
+                No Number Red -- Egregious dangerous play
+                1 Blue, 2 Techs
             """.trimIndent(),
             state.gameSummaryShareText(),
         )
@@ -166,8 +187,12 @@ class TestGameSummary : GameDomainTestFixtures() {
             May 19, 2026, 10:00 AM
             Viscous Coupling 15, Animal 12
             Misconduct:
-              Viscous Coupling #6 (Y), #9 (Y+R)
-              Animal 2 Blue, 1 Tech
+              Viscous Coupling:
+                #6 Yellow
+                #9 Yellow
+                #9 Red
+              Animal:
+                2 Blue, 1 Tech
             """.trimIndent(),
             state.gameSummaryShareText(),
         )

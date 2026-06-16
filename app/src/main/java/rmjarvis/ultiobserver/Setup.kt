@@ -151,7 +151,7 @@ private fun String.compactLabeledSummary(label: String): LabeledSetupSummary? {
 /// Return compact prior-card text for one team in the setup overview.
 internal fun List<PlayerRecord>.teamPriorCardsSummary(): String {
     return joinToString("\n") { record ->
-        "${record.playerIdentity(compact = true)}: ${record.playerCardDetail()}"
+        "${record.playerIdentity(compact = true)}: ${record.cardDetail()}"
     }
 }
 

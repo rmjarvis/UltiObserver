@@ -349,7 +349,30 @@ class TestGameCards : GameDomainTestFixtures() {
         assertEquals(2, state.teamYellowCards(VC))
         assertEquals(0, state.teamRedCards(VC))
         assertEquals(2, state.teamCardTotal(VC))
+        assertEquals(
+            listOf(
+                playerRecordWithCards(UNKNOWN_PLAYER_NUMBER, yellows = 1),
+                playerRecordWithCards(UNKNOWN_PLAYER_NUMBER, yellows = 1),
+            ),
+            state.playerCards(VC),
+        )
         assertFalse(cardResult.message()!!.startsWith("Second yellow on"))
+
+        state = standardLiveGameState()
+        state = state.assessRedCard(VC, UNKNOWN_PLAYER_NUMBER).state
+        assertTrue(canAddPlayerCardAssignment(state.playerCards(VC), UNKNOWN_PLAYER_NUMBER, cardType = CardType.RED))
+        cardResult = state.assessRedCard(VC, UNKNOWN_PLAYER_NUMBER)
+        state = cardResult.state
+        assertEquals(0, state.teamYellowCards(VC))
+        assertEquals(2, state.teamRedCards(VC))
+        assertEquals(4, state.teamCardTotal(VC))
+        assertEquals(
+            listOf(
+                playerRecordWithCards(UNKNOWN_PLAYER_NUMBER, reds = 1),
+                playerRecordWithCards(UNKNOWN_PLAYER_NUMBER, reds = 1),
+            ),
+            state.playerCards(VC),
+        )
 
         // Prior cards from this tournament surface the tournament suspension thresholds.
         state = createLiveGameState(

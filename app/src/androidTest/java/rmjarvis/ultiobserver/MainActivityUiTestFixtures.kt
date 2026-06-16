@@ -592,7 +592,7 @@ abstract class MainActivityUiTestFixtures {
         tapCardDialogAction(team, "Yellow")
         waitForText("Yellow card")
         if (playerNumber.isBlank()) {
-            composeRule.onNodeWithText("N/A").performClick()
+            composeRule.onNodeWithText("Record").performClick()
         } else {
             enterCardPlayerNumber(playerNumber)
             composeRule.onNodeWithText("Record").performClick()

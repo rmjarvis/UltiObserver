@@ -83,7 +83,8 @@ class TestGameClock : GameDomainTestFixtures() {
         assertEquals(0, priorCardRecord.priorReds)
         assertEquals("#8", priorCardRecord.playerIdentity(compact = true))
         assertEquals("#8", priorCardRecord.playerIdentity(compact = false))
-        assertEquals("Y 1", priorCardRecord.playerCardDetail())
+        assertEquals("Y 1", priorCardRecord.cardDetail())
+        assertEquals("prior Y 1", priorCardRecord.cardDetail(includeGame = true))
         assertEquals("1 yellow card", priorCardRecord.playerCardNoticeDetail())
         assertEquals("2 yellow cards", countedNounPhrase(2, "yellow card"))
         val namedPriorCardRecord = PlayerRecord(
@@ -94,7 +95,13 @@ class TestGameClock : GameDomainTestFixtures() {
         )
         assertEquals("#12", namedPriorCardRecord.playerIdentity(compact = true))
         assertEquals("#12 Casey Handler", namedPriorCardRecord.playerIdentity(compact = false))
-        assertEquals("Y 1  R 1", namedPriorCardRecord.playerCardDetail())
+        assertEquals("Y 1  R 1", namedPriorCardRecord.cardDetail())
+        assertEquals(
+            "prior Y 1  R 1 + Y 1",
+            namedPriorCardRecord.copy(
+                cards = listOf(InGamePlayerCardEvent(CardType.YELLOW)),
+            ).cardDetail(includeGame = true),
+        )
         assertEquals("1 yellow card and 1 red card", namedPriorCardRecord.playerCardNoticeDetail())
         val numberlessPriorCardRecord = PlayerRecord(
             jerseyNumber = "",
@@ -104,12 +111,12 @@ class TestGameClock : GameDomainTestFixtures() {
         )
         assertEquals("No Number", numberlessPriorCardRecord.playerIdentity(compact = true))
         assertEquals("No Number", numberlessPriorCardRecord.playerIdentity(compact = false))
-        assertEquals("R 1", numberlessPriorCardRecord.playerCardDetail())
+        assertEquals("R 1", numberlessPriorCardRecord.cardDetail())
         assertEquals("1 red card", numberlessPriorCardRecord.playerCardNoticeDetail())
         assertThrows(IllegalArgumentException::class.java) {
             PlayerRecord("", priorYellows = 1, priorReds = 0)
         }
-        assertEquals("No prior cards", PlayerRecord("8", priorYellows = 0, priorReds = 0).playerCardDetail())
+        assertEquals("No prior cards", PlayerRecord("8", priorYellows = 0, priorReds = 0).cardDetail())
         val cardHolderEntryChecks = listOf(
             PlayerRecord("7", priorYellows = 1, priorReds = 0, playerName = "Drew Handler"),
             PlayerRecord("00", priorYellows = 0, priorReds = 1, playerName = "Zero Hero"),

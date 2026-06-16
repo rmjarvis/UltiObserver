@@ -1402,7 +1402,7 @@ private fun PriorCardsSetupDialog(
                         teamPriorCards.forEach { (index, record) ->
                             PlayerRecordRow(
                                 label = record.playerIdentity(compact = false),
-                                detail = record.playerCardDetail(),
+                                detail = record.cardDetail(),
                                 editTag = "setup-prior-card-edit-$index",
                                 removeTag = "setup-prior-card-remove-$index",
                                 onEdit = { onEditPlayer(index) },

@@ -1,12 +1,21 @@
 package rmjarvis.ultiobserver
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -33,6 +42,33 @@ import androidx.compose.ui.unit.dp
 private val CardChoiceYellow = Color(0xFFFFD92F)
 private val CardChoiceRed = Color(0xFFE64B3C)
 private val CardChoiceBlue = Color(0xFF64B5F6)
+private val CardReasonButtonColor = Color(0xFFFFF176)
+
+/**
+ * Entered player-card details from the yellow/red card dialog.
+ *
+ * @param jerseyNumber The player's jersey number, blank for name-only, or `N/A` when unknown.
+ * @param playerName The player's name, or blank when unknown.
+ * @param reason Optional observer-entered card reason text.
+ */
+private data class PlayerCardEntry(
+    val jerseyNumber: String,
+    val playerName: String = "",
+    val reason: String = "",
+)
+
+/**
+ * Known carded player offered for quick selection.
+ *
+ * @param jerseyNumber The player's jersey number, blank for name-only, or `N/A` when unknown.
+ * @param playerName The player's name, or blank when unknown.
+ * @param detail Compact card-count detail for this player.
+ */
+private data class PlayerCardCandidate(
+    val jerseyNumber: String,
+    val playerName: String,
+    val detail: String,
+)
 
 /**
  * Team awaiting an unknown-player yellow-card disambiguation.
@@ -41,13 +77,32 @@ private val CardChoiceBlue = Color(0xFF64B5F6)
  */
 private data class PendingUnknownYellowChoice(
     val team: TeamId,
+    val entry: PlayerCardEntry = PlayerCardEntry(UNKNOWN_PLAYER_NUMBER),
+)
+
+/**
+ * Live player-card entry with a same-number, different-name conflict awaiting confirmation.
+ *
+ * @param team The team receiving the card.
+ * @param cardType The card being recorded.
+ * @param entry Entered player-card details to record if confirmed.
+ * @param conflict The conflicting known player identity.
+ */
+private data class PendingSameNumberPlayerCardConfirmation(
+    val team: TeamId,
+    val cardType: CardType,
+    val entry: PlayerCardEntry,
+    val conflict: SameNumberPlayerIdentityConflict,
 )
 
 /// Previous Card-dialog step to restore when dismissing a live-point misconduct choice.
 private sealed interface PendingMisconductReturn {
-    data class YellowNumber(val team: TeamId, val jerseyNumber: String) : PendingMisconductReturn
-    data class RedNumber(val team: TeamId, val jerseyNumber: String) : PendingMisconductReturn
-    data class UnknownYellow(val team: TeamId) : PendingMisconductReturn
+    data class YellowEntry(val team: TeamId, val entry: PlayerCardEntry) : PendingMisconductReturn
+    data class RedEntry(val team: TeamId, val entry: PlayerCardEntry) : PendingMisconductReturn
+    data class UnknownYellow(
+        val team: TeamId,
+        val entry: PlayerCardEntry = PlayerCardEntry(UNKNOWN_PLAYER_NUMBER),
+    ) : PendingMisconductReturn
     data class BlueCard(val team: TeamId) : PendingMisconductReturn
 }
 
@@ -255,11 +310,12 @@ internal fun TeamCardDialog(
     onStateOnly: (GameState) -> Unit,
 ) {
     var pendingYellowTeam by remember { mutableStateOf<TeamId?>(null) }
-    var pendingYellowInitialNumber by remember { mutableStateOf("") }
+    var pendingYellowInitialEntry by remember { mutableStateOf(PlayerCardEntry("")) }
     var pendingRedTeam by remember { mutableStateOf<TeamId?>(null) }
-    var pendingRedInitialNumber by remember { mutableStateOf("") }
+    var pendingRedInitialEntry by remember { mutableStateOf(PlayerCardEntry("")) }
     var pendingBlueTeam by remember { mutableStateOf<TeamId?>(null) }
     var pendingUnknownYellowChoice by remember { mutableStateOf<PendingUnknownYellowChoice?>(null) }
+    var pendingSameNumberConfirmation by remember { mutableStateOf<PendingSameNumberPlayerCardConfirmation?>(null) }
     var pendingMisconductChoice by remember { mutableStateOf<PendingMisconductChoice?>(null) }
     var pendingMisconductResolution by remember { mutableStateOf<PendingMisconductResolution?>(null) }
     var invalidCardAssignmentMessage by remember { mutableStateOf<String?>(null) }
@@ -285,16 +341,16 @@ internal fun TeamCardDialog(
         if (returnTo == null) return
         // No else branch: every PendingMisconductReturn value is handled
         when (returnTo) {
-            is PendingMisconductReturn.YellowNumber -> {
-                pendingYellowInitialNumber = returnTo.jerseyNumber
+            is PendingMisconductReturn.YellowEntry -> {
+                pendingYellowInitialEntry = returnTo.entry
                 pendingYellowTeam = returnTo.team
             }
-            is PendingMisconductReturn.RedNumber -> {
-                pendingRedInitialNumber = returnTo.jerseyNumber
+            is PendingMisconductReturn.RedEntry -> {
+                pendingRedInitialEntry = returnTo.entry
                 pendingRedTeam = returnTo.team
             }
             is PendingMisconductReturn.UnknownYellow -> {
-                pendingUnknownYellowChoice = PendingUnknownYellowChoice(returnTo.team)
+                pendingUnknownYellowChoice = PendingUnknownYellowChoice(returnTo.team, returnTo.entry)
             }
             is PendingMisconductReturn.BlueCard -> {
                 pendingBlueTeam = returnTo.team
@@ -311,10 +367,87 @@ internal fun TeamCardDialog(
         }
     }
 
+    fun restorePlayerCardEntry(cardType: CardType, team: TeamId, entry: PlayerCardEntry) {
+        // No else branch: every CardType value is handled.
+        when (cardType) {
+            CardType.YELLOW -> {
+                pendingYellowInitialEntry = entry
+                pendingYellowTeam = team
+            }
+            CardType.RED -> {
+                pendingRedInitialEntry = entry
+                pendingRedTeam = team
+            }
+        }
+    }
+
+    fun assessPlayerCardEntry(
+        team: TeamId,
+        cardType: CardType,
+        entry: PlayerCardEntry,
+        skipSameNumberWarning: Boolean = false,
+    ) {
+        val identity = PlayerIdentity(entry.jerseyNumber, entry.playerName)
+        val normalizedEntry = entry.copy(jerseyNumber = identity.jerseyNumber, playerName = identity.playerName)
+        if (!skipSameNumberWarning) {
+            val conflict = state.sameNumberPlayerIdentityConflict(team, identity.jerseyNumber, identity.playerName)
+            if (conflict != null) {
+                pendingSameNumberConfirmation = PendingSameNumberPlayerCardConfirmation(
+                    team = team,
+                    cardType = cardType,
+                    entry = normalizedEntry,
+                    conflict = conflict,
+                )
+                return
+            }
+        }
+
+        // No else branch: every CardType value is handled.
+        when (cardType) {
+            CardType.YELLOW -> {
+                // Yellow on N/A needs a follow-up question if an unknown player already has one.
+                if (
+                    identity.jerseyNumber == UNKNOWN_PLAYER_NUMBER &&
+                    state.playerHasYellowThisGame(team, UNKNOWN_PLAYER_NUMBER)
+                ) {
+                    pendingUnknownYellowChoice = PendingUnknownYellowChoice(
+                        team,
+                        normalizedEntry.copy(jerseyNumber = UNKNOWN_PLAYER_NUMBER, playerName = ""),
+                    )
+                } else {
+                    presentAssessment(
+                        state.assessYellowCard(team, identity.jerseyNumber, now, identity.playerName, entry.reason),
+                        PendingMisconductReturn.YellowEntry(team, normalizedEntry),
+                    )
+                }
+            }
+            CardType.RED -> {
+                if (
+                    canAddPlayerCardAssignment(
+                        state.playerCards(team),
+                        jerseyNumber = identity.jerseyNumber,
+                        playerName = identity.playerName,
+                        cardType = CardType.RED,
+                    )
+                ) {
+                    presentAssessment(
+                        state.assessRedCard(team, identity.jerseyNumber, now, identity.playerName, entry.reason),
+                        PendingMisconductReturn.RedEntry(team, normalizedEntry),
+                    )
+                } else {
+                    invalidCardAssignmentMessage =
+                        "${state.teamFor(team).name} ${identity.displayText(compact = true)} " +
+                            "already has the maximum valid card combination."
+                }
+            }
+        }
+    }
+
     val noCardSubdialogOpen = pendingYellowTeam == null &&
         pendingRedTeam == null &&
         pendingBlueTeam == null &&
         pendingUnknownYellowChoice == null &&
+        pendingSameNumberConfirmation == null &&
         pendingMisconductChoice == null &&
         pendingMisconductResolution == null &&
         invalidCardAssignmentMessage == null
@@ -331,56 +464,87 @@ internal fun TeamCardDialog(
     }
 
     if (pendingYellowTeam != null) {
-        PlayerNumberDialog(
+        PlayerCardEntryDialog(
             title = "Yellow card",
             teamName = state.teamFor(pendingYellowTeam!!).name,
-            initialJerseyNumber = pendingYellowInitialNumber,
+            initialEntry = pendingYellowInitialEntry,
+            candidates = state.cardedPlayerCandidates(pendingYellowTeam!!),
+            cardType = CardType.YELLOW,
             onDismiss = {
-                pendingYellowInitialNumber = ""
+                pendingYellowInitialEntry = PlayerCardEntry("")
                 pendingYellowTeam = null
             },
-            onConfirm = { jerseyNumber ->
+            onConfirm = { entry ->
                 val team = pendingYellowTeam!!
-                // Yellow on N/A needs a follow-up question if an unknown player already has one.
-                if (
-                    jerseyNumber == UNKNOWN_PLAYER_NUMBER &&
-                    state.playerHasYellowThisGame(team, UNKNOWN_PLAYER_NUMBER)
-                ) {
-                    pendingUnknownYellowChoice = PendingUnknownYellowChoice(team)
-                } else {
-                    presentAssessment(
-                        state.assessYellowCard(team, jerseyNumber, now),
-                        PendingMisconductReturn.YellowNumber(team, jerseyNumber),
-                    )
-                }
-                pendingYellowInitialNumber = ""
+                assessPlayerCardEntry(team, CardType.YELLOW, entry)
+                pendingYellowInitialEntry = PlayerCardEntry("")
                 pendingYellowTeam = null
             },
         )
     }
 
     if (pendingRedTeam != null) {
-        PlayerNumberDialog(
+        PlayerCardEntryDialog(
             title = "Red card",
             teamName = state.teamFor(pendingRedTeam!!).name,
-            initialJerseyNumber = pendingRedInitialNumber,
+            initialEntry = pendingRedInitialEntry,
+            candidates = state.cardedPlayerCandidates(pendingRedTeam!!),
+            cardType = CardType.RED,
             onDismiss = {
-                pendingRedInitialNumber = ""
+                pendingRedInitialEntry = PlayerCardEntry("")
                 pendingRedTeam = null
             },
-            onConfirm = { jerseyNumber ->
+            onConfirm = { entry ->
                 val team = pendingRedTeam!!
-                if (canAddPlayerCardAssignment(state.playerCards(team), jerseyNumber = jerseyNumber, cardType = CardType.RED)) {
-                    presentAssessment(
-                        state.assessRedCard(team, jerseyNumber, now),
-                        PendingMisconductReturn.RedNumber(team, jerseyNumber),
-                    )
-                } else {
-                    invalidCardAssignmentMessage =
-                        "${state.teamFor(team).name} #$jerseyNumber already has the maximum valid card combination."
-                }
-                pendingRedInitialNumber = ""
+                assessPlayerCardEntry(team, CardType.RED, entry)
+                pendingRedInitialEntry = PlayerCardEntry("")
                 pendingRedTeam = null
+            },
+        )
+    }
+
+    pendingSameNumberConfirmation?.let { confirmation ->
+        AlertDialog(
+            onDismissRequest = {
+                pendingSameNumberConfirmation = null
+                restorePlayerCardEntry(confirmation.cardType, confirmation.team, confirmation.entry)
+            },
+            title = { Text("Same number, different names") },
+            text = {
+                Text(
+                    "${PlayerIdentity(
+                        confirmation.conflict.existingJerseyNumber,
+                        confirmation.conflict.existingPlayerName,
+                    ).displayText(compact = false)} is already listed. Record ${PlayerIdentity(
+                        confirmation.conflict.proposedJerseyNumber,
+                        confirmation.conflict.proposedPlayerName,
+                    ).displayText(compact = false)} as a different player with the same number?"
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pendingSameNumberConfirmation = null
+                        assessPlayerCardEntry(
+                            team = confirmation.team,
+                            cardType = confirmation.cardType,
+                            entry = confirmation.entry,
+                            skipSameNumberWarning = true,
+                        )
+                    }
+                ) {
+                    Text("Record")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        pendingSameNumberConfirmation = null
+                        restorePlayerCardEntry(confirmation.cardType, confirmation.team, confirmation.entry)
+                    }
+                ) {
+                    Text("Cancel")
+                }
             },
         )
     }
@@ -471,22 +635,25 @@ internal fun TeamCardDialog(
             teamName = state.teamFor(pendingUnknownYellowChoice!!.team).name,
             onDismiss = { pendingUnknownYellowChoice = null },
             onSamePlayer = {
-                val team = pendingUnknownYellowChoice!!.team
+                val pendingChoice = pendingUnknownYellowChoice!!
+                val team = pendingChoice.team
                 presentAssessment(
-                    state.assessSecondYellowCard(team, UNKNOWN_PLAYER_NUMBER, now),
-                    PendingMisconductReturn.UnknownYellow(team),
+                    state.assessSecondYellowCard(team, UNKNOWN_PLAYER_NUMBER, now, reason = pendingChoice.entry.reason),
+                    PendingMisconductReturn.UnknownYellow(team, pendingChoice.entry),
                 )
                 pendingUnknownYellowChoice = null
             },
             onDifferentPlayer = {
-                val team = pendingUnknownYellowChoice!!.team
+                val pendingChoice = pendingUnknownYellowChoice!!
+                val team = pendingChoice.team
                 presentAssessment(
                     state.assessFirstYellowCard(
                         team,
                         UNKNOWN_PLAYER_NUMBER,
                         now,
+                        reason = pendingChoice.entry.reason,
                     ),
-                    PendingMisconductReturn.UnknownYellow(team),
+                    PendingMisconductReturn.UnknownYellow(team, pendingChoice.entry),
                 )
                 pendingUnknownYellowChoice = null
             },
@@ -728,6 +895,283 @@ private fun AssignedCardRemovalDialog(
 }
 
 /**
+ * Render the player details prompt for live yellow/red card flows.
+ *
+ * @param title The dialog title describing the card type.
+ * @param teamName The team receiving the player card.
+ * @param initialEntry Card details to restore when returning from a later dialog step.
+ * @param candidates Known carded players for this team.
+ * @param cardType The card being assessed.
+ * @param onDismiss Callback closing the dialog without recording.
+ * @param onConfirm Callback receiving the entered card details.
+ */
+@Composable
+private fun PlayerCardEntryDialog(
+    title: String,
+    teamName: String,
+    initialEntry: PlayerCardEntry,
+    candidates: List<PlayerCardCandidate>,
+    cardType: CardType,
+    onDismiss: () -> Unit,
+    onConfirm: (PlayerCardEntry) -> Unit,
+) {
+    var jerseyNumber by remember(initialEntry) {
+        mutableStateOf(initialEntry.jerseyNumber.takeUnless { it == UNKNOWN_PLAYER_NUMBER } ?: "")
+    }
+    var playerName by remember(initialEntry) { mutableStateOf(initialEntry.playerName) }
+    var reason by remember(initialEntry) { mutableStateOf(initialEntry.reason) }
+    var showingReasonDialog by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier
+                    .heightIn(max = 520.dp)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                Text(teamName, fontWeight = FontWeight.SemiBold)
+                OutlinedTextField(
+                    value = jerseyNumber,
+                    onValueChange = { jerseyNumber = it.filter(Char::isDigit) },
+                    label = { Text("Player number") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus(force = true) }),
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("card-player-number"),
+                )
+                OutlinedTextField(
+                    value = playerName,
+                    onValueChange = { playerName = it },
+                    label = { Text("Player name") },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus(force = true) }),
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("card-player-name"),
+                )
+                if (candidates.isNotEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                        Text("Players with cards:", style = MaterialTheme.typography.labelLarge)
+                        candidates.forEach { candidate ->
+                            PlayerCardCandidateRow(
+                                candidate = candidate,
+                                onCopy = {
+                                    jerseyNumber = candidate.jerseyNumber.takeUnless { it == UNKNOWN_PLAYER_NUMBER } ?: ""
+                                    playerName = candidate.playerName
+                                },
+                            )
+                        }
+                    }
+                }
+                Button(
+                    onClick = { showingReasonDialog = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    border = BorderStroke(1.dp, Color.Black),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = CardReasonButtonColor,
+                        contentColor = Color.Black,
+                    ),
+                ) {
+                    Text(reason.ifBlank { "Reason" })
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onConfirm(
+                        PlayerCardEntry(
+                            jerseyNumber = jerseyNumber.ifBlank { UNKNOWN_PLAYER_NUMBER },
+                            playerName = playerName.trim(),
+                            reason = reason.trim(),
+                        )
+                    )
+                },
+            ) {
+                Text("Record")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+    )
+
+    if (showingReasonDialog) {
+        CardReasonDialog(
+            cardType = cardType,
+            initialReason = reason,
+            onDismiss = { showingReasonDialog = false },
+            onConfirm = { selectedReason ->
+                reason = selectedReason
+                showingReasonDialog = false
+            },
+        )
+    }
+}
+
+/**
+ * Render one known player row with an action to copy its identity into the entry fields.
+ *
+ * @param candidate The known player to show.
+ * @param onCopy Callback copying the candidate identity into the current entry.
+ */
+@Composable
+private fun PlayerCardCandidateRow(candidate: PlayerCardCandidate, onCopy: () -> Unit) {
+    val detail = candidate.detail.takeIf { it.isNotBlank() }?.let { " ($it)" }.orEmpty()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(32.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            "${PlayerIdentity(candidate.jerseyNumber, candidate.playerName).displayText(compact = false)}$detail",
+            modifier = Modifier.weight(1f),
+        )
+        TextButton(
+            onClick = onCopy,
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+        ) {
+            Text("Copy")
+        }
+    }
+}
+
+/**
+ * Render the optional reason picker for yellow/red cards.
+ *
+ * @param cardType The card being assessed.
+ * @param initialReason Existing reason text to restore.
+ * @param onDismiss Callback closing the reason dialog without changing the reason.
+ * @param onConfirm Callback receiving the selected reason text.
+ */
+@Composable
+private fun CardReasonDialog(
+    cardType: CardType,
+    initialReason: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit,
+) {
+    val presets = cardReasonPresets(cardType)
+    var selectedPreset by remember(initialReason) {
+        mutableStateOf(presets.firstOrNull { it == initialReason }.orEmpty())
+    }
+    var otherReason by remember(initialReason) {
+        mutableStateOf(if (initialReason.isNotBlank() && initialReason !in presets) initialReason else "")
+    }
+    var details by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("${cardType.label} card reason") },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier
+                    .heightIn(max = 520.dp)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    modifier = Modifier.width(IntrinsicSize.Max),
+                ) {
+                    presets.forEach { preset ->
+                        ReasonChoiceButton(
+                            label = preset,
+                            selected = selectedPreset == preset,
+                            onClick = {
+                                selectedPreset = preset
+                                if (preset != "Other") {
+                                    otherReason = ""
+                                }
+                            },
+                        )
+                    }
+                    ReasonChoiceButton(
+                        label = "Other",
+                        selected = selectedPreset == "Other",
+                        onClick = { selectedPreset = "Other" },
+                    )
+                }
+                if (selectedPreset == "Other") {
+                    OutlinedTextField(
+                        value = otherReason,
+                        onValueChange = { otherReason = it },
+                        label = { Text("Other reason") },
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                OutlinedTextField(
+                    value = details,
+                    onValueChange = { details = it },
+                    label = { Text("More details") },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onConfirm(cardReasonText(selectedPreset, otherReason, details))
+                },
+            ) {
+                Text("Set")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Back")
+            }
+        },
+    )
+}
+
+/**
+ * Render a preset card-reason selector.
+ *
+ * @param label The preset reason label.
+ * @param selected Whether this preset is currently selected.
+ * @param onClick Callback selecting this preset.
+ */
+@Composable
+private fun ReasonChoiceButton(label: String, selected: Boolean, onClick: () -> Unit) {
+    if (selected) {
+        Button(
+            onClick = onClick,
+            modifier = Modifier
+                .widthIn(min = 0.dp)
+                .height(34.dp),
+            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+        ) {
+            Text(label)
+        }
+    } else {
+        OutlinedButton(
+            onClick = onClick,
+            modifier = Modifier
+                .widthIn(min = 0.dp)
+                .height(34.dp),
+            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+        ) {
+            Text(label)
+        }
+    }
+}
+
+/**
  * Render the jersey-number prompt shared by the card flows.
  *
  * @param title The dialog title describing the card type.
@@ -832,5 +1276,20 @@ private fun GameState.cardsRoleSuffix(team: TeamId): String {
         if (team == pullingTeam) " (pulling)" else " (receiving)"
     } else {
         ""
+    }
+}
+
+/**
+ * Return known players for quick live-card selection.
+ *
+ * @param team The team whose known players should be listed.
+ */
+private fun GameState.cardedPlayerCandidates(team: TeamId): List<PlayerCardCandidate> {
+    return playerCards(team).map { player ->
+        PlayerCardCandidate(
+            jerseyNumber = player.jerseyNumber,
+            playerName = player.playerName,
+            detail = player.cardDetail(includeGame = true),
+        )
     }
 }
