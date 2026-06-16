@@ -67,6 +67,7 @@ class TestGameCards : GameDomainTestFixtures() {
         assertEquals(2, state.teamCardTotal(VC))
         assertEquals(InGamePlayerCardRecord("17", yellows = 2), playerRecord(state, VC, "17"))
         assertEquals("Undo Second yellow on #17 of Viscous Coupling", state.undoEntry?.label)
+        assertEquals(EventLogType.YELLOW_CARD, state.eventLog.last().type)
         assertUndoRestores(cardResult.state.undoEntry!!.previous, state)
 
         // A third team-card point between points gives the pulling-team misconduct field-position cue.

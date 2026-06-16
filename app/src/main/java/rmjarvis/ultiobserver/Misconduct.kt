@@ -756,7 +756,7 @@ fun GameState.assessFirstYellowCard(team: TeamId, jerseyNumber: String, now: Lon
         .withEventLogEntry(
             EventLogEntry(
                 timestampEpoch = now,
-                type = EventLogType.SECOND_YELLOW,
+                type = EventLogType.YELLOW_CARD,
                 team = team,
                 playerNumber = jerseyNumber,
             )

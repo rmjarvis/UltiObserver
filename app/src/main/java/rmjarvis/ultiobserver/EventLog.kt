@@ -9,7 +9,6 @@ import kotlinx.serialization.Serializable
 private val EVENT_LOG_TIME_FORMATTER = DateTimeFormatter.ofPattern("h:mm")
 private val CARD_LABELS = mapOf(
     EventLogType.YELLOW_CARD to "Yellow card",
-    EventLogType.SECOND_YELLOW to "Yellow card",
     EventLogType.RED_CARD to "Red card",
     EventLogType.BLUE_CARD to "Blue card",
 )
@@ -28,7 +27,6 @@ enum class EventLogType {
     FIRST_PULL,
     GOAL,
     YELLOW_CARD,
-    SECOND_YELLOW,
     RED_CARD,
     BLUE_CARD,
     TECHNICAL_FOUL,
@@ -125,7 +123,6 @@ private fun GameState.formatEventLogDescription(entry: EventLogEntry): String {
         EventLogType.FIRST_PULL -> firstPullDescription(entry)
         EventLogType.GOAL -> goalDescription(entry)
         EventLogType.YELLOW_CARD,
-        EventLogType.SECOND_YELLOW,
         EventLogType.RED_CARD,
         EventLogType.BLUE_CARD -> cardEventDescription(entry)
         EventLogType.TECHNICAL_FOUL -> technicalFoulDescription(entry)
