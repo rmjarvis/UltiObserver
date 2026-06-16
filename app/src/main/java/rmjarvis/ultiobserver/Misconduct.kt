@@ -251,6 +251,15 @@ data class CardAssessmentResult(
         event.needsMisconductChoice(),
 )
 
+/**
+ * State and popup needs from previewing a technical foul before recording it.
+ *
+ * @param event The event describing what would be recorded.
+ */
+data class TechnicalFoulAssessmentPreview(
+    val event: GameEvent.TechnicalFoulsChanged,
+)
+
 /// Player-card event type used when formatting card popups.
 enum class PlayerCardEventType {
     YELLOW,
@@ -612,17 +621,7 @@ fun GameState.assessBlueCard(team: TeamId, now: Long): CardAssessmentResult {
  * @param team The team receiving the technical foul.
  */
 fun GameState.assessTechnicalFoul(team: TeamId, now: Long): CardAssessmentResult {
-    var updatedState = this.copy(
-        teamOne = if (team == TeamId.TEAM_ONE) {
-            this.teamOne.copy(technicalFouls = this.teamOne.technicalFouls + 1)
-        } else {
-            this.teamOne
-        },
-        teamTwo = if (team == TeamId.TEAM_TWO) {
-            this.teamTwo.copy(technicalFouls = this.teamTwo.technicalFouls + 1)
-        } else {
-            this.teamTwo
-        },
+    var updatedState = this.withAddedTechnicalFoul(team).copy(
         lastEvent = "Technical foul on ${this.teamName(team)}.",
     ).withEventLogEntry(
         EventLogEntry(
@@ -631,11 +630,7 @@ fun GameState.assessTechnicalFoul(team: TeamId, now: Long): CardAssessmentResult
             team = team,
         )
     ).withUndo(this, "Undo Technical foul on ${this.teamName(team)}")
-    val technicalFouls = if (team == TeamId.TEAM_ONE) {
-        updatedState.teamOne.technicalFouls
-    } else {
-        updatedState.teamTwo.technicalFouls
-    }
+    val technicalFouls = updatedState.technicalFoulsFor(team)
     updatedState = updatedState.withSkippedPullForMisconductThreshold(technicalFouls)
     return CardAssessmentResult(
         state = updatedState,
@@ -646,6 +641,58 @@ fun GameState.assessTechnicalFoul(team: TeamId, now: Long): CardAssessmentResult
         ),
     )
 }
+
+/**
+ * Preview a technical foul and its misconduct consequence without changing game state.
+ *
+ * @param team The team receiving the technical foul.
+ */
+fun GameState.previewTechnicalFoul(team: TeamId): TechnicalFoulAssessmentPreview {
+    var previewState = this.withAddedTechnicalFoul(team)
+    val technicalFouls = previewState.technicalFoulsFor(team)
+    previewState = previewState.withSkippedPullForMisconductThreshold(technicalFouls)
+    return TechnicalFoulAssessmentPreview(
+        event = GameEvent.TechnicalFoulsChanged(
+            state = previewState,
+            team = team,
+            technicalFoulTotal = technicalFouls,
+        ),
+    )
+}
+
+/**
+ * Return game state with one added technical foul for the given team.
+ *
+ * @param team The team receiving the technical foul.
+ */
+private fun GameState.withAddedTechnicalFoul(team: TeamId): GameState {
+    return copy(
+        teamOne = if (team == TeamId.TEAM_ONE) {
+            this.teamOne.copy(technicalFouls = this.teamOne.technicalFouls + 1)
+        } else {
+            this.teamOne
+        },
+        teamTwo = if (team == TeamId.TEAM_TWO) {
+            this.teamTwo.copy(technicalFouls = this.teamTwo.technicalFouls + 1)
+        } else {
+            this.teamTwo
+        },
+    )
+}
+
+/**
+ * Return the technical-foul count for the given team.
+ *
+ * @param team The team whose technical fouls should be counted.
+ */
+private fun GameState.technicalFoulsFor(team: TeamId): Int {
+    return if (team == TeamId.TEAM_ONE) {
+        teamOne.technicalFouls
+    } else {
+        teamTwo.technicalFouls
+    }
+}
+
 /**
  * Record a yellow-card action, promoting it to second yellow when the player already has one.
  * The same observer action can mean either a first yellow or a second yellow depending on the player record.
@@ -991,7 +1038,7 @@ internal fun GameEvent.TeamCardsChanged.formatPopupTitle(): String {
 
 /// Format the popup title for a technical-foul event.
 internal fun GameEvent.TechnicalFoulsChanged.formatPopupTitle(): String {
-    return if (technicalFoulTotal >= 3) "Misconduct penalty" else "Misconduct"
+    return "Technical Foul"
 }
 
 /// Report whether this event needs an offense/defense choice before showing the penalty cue.
@@ -1117,8 +1164,7 @@ private fun GameState.playerHasTournamentSuspension(team: TeamId, jerseyNumber: 
 
 /// Format a technical-foul event message, including misconduct cue details when needed.
 internal fun GameEvent.TechnicalFoulsChanged.formatMessage(): String {
-    val baseMessage =
-        "${state.teamName(team)} has ${countedNounPhrase(technicalFoulTotal, "technical foul")}."
+    val baseMessage = "This is ${state.teamName(team)}'s ${technicalFoulTotal.ordinalWordText()} technical foul."
     return baseMessage.withMisconductCue(
         state = state,
         team = team,
@@ -1152,10 +1198,12 @@ private fun String.withMisconductCue(
  */
 private fun GameState.betweenPointsMisconductCue(team: TeamId): String {
     val receivingTeam = pullingTeam.flip()
+    val penalizedTeamName = teamName(team)
+    val receivingTeamName = teamName(receivingTeam)
     return if (team == receivingTeam) {
-        "Penalty against receiving team. No pull. Disc at negative brick in defending end zone."
+        "Penalty against $penalizedTeamName. No pull. Disc at negative brick in defending end zone."
     } else {
-        "Penalty against pulling team. No pull. Receiving team starts at attacking brick."
+        "Penalty against $penalizedTeamName. No pull. $receivingTeamName starts at attacking brick."
     }
 }
 
@@ -1183,15 +1231,40 @@ fun GamePrompt.LivePointMisconduct.resolutionMessage(againstOffense: Boolean): S
  *
  * @param againstOffense Whether the penalty is against the offense rather than the defense.
  */
-private fun misconductResolution(againstOffense: Boolean): String {
-    return if (againstOffense) {
-        "Disc moves to the reverse brick in the end zone being defended. " +
-            "Defense may instead leave the disc where it stopped.\n\n" +
-            "Offense has 30 seconds to set. Then defense has 20 seconds to check the disc in."
+private fun GamePrompt.LivePointMisconduct.misconductResolution(againstOffense: Boolean): String {
+    val misconductTeam = event.misconductTeam()
+    val state = event.stateAfterMisconduct()
+    val offenseTeam = if (againstOffense) misconductTeam else misconductTeam.flip()
+    val defenseTeam = offenseTeam.flip()
+    val offenseName = state.teamName(offenseTeam)
+    val defenseName = state.teamName(defenseTeam)
+    val fieldPosition = if (againstOffense) {
+        "$offenseName moves the disc to the reverse brick in the end zone they are defending. " +
+            "$defenseName may instead choose to leave the disc where it is " +
+            "(keeping the current stall count +1, max 9)."
     } else {
-        "Disc moves to the brick nearest the attacking end zone. " +
-            "Offense may instead leave it or center it.\n\n" +
-            "Offense has 30 seconds to set. Then defense has 20 seconds to check the disc in."
+        "$offenseName may move the disc to the brick mark nearest the end zone they are attacking. " +
+            "They may also choose to leave the disc where it is or center it."
+    }
+    return "$fieldPosition\n\nOffense has 30 seconds to set. " +
+        "Then defense has 20 seconds to check the disc in."
+}
+
+/// Return the team that triggered the live-point misconduct prompt.
+private fun GameEvent.misconductTeam(): TeamId {
+    return when (this) {
+        is GameEvent.TeamCardsChanged -> team
+        is GameEvent.TechnicalFoulsChanged -> team
+        else -> error("Live-point misconduct prompts require a card or technical-foul event.")
+    }
+}
+
+/// Return the state after the event that triggered the live-point misconduct prompt.
+private fun GameEvent.stateAfterMisconduct(): GameState {
+    return when (this) {
+        is GameEvent.TeamCardsChanged -> state
+        is GameEvent.TechnicalFoulsChanged -> state
+        else -> error("Live-point misconduct prompts require a card or technical-foul event.")
     }
 }
 

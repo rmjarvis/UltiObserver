@@ -115,7 +115,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         )
         assertTrue(
             cardResult.misconductPrompt().resolutionMessage(againstOffense = true)
-                .contains("Disc moves to the reverse brick in the end zone being defended."),
+                .contains("Viscous Coupling moves the disc to the reverse brick in the end zone they are defending."),
         )
         assertTrue(
             cardResult.misconductPrompt().resolutionMessage(againstOffense = true)
@@ -188,12 +188,12 @@ class TestGameTransitions : GameDomainTestFixtures() {
         var technicalFoulResult = state.assessTechnicalFoul(ANIMAL)
         state = technicalFoulResult.state
         assertFalse(technicalFoulResult.needsMisconductChoice)
-        assertEquals("Animal has 1 technical foul.", technicalFoulResult.message())
+        assertEquals("This is Animal's first technical foul.", technicalFoulResult.message())
 
         technicalFoulResult = state.assessTechnicalFoul(ANIMAL)
         state = technicalFoulResult.state
         assertFalse(technicalFoulResult.needsMisconductChoice)
-        assertEquals("Animal has 2 technical fouls.", technicalFoulResult.message())
+        assertEquals("This is Animal's second technical foul.", technicalFoulResult.message())
 
         // Viscous Coupling calls a live-point timeout, starting an offense-set countdown.
         val secondTimeoutTime = timestampAt(state, LocalTime.of(10, 6))
@@ -226,9 +226,9 @@ class TestGameTransitions : GameDomainTestFixtures() {
         state = technicalFoulResult.state
         assertFalse(technicalFoulResult.needsMisconductChoice)
         assertEquals(3, state.teamTwo.technicalFouls)
-        assertTrue(technicalFoulResult.message()!!.contains("Animal has 3 technical fouls."))
-        assertTrue(technicalFoulResult.message()!!.contains("Penalty against pulling team."))
-        assertTrue(technicalFoulResult.message()!!.contains("Receiving team starts at attacking brick."))
+        assertTrue(technicalFoulResult.message()!!.contains("This is Animal's third technical foul."))
+        assertTrue(technicalFoulResult.message()!!.contains("Penalty against Animal."))
+        assertTrue(technicalFoulResult.message()!!.contains("Viscous Coupling starts at attacking brick."))
         assertEquals("Undo Technical foul on Animal", state.undoEntry?.label)
 
         // Viscous Coupling scores the next two points, reaching halftime in this game-to-5 setup.

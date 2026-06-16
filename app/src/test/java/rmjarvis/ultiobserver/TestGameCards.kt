@@ -77,7 +77,7 @@ class TestGameCards : GameDomainTestFixtures() {
         assertEquals(3, state.teamCardTotal(VC))
         assertEquals(1, state.playerCards(VC).size)
         assertEquals(
-            "Viscous Coupling has 3 total blue cards.\n\nPenalty against pulling team. No pull. Receiving team starts at attacking brick.",
+            "Viscous Coupling has 3 total blue cards.\n\nPenalty against Viscous Coupling. No pull. Animal starts at attacking brick.",
             cardResult.message(),
         )
         assertEquals("Misconduct penalty", cardResult.event.formatPopupTitle())
@@ -139,7 +139,7 @@ class TestGameCards : GameDomainTestFixtures() {
         assertFalse(cardResult.needsMisconductChoice)
         assertEquals(
             "Yellow card on player 14.\nViscous Coupling has 3 total blue cards.\n\n" +
-                "Penalty against pulling team. No pull. Receiving team starts at attacking brick.",
+                "Penalty against Viscous Coupling. No pull. Animal starts at attacking brick.",
             cardResult.message(),
         )
         assertEquals(CountdownKind.MISCONDUCT_BETWEEN_POINTS, cardResult.state.countdown?.kind)
@@ -204,14 +204,15 @@ class TestGameCards : GameDomainTestFixtures() {
             "Red card on player 23.\n" +
                 "Player 23 receives a game suspension.\n" +
                 "Animal has 3 total blue cards.\n\n" +
-                "Disc moves to the reverse brick in the end zone being defended. " +
-                "Defense may instead leave the disc where it stopped.\n\n" +
+                "Animal moves the disc to the reverse brick in the end zone they are defending. " +
+                "Viscous Coupling may instead choose to leave the disc where it is " +
+                "(keeping the current stall count +1, max 9).\n\n" +
                 "Offense has 30 seconds to set. Then defense has 20 seconds to check the disc in.",
             misconductPrompt.resolutionMessage(againstOffense = true),
         )
         assertTrue(
             misconductPrompt.resolutionMessage(againstOffense = false)
-                .contains("Disc moves to the brick nearest the attacking end zone."),
+                .contains("Viscous Coupling may move the disc to the brick mark nearest the end zone they are attacking."),
         )
         assertEquals(3, state.teamCardTotal(ANIMAL))
 
@@ -229,7 +230,7 @@ class TestGameCards : GameDomainTestFixtures() {
             "Red card on player 8.\n" +
                 "Player 8 is suspended for the rest of the tournament.\n" +
                 "Animal has 3 total blue cards.\n\n" +
-                "Penalty against receiving team. No pull. Disc at negative brick in defending end zone.",
+                "Penalty against Animal. No pull. Disc at negative brick in defending end zone.",
             cardResult.message(),
         )
         assertTrue(
@@ -403,7 +404,7 @@ class TestGameCards : GameDomainTestFixtures() {
         assertEquals(3, state.teamTwo.blueCards)
         assertEquals(3, state.teamCardTotal(ANIMAL))
         assertEquals(
-            "Animal has 3 blue cards.\n\nPenalty against receiving team. No pull. Disc at negative brick in defending end zone.",
+            "Animal has 3 blue cards.\n\nPenalty against Animal. No pull. Disc at negative brick in defending end zone.",
             cardResult.message(),
         )
 
@@ -413,7 +414,7 @@ class TestGameCards : GameDomainTestFixtures() {
         assertEquals(4, state.teamTwo.blueCards)
         assertEquals(4, state.teamCardTotal(ANIMAL))
         assertEquals(
-            "Animal has 4 blue cards.\n\nPenalty against receiving team. No pull. Disc at negative brick in defending end zone.",
+            "Animal has 4 blue cards.\n\nPenalty against Animal. No pull. Disc at negative brick in defending end zone.",
             cardResult.message(),
         )
 
@@ -433,15 +434,15 @@ class TestGameCards : GameDomainTestFixtures() {
         var technicalFoulResult = state.assessTechnicalFoul(ANIMAL)
         state = technicalFoulResult.state
         assertFalse(technicalFoulResult.needsMisconductChoice)
-        assertEquals("Animal has 1 technical foul.", technicalFoulResult.message())
-        assertEquals("Misconduct", technicalFoulResult.event.formatPopupTitle())
+        assertEquals("This is Animal's first technical foul.", technicalFoulResult.message())
+        assertEquals("Technical Foul", technicalFoulResult.event.formatPopupTitle())
         assertEquals(1, state.teamTwo.technicalFouls)
         assertEquals(0, state.teamCardTotal(ANIMAL))
 
         technicalFoulResult = state.assessTechnicalFoul(ANIMAL)
         state = technicalFoulResult.state
         assertFalse(technicalFoulResult.needsMisconductChoice)
-        assertEquals("Animal has 2 technical fouls.", technicalFoulResult.message())
+        assertEquals("This is Animal's second technical foul.", technicalFoulResult.message())
         assertEquals(2, state.teamTwo.technicalFouls)
 
         technicalFoulResult = state.assessTechnicalFoul(ANIMAL)
@@ -449,10 +450,10 @@ class TestGameCards : GameDomainTestFixtures() {
         assertFalse(technicalFoulResult.needsMisconductChoice)
         assertEquals(3, state.teamTwo.technicalFouls)
         assertEquals(
-            "Animal has 3 technical fouls.\n\nPenalty against receiving team. No pull. Disc at negative brick in defending end zone.",
+            "This is Animal's third technical foul.\n\nPenalty against Animal. No pull. Disc at negative brick in defending end zone.",
             technicalFoulResult.message(),
         )
-        assertEquals("Misconduct penalty", technicalFoulResult.event.formatPopupTitle())
+        assertEquals("Technical Foul", technicalFoulResult.event.formatPopupTitle())
 
         // After Animal scores, they are the pulling team, so the next technical foul uses the pulling-team cue.
         state = recordGoalFromCurrentStateAt(state, ANIMAL, LocalTime.of(11, 5))
@@ -463,7 +464,7 @@ class TestGameCards : GameDomainTestFixtures() {
         assertFalse(technicalFoulResult.needsMisconductChoice)
         assertEquals(4, state.teamTwo.technicalFouls)
         assertEquals(
-            "Animal has 4 technical fouls.\n\nPenalty against pulling team. No pull. Receiving team starts at attacking brick.",
+            "This is Animal's 4th technical foul.\n\nPenalty against Animal. No pull. Viscous Coupling starts at attacking brick.",
             technicalFoulResult.message(),
         )
 
@@ -481,11 +482,11 @@ class TestGameCards : GameDomainTestFixtures() {
         assertTrue(prompt.contains("Was this against the offense or defense?"))
         assertTrue(
             cardResult.misconductPrompt().resolutionMessage(againstOffense = true)
-                .contains("Disc moves to the reverse brick in the end zone being defended."),
+                .contains("Viscous Coupling moves the disc to the reverse brick in the end zone they are defending."),
         )
         assertTrue(
             cardResult.misconductPrompt().resolutionMessage(againstOffense = false)
-                .contains("Disc moves to the brick nearest the attacking end zone."),
+                .contains("Animal may move the disc to the brick mark nearest the end zone they are attacking."),
         )
 
         // Technical fouls hit the same live-point misconduct choice when Viscous Coupling reaches the threshold.
@@ -496,10 +497,10 @@ class TestGameCards : GameDomainTestFixtures() {
         state = technicalFoulResult.state
         assertEquals(GamePhase.LIVE_POINT, state.phase)
         assertTrue(technicalFoulResult.needsMisconductChoice)
-        assertEquals("Viscous Coupling has 3 technical fouls.", technicalFoulResult.message())
+        assertEquals("This is Viscous Coupling's third technical foul.", technicalFoulResult.message())
         assertTrue(
             technicalFoulResult.misconductPrompt().resolutionMessage(againstOffense = true)
-                .contains("Disc moves to the reverse brick in the end zone being defended."),
+                .contains("Viscous Coupling moves the disc to the reverse brick in the end zone they are defending."),
         )
 
         // Exercise the player-card assignment helpers used by the UI reconciliation prompts.

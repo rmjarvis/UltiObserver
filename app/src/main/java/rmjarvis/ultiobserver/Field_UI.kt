@@ -300,7 +300,8 @@ internal data class FieldLayoutMetrics(
  * @param onTimeout Callback receiving the team requesting timeout.
  * @param onTimeViolation Callback receiving the team committing a time violation.
  * @param onPullInfraction Callback receiving the team with a pull infraction.
- * @param onCardsAndTechnicalFouls Callback opening the card and technical-foul workflow.
+ * @param onCards Callback opening the card workflow.
+ * @param onTechnicalFoul Callback opening the technical-foul workflow.
  * @param onTeamInfo Callback opening the coach/captain information for a team.
  */
 @Composable
@@ -315,7 +316,8 @@ internal fun FieldSketchCard(
     onTimeout: (TeamId) -> Unit,
     onTimeViolation: (TeamId) -> Unit,
     onPullInfraction: (TeamId) -> Unit,
-    onCardsAndTechnicalFouls: (TeamId) -> Unit,
+    onCards: (TeamId) -> Unit,
+    onTechnicalFoul: (TeamId) -> Unit,
     onTeamInfo: (TeamId) -> Unit,
 ) {
     // Translate the game's pulling orientation into the currently displayed top/bottom slots.
@@ -363,7 +365,8 @@ internal fun FieldSketchCard(
                 onTimeout = { onTimeout(topSlot) },
                 onTimeViolation = { onTimeViolation(topSlot) },
                 onPullInfraction = { onPullInfraction(topSlot) },
-                onCardsAndTechnicalFouls = { onCardsAndTechnicalFouls(topSlot) },
+                onCards = { onCards(topSlot) },
+                onTechnicalFoul = { onTechnicalFoul(topSlot) },
                 onTeamInfo = { onTeamInfo(topSlot) },
             )
             // Center field strip with pull direction and the main central control.
@@ -415,7 +418,8 @@ internal fun FieldSketchCard(
                 onTimeout = { onTimeout(bottomSlot) },
                 onTimeViolation = { onTimeViolation(bottomSlot) },
                 onPullInfraction = { onPullInfraction(bottomSlot) },
-                onCardsAndTechnicalFouls = { onCardsAndTechnicalFouls(bottomSlot) },
+                onCards = { onCards(bottomSlot) },
+                onTechnicalFoul = { onTechnicalFoul(bottomSlot) },
                 onTeamInfo = { onTeamInfo(bottomSlot) },
             )
         }
@@ -442,7 +446,8 @@ internal fun FieldSketchCard(
  * @param onTimeout Callback charging a timeout to this team.
  * @param onTimeViolation Callback recording a time violation for this team.
  * @param onPullInfraction Callback recording this team's pull infraction.
- * @param onCardsAndTechnicalFouls Callback opening the card and technical-foul workflow.
+ * @param onCards Callback opening the card workflow.
+ * @param onTechnicalFoul Callback opening the technical-foul workflow.
  * @param onTeamInfo Callback opening coach/captain information for this team.
  */
 @Composable
@@ -465,7 +470,8 @@ private fun EndZonePanel(
     onTimeout: () -> Unit,
     onTimeViolation: () -> Unit,
     onPullInfraction: () -> Unit,
-    onCardsAndTechnicalFouls: () -> Unit,
+    onCards: () -> Unit,
+    onTechnicalFoul: () -> Unit,
     onTeamInfo: () -> Unit,
 ) {
     val titleTextStyle = MaterialTheme.typography.titleLarge.copy(
@@ -537,7 +543,8 @@ private fun EndZonePanel(
             onTimeout = onTimeout,
             onTimeViolation = onTimeViolation,
             onPullInfraction = onPullInfraction,
-            onCardsAndTechnicalFouls = onCardsAndTechnicalFouls,
+            onCards = onCards,
+            onTechnicalFoul = onTechnicalFoul,
         )
         if (!fieldEndLabelAtTop) {
             Spacer(modifier = Modifier.weight(1f))
@@ -571,7 +578,8 @@ private fun EndZonePanel(
  * @param onTimeout Callback charging a timeout to this team.
  * @param onTimeViolation Callback recording a time violation for this team.
  * @param onPullInfraction Callback recording the team's pull infraction.
- * @param onCardsAndTechnicalFouls Callback opening the card and technical-foul workflow.
+ * @param onCards Callback opening the card workflow.
+ * @param onTechnicalFoul Callback opening the technical-foul workflow.
  * @param modifier Optional layout modifier.
  */
 @Composable
@@ -590,7 +598,8 @@ private fun TeamActionGrid(
     onTimeout: () -> Unit,
     onTimeViolation: () -> Unit,
     onPullInfraction: () -> Unit,
-    onCardsAndTechnicalFouls: () -> Unit,
+    onCards: () -> Unit,
+    onTechnicalFoul: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val pullInfractionLabel = if (isPulling) {
@@ -687,7 +696,7 @@ private fun TeamActionGrid(
                         .testTag("live-${teamId.name}-card"),
                     enabled = interactionsEnabled,
                     containerColor = FieldCardButtonColor,
-                    onClick = onCardsAndTechnicalFouls,
+                    onClick = onCards,
                 )
                 TeamFieldActionButton(
                     label = techLabel,
@@ -697,7 +706,7 @@ private fun TeamActionGrid(
                         .testTag("live-${teamId.name}-tech"),
                     enabled = interactionsEnabled,
                     containerColor = FieldTechButtonColor,
-                    onClick = onCardsAndTechnicalFouls,
+                    onClick = onTechnicalFoul,
                 )
             }
             TeamFieldActionButton(

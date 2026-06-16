@@ -79,7 +79,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             playerNumber = "8",
             expectedMessage = "$viscousCoupling has 3 total blue cards.",
             misconductChoice = "Offense",
-            expectedMisconductMessage = "Disc moves to the reverse brick in the end zone being defended.",
+            expectedMisconductMessage = "$viscousCoupling moves the disc to the reverse brick in the end zone they are defending.",
             verifyMisconductBackReturnsToNumberDialog = true,
         )
         waitForText("Start misconduct countdown")
@@ -96,14 +96,14 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             playerNumber = "9",
             expectedMessage = "$viscousCoupling has 4 total blue cards.",
             misconductChoice = "Defense",
-            expectedMisconductMessage = "Disc moves to the brick nearest the attacking end zone.",
+            expectedMisconductMessage = "$animal may move the disc to the brick mark nearest the end zone they are attacking.",
         )
         recordRedCard(
             team = TeamId.TEAM_ONE,
             playerNumber = "12",
             expectedMessage = "$viscousCoupling has 6 total blue cards.",
             misconductChoice = "Defense",
-            expectedMisconductMessage = "Disc moves to the brick nearest the attacking end zone.",
+            expectedMisconductMessage = "$animal may move the disc to the brick mark nearest the end zone they are attacking.",
             verifyMisconductBackReturnsToNumberDialog = true,
         )
 
@@ -123,8 +123,8 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         // Animal picks up two yellows and two technical fouls during the live point.
         recordYellowCard(TeamId.TEAM_TWO, "23", "Yellow card on player 23.\n$animal has 1 blue card.")
         recordYellowCard(TeamId.TEAM_TWO, "8", "Yellow card on player 8.\n$animal has 2 total blue cards.")
-        recordTechnicalFoul(TeamId.TEAM_TWO, "$animal has 1 technical foul.")
-        recordTechnicalFoul(TeamId.TEAM_TWO, "$animal has 2 technical fouls.")
+        recordTechnicalFoul(TeamId.TEAM_TWO, "This is $animal's first technical foul.")
+        recordTechnicalFoul(TeamId.TEAM_TWO, "This is $animal's second technical foul.")
 
         // Viscous Coupling calls a live-point timeout before Animal finishes the point.
         recordTimeout(TeamId.TEAM_ONE, "Undo Timeout by $viscousCoupling")
@@ -140,7 +140,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         // Animal reaches the technical-foul threshold between points, so the UI shows the yardage cue.
         recordTechnicalFoul(
             team = TeamId.TEAM_TWO,
-            expectedMessage = "Receiving team starts at attacking brick.",
+            expectedMessage = "$viscousCoupling starts at attacking brick.",
             substring = true,
         )
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-infraction")).assertIsNotEnabled()

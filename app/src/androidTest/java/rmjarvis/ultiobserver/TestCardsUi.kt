@@ -4,6 +4,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -47,9 +48,13 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         waitForText("Team 1 has 1 blue card.")
         composeRule.onNodeWithText("OK").performClick()
 
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "tech")).performClick()
+        waitForText("This is Team 1's first technical foul.")
+        composeRule.onNodeWithText("Cancel").performClick()
+
         openCardsSheet()
         tapCardSheetAction(TeamId.TEAM_ONE, "Tech")
-        waitForText("Team 1 has 1 technical foul.")
+        waitForText("This is Team 1's first technical foul.")
         composeRule.onNodeWithText("OK").performClick()
 
         openCardsSheet()
@@ -59,7 +64,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
 
         openCardsSheet()
         tapCardSheetAction(TeamId.TEAM_TWO, "Tech")
-        waitForText("Team 2 has 1 technical foul.")
+        waitForText("This is Team 2's first technical foul.")
         composeRule.onNodeWithText("OK").performClick()
 
         // Yellow cards should prompt for a player number while still allowing N/A.
@@ -321,7 +326,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Yes").performClick()
         waitForText("Misconduct penalty")
         composeRule.onNodeWithText("Offense").performClick()
-        waitForText("Disc moves to the reverse brick in the end zone being defended.", substring = true)
+        waitForText("Team 1 moves the disc to the reverse brick in the end zone they are defending.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
         waitForText("Start misconduct countdown")
 
@@ -343,7 +348,37 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         tapCardSheetAction(TeamId.TEAM_ONE, "Blue")
         waitForText("Misconduct penalty")
         composeRule.onNodeWithText("Defense").performClick()
-        waitForText("Disc moves to the brick nearest the attacking end zone.", substring = true)
+        waitForText("Team 2 may move the disc to the brick mark nearest the end zone they are attacking.", substring = true)
+        composeRule.onNodeWithText("OK").performClick()
+        waitForText("Start misconduct countdown")
+
+        // A threshold technical foul should ask offense/defense immediately, with Cancel undoing the pending Tech.
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val current = activity.appViewModel.liveState!!
+            activity.appViewModel.updateLiveGame(
+                current.copy(
+                    countdown = null,
+                    pendingMisconductCountdown = false,
+                    teamOne = current.teamOne.copy(technicalFouls = 2),
+                )
+            )
+        }
+        composeRule.waitForIdle()
+        openCardsSheet()
+        tapCardSheetAction(TeamId.TEAM_ONE, "Tech")
+        waitForText("Technical Foul")
+        waitForText("Was this against the offense or defense?", substring = true)
+        composeRule.onNodeWithText("Cancel").performClick()
+        waitForText("Cards / technical fouls")
+        composeRule.onAllNodesWithText("Misconduct penalty").assertCountEquals(0)
+        tapCardSheetAction(TeamId.TEAM_ONE, "Tech")
+        waitForText("Was this against the offense or defense?", substring = true)
+        composeRule.onNodeWithText("Offense").performClick()
+        waitForText("Team 1 moves the disc to the reverse brick in the end zone they are defending.", substring = true)
+        composeRule.onAllNodesWithText("Back").onLast().performClick()
+        waitForText("Was this against the offense or defense?", substring = true)
+        composeRule.onNodeWithText("Defense").performClick()
+        waitForText("Team 2 may move the disc to the brick mark nearest the end zone they are attacking.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
         waitForText("Start misconduct countdown")
 
@@ -365,7 +400,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("N/A").performClick()
         waitForText("Misconduct penalty")
         composeRule.onNodeWithText("Defense").performClick()
-        waitForText("Disc moves to the brick nearest the attacking end zone.", substring = true)
+        waitForText("Team 1 may move the disc to the brick mark nearest the end zone they are attacking.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
         waitForText("Start misconduct countdown")
 

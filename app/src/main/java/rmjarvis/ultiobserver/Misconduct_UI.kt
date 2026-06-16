@@ -58,6 +58,30 @@ private data class PendingMisconductChoice(
     val returnTo: PendingMisconductReturn?,
 )
 
+/**
+ * Live-point misconduct consequence waiting for final confirmation.
+ *
+ * @param choice The offense/defense choice this consequence resolves.
+ * @param againstOffense Whether the misconduct was against the offense.
+ */
+private data class PendingMisconductResolution(
+    val choice: PendingMisconductChoice,
+    val againstOffense: Boolean,
+)
+
+/**
+ * Technical-foul misconduct consequence waiting for final confirmation.
+ *
+ * @param team The team receiving the technical foul.
+ * @param result The assessed result before it is committed to app state.
+ * @param againstOffense Whether the misconduct was against the offense.
+ */
+private data class PendingTechnicalFoulResolution(
+    val team: TeamId,
+    val result: CardAssessmentResult,
+    val againstOffense: Boolean,
+)
+
 // Manual card/TF correction dialog, including the per-player reconciliation flow.
 @Composable
 internal fun AdjustCardsDialog(
@@ -226,19 +250,24 @@ internal fun AdjustCardsDialog(
  * @param state The current live game state used for team names, card summaries, and assessments.
  * @param now The current epoch millis for event logging.
  * @param onAssessment Callback receiving the completed state plus popup text after a card or technical foul.
+ * @param onStateOnly Callback receiving the completed state when the confirmation dialog already showed the result.
  */
 @Composable
 internal fun CardsSheet(
     state: GameState,
     now: Long,
     onAssessment: (GameState, String, String) -> Unit,
+    onStateOnly: (GameState) -> Unit,
 ) {
     var pendingYellowTeam by remember { mutableStateOf<TeamId?>(null) }
     var pendingYellowInitialNumber by remember { mutableStateOf("") }
     var pendingRedTeam by remember { mutableStateOf<TeamId?>(null) }
     var pendingRedInitialNumber by remember { mutableStateOf("") }
+    var pendingTechnicalFoulTeam by remember { mutableStateOf<TeamId?>(null) }
+    var pendingTechnicalFoulResolution by remember { mutableStateOf<PendingTechnicalFoulResolution?>(null) }
     var pendingUnknownYellowChoice by remember { mutableStateOf<PendingUnknownYellowChoice?>(null) }
     var pendingMisconductChoice by remember { mutableStateOf<PendingMisconductChoice?>(null) }
+    var pendingMisconductResolution by remember { mutableStateOf<PendingMisconductResolution?>(null) }
     var invalidCardAssignmentMessage by remember { mutableStateOf<String?>(null) }
 
     fun completeAssessment(result: CardAssessmentResult) {
@@ -293,9 +322,7 @@ internal fun CardsSheet(
             onBlue = {
                 presentAssessment(state.assessBlueCard(TeamId.TEAM_ONE, now), returnTo = null)
             },
-            onTech = {
-                presentAssessment(state.assessTechnicalFoul(TeamId.TEAM_ONE, now), returnTo = null)
-            },
+            onTech = { pendingTechnicalFoulTeam = TeamId.TEAM_ONE },
         )
         TeamActionSection(
             team = TeamId.TEAM_TWO,
@@ -306,9 +333,7 @@ internal fun CardsSheet(
             onBlue = {
                 presentAssessment(state.assessBlueCard(TeamId.TEAM_TWO, now), returnTo = null)
             },
-            onTech = {
-                presentAssessment(state.assessTechnicalFoul(TeamId.TEAM_TWO, now), returnTo = null)
-            },
+            onTech = { pendingTechnicalFoulTeam = TeamId.TEAM_TWO },
         )
         Spacer(modifier = Modifier.height(24.dp))
     }
@@ -381,6 +406,107 @@ internal fun CardsSheet(
         )
     }
 
+    pendingTechnicalFoulTeam?.let { team ->
+        val event = state.previewTechnicalFoul(team).event
+        val misconductPrompt = if (event.needsMisconductChoice()) {
+            GamePrompt.LivePointMisconduct(event)
+        } else {
+            null
+        }
+        AlertDialog(
+            onDismissRequest = { pendingTechnicalFoulTeam = null },
+            title = { Text(event.formatPopupTitle()) },
+            text = {
+                Text(
+                    text = misconductPrompt?.formatMessage() ?: event.formatMessage(),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val result = state.assessTechnicalFoul(team, now)
+                        if (misconductPrompt == null) {
+                            onStateOnly(result.state)
+                        } else {
+                            pendingTechnicalFoulResolution = PendingTechnicalFoulResolution(
+                                team = team,
+                                result = result,
+                                againstOffense = true,
+                            )
+                        }
+                        pendingTechnicalFoulTeam = null
+                    },
+                ) {
+                    Text(if (misconductPrompt == null) "OK" else "Offense")
+                }
+            },
+            dismissButton = {
+                if (misconductPrompt == null) {
+                    TextButton(onClick = { pendingTechnicalFoulTeam = null }) {
+                        Text("Cancel")
+                    }
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = { pendingTechnicalFoulTeam = null }) {
+                            Text("Cancel")
+                        }
+                        TextButton(
+                            onClick = {
+                                val result = state.assessTechnicalFoul(team, now)
+                                pendingTechnicalFoulResolution = PendingTechnicalFoulResolution(
+                                    team = team,
+                                    result = result,
+                                    againstOffense = false,
+                                )
+                                pendingTechnicalFoulTeam = null
+                            },
+                        ) {
+                            Text("Defense")
+                        }
+                    }
+                }
+            },
+        )
+    }
+
+    pendingTechnicalFoulResolution?.let { pending ->
+        val prompt = GamePrompt.LivePointMisconduct(pending.result.event)
+        AlertDialog(
+            onDismissRequest = {
+                pendingTechnicalFoulTeam = pending.team
+                pendingTechnicalFoulResolution = null
+            },
+            title = { Text(prompt.formatTitle()) },
+            text = {
+                Text(
+                    text = prompt.resolutionMessage(pending.againstOffense),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onStateOnly(pending.result.state.withPendingMisconductCountdown())
+                        pendingTechnicalFoulResolution = null
+                    },
+                ) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        pendingTechnicalFoulTeam = pending.team
+                        pendingTechnicalFoulResolution = null
+                    },
+                ) {
+                    Text("Back")
+                }
+            },
+        )
+    }
+
     if (pendingUnknownYellowChoice != null) {
         UnknownYellowDialog(
             teamName = state.teamFor(pendingUnknownYellowChoice!!.team).name,
@@ -424,10 +550,9 @@ internal fun CardsSheet(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        onAssessment(
-                            pending.result.state.withPendingMisconductCountdown(),
-                            prompt.resolutionMessage(againstOffense = true),
-                            prompt.formatTitle(),
+                        pendingMisconductResolution = PendingMisconductResolution(
+                            choice = pending,
+                            againstOffense = true,
                         )
                         pendingMisconductChoice = null
                     }
@@ -445,16 +570,52 @@ internal fun CardsSheet(
                     }
                     TextButton(
                         onClick = {
-                            onAssessment(
-                                pending.result.state.withPendingMisconductCountdown(),
-                                prompt.resolutionMessage(againstOffense = false),
-                                prompt.formatTitle(),
+                            pendingMisconductResolution = PendingMisconductResolution(
+                                choice = pending,
+                                againstOffense = false,
                             )
                             pendingMisconductChoice = null
                         }
                     ) {
                         Text("Defense")
                     }
+                }
+            },
+        )
+    }
+
+    pendingMisconductResolution?.let { pending ->
+        val prompt = GamePrompt.LivePointMisconduct(pending.choice.result.event)
+        AlertDialog(
+            onDismissRequest = {
+                pendingMisconductChoice = pending.choice
+                pendingMisconductResolution = null
+            },
+            title = { Text(prompt.formatTitle()) },
+            text = {
+                Text(
+                    text = prompt.resolutionMessage(pending.againstOffense),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onStateOnly(pending.choice.result.state.withPendingMisconductCountdown())
+                        pendingMisconductResolution = null
+                    },
+                ) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        pendingMisconductChoice = pending.choice
+                        pendingMisconductResolution = null
+                    },
+                ) {
+                    Text("Back")
                 }
             },
         )
