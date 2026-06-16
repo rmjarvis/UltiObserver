@@ -3,8 +3,151 @@ package rmjarvis.ultiobserver
 import kotlinx.serialization.Serializable
 import kotlin.math.max
 
+// How to indicate cards for players when you don't know the player number.
+const val UNKNOWN_PLAYER_NUMBER = "N/A"
+
 /**
- * Player identity and tournament carryover cards known before or during setup.
+ * Normalized identity for a player based on the jersey number and name, either of
+ * which (but not both) may be missing.
+ *
+ * When both are unknown 'N/A' for the jerseyNumber indicates this. This is the only
+ * identity that is normally allowed to repeat in lists of players.
+ *
+ * @param jerseyNumber The player's jersey number, blank for a name-only identity, or `N/A` when unknown.
+ * @param playerName The player's name, or blank when unknown.
+ */
+@Serializable
+class PlayerIdentity private constructor(
+    val jerseyNumber: String,
+    val playerName: String = "",
+) {
+    init {
+        require(jerseyNumber.isNotBlank() || playerName.isNotBlank()) {
+            "A player identity requires a jersey number or player name."
+        }
+    }
+
+    /**
+     * Return the display text for this player identity.
+     *
+     * @param compact Whether to omit the name when a jersey number is available.
+     */
+    internal fun displayText(compact: Boolean): String {
+        val number = jerseyNumber.trim().takeUnless { it == UNKNOWN_PLAYER_NUMBER } ?: ""
+        val name = playerName.trim()
+        return if (number.isNotEmpty()) {
+            if (!compact && name.isNotEmpty()) "#$number $name" else "#$number"
+        } else {
+            name.ifEmpty { UNKNOWN_PLAYER_NUMBER }
+        }
+    }
+
+    /// Return the name used for player identity comparisons.
+    internal fun normalizedPlayerName(): String {
+        return playerName.trim()
+            .split(Regex("\\s+"))
+            .filter { it.isNotEmpty() }
+            .joinToString(" ")
+            .lowercase()
+    }
+
+    /// Return a unique key for exact player identities.
+    internal fun key(): Pair<String, String> {
+        val name = normalizedPlayerName()
+        val number = jerseyNumber.trim()
+        val keyNumber = if (number == UNKNOWN_PLAYER_NUMBER && name.isNotEmpty()) "" else number
+        return keyNumber to name
+    }
+
+    /**
+     * Report whether this identity matches another using player-card matching rules.
+     *
+     * @param other The identity to compare with this one.
+     */
+    internal fun matches(other: PlayerIdentity): Boolean {
+        val existingNumber = key().first.takeUnless { it == UNKNOWN_PLAYER_NUMBER } ?: ""
+        val existingName = key().second
+        val proposedNumber = other.key().first.takeUnless { it == UNKNOWN_PLAYER_NUMBER } ?: ""
+        val proposedName = other.key().second
+        if (other.jerseyNumber == UNKNOWN_PLAYER_NUMBER && jerseyNumber == UNKNOWN_PLAYER_NUMBER) {
+            return true
+        }
+        if (proposedNumber.isNotEmpty() && existingNumber == proposedNumber) {
+            return proposedName.isEmpty() ||
+                existingName.isEmpty() ||
+                proposedName == existingName
+        }
+        return proposedName.isNotEmpty() &&
+            existingName == proposedName &&
+            proposedNumber.isEmpty() &&
+            existingNumber.isEmpty()
+    }
+
+    /**
+     * Report whether this identity overlaps another without matching it.
+     *
+     * This is more permissive than `matches`: it includes similar identities that
+     * should not usually be treated as the same player, such as players with the
+     * same number but different names. Use it when the app should warn the user
+     * about a similar player they might have meant, then ask for confirmation
+     * before adding a separate record.
+     *
+     * @param other The identity to compare with this one.
+     */
+    internal fun hasOverlapWith(other: PlayerIdentity): Boolean {
+        if (key() == other.key()) {
+            return false
+        }
+        val existingNumber = key().first.takeUnless { it == UNKNOWN_PLAYER_NUMBER } ?: ""
+        val proposedNumber = other.key().first.takeUnless { it == UNKNOWN_PLAYER_NUMBER } ?: ""
+        val existingName = key().second
+        val proposedName = other.key().second
+        return (proposedNumber.isNotEmpty() && proposedNumber == existingNumber) ||
+            (proposedName.isNotEmpty() && proposedName == existingName &&
+                (proposedNumber.isEmpty() || existingNumber.isEmpty()))
+    }
+
+    override fun equals(other: Any?): Boolean {
+        return other is PlayerIdentity && key() == other.key()
+    }
+
+    override fun hashCode(): Int {
+        return key().hashCode()
+    }
+
+    override fun toString(): String {
+        return "PlayerIdentity(jerseyNumber=$jerseyNumber, playerName=$playerName)"
+    }
+
+    companion object {
+        /**
+         * Build a normalized player identity.
+         *
+         * Constructor-style calls like `PlayerIdentity("23", "Name")` resolve to this
+         * companion `invoke` operator because the primary constructor is private.
+         * That lets callers use constructor syntax while still normalizing inputs
+         * before the actual stored fields are assigned.
+         *
+         * @param jerseyNumber The entered or stored player number, or blank/`N/A` when unknown.
+         * @param playerName The entered or stored player name, or blank when unknown.
+         */
+        operator fun invoke(jerseyNumber: String, playerName: String = ""): PlayerIdentity {
+            val number = jerseyNumber.trim().takeUnless { it == UNKNOWN_PLAYER_NUMBER } ?: ""
+            val name = playerName.trim()
+            return if (number.isEmpty() && name.isEmpty()) {
+                PlayerIdentity(jerseyNumber = UNKNOWN_PLAYER_NUMBER)
+            } else {
+                PlayerIdentity(jerseyNumber = number, playerName = name)
+            }
+        }
+
+    }
+}
+
+/**
+ * Player record that includes everything we might know about a player during the game,
+ * including their identity, possible cards from previous games in the tournament, and
+ * any cards given out during the current game.
  *
  * @param jerseyNumber The player's jersey number, or blank when unknown.
  * @param playerName The player's name, or blank when unknown.
@@ -35,55 +178,7 @@ data class PlayerRecord(
      * @param compact Whether to omit the name when a jersey number is available.
      */
     internal fun playerIdentity(compact: Boolean): String {
-        val number = jerseyNumber.trim()
-        val name = playerName.trim()
-        return if (number.isNotEmpty()) {
-            if (!compact && name.isNotEmpty()) "#$number $name" else "#$number"
-        } else {
-            name
-        }
-    }
-
-    /// Return a unique key for exact player identities.
-    internal fun identityKey(): Pair<String, String> {
-        return jerseyNumber.trim() to playerName.normalizedPlayerName()
-    }
-
-    /**
-     * Report whether this player record identifies the same player as another record.
-     *
-     * @param other The player record to compare with this one.
-     */
-    internal fun matches(other: PlayerRecord): Boolean {
-        val existingNumber = identityKey().first
-        val proposedNumber = other.identityKey().first
-        val existingName = identityKey().second
-        val proposedName = other.identityKey().second
-        if (existingNumber.isNotEmpty() && existingNumber == proposedNumber) {
-            return existingName.isEmpty() || proposedName.isEmpty() || existingName == proposedName
-        }
-        return existingNumber.isEmpty() &&
-            proposedNumber.isEmpty() &&
-            existingName.isNotEmpty() &&
-            existingName == proposedName
-    }
-
-    /**
-     * Report whether this identity overlaps another enough to warn before adding a separate player.
-     *
-     * This is more permissive than `matches`, including similar identities that should not
-     * automatically be treated as the same player, such as the same number with different
-     * names. Use it when warning the observer about a similar player they might have meant.
-     *
-     * @param other The identity to compare with this one.
-     */
-    internal fun hasOverlapWith(other: PlayerRecord): Boolean {
-        val existingNumber = identityKey().first
-        val existingName = identityKey().second
-        val proposedNumber = other.identityKey().first
-        val proposedName = other.identityKey().second
-        return (existingNumber.isNotEmpty() && existingNumber == proposedNumber) ||
-            (existingName.isNotEmpty() && existingName == proposedName)
+        return identity().displayText(compact)
     }
 
     /// Return the compact setup summary for this player's prior yellows and reds.
@@ -102,6 +197,11 @@ data class PlayerRecord(
             if (priorReds > 0) countedNounPhrase(priorReds, "red card") else null,
         ).joinToString(" and ")
         return priorDetail.ifBlank { "no prior cards" }
+    }
+
+    /// Return this player's number/name identity without card state.
+    internal fun identity(): PlayerIdentity {
+        return PlayerIdentity(jerseyNumber, playerName)
     }
 }
 
@@ -140,13 +240,15 @@ internal fun List<PlayerRecord>.cardHolderEntryCheck(
         return null
     }
     val possibleMatches = mutableListOf<Int>()
+    val proposedIdentity = proposed.identity()
     forEachIndexed { index, existing ->
-        if (existing.identityKey() == proposed.identityKey() || existing.matches(proposed)) {
+        val existingIdentity = existing.identity()
+        if (existingIdentity.matches(proposedIdentity)) {
             return CardHolderEntryCheck.ExistingCardHolder(
                 existingIndex = index,
             )
         }
-        if (existing.hasOverlapWith(proposed)) {
+        if (existingIdentity.hasOverlapWith(proposedIdentity)) {
             possibleMatches.add(index)
         }
     }
@@ -173,15 +275,6 @@ internal fun List<PlayerRecord>.withSavedPriorCardRecord(
             if (index == editingIndex) record else existing
         }
     }
-}
-
-/// Return the name used for player-card identity comparisons.
-internal fun String.normalizedPlayerName(): String {
-    return trim()
-        .split(Regex("\\s+"))
-        .filter { it.isNotEmpty() }
-        .joinToString(" ")
-        .lowercase()
 }
 
 /**
@@ -238,9 +331,6 @@ data class InGamePlayerCardRecord(
         }
     }
 }
-
-// How to indicate cards for players when you don't know the player number.
-const val UNKNOWN_PLAYER_NUMBER = "N/A"
 
 /**
  * Format a player number for display in card and misconduct summaries.
@@ -397,14 +487,14 @@ private fun MutableList<EventLogEntry>.addPlayerCardDeltas(
             team = team,
             type = EventLogType.YELLOW_CARD,
             delta = after.yellows - before.yellows,
-            playerNumber = jerseyNumber,
+            player = PlayerIdentity(jerseyNumber),
         )
         addCardCountDelta(
             now = now,
             team = team,
             type = EventLogType.RED_CARD,
             delta = after.reds - before.reds,
-            playerNumber = jerseyNumber,
+            player = PlayerIdentity(jerseyNumber),
         )
     }
 }
@@ -416,14 +506,14 @@ private fun MutableList<EventLogEntry>.addPlayerCardDeltas(
  * @param team The team whose card count changed.
  * @param type The card event type whose count changed.
  * @param delta The signed count change.
- * @param playerNumber The player number for player-card corrections.
+ * @param player The player identity for player-card corrections.
  */
 private fun MutableList<EventLogEntry>.addCardCountDelta(
     now: Long,
     team: TeamId,
     type: EventLogType,
     delta: Int,
-    playerNumber: String? = null,
+    player: PlayerIdentity? = null,
 ) {
     if (delta != 0) {
         repeat(kotlin.math.abs(delta)) {
@@ -432,7 +522,7 @@ private fun MutableList<EventLogEntry>.addCardCountDelta(
                     timestampEpoch = now,
                     type = type,
                     team = team,
-                    playerNumber = playerNumber,
+                    player = player,
                     delta = if (delta > 0) 1 else -1,
                 )
             )
@@ -776,7 +866,7 @@ fun GameState.assessFirstYellowCard(team: TeamId, jerseyNumber: String, now: Lon
                 timestampEpoch = now,
                 type = EventLogType.YELLOW_CARD,
                 team = team,
-                playerNumber = jerseyNumber,
+                player = PlayerIdentity(jerseyNumber),
             )
         ).withUndo(this, playerCardUndoLabel("Yellow", team, jerseyNumber))
     val cardTotal = updatedState.teamCardTotal(team)
@@ -809,7 +899,7 @@ fun GameState.assessRedCard(
                 timestampEpoch = now,
                 type = EventLogType.RED_CARD,
                 team = team,
-                playerNumber = jerseyNumber,
+                player = PlayerIdentity(jerseyNumber),
             )
         ).withUndo(this, playerCardUndoLabel("Red", team, jerseyNumber))
     val cardTotal = updatedState.teamCardTotal(team)
@@ -839,7 +929,7 @@ fun GameState.assessSecondYellowCard(team: TeamId, jerseyNumber: String, now: Lo
                 timestampEpoch = now,
                 type = EventLogType.YELLOW_CARD,
                 team = team,
-                playerNumber = jerseyNumber,
+                player = PlayerIdentity(jerseyNumber),
             )
         ).withUndo(this, playerCardUndoLabel("Second yellow", team, jerseyNumber))
     val cardTotal = updatedState.teamCardTotal(team)

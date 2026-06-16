@@ -162,7 +162,7 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
         val json = encodeCurrentGameSnapshot(snapshot)
 
         assertFalse(json.contains("\"team\": null"))
-        assertFalse(json.contains("\"playerNumber\": null"))
+        assertFalse(json.contains("\"player\": null"))
         assertFalse(json.contains("\"timeViolationOutcome\": null"))
         assertFalse(json.contains("\"teamOneScore\": null"))
         assertFalse(json.contains("\"teamTwoScore\": null"))

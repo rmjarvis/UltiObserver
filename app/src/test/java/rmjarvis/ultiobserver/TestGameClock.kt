@@ -168,20 +168,18 @@ class TestGameClock : GameDomainTestFixtures() {
         assertTrue(sameNumberDifferentName is CardHolderEntryCheck.PossibleDifferentPlayer)
         sameNumberDifferentName as CardHolderEntryCheck.PossibleDifferentPlayer
         assertEquals(listOf(0), sameNumberDifferentName.existingIndices)
-        val sameNameDifferentNumber = cardHolderEntryChecks.cardHolderEntryCheck(
-            proposed = PlayerRecord("0", priorYellows = 1, priorReds = 0, playerName = "Zero Hero"),
-            editingIndex = null,
+        assertNull(
+            cardHolderEntryChecks.cardHolderEntryCheck(
+                proposed = PlayerRecord("0", priorYellows = 1, priorReds = 0, playerName = "Zero Hero"),
+                editingIndex = null,
+            )
         )
-        assertTrue(sameNameDifferentNumber is CardHolderEntryCheck.PossibleDifferentPlayer)
-        sameNameDifferentNumber as CardHolderEntryCheck.PossibleDifferentPlayer
-        assertEquals(listOf(1), sameNameDifferentNumber.existingIndices)
-        val sameNameDifferentNumberAgain = cardHolderEntryChecks.cardHolderEntryCheck(
-            proposed = PlayerRecord("24", priorYellows = 1, priorReds = 0, playerName = "Drew Handler"),
-            editingIndex = null,
+        assertNull(
+            cardHolderEntryChecks.cardHolderEntryCheck(
+                proposed = PlayerRecord("24", priorYellows = 1, priorReds = 0, playerName = "Drew Handler"),
+                editingIndex = null,
+            )
         )
-        assertTrue(sameNameDifferentNumberAgain is CardHolderEntryCheck.PossibleDifferentPlayer)
-        sameNameDifferentNumberAgain as CardHolderEntryCheck.PossibleDifferentPlayer
-        assertEquals(listOf(0), sameNameDifferentNumberAgain.existingIndices)
         assertNull(
             cardHolderEntryChecks.cardHolderEntryCheck(
                 proposed = PlayerRecord("7", priorYellows = 1, priorReds = 0, playerName = "Drew Handler"),

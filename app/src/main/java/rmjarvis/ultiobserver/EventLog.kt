@@ -45,7 +45,7 @@ enum class EventLogType {
  * @param timestampEpoch Epoch millis for the event.
  * @param type The kind of event recorded.
  * @param team The team most directly associated with the event, when applicable.
- * @param playerNumber The player number for player-card entries, or `N/A` when unknown.
+ * @param player The player identity for player-card entries.
  * @param timeViolationOutcome The warning, timeout, or no-timeout result for time violations.
  * @param teamOneScore The team-one score after a score correction.
  * @param teamTwoScore The team-two score after a score correction.
@@ -58,7 +58,7 @@ data class EventLogEntry(
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val team: TeamId? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
-    val playerNumber: String? = null,
+    val player: PlayerIdentity? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val timeViolationOutcome: TimeViolationOutcome? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
@@ -160,8 +160,8 @@ private fun GameState.cardEventDescription(entry: EventLogEntry): String {
 /// Return display text for a manual card-correction target.
 private fun GameState.cardAdjustmentTarget(entry: EventLogEntry): String {
     val teamText = teamName(entry.team!!)
-    val player = entry.playerNumber
-    return if (player == null) teamText else "$teamText ${displayPlayerNumber(player)}"
+    val player = entry.player
+    return if (player == null) teamText else "$teamText ${player.displayText(compact = false)}"
 }
 
 /// Return display text for a timeout event or timeout correction.
