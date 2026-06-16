@@ -252,6 +252,15 @@ data class CardAssessmentResult(
 )
 
 /**
+ * State and popup needs from previewing a blue card before recording it.
+ *
+ * @param event The event describing what would be recorded.
+ */
+data class BlueCardAssessmentPreview(
+    val event: GameEvent.TeamCardsChanged,
+)
+
+/**
  * State and popup needs from previewing a technical foul before recording it.
  *
  * @param event The event describing what would be recorded.
@@ -314,7 +323,7 @@ fun GameState.adjustCardsAndTf(
         teamOnePlayerCards = teamOnePlayerCards,
         teamTwoPlayerCards = teamTwoPlayerCards,
         lastEvent = "Cards and technical fouls adjusted.",
-    ).withEventLogEntries(entries).withUndo(this, "Undo Cards / TF adjustment")
+    ).withEventLogEntries(entries).withUndo(this, "Undo Cards / techs adjustment")
 }
 
 /**
@@ -585,17 +594,7 @@ fun removePlayerCardAssignment(
  * @param team The team receiving the blue card.
  */
 fun GameState.assessBlueCard(team: TeamId, now: Long): CardAssessmentResult {
-    var updatedState = this.copy(
-        teamOne = if (team == TeamId.TEAM_ONE) {
-            this.teamOne.copy(blueCards = this.teamOne.blueCards + 1)
-        } else {
-            this.teamOne
-        },
-        teamTwo = if (team == TeamId.TEAM_TWO) {
-            this.teamTwo.copy(blueCards = this.teamTwo.blueCards + 1)
-        } else {
-            this.teamTwo
-        },
+    var updatedState = this.withAddedBlueCard(team).copy(
         lastEvent = "Blue card assessed to ${this.teamName(team)}.",
     ).withEventLogEntry(
         EventLogEntry(
@@ -613,6 +612,44 @@ fun GameState.assessBlueCard(team: TeamId, now: Long): CardAssessmentResult {
             team = team,
             teamCardTotal = cardTotal,
         ),
+    )
+}
+
+/**
+ * Preview a blue card and its misconduct consequence without changing game state.
+ *
+ * @param team The team receiving the blue card.
+ */
+fun GameState.previewBlueCard(team: TeamId): BlueCardAssessmentPreview {
+    var previewState = this.withAddedBlueCard(team)
+    val cardTotal = previewState.teamCardTotal(team)
+    previewState = previewState.withSkippedPullForMisconductThreshold(cardTotal)
+    return BlueCardAssessmentPreview(
+        event = GameEvent.TeamCardsChanged(
+            state = previewState,
+            team = team,
+            teamCardTotal = cardTotal,
+        ),
+    )
+}
+
+/**
+ * Return game state with one added blue card for the given team.
+ *
+ * @param team The team receiving the blue card.
+ */
+private fun GameState.withAddedBlueCard(team: TeamId): GameState {
+    return copy(
+        teamOne = if (team == TeamId.TEAM_ONE) {
+            teamOne.copy(blueCards = teamOne.blueCards + 1)
+        } else {
+            teamOne
+        },
+        teamTwo = if (team == TeamId.TEAM_TWO) {
+            teamTwo.copy(blueCards = teamTwo.blueCards + 1)
+        } else {
+            teamTwo
+        },
     )
 }
 /**
@@ -1054,7 +1091,7 @@ fun GameEvent.needsMisconductChoice(): Boolean {
 internal fun GameEvent.TeamCardsChanged.formatMessage(): String {
     val totalMessage = this.totalBlueCardMessage()
     val baseMessage = if (playerCardType == null) {
-        totalMessage
+        "This is ${state.teamName(team)}'s ${teamCardTotal.ordinalWordText()} blue card."
     } else {
         val jerseyNumber = playerCardJerseyNumber as String
         (playerCardEventLines(playerCardType, jerseyNumber) + totalMessage).joinToString("\n")

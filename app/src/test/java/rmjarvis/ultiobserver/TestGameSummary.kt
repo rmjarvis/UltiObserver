@@ -108,7 +108,7 @@ class TestGameSummary : GameDomainTestFixtures() {
             Philly Open - May 19, 2026, 10:00 AM
             Animal 15, Viscous Coupling 12
             Misconduct:
-              Animal #7 (2Y), #12 (R) + 1 Blue, 2 TF
+              Animal #7 (2Y), #12 (R) + 1 Blue, 2 Techs
             """.trimIndent(),
             state.gameSummaryShareText(),
         )
@@ -167,7 +167,7 @@ class TestGameSummary : GameDomainTestFixtures() {
             Viscous Coupling 15, Animal 12
             Misconduct:
               Viscous Coupling #6 (Y), #9 (Y+R)
-              Animal 2 Blue, 1 TF
+              Animal 2 Blue, 1 Tech
             """.trimIndent(),
             state.gameSummaryShareText(),
         )

@@ -84,7 +84,7 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
             Philly Open - May 19, 2026, 10:00 AM
             Animal 15, Viscous Coupling 12
             Misconduct:
-              Animal #7 (2Y), #12 (R) + 1 Blue, 2 TF
+              Animal #7 (2Y), #12 (R) + 1 Blue, 2 Techs
         """.trimIndent()
 
         startLiveGameProgrammatically(

@@ -17,7 +17,6 @@ import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -87,7 +86,7 @@ internal fun LiveGameScreen(
     onDeleteGame: () -> Unit,
     onBackHome: () -> Unit,
 ) {
-    var showCardsSheet by remember { mutableStateOf(false) }
+    var pendingCardTeam by remember { mutableStateOf<TeamId?>(null) }
     var showMoreActionsDialog by remember { mutableStateOf(false) }
     var showEventLogSheet by remember { mutableStateOf(false) }
     var pendingTimeoutRequest by remember { mutableStateOf<PendingTimeoutRequest?>(null) }
@@ -404,7 +403,7 @@ internal fun LiveGameScreen(
                             pendingPullInfractionTeam = team
                         }
                     },
-                    onCards = { showCardsSheet = true },
+                    onCards = { team -> pendingCardTeam = team },
                     onTechnicalFoul = { team -> pendingTechnicalFoulTeam = team },
                     onTeamInfo = { team -> teamInfoSheetTeam = team },
                 )
@@ -433,26 +432,25 @@ internal fun LiveGameScreen(
         }
     }
 
-    // Bottom sheet for the card / technical foul workflow.
-    if (showCardsSheet) {
-        ModalBottomSheet(onDismissRequest = { showCardsSheet = false }) {
-            CardsSheet(
-                state = state,
-                now = now,
-                onAssessment = { updatedState, message, title ->
-                    onStateChange(updatedState)
-                    showActionInfo(
-                        message = message,
-                        title = title,
-                    )
-                    showCardsSheet = false
-                },
-                onStateOnly = { updatedState ->
-                    onStateChange(updatedState)
-                    showCardsSheet = false
-                },
-            )
-        }
+    pendingCardTeam?.let { team ->
+        TeamCardDialog(
+            state = state,
+            team = team,
+            now = now,
+            onDismiss = { pendingCardTeam = null },
+            onAssessment = { updatedState, message, title ->
+                onStateChange(updatedState)
+                showActionInfo(
+                    message = message,
+                    title = title,
+                )
+                pendingCardTeam = null
+            },
+            onStateOnly = { updatedState ->
+                onStateChange(updatedState)
+                pendingCardTeam = null
+            },
+        )
     }
 
     // Dialog for less-common actions and manual corrections.
@@ -605,51 +603,51 @@ internal fun LiveGameScreen(
                 )
             },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        val result = state.assessTechnicalFoul(team, System.currentTimeMillis())
-                        if (misconductPrompt == null) {
+                if (misconductPrompt == null) {
+                    TextButton(
+                        onClick = {
+                            val result = state.assessTechnicalFoul(team, System.currentTimeMillis())
                             onStateChange(result.state)
-                        } else {
+                            pendingTechnicalFoulTeam = null
+                        },
+                    ) {
+                        Text("OK")
+                    }
+                } else {
+                    MisconductChoiceButtons(
+                        firstLabel = "Cancel",
+                        onFirst = { pendingTechnicalFoulTeam = null },
+                        onOffense = {
+                            val result = state.assessTechnicalFoul(team, System.currentTimeMillis())
                             pendingTechnicalFoulResolution = PendingFieldTechnicalFoulResolution(
                                 team = team,
                                 result = result,
                                 againstOffense = true,
                             )
-                        }
-                        pendingTechnicalFoulTeam = null
-                    },
-                ) {
-                    Text(if (misconductPrompt == null) "OK" else "Offense")
+                            pendingTechnicalFoulTeam = null
+                        },
+                        onDefense = {
+                            val result = state.assessTechnicalFoul(team, System.currentTimeMillis())
+                            pendingTechnicalFoulResolution = PendingFieldTechnicalFoulResolution(
+                                team = team,
+                                result = result,
+                                againstOffense = false,
+                            )
+                            pendingTechnicalFoulTeam = null
+                        },
+                    )
                 }
             },
-            dismissButton = {
-                if (misconductPrompt == null) {
+            dismissButton = if (misconductPrompt == null) {
+                {
                     TextButton(
                         onClick = { pendingTechnicalFoulTeam = null },
                     ) {
                         Text("Cancel")
                     }
-                } else {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(onClick = { pendingTechnicalFoulTeam = null }) {
-                            Text("Cancel")
-                        }
-                        TextButton(
-                            onClick = {
-                                val result = state.assessTechnicalFoul(team, System.currentTimeMillis())
-                                pendingTechnicalFoulResolution = PendingFieldTechnicalFoulResolution(
-                                    team = team,
-                                    result = result,
-                                    againstOffense = false,
-                                )
-                                pendingTechnicalFoulTeam = null
-                            },
-                        ) {
-                            Text("Defense")
-                        }
-                    }
                 }
+            } else {
+                null
             },
         )
     }

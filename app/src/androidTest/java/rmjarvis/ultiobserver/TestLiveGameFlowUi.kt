@@ -73,7 +73,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         // Viscous Coupling gets two early card points, then a third card that needs a misconduct choice.
         // Back from that choice should return to the player-number dialog with the entered number intact.
         recordYellowCard(TeamId.TEAM_ONE, "17", "Yellow card on player 17.\n$viscousCoupling has 1 blue card.")
-        recordBlueCard(TeamId.TEAM_ONE, "$viscousCoupling has 2 total blue cards.")
+        recordBlueCard(TeamId.TEAM_ONE, "This is $viscousCoupling's second blue card.")
         recordYellowCard(
             team = TeamId.TEAM_ONE,
             playerNumber = "8",

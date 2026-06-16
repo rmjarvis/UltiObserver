@@ -83,7 +83,7 @@ class TestGameUndo : GameDomainTestFixtures() {
         state = state.recordFalseStart()
         assertUndoRestores(beforeFalseStart, state)
 
-        // Undo manual score, timeout, card/TF, and pull-infraction corrections.
+        // Undo manual score, timeout, card/techs, and pull-infraction corrections.
         state = standardLiveGameState()
         val beforeScoreCorrection = state
         state = state.adjustScore(2, 3)

@@ -77,7 +77,8 @@ class TestGameCards : GameDomainTestFixtures() {
         assertEquals(3, state.teamCardTotal(VC))
         assertEquals(1, state.playerCards(VC).size)
         assertEquals(
-            "Viscous Coupling has 3 total blue cards.\n\nPenalty against Viscous Coupling. No pull. Animal starts at attacking brick.",
+            "This is Viscous Coupling's third blue card.\n\n" +
+                "Penalty against Viscous Coupling. No pull. Animal starts at attacking brick.",
             cardResult.message(),
         )
         assertEquals("Misconduct penalty", cardResult.event.formatPopupTitle())
@@ -383,10 +384,13 @@ class TestGameCards : GameDomainTestFixtures() {
 
         // Blue cards count as one team card point each and do not create per-player card records.
         state = standardLiveGameState()
+        val bluePreview = state.previewBlueCard(ANIMAL)
+        assertEquals("This is Animal's first blue card.", bluePreview.event.formatMessage())
+        assertEquals(0, state.teamTwo.blueCards)
         cardResult = state.assessBlueCard(ANIMAL)
         state = cardResult.state
         assertFalse(cardResult.needsMisconductChoice)
-        assertEquals("Animal has 1 blue card.", cardResult.message())
+        assertEquals("This is Animal's first blue card.", cardResult.message())
         assertEquals(1, state.teamTwo.blueCards)
         assertEquals(1, state.teamCardTotal(ANIMAL))
         assertTrue(state.playerCards(ANIMAL).isEmpty())
@@ -394,7 +398,7 @@ class TestGameCards : GameDomainTestFixtures() {
         cardResult = state.assessBlueCard(ANIMAL)
         state = cardResult.state
         assertFalse(cardResult.needsMisconductChoice)
-        assertEquals("Animal has 2 blue cards.", cardResult.message())
+        assertEquals("This is Animal's second blue card.", cardResult.message())
         assertEquals(2, state.teamTwo.blueCards)
         assertEquals(2, state.teamCardTotal(ANIMAL))
 
@@ -404,7 +408,8 @@ class TestGameCards : GameDomainTestFixtures() {
         assertEquals(3, state.teamTwo.blueCards)
         assertEquals(3, state.teamCardTotal(ANIMAL))
         assertEquals(
-            "Animal has 3 blue cards.\n\nPenalty against Animal. No pull. Disc at negative brick in defending end zone.",
+            "This is Animal's third blue card.\n\n" +
+                "Penalty against Animal. No pull. Disc at negative brick in defending end zone.",
             cardResult.message(),
         )
 
@@ -414,7 +419,8 @@ class TestGameCards : GameDomainTestFixtures() {
         assertEquals(4, state.teamTwo.blueCards)
         assertEquals(4, state.teamCardTotal(ANIMAL))
         assertEquals(
-            "Animal has 4 blue cards.\n\nPenalty against Animal. No pull. Disc at negative brick in defending end zone.",
+            "This is Animal's 4th blue card.\n\n" +
+                "Penalty against Animal. No pull. Disc at negative brick in defending end zone.",
             cardResult.message(),
         )
 
@@ -476,7 +482,7 @@ class TestGameCards : GameDomainTestFixtures() {
         state = cardResult.state
         assertEquals(GamePhase.LIVE_POINT, state.phase)
         assertTrue(cardResult.needsMisconductChoice)
-        assertEquals("Viscous Coupling has 3 blue cards.", cardResult.message())
+        assertEquals("This is Viscous Coupling's third blue card.", cardResult.message())
 
         val prompt = cardResult.misconductPrompt().formatMessage()
         assertTrue(prompt.contains("Was this against the offense or defense?"))
@@ -751,7 +757,7 @@ class TestGameCards : GameDomainTestFixtures() {
         }
         assertEquals("Player card records cannot contain duplicate player entries.", duplicateCardException.message)
 
-        // Manual cards/TF correction clamps visible team counts and derives yellow/red totals from player records.
+        // Manual cards/techs correction clamps visible team counts and derives yellow/red totals from player records.
         val correctedTeamOnePlayerCards = listOf(
             InGamePlayerCardRecord("17", yellows = 1),
             InGamePlayerCardRecord(UNKNOWN_PLAYER_NUMBER, yellows = 1, reds = 1),
@@ -781,7 +787,7 @@ class TestGameCards : GameDomainTestFixtures() {
         assertEquals(correctedTeamOnePlayerCards, state.playerCards(VC))
         assertEquals(correctedTeamTwoPlayerCards, state.playerCards(ANIMAL))
         assertEquals("Cards and technical fouls adjusted.", state.lastEvent)
-        assertEquals("Undo Cards / TF adjustment", state.undoEntry?.label)
+        assertEquals("Undo Cards / techs adjustment", state.undoEntry?.label)
         assertEquals(beforeCardsAdjustment, state.undoEntry?.previous)
     }
 }

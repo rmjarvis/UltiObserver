@@ -112,7 +112,7 @@ private fun GameState.misconductShareLine(teamId: TeamId): String? {
             add("${team.blueCards} Blue")
         }
         if (team.technicalFouls > 0) {
-            add("${team.technicalFouls} TF")
+            add(countedNounPhrase(team.technicalFouls, "Tech"))
         }
     }
     if (playerParts.isEmpty() && teamParts.isEmpty()) {

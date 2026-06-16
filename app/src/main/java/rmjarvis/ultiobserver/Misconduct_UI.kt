@@ -2,16 +2,14 @@ package rmjarvis.ultiobserver
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -24,12 +22,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+
+private val CardChoiceYellow = Color(0xFFFFD92F)
+private val CardChoiceRed = Color(0xFFE64B3C)
+private val CardChoiceBlue = Color(0xFF64B5F6)
 
 /**
  * Team awaiting an unknown-player yellow-card disambiguation.
@@ -40,11 +43,12 @@ private data class PendingUnknownYellowChoice(
     val team: TeamId,
 )
 
-/// Previous Cards / TF step to restore when dismissing a live-point misconduct choice.
+/// Previous Card-dialog step to restore when dismissing a live-point misconduct choice.
 private sealed interface PendingMisconductReturn {
     data class YellowNumber(val team: TeamId, val jerseyNumber: String) : PendingMisconductReturn
     data class RedNumber(val team: TeamId, val jerseyNumber: String) : PendingMisconductReturn
     data class UnknownYellow(val team: TeamId) : PendingMisconductReturn
+    data class BlueCard(val team: TeamId) : PendingMisconductReturn
 }
 
 /**
@@ -69,20 +73,7 @@ private data class PendingMisconductResolution(
     val againstOffense: Boolean,
 )
 
-/**
- * Technical-foul misconduct consequence waiting for final confirmation.
- *
- * @param team The team receiving the technical foul.
- * @param result The assessed result before it is committed to app state.
- * @param againstOffense Whether the misconduct was against the offense.
- */
-private data class PendingTechnicalFoulResolution(
-    val team: TeamId,
-    val result: CardAssessmentResult,
-    val againstOffense: Boolean,
-)
-
-// Manual card/TF correction dialog, including the per-player reconciliation flow.
+// Manual card/techs correction dialog, including the per-player reconciliation flow.
 @Composable
 internal fun AdjustCardsDialog(
     state: GameState,
@@ -150,20 +141,20 @@ internal fun AdjustCardsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Adjust cards / TF") },
+        title = { Text("Adjust cards / techs") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 TeamCorrectionSection(state.teamOne.name) {
                     CardCountRow("Yellow", teamOneY, { teamOneY += 1 }, { teamOneY = maxOf(0, teamOneY - 1) })
                     CardCountRow("Blue", teamOneB, { teamOneB += 1 }, { teamOneB = maxOf(0, teamOneB - 1) })
                     CardCountRow("Red", teamOneR, { teamOneR += 1 }, { teamOneR = maxOf(0, teamOneR - 1) })
-                    CardCountRow("TF", teamOneTf, { teamOneTf += 1 }, { teamOneTf = maxOf(0, teamOneTf - 1) })
+                    CardCountRow("Tech", teamOneTf, { teamOneTf += 1 }, { teamOneTf = maxOf(0, teamOneTf - 1) })
                 }
                 TeamCorrectionSection(state.teamTwo.name) {
                     CardCountRow("Yellow", teamTwoY, { teamTwoY += 1 }, { teamTwoY = maxOf(0, teamTwoY - 1) })
                     CardCountRow("Blue", teamTwoB, { teamTwoB += 1 }, { teamTwoB = maxOf(0, teamTwoB - 1) })
                     CardCountRow("Red", teamTwoR, { teamTwoR += 1 }, { teamTwoR = maxOf(0, teamTwoR - 1) })
-                    CardCountRow("TF", teamTwoTf, { teamTwoTf += 1 }, { teamTwoTf = maxOf(0, teamTwoTf - 1) })
+                    CardCountRow("Tech", teamTwoTf, { teamTwoTf += 1 }, { teamTwoTf = maxOf(0, teamTwoTf - 1) })
                 }
             }
         },
@@ -245,17 +236,21 @@ internal fun AdjustCardsDialog(
 }
 
 /**
- * Render the bottom sheet for recording cards and technical fouls for either team.
+ * Render the dialog flow for recording a card for one team.
  *
  * @param state The current live game state used for team names, card summaries, and assessments.
+ * @param team The team receiving the card.
  * @param now The current epoch millis for event logging.
- * @param onAssessment Callback receiving the completed state plus popup text after a card or technical foul.
+ * @param onDismiss Callback closing the card dialog without recording.
+ * @param onAssessment Callback receiving the completed state plus popup text after a card.
  * @param onStateOnly Callback receiving the completed state when the confirmation dialog already showed the result.
  */
 @Composable
-internal fun CardsSheet(
+internal fun TeamCardDialog(
     state: GameState,
+    team: TeamId,
     now: Long,
+    onDismiss: () -> Unit,
     onAssessment: (GameState, String, String) -> Unit,
     onStateOnly: (GameState) -> Unit,
 ) {
@@ -263,8 +258,7 @@ internal fun CardsSheet(
     var pendingYellowInitialNumber by remember { mutableStateOf("") }
     var pendingRedTeam by remember { mutableStateOf<TeamId?>(null) }
     var pendingRedInitialNumber by remember { mutableStateOf("") }
-    var pendingTechnicalFoulTeam by remember { mutableStateOf<TeamId?>(null) }
-    var pendingTechnicalFoulResolution by remember { mutableStateOf<PendingTechnicalFoulResolution?>(null) }
+    var pendingBlueTeam by remember { mutableStateOf<TeamId?>(null) }
     var pendingUnknownYellowChoice by remember { mutableStateOf<PendingUnknownYellowChoice?>(null) }
     var pendingMisconductChoice by remember { mutableStateOf<PendingMisconductChoice?>(null) }
     var pendingMisconductResolution by remember { mutableStateOf<PendingMisconductResolution?>(null) }
@@ -302,40 +296,38 @@ internal fun CardsSheet(
             is PendingMisconductReturn.UnknownYellow -> {
                 pendingUnknownYellowChoice = PendingUnknownYellowChoice(returnTo.team)
             }
+            is PendingMisconductReturn.BlueCard -> {
+                pendingBlueTeam = returnTo.team
+            }
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(20.dp)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Text("Cards / technical fouls", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        TeamActionSection(
-            team = TeamId.TEAM_ONE,
-            label = "${state.teamOne.name}${state.cardsRoleSuffix(TeamId.TEAM_ONE)}",
-            issuedCards = state.playerCards(TeamId.TEAM_ONE),
-            onYellow = { pendingYellowTeam = TeamId.TEAM_ONE },
-            onRed = { pendingRedTeam = TeamId.TEAM_ONE },
-            onBlue = {
-                presentAssessment(state.assessBlueCard(TeamId.TEAM_ONE, now), returnTo = null)
-            },
-            onTech = { pendingTechnicalFoulTeam = TeamId.TEAM_ONE },
+    fun restoreMisconductResolutionChoice(choice: PendingMisconductChoice) {
+        pendingMisconductResolution = null
+        if (choice.returnTo is PendingMisconductReturn.BlueCard) {
+            restoreMisconductReturn(choice.returnTo)
+        } else {
+            pendingMisconductChoice = choice
+        }
+    }
+
+    val noCardSubdialogOpen = pendingYellowTeam == null &&
+        pendingRedTeam == null &&
+        pendingBlueTeam == null &&
+        pendingUnknownYellowChoice == null &&
+        pendingMisconductChoice == null &&
+        pendingMisconductResolution == null &&
+        invalidCardAssignmentMessage == null
+
+    if (noCardSubdialogOpen) {
+        CardChoiceDialog(
+            state = state,
+            team = team,
+            onYellow = { pendingYellowTeam = team },
+            onRed = { pendingRedTeam = team },
+            onBlue = { pendingBlueTeam = team },
+            onDismiss = onDismiss,
         )
-        TeamActionSection(
-            team = TeamId.TEAM_TWO,
-            label = "${state.teamTwo.name}${state.cardsRoleSuffix(TeamId.TEAM_TWO)}",
-            issuedCards = state.playerCards(TeamId.TEAM_TWO),
-            onYellow = { pendingYellowTeam = TeamId.TEAM_TWO },
-            onRed = { pendingRedTeam = TeamId.TEAM_TWO },
-            onBlue = {
-                presentAssessment(state.assessBlueCard(TeamId.TEAM_TWO, now), returnTo = null)
-            },
-            onTech = { pendingTechnicalFoulTeam = TeamId.TEAM_TWO },
-        )
-        Spacer(modifier = Modifier.height(24.dp))
     }
 
     if (pendingYellowTeam != null) {
@@ -406,16 +398,16 @@ internal fun CardsSheet(
         )
     }
 
-    pendingTechnicalFoulTeam?.let { team ->
-        val event = state.previewTechnicalFoul(team).event
+    pendingBlueTeam?.let { blueTeam ->
+        val event = state.previewBlueCard(blueTeam).event
         val misconductPrompt = if (event.needsMisconductChoice()) {
             GamePrompt.LivePointMisconduct(event)
         } else {
             null
         }
         AlertDialog(
-            onDismissRequest = { pendingTechnicalFoulTeam = null },
-            title = { Text(event.formatPopupTitle()) },
+            onDismissRequest = { pendingBlueTeam = null },
+            title = { Text("Blue Card") },
             text = {
                 Text(
                     text = misconductPrompt?.formatMessage() ?: event.formatMessage(),
@@ -423,86 +415,53 @@ internal fun CardsSheet(
                 )
             },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        val result = state.assessTechnicalFoul(team, now)
-                        if (misconductPrompt == null) {
-                            onStateOnly(result.state)
-                        } else {
-                            pendingTechnicalFoulResolution = PendingTechnicalFoulResolution(
-                                team = team,
-                                result = result,
-                                againstOffense = true,
-                            )
-                        }
-                        pendingTechnicalFoulTeam = null
-                    },
-                ) {
-                    Text(if (misconductPrompt == null) "OK" else "Offense")
-                }
-            },
-            dismissButton = {
                 if (misconductPrompt == null) {
-                    TextButton(onClick = { pendingTechnicalFoulTeam = null }) {
-                        Text("Cancel")
+                    TextButton(
+                        onClick = {
+                            val result = state.assessBlueCard(blueTeam, now)
+                            onStateOnly(result.state)
+                            pendingBlueTeam = null
+                        },
+                    ) {
+                        Text("OK")
                     }
                 } else {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(onClick = { pendingTechnicalFoulTeam = null }) {
-                            Text("Cancel")
-                        }
-                        TextButton(
-                            onClick = {
-                                val result = state.assessTechnicalFoul(team, now)
-                                pendingTechnicalFoulResolution = PendingTechnicalFoulResolution(
-                                    team = team,
+                    MisconductChoiceButtons(
+                        firstLabel = "Cancel",
+                        onFirst = { pendingBlueTeam = null },
+                        onOffense = {
+                            val result = state.assessBlueCard(blueTeam, now)
+                            pendingMisconductResolution = PendingMisconductResolution(
+                                choice = PendingMisconductChoice(
                                     result = result,
-                                    againstOffense = false,
-                                )
-                                pendingTechnicalFoulTeam = null
-                            },
-                        ) {
-                            Text("Defense")
-                        }
+                                    returnTo = PendingMisconductReturn.BlueCard(blueTeam),
+                                ),
+                                againstOffense = true,
+                            )
+                            pendingBlueTeam = null
+                        },
+                        onDefense = {
+                            val result = state.assessBlueCard(blueTeam, now)
+                            pendingMisconductResolution = PendingMisconductResolution(
+                                choice = PendingMisconductChoice(
+                                    result = result,
+                                    returnTo = PendingMisconductReturn.BlueCard(blueTeam),
+                                ),
+                                againstOffense = false,
+                            )
+                            pendingBlueTeam = null
+                        },
+                    )
+                }
+            },
+            dismissButton = if (misconductPrompt == null) {
+                {
+                    TextButton(onClick = { pendingBlueTeam = null }) {
+                        Text("Cancel")
                     }
                 }
-            },
-        )
-    }
-
-    pendingTechnicalFoulResolution?.let { pending ->
-        val prompt = GamePrompt.LivePointMisconduct(pending.result.event)
-        AlertDialog(
-            onDismissRequest = {
-                pendingTechnicalFoulTeam = pending.team
-                pendingTechnicalFoulResolution = null
-            },
-            title = { Text(prompt.formatTitle()) },
-            text = {
-                Text(
-                    text = prompt.resolutionMessage(pending.againstOffense),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onStateOnly(pending.result.state.withPendingMisconductCountdown())
-                        pendingTechnicalFoulResolution = null
-                    },
-                ) {
-                    Text("OK")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        pendingTechnicalFoulTeam = pending.team
-                        pendingTechnicalFoulResolution = null
-                    },
-                ) {
-                    Text("Back")
-                }
+            } else {
+                null
             },
         )
     }
@@ -548,38 +507,25 @@ internal fun CardsSheet(
                 )
             },
             confirmButton = {
-                TextButton(
-                    onClick = {
+                MisconductChoiceButtons(
+                    firstLabel = "Back",
+                    firstModifier = Modifier.testTag("misconduct-choice-back"),
+                    onFirst = { restoreMisconductReturn(pending.returnTo) },
+                    onOffense = {
                         pendingMisconductResolution = PendingMisconductResolution(
                             choice = pending,
                             againstOffense = true,
                         )
                         pendingMisconductChoice = null
-                    }
-                ) {
-                    Text("Offense")
-                }
-            },
-            dismissButton = {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(
-                        onClick = { restoreMisconductReturn(pending.returnTo) },
-                        modifier = Modifier.testTag("misconduct-choice-back"),
-                    ) {
-                        Text("Back")
-                    }
-                    TextButton(
-                        onClick = {
-                            pendingMisconductResolution = PendingMisconductResolution(
-                                choice = pending,
-                                againstOffense = false,
-                            )
-                            pendingMisconductChoice = null
-                        }
-                    ) {
-                        Text("Defense")
-                    }
-                }
+                    },
+                    onDefense = {
+                        pendingMisconductResolution = PendingMisconductResolution(
+                            choice = pending,
+                            againstOffense = false,
+                        )
+                        pendingMisconductChoice = null
+                    },
+                )
             },
         )
     }
@@ -588,8 +534,7 @@ internal fun CardsSheet(
         val prompt = GamePrompt.LivePointMisconduct(pending.choice.result.event)
         AlertDialog(
             onDismissRequest = {
-                pendingMisconductChoice = pending.choice
-                pendingMisconductResolution = null
+                restoreMisconductResolutionChoice(pending.choice)
             },
             title = { Text(prompt.formatTitle()) },
             text = {
@@ -611,8 +556,7 @@ internal fun CardsSheet(
             dismissButton = {
                 TextButton(
                     onClick = {
-                        pendingMisconductChoice = pending.choice
-                        pendingMisconductResolution = null
+                        restoreMisconductResolutionChoice(pending.choice)
                     },
                 ) {
                     Text("Back")
@@ -623,73 +567,108 @@ internal fun CardsSheet(
 }
 
 /**
- * Render Card/TF actions and current-game issued-card summary for one team.
+ * Render the first card dialog, where the observer chooses the assessed card color.
  *
- * @param team The team whose action test tags should be attached.
- * @param label The team label, including pull/receive role when applicable.
- * @param issuedCards The team's current-game player-card records.
- * @param onYellow Callback starting the yellow-card flow.
- * @param onRed Callback starting the red-card flow.
+ * @param state The current live game state used for team names and counts.
+ * @param team The team receiving the card.
+ * @param onYellow Callback starting the yellow-card workflow.
+ * @param onRed Callback starting the red-card workflow.
  * @param onBlue Callback recording a blue card.
- * @param onTech Callback recording a technical foul.
+ * @param onDismiss Callback closing the dialog without recording a card.
  */
 @Composable
-private fun TeamActionSection(
+private fun CardChoiceDialog(
+    state: GameState,
     team: TeamId,
-    label: String,
-    issuedCards: List<InGamePlayerCardRecord>,
     onYellow: () -> Unit,
     onRed: () -> Unit,
     onBlue: () -> Unit,
-    onTech: () -> Unit,
+    onDismiss: () -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(label, fontWeight = FontWeight.SemiBold)
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SmallActionButton(
-                label = "Yellow",
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag("cards-sheet-${team.name}-yellow"),
-                onClick = onYellow,
-            )
-            SmallActionButton(
-                label = "Red",
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag("cards-sheet-${team.name}-red"),
-                onClick = onRed,
-            )
-        }
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SmallActionButton(
-                label = "Blue",
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag("cards-sheet-${team.name}-blue"),
-                onClick = onBlue,
-            )
-            SmallActionButton(
-                label = "Tech",
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag("cards-sheet-${team.name}-tech"),
-                onClick = onTech,
-            )
-        }
-        if (issuedCards.isNotEmpty()) {
-            Text("This game", fontWeight = FontWeight.Medium, style = MaterialTheme.typography.labelLarge)
-            issuedCards.forEach { record ->
+    val teamState = state.teamFor(team)
+    val roleSuffix = state.cardsRoleSuffix(team)
+    val yellowCount = state.teamYellowCards(team)
+    val redCount = state.teamRedCards(team)
+    val blueCount = teamState.blueCards
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Card") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("${teamState.name}$roleSuffix", fontWeight = FontWeight.SemiBold)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    CardChoiceButton(
+                        label = "Yellow",
+                        color = CardChoiceYellow,
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("card-dialog-${team.name}-yellow"),
+                        onClick = onYellow,
+                    )
+                    CardChoiceButton(
+                        label = "Red",
+                        color = CardChoiceRed,
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("card-dialog-${team.name}-red"),
+                        onClick = onRed,
+                    )
+                    CardChoiceButton(
+                        label = "Blue",
+                        color = CardChoiceBlue,
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("card-dialog-${team.name}-blue"),
+                        onClick = onBlue,
+                    )
+                }
                 Text(
-                    text = record.issuedCardSummary(),
+                    "Current cards: $yellowCount yellow, $redCount red, $blueCount blue. " +
+                        "Team total: ${state.teamCardTotal(team)}.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
-        }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        },
+    )
+}
+
+/**
+ * Render one color-coded card choice button.
+ *
+ * @param label The card color label.
+ * @param color The button background color.
+ * @param modifier Modifier applied to the button.
+ * @param onClick Callback selecting this card color.
+ */
+@Composable
+private fun CardChoiceButton(
+    label: String,
+    color: Color,
+    modifier: Modifier,
+    onClick: () -> Unit,
+) {
+    Button(
+        onClick = onClick,
+        modifier = modifier,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = color,
+            contentColor = Color.Black,
+        ),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+    ) {
+        Text(label, maxLines = 1, softWrap = false)
     }
 }
 
-// Compact +/- row for a single card or TF count.
+// Compact +/- row for a single card or tech count.
 @Composable
 private fun CardCountRow(
     label: String,
@@ -843,21 +822,8 @@ private fun UnknownYellowDialog(
     )
 }
 
-/// Return a compact live-game summary for one player's current-game cards.
-private fun InGamePlayerCardRecord.issuedCardSummary(): String {
-    val parts = buildList {
-        if (yellows > 0) {
-            add("Y $yellows")
-        }
-        if (reds > 0) {
-            add("R $reds")
-        }
-    }
-    return "${displayPlayerNumber(jerseyNumber)}: ${parts.joinToString("  ")}"
-}
-
 /**
- * Return the Cards / TF role suffix for a team while between points or at halftime.
+ * Return the Card-dialog role suffix for a team while between points or at halftime.
  *
  * @param team The team whose pulling/receiving role should be displayed.
  */

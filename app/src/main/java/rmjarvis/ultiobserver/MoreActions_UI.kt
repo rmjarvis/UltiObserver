@@ -106,7 +106,7 @@ internal fun MoreActionsContent(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 OtherMenuButton(
-                    label = "Adjust cards / TF",
+                    label = "Adjust cards / techs",
                     onClick = { showAdjustCardsDialog = true },
                 )
                 OtherMenuButton(

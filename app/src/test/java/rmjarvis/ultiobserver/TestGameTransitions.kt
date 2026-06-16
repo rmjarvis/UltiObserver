@@ -98,7 +98,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         cardResult = state.assessBlueCard(VC)
         state = cardResult.state
         assertFalse(cardResult.needsMisconductChoice)
-        assertEquals("Viscous Coupling has 2 total blue cards.", cardResult.message())
+        assertEquals("This is Viscous Coupling's second blue card.", cardResult.message())
         assertEquals(1, state.teamOne.blueCards)
 
         // Viscous Coupling reaches three team card points with a yellow on #8 during a live point.
@@ -125,6 +125,11 @@ class TestGameTransitions : GameDomainTestFixtures() {
         state = state.withPendingMisconductCountdown()
         assertTrue(state.pendingMisconductCountdown)
         assertNull(state.countdown)
+        val timeoutDuringPendingMisconduct = state.assessTimeout(ANIMAL, 1_011_000L).state
+        assertFalse(timeoutDuringPendingMisconduct.pendingMisconductCountdown)
+        assertEquals(CountdownKind.TIME_OUT, timeoutDuringPendingMisconduct.countdown?.kind)
+        assertEquals(70, timeoutDuringPendingMisconduct.countdown?.durationSeconds)
+        assertEquals(1_081_000L, timeoutDuringPendingMisconduct.countdown?.targetEpoch)
         state = state.startMisconductCountdown(1_010_000L)
         assertFalse(state.pendingMisconductCountdown)
         assertEquals(CountdownKind.TIME_OUT, state.countdown?.kind)

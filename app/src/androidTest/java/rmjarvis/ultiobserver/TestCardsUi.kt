@@ -9,12 +9,8 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
-import androidx.compose.ui.test.performTouchInput
-import androidx.compose.ui.test.performTextReplacement
-import androidx.compose.ui.test.swipeRight
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import java.time.LocalTime
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -24,69 +20,76 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class TestCardsUi : MainActivityUiTestFixtures() {
     /**
-     * Test the card and technical-foul bottom sheet from the live screen.
+     * Test the card and technical-foul dialogs from the live screen.
      * This covers the phone-facing dialog sequence, not the full card-accounting matrix.
      */
     @Test
-    fun cardsAndTechnicalFoulSheetPath() {
+    fun cardsAndTechnicalFoulDialogPath() {
         startLiveGameProgrammatically()
 
-        // The Cards / TF sheet should show both team sections with their pull roles.
-        openCardsSheet()
+        // The Card dialog should show the selected team, its pull role, and its current totals.
+        openCardsDialog()
         composeRule.onNodeWithText("Team 1 (pulling)").assertIsDisplayed()
-        composeRule.onNodeWithText("Team 2 (receiving)").assertIsDisplayed()
+        waitForText("Current cards: 0 yellow, 0 red, 0 blue. Team total: 0.")
         if (shouldUsePlatformBackDismissalCoverage()) {
             pressDialogBack()
-            composeRule.onAllNodesWithText("Cards / technical fouls").assertCountEquals(0)
-            openCardsSheet()
+            composeRule.onAllNodesWithText("Current cards: 0 yellow, 0 red, 0 blue. Team total: 0.").assertCountEquals(0)
+            openCardsDialog()
             composeRule.onNodeWithText("Team 1 (pulling)").assertIsDisplayed()
-            composeRule.onNodeWithText("Team 2 (receiving)").assertIsDisplayed()
         }
+        composeRule.onNodeWithText("Close").performClick()
+        openCardsDialog(TeamId.TEAM_TWO)
+        composeRule.onNodeWithText("Team 2 (receiving)").assertIsDisplayed()
+        composeRule.onNodeWithText("Close").performClick()
 
-        // Blue cards and technical fouls should close the sheet and show the consequence cue.
-        composeRule.onAllNodesWithText("Blue").onFirst().performClick()
-        waitForText("Team 1 has 1 blue card.")
+        // Blue cards and technical fouls should close their dialogs and show the consequence cue.
+        openCardsDialog()
+        tapCardDialogAction(TeamId.TEAM_ONE, "Blue")
+        waitForText("Blue Card")
+        waitForText("This is Team 1's first blue card.")
+        composeRule.onNodeWithText("Cancel").performClick()
+        composeRule.onNodeWithTag("card-dialog-${TeamId.TEAM_ONE.name}-blue").assertIsDisplayed()
+        tapCardDialogAction(TeamId.TEAM_ONE, "Blue")
+        waitForText("This is Team 1's first blue card.")
         composeRule.onNodeWithText("OK").performClick()
 
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "tech")).performClick()
         waitForText("This is Team 1's first technical foul.")
         composeRule.onNodeWithText("Cancel").performClick()
 
-        openCardsSheet()
-        tapCardSheetAction(TeamId.TEAM_ONE, "Tech")
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "tech")).performClick()
         waitForText("This is Team 1's first technical foul.")
         composeRule.onNodeWithText("OK").performClick()
 
-        openCardsSheet()
-        tapCardSheetAction(TeamId.TEAM_TWO, "Blue")
-        waitForText("Team 2 has 1 blue card.")
+        openCardsDialog(TeamId.TEAM_TWO)
+        tapCardDialogAction(TeamId.TEAM_TWO, "Blue")
+        waitForText("This is Team 2's first blue card.")
         composeRule.onNodeWithText("OK").performClick()
 
-        openCardsSheet()
-        tapCardSheetAction(TeamId.TEAM_TWO, "Tech")
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "tech")).performClick()
         waitForText("This is Team 2's first technical foul.")
         composeRule.onNodeWithText("OK").performClick()
 
         // Yellow cards should prompt for a player number while still allowing N/A.
-        openCardsSheet()
-        composeRule.onAllNodesWithText("Yellow").onFirst().performClick()
+        openCardsDialog()
+        tapCardDialogAction(TeamId.TEAM_ONE, "Yellow")
         composeRule.onNodeWithText("Yellow card").assertIsDisplayed()
         composeRule.onNodeWithText("Player number").assertIsDisplayed()
         composeRule.onNodeWithText("Cancel").performClick()
-        waitForText("Cards / technical fouls")
-        composeRule.onAllNodesWithText("Yellow").onFirst().performClick()
+        composeRule.onNodeWithTag("card-dialog-${TeamId.TEAM_ONE.name}-yellow").assertIsDisplayed()
+        tapCardDialogAction(TeamId.TEAM_ONE, "Yellow")
         composeRule.onNodeWithText("Yellow card").assertIsDisplayed()
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Yellow card on player N/A.\nTeam 1 has 2 total blue cards.")
         composeRule.onNodeWithText("OK").performClick()
 
         // A red on a player with a yellow records as a red.
-        openCardsSheet()
-        composeRule.onAllNodesWithText("Red").onFirst().performClick()
+        openCardsDialog()
+        tapCardDialogAction(TeamId.TEAM_ONE, "Red")
         composeRule.onNodeWithText("Red card").assertIsDisplayed()
         composeRule.onNodeWithText("Cancel").performClick()
-        waitForText("Cards / technical fouls")
-        composeRule.onAllNodesWithText("Red").onFirst().performClick()
+        composeRule.onNodeWithTag("card-dialog-${TeamId.TEAM_ONE.name}-red").assertIsDisplayed()
+        tapCardDialogAction(TeamId.TEAM_ONE, "Red")
         composeRule.onNodeWithText("Red card").assertIsDisplayed()
         composeRule.onNodeWithText("N/A").performClick()
         waitForText("The player is suspended for the rest of the tournament.", substring = true)
@@ -98,8 +101,8 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         waitForText("Team 1 has 4 total blue cards.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
 
-        openCardsSheet()
-        tapCardSheetAction(TeamId.TEAM_TWO, "Yellow")
+        openCardsDialog(TeamId.TEAM_TWO)
+        tapCardDialogAction(TeamId.TEAM_TWO, "Yellow")
         waitForText("Yellow card")
         enterCardPlayerNumber("8")
         composeRule.onNodeWithText("Record").performClick()
@@ -107,9 +110,9 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("OK").performClick()
     }
 
-    /// The Cards / TF sheet should keep pull/receive role labels visible during halftime.
+    /// The Card dialog should keep pull/receive role labels visible during halftime.
     @Test
-    fun cardsSheetShowsPullRolesDuringHalftime() {
+    fun cardDialogShowsPullRolesDuringHalftime() {
         startLiveGameProgrammatically()
         composeRule.activityRule.scenario.onActivity { activity ->
             val current = activity.appViewModel.liveState!!
@@ -119,13 +122,15 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         waitForText("Halftime")
         composeRule.onNodeWithText("OK").performClick()
 
-        openCardsSheet()
+        openCardsDialog()
         composeRule.onNodeWithText("Team 1 (receiving)").assertIsDisplayed()
+        composeRule.onNodeWithText("Close").performClick()
+        openCardsDialog(TeamId.TEAM_TWO)
         composeRule.onNodeWithText("Team 2 (pulling)").assertIsDisplayed()
     }
 
     /**
-     * Test the card-specific edge cases that route through setup, Cards / TF, and Adjust cards / TF.
+     * Test the card-specific edge cases that route through setup, Card dialog, and Adjust cards / techs.
      * This is still a UI-flow test; domain helpers own the detailed card-counting invariants.
      */
     @Test
@@ -160,8 +165,8 @@ class TestCardsUi : MainActivityUiTestFixtures() {
 
         // Reusing N/A for a yellow should support recording a different unknown player.
         recordYellowCard(TeamId.TEAM_ONE, "", "Team 1 has 3 total blue cards.", substring = true)
-        openCardsSheet()
-        tapCardSheetAction(TeamId.TEAM_ONE, "Yellow")
+        openCardsDialog()
+        tapCardDialogAction(TeamId.TEAM_ONE, "Yellow")
         waitForText("Yellow card")
         composeRule.onNodeWithText("N/A").performClick()
         waitForText("Unknown player number")
@@ -171,8 +176,8 @@ class TestCardsUi : MainActivityUiTestFixtures() {
 
         // Apply a manual card correction that adds a player red, removes a player yellow, and changes a team count.
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust cards / TF").performClick()
-        waitForText("Adjust cards / TF")
+        composeRule.onNodeWithText("Adjust cards / techs").performClick()
+        waitForText("Adjust cards / techs")
         composeRule.onAllNodesWithText("+1")[1].performClick()
         composeRule.onAllNodesWithText("+1")[2].performClick()
         composeRule.onAllNodesWithText("-1")[4].performClick()
@@ -184,22 +189,22 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Remove yellow")
         composeRule.onNodeWithText("#7 (Yellow 2)").performClick()
-        waitForText("Undo Cards / TF adjustment")
+        waitForText("Undo Cards / techs adjustment")
 
         // A small team-count-only correction covers Team 1 blue and technical-foul edits.
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust cards / TF").performClick()
-        waitForText("Adjust cards / TF")
+        composeRule.onNodeWithText("Adjust cards / techs").performClick()
+        waitForText("Adjust cards / techs")
         composeRule.onAllNodesWithText("-1")[1].performClick()
         composeRule.onAllNodesWithText("+1")[3].performClick()
         composeRule.onAllNodesWithText("-1")[3].performClick()
         composeRule.onNodeWithText("Set").performClick()
-        waitForText("Undo Cards / TF adjustment")
+        waitForText("Undo Cards / techs adjustment")
 
         // A fuller correction pass covers adding/removing player-backed cards on both teams.
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust cards / TF").performClick()
-        waitForText("Adjust cards / TF")
+        composeRule.onNodeWithText("Adjust cards / techs").performClick()
+        waitForText("Adjust cards / techs")
         composeRule.onAllNodesWithText("+1")[0].performClick()
         composeRule.onAllNodesWithText("-1")[2].performClick()
         composeRule.onAllNodesWithText("+1")[4].performClick()
@@ -218,12 +223,12 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         waitForText("Add red")
         enterCardPlayerNumber("12")
         composeRule.onNodeWithText("Record").performClick()
-        waitForText("Undo Cards / TF adjustment")
+        waitForText("Undo Cards / techs adjustment")
 
         // A final correction removes the just-added player cards and non-player team counts.
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust cards / TF").performClick()
-        waitForText("Adjust cards / TF")
+        composeRule.onNodeWithText("Adjust cards / techs").performClick()
+        waitForText("Adjust cards / techs")
         composeRule.onAllNodesWithText("-1")[0].performClick()
         composeRule.onAllNodesWithText("-1")[4].performClick()
         composeRule.onAllNodesWithText("-1")[5].performClick()
@@ -236,7 +241,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("#14 (Yellow 1)").performClick()
         waitForText("Remove red")
         composeRule.onNodeWithText("#12 (Red 1)").performClick()
-        waitForText("Undo Cards / TF adjustment")
+        waitForText("Undo Cards / techs adjustment")
 
         // Add a clean second-yellow record after the correction matrix so summary text can show that form.
         recordYellowCard(TeamId.TEAM_TWO, "21", "Team 2 has", substring = true)
@@ -244,8 +249,8 @@ class TestCardsUi : MainActivityUiTestFixtures() {
 
         // Removing a player-backed card can be canceled without applying a partial correction.
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust cards / TF").performClick()
-        waitForText("Adjust cards / TF")
+        composeRule.onNodeWithText("Adjust cards / techs").performClick()
+        waitForText("Adjust cards / techs")
         composeRule.onAllNodesWithText("-1")[4].performClick()
         composeRule.onNodeWithText("Set").performClick()
         waitForText("Remove yellow")
@@ -255,8 +260,8 @@ class TestCardsUi : MainActivityUiTestFixtures() {
 
         // Trying to add another yellow to the maxed-out player should show the invalid assignment warning.
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust cards / TF").performClick()
-        waitForText("Adjust cards / TF")
+        composeRule.onNodeWithText("Adjust cards / techs").performClick()
+        waitForText("Adjust cards / techs")
         composeRule.onAllNodesWithText("+1")[4].performClick()
         composeRule.onNodeWithText("Set").performClick()
         waitForText("Add yellow")
@@ -304,18 +309,17 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.waitForIdle()
 
         // A second yellow on N/A can be recorded as the same unknown player.
-        openCardsSheet()
+        openCardsDialog()
         composeRule.onAllNodesWithText("Team 1").onFirst().assertIsDisplayed()
-        composeRule.onAllNodesWithText("Team 2").onFirst().assertIsDisplayed()
         assertTrue(composeRule.onAllNodesWithText("Team 1 (pulling)").fetchSemanticsNodes().isEmpty())
         assertTrue(composeRule.onAllNodesWithText("Team 2 (receiving)").fetchSemanticsNodes().isEmpty())
-        tapCardSheetAction(TeamId.TEAM_ONE, "Yellow")
+        tapCardDialogAction(TeamId.TEAM_ONE, "Yellow")
         waitForText("Yellow card")
         composeRule.onNodeWithText("N/A").performClick()
         waitForText("Unknown player number")
         composeRule.onNodeWithText("Cancel").performClick()
-        waitForText("Cards / technical fouls")
-        tapCardSheetAction(TeamId.TEAM_ONE, "Yellow")
+        composeRule.onNodeWithTag("card-dialog-${TeamId.TEAM_ONE.name}-yellow").assertIsDisplayed()
+        tapCardDialogAction(TeamId.TEAM_ONE, "Yellow")
         waitForText("Yellow card")
         composeRule.onNodeWithText("N/A").performClick()
         waitForText("Unknown player number")
@@ -330,23 +334,31 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("OK").performClick()
         waitForText("Start misconduct countdown")
 
-        // Back from a blue-card misconduct choice should cancel that card and return to Cards / TF.
+        // Back from a blue-card misconduct choice should cancel that card and return to Card.
         if (shouldUsePlatformBackDismissalCoverage()) {
-            openCardsSheet()
-            tapCardSheetAction(TeamId.TEAM_ONE, "Blue")
-            waitForText("Misconduct penalty")
+            openCardsDialog()
+            tapCardDialogAction(TeamId.TEAM_ONE, "Blue")
+            waitForText("Blue Card")
+            waitForText("Was this against the offense or defense?", substring = true)
             pressDialogBack()
-            waitForText("Cards / technical fouls")
+            composeRule.onNodeWithTag("card-dialog-${TeamId.TEAM_ONE.name}-blue").assertIsDisplayed()
             composeRule.onAllNodesWithText("Misconduct penalty").assertCountEquals(0)
+            composeRule.onNodeWithText("Close").performClick()
         }
-        openCardsSheet()
-        tapCardSheetAction(TeamId.TEAM_ONE, "Blue")
-        waitForText("Misconduct penalty")
-        tapBackFromMisconductODChoice()
-        waitForText("Cards / technical fouls")
+        openCardsDialog()
+        tapCardDialogAction(TeamId.TEAM_ONE, "Blue")
+        waitForText("Blue Card")
+        waitForText("Was this against the offense or defense?", substring = true)
+        composeRule.onNodeWithText("Cancel").performClick()
+        composeRule.onNodeWithTag("card-dialog-${TeamId.TEAM_ONE.name}-blue").assertIsDisplayed()
         composeRule.onAllNodesWithText("Misconduct penalty").assertCountEquals(0)
-        tapCardSheetAction(TeamId.TEAM_ONE, "Blue")
-        waitForText("Misconduct penalty")
+        tapCardDialogAction(TeamId.TEAM_ONE, "Blue")
+        waitForText("Was this against the offense or defense?", substring = true)
+        composeRule.onNodeWithText("Defense").performClick()
+        waitForText("Team 2 may move the disc to the brick mark nearest the end zone they are attacking.", substring = true)
+        composeRule.onAllNodesWithText("Back").onLast().performClick()
+        waitForText("Blue Card")
+        waitForText("Was this against the offense or defense?", substring = true)
         composeRule.onNodeWithText("Defense").performClick()
         waitForText("Team 2 may move the disc to the brick mark nearest the end zone they are attacking.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
@@ -364,14 +376,12 @@ class TestCardsUi : MainActivityUiTestFixtures() {
             )
         }
         composeRule.waitForIdle()
-        openCardsSheet()
-        tapCardSheetAction(TeamId.TEAM_ONE, "Tech")
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "tech")).performClick()
         waitForText("Technical Foul")
         waitForText("Was this against the offense or defense?", substring = true)
         composeRule.onNodeWithText("Cancel").performClick()
-        waitForText("Cards / technical fouls")
         composeRule.onAllNodesWithText("Misconduct penalty").assertCountEquals(0)
-        tapCardSheetAction(TeamId.TEAM_ONE, "Tech")
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "tech")).performClick()
         waitForText("Was this against the offense or defense?", substring = true)
         composeRule.onNodeWithText("Offense").performClick()
         waitForText("Team 1 moves the disc to the reverse brick in the end zone they are defending.", substring = true)
@@ -383,8 +393,8 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         waitForText("Start misconduct countdown")
 
         // Back from a red-card N/A misconduct choice should restore a blank number dialog.
-        openCardsSheet()
-        tapCardSheetAction(TeamId.TEAM_TWO, "Red")
+        openCardsDialog(TeamId.TEAM_TWO)
+        tapCardDialogAction(TeamId.TEAM_TWO, "Red")
         waitForText("Red card")
         composeRule.onNodeWithText("N/A").performClick()
         waitForText("Misconduct penalty")
@@ -405,8 +415,8 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         waitForText("Start misconduct countdown")
 
         // A player with both a yellow and red has no valid additional red card.
-        openCardsSheet()
-        tapCardSheetAction(TeamId.TEAM_TWO, "Red")
+        openCardsDialog(TeamId.TEAM_TWO)
+        tapCardDialogAction(TeamId.TEAM_TWO, "Red")
         waitForText("Red card")
         enterCardPlayerNumber("6")
         composeRule.onNodeWithText("Record").performClick()
@@ -416,8 +426,8 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         } else {
             composeRule.onNodeWithText("OK").performClick()
         }
-        waitForText("Cards / technical fouls")
-        tapCardSheetAction(TeamId.TEAM_TWO, "Red")
+        composeRule.onNodeWithTag("card-dialog-${TeamId.TEAM_TWO.name}-red").assertIsDisplayed()
+        tapCardDialogAction(TeamId.TEAM_TWO, "Red")
         waitForText("Red card")
         enterCardPlayerNumber("6")
         composeRule.onNodeWithText("Record").performClick()

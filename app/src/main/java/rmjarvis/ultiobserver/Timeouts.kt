@@ -232,6 +232,7 @@ private fun applyLivePointTimeout(
     now: Long,
 ): GameState {
     return state.copy(
+        pendingMisconductCountdown = false,
         countdown = CountdownState(
             kind = CountdownKind.TIME_OUT,
             label = "Offense set in",

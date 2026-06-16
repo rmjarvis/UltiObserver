@@ -16,6 +16,7 @@ import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
@@ -103,6 +104,60 @@ internal fun SmallActionButton(
                 style = MaterialTheme.typography.labelLarge,
             )
         }
+    }
+}
+
+/**
+ * Render compact misconduct side-choice dialog actions as one row.
+ *
+ * @param firstLabel The leftmost action label, usually `Cancel` or `Back`.
+ * @param firstModifier Modifier for the leftmost action.
+ * @param onFirst Callback for the leftmost action.
+ * @param onOffense Callback for choosing offense.
+ * @param onDefense Callback for choosing defense.
+ */
+@Composable
+internal fun MisconductChoiceButtons(
+    firstLabel: String,
+    firstModifier: Modifier = Modifier,
+    onFirst: () -> Unit,
+    onOffense: () -> Unit,
+    onDefense: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.End,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        CompactDialogTextButton(
+            label = firstLabel,
+            modifier = firstModifier,
+            onClick = onFirst,
+        )
+        CompactDialogTextButton(label = "Offense", onClick = onOffense)
+        CompactDialogTextButton(label = "Defense", onClick = onDefense)
+    }
+}
+
+/**
+ * Render a dialog action button whose label can use more of its visible width.
+ *
+ * @param label The action label.
+ * @param modifier Modifier applied to the button.
+ * @param onClick Callback invoked when the action is tapped.
+ */
+@Composable
+private fun CompactDialogTextButton(
+    label: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    TextButton(
+        onClick = onClick,
+        modifier = modifier,
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+    ) {
+        Text(label, maxLines = 1, softWrap = false)
     }
 }
 

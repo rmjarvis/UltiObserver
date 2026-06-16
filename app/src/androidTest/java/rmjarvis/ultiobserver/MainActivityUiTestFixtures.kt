@@ -559,21 +559,21 @@ abstract class MainActivityUiTestFixtures {
         waitForText("Undo Pull infraction adjustment")
     }
 
-    /// Exercise the Cards / TF adjustment dialog without changing counts.
+    /// Exercise the Cards / techs adjustment dialog without changing counts.
     protected fun applyNoOpCardAdjustment() {
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust cards / TF").performClick()
-        waitForText("Adjust cards / TF")
+        composeRule.onNodeWithText("Adjust cards / techs").performClick()
+        waitForText("Adjust cards / techs")
         composeRule.onNodeWithText("Set").performClick()
-        waitForText("Undo Cards / TF adjustment")
+        waitForText("Undo Cards / techs adjustment")
     }
 
     /**
-     * Record a yellow card through the Cards / TF sheet.
+     * Record a yellow card through the live Card dialog.
      *
      * @param team The team receiving the yellow.
      * @param playerNumber The player number to enter; blank chooses `N/A`.
-     * @param expectedMessage The popup text expected after recording.
+     * @param expectedMessage The Blue Card dialog text expected before recording.
      * @param misconductChoice Optional misconduct choice to tap when the card reaches a live-point threshold.
      * @param expectedMisconductMessage Optional threshold-resolution text expected after choosing offense/defense.
      * @param verifyMisconductBackReturnsToNumberDialog Whether to exercise Back from misconduct choice and verify number-dialog restoration.
@@ -588,8 +588,8 @@ abstract class MainActivityUiTestFixtures {
         verifyMisconductBackReturnsToNumberDialog: Boolean = false,
         substring: Boolean = false,
     ) {
-        openCardsSheet()
-        tapCardSheetAction(team, "Yellow")
+        openCardsDialog(team)
+        tapCardDialogAction(team, "Yellow")
         waitForText("Yellow card")
         if (playerNumber.isBlank()) {
             composeRule.onNodeWithText("N/A").performClick()
@@ -622,7 +622,7 @@ abstract class MainActivityUiTestFixtures {
     }
 
     /**
-     * Record a red card through the Cards / TF sheet.
+     * Record a red card through the live Card dialog.
      *
      * @param team The team receiving the red.
      * @param playerNumber The player number to enter.
@@ -639,8 +639,8 @@ abstract class MainActivityUiTestFixtures {
         expectedMisconductMessage: String? = null,
         verifyMisconductBackReturnsToNumberDialog: Boolean = false,
     ) {
-        openCardsSheet()
-        tapCardSheetAction(team, "Red")
+        openCardsDialog(team)
+        tapCardDialogAction(team, "Red")
         waitForText("Red card")
         enterCardPlayerNumber(playerNumber)
         composeRule.onNodeWithText("Record").performClick()
@@ -677,20 +677,21 @@ abstract class MainActivityUiTestFixtures {
     }
 
     /**
-     * Record a blue card through the Cards / TF sheet.
+     * Record a blue card through the live Card dialog.
      *
      * @param team The team receiving the blue card.
      * @param expectedMessage The popup text expected after recording.
      */
     protected fun recordBlueCard(team: TeamId, expectedMessage: String) {
-        openCardsSheet()
-        tapCardSheetAction(team, "Blue")
+        openCardsDialog(team)
+        tapCardDialogAction(team, "Blue")
+        waitForText("Blue Card")
         waitForText(expectedMessage)
         composeRule.onNodeWithText("OK").performClick()
     }
 
     /**
-     * Record a technical foul through the Cards / TF sheet.
+     * Record a technical foul through the live field action.
      *
      * @param team The team receiving the technical foul.
      * @param expectedMessage The popup text expected after recording.
@@ -701,20 +702,19 @@ abstract class MainActivityUiTestFixtures {
         expectedMessage: String,
         substring: Boolean = false,
     ) {
-        openCardsSheet()
-        tapCardSheetAction(team, "Tech")
+        composeRule.onNodeWithTag(teamActionTag(team, "tech")).performClick()
         waitForText(expectedMessage, substring = substring)
         composeRule.onNodeWithText("OK").performClick()
     }
 
     /**
-     * Tap one team action in the Cards / TF sheet, scrolling it into view when needed.
+     * Tap one action in the live Card dialog.
      *
      * @param team The team whose action should be tapped.
      * @param label The action label to tap.
      */
-    protected fun tapCardSheetAction(team: TeamId, label: String) {
-        composeRule.onNodeWithTag("cards-sheet-${team.name}-${label.lowercase()}").performScrollTo().performClick()
+    protected fun tapCardDialogAction(team: TeamId, label: String) {
+        composeRule.onNodeWithTag("card-dialog-${team.name}-${label.lowercase()}").performClick()
     }
 
     /// Assert that the live screen's main controls are visible.
@@ -781,10 +781,10 @@ abstract class MainActivityUiTestFixtures {
         composeRule.onNodeWithText("Done").performClick()
     }
 
-    /// Open the live Cards / TF sheet.
-    protected fun openCardsSheet() {
-        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "card")).performClick()
-        waitForText("Cards / technical fouls")
+    /// Open the live Card dialog for one team.
+    protected fun openCardsDialog(team: TeamId = TeamId.TEAM_ONE) {
+        composeRule.onNodeWithTag(teamActionTag(team, "card")).performClick()
+        composeRule.onNodeWithTag("card-dialog-${team.name}-yellow").assertIsDisplayed()
     }
 
     /// Open the live More actions dialog.

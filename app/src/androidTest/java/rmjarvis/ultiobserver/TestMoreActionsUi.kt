@@ -43,7 +43,7 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         openMoreActionsDialog()
         openMoreActionsDialogAndCancel("Adjust score")
         openMoreActionsDialogAndCancel("Adjust timeouts")
-        openMoreActionsDialogAndCancel("Adjust cards / TF")
+        openMoreActionsDialogAndCancel("Adjust cards / techs")
         openMoreActionsDialogAndCancel("Adjust pull infractions")
 
         // Manual correction dialogs should also apply their visible values.
