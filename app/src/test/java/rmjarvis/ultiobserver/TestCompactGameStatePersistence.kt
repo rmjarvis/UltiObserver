@@ -22,7 +22,7 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
         val replacementPatch = ListPatch.fromLaterAndPrevious(listOf(1, 2), listOf(9))!!
         val longerReplacementPatch = ListPatch.fromLaterAndPrevious(listOf(1), listOf(1, 2))!!
 
-        assertPatchProperties(patch, previous)
+        assertPatchProperties(patch, later, previous)
         assertEquals(previous, patch.applyTo(later))
         assertEquals(later, GameStatePatch().applyTo(later))
         assertEquals(later.teamOne, TeamLiveStatePatch().applyTo(later.teamOne))
@@ -87,7 +87,7 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
     }
 
     /// Verify each game-state patch property matches the corresponding previous-state value.
-    private fun assertPatchProperties(patch: GameStatePatch, previous: GameState) {
+    private fun assertPatchProperties(patch: GameStatePatch, later: GameState, previous: GameState) {
         assertEquals(previous.startDate, patch.startDate)
         assertEquals(previous.startTime, patch.startTime)
         assertEquals(previous.timeZone, patch.timeZone)
@@ -101,7 +101,8 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
         assertEquals(previous.rules, patch.rules)
         assertTeamPatchProperties(patch.teamOne!!, previous.teamOne)
         assertTeamPatchProperties(patch.teamTwo!!, previous.teamTwo)
-        assertEquals(previous.priorCards, patch.priorCards!!.replacement)
+        assertEquals(previous.teamOnePlayers, patch.teamOnePlayers!!.applyTo(later.teamOnePlayers))
+        assertEquals(previous.teamTwoPlayers, patch.teamTwoPlayers!!.applyTo(later.teamTwoPlayers))
         assertEquals(previous.teamOnePlayerCards, patch.teamOnePlayerCards!!.replacement)
         assertEquals(previous.teamTwoPlayerCards, patch.teamTwoPlayerCards!!.replacement)
         assertEquals(previous.eventLog, patch.eventLog!!.replacement)
@@ -230,7 +231,7 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
                 technicalFouls = 6,
                 blueCards = 5,
             ),
-            priorCards = listOf(PlayerCardRecord(TeamId.TEAM_TWO, "22", priorYellows = 1, priorReds = 0)),
+            teamTwoPlayers = listOf(priorPlayerRecord("22", priorYellows = 1)),
             teamOnePlayerCards = listOf(InGamePlayerCardRecord("11", yellows = 1)),
             teamTwoPlayerCards = listOf(InGamePlayerCardRecord("12", reds = 1)),
             eventLog = listOf(
@@ -317,7 +318,7 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
                 technicalFouls = 0,
                 blueCards = 0,
             ),
-            priorCards = listOf(PlayerCardRecord(TeamId.TEAM_ONE, "10", priorYellows = 0, priorReds = 1)),
+            teamOnePlayers = listOf(priorPlayerRecord("10", priorReds = 1)),
             teamOnePlayerCards = listOf(InGamePlayerCardRecord("10", yellows = 2)),
             teamTwoPlayerCards = listOf(InGamePlayerCardRecord("20", yellows = 1)),
             eventLog = listOf(EventLogEntry(timestampEpoch = 1_000L, type = EventLogType.FIRST_PULL)),

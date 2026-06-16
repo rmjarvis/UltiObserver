@@ -445,6 +445,10 @@ enum class CountdownKind {
  * @param pullPromptTarget Which field end or ends should receive pulling prompts.
  * @param openingPullingTeam The team that pulled to start the game.
  * @param openingPullingFromEnd The field end used by the opening pull.
+ * @param teamOnePlayers Team 1 player records entered through setup.
+ * @param teamTwoPlayers Team 2 player records entered through setup.
+ * @param teamOnePlayerCards Team 1 in-game yellow/red cards.
+ * @param teamTwoPlayerCards Team 2 in-game yellow/red cards.
  * @param eventLog Persisted log of significant game events and manual corrections.
  * @param pendingCapOffer The cap currently being offered to the observer for yes/no application.
  */
@@ -466,7 +470,8 @@ data class GameState(
     val rules: GameRules,
     val teamOne: TeamLiveState,
     val teamTwo: TeamLiveState,
-    val priorCards: List<PlayerCardRecord>,
+    val teamOnePlayers: List<PlayerRecord> = emptyList(),
+    val teamTwoPlayers: List<PlayerRecord> = emptyList(),
     val teamOnePlayerCards: List<InGamePlayerCardRecord> = emptyList(),
     val teamTwoPlayerCards: List<InGamePlayerCardRecord> = emptyList(),
     val eventLog: List<EventLogEntry> = emptyList(),
@@ -711,7 +716,8 @@ fun applySetupToLiveGame(
             fieldCaptains = setup.teamTwo.fieldCaptains,
             spiritCaptains = setup.teamTwo.spiritCaptains,
         ),
-        priorCards = setup.priorCards,
+        teamOnePlayers = setup.teamOnePlayers,
+        teamTwoPlayers = setup.teamTwoPlayers,
         teamOnePlayerCards = existing.teamOnePlayerCards,
         teamTwoPlayerCards = existing.teamTwoPlayerCards,
         pullPromptTarget = setup.pullPromptTarget,
@@ -765,7 +771,8 @@ fun GameState.toSetupState(): GameSetupState {
             fieldCaptains = teamTwo.fieldCaptains,
             spiritCaptains = teamTwo.spiritCaptains,
         ),
-        priorCards = priorCards,
+        teamOnePlayers = teamOnePlayers,
+        teamTwoPlayers = teamTwoPlayers,
         pullingTeam = openingPullingTeam,
         pullingFromEnd = openingPullingFromEnd,
         pullPromptTarget = pullPromptTarget,

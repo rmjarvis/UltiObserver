@@ -170,7 +170,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         waitForText("Open Division")
         waitForText("Semifinals")
 
-        // Prior-card entry should support cancel, team-scoped entry, editing, zero-card removal, and name-only rows.
+        // Player-card entry should support cancel, team-scoped entry, editing, zero-prior rows, and name-only rows.
         openPriorCardsSetupEditor()
         composeRule.onNodeWithText("Add card holder").performClick()
         waitForText("Add previous game card holder")
@@ -206,8 +206,11 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         waitForText("Edit previous game card holder")
         composeRule.onAllNodesWithText("-1")[0].performClick()
         composeRule.onAllNodesWithText("-1")[0].performClick()
-        composeRule.onNodeWithText("Remove").performClick()
-        waitForText("No prior cards recorded yet.")
+        composeRule.onNodeWithText("Update").performClick()
+        composeRule.onNodeWithText("#67 Sideline Caller").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("No prior cards").assertIsDisplayed()
+        composeRule.onNodeWithTag("setup-prior-card-remove-0").performScrollTo().performClick()
+        waitForText("No card holders added yet")
         closeSetupEditor()
         addPriorCardHolder(team = TeamId.TEAM_TWO, jersey = "88", playerName = "Numbered Player", yellows = 2, reds = 1)
         openPriorCardsSetupEditor()
@@ -219,10 +222,8 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         waitForText("Card holder already listed")
         waitForText("with 2 yellow cards and 1 red card.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
-        waitForText("Edit previous game card holder")
-        composeRule.onNodeWithText("Update").performClick()
         composeRule.onNodeWithText("#88 Numbered Player").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("Y 1").assertIsDisplayed()
+        composeRule.onNodeWithText("Y 2  R 1").assertIsDisplayed()
         closeSetupEditor()
         addPriorCardHolder(team = TeamId.TEAM_TWO, jersey = "77", playerName = "", yellows = 1, reds = 0)
         openPriorCardsSetupEditor()
@@ -235,11 +236,13 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Add").performClick()
         waitForText("Card holder already listed")
         waitForText("with 1 yellow card.", substring = true)
+        composeRule.onNodeWithTag("setup-existing-card-holder-back").performClick()
+        waitForText("Add previous game card holder")
+        composeRule.onNodeWithText("Add").performClick()
+        waitForText("Card holder already listed")
         composeRule.onNodeWithText("OK").performClick()
-        waitForText("Edit previous game card holder")
-        composeRule.onNodeWithText("Update").performClick()
-        composeRule.onNodeWithText("#77 Named Later").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("R 1").assertIsDisplayed()
+        waitForText("#77")
+        composeRule.onAllNodesWithText("#77 Named Later").assertCountEquals(0)
         closeSetupEditor()
         addPriorCardHolder(team = TeamId.TEAM_TWO, jersey = "", playerName = "Jarvis", yellows = 1, reds = 0)
         addPriorCardHolder(team = TeamId.TEAM_TWO, jersey = "23", playerName = "", yellows = 1, reds = 0)
@@ -254,17 +257,9 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         waitForText("Card holder already listed")
         waitForText("with 1 yellow card.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
-        waitForText("Edit previous game card holder")
-        composeRule.onNodeWithText("Update").performClick()
-        waitForText("Card holder entries merged")
-        waitForText("#23 matched #23 Jarvis", substring = true)
-        composeRule.onNodeWithText("Cancel").performClick()
-        waitForText("Edit previous game card holder")
-        composeRule.onNodeWithText("Update").performClick()
-        waitForText("Card holder entries merged")
-        composeRule.onNodeWithText("OK").performClick()
-        composeRule.onNodeWithText("#23 Jarvis").performScrollTo().assertIsDisplayed()
-        composeRule.onAllNodesWithText("#23").assertCountEquals(0)
+        waitForText("#23")
+        composeRule.onNodeWithText("Jarvis").performScrollTo().assertIsDisplayed()
+        composeRule.onAllNodesWithText("#23 jarvis").assertCountEquals(0)
         closeSetupEditor()
         openPriorCardsSetupEditor()
         composeRule.onNodeWithText("Add card holder").performClick()
@@ -272,11 +267,11 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         enterPriorCardJersey("88")
         enterPriorCardName("Other Player")
         composeRule.onNodeWithText("Add").performClick()
-        waitForText("Same number, different names")
+        waitForText("Possible player match")
         composeRule.onNodeWithText("Cancel").performClick()
         waitForText("Add previous game card holder")
         composeRule.onNodeWithText("Add").performClick()
-        waitForText("Same number, different names")
+        waitForText("Possible player match")
         composeRule.onNodeWithText("Add").performClick()
         composeRule.onNodeWithText("#88 Other Player").performScrollTo().assertIsDisplayed()
         closeSetupEditor()
@@ -321,5 +316,59 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         startGameFromSetup()
         composeRule.onNodeWithText("Team 1").assertIsDisplayed()
         composeRule.onNodeWithText("Team 2").assertIsDisplayed()
+    }
+
+    /// Test setup rejects deleting a known player who already has a card in the current game.
+    @Test
+    fun setupRejectsDeletingPlayerWithInGameCard() {
+        openNewGameSetup()
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appViewModel.updateSetup(
+                activity.appViewModel.setupState.copy(
+                    teamOnePlayers = listOf(playerRecordWithCards("9", yellows = 1)),
+                )
+            )
+        }
+        composeRule.waitForIdle()
+
+        openPriorCardsSetupEditor(TeamId.TEAM_ONE)
+        composeRule.onNodeWithText("#9").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("setup-prior-card-remove-0").performScrollTo().performClick()
+
+        waitForText("Player not deleted")
+        waitForText("#9 has an in-game card and cannot be deleted.")
+        composeRule.onNodeWithText("OK").performClick()
+        composeRule.onNodeWithText("#9").performScrollTo().assertIsDisplayed()
+    }
+
+    /// Test setup rejects adding a new player that cleanly matches an existing in-game card row.
+    @Test
+    fun setupRejectsCleanMatchWhenExistingRowsHaveInGameCards() {
+        openNewGameSetup()
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appViewModel.updateSetup(
+                activity.appViewModel.setupState.copy(
+                    teamOnePlayers = listOf(
+                        playerRecordWithCards("23", yellows = 1),
+                        playerRecordWithCards("", yellows = 1, playerName = "Jarvis"),
+                    ),
+                )
+            )
+        }
+        composeRule.waitForIdle()
+
+        openPriorCardsSetupEditor(TeamId.TEAM_ONE)
+        composeRule.onNodeWithText("Add card holder").performClick()
+        waitForText("Add previous game card holder")
+        enterPriorCardJersey("23")
+        enterPriorCardName("Jarvis")
+        composeRule.onNodeWithText("Add").performClick()
+
+        waitForText("Card holder already listed")
+        waitForText("with no prior cards.", substring = true)
+        composeRule.onNodeWithText("OK").performClick()
+        composeRule.onNodeWithText("#23").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Jarvis").performScrollTo().assertIsDisplayed()
+        composeRule.onAllNodesWithText("#23 Jarvis").assertCountEquals(0)
     }
 }

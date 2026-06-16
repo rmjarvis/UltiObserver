@@ -23,10 +23,8 @@ class TestGameSetup : GameDomainTestFixtures() {
     fun setupRoundTripAndMidgameUpdates() {
         val VC = TeamId.TEAM_ONE
         val ANIMAL = TeamId.TEAM_TWO
-        val priorCards = listOf(
-            PlayerCardRecord(VC, "17", priorYellows = 1, priorReds = 0),
-            PlayerCardRecord(ANIMAL, "23", priorYellows = 0, priorReds = 1),
-        )
+        val teamOnePlayers = listOf(priorPlayerRecord("17", priorYellows = 1))
+        val teamTwoPlayers = listOf(priorPlayerRecord("23", priorReds = 1))
 
         // Create a live game from setup and verify the setup form can be reconstructed from live state.
         val setup = standardGameSetup(
@@ -60,7 +58,8 @@ class TestGameSetup : GameDomainTestFixtures() {
                 fieldCaptains = "Animal field captains",
                 spiritCaptains = "Animal spirit captains",
             ),
-            priorCards = priorCards,
+            teamOnePlayers = teamOnePlayers,
+            teamTwoPlayers = teamTwoPlayers,
             pullPromptTarget = PullPromptTarget.FAR,
         )
         var state = createLiveGameState(setup)
@@ -78,7 +77,8 @@ class TestGameSetup : GameDomainTestFixtures() {
         assertEquals(VC, state.pullingTeam)
         assertEquals(FieldEnd.FAR, state.pullingFromEnd)
         assertEquals(VC, state.nearAttackingTeam)
-        assertEquals(priorCards, state.priorCards)
+        assertEquals(teamOnePlayers, state.teamOnePlayers)
+        assertEquals(teamTwoPlayers, state.teamTwoPlayers)
         assertEquals("Pull in", state.countdown?.label)
         assertEquals(40, state.countdown?.durationSeconds)
         assertEquals(state.startEpoch + 40_000L, state.countdown?.targetEpoch)
@@ -104,7 +104,8 @@ class TestGameSetup : GameDomainTestFixtures() {
                 fieldCaptains = "Other field captain edits",
                 spiritCaptains = "Other spirit captain edits",
             ),
-            priorCards = priorCards + PlayerCardRecord(VC, "8", priorYellows = 2, priorReds = 0),
+            teamOnePlayers = teamOnePlayers + priorPlayerRecord("8", priorYellows = 2),
+            teamTwoPlayers = teamTwoPlayers,
             pullingTeam = ANIMAL,
             pullingFromEnd = FieldEnd.NEAR,
             pullPromptTarget = PullPromptTarget.BOTH,
@@ -128,7 +129,8 @@ class TestGameSetup : GameDomainTestFixtures() {
         assertEquals("Other coach edits", state.teamTwo.coaches)
         assertEquals("Other field captain edits", state.teamTwo.fieldCaptains)
         assertEquals("Other spirit captain edits", state.teamTwo.spiritCaptains)
-        assertEquals(editedBeforePlay.priorCards, state.priorCards)
+        assertEquals(editedBeforePlay.teamOnePlayers, state.teamOnePlayers)
+        assertEquals(editedBeforePlay.teamTwoPlayers, state.teamTwoPlayers)
         assertEquals(ANIMAL, state.openingPullingTeam)
         assertEquals(FieldEnd.NEAR, state.openingPullingFromEnd)
         assertEquals(ANIMAL, state.pullingTeam)
@@ -151,7 +153,8 @@ class TestGameSetup : GameDomainTestFixtures() {
             rules = setup.rules,
             teamOne = TeamLiveState("Team 1", TeamColorChoice.WHITE),
             teamTwo = TeamLiveState("Team 2", TeamColorChoice.BLUE),
-            priorCards = emptyList(),
+            teamOnePlayers = emptyList(),
+            teamTwoPlayers = emptyList(),
             nearAttackingTeam = VC,
             pullingTeam = VC,
             pullingFromEnd = FieldEnd.FAR,
@@ -187,7 +190,8 @@ class TestGameSetup : GameDomainTestFixtures() {
                 fieldCaptains = "Post-play other field captain",
                 spiritCaptains = "Post-play other spirit captain",
             ),
-            priorCards = emptyList(),
+            teamOnePlayers = emptyList(),
+            teamTwoPlayers = emptyList(),
             pullingTeam = VC,
             pullingFromEnd = FieldEnd.FAR,
             pullPromptTarget = PullPromptTarget.NEITHER,
@@ -226,7 +230,8 @@ class TestGameSetup : GameDomainTestFixtures() {
         assertEquals(80, state.countdown?.durationSeconds)
         assertNull(state.countdown?.nextTimingCue(state.countdown!!.targetEpoch - 20_000L))
         assertEquals(fieldStateAfterGoal.pendingCapOffer, state.pendingCapOffer)
-        assertEquals(emptyList<PlayerCardRecord>(), state.priorCards)
+        assertEquals(editedAfterPlay.teamOnePlayers, state.teamOnePlayers)
+        assertEquals(editedAfterPlay.teamTwoPlayers, state.teamTwoPlayers)
         assertEquals("Undo Update game setup", state.undoEntry?.label)
         assertEquals(beforeSetupEditAfterPlay, state.undoEntry?.previous)
 

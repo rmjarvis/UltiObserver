@@ -4,52 +4,125 @@ import kotlinx.serialization.Serializable
 import kotlin.math.max
 
 /**
- * Tournament carryover cards for one player before the current game starts.
+ * Player identity and tournament carryover cards known before or during setup.
  *
- * @param team The player's team.
  * @param jerseyNumber The player's jersey number, or blank when unknown.
  * @param playerName The player's name, or blank when unknown.
  * @param priorYellows Yellow cards issued in previous games of the current tournament.
  * @param priorReds Red cards issued in previous games of the current tournament.
+ * @param cards Card events assessed to this player during this game.
  */
 @Serializable
-data class PlayerCardRecord(
-    val team: TeamId,
+data class PlayerRecord(
     val jerseyNumber: String,
-    val priorYellows: Int,    // Cards issued in previous games of the current tournament.
-    val priorReds: Int,
     val playerName: String = "",
+    val priorYellows: Int = 0,
+    val priorReds: Int = 0,
+    val cards: List<InGamePlayerCardEvent> = emptyList(),
 ) {
     init {
         require(jerseyNumber.isNotBlank() || playerName.isNotBlank()) {
-            "A prior-card record requires a jersey number or player name."
+            "A player record requires a jersey number or player name."
         }
-        require(priorYellows > 0 || priorReds > 0) {
-            "A prior-card record requires at least one prior card."
+        require(priorYellows >= 0 && priorReds >= 0) {
+            "Prior card counts cannot be negative."
         }
+    }
+
+    /**
+     * Return the display identity for this player.
+     *
+     * @param compact Whether to omit the name when a jersey number is available.
+     */
+    internal fun playerIdentity(compact: Boolean): String {
+        val number = jerseyNumber.trim()
+        val name = playerName.trim()
+        return if (number.isNotEmpty()) {
+            if (!compact && name.isNotEmpty()) "#$number $name" else "#$number"
+        } else {
+            name
+        }
+    }
+
+    /// Return a unique key for exact player identities.
+    internal fun identityKey(): Pair<String, String> {
+        return jerseyNumber.trim() to playerName.normalizedPlayerName()
+    }
+
+    /**
+     * Report whether this player record identifies the same player as another record.
+     *
+     * @param other The player record to compare with this one.
+     */
+    internal fun matches(other: PlayerRecord): Boolean {
+        val existingNumber = identityKey().first
+        val proposedNumber = other.identityKey().first
+        val existingName = identityKey().second
+        val proposedName = other.identityKey().second
+        if (existingNumber.isNotEmpty() && existingNumber == proposedNumber) {
+            return existingName.isEmpty() || proposedName.isEmpty() || existingName == proposedName
+        }
+        return existingNumber.isEmpty() &&
+            proposedNumber.isEmpty() &&
+            existingName.isNotEmpty() &&
+            existingName == proposedName
+    }
+
+    /**
+     * Report whether this identity overlaps another enough to warn before adding a separate player.
+     *
+     * This is more permissive than `matches`, including similar identities that should not
+     * automatically be treated as the same player, such as the same number with different
+     * names. Use it when warning the observer about a similar player they might have meant.
+     *
+     * @param other The identity to compare with this one.
+     */
+    internal fun hasOverlapWith(other: PlayerRecord): Boolean {
+        val existingNumber = identityKey().first
+        val existingName = identityKey().second
+        val proposedNumber = other.identityKey().first
+        val proposedName = other.identityKey().second
+        return (existingNumber.isNotEmpty() && existingNumber == proposedNumber) ||
+            (existingName.isNotEmpty() && existingName == proposedName)
+    }
+
+    /// Return the compact setup summary for this player's prior yellows and reds.
+    internal fun playerCardDetail(): String {
+        val priorDetail = listOfNotNull(
+            if (priorYellows > 0) "Y $priorYellows" else null,
+            if (priorReds > 0) "R $priorReds" else null,
+        ).joinToString("  ")
+        return priorDetail.ifBlank { "No prior cards" }
+    }
+
+    /// Return a prose setup notice summary for this player's prior yellows and reds.
+    internal fun playerCardNoticeDetail(): String {
+        val priorDetail = listOfNotNull(
+            if (priorYellows > 0) countedNounPhrase(priorYellows, "yellow card") else null,
+            if (priorReds > 0) countedNounPhrase(priorReds, "red card") else null,
+        ).joinToString(" and ")
+        return priorDetail.ifBlank { "no prior cards" }
     }
 }
 
 /// Result of comparing an entered card holder with existing records.
 sealed class CardHolderEntryCheck {
     /**
-     * Existing card holder that should be reopened instead of adding a new record.
+     * Existing card holder that should block adding a separate record.
      *
      * @param existingIndex Index of the matching existing record in the full card-holder list.
-     * @param draftForEdit Record to show when opening the existing record for editing.
      */
     data class ExistingCardHolder(
         val existingIndex: Int,
-        val draftForEdit: PlayerCardRecord,
     ) : CardHolderEntryCheck()
 
     /**
-     * Existing same-number card holder with a different nonblank name.
+     * Existing card holders that partially match the entered identity.
      *
-     * @param existingIndex Index of the same-number existing record in the full card-holder list.
+     * @param existingIndices Indices of possible matching records in the full card-holder list.
      */
-    data class SameNumberDifferentName(
-        val existingIndex: Int,
+    data class PossibleDifferentPlayer(
+        val existingIndices: List<Int>,
     ) : CardHolderEntryCheck()
 }
 
@@ -59,123 +132,56 @@ sealed class CardHolderEntryCheck {
  * @param proposed The card holder the observer is trying to save.
  * @param editingIndex Existing record index to ignore when validating an edit, or null when adding.
  */
-internal fun List<PlayerCardRecord>.cardHolderEntryCheck(
-    proposed: PlayerCardRecord,
+internal fun List<PlayerRecord>.cardHolderEntryCheck(
+    proposed: PlayerRecord,
     editingIndex: Int?,
 ): CardHolderEntryCheck? {
-    val proposedNumber = proposed.jerseyNumber.trim()
-    val proposedName = proposed.playerName.normalizedPlayerName()
+    if (editingIndex != null) {
+        return null
+    }
+    val possibleMatches = mutableListOf<Int>()
     forEachIndexed { index, existing ->
-        if (index == editingIndex || existing.team != proposed.team) {
-            return@forEachIndexed
-        }
-        val existingNumber = existing.jerseyNumber.trim()
-        val existingName = existing.playerName.normalizedPlayerName()
-        if (proposedNumber.isNotEmpty() && existingNumber == proposedNumber) {
-            if (proposedName.isEmpty() || existingName.isEmpty() || proposedName == existingName) {
-                return CardHolderEntryCheck.ExistingCardHolder(
-                    existingIndex = index,
-                    draftForEdit = existing.draftWithEnteredPriorCards(proposed),
-                )
-            }
-            return CardHolderEntryCheck.SameNumberDifferentName(existingIndex = index)
-        }
-        if (proposedName.isNotEmpty() && existingName == proposedName &&
-            (proposedNumber.isEmpty() || existingNumber.isEmpty())
-        ) {
+        if (existing.identityKey() == proposed.identityKey() || existing.matches(proposed)) {
             return CardHolderEntryCheck.ExistingCardHolder(
                 existingIndex = index,
-                draftForEdit = existing.draftWithEnteredPriorCards(proposed),
             )
         }
+        if (existing.hasOverlapWith(proposed)) {
+            possibleMatches.add(index)
+        }
+    }
+    if (possibleMatches.isNotEmpty()) {
+        return CardHolderEntryCheck.PossibleDifferentPlayer(possibleMatches)
     }
     return null
 }
 
 /**
- * Return prior-card records after adding, editing, or collapsing one card holder.
+ * Return prior-card records after adding or editing one card holder.
  *
  * @param record Prior-card record to save.
  * @param editingIndex Existing record index to replace, or null when adding.
- * @param duplicateIndex Existing duplicate record index to remove while saving an edit.
  */
-internal fun List<PlayerCardRecord>.withSavedPriorCardRecord(
-    record: PlayerCardRecord,
+internal fun List<PlayerRecord>.withSavedPriorCardRecord(
+    record: PlayerRecord,
     editingIndex: Int?,
-    duplicateIndex: Int? = null,
-): List<PlayerCardRecord> {
-    require(editingIndex != null || duplicateIndex == null) {
-        "Duplicate prior-card records can only be collapsed while editing."
-    }
+): List<PlayerRecord> {
     return if (editingIndex == null) {
         this + record
     } else {
-        mapIndexedNotNull { index, existing ->
-            when (index) {
-                duplicateIndex -> null
-                editingIndex -> record
-                else -> existing
-            }
+        mapIndexed { index, existing ->
+            if (index == editingIndex) record else existing
         }
     }
 }
 
-/// Return the compact setup summary for a player's prior yellows and reds.
-internal fun PlayerCardRecord.playerCardDetail(): String {
-    return listOfNotNull(
-        if (priorYellows > 0) "Y $priorYellows" else null,
-        if (priorReds > 0) "R $priorReds" else null,
-    ).joinToString("  ")
-}
-
-/// Return a prose setup notice summary for a player's prior yellows and reds.
-internal fun PlayerCardRecord.playerCardNoticeDetail(): String {
-    return listOfNotNull(
-        if (priorYellows > 0) countedNounPhrase(priorYellows, "yellow card") else null,
-        if (priorReds > 0) countedNounPhrase(priorReds, "red card") else null,
-    ).joinToString(" and ")
-}
-
-/**
- * Return the setup identity for a player carrying prior cards.
- *
- * @param compact Whether to omit the name when a jersey number is available.
- */
-internal fun PlayerCardRecord.playerCardIdentity(compact: Boolean): String {
-    val number = jerseyNumber.trim()
-    val name = playerName.trim()
-    return if (number.isNotEmpty()) {
-        if (!compact && name.isNotEmpty()) "#$number $name" else "#$number"
-    } else {
-        name
-    }
-}
-
 /// Return the name used for player-card identity comparisons.
-private fun String.normalizedPlayerName(): String {
+internal fun String.normalizedPlayerName(): String {
     return trim()
         .split(Regex("\\s+"))
         .filter { it.isNotEmpty() }
         .joinToString(" ")
         .lowercase()
-}
-
-/// Return an existing record preloaded with the latest entered identity details and prior-card counts.
-private fun PlayerCardRecord.draftWithEnteredPriorCards(proposed: PlayerCardRecord): PlayerCardRecord {
-    val proposedNumber = proposed.jerseyNumber.trim()
-    val proposedName = proposed.playerName.trim()
-    return copy(
-        jerseyNumber = when {
-            jerseyNumber.isBlank() && proposedNumber.isNotEmpty() -> proposedNumber
-            else -> jerseyNumber.trim()
-        },
-        playerName = when {
-            playerName.isBlank() && proposedName.isNotEmpty() -> proposedName
-            else -> playerName.trim()
-        },
-        priorYellows = proposed.priorYellows,
-        priorReds = proposed.priorReds,
-    )
 }
 
 /**
@@ -187,6 +193,18 @@ enum class CardType(val label: String) {
     YELLOW("Yellow"),
     RED("Red"),
 }
+
+/**
+ * Persisted in-game yellow/red card event.
+ *
+ * @param cardType The card assessed to the player.
+ * @param reason Optional reason recorded for this individual card.
+ */
+@Serializable
+data class InGamePlayerCardEvent(
+    val cardType: CardType,
+    val reason: String = "",
+)
 
 /**
  * In-game yellow/red card record for one player.
@@ -1187,8 +1205,8 @@ private fun GameState.gameSuspensionStartedInSecondHalf(): Boolean {
 private fun GameState.playerHasTournamentSuspension(team: TeamId, jerseyNumber: String): Boolean {
     var priorYellows = 0
     var priorReds = 0
-    priorCards.forEach { record ->
-        if (record.team == team && record.jerseyNumber == jerseyNumber) {
+    priorCardsFor(team).forEach { record ->
+        if (record.jerseyNumber == jerseyNumber) {
             priorYellows += record.priorYellows
             priorReds += record.priorReds
         }
@@ -1197,6 +1215,11 @@ private fun GameState.playerHasTournamentSuspension(team: TeamId, jerseyNumber: 
     val totalYellows = priorYellows + inGameRecord.yellows
     val totalReds = priorReds + inGameRecord.reds
     return totalYellows + 2 * totalReds >= 3
+}
+
+/// Return setup-entered prior-card records for one team.
+private fun GameState.priorCardsFor(team: TeamId): List<PlayerRecord> {
+    return if (team == TeamId.TEAM_ONE) teamOnePlayers else teamTwoPlayers
 }
 
 /// Format a technical-foul event message, including misconduct cue details when needed.

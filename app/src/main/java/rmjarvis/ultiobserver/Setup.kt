@@ -44,7 +44,8 @@ enum class GameDivision(val displayText: String) {
  * @param rules The scoring, cap, halftime, and timeout rules selected for the game.
  * @param teamOne The setup identity for Team 1 before live field orientation is applied.
  * @param teamTwo The setup identity for Team 2 before live field orientation is applied.
- * @param priorCards Player cards carried in from previous games in the tournament.
+ * @param teamOnePlayers Team 1 players with cards carried in from previous games.
+ * @param teamTwoPlayers Team 2 players with cards carried in from previous games.
  * @param pullingTeam The team selected to pull first.
  * @param pullingFromEnd The field end from which the first pull is selected to start.
  * @param pullPromptTarget Which field end or ends should receive pulling prompts.
@@ -65,7 +66,8 @@ data class GameSetupState(
     val rules: GameRules = GameRules(),
     val teamOne: TeamSetup = TeamSetup(name = "", color = TeamColorChoice.WHITE),
     val teamTwo: TeamSetup = TeamSetup(name = "", color = TeamColorChoice.BLUE),
-    val priorCards: List<PlayerCardRecord> = emptyList(),
+    val teamOnePlayers: List<PlayerRecord> = emptyList(),
+    val teamTwoPlayers: List<PlayerRecord> = emptyList(),
     val pullingTeam: TeamId = TeamId.TEAM_ONE,
     val pullingFromEnd: FieldEnd = FieldEnd.FAR,
     val pullPromptTarget: PullPromptTarget = PullPromptTarget.NEAR,
@@ -147,9 +149,9 @@ private fun String.compactLabeledSummary(label: String): LabeledSetupSummary? {
 }
 
 /// Return compact prior-card text for one team in the setup overview.
-internal fun List<PlayerCardRecord>.teamPriorCardsSummary(): String {
+internal fun List<PlayerRecord>.teamPriorCardsSummary(): String {
     return joinToString("\n") { record ->
-        "${record.playerCardIdentity(compact = true)}: ${record.playerCardDetail()}"
+        "${record.playerIdentity(compact = true)}: ${record.playerCardDetail()}"
     }
 }
 
@@ -217,6 +219,21 @@ internal fun TeamId.setupTeam(state: GameSetupState): TeamSetup {
  */
 internal fun GameSetupState.withSetupTeam(teamId: TeamId, team: TeamSetup): GameSetupState {
     return if (teamId == TeamId.TEAM_ONE) copy(teamOne = team) else copy(teamTwo = team)
+}
+
+/// Return the player records for one setup team.
+internal fun GameSetupState.playersFor(teamId: TeamId): List<PlayerRecord> {
+    return if (teamId == TeamId.TEAM_ONE) teamOnePlayers else teamTwoPlayers
+}
+
+/**
+ * Return this setup state with one team's player records replaced.
+ *
+ * @param teamId The team whose players should be replaced.
+ * @param players The new player records for that team.
+ */
+internal fun GameSetupState.withPlayersFor(teamId: TeamId, players: List<PlayerRecord>): GameSetupState {
+    return if (teamId == TeamId.TEAM_ONE) copy(teamOnePlayers = players) else copy(teamTwoPlayers = players)
 }
 
 /// Return the default user-facing text for a field end.

@@ -283,10 +283,12 @@ class TestGameCards : GameDomainTestFixtures() {
         // Prior cards from this tournament surface the tournament suspension thresholds.
         state = createLiveGameState(
             standardGameSetup(startTime = LocalTime.of(11, 0)).copy(
-                priorCards = listOf(
-                    PlayerCardRecord(ANIMAL, "44", priorYellows = 2, priorReds = 0),
-                    PlayerCardRecord(VC, "45", priorYellows = 2, priorReds = 0),
-                    PlayerCardRecord(VC, "44", priorYellows = 2, priorReds = 0),
+                teamOnePlayers = listOf(
+                    priorPlayerRecord("45", priorYellows = 2),
+                    priorPlayerRecord("44", priorYellows = 2),
+                ),
+                teamTwoPlayers = listOf(
+                    priorPlayerRecord("44", priorYellows = 2),
                 ),
             )
         )
@@ -300,7 +302,7 @@ class TestGameCards : GameDomainTestFixtures() {
 
         state = createLiveGameState(
             standardGameSetup(startTime = LocalTime.of(11, 0)).copy(
-                priorCards = listOf(PlayerCardRecord(ANIMAL, "31", priorYellows = 0, priorReds = 1)),
+                teamTwoPlayers = listOf(priorPlayerRecord("31", priorReds = 1)),
             )
         )
         cardResult = state.assessRedCard(ANIMAL, "31")
@@ -313,7 +315,7 @@ class TestGameCards : GameDomainTestFixtures() {
 
         state = createLiveGameState(
             standardGameSetup(startTime = LocalTime.of(11, 0)).copy(
-                priorCards = listOf(PlayerCardRecord(ANIMAL, "35", priorYellows = 0, priorReds = 1)),
+                teamTwoPlayers = listOf(priorPlayerRecord("35", priorReds = 1)),
             )
         ).copy(
             phase = GamePhase.HALFTIME,
@@ -329,7 +331,7 @@ class TestGameCards : GameDomainTestFixtures() {
 
         state = createLiveGameState(
             standardGameSetup(startTime = LocalTime.of(11, 0)).copy(
-                priorCards = listOf(PlayerCardRecord(ANIMAL, "36", priorYellows = 1, priorReds = 0)),
+                teamTwoPlayers = listOf(priorPlayerRecord("36", priorYellows = 1)),
             )
         )
         state = state.assessYellowCard(ANIMAL, "36").state.copy(

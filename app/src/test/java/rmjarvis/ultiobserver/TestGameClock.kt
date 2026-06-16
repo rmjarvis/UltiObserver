@@ -72,127 +72,119 @@ class TestGameClock : GameDomainTestFixtures() {
         assertThrows(IllegalArgumentException::class.java) {
             TeamLiveState("Custom", TeamColorChoice.CUSTOM)
         }
-        val priorCardRecord = PlayerCardRecord(
-            team = VC,
+        val priorCardRecord = PlayerRecord(
             jerseyNumber = "8",
             priorYellows = 1,
             priorReds = 0,
         )
-        assertEquals(VC, priorCardRecord.team)
         assertEquals("8", priorCardRecord.jerseyNumber)
         assertEquals("", priorCardRecord.playerName)
         assertEquals(1, priorCardRecord.priorYellows)
         assertEquals(0, priorCardRecord.priorReds)
-        assertEquals("#8", priorCardRecord.playerCardIdentity(compact = true))
-        assertEquals("#8", priorCardRecord.playerCardIdentity(compact = false))
+        assertEquals("#8", priorCardRecord.playerIdentity(compact = true))
+        assertEquals("#8", priorCardRecord.playerIdentity(compact = false))
         assertEquals("Y 1", priorCardRecord.playerCardDetail())
         assertEquals("1 yellow card", priorCardRecord.playerCardNoticeDetail())
         assertEquals("2 yellow cards", countedNounPhrase(2, "yellow card"))
-        val namedPriorCardRecord = PlayerCardRecord(
-            team = VC,
+        val namedPriorCardRecord = PlayerRecord(
             jerseyNumber = "12",
             priorYellows = 1,
             priorReds = 1,
             playerName = "Casey Handler",
         )
-        assertEquals("#12", namedPriorCardRecord.playerCardIdentity(compact = true))
-        assertEquals("#12 Casey Handler", namedPriorCardRecord.playerCardIdentity(compact = false))
+        assertEquals("#12", namedPriorCardRecord.playerIdentity(compact = true))
+        assertEquals("#12 Casey Handler", namedPriorCardRecord.playerIdentity(compact = false))
         assertEquals("Y 1  R 1", namedPriorCardRecord.playerCardDetail())
         assertEquals("1 yellow card and 1 red card", namedPriorCardRecord.playerCardNoticeDetail())
-        val numberlessPriorCardRecord = PlayerCardRecord(
-            team = VC,
+        val numberlessPriorCardRecord = PlayerRecord(
             jerseyNumber = "",
             priorYellows = 0,
             priorReds = 1,
             playerName = "No Number",
         )
-        assertEquals("No Number", numberlessPriorCardRecord.playerCardIdentity(compact = true))
-        assertEquals("No Number", numberlessPriorCardRecord.playerCardIdentity(compact = false))
+        assertEquals("No Number", numberlessPriorCardRecord.playerIdentity(compact = true))
+        assertEquals("No Number", numberlessPriorCardRecord.playerIdentity(compact = false))
         assertEquals("R 1", numberlessPriorCardRecord.playerCardDetail())
         assertEquals("1 red card", numberlessPriorCardRecord.playerCardNoticeDetail())
         assertThrows(IllegalArgumentException::class.java) {
-            PlayerCardRecord(VC, "", priorYellows = 1, priorReds = 0)
+            PlayerRecord("", priorYellows = 1, priorReds = 0)
         }
-        assertThrows(IllegalArgumentException::class.java) {
-            PlayerCardRecord(VC, "8", priorYellows = 0, priorReds = 0)
-        }
+        assertEquals("No prior cards", PlayerRecord("8", priorYellows = 0, priorReds = 0).playerCardDetail())
         val cardHolderEntryChecks = listOf(
-            PlayerCardRecord(VC, "7", priorYellows = 1, priorReds = 0, playerName = "Drew Handler"),
-            PlayerCardRecord(VC, "00", priorYellows = 0, priorReds = 1, playerName = "Zero Hero"),
-            PlayerCardRecord(TeamId.TEAM_TWO, "", priorYellows = 1, priorReds = 0, playerName = "Name Only"),
+            PlayerRecord("7", priorYellows = 1, priorReds = 0, playerName = "Drew Handler"),
+            PlayerRecord("00", priorYellows = 0, priorReds = 1, playerName = "Zero Hero"),
+            PlayerRecord("", priorYellows = 1, priorReds = 0, playerName = "Name Only"),
         )
         val exactDuplicate = cardHolderEntryChecks.cardHolderEntryCheck(
-            proposed = PlayerCardRecord(VC, "7", priorYellows = 2, priorReds = 0, playerName = "  drew   handler "),
+            proposed = PlayerRecord("7", priorYellows = 2, priorReds = 0, playerName = "  drew   handler "),
             editingIndex = null,
         )
         assertTrue(exactDuplicate is CardHolderEntryCheck.ExistingCardHolder)
         exactDuplicate as CardHolderEntryCheck.ExistingCardHolder
         assertEquals(0, exactDuplicate.existingIndex)
-        assertEquals(2, exactDuplicate.draftForEdit.priorYellows)
-        assertEquals(0, exactDuplicate.draftForEdit.priorReds)
-        assertEquals("Drew Handler", exactDuplicate.draftForEdit.playerName)
         val blankExistingName = listOf(
-            PlayerCardRecord(VC, "9", priorYellows = 1, priorReds = 0, playerName = ""),
+            PlayerRecord("9", priorYellows = 1, priorReds = 0, playerName = ""),
         ).cardHolderEntryCheck(
-            proposed = PlayerCardRecord(VC, "9", priorYellows = 1, priorReds = 1, playerName = "Sideline Caller"),
+            proposed = PlayerRecord("9", priorYellows = 1, priorReds = 1, playerName = "Sideline Caller"),
             editingIndex = null,
         )
         assertTrue(blankExistingName is CardHolderEntryCheck.ExistingCardHolder)
         blankExistingName as CardHolderEntryCheck.ExistingCardHolder
-        assertEquals("Sideline Caller", blankExistingName.draftForEdit.playerName)
-        assertEquals(1, blankExistingName.draftForEdit.priorReds)
+        assertEquals(0, blankExistingName.existingIndex)
         val sameNameNoNumber = cardHolderEntryChecks.cardHolderEntryCheck(
-            proposed = PlayerCardRecord(TeamId.TEAM_TWO, "", priorYellows = 2, priorReds = 0, playerName = "name   only"),
+            proposed = PlayerRecord("", priorYellows = 2, priorReds = 0, playerName = "name   only"),
             editingIndex = null,
         )
         assertTrue(sameNameNoNumber is CardHolderEntryCheck.ExistingCardHolder)
         sameNameNoNumber as CardHolderEntryCheck.ExistingCardHolder
         assertEquals(2, sameNameNoNumber.existingIndex)
         val blankExistingNumber = cardHolderEntryChecks.cardHolderEntryCheck(
-            proposed = PlayerCardRecord(TeamId.TEAM_TWO, "23", priorYellows = 0, priorReds = 1, playerName = "name   only"),
+            proposed = PlayerRecord("23", priorYellows = 0, priorReds = 1, playerName = "name   only"),
             editingIndex = null,
         )
-        assertTrue(blankExistingNumber is CardHolderEntryCheck.ExistingCardHolder)
-        blankExistingNumber as CardHolderEntryCheck.ExistingCardHolder
-        assertEquals("23", blankExistingNumber.draftForEdit.jerseyNumber)
-        assertEquals("Name Only", blankExistingNumber.draftForEdit.playerName)
-        assertEquals(1, blankExistingNumber.draftForEdit.priorReds)
-        val collapsedPriorCards = cardHolderEntryChecks.withSavedPriorCardRecord(
-            record = blankExistingNumber.draftForEdit,
+        assertTrue(blankExistingNumber is CardHolderEntryCheck.PossibleDifferentPlayer)
+        blankExistingNumber as CardHolderEntryCheck.PossibleDifferentPlayer
+        assertEquals(listOf(2), blankExistingNumber.existingIndices)
+        val editedPriorCards = cardHolderEntryChecks.withSavedPriorCardRecord(
+            record = PlayerRecord("23", priorYellows = 0, priorReds = 1, playerName = "Name Only"),
             editingIndex = 2,
-            duplicateIndex = 1,
         )
-        assertEquals(2, collapsedPriorCards.size)
-        assertEquals(PlayerCardRecord(TeamId.TEAM_TWO, "23", priorYellows = 0, priorReds = 1, playerName = "Name Only"), collapsedPriorCards[1])
-        assertThrows(IllegalArgumentException::class.java) {
-            cardHolderEntryChecks.withSavedPriorCardRecord(
-                record = PlayerCardRecord(VC, "44", priorYellows = 1, priorReds = 0),
-                editingIndex = null,
-                duplicateIndex = 0,
-            )
-        }
-        val sameNumberDifferentName = cardHolderEntryChecks.cardHolderEntryCheck(
-            proposed = PlayerCardRecord(VC, "7", priorYellows = 1, priorReds = 0, playerName = "James Cutter"),
+        assertEquals(3, editedPriorCards.size)
+        assertEquals(PlayerRecord("23", priorYellows = 0, priorReds = 1, playerName = "Name Only"), editedPriorCards[2])
+        val twoPartialMatches = listOf(
+            playerRecordWithCards("23", yellows = 1),
+            playerRecordWithCards("", yellows = 1, playerName = "Jarvis"),
+        ).cardHolderEntryCheck(
+            proposed = PlayerRecord("23", priorYellows = 1, priorReds = 0, playerName = "Jarvis"),
             editingIndex = null,
         )
-        assertTrue(sameNumberDifferentName is CardHolderEntryCheck.SameNumberDifferentName)
-        sameNumberDifferentName as CardHolderEntryCheck.SameNumberDifferentName
-        assertEquals(0, sameNumberDifferentName.existingIndex)
-        assertNull(
-            cardHolderEntryChecks.cardHolderEntryCheck(
-                proposed = PlayerCardRecord(VC, "0", priorYellows = 1, priorReds = 0, playerName = "Zero Hero"),
-                editingIndex = null,
-            )
+        assertTrue(twoPartialMatches is CardHolderEntryCheck.ExistingCardHolder)
+        twoPartialMatches as CardHolderEntryCheck.ExistingCardHolder
+        assertEquals(0, twoPartialMatches.existingIndex)
+        val sameNumberDifferentName = cardHolderEntryChecks.cardHolderEntryCheck(
+            proposed = PlayerRecord("7", priorYellows = 1, priorReds = 0, playerName = "James Cutter"),
+            editingIndex = null,
         )
-        assertNull(
-            cardHolderEntryChecks.cardHolderEntryCheck(
-                proposed = PlayerCardRecord(VC, "24", priorYellows = 1, priorReds = 0, playerName = "Drew Handler"),
-                editingIndex = null,
-            )
+        assertTrue(sameNumberDifferentName is CardHolderEntryCheck.PossibleDifferentPlayer)
+        sameNumberDifferentName as CardHolderEntryCheck.PossibleDifferentPlayer
+        assertEquals(listOf(0), sameNumberDifferentName.existingIndices)
+        val sameNameDifferentNumber = cardHolderEntryChecks.cardHolderEntryCheck(
+            proposed = PlayerRecord("0", priorYellows = 1, priorReds = 0, playerName = "Zero Hero"),
+            editingIndex = null,
         )
+        assertTrue(sameNameDifferentNumber is CardHolderEntryCheck.PossibleDifferentPlayer)
+        sameNameDifferentNumber as CardHolderEntryCheck.PossibleDifferentPlayer
+        assertEquals(listOf(1), sameNameDifferentNumber.existingIndices)
+        val sameNameDifferentNumberAgain = cardHolderEntryChecks.cardHolderEntryCheck(
+            proposed = PlayerRecord("24", priorYellows = 1, priorReds = 0, playerName = "Drew Handler"),
+            editingIndex = null,
+        )
+        assertTrue(sameNameDifferentNumberAgain is CardHolderEntryCheck.PossibleDifferentPlayer)
+        sameNameDifferentNumberAgain as CardHolderEntryCheck.PossibleDifferentPlayer
+        assertEquals(listOf(0), sameNameDifferentNumberAgain.existingIndices)
         assertNull(
             cardHolderEntryChecks.cardHolderEntryCheck(
-                proposed = PlayerCardRecord(VC, "7", priorYellows = 1, priorReds = 0, playerName = "Drew Handler"),
+                proposed = PlayerRecord("7", priorYellows = 1, priorReds = 0, playerName = "Drew Handler"),
                 editingIndex = 0,
             )
         )
