@@ -99,8 +99,8 @@ class TestGameUndo : GameDomainTestFixtures() {
             teamOneTechnicalFouls = 2,
             teamTwoBlues = 3,
             teamTwoTechnicalFouls = 4,
-            teamOnePlayerCards = listOf(InGamePlayerCardRecord("17", yellows = 1)),
-            teamTwoPlayerCards = listOf(InGamePlayerCardRecord("23", reds = 1)),
+            teamOnePlayers = listOf(playerRecordWithCards("17", yellows = 1)),
+            teamTwoPlayers = listOf(playerRecordWithCards("23", reds = 1)),
         )
         assertUndoRestores(beforeCardCorrection, state)
 

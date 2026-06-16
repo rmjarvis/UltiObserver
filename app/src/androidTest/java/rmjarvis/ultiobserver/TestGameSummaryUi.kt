@@ -108,9 +108,9 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
                         technicalFouls = 2,
                         blueCards = 1,
                     ),
-                    teamTwoPlayerCards = listOf(
-                        InGamePlayerCardRecord(jerseyNumber = "7", yellows = 2),
-                        InGamePlayerCardRecord(jerseyNumber = "12", reds = 1),
+                    teamTwoPlayers = listOf(
+                        playerRecordWithCards(jerseyNumber = "7", yellows = 2),
+                        playerRecordWithCards(jerseyNumber = "12", reds = 1),
                     ),
                 )
             )

@@ -47,11 +47,11 @@ class TestGameSummary : GameDomainTestFixtures() {
                 technicalFouls = 1,
             ),
             teamTwo = TeamLiveState("Animal", TeamColorChoice.RED),
-            teamTwoPlayerCards = listOf(InGamePlayerCardRecord(jerseyNumber = "99")),
-            teamOnePlayerCards = listOf(
-                InGamePlayerCardRecord(jerseyNumber = "7", yellows = 1),
-                InGamePlayerCardRecord(jerseyNumber = "12", yellows = 2),
-                InGamePlayerCardRecord(jerseyNumber = "18", reds = 1),
+            teamTwoPlayers = listOf(PlayerRecord(jerseyNumber = "99")),
+            teamOnePlayers = listOf(
+                playerRecordWithCards(jerseyNumber = "7", playerName = "Casey Handler", yellows = 1),
+                playerRecordWithCards(jerseyNumber = "12", yellows = 2),
+                playerRecordWithCards(jerseyNumber = "", playerName = "No Number", reds = 1),
             ),
         )
 
@@ -59,9 +59,9 @@ class TestGameSummary : GameDomainTestFixtures() {
             GameOverTeamSummaryText(
                 teamName = "Viscous Coupling",
                 issuedCardLines = listOf(
-                    "#7: Yellow card",
+                    "#7 Casey Handler: Yellow card",
                     "#12: Two yellow cards",
-                    "#18: Red card",
+                    "No Number: Red card",
                 ),
                 blueCardsLine = "Blue cards 2",
                 technicalFoulsLine = "Technical fouls 1",
@@ -96,9 +96,9 @@ class TestGameSummary : GameDomainTestFixtures() {
                 technicalFouls = 2,
                 blueCards = 1,
             ),
-            teamTwoPlayerCards = listOf(
-                InGamePlayerCardRecord(jerseyNumber = "7", yellows = 2),
-                InGamePlayerCardRecord(jerseyNumber = "12", reds = 1),
+            teamTwoPlayers = listOf(
+                playerRecordWithCards(jerseyNumber = "7", playerName = "Casey Handler", yellows = 2),
+                playerRecordWithCards(jerseyNumber = "", playerName = "No Number", reds = 1),
             ),
         )
 
@@ -108,7 +108,7 @@ class TestGameSummary : GameDomainTestFixtures() {
             Philly Open - May 19, 2026, 10:00 AM
             Animal 15, Viscous Coupling 12
             Misconduct:
-              Animal #7 (2Y), #12 (R) + 1 Blue, 2 Techs
+              Animal #7 Casey Handler (2Y), No Number (R) + 1 Blue, 2 Techs
             """.trimIndent(),
             state.gameSummaryShareText(),
         )
@@ -124,7 +124,7 @@ class TestGameSummary : GameDomainTestFixtures() {
             phase = GamePhase.GAME_OVER,
             teamOne = TeamLiveState("Viscous Coupling", TeamColorChoice.WHITE, score = 15),
             teamTwo = TeamLiveState("Animal", TeamColorChoice.RED, score = 12),
-            teamOnePlayerCards = listOf(InGamePlayerCardRecord(jerseyNumber = "99")),
+            teamOnePlayers = listOf(PlayerRecord(jerseyNumber = "99")),
         )
 
         assertEquals(
@@ -154,9 +154,9 @@ class TestGameSummary : GameDomainTestFixtures() {
                 technicalFouls = 1,
                 blueCards = 2,
             ),
-            teamOnePlayerCards = listOf(
-                InGamePlayerCardRecord(jerseyNumber = "6", yellows = 1),
-                InGamePlayerCardRecord(jerseyNumber = "9", yellows = 1, reds = 1),
+            teamOnePlayers = listOf(
+                playerRecordWithCards(jerseyNumber = "6", yellows = 1),
+                playerRecordWithCards(jerseyNumber = "9", yellows = 1, reds = 1),
             ),
         )
 

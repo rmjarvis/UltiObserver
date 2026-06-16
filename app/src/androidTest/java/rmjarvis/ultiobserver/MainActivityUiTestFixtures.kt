@@ -432,19 +432,19 @@ abstract class MainActivityUiTestFixtures {
      * This lets UI tests open card adjustment paths from a precise card history without recording every
      * prerequisite card through the UI.
      *
-     * @param teamOneCards The Team 1 player-card records to install.
-     * @param teamTwoCards The Team 2 player-card records to install.
+     * @param teamOneCards The Team 1 player records to install.
+     * @param teamTwoCards The Team 2 player records to install.
      */
     protected fun seedInGamePlayerCardsProgrammatically(
-        teamOneCards: List<InGamePlayerCardRecord> = emptyList(),
-        teamTwoCards: List<InGamePlayerCardRecord> = emptyList(),
+        teamOneCards: List<PlayerRecord> = emptyList(),
+        teamTwoCards: List<PlayerRecord> = emptyList(),
     ) {
         composeRule.activityRule.scenario.onActivity { activity ->
             val current = activity.appViewModel.liveState!!
             activity.appViewModel.updateLiveGame(
                 current.copy(
-                    teamOnePlayerCards = teamOneCards,
-                    teamTwoPlayerCards = teamTwoCards,
+                    teamOnePlayers = teamOneCards,
+                    teamTwoPlayers = teamTwoCards,
                 )
             )
         }

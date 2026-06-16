@@ -129,7 +129,7 @@ private fun GameState.misconductShareLine(teamId: TeamId): String? {
 }
 
 /// Return compact share text for one player's issued yellow/red cards.
-private fun InGamePlayerCardRecord.shareText(): String {
+private fun PlayerRecord.shareText(): String {
     val cardText = listOfNotNull(
         when (yellows) {
             1 -> "Y"
@@ -138,11 +138,11 @@ private fun InGamePlayerCardRecord.shareText(): String {
         },
         "R".takeIf { reds == 1 },
     ).joinToString("+")
-    return "${displayPlayerNumber(jerseyNumber)} ($cardText)"
+    return "${playerIdentity(compact = false)} ($cardText)"
 }
 
 /// Return game-over summary text for one player's issued cards.
-private fun InGamePlayerCardRecord.summaryIssuedCardText(): String {
+private fun PlayerRecord.summaryIssuedCardText(): String {
     val parts = buildList {
         when (yellows) {
             1 -> add("Yellow card")
@@ -152,5 +152,5 @@ private fun InGamePlayerCardRecord.summaryIssuedCardText(): String {
             1 -> add("Red card")
         }
     }
-    return "${displayPlayerNumber(jerseyNumber)}: ${parts.joinToString("; ")}"
+    return "${playerIdentity(compact = false)}: ${parts.joinToString("; ")}"
 }

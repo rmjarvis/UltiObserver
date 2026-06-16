@@ -15,6 +15,76 @@ import org.junit.Test
 
 /// Tests for player cards, team cards, technical fouls, and misconduct consequences in the game model.
 class TestGameCards : GameDomainTestFixtures() {
+    /// Test player-name and reason details for live yellow/red card records.
+    @Test
+    fun namedPlayerCardAssignments() {
+        val VC = TeamId.TEAM_ONE
+
+        var state = standardLiveGameState()
+        var cardResult = state.assessYellowCard(
+            team = VC,
+            jerseyNumber = "24",
+            now = 0L,
+            playerName = "Drew Handler",
+            reason = "Dangerous play",
+        )
+        state = cardResult.state
+        assertEquals("Yellow card on #24 Drew Handler.\nViscous Coupling has 1 blue card.", cardResult.message())
+        assertEquals(
+            PlayerRecord(
+                jerseyNumber = "24",
+                playerName = "Drew Handler",
+                cards = listOf(InGamePlayerCardEvent(CardType.YELLOW, reason = "Dangerous play")),
+            ),
+            state.playerCards(VC).single(),
+        )
+
+        cardResult = state.assessYellowCard(
+            team = VC,
+            jerseyNumber = "24",
+            now = 0L,
+            playerName = "  drew   handler  ",
+            reason = "Taunting",
+        )
+        state = cardResult.state
+        assertEquals("Second yellow on #24 Drew Handler.", cardResult.message()!!.lineSequence().first())
+        assertEquals(listOf("Dangerous play", "Taunting"), state.playerCards(VC).single().cards.map { it.reason })
+
+        val drewPlayer = state.playerCards(VC).single { it.playerName == "Drew Handler" }
+        assertEquals(listOf("Dangerous play", "Taunting"), drewPlayer.cards.map { it.reason })
+
+        cardResult = state.assessYellowCard(
+            team = VC,
+            jerseyNumber = "24",
+            now = 0L,
+            playerName = "Different Player",
+        )
+        state = cardResult.state
+        assertEquals(2, state.playerCards(VC).size)
+        assertEquals(
+            playerRecordWithCards(jerseyNumber = "24", yellows = 1, playerName = "Different Player"),
+            state.playerCards(VC).single { it.playerName == "Different Player" },
+        )
+
+        val priorNameOnlyState = createLiveGameState(
+            standardGameSetup(startTime = LocalTime.of(11, 0)).copy(
+                teamOnePlayers = listOf(priorPlayerRecord("", priorYellows = 2, playerName = "Name Only")),
+            )
+        )
+        cardResult = priorNameOnlyState.assessYellowCard(
+            team = VC,
+            jerseyNumber = "",
+            now = 0L,
+            playerName = " name   only ",
+        )
+        assertEquals(
+            "Yellow card on Name Only.\n" +
+                "Name Only is suspended for the rest of the tournament.\n" +
+                "Viscous Coupling has 1 blue card.",
+            cardResult.message(),
+        )
+    }
+
     /**
      * Test yellow, red, blue, and technical-foul handling from public card assessment APIs.
      * Emphasize team card points, per-player records, and misconduct-threshold messages.
@@ -35,7 +105,7 @@ class TestGameCards : GameDomainTestFixtures() {
             state: GameState,
             team: TeamId,
             jerseyNumber: String,
-        ): InGamePlayerCardRecord {
+        ): PlayerRecord {
             return state.playerCards(team).single { it.jerseyNumber == jerseyNumber }
         }
 
@@ -49,8 +119,9 @@ class TestGameCards : GameDomainTestFixtures() {
         assertEquals(1, state.teamYellowCards(VC))
         assertEquals(0, state.teamRedCards(VC))
         assertEquals(1, state.teamCardTotal(VC))
-        assertEquals(InGamePlayerCardRecord("17", yellows = 1), playerRecord(state, VC, "17"))
+        assertEquals(playerRecordWithCards("17", yellows = 1), playerRecord(state, VC, "17"))
         assertEquals("Undo Yellow on #17 of Viscous Coupling", state.undoEntry?.label)
+        assertEquals(EventLogType.YELLOW_CARD, state.eventLog.last().type)
 
         // A second yellow to the same player creates a game suspension, but adds only one more team card point.
         cardResult = state.assessYellowCard(VC, "17")
@@ -65,7 +136,7 @@ class TestGameCards : GameDomainTestFixtures() {
         assertEquals(2, state.teamYellowCards(VC))
         assertEquals(0, state.teamRedCards(VC))
         assertEquals(2, state.teamCardTotal(VC))
-        assertEquals(InGamePlayerCardRecord("17", yellows = 2), playerRecord(state, VC, "17"))
+        assertEquals(playerRecordWithCards("17", yellows = 2), playerRecord(state, VC, "17"))
         assertEquals("Undo Second yellow on #17 of Viscous Coupling", state.undoEntry?.label)
         assertEquals(EventLogType.YELLOW_CARD, state.eventLog.last().type)
         assertUndoRestores(cardResult.state.undoEntry!!.previous, state)
@@ -171,7 +242,7 @@ class TestGameCards : GameDomainTestFixtures() {
         assertEquals(0, state.teamYellowCards(ANIMAL))
         assertEquals(1, state.teamRedCards(ANIMAL))
         assertEquals(2, state.teamCardTotal(ANIMAL))
-        assertEquals(InGamePlayerCardRecord("23", reds = 1), playerRecord(state, ANIMAL, "23"))
+        assertEquals(playerRecordWithCards("23", reds = 1), playerRecord(state, ANIMAL, "23"))
         assertUndoRestores(cardResult.state.undoEntry!!.previous, state)
 
         // During a live point, a red that reaches the misconduct threshold needs an offense/defense choice.
@@ -227,7 +298,7 @@ class TestGameCards : GameDomainTestFixtures() {
         assertEquals(1, state.teamYellowCards(ANIMAL))
         assertEquals(1, state.teamRedCards(ANIMAL))
         assertEquals(3, state.teamCardTotal(ANIMAL))
-        assertEquals(InGamePlayerCardRecord("8", yellows = 1, reds = 1), playerRecord(state, ANIMAL, "8"))
+        assertEquals(playerRecordWithCards("8", yellows = 1, reds = 1), playerRecord(state, ANIMAL, "8"))
         assertEquals(
             "Red card on player 8.\n" +
                 "Player 8 is suspended for the rest of the tournament.\n" +
@@ -247,7 +318,7 @@ class TestGameCards : GameDomainTestFixtures() {
         assertEquals(2, state.teamYellowCards(ANIMAL))
         assertEquals(0, state.teamRedCards(ANIMAL))
         assertEquals(2, state.teamCardTotal(ANIMAL))
-        assertEquals(InGamePlayerCardRecord("8", yellows = 2), playerRecord(state, ANIMAL, "8"))
+        assertEquals(playerRecordWithCards("8", yellows = 2), playerRecord(state, ANIMAL, "8"))
         assertEquals(
             "Second yellow on player 8.\n" +
                 "Player 8 receives a game suspension.\n" +
@@ -263,7 +334,7 @@ class TestGameCards : GameDomainTestFixtures() {
         state = cardResult.state
         assertEquals(2, state.teamYellowCards(VC))
         assertEquals(0, state.teamRedCards(VC))
-        assertEquals(InGamePlayerCardRecord(UNKNOWN_PLAYER_NUMBER, yellows = 2), playerRecord(state, VC, UNKNOWN_PLAYER_NUMBER))
+        assertEquals(playerRecordWithCards(UNKNOWN_PLAYER_NUMBER, yellows = 2), playerRecord(state, VC, UNKNOWN_PLAYER_NUMBER))
         assertEquals(
             "Second yellow on player N/A.\n" +
                 "The player receives a game suspension.\n" +
@@ -385,7 +456,7 @@ class TestGameCards : GameDomainTestFixtures() {
             cardResult.message(),
         )
 
-        // Blue cards count as one team card point each and do not create per-player card records.
+        // Blue cards count as one team card point each and do not create player records.
         state = standardLiveGameState()
         val bluePreview = state.previewBlueCard(ANIMAL)
         assertEquals("This is Animal's first blue card.", bluePreview.event.formatMessage())
@@ -513,33 +584,39 @@ class TestGameCards : GameDomainTestFixtures() {
         )
 
         // Exercise the player-card assignment helpers used by the UI reconciliation prompts.
-        var cardAssignments = emptyList<InGamePlayerCardRecord>()
-        cardAssignments = addPlayerCardAssignment(cardAssignments, "17", CardType.YELLOW)
-        assertEquals(listOf(InGamePlayerCardRecord("17", yellows = 1)), cardAssignments)
-        cardAssignments = addPlayerCardAssignment(cardAssignments, "17", CardType.RED)
-        assertEquals(listOf(InGamePlayerCardRecord("17", yellows = 1, reds = 1)), cardAssignments)
-        cardAssignments = removePlayerCardAssignment(cardAssignments, "8", CardType.YELLOW)
-        assertEquals(listOf(InGamePlayerCardRecord("17", yellows = 1, reds = 1)), cardAssignments)
-        cardAssignments = removePlayerCardAssignment(cardAssignments, "17", CardType.YELLOW)
-        assertEquals(listOf(InGamePlayerCardRecord("17", reds = 1)), cardAssignments)
-        cardAssignments = addPlayerCardAssignment(cardAssignments, "17", CardType.YELLOW)
-        cardAssignments = removePlayerCardAssignment(cardAssignments, "17", CardType.RED)
-        assertEquals(listOf(InGamePlayerCardRecord("17", yellows = 1)), cardAssignments)
-        cardAssignments = addPlayerCardAssignment(cardAssignments, "17", CardType.RED)
-        cardAssignments = removePlayerCardAssignment(cardAssignments, "17", CardType.RED)
-        assertEquals(listOf(InGamePlayerCardRecord("17", yellows = 1)), cardAssignments)
+        var cardAssignments = emptyList<PlayerRecord>()
+        cardAssignments = addPlayerCardAssignment(cardAssignments, jerseyNumber = "17", cardType = CardType.YELLOW)
+        assertEquals(listOf(playerRecordWithCards("17", yellows = 1)), cardAssignments)
+        cardAssignments = addPlayerCardAssignment(cardAssignments, jerseyNumber = "17", cardType = CardType.RED)
+        assertEquals(listOf(playerRecordWithCards("17", yellows = 1, reds = 1)), cardAssignments)
+        cardAssignments = removePlayerCardAssignment(cardAssignments, jerseyNumber = "8", cardType = CardType.YELLOW)
+        assertEquals(listOf(playerRecordWithCards("17", yellows = 1, reds = 1)), cardAssignments)
+        cardAssignments = removePlayerCardAssignment(cardAssignments, jerseyNumber = "17", cardType = CardType.YELLOW)
+        assertEquals(listOf(playerRecordWithCards("17", reds = 1)), cardAssignments)
+        cardAssignments = addPlayerCardAssignment(cardAssignments, jerseyNumber = "17", cardType = CardType.YELLOW)
+        cardAssignments = removePlayerCardAssignment(cardAssignments, jerseyNumber = "17", cardType = CardType.RED)
+        assertEquals(listOf(playerRecordWithCards("17", yellows = 1)), cardAssignments)
+        cardAssignments = addPlayerCardAssignment(cardAssignments, jerseyNumber = "17", cardType = CardType.RED)
+        cardAssignments = removePlayerCardAssignment(cardAssignments, jerseyNumber = "17", cardType = CardType.RED)
+        assertEquals(listOf(playerRecordWithCards("17", yellows = 1)), cardAssignments)
         cardAssignments = listOf(
-            InGamePlayerCardRecord("17", yellows = 1),
-            InGamePlayerCardRecord("8", reds = 1),
+            playerRecordWithCards("17", yellows = 1),
+            playerRecordWithCards("8", reds = 1),
         )
-        cardAssignments = removePlayerCardAssignment(cardAssignments, "17", CardType.YELLOW)
-        assertEquals(listOf(InGamePlayerCardRecord("8", reds = 1)), cardAssignments)
-        cardAssignments = addPlayerCardAssignment(cardAssignments, "23", CardType.YELLOW)
-        cardAssignments = addPlayerCardAssignment(cardAssignments, "8", CardType.YELLOW)
+        cardAssignments = removePlayerCardAssignment(cardAssignments, jerseyNumber = "17", cardType = CardType.YELLOW)
+        assertEquals(listOf(playerRecordWithCards("8", reds = 1)), cardAssignments)
+        cardAssignments = addPlayerCardAssignment(cardAssignments, jerseyNumber = "23", cardType = CardType.YELLOW)
+        cardAssignments = addPlayerCardAssignment(cardAssignments, jerseyNumber = "8", cardType = CardType.YELLOW)
         assertEquals(
             listOf(
-                InGamePlayerCardRecord("8", yellows = 1, reds = 1),
-                InGamePlayerCardRecord("23", yellows = 1),
+                PlayerRecord(
+                    jerseyNumber = "8",
+                    cards = listOf(
+                        InGamePlayerCardEvent(CardType.RED),
+                        InGamePlayerCardEvent(CardType.YELLOW),
+                    ),
+                ),
+                playerRecordWithCards("23", yellows = 1),
             ),
             cardAssignments,
         )
@@ -547,43 +624,43 @@ class TestGameCards : GameDomainTestFixtures() {
         assertTrue(
             canAddPlayerCardAssignment(
                 emptyList(),
-                "99",
-                CardType.YELLOW,
+                jerseyNumber = "99",
+                cardType = CardType.YELLOW,
             ),
         )
         assertTrue(
             canAddPlayerCardAssignment(
-                listOf(InGamePlayerCardRecord("17", yellows = 1)),
-                "17",
-                CardType.YELLOW,
+                listOf(playerRecordWithCards("17", yellows = 1)),
+                jerseyNumber = "17",
+                cardType = CardType.YELLOW,
             ),
         )
         assertTrue(
             canAddPlayerCardAssignment(
-                listOf(InGamePlayerCardRecord("17", yellows = 1)),
-                "17",
-                CardType.RED,
+                listOf(playerRecordWithCards("17", yellows = 1)),
+                jerseyNumber = "17",
+                cardType = CardType.RED,
             ),
         )
         assertFalse(
             canAddPlayerCardAssignment(
-                listOf(InGamePlayerCardRecord("17", yellows = 2)),
-                "17",
-                CardType.RED,
+                listOf(playerRecordWithCards("17", yellows = 2)),
+                jerseyNumber = "17",
+                cardType = CardType.RED,
             ),
         )
         assertFalse(
             canAddPlayerCardAssignment(
-                listOf(InGamePlayerCardRecord("17", reds = 1)),
-                "17",
-                CardType.RED,
+                listOf(playerRecordWithCards("17", reds = 1)),
+                jerseyNumber = "17",
+                cardType = CardType.RED,
             ),
         )
 
         assertFalse(standardLiveGameState().playerHasYellowThisGame(VC, "99"))
         assertFalse(
             standardLiveGameState().copy(
-                teamOnePlayerCards = listOf(InGamePlayerCardRecord("99")),
+                teamOnePlayers = listOf(PlayerRecord("99")),
             ).playerHasYellowThisGame(
                 VC,
                 "99",
@@ -591,12 +668,12 @@ class TestGameCards : GameDomainTestFixtures() {
         )
 
         val adjustmentStepState = standardLiveGameState().copy(
-            teamOnePlayerCards = listOf(
-                InGamePlayerCardRecord("17", yellows = 1),
-                InGamePlayerCardRecord("23", reds = 1),
+            teamOnePlayers = listOf(
+                playerRecordWithCards("17", yellows = 1),
+                playerRecordWithCards("23", reds = 1),
             ),
-            teamTwoPlayerCards = listOf(
-                InGamePlayerCardRecord("8", yellows = 2),
+            teamTwoPlayers = listOf(
+                playerRecordWithCards("8", yellows = 2),
             ),
         )
         val adjustmentSteps = adjustmentStepState.buildPlayerCardAdjustmentSteps(
@@ -640,14 +717,14 @@ class TestGameCards : GameDomainTestFixtures() {
         assertFalse(adjustmentSteps.first() == adjustmentSteps.first().copy(mode = PlayerCardAdjustmentMode.REMOVE))
         assertFalse(adjustmentSteps.first().equals("not a card adjustment step"))
         val yellowRemovalCandidates = playerCardRemovalCandidates(
-            adjustmentStepState.teamTwoPlayerCards,
+            adjustmentStepState.teamTwoPlayers,
             CardType.YELLOW,
         )
         assertEquals(
             listOf(PlayerCardRemovalCandidate("8", cardCount = 2)),
             yellowRemovalCandidates,
         )
-        val (candidateJerseyNumber, candidateCardCount) = yellowRemovalCandidates.single()
+        val (candidateJerseyNumber, _, candidateCardCount) = yellowRemovalCandidates.single()
         assertEquals("8", candidateJerseyNumber)
         assertEquals(2, candidateCardCount)
         assertEquals("8", yellowRemovalCandidates.single().jerseyNumber)
@@ -670,44 +747,20 @@ class TestGameCards : GameDomainTestFixtures() {
         assertFalse(yellowRemovalCandidates.single().equals("not a removal candidate"))
         assertEquals(
             emptyList<PlayerCardRemovalCandidate>(),
-            playerCardRemovalCandidates(adjustmentStepState.teamTwoPlayerCards, CardType.RED),
+            playerCardRemovalCandidates(adjustmentStepState.teamTwoPlayers, CardType.RED),
         )
 
         // The UI reconciliation flow should prevent invalid records; if one reaches the model anyway, fail loudly.
         val invalidPlayerCardMessage =
-            "Player card records must be no cards, one yellow, second yellow, red, or one yellow plus red."
+            "Player records must be no cards, one yellow, second yellow, red, or one yellow plus red."
         val invalidAssignmentException = assertThrows(IllegalArgumentException::class.java) {
             addPlayerCardAssignment(
-                listOf(InGamePlayerCardRecord("17", reds = 1)),
-                "17",
-                CardType.RED,
+                listOf(playerRecordWithCards("17", reds = 1)),
+                jerseyNumber = "17",
+                cardType = CardType.RED,
             )
         }
         assertEquals(invalidPlayerCardMessage, invalidAssignmentException.message)
-
-        val negativeCardException = assertThrows(IllegalArgumentException::class.java) {
-            standardLiveGameState().adjustCardsAndTf(
-                teamOneBlues = 0,
-                teamOneTechnicalFouls = 0,
-                teamTwoBlues = 0,
-                teamTwoTechnicalFouls = 0,
-                teamOnePlayerCards = listOf(InGamePlayerCardRecord("17", yellows = -1)),
-                teamTwoPlayerCards = emptyList(),
-            )
-        }
-        assertEquals("Player card records cannot have negative card counts.", negativeCardException.message)
-
-        val negativeRedException = assertThrows(IllegalArgumentException::class.java) {
-            standardLiveGameState().adjustCardsAndTf(
-                teamOneBlues = 0,
-                teamOneTechnicalFouls = 0,
-                teamTwoBlues = 0,
-                teamTwoTechnicalFouls = 0,
-                teamOnePlayerCards = listOf(InGamePlayerCardRecord("17", reds = -1)),
-                teamTwoPlayerCards = emptyList(),
-            )
-        }
-        assertEquals("Player card records cannot have negative card counts.", negativeRedException.message)
 
         val tooManyYellowsException = assertThrows(IllegalArgumentException::class.java) {
             standardLiveGameState().adjustCardsAndTf(
@@ -715,8 +768,8 @@ class TestGameCards : GameDomainTestFixtures() {
                 teamOneTechnicalFouls = 0,
                 teamTwoBlues = 0,
                 teamTwoTechnicalFouls = 0,
-                teamOnePlayerCards = listOf(InGamePlayerCardRecord("17", yellows = 3)),
-                teamTwoPlayerCards = emptyList(),
+                teamOnePlayers = listOf(playerRecordWithCards("17", yellows = 3)),
+                teamTwoPlayers = emptyList(),
             )
         }
         assertEquals(invalidPlayerCardMessage, tooManyYellowsException.message)
@@ -727,8 +780,8 @@ class TestGameCards : GameDomainTestFixtures() {
                 teamOneTechnicalFouls = 0,
                 teamTwoBlues = 0,
                 teamTwoTechnicalFouls = 0,
-                teamOnePlayerCards = listOf(InGamePlayerCardRecord("17", reds = 2)),
-                teamTwoPlayerCards = emptyList(),
+                teamOnePlayers = listOf(playerRecordWithCards("17", reds = 2)),
+                teamTwoPlayers = emptyList(),
             )
         }
         assertEquals(invalidPlayerCardMessage, tooManyRedsException.message)
@@ -739,8 +792,8 @@ class TestGameCards : GameDomainTestFixtures() {
                 teamOneTechnicalFouls = 0,
                 teamTwoBlues = 0,
                 teamTwoTechnicalFouls = 0,
-                teamOnePlayerCards = listOf(InGamePlayerCardRecord("17", yellows = 2, reds = 1)),
-                teamTwoPlayerCards = emptyList(),
+                teamOnePlayers = listOf(playerRecordWithCards("17", yellows = 2, reds = 1)),
+                teamTwoPlayers = emptyList(),
             )
         }
         assertEquals(invalidPlayerCardMessage, secondYellowAndRedException.message)
@@ -751,22 +804,22 @@ class TestGameCards : GameDomainTestFixtures() {
                 teamOneTechnicalFouls = 0,
                 teamTwoBlues = 0,
                 teamTwoTechnicalFouls = 0,
-                teamOnePlayerCards = listOf(
-                    InGamePlayerCardRecord("17", yellows = 1),
-                    InGamePlayerCardRecord("17", reds = 1),
+                teamOnePlayers = listOf(
+                    playerRecordWithCards("17", yellows = 1),
+                    playerRecordWithCards("17", reds = 1),
                 ),
-                teamTwoPlayerCards = emptyList(),
+                teamTwoPlayers = emptyList(),
             )
         }
-        assertEquals("Player card records cannot contain duplicate player entries.", duplicateCardException.message)
+        assertEquals("Player records cannot contain duplicate player entries.", duplicateCardException.message)
 
         // Manual cards/techs correction clamps visible team counts and derives yellow/red totals from player records.
         val correctedTeamOnePlayerCards = listOf(
-            InGamePlayerCardRecord("17", yellows = 1),
-            InGamePlayerCardRecord(UNKNOWN_PLAYER_NUMBER, yellows = 1, reds = 1),
+            playerRecordWithCards("17", yellows = 1),
+            playerRecordWithCards(UNKNOWN_PLAYER_NUMBER, yellows = 1, reds = 1),
         )
         val correctedTeamTwoPlayerCards = listOf(
-            InGamePlayerCardRecord("23", reds = 1),
+            playerRecordWithCards("23", reds = 1),
         )
         val beforeCardsAdjustment = state
         state = state.adjustCardsAndTf(
@@ -774,8 +827,8 @@ class TestGameCards : GameDomainTestFixtures() {
             teamOneTechnicalFouls = 3,
             teamTwoBlues = 4,
             teamTwoTechnicalFouls = -3,
-            teamOnePlayerCards = correctedTeamOnePlayerCards,
-            teamTwoPlayerCards = correctedTeamTwoPlayerCards,
+            teamOnePlayers = correctedTeamOnePlayerCards,
+            teamTwoPlayers = correctedTeamTwoPlayerCards,
         )
         assertEquals(2, state.teamYellowCards(VC))
         assertEquals(0, state.teamOne.blueCards)

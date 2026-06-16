@@ -144,10 +144,6 @@ internal data class GameStatePatch(
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val teamTwoPlayers: ListPatch<PlayerRecord>? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
-    val teamOnePlayerCards: ListPatch<InGamePlayerCardRecord>? = null,
-    @EncodeDefault(EncodeDefault.Mode.NEVER)
-    val teamTwoPlayerCards: ListPatch<InGamePlayerCardRecord>? = null,
-    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val eventLog: ListPatch<EventLogEntry>? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val nearAttackingTeam: TeamId? = null,
@@ -216,8 +212,6 @@ internal data class GameStatePatch(
             teamTwo = teamTwo?.applyTo(later.teamTwo) ?: later.teamTwo,
             teamOnePlayers = teamOnePlayers?.applyTo(later.teamOnePlayers) ?: later.teamOnePlayers,
             teamTwoPlayers = teamTwoPlayers?.applyTo(later.teamTwoPlayers) ?: later.teamTwoPlayers,
-            teamOnePlayerCards = teamOnePlayerCards?.applyTo(later.teamOnePlayerCards) ?: later.teamOnePlayerCards,
-            teamTwoPlayerCards = teamTwoPlayerCards?.applyTo(later.teamTwoPlayerCards) ?: later.teamTwoPlayerCards,
             eventLog = eventLog?.applyTo(later.eventLog) ?: later.eventLog,
             nearAttackingTeam = nearAttackingTeam ?: later.nearAttackingTeam,
             pullingTeam = pullingTeam ?: later.pullingTeam,
@@ -268,15 +262,13 @@ internal data class GameStatePatch(
                 rules = previous.rules.takeIfChangedFrom(later.rules),
                 teamOne = TeamLiveStatePatch.fromLaterAndPrevious(later.teamOne, previous.teamOne),
                 teamTwo = TeamLiveStatePatch.fromLaterAndPrevious(later.teamTwo, previous.teamTwo),
-                teamOnePlayers = ListPatch.fromLaterAndPrevious(later.teamOnePlayers, previous.teamOnePlayers),
-                teamTwoPlayers = ListPatch.fromLaterAndPrevious(later.teamTwoPlayers, previous.teamTwoPlayers),
-                teamOnePlayerCards = ListPatch.fromLaterAndPrevious(
-                    later.teamOnePlayerCards,
-                    previous.teamOnePlayerCards,
+                teamOnePlayers = ListPatch.fromLaterAndPrevious(
+                    later.teamOnePlayers,
+                    previous.teamOnePlayers,
                 ),
-                teamTwoPlayerCards = ListPatch.fromLaterAndPrevious(
-                    later.teamTwoPlayerCards,
-                    previous.teamTwoPlayerCards,
+                teamTwoPlayers = ListPatch.fromLaterAndPrevious(
+                    later.teamTwoPlayers,
+                    previous.teamTwoPlayers,
                 ),
                 eventLog = ListPatch.fromLaterAndPrevious(later.eventLog, previous.eventLog),
                 nearAttackingTeam = previous.nearAttackingTeam.takeIfChangedFrom(later.nearAttackingTeam),

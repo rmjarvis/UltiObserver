@@ -297,10 +297,10 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         startLiveGameProgrammatically()
         seedInGamePlayerCardsProgrammatically(
             teamOneCards = listOf(
-                InGamePlayerCardRecord(UNKNOWN_PLAYER_NUMBER, yellows = 1),
-                InGamePlayerCardRecord("10", yellows = 1),
+                playerRecordWithCards(UNKNOWN_PLAYER_NUMBER, yellows = 1),
+                playerRecordWithCards("10", yellows = 1),
             ),
-            teamTwoCards = listOf(InGamePlayerCardRecord("6", yellows = 1, reds = 1)),
+            teamTwoCards = listOf(playerRecordWithCards("6", yellows = 1, reds = 1)),
         )
         composeRule.activityRule.scenario.onActivity { activity ->
             val current = activity.appViewModel.liveState!!

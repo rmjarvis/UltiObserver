@@ -107,6 +107,18 @@ class PlayerIdentity private constructor(
                 (proposedNumber.isEmpty() || existingNumber.isEmpty()))
     }
 
+    /**
+     * Return this identity with blank fields filled from another identity.
+     *
+     * @param fallback Identity that supplies a number or name when this identity is missing it.
+     */
+    internal fun withMissingFieldsFrom(fallback: PlayerIdentity): PlayerIdentity {
+        return PlayerIdentity(
+            jerseyNumber = jerseyNumber.ifBlank { fallback.jerseyNumber },
+            playerName = playerName.ifBlank { fallback.playerName },
+        )
+    }
+
     override fun equals(other: Any?): Boolean {
         return other is PlayerIdentity && key() == other.key()
     }
@@ -197,6 +209,36 @@ data class PlayerRecord(
             if (priorReds > 0) countedNounPhrase(priorReds, "red card") else null,
         ).joinToString(" and ")
         return priorDetail.ifBlank { "no prior cards" }
+    }
+
+    /// Return the number of in-game yellow cards recorded for this player.
+    internal val yellows: Int
+        get() = cardCount(CardType.YELLOW)
+
+    /// Return the number of in-game red cards recorded for this player.
+    internal val reds: Int
+        get() = cardCount(CardType.RED)
+
+    /// Return the total card points from prior and in-game cards.
+    internal val totalCardPoints: Int
+        get() = priorYellows + yellows + (2 * (priorReds + reds))
+
+    /**
+     * Count in-game cards of one type recorded for this player.
+     *
+     * @param cardType The card type to count.
+     */
+    internal fun cardCount(cardType: CardType): Int {
+        return cards.count { it.cardType == cardType }
+    }
+
+    /// Report whether this player's in-game card combination is legal.
+    internal fun hasLegalCounts(): Boolean {
+        return (yellows == 0 && reds == 0) ||
+            (yellows == 1 && reds == 0) ||
+            (yellows == 2 && reds == 0) ||
+            (yellows == 0 && reds == 1) ||
+            (yellows == 1 && reds == 1)
     }
 
     /// Return this player's number/name identity without card state.
@@ -300,49 +342,48 @@ data class InGamePlayerCardEvent(
 )
 
 /**
- * In-game yellow/red card record for one player.
+ * Same-number player identity conflict found while entering a live player card.
  *
- * @param jerseyNumber The player's jersey number, or `N/A` when unknown.
- * @param yellows The number of in-game yellows represented by this player's record.
- * @param reds The number of in-game reds represented by this player's record.
+ * @param existingJerseyNumber The stored jersey number for the known player.
+ * @param existingPlayerName The stored name for the known player.
+ * @param proposedJerseyNumber The entered jersey number for the new card.
+ * @param proposedPlayerName The entered name for the new card.
  */
-@Serializable
-data class InGamePlayerCardRecord(
-    val jerseyNumber: String,
-    val yellows: Int = 0,
-    val reds: Int = 0,
-) {
-    /// Report whether this per-player card combination is allowed by the app's card model.
-    fun hasLegalCounts(): Boolean {
-        return yellows <= 2 &&
-            reds <= 1 &&
-            (yellows < 2 || reds == 0)
-    }
-
-    /**
-     * Count this player's cards of the requested type.
-     *
-     * @param cardType The card type whose count should be returned.
-     */
-    fun cardCount(cardType: CardType): Int {
-        return when (cardType) {
-            CardType.YELLOW -> yellows
-            CardType.RED -> reds
-        }
-    }
-}
+data class SameNumberPlayerIdentityConflict(
+    val existingJerseyNumber: String,
+    val existingPlayerName: String,
+    val proposedJerseyNumber: String,
+    val proposedPlayerName: String,
+)
 
 /**
- * Format a player number for display in card and misconduct summaries.
+ * Return a same-number, different-name conflict for a live player-card entry.
  *
- * @param jerseyNumber The stored jersey number, or the unknown-player sentinel.
+ * @param team The team receiving the entered card.
+ * @param jerseyNumber The entered player number, or blank/`N/A` when unknown.
+ * @param playerName The entered player name, or blank when unknown.
  */
-internal fun displayPlayerNumber(jerseyNumber: String): String {
-    return if (jerseyNumber == UNKNOWN_PLAYER_NUMBER) {
-        "N/A"
-    } else {
-        "#$jerseyNumber"
+fun GameState.sameNumberPlayerIdentityConflict(
+    team: TeamId,
+    jerseyNumber: String,
+    playerName: String,
+): SameNumberPlayerIdentityConflict? {
+    val proposedIdentity = PlayerIdentity(jerseyNumber, playerName)
+    val proposedName = proposedIdentity.normalizedPlayerName()
+    if (proposedIdentity.jerseyNumber == UNKNOWN_PLAYER_NUMBER || proposedName.isEmpty()) {
+        return null
     }
+    val existingPlayer = playerCards(team).firstOrNull { player ->
+        val existingKey = player.identity().key()
+        existingKey.first == proposedIdentity.jerseyNumber &&
+            existingKey.second.let { it.isNotEmpty() && it != proposedName }
+    } ?: return null
+    return SameNumberPlayerIdentityConflict(
+        existingJerseyNumber = existingPlayer.jerseyNumber,
+        existingPlayerName = existingPlayer.playerName,
+        proposedJerseyNumber = proposedIdentity.jerseyNumber,
+        proposedPlayerName = proposedIdentity.playerName,
+    )
 }
 
 /**
@@ -391,20 +432,20 @@ enum class PlayerCardEventType {
  * @param teamOneTechnicalFouls The corrected technical-foul count for team one.
  * @param teamTwoBlues The corrected blue-card count for team two.
  * @param teamTwoTechnicalFouls The corrected technical-foul count for team two.
- * @param teamOnePlayerCards The reconciled per-player yellow/red records for team one.
- * @param teamTwoPlayerCards The reconciled per-player yellow/red records for team two.
+ * @param teamOnePlayers The reconciled per-player yellow/red records for team one.
+ * @param teamTwoPlayers The reconciled per-player yellow/red records for team two.
  */
 fun GameState.adjustCardsAndTf(
     teamOneBlues: Int,
     teamOneTechnicalFouls: Int,
     teamTwoBlues: Int,
     teamTwoTechnicalFouls: Int,
-    teamOnePlayerCards: List<InGamePlayerCardRecord>,
-    teamTwoPlayerCards: List<InGamePlayerCardRecord>,
+    teamOnePlayers: List<PlayerRecord>,
+    teamTwoPlayers: List<PlayerRecord>,
     now: Long,
 ): GameState {
-    requirePlayerCardRecordsValid(teamOnePlayerCards)
-    requirePlayerCardRecordsValid(teamTwoPlayerCards)
+    requirePlayerRecordsValid(teamOnePlayers)
+    requirePlayerRecordsValid(teamTwoPlayers)
     val adjustedTeamOneBlues = teamOneBlues.coerceAtLeast(0)
     val adjustedTeamOneTechnicalFouls = teamOneTechnicalFouls.coerceAtLeast(0)
     val adjustedTeamTwoBlues = teamTwoBlues.coerceAtLeast(0)
@@ -414,8 +455,8 @@ fun GameState.adjustCardsAndTf(
         teamOneTechnicalFouls = adjustedTeamOneTechnicalFouls,
         teamTwoBlues = adjustedTeamTwoBlues,
         teamTwoTechnicalFouls = adjustedTeamTwoTechnicalFouls,
-        teamOnePlayerCards = teamOnePlayerCards,
-        teamTwoPlayerCards = teamTwoPlayerCards,
+        teamOnePlayers = teamOnePlayers,
+        teamTwoPlayers = teamTwoPlayers,
         now = now,
     )
 
@@ -428,8 +469,8 @@ fun GameState.adjustCardsAndTf(
             blueCards = adjustedTeamTwoBlues,
             technicalFouls = adjustedTeamTwoTechnicalFouls,
         ),
-        teamOnePlayerCards = teamOnePlayerCards,
-        teamTwoPlayerCards = teamTwoPlayerCards,
+        teamOnePlayers = teamOnePlayers,
+        teamTwoPlayers = teamTwoPlayers,
         lastEvent = "Cards and technical fouls adjusted.",
     ).withEventLogEntries(entries).withUndo(this, "Undo Cards / techs adjustment")
 }
@@ -441,8 +482,8 @@ fun GameState.adjustCardsAndTf(
  * @param teamOneTechnicalFouls The corrected technical-foul count for team one.
  * @param teamTwoBlues The corrected blue-card count for team two.
  * @param teamTwoTechnicalFouls The corrected technical-foul count for team two.
- * @param teamOnePlayerCards The corrected player-card records for team one.
- * @param teamTwoPlayerCards The corrected player-card records for team two.
+ * @param teamOnePlayers The corrected player records for team one.
+ * @param teamTwoPlayers The corrected player records for team two.
  * @param now The correction timestamp.
  */
 private fun GameState.buildCardAndTfAdjustmentEntries(
@@ -450,17 +491,17 @@ private fun GameState.buildCardAndTfAdjustmentEntries(
     teamOneTechnicalFouls: Int,
     teamTwoBlues: Int,
     teamTwoTechnicalFouls: Int,
-    teamOnePlayerCards: List<InGamePlayerCardRecord>,
-    teamTwoPlayerCards: List<InGamePlayerCardRecord>,
+    teamOnePlayers: List<PlayerRecord>,
+    teamTwoPlayers: List<PlayerRecord>,
     now: Long,
 ): List<EventLogEntry> {
     return buildList {
         addCardCountDelta(now, TeamId.TEAM_ONE, EventLogType.BLUE_CARD, teamOneBlues - teamOne.blueCards)
         addTechnicalFoulDelta(now, TeamId.TEAM_ONE, teamOneTechnicalFouls - teamOne.technicalFouls)
-        addPlayerCardDeltas(now, TeamId.TEAM_ONE, this@buildCardAndTfAdjustmentEntries.teamOnePlayerCards, teamOnePlayerCards)
+        addPlayerCardDeltas(now, TeamId.TEAM_ONE, this@buildCardAndTfAdjustmentEntries.teamOnePlayers, teamOnePlayers)
         addCardCountDelta(now, TeamId.TEAM_TWO, EventLogType.BLUE_CARD, teamTwoBlues - teamTwo.blueCards)
         addTechnicalFoulDelta(now, TeamId.TEAM_TWO, teamTwoTechnicalFouls - teamTwo.technicalFouls)
-        addPlayerCardDeltas(now, TeamId.TEAM_TWO, this@buildCardAndTfAdjustmentEntries.teamTwoPlayerCards, teamTwoPlayerCards)
+        addPlayerCardDeltas(now, TeamId.TEAM_TWO, this@buildCardAndTfAdjustmentEntries.teamTwoPlayers, teamTwoPlayers)
     }
 }
 
@@ -475,26 +516,28 @@ private fun GameState.buildCardAndTfAdjustmentEntries(
 private fun MutableList<EventLogEntry>.addPlayerCardDeltas(
     now: Long,
     team: TeamId,
-    beforeRecords: List<InGamePlayerCardRecord>,
-    afterRecords: List<InGamePlayerCardRecord>,
+    beforeRecords: List<PlayerRecord>,
+    afterRecords: List<PlayerRecord>,
 ) {
-    val jerseyNumbers = (beforeRecords.map { it.jerseyNumber } + afterRecords.map { it.jerseyNumber }).distinct()
-    jerseyNumbers.forEach { jerseyNumber ->
-        val before = beforeRecords.firstOrNull { it.jerseyNumber == jerseyNumber } ?: InGamePlayerCardRecord(jerseyNumber)
-        val after = afterRecords.firstOrNull { it.jerseyNumber == jerseyNumber } ?: InGamePlayerCardRecord(jerseyNumber)
+    val identities = (beforeRecords + afterRecords).distinctBy { it.identity().key() }
+    identities.forEach { identity ->
+        val identityKey = identity.identity().key()
+        val before = beforeRecords.firstOrNull { it.identity().key() == identityKey }
+        val after = afterRecords.firstOrNull { it.identity().key() == identityKey }
+        val eventPlayer = (before ?: after ?: identity).identity()
         addCardCountDelta(
             now = now,
             team = team,
             type = EventLogType.YELLOW_CARD,
-            delta = after.yellows - before.yellows,
-            player = PlayerIdentity(jerseyNumber),
+            delta = (after?.yellows ?: 0) - (before?.yellows ?: 0),
+            player = eventPlayer,
         )
         addCardCountDelta(
             now = now,
             team = team,
             type = EventLogType.RED_CARD,
-            delta = after.reds - before.reds,
-            player = PlayerIdentity(jerseyNumber),
+            delta = (after?.reds ?: 0) - (before?.reds ?: 0),
+            player = eventPlayer,
         )
     }
 }
@@ -551,39 +594,41 @@ private fun MutableList<EventLogEntry>.addTechnicalFoulDelta(now: Long, team: Te
 }
 
 /**
- * Reject impossible per-player card records before they enter live state.
+ * Reject impossible player records before they enter live state.
  * This makes failures obvious if a caller bypasses the normal player-card adjustment flow.
  *
- * @param records The player-card records to validate.
+ * @param records The player records to validate.
  */
-private fun requirePlayerCardRecordsValid(records: List<InGamePlayerCardRecord>) {
+private fun requirePlayerRecordsValid(records: List<PlayerRecord>) {
     require(records.all { it.yellows >= 0 && it.reds >= 0 }) {
-        "Player card records cannot have negative card counts."
+        "Player records cannot have negative card counts."
     }
     require(records.all { it.hasLegalCounts() }) {
-        "Player card records must be no cards, one yellow, second yellow, red, or one yellow plus red."
+        "Player records must be no cards, one yellow, second yellow, red, or one yellow plus red."
     }
-    require(records.distinctBy { it.jerseyNumber }.size == records.size) {
-        "Player card records cannot contain duplicate player entries."
+    require(records.distinctBy { it.identity().key() }.size == records.size) {
+        "Player records cannot contain duplicate player entries."
     }
 }
 /**
  * Report whether adding a card to one player would keep the player's card combination legal.
  *
- * @param records The current player-card records for that team.
+ * @param records The current player records for that team.
  * @param jerseyNumber The player receiving the possible card, or `N/A` for an unknown player.
  * @param cardType The type of card being considered.
  */
 fun canAddPlayerCardAssignment(
-    records: List<InGamePlayerCardRecord>,
+    records: List<PlayerRecord>,
     jerseyNumber: String,
+    playerName: String = "",
     cardType: CardType,
 ): Boolean {
-    val existingRecord = records.firstOrNull { it.jerseyNumber == jerseyNumber }
-        ?: InGamePlayerCardRecord(jerseyNumber = jerseyNumber)
+    val identity = PlayerIdentity(jerseyNumber, playerName)
+    val existingRecord = records.firstOrNull { it.identity().matches(identity) }
+        ?: PlayerRecord(jerseyNumber = identity.jerseyNumber, playerName = identity.playerName)
     val updatedRecord = when (cardType) {
-        CardType.YELLOW -> existingRecord.copy(yellows = existingRecord.yellows + 1)
-        CardType.RED -> existingRecord.copy(reds = existingRecord.reds + 1)
+        CardType.YELLOW -> existingRecord.withAddedCard(CardType.YELLOW)
+        CardType.RED -> existingRecord.withAddedCard(CardType.RED)
     }
     return updatedRecord.hasLegalCounts()
 }
@@ -610,7 +655,7 @@ fun GameState.buildPlayerCardAdjustmentSteps(
         /**
          * Add reconciliation steps for one team's desired card count.
          *
-         * @param team The team whose player-card records need adjustment.
+         * @param team The team whose player records need adjustment.
          * @param cardType The card type being reconciled.
          * @param desiredCount The count requested by the correction UI.
          * @param currentCount The count currently represented in model state.
@@ -633,17 +678,17 @@ fun GameState.buildPlayerCardAdjustmentSteps(
 /**
  * List players who currently have a card of the requested type available to remove.
  *
- * @param records The current player-card records for one team.
+ * @param records The current player records for one team.
  * @param cardType The card type the correction flow wants to remove.
  */
 fun playerCardRemovalCandidates(
-    records: List<InGamePlayerCardRecord>,
+    records: List<PlayerRecord>,
     cardType: CardType,
 ): List<PlayerCardRemovalCandidate> {
     return records.mapNotNull { record ->
         val count = record.cardCount(cardType)
         if (count > 0) {
-            PlayerCardRemovalCandidate(record.jerseyNumber, count)
+            PlayerCardRemovalCandidate(record.jerseyNumber, record.playerName, count)
         } else {
             null
         }
@@ -652,35 +697,36 @@ fun playerCardRemovalCandidates(
 /**
  * Add a yellow or red card assignment to a specific player record.
  *
- * @param records The current player-card records for one team.
+ * @param records The current player records for one team.
  * @param jerseyNumber The player receiving the card, or `N/A` for an unknown player.
  * @param cardType The card type to add.
  */
 fun addPlayerCardAssignment(
-    records: List<InGamePlayerCardRecord>,
+    records: List<PlayerRecord>,
     jerseyNumber: String,
     cardType: CardType,
-): List<InGamePlayerCardRecord> {
-    return updatePlayerCardRecord(records, jerseyNumber) { record ->
-        when (cardType) {
-            CardType.YELLOW -> record.copy(yellows = record.yellows + 1)
-            CardType.RED -> record.copy(reds = record.reds + 1)
-        }
+    playerName: String = "",
+    reason: String = "",
+): List<PlayerRecord> {
+    return updatePlayerCardRecord(records, jerseyNumber, playerName) { record ->
+        record.withAddedCard(cardType, reason)
     }
 }
 /**
  * Remove one yellow or red card assignment from a specific player record.
  *
- * @param records The current player-card records for one team.
+ * @param records The current player records for one team.
  * @param jerseyNumber The player whose card should be removed.
  * @param cardType The card type to remove.
  */
 fun removePlayerCardAssignment(
-    records: List<InGamePlayerCardRecord>,
+    records: List<PlayerRecord>,
     jerseyNumber: String,
     cardType: CardType,
-): List<InGamePlayerCardRecord> {
-    val existingIndex = records.indexOfFirst { it.jerseyNumber == jerseyNumber }
+    playerName: String = "",
+): List<PlayerRecord> {
+    val identity = PlayerIdentity(jerseyNumber, playerName)
+    val existingIndex = records.indexOfFirst { it.identity().matches(identity) }
     if (existingIndex < 0) {
         return records
     }
@@ -688,14 +734,39 @@ fun removePlayerCardAssignment(
         if (index != existingIndex) {
             record
         } else {
-            val updated = when (cardType) {
-                CardType.YELLOW -> record.copy(yellows = max(0, record.yellows - 1))
-                CardType.RED -> record.copy(reds = max(0, record.reds - 1))
-            }
+            val updated = record.withRemovedCard(cardType)
             if (updated.yellows == 0 && updated.reds == 0) null else updated
         }
     }
 }
+
+/**
+ * Return this record with one card event appended.
+ *
+ * @param cardType The card type assessed.
+ * @param reason Optional reason recorded for the card.
+ */
+private fun PlayerRecord.withAddedCard(
+    cardType: CardType,
+    reason: String = "",
+): PlayerRecord {
+    return copy(cards = cards + InGamePlayerCardEvent(cardType = cardType, reason = reason.trim()))
+}
+
+/**
+ * Return this record with one matching card event removed.
+ *
+ * @param cardType The card type to remove.
+ */
+private fun PlayerRecord.withRemovedCard(cardType: CardType): PlayerRecord {
+    val removalIndex = cards.indexOfLast { it.cardType == cardType }
+    return if (removalIndex < 0) {
+        this
+    } else {
+        copy(cards = cards.filterIndexed { index, _ -> index != removalIndex })
+    }
+}
+
 /**
  * Record a blue card and determine whether it triggers misconduct handling.
  *
@@ -845,12 +916,19 @@ private fun GameState.technicalFoulsFor(team: TeamId): Int {
  * @param team The team receiving the yellow-card action.
  * @param jerseyNumber The player receiving the card, or `N/A` when the player is unknown.
  */
-fun GameState.assessYellowCard(team: TeamId, jerseyNumber: String, now: Long): CardAssessmentResult {
-    val currentRecord = this.playerCardFor(team, jerseyNumber)
+fun GameState.assessYellowCard(
+    team: TeamId,
+    jerseyNumber: String,
+    now: Long,
+    playerName: String = "",
+    reason: String = "",
+): CardAssessmentResult {
+    val identity = playerIdentityForAssessment(team, jerseyNumber, playerName)
+    val currentRecord = this.playerCardFor(team, identity.jerseyNumber, identity.playerName)
     return if (currentRecord?.yellows ?: 0 >= 1) {
-        this.assessSecondYellowCard(team, jerseyNumber, now)
+        this.assessSecondYellowCard(team, identity.jerseyNumber, now, identity.playerName, reason)
     } else {
-        this.assessFirstYellowCard(team, jerseyNumber, now)
+        this.assessFirstYellowCard(team, identity.jerseyNumber, now, identity.playerName, reason)
     }
 }
 /**
@@ -859,16 +937,23 @@ fun GameState.assessYellowCard(team: TeamId, jerseyNumber: String, now: Long): C
  * @param team The team receiving the yellow card.
  * @param jerseyNumber The player receiving the card, or `N/A` when the player is unknown.
  */
-fun GameState.assessFirstYellowCard(team: TeamId, jerseyNumber: String, now: Long): CardAssessmentResult {
-    var updatedState = this.addInGameYellowCard(team, jerseyNumber)
+fun GameState.assessFirstYellowCard(
+    team: TeamId,
+    jerseyNumber: String,
+    now: Long,
+    playerName: String = "",
+    reason: String = "",
+): CardAssessmentResult {
+    val identity = playerIdentityForAssessment(team, jerseyNumber, playerName)
+    var updatedState = this.addInGameYellowCard(team, identity.jerseyNumber, identity.playerName, reason)
         .withEventLogEntry(
             EventLogEntry(
                 timestampEpoch = now,
                 type = EventLogType.YELLOW_CARD,
                 team = team,
-                player = PlayerIdentity(jerseyNumber),
+                player = identity,
             )
-        ).withUndo(this, playerCardUndoLabel("Yellow", team, jerseyNumber))
+        ).withUndo(this, playerCardUndoLabel("Yellow", team, identity.jerseyNumber, identity.playerName))
     val cardTotal = updatedState.teamCardTotal(team)
     updatedState = updatedState.withSkippedPullForMisconductThreshold(cardTotal)
     return CardAssessmentResult(
@@ -878,7 +963,8 @@ fun GameState.assessFirstYellowCard(team: TeamId, jerseyNumber: String, now: Lon
             team = team,
             teamCardTotal = cardTotal,
             playerCardType = PlayerCardEventType.YELLOW,
-            playerCardJerseyNumber = jerseyNumber,
+            playerCardJerseyNumber = identity.jerseyNumber,
+            playerCardName = updatedState.playerCardFor(team, identity.jerseyNumber, identity.playerName)?.playerName,
         ),
     )
 }
@@ -892,16 +978,19 @@ fun GameState.assessRedCard(
     team: TeamId,
     jerseyNumber: String,
     now: Long,
+    playerName: String = "",
+    reason: String = "",
 ): CardAssessmentResult {
-    var updatedState = this.addInGameRedCard(team, jerseyNumber)
+    val identity = playerIdentityForAssessment(team, jerseyNumber, playerName)
+    var updatedState = this.addInGameRedCard(team, identity.jerseyNumber, identity.playerName, reason)
         .withEventLogEntry(
             EventLogEntry(
                 timestampEpoch = now,
                 type = EventLogType.RED_CARD,
                 team = team,
-                player = PlayerIdentity(jerseyNumber),
+                player = identity,
             )
-        ).withUndo(this, playerCardUndoLabel("Red", team, jerseyNumber))
+        ).withUndo(this, playerCardUndoLabel("Red", team, identity.jerseyNumber, identity.playerName))
     val cardTotal = updatedState.teamCardTotal(team)
     updatedState = updatedState.withSkippedPullForMisconductThreshold(cardTotal)
     return CardAssessmentResult(
@@ -911,7 +1000,8 @@ fun GameState.assessRedCard(
             team = team,
             teamCardTotal = cardTotal,
             playerCardType = PlayerCardEventType.RED,
-            playerCardJerseyNumber = jerseyNumber,
+            playerCardJerseyNumber = identity.jerseyNumber,
+            playerCardName = updatedState.playerCardFor(team, identity.jerseyNumber, identity.playerName)?.playerName,
         ),
     )
 }
@@ -922,16 +1012,23 @@ fun GameState.assessRedCard(
  * @param team The team receiving the second yellow.
  * @param jerseyNumber The player receiving the second yellow, or `N/A` when the player is unknown.
  */
-fun GameState.assessSecondYellowCard(team: TeamId, jerseyNumber: String, now: Long): CardAssessmentResult {
-    var updatedState = this.addInGameSecondYellow(team, jerseyNumber)
+fun GameState.assessSecondYellowCard(
+    team: TeamId,
+    jerseyNumber: String,
+    now: Long,
+    playerName: String = "",
+    reason: String = "",
+): CardAssessmentResult {
+    val identity = playerIdentityForAssessment(team, jerseyNumber, playerName)
+    var updatedState = this.addInGameSecondYellow(team, identity.jerseyNumber, identity.playerName, reason)
         .withEventLogEntry(
             EventLogEntry(
                 timestampEpoch = now,
                 type = EventLogType.YELLOW_CARD,
                 team = team,
-                player = PlayerIdentity(jerseyNumber),
+                player = identity,
             )
-        ).withUndo(this, playerCardUndoLabel("Second yellow", team, jerseyNumber))
+        ).withUndo(this, playerCardUndoLabel("Second yellow", team, identity.jerseyNumber, identity.playerName))
     val cardTotal = updatedState.teamCardTotal(team)
     updatedState = updatedState.withSkippedPullForMisconductThreshold(cardTotal)
     return CardAssessmentResult(
@@ -941,7 +1038,8 @@ fun GameState.assessSecondYellowCard(team: TeamId, jerseyNumber: String, now: Lo
             team = team,
             teamCardTotal = cardTotal,
             playerCardType = PlayerCardEventType.SECOND_YELLOW,
-            playerCardJerseyNumber = jerseyNumber,
+            playerCardJerseyNumber = identity.jerseyNumber,
+            playerCardName = updatedState.playerCardFor(team, identity.jerseyNumber, identity.playerName)?.playerName,
         ),
     )
 }
@@ -953,8 +1051,13 @@ fun GameState.assessSecondYellowCard(team: TeamId, jerseyNumber: String, now: Lo
  * @param team The team whose name should appear in the undo label.
  * @param jerseyNumber The player identifier to include in the undo label.
  */
-private fun GameState.playerCardUndoLabel(action: String, team: TeamId, jerseyNumber: String): String {
-    return "Undo $action on #$jerseyNumber of ${this.teamName(team)}"
+private fun GameState.playerCardUndoLabel(
+    action: String,
+    team: TeamId,
+    jerseyNumber: String,
+    playerName: String,
+): String {
+    return "Undo $action on ${PlayerIdentity(jerseyNumber, playerName).displayText(compact = true)} of ${this.teamName(team)}"
 }
 
 /**
@@ -991,7 +1094,7 @@ enum class PlayerCardAdjustmentMode {
 /**
  * Explicit player-card add/remove prompt needed to reconcile corrected totals.
  *
- * @param team The team whose player-card record is being adjusted.
+ * @param team The team whose player record is being adjusted.
  * @param cardType The card type being added or removed.
  * @param mode Whether this step adds or removes one card.
  */
@@ -1008,104 +1111,168 @@ data class PlayerCardAdjustmentStep(
  */
 data class PlayerCardRemovalCandidate(
     val jerseyNumber: String,
+    val playerName: String = "",
     val cardCount: Int,
 )
 /**
- * Add a first yellow card to a team's in-game player-card records.
+ * Add a first yellow card to a team's in-game player records.
  *
  * @param team The team receiving the yellow card.
  * @param jerseyNumber The player receiving the card, or `N/A` when the player is unknown.
  */
-private fun GameState.addInGameYellowCard(team: TeamId, jerseyNumber: String): GameState {
+private fun GameState.addInGameYellowCard(
+    team: TeamId,
+    jerseyNumber: String,
+    playerName: String,
+    reason: String,
+): GameState {
     return withPlayerCards(
         team = team,
         records = updatePlayerCardRecord(
             records = playerCardsFor(team),
             jerseyNumber = jerseyNumber,
+            playerName = playerName,
         ) { record ->
-            record.copy(yellows = record.yellows + 1)
+            record.withAddedCard(CardType.YELLOW, reason)
         },
-        lastEvent = "Yellow card for ${teamName(team)} #$jerseyNumber.",
+        lastEvent = "Yellow card for ${teamName(team)} ${PlayerIdentity(jerseyNumber, playerName).displayText(compact = true)}.",
     )
 }
 /**
- * Add a second yellow card to a team's in-game player-card records.
+ * Add a second yellow card to a team's in-game player records.
  *
  * @param team The team receiving the second yellow.
  * @param jerseyNumber The player receiving the card, or `N/A` when the player is unknown.
  */
-private fun GameState.addInGameSecondYellow(team: TeamId, jerseyNumber: String): GameState {
+private fun GameState.addInGameSecondYellow(
+    team: TeamId,
+    jerseyNumber: String,
+    playerName: String,
+    reason: String,
+): GameState {
     return withPlayerCards(
         team = team,
         records = updatePlayerCardRecord(
             records = playerCardsFor(team),
             jerseyNumber = jerseyNumber,
+            playerName = playerName,
         ) { record ->
-            record.copy(yellows = record.yellows + 1)
+            record.withAddedCard(CardType.YELLOW, reason)
         },
-        lastEvent = "Second yellow for ${teamName(team)} #$jerseyNumber.",
+        lastEvent = "Second yellow for ${teamName(team)} ${PlayerIdentity(jerseyNumber, playerName).displayText(compact = true)}.",
     )
 }
 /**
- * Add a red card to a team's in-game player-card records.
+ * Add a red card to a team's in-game player records.
  *
  * @param team The team receiving the red card.
  * @param jerseyNumber The player receiving the card, or `N/A` when the player is unknown.
  */
-private fun GameState.addInGameRedCard(team: TeamId, jerseyNumber: String): GameState {
+private fun GameState.addInGameRedCard(
+    team: TeamId,
+    jerseyNumber: String,
+    playerName: String,
+    reason: String,
+): GameState {
     return withPlayerCards(
         team = team,
         records = updatePlayerCardRecord(
             records = playerCardsFor(team),
             jerseyNumber = jerseyNumber,
+            playerName = playerName,
         ) { record ->
-            record.copy(reds = record.reds + 1)
+            record.withAddedCard(CardType.RED, reason)
         },
-        lastEvent = "Red card for ${teamName(team)} #$jerseyNumber.",
+        lastEvent = "Red card for ${teamName(team)} ${PlayerIdentity(jerseyNumber, playerName).displayText(compact = true)}.",
     )
 }
 /**
- * Update or create one player-card record and validate the resulting list.
+ * Update or create one player record and validate the resulting list.
  *
- * @param records The current player-card records for one team.
+ * @param records The current player records for one team.
  * @param jerseyNumber The player record to update or create.
  * @param transform The exact card-count change to apply to that player's record.
  */
 private fun updatePlayerCardRecord(
-    records: List<InGamePlayerCardRecord>,
+    records: List<PlayerRecord>,
     jerseyNumber: String,
-    transform: (InGamePlayerCardRecord) -> InGamePlayerCardRecord,
-): List<InGamePlayerCardRecord> {
-    val existingIndex = records.indexOfFirst { it.jerseyNumber == jerseyNumber }
+    playerName: String = "",
+    transform: (PlayerRecord) -> PlayerRecord,
+): List<PlayerRecord> {
+    val identity = PlayerIdentity(jerseyNumber, playerName)
+    val existingIndex = records.indexOfFirst { it.identity().matches(identity) }
     val updatedRecords = if (existingIndex >= 0) {
         records.mapIndexed { index, record ->
-            if (index == existingIndex) transform(record) else record
+            if (index == existingIndex) {
+                transform(record.withEnteredIdentity(identity.jerseyNumber, identity.playerName))
+            } else {
+                record
+            }
         }
     } else {
-        records + transform(InGamePlayerCardRecord(jerseyNumber = jerseyNumber))
+        records + transform(PlayerRecord(jerseyNumber = identity.jerseyNumber, playerName = identity.playerName))
     }
-    requirePlayerCardRecordsValid(updatedRecords)
+    requirePlayerRecordsValid(updatedRecords)
     return updatedRecords
 }
+
+/**
+ * Return the player identity to use when assessing a live player card.
+ *
+ * @param team The team receiving the card.
+ * @param jerseyNumber The entered player number, or blank/`N/A` when unknown.
+ * @param playerName The entered player name, or blank when unknown.
+ */
+private fun GameState.playerIdentityForAssessment(
+    team: TeamId,
+    jerseyNumber: String,
+    playerName: String,
+): PlayerIdentity {
+    val identity = PlayerIdentity(jerseyNumber, playerName)
+    // Prefer an existing player record when the entry matches a known player, but fill any
+    // blank number/name from the observer's newly entered details.
+    return playerCards(team)
+        .firstOrNull { record -> record.identity().matches(identity) }
+        ?.identity()
+        ?.withMissingFieldsFrom(identity)
+        ?: identity
+}
+
+/**
+ * Return this record with any newly entered identity fields filled in.
+ *
+ * @param jerseyNumber The newly entered jersey number.
+ * @param playerName The newly entered player name.
+ */
+private fun PlayerRecord.withEnteredIdentity(
+    jerseyNumber: String,
+    playerName: String,
+): PlayerRecord {
+    return copy(
+        jerseyNumber = if (this.jerseyNumber.isBlank() && jerseyNumber.isNotBlank()) jerseyNumber else this.jerseyNumber,
+        playerName = if (this.playerName.isBlank() && playerName.isNotBlank()) playerName else this.playerName,
+    )
+}
+
 /**
  * Report whether a player already has a yellow card in this game.
  *
- * @param team The team whose player-card records should be searched.
+ * @param team The team whose player records should be searched.
  * @param jerseyNumber The player to check, or `N/A` for an unknown-player record.
  */
-fun GameState.playerHasYellowThisGame(team: TeamId, jerseyNumber: String): Boolean {
-    return (this.playerCardFor(team, jerseyNumber)?.yellows ?: 0) > 0
+fun GameState.playerHasYellowThisGame(team: TeamId, jerseyNumber: String, playerName: String = ""): Boolean {
+    return (this.playerCardFor(team, jerseyNumber, playerName)?.yellows ?: 0) > 0
 }
 /**
- * Return the in-game player-card records for one team.
+ * Return the in-game player records for one team.
  *
- * @param team The team whose player-card records should be returned.
+ * @param team The team whose player records should be returned.
  */
-fun GameState.playerCards(team: TeamId): List<InGamePlayerCardRecord> {
+fun GameState.playerCards(team: TeamId): List<PlayerRecord> {
     return this.playerCardsFor(team)
 }
 /**
- * Count in-game yellow cards from one team's player-card records.
+ * Count in-game yellow cards from one team's player records.
  *
  * @param team The team whose yellow cards should be counted.
  */
@@ -1113,7 +1280,7 @@ fun GameState.teamYellowCards(team: TeamId): Int {
     return this.playerCardsFor(team).sumOf { it.yellows }
 }
 /**
- * Count in-game red cards from one team's player-card records.
+ * Count in-game red cards from one team's player records.
  *
  * @param team The team whose red cards should be counted.
  */
@@ -1136,32 +1303,32 @@ fun GameState.teamCardTotal(team: TeamId): Int {
     return yellowCards + currentTeam.blueCards + (2 * redCards)
 }
 /**
- * Return the stored player-card records for one team.
+ * Return the stored player records for one team.
  *
  * @param team The team whose player-card list should be selected.
  */
-private fun GameState.playerCardsFor(team: TeamId): List<InGamePlayerCardRecord> {
-    return if (team == TeamId.TEAM_ONE) teamOnePlayerCards else teamTwoPlayerCards
+private fun GameState.playerCardsFor(team: TeamId): List<PlayerRecord> {
+    return if (team == TeamId.TEAM_ONE) teamOnePlayers else teamTwoPlayers
 }
 /**
- * Replace one team's player-card records and stores the related event text.
+ * Replace one team's player records and stores the related event text.
  *
- * @param team The team whose player-card records should be replaced.
- * @param records The validated player-card records to store.
+ * @param team The team whose player records should be replaced.
+ * @param records The validated player records to store.
  * @param lastEvent The short event text for the live state.
  */
 private fun GameState.withPlayerCards(
     team: TeamId,
-    records: List<InGamePlayerCardRecord>,
+    records: List<PlayerRecord>,
     lastEvent: String,
 ): GameState {
     return when (team) {
         TeamId.TEAM_ONE -> copy(
-            teamOnePlayerCards = records,
+            teamOnePlayers = records,
             lastEvent = lastEvent,
         )
         TeamId.TEAM_TWO -> copy(
-            teamTwoPlayerCards = records,
+            teamTwoPlayers = records,
             lastEvent = lastEvent,
         )
     }
@@ -1169,11 +1336,16 @@ private fun GameState.withPlayerCards(
 /**
  * Find one player's in-game card record.
  *
- * @param team The team whose player-card records should be searched.
+ * @param team The team whose player records should be searched.
  * @param jerseyNumber The player identifier to find.
  */
-private fun GameState.playerCardFor(team: TeamId, jerseyNumber: String): InGamePlayerCardRecord? {
-    return playerCardsFor(team).firstOrNull { it.jerseyNumber == jerseyNumber }
+private fun GameState.playerCardFor(
+    team: TeamId,
+    jerseyNumber: String,
+    playerName: String = "",
+): PlayerRecord? {
+    val identity = PlayerIdentity(jerseyNumber, playerName)
+    return playerCardsFor(team).firstOrNull { it.identity().matches(identity) }
 }
 
 /// Format the popup title for a team-card event.
@@ -1202,7 +1374,7 @@ internal fun GameEvent.TeamCardsChanged.formatMessage(): String {
         "This is ${state.teamName(team)}'s ${teamCardTotal.ordinalWordText()} blue card."
     } else {
         val jerseyNumber = playerCardJerseyNumber as String
-        (playerCardEventLines(playerCardType, jerseyNumber) + totalMessage).joinToString("\n")
+        (playerCardEventLines(playerCardType, jerseyNumber, playerCardName.orEmpty()) + totalMessage).joinToString("\n")
     }
     return baseMessage.withMisconductCue(
         state = state,
@@ -1233,21 +1405,22 @@ private fun GameEvent.TeamCardsChanged.totalBlueCardMessage(): String {
 private fun GameEvent.TeamCardsChanged.playerCardEventLines(
     playerCardType: PlayerCardEventType,
     jerseyNumber: String,
+    playerName: String,
 ): List<String> {
     return buildList {
-        val hasTournamentSuspension = state.playerHasTournamentSuspension(team, jerseyNumber)
+        val hasTournamentSuspension = state.playerHasTournamentSuspension(team, jerseyNumber, playerName)
         when (playerCardType) {
-            PlayerCardEventType.YELLOW -> add("Yellow card on ${playerReference(jerseyNumber)}.")
+            PlayerCardEventType.YELLOW -> add("Yellow card on ${playerReference(jerseyNumber, playerName)}.")
             PlayerCardEventType.RED -> {
-                add("Red card on ${playerReference(jerseyNumber)}.")
+                add("Red card on ${playerReference(jerseyNumber, playerName)}.")
                 if (!hasTournamentSuspension) {
-                    add("${playerSentenceSubject(jerseyNumber)} receives a game suspension.")
+                    add("${playerSentenceSubject(jerseyNumber, playerName)} receives a game suspension.")
                 }
             }
             PlayerCardEventType.SECOND_YELLOW -> {
-                add("Second yellow on ${playerReference(jerseyNumber)}.")
+                add("Second yellow on ${playerReference(jerseyNumber, playerName)}.")
                 if (!hasTournamentSuspension) {
-                    add("${playerSentenceSubject(jerseyNumber)} receives a game suspension.")
+                    add("${playerSentenceSubject(jerseyNumber, playerName)} receives a game suspension.")
                 }
             }
         }
@@ -1255,10 +1428,10 @@ private fun GameEvent.TeamCardsChanged.playerCardEventLines(
             state.gameSuspensionStartedInSecondHalf() &&
             !hasTournamentSuspension
         ) {
-            add("${playerSentenceSubject(jerseyNumber)} must also sit out the first half of the next game, if there is one.")
+            add("${playerSentenceSubject(jerseyNumber, playerName)} must also sit out the first half of the next game, if there is one.")
         }
         if (hasTournamentSuspension) {
-            add("${playerSentenceSubject(jerseyNumber)} is suspended for the rest of the tournament.")
+            add("${playerSentenceSubject(jerseyNumber, playerName)} is suspended for the rest of the tournament.")
         }
     }
 }
@@ -1268,8 +1441,14 @@ private fun GameEvent.TeamCardsChanged.playerCardEventLines(
  *
  * @param jerseyNumber The player number, or the unknown-player sentinel.
  */
-private fun playerReference(jerseyNumber: String): String {
-    return if (jerseyNumber == UNKNOWN_PLAYER_NUMBER) "player N/A" else "player $jerseyNumber"
+private fun playerReference(jerseyNumber: String, playerName: String): String {
+    val name = playerName.trim()
+    return when {
+        (jerseyNumber.isBlank() || jerseyNumber == UNKNOWN_PLAYER_NUMBER) && name.isEmpty() -> "player N/A"
+        jerseyNumber.isBlank() || jerseyNumber == UNKNOWN_PLAYER_NUMBER -> name
+        name.isEmpty() -> "player $jerseyNumber"
+        else -> "#$jerseyNumber $name"
+    }
 }
 
 /**
@@ -1277,8 +1456,14 @@ private fun playerReference(jerseyNumber: String): String {
  *
  * @param jerseyNumber The player number, or the unknown-player sentinel.
  */
-private fun playerSentenceSubject(jerseyNumber: String): String {
-    return if (jerseyNumber == UNKNOWN_PLAYER_NUMBER) "The player" else "Player $jerseyNumber"
+private fun playerSentenceSubject(jerseyNumber: String, playerName: String): String {
+    val name = playerName.trim()
+    return when {
+        (jerseyNumber.isBlank() || jerseyNumber == UNKNOWN_PLAYER_NUMBER) && name.isEmpty() -> "The player"
+        jerseyNumber.isBlank() || jerseyNumber == UNKNOWN_PLAYER_NUMBER -> name
+        name.isEmpty() -> "Player $jerseyNumber"
+        else -> "#$jerseyNumber $name"
+    }
 }
 
 /// Report whether a game suspension started in the second half or later.
@@ -1292,24 +1477,14 @@ private fun GameState.gameSuspensionStartedInSecondHalf(): Boolean {
  * @param team The player's team.
  * @param jerseyNumber The player number, or the unknown-player sentinel.
  */
-private fun GameState.playerHasTournamentSuspension(team: TeamId, jerseyNumber: String): Boolean {
-    var priorYellows = 0
-    var priorReds = 0
-    priorCardsFor(team).forEach { record ->
-        if (record.jerseyNumber == jerseyNumber) {
-            priorYellows += record.priorYellows
-            priorReds += record.priorReds
-        }
-    }
-    val inGameRecord = playerCards(team).first { it.jerseyNumber == jerseyNumber }
-    val totalYellows = priorYellows + inGameRecord.yellows
-    val totalReds = priorReds + inGameRecord.reds
-    return totalYellows + 2 * totalReds >= 3
-}
-
-/// Return setup-entered prior-card records for one team.
-private fun GameState.priorCardsFor(team: TeamId): List<PlayerRecord> {
-    return if (team == TeamId.TEAM_ONE) teamOnePlayers else teamTwoPlayers
+private fun GameState.playerHasTournamentSuspension(
+    team: TeamId,
+    jerseyNumber: String,
+    playerName: String,
+): Boolean {
+    val identity = PlayerIdentity(jerseyNumber, playerName)
+    val player = playerCards(team).first { it.identity().matches(identity) }
+    return player.totalCardPoints >= 3
 }
 
 /// Format a technical-foul event message, including misconduct cue details when needed.

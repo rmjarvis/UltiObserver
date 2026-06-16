@@ -445,10 +445,8 @@ enum class CountdownKind {
  * @param pullPromptTarget Which field end or ends should receive pulling prompts.
  * @param openingPullingTeam The team that pulled to start the game.
  * @param openingPullingFromEnd The field end used by the opening pull.
- * @param teamOnePlayers Team 1 player records entered through setup.
- * @param teamTwoPlayers Team 2 player records entered through setup.
- * @param teamOnePlayerCards Team 1 in-game yellow/red cards.
- * @param teamTwoPlayerCards Team 2 in-game yellow/red cards.
+ * @param teamOnePlayers Team 1 known player records, including prior-card details and in-game cards.
+ * @param teamTwoPlayers Team 2 known player records, including prior-card details and in-game cards.
  * @param eventLog Persisted log of significant game events and manual corrections.
  * @param pendingCapOffer The cap currently being offered to the observer for yes/no application.
  */
@@ -472,8 +470,6 @@ data class GameState(
     val teamTwo: TeamLiveState,
     val teamOnePlayers: List<PlayerRecord> = emptyList(),
     val teamTwoPlayers: List<PlayerRecord> = emptyList(),
-    val teamOnePlayerCards: List<InGamePlayerCardRecord> = emptyList(),
-    val teamTwoPlayerCards: List<InGamePlayerCardRecord> = emptyList(),
     val eventLog: List<EventLogEntry> = emptyList(),
     val nearAttackingTeam: TeamId,
     val pullingTeam: TeamId,
@@ -718,8 +714,6 @@ fun applySetupToLiveGame(
         ),
         teamOnePlayers = setup.teamOnePlayers,
         teamTwoPlayers = setup.teamTwoPlayers,
-        teamOnePlayerCards = existing.teamOnePlayerCards,
-        teamTwoPlayerCards = existing.teamTwoPlayerCards,
         pullPromptTarget = setup.pullPromptTarget,
         openingPullingTeam = setup.pullingTeam,
         openingPullingFromEnd = setup.pullingFromEnd,

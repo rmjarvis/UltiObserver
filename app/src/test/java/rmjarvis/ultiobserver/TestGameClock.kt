@@ -189,8 +189,6 @@ class TestGameClock : GameDomainTestFixtures() {
         assertEquals("Yellow", CardType.YELLOW.label)
         assertEquals("Tick", TimingAlertSound.TICK.label)
         assertEquals("Sounds on", TimingAlertGlobalMode.SOUNDS_ON.label)
-        assertEquals("N/A", displayPlayerNumber(UNKNOWN_PLAYER_NUMBER))
-        assertEquals("#8", displayPlayerNumber("8"))
         val defaultSetupState = GameSetupState(
             startDate = LocalDate.of(2026, 1, 1),
             startTime = LocalTime.of(10, 0),

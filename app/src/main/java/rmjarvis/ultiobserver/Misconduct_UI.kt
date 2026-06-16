@@ -89,8 +89,8 @@ internal fun AdjustCardsDialog(
     var teamTwoB by remember { mutableStateOf(state.teamTwo.blueCards) }
     var teamTwoR by remember { mutableStateOf(state.teamRedCards(TeamId.TEAM_TWO)) }
     var teamTwoTf by remember { mutableStateOf(state.teamTwo.technicalFouls) }
-    var workingTeamOnePlayerCards by remember { mutableStateOf(state.teamOnePlayerCards) }
-    var workingTeamTwoPlayerCards by remember { mutableStateOf(state.teamTwoPlayerCards) }
+    var workingTeamOnePlayerCards by remember { mutableStateOf(state.teamOnePlayers) }
+    var workingTeamTwoPlayerCards by remember { mutableStateOf(state.teamTwoPlayers) }
     var pendingSteps by remember { mutableStateOf<List<PlayerCardAdjustmentStep>>(emptyList()) }
     var invalidCardAssignmentMessage by remember { mutableStateOf<String?>(null) }
 
@@ -101,8 +101,8 @@ internal fun AdjustCardsDialog(
                 teamOneTechnicalFouls = teamOneTf,
                 teamTwoBlues = teamTwoB,
                 teamTwoTechnicalFouls = teamTwoTf,
-                teamOnePlayerCards = workingTeamOnePlayerCards,
-                teamTwoPlayerCards = workingTeamTwoPlayerCards,
+                teamOnePlayers = workingTeamOnePlayerCards,
+                teamTwoPlayers = workingTeamTwoPlayerCards,
                 now = now,
             )
         )
@@ -118,14 +118,14 @@ internal fun AdjustCardsDialog(
         }
         if (
             step.mode == PlayerCardAdjustmentMode.ADD &&
-            !canAddPlayerCardAssignment(currentRecords, jerseyNumber, step.cardType)
+            !canAddPlayerCardAssignment(currentRecords, jerseyNumber = jerseyNumber, cardType = step.cardType)
         ) {
             invalidCardAssignmentMessage = "That player already has the maximum valid card combination."
             return
         }
         val updatedRecords = when (step.mode) {
-            PlayerCardAdjustmentMode.ADD -> addPlayerCardAssignment(currentRecords, jerseyNumber, step.cardType)
-            PlayerCardAdjustmentMode.REMOVE -> removePlayerCardAssignment(currentRecords, jerseyNumber, step.cardType)
+            PlayerCardAdjustmentMode.ADD -> addPlayerCardAssignment(currentRecords, jerseyNumber = jerseyNumber, cardType = step.cardType)
+            PlayerCardAdjustmentMode.REMOVE -> removePlayerCardAssignment(currentRecords, jerseyNumber = jerseyNumber, cardType = step.cardType)
         }
         if (step.team == TeamId.TEAM_ONE) {
             workingTeamOnePlayerCards = updatedRecords
@@ -167,8 +167,8 @@ internal fun AdjustCardsDialog(
                         teamTwoYellows = teamTwoY,
                         teamTwoReds = teamTwoR,
                     )
-                    workingTeamOnePlayerCards = state.teamOnePlayerCards
-                    workingTeamTwoPlayerCards = state.teamTwoPlayerCards
+                    workingTeamOnePlayerCards = state.teamOnePlayers
+                    workingTeamTwoPlayerCards = state.teamTwoPlayers
                     if (steps.isEmpty()) {
                         finalizeAdjustment()
                     } else {
@@ -370,7 +370,7 @@ internal fun TeamCardDialog(
             },
             onConfirm = { jerseyNumber ->
                 val team = pendingRedTeam!!
-                if (canAddPlayerCardAssignment(state.playerCards(team), jerseyNumber, CardType.RED)) {
+                if (canAddPlayerCardAssignment(state.playerCards(team), jerseyNumber = jerseyNumber, cardType = CardType.RED)) {
                     presentAssessment(
                         state.assessRedCard(team, jerseyNumber, now),
                         PendingMisconductReturn.RedNumber(team, jerseyNumber),
@@ -711,7 +711,7 @@ private fun AssignedCardRemovalDialog(
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text(
-                            "${displayPlayerNumber(candidate.jerseyNumber)} " +
+                            "${PlayerIdentity(candidate.jerseyNumber, candidate.playerName).displayText(compact = false)} " +
                                 "(${cardType.label} ${candidate.cardCount})"
                         )
                     }

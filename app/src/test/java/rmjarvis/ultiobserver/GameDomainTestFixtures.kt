@@ -304,16 +304,16 @@ abstract class GameDomainTestFixtures {
         teamOneTechnicalFouls: Int,
         teamTwoBlues: Int,
         teamTwoTechnicalFouls: Int,
-        teamOnePlayerCards: List<InGamePlayerCardRecord>,
-        teamTwoPlayerCards: List<InGamePlayerCardRecord>,
+        teamOnePlayers: List<PlayerRecord>,
+        teamTwoPlayers: List<PlayerRecord>,
     ): GameState {
         return adjustCardsAndTf(
             teamOneBlues,
             teamOneTechnicalFouls,
             teamTwoBlues,
             teamTwoTechnicalFouls,
-            teamOnePlayerCards,
-            teamTwoPlayerCards,
+            teamOnePlayers,
+            teamTwoPlayers,
             0L,
         )
     }

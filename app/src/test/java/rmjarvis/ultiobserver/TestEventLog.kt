@@ -54,8 +54,8 @@ class TestEventLog : GameDomainTestFixtures() {
         state = state.beginLivePoint(timestampAt(state, LocalTime.of(12, 0)))
         state = state.assessBlueCard(VC, timestampAt(state, LocalTime.of(12, 2))).state
         state = state.assessTimeout(VC, timestampAt(state, LocalTime.of(12, 3))).state.continueLivePoint()
-        state = state.assessYellowCard(ANIMAL, "23", timestampAt(state, LocalTime.of(12, 4))).state
-        state = state.assessYellowCard(ANIMAL, "23", timestampAt(state, LocalTime.of(12, 4))).state
+        state = state.assessYellowCard(ANIMAL, "23", timestampAt(state, LocalTime.of(12, 4)), playerName = "Jarvis").state
+        state = state.assessYellowCard(ANIMAL, "23", timestampAt(state, LocalTime.of(12, 4)), playerName = "Jarvis").state
         state = state.assessTechnicalFoul(VC, timestampAt(state, LocalTime.of(12, 5))).state
         state = recordGoalAt(state, ANIMAL, LocalTime.of(12, 7))
         state = state.recordOffsides(timestampAt(state, LocalTime.of(12, 8)))
@@ -75,8 +75,8 @@ class TestEventLog : GameDomainTestFixtures() {
                 "12:00  First pull by Animal",
                 "12:02  Blue card on Viscous Coupling",
                 "12:03  Timeout by Viscous Coupling",
-                "12:04  Yellow card on Animal #23",
-                "12:04  Yellow card on Animal #23",
+                "12:04  Yellow card on Animal #23 Jarvis",
+                "12:04  Yellow card on Animal #23 Jarvis",
                 "12:05  Technical foul on Viscous Coupling",
                 "12:07  Animal Goal",
                 "12:08  Offsides on Animal",
@@ -111,8 +111,8 @@ class TestEventLog : GameDomainTestFixtures() {
             teamOneTechnicalFouls = 0,
             teamTwoBlues = 0,
             teamTwoTechnicalFouls = 0,
-            teamOnePlayerCards = listOf(InGamePlayerCardRecord("11", reds = 1)),
-            teamTwoPlayerCards = emptyList(),
+            teamOnePlayers = listOf(playerRecordWithCards("11", reds = 1)),
+            teamTwoPlayers = emptyList(),
             now = timestampAt(state, LocalTime.of(12, 3)),
         )
         state = state.adjustScore(
@@ -163,9 +163,14 @@ class TestEventLog : GameDomainTestFixtures() {
     fun undoRestoresPreviousEventLog() {
         val ANIMAL = TeamId.TEAM_TWO
         val state = standardLiveGameState(startTime = LocalTime.of(12, 0))
-        val afterCard = state.assessRedCard(ANIMAL, "8", timestampAt(state, LocalTime.of(12, 10))).state
+        val afterCard = state.assessRedCard(
+            team = ANIMAL,
+            jerseyNumber = "",
+            now = timestampAt(state, LocalTime.of(12, 10)),
+            playerName = "No Number",
+        ).state
 
-        assertEquals(listOf("12:10  Red card on Animal #8"), afterCard.formatEventLogLines())
+        assertEquals(listOf("12:10  Red card on Animal No Number"), afterCard.formatEventLogLines())
         assertEquals(emptyList<String>(), afterCard.undoLastAction().formatEventLogLines())
     }
 }
