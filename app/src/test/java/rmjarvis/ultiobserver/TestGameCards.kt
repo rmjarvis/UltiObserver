@@ -596,39 +596,62 @@ class TestGameCards : GameDomainTestFixtures() {
             cardAssignments,
         )
 
-        assertTrue(
-            canAddPlayerCardAssignment(
+        assertNull(
+            playerCardAssignmentRejection(
                 emptyList(),
-                identity = PlayerIdentity("99"),
-                cardType = CardType.YELLOW,
+                PlayerIdentity("99"),
             ),
         )
-        assertTrue(
-            canAddPlayerCardAssignment(
+        assertNull(
+            playerCardAssignmentRejection(
                 listOf(playerRecordWithCards("17", yellows = 1)),
-                identity = PlayerIdentity("17"),
-                cardType = CardType.YELLOW,
+                PlayerIdentity("17"),
             ),
         )
-        assertTrue(
-            canAddPlayerCardAssignment(
-                listOf(playerRecordWithCards("17", yellows = 1)),
-                identity = PlayerIdentity("17"),
-                cardType = CardType.RED,
-            ),
-        )
-        assertFalse(
-            canAddPlayerCardAssignment(
+        assertEquals(
+            PlayerCardAssignmentRejection.TWO_YELLOWS,
+            playerCardAssignmentRejection(
                 listOf(playerRecordWithCards("17", yellows = 2)),
-                identity = PlayerIdentity("17"),
-                cardType = CardType.RED,
+                PlayerIdentity("17"),
             ),
         )
-        assertFalse(
-            canAddPlayerCardAssignment(
+        assertEquals(
+            PlayerCardAssignmentRejection.RED_CARD,
+            playerCardAssignmentRejection(
                 listOf(playerRecordWithCards("17", reds = 1)),
-                identity = PlayerIdentity("17"),
-                cardType = CardType.RED,
+                PlayerIdentity("17"),
+            ),
+        )
+        assertNull(
+            playerCardAssignmentRejection(
+                listOf(priorPlayerRecord("17", priorReds = 1)),
+                PlayerIdentity("17"),
+            ),
+        )
+        assertEquals(
+            PlayerCardAssignmentRejection.THREE_TOURNAMENT_YELLOWS,
+            playerCardAssignmentRejection(
+                listOf(
+                    PlayerRecord(
+                        jerseyNumber = "17",
+                        priorYellows = 2,
+                        cards = listOf(InGamePlayerCardEvent(CardType.YELLOW)),
+                    ),
+                ),
+                PlayerIdentity("17"),
+            ),
+        )
+        assertEquals(
+            PlayerCardAssignmentRejection.THREE_TOURNAMENT_YELLOWS,
+            playerCardAssignmentRejection(
+                listOf(
+                    PlayerRecord(
+                        jerseyNumber = "17",
+                        priorReds = 1,
+                        cards = listOf(InGamePlayerCardEvent(CardType.YELLOW)),
+                    ),
+                ),
+                PlayerIdentity("17"),
             ),
         )
 

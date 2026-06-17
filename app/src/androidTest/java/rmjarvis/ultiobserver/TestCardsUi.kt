@@ -372,7 +372,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         waitForText("Yellow card")
         enterCardPlayerNumber("9")
         composeRule.onNodeWithText("Record").performClick()
-        waitForText("maximum valid card combination", substring = true)
+        waitForText("Team 1 #9 already has two yellow cards and has been suspended.")
         composeRule.onNodeWithText("OK").performClick()
         composeRule.onNodeWithText("Yellow card").assertIsDisplayed()
         composeRule.onNodeWithText("Cancel").performClick()
@@ -464,7 +464,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         waitForText("Red card")
         enterCardPlayerNumber("6")
         composeRule.onNodeWithText("Record").performClick()
-        waitForText("maximum valid card combination", substring = true)
+        waitForText("Team 2 #6 already has a red card and has been suspended.")
         if (shouldUsePlatformBackDismissalCoverage()) {
             pressDialogBack()
         } else {
@@ -472,7 +472,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         }
         composeRule.onNodeWithText("Red card").assertIsDisplayed()
         composeRule.onNodeWithText("Record").performClick()
-        waitForText("maximum valid card combination", substring = true)
+        waitForText("Team 2 #6 already has a red card and has been suspended.")
         composeRule.onNodeWithText("OK").performClick()
     }
 }

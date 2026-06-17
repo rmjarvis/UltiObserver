@@ -162,12 +162,12 @@ internal fun AdjustCardsDialog(
             workingTeamTwoPlayerCards
         }
         val identity = PlayerIdentity(jerseyNumber)
-        if (
-            step.mode == PlayerCardAdjustmentMode.ADD &&
-            !canAddPlayerCardAssignment(currentRecords, identity, step.cardType)
-        ) {
-            invalidCardAssignmentMessage = "That player already has the maximum valid card combination."
-            return
+        if (step.mode == PlayerCardAdjustmentMode.ADD) {
+            val rejection = playerCardAssignmentRejection(currentRecords, identity)
+            if (rejection != null) {
+                invalidCardAssignmentMessage = "${identity.displayText(compact = true)} ${rejection.messageText}"
+                return
+            }
         }
         val updatedRecords = when (step.mode) {
             PlayerCardAdjustmentMode.ADD -> addPlayerCardAssignment(currentRecords, jerseyNumber = jerseyNumber, cardType = step.cardType)
@@ -392,10 +392,10 @@ internal fun TeamCardDialog(
                 return true
             }
         }
-        if (!canAddPlayerCardAssignment(state.playerCards(team), identity, cardType)) {
+        val rejection = playerCardAssignmentRejection(state.playerCards(team), identity)
+        if (rejection != null) {
             invalidCardAssignmentMessage =
-                "${state.teamFor(team).name} ${identity.displayText(compact = true)} " +
-                    "already has the maximum valid card combination."
+                "${state.teamFor(team).name} ${identity.displayText(compact = true)} ${rejection.messageText}"
             return false
         }
 

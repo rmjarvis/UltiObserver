@@ -653,26 +653,40 @@ private fun requirePlayerRecordsValid(records: List<PlayerRecord>) {
         "Player records cannot contain duplicate player entries."
     }
 }
+
 /**
- * Report whether adding a card to one player would keep the player's card combination legal.
+ * Reason a new player card cannot be added to an existing player record.
+ *
+ * @param messageText Text explaining the rejection after the team and player identity.
+ */
+enum class PlayerCardAssignmentRejection(val messageText: String) {
+    TWO_YELLOWS("already has two yellow cards and has been suspended."),
+    RED_CARD("already has a red card and has been suspended."),
+    THREE_TOURNAMENT_YELLOWS("already has three yellow cards in the tournament and has been suspended."),
+}
+
+/**
+ * Return why a player cannot receive another card, or null if the assignment can proceed.
  *
  * @param records The current player records for that team.
  * @param identity The player receiving the possible card.
- * @param cardType The type of card being considered.
  */
-fun canAddPlayerCardAssignment(
+fun playerCardAssignmentRejection(
     records: List<PlayerRecord>,
     identity: PlayerIdentity,
-    cardType: CardType,
-): Boolean {
-    val existingRecord = records.firstOrNull { it.identity().matches(identity) }
-        ?: PlayerRecord(jerseyNumber = identity.jerseyNumber, playerName = identity.playerName)
-    val updatedRecord = when (cardType) {
-        CardType.YELLOW -> existingRecord.withAddedCard(CardType.YELLOW)
-        CardType.RED -> existingRecord.withAddedCard(CardType.RED)
+): PlayerCardAssignmentRejection? {
+    val existingRecord = records.firstOrNull { it.identity().matches(identity) } ?: return null
+    return when {
+        existingRecord.reds > 0 ->
+            PlayerCardAssignmentRejection.RED_CARD
+        existingRecord.yellows >= 2 ->
+            PlayerCardAssignmentRejection.TWO_YELLOWS
+        existingRecord.priorYellows + existingRecord.yellows + (2 * existingRecord.priorReds) >= 3 ->
+            PlayerCardAssignmentRejection.THREE_TOURNAMENT_YELLOWS
+        else -> null
     }
-    return updatedRecord.hasLegalCounts()
 }
+
 /**
  * Turn requested yellow/red totals into explicit player-card add/remove steps.
  *
