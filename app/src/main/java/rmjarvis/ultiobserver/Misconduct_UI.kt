@@ -194,6 +194,13 @@ internal fun AdjustCardsDialog(
         }
     }
 
+    fun nextManualCardIndex(): Int {
+        return state.copy(
+            teamOnePlayers = workingTeamOnePlayerCards,
+            teamTwoPlayers = workingTeamTwoPlayerCards,
+        ).getNextAssessmentIndex()
+    }
+
     fun showSuspensionNoticeIfNeeded(team: TeamId, records: List<PlayerRecord>, identity: PlayerIdentity) {
         val rejection = playerCardAssignmentRejection(records, identity) ?: return
         suspensionNoticeMessage =
@@ -258,10 +265,12 @@ internal fun AdjustCardsDialog(
             records = records,
             jerseyNumber = identity.jerseyNumber,
             cardType = cardType,
+            index = nextManualCardIndex(),
             playerName = identity.playerName,
             reason = entry.reason,
         )
         setRecordsFor(team, updatedRecords)
+        showSuspensionNoticeIfNeeded(team, updatedRecords, identity)
         onStateUpdate(
             state.withPlayerCards(
                 team = team,
@@ -269,7 +278,6 @@ internal fun AdjustCardsDialog(
                 undoLabel = state.playerCardAddUndoLabel(team, cardType, identity),
             )
         )
-        showSuspensionNoticeIfNeeded(team, updatedRecords, identity)
         return true
     }
 
@@ -295,6 +303,9 @@ internal fun AdjustCardsDialog(
             reason = entry.reason,
         )
         setRecordsFor(team, updatedRecords)
+        if (!identity.matches(originalCard.identity())) {
+            showSuspensionNoticeIfNeeded(team, updatedRecords, identity)
+        }
         onStateUpdate(
             state.withPlayerCards(
                 team = team,
@@ -302,9 +313,6 @@ internal fun AdjustCardsDialog(
                 undoLabel = state.playerCardEditUndoLabel(team, originalCard.cardType, identity),
             )
         )
-        if (!identity.matches(originalCard.identity())) {
-            showSuspensionNoticeIfNeeded(team, updatedRecords, identity)
-        }
         return true
     }
 
@@ -626,6 +634,9 @@ internal fun TeamCardDialog(
             playerName = identity.playerName,
             reason = entry.reason,
         )
+        if (!identity.matches(originalCard.identity())) {
+            showSuspensionNoticeIfNeeded(team, updatedRecords, identity)
+        }
         onStateUpdate(
             stateWithPlayerCards(
                 team = team,
@@ -633,9 +644,6 @@ internal fun TeamCardDialog(
                 undoLabel = state.playerCardEditUndoLabel(team, originalCard.cardType, identity),
             )
         )
-        if (!identity.matches(originalCard.identity())) {
-            showSuspensionNoticeIfNeeded(team, updatedRecords, identity)
-        }
         return true
     }
 

@@ -473,6 +473,7 @@ internal fun LiveGameScreen(
                         onStateChange(updatedState)
                         showMoreActionsDialog = false
                     },
+                    onStateUpdate = onStateChange,
                 )
             },
             confirmButton = {

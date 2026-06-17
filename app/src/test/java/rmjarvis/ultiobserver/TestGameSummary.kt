@@ -57,17 +57,31 @@ class TestGameSummary : GameDomainTestFixtures() {
             teamTwoPlayers = listOf(PlayerRecord(jerseyNumber = "99")),
             teamOnePlayers = listOf(
                 playerRecordWithCards(jerseyNumber = "7", playerName = "Casey Handler", yellows = 1).copy(
-                    cards = listOf(InGamePlayerCardEvent(CardType.YELLOW, reason = CardReason(preset = "Dangerous play"))),
+                    cards = listOf(
+                        InGamePlayerCardEvent(
+                            CardType.YELLOW,
+                            index = 0,
+                            reason = CardReason(preset = "Dangerous play"),
+                        )
+                    ),
                 ),
                 playerRecordWithCards(jerseyNumber = "12", yellows = 2).copy(
                     cards = listOf(
-                        InGamePlayerCardEvent(CardType.YELLOW, reason = CardReason(preset = "Taunting")),
-                        InGamePlayerCardEvent(CardType.YELLOW, reason = CardReason(preset = "Dangerous play")),
+                        InGamePlayerCardEvent(CardType.YELLOW, index = 1, reason = CardReason(preset = "Taunting")),
+                        InGamePlayerCardEvent(
+                            CardType.YELLOW,
+                            index = 3,
+                            reason = CardReason(preset = "Dangerous play"),
+                        ),
                     ),
                 ),
                 playerRecordWithCards(jerseyNumber = "", playerName = "No Number", reds = 1).copy(
                     cards = listOf(
-                        InGamePlayerCardEvent(CardType.RED, reason = CardReason(preset = "Egregious dangerous play")),
+                        InGamePlayerCardEvent(
+                            CardType.RED,
+                            index = 2,
+                            reason = CardReason(preset = "Egregious dangerous play"),
+                        ),
                     ),
                 ),
             ),
@@ -79,8 +93,8 @@ class TestGameSummary : GameDomainTestFixtures() {
                 issuedCardLines = listOf(
                     "#7 Casey Handler: Yellow card -- Dangerous play",
                     "#12: Yellow card -- Taunting",
-                    "#12: Yellow card -- Dangerous play",
                     "No Number: Red card -- Egregious dangerous play",
+                    "#12: Yellow card -- Dangerous play",
                 ),
                 blueCardsLine = "Blue cards 2",
                 technicalFoulsLine = "Technical fouls 1",
@@ -122,13 +136,21 @@ class TestGameSummary : GameDomainTestFixtures() {
             teamTwoPlayers = listOf(
                 playerRecordWithCards(jerseyNumber = "7", playerName = "Casey Handler", yellows = 2).copy(
                     cards = listOf(
-                        InGamePlayerCardEvent(CardType.YELLOW, reason = CardReason(preset = "Taunting")),
-                        InGamePlayerCardEvent(CardType.YELLOW, reason = CardReason(preset = "Dangerous play")),
+                        InGamePlayerCardEvent(CardType.YELLOW, index = 0, reason = CardReason(preset = "Taunting")),
+                        InGamePlayerCardEvent(
+                            CardType.YELLOW,
+                            index = 2,
+                            reason = CardReason(preset = "Dangerous play"),
+                        ),
                     ),
                 ),
                 playerRecordWithCards(jerseyNumber = "", playerName = "No Number", reds = 1).copy(
                     cards = listOf(
-                        InGamePlayerCardEvent(CardType.RED, reason = CardReason(preset = "Egregious dangerous play")),
+                        InGamePlayerCardEvent(
+                            CardType.RED,
+                            index = 1,
+                            reason = CardReason(preset = "Egregious dangerous play"),
+                        ),
                     ),
                 ),
             ),
@@ -144,8 +166,8 @@ class TestGameSummary : GameDomainTestFixtures() {
             Misconduct:
               Animal:
                 #7 Casey Handler Yellow -- Taunting
-                #7 Casey Handler Yellow -- Dangerous play
                 No Number Red -- Egregious dangerous play
+                #7 Casey Handler Yellow -- Dangerous play
                 1 Blue, 2 Techs
             """.trimIndent(),
             state.gameSummaryShareText(),

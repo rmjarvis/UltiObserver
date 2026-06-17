@@ -397,11 +397,13 @@ data class CardReason(
  * Persisted in-game yellow/red card event.
  *
  * @param cardType The card assessed to the player.
+ * @param index Assessment-order index for this in-game player card.
  * @param reason Optional reason recorded for this individual card.
  */
 @Serializable
 data class InGamePlayerCardEvent(
     val cardType: CardType,
+    val index: Int,
     val reason: CardReason = CardReason(),
 )
 
@@ -851,13 +853,14 @@ fun List<PlayerRecord>.editablePlayerCards(): List<EditablePlayerCard> {
             EditablePlayerCard(
                 playerIndex = playerIndex,
                 cardIndex = cardIndex,
+                index = card.index,
                 jerseyNumber = player.jerseyNumber,
                 playerName = player.playerName,
                 cardType = card.cardType,
                 reason = card.reason,
             )
         }
-    }
+    }.sortedBy { it.index }
 }
 
 /**
@@ -871,16 +874,18 @@ fun addPlayerCardAssignment(
     records: List<PlayerRecord>,
     jerseyNumber: String,
     cardType: CardType,
+    index: Int,
     playerName: String = "",
     reason: CardReason = CardReason(),
 ): List<PlayerRecord> {
     return updatePlayerCardRecord(records, jerseyNumber, playerName) { record ->
-        record.withAddedCard(cardType, reason)
+        record.withAddedCard(cardType, index, reason)
     }
 }
 
 /**
- * Replace one in-game player-card event, merging into an existing player when identities match.
+ * Replace one in-game player-card event, merging into an existing player when
+ * identities match and preserving the card's assessment index.
  *
  * @param records The current player records for one team.
  * @param editableCard The existing card event to replace.
@@ -897,48 +902,15 @@ fun replaceEditablePlayerCard(
     playerName: String,
     reason: CardReason,
 ): List<PlayerRecord> {
-    val enteredIdentity = PlayerIdentity(jerseyNumber, playerName)
-    val targetIndex = records.indexOfFirst { record -> record.identity().matches(enteredIdentity) }
-    val replacementCard = InGamePlayerCardEvent(cardType = cardType, reason = reason)
-    val sourceIndex = editableCard.playerIndex
-    val updatedRecords = buildList {
-        records.forEachIndexed { playerIndex, record ->
-            when {
-                playerIndex == sourceIndex && playerIndex == targetIndex -> {
-                    val updatedCards = record.cards.toMutableList()
-                    updatedCards[editableCard.cardIndex] = replacementCard
-                    add(record.withMergedIdentityFrom(enteredIdentity).copy(cards = updatedCards))
-                }
-                playerIndex == sourceIndex -> {
-                    val updatedCards = record.cards.filterIndexed { cardIndex, _ ->
-                        cardIndex != editableCard.cardIndex
-                    }
-                    if (updatedCards.isNotEmpty() || record.priorYellows > 0 || record.priorReds > 0) {
-                        add(record.copy(cards = updatedCards))
-                    }
-                    if (targetIndex < 0) {
-                        add(
-                            PlayerRecord(
-                                jerseyNumber = enteredIdentity.jerseyNumber,
-                                playerName = enteredIdentity.playerName,
-                                cards = listOf(replacementCard),
-                            )
-                        )
-                    }
-                }
-                playerIndex == targetIndex -> {
-                    val mergedRecord = record.withMergedIdentityFrom(enteredIdentity)
-                    val updatedCards = mergedRecord.cards.toMutableList()
-                    val insertIndex = if (sourceIndex < playerIndex) 0 else updatedCards.size
-                    updatedCards.add(insertIndex, replacementCard)
-                    add(mergedRecord.copy(cards = updatedCards))
-                }
-                else -> add(record)
-            }
-        }
-    }
-    requirePlayerRecordsValid(updatedRecords)
-    return updatedRecords
+    val originalCard = records[editableCard.playerIndex].cards[editableCard.cardIndex]
+    return addPlayerCardAssignment(
+        records = removeEditablePlayerCard(records, editableCard),
+        jerseyNumber = jerseyNumber,
+        cardType = cardType,
+        index = originalCard.index,
+        playerName = playerName,
+        reason = reason,
+    )
 }
 
 /**
@@ -968,16 +940,25 @@ fun removeEditablePlayerCard(
 }
 
 /**
- * Return this record with one card event appended.
+ * Return this record with one card event added.
  *
  * @param cardType The card type assessed.
+ * @param index Assessment-order index for this card.
  * @param reason Optional reason recorded for the card.
  */
 private fun PlayerRecord.withAddedCard(
     cardType: CardType,
+    index: Int,
     reason: CardReason = CardReason(),
 ): PlayerRecord {
-    return copy(cards = cards + InGamePlayerCardEvent(cardType = cardType, reason = reason))
+    return copy(cards = cards + InGamePlayerCardEvent(cardType = cardType, index = index, reason = reason))
+}
+
+/// Return the next in-game player-card assessment index.
+fun GameState.getNextAssessmentIndex(): Int {
+    return (teamOnePlayers + teamTwoPlayers)
+        .flatMap { it.cards }
+        .fold(0) { nextIndex, card -> maxOf(nextIndex, card.index + 1) }
 }
 
 /**
@@ -1367,6 +1348,7 @@ private fun CountdownState.toBetweenPointsMisconductCountdown(): CountdownState 
  *
  * @param playerIndex Index of the player record containing this card.
  * @param cardIndex Index of the card event within that player record.
+ * @param index Assessment-order index for this card event.
  * @param jerseyNumber The player's jersey number.
  * @param playerName The player's name, or blank when unknown.
  * @param cardType The card assessed.
@@ -1375,6 +1357,7 @@ private fun CountdownState.toBetweenPointsMisconductCountdown(): CountdownState 
 data class EditablePlayerCard(
     val playerIndex: Int,
     val cardIndex: Int,
+    val index: Int,
     val jerseyNumber: String,
     val playerName: String,
     val cardType: CardType,
@@ -1404,7 +1387,7 @@ private fun GameState.addInGameYellowCard(
             jerseyNumber = jerseyNumber,
             playerName = playerName,
         ) { record ->
-            record.withAddedCard(CardType.YELLOW, reason)
+            record.withAddedCard(CardType.YELLOW, getNextAssessmentIndex(), reason)
         },
         lastEvent = "Yellow card for ${teamName(team)} ${PlayerIdentity(jerseyNumber, playerName).displayText(compact = true)}.",
     )
@@ -1428,7 +1411,7 @@ private fun GameState.addInGameSecondYellow(
             jerseyNumber = jerseyNumber,
             playerName = playerName,
         ) { record ->
-            record.withAddedCard(CardType.YELLOW, reason)
+            record.withAddedCard(CardType.YELLOW, getNextAssessmentIndex(), reason)
         },
         lastEvent = "Second yellow for ${teamName(team)} ${PlayerIdentity(jerseyNumber, playerName).displayText(compact = true)}.",
     )
@@ -1452,7 +1435,7 @@ private fun GameState.addInGameRedCard(
             jerseyNumber = jerseyNumber,
             playerName = playerName,
         ) { record ->
-            record.withAddedCard(CardType.RED, reason)
+            record.withAddedCard(CardType.RED, getNextAssessmentIndex(), reason)
         },
         lastEvent = "Red card for ${teamName(team)} ${PlayerIdentity(jerseyNumber, playerName).displayText(compact = true)}.",
     )

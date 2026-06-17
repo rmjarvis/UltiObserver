@@ -21,8 +21,8 @@ internal fun playerRecordWithCards(
         jerseyNumber = jerseyNumber,
         playerName = playerName,
         cards = buildList {
-            repeat(yellows) { add(InGamePlayerCardEvent(CardType.YELLOW)) }
-            repeat(reds) { add(InGamePlayerCardEvent(CardType.RED)) }
+            repeat(yellows) { add(InGamePlayerCardEvent(CardType.YELLOW, index = size)) }
+            repeat(reds) { add(InGamePlayerCardEvent(CardType.RED, index = size)) }
         },
     )
 }

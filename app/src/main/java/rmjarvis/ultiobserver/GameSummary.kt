@@ -35,6 +35,17 @@ internal data class GameOverTeamSummaryText(
 )
 
 /**
+ * Player-card summary line with its assessment-order index.
+ *
+ * @param index Assessment-order index for the card event.
+ * @param text Text to show for the card event.
+ */
+private data class OrderedPlayerCardLine(
+    val index: Int,
+    val text: String,
+)
+
+/**
  * Build text content for the top card on a completed-game summary.
  *
  * @receiver The completed game state to summarize.
@@ -60,6 +71,8 @@ internal fun GameState.gameOverTeamSummaryText(teamId: TeamId): GameOverTeamSumm
     val team = teamFor(teamId)
     val issuedCardLines = playerCards(teamId)
         .flatMap { record -> record.summaryIssuedCardLines() }
+        .sortedBy { it.index }
+        .map { it.text }
         .takeIf { it.isNotEmpty() }
         ?: listOf("No yellow or red cards issued.")
 
@@ -127,6 +140,8 @@ private fun GameState.misconductShareLine(teamId: TeamId): String? {
     val team = teamFor(teamId)
     val playerParts = playerCards(teamId)
         .flatMap { it.shareLines() }
+        .sortedBy { it.index }
+        .map { it.text }
     val teamParts = buildList {
         if (team.blueCards > 0) {
             add("${team.blueCards} Blue")
@@ -150,16 +165,22 @@ private fun GameState.misconductShareLine(teamId: TeamId): String? {
 }
 
 /// Return share-text lines for this player's in-game yellow/red card events.
-private fun PlayerRecord.shareLines(): List<String> {
+private fun PlayerRecord.shareLines(): List<OrderedPlayerCardLine> {
     return cards.map { card ->
-        "${playerIdentity(compact = false)} ${card.shareLabel()}${card.shareReasonSuffix()}"
+        OrderedPlayerCardLine(
+            index = card.index,
+            text = "${playerIdentity(compact = false)} ${card.shareLabel()}${card.shareReasonSuffix()}",
+        )
     }
 }
 
 /// Return game-over summary text lines for this player's in-game yellow/red card events.
-private fun PlayerRecord.summaryIssuedCardLines(): List<String> {
+private fun PlayerRecord.summaryIssuedCardLines(): List<OrderedPlayerCardLine> {
     return cards.map { card ->
-        "${playerIdentity(compact = false)}: ${card.summaryLabel()}${card.summaryReasonSuffix()}"
+        OrderedPlayerCardLine(
+            index = card.index,
+            text = "${playerIdentity(compact = false)}: ${card.summaryLabel()}${card.summaryReasonSuffix()}",
+        )
     }
 }
 

@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
  * @param onShowEventLog Callback opening the current game's event log.
  * @param onDeleteGame Callback deleting the current game after confirmation.
  * @param onAction Callback receiving an updated live game state after a model action.
+ * @param onStateUpdate Callback receiving an updated live game state without closing More actions.
  */
 @Composable
 internal fun MoreActionsContent(
@@ -42,6 +43,7 @@ internal fun MoreActionsContent(
     onShowEventLog: () -> Unit,
     onDeleteGame: () -> Unit,
     onAction: (GameState) -> Unit,
+    onStateUpdate: (GameState) -> Unit = onAction,
 ) {
     var showAdjustScoreDialog by remember { mutableStateOf(false) }
     var showAdjustTimeoutsDialog by remember { mutableStateOf(false) }
@@ -191,7 +193,7 @@ internal fun MoreActionsContent(
                 onAction(updatedState)
                 showAdjustCardsDialog = false
             },
-            onStateUpdate = onAction,
+            onStateUpdate = onStateUpdate,
         )
     }
 

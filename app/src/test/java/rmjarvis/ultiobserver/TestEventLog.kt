@@ -220,6 +220,7 @@ class TestEventLog : GameDomainTestFixtures() {
                     cards = listOf(
                         InGamePlayerCardEvent(
                             CardType.YELLOW,
+                            index = 0,
                             reason = CardReason(preset = "Dangerous play"),
                         ),
                     ),

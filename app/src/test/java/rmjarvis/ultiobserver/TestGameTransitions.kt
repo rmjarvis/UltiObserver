@@ -288,7 +288,10 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertEquals(2, state.teamYellowCards(VC))
         assertEquals("Undo Yellow on #8 of Viscous Coupling", state.undoEntry?.label)
         assertEquals(
-            playerRecordWithCards("8", yellows = 1),
+            PlayerRecord(
+                jerseyNumber = "8",
+                cards = listOf(InGamePlayerCardEvent(CardType.YELLOW, index = 1)),
+            ),
             state.playerCards(VC).single { it.jerseyNumber == "8" },
         )
         assertTrue(
@@ -354,7 +357,10 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertEquals("Yellow card on player 23.\nAnimal has 1 blue card.", cardResult.message())
         assertEquals(1, state.teamYellowCards(ANIMAL))
         assertEquals(
-            playerRecordWithCards("23", yellows = 1),
+            PlayerRecord(
+                jerseyNumber = "23",
+                cards = listOf(InGamePlayerCardEvent(CardType.YELLOW, index = 2)),
+            ),
             state.playerCards(ANIMAL).single { it.jerseyNumber == "23" },
         )
 
@@ -363,7 +369,10 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertEquals("Yellow card on player 8.\nAnimal has 2 total blue cards.", cardResult.message())
         assertEquals(2, state.teamYellowCards(ANIMAL))
         assertEquals(
-            playerRecordWithCards("8", yellows = 1),
+            PlayerRecord(
+                jerseyNumber = "8",
+                cards = listOf(InGamePlayerCardEvent(CardType.YELLOW, index = 3)),
+            ),
             state.playerCards(ANIMAL).single { it.jerseyNumber == "8" },
         )
 

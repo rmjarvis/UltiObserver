@@ -40,7 +40,13 @@ class TestGameCards : GameDomainTestFixtures() {
             PlayerRecord(
                 jerseyNumber = "24",
                 playerName = "Drew Handler",
-                cards = listOf(InGamePlayerCardEvent(CardType.YELLOW, reason = CardReason(preset = "Dangerous play"))),
+                cards = listOf(
+                    InGamePlayerCardEvent(
+                        CardType.YELLOW,
+                        index = 0,
+                        reason = CardReason(preset = "Dangerous play"),
+                    )
+                ),
             ),
             state.playerCards(VC).single(),
         )
@@ -68,7 +74,11 @@ class TestGameCards : GameDomainTestFixtures() {
         state = cardResult.state
         assertEquals(2, state.playerCards(VC).size)
         assertEquals(
-            playerRecordWithCards(jerseyNumber = "24", yellows = 1, playerName = "Different Player"),
+            PlayerRecord(
+                jerseyNumber = "24",
+                playerName = "Different Player",
+                cards = listOf(InGamePlayerCardEvent(CardType.YELLOW, index = 2)),
+            ),
             state.playerCards(VC).single { it.playerName == "Different Player" },
         )
 
@@ -121,7 +131,7 @@ class TestGameCards : GameDomainTestFixtures() {
         assertEquals(
             "prior Y 1  R 1 + Y 1",
             namedPriorCardRecord.copy(
-                cards = listOf(InGamePlayerCardEvent(CardType.YELLOW)),
+                cards = listOf(InGamePlayerCardEvent(CardType.YELLOW, index = 0)),
             ).cardDetail(includeGame = true),
         )
         assertEquals("1 yellow card and 1 red card", namedPriorCardRecord.playerCardNoticeDetail())
@@ -706,15 +716,26 @@ class TestGameCards : GameDomainTestFixtures() {
 
         // Exercise the player-card assignment helpers used by the manual adjustment UI.
         var cardAssignments = emptyList<PlayerRecord>()
-        cardAssignments = addPlayerCardAssignment(cardAssignments, jerseyNumber = "17", cardType = CardType.YELLOW)
+        cardAssignments = addPlayerCardAssignment(
+            cardAssignments,
+            jerseyNumber = "17",
+            cardType = CardType.YELLOW,
+            index = 0,
+        )
         assertEquals(listOf(playerRecordWithCards("17", yellows = 1)), cardAssignments)
-        cardAssignments = addPlayerCardAssignment(cardAssignments, jerseyNumber = "17", cardType = CardType.RED)
+        cardAssignments = addPlayerCardAssignment(
+            cardAssignments,
+            jerseyNumber = "17",
+            cardType = CardType.RED,
+            index = 1,
+        )
         assertEquals(listOf(playerRecordWithCards("17", yellows = 1, reds = 1)), cardAssignments)
         assertEquals(
             listOf(
                 EditablePlayerCard(
                     playerIndex = 0,
                     cardIndex = 0,
+                    index = 0,
                     jerseyNumber = "17",
                     playerName = "",
                     cardType = CardType.YELLOW,
@@ -723,6 +744,7 @@ class TestGameCards : GameDomainTestFixtures() {
                 EditablePlayerCard(
                     playerIndex = 0,
                     cardIndex = 1,
+                    index = 1,
                     jerseyNumber = "17",
                     playerName = "",
                     cardType = CardType.RED,
@@ -732,13 +754,27 @@ class TestGameCards : GameDomainTestFixtures() {
             cardAssignments.editablePlayerCards(),
         )
         cardAssignments = removeEditablePlayerCard(cardAssignments, cardAssignments.editablePlayerCards().first())
-        assertEquals(listOf(playerRecordWithCards("17", reds = 1)), cardAssignments)
+        assertEquals(
+            listOf(
+                PlayerRecord(
+                    jerseyNumber = "17",
+                    cards = listOf(InGamePlayerCardEvent(CardType.RED, index = 1)),
+                )
+            ),
+            cardAssignments,
+        )
 
         val priorCardRecord = listOf(
             PlayerRecord(
                 jerseyNumber = "44",
                 priorYellows = 1,
-                cards = listOf(InGamePlayerCardEvent(CardType.YELLOW, reason = CardReason(preset = "Dangerous play"))),
+                cards = listOf(
+                    InGamePlayerCardEvent(
+                        CardType.YELLOW,
+                        index = 0,
+                        reason = CardReason(preset = "Dangerous play"),
+                    )
+                ),
             )
         )
         assertEquals(
@@ -748,7 +784,10 @@ class TestGameCards : GameDomainTestFixtures() {
 
         cardAssignments = listOf(
             playerRecordWithCards("17", yellows = 1),
-            playerRecordWithCards("8", reds = 1),
+            PlayerRecord(
+                jerseyNumber = "8",
+                cards = listOf(InGamePlayerCardEvent(CardType.RED, index = 1)),
+            ),
         )
         cardAssignments = replaceEditablePlayerCard(
             records = cardAssignments,
@@ -758,41 +797,52 @@ class TestGameCards : GameDomainTestFixtures() {
             playerName = "",
             reason = CardReason(preset = "Other", otherText = "Corrected identity"),
         )
-        assertEquals(
-            listOf(
-                PlayerRecord(
-                    jerseyNumber = "8",
-                    cards = listOf(
-                        InGamePlayerCardEvent(
-                            CardType.YELLOW,
-                            reason = CardReason(preset = "Other", otherText = "Corrected identity"),
-                        ),
-                        InGamePlayerCardEvent(CardType.RED),
-                    ),
-                ),
-            ),
-            cardAssignments,
+        assertEquals(1, cardAssignments.size)
+        assertEquals("8", cardAssignments.single().jerseyNumber)
+        assertTrue(
+            cardAssignments.single().cards.contains(
+                InGamePlayerCardEvent(
+                    CardType.YELLOW,
+                    index = 0,
+                    reason = CardReason(preset = "Other", otherText = "Corrected identity"),
+                )
+            )
         )
-        cardAssignments = addPlayerCardAssignment(cardAssignments, jerseyNumber = "23", cardType = CardType.YELLOW)
-        assertEquals(
-            listOf(
-                PlayerRecord(
-                    jerseyNumber = "8",
-                    cards = listOf(
-                        InGamePlayerCardEvent(
-                            CardType.YELLOW,
-                            reason = CardReason(preset = "Other", otherText = "Corrected identity"),
-                        ),
-                        InGamePlayerCardEvent(CardType.RED),
-                    ),
-                ),
-                playerRecordWithCards("23", yellows = 1),
-            ),
+        assertTrue(cardAssignments.single().cards.contains(InGamePlayerCardEvent(CardType.RED, index = 1)))
+        cardAssignments = addPlayerCardAssignment(
             cardAssignments,
+            jerseyNumber = "23",
+            cardType = CardType.YELLOW,
+            index = 2,
+        )
+        val playerEight = cardAssignments.single { it.jerseyNumber == "8" }
+        assertEquals(
+            setOf(
+                InGamePlayerCardEvent(
+                    CardType.YELLOW,
+                    index = 0,
+                    reason = CardReason(preset = "Other", otherText = "Corrected identity"),
+                ),
+                InGamePlayerCardEvent(CardType.RED, index = 1),
+            ),
+            playerEight.cards.toSet(),
+        )
+        assertEquals(
+            setOf(
+                playerEight,
+                PlayerRecord(
+                    jerseyNumber = "23",
+                    cards = listOf(InGamePlayerCardEvent(CardType.YELLOW, index = 2)),
+                ),
+            ),
+            cardAssignments.toSet(),
         )
         cardAssignments = listOf(
             playerRecordWithCards("12", yellows = 1),
-            playerRecordWithCards("23", reds = 1),
+            PlayerRecord(
+                jerseyNumber = "23",
+                cards = listOf(InGamePlayerCardEvent(CardType.RED, index = 1)),
+            ),
         )
         cardAssignments = replaceEditablePlayerCard(
             records = cardAssignments,
@@ -803,17 +853,24 @@ class TestGameCards : GameDomainTestFixtures() {
             reason = CardReason(preset = "Dangerous play"),
         )
         assertEquals(
-            listOf(
+            setOf(
                 PlayerRecord(
                     jerseyNumber = "12",
                     playerName = "Mike",
                     cards = listOf(
-                        InGamePlayerCardEvent(CardType.YELLOW, reason = CardReason(preset = "Dangerous play")),
+                        InGamePlayerCardEvent(
+                            CardType.YELLOW,
+                            index = 0,
+                            reason = CardReason(preset = "Dangerous play"),
+                        ),
                     ),
                 ),
-                playerRecordWithCards("23", reds = 1),
+                PlayerRecord(
+                    jerseyNumber = "23",
+                    cards = listOf(InGamePlayerCardEvent(CardType.RED, index = 1)),
+                ),
             ),
-            cardAssignments,
+            cardAssignments.toSet(),
         )
 
         assertNull(
@@ -855,7 +912,7 @@ class TestGameCards : GameDomainTestFixtures() {
                     PlayerRecord(
                         jerseyNumber = "17",
                         priorYellows = 2,
-                        cards = listOf(InGamePlayerCardEvent(CardType.YELLOW)),
+                        cards = listOf(InGamePlayerCardEvent(CardType.YELLOW, index = 0)),
                     ),
                 ),
                 PlayerIdentity("17"),
@@ -868,7 +925,7 @@ class TestGameCards : GameDomainTestFixtures() {
                     PlayerRecord(
                         jerseyNumber = "17",
                         priorReds = 1,
-                        cards = listOf(InGamePlayerCardEvent(CardType.YELLOW)),
+                        cards = listOf(InGamePlayerCardEvent(CardType.YELLOW, index = 0)),
                     ),
                 ),
                 PlayerIdentity("17"),
@@ -893,6 +950,7 @@ class TestGameCards : GameDomainTestFixtures() {
                 listOf(playerRecordWithCards("17", reds = 1)),
                 jerseyNumber = "17",
                 cardType = CardType.RED,
+                index = 1,
             )
         }
         assertEquals(invalidPlayerCardMessage, invalidAssignmentException.message)
@@ -981,4 +1039,5 @@ class TestGameCards : GameDomainTestFixtures() {
         assertEquals("Undo Adjust blue card/tech counts", state.undoEntry?.label)
         assertEquals(beforeCardsAdjustment, state.undoEntry?.previous)
     }
+
 }

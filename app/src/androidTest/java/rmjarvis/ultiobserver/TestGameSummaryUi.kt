@@ -115,7 +115,10 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
                     ),
                     teamTwoPlayers = listOf(
                         playerRecordWithCards(jerseyNumber = "7", yellows = 2),
-                        playerRecordWithCards(jerseyNumber = "12", reds = 1),
+                        PlayerRecord(
+                            jerseyNumber = "12",
+                            cards = listOf(InGamePlayerCardEvent(CardType.RED, index = 2)),
+                        ),
                     ),
                 )
             )
