@@ -95,7 +95,9 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
         assertEquals(previous.endEpoch, patch.endEpoch!!.value)
         assertEquals(previous.tournamentName, patch.tournamentName)
         assertEquals(previous.division, patch.division!!.value)
+        assertEquals(previous.level, patch.level)
         assertEquals(previous.gameContext, patch.gameContext)
+        assertEquals(previous.observers, patch.observers)
         assertEquals(previous.nearEndName, patch.nearEndName)
         assertEquals(previous.farEndName, patch.farEndName)
         assertEquals(previous.rules, patch.rules)
@@ -169,6 +171,7 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
         assertFalse(json.contains("\"replacement\": null"))
         assertFalse(json.contains("\"previousSize\": null"))
         assertFalse(json.contains("\"gameContext\": null"))
+        assertFalse(json.contains("\"observers\": null"))
     }
 
     /// Verify invalid list patch representations fail loudly.
@@ -195,7 +198,9 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
             endEpoch = 2_000L,
             tournamentName = "Later Tournament",
             division = GameDivision.WOMENS,
+            level = "Club",
             gameContext = "Later semifinal",
+            observers = "Later observer",
             nearEndName = "Later near",
             farEndName = "Later far",
             teamOne = TeamLiveState(
@@ -284,7 +289,9 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
             endEpoch = null,
             tournamentName = "Previous Tournament",
             division = null,
+            level = "Masters",
             gameContext = "Previous pool game",
+            observers = "Previous observer",
             nearEndName = "Previous near",
             farEndName = "Previous far",
             teamOne = TeamLiveState(

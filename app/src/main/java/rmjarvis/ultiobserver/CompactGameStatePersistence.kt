@@ -128,7 +128,11 @@ internal data class GameStatePatch(
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val division: NullablePatchValue<GameDivision>? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val level: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val gameContext: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val observers: String? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val nearEndName: String? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
@@ -204,7 +208,9 @@ internal data class GameStatePatch(
             endEpoch = if (endEpoch != null) endEpoch.value else later.endEpoch,
             tournamentName = tournamentName ?: later.tournamentName,
             division = if (division != null) division.value else later.division,
+            level = level ?: later.level,
             gameContext = gameContext ?: later.gameContext,
+            observers = observers ?: later.observers,
             nearEndName = nearEndName ?: later.nearEndName,
             farEndName = farEndName ?: later.farEndName,
             rules = rules ?: later.rules,
@@ -256,7 +262,9 @@ internal data class GameStatePatch(
                 endEpoch = nullablePatch(later.endEpoch, previous.endEpoch),
                 tournamentName = previous.tournamentName.takeIfChangedFrom(later.tournamentName),
                 division = nullablePatch(later.division, previous.division),
+                level = previous.level.takeIfChangedFrom(later.level),
                 gameContext = previous.gameContext.takeIfChangedFrom(later.gameContext),
+                observers = previous.observers.takeIfChangedFrom(later.observers),
                 nearEndName = previous.nearEndName.takeIfChangedFrom(later.nearEndName),
                 farEndName = previous.farEndName.takeIfChangedFrom(later.farEndName),
                 rules = previous.rules.takeIfChangedFrom(later.rules),

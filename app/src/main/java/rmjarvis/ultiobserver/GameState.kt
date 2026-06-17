@@ -436,7 +436,9 @@ enum class CountdownKind {
  * @param endEpoch Epoch millis when the game ended, or null while active.
  * @param tournamentName Optional tournament name used in completed-game summaries.
  * @param division Optional division context for the game.
+ * @param level Optional competition level for the game.
  * @param gameContext Optional game-stage or round context, such as pool play or semifinals.
+ * @param observers Optional list of observers assigned to the game.
  * @param nearEndName Optional custom label for the near field end.
  * @param farEndName Optional custom label for the far field end.
  * @param nearAttackingTeam The team attacking the observer's near end.
@@ -462,7 +464,9 @@ data class GameState(
     val endEpoch: Long? = null,
     val tournamentName: String = "",
     val division: GameDivision? = null,
+    val level: String = "",
     val gameContext: String = "",
+    val observers: String = "",
     val nearEndName: String = "",
     val farEndName: String = "",
     val rules: GameRules,
@@ -692,7 +696,9 @@ fun applySetupToLiveGame(
         startEpoch = epochTimestamp(setup.startDate, setup.startTime, setup.timeZone),
         tournamentName = setup.tournamentName,
         division = setup.division,
+        level = setup.level,
         gameContext = setup.gameContext,
+        observers = setup.observers,
         nearEndName = setup.nearEndName,
         farEndName = setup.farEndName,
         rules = setup.rules,
@@ -745,7 +751,9 @@ fun GameState.toSetupState(): GameSetupState {
         timeZone = timeZone,
         tournamentName = tournamentName,
         division = division,
+        level = level,
         gameContext = gameContext,
+        observers = observers,
         nearEndName = nearEndName,
         farEndName = farEndName,
         rules = rules,

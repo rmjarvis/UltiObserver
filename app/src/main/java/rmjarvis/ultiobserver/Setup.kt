@@ -38,7 +38,9 @@ enum class GameDivision(val displayText: String) {
  * @param timeZone The time zone that gives the local start date/time its real instant.
  * @param tournamentName Optional tournament name used in completed-game summaries.
  * @param division Optional division context for the game, hidden from summaries when not set.
+ * @param level Optional competition level for the game, hidden from summaries when blank.
  * @param gameContext Optional game-stage or round context, such as pool play or semifinals.
+ * @param observers Optional list of observers assigned to the game.
  * @param nearEndName Optional custom label for the near/bottom field end.
  * @param farEndName Optional custom label for the far/top field end.
  * @param rules The scoring, cap, halftime, and timeout rules selected for the game.
@@ -60,7 +62,9 @@ data class GameSetupState(
     val timeZone: ZoneId,
     val tournamentName: String = "",
     val division: GameDivision? = null,
+    val level: String = "",
     val gameContext: String = "",
+    val observers: String = "",
     val nearEndName: String = "",
     val farEndName: String = "",
     val rules: GameRules = GameRules(),
@@ -112,6 +116,19 @@ internal fun orderedSetupDivisions(): List<GameDivision?> {
     )
 }
 
+/// Return preset game-level labels offered during setup.
+internal fun setupLevelPresets(): List<String> {
+    return listOf(
+        "Youth",
+        "College",
+        "Club",
+        "Masters",
+        "Grandmasters",
+        "Great Grandmasters",
+        "Legends",
+    )
+}
+
 /**
  * One compact labeled row in the setup overview.
  *
@@ -160,7 +177,9 @@ internal fun GameSetupState.gameInformationSummaryLines(): List<String> {
     return listOfNotNull(
         tournamentName.trim().takeIf { it.isNotEmpty() },
         division?.setupSummaryLine(),
+        level.trim().takeIf { it.isNotEmpty() },
         gameContext.trim().takeIf { it.isNotEmpty() },
+        observers.trim().takeIf { it.isNotEmpty() }?.let { "Observers: $it" },
         formatStartDate(startDate),
         "Start at ${formatClockTime(startTime)}",
     )

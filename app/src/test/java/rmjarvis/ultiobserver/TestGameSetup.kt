@@ -72,6 +72,11 @@ class TestGameSetup : GameDomainTestFixtures() {
             pullingTeam = VC,
             pullingFromEnd = FieldEnd.FAR,
         ).copy(
+            tournamentName = "Potlatch",
+            division = GameDivision.MIXED,
+            level = "Grandmasters",
+            gameContext = "Pool play",
+            observers = "Mike and Gary",
             nearEndName = "Road",
             farEndName = "Trees",
             teamOne = TeamSetup(
@@ -95,6 +100,11 @@ class TestGameSetup : GameDomainTestFixtures() {
         )
         var state = createLiveGameState(setup)
         assertEquals(setup, state.toSetupState())
+        assertEquals("Potlatch", state.tournamentName)
+        assertEquals(GameDivision.MIXED, state.division)
+        assertEquals("Grandmasters", state.level)
+        assertEquals("Pool play", state.gameContext)
+        assertEquals("Mike and Gary", state.observers)
         assertEquals("Road", state.nearEndName)
         assertEquals("Trees", state.farEndName)
         assertEquals(PullPromptTarget.FAR, state.pullPromptTarget)
@@ -117,6 +127,11 @@ class TestGameSetup : GameDomainTestFixtures() {
         // Edit setup before the first point and verify opening pull changes resync current pull and field state.
         val editedBeforePlay = setup.copy(
             startTime = LocalTime.of(8, 45),
+            tournamentName = "Spring Reign",
+            division = GameDivision.OPEN,
+            level = "Youth",
+            gameContext = "Quarterfinal",
+            observers = "Alex and Blake",
             nearEndName = "Parking",
             farEndName = "Scoreboard",
             rules = setup.rules.copy(gameTo = 15, timeoutsPerHalf = 2),
@@ -144,6 +159,11 @@ class TestGameSetup : GameDomainTestFixtures() {
         val beforeSetupEditBeforePlay = state
         state = applySetupToLiveGame(state, editedBeforePlay, 10_000L)
         assertEquals(LocalTime.of(8, 45), state.startTime)
+        assertEquals("Spring Reign", state.tournamentName)
+        assertEquals(GameDivision.OPEN, state.division)
+        assertEquals("Youth", state.level)
+        assertEquals("Quarterfinal", state.gameContext)
+        assertEquals("Alex and Blake", state.observers)
         assertEquals("Parking", state.nearEndName)
         assertEquals("Scoreboard", state.farEndName)
         assertEquals(PullPromptTarget.BOTH, state.pullPromptTarget)
@@ -203,6 +223,11 @@ class TestGameSetup : GameDomainTestFixtures() {
 
         val editedAfterPlay = editedBeforePlay.copy(
             startTime = LocalTime.of(9, 0),
+            tournamentName = "College Nationals",
+            division = GameDivision.WOMENS,
+            level = "Semi-pro showcase",
+            gameContext = "Final",
+            observers = "Casey",
             nearEndName = "South",
             farEndName = "North",
             rules = editedBeforePlay.rules.copy(gameTo = 17, hasFloaterTimeout = false),
@@ -230,6 +255,11 @@ class TestGameSetup : GameDomainTestFixtures() {
         val beforeSetupEditAfterPlay = state
         state = applySetupToLiveGame(state, editedAfterPlay, 200_000L)
         assertEquals(LocalTime.of(9, 0), state.startTime)
+        assertEquals("College Nationals", state.tournamentName)
+        assertEquals(GameDivision.WOMENS, state.division)
+        assertEquals("Semi-pro showcase", state.level)
+        assertEquals("Final", state.gameContext)
+        assertEquals("Casey", state.observers)
         assertEquals("South", state.nearEndName)
         assertEquals("North", state.farEndName)
         assertEquals(PullPromptTarget.NEITHER, state.pullPromptTarget)

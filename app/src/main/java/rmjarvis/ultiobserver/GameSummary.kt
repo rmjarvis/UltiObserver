@@ -4,7 +4,8 @@ package rmjarvis.ultiobserver
  * Text content for the top card on a completed-game summary.
  *
  * @param title Heading for the summary card.
- * @param gameInformationLine Optional tournament, division, and round/context line.
+ * @param gameInformationLine Optional tournament, division, level, and round/context line.
+ * @param observersLine Optional line listing observers assigned to the game.
  * @param startLine Formatted scheduled start date and time.
  * @param endLine Formatted game end time.
  * @param scoreLines Winner-first team score lines.
@@ -12,6 +13,7 @@ package rmjarvis.ultiobserver
 internal data class GameOverSummaryText(
     val title: String,
     val gameInformationLine: String?,
+    val observersLine: String?,
     val startLine: String,
     val endLine: String,
     val scoreLines: List<String>,
@@ -42,6 +44,7 @@ internal fun GameState.gameOverSummaryText(): GameOverSummaryText {
     return GameOverSummaryText(
         title = "Game summary",
         gameInformationLine = gameInformationSummaryLine(),
+        observersLine = observersSummaryLine(),
         startLine = "Start ${formatStartDate(startDate)} ${formatClockTime(startTime)}",
         endLine = "End time ${formatClockTime(endTime)}",
         scoreLines = winnerFirstTeams().map { team -> "${team.name} ${team.score}" },
@@ -80,6 +83,7 @@ internal fun GameState.gameSummaryShareText(): String {
     return buildList {
         add("UltiObserver Game Summary")
         gameInformationSummaryLine()?.let { add(it) }
+        observersSummaryLine()?.let { add(it) }
         add("${formatStartDate(startDate)}, ${formatClockTime(startTime)}")
         add(orderedTeams.joinToString(", ") { team -> "${team.name} ${team.score}" })
         if (misconductLines.isEmpty()) {
@@ -96,8 +100,14 @@ private fun GameState.gameInformationSummaryLine(): String? {
     return listOfNotNull(
         tournamentName.trim().takeIf { it.isNotEmpty() },
         division?.setupSummaryLine(),
+        level.trim().takeIf { it.isNotEmpty() },
         gameContext.trim().takeIf { it.isNotEmpty() },
     ).joinToString(" ").takeIf { it.isNotEmpty() }
+}
+
+/// Return optional observer-assignment text for completed-game summaries.
+private fun GameState.observersSummaryLine(): String? {
+    return observers.trim().takeIf { it.isNotEmpty() }?.let { "Observers: $it" }
 }
 
 /// Return compact per-team misconduct lines for the share summary.

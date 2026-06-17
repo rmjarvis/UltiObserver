@@ -64,7 +64,8 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         // Game information is optional and initially does not display an unset division.
         composeRule.onAllNodesWithText("N/A Division").assertCountEquals(0)
         openGameInformationSetupEditor()
-        composeRule.onNodeWithText("N/A").assertIsDisplayed()
+        composeRule.onAllNodesWithText("N/A").assertCountEquals(2)
+        composeRule.onNodeWithText("Level").assertIsDisplayed()
         closeSetupEditor()
 
         // Add a prior-card holder and make sure the form remains usable afterwards.
@@ -164,11 +165,17 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         openGameInformationSetupEditor()
         composeRule.onNodeWithTag("setup-tournament-name").performTextReplacement("College Nationals")
         composeRule.onNodeWithTag("setup-game-division-${GameDivision.OPEN.name}").performClick()
+        composeRule.onNodeWithTag("setup-game-level-Great-Grandmasters").performClick()
+        composeRule.onNodeWithTag("setup-game-level-other").performClick()
+        composeRule.onNodeWithTag("setup-game-level-other-text").performTextReplacement("Community showcase")
         composeRule.onNodeWithTag("setup-game-context").performTextReplacement("Semifinals")
+        composeRule.onNodeWithTag("setup-observers").performTextReplacement("Mike and Gary")
         closeSetupEditor()
         waitForText("College Nationals")
         waitForText("Open Division")
+        waitForText("Community showcase")
         waitForText("Semifinals")
+        waitForText("Observers: Mike and Gary")
 
         // Player-card entry should support cancel, team-scoped entry, editing, zero-prior rows, and name-only rows.
         openPriorCardsSetupEditor()

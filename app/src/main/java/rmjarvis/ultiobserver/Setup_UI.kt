@@ -843,7 +843,7 @@ private fun SetupSummaryRow(
 /**
  * Render the game-information setup dialog.
  *
- * @param state The setup state whose tournament and game context are being edited.
+ * @param state The setup state whose game information is being edited.
  * @param onStateChange Callback receiving updated setup state.
  * @param onDismiss Callback closing the dialog.
  */
@@ -857,7 +857,10 @@ private fun GameInformationSetupDialog(
     var startTime by remember { mutableStateOf(state.startTime) }
     var tournamentName by remember { mutableStateOf(state.tournamentName) }
     var division by remember { mutableStateOf(state.division) }
+    var level by remember { mutableStateOf(state.level) }
+    var customLevelVisible by remember { mutableStateOf(state.level.isCustomSetupLevel()) }
     var gameContext by remember { mutableStateOf(state.gameContext) }
+    var observers by remember { mutableStateOf(state.observers) }
     var showStartDateDialog by remember { mutableStateOf(false) }
     var showStartTimeDialog by remember { mutableStateOf(false) }
 
@@ -868,7 +871,9 @@ private fun GameInformationSetupDialog(
                 startTime = startTime,
                 tournamentName = tournamentName,
                 division = division,
+                level = level,
                 gameContext = gameContext,
+                observers = observers,
             )
         )
         onDismiss()
@@ -910,6 +915,38 @@ private fun GameInformationSetupDialog(
                     onSelected = { division = it },
                 )
 
+                Text("Level", fontWeight = FontWeight.SemiBold)
+                GameLevelChoiceRow(
+                    selected = level,
+                    customLevelVisible = customLevelVisible,
+                    onSelected = {
+                        level = it
+                        customLevelVisible = false
+                    },
+                    onClear = {
+                        level = ""
+                        customLevelVisible = false
+                    },
+                    onOther = {
+                        if (!level.isCustomSetupLevel()) {
+                            level = ""
+                        }
+                        customLevelVisible = true
+                    },
+                )
+                if (customLevelVisible) {
+                    OutlinedTextField(
+                        value = level,
+                        onValueChange = { level = it },
+                        label = { Text("Other level") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("setup-game-level-other-text"),
+                    )
+                }
+
                 OutlinedTextField(
                     value = tournamentName,
                     onValueChange = { tournamentName = it },
@@ -930,6 +967,17 @@ private fun GameInformationSetupDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("setup-game-context"),
+                )
+                OutlinedTextField(
+                    value = observers,
+                    onValueChange = { observers = it },
+                    label = { Text("Observers") },
+                    placeholder = { Text("Observer names") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("setup-observers"),
                 )
             }
         },
@@ -961,6 +1009,63 @@ private fun GameInformationSetupDialog(
             },
         )
     }
+}
+
+/**
+ * Render the level chooser for the game-information setup dialog.
+ *
+ * @param selected The currently selected level text.
+ * @param customLevelVisible Whether the custom level field is active.
+ * @param onSelected Callback receiving one of the preset level values.
+ * @param onClear Callback clearing the level value.
+ * @param onOther Callback showing the custom level field.
+ */
+@Composable
+private fun GameLevelChoiceRow(
+    selected: String,
+    customLevelVisible: Boolean,
+    onSelected: (String) -> Unit,
+    onClear: () -> Unit,
+    onOther: () -> Unit,
+) {
+    val selectedLevel = selected.trim()
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        setupLevelPresets().forEach { level ->
+            SetupChoiceChip(
+                label = level,
+                selected = selectedLevel == level && !customLevelVisible,
+                onClick = { onSelected(level) },
+                modifier = Modifier.testTag("setup-game-level-${level.testTagText()}"),
+            )
+        }
+        SetupChoiceChip(
+            label = "Other",
+            selected = customLevelVisible,
+            onClick = onOther,
+            modifier = Modifier.testTag("setup-game-level-other"),
+        )
+        SetupChoiceChip(
+            label = "N/A",
+            selected = selectedLevel.isEmpty() && !customLevelVisible,
+            onClick = onClear,
+            modifier = Modifier.testTag("setup-game-level-NA"),
+        )
+    }
+}
+
+/// Return whether level text should be treated as custom setup input.
+private fun String.isCustomSetupLevel(): Boolean {
+    val level = trim()
+    return level.isNotEmpty() && level !in setupLevelPresets()
+}
+
+/// Return stable setup-chip test-tag text for a display label.
+private fun String.testTagText(): String {
+    return replace(" ", "-")
 }
 
 /**

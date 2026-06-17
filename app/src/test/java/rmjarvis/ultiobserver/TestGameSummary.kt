@@ -17,7 +17,9 @@ class TestGameSummary : GameDomainTestFixtures() {
         val state = baseState.copy(
             tournamentName = "Philly Open",
             division = GameDivision.MIXED,
+            level = "Masters",
             gameContext = "Semifinal",
+            observers = "Mike and Gary",
             endEpoch = timestampAt(baseState, LocalTime.of(12, 42)),
             phase = GamePhase.GAME_OVER,
             teamOne = TeamLiveState("Viscous Coupling", TeamColorChoice.WHITE, score = 12),
@@ -27,7 +29,8 @@ class TestGameSummary : GameDomainTestFixtures() {
         assertEquals(
             GameOverSummaryText(
                 title = "Game summary",
-                gameInformationLine = "Philly Open Mixed Division Semifinal",
+                gameInformationLine = "Philly Open Mixed Division Masters Semifinal",
+                observersLine = "Observers: Mike and Gary",
                 startLine = "Start May 19, 2026 10:00 AM",
                 endLine = "End time 12:42 PM",
                 scoreLines = listOf("Animal 15", "Viscous Coupling 12"),
@@ -104,7 +107,9 @@ class TestGameSummary : GameDomainTestFixtures() {
         ).copy(
             tournamentName = "Philly Open",
             division = GameDivision.OPEN,
+            level = "Masters",
             gameContext = "Final",
+            observers = "Mike and Gary",
             phase = GamePhase.GAME_OVER,
             teamOne = TeamLiveState("Viscous Coupling", TeamColorChoice.WHITE, score = 12),
             teamTwo = TeamLiveState(
@@ -132,7 +137,8 @@ class TestGameSummary : GameDomainTestFixtures() {
         assertEquals(
             """
             UltiObserver Game Summary
-            Philly Open Open Division Final
+            Philly Open Open Division Masters Final
+            Observers: Mike and Gary
             May 19, 2026, 10:00 AM
             Animal 15, Viscous Coupling 12
             Misconduct:
@@ -218,7 +224,9 @@ class TestGameSummary : GameDomainTestFixtures() {
         ).copy(
             tournamentName = "Philly Open",
             division = GameDivision.MIXED,
+            level = "Masters",
             gameContext = "Semifinals",
+            observers = "Mike and Gary",
             nearEndName = "Road",
             farEndName = "Trees",
             pullingFromEnd = FieldEnd.NEAR,
@@ -229,10 +237,14 @@ class TestGameSummary : GameDomainTestFixtures() {
 
         assertEquals("Philly Open", state.tournamentName)
         assertEquals(GameDivision.MIXED, state.division)
+        assertEquals("Masters", state.level)
         assertEquals("Semifinals", state.gameContext)
+        assertEquals("Mike and Gary", state.observers)
         assertEquals("Philly Open", state.toSetupState().tournamentName)
         assertEquals(GameDivision.MIXED, state.toSetupState().division)
+        assertEquals("Masters", state.toSetupState().level)
         assertEquals("Semifinals", state.toSetupState().gameContext)
+        assertEquals("Mike and Gary", state.toSetupState().observers)
         assertEquals("Road", state.toSetupState().fieldEndName(FieldEnd.NEAR))
         assertEquals("Trees", state.toSetupState().fieldEndName(FieldEnd.FAR))
         assertEquals("Viscous Coupling pulls from Road", state.toSetupState().startingPullSummary())

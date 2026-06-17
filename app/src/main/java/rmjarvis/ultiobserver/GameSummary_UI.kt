@@ -158,6 +158,12 @@ internal fun GameOverSummary(
                             style = MaterialTheme.typography.bodyMedium,
                         )
                     }
+                    summaryText.observersLine?.let { observersLine ->
+                        Text(
+                            text = observersLine,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
                     Text(
                         text = summaryText.startLine,
                         style = MaterialTheme.typography.bodyMedium,
