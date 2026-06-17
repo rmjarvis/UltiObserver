@@ -4,12 +4,14 @@ package rmjarvis.ultiobserver
  * Text content for the top card on a completed-game summary.
  *
  * @param title Heading for the summary card.
+ * @param gameInformationLine Optional tournament, division, and round/context line.
  * @param startLine Formatted scheduled start date and time.
  * @param endLine Formatted game end time.
  * @param scoreLines Winner-first team score lines.
  */
 internal data class GameOverSummaryText(
     val title: String,
+    val gameInformationLine: String?,
     val startLine: String,
     val endLine: String,
     val scoreLines: List<String>,
@@ -39,6 +41,7 @@ internal fun GameState.gameOverSummaryText(): GameOverSummaryText {
     val endTime = localTimeFromEpoch(endEpoch!!, timeZone)
     return GameOverSummaryText(
         title = "Game summary",
+        gameInformationLine = gameInformationSummaryLine(),
         startLine = "Start ${formatStartDate(startDate)} ${formatClockTime(startTime)}",
         endLine = "End time ${formatClockTime(endTime)}",
         scoreLines = winnerFirstTeams().map { team -> "${team.name} ${team.score}" },
@@ -72,12 +75,12 @@ internal fun GameState.gameOverTeamSummaryText(teamId: TeamId): GameOverTeamSumm
  */
 internal fun GameState.gameSummaryShareText(): String {
     val orderedTeams = winnerFirstTeams()
-    val startLinePrefix = tournamentName.takeIf { it.isNotBlank() }?.let { "${it.trim()} - " } ?: ""
     val misconductLines = misconductShareLines()
 
     return buildList {
         add("UltiObserver Game Summary")
-        add("$startLinePrefix${formatStartDate(startDate)}, ${formatClockTime(startTime)}")
+        gameInformationSummaryLine()?.let { add(it) }
+        add("${formatStartDate(startDate)}, ${formatClockTime(startTime)}")
         add(orderedTeams.joinToString(", ") { team -> "${team.name} ${team.score}" })
         if (misconductLines.isEmpty()) {
             add("No misconduct assessments")
@@ -86,6 +89,15 @@ internal fun GameState.gameSummaryShareText(): String {
             addAll(misconductLines)
         }
     }.joinToString("\n")
+}
+
+/// Return optional game-information text in the same order used by the setup summary.
+private fun GameState.gameInformationSummaryLine(): String? {
+    return listOfNotNull(
+        tournamentName.trim().takeIf { it.isNotEmpty() },
+        division?.setupSummaryLine(),
+        gameContext.trim().takeIf { it.isNotEmpty() },
+    ).joinToString(" ").takeIf { it.isNotEmpty() }
 }
 
 /// Return compact per-team misconduct lines for the share summary.

@@ -15,6 +15,9 @@ class TestGameSummary : GameDomainTestFixtures() {
             startTime = LocalTime.of(10, 0),
         )
         val state = baseState.copy(
+            tournamentName = "Philly Open",
+            division = GameDivision.MIXED,
+            gameContext = "Semifinal",
             endEpoch = timestampAt(baseState, LocalTime.of(12, 42)),
             phase = GamePhase.GAME_OVER,
             teamOne = TeamLiveState("Viscous Coupling", TeamColorChoice.WHITE, score = 12),
@@ -24,6 +27,7 @@ class TestGameSummary : GameDomainTestFixtures() {
         assertEquals(
             GameOverSummaryText(
                 title = "Game summary",
+                gameInformationLine = "Philly Open Mixed Division Semifinal",
                 startLine = "Start May 19, 2026 10:00 AM",
                 endLine = "End time 12:42 PM",
                 scoreLines = listOf("Animal 15", "Viscous Coupling 12"),
@@ -99,6 +103,8 @@ class TestGameSummary : GameDomainTestFixtures() {
             startTime = LocalTime.of(10, 0),
         ).copy(
             tournamentName = "Philly Open",
+            division = GameDivision.OPEN,
+            gameContext = "Final",
             phase = GamePhase.GAME_OVER,
             teamOne = TeamLiveState("Viscous Coupling", TeamColorChoice.WHITE, score = 12),
             teamTwo = TeamLiveState(
@@ -126,7 +132,8 @@ class TestGameSummary : GameDomainTestFixtures() {
         assertEquals(
             """
             UltiObserver Game Summary
-            Philly Open - May 19, 2026, 10:00 AM
+            Philly Open Open Division Final
+            May 19, 2026, 10:00 AM
             Animal 15, Viscous Coupling 12
             Misconduct:
               Animal:

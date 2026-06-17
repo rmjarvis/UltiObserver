@@ -152,6 +152,12 @@ internal fun GameOverSummary(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text(summaryText.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    summaryText.gameInformationLine?.let { gameInformationLine ->
+                        Text(
+                            text = gameInformationLine,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
                     Text(
                         text = summaryText.startLine,
                         style = MaterialTheme.typography.bodyMedium,

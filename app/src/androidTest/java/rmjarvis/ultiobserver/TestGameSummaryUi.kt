@@ -81,7 +81,8 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
         clearArchivedGamesProgrammatically()
         val expectedShareText = """
             UltiObserver Game Summary
-            Philly Open - May 19, 2026, 10:00 AM
+            Philly Open
+            May 19, 2026, 10:00 AM
             Animal 15, Viscous Coupling 12
             Misconduct:
               Animal:
