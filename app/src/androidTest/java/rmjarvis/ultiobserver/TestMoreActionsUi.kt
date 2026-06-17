@@ -50,7 +50,7 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         applyScoreAdjustment()
         applyTimeoutAdjustment()
         applyPullInfractionAdjustment()
-        applyNoOpCardAdjustment()
+        applyCardTechAdjustment()
 
         // Orientation controls should update state without breaking the live screen.
         openMoreActionsDialog()

@@ -164,6 +164,7 @@ internal fun AdjustCardsDialog(
     now: Long,
     onDismiss: () -> Unit,
     onConfirm: (GameState) -> Unit,
+    onStateUpdate: (GameState) -> Unit,
 ) {
     var teamOneB by remember { mutableStateOf(state.teamOne.blueCards) }
     var teamOneTf by remember { mutableStateOf(state.teamOne.technicalFouls) }
@@ -199,15 +200,30 @@ internal fun AdjustCardsDialog(
             "${state.teamFor(team).name} ${identity.displayText(compact = true)} ${rejection.noticeText}"
     }
 
+    fun GameState.withPlayerCards(
+        team: TeamId,
+        records: List<PlayerRecord>,
+        undoLabel: String,
+    ): GameState {
+        return adjustCardsAndTf(
+            teamOneBlues = teamOne.blueCards,
+            teamOneTechnicalFouls = teamOne.technicalFouls,
+            teamTwoBlues = teamTwo.blueCards,
+            teamTwoTechnicalFouls = teamTwo.technicalFouls,
+            teamOnePlayers = if (team == TeamId.TEAM_ONE) records else teamOnePlayers,
+            teamTwoPlayers = if (team == TeamId.TEAM_TWO) records else teamTwoPlayers,
+            now = now,
+            undoLabel = undoLabel,
+        )
+    }
+
     fun finalizeAdjustment() {
         onConfirm(
-            state.adjustCardsAndTf(
+            state.adjustBlueCardsAndTechs(
                 teamOneBlues = teamOneB,
                 teamOneTechnicalFouls = teamOneTf,
                 teamTwoBlues = teamTwoB,
                 teamTwoTechnicalFouls = teamTwoTf,
-                teamOnePlayers = workingTeamOnePlayerCards,
-                teamTwoPlayers = workingTeamTwoPlayerCards,
                 now = now,
             )
         )
@@ -246,6 +262,13 @@ internal fun AdjustCardsDialog(
             reason = entry.reason,
         )
         setRecordsFor(team, updatedRecords)
+        onStateUpdate(
+            state.withPlayerCards(
+                team = team,
+                records = updatedRecords,
+                undoLabel = state.playerCardAddUndoLabel(team, cardType, identity),
+            )
+        )
         showSuspensionNoticeIfNeeded(team, updatedRecords, identity)
         return true
     }
@@ -272,7 +295,16 @@ internal fun AdjustCardsDialog(
             reason = entry.reason,
         )
         setRecordsFor(team, updatedRecords)
-        showSuspensionNoticeIfNeeded(team, updatedRecords, identity)
+        onStateUpdate(
+            state.withPlayerCards(
+                team = team,
+                records = updatedRecords,
+                undoLabel = state.playerCardEditUndoLabel(team, originalCard.cardType, identity),
+            )
+        )
+        if (!identity.matches(originalCard.identity())) {
+            showSuspensionNoticeIfNeeded(team, updatedRecords, identity)
+        }
         return true
     }
 
@@ -371,7 +403,19 @@ internal fun AdjustCardsDialog(
             card = pending.card,
             onDismiss = { pendingManualRemove = null },
             onConfirm = {
-                setRecordsFor(pending.team, removeEditablePlayerCard(recordsFor(pending.team), pending.card))
+                val updatedRecords = removeEditablePlayerCard(recordsFor(pending.team), pending.card)
+                setRecordsFor(pending.team, updatedRecords)
+                onStateUpdate(
+                    state.withPlayerCards(
+                        team = pending.team,
+                        records = updatedRecords,
+                        undoLabel = state.playerCardRemoveUndoLabel(
+                            team = pending.team,
+                            cardType = pending.card.cardType,
+                            identity = pending.card.identity(),
+                        ),
+                    )
+                )
                 pendingManualRemove = null
             }
         )
@@ -538,7 +582,11 @@ internal fun TeamCardDialog(
         }
     }
 
-    fun stateWithPlayerCards(team: TeamId, records: List<PlayerRecord>): GameState {
+    fun stateWithPlayerCards(
+        team: TeamId,
+        records: List<PlayerRecord>,
+        undoLabel: String,
+    ): GameState {
         return state.adjustCardsAndTf(
             teamOneBlues = state.teamOne.blueCards,
             teamOneTechnicalFouls = state.teamOne.technicalFouls,
@@ -547,6 +595,7 @@ internal fun TeamCardDialog(
             teamOnePlayers = if (team == TeamId.TEAM_ONE) records else state.teamOnePlayers,
             teamTwoPlayers = if (team == TeamId.TEAM_TWO) records else state.teamTwoPlayers,
             now = now,
+            undoLabel = undoLabel,
         )
     }
 
@@ -577,14 +626,28 @@ internal fun TeamCardDialog(
             playerName = identity.playerName,
             reason = entry.reason,
         )
-        onStateUpdate(stateWithPlayerCards(team, updatedRecords))
-        showSuspensionNoticeIfNeeded(team, updatedRecords, identity)
+        onStateUpdate(
+            stateWithPlayerCards(
+                team = team,
+                records = updatedRecords,
+                undoLabel = state.playerCardEditUndoLabel(team, originalCard.cardType, identity),
+            )
+        )
+        if (!identity.matches(originalCard.identity())) {
+            showSuspensionNoticeIfNeeded(team, updatedRecords, identity)
+        }
         return true
     }
 
     fun removeExistingCard(team: TeamId, card: EditablePlayerCard) {
         val updatedRecords = removeEditablePlayerCard(state.playerCards(team), card)
-        onStateUpdate(stateWithPlayerCards(team, updatedRecords))
+        onStateUpdate(
+            stateWithPlayerCards(
+                team = team,
+                records = updatedRecords,
+                undoLabel = state.playerCardRemoveUndoLabel(team, card.cardType, card.identity()),
+            )
+        )
     }
 
     fun assessPlayerCardEntry(

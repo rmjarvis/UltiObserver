@@ -91,6 +91,27 @@ class TestEventLog : GameDomainTestFixtures() {
         )
     }
 
+    /// Verify manual Blue/Tech count corrections use one compact event and undo label.
+    @Test
+    fun blueCardAndTechAdjustmentsUseCompactLogEntry() {
+        val state = standardLiveGameState(startTime = LocalTime.of(12, 0))
+        val adjusted = state.adjustBlueCardsAndTechs(
+            teamOneBlues = 1,
+            teamOneTechnicalFouls = 2,
+            teamTwoBlues = 0,
+            teamTwoTechnicalFouls = 1,
+            now = timestampAt(state, LocalTime.of(12, 5)),
+        )
+
+        assertEquals("Adjust blue card/tech counts.", adjusted.lastEvent)
+        assertEquals("Undo Adjust blue card/tech counts", adjusted.undoEntry?.label)
+        assertEquals(
+            listOf("12:05  Adjusted blue card/tech counts"),
+            adjusted.formatEventLogLines(),
+        )
+        assertEquals(state, adjusted.undoEntry?.previous)
+    }
+
     /// Verify manual corrections log the meaningful before/after deltas.
     @Test
     fun manualCorrectionsLogDeltas() {
@@ -114,6 +135,7 @@ class TestEventLog : GameDomainTestFixtures() {
             teamOnePlayers = listOf(playerRecordWithCards("11", reds = 1)),
             teamTwoPlayers = emptyList(),
             now = timestampAt(state, LocalTime.of(12, 3)),
+            undoLabel = "",
         )
         state = state.adjustScore(
             teamOneScore = 3,
@@ -137,6 +159,16 @@ class TestEventLog : GameDomainTestFixtures() {
             teamTwoFalseStarts = 0,
             now = timestampAt(state, LocalTime.of(12, 7)),
         )
+        state = state.adjustCardsAndTf(
+            teamOneBlues = 1,
+            teamOneTechnicalFouls = 0,
+            teamTwoBlues = 0,
+            teamTwoTechnicalFouls = 0,
+            teamOnePlayers = listOf(playerRecordWithCards("22", reds = 1, playerName = "Morgan")),
+            teamTwoPlayers = emptyList(),
+            now = timestampAt(state, LocalTime.of(12, 8)),
+            undoLabel = "",
+        )
 
         assertEquals(
             listOf(
@@ -152,10 +184,57 @@ class TestEventLog : GameDomainTestFixtures() {
                 "12:05  Adjusted Viscous Coupling timeouts +1",
                 "12:06  Adjusted Viscous Coupling timeouts -1",
                 "12:07  Adjusted Viscous Coupling false starts -1",
+                "12:08  Changed red card on Viscous Coupling from #11 to #22 Morgan",
             ),
             state.formatEventLogLines(),
         )
         assertEquals(VC, state.eventLog.last().team)
+    }
+
+    /// Verify same-player card corrections do not add event-log entries.
+    @Test
+    fun samePlayerCardCorrectionsAreNotLogged() {
+        val ANIMAL = TeamId.TEAM_TWO
+        var state = standardLiveGameState(startTime = LocalTime.of(12, 0))
+        state = state.assessYellowCard(ANIMAL, "12", timestampAt(state, LocalTime.of(12, 1))).state
+        state = state.adjustCardsAndTf(
+            teamOneBlues = 0,
+            teamOneTechnicalFouls = 0,
+            teamTwoBlues = 0,
+            teamTwoTechnicalFouls = 0,
+            teamOnePlayers = emptyList(),
+            teamTwoPlayers = listOf(playerRecordWithCards("12", yellows = 1, playerName = "Mike")),
+            now = timestampAt(state, LocalTime.of(12, 2)),
+            undoLabel = "",
+        )
+        state = state.adjustCardsAndTf(
+            teamOneBlues = 0,
+            teamOneTechnicalFouls = 0,
+            teamTwoBlues = 0,
+            teamTwoTechnicalFouls = 0,
+            teamOnePlayers = emptyList(),
+            teamTwoPlayers = listOf(
+                PlayerRecord(
+                    jerseyNumber = "12",
+                    playerName = "Mike",
+                    cards = listOf(
+                        InGamePlayerCardEvent(
+                            CardType.YELLOW,
+                            reason = CardReason(preset = "Dangerous play"),
+                        ),
+                    ),
+                )
+            ),
+            now = timestampAt(state, LocalTime.of(12, 3)),
+            undoLabel = "",
+        )
+
+        assertEquals(
+            listOf(
+                "12:01  Yellow card on Animal #12",
+            ),
+            state.formatEventLogLines(),
+        )
     }
 
     /// Verify undo restores the previous event log along with the previous game state.

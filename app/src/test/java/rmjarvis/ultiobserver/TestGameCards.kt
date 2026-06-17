@@ -763,11 +763,11 @@ class TestGameCards : GameDomainTestFixtures() {
                 PlayerRecord(
                     jerseyNumber = "8",
                     cards = listOf(
-                        InGamePlayerCardEvent(CardType.RED),
                         InGamePlayerCardEvent(
                             CardType.YELLOW,
                             reason = CardReason(preset = "Other", otherText = "Corrected identity"),
                         ),
+                        InGamePlayerCardEvent(CardType.RED),
                     ),
                 ),
             ),
@@ -779,14 +779,39 @@ class TestGameCards : GameDomainTestFixtures() {
                 PlayerRecord(
                     jerseyNumber = "8",
                     cards = listOf(
-                        InGamePlayerCardEvent(CardType.RED),
                         InGamePlayerCardEvent(
                             CardType.YELLOW,
                             reason = CardReason(preset = "Other", otherText = "Corrected identity"),
                         ),
+                        InGamePlayerCardEvent(CardType.RED),
                     ),
                 ),
                 playerRecordWithCards("23", yellows = 1),
+            ),
+            cardAssignments,
+        )
+        cardAssignments = listOf(
+            playerRecordWithCards("12", yellows = 1),
+            playerRecordWithCards("23", reds = 1),
+        )
+        cardAssignments = replaceEditablePlayerCard(
+            records = cardAssignments,
+            editableCard = cardAssignments.editablePlayerCards().first(),
+            jerseyNumber = "12",
+            cardType = CardType.YELLOW,
+            playerName = "Mike",
+            reason = CardReason(preset = "Dangerous play"),
+        )
+        assertEquals(
+            listOf(
+                PlayerRecord(
+                    jerseyNumber = "12",
+                    playerName = "Mike",
+                    cards = listOf(
+                        InGamePlayerCardEvent(CardType.YELLOW, reason = CardReason(preset = "Dangerous play")),
+                    ),
+                ),
+                playerRecordWithCards("23", reds = 1),
             ),
             cardAssignments,
         )
@@ -953,7 +978,7 @@ class TestGameCards : GameDomainTestFixtures() {
         assertEquals(correctedTeamOnePlayerCards, state.playerCards(VC))
         assertEquals(correctedTeamTwoPlayerCards, state.playerCards(ANIMAL))
         assertEquals("Cards and technical fouls adjusted.", state.lastEvent)
-        assertEquals("Undo Cards / techs adjustment", state.undoEntry?.label)
+        assertEquals("Undo Adjust blue card/tech counts", state.undoEntry?.label)
         assertEquals(beforeCardsAdjustment, state.undoEntry?.previous)
     }
 }

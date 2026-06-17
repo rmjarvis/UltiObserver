@@ -29,6 +29,7 @@ enum class EventLogType {
     YELLOW_CARD,
     RED_CARD,
     BLUE_CARD,
+    BLUE_CARD_AND_TECH_ADJUSTED,
     TECHNICAL_FOUL,
     OFFSIDES,
     FALSE_START,
@@ -46,6 +47,7 @@ enum class EventLogType {
  * @param type The kind of event recorded.
  * @param team The team most directly associated with the event, when applicable.
  * @param player The player identity for player-card entries.
+ * @param previousPlayer The previous player identity for edited player-card entries.
  * @param timeViolationOutcome The warning, timeout, or no-timeout result for time violations.
  * @param teamOneScore The team-one score after a score correction.
  * @param teamTwoScore The team-two score after a score correction.
@@ -59,6 +61,8 @@ data class EventLogEntry(
     val team: TeamId? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val player: PlayerIdentity? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val previousPlayer: PlayerIdentity? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val timeViolationOutcome: TimeViolationOutcome? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
@@ -125,6 +129,7 @@ private fun GameState.formatEventLogDescription(entry: EventLogEntry): String {
         EventLogType.YELLOW_CARD,
         EventLogType.RED_CARD,
         EventLogType.BLUE_CARD -> cardEventDescription(entry)
+        EventLogType.BLUE_CARD_AND_TECH_ADJUSTED -> "Adjusted blue card/tech counts"
         EventLogType.TECHNICAL_FOUL -> technicalFoulDescription(entry)
         EventLogType.OFFSIDES,
         EventLogType.FALSE_START -> pullInfractionDescription(entry)
@@ -150,11 +155,25 @@ private fun GameState.goalDescription(entry: EventLogEntry): String {
 private fun GameState.cardEventDescription(entry: EventLogEntry): String {
     val label = entry.type.cardLabel()
     val delta = entry.delta
-    return if (delta == null) {
-        "$label on ${cardAdjustmentTarget(entry)}"
-    } else {
-        "${delta.adjustmentVerb()} ${label.lowercase()} on ${cardAdjustmentTarget(entry)}"
+    val previousPlayer = entry.previousPlayer
+    return when {
+        previousPlayer != null -> cardEditDescription(entry, label.lowercase(), previousPlayer)
+        delta == null -> "$label on ${cardAdjustmentTarget(entry)}"
+        else -> "${delta.adjustmentVerb()} ${label.lowercase()} on ${cardAdjustmentTarget(entry)}"
     }
+}
+
+/// Return display text for a player-card edit correction.
+private fun GameState.cardEditDescription(
+    entry: EventLogEntry,
+    label: String,
+    previousPlayer: PlayerIdentity,
+): String {
+    val teamText = teamName(entry.team!!)
+    val player = entry.player!!
+    val previousText = previousPlayer.displayText(compact = false)
+    val playerText = player.displayText(compact = false)
+    return "Changed $label on $teamText from $previousText to $playerText"
 }
 
 /// Return display text for a manual card-correction target.

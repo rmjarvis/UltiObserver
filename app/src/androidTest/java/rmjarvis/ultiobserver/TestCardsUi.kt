@@ -113,6 +113,22 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         waitForText("Team 1 has 4 total blue cards.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
 
+        // Editing a red card to add a reason should not repeat the suspension notice.
+        openCardsDialog()
+        composeRule.onNodeWithText("Edit existing cards").performClick()
+        waitForText("Edit existing cards")
+        composeRule.onAllNodes(hasContentDescription("Edit", substring = true))[1].performClick()
+        waitForText("Edit red card")
+        composeRule.onNodeWithText("Reason").performClick()
+        waitForText("Red card reason")
+        composeRule.onNodeWithText("Egregious dangerous play").performClick()
+        composeRule.onNodeWithText("Set").performClick()
+        composeRule.onNodeWithText("Record").performClick()
+        composeRule.onAllNodesWithText("Team 1 #4 now has a red card and has been suspended.").assertCountEquals(0)
+        waitForText("Edit existing cards")
+        composeRule.onNodeWithText("Done").performClick()
+        waitForText("Undo Edit red on #4 of Team 1")
+
         openCardsDialog(TeamId.TEAM_TWO)
         tapCardDialogAction(TeamId.TEAM_TWO, "Yellow")
         waitForText("Yellow card")
@@ -260,7 +276,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onAllNodesWithText("Remove").onLast().performClick()
         composeRule.onAllNodesWithText("Back").onLast().performClick()
         composeRule.onNodeWithText("Done").performClick()
-        waitForText("Undo Cards / techs adjustment")
+        waitForText("Undo Adjust blue card/tech counts")
 
         // Add a clean second-yellow record after the correction matrix so summary text can show that form.
         recordYellowCard(TeamId.TEAM_TWO, "21", "Team 2 has", substring = true)

@@ -191,6 +191,7 @@ internal fun MoreActionsContent(
                 onAction(updatedState)
                 showAdjustCardsDialog = false
             },
+            onStateUpdate = onAction,
         )
     }
 

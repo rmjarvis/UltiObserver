@@ -245,6 +245,19 @@ data class PlayerRecord(
     internal fun identity(): PlayerIdentity {
         return PlayerIdentity(jerseyNumber, playerName)
     }
+
+    /**
+     * Return this record with missing identity fields filled from another identity.
+     *
+     * @param other Identity that supplies a number or name when this record is missing it.
+     */
+    internal fun withMergedIdentityFrom(other: PlayerIdentity): PlayerRecord {
+        val mergedIdentity = identity().withMissingFieldsFrom(other)
+        return copy(
+            jerseyNumber = mergedIdentity.jerseyNumber,
+            playerName = mergedIdentity.playerName,
+        )
+    }
 }
 
 /// Result of comparing an entered card holder with existing records.
@@ -490,6 +503,53 @@ enum class PlayerCardEventType {
 }
 
 /**
+ * Replace team blue-card and technical-foul counts as one manual correction.
+ *
+ * @param teamOneBlues The corrected blue-card count for team one.
+ * @param teamOneTechnicalFouls The corrected technical-foul count for team one.
+ * @param teamTwoBlues The corrected blue-card count for team two.
+ * @param teamTwoTechnicalFouls The corrected technical-foul count for team two.
+ * @param now The correction timestamp.
+ */
+fun GameState.adjustBlueCardsAndTechs(
+    teamOneBlues: Int,
+    teamOneTechnicalFouls: Int,
+    teamTwoBlues: Int,
+    teamTwoTechnicalFouls: Int,
+    now: Long,
+): GameState {
+    val adjustedTeamOneBlues = teamOneBlues.coerceAtLeast(0)
+    val adjustedTeamOneTechnicalFouls = teamOneTechnicalFouls.coerceAtLeast(0)
+    val adjustedTeamTwoBlues = teamTwoBlues.coerceAtLeast(0)
+    val adjustedTeamTwoTechnicalFouls = teamTwoTechnicalFouls.coerceAtLeast(0)
+    if (
+        adjustedTeamOneBlues == teamOne.blueCards &&
+        adjustedTeamOneTechnicalFouls == teamOne.technicalFouls &&
+        adjustedTeamTwoBlues == teamTwo.blueCards &&
+        adjustedTeamTwoTechnicalFouls == teamTwo.technicalFouls
+    ) {
+        return this
+    }
+
+    return copy(
+        teamOne = teamOne.copy(
+            blueCards = adjustedTeamOneBlues,
+            technicalFouls = adjustedTeamOneTechnicalFouls,
+        ),
+        teamTwo = teamTwo.copy(
+            blueCards = adjustedTeamTwoBlues,
+            technicalFouls = adjustedTeamTwoTechnicalFouls,
+        ),
+        lastEvent = "Adjust blue card/tech counts.",
+    ).withEventLogEntry(
+        EventLogEntry(
+            timestampEpoch = now,
+            type = EventLogType.BLUE_CARD_AND_TECH_ADJUSTED,
+        )
+    ).withUndo(this, "Undo Adjust blue card/tech counts")
+}
+
+/**
  * Replace team card and technical-foul counts as a manual correction.
  *
  * @param teamOneBlues The corrected blue-card count for team one.
@@ -498,6 +558,7 @@ enum class PlayerCardEventType {
  * @param teamTwoTechnicalFouls The corrected technical-foul count for team two.
  * @param teamOnePlayers The reconciled per-player yellow/red records for team one.
  * @param teamTwoPlayers The reconciled per-player yellow/red records for team two.
+ * @param undoLabel Label to show for undoing this correction.
  */
 fun GameState.adjustCardsAndTf(
     teamOneBlues: Int,
@@ -507,6 +568,7 @@ fun GameState.adjustCardsAndTf(
     teamOnePlayers: List<PlayerRecord>,
     teamTwoPlayers: List<PlayerRecord>,
     now: Long,
+    undoLabel: String,
 ): GameState {
     requirePlayerRecordsValid(teamOnePlayers)
     requirePlayerRecordsValid(teamTwoPlayers)
@@ -536,7 +598,7 @@ fun GameState.adjustCardsAndTf(
         teamOnePlayers = teamOnePlayers,
         teamTwoPlayers = teamTwoPlayers,
         lastEvent = "Cards and technical fouls adjusted.",
-    ).withEventLogEntries(entries).withUndo(this, "Undo Cards / techs adjustment")
+    ).withEventLogEntries(entries).withUndo(this, undoLabel)
 }
 
 /**
@@ -583,6 +645,22 @@ private fun MutableList<EventLogEntry>.addPlayerCardDeltas(
     beforeRecords: List<PlayerRecord>,
     afterRecords: List<PlayerRecord>,
 ) {
+    val cardChange = getSingleChangedPlayerCard(beforeRecords, afterRecords)
+    if (cardChange != null) {
+        val newIdentity = cardChange.after.identity()
+        if (!newIdentity.matches(cardChange.before.identity())) {
+            add(
+                EventLogEntry(
+                    timestampEpoch = now,
+                    type = cardChange.after.cardType.eventLogType(),
+                    team = team,
+                    player = newIdentity,
+                    previousPlayer = cardChange.before.identity(),
+                )
+            )
+        }
+        return
+    }
     val identities = (beforeRecords + afterRecords).distinctBy { it.identity().key() }
     identities.forEach { identity ->
         val identityKey = identity.identity().key()
@@ -603,6 +681,54 @@ private fun MutableList<EventLogEntry>.addPlayerCardDeltas(
             delta = (after?.reds ?: 0) - (before?.reds ?: 0),
             player = eventPlayer,
         )
+    }
+}
+
+/**
+ * One changed editable player-card entry from a before/after correction.
+ *
+ * @param before The card before correction.
+ * @param after The card after correction.
+ */
+private data class PlayerCardChange(
+    val before: EditablePlayerCard,
+    val after: EditablePlayerCard,
+)
+
+/**
+ * Return a single changed player-card pair, or null if there are none.
+ *
+ * @param beforeRecords The records before correction.
+ * @param afterRecords The records after correction.
+ */
+private fun getSingleChangedPlayerCard(
+    beforeRecords: List<PlayerRecord>,
+    afterRecords: List<PlayerRecord>,
+): PlayerCardChange? {
+    val beforeCards = beforeRecords.editablePlayerCards()
+    val afterCards = afterRecords.editablePlayerCards()
+    if (beforeCards.size != afterCards.size) {
+        return null
+    }
+    val changedCards = beforeCards.zip(afterCards).filter { (before, after) ->
+        before.jerseyNumber != after.jerseyNumber ||
+            before.playerName != after.playerName ||
+            before.cardType != after.cardType ||
+            before.reason != after.reason
+    }
+    if (changedCards.size != 1) {
+        // Then it's 0.  It's not possible for this to be >1 in production pathways.
+        return null
+    }
+    val (before, after) = changedCards.single()
+    return PlayerCardChange(before, after)
+}
+
+/// Return the event-log type for this player-card color.
+private fun CardType.eventLogType(): EventLogType {
+    return when (this) {
+        CardType.YELLOW -> EventLogType.YELLOW_CARD
+        CardType.RED -> EventLogType.RED_CARD
     }
 }
 
@@ -771,13 +897,48 @@ fun replaceEditablePlayerCard(
     playerName: String,
     reason: CardReason,
 ): List<PlayerRecord> {
-    return addPlayerCardAssignment(
-        records = removeEditablePlayerCard(records, editableCard),
-        jerseyNumber = jerseyNumber,
-        cardType = cardType,
-        playerName = playerName,
-        reason = reason,
-    )
+    val enteredIdentity = PlayerIdentity(jerseyNumber, playerName)
+    val targetIndex = records.indexOfFirst { record -> record.identity().matches(enteredIdentity) }
+    val replacementCard = InGamePlayerCardEvent(cardType = cardType, reason = reason)
+    val sourceIndex = editableCard.playerIndex
+    val updatedRecords = buildList {
+        records.forEachIndexed { playerIndex, record ->
+            when {
+                playerIndex == sourceIndex && playerIndex == targetIndex -> {
+                    val updatedCards = record.cards.toMutableList()
+                    updatedCards[editableCard.cardIndex] = replacementCard
+                    add(record.withMergedIdentityFrom(enteredIdentity).copy(cards = updatedCards))
+                }
+                playerIndex == sourceIndex -> {
+                    val updatedCards = record.cards.filterIndexed { cardIndex, _ ->
+                        cardIndex != editableCard.cardIndex
+                    }
+                    if (updatedCards.isNotEmpty() || record.priorYellows > 0 || record.priorReds > 0) {
+                        add(record.copy(cards = updatedCards))
+                    }
+                    if (targetIndex < 0) {
+                        add(
+                            PlayerRecord(
+                                jerseyNumber = enteredIdentity.jerseyNumber,
+                                playerName = enteredIdentity.playerName,
+                                cards = listOf(replacementCard),
+                            )
+                        )
+                    }
+                }
+                playerIndex == targetIndex -> {
+                    val mergedRecord = record.withMergedIdentityFrom(enteredIdentity)
+                    val updatedCards = mergedRecord.cards.toMutableList()
+                    val insertIndex = if (sourceIndex < playerIndex) 0 else updatedCards.size
+                    updatedCards.add(insertIndex, replacementCard)
+                    add(mergedRecord.copy(cards = updatedCards))
+                }
+                else -> add(record)
+            }
+        }
+    }
+    requirePlayerRecordsValid(updatedRecords)
+    return updatedRecords
 }
 
 /**
@@ -1113,6 +1274,69 @@ private fun GameState.playerCardUndoLabel(
 }
 
 /**
+ * Build the undo label for editing an existing player-card action.
+ *
+ * @param team The team whose name should appear in the undo label.
+ * @param cardType The edited card color.
+ * @param identity The edited player identity.
+ */
+internal fun GameState.playerCardEditUndoLabel(
+    team: TeamId,
+    cardType: CardType,
+    identity: PlayerIdentity,
+): String {
+    return playerCardUndoLabel(
+        action = "Edit ${cardType.label.lowercase()}",
+        team = team,
+        jerseyNumber = identity.jerseyNumber,
+        playerName = identity.playerName,
+    )
+}
+
+/**
+ * Build the undo label for manually adding a player-card action.
+ *
+ * @param team The team whose name should appear in the undo label.
+ * @param cardType The added card color.
+ * @param identity The added player-card identity.
+ */
+internal fun GameState.playerCardAddUndoLabel(
+    team: TeamId,
+    cardType: CardType,
+    identity: PlayerIdentity,
+): String {
+    val action = if (
+        cardType == CardType.YELLOW &&
+        (playerCardFor(team, identity.jerseyNumber, identity.playerName)?.yellows ?: 0) >= 1
+    ) {
+        "Second yellow"
+    } else {
+        cardType.label
+    }
+    return playerCardUndoLabel(action, team, identity.jerseyNumber, identity.playerName)
+}
+
+/**
+ * Build the undo label for manually removing a player-card action.
+ *
+ * @param team The team whose name should appear in the undo label.
+ * @param cardType The removed card color.
+ * @param identity The removed player-card identity.
+ */
+internal fun GameState.playerCardRemoveUndoLabel(
+    team: TeamId,
+    cardType: CardType,
+    identity: PlayerIdentity,
+): String {
+    return playerCardUndoLabel(
+        action = "Remove ${cardType.label.lowercase()}",
+        team = team,
+        jerseyNumber = identity.jerseyNumber,
+        playerName = identity.playerName,
+    )
+}
+
+/**
  * Convert between-points misconduct threshold actions into a no-pull sequence when applicable.
  *
  * @param thresholdCount The team-card or technical-foul count after the recorded action.
@@ -1155,7 +1379,12 @@ data class EditablePlayerCard(
     val playerName: String,
     val cardType: CardType,
     val reason: CardReason,
-)
+) {
+    /// Return this card's player identity.
+    internal fun identity(): PlayerIdentity {
+        return PlayerIdentity(jerseyNumber, playerName)
+    }
+}
 /**
  * Add a first yellow card to a team's in-game player records.
  *
@@ -1248,7 +1477,7 @@ private fun updatePlayerCardRecord(
     val updatedRecords = if (existingIndex >= 0) {
         records.mapIndexed { index, record ->
             if (index == existingIndex) {
-                transform(record.withEnteredIdentity(identity.jerseyNumber, identity.playerName))
+                transform(record.withMergedIdentityFrom(identity))
             } else {
                 record
             }
@@ -1280,22 +1509,6 @@ private fun GameState.playerIdentityForAssessment(
         ?.identity()
         ?.withMissingFieldsFrom(identity)
         ?: identity
-}
-
-/**
- * Return this record with any newly entered identity fields filled in.
- *
- * @param jerseyNumber The newly entered jersey number.
- * @param playerName The newly entered player name.
- */
-private fun PlayerRecord.withEnteredIdentity(
-    jerseyNumber: String,
-    playerName: String,
-): PlayerRecord {
-    return copy(
-        jerseyNumber = if (this.jerseyNumber.isBlank() && jerseyNumber.isNotBlank()) jerseyNumber else this.jerseyNumber,
-        playerName = if (this.playerName.isBlank() && playerName.isNotBlank()) playerName else this.playerName,
-    )
 }
 
 /**

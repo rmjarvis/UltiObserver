@@ -315,6 +315,7 @@ abstract class GameDomainTestFixtures {
             teamOnePlayers,
             teamTwoPlayers,
             0L,
+            "Undo Adjust blue card/tech counts",
         )
     }
 

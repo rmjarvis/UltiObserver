@@ -559,13 +559,14 @@ abstract class MainActivityUiTestFixtures {
         waitForText("Undo Pull infraction adjustment")
     }
 
-    /// Exercise the Cards / techs adjustment dialog without changing counts.
-    protected fun applyNoOpCardAdjustment() {
+    /// Exercise the Cards / techs adjustment dialog by changing a visible count.
+    protected fun applyCardTechAdjustment() {
         openMoreActionsDialog()
         composeRule.onNodeWithText("Adjust cards / techs").performClick()
         waitForText("Adjust cards / techs")
-        composeRule.onNodeWithText("Set").performClick()
-        waitForText("Undo Cards / techs adjustment")
+        composeRule.onAllNodesWithText("+1")[0].performClick()
+        composeRule.onNodeWithText("Done").performClick()
+        waitForText("Undo Adjust blue card/tech counts")
     }
 
     /**
