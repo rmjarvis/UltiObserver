@@ -50,16 +50,18 @@ class TestGameSummary : GameDomainTestFixtures() {
             teamTwoPlayers = listOf(PlayerRecord(jerseyNumber = "99")),
             teamOnePlayers = listOf(
                 playerRecordWithCards(jerseyNumber = "7", playerName = "Casey Handler", yellows = 1).copy(
-                    cards = listOf(InGamePlayerCardEvent(CardType.YELLOW, reason = "Dangerous play")),
+                    cards = listOf(InGamePlayerCardEvent(CardType.YELLOW, reason = CardReason(preset = "Dangerous play"))),
                 ),
                 playerRecordWithCards(jerseyNumber = "12", yellows = 2).copy(
                     cards = listOf(
-                        InGamePlayerCardEvent(CardType.YELLOW, reason = "Taunting"),
-                        InGamePlayerCardEvent(CardType.YELLOW, reason = "Dangerous play"),
+                        InGamePlayerCardEvent(CardType.YELLOW, reason = CardReason(preset = "Taunting")),
+                        InGamePlayerCardEvent(CardType.YELLOW, reason = CardReason(preset = "Dangerous play")),
                     ),
                 ),
                 playerRecordWithCards(jerseyNumber = "", playerName = "No Number", reds = 1).copy(
-                    cards = listOf(InGamePlayerCardEvent(CardType.RED, reason = "Egregious dangerous play")),
+                    cards = listOf(
+                        InGamePlayerCardEvent(CardType.RED, reason = CardReason(preset = "Egregious dangerous play")),
+                    ),
                 ),
             ),
         )
@@ -109,12 +111,14 @@ class TestGameSummary : GameDomainTestFixtures() {
             teamTwoPlayers = listOf(
                 playerRecordWithCards(jerseyNumber = "7", playerName = "Casey Handler", yellows = 2).copy(
                     cards = listOf(
-                        InGamePlayerCardEvent(CardType.YELLOW, reason = "Taunting"),
-                        InGamePlayerCardEvent(CardType.YELLOW, reason = "Dangerous play"),
+                        InGamePlayerCardEvent(CardType.YELLOW, reason = CardReason(preset = "Taunting")),
+                        InGamePlayerCardEvent(CardType.YELLOW, reason = CardReason(preset = "Dangerous play")),
                     ),
                 ),
                 playerRecordWithCards(jerseyNumber = "", playerName = "No Number", reds = 1).copy(
-                    cards = listOf(InGamePlayerCardEvent(CardType.RED, reason = "Egregious dangerous play")),
+                    cards = listOf(
+                        InGamePlayerCardEvent(CardType.RED, reason = CardReason(preset = "Egregious dangerous play")),
+                    ),
                 ),
             ),
         )

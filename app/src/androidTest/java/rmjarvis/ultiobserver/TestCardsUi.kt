@@ -2,6 +2,7 @@ package rmjarvis.ultiobserver
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onLast
@@ -31,10 +32,15 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         // The Card dialog should show the selected team, its pull role, and its current totals.
         openCardsDialog()
         composeRule.onNodeWithText("Team 1 (pulling)").assertIsDisplayed()
-        waitForText("Current cards: 0 yellow, 0 red, 0 blue. Team total: 0.")
+        waitForText("Current cards:")
+        waitForText("0 yellow")
+        waitForText("0 red")
+        waitForText("0 blue")
+        waitForText("Team total: 0")
+        composeRule.onNodeWithText("No existing cards").assertIsDisplayed()
         if (shouldUsePlatformBackDismissalCoverage()) {
             pressDialogBack()
-            composeRule.onAllNodesWithText("Current cards: 0 yellow, 0 red, 0 blue. Team total: 0.").assertCountEquals(0)
+            composeRule.onAllNodesWithText("Current cards:").assertCountEquals(0)
             openCardsDialog()
             composeRule.onNodeWithText("Team 1 (pulling)").assertIsDisplayed()
         }
@@ -114,13 +120,39 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("card-player-name").performTextReplacement("Alex Cutter")
         composeRule.onNodeWithText("Reason").performClick()
         waitForText("Yellow card reason")
-        composeRule.onNodeWithText("Dangerous play").performClick()
+        composeRule.onNodeWithText("Other").performClick()
+        composeRule.onNodeWithTag("card-other-reason").performTextReplacement("Sideline language")
+        composeRule.onNodeWithTag("card-reason-details").performTextReplacement("after warning")
         composeRule.onNodeWithText("Set").performClick()
-        composeRule.onNodeWithText("Dangerous play").assertIsDisplayed()
+        composeRule.onNodeWithText("Sideline language: after warning").assertIsDisplayed()
+        composeRule.onNodeWithText("Sideline language: after warning").performClick()
+        waitForText("Yellow card reason")
+        assertEquals(
+            "Sideline language",
+            composeRule.onNodeWithTag("card-other-reason")
+                .fetchSemanticsNode()
+                .config[SemanticsProperties.EditableText]
+                .text,
+        )
+        assertEquals(
+            "after warning",
+            composeRule.onNodeWithTag("card-reason-details")
+                .fetchSemanticsNode()
+                .config[SemanticsProperties.EditableText]
+                .text,
+        )
+        composeRule.onNodeWithText("Set").performClick()
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Yellow card on #8 Alex Cutter.\nTeam 2 has 2 total blue cards.")
         composeRule.onNodeWithText("OK").performClick()
 
+        openCardsDialog(TeamId.TEAM_TWO)
+        composeRule.onNodeWithText("Edit existing cards").performClick()
+        waitForText("Edit existing cards")
+        composeRule.onNodeWithText("#8 Alex Cutter").assertIsDisplayed()
+        composeRule.onNodeWithText("Yellow card").assertIsDisplayed()
+        composeRule.onNodeWithText("Done").performClick()
+        composeRule.onAllNodesWithText("Edit existing cards").assertCountEquals(0)
         openCardsDialog(TeamId.TEAM_TWO)
         tapCardDialogAction(TeamId.TEAM_TWO, "Red")
         waitForText("#8 Alex Cutter (Y 1)")
@@ -207,73 +239,25 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         recordYellowCard(TeamId.TEAM_TWO, "7", "Yellow card on player 7.\nTeam 2 has 1 blue card.")
         recordYellowCard(TeamId.TEAM_TWO, "7", "Second yellow on player 7.", substring = true)
 
-        // Apply a manual card correction that adds a player red, removes a player yellow, and changes a team count.
-        openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust cards / techs").performClick()
-        waitForText("Adjust cards / techs")
-        composeRule.onAllNodesWithText("+1")[1].performClick()
-        composeRule.onAllNodesWithText("+1")[2].performClick()
-        composeRule.onAllNodesWithText("-1")[4].performClick()
-        composeRule.onNodeWithText("Set").performClick()
-
-        // The adjustment reconciles player-backed red/yellow totals through explicit prompts.
-        waitForText("Add red")
-        enterCardPlayerNumber("9")
-        composeRule.onNodeWithText("Record").performClick()
-        waitForText("Remove yellow")
-        composeRule.onNodeWithText("#7 (Yellow 2)").performClick()
-        waitForText("Undo Cards / techs adjustment")
-
-        // A small team-count-only correction covers Team 1 blue and technical-foul edits.
-        openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust cards / techs").performClick()
-        waitForText("Adjust cards / techs")
-        composeRule.onAllNodesWithText("-1")[1].performClick()
-        composeRule.onAllNodesWithText("+1")[3].performClick()
-        composeRule.onAllNodesWithText("-1")[3].performClick()
-        composeRule.onNodeWithText("Set").performClick()
-        waitForText("Undo Cards / techs adjustment")
-
-        // A fuller correction pass covers adding/removing player-backed cards on both teams.
+        // Apply a manual card correction that adds a player red, removes a player yellow, and changes team counts.
         openMoreActionsDialog()
         composeRule.onNodeWithText("Adjust cards / techs").performClick()
         waitForText("Adjust cards / techs")
         composeRule.onAllNodesWithText("+1")[0].performClick()
-        composeRule.onAllNodesWithText("-1")[2].performClick()
-        composeRule.onAllNodesWithText("+1")[4].performClick()
-        composeRule.onAllNodesWithText("+1")[5].performClick()
-        composeRule.onAllNodesWithText("+1")[6].performClick()
-        composeRule.onAllNodesWithText("+1")[7].performClick()
-        composeRule.onNodeWithText("Set").performClick()
-        waitForText("Add yellow")
-        enterCardPlayerNumber("11")
+        composeRule.onAllNodesWithText("+1")[1].performClick()
+        composeRule.onAllNodesWithText("Add red").onFirst().performClick()
+        waitForText("Add red card")
+        enterCardPlayerNumber("9")
         composeRule.onNodeWithText("Record").performClick()
-        waitForText("Remove red")
-        composeRule.onNodeWithText("#5 (Red 1)").performClick()
-        waitForText("Add yellow")
-        enterCardPlayerNumber("14")
-        composeRule.onNodeWithText("Record").performClick()
-        waitForText("Add red")
-        enterCardPlayerNumber("12")
-        composeRule.onNodeWithText("Record").performClick()
-        waitForText("Undo Cards / techs adjustment")
-
-        // A final correction removes the just-added player cards and non-player team counts.
-        openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust cards / techs").performClick()
-        waitForText("Adjust cards / techs")
-        composeRule.onAllNodesWithText("-1")[0].performClick()
-        composeRule.onAllNodesWithText("-1")[4].performClick()
-        composeRule.onAllNodesWithText("-1")[5].performClick()
-        composeRule.onAllNodesWithText("-1")[6].performClick()
-        composeRule.onAllNodesWithText("-1")[7].performClick()
-        composeRule.onNodeWithText("Set").performClick()
-        waitForText("Remove yellow")
-        composeRule.onNodeWithText("#11 (Yellow 1)").performClick()
-        waitForText("Remove yellow")
-        composeRule.onNodeWithText("#14 (Yellow 1)").performClick()
-        waitForText("Remove red")
-        composeRule.onNodeWithText("#12 (Red 1)").performClick()
+        waitForText("Team 1 #9 now has a red card and has been suspended.")
+        composeRule.onNodeWithText("OK").performClick()
+        composeRule.onAllNodesWithText("Edit existing cards")[1].performClick()
+        waitForText("Edit existing cards")
+        composeRule.onAllNodes(hasContentDescription("Remove", substring = true)).onFirst().performClick()
+        waitForText("Remove card?")
+        composeRule.onAllNodesWithText("Remove").onLast().performClick()
+        composeRule.onAllNodesWithText("Back").onLast().performClick()
+        composeRule.onNodeWithText("Done").performClick()
         waitForText("Undo Cards / techs adjustment")
 
         // Add a clean second-yellow record after the correction matrix so summary text can show that form.
@@ -284,10 +268,12 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         openMoreActionsDialog()
         composeRule.onNodeWithText("Adjust cards / techs").performClick()
         waitForText("Adjust cards / techs")
-        composeRule.onAllNodesWithText("-1")[4].performClick()
-        composeRule.onNodeWithText("Set").performClick()
-        waitForText("Remove yellow")
-        composeRule.onAllNodesWithText("Cancel")[1].performClick()
+        composeRule.onAllNodesWithText("Edit existing cards")[1].performClick()
+        waitForText("Edit existing cards")
+        composeRule.onAllNodes(hasContentDescription("Remove", substring = true)).onFirst().performClick()
+        waitForText("Remove card?")
+        composeRule.onAllNodesWithText("Cancel").onLast().performClick()
+        composeRule.onAllNodesWithText("Back").onLast().performClick()
         composeRule.onNodeWithText("Cancel").performClick()
         waitForText("Update game setup")
 
@@ -295,9 +281,8 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         openMoreActionsDialog()
         composeRule.onNodeWithText("Adjust cards / techs").performClick()
         waitForText("Adjust cards / techs")
-        composeRule.onAllNodesWithText("+1")[4].performClick()
-        composeRule.onNodeWithText("Set").performClick()
-        waitForText("Add yellow")
+        composeRule.onAllNodesWithText("Add yellow")[1].performClick()
+        waitForText("Add yellow card")
         enterCardPlayerNumber("21")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Invalid card assignment")
@@ -306,12 +291,12 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         } else {
             composeRule.onNodeWithText("OK").performClick()
         }
-        waitForText("Add yellow")
+        waitForText("Add yellow card")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Invalid card assignment")
         composeRule.onNodeWithText("OK").performClick()
-        waitForText("Add yellow")
-        composeRule.onAllNodesWithText("Cancel")[1].performClick()
+        waitForText("Add yellow card")
+        composeRule.onAllNodesWithText("Cancel").onLast().performClick()
         composeRule.onNodeWithText("Cancel").performClick()
         waitForText("Update game setup")
 

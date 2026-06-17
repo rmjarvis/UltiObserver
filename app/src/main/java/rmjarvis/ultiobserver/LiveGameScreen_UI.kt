@@ -450,6 +450,7 @@ internal fun LiveGameScreen(
                 onStateChange(updatedState)
                 pendingCardTeam = null
             },
+            onStateUpdate = onStateChange,
         )
     }
 

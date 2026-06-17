@@ -153,10 +153,10 @@ private fun InGamePlayerCardEvent.summaryLabel(): String {
 
 /// Return the share-text reason suffix for one player card.
 private fun InGamePlayerCardEvent.shareReasonSuffix(): String {
-    return reason.trim().takeIf { it.isNotEmpty() }?.let { " -- $it" }.orEmpty()
+    return reason.text().takeIf { it.isNotEmpty() }?.let { " -- $it" }.orEmpty()
 }
 
 /// Return the game-summary reason suffix for one player card.
 private fun InGamePlayerCardEvent.summaryReasonSuffix(): String {
-    return reason.trim().takeIf { it.isNotEmpty() }?.let { " -- $it" }.orEmpty()
+    return reason.text().takeIf { it.isNotEmpty() }?.let { " -- $it" }.orEmpty()
 }

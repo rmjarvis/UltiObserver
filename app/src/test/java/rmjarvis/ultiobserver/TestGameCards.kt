@@ -20,13 +20,19 @@ class TestGameCards : GameDomainTestFixtures() {
     fun namedPlayerCardAssignments() {
         val VC = TeamId.TEAM_ONE
 
+        assertEquals("Dangerous play: late layout", CardReason("Dangerous play", details = " late layout ").text())
+        assertEquals("Custom reason: with context", CardReason("Other", " Custom reason ", " with context ").text())
+        assertEquals("More context only", CardReason(details = " More context only ").text())
+        assertEquals("Other details only", CardReason("Other", details = " Other details only ").text())
+        assertEquals("", CardReason("Other").text())
+
         var state = standardLiveGameState()
         var cardResult = state.assessYellowCard(
             team = VC,
             jerseyNumber = "24",
             now = 0L,
             playerName = "Drew Handler",
-            reason = "Dangerous play",
+            reason = CardReason(preset = "Dangerous play"),
         )
         state = cardResult.state
         assertEquals("Yellow card on #24 Drew Handler.\nViscous Coupling has 1 blue card.", cardResult.message())
@@ -34,7 +40,7 @@ class TestGameCards : GameDomainTestFixtures() {
             PlayerRecord(
                 jerseyNumber = "24",
                 playerName = "Drew Handler",
-                cards = listOf(InGamePlayerCardEvent(CardType.YELLOW, reason = "Dangerous play")),
+                cards = listOf(InGamePlayerCardEvent(CardType.YELLOW, reason = CardReason(preset = "Dangerous play"))),
             ),
             state.playerCards(VC).single(),
         )
@@ -44,14 +50,14 @@ class TestGameCards : GameDomainTestFixtures() {
             jerseyNumber = "24",
             now = 0L,
             playerName = "  drew   handler  ",
-            reason = "Taunting",
+            reason = CardReason(preset = "Taunting"),
         )
         state = cardResult.state
         assertEquals("Second yellow on #24 Drew Handler.", cardResult.message()!!.lineSequence().first())
-        assertEquals(listOf("Dangerous play", "Taunting"), state.playerCards(VC).single().cards.map { it.reason })
+        assertEquals(listOf("Dangerous play", "Taunting"), state.playerCards(VC).single().cards.map { it.reason.text() })
 
         val drewPlayer = state.playerCards(VC).single { it.playerName == "Drew Handler" }
-        assertEquals(listOf("Dangerous play", "Taunting"), drewPlayer.cards.map { it.reason })
+        assertEquals(listOf("Dangerous play", "Taunting"), drewPlayer.cards.map { it.reason.text() })
 
         cardResult = state.assessYellowCard(
             team = VC,
@@ -558,37 +564,86 @@ class TestGameCards : GameDomainTestFixtures() {
                 .contains("Viscous Coupling moves the disc to the reverse brick in the end zone they are defending."),
         )
 
-        // Exercise the player-card assignment helpers used by the UI reconciliation prompts.
+        // Exercise the player-card assignment helpers used by the manual adjustment UI.
         var cardAssignments = emptyList<PlayerRecord>()
         cardAssignments = addPlayerCardAssignment(cardAssignments, jerseyNumber = "17", cardType = CardType.YELLOW)
         assertEquals(listOf(playerRecordWithCards("17", yellows = 1)), cardAssignments)
         cardAssignments = addPlayerCardAssignment(cardAssignments, jerseyNumber = "17", cardType = CardType.RED)
         assertEquals(listOf(playerRecordWithCards("17", yellows = 1, reds = 1)), cardAssignments)
-        cardAssignments = removePlayerCardAssignment(cardAssignments, jerseyNumber = "8", cardType = CardType.YELLOW)
-        assertEquals(listOf(playerRecordWithCards("17", yellows = 1, reds = 1)), cardAssignments)
-        cardAssignments = removePlayerCardAssignment(cardAssignments, jerseyNumber = "17", cardType = CardType.YELLOW)
+        assertEquals(
+            listOf(
+                EditablePlayerCard(
+                    playerIndex = 0,
+                    cardIndex = 0,
+                    jerseyNumber = "17",
+                    playerName = "",
+                    cardType = CardType.YELLOW,
+                    reason = CardReason(),
+                ),
+                EditablePlayerCard(
+                    playerIndex = 0,
+                    cardIndex = 1,
+                    jerseyNumber = "17",
+                    playerName = "",
+                    cardType = CardType.RED,
+                    reason = CardReason(),
+                ),
+            ),
+            cardAssignments.editablePlayerCards(),
+        )
+        cardAssignments = removeEditablePlayerCard(cardAssignments, cardAssignments.editablePlayerCards().first())
         assertEquals(listOf(playerRecordWithCards("17", reds = 1)), cardAssignments)
-        cardAssignments = addPlayerCardAssignment(cardAssignments, jerseyNumber = "17", cardType = CardType.YELLOW)
-        cardAssignments = removePlayerCardAssignment(cardAssignments, jerseyNumber = "17", cardType = CardType.RED)
-        assertEquals(listOf(playerRecordWithCards("17", yellows = 1)), cardAssignments)
-        cardAssignments = addPlayerCardAssignment(cardAssignments, jerseyNumber = "17", cardType = CardType.RED)
-        cardAssignments = removePlayerCardAssignment(cardAssignments, jerseyNumber = "17", cardType = CardType.RED)
-        assertEquals(listOf(playerRecordWithCards("17", yellows = 1)), cardAssignments)
+
+        val priorCardRecord = listOf(
+            PlayerRecord(
+                jerseyNumber = "44",
+                priorYellows = 1,
+                cards = listOf(InGamePlayerCardEvent(CardType.YELLOW, reason = CardReason(preset = "Dangerous play"))),
+            )
+        )
+        assertEquals(
+            listOf(priorPlayerRecord("44", priorYellows = 1)),
+            removeEditablePlayerCard(priorCardRecord, priorCardRecord.editablePlayerCards().single()),
+        )
+
         cardAssignments = listOf(
             playerRecordWithCards("17", yellows = 1),
             playerRecordWithCards("8", reds = 1),
         )
-        cardAssignments = removePlayerCardAssignment(cardAssignments, jerseyNumber = "17", cardType = CardType.YELLOW)
-        assertEquals(listOf(playerRecordWithCards("8", reds = 1)), cardAssignments)
-        cardAssignments = addPlayerCardAssignment(cardAssignments, jerseyNumber = "23", cardType = CardType.YELLOW)
-        cardAssignments = addPlayerCardAssignment(cardAssignments, jerseyNumber = "8", cardType = CardType.YELLOW)
+        cardAssignments = replaceEditablePlayerCard(
+            records = cardAssignments,
+            editableCard = cardAssignments.editablePlayerCards().first(),
+            jerseyNumber = "8",
+            cardType = CardType.YELLOW,
+            playerName = "",
+            reason = CardReason(preset = "Other", otherText = "Corrected identity"),
+        )
         assertEquals(
             listOf(
                 PlayerRecord(
                     jerseyNumber = "8",
                     cards = listOf(
                         InGamePlayerCardEvent(CardType.RED),
-                        InGamePlayerCardEvent(CardType.YELLOW),
+                        InGamePlayerCardEvent(
+                            CardType.YELLOW,
+                            reason = CardReason(preset = "Other", otherText = "Corrected identity"),
+                        ),
+                    ),
+                ),
+            ),
+            cardAssignments,
+        )
+        cardAssignments = addPlayerCardAssignment(cardAssignments, jerseyNumber = "23", cardType = CardType.YELLOW)
+        assertEquals(
+            listOf(
+                PlayerRecord(
+                    jerseyNumber = "8",
+                    cards = listOf(
+                        InGamePlayerCardEvent(CardType.RED),
+                        InGamePlayerCardEvent(
+                            CardType.YELLOW,
+                            reason = CardReason(preset = "Other", otherText = "Corrected identity"),
+                        ),
                     ),
                 ),
                 playerRecordWithCards("23", yellows = 1),
@@ -663,89 +718,6 @@ class TestGameCards : GameDomainTestFixtures() {
                 VC,
                 "99",
             )
-        )
-
-        val adjustmentStepState = standardLiveGameState().copy(
-            teamOnePlayers = listOf(
-                playerRecordWithCards("17", yellows = 1),
-                playerRecordWithCards("23", reds = 1),
-            ),
-            teamTwoPlayers = listOf(
-                playerRecordWithCards("8", yellows = 2),
-            ),
-        )
-        val adjustmentSteps = adjustmentStepState.buildPlayerCardAdjustmentSteps(
-            teamOneYellows = 2,
-            teamOneReds = 0,
-            teamTwoYellows = 1,
-            teamTwoReds = 0,
-        )
-        val expectedAdjustmentSteps = listOf(
-            PlayerCardAdjustmentStep(VC, CardType.YELLOW, PlayerCardAdjustmentMode.ADD),
-            PlayerCardAdjustmentStep(VC, CardType.RED, PlayerCardAdjustmentMode.REMOVE),
-            PlayerCardAdjustmentStep(ANIMAL, CardType.YELLOW, PlayerCardAdjustmentMode.REMOVE),
-        )
-        assertEquals(expectedAdjustmentSteps, adjustmentSteps)
-        val (firstStepTeam, firstStepType, firstStepMode) = adjustmentSteps.first()
-        assertEquals(VC, firstStepTeam)
-        assertEquals(CardType.YELLOW, firstStepType)
-        assertEquals(PlayerCardAdjustmentMode.ADD, firstStepMode)
-        assertEquals(VC, adjustmentSteps.first().team)
-        assertEquals(CardType.YELLOW, adjustmentSteps.first().cardType)
-        assertEquals(PlayerCardAdjustmentMode.ADD, adjustmentSteps.first().mode)
-        assertEquals(
-            expectedAdjustmentSteps.first(),
-            adjustmentSteps.first().copy(),
-        )
-        assertEquals(
-            PlayerCardAdjustmentStep(ANIMAL, CardType.RED, PlayerCardAdjustmentMode.REMOVE),
-            adjustmentSteps.first().copy(
-                team = ANIMAL,
-                cardType = CardType.RED,
-                mode = PlayerCardAdjustmentMode.REMOVE,
-            ),
-        )
-        assertTrue(adjustmentSteps.first().toString().contains("mode=ADD"))
-        assertEquals(
-            PlayerCardAdjustmentStep(VC, CardType.YELLOW, PlayerCardAdjustmentMode.ADD).hashCode(),
-            adjustmentSteps.first().hashCode(),
-        )
-        assertFalse(adjustmentSteps.first() == adjustmentSteps.first().copy(team = ANIMAL))
-        assertFalse(adjustmentSteps.first() == adjustmentSteps.first().copy(cardType = CardType.RED))
-        assertFalse(adjustmentSteps.first() == adjustmentSteps.first().copy(mode = PlayerCardAdjustmentMode.REMOVE))
-        assertFalse(adjustmentSteps.first().equals("not a card adjustment step"))
-        val yellowRemovalCandidates = playerCardRemovalCandidates(
-            adjustmentStepState.teamTwoPlayers,
-            CardType.YELLOW,
-        )
-        assertEquals(
-            listOf(PlayerCardRemovalCandidate("8", cardCount = 2)),
-            yellowRemovalCandidates,
-        )
-        val (candidateJerseyNumber, _, candidateCardCount) = yellowRemovalCandidates.single()
-        assertEquals("8", candidateJerseyNumber)
-        assertEquals(2, candidateCardCount)
-        assertEquals("8", yellowRemovalCandidates.single().jerseyNumber)
-        assertEquals(2, yellowRemovalCandidates.single().cardCount)
-        assertEquals(
-            PlayerCardRemovalCandidate("8", cardCount = 2),
-            yellowRemovalCandidates.single().copy(),
-        )
-        assertEquals(
-            PlayerCardRemovalCandidate("9", cardCount = 1),
-            yellowRemovalCandidates.single().copy(jerseyNumber = "9", cardCount = 1),
-        )
-        assertTrue(yellowRemovalCandidates.single().toString().contains("cardCount=2"))
-        assertEquals(
-            PlayerCardRemovalCandidate("8", cardCount = 2).hashCode(),
-            yellowRemovalCandidates.single().hashCode(),
-        )
-        assertFalse(yellowRemovalCandidates.single() == yellowRemovalCandidates.single().copy(jerseyNumber = "9"))
-        assertFalse(yellowRemovalCandidates.single() == yellowRemovalCandidates.single().copy(cardCount = 1))
-        assertFalse(yellowRemovalCandidates.single().equals("not a removal candidate"))
-        assertEquals(
-            emptyList<PlayerCardRemovalCandidate>(),
-            playerCardRemovalCandidates(adjustmentStepState.teamTwoPlayers, CardType.RED),
         )
 
         // The UI reconciliation flow should prevent invalid records; if one reaches the model anyway, fail loudly.
