@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -41,7 +42,7 @@ import androidx.compose.ui.unit.dp
 
 private val CardChoiceYellow = Color(0xFFFFD92F)
 private val CardChoiceRed = Color(0xFFE64B3C)
-private val CardChoiceBlue = Color(0xFF64B5F6)
+private val CardChoiceBlue = Color(0xFF1976D2)
 private val CardReasonButtonColor = Color(0xFFFFF176)
 
 /**
@@ -705,7 +706,7 @@ private fun CardChoiceDialog(
     val blueCount = teamState.blueCards
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Card") },
+        title = { Text("Assess a card") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("${teamState.name}$roleSuffix", fontWeight = FontWeight.SemiBold)
@@ -732,17 +733,25 @@ private fun CardChoiceDialog(
                     CardChoiceButton(
                         label = "Blue",
                         color = CardChoiceBlue,
+                        contentColor = Color.White,
                         modifier = Modifier
                             .weight(1f)
                             .testTag("card-dialog-${team.name}-blue"),
                         onClick = onBlue,
                     )
                 }
-                Text(
-                    "Current cards: $yellowCount yellow, $redCount red, $blueCount blue. " +
-                        "Team total: ${state.teamCardTotal(team)}.",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Current cards:", style = MaterialTheme.typography.bodyMedium)
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(0.dp),
+                        modifier = Modifier.padding(start = 18.dp),
+                    ) {
+                        Text("$yellowCount yellow", style = MaterialTheme.typography.bodyMedium)
+                        Text("$redCount red", style = MaterialTheme.typography.bodyMedium)
+                        Text("$blueCount blue", style = MaterialTheme.typography.bodyMedium)
+                    }
+                    Text("Team total: ${state.teamCardTotal(team)}", style = MaterialTheme.typography.bodyMedium)
+                }
             }
         },
         confirmButton = {
@@ -758,6 +767,7 @@ private fun CardChoiceDialog(
  *
  * @param label The card color label.
  * @param color The button background color.
+ * @param contentColor The text color to use on the button.
  * @param modifier Modifier applied to the button.
  * @param onClick Callback selecting this card color.
  */
@@ -765,6 +775,7 @@ private fun CardChoiceDialog(
 private fun CardChoiceButton(
     label: String,
     color: Color,
+    contentColor: Color = Color.Black,
     modifier: Modifier,
     onClick: () -> Unit,
 ) {
@@ -773,7 +784,7 @@ private fun CardChoiceButton(
         modifier = modifier,
         colors = ButtonDefaults.buttonColors(
             containerColor = color,
-            contentColor = Color.Black,
+            contentColor = contentColor,
         ),
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
     ) {

@@ -70,7 +70,7 @@ private val FieldActionPanelColor = Color(0xCCFFFFFF)
 private val FieldGoalButtonColor = Color(0xFF2E7D32)
 private val FieldCardButtonColor = Color(0xFFFDD835)
 private val FieldTechButtonColor = Color(0xFFFFB74D)
-private val FieldTimeoutButtonColor = Color(0xFF1976D2)
+private val FieldTimeoutButtonColor = Color(0xFF90CAF9)
 private val FieldNeutralButtonColor = Color(0xFFF7F2EA)
 
 /**
@@ -717,7 +717,7 @@ private fun TeamActionGrid(
                     .testTag("live-${teamId.name}-timeout"),
                 enabled = interactionsEnabled && timeoutEnabled,
                 containerColor = FieldTimeoutButtonColor,
-                contentColor = Color.White,
+                contentColor = Color.Black,
                 onClick = onTimeout,
             )
         }
