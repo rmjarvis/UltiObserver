@@ -319,6 +319,7 @@ internal fun AdjustCardsDialog(
         EditablePlayerCardsDialog(
             teamName = state.teamFor(team).name,
             cards = recordsFor(team).editablePlayerCards(),
+            includeDelete = true,
             onDismiss = { editingPlayerCardsFor = null },
             onEdit = { card ->
                 pendingManualEdit = PendingManualCardEdit(team, card)
@@ -664,6 +665,7 @@ internal fun TeamCardDialog(
         EditablePlayerCardsDialog(
             teamName = state.teamFor(editTeam).name,
             cards = state.playerCards(editTeam).editablePlayerCards(),
+            includeDelete = false,
             onDismiss = { editingExistingCardsFor = null },
             confirmLabel = "Done",
             onConfirm = onDismiss,
@@ -1171,7 +1173,7 @@ private fun PlayerCardAdjustmentActions(
                 disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
             ),
         ) {
-            Text(if (hasEditableCards) "Edit existing cards" else "No existing cards")
+            Text(if (hasEditableCards) "Edit/remove existing cards" else "No existing cards")
         }
     }
 }
@@ -1239,12 +1241,14 @@ private fun CompactIconAction(
  * Render one editable in-game player-card record row.
  *
  * @param card The card event represented by this row.
+ * @param includeDelete Whether to show the delete action for this card.
  * @param onEdit Callback editing this card.
  * @param onRemove Callback asking to remove this card.
  */
 @Composable
 private fun EditablePlayerCardRow(
     card: EditablePlayerCard,
+    includeDelete: Boolean,
     onEdit: () -> Unit,
     onRemove: () -> Unit,
 ) {
@@ -1285,11 +1289,13 @@ private fun EditablePlayerCardRow(
                     onClick = onEdit,
                     icon = Icons.Filled.Edit,
                 )
-                CompactIconAction(
-                    contentDescription = "Remove $identity",
-                    onClick = onRemove,
-                    icon = Icons.Filled.Delete,
-                )
+                if (includeDelete) {
+                    CompactIconAction(
+                        contentDescription = "Remove $identity",
+                        onClick = onRemove,
+                        icon = Icons.Filled.Delete,
+                    )
+                }
             }
         }
     }
@@ -1300,6 +1306,7 @@ private fun EditablePlayerCardRow(
  *
  * @param teamName The team whose cards are listed.
  * @param cards The editable in-game cards.
+ * @param includeDelete Whether to show delete actions for listed cards.
  * @param onDismiss Callback closing this page.
  * @param onEdit Callback editing one card.
  * @param onRemove Callback asking to remove one card.
@@ -1308,6 +1315,7 @@ private fun EditablePlayerCardRow(
 private fun EditablePlayerCardsDialog(
     teamName: String,
     cards: List<EditablePlayerCard>,
+    includeDelete: Boolean,
     onDismiss: () -> Unit,
     confirmLabel: String? = null,
     onConfirm: (() -> Unit)? = null,
@@ -1328,6 +1336,7 @@ private fun EditablePlayerCardsDialog(
                 cards.forEach { card ->
                     EditablePlayerCardRow(
                         card = card,
+                        includeDelete = includeDelete,
                         onEdit = { onEdit(card) },
                         onRemove = { onRemove(card) },
                     )
