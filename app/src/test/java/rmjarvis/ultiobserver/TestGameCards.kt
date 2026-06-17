@@ -326,54 +326,6 @@ class TestGameCards : GameDomainTestFixtures() {
             cardResult.message(),
         )
 
-        // The N/A pathways distinguish same-unknown-player second yellow from a first yellow.
-        state = standardLiveGameState()
-        state = state.assessYellowCard(VC, UNKNOWN_PLAYER_NUMBER).state
-        assertTrue(state.playerHasYellowThisGame(VC, UNKNOWN_PLAYER_NUMBER))
-        cardResult = state.assessSecondYellowCard(VC, UNKNOWN_PLAYER_NUMBER)
-        state = cardResult.state
-        assertEquals(2, state.teamYellowCards(VC))
-        assertEquals(0, state.teamRedCards(VC))
-        assertEquals(playerRecordWithCards(UNKNOWN_PLAYER_NUMBER, yellows = 2), playerRecord(state, VC, UNKNOWN_PLAYER_NUMBER))
-        assertEquals(
-            "Second yellow on player N/A.\n" +
-                "The player receives a game suspension.\n" +
-                "Viscous Coupling has 2 total blue cards.",
-            cardResult.message(),
-        )
-
-        state = standardLiveGameState()
-        state = state.assessYellowCard(VC, UNKNOWN_PLAYER_NUMBER).state
-        cardResult = state.assessFirstYellowCard(VC, UNKNOWN_PLAYER_NUMBER)
-        state = cardResult.state
-        assertEquals(2, state.teamYellowCards(VC))
-        assertEquals(0, state.teamRedCards(VC))
-        assertEquals(2, state.teamCardTotal(VC))
-        assertEquals(
-            listOf(
-                playerRecordWithCards(UNKNOWN_PLAYER_NUMBER, yellows = 1),
-                playerRecordWithCards(UNKNOWN_PLAYER_NUMBER, yellows = 1),
-            ),
-            state.playerCards(VC),
-        )
-        assertFalse(cardResult.message()!!.startsWith("Second yellow on"))
-
-        state = standardLiveGameState()
-        state = state.assessRedCard(VC, UNKNOWN_PLAYER_NUMBER).state
-        assertTrue(canAddPlayerCardAssignment(state.playerCards(VC), UNKNOWN_PLAYER_NUMBER, cardType = CardType.RED))
-        cardResult = state.assessRedCard(VC, UNKNOWN_PLAYER_NUMBER)
-        state = cardResult.state
-        assertEquals(0, state.teamYellowCards(VC))
-        assertEquals(2, state.teamRedCards(VC))
-        assertEquals(4, state.teamCardTotal(VC))
-        assertEquals(
-            listOf(
-                playerRecordWithCards(UNKNOWN_PLAYER_NUMBER, reds = 1),
-                playerRecordWithCards(UNKNOWN_PLAYER_NUMBER, reds = 1),
-            ),
-            state.playerCards(VC),
-        )
-
         // Prior cards from this tournament surface the tournament suspension thresholds.
         state = createLiveGameState(
             standardGameSetup(startTime = LocalTime.of(11, 0)).copy(
@@ -647,35 +599,35 @@ class TestGameCards : GameDomainTestFixtures() {
         assertTrue(
             canAddPlayerCardAssignment(
                 emptyList(),
-                jerseyNumber = "99",
+                identity = PlayerIdentity("99"),
                 cardType = CardType.YELLOW,
             ),
         )
         assertTrue(
             canAddPlayerCardAssignment(
                 listOf(playerRecordWithCards("17", yellows = 1)),
-                jerseyNumber = "17",
+                identity = PlayerIdentity("17"),
                 cardType = CardType.YELLOW,
             ),
         )
         assertTrue(
             canAddPlayerCardAssignment(
                 listOf(playerRecordWithCards("17", yellows = 1)),
-                jerseyNumber = "17",
+                identity = PlayerIdentity("17"),
                 cardType = CardType.RED,
             ),
         )
         assertFalse(
             canAddPlayerCardAssignment(
                 listOf(playerRecordWithCards("17", yellows = 2)),
-                jerseyNumber = "17",
+                identity = PlayerIdentity("17"),
                 cardType = CardType.RED,
             ),
         )
         assertFalse(
             canAddPlayerCardAssignment(
                 listOf(playerRecordWithCards("17", reds = 1)),
-                jerseyNumber = "17",
+                identity = PlayerIdentity("17"),
                 cardType = CardType.RED,
             ),
         )
@@ -839,7 +791,7 @@ class TestGameCards : GameDomainTestFixtures() {
         // Manual cards/techs correction clamps visible team counts and derives yellow/red totals from player records.
         val correctedTeamOnePlayerCards = listOf(
             playerRecordWithCards("17", yellows = 1),
-            playerRecordWithCards(UNKNOWN_PLAYER_NUMBER, yellows = 1, reds = 1),
+            playerRecordWithCards("19", yellows = 1, reds = 1),
         )
         val correctedTeamTwoPlayerCards = listOf(
             playerRecordWithCards("23", reds = 1),

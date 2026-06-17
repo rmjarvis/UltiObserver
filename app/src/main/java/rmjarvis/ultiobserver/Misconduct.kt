@@ -3,17 +3,12 @@ package rmjarvis.ultiobserver
 import kotlinx.serialization.Serializable
 import kotlin.math.max
 
-// How to indicate cards for players when you don't know the player number.
-const val UNKNOWN_PLAYER_NUMBER = "N/A"
-
 /**
- * Normalized identity for a player based on the jersey number and name, either of
- * which (but not both) may be missing.
+ * Normalized identity for a player based on the jersey number and name.
  *
- * When both are unknown 'N/A' for the jerseyNumber indicates this. This is the only
- * identity that is normally allowed to repeat in lists of players.
+ * Either the number or the name may be missing, but not both.
  *
- * @param jerseyNumber The player's jersey number, blank for a name-only identity, or `N/A` when unknown.
+ * @param jerseyNumber The player's jersey number, or blank for a name-only identity.
  * @param playerName The player's name, or blank when unknown.
  */
 @Serializable
@@ -33,12 +28,12 @@ class PlayerIdentity private constructor(
      * @param compact Whether to omit the name when a jersey number is available.
      */
     internal fun displayText(compact: Boolean): String {
-        val number = jerseyNumber.trim().takeUnless { it == UNKNOWN_PLAYER_NUMBER } ?: ""
+        val number = jerseyNumber.trim()
         val name = playerName.trim()
         return if (number.isNotEmpty()) {
             if (!compact && name.isNotEmpty()) "#$number $name" else "#$number"
         } else {
-            name.ifEmpty { UNKNOWN_PLAYER_NUMBER }
+            name
         }
     }
 
@@ -55,13 +50,7 @@ class PlayerIdentity private constructor(
     internal fun key(): Pair<String, String> {
         val name = normalizedPlayerName()
         val number = jerseyNumber.trim()
-        val keyNumber = if (number == UNKNOWN_PLAYER_NUMBER && name.isNotEmpty()) "" else number
-        return keyNumber to name
-    }
-
-    /// Report whether this identity is the repeatable unknown-player placeholder.
-    internal fun isRepeatableUnknown(): Boolean {
-        return jerseyNumber == UNKNOWN_PLAYER_NUMBER && playerName.isBlank()
+        return number to name
     }
 
     /**
@@ -70,13 +59,10 @@ class PlayerIdentity private constructor(
      * @param other The identity to compare with this one.
      */
     internal fun matches(other: PlayerIdentity): Boolean {
-        val existingNumber = key().first.takeUnless { it == UNKNOWN_PLAYER_NUMBER } ?: ""
+        val existingNumber = key().first
         val existingName = key().second
-        val proposedNumber = other.key().first.takeUnless { it == UNKNOWN_PLAYER_NUMBER } ?: ""
+        val proposedNumber = other.key().first
         val proposedName = other.key().second
-        if (other.jerseyNumber == UNKNOWN_PLAYER_NUMBER && jerseyNumber == UNKNOWN_PLAYER_NUMBER) {
-            return true
-        }
         if (proposedNumber.isNotEmpty() && existingNumber == proposedNumber) {
             return proposedName.isEmpty() ||
                 existingName.isEmpty() ||
@@ -103,8 +89,8 @@ class PlayerIdentity private constructor(
         if (key() == other.key()) {
             return false
         }
-        val existingNumber = key().first.takeUnless { it == UNKNOWN_PLAYER_NUMBER } ?: ""
-        val proposedNumber = other.key().first.takeUnless { it == UNKNOWN_PLAYER_NUMBER } ?: ""
+        val existingNumber = key().first
+        val proposedNumber = other.key().first
         val existingName = key().second
         val proposedName = other.key().second
         return (proposedNumber.isNotEmpty() && proposedNumber == existingNumber) ||
@@ -145,17 +131,11 @@ class PlayerIdentity private constructor(
          * That lets callers use constructor syntax while still normalizing inputs
          * before the actual stored fields are assigned.
          *
-         * @param jerseyNumber The entered or stored player number, or blank/`N/A` when unknown.
+         * @param jerseyNumber The entered or stored player number, or blank for a name-only identity.
          * @param playerName The entered or stored player name, or blank when unknown.
          */
         operator fun invoke(jerseyNumber: String, playerName: String = ""): PlayerIdentity {
-            val number = jerseyNumber.trim().takeUnless { it == UNKNOWN_PLAYER_NUMBER } ?: ""
-            val name = playerName.trim()
-            return if (number.isEmpty() && name.isEmpty()) {
-                PlayerIdentity(jerseyNumber = UNKNOWN_PLAYER_NUMBER)
-            } else {
-                PlayerIdentity(jerseyNumber = number, playerName = name)
-            }
+            return PlayerIdentity(jerseyNumber = jerseyNumber.trim(), playerName = playerName.trim())
         }
 
     }
@@ -423,7 +403,7 @@ data class SameNumberPlayerIdentityConflict(
  * Return a same-number, different-name conflict for a live player-card entry.
  *
  * @param team The team receiving the entered card.
- * @param jerseyNumber The entered player number, or blank/`N/A` when unknown.
+ * @param jerseyNumber The entered player number, or blank for name-only.
  * @param playerName The entered player name, or blank when unknown.
  */
 fun GameState.sameNumberPlayerIdentityConflict(
@@ -433,7 +413,7 @@ fun GameState.sameNumberPlayerIdentityConflict(
 ): SameNumberPlayerIdentityConflict? {
     val proposedIdentity = PlayerIdentity(jerseyNumber, playerName)
     val proposedName = proposedIdentity.normalizedPlayerName()
-    if (proposedIdentity.jerseyNumber == UNKNOWN_PLAYER_NUMBER || proposedName.isEmpty()) {
+    if (proposedName.isEmpty()) {
         return null
     }
     val existingPlayer = playerCards(team).firstOrNull { player ->
@@ -669,8 +649,7 @@ private fun requirePlayerRecordsValid(records: List<PlayerRecord>) {
     require(records.all { it.hasLegalCounts() }) {
         "Player records must be no cards, one yellow, second yellow, red, or one yellow plus red."
     }
-    val nonRepeatableRecords = records.filterNot { it.identity().isRepeatableUnknown() }
-    require(nonRepeatableRecords.distinctBy { it.identity().key() }.size == nonRepeatableRecords.size) {
+    require(records.distinctBy { it.identity().key() }.size == records.size) {
         "Player records cannot contain duplicate player entries."
     }
 }
@@ -678,17 +657,15 @@ private fun requirePlayerRecordsValid(records: List<PlayerRecord>) {
  * Report whether adding a card to one player would keep the player's card combination legal.
  *
  * @param records The current player records for that team.
- * @param jerseyNumber The player receiving the possible card, or `N/A` for an unknown player.
+ * @param identity The player receiving the possible card.
  * @param cardType The type of card being considered.
  */
 fun canAddPlayerCardAssignment(
     records: List<PlayerRecord>,
-    jerseyNumber: String,
-    playerName: String = "",
+    identity: PlayerIdentity,
     cardType: CardType,
 ): Boolean {
-    val identity = PlayerIdentity(jerseyNumber, playerName)
-    val existingRecord = records.firstOrNull { it.identity().matches(identity) && !identity.isRepeatableUnknown() }
+    val existingRecord = records.firstOrNull { it.identity().matches(identity) }
         ?: PlayerRecord(jerseyNumber = identity.jerseyNumber, playerName = identity.playerName)
     val updatedRecord = when (cardType) {
         CardType.YELLOW -> existingRecord.withAddedCard(CardType.YELLOW)
@@ -762,7 +739,7 @@ fun playerCardRemovalCandidates(
  * Add a yellow or red card assignment to a specific player record.
  *
  * @param records The current player records for one team.
- * @param jerseyNumber The player receiving the card, or `N/A` for an unknown player.
+ * @param jerseyNumber The player receiving the card.
  * @param cardType The card type to add.
  */
 fun addPlayerCardAssignment(
@@ -978,7 +955,7 @@ private fun GameState.technicalFoulsFor(team: TeamId): Int {
  * The same observer action can mean either a first yellow or a second yellow depending on the player record.
  *
  * @param team The team receiving the yellow-card action.
- * @param jerseyNumber The player receiving the card, or `N/A` when the player is unknown.
+ * @param jerseyNumber The player receiving the card.
  */
 fun GameState.assessYellowCard(
     team: TeamId,
@@ -999,7 +976,7 @@ fun GameState.assessYellowCard(
  * Record a first yellow for a player and determine any misconduct consequence.
  *
  * @param team The team receiving the yellow card.
- * @param jerseyNumber The player receiving the card, or `N/A` when the player is unknown.
+ * @param jerseyNumber The player receiving the card.
  */
 fun GameState.assessFirstYellowCard(
     team: TeamId,
@@ -1036,7 +1013,7 @@ fun GameState.assessFirstYellowCard(
  * Record a red card and determine any misconduct consequence.
  *
  * @param team The team receiving the red card.
- * @param jerseyNumber The player receiving the red card, or `N/A` when the player is unknown.
+ * @param jerseyNumber The player receiving the red card.
  */
 fun GameState.assessRedCard(
     team: TeamId,
@@ -1074,7 +1051,7 @@ fun GameState.assessRedCard(
  * Record a second yellow card and determine any misconduct consequence.
  *
  * @param team The team receiving the second yellow.
- * @param jerseyNumber The player receiving the second yellow, or `N/A` when the player is unknown.
+ * @param jerseyNumber The player receiving the second yellow.
  */
 fun GameState.assessSecondYellowCard(
     team: TeamId,
@@ -1170,7 +1147,7 @@ data class PlayerCardAdjustmentStep(
 /**
  * Player with a removable card during manual reconciliation.
  *
- * @param jerseyNumber The player's jersey number, or `N/A` when unknown.
+ * @param jerseyNumber The player's jersey number.
  * @param cardCount The number of cards of the requested type currently on that record.
  */
 data class PlayerCardRemovalCandidate(
@@ -1182,7 +1159,7 @@ data class PlayerCardRemovalCandidate(
  * Add a first yellow card to a team's in-game player records.
  *
  * @param team The team receiving the yellow card.
- * @param jerseyNumber The player receiving the card, or `N/A` when the player is unknown.
+ * @param jerseyNumber The player receiving the card.
  */
 private fun GameState.addInGameYellowCard(
     team: TeamId,
@@ -1196,7 +1173,6 @@ private fun GameState.addInGameYellowCard(
             records = playerCardsFor(team),
             jerseyNumber = jerseyNumber,
             playerName = playerName,
-            matchRepeatableUnknown = false,
         ) { record ->
             record.withAddedCard(CardType.YELLOW, reason)
         },
@@ -1207,7 +1183,7 @@ private fun GameState.addInGameYellowCard(
  * Add a second yellow card to a team's in-game player records.
  *
  * @param team The team receiving the second yellow.
- * @param jerseyNumber The player receiving the card, or `N/A` when the player is unknown.
+ * @param jerseyNumber The player receiving the card.
  */
 private fun GameState.addInGameSecondYellow(
     team: TeamId,
@@ -1221,7 +1197,6 @@ private fun GameState.addInGameSecondYellow(
             records = playerCardsFor(team),
             jerseyNumber = jerseyNumber,
             playerName = playerName,
-            matchRepeatableUnknown = true,
         ) { record ->
             record.withAddedCard(CardType.YELLOW, reason)
         },
@@ -1232,7 +1207,7 @@ private fun GameState.addInGameSecondYellow(
  * Add a red card to a team's in-game player records.
  *
  * @param team The team receiving the red card.
- * @param jerseyNumber The player receiving the card, or `N/A` when the player is unknown.
+ * @param jerseyNumber The player receiving the card.
  */
 private fun GameState.addInGameRedCard(
     team: TeamId,
@@ -1246,7 +1221,6 @@ private fun GameState.addInGameRedCard(
             records = playerCardsFor(team),
             jerseyNumber = jerseyNumber,
             playerName = playerName,
-            matchRepeatableUnknown = false,
         ) { record ->
             record.withAddedCard(CardType.RED, reason)
         },
@@ -1264,12 +1238,11 @@ private fun updatePlayerCardRecord(
     records: List<PlayerRecord>,
     jerseyNumber: String,
     playerName: String = "",
-    matchRepeatableUnknown: Boolean = false,
     transform: (PlayerRecord) -> PlayerRecord,
 ): List<PlayerRecord> {
     val identity = PlayerIdentity(jerseyNumber, playerName)
     val existingIndex = records.indexOfFirst { record ->
-        record.identity().matches(identity) && (matchRepeatableUnknown || !identity.isRepeatableUnknown())
+        record.identity().matches(identity)
     }
     val updatedRecords = if (existingIndex >= 0) {
         records.mapIndexed { index, record ->
@@ -1290,7 +1263,7 @@ private fun updatePlayerCardRecord(
  * Return the player identity to use when assessing a live player card.
  *
  * @param team The team receiving the card.
- * @param jerseyNumber The entered player number, or blank/`N/A` when unknown.
+ * @param jerseyNumber The entered player number, or blank for name-only.
  * @param playerName The entered player name, or blank when unknown.
  */
 private fun GameState.playerIdentityForAssessment(
@@ -1328,7 +1301,7 @@ private fun PlayerRecord.withEnteredIdentity(
  * Report whether a player already has a yellow card in this game.
  *
  * @param team The team whose player records should be searched.
- * @param jerseyNumber The player to check, or `N/A` for an unknown-player record.
+ * @param jerseyNumber The player to check.
  */
 fun GameState.playerHasYellowThisGame(team: TeamId, jerseyNumber: String, playerName: String = ""): Boolean {
     return (this.playerCardFor(team, jerseyNumber, playerName)?.yellows ?: 0) > 0
@@ -1470,7 +1443,7 @@ private fun GameEvent.TeamCardsChanged.totalBlueCardMessage(): String {
  * Build the player-specific message lines for a yellow, red, or second-yellow event.
  *
  * @param playerCardType The player-card event type to describe.
- * @param jerseyNumber The player number, or the unknown-player sentinel.
+ * @param jerseyNumber The player number.
  */
 private fun GameEvent.TeamCardsChanged.playerCardEventLines(
     playerCardType: PlayerCardEventType,
@@ -1509,13 +1482,12 @@ private fun GameEvent.TeamCardsChanged.playerCardEventLines(
 /**
  * Format a player reference for use in the middle of a sentence.
  *
- * @param jerseyNumber The player number, or the unknown-player sentinel.
+ * @param jerseyNumber The player number.
  */
 private fun playerReference(jerseyNumber: String, playerName: String): String {
     val name = playerName.trim()
     return when {
-        (jerseyNumber.isBlank() || jerseyNumber == UNKNOWN_PLAYER_NUMBER) && name.isEmpty() -> "player N/A"
-        jerseyNumber.isBlank() || jerseyNumber == UNKNOWN_PLAYER_NUMBER -> name
+        jerseyNumber.isBlank() -> name
         name.isEmpty() -> "player $jerseyNumber"
         else -> "#$jerseyNumber $name"
     }
@@ -1524,13 +1496,12 @@ private fun playerReference(jerseyNumber: String, playerName: String): String {
 /**
  * Format a player reference for use as the subject of a sentence.
  *
- * @param jerseyNumber The player number, or the unknown-player sentinel.
+ * @param jerseyNumber The player number.
  */
 private fun playerSentenceSubject(jerseyNumber: String, playerName: String): String {
     val name = playerName.trim()
     return when {
-        (jerseyNumber.isBlank() || jerseyNumber == UNKNOWN_PLAYER_NUMBER) && name.isEmpty() -> "The player"
-        jerseyNumber.isBlank() || jerseyNumber == UNKNOWN_PLAYER_NUMBER -> name
+        jerseyNumber.isBlank() -> name
         name.isEmpty() -> "Player $jerseyNumber"
         else -> "#$jerseyNumber $name"
     }
@@ -1545,7 +1516,7 @@ private fun GameState.gameSuspensionStartedInSecondHalf(): Boolean {
  * Report whether the player's prior and in-game cards reach tournament suspension thresholds.
  *
  * @param team The player's team.
- * @param jerseyNumber The player number, or the unknown-player sentinel.
+ * @param jerseyNumber The player number.
  */
 private fun GameState.playerHasTournamentSuspension(
     team: TeamId,

@@ -165,7 +165,7 @@ abstract class GameDomainTestFixtures {
      *
      * @receiver The state receiving the card action.
      * @param team The team receiving the card.
-     * @param jerseyNumber The player receiving the card, or `N/A`.
+     * @param jerseyNumber The player receiving the card.
      */
     protected fun GameState.assessYellowCard(team: TeamId, jerseyNumber: String): CardAssessmentResult {
         return assessYellowCard(team, jerseyNumber, 0L)
@@ -176,7 +176,7 @@ abstract class GameDomainTestFixtures {
      *
      * @receiver The state receiving the card action.
      * @param team The team receiving the card.
-     * @param jerseyNumber The player receiving the card, or `N/A`.
+     * @param jerseyNumber The player receiving the card.
      */
     protected fun GameState.assessFirstYellowCard(team: TeamId, jerseyNumber: String): CardAssessmentResult {
         return assessFirstYellowCard(team, jerseyNumber, 0L)
@@ -187,7 +187,7 @@ abstract class GameDomainTestFixtures {
      *
      * @receiver The state receiving the card action.
      * @param team The team receiving the card.
-     * @param jerseyNumber The player receiving the card, or `N/A`.
+     * @param jerseyNumber The player receiving the card.
      */
     protected fun GameState.assessSecondYellowCard(team: TeamId, jerseyNumber: String): CardAssessmentResult {
         return assessSecondYellowCard(team, jerseyNumber, 0L)
@@ -198,7 +198,7 @@ abstract class GameDomainTestFixtures {
      *
      * @receiver The state receiving the card action.
      * @param team The team receiving the card.
-     * @param jerseyNumber The player receiving the card, or `N/A`.
+     * @param jerseyNumber The player receiving the card.
      */
     protected fun GameState.assessRedCard(team: TeamId, jerseyNumber: String): CardAssessmentResult {
         return assessRedCard(team, jerseyNumber, 0L)

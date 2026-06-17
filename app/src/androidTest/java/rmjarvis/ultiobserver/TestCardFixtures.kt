@@ -3,7 +3,7 @@ package rmjarvis.ultiobserver
 /**
  * Build a player record from card-count summaries for UI tests.
  *
- * @param jerseyNumber The player's jersey number, blank for a name-only identity, or `N/A` when unknown.
+ * @param jerseyNumber The player's jersey number, or blank for a name-only identity.
  * @param yellows The number of yellow-card events to create.
  * @param reds The number of red-card events to create.
  * @param playerName The player's name, or blank when unknown.

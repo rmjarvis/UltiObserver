@@ -572,7 +572,7 @@ abstract class MainActivityUiTestFixtures {
      * Record a yellow card through the live Card dialog.
      *
      * @param team The team receiving the yellow.
-     * @param playerNumber The player number to enter; blank chooses `N/A`.
+     * @param playerNumber The player number to enter.
      * @param expectedMessage The Blue Card dialog text expected before recording.
      * @param misconductChoice Optional misconduct choice to tap when the card reaches a live-point threshold.
      * @param expectedMisconductMessage Optional threshold-resolution text expected after choosing offense/defense.
@@ -588,15 +588,14 @@ abstract class MainActivityUiTestFixtures {
         verifyMisconductBackReturnsToNumberDialog: Boolean = false,
         substring: Boolean = false,
     ) {
+        require(playerNumber.isNotBlank()) {
+            "Yellow-card UI helper requires a player number."
+        }
         openCardsDialog(team)
         tapCardDialogAction(team, "Yellow")
         waitForText("Yellow card")
-        if (playerNumber.isBlank()) {
-            composeRule.onNodeWithText("Record").performClick()
-        } else {
-            enterCardPlayerNumber(playerNumber)
-            composeRule.onNodeWithText("Record").performClick()
-        }
+        enterCardPlayerNumber(playerNumber)
+        composeRule.onNodeWithText("Record").performClick()
 
         if (misconductChoice == null) {
             waitForText(expectedMessage, substring = substring)

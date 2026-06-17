@@ -71,7 +71,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         waitForText("This is Team 2's first technical foul.")
         composeRule.onNodeWithText("OK").performClick()
 
-        // Yellow cards should prompt for player details while still allowing blank fields to record N/A.
+        // Yellow cards should require at least one player identity field before recording.
         openCardsDialog()
         tapCardDialogAction(TeamId.TEAM_ONE, "Yellow")
         composeRule.onNodeWithText("Yellow card").assertIsDisplayed()
@@ -81,7 +81,11 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         tapCardDialogAction(TeamId.TEAM_ONE, "Yellow")
         composeRule.onNodeWithText("Yellow card").assertIsDisplayed()
         composeRule.onNodeWithText("Record").performClick()
-        waitForText("Yellow card on player N/A.\nTeam 1 has 2 total blue cards.")
+        waitForText("Enter a player number or name before recording this card.")
+        composeRule.onNodeWithText("OK").performClick()
+        enterCardPlayerNumber("4")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Yellow card on player 4.\nTeam 1 has 2 total blue cards.")
         composeRule.onNodeWithText("OK").performClick()
 
         // A red on a player with a yellow records as a red.
@@ -92,10 +96,11 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("card-dialog-${TeamId.TEAM_ONE.name}-red").assertIsDisplayed()
         tapCardDialogAction(TeamId.TEAM_ONE, "Red")
         composeRule.onNodeWithText("Red card").assertIsDisplayed()
+        enterCardPlayerNumber("4")
         composeRule.onNodeWithText("Record").performClick()
-        waitForText("The player receives a game suspension.", substring = true)
+        waitForText("Player 4 is suspended for the rest of the tournament.", substring = true)
         assertTrue(
-            composeRule.onAllNodesWithText("The player is suspended for the rest of the tournament.")
+            composeRule.onAllNodesWithText("Player 4 receives a game suspension.")
                 .fetchSemanticsNodes()
                 .isEmpty(),
         )
@@ -201,17 +206,6 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         // A second yellow comes from issuing another yellow, not from pressing Red.
         recordYellowCard(TeamId.TEAM_TWO, "7", "Yellow card on player 7.\nTeam 2 has 1 blue card.")
         recordYellowCard(TeamId.TEAM_TWO, "7", "Second yellow on player 7.", substring = true)
-
-        // Reusing N/A for a yellow should support recording a different unknown player.
-        recordYellowCard(TeamId.TEAM_ONE, "", "Team 1 has 3 total blue cards.", substring = true)
-        openCardsDialog()
-        tapCardDialogAction(TeamId.TEAM_ONE, "Yellow")
-        waitForText("Yellow card")
-        composeRule.onNodeWithText("Record").performClick()
-        waitForText("Unknown player number")
-        composeRule.onNodeWithText("No").performClick()
-        waitForText("Team 1 has 4 total blue cards.", substring = true)
-        composeRule.onNodeWithText("OK").performClick()
 
         // Apply a manual card correction that adds a player red, removes a player yellow, and changes a team count.
         openMoreActionsDialog()
@@ -327,7 +321,6 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         waitForText("Game over")
         composeRule.onNodeWithText("OK").performClick()
         waitForText("#21: Yellow card")
-        waitForText("N/A: Yellow card")
     }
 
     /// Test card dialogs that require follow-up choices for already-carded players.
@@ -336,7 +329,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         startLiveGameProgrammatically()
         seedInGamePlayerCardsProgrammatically(
             teamOneCards = listOf(
-                playerRecordWithCards(UNKNOWN_PLAYER_NUMBER, yellows = 1),
+                playerRecordWithCards("9", yellows = 1),
                 playerRecordWithCards("10", yellows = 1),
             ),
             teamTwoCards = listOf(playerRecordWithCards("6", yellows = 1, reds = 1)),
@@ -347,31 +340,42 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         }
         composeRule.waitForIdle()
 
-        // A second yellow on N/A can be recorded as the same unknown player.
+        // A second yellow can restore the player entry after backing out of misconduct choice.
         openCardsDialog()
         composeRule.onAllNodesWithText("Team 1").onFirst().assertIsDisplayed()
         assertTrue(composeRule.onAllNodesWithText("Team 1 (pulling)").fetchSemanticsNodes().isEmpty())
         assertTrue(composeRule.onAllNodesWithText("Team 2 (receiving)").fetchSemanticsNodes().isEmpty())
         tapCardDialogAction(TeamId.TEAM_ONE, "Yellow")
         waitForText("Yellow card")
+        enterCardPlayerNumber("9")
         composeRule.onNodeWithText("Record").performClick()
-        waitForText("Unknown player number")
-        composeRule.onNodeWithText("Cancel").performClick()
-        composeRule.onNodeWithTag("card-dialog-${TeamId.TEAM_ONE.name}-yellow").assertIsDisplayed()
-        tapCardDialogAction(TeamId.TEAM_ONE, "Yellow")
-        waitForText("Yellow card")
-        composeRule.onNodeWithText("Record").performClick()
-        waitForText("Unknown player number")
-        composeRule.onNodeWithText("Yes").performClick()
         waitForText("Misconduct penalty")
         tapBackFromMisconductODChoice()
-        waitForText("Unknown player number")
-        composeRule.onNodeWithText("Yes").performClick()
+        waitForText("Yellow card")
+        assertEquals(
+            "9",
+            composeRule.onNodeWithTag("card-player-number")
+                .fetchSemanticsNode()
+                .config[SemanticsProperties.EditableText]
+                .text,
+        )
+        composeRule.onNodeWithText("Record").performClick()
         waitForText("Misconduct penalty")
         composeRule.onNodeWithText("Offense").performClick()
         waitForText("Team 1 moves the disc to the reverse brick in the end zone they are defending.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
         waitForText("Start misconduct countdown")
+
+        // A third yellow for the same player should be rejected without crashing.
+        openCardsDialog()
+        tapCardDialogAction(TeamId.TEAM_ONE, "Yellow")
+        waitForText("Yellow card")
+        enterCardPlayerNumber("9")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("maximum valid card combination", substring = true)
+        composeRule.onNodeWithText("OK").performClick()
+        composeRule.onNodeWithText("Yellow card").assertIsDisplayed()
+        composeRule.onNodeWithText("Cancel").performClick()
 
         // Back from a blue-card misconduct choice should cancel that card and return to Card.
         if (shouldUsePlatformBackDismissalCoverage()) {
@@ -431,16 +435,17 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("OK").performClick()
         waitForText("Start misconduct countdown")
 
-        // Back from a red-card N/A misconduct choice should restore a blank number dialog.
+        // Back from a red-card misconduct choice should restore the entered player number.
         openCardsDialog(TeamId.TEAM_TWO)
         tapCardDialogAction(TeamId.TEAM_TWO, "Red")
         waitForText("Red card")
+        enterCardPlayerNumber("11")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Misconduct penalty")
         tapBackFromMisconductODChoice()
         waitForText("Red card")
         assertEquals(
-            "",
+            "11",
             composeRule.onNodeWithTag("card-player-number")
                 .fetchSemanticsNode()
                 .config[SemanticsProperties.EditableText]
@@ -465,10 +470,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         } else {
             composeRule.onNodeWithText("OK").performClick()
         }
-        composeRule.onNodeWithTag("card-dialog-${TeamId.TEAM_TWO.name}-red").assertIsDisplayed()
-        tapCardDialogAction(TeamId.TEAM_TWO, "Red")
-        waitForText("Red card")
-        enterCardPlayerNumber("6")
+        composeRule.onNodeWithText("Red card").assertIsDisplayed()
         composeRule.onNodeWithText("Record").performClick()
         waitForText("maximum valid card combination", substring = true)
         composeRule.onNodeWithText("OK").performClick()
