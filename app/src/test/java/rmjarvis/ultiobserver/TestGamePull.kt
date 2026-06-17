@@ -15,6 +15,143 @@ import org.junit.Test
 
 /// Tests for pull infractions and pull time-violation model behavior.
 class TestGamePull : GameDomainTestFixtures() {
+    /// Verify pull countdown display and cue selection for one-end, both-end, and neither-end prompts.
+    @Test
+    fun pullCountdownDisplayAndCueTargets() {
+        assertEquals("Signal in" to Duration.ofSeconds(60), betweenPointsDisplay(FieldEnd.FAR, 1_000L, 1_000L))
+        assertEquals("Signal in" to Duration.ofSeconds(30), betweenPointsDisplay(FieldEnd.FAR, 1_000L, 31_000L))
+        assertEquals("Signal in" to Duration.ZERO, betweenPointsDisplay(FieldEnd.FAR, 1_000L, 70_000L))
+        assertEquals("Pull in" to Duration.ofSeconds(80), betweenPointsDisplay(FieldEnd.NEAR, 2_000L, 2_000L))
+        assertEquals(
+            "Pull in" to Duration.ofSeconds(80),
+            betweenPointsDisplay(
+                pullingFromEnd = FieldEnd.FAR,
+                sequenceStart = 2_000L,
+                now = 2_000L,
+                promptTarget = PullPromptTarget.FAR,
+            ),
+        )
+        assertEquals(
+            "Signal in" to Duration.ofSeconds(60),
+            betweenPointsDisplay(
+                pullingFromEnd = FieldEnd.NEAR,
+                sequenceStart = 2_000L,
+                now = 2_000L,
+                promptTarget = PullPromptTarget.FAR,
+            ),
+        )
+        assertEquals(
+            "Pull in" to Duration.ofSeconds(80),
+            betweenPointsDisplay(
+                pullingFromEnd = FieldEnd.FAR,
+                sequenceStart = 2_000L,
+                now = 2_000L,
+                promptTarget = PullPromptTarget.BOTH,
+            ),
+        )
+        assertEquals(
+            "Pull in" to Duration.ofSeconds(80),
+            betweenPointsDisplay(
+                pullingFromEnd = FieldEnd.FAR,
+                sequenceStart = 2_000L,
+                now = 2_000L,
+                promptTarget = PullPromptTarget.NEITHER,
+            ),
+        )
+        val standardPullCountdown = buildBetweenPointsCountdown(FieldEnd.NEAR, 2_000L)
+        assertEquals(TimingCueId.PULLING_TWENTY_TO_PULL, standardPullCountdown.nextTimingCue(2_000L)?.id)
+        val bothCountdown = buildBetweenPointsCountdown(
+            pullingFromEnd = FieldEnd.FAR,
+            sequenceStart = 2_000L,
+            promptTarget = PullPromptTarget.BOTH,
+        )
+        assertEquals(80, bothCountdown.durationSeconds)
+        assertEquals(TimingCueId.RECEIVING_TWENTY_FOR_HAND, bothCountdown.nextTimingCue(2_000L)?.id)
+        assertEquals(Duration.ofSeconds(40), bothCountdown.nextTimingCue(2_000L)?.countdownTime)
+        assertEquals(TimingCueId.RECEIVING_TEN_FOR_HAND, bothCountdown.nextTimingCue(43_000L)?.id)
+        assertEquals(TimingCueId.PULLING_TWENTY_TO_PULL, bothCountdown.nextTimingCue(62_000L)?.id)
+        assertEquals("Give hand. 20 seconds to pull", bothCountdown.nextTimingCue(62_000L)?.message)
+        assertEquals(TimingCueId.PULLING_TWENTY_TO_PULL, bothCountdown.dueTimingCue(62_000L)?.id)
+        assertEquals("Give hand. 20 seconds to pull", bothCountdown.dueTimingCue(62_000L)?.message)
+        val neitherCountdown = buildBetweenPointsCountdown(
+            pullingFromEnd = FieldEnd.FAR,
+            sequenceStart = 2_000L,
+            promptTarget = PullPromptTarget.NEITHER,
+        )
+        assertEquals(80, neitherCountdown.durationSeconds)
+        assertNull(neitherCountdown.nextTimingCue(2_000L))
+        assertNull(neitherCountdown.dueTimingCue(82_000L))
+        assertEquals(60, BetweenPointsCountdownTarget.OFFENSE_READY.baseDurationSeconds(CountdownKind.BETWEEN_POINTS))
+        assertEquals(80, BetweenPointsCountdownTarget.PULL.baseDurationSeconds(CountdownKind.BETWEEN_POINTS))
+        assertEquals(80, BetweenPointsCountdownTarget.BOTH.baseDurationSeconds(CountdownKind.BETWEEN_POINTS))
+        assertEquals(80, BetweenPointsCountdownTarget.NEITHER.baseDurationSeconds(CountdownKind.BETWEEN_POINTS))
+        assertEquals(30, BetweenPointsCountdownTarget.OFFENSE_READY.baseDurationSeconds(CountdownKind.PULL_RESET))
+        assertEquals(30, BetweenPointsCountdownTarget.PULL.baseDurationSeconds(CountdownKind.PULL_RESET))
+
+        val openingReceiveCountdown = buildBetweenPointsCountdown(
+            pullingFromEnd = FieldEnd.FAR,
+            sequenceStart = 1_000L,
+            kind = CountdownKind.OPENING_PULL,
+        )
+        assertEquals(CountdownKind.OPENING_PULL, openingReceiveCountdown.kind)
+        assertEquals(20, openingReceiveCountdown.durationSeconds)
+        assertEquals(1_000L, openingReceiveCountdown.nextTimingCue(1_000L)?.targetEpoch)
+        assertEquals(TimingCueId.RECEIVING_TWENTY_FOR_HAND, openingReceiveCountdown.dueTimingCue(1_000L)?.id)
+        assertEquals(TimingCueId.RECEIVING_TEN_FOR_HAND, openingReceiveCountdown.nextTimingCue(2_000L)?.id)
+        assertNull(openingReceiveCountdown.dueTimingCue(999L))
+        assertNull(openingReceiveCountdown.nextTimingCue(openingReceiveCountdown.targetEpoch + 1L))
+        assertNull(openingReceiveCountdown.dueTimingCue(openingReceiveCountdown.targetEpoch + 1_101L))
+
+        val openingPullCountdown = buildBetweenPointsCountdown(
+            pullingFromEnd = FieldEnd.NEAR,
+            sequenceStart = 1_000L,
+            kind = CountdownKind.OPENING_PULL,
+        )
+        assertEquals(40, openingPullCountdown.durationSeconds)
+        assertEquals(TimingCueId.PULLING_TWENTY_TO_PULL, openingPullCountdown.nextTimingCue(1_000L)?.id)
+        assertEquals(Duration.ofSeconds(20), openingPullCountdown.nextTimingCue(1_000L)?.remaining)
+        assertEquals(Duration.ofSeconds(20), openingPullCountdown.nextTimingCue(1_000L)?.countdownTime)
+        val farEndOpeningPullCountdown = buildBetweenPointsCountdown(
+            pullingFromEnd = FieldEnd.FAR,
+            sequenceStart = 1_000L,
+            kind = CountdownKind.OPENING_PULL,
+            promptTarget = PullPromptTarget.FAR,
+        )
+        assertEquals("Pull in", farEndOpeningPullCountdown.label)
+        assertEquals(40, farEndOpeningPullCountdown.durationSeconds)
+        assertEquals(TimingCueId.PULLING_TWENTY_TO_PULL, farEndOpeningPullCountdown.nextTimingCue(1_000L)?.id)
+        val bothEndOpeningPullCountdown = buildBetweenPointsCountdown(
+            pullingFromEnd = FieldEnd.FAR,
+            sequenceStart = 1_000L,
+            kind = CountdownKind.OPENING_PULL,
+            promptTarget = PullPromptTarget.BOTH,
+        )
+        assertEquals("Pull in", bothEndOpeningPullCountdown.label)
+        assertEquals(40, bothEndOpeningPullCountdown.durationSeconds)
+        assertEquals(TimingCueId.RECEIVING_TWENTY_FOR_HAND, bothEndOpeningPullCountdown.nextTimingCue(1_000L)?.id)
+        assertEquals(TimingCueId.PULLING_TWENTY_TO_PULL, bothEndOpeningPullCountdown.nextTimingCue(21_000L)?.id)
+        assertEquals("Give hand. 20 seconds to pull", bothEndOpeningPullCountdown.nextTimingCue(21_000L)?.message)
+
+        val invalidBetweenPointsKindException = assertThrows(IllegalArgumentException::class.java) {
+            buildBetweenPointsCountdown(
+                pullingFromEnd = FieldEnd.NEAR,
+                sequenceStart = 1_000L,
+                kind = CountdownKind.TIME_OUT,
+            )
+        }
+        assertEquals(
+            "Countdown kind TIME_OUT does not use between-points timing.",
+            invalidBetweenPointsKindException.message,
+        )
+        assertTrue(CountdownKind.OPENING_PULL.usesBetweenPointsTarget())
+        assertTrue(CountdownKind.BETWEEN_POINTS.usesBetweenPointsTarget())
+        assertTrue(CountdownKind.PULL_RESET.usesBetweenPointsTarget())
+        assertFalse(CountdownKind.MISCONDUCT_BETWEEN_POINTS.usesBetweenPointsTarget())
+        assertFalse(CountdownKind.MISCONDUCT_DEFENSE_CHECK.usesBetweenPointsTarget())
+        assertFalse(CountdownKind.TIME_OUT.usesBetweenPointsTarget())
+        assertFalse(CountdownKind.HALFTIME.usesBetweenPointsTarget())
+    }
+
     /**
      * Test pull infractions from the observer-facing actions.
      * Offsides belongs to the pulling team; false start belongs to the receiving team.

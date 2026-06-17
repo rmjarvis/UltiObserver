@@ -15,6 +15,56 @@ import org.junit.Test
 
 /// Tests for cap relevance, prompting, application, and timing cues in the game model.
 class TestGameCaps : GameDomainTestFixtures() {
+    /// Verify next-cap status reports the next relevant enabled cap from an explicit timestamp.
+    @Test
+    fun nextCapStatusUsesElapsedGameTimeAndAppliedCaps() {
+        var state = standardLiveGameState(
+            startTime = LocalTime.of(10, 0),
+            rules = GameRules(gameTo = 15, halfCapMinutes = 45, softCapMinutes = 90, hardCapMinutes = 100),
+        )
+        val halfCapStatus = state.computeNextCapStatus(timestampAfterStart(state, 15))!!
+        assertEquals("Half cap", halfCapStatus.label)
+        assertEquals(Duration.ofMinutes(30), halfCapStatus.remaining)
+        assertEquals(CapStatus("Half cap", Duration.ofMinutes(30)), halfCapStatus)
+        assertEquals(
+            CapStatus("Soft cap", Duration.ofMinutes(30)),
+            state.copy(halfCapApplied = true).computeNextCapStatus(timestampAfterStart(state, 60)),
+        )
+        assertEquals(
+            CapStatus("Hard cap", Duration.ofMinutes(5)),
+            state.copy(halfCapApplied = true, softCapApplied = true).computeNextCapStatus(timestampAfterStart(state, 95)),
+        )
+        assertNull(state.computeNextCapStatus(timestampAfterStart(state, 200)))
+        assertEquals(
+            CapStatus("Soft cap", Duration.ofMinutes(30)),
+            state.copy(halftimeTaken = true).computeNextCapStatus(timestampAfterStart(state, 60)),
+        )
+        assertNull(
+            state.copy(
+                halfCapApplied = true,
+                softCapApplied = true,
+                hardCapApplied = true,
+            ).computeNextCapStatus(timestampAfterStart(state, 95))
+        )
+
+        // Cap countdowns can wrap across midnight when a late-night game crosses dates.
+        state = standardLiveGameState(
+            startDate = LocalDate.of(2026, 1, 1),
+            startTime = LocalTime.of(23, 30),
+            rules = GameRules(gameTo = 15, halfCapMinutes = 45, useSoftCap = false, useHardCap = false),
+        )
+        assertEquals(CapStatus("Half cap", Duration.ofMinutes(30)), state.computeNextCapStatus(timestampAfterStart(state, 15)))
+
+        state = state.copy(halfCapApplied = true, softCapApplied = true, hardCapApplied = true)
+        assertNull(state.computeNextCapStatus(timestampAfterStart(state, 15)))
+
+        state = standardLiveGameState(
+            startTime = LocalTime.of(10, 0),
+            rules = GameRules(gameTo = 15, useHalfCap = false, useSoftCap = false, useHardCap = false),
+        )
+        assertNull(state.computeNextCapStatus(timestampAfterStart(state, 15)))
+    }
+
     /**
      * Test cap prompting and cap application as rule-visible state transitions.
      * Caps should become eligible only after point end and should be deterministic from supplied clock values.

@@ -5,6 +5,14 @@ import org.junit.Test
 
 /// Tests for shared utility formatting helpers.
 class TestUtilities {
+    /// Test stable serial names for shared date/time serializers.
+    @Test
+    fun dateTimeSerializerNames() {
+        assertEquals("LocalDateAsString", LocalDateAsStringSerializer.descriptor.serialName)
+        assertEquals("LocalTimeAsString", LocalTimeAsStringSerializer.descriptor.serialName)
+        assertEquals("ZoneIdAsString", ZoneIdAsStringSerializer.descriptor.serialName)
+    }
+
     /// Test ordinal suffix formatting for ordinary values and teen exceptions.
     @Test
     fun ordinalText() {

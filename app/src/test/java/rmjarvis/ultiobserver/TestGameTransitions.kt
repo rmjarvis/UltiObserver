@@ -15,6 +15,184 @@ import org.junit.Test
 
 /// Tests for game phase transitions from setup through live play, halftime, and game over.
 class TestGameTransitions : GameDomainTestFixtures() {
+    /// Test manual countdown adjustment, pause/resume, and automatic expiration transitions.
+    @Test
+    fun countdownAdjustmentPauseAndExpirationTransitions() {
+        val VC = TeamId.TEAM_ONE
+
+        var state = standardLiveGameState()
+        val originalCountdown = state.countdown!!
+        state = state.addTimeToCountdown(65)
+        assertEquals(originalCountdown.targetEpoch + 65_000L, state.countdown?.targetEpoch)
+        assertEquals(originalCountdown.durationSeconds, state.countdown?.durationSeconds)
+        assertEquals("Adjusted timer by 1:05.", state.lastEvent)
+
+        state = state.addTimeToCountdown(-5)
+        assertEquals(originalCountdown.targetEpoch + 60_000L, state.countdown?.targetEpoch)
+        assertEquals(originalCountdown.durationSeconds, state.countdown?.durationSeconds)
+        assertEquals(Duration.ofMillis(state.countdown!!.targetEpoch - 10_000L), state.countdown!!.remainingDuration(10_000L))
+        assertEquals("Adjusted timer by -0:05.", state.lastEvent)
+
+        // Pausing freezes display time, suppresses cues/transitions, and resumes from the same countdown value.
+        // Direct duplicate pause/resume calls are not normal UI paths, but can happen if callbacks race recomposition.
+        state = state.toggleCountdownPaused(10_000L)
+        val pausedCountdown = state.countdown!!
+        assertTrue(pausedCountdown.isPaused())
+        assertEquals(10_000L, pausedCountdown.pausedAtEpoch)
+        assertEquals(pausedCountdown, pausedCountdown.pause(20_000L))
+        assertEquals(originalCountdown.targetEpoch + 60_000L, pausedCountdown.targetEpoch)
+        assertEquals(Duration.ofMillis(pausedCountdown.targetEpoch - 10_000L), pausedCountdown.remainingDuration(30_000L))
+        assertEquals(Duration.ofMillis(pausedCountdown.targetEpoch - 10_000L), state.activeCountdownDisplay(30_000L)?.remaining)
+        assertTrue(state.activeCountdownDisplay(30_000L)?.isPaused == true)
+        assertNull(pausedCountdown.nextTimingCue(30_000L))
+        assertTrue(state.dueTimingAlerts(pausedCountdown.targetEpoch).isEmpty())
+        assertEquals(state, state.applyExpiredCountdownTransitions(pausedCountdown.targetEpoch + 1_000L))
+
+        state = state.addTimeToCountdown(5)
+        assertEquals(pausedCountdown.targetEpoch + 5_000L, state.countdown?.targetEpoch)
+        assertEquals(10_000L, state.countdown?.pausedAtEpoch)
+
+        state = state.toggleCountdownPaused(25_000L)
+        assertFalse(state.countdown!!.isPaused())
+        assertNull(state.countdown?.pausedAtEpoch)
+        assertEquals(pausedCountdown.targetEpoch + 20_000L, state.countdown?.targetEpoch)
+        assertEquals(state.countdown, state.countdown?.resume(30_000L))
+        assertEquals("Timer resumed.", state.lastEvent)
+
+        val livePointWithoutCountdown = state.beginLivePoint()
+        assertEquals(livePointWithoutCountdown, livePointWithoutCountdown.addTimeToCountdown(5))
+        assertEquals(livePointWithoutCountdown, livePointWithoutCountdown.toggleCountdownPaused(5_000L))
+
+        // Countdown target swapping is a no-op for non-between-points countdowns and fails on malformed ones.
+        val inPointTimeoutCountdown = livePointWithoutCountdown.assessTimeout(VC, 600_000L).state.countdown!!
+        assertEquals(inPointTimeoutCountdown, inPointTimeoutCountdown.swapOD())
+        val malformedCountdown = CountdownState(
+            kind = CountdownKind.BETWEEN_POINTS,
+            label = "Signal in",
+            durationSeconds = 60,
+            targetEpoch = 60_000L,
+        )
+        assertThrows(NullPointerException::class.java) {
+            malformedCountdown.swapOD()
+        }
+        assertThrows(NullPointerException::class.java) {
+            malformedCountdown.nextTimingCue(1_000L)
+        }
+
+        // A countdown kind that does not match the phase is an impossible model state, so fail loudly.
+        val mismatchedCountdownState = standardLiveGameState().copy(phase = GamePhase.LIVE_POINT)
+        val mismatchException = assertThrows(IllegalStateException::class.java) {
+            mismatchedCountdownState.applyExpiredCountdownTransitions(mismatchedCountdownState.countdown!!.targetEpoch)
+        }
+        assertEquals(
+            "Countdown OPENING_PULL is not valid while game phase is LIVE_POINT.",
+            mismatchException.message,
+        )
+        val betweenPointsWithTimeoutCountdown = standardLiveGameState().copy(
+            countdown = inPointTimeoutCountdown,
+        )
+        val betweenPointsMismatchException = assertThrows(IllegalStateException::class.java) {
+            betweenPointsWithTimeoutCountdown.applyExpiredCountdownTransitions(inPointTimeoutCountdown.targetEpoch)
+        }
+        assertEquals(
+            "Countdown TIME_OUT is not valid while game phase is BETWEEN_POINTS.",
+            betweenPointsMismatchException.message,
+        )
+        val halftimeWithBetweenPointsCountdown = standardLiveGameState().copy(
+            phase = GamePhase.HALFTIME,
+        )
+        val halftimeMismatchException = assertThrows(IllegalStateException::class.java) {
+            halftimeWithBetweenPointsCountdown.applyExpiredCountdownTransitions(halftimeWithBetweenPointsCountdown.countdown!!.targetEpoch)
+        }
+        assertEquals(
+            "Countdown OPENING_PULL is not valid while game phase is HALFTIME.",
+            halftimeMismatchException.message,
+        )
+
+        // Between-points countdown expiration silently starts the point, but leaves an undo path.
+        state = standardLiveGameState()
+        val betweenPointsCountdown = state.countdown!!
+        assertEquals(state, state.applyExpiredCountdownTransitions(betweenPointsCountdown.targetEpoch - 1L))
+        val automaticStartState = state.applyExpiredCountdownTransitions(betweenPointsCountdown.targetEpoch)
+        assertEquals(GamePhase.LIVE_POINT, automaticStartState.phase)
+        assertNull(automaticStartState.countdown)
+        assertEquals("Point is live.", automaticStartState.lastEvent)
+        assertEquals("Undo Start point", automaticStartState.undoEntry?.label)
+        val expiredPullDecisionState = state.copy(
+            countdown = null,
+            pullCountdownExpired = true,
+        )
+        val undoneAutomaticStartState = assertUndoRestores(expiredPullDecisionState, automaticStartState)
+        assertEquals(undoneAutomaticStartState, undoneAutomaticStartState.redoLastAction().undoLastAction())
+        assertEquals(state, state.redoLastAction())
+        assertEquals(undoneAutomaticStartState, undoneAutomaticStartState.applyExpiredCountdownTransitions(betweenPointsCountdown.targetEpoch))
+        assertTrue(undoneAutomaticStartState.hasExpiredPullActions())
+        assertFalse(state.hasExpiredPullActions())
+        assertTrue(state.isInitialLivePreview())
+        assertFalse(automaticStartState.isInitialLivePreview())
+        assertFalse(state.copy(teamOne = state.teamOne.copy(score = 1)).isInitialLivePreview())
+        assertFalse(state.copy(teamTwo = state.teamTwo.copy(score = 1)).isInitialLivePreview())
+        assertFalse(
+            state.copy(undoEntry = UndoEntry("Undo placeholder", state)).isInitialLivePreview()
+        )
+        assertFalse(state.copy(halftimeTaken = true).isInitialLivePreview())
+
+        // In-point timeout countdowns still continue automatically.
+        state = state.beginLivePoint()
+        state = state.assessTimeout(VC, 500_000L).state
+        val timeoutCountdown = state.countdown!!
+        assertEquals(state, state.applyExpiredCountdownTransitions(timeoutCountdown.targetEpoch - 1L))
+        state = state.applyExpiredCountdownTransitions(timeoutCountdown.targetEpoch)
+        assertEquals(GamePhase.LIVE_POINT, state.phase)
+        assertNull(state.countdown)
+    }
+
+    /// Test game-prompt formatting for halftime and game-over prompts.
+    @Test
+    fun gamePromptFormatting() {
+        val state = standardLiveGameState().beginLivePoint()
+        val halftimePrompt = GamePrompt.HalftimeStarted(state)
+        assertEquals("Halftime", halftimePrompt.formatTitle())
+        assertEquals("Announce halftime.", halftimePrompt.formatMessage())
+        val gameOverState = state.copy(
+            phase = GamePhase.GAME_OVER,
+            teamOne = state.teamOne.copy(score = 3),
+            teamTwo = state.teamTwo.copy(score = 5),
+        )
+        val gameOverPrompt = GamePrompt.GameOver(gameOverState)
+        assertEquals("Game over", gameOverPrompt.formatTitle())
+        assertEquals("Animal 5\nViscous Coupling 3", gameOverPrompt.formatMessage())
+
+        // Game-over summaries show the winner first, or Team 1 first when tied.
+        assertEquals(
+            "Viscous Coupling 5\nAnimal 3",
+            GamePrompt.GameOver(
+                gameOverState.copy(
+                    teamOne = gameOverState.teamOne.copy(score = 5),
+                    teamTwo = gameOverState.teamTwo.copy(score = 3),
+                )
+            ).formatMessage(),
+        )
+        assertEquals(
+            "Alpha 4\nBeta 4",
+            GamePrompt.GameOver(
+                gameOverState.copy(
+                    teamOne = gameOverState.teamOne.copy(name = "Alpha", score = 4),
+                    teamTwo = gameOverState.teamTwo.copy(name = "Beta", score = 4),
+                )
+            ).formatMessage(),
+        )
+        assertEquals(
+            "Alpha 4\nBeta 4",
+            GamePrompt.GameOver(
+                gameOverState.copy(
+                    teamOne = gameOverState.teamOne.copy(name = "Beta", score = 4),
+                    teamTwo = gameOverState.teamTwo.copy(name = "Alpha", score = 4),
+                )
+            ).formatMessage(),
+        )
+    }
+
     /**
      * Test a representative complete game from setup through halftime to final score.
      * Keep this as a user-visible story that exercises common actions between scoring events.

@@ -15,6 +15,37 @@ import org.junit.Test
 
 /// Tests for setup-state conversion and applying setup edits to live games.
 class TestGameSetup : GameDomainTestFixtures() {
+    /// Test simple setup defaults and team-color model guards.
+    @Test
+    fun setupDefaultsAndTeamColorGuards() {
+        assertEquals("Pink", TeamColorChoice.PINK.label)
+        assertEquals(0xFFFF4FA3, TeamColorChoice.PINK.accentArgb)
+        assertEquals(0xFF2F1022, TeamColorChoice.PINK.contentArgb)
+        assertThrows(IllegalArgumentException::class.java) {
+            TeamColorChoice.CUSTOM.accent
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            TeamColorChoice.CUSTOM.content
+        }
+        val defaultTeamSetup = TeamSetup()
+        assertEquals("", defaultTeamSetup.name)
+        assertEquals(TeamColorChoice.WHITE, defaultTeamSetup.color)
+        assertNull(defaultTeamSetup.customColorArgb)
+        assertThrows(IllegalArgumentException::class.java) {
+            TeamSetup(color = TeamColorChoice.CUSTOM)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            TeamLiveState("Custom", TeamColorChoice.CUSTOM)
+        }
+
+        val defaultSetupState = GameSetupState(
+            startDate = LocalDate.of(2026, 1, 1),
+            startTime = LocalTime.of(10, 0),
+            timeZone = ZoneId.of("America/New_York"),
+        )
+        assertEquals(GameRules(), defaultSetupState.rules)
+    }
+
     /**
      * Test setup conversion and applying setup edits to a live game.
      * The setup form is public UI, but the model owns how edits reshape live state.
