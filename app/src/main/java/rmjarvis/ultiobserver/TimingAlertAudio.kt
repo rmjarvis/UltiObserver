@@ -5,6 +5,7 @@ import android.media.AudioAttributes
 import android.media.SoundPool
 import android.os.Build
 import android.os.VibrationEffect
+import android.os.VibrationAttributes
 import android.os.Vibrator
 import android.os.VibratorManager
 import kotlinx.coroutines.delay
@@ -115,7 +116,8 @@ private fun timingAlertSoundClips(): List<TimingAlertSoundClip> {
     }
 }
 
-/// Abstraction over SoundPool operations so timing alert audio can be tested without Android audio hardware.
+/// Abstraction over SoundPool operations so timing alert audio can be tested without Android audio
+/// hardware.
 internal interface TimingAlertSoundPlayer {
     /**
      * Register a listener for sound-load completion.
@@ -155,7 +157,7 @@ private class AndroidTimingAlertSoundPlayer : TimingAlertSoundPlayer {
         .setMaxStreams(1)
         .setAudioAttributes(
             AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_MEDIA)
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                 .build()
         )
@@ -337,7 +339,18 @@ internal fun Context.performTimingCueHaptic(durationMillis: Long) {
     } else {
         getSystemService(Vibrator::class.java)
     }
-    vibrator.vibrate(VibrationEffect.createOneShot(durationMillis, VibrationEffect.DEFAULT_AMPLITUDE))
+    val effect = VibrationEffect.createOneShot(durationMillis, VibrationEffect.DEFAULT_AMPLITUDE)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        vibrator.vibrate(effect, VibrationAttributes.createForUsage(VibrationAttributes.USAGE_NOTIFICATION))
+    } else {
+        vibrator.vibrate(
+            effect,
+            AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build(),
+        )
+    }
 }
 
-private const val TIMING_ALERT_REPEAT_HAPTIC_GAP_MS = 120L
+internal const val TIMING_ALERT_REPEAT_HAPTIC_GAP_MS = 120L

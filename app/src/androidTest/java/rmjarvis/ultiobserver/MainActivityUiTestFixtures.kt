@@ -74,6 +74,9 @@ abstract class MainActivityUiTestFixtures {
     /// Finish the currently visible setup form and verify the live screen appears.
     protected fun startGameFromSetup() {
         composeRule.onNodeWithText("Start game").performClick()
+        if (composeRule.onAllNodesWithText("Cap alert permission").fetchSemanticsNodes().isNotEmpty()) {
+            composeRule.onNodeWithText("Ignore").performClick()
+        }
         assertLiveScreen()
     }
 

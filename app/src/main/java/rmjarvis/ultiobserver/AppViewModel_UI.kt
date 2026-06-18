@@ -7,7 +7,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import java.io.File
@@ -38,13 +41,16 @@ internal fun appViewModelFactory(filesDir: File): ViewModelProvider.Factory {
 @Composable
 internal fun UltiObserverApp(viewModel: AppViewModel) {
     val appState by viewModel.state.collectAsState()
+    val context = LocalContext.current
+    var showMissingExactAlarmAccessDialog by remember { mutableStateOf(false) }
 
     // Back returns to setup from the initial live preview, otherwise to home.
     BackHandler(enabled = appState.screen != AppScreen.HOME) {
         viewModel.goBackFromCurrentScreen()
     }
 
-    TimingAlertCueListener(
+    TimingAlertForegroundServiceEffect(
+        enabled = true,
         liveState = appState.liveState.takeUnless { state -> state?.phase == GamePhase.GAME_OVER },
         timingAlertPreferences = appState.timingAlertPreferences,
     )
@@ -142,11 +148,23 @@ internal fun UltiObserverApp(viewModel: AppViewModel) {
         }
 
         AppScreen.SETUP -> {
+            fun finishSetupOrWarnAboutCapAlarms() {
+                if (
+                    appState.setupMode == SetupMode.NEW_GAME &&
+                    appState.setupState.rules.hasEnabledCapTimingAlerts(appState.timingAlertPreferences) &&
+                    !context.hasExactTimingAlertAlarmAccess()
+                ) {
+                    showMissingExactAlarmAccessDialog = true
+                    return
+                }
+                viewModel.finishSetup()
+            }
+
             SetupScreen(
                 state = appState.setupState,
                 onStateChange = viewModel::updateSetup,
                 primaryButtonLabel = if (appState.setupMode == SetupMode.NEW_GAME) "Start game" else "Back to game screen",
-                onPrimaryAction = { viewModel.finishSetup() },
+                onPrimaryAction = { finishSetupOrWarnAboutCapAlarms() },
                 onBackHome = viewModel::goHome,
             )
         }
@@ -177,6 +195,39 @@ internal fun UltiObserverApp(viewModel: AppViewModel) {
                 )
             }
         }
+    }
+
+    if (showMissingExactAlarmAccessDialog) {
+        AlertDialog(
+            onDismissRequest = { showMissingExactAlarmAccessDialog = false },
+            title = { Text("Cap alert permission") },
+            text = {
+                Text(
+                    "UltiObserver uses an alarm for cap notifications so they work even if your screen is asleep. " +
+                        "Please enable access in the Alarms & reminders settings for your device."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showMissingExactAlarmAccessDialog = false
+                        context.openExactAlarmSettings()
+                    },
+                ) {
+                    Text("Open settings")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showMissingExactAlarmAccessDialog = false
+                        viewModel.finishSetup()
+                    },
+                ) {
+                    Text("Ignore")
+                }
+            },
+        )
     }
 
     appState.startupRecoveryNotice?.let { notice ->

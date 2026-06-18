@@ -92,11 +92,13 @@ internal fun TimingCueDisplay.alertKey(): String {
 }
 
 /**
- * Wait until a timing alert is ready to deliver, or return false when the listener should poll later.
+ * Wait until a timing alert is ready to deliver.
+ *
+ * Return false when the listener should poll later.
  *
  * @param millisUntilNextAlert Milliseconds between now and the next alert target.
  * @param scheduleCheckMillis Normal listener polling cadence in milliseconds.
- * @param delayMillis Suspended delay implementation, injectable so tests can capture waits deterministically.
+ * @param delayMillis Suspended delay implementation, injectable for deterministic tests.
  */
 internal suspend fun waitForTimingAlertDeliveryWindow(
     millisUntilNextAlert: Long,
@@ -119,11 +121,20 @@ internal suspend fun waitForTimingAlertDeliveryWindow(
  * @param now The current epoch millis used to compute the next cue and its time remaining.
  */
 internal fun CountdownState.nextTimingCue(now: Long): TimingCueDisplay? {
+    return upcomingTimingCues(now).firstOrNull()
+}
+
+/**
+ * Return all future cues within this countdown.
+ *
+ * @param now The current epoch millis used to compute each cue and its time remaining.
+ */
+internal fun CountdownState.upcomingTimingCues(now: Long): List<TimingCueDisplay> {
     if (isPaused()) {
-        return null
+        return emptyList()
     }
     return timingCues()
-        .firstNotNullOfOrNull { cue ->
+        .mapNotNull { cue ->
             val cueEpoch = targetEpoch - cue.remainingSeconds * 1000L
             if (cueEpoch >= now) {
                 TimingCueDisplay(
@@ -152,7 +163,7 @@ internal fun CountdownState.dueTimingCue(now: Long): TimingCueDisplay? {
         .firstNotNullOfOrNull { cue ->
             val cueEpoch = targetEpoch - cue.remainingSeconds * 1000L
             val elapsedSinceCue = now - cueEpoch
-            if (elapsedSinceCue in 0L..1_100L) {
+            if (elapsedSinceCue in 0L..TIMING_ALERT_DUE_WINDOW_MS) {
                 TimingCueDisplay(
                     id = cue.id,
                     message = cue.message,
@@ -165,6 +176,8 @@ internal fun CountdownState.dueTimingCue(now: Long): TimingCueDisplay? {
             }
         }
 }
+
+internal const val TIMING_ALERT_DUE_WINDOW_MS = 1_100L
 
 /**
  * List timing alerts due at the current moment for the active countdown and relevant caps.
@@ -195,7 +208,8 @@ internal fun GameState.nextTimingAlert(now: Long): TimingCueDisplay? {
 
 /**
  * Return the non-null timing cues in target-time order.
- * This compares the two possible cue sources directly instead of allocating and sorting a tiny list.
+ * This compares the two possible cue sources directly instead of allocating and sorting a tiny
+ * list.
  *
  * @param first The first optional timing cue.
  * @param second The second optional timing cue.

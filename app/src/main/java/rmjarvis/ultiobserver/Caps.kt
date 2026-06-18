@@ -66,6 +66,17 @@ enum class CapType {
     }
 }
 
+/// Return whether any enabled cap has an audible or haptic timing alert.
+internal fun GameRules.hasEnabledCapTimingAlerts(timingAlertPreferences: TimingAlertPreferences): Boolean {
+    return listOfNotNull(
+        CapType.HALF.takeIf { useHalfCap },
+        CapType.SOFT.takeIf { useSoftCap },
+        CapType.HARD.takeIf { useHardCap },
+    ).any { capType ->
+        timingAlertPreferences.alertModeFor(capType.timingCueId()) != TimingAlertMode.NONE
+    }
+}
+
 /**
  * Reposition the selected cap so it is due at the current time.
  * This is the manual cap action from More actions, rather than the normal scheduled cap prompt.
@@ -208,11 +219,20 @@ internal fun GameState.dueCapTimingCue(now: Long): TimingCueDisplay? {
  * @param now The current epoch millis used to select the next future cap and compute time remaining.
  */
 internal fun GameState.nextCapTimingCue(now: Long): TimingCueDisplay? {
+    return upcomingCapTimingCues(now).firstOrNull()
+}
+
+/**
+ * Return upcoming cap timing cues in scheduled order.
+ *
+ * @param now The current epoch millis used to exclude past cap times and compute time remaining.
+ */
+internal fun GameState.upcomingCapTimingCues(now: Long): List<TimingCueDisplay> {
     return relevantCapTypes()
         .map { capType -> capType to capEpoch(capType) }
         .sortedBy { (_, capTime) -> capTime }
-        .firstNotNullOfOrNull { (capType, capTime) ->
-            if (capTime >= now) {
+        .mapNotNull { (capType, capTime) ->
+            if (capTime > now) {
                 TimingCueDisplay(
                     id = capType.timingCueId(),
                     message = capType.label,

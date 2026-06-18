@@ -48,6 +48,26 @@ class TestTimingCues : GameDomainTestFixtures() {
         assertEquals(TimingAlertGlobalMode.VIBRATION_ONLY, defaultTimingAlertPreferences.globalMode)
         assertEquals(0.5f, defaultTimingAlertPreferences.soundVolume, 0f)
         assertFalse(defaultTimingAlertPreferences.vibrateWithSounds)
+        assertTrue(GameRules().hasEnabledCapTimingAlerts(defaultTimingAlertPreferences))
+        assertFalse(
+            GameRules(useHalfCap = false, useSoftCap = false, useHardCap = false)
+                .hasEnabledCapTimingAlerts(defaultTimingAlertPreferences)
+        )
+        assertFalse(
+            GameRules().hasEnabledCapTimingAlerts(
+                defaultTimingAlertPreferences.copy(globalMode = TimingAlertGlobalMode.OFF)
+            )
+        )
+        assertFalse(
+            GameRules().hasEnabledCapTimingAlerts(
+                defaultTimingAlertPreferences.copy(
+                    cueModes = defaultTimingAlertPreferences.cueModes +
+                        (TimingCueId.HALF_CAP to TimingAlertMode.NONE) +
+                        (TimingCueId.SOFT_CAP to TimingAlertMode.NONE) +
+                        (TimingCueId.HARD_CAP to TimingAlertMode.NONE),
+                )
+            )
+        )
         val expectedDefaultModes = mapOf(
             TimingCueId.RECEIVING_TWENTY_FOR_HAND to TimingAlertMode.TICK,
             TimingCueId.RECEIVING_TEN_FOR_HAND to TimingAlertMode.TICK,
