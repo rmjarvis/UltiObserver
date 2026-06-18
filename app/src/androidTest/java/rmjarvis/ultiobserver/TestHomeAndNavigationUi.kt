@@ -5,6 +5,7 @@ import android.app.Instrumentation
 import android.content.Intent
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertCountEquals
@@ -188,6 +189,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
 
         // Settings should expose automatic live-play options and hide sound controls when sounds are off.
         composeRule.onNodeWithText("Settings").performClick()
+        val hasTimingCueHaptics = deviceHasTimingCueHaptics()
         waitForText("Automatically start live play when a countdown expires?")
         composeRule.onNodeWithTag("settings-auto-advance-countdowns-value").assertTextEquals("Yes")
         composeRule.onNodeWithTag("settings-auto-lock-live-point-value").assertTextEquals("Yes")
@@ -200,18 +202,25 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText("Use sounds and vibration for timing cues?")
         waitForText("Vibration only")
         composeRule.onNodeWithText("Vibration only").performClick()
-        waitForText("Vibration will be used for any cues that are set to use sound.")
-        composeRule.onNodeWithTag("settings-vibration-length").performScrollTo().performTouchInput {
-            click(percentOffset(0.95f, 0.5f))
+        if (hasTimingCueHaptics) {
+            waitForText("Vibration will be used for any cues that are set to use sound.")
+            composeRule.onNodeWithTag("settings-vibration-length").performScrollTo().performTouchInput {
+                click(percentOffset(0.95f, 0.5f))
+            }
+            composeRule.waitUntil(timeoutMillis = 5_000) {
+                composeRule.activity.appViewModel.timingAlertPreferences.vibrationDurationMillis >
+                    DEFAULT_TIMING_CUE_VIBRATION_MS
+            }
+            assertTrue(
+                composeRule.activity.appViewModel.timingAlertPreferences.vibrationDurationMillis >
+                    DEFAULT_TIMING_CUE_VIBRATION_MS
+            )
+            composeRule.onNodeWithTag("settings-test-vibration").performScrollTo().assertIsEnabled().performClick()
+        } else {
+            waitForText("This phone reports that vibration is unavailable.", substring = true)
+            composeRule.onNodeWithTag("settings-vibration-length").performScrollTo().assertIsNotEnabled()
+            composeRule.onNodeWithTag("settings-test-vibration").performScrollTo().assertIsNotEnabled()
         }
-        composeRule.waitUntil(timeoutMillis = 5_000) {
-            composeRule.activity.appViewModel.timingAlertPreferences.vibrationDurationMillis >
-                DEFAULT_TIMING_CUE_VIBRATION_MS
-        }
-        assertTrue(
-            composeRule.activity.appViewModel.timingAlertPreferences.vibrationDurationMillis >
-                DEFAULT_TIMING_CUE_VIBRATION_MS
-        )
         composeRule.onAllNodesWithTag("settings-sound-volume").assertCountEquals(0)
         composeRule.onAllNodesWithTag("settings-vibrate-with-sounds").assertCountEquals(0)
         composeRule.onNodeWithTag("settings-open-timing-cue-settings").performScrollTo().performClick()
@@ -219,7 +228,11 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
 
         // Cue settings should show disabled-sound context, support default reset, and persist per-cue edits.
         waitForText("Reset all to defaults")
-        waitForText("The phone will currently vibrate instead for any cues with sounds.", substring = true)
+        if (hasTimingCueHaptics) {
+            waitForText("The phone will currently vibrate instead for any cues with sounds.", substring = true)
+        } else {
+            waitForText("Note -- sounds are currently not enabled. If you want sounds", substring = true)
+        }
         composeRule.onNodeWithTag("settings-RECEIVING_TWENTY_FOR_HAND-NONE").assertIsSelected()
         composeRule.onNodeWithTag("settings-reset-timing-cue-defaults").performClick()
         composeRule.onNodeWithTag("settings-RECEIVING_TWENTY_FOR_HAND-TICK").assertIsSelected()
@@ -230,6 +243,11 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText("Use sounds and vibration for timing cues?")
         composeRule.onNodeWithTag("settings-global-alert-SOUNDS_ON").performClick()
         waitForText("Ear buds are recommended when using sounds with UltiObserver.")
+        if (!hasTimingCueHaptics) {
+            waitForText("This phone reports that vibration is unavailable.", substring = true)
+            composeRule.onNodeWithTag("settings-vibration-length").performScrollTo().assertIsNotEnabled()
+            composeRule.onNodeWithTag("settings-test-vibration").performScrollTo().assertIsNotEnabled()
+        }
         waitForText("Sound volume 50%")
         waitForText("Also vibrate on cues that use sound?")
 
@@ -237,9 +255,13 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("settings-vibrate-with-sounds").performScrollTo()
         composeRule.onNodeWithTag("settings-vibrate-with-sounds-value").assertTextEquals("Yes")
         composeRule.onNodeWithTag("settings-sound-volume").assertIsEnabled()
-        composeRule.onNodeWithTag("settings-vibrate-with-sounds").assertIsEnabled()
-        composeRule.onNodeWithTag("settings-vibrate-with-sounds").performClick()
-        composeRule.onNodeWithTag("settings-vibrate-with-sounds-value").assertTextEquals("No")
+        if (hasTimingCueHaptics) {
+            composeRule.onNodeWithTag("settings-vibrate-with-sounds").assertIsEnabled()
+            composeRule.onNodeWithTag("settings-vibrate-with-sounds").performClick()
+            composeRule.onNodeWithTag("settings-vibrate-with-sounds-value").assertTextEquals("No")
+        } else {
+            composeRule.onNodeWithTag("settings-vibrate-with-sounds").assertIsNotEnabled()
+        }
         composeRule.onNodeWithText("Off").performClick()
         waitForText("No sound or vibration will be used for any timing cues.")
         composeRule.onAllNodesWithTag("settings-sound-volume").assertCountEquals(0)

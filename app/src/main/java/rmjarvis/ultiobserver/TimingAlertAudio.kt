@@ -312,20 +312,30 @@ private fun TimingAlertPreferences.vibrationRepeatSpacingMillis(): Long {
     return vibrationDurationMillis + TIMING_ALERT_REPEAT_HAPTIC_GAP_MS
 }
 
+/// Return whether the device reports usable timing-cue haptics.
+internal fun Context.hasTimingCueHaptics(): Boolean {
+    val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        getSystemService(VibratorManager::class.java).defaultVibrator
+    } else {
+        getSystemService(Vibrator::class.java)
+    }
+    return vibrator.hasVibrator()
+}
+
 /**
  * Perform a timing-cue haptic pulse when the device supports vibration.
  *
  * @param durationMillis The requested vibration duration in milliseconds.
  */
 internal fun Context.performTimingCueHaptic(durationMillis: Long) {
+    // Devices without usable vibration hardware should ignore haptic cues without crashing.
+    if (!hasTimingCueHaptics()) {
+        return
+    }
     val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         getSystemService(VibratorManager::class.java).defaultVibrator
     } else {
         getSystemService(Vibrator::class.java)
-    }
-    // Devices without usable vibration hardware should ignore haptic cues without crashing.
-    if (!vibrator.hasVibrator()) {
-        return
     }
     vibrator.vibrate(VibrationEffect.createOneShot(durationMillis, VibrationEffect.DEFAULT_AMPLITUDE))
 }

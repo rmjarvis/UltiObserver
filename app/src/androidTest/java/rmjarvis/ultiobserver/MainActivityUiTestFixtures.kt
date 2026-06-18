@@ -327,6 +327,11 @@ abstract class MainActivityUiTestFixtures {
         return currentAvdName() !in platformBackDismissalUnstableAvds
     }
 
+    /// Return whether the test device reports usable timing-cue haptics.
+    protected fun deviceHasTimingCueHaptics(): Boolean {
+        return composeRule.activity.hasTimingCueHaptics()
+    }
+
     /// Return the configured AVD name for the current emulator.
     protected fun currentAvdName(): String {
         val instrumentation = InstrumentationRegistry.getInstrumentation()

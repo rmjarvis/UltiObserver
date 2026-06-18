@@ -55,6 +55,8 @@ internal fun SettingsScreen(
     onOpenTimingCueSettings: () -> Unit,
     onBackHome: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val hasTimingCueHaptics = context.hasTimingCueHaptics()
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -101,6 +103,10 @@ internal fun SettingsScreen(
                 onSoundVolumeChange = onSoundVolumeChange,
                 onVibrationDurationChange = onVibrationDurationChange,
                 onVibrateWithSoundsChange = onVibrateWithSoundsChange,
+                hasTimingCueHaptics = hasTimingCueHaptics,
+                onTestVibration = { durationMillis ->
+                    context.performTimingCueHaptic(durationMillis)
+                },
             )
 
             Button(
@@ -182,6 +188,7 @@ internal fun TimingCueSettingsScreen(
     onBackSettings: () -> Unit,
 ) {
     val context = LocalContext.current
+    val hasTimingCueHaptics = context.hasTimingCueHaptics()
     val timingAlertPlayer = remember(context) { TimingAlertPlayer(context) }
 
     DisposableEffect(timingAlertPlayer) {
@@ -211,7 +218,7 @@ internal fun TimingCueSettingsScreen(
             SoundPreviewRow(
                 title = "Sound previews",
                 sounds = TimingAlertSound.entries,
-                note = timingAlertPreferences.soundPreviewNote(),
+                note = timingAlertPreferences.soundPreviewNote(hasTimingCueHaptics),
                 onPreview = { sound ->
                     timingAlertPlayer.play(sound, timingAlertPreferences.soundVolume)
                 },
@@ -291,6 +298,8 @@ private fun TimingAlertGlobalModeSelector(
  * @param onSoundVolumeChange Callback receiving sound volume changes.
  * @param onVibrationDurationChange Callback receiving vibration duration changes in milliseconds.
  * @param onVibrateWithSoundsChange Callback receiving the sound-plus-vibration toggle state.
+ * @param hasTimingCueHaptics Whether this device reports usable timing-cue haptics.
+ * @param onTestVibration Callback playing a haptic test for the selected duration.
  */
 @Composable
 private fun TimingAlertSoundControls(
@@ -298,15 +307,19 @@ private fun TimingAlertSoundControls(
     onSoundVolumeChange: (Float) -> Unit,
     onVibrationDurationChange: (Long) -> Unit,
     onVibrateWithSoundsChange: (Boolean) -> Unit,
+    hasTimingCueHaptics: Boolean,
+    onTestVibration: (Long) -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(
-            text = timingAlertPreferences.globalMode.settingsMessage(),
-            style = MaterialTheme.typography.bodyMedium,
-        )
+        timingAlertPreferences.globalMode.settingsMessages(hasTimingCueHaptics).forEach { message ->
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
         if (timingAlertPreferences.globalMode != TimingAlertGlobalMode.OFF) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
@@ -316,13 +329,36 @@ private fun TimingAlertSoundControls(
                 Slider(
                     value = timingAlertPreferences.vibrationDurationMillis.toFloat(),
                     onValueChange = {
-                        onVibrationDurationChange(it.roundToLong())
+                        val durationMillis = it.roundToLong()
+                        onVibrationDurationChange(durationMillis)
                     },
                     valueRange = MIN_TIMING_CUE_VIBRATION_MS.toFloat()..MAX_TIMING_CUE_VIBRATION_MS.toFloat(),
+                    enabled = hasTimingCueHaptics,
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("settings-vibration-length"),
                 )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            onTestVibration(timingAlertPreferences.vibrationDurationMillis)
+                        },
+                        enabled = hasTimingCueHaptics,
+                        modifier = Modifier.testTag("settings-test-vibration"),
+                        shape = RoundedCornerShape(28.dp),
+                    ) {
+                        Text("Test")
+                    }
+                    Text(
+                        text = "If the test vibration is too weak, check the vibration strength in your phone's haptic settings.",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
         }
         if (timingAlertPreferences.globalMode != TimingAlertGlobalMode.SOUNDS_ON) {
@@ -363,6 +399,7 @@ private fun TimingAlertSoundControls(
                 Switch(
                     checked = timingAlertPreferences.vibrateWithSounds,
                     onCheckedChange = onVibrateWithSoundsChange,
+                    enabled = hasTimingCueHaptics,
                     modifier = Modifier.testTag("settings-vibrate-with-sounds"),
                 )
             }
@@ -413,11 +450,11 @@ private fun SoundPreviewRow(
 }
 
 /// Return the explanatory note to show beside sound previews under the current global mode.
-private fun TimingAlertPreferences.soundPreviewNote(): String? {
+private fun TimingAlertPreferences.soundPreviewNote(hasTimingCueHaptics: Boolean): String? {
     if (globalMode == TimingAlertGlobalMode.SOUNDS_ON) {
         return null
     }
-    val vibrateInsteadSentence = if (vibrateWithSounds) {
+    val vibrateInsteadSentence = if (vibrateWithSounds && hasTimingCueHaptics) {
         " The phone will currently vibrate instead for any cues with sounds."
     } else {
         ""
@@ -529,14 +566,26 @@ private fun CompactTimingAlertOption(
     }
 }
 
-/// Return the settings-page message for a global timing-alert mode.
-private fun TimingAlertGlobalMode.settingsMessage(): String {
-    return when (this) {
-        TimingAlertGlobalMode.OFF -> "No sound or vibration will be used for any timing cues."
-        TimingAlertGlobalMode.VIBRATION_ONLY -> {
-            "Vibration will be used for any cues that are set to use sound."
+/// Return the settings-page messages for a global timing-alert mode and haptic capability.
+private fun TimingAlertGlobalMode.settingsMessages(hasTimingCueHaptics: Boolean): List<String> {
+    if (!hasTimingCueHaptics) {
+        val noHapticsMessage = "This phone reports that vibration is unavailable. " +
+            "Check Android Settings > Sound & vibration > Vibration & haptics, then return to UltiObserver."
+        return when (this) {
+            TimingAlertGlobalMode.OFF -> listOf("No sound or vibration will be used for any timing cues.")
+            TimingAlertGlobalMode.VIBRATION_ONLY -> listOf(noHapticsMessage)
+            TimingAlertGlobalMode.SOUNDS_ON -> listOf(
+                "Ear buds are recommended when using sounds with UltiObserver.",
+                noHapticsMessage,
+            )
         }
-        TimingAlertGlobalMode.SOUNDS_ON -> "Ear buds are recommended when using sounds with UltiObserver."
+    }
+    return when (this) {
+        TimingAlertGlobalMode.OFF -> listOf("No sound or vibration will be used for any timing cues.")
+        TimingAlertGlobalMode.VIBRATION_ONLY -> {
+            listOf("Vibration will be used for any cues that are set to use sound.")
+        }
+        TimingAlertGlobalMode.SOUNDS_ON -> listOf("Ear buds are recommended when using sounds with UltiObserver.")
     }
 }
 
