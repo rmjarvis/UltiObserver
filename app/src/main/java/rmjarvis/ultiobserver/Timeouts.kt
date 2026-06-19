@@ -165,6 +165,7 @@ fun GameState.chargeTimeout(
         )
         .withUndo(this, "Undo Timeout by ${timeoutState.teamName(team)}")
 }
+
 /**
  * Calculate how many timeouts a team is allowed in the current half under the active rules.
  *
@@ -196,7 +197,7 @@ fun GameState.timeoutsRemaining(team: TeamId): Int {
  * @param now The current epoch millis, used to treat an expired between-points countdown as live play.
  */
 private fun GameState.timeoutEligibleState(now: Long): GameState? {
-    val transitionedState = applyExpiredCountdownTransitions(now)
+    val transitionedState = applyExpiredCountdownTransitions(now, showDefenseCountdowns = false)
     return when (transitionedState.phase) {
         GamePhase.BETWEEN_POINTS -> if (transitionedState.countdown != null) transitionedState else null
         GamePhase.LIVE_POINT -> transitionedState

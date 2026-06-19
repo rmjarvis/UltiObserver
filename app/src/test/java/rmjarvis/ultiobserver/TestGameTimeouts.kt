@@ -145,10 +145,43 @@ class TestGameTimeouts : GameDomainTestFixtures() {
         assertEquals("Offense set in", state.countdown?.label)
         assertEquals(70, state.countdown?.durationSeconds)
         assertEquals(1_070_000L, state.countdown?.targetEpoch)
+        val explicitTimeoutDefenseState = state
+
+        // If enabled, the timeout offense-set countdown waits for the observer to start defense.
+        assertTrue(explicitTimeoutDefenseState.canReportOffenseSet(true))
+        assertFalse(explicitTimeoutDefenseState.canReportOffenseSet(false))
+        assertEquals(
+            explicitTimeoutDefenseState,
+            explicitTimeoutDefenseState.applyExpiredCountdownTransitions(
+                now = 1_070_000L,
+                showDefenseCountdowns = true,
+            ),
+        )
+        val earlyOffenseSetState = explicitTimeoutDefenseState.reportOffenseSet(1_060_000L)
+        assertEquals(CountdownKind.DEFENSE_CHECK, earlyOffenseSetState.countdown?.kind)
+        assertEquals("Defense check in", earlyOffenseSetState.countdown?.label)
+        assertEquals(30, earlyOffenseSetState.countdown?.durationSeconds)
+        assertEquals(1_090_000L, earlyOffenseSetState.countdown?.targetEpoch)
+        val lateOffenseSetState = explicitTimeoutDefenseState.reportOffenseSet(1_075_000L)
+        assertEquals(CountdownKind.DEFENSE_CHECK, lateOffenseSetState.countdown?.kind)
+        assertEquals(20, lateOffenseSetState.countdown?.durationSeconds)
+        assertEquals(1_095_000L, lateOffenseSetState.countdown?.targetEpoch)
+        assertNull(
+            lateOffenseSetState.applyExpiredCountdownTransitions(
+                now = 1_095_000L,
+                showDefenseCountdowns = true,
+            ).countdown,
+        )
 
         // Once the live-point timeout countdown expires, the model automatically continues the point.
-        assertEquals(state, state.applyExpiredCountdownTransitions(1_070_000L - 1L))
-        state = state.applyExpiredCountdownTransitions(1_070_000L)
+        assertEquals(
+            state,
+            state.applyExpiredCountdownTransitions(
+                1_070_000L - 1L,
+                showDefenseCountdowns = false,
+            ),
+        )
+        state = state.applyExpiredCountdownTransitions(1_070_000L, showDefenseCountdowns = false)
         assertEquals(GamePhase.LIVE_POINT, state.phase)
         assertNull(state.countdown)
         assertEquals("Point continued.", state.lastEvent)
@@ -215,7 +248,7 @@ class TestGameTimeouts : GameDomainTestFixtures() {
         // When the pull countdown expires, timeout handling transitions to the live point unless the observer undoes it.
         val expiredPullState = createLiveGameState(setupWithRules(GameRules(useHalfCap = false)))
         val expiredCountdownNow = expiredPullState.countdown!!.targetEpoch + 1L
-        val transitionedPullState = expiredPullState.applyExpiredCountdownTransitions(expiredCountdownNow)
+        val transitionedPullState = expiredPullState.applyExpiredCountdownTransitions(expiredCountdownNow, showDefenseCountdowns = false)
         assertEquals(GamePhase.LIVE_POINT, transitionedPullState.phase)
         assertNull(transitionedPullState.countdown)
         assertEquals("Undo Start point", transitionedPullState.undoEntry?.label)

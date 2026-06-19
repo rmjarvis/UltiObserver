@@ -1831,20 +1831,12 @@ private fun GameEvent.stateAfterMisconduct(): GameState {
     }
 }
 
-/// List cues for between-points misconduct offense-set timing.
-internal fun misconductTimingCues(): List<TimingCue> {
+/// List cues for the defense check-in window after offense is set.
+internal fun defenseCheckTimingCues(): List<TimingCue> {
     return listOf(
-        TimingCue(TimingCueId.MISCONDUCT_OFFENSE_TWENTY, 20),
-        TimingCue(TimingCueId.MISCONDUCT_OFFENSE_TEN, 10),
-        TimingCue(TimingCueId.MISCONDUCT_COUNTDOWN_FROM_FIVE, 5),
-        TimingCue(TimingCueId.MISCONDUCT_OFFENSE_FREEZE_DEFENSE_TWENTY, 0),
-    )
-}
-
-/// List cues for the defense check-in window after offense sets early.
-internal fun misconductDefenseCheckTimingCues(): List<TimingCue> {
-    return listOf(
-        TimingCue(TimingCueId.MISCONDUCT_DEFENSE_TWENTY, 20),
+        TimingCue(TimingCueId.DEFENSE_TWENTY, 20),
+        TimingCue(TimingCueId.DEFENSE_TEN, 10),
+        TimingCue(TimingCueId.DEFENSE_CHECK_LIMIT, 0),
     )
 }
 
@@ -1881,40 +1873,49 @@ fun GameState.startMisconductCountdown(now: Long): GameState {
 }
 
 /**
- * Report whether the between-points misconduct countdown can switch to defense check-in timing.
- * The early-set action matters only while defense can still get the fixed 100-second deadline.
+ * Report whether the current offense-set countdown can switch to explicit defense timing.
  *
- * @param now The current epoch millis, used to hide the early-set option once only the normal hand count remains.
+ * @param showDefenseCountdowns Whether the user setting enables this workflow.
  */
-fun GameState.canReportMisconductOffenseSet(now: Long): Boolean {
+fun GameState.canReportOffenseSet(showDefenseCountdowns: Boolean): Boolean {
     val countdown = countdown ?: return false
-    return phase == GamePhase.BETWEEN_POINTS &&
-        countdown.kind == CountdownKind.MISCONDUCT_BETWEEN_POINTS &&
-        now < countdown.targetEpoch - 10_000L
+    return showDefenseCountdowns && when {
+        phase == GamePhase.LIVE_POINT && countdown.kind == CountdownKind.TIME_OUT -> true
+        phase == GamePhase.BETWEEN_POINTS && countdown.kind == CountdownKind.MISCONDUCT_BETWEEN_POINTS -> true
+        else -> false
+    }
 }
 
 /**
- * Switch a between-points misconduct countdown to the defense check-in window after offense sets early.
- * The resulting deadline is the later of the fixed 100-second deadline or 20 seconds after offense sets.
+ * Switch the current offense-set countdown to the defense check-in window.
  *
- * @param now The epoch millis when offense is reported set, used to compute the later of the rule deadlines.
+ * Normally the defense gets 20 seconds after the offense was required to be set, or
+ * after the offense actually sets if that happens later. Between-points misconduct is
+ * the odd case: offense has 90 seconds, but defense gets only until the later of 100
+ * seconds total or 20 seconds after offense actually sets. If offense sets early
+ * enough, the defense gets only 10 seconds beyond the time offense could have taken,
+ * rather than the usual 20 seconds beyond the offense-set limit.
+ *
+ * @param now The epoch millis when offense is reported set.
  */
-fun GameState.reportMisconductOffenseSet(now: Long): GameState {
+fun GameState.reportOffenseSet(now: Long): GameState {
     val countdown = countdown ?: return this
-    if (!canReportMisconductOffenseSet(now)) {
-        return this
+    val targetEpoch = when {
+        phase == GamePhase.LIVE_POINT && countdown.kind == CountdownKind.TIME_OUT -> {
+            max(countdown.targetEpoch, now) + 20_000L
+        }
+        phase == GamePhase.BETWEEN_POINTS && countdown.kind == CountdownKind.MISCONDUCT_BETWEEN_POINTS -> {
+            max(countdown.targetEpoch + 10_000L, now + 20_000L)
+        }
+        else -> return this
     }
-    val targetEpoch = max(
-        countdown.targetEpoch + 10_000L,
-        now + 20_000L,
-    )
     return copy(
         countdown = CountdownState(
-            kind = CountdownKind.MISCONDUCT_DEFENSE_CHECK,
+            kind = CountdownKind.DEFENSE_CHECK,
             label = "Defense check in",
             durationSeconds = ((targetEpoch - now) / 1000L).toInt(),
             targetEpoch = targetEpoch,
         ),
-        lastEvent = "Offense set after misconduct penalty.",
+        lastEvent = "Offense set; defense check started.",
     )
 }

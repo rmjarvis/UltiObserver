@@ -46,7 +46,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertTrue(state.activeCountdownDisplay(30_000L)?.isPaused == true)
         assertNull(pausedCountdown.nextTimingCue(30_000L))
         assertTrue(state.dueTimingAlerts(pausedCountdown.targetEpoch).isEmpty())
-        assertEquals(state, state.applyExpiredCountdownTransitions(pausedCountdown.targetEpoch + 1_000L))
+        assertEquals(state, state.applyExpiredCountdownTransitions(pausedCountdown.targetEpoch + 1_000L, showDefenseCountdowns = false))
 
         state = state.addTimeToCountdown(5)
         assertEquals(pausedCountdown.targetEpoch + 5_000L, state.countdown?.targetEpoch)
@@ -82,7 +82,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         // A countdown kind that does not match the phase is an impossible model state, so fail loudly.
         val mismatchedCountdownState = standardLiveGameState().copy(phase = GamePhase.LIVE_POINT)
         val mismatchException = assertThrows(IllegalStateException::class.java) {
-            mismatchedCountdownState.applyExpiredCountdownTransitions(mismatchedCountdownState.countdown!!.targetEpoch)
+            mismatchedCountdownState.applyExpiredCountdownTransitions(mismatchedCountdownState.countdown!!.targetEpoch, showDefenseCountdowns = false)
         }
         assertEquals(
             "Countdown OPENING_PULL is not valid while game phase is LIVE_POINT.",
@@ -92,7 +92,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
             countdown = inPointTimeoutCountdown,
         )
         val betweenPointsMismatchException = assertThrows(IllegalStateException::class.java) {
-            betweenPointsWithTimeoutCountdown.applyExpiredCountdownTransitions(inPointTimeoutCountdown.targetEpoch)
+            betweenPointsWithTimeoutCountdown.applyExpiredCountdownTransitions(inPointTimeoutCountdown.targetEpoch, showDefenseCountdowns = false)
         }
         assertEquals(
             "Countdown TIME_OUT is not valid while game phase is BETWEEN_POINTS.",
@@ -102,7 +102,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
             phase = GamePhase.HALFTIME,
         )
         val halftimeMismatchException = assertThrows(IllegalStateException::class.java) {
-            halftimeWithBetweenPointsCountdown.applyExpiredCountdownTransitions(halftimeWithBetweenPointsCountdown.countdown!!.targetEpoch)
+            halftimeWithBetweenPointsCountdown.applyExpiredCountdownTransitions(halftimeWithBetweenPointsCountdown.countdown!!.targetEpoch, showDefenseCountdowns = false)
         }
         assertEquals(
             "Countdown OPENING_PULL is not valid while game phase is HALFTIME.",
@@ -112,8 +112,8 @@ class TestGameTransitions : GameDomainTestFixtures() {
         // Between-points countdown expiration silently starts the point, but leaves an undo path.
         state = standardLiveGameState()
         val betweenPointsCountdown = state.countdown!!
-        assertEquals(state, state.applyExpiredCountdownTransitions(betweenPointsCountdown.targetEpoch - 1L))
-        val automaticStartState = state.applyExpiredCountdownTransitions(betweenPointsCountdown.targetEpoch)
+        assertEquals(state, state.applyExpiredCountdownTransitions(betweenPointsCountdown.targetEpoch - 1L, showDefenseCountdowns = false))
+        val automaticStartState = state.applyExpiredCountdownTransitions(betweenPointsCountdown.targetEpoch, showDefenseCountdowns = false)
         assertEquals(GamePhase.LIVE_POINT, automaticStartState.phase)
         assertNull(automaticStartState.countdown)
         assertEquals("Point is live.", automaticStartState.lastEvent)
@@ -125,7 +125,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         val undoneAutomaticStartState = assertUndoRestores(expiredPullDecisionState, automaticStartState)
         assertEquals(undoneAutomaticStartState, undoneAutomaticStartState.redoLastAction().undoLastAction())
         assertEquals(state, state.redoLastAction())
-        assertEquals(undoneAutomaticStartState, undoneAutomaticStartState.applyExpiredCountdownTransitions(betweenPointsCountdown.targetEpoch))
+        assertEquals(undoneAutomaticStartState, undoneAutomaticStartState.applyExpiredCountdownTransitions(betweenPointsCountdown.targetEpoch, showDefenseCountdowns = false))
         assertTrue(undoneAutomaticStartState.hasExpiredPullActions())
         assertFalse(state.hasExpiredPullActions())
         assertTrue(state.isInitialLivePreview())
@@ -141,8 +141,8 @@ class TestGameTransitions : GameDomainTestFixtures() {
         state = state.beginLivePoint()
         state = state.assessTimeout(VC, 500_000L).state
         val timeoutCountdown = state.countdown!!
-        assertEquals(state, state.applyExpiredCountdownTransitions(timeoutCountdown.targetEpoch - 1L))
-        state = state.applyExpiredCountdownTransitions(timeoutCountdown.targetEpoch)
+        assertEquals(state, state.applyExpiredCountdownTransitions(timeoutCountdown.targetEpoch - 1L, showDefenseCountdowns = false))
+        state = state.applyExpiredCountdownTransitions(timeoutCountdown.targetEpoch, showDefenseCountdowns = false)
         assertEquals(GamePhase.LIVE_POINT, state.phase)
         assertNull(state.countdown)
     }
@@ -317,7 +317,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertEquals("Offense set in", state.countdown?.label)
         assertEquals(30, state.countdown?.durationSeconds)
         assertEquals(1_040_000L, state.countdown?.targetEpoch)
-        state = state.applyExpiredCountdownTransitions(1_040_000L)
+        state = state.applyExpiredCountdownTransitions(1_040_000L, showDefenseCountdowns = false)
         assertEquals(GamePhase.LIVE_POINT, state.phase)
         assertNull(state.countdown)
         assertEquals("Point continued.", state.lastEvent)

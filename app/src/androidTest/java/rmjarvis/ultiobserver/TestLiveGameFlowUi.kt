@@ -344,6 +344,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.activityRule.scenario.onActivity { activity ->
             val current = activity.appViewModel.liveState!!
             val targetEpoch = System.currentTimeMillis() + 90_000L
+            activity.appViewModel.updateShowDefenseCountdowns(true)
             activity.appViewModel.updateLiveGame(
                 current.copy(
                     phase = GamePhase.BETWEEN_POINTS,
@@ -358,8 +359,31 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             )
         }
         waitForText("Offense is set")
-        composeRule.onNodeWithText("Offense is set").performClick()
+        composeRule.onNodeWithTag("live-offense-set").performClick()
         waitForText("Defense check in", substring = true)
+
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val current = activity.appViewModel.liveState!!
+            activity.appViewModel.updateShowDefenseCountdowns(true)
+            activity.appViewModel.updateLiveGame(
+                current.copy(
+                    phase = GamePhase.LIVE_POINT,
+                    countdown = CountdownState(
+                        kind = CountdownKind.TIME_OUT,
+                        label = "Offense set in",
+                        durationSeconds = 70,
+                        targetEpoch = System.currentTimeMillis() + 70_000L,
+                    ),
+                    pullCountdownExpired = false,
+                )
+            )
+        }
+        waitForText("Offense is set")
+        composeRule.onNodeWithTag("live-offense-set").performClick()
+        waitForText("Defense check in", substring = true)
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appViewModel.updateShowDefenseCountdowns(false)
+        }
 
         composeRule.activityRule.scenario.onActivity { activity ->
             val current = activity.appViewModel.liveState!!
@@ -623,7 +647,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             dueEpoch = if (cueAlreadyDue) now - 500L else now + cueDueInMillis
             activity.appViewModel.updateTimingAlertGlobalMode(globalMode)
             activity.appViewModel.updateTimingAlertVibrateWithSounds(vibrateWithSounds)
-            activity.appViewModel.updateTimingCueMode(TimingCueId.TIMEOUT_OFFENSE_TWENTY, cueMode)
+            activity.appViewModel.updateTimingCueMode(TimingCueId.OFFENSE_TWENTY, cueMode)
             val current = activity.appViewModel.liveState!!
             activity.appViewModel.updateLiveGame(
                 current.copy(

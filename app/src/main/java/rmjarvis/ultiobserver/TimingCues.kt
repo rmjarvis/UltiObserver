@@ -38,15 +38,13 @@ enum class TimingCueId(
     PULLING_TEN_TO_PULL("10 seconds to pull"),
     PULLING_TIME_VIOLATION("Time violation?"),
     TIMEOUT_CLEAR_FIELD("Sideline players clear the field"),
-    TIMEOUT_OFFENSE_TWENTY("20 seconds, offense"),
-    TIMEOUT_OFFENSE_TEN("10 seconds, offense"),
-    TIMEOUT_COUNTDOWN_FROM_FIVE("Countdown from 5"),
-    TIMEOUT_OFFENSE_FREEZE_DEFENSE_TWENTY("Offense freeze; defense 20 seconds"),
-    MISCONDUCT_OFFENSE_TWENTY("20 seconds, offense"),
-    MISCONDUCT_OFFENSE_TEN("10 seconds, offense"),
-    MISCONDUCT_COUNTDOWN_FROM_FIVE("Countdown from 5"),
-    MISCONDUCT_OFFENSE_FREEZE_DEFENSE_TWENTY("Offense freeze; defense 20 seconds"),
-    MISCONDUCT_DEFENSE_TWENTY("20 seconds, defense"),
+    OFFENSE_TWENTY("20 seconds, offense"),
+    OFFENSE_TEN("10 seconds, offense"),
+    OFFENSE_COUNTDOWN_FROM_FIVE("Countdown from 5"),
+    OFFENSE_SET_LIMIT("Offense freeze"),
+    DEFENSE_TWENTY("20 seconds, defense"),
+    DEFENSE_TEN("10 seconds, defense"),
+    DEFENSE_CHECK_LIMIT("Offense start when ready"),
     TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND("1 minute for a hand"),
     TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL("1 minute to pull"),
     HALFTIME_FIVE_MINUTES("5 minutes"),
@@ -228,8 +226,8 @@ private fun orderedTimingCues(first: TimingCueDisplay?, second: TimingCueDisplay
 private fun CountdownState.timingCues(): List<TimingCue> {
     return when (kind) {
         CountdownKind.OPENING_PULL, CountdownKind.BETWEEN_POINTS, CountdownKind.PULL_RESET -> betweenPointsTimingCues()
-        CountdownKind.MISCONDUCT_BETWEEN_POINTS -> misconductTimingCues()
-        CountdownKind.MISCONDUCT_DEFENSE_CHECK -> misconductDefenseCheckTimingCues()
+        CountdownKind.MISCONDUCT_BETWEEN_POINTS -> offenseSetTimingCues()
+        CountdownKind.DEFENSE_CHECK -> defenseCheckTimingCues()
         CountdownKind.TIME_OUT -> timeoutTimingCues()
         CountdownKind.HALFTIME -> halftimeTimingCues()
     }
@@ -242,11 +240,16 @@ private fun CountdownState.timeoutTimingCues(): List<TimingCue> {
     } else {
         emptyList()
     }
-    return openingCues + listOf(
-        TimingCue(TimingCueId.TIMEOUT_OFFENSE_TWENTY, 20),
-        TimingCue(TimingCueId.TIMEOUT_OFFENSE_TEN, 10),
-        TimingCue(TimingCueId.TIMEOUT_COUNTDOWN_FROM_FIVE, 5),
-        TimingCue(TimingCueId.TIMEOUT_OFFENSE_FREEZE_DEFENSE_TWENTY, 0),
+    return openingCues + offenseSetTimingCues()
+}
+
+/// List cues for offense-set countdowns in timeout and misconduct workflows.
+internal fun offenseSetTimingCues(): List<TimingCue> {
+    return listOf(
+        TimingCue(TimingCueId.OFFENSE_TWENTY, 20),
+        TimingCue(TimingCueId.OFFENSE_TEN, 10),
+        TimingCue(TimingCueId.OFFENSE_COUNTDOWN_FROM_FIVE, 5),
+        TimingCue(TimingCueId.OFFENSE_SET_LIMIT, 0),
     )
 }
 

@@ -34,6 +34,7 @@ internal enum class AppScreen {
  * @param timingAlertPreferences The current timing cue alert settings.
  * @param automaticallyAdvanceCountdowns Whether active countdowns transition automatically at expiry.
  * @param automaticallyLockLivePoint Whether automatic live-point transitions enable lock mode.
+ * @param showDefenseCountdowns Whether timeout offense-set expirations wait for defense.
  * @param archivedGames The archived game summaries loaded into the app session.
  * @param viewingArchivedGame The archived game currently open as a read-only summary.
  * @param hasSetupDraft Whether Home should expose a resumable setup draft.
@@ -50,6 +51,7 @@ internal data class AppUiState(
     val timingAlertPreferences: TimingAlertPreferences,
     val automaticallyAdvanceCountdowns: Boolean,
     val automaticallyLockLivePoint: Boolean,
+    val showDefenseCountdowns: Boolean,
     val archivedGames: List<ArchivedGame>,
     val viewingArchivedGame: ArchivedGame?,
     val hasSetupDraft: Boolean,
@@ -96,6 +98,7 @@ internal class AppViewModel(
             timingAlertPreferences = persistedSettings?.timingAlertPreferences ?: TimingAlertPreferences(),
             automaticallyAdvanceCountdowns = persistedSettings?.automaticallyAdvanceCountdowns ?: true,
             automaticallyLockLivePoint = persistedSettings?.automaticallyLockLivePoint ?: true,
+            showDefenseCountdowns = persistedSettings?.showDefenseCountdowns ?: false,
             archivedGames = restoredArchivedGames,
             viewingArchivedGame = null,
             hasSetupDraft = restoredSetupDraft,
@@ -127,6 +130,8 @@ internal class AppViewModel(
         get() = state.value.automaticallyAdvanceCountdowns
     val automaticallyLockLivePoint: Boolean
         get() = state.value.automaticallyLockLivePoint
+    val showDefenseCountdowns: Boolean
+        get() = state.value.showDefenseCountdowns
     val archivedGames: List<ArchivedGame>
         get() = state.value.archivedGames
     val viewingArchivedGame: ArchivedGame?
@@ -318,6 +323,16 @@ internal class AppViewModel(
      */
     fun updateAutomaticallyLockLivePoint(automaticallyLock: Boolean) {
         _state.update { it.copy(automaticallyLockLivePoint = automaticallyLock) }
+        persistSettingsState()
+    }
+
+    /**
+     * Update whether live-point timeout defense checks use an explicit countdown.
+     *
+     * @param showDefenseCountdowns Whether to require the observer to start the defense countdown.
+     */
+    fun updateShowDefenseCountdowns(showDefenseCountdowns: Boolean) {
+        _state.update { it.copy(showDefenseCountdowns = showDefenseCountdowns) }
         persistSettingsState()
     }
 
@@ -710,6 +725,7 @@ internal class AppViewModel(
             Settings(
                 automaticallyAdvanceCountdowns = automaticallyAdvanceCountdowns,
                 automaticallyLockLivePoint = automaticallyLockLivePoint,
+                showDefenseCountdowns = showDefenseCountdowns,
                 timingAlertPreferences = timingAlertPreferences,
             )
         )

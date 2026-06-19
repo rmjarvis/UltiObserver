@@ -112,9 +112,11 @@ internal fun UltiObserverApp(viewModel: AppViewModel) {
             SettingsScreen(
                 automaticallyAdvanceCountdowns = appState.automaticallyAdvanceCountdowns,
                 automaticallyLockLivePoint = appState.automaticallyLockLivePoint,
+                showDefenseCountdowns = appState.showDefenseCountdowns,
                 timingAlertPreferences = appState.timingAlertPreferences,
                 onAutomaticallyAdvanceCountdownsChange = viewModel::updateAutomaticallyAdvanceCountdowns,
                 onAutomaticallyLockLivePointChange = viewModel::updateAutomaticallyLockLivePoint,
+                onShowDefenseCountdownsChange = viewModel::updateShowDefenseCountdowns,
                 onGlobalModeChange = viewModel::updateTimingAlertGlobalMode,
                 onSoundVolumeChange = viewModel::updateTimingAlertSoundVolume,
                 onVibrationDurationChange = viewModel::updateTimingAlertVibrationDuration,
@@ -127,6 +129,7 @@ internal fun UltiObserverApp(viewModel: AppViewModel) {
         AppScreen.TIMING_CUE_SETTINGS -> {
             TimingCueSettingsScreen(
                 timingAlertPreferences = appState.timingAlertPreferences,
+                showDefenseCountdowns = appState.showDefenseCountdowns,
                 onTimingCueModeChange = viewModel::updateTimingCueMode,
                 onTimingCueRepeatCountChange = viewModel::updateTimingCueRepeatCount,
                 onResetTimingCueSettings = viewModel::resetTimingCueSettingsToDefaults,
@@ -186,6 +189,7 @@ internal fun UltiObserverApp(viewModel: AppViewModel) {
                     state = currentLiveState,
                     automaticallyAdvanceCountdowns = appState.automaticallyAdvanceCountdowns,
                     automaticallyLockLivePoint = appState.automaticallyLockLivePoint,
+                    showDefenseCountdowns = appState.showDefenseCountdowns,
                     onStateChange = viewModel::updateLiveGame,
                     onUpdateGameSetup = {
                         viewModel.editCurrentGame(currentLiveState)

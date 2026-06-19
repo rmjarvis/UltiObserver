@@ -430,8 +430,12 @@ internal fun GameState.halftimeTransitionReady(now: Long): Boolean {
  * Apply automatic timer expirations that do not require an observer button press.
  *
  * @param now The current epoch millis so tests and background ticks can drive deterministic transitions.
+ * @param showDefenseCountdowns Whether timeout offense-set expirations wait for defense.
  */
-fun GameState.applyExpiredCountdownTransitions(now: Long): GameState {
+fun GameState.applyExpiredCountdownTransitions(
+    now: Long,
+    showDefenseCountdowns: Boolean,
+): GameState {
     val countdown = this.countdown ?: return this
     if (countdown.isPaused()) {
         return this
@@ -444,12 +448,15 @@ fun GameState.applyExpiredCountdownTransitions(now: Long): GameState {
             this.automaticLivePointState(now)
         }
         this.phase == GamePhase.BETWEEN_POINTS && countdown.kind == CountdownKind.MISCONDUCT_BETWEEN_POINTS -> {
-            this.automaticLivePointState(now)
+            if (showDefenseCountdowns) this else this.automaticLivePointState(now)
         }
-        this.phase == GamePhase.BETWEEN_POINTS && countdown.kind == CountdownKind.MISCONDUCT_DEFENSE_CHECK -> {
+        this.phase == GamePhase.BETWEEN_POINTS && countdown.kind == CountdownKind.DEFENSE_CHECK -> {
             this.automaticLivePointState(now)
         }
         this.phase == GamePhase.LIVE_POINT && countdown.kind == CountdownKind.TIME_OUT -> {
+            if (showDefenseCountdowns) this else this.automaticContinueLivePointState()
+        }
+        this.phase == GamePhase.LIVE_POINT && countdown.kind == CountdownKind.DEFENSE_CHECK -> {
             this.automaticContinueLivePointState()
         }
         this.phase == GamePhase.HALFTIME && countdown.kind == CountdownKind.HALFTIME -> {
@@ -464,7 +471,10 @@ fun GameState.applyExpiredCountdownTransitions(now: Long): GameState {
                 pullSkippedForCurrentPoint = false,
                 pendingMisconductCountdown = false,
             )
-            betweenPointsState.applyExpiredCountdownTransitions(now)
+            betweenPointsState.applyExpiredCountdownTransitions(
+                now = now,
+                showDefenseCountdowns = showDefenseCountdowns,
+            )
         }
         else -> error("Countdown ${countdown.kind} is not valid while game phase is ${this.phase}.")
     }

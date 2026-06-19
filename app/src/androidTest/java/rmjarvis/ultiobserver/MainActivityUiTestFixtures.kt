@@ -6,8 +6,10 @@ import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -39,6 +41,10 @@ abstract class MainActivityUiTestFixtures {
 
     /// Open the new-game setup screen from Home.
     protected fun openNewGameSetup() {
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appViewModel.deleteCurrentGame()
+        }
+        composeRule.waitForIdle()
         composeRule.onNodeWithText("Start new game").performClick()
         waitForText("Setup game")
     }
@@ -87,7 +93,10 @@ abstract class MainActivityUiTestFixtures {
      * @param teamName The new team name to enter.
      */
     protected fun replaceSetupTeamName(fieldLabel: String, teamName: String) {
-        composeRule.onNodeWithTag("setup-$fieldLabel-name").performScrollTo().performTextReplacement(teamName)
+        composeRule.onNodeWithTag("setup-$fieldLabel-name")
+            .performScrollTo()
+            .performTextReplacement(teamName)
+        composeRule.onNodeWithTag("setup-$fieldLabel-name").performImeAction()
     }
 
     /**
@@ -554,8 +563,8 @@ abstract class MainActivityUiTestFixtures {
     /// Exercise the pull-infraction adjustment dialog with a small nonzero correction.
     protected fun applyPullInfractionAdjustment() {
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust pull infractions").performClick()
-        waitForText("Adjust pull infractions")
+        composeRule.onNodeWithText("Adjust pull infractions").performScrollTo().performClick()
+        waitForTag("adjust-pull-infractions-confirm")
         composeRule.onAllNodesWithText("+1")[0].performClick()
         composeRule.onAllNodesWithText("+1")[1].performClick()
         composeRule.onAllNodesWithText("+1")[2].performClick()
@@ -752,7 +761,7 @@ abstract class MainActivityUiTestFixtures {
     /// Open the setup start-time editor.
     protected fun openStartTimeSetupEditor() {
         composeRule.onNodeWithTag("setup-edit-game-information").performScrollTo().performClick()
-        waitForText("Date")
+        waitForTag("setup-start-date-field")
     }
 
     /// Open the setup starting-pull editor.
@@ -807,9 +816,8 @@ abstract class MainActivityUiTestFixtures {
      * @param label The More actions item label that opens the dialog.
      */
     protected fun openMoreActionsDialogAndCancel(label: String) {
-        composeRule.onNodeWithText(label).performClick()
-        composeRule.onNodeWithText("Cancel").assertIsDisplayed()
-        composeRule.onNodeWithText("Cancel").performClick()
+        composeRule.onNodeWithText(label).performScrollTo().performClick()
+        composeRule.onAllNodesWithText("Cancel").onLast().performClick()
         waitForText("Update game setup")
     }
 
@@ -830,6 +838,17 @@ abstract class MainActivityUiTestFixtures {
     protected fun waitForText(text: String, substring: Boolean = false) {
         composeRule.waitUntil(timeoutMillis = 10_000) {
             composeRule.onAllNodesWithText(text, substring = substring).fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    /**
+     * Wait until a test tag appears in the Compose semantics tree.
+     *
+     * @param testTag The test tag to wait for.
+     */
+    protected fun waitForTag(testTag: String) {
+        composeRule.waitUntil(timeoutMillis = 10_000) {
+            composeRule.onAllNodesWithTag(testTag).fetchSemanticsNodes().isNotEmpty()
         }
     }
 

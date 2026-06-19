@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.swipeRight
 import java.time.LocalTime
@@ -109,6 +110,10 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         // Team fields include names plus compact buttons for color, contacts, and prior cards.
         replaceSetupTeamName("Team 1", aardvarks)
         replaceSetupTeamName("Team 2", beagles)
+        composeRule.onNodeWithTag("setup-Team 2-color-button").performScrollTo().performClick()
+        waitForText("$beagles Color")
+        composeRule.onNodeWithTag("setup-Team 2-color-${TeamColorChoice.YELLOW.name}").performClick()
+        waitForText("Start game")
         composeRule.onNodeWithTag("setup-Team 1-color-button").performScrollTo().performClick()
         waitForText("$aardvarks Color")
         composeRule.onNodeWithText("Cancel").assertIsDisplayed()
@@ -117,10 +122,6 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("setup-Team 1-color-button").performScrollTo().performClick()
         waitForText("$aardvarks Color")
         composeRule.onNodeWithTag("setup-Team 1-color-${TeamColorChoice.BLUE.name}").performClick()
-        waitForText("Start game")
-        composeRule.onNodeWithTag("setup-Team 2-color-button").performScrollTo().performClick()
-        waitForText("$beagles Color")
-        composeRule.onNodeWithTag("setup-Team 2-color-${TeamColorChoice.YELLOW.name}").performClick()
         waitForText("Start game")
         composeRule.onNodeWithTag("setup-Team 1-names-button").performScrollTo().performClick()
         waitForText("$aardvarks Names")
@@ -133,14 +134,15 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         openStartingPullSetupEditor()
         composeRule.onNodeWithTag("setup-near-end-name").performTextReplacement("Road")
         composeRule.onNodeWithTag("setup-far-end-name").performTextReplacement("Trees")
-        composeRule.onNodeWithTag("setup-pulling-team-${TeamId.TEAM_TWO.name}").performClick()
-        composeRule.onNodeWithTag("setup-pulling-team-${TeamId.TEAM_ONE.name}").performClick()
-        composeRule.onNodeWithTag("setup-pulling-from-${FieldEnd.NEAR.name}").performClick()
-        composeRule.onNodeWithTag("setup-pulling-from-${FieldEnd.FAR.name}").performClick()
-        composeRule.onNodeWithTag("setup-pulling-from-${FieldEnd.NEAR.name}").performClick()
-        composeRule.onNodeWithTag("setup-pull-prompts-${PullPromptTarget.FAR.name}").performClick()
-        composeRule.onNodeWithTag("setup-pull-prompts-${PullPromptTarget.NEITHER.name}").performClick()
-        composeRule.onNodeWithTag("setup-pull-prompts-${PullPromptTarget.BOTH.name}").performClick()
+        composeRule.onNodeWithTag("setup-far-end-name").performImeAction()
+        composeRule.onNodeWithTag("setup-pulling-team-${TeamId.TEAM_TWO.name}").performScrollTo().performClick()
+        composeRule.onNodeWithTag("setup-pulling-team-${TeamId.TEAM_ONE.name}").performScrollTo().performClick()
+        composeRule.onNodeWithTag("setup-pulling-from-${FieldEnd.NEAR.name}").performScrollTo().performClick()
+        composeRule.onNodeWithTag("setup-pulling-from-${FieldEnd.FAR.name}").performScrollTo().performClick()
+        composeRule.onNodeWithTag("setup-pulling-from-${FieldEnd.NEAR.name}").performScrollTo().performClick()
+        composeRule.onNodeWithTag("setup-pull-prompts-${PullPromptTarget.FAR.name}").performScrollTo().performClick()
+        composeRule.onNodeWithTag("setup-pull-prompts-${PullPromptTarget.NEITHER.name}").performScrollTo().performClick()
+        composeRule.onNodeWithTag("setup-pull-prompts-${PullPromptTarget.BOTH.name}").performScrollTo().performClick()
         closeSetupEditor()
         waitForText("Field ends are called:")
         waitForText("Road / Trees")
@@ -170,6 +172,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("setup-game-level-other-text").performTextReplacement("Community showcase")
         composeRule.onNodeWithTag("setup-game-context").performTextReplacement("Semifinals")
         composeRule.onNodeWithTag("setup-observers").performTextReplacement("Mike and Gary")
+        composeRule.onNodeWithTag("setup-observers").performImeAction()
         closeSetupEditor()
         waitForText("College Nationals")
         waitForText("Open Division")

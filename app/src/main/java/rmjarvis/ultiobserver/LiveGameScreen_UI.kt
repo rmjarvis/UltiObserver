@@ -70,6 +70,7 @@ private data class PendingFieldTechnicalFoulResolution(
  * @param state The live game state to render.
  * @param automaticallyAdvanceCountdowns Whether expired countdowns should advance model state automatically.
  * @param automaticallyLockLivePoint Whether automatic live-point transitions should lock the screen.
+ * @param showDefenseCountdowns Whether timeout offense-set expirations wait for defense.
  * @param onStateChange Callback receiving updated live state from user actions and timer transitions.
  * @param onUpdateGameSetup Callback reopening setup for the current game.
  * @param onDeleteGame Callback deleting the current game.
@@ -81,6 +82,7 @@ internal fun LiveGameScreen(
     state: GameState,
     automaticallyAdvanceCountdowns: Boolean,
     automaticallyLockLivePoint: Boolean,
+    showDefenseCountdowns: Boolean,
     onStateChange: (GameState) -> Unit,
     onUpdateGameSetup: () -> Unit,
     onDeleteGame: () -> Unit,
@@ -159,8 +161,8 @@ internal fun LiveGameScreen(
     val hasExpiredPullActions = remember(state) {
         state.hasExpiredPullActions()
     }
-    val canReportMisconductOffenseSet = remember(state, now) {
-        state.canReportMisconductOffenseSet(now)
+    val canReportOffenseSet = remember(state, showDefenseCountdowns) {
+        state.canReportOffenseSet(showDefenseCountdowns)
     }
 
     // Let countdown expiration move the model forward without requiring an observer tap.
@@ -169,9 +171,13 @@ internal fun LiveGameScreen(
         now,
         automaticallyAdvanceCountdowns,
         automaticallyLockLivePoint,
+        showDefenseCountdowns,
     ) {
         if (automaticallyAdvanceCountdowns) {
-            val transitionedState = state.applyExpiredCountdownTransitions(now)
+            val transitionedState = state.applyExpiredCountdownTransitions(
+                now = now,
+                showDefenseCountdowns = showDefenseCountdowns,
+            )
             if (transitionedState != state) {
                 val suppressAutoLock = autoLockSuppressionState == state
                 if (suppressAutoLock) {
@@ -299,12 +305,12 @@ internal fun LiveGameScreen(
                     centerContent = {
                         if (locked) {
                             FieldUnlockControl(onUnlock = { locked = false })
-                        } else if (canReportMisconductOffenseSet) {
+                        } else if (canReportOffenseSet) {
                             OutlinedButton(
-                                onClick = { onStateChange(state.reportMisconductOffenseSet(now)) },
+                                onClick = { onStateChange(state.reportOffenseSet(now)) },
                                 modifier = Modifier
                                     .height(layoutMetrics.centerButtonHeight)
-                                    .testTag("live-misconduct-offense-set"),
+                                    .testTag("live-offense-set"),
                                 shape = RoundedCornerShape(12.dp),
                                 colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
                                     containerColor = Color.White,

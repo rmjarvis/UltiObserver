@@ -45,9 +45,11 @@ import kotlin.math.roundToLong
 internal fun SettingsScreen(
     automaticallyAdvanceCountdowns: Boolean,
     automaticallyLockLivePoint: Boolean,
+    showDefenseCountdowns: Boolean,
     timingAlertPreferences: TimingAlertPreferences,
     onAutomaticallyAdvanceCountdownsChange: (Boolean) -> Unit,
     onAutomaticallyLockLivePointChange: (Boolean) -> Unit,
+    onShowDefenseCountdownsChange: (Boolean) -> Unit,
     onGlobalModeChange: (TimingAlertGlobalMode) -> Unit,
     onSoundVolumeChange: (Float) -> Unit,
     onVibrationDurationChange: (Long) -> Unit,
@@ -91,6 +93,15 @@ internal fun SettingsScreen(
                 testTag = "settings-auto-lock-live-point",
             )
 
+            SettingsSwitchWithNote(
+                label = "Show countdown for the defensive check after the offense is set for timeouts and misconduct penalties?",
+                note = "We expect that most observers will count this off themselves with arm chops. " +
+                    "Turn this on if you want UltiObserver to display the 20-second defense countdown for you.",
+                checked = showDefenseCountdowns,
+                onCheckedChange = onShowDefenseCountdownsChange,
+                testTag = "settings-show-defense-countdowns",
+            )
+
             HorizontalDivider()
 
             TimingAlertGlobalModeSelector(
@@ -123,6 +134,37 @@ internal fun SettingsScreen(
                 Text("Sound settings for individual cues")
             }
         }
+    }
+}
+
+/**
+ * Render one labeled switch row with an explanatory note below it.
+ *
+ * @param label The setting label.
+ * @param note The explanatory note shown under the switch row.
+ * @param checked Whether the switch is currently on.
+ * @param onCheckedChange Callback receiving the new switch state.
+ * @param testTag The test tag attached to the switch and value text.
+ */
+@Composable
+private fun SettingsSwitchWithNote(
+    label: String,
+    note: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    testTag: String,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        SettingsSwitchRow(
+            label = label,
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            testTag = testTag,
+        )
+        Text(
+            text = note,
+            style = MaterialTheme.typography.bodySmall,
+        )
     }
 }
 
@@ -173,6 +215,7 @@ private fun SettingsSwitchRow(
  * Render the per-cue timing alert settings screen.
  *
  * @param timingAlertPreferences The current alert preferences to display.
+ * @param showDefenseCountdowns Whether defense-check countdowns are enabled on the main settings page.
  * @param onTimingCueModeChange Callback receiving cue-specific mode changes.
  * @param onTimingCueRepeatCountChange Callback receiving cue-specific repeat-count changes.
  * @param onResetTimingCueSettings Callback restoring all cue settings to defaults.
@@ -182,6 +225,7 @@ private fun SettingsSwitchRow(
 @Composable
 internal fun TimingCueSettingsScreen(
     timingAlertPreferences: TimingAlertPreferences,
+    showDefenseCountdowns: Boolean,
     onTimingCueModeChange: (TimingCueId, TimingAlertMode) -> Unit,
     onTimingCueRepeatCountChange: (TimingCueId, Int) -> Unit,
     onResetTimingCueSettings: () -> Unit,
@@ -241,6 +285,13 @@ internal fun TimingCueSettingsScreen(
                     text = section.title,
                     style = MaterialTheme.typography.titleMedium,
                 )
+                if (section.isDefenseCheckCountdownSection() && !showDefenseCountdowns) {
+                    Text(
+                        text = "Note — these cues are not currently enabled. " +
+                            "If you want them, enable them on the previous page.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
                 section.cues.forEach { cueId ->
                     TimingCueSettingRow(
                         cueId = cueId,
@@ -437,6 +488,7 @@ private fun SoundPreviewRow(
                     selected = false,
                     onClick = { onPreview(sound) },
                     label = { Text(sound.label) },
+                    modifier = Modifier.testTag("settings-sound-preview-${sound.name}"),
                 )
             }
         }
@@ -459,7 +511,7 @@ private fun TimingAlertPreferences.soundPreviewNote(hasTimingCueHaptics: Boolean
     } else {
         ""
     }
-    return "Note -- sounds are currently not enabled.$vibrateInsteadSentence " +
+    return "Note — sounds are currently not enabled.$vibrateInsteadSentence " +
         "If you want sounds, enable them on the previous page."
 }
 
@@ -482,7 +534,7 @@ private fun TimingCueSettingRow(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
-            text = cueId.settingsLabel(),
+            text = cueId.label,
             style = MaterialTheme.typography.bodyMedium,
         )
         CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
@@ -520,14 +572,6 @@ private fun TimingCueSettingRow(
                 }
             }
         }
-    }
-}
-
-/// Return the settings label for a timing cue.
-private fun TimingCueId.settingsLabel(): String {
-    return when (this) {
-        TimingCueId.MISCONDUCT_DEFENSE_TWENTY -> "20 seconds, defense (if offense is ready early)"
-        else -> label
     }
 }
 
@@ -623,6 +667,15 @@ private data class TimingCueSection(
     val cues: List<TimingCueId>,
 )
 
+/// Return whether this section configures the optional defense-check countdown cues.
+private fun TimingCueSection.isDefenseCheckCountdownSection(): Boolean {
+    return cues == listOf(
+        TimingCueId.DEFENSE_TWENTY,
+        TimingCueId.DEFENSE_TEN,
+        TimingCueId.DEFENSE_CHECK_LIMIT,
+    )
+}
+
 private val timingCueSections = listOf(
     TimingCueSection(
         title = "Before pull - offense",
@@ -641,13 +694,21 @@ private val timingCueSections = listOf(
         ),
     ),
     TimingCueSection(
-        title = "Timeout or misconduct during point",
+        title = "Timeout / misconduct",
         cues = listOf(
             TimingCueId.TIMEOUT_CLEAR_FIELD,
-            TimingCueId.TIMEOUT_OFFENSE_TWENTY,
-            TimingCueId.TIMEOUT_OFFENSE_TEN,
-            TimingCueId.TIMEOUT_COUNTDOWN_FROM_FIVE,
-            TimingCueId.TIMEOUT_OFFENSE_FREEZE_DEFENSE_TWENTY,
+            TimingCueId.OFFENSE_TWENTY,
+            TimingCueId.OFFENSE_TEN,
+            TimingCueId.OFFENSE_COUNTDOWN_FROM_FIVE,
+            TimingCueId.OFFENSE_SET_LIMIT,
+        ),
+    ),
+    TimingCueSection(
+        title = "Defense check countdown",
+        cues = listOf(
+            TimingCueId.DEFENSE_TWENTY,
+            TimingCueId.DEFENSE_TEN,
+            TimingCueId.DEFENSE_CHECK_LIMIT,
         ),
     ),
     TimingCueSection(
@@ -655,16 +716,6 @@ private val timingCueSections = listOf(
         cues = listOf(
             TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND,
             TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL,
-        ),
-    ),
-    TimingCueSection(
-        title = "Misconduct between points",
-        cues = listOf(
-            TimingCueId.MISCONDUCT_OFFENSE_TWENTY,
-            TimingCueId.MISCONDUCT_OFFENSE_TEN,
-            TimingCueId.MISCONDUCT_COUNTDOWN_FROM_FIVE,
-            TimingCueId.MISCONDUCT_OFFENSE_FREEZE_DEFENSE_TWENTY,
-            TimingCueId.MISCONDUCT_DEFENSE_TWENTY,
         ),
     ),
     TimingCueSection(

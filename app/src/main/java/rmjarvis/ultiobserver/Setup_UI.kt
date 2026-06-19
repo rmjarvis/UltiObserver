@@ -3,6 +3,7 @@ package rmjarvis.ultiobserver
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -53,12 +54,15 @@ import androidx.compose.material3.TimePickerDialog
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
@@ -853,6 +857,8 @@ private fun GameInformationSetupDialog(
     onStateChange: (GameSetupState) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val focusManager = LocalFocusManager.current
+    val openingFocusRequester = remember { FocusRequester() }
     var startDate by remember { mutableStateOf(state.startDate) }
     var startTime by remember { mutableStateOf(state.startTime) }
     var tournamentName by remember { mutableStateOf(state.tournamentName) }
@@ -863,6 +869,10 @@ private fun GameInformationSetupDialog(
     var observers by remember { mutableStateOf(state.observers) }
     var showStartDateDialog by remember { mutableStateOf(false) }
     var showStartTimeDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        openingFocusRequester.requestFocus()
+    }
 
     fun saveAndDismiss() {
         onStateChange(
@@ -895,6 +905,9 @@ private fun GameInformationSetupDialog(
                 DateTimeDisplayField(
                     value = formatStartDate(startDate),
                     testTag = "setup-start-date-field",
+                    modifier = Modifier
+                        .focusRequester(openingFocusRequester)
+                        .focusable(),
                     onClick = { showStartDateDialog = true },
                 )
 
@@ -906,6 +919,7 @@ private fun GameInformationSetupDialog(
                 DateTimeDisplayField(
                     value = formatClockTime(startTime),
                     testTag = "setup-start-time-field",
+                    modifier = Modifier,
                     onClick = { showStartTimeDialog = true },
                 )
 
@@ -940,7 +954,13 @@ private fun GameInformationSetupDialog(
                         onValueChange = { level = it },
                         label = { Text("Other level") },
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Words,
+                            imeAction = ImeAction.Done,
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onDone = { focusManager.clearFocus(force = true) },
+                        ),
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("setup-game-level-other-text"),
@@ -952,7 +972,13 @@ private fun GameInformationSetupDialog(
                     onValueChange = { tournamentName = it },
                     label = { Text("Tournament name") },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Words,
+                        imeAction = ImeAction.Done,
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = { focusManager.clearFocus(force = true) },
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("setup-tournament-name"),
@@ -963,7 +989,13 @@ private fun GameInformationSetupDialog(
                     label = { Text("Game context") },
                     placeholder = { Text("Pool play, Semi-finals, etc.") },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Sentences,
+                        imeAction = ImeAction.Done,
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = { focusManager.clearFocus(force = true) },
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("setup-game-context"),
@@ -974,7 +1006,13 @@ private fun GameInformationSetupDialog(
                     label = { Text("Observers") },
                     placeholder = { Text("Observer names") },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Sentences,
+                        imeAction = ImeAction.Done,
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = { focusManager.clearFocus(force = true) },
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("setup-observers"),
@@ -1916,6 +1954,7 @@ private fun TeamEditor(
     onEditNames: () -> Unit,
     onEditCards: () -> Unit,
 ) {
+    val focusManager = LocalFocusManager.current
     val namesSummary = team.namesSummary()
     val cardsSummary = priorCards.teamPriorCardsSummary()
 
@@ -1937,7 +1976,13 @@ private fun TeamEditor(
                     )
                 },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Words,
+                    imeAction = ImeAction.Done,
+                ),
+                keyboardActions = KeyboardActions(
+                    onDone = { focusManager.clearFocus(force = true) },
+                ),
                 colors = teamNameFieldColors(team),
                 modifier = Modifier
                     .weight(1f)
@@ -2318,16 +2363,18 @@ private fun TeamNamesTextField(
  *
  * @param value The formatted value shown inside the field.
  * @param testTag The test tag attached to the clickable surface.
+ * @param modifier Modifier applied to the clickable field surface.
  * @param onClick Callback opening the focused editor for this value.
  */
 @Composable
 private fun DateTimeDisplayField(
     value: String,
     testTag: String,
+    modifier: Modifier,
     onClick: () -> Unit,
 ) {
     Surface(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .testTag(testTag)
             .clickable(onClick = onClick),

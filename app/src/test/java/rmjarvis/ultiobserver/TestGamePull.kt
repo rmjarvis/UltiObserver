@@ -147,7 +147,7 @@ class TestGamePull : GameDomainTestFixtures() {
         assertTrue(CountdownKind.BETWEEN_POINTS.usesBetweenPointsTarget())
         assertTrue(CountdownKind.PULL_RESET.usesBetweenPointsTarget())
         assertFalse(CountdownKind.MISCONDUCT_BETWEEN_POINTS.usesBetweenPointsTarget())
-        assertFalse(CountdownKind.MISCONDUCT_DEFENSE_CHECK.usesBetweenPointsTarget())
+        assertFalse(CountdownKind.DEFENSE_CHECK.usesBetweenPointsTarget())
         assertFalse(CountdownKind.TIME_OUT.usesBetweenPointsTarget())
         assertFalse(CountdownKind.HALFTIME.usesBetweenPointsTarget())
     }
@@ -367,7 +367,7 @@ class TestGamePull : GameDomainTestFixtures() {
         // A violation on either side starts that side's reset timer, even after an automatic live-point transition.
         state = standardLiveGameState()
         val farPullingWarningMoment = state.countdown!!.targetEpoch
-        timeViolationResult = state.applyExpiredCountdownTransitions(farPullingWarningMoment)
+        timeViolationResult = state.applyExpiredCountdownTransitions(farPullingWarningMoment, showDefenseCountdowns = false)
             .assessTimeViolation(VC, farPullingWarningMoment)
         timeViolationState = timeViolationResult.state
         assertEquals(VC, (timeViolationResult.event as GameEvent.TimeViolationRecorded).team)
@@ -384,7 +384,7 @@ class TestGamePull : GameDomainTestFixtures() {
 
         state = standardLiveGameState(pullingFromEnd = FieldEnd.NEAR)
         val farReceivingWarningMoment = state.countdown!!.targetEpoch
-        timeViolationResult = state.applyExpiredCountdownTransitions(farReceivingWarningMoment)
+        timeViolationResult = state.applyExpiredCountdownTransitions(farReceivingWarningMoment, showDefenseCountdowns = false)
             .assessTimeViolation(ANIMAL, farReceivingWarningMoment)
         timeViolationState = timeViolationResult.state
         assertEquals(ANIMAL, (timeViolationResult.event as GameEvent.TimeViolationRecorded).team)

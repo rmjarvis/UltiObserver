@@ -125,10 +125,8 @@ internal fun TimingCueId.defaultAlertMode(): TimingAlertMode {
     return when (this) {
         TimingCueId.RECEIVING_TWENTY_FOR_HAND,
         TimingCueId.RECEIVING_TEN_FOR_HAND,
-        TimingCueId.TIMEOUT_OFFENSE_TWENTY,
-        TimingCueId.TIMEOUT_OFFENSE_TEN,
-        TimingCueId.MISCONDUCT_OFFENSE_TWENTY,
-        TimingCueId.MISCONDUCT_OFFENSE_TEN,
+        TimingCueId.OFFENSE_TWENTY,
+        TimingCueId.OFFENSE_TEN,
         -> TimingAlertMode.TICK
         TimingCueId.TIMEOUT_CLEAR_FIELD,
         TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND,
@@ -142,7 +140,6 @@ internal fun TimingCueId.defaultAlertMode(): TimingAlertMode {
         TimingCueId.HARD_CAP,
         -> TimingAlertMode.DING
         TimingCueId.PULLING_TWENTY_TO_PULL,
-        TimingCueId.MISCONDUCT_DEFENSE_TWENTY,
         -> TimingAlertMode.VIBRATE
         else -> TimingAlertMode.NONE
     }
@@ -152,8 +149,7 @@ internal fun TimingCueId.defaultAlertMode(): TimingAlertMode {
 internal fun TimingCueId.defaultRepeatCount(): Int {
     return when (this) {
         TimingCueId.RECEIVING_TWENTY_FOR_HAND,
-        TimingCueId.TIMEOUT_OFFENSE_TWENTY,
-        TimingCueId.MISCONDUCT_OFFENSE_TWENTY,
+        TimingCueId.OFFENSE_TWENTY,
         TimingCueId.HALFTIME_FIVE_MINUTES,
         TimingCueId.HALFTIME_TWO_MINUTES,
         TimingCueId.HALF_CAP,
@@ -176,6 +172,7 @@ const val DEFAULT_TIMING_ALERT_REPEAT_COUNT = 1
  *
  * @param automaticallyAdvanceCountdowns Whether expired countdowns should drive model transitions.
  * @param automaticallyLockLivePoint Whether automatic live-point entry should lock the live screen.
+ * @param showDefenseCountdowns Whether timeout offense-set expirations wait for defense.
  * @param timingAlertPreferences User-configurable timing cue alert behavior.
  */
 @Serializable
@@ -184,6 +181,7 @@ internal data class Settings(
     val versionCode: Int = APP_STATE_VERSION_CODE,
     val automaticallyAdvanceCountdowns: Boolean = true,
     val automaticallyLockLivePoint: Boolean = true,
+    val showDefenseCountdowns: Boolean = false,
     val timingAlertPreferences: TimingAlertPreferences = TimingAlertPreferences(),
 ) {
     companion object {

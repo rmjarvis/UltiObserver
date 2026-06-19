@@ -320,32 +320,42 @@ class TestGameCards : GameDomainTestFixtures() {
         assertFalse(state.canRecordPullInfraction(ANIMAL))
         assertEquals(state, state.assessPullInfraction(VC).state)
         assertEquals(state, state.assessPullInfraction(ANIMAL).state)
-        assertTrue(state.canReportMisconductOffenseSet(state.startEpoch + 70_000L))
-        val earlySetState = state.reportMisconductOffenseSet(state.startEpoch + 70_000L)
-        assertEquals(CountdownKind.MISCONDUCT_DEFENSE_CHECK, earlySetState.countdown?.kind)
+        assertTrue(state.canReportOffenseSet(true))
+        assertFalse(state.canReportOffenseSet(false))
+        val earlySetState = state.reportOffenseSet(state.startEpoch + 70_000L)
+        assertEquals(CountdownKind.DEFENSE_CHECK, earlySetState.countdown?.kind)
         assertEquals("Defense check in", earlySetState.countdown?.label)
         assertEquals(30, earlySetState.countdown?.durationSeconds)
         assertEquals(state.startEpoch + 100_000L, earlySetState.countdown?.targetEpoch)
         assertEquals(
             GamePhase.LIVE_POINT,
-            earlySetState.applyExpiredCountdownTransitions(earlySetState.countdown!!.targetEpoch).phase,
+            earlySetState.applyExpiredCountdownTransitions(earlySetState.countdown!!.targetEpoch, showDefenseCountdowns = false).phase,
         )
-        assertEquals("Point is live.", earlySetState.applyExpiredCountdownTransitions(earlySetState.countdown!!.targetEpoch).lastEvent)
-        assertFalse(state.canReportMisconductOffenseSet(state.startEpoch + 85_000L))
-        assertEquals(state, state.reportMisconductOffenseSet(state.startEpoch + 85_000L))
-        assertFalse(state.canReportMisconductOffenseSet(state.countdown!!.targetEpoch))
-        assertFalse(standardLiveGameState().canReportMisconductOffenseSet(state.startEpoch))
+        assertEquals("Point is live.", earlySetState.applyExpiredCountdownTransitions(earlySetState.countdown!!.targetEpoch, showDefenseCountdowns = false).lastEvent)
+        val laterSetState = state.reportOffenseSet(state.startEpoch + 85_000L)
+        assertEquals(CountdownKind.DEFENSE_CHECK, laterSetState.countdown?.kind)
+        assertEquals(20, laterSetState.countdown?.durationSeconds)
+        assertEquals(state.startEpoch + 105_000L, laterSetState.countdown?.targetEpoch)
+        assertTrue(state.canReportOffenseSet(true))
+        assertFalse(standardLiveGameState().canReportOffenseSet(true))
         assertFalse(
             state.copy(phase = GamePhase.LIVE_POINT)
-                .canReportMisconductOffenseSet(state.startEpoch + 70_000L),
+                .canReportOffenseSet(true),
         )
-        state = state.applyExpiredCountdownTransitions(state.countdown!!.targetEpoch)
+        assertEquals(
+            state,
+            state.applyExpiredCountdownTransitions(
+                state.countdown!!.targetEpoch,
+                showDefenseCountdowns = true,
+            ),
+        )
+        state = state.applyExpiredCountdownTransitions(state.countdown!!.targetEpoch, showDefenseCountdowns = false)
         assertEquals(GamePhase.LIVE_POINT, state.phase)
         assertFalse(state.pullSkippedForCurrentPoint)
         assertNull(state.countdown)
         assertEquals("Point is live.", state.lastEvent)
-        assertFalse(state.canReportMisconductOffenseSet(state.startEpoch + 91_000L))
-        assertEquals(state, state.reportMisconductOffenseSet(state.startEpoch + 91_000L))
+        assertFalse(state.canReportOffenseSet(true))
+        assertEquals(state, state.reportOffenseSet(state.startEpoch + 91_000L))
 
         // The no-pull restriction is only for the current point sequence.
         state = recordGoalFromCurrentStateAt(state, VC, LocalTime.of(12, 5))

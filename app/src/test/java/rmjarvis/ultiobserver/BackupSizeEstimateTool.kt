@@ -183,13 +183,13 @@ private fun GameState.finishHalftimeIfNeeded(clock: EstimateClock): GameState {
     }
     val halftimeEnd = countdown?.targetEpoch ?: clock.next()
     clock.advancePast(halftimeEnd)
-    return applyExpiredCountdownTransitions(clock.current)
+    return applyExpiredCountdownTransitions(clock.current, showDefenseCountdowns = false)
 }
 
 private fun GameState.applyCountdownIfNeeded(clock: EstimateClock): GameState {
     val targetEpoch = countdown?.targetEpoch ?: return this
     clock.advancePast(targetEpoch)
-    return applyExpiredCountdownTransitions(clock.current)
+    return applyExpiredCountdownTransitions(clock.current, showDefenseCountdowns = false)
 }
 
 private fun scoringSequence(): List<TeamId> {

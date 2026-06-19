@@ -510,7 +510,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
             viewModel.timingAlertPreferences.repeatCountFor(TimingCueId.PULLING_TIME_VIOLATION),
         )
         viewModel.updateTimingCueMode(TimingCueId.PULLING_TIME_VIOLATION, TimingAlertMode.DING)
-        viewModel.updateTimingCueMode(TimingCueId.TIMEOUT_OFFENSE_TEN, TimingAlertMode.VIBRATE)
+        viewModel.updateTimingCueMode(TimingCueId.OFFENSE_TEN, TimingAlertMode.VIBRATE)
         viewModel.openTimingCueSettings()
         assertEquals(AppScreen.TIMING_CUE_SETTINGS, viewModel.screen)
         viewModel.goBackFromCurrentScreen()
@@ -522,7 +522,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         )
         assertEquals(
             TimingAlertMode.NONE,
-            viewModel.timingAlertPreferences.alertModeFor(TimingCueId.TIMEOUT_OFFENSE_TEN),
+            viewModel.timingAlertPreferences.alertModeFor(TimingCueId.OFFENSE_TEN),
         )
         viewModel.openArchivedGames()
         assertEquals(AppScreen.ARCHIVED_GAMES, viewModel.screen)
@@ -553,7 +553,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         )
         assertEquals(
             TimingAlertMode.VIBRATE,
-            restored.timingAlertPreferences.cueModes[TimingCueId.TIMEOUT_OFFENSE_TEN],
+            restored.timingAlertPreferences.cueModes[TimingCueId.OFFENSE_TEN],
         )
         assertEquals(
             TimingAlertMode.NONE,
@@ -561,7 +561,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         )
         assertEquals(
             TimingAlertMode.NONE,
-            restored.timingAlertPreferences.alertModeFor(TimingCueId.TIMEOUT_OFFENSE_TEN),
+            restored.timingAlertPreferences.alertModeFor(TimingCueId.OFFENSE_TEN),
         )
     }
 

@@ -320,7 +320,10 @@ internal fun AdjustCardsDialog(
         onDismissRequest = onDismiss,
         title = { Text("Adjust cards / techs") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
                 TeamCorrectionSection(state.teamOne.name) {
                     CardCountRow("Blue", teamOneB, { teamOneB += 1 }, { teamOneB = maxOf(0, teamOneB - 1) })
                     CardCountRow("Tech", teamOneTf, { teamOneTf += 1 }, { teamOneTf = maxOf(0, teamOneTf - 1) })
@@ -329,6 +332,7 @@ internal fun AdjustCardsDialog(
                         onEditExisting = { editingPlayerCardsFor = TeamId.TEAM_ONE },
                         onAddYellow = { pendingManualAdd = PendingManualCardAdd(TeamId.TEAM_ONE, CardType.YELLOW) },
                         onAddRed = { pendingManualAdd = PendingManualCardAdd(TeamId.TEAM_ONE, CardType.RED) },
+                        editExistingTestTag = "cards-adjust-team-one-edit-existing",
                     )
                 }
                 TeamCorrectionSection(state.teamTwo.name) {
@@ -339,6 +343,7 @@ internal fun AdjustCardsDialog(
                         onEditExisting = { editingPlayerCardsFor = TeamId.TEAM_TWO },
                         onAddYellow = { pendingManualAdd = PendingManualCardAdd(TeamId.TEAM_TWO, CardType.YELLOW) },
                         onAddRed = { pendingManualAdd = PendingManualCardAdd(TeamId.TEAM_TWO, CardType.RED) },
+                        editExistingTestTag = "cards-adjust-team-two-edit-existing",
                     )
                 }
             }
@@ -1209,6 +1214,7 @@ private fun CardCountRow(
  * @param onEditExisting Callback opening the existing-card editor.
  * @param onAddYellow Callback adding one yellow card.
  * @param onAddRed Callback adding one red card.
+ * @param editExistingTestTag Test tag for the existing-card editor action.
  */
 @Composable
 private fun PlayerCardAdjustmentActions(
@@ -1216,6 +1222,7 @@ private fun PlayerCardAdjustmentActions(
     onEditExisting: () -> Unit,
     onAddYellow: () -> Unit,
     onAddRed: () -> Unit,
+    editExistingTestTag: String,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -1235,7 +1242,9 @@ private fun PlayerCardAdjustmentActions(
         OutlinedButton(
             onClick = onEditExisting,
             enabled = hasEditableCards,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag(editExistingTestTag),
             border = BorderStroke(1.dp, if (hasEditableCards) Color.Black else MaterialTheme.colorScheme.outline),
             colors = ButtonDefaults.outlinedButtonColors(
                 containerColor = Color.White,

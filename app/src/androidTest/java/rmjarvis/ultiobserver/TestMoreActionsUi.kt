@@ -142,12 +142,12 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         startLiveGameProgrammatically()
 
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Delete game").performClick()
+        composeRule.onNodeWithText("Delete game").performScrollTo().performClick()
         waitForText("This cannot be undone", substring = true)
         composeRule.onNodeWithText("Cancel").performClick()
         waitForText("Update game setup")
 
-        composeRule.onNodeWithText("Delete game").performClick()
+        composeRule.onNodeWithText("Delete game").performScrollTo().performClick()
         confirmDeleteWithSlider()
         waitForText("Start new game")
         assertTrue(composeRule.onAllNodesWithText("Current game").fetchSemanticsNodes().isEmpty())

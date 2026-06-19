@@ -73,13 +73,10 @@ class TestTimingCues : GameDomainTestFixtures() {
             TimingCueId.RECEIVING_TEN_FOR_HAND to TimingAlertMode.TICK,
             TimingCueId.PULLING_TWENTY_TO_PULL to TimingAlertMode.VIBRATE,
             TimingCueId.TIMEOUT_CLEAR_FIELD to TimingAlertMode.BEEP,
-            TimingCueId.TIMEOUT_OFFENSE_TWENTY to TimingAlertMode.TICK,
-            TimingCueId.TIMEOUT_OFFENSE_TEN to TimingAlertMode.TICK,
+            TimingCueId.OFFENSE_TWENTY to TimingAlertMode.TICK,
+            TimingCueId.OFFENSE_TEN to TimingAlertMode.TICK,
             TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND to TimingAlertMode.BEEP,
             TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL to TimingAlertMode.BEEP,
-            TimingCueId.MISCONDUCT_OFFENSE_TWENTY to TimingAlertMode.TICK,
-            TimingCueId.MISCONDUCT_OFFENSE_TEN to TimingAlertMode.TICK,
-            TimingCueId.MISCONDUCT_DEFENSE_TWENTY to TimingAlertMode.VIBRATE,
             TimingCueId.HALFTIME_FIVE_MINUTES to TimingAlertMode.KNOCK,
             TimingCueId.HALFTIME_TWO_MINUTES to TimingAlertMode.KNOCK,
             TimingCueId.HALF_CAP to TimingAlertMode.DING,
@@ -95,8 +92,7 @@ class TestTimingCues : GameDomainTestFixtures() {
         }
         val expectedDefaultRepeatCounts = mapOf(
             TimingCueId.RECEIVING_TWENTY_FOR_HAND to 2,
-            TimingCueId.TIMEOUT_OFFENSE_TWENTY to 2,
-            TimingCueId.MISCONDUCT_OFFENSE_TWENTY to 2,
+            TimingCueId.OFFENSE_TWENTY to 2,
             TimingCueId.HALFTIME_FIVE_MINUTES to 2,
             TimingCueId.HALFTIME_TWO_MINUTES to 2,
             TimingCueId.HALF_CAP to 2,
@@ -122,7 +118,6 @@ class TestTimingCues : GameDomainTestFixtures() {
         assertEquals(
             listOf(
                 TimingCueId.PULLING_TWENTY_TO_PULL,
-                TimingCueId.MISCONDUCT_DEFENSE_TWENTY,
             ),
             TimingCueId.entries.filter { cueId ->
                 defaultTimingAlertPreferences.settingsModeFor(cueId) == TimingAlertMode.VIBRATE
@@ -232,7 +227,10 @@ class TestTimingCues : GameDomainTestFixtures() {
         val beepClip = TimingAlertSoundClip(TimingAlertSound.BEEP, 1)
         val dingClip = TimingAlertSoundClip(TimingAlertSound.DING, 1)
         val soundPlayer = FakeTimingAlertSoundPlayer()
-        val timingAlertPlayer = TimingAlertPlayer(soundPlayer) { _, clip -> soundIds.getValue(clip) }
+        val timingAlertPlayer = TimingAlertPlayer(
+            soundPlayer = soundPlayer,
+            loadSound = { _, clip -> soundIds.getValue(clip) },
+        )
         timingAlertPlayer.play(TimingAlertSound.TICK, 1.5f)
         timingAlertPlayer.play(TimingAlertSound.TICK, 0.5f)
         timingAlertPlayer.play(TimingAlertSound.TICK, 3, 0.75f)
@@ -350,10 +348,10 @@ class TestTimingCues : GameDomainTestFixtures() {
 
         runBlocking {
             playTimingAlertOnce(
-                cue = soundCue.copy(id = TimingCueId.MISCONDUCT_DEFENSE_TWENTY, targetEpoch = 125_000L),
+                cue = soundCue.copy(id = TimingCueId.DEFENSE_TWENTY, targetEpoch = 125_000L),
                 timingAlertPreferences = TimingAlertPreferences(
-                    cueModes = mapOf(TimingCueId.MISCONDUCT_DEFENSE_TWENTY to TimingAlertMode.VIBRATE),
-                    cueRepeatCounts = mapOf(TimingCueId.MISCONDUCT_DEFENSE_TWENTY to 2),
+                    cueModes = mapOf(TimingCueId.DEFENSE_TWENTY to TimingAlertMode.VIBRATE),
+                    cueRepeatCounts = mapOf(TimingCueId.DEFENSE_TWENTY to 2),
                     vibrationDurationMillis = 0L,
                 ),
                 timingAlertPlayer = timingAlertPlayer,
@@ -372,7 +370,10 @@ class TestTimingCues : GameDomainTestFixtures() {
         assertTrue(soundPlayer.released)
 
         val failedSoundPlayer = FakeTimingAlertSoundPlayer()
-        val failedTimingAlertPlayer = TimingAlertPlayer(failedSoundPlayer) { _, clip -> soundIds.getValue(clip) }
+        val failedTimingAlertPlayer = TimingAlertPlayer(
+            soundPlayer = failedSoundPlayer,
+            loadSound = { _, clip -> soundIds.getValue(clip) },
+        )
         failedTimingAlertPlayer.play(TimingAlertSound.DING, 0.5f)
         failedSoundPlayer.completeLoad(soundIds.getValue(dingClip), status = 1)
         failedSoundPlayer.completeLoad(999)
@@ -391,13 +392,13 @@ class TestTimingCues : GameDomainTestFixtures() {
 
         // Timeout cues stop at offense freeze, with the app's last reminder at countdown-from-five.
         assertEquals(TimingCueId.TIMEOUT_CLEAR_FIELD, timeoutCountdownWithDefaultTarget.nextTimingCue(40_000L)?.id)
-        assertEquals(TimingCueId.TIMEOUT_COUNTDOWN_FROM_FIVE, timeoutCountdownWithDefaultTarget.nextTimingCue(65_000L)?.id)
+        assertEquals(TimingCueId.OFFENSE_COUNTDOWN_FROM_FIVE, timeoutCountdownWithDefaultTarget.nextTimingCue(65_000L)?.id)
         assertEquals(
             Duration.ofSeconds(5),
             timeoutCountdownWithDefaultTarget.nextTimingCue(65_000L)?.countdownTime,
         )
         assertEquals(
-            TimingCueId.TIMEOUT_OFFENSE_FREEZE_DEFENSE_TWENTY,
+            TimingCueId.OFFENSE_SET_LIMIT,
             timeoutCountdownWithDefaultTarget.dueTimingCue(70_000L)?.id,
         )
         val misconductCountdown = CountdownState(
@@ -406,32 +407,32 @@ class TestTimingCues : GameDomainTestFixtures() {
             durationSeconds = 30,
             targetEpoch = 30_000L,
         )
-        assertEquals(TimingCueId.TIMEOUT_OFFENSE_TWENTY, misconductCountdown.nextTimingCue(1_000L)?.id)
-        assertEquals(TimingCueId.TIMEOUT_OFFENSE_TEN, misconductCountdown.nextTimingCue(20_000L)?.id)
-        assertEquals(TimingCueId.TIMEOUT_COUNTDOWN_FROM_FIVE, misconductCountdown.nextTimingCue(25_000L)?.id)
-        assertEquals(TimingCueId.TIMEOUT_OFFENSE_FREEZE_DEFENSE_TWENTY, misconductCountdown.dueTimingCue(30_000L)?.id)
+        assertEquals(TimingCueId.OFFENSE_TWENTY, misconductCountdown.nextTimingCue(1_000L)?.id)
+        assertEquals(TimingCueId.OFFENSE_TEN, misconductCountdown.nextTimingCue(20_000L)?.id)
+        assertEquals(TimingCueId.OFFENSE_COUNTDOWN_FROM_FIVE, misconductCountdown.nextTimingCue(25_000L)?.id)
+        assertEquals(TimingCueId.OFFENSE_SET_LIMIT, misconductCountdown.dueTimingCue(30_000L)?.id)
         val betweenPointsMisconductCountdown = CountdownState(
             kind = CountdownKind.MISCONDUCT_BETWEEN_POINTS,
             label = "Offense set in",
             durationSeconds = 90,
             targetEpoch = 90_000L,
         )
-        assertEquals(TimingCueId.MISCONDUCT_OFFENSE_TWENTY, betweenPointsMisconductCountdown.nextTimingCue(1_000L)?.id)
-        assertEquals(TimingCueId.MISCONDUCT_OFFENSE_TEN, betweenPointsMisconductCountdown.nextTimingCue(80_000L)?.id)
-        assertEquals(TimingCueId.MISCONDUCT_COUNTDOWN_FROM_FIVE, betweenPointsMisconductCountdown.nextTimingCue(85_000L)?.id)
+        assertEquals(TimingCueId.OFFENSE_TWENTY, betweenPointsMisconductCountdown.nextTimingCue(1_000L)?.id)
+        assertEquals(TimingCueId.OFFENSE_TEN, betweenPointsMisconductCountdown.nextTimingCue(80_000L)?.id)
+        assertEquals(TimingCueId.OFFENSE_COUNTDOWN_FROM_FIVE, betweenPointsMisconductCountdown.nextTimingCue(85_000L)?.id)
         assertEquals(
-            TimingCueId.MISCONDUCT_OFFENSE_FREEZE_DEFENSE_TWENTY,
+            TimingCueId.OFFENSE_SET_LIMIT,
             betweenPointsMisconductCountdown.dueTimingCue(90_000L)?.id,
         )
         val misconductDefenseCountdown = CountdownState(
-            kind = CountdownKind.MISCONDUCT_DEFENSE_CHECK,
+            kind = CountdownKind.DEFENSE_CHECK,
             label = "Defense check in",
             durationSeconds = 30,
             targetEpoch = 100_000L,
         )
-        assertEquals(TimingCueId.MISCONDUCT_DEFENSE_TWENTY, misconductDefenseCountdown.nextTimingCue(70_000L)?.id)
-        assertNull(misconductDefenseCountdown.nextTimingCue(81_000L))
-        assertNull(misconductDefenseCountdown.dueTimingCue(100_000L))
+        assertEquals(TimingCueId.DEFENSE_TWENTY, misconductDefenseCountdown.nextTimingCue(70_000L)?.id)
+        assertEquals(TimingCueId.DEFENSE_TEN, misconductDefenseCountdown.nextTimingCue(81_000L)?.id)
+        assertEquals(TimingCueId.DEFENSE_CHECK_LIMIT, misconductDefenseCountdown.dueTimingCue(100_000L)?.id)
 
         val halftimeCountdown = buildHalftimeCountdown(
             halftimeMinutes = 7,
@@ -481,13 +482,13 @@ class TestTimingCues : GameDomainTestFixtures() {
         )
         val dueAlertIds = stateWithDueCountdown.dueTimingAlerts(halfCapTime).map { cue -> cue.id }
         assertEquals(2, dueAlertIds.size)
-        assertTrue(TimingCueId.TIMEOUT_OFFENSE_FREEZE_DEFENSE_TWENTY in dueAlertIds)
+        assertTrue(TimingCueId.OFFENSE_SET_LIMIT in dueAlertIds)
         assertTrue(TimingCueId.HALF_CAP in dueAlertIds)
 
         // Pin the cue payload used by the alert player and its deduplication key.
         val dueCountdownCue = stateWithDueCountdown.countdown!!.dueTimingCue(halfCapTime)!!
-        assertEquals(TimingCueId.TIMEOUT_OFFENSE_FREEZE_DEFENSE_TWENTY.label, dueCountdownCue.message)
-        assertEquals("TIMEOUT_OFFENSE_FREEZE_DEFENSE_TWENTY:$halfCapTime", dueCountdownCue.alertKey())
+        assertEquals(TimingCueId.OFFENSE_SET_LIMIT.label, dueCountdownCue.message)
+        assertEquals("OFFENSE_SET_LIMIT:$halfCapTime", dueCountdownCue.alertKey())
 
         // Exercise alert merging when only zero, only cap, or only countdown cues are available.
         assertTrue(state.copy(halfCapApplied = true).dueTimingAlerts(halfCapTime).isEmpty())
@@ -542,14 +543,14 @@ class TestTimingCues : GameDomainTestFixtures() {
             )
         ).dueTimingAlerts(halfCapTime + 500L).map { cue -> cue.id }
         assertEquals(
-            listOf(TimingCueId.HALF_CAP, TimingCueId.TIMEOUT_OFFENSE_TWENTY),
+            listOf(TimingCueId.HALF_CAP, TimingCueId.OFFENSE_TWENTY),
             dueAlertsWithEarlierCap,
         )
 
         val dueAlertsWithoutCap = stateWithDueCountdown.copy(halfCapApplied = true)
             .dueTimingAlerts(halfCapTime)
             .map { cue -> cue.id }
-        assertEquals(listOf(TimingCueId.TIMEOUT_OFFENSE_FREEZE_DEFENSE_TWENTY), dueAlertsWithoutCap)
+        assertEquals(listOf(TimingCueId.OFFENSE_SET_LIMIT), dueAlertsWithoutCap)
 
         state = state.copy(halfCapApplied = true)
         assertEquals(TimingCueId.SOFT_CAP, state.dueCapTimingCue(state.startEpoch + 90 * 60_000L)?.id)
