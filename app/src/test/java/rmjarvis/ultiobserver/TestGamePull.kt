@@ -15,6 +15,62 @@ import org.junit.Test
 
 /// Tests for pull infractions and pull time-violation model behavior.
 class TestGamePull : GameDomainTestFixtures() {
+    /// Test compact field-button labels for each pull-infraction type.
+    @Test
+    fun pullInfractionFieldActionLabels() {
+        val team = TeamLiveState(
+            name = "Viscous Coupling",
+            color = TeamColorChoice.WHITE,
+            offsides = 1,
+            falseStarts = 2,
+            majorityPullViolations = 3,
+        )
+
+        assertEquals("Offsides (1)", PullInfractionType.OFFSIDES.fieldActionLabel(team))
+        assertEquals("False start (2)", PullInfractionType.FALSE_START.fieldActionLabel(team))
+        assertEquals("Majority pull (3)", PullInfractionType.MAJORITY_PULL.fieldActionLabel(team))
+    }
+
+    /// Test direct invalid pull-infraction calls fail loudly instead of returning empty previews.
+    @Test
+    fun invalidPullInfractionSelectionsFailLoudly() {
+        val VC = TeamId.TEAM_ONE
+        val ANIMAL = TeamId.TEAM_TWO
+        val state = standardLiveGameState()
+
+        val invalidAssess = assertThrows(IllegalArgumentException::class.java) {
+            state.assessPullInfraction(VC, 0L, PullInfractionType.FALSE_START)
+        }
+        assertEquals(
+            "Pull infraction FALSE_START cannot be recorded for TEAM_ONE on this pull.",
+            invalidAssess.message,
+        )
+
+        val invalidPreview = assertThrows(IllegalArgumentException::class.java) {
+            state.previewPullInfraction(ANIMAL, PullInfractionType.OFFSIDES)
+        }
+        assertEquals(
+            "Pull infraction OFFSIDES cannot be previewed for TEAM_TWO on this pull.",
+            invalidPreview.message,
+        )
+
+        val disabledPreview = assertThrows(IllegalArgumentException::class.java) {
+            state.assessPullInfraction(VC).state.previewPullInfraction(VC, PullInfractionType.OFFSIDES)
+        }
+        assertEquals(
+            "Pull infraction cannot be previewed after the button is disabled for TEAM_ONE.",
+            disabledPreview.message,
+        )
+
+        val disabledMajorityPullPreview = assertThrows(IllegalArgumentException::class.java) {
+            state.previewPullInfraction(VC, PullInfractionType.MAJORITY_PULL)
+        }
+        assertEquals(
+            "Pull infraction MAJORITY_PULL cannot be previewed for TEAM_ONE on this pull.",
+            disabledMajorityPullPreview.message,
+        )
+    }
+
     /// Verify pull countdown display and cue selection for one-end, both-end, and neither-end prompts.
     @Test
     fun pullCountdownDisplayAndCueTargets() {

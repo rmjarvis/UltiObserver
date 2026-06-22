@@ -110,6 +110,9 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
         assertEquals(previous.pullingTeam, patch.pullingTeam)
         assertEquals(previous.pullingFromEnd, patch.pullingFromEnd)
         assertEquals(previous.pullPromptTarget, patch.pullPromptTarget)
+        assertEquals(previous.initialGenderRatio, patch.initialGenderRatio)
+        assertEquals(previous.firstHalfGenZone, patch.firstHalfGenZone)
+        assertEquals(previous.switchGenZoneAtHalftime, patch.switchGenZoneAtHalftime)
         assertEquals(previous.openingPullingTeam, patch.openingPullingTeam)
         assertEquals(previous.openingPullingFromEnd, patch.openingPullingFromEnd)
         assertEquals(previous.phase, patch.phase)
@@ -142,6 +145,7 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
         assertEquals(previous.firstHalfTimeoutsUsed, patch.firstHalfTimeoutsUsed)
         assertEquals(previous.offsides, patch.offsides)
         assertEquals(previous.falseStarts, patch.falseStarts)
+        assertEquals(previous.majorityPullViolations, patch.majorityPullViolations)
         assertEquals(previous.timeViolations, patch.timeViolations)
         assertEquals(previous.technicalFouls, patch.technicalFouls)
         assertEquals(previous.blueCards, patch.blueCards)
@@ -215,6 +219,7 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
                 firstHalfTimeoutsUsed = 1,
                 offsides = 3,
                 falseStarts = 4,
+                majorityPullViolations = 2,
                 timeViolations = 1,
                 technicalFouls = 5,
                 blueCards = 6,
@@ -230,6 +235,7 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
                 firstHalfTimeoutsUsed = 2,
                 offsides = 4,
                 falseStarts = 3,
+                majorityPullViolations = 1,
                 timeViolations = 1,
                 technicalFouls = 6,
                 blueCards = 5,
@@ -250,6 +256,9 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
             ),
             nearAttackingTeam = TeamId.TEAM_TWO,
             pullPromptTarget = PullPromptTarget.BOTH,
+            initialGenderRatio = GenderRatio.FOUR_WOMEN_THREE_MEN,
+            firstHalfGenZone = FieldEnd.NEAR,
+            switchGenZoneAtHalftime = false,
             openingPullingTeam = TeamId.TEAM_TWO,
             openingPullingFromEnd = FieldEnd.NEAR,
             phase = GamePhase.GAME_OVER,
@@ -305,6 +314,7 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
                 firstHalfTimeoutsUsed = 0,
                 offsides = 0,
                 falseStarts = 0,
+                majorityPullViolations = 1,
                 timeViolations = 0,
                 technicalFouls = 0,
                 blueCards = 0,
@@ -321,6 +331,7 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
                 firstHalfTimeoutsUsed = 0,
                 offsides = 0,
                 falseStarts = 0,
+                majorityPullViolations = 2,
                 timeViolations = 0,
                 technicalFouls = 0,
                 blueCards = 0,
@@ -333,6 +344,9 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
             eventLog = listOf(EventLogEntry(timestampEpoch = 1_000L, type = EventLogType.FIRST_PULL)),
             nearAttackingTeam = TeamId.TEAM_ONE,
             pullPromptTarget = PullPromptTarget.NEITHER,
+            initialGenderRatio = GenderRatio.FOUR_MEN_THREE_WOMEN,
+            firstHalfGenZone = FieldEnd.FAR,
+            switchGenZoneAtHalftime = true,
             openingPullingTeam = TeamId.TEAM_ONE,
             openingPullingFromEnd = FieldEnd.FAR,
             phase = GamePhase.BETWEEN_POINTS,

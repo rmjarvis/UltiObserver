@@ -160,6 +160,12 @@ internal data class GameStatePatch(
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val pullPromptTarget: PullPromptTarget? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val initialGenderRatio: GenderRatio? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val firstHalfGenZone: FieldEnd? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val switchGenZoneAtHalftime: Boolean? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val openingPullingTeam: TeamId? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val openingPullingFromEnd: FieldEnd? = null,
@@ -224,6 +230,9 @@ internal data class GameStatePatch(
             pullingFromEnd = pullingFromEnd ?: later.pullingFromEnd,
             topDisplayedEnd = topDisplayedEnd ?: later.topDisplayedEnd,
             pullPromptTarget = pullPromptTarget ?: later.pullPromptTarget,
+            initialGenderRatio = initialGenderRatio ?: later.initialGenderRatio,
+            firstHalfGenZone = firstHalfGenZone ?: later.firstHalfGenZone,
+            switchGenZoneAtHalftime = switchGenZoneAtHalftime ?: later.switchGenZoneAtHalftime,
             openingPullingTeam = openingPullingTeam ?: later.openingPullingTeam,
             openingPullingFromEnd = openingPullingFromEnd ?: later.openingPullingFromEnd,
             phase = phase ?: later.phase,
@@ -284,6 +293,11 @@ internal data class GameStatePatch(
                 pullingFromEnd = previous.pullingFromEnd.takeIfChangedFrom(later.pullingFromEnd),
                 topDisplayedEnd = previous.topDisplayedEnd.takeIfChangedFrom(later.topDisplayedEnd),
                 pullPromptTarget = previous.pullPromptTarget.takeIfChangedFrom(later.pullPromptTarget),
+                initialGenderRatio = previous.initialGenderRatio.takeIfChangedFrom(later.initialGenderRatio),
+                firstHalfGenZone = previous.firstHalfGenZone.takeIfChangedFrom(later.firstHalfGenZone),
+                switchGenZoneAtHalftime = previous.switchGenZoneAtHalftime.takeIfChangedFrom(
+                    later.switchGenZoneAtHalftime,
+                ),
                 openingPullingTeam = previous.openingPullingTeam.takeIfChangedFrom(later.openingPullingTeam),
                 openingPullingFromEnd = previous.openingPullingFromEnd.takeIfChangedFrom(later.openingPullingFromEnd),
                 phase = previous.phase.takeIfChangedFrom(later.phase),
@@ -400,6 +414,8 @@ internal data class TeamLiveStatePatch(
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val falseStarts: Int? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val majorityPullViolations: Int? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val timeViolations: Int? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val technicalFouls: Int? = null,
@@ -424,6 +440,7 @@ internal data class TeamLiveStatePatch(
             firstHalfTimeoutsUsed = firstHalfTimeoutsUsed ?: later.firstHalfTimeoutsUsed,
             offsides = offsides ?: later.offsides,
             falseStarts = falseStarts ?: later.falseStarts,
+            majorityPullViolations = majorityPullViolations ?: later.majorityPullViolations,
             timeViolations = timeViolations ?: later.timeViolations,
             technicalFouls = technicalFouls ?: later.technicalFouls,
             blueCards = blueCards ?: later.blueCards,
@@ -453,6 +470,9 @@ internal data class TeamLiveStatePatch(
                 firstHalfTimeoutsUsed = previous.firstHalfTimeoutsUsed.takeIfChangedFrom(later.firstHalfTimeoutsUsed),
                 offsides = previous.offsides.takeIfChangedFrom(later.offsides),
                 falseStarts = previous.falseStarts.takeIfChangedFrom(later.falseStarts),
+                majorityPullViolations = previous.majorityPullViolations.takeIfChangedFrom(
+                    later.majorityPullViolations,
+                ),
                 timeViolations = previous.timeViolations.takeIfChangedFrom(later.timeViolations),
                 technicalFouls = previous.technicalFouls.takeIfChangedFrom(later.technicalFouls),
                 blueCards = previous.blueCards.takeIfChangedFrom(later.blueCards),

@@ -231,7 +231,7 @@ abstract class GameDomainTestFixtures {
      * @param team The team committing the pull infraction.
      */
     protected fun GameState.assessPullInfraction(team: TeamId): PullInfractionAssessmentResult {
-        return assessPullInfraction(team, 0L)
+        return assessPullInfraction(team, 0L, pullInfractionTypeFor(team))
     }
 
     /**
@@ -288,9 +288,34 @@ abstract class GameDomainTestFixtures {
         return adjustPullInfractions(
             teamOneOffsides,
             teamOneFalseStarts,
+            0,
             teamTwoOffsides,
             teamTwoFalseStarts,
+            0,
             0L,
+        )
+    }
+
+    /**
+     * Apply a pull-infraction correction with an explicit timestamp and no majority-pull deltas.
+     *
+     * @receiver The state being corrected.
+     */
+    protected fun GameState.adjustPullInfractions(
+        teamOneOffsides: Int,
+        teamOneFalseStarts: Int,
+        teamTwoOffsides: Int,
+        teamTwoFalseStarts: Int,
+        now: Long,
+    ): GameState {
+        return adjustPullInfractions(
+            teamOneOffsides,
+            teamOneFalseStarts,
+            0,
+            teamTwoOffsides,
+            teamTwoFalseStarts,
+            0,
+            now,
         )
     }
 

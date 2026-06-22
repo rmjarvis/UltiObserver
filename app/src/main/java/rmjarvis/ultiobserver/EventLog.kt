@@ -15,10 +15,12 @@ private val CARD_LABELS = mapOf(
 private val PULL_INFRACTION_EVENT_LABELS = mapOf(
     EventLogType.OFFSIDES to "Offsides",
     EventLogType.FALSE_START to "False start",
+    EventLogType.MAJORITY_PULL to "Majority pull violation",
 )
 private val PULL_INFRACTION_CORRECTION_LABELS = mapOf(
     EventLogType.OFFSIDES to "offsides",
     EventLogType.FALSE_START to "false starts",
+    EventLogType.MAJORITY_PULL to "majority pull violations",
 )
 
 /// Kind of persisted event-log entry recorded for later game review.
@@ -33,6 +35,7 @@ enum class EventLogType {
     TECHNICAL_FOUL,
     OFFSIDES,
     FALSE_START,
+    MAJORITY_PULL,
     TIME_VIOLATION,
     TIMEOUT,
     HALFTIME,
@@ -132,7 +135,8 @@ private fun GameState.formatEventLogDescription(entry: EventLogEntry): String {
         EventLogType.BLUE_CARD_AND_TECH_ADJUSTED -> "Adjusted blue card/tech counts"
         EventLogType.TECHNICAL_FOUL -> technicalFoulDescription(entry)
         EventLogType.OFFSIDES,
-        EventLogType.FALSE_START -> pullInfractionDescription(entry)
+        EventLogType.FALSE_START,
+        EventLogType.MAJORITY_PULL -> pullInfractionDescription(entry)
         EventLogType.TIME_VIOLATION -> timeViolationDescription(entry)
         EventLogType.TIMEOUT -> timeoutDescription(entry)
         EventLogType.HALFTIME -> "Halftime"

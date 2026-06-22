@@ -51,6 +51,9 @@ enum class GameDivision(val displayText: String) {
  * @param pullingTeam The team selected to pull first.
  * @param pullingFromEnd The field end from which the first pull is selected to start.
  * @param pullPromptTarget Which field end or ends should receive pulling prompts.
+ * @param initialGenderRatio The first ABBA point's gender ratio.
+ * @param firstHalfGenZone The Gen Zone end used for the first half.
+ * @param switchGenZoneAtHalftime Whether Gen Zone switches ends after halftime.
  */
 @Serializable
 data class GameSetupState(
@@ -75,6 +78,9 @@ data class GameSetupState(
     val pullingTeam: TeamId = TeamId.TEAM_ONE,
     val pullingFromEnd: FieldEnd = FieldEnd.FAR,
     val pullPromptTarget: PullPromptTarget = PullPromptTarget.NEAR,
+    val initialGenderRatio: GenderRatio = GenderRatio.FOUR_MEN_THREE_WOMEN,
+    val firstHalfGenZone: FieldEnd = FieldEnd.FAR,
+    val switchGenZoneAtHalftime: Boolean = true,
 )
 
 /**

@@ -369,7 +369,7 @@ internal fun SetupScreen(
                 editTag = "setup-edit-game-rules",
                 onEdit = { setupDialog = SetupDialog.GAME_RULES },
             ) {
-                GameRulesSummary(state.rules)
+                GameRulesSummary(state)
             }
         }
     }
@@ -395,9 +395,10 @@ internal fun SetupScreen(
 
         SetupDialog.GAME_RULES -> {
             GameRulesSetupDialog(
-                rules = state.rules,
+                state = state,
                 onEditRule = { editingRule = it },
                 onEditTimeouts = { showTimeoutRulesDialog = true },
+                onRulesChange = { onStateChange(state.copy(rules = it)) },
                 onUseUsauDefaults = {
                     onStateChange(state.copy(rules = GameRules()))
                 },
@@ -1134,6 +1135,60 @@ private fun GameDivisionChoiceRow(
 }
 
 /**
+ * Render the gender-ratio rule chooser for game rules.
+ *
+ * @param selected The currently selected gender-ratio rule.
+ * @param onSelected Callback receiving the selected rule.
+ */
+@Composable
+private fun GenderRatioRuleChoiceRow(
+    selected: GenderRatioRule,
+    onSelected: (GenderRatioRule) -> Unit,
+) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        GenderRatioRule.entries.forEach { rule ->
+            SetupChoiceChip(
+                label = rule.displayText,
+                selected = selected == rule,
+                onClick = { onSelected(rule) },
+                modifier = Modifier.testTag("setup-gender-ratio-rule-${rule.name}"),
+            )
+        }
+    }
+}
+
+/**
+ * Render the ABBA initial gender-ratio chooser.
+ *
+ * @param selected The currently selected first-point gender ratio.
+ * @param onSelected Callback receiving the selected ratio.
+ */
+@Composable
+private fun GenderRatioChoiceRow(
+    selected: GenderRatio,
+    onSelected: (GenderRatio) -> Unit,
+) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        GenderRatio.entries.forEach { ratio ->
+            SetupChoiceChip(
+                label = ratio.displayText,
+                selected = selected == ratio,
+                onClick = { onSelected(ratio) },
+                modifier = Modifier.testTag("setup-initial-gender-ratio-${ratio.name}"),
+            )
+        }
+    }
+}
+
+/**
  * Render one compact setup-choice selector.
  *
  * @param label The user-facing choice text.
@@ -1229,21 +1284,49 @@ private fun FieldStartingPullSummary(state: GameSetupState) {
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
         )
+        if (state.usesMixedDivision()) {
+            when (state.rules.genderRatioRule) {
+                GenderRatioRule.ABBA -> SetupSummaryValue("First point ratio: ${state.initialGenderRatio.displayText}")
+                GenderRatioRule.GEN_ZONE -> {
+                    if (state.switchGenZoneAtHalftime) {
+                        SetupSummaryValue("First-half Gen Zone: ${state.fieldEndName(state.firstHalfGenZone)}")
+                        SetupSummaryValue("Gen Zone switches in second half")
+                    } else {
+                        SetupSummaryValue("Gen Zone: ${state.fieldEndName(state.firstHalfGenZone)}")
+                    }
+                }
+                GenderRatioRule.OFFENSE_DECIDES,
+                GenderRatioRule.NA,
+                GenderRatioRule.FIXED_4M_3W,
+                GenderRatioRule.FIXED_4W_3M -> Unit
+            }
+        }
     }
 }
 
 /**
  * Render the compact game-rules summary used on the setup overview.
  *
- * @param rules The current rules to summarize.
+ * @param state The current setup state whose rules should be summarized.
  */
 @Composable
-private fun GameRulesSummary(rules: GameRules) {
+private fun GameRulesSummary(state: GameSetupState) {
+    val rules = state.rules
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         SetupSummaryValue("Game to ${rules.gameTo}")
         SetupSummaryValue("Half: ${rules.halftimeMinutes} min")
         SetupSummaryValue("Caps: ${rules.capRulesSummary()}")
         SetupSummaryValue("TO: ${rules.formatTimeoutRules()}")
+        if (state.usesMixedDivision()) {
+            SetupSummaryValue("Ratio: ${rules.genderRatioRule.displayText}")
+            SetupSummaryValue(
+                if (rules.useMajorityPullRule) {
+                    "Majority pull rule active"
+                } else {
+                    "Majority pull rule not active"
+                }
+            )
+        }
     }
 }
 
@@ -1311,6 +1394,9 @@ private fun StartingPullSetupDialog(
     var pullingTeam by remember { mutableStateOf(state.pullingTeam) }
     var pullingFromEnd by remember { mutableStateOf(state.pullingFromEnd) }
     var pullPromptTarget by remember { mutableStateOf(state.pullPromptTarget) }
+    var initialGenderRatio by remember { mutableStateOf(state.initialGenderRatio) }
+    var firstHalfGenZone by remember { mutableStateOf(state.firstHalfGenZone) }
+    var switchGenZoneAtHalftime by remember { mutableStateOf(state.switchGenZoneAtHalftime) }
 
     fun commitNearEndLabel() {
         committedNearEndName = nearEndName
@@ -1336,6 +1422,9 @@ private fun StartingPullSetupDialog(
                 pullingTeam = pullingTeam,
                 pullingFromEnd = pullingFromEnd,
                 pullPromptTarget = pullPromptTarget,
+                initialGenderRatio = initialGenderRatio,
+                firstHalfGenZone = firstHalfGenZone,
+                switchGenZoneAtHalftime = switchGenZoneAtHalftime,
             )
         )
         onDismiss()
@@ -1415,6 +1504,47 @@ private fun StartingPullSetupDialog(
                     farLabel = displayFieldEndName(FieldEnd.FAR),
                     onSelected = { pullingFromEnd = it },
                 )
+                if (state.usesMixedDivision() && state.rules.genderRatioRule.hasStartingPullChoice()) {
+                    when (state.rules.genderRatioRule) {
+                        GenderRatioRule.ABBA -> {
+                            Text("First point gender ratio", fontWeight = FontWeight.SemiBold)
+                            GenderRatioChoiceRow(
+                                selected = initialGenderRatio,
+                                onSelected = { initialGenderRatio = it },
+                            )
+                        }
+                        GenderRatioRule.GEN_ZONE -> {
+                            Text(
+                                "Which end is the \"gen zone\" in the first half?",
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Text("The team in this end zone decided the gender ratio for each point.")
+                            FieldEndChoiceRow(
+                                selected = firstHalfGenZone,
+                                nearLabel = displayFieldEndName(FieldEnd.NEAR),
+                                farLabel = displayFieldEndName(FieldEnd.FAR),
+                                onSelected = { firstHalfGenZone = it },
+                                testTagPrefix = "setup-first-half-gen-zone",
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text("Switch end in the second half?", fontWeight = FontWeight.SemiBold)
+                                Checkbox(
+                                    checked = switchGenZoneAtHalftime,
+                                    onCheckedChange = { switchGenZoneAtHalftime = it },
+                                    modifier = Modifier.testTag("setup-switch-gen-zone-at-halftime"),
+                                )
+                            }
+                        }
+                        GenderRatioRule.OFFENSE_DECIDES,
+                        GenderRatioRule.NA,
+                        GenderRatioRule.FIXED_4M_3W,
+                        GenderRatioRule.FIXED_4W_3M -> Unit
+                    }
+                }
                 Text("For which end do you want timing prompts related to the pull?", fontWeight = FontWeight.SemiBold)
                 PullPromptTargetChoiceRow(
                     selected = pullPromptTarget,
@@ -1435,20 +1565,23 @@ private fun StartingPullSetupDialog(
 /**
  * Render the game-rules editor dialog.
  *
- * @param rules The current rules to display.
+ * @param state The current setup state to display.
  * @param onEditRule Callback opening a focused editor for one simple rule.
  * @param onEditTimeouts Callback opening the timeout-rules editor.
+ * @param onRulesChange Callback receiving updated rules.
  * @param onUseUsauDefaults Callback resetting the rule bundle to USAU defaults.
  * @param onDismiss Callback closing the dialog.
  */
 @Composable
 private fun GameRulesSetupDialog(
-    rules: GameRules,
+    state: GameSetupState,
     onEditRule: (RuleEditTarget) -> Unit,
     onEditTimeouts: () -> Unit,
+    onRulesChange: (GameRules) -> Unit,
     onUseUsauDefaults: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val rules = state.rules
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Game rules") },
@@ -1487,6 +1620,27 @@ private fun GameRulesSetupDialog(
                     value = rules.formatTimeoutRules(),
                     onClick = onEditTimeouts,
                 )
+                if (state.usesMixedDivision()) {
+                    Text("Mixed gender ratio", fontWeight = FontWeight.SemiBold)
+                    GenderRatioRuleChoiceRow(
+                        selected = rules.genderRatioRule,
+                        onSelected = { onRulesChange(rules.copy(genderRatioRule = it)) },
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text("Majority pull rule")
+                        Checkbox(
+                            checked = rules.useMajorityPullRule,
+                            onCheckedChange = {
+                                onRulesChange(rules.copy(useMajorityPullRule = it))
+                            },
+                            modifier = Modifier.testTag("setup-majority-pull-rule"),
+                        )
+                    }
+                }
                 OutlinedButton(
                     onClick = onUseUsauDefaults,
                     modifier = Modifier
@@ -2649,6 +2803,7 @@ private fun TeamChoiceRow(
  * @param nearLabel The display label for the near field end.
  * @param farLabel The display label for the far field end.
  * @param onSelected Callback receiving the selected field end.
+ * @param testTagPrefix Prefix for generated chip test tags.
  */
 @Composable
 private fun FieldEndChoiceRow(
@@ -2656,6 +2811,7 @@ private fun FieldEndChoiceRow(
     nearLabel: String,
     farLabel: String,
     onSelected: (FieldEnd) -> Unit,
+    testTagPrefix: String = "setup-pulling-from",
 ) {
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -2667,7 +2823,7 @@ private fun FieldEndChoiceRow(
             onClick = {
                 onSelected(FieldEnd.NEAR)
             },
-            modifier = Modifier.testTag("setup-pulling-from-${FieldEnd.NEAR.name}"),
+            modifier = Modifier.testTag("$testTagPrefix-${FieldEnd.NEAR.name}"),
         )
         SetupChoiceChip(
             label = farLabel,
@@ -2675,7 +2831,7 @@ private fun FieldEndChoiceRow(
             onClick = {
                 onSelected(FieldEnd.FAR)
             },
-            modifier = Modifier.testTag("setup-pulling-from-${FieldEnd.FAR.name}"),
+            modifier = Modifier.testTag("$testTagPrefix-${FieldEnd.FAR.name}"),
         )
     }
 }

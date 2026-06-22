@@ -230,7 +230,39 @@ data class GameRules(
     val hardCapMinutes: Int = 105,
     val timeoutsPerHalf: Int = 2,
     val hasFloaterTimeout: Boolean = false,
+    val genderRatioRule: GenderRatioRule = GenderRatioRule.ABBA,
+    val useMajorityPullRule: Boolean = true,
 )
+/**
+ * Gender-ratio pattern used for a mixed-division game.
+ *
+ * @param displayText User-facing rule label.
+ */
+@Serializable
+enum class GenderRatioRule(val displayText: String) {
+    ABBA("ABBA"),
+    GEN_ZONE("Gen Zone"),
+    OFFENSE_DECIDES("Offense Decides"),
+    FIXED_4M_3W("4M/3W"),
+    FIXED_4W_3M("4W/3M"),
+    NA("N/A"),
+}
+
+/**
+ * Concrete four/three gender ratio for a mixed point.
+ *
+ * @param displayText Compact user-facing ratio label.
+ */
+@Serializable
+enum class GenderRatio(val displayText: String) {
+    FOUR_MEN_THREE_WOMEN("4M/3W"),
+    FOUR_WOMEN_THREE_MEN("4W/3M");
+
+    /// Return the opposite four/three gender ratio.
+    fun flip(): GenderRatio {
+        return if (this == FOUR_MEN_THREE_WOMEN) FOUR_WOMEN_THREE_MEN else FOUR_MEN_THREE_WOMEN
+    }
+}
 /**
  * Live counters and display identity for one team.
  *
@@ -245,6 +277,7 @@ data class GameRules(
  * @param firstHalfTimeoutsUsed Stored after halftime so floater-timeout carryover can be derived.
  * @param offsides Number of offsides infractions recorded for this team.
  * @param falseStarts Number of false-start infractions recorded for this team.
+ * @param majorityPullViolations Number of majority-pull violations recorded for this team.
  * @param timeViolations Number of time violations recorded for this team.
  */
 @Serializable
@@ -260,6 +293,7 @@ data class TeamLiveState(
     val firstHalfTimeoutsUsed: Int = 0,
     val offsides: Int = 0,
     val falseStarts: Int = 0,
+    val majorityPullViolations: Int = 0,
     val timeViolations: Int = 0,
     val technicalFouls: Int = 0,
     val blueCards: Int = 0,
@@ -283,7 +317,7 @@ internal fun TeamLiveState.hasCoachOrCaptainInfo(): Boolean {
 
 /// Count combined offsides and false-start pull violations for display.
 internal fun TeamLiveState.pullViolationCount(): Int {
-    return offsides + falseStarts
+    return offsides + falseStarts + majorityPullViolations
 }
 
 /// Return teams ordered with the higher-scoring team first for summary display.
@@ -445,6 +479,9 @@ enum class CountdownKind {
  * @param pullingFromEnd The field end occupied by the pulling team.
  * @param topDisplayedEnd The field end shown at the top of the live field display.
  * @param pullPromptTarget Which field end or ends should receive pulling prompts.
+ * @param initialGenderRatio The first ABBA point's gender ratio.
+ * @param firstHalfGenZone The Gen Zone end used for the first half.
+ * @param switchGenZoneAtHalftime Whether Gen Zone switches ends after halftime.
  * @param openingPullingTeam The team that pulled to start the game.
  * @param openingPullingFromEnd The field end used by the opening pull.
  * @param teamOnePlayers Team 1 known player records, including prior-card details and in-game cards.
@@ -480,6 +517,9 @@ data class GameState(
     val pullingFromEnd: FieldEnd,
     val topDisplayedEnd: FieldEnd = FieldEnd.FAR,
     val pullPromptTarget: PullPromptTarget = PullPromptTarget.NEAR,
+    val initialGenderRatio: GenderRatio = GenderRatio.FOUR_MEN_THREE_WOMEN,
+    val firstHalfGenZone: FieldEnd = FieldEnd.FAR,
+    val switchGenZoneAtHalftime: Boolean = true,
     val openingPullingTeam: TeamId,
     val openingPullingFromEnd: FieldEnd,
     val phase: GamePhase = GamePhase.PRE_GAME,
@@ -725,6 +765,9 @@ fun applySetupToLiveGame(
         teamOnePlayers = setup.teamOnePlayers,
         teamTwoPlayers = setup.teamTwoPlayers,
         pullPromptTarget = setup.pullPromptTarget,
+        initialGenderRatio = setup.initialGenderRatio,
+        firstHalfGenZone = setup.firstHalfGenZone,
+        switchGenZoneAtHalftime = setup.switchGenZoneAtHalftime,
         openingPullingTeam = setup.pullingTeam,
         openingPullingFromEnd = setup.pullingFromEnd,
     )
@@ -782,6 +825,9 @@ fun GameState.toSetupState(): GameSetupState {
         pullingTeam = openingPullingTeam,
         pullingFromEnd = openingPullingFromEnd,
         pullPromptTarget = pullPromptTarget,
+        initialGenderRatio = initialGenderRatio,
+        firstHalfGenZone = firstHalfGenZone,
+        switchGenZoneAtHalftime = switchGenZoneAtHalftime,
     )
 }
 

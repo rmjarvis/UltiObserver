@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -72,6 +73,11 @@ private val FieldCardButtonColor = Color(0xFFFDD835)
 private val FieldTechButtonColor = Color(0xFFFFB74D)
 private val FieldTimeoutButtonColor = Color(0xFF90CAF9)
 private val FieldNeutralButtonColor = Color(0xFFF7F2EA)
+private val FourMenThreeWomenBadgeColor = Color(0xFFBFE3FF)
+private val FourMenThreeWomenBadgeBorderColor = Color(0xFF5D99C2)
+private val FourWomenThreeMenBadgeColor = Color(0xFFFFD1DC)
+private val FourWomenThreeMenBadgeBorderColor = Color(0xFFD07B8F)
+private val GenderRatioBadgeTextColor = Color(0xFF1D2024)
 
 /**
  * Render the live-field unlock slider.
@@ -332,6 +338,8 @@ internal fun FieldSketchCard(
     val topTeam = state.teamFor(topSlot)
     val bottomTeam = state.teamFor(bottomSlot)
     val pullFrom = state.pullingFromEnd
+    val currentGenderRatio = state.currentGenderRatio()
+    val ratioChoosingTeam = state.ratioChoosingTeam()
 
     // Draw the top team row, center field area, and bottom team row in that order.
     Card(
@@ -355,9 +363,10 @@ internal fun FieldSketchCard(
                 background = topTeam.accent,
                 shape = TopEndZoneShape,
                 interactionsEnabled = interactionsEnabled,
-                isPulling = state.pullingTeam == topSlot,
+                choosesGenderRatio = ratioChoosingTeam == topSlot,
                 timeViolationEnabled = state.canAssessTimeViolation(),
                 pullInfractionEnabled = state.canRecordPullInfraction(topSlot),
+                pullInfractionType = state.pullInfractionTypeFor(topSlot),
                 fieldEndName = state.fieldEndDisplayName(topEnd),
                 fieldEndLabelAtTop = true,
                 metrics = metrics,
@@ -383,12 +392,22 @@ internal fun FieldSketchCard(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (showPullIndicator) {
-                        PullDirectionIndicator(
-                            pullingFromEnd = pullFrom,
-                            topDisplayedEnd = topEnd,
+                        Row(
                             modifier = Modifier.padding(start = 8.dp),
-                        )
-                        Box(modifier = Modifier.width(54.dp))
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            PullDirectionIndicator(
+                                pullingFromEnd = pullFrom,
+                                topDisplayedEnd = topEnd,
+                            )
+                            currentGenderRatio?.let { ratio ->
+                                GenderRatioStatusBadge(ratio)
+                            }
+                        }
+                        if (currentGenderRatio == null) {
+                            Box(modifier = Modifier.width(54.dp))
+                        }
                     }
                     Box(
                         modifier = Modifier.weight(1f),
@@ -408,9 +427,10 @@ internal fun FieldSketchCard(
                 background = bottomTeam.accent,
                 shape = BottomEndZoneShape,
                 interactionsEnabled = interactionsEnabled,
-                isPulling = state.pullingTeam == bottomSlot,
+                choosesGenderRatio = ratioChoosingTeam == bottomSlot,
                 timeViolationEnabled = state.canAssessTimeViolation(),
                 pullInfractionEnabled = state.canRecordPullInfraction(bottomSlot),
+                pullInfractionType = state.pullInfractionTypeFor(bottomSlot),
                 fieldEndName = state.fieldEndDisplayName(bottomEnd),
                 fieldEndLabelAtTop = false,
                 metrics = metrics,
@@ -436,9 +456,10 @@ internal fun FieldSketchCard(
  * @param timeoutEnabled Whether timeout handling is available in the current state.
  * @param background The team-color background for the row.
  * @param interactionsEnabled Whether live action buttons should be enabled.
- * @param isPulling Whether this team is currently pulling.
+ * @param choosesGenderRatio Whether this team chooses the mixed gender ratio for this point.
  * @param timeViolationEnabled Whether this team can record a time violation for this pull.
  * @param pullInfractionEnabled Whether this team can still record its pull infraction for this pull.
+ * @param pullInfractionType The pull-infraction type represented by this team's field button.
  * @param fieldEndName Display name for the field end represented by this row.
  * @param fieldEndLabelAtTop Whether the field-end label belongs in the top-right corner.
  * @param metrics The measured layout metrics for compact or roomy phone heights.
@@ -460,9 +481,10 @@ private fun EndZonePanel(
     background: Color,
     shape: RoundedCornerShape,
     interactionsEnabled: Boolean,
-    isPulling: Boolean,
+    choosesGenderRatio: Boolean,
     timeViolationEnabled: Boolean,
     pullInfractionEnabled: Boolean,
+    pullInfractionType: PullInfractionType,
     fieldEndName: String,
     fieldEndLabelAtTop: Boolean,
     metrics: FieldLayoutMetrics,
@@ -478,6 +500,7 @@ private fun EndZonePanel(
         fontSize = metrics.titleFontSize,
         lineHeight = metrics.titleLineHeight,
     )
+    val hasHeaderTrailingLabel = fieldEndLabelAtTop || (!fieldEndLabelAtTop && choosesGenderRatio)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -498,33 +521,42 @@ private fun EndZonePanel(
                 style = titleTextStyle,
                 fontWeight = FontWeight.Bold,
             )
-            Row(
-                modifier = Modifier.weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(metrics.titleGap),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = team.name,
-                    color = team.content,
-                    modifier = Modifier.weight(1f, fill = false),
-                    style = titleTextStyle,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (team.hasCoachOrCaptainInfo()) {
-                    TeamInfoButton(
-                        teamName = team.name,
-                        contentColor = team.content,
-                        onClick = onTeamInfo,
-                        modifier = Modifier.testTag("live-${teamId.name}-team-info"),
-                    )
+            if (hasHeaderTrailingLabel) {
+                BoxWithConstraints(modifier = Modifier.weight(1f)) {
+                    val contentWidth = (maxWidth - metrics.titleGap).coerceAtLeast(0.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(metrics.titleGap),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        TeamHeaderIdentity(
+                            teamId = teamId,
+                            team = team,
+                            titleTextStyle = titleTextStyle,
+                            modifier = Modifier.widthIn(max = contentWidth * 0.75f),
+                            onTeamInfo = onTeamInfo,
+                        )
+                        if (fieldEndLabelAtTop) {
+                            FieldEndCornerLabel(
+                                name = fieldEndName,
+                                contentColor = team.content,
+                                modifier = Modifier.weight(1f),
+                            )
+                        } else {
+                            GenderRatioChooserText(
+                                contentColor = team.content,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
                 }
-            }
-            if (fieldEndLabelAtTop) {
-                FieldEndCornerLabel(
-                    name = fieldEndName,
-                    contentColor = team.content,
+            } else {
+                TeamHeaderIdentity(
+                    teamId = teamId,
+                    team = team,
+                    titleTextStyle = titleTextStyle,
+                    modifier = Modifier.weight(1f),
+                    onTeamInfo = onTeamInfo,
                 )
             }
         }
@@ -535,9 +567,9 @@ private fun EndZonePanel(
             timeoutsRemaining = timeoutsRemaining,
             timeoutEnabled = timeoutEnabled,
             interactionsEnabled = interactionsEnabled,
-            isPulling = isPulling,
             timeViolationEnabled = timeViolationEnabled,
             pullInfractionEnabled = pullInfractionEnabled,
+            pullInfractionType = pullInfractionType,
             metrics = metrics,
             onGoal = onGoal,
             onTimeout = onTimeout,
@@ -557,8 +589,141 @@ private fun EndZonePanel(
                     contentColor = team.content,
                 )
             }
+        } else if (choosesGenderRatio) {
+            Spacer(modifier = Modifier.weight(1f))
+            GenderRatioChooserLabel(
+                contentColor = team.content,
+                modifier = Modifier.fillMaxWidth(),
+                alignEnd = true,
+            )
         }
     }
+}
+
+/**
+ * Render the team-name cluster in a field-row header.
+ *
+ * @param teamId Team id used for the optional info-button test tag.
+ * @param team The team whose name and optional info button are shown.
+ * @param titleTextStyle Text style shared with the field-row score.
+ * @param modifier Modifier controlling the cluster's available width.
+ * @param onTeamInfo Callback opening coach/captain details for this team.
+ */
+@Composable
+private fun TeamHeaderIdentity(
+    teamId: TeamId,
+    team: TeamLiveState,
+    titleTextStyle: androidx.compose.ui.text.TextStyle,
+    modifier: Modifier,
+    onTeamInfo: () -> Unit,
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = team.name,
+            color = team.content,
+            modifier = Modifier.weight(1f, fill = false),
+            style = titleTextStyle,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        if (team.hasCoachOrCaptainInfo()) {
+            TeamInfoButton(
+                teamName = team.name,
+                contentColor = team.content,
+                onClick = onTeamInfo,
+                modifier = Modifier.testTag("live-${teamId.name}-team-info"),
+            )
+        }
+    }
+}
+
+/**
+ * Render a compact non-interactive status badge for the current mixed gender ratio.
+ *
+ * @param ratio The ratio applying to this point.
+ */
+@Composable
+private fun GenderRatioStatusBadge(ratio: GenderRatio) {
+    val background = when (ratio) {
+        GenderRatio.FOUR_MEN_THREE_WOMEN -> FourMenThreeWomenBadgeColor
+        GenderRatio.FOUR_WOMEN_THREE_MEN -> FourWomenThreeMenBadgeColor
+    }
+    val border = when (ratio) {
+        GenderRatio.FOUR_MEN_THREE_WOMEN -> FourMenThreeWomenBadgeBorderColor
+        GenderRatio.FOUR_WOMEN_THREE_MEN -> FourWomenThreeMenBadgeBorderColor
+    }
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(4.dp))
+            .background(background)
+            .border(BorderStroke(1.dp, border), RoundedCornerShape(4.dp))
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = ratio.displayText,
+            color = GenderRatioBadgeTextColor,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+        )
+    }
+}
+
+/**
+ * Render the marker for the team choosing the gender ratio.
+ *
+ * @param contentColor Text color matching the team row.
+ * @param modifier Modifier applied by the caller.
+ * @param alignEnd Whether the label should sit on the right side of the team row.
+ */
+@Composable
+private fun GenderRatioChooserLabel(
+    contentColor: Color,
+    modifier: Modifier,
+    alignEnd: Boolean,
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = if (alignEnd) Arrangement.End else Arrangement.Start,
+    ) {
+        Text(
+            text = "Chooses gender ratio",
+            color = contentColor,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/**
+ * Render the gender-ratio chooser marker inline with other team-row corner labels.
+ *
+ * @param contentColor Text color matching the team row.
+ * @param modifier Modifier applied by the caller.
+ */
+@Composable
+private fun GenderRatioChooserText(
+    contentColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text = "Chooses gender ratio",
+        color = contentColor,
+        modifier = modifier,
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.SemiBold,
+        textAlign = TextAlign.End,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
 }
 
 /**
@@ -570,9 +735,9 @@ private fun EndZonePanel(
  * @param timeoutsRemaining Timeouts remaining in the current half.
  * @param timeoutEnabled Whether timeout handling is available in the current state.
  * @param interactionsEnabled Whether the observer can press live actions.
- * @param isPulling Whether this team is currently pulling.
  * @param timeViolationEnabled Whether this team may record a time violation for this pull sequence.
  * @param pullInfractionEnabled Whether this team may record a pull infraction for this pull sequence.
+ * @param pullInfractionType The pull-infraction type represented by this team's field button.
  * @param metrics The measured field layout metrics.
  * @param onGoal Callback recording a goal for this team.
  * @param onTimeout Callback charging a timeout to this team.
@@ -590,9 +755,9 @@ private fun TeamActionGrid(
     timeoutsRemaining: Int,
     timeoutEnabled: Boolean,
     interactionsEnabled: Boolean,
-    isPulling: Boolean,
     timeViolationEnabled: Boolean,
     pullInfractionEnabled: Boolean,
+    pullInfractionType: PullInfractionType,
     metrics: FieldLayoutMetrics,
     onGoal: () -> Unit,
     onTimeout: () -> Unit,
@@ -602,11 +767,7 @@ private fun TeamActionGrid(
     onTechnicalFoul: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val pullInfractionLabel = if (isPulling) {
-        countedActionLabel("Offsides", team.offsides)
-    } else {
-        countedActionLabel("False start", team.falseStarts)
-    }
+    val pullInfractionLabel = pullInfractionType.fieldActionLabel(team)
     val cardLabel = countedActionLabel("Card", cardPoints)
     val techLabel = countedActionLabel("Tech", team.technicalFouls)
     val timeViolationLabel = "Time viol."
@@ -724,6 +885,19 @@ private fun TeamActionGrid(
     }
 }
 
+/// Format the compact field-button label for a pull-infraction type.
+internal fun PullInfractionType.fieldActionLabel(team: TeamLiveState): String {
+    return when (this) {
+        PullInfractionType.OFFSIDES -> countedActionLabel("Offsides", team.offsides)
+        PullInfractionType.FALSE_START -> countedActionLabel("False start", team.falseStarts)
+        PullInfractionType.MAJORITY_PULL -> countedActionLabel(
+            // Completeness only: majority pull is selected inside the offsides dialog.
+            "Majority pull",
+            team.majorityPullViolations,
+        )
+    }
+}
+
 /**
  * Render one field action with stable sizing inside the live-team action grid.
  *
@@ -813,12 +987,18 @@ private fun TeamInfoButton(
  *
  * @param name The field-end name to display.
  * @param contentColor Color that contrasts with the team section.
+ * @param modifier Modifier applied by the caller.
  */
 @Composable
-private fun FieldEndCornerLabel(name: String, contentColor: Color) {
+private fun FieldEndCornerLabel(
+    name: String,
+    contentColor: Color,
+    modifier: Modifier = Modifier,
+) {
     Text(
         text = name,
         color = contentColor,
+        modifier = modifier,
         style = MaterialTheme.typography.labelMedium,
         fontWeight = FontWeight.SemiBold,
         textAlign = TextAlign.End,

@@ -19,18 +19,21 @@ import androidx.compose.ui.unit.dp
  *
  * @param state The live state whose current pull-infraction counts seed the dialog.
  * @param onDismiss Callback closing the dialog without changes.
- * @param onConfirm Callback receiving team-one offsides, team-one false starts, team-two offsides, and team-two false starts.
+ * @param onConfirm Callback receiving team-one offsides, false starts, majority pulls,
+ * team-two offsides, false starts, and majority pulls.
  */
 @Composable
 internal fun AdjustPullInfractionsDialog(
     state: GameState,
     onDismiss: () -> Unit,
-    onConfirm: (Int, Int, Int, Int) -> Unit,
+    onConfirm: (Int, Int, Int, Int, Int, Int) -> Unit,
 ) {
     var teamOneOffsides by remember { mutableStateOf(state.teamOne.offsides) }
     var teamOneFalseStarts by remember { mutableStateOf(state.teamOne.falseStarts) }
+    var teamOneMajorityPulls by remember { mutableStateOf(state.teamOne.majorityPullViolations) }
     var teamTwoOffsides by remember { mutableStateOf(state.teamTwo.offsides) }
     var teamTwoFalseStarts by remember { mutableStateOf(state.teamTwo.falseStarts) }
+    var teamTwoMajorityPulls by remember { mutableStateOf(state.teamTwo.majorityPullViolations) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -40,16 +43,31 @@ internal fun AdjustPullInfractionsDialog(
                 TeamCorrectionSection(state.teamOne.name) {
                     SmallCountEditor("Offsides", teamOneOffsides) { teamOneOffsides = it.coerceAtLeast(0) }
                     SmallCountEditor("False starts", teamOneFalseStarts) { teamOneFalseStarts = it.coerceAtLeast(0) }
+                    SmallCountEditor("Majority pulls", teamOneMajorityPulls) {
+                        teamOneMajorityPulls = it.coerceAtLeast(0)
+                    }
                 }
                 TeamCorrectionSection(state.teamTwo.name) {
                     SmallCountEditor("Offsides", teamTwoOffsides) { teamTwoOffsides = it.coerceAtLeast(0) }
                     SmallCountEditor("False starts", teamTwoFalseStarts) { teamTwoFalseStarts = it.coerceAtLeast(0) }
+                    SmallCountEditor("Majority pulls", teamTwoMajorityPulls) {
+                        teamTwoMajorityPulls = it.coerceAtLeast(0)
+                    }
                 }
             }
         },
         confirmButton = {
             TextButton(
-                onClick = { onConfirm(teamOneOffsides, teamOneFalseStarts, teamTwoOffsides, teamTwoFalseStarts) },
+                onClick = {
+                    onConfirm(
+                        teamOneOffsides,
+                        teamOneFalseStarts,
+                        teamOneMajorityPulls,
+                        teamTwoOffsides,
+                        teamTwoFalseStarts,
+                        teamTwoMajorityPulls,
+                    )
+                },
                 modifier = Modifier.testTag("adjust-pull-infractions-confirm"),
             ) {
                 Text("Set")

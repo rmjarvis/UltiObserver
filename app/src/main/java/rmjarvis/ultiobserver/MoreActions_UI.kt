@@ -201,13 +201,21 @@ internal fun MoreActionsContent(
         AdjustPullInfractionsDialog(
             state = state,
             onDismiss = { showAdjustPullInfractionsDialog = false },
-            onConfirm = { teamOneOffsides, teamOneFalseStarts, teamTwoOffsides, teamTwoFalseStarts ->
+            onConfirm = {
+                teamOneOffsides,
+                teamOneFalseStarts,
+                teamOneMajorityPulls,
+                teamTwoOffsides,
+                teamTwoFalseStarts,
+                teamTwoMajorityPulls ->
                 onAction(
                     state.adjustPullInfractions(
                         teamOneOffsides,
                         teamOneFalseStarts,
+                        teamOneMajorityPulls,
                         teamTwoOffsides,
                         teamTwoFalseStarts,
+                        teamTwoMajorityPulls,
                         now,
                     )
                 )
