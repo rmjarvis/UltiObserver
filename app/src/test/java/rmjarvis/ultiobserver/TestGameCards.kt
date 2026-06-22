@@ -22,7 +22,11 @@ class TestGameCards : GameDomainTestFixtures() {
 
         assertEquals("Dangerous play: late layout", CardReason("Dangerous play", details = " late layout ").text())
         assertEquals("Custom reason: with context", CardReason("Other", " Custom reason ", " with context ").text())
-        assertEquals("More context only", CardReason(details = " More context only ").text())
+        val detailsOnlyReason = CardReason(details = " More context only ")
+        assertEquals("", detailsOnlyReason.preset)
+        assertEquals("", detailsOnlyReason.otherText)
+        assertEquals(" More context only ", detailsOnlyReason.details)
+        assertEquals("More context only", detailsOnlyReason.text())
         assertEquals("Other details only", CardReason("Other", details = " Other details only ").text())
         assertEquals("", CardReason("Other").text())
 
@@ -104,6 +108,27 @@ class TestGameCards : GameDomainTestFixtures() {
     /// Test player-card record display, setup-entry matching, and invalid card-event guardrails.
     @Test
     fun playerCardRecordsAndHolderEntryChecks() {
+        val normalizedIdentity = PlayerIdentity("  7  ", "  Drew   Handler  ")
+        assertEquals("7", normalizedIdentity.jerseyNumber)
+        assertEquals("Drew   Handler", normalizedIdentity.playerName)
+        assertEquals(PlayerIdentity("7", "drew handler"), normalizedIdentity)
+        assertEquals(PlayerIdentity("7", "drew handler").hashCode(), normalizedIdentity.hashCode())
+        assertEquals("PlayerIdentity(jerseyNumber=7, playerName=Drew   Handler)", normalizedIdentity.toString())
+        assertFalse(normalizedIdentity.equals("7"))
+        assertFalse(normalizedIdentity.hasOverlapWith(PlayerIdentity("7", "drew handler")))
+        assertTrue(PlayerIdentity("", "Name Only").matches(PlayerIdentity("", " name   only ")))
+        assertTrue(PlayerIdentity("12", "").matches(PlayerIdentity("12", "Sideline Caller")))
+        assertFalse(PlayerIdentity("12", "Sideline Caller").matches(PlayerIdentity("", "sideline caller")))
+        assertTrue(PlayerIdentity("12", "Sideline Caller").hasOverlapWith(PlayerIdentity("", "sideline caller")))
+        assertTrue(PlayerIdentity("", "Sideline Caller").hasOverlapWith(PlayerIdentity("12", "sideline caller")))
+        assertFalse(PlayerIdentity("12", "Sideline Caller").hasOverlapWith(PlayerIdentity("13", "sideline caller")))
+        assertFalse(PlayerIdentity("12", "Sideline Caller").hasOverlapWith(PlayerIdentity("13", "")))
+        assertFalse(PlayerIdentity("7") == PlayerIdentity("8"))
+        val invalidIdentityException = assertThrows(IllegalArgumentException::class.java) {
+            PlayerIdentity(" ", " ")
+        }
+        assertEquals("A player identity requires a jersey number or player name.", invalidIdentityException.message)
+
         val priorCardRecord = PlayerRecord(
             jerseyNumber = "8",
             priorYellows = 1,
@@ -145,10 +170,29 @@ class TestGameCards : GameDomainTestFixtures() {
         assertEquals("No Number", numberlessPriorCardRecord.playerIdentity(compact = false))
         assertEquals("R 1", numberlessPriorCardRecord.cardDetail())
         assertEquals("1 red card", numberlessPriorCardRecord.playerCardNoticeDetail())
+        assertEquals("no prior cards", PlayerRecord("9").playerCardNoticeDetail())
+        assertEquals("R 1", playerRecordWithCards("9", reds = 1).cardDetail(includeGame = true))
         assertThrows(IllegalArgumentException::class.java) {
             PlayerRecord("", priorYellows = 1, priorReds = 0)
         }
+        val negativePriorYellowException = assertThrows(IllegalArgumentException::class.java) {
+            PlayerRecord("8", priorYellows = -1, priorReds = 0)
+        }
+        assertEquals("Prior card counts cannot be negative.", negativePriorYellowException.message)
+        val negativePriorRedException = assertThrows(IllegalArgumentException::class.java) {
+            PlayerRecord("8", priorYellows = 0, priorReds = -1)
+        }
+        assertEquals("Prior card counts cannot be negative.", negativePriorRedException.message)
+        assertTrue(PlayerRecord("8").hasLegalCounts())
+        assertTrue(playerRecordWithCards("8", yellows = 1).hasLegalCounts())
+        assertTrue(playerRecordWithCards("8", yellows = 2).hasLegalCounts())
+        assertTrue(playerRecordWithCards("8", reds = 1).hasLegalCounts())
+        assertTrue(playerRecordWithCards("8", yellows = 1, reds = 1).hasLegalCounts())
+        assertFalse(playerRecordWithCards("8", yellows = 1, reds = 2).hasLegalCounts())
+        assertFalse(playerRecordWithCards("8", reds = 2).hasLegalCounts())
         assertEquals("No prior cards", PlayerRecord("8", priorYellows = 0, priorReds = 0).cardDetail())
+        assertTrue(cardReasonPresets(CardType.YELLOW).contains("Dangerous play"))
+        assertTrue(cardReasonPresets(CardType.RED).contains("Battery/fighting"))
         val cardHolderEntryChecks = listOf(
             PlayerRecord("7", priorYellows = 1, priorReds = 0, playerName = "Drew Handler"),
             PlayerRecord("00", priorYellows = 0, priorReds = 1, playerName = "Zero Hero"),
@@ -189,7 +233,12 @@ class TestGameCards : GameDomainTestFixtures() {
             editingIndex = 2,
         )
         assertEquals(3, editedPriorCards.size)
+        assertEquals(cardHolderEntryChecks[0], editedPriorCards[0])
         assertEquals(PlayerRecord("23", priorYellows = 0, priorReds = 1, playerName = "Name Only"), editedPriorCards[2])
+        assertEquals(
+            cardHolderEntryChecks + PlayerRecord("42", priorYellows = 1),
+            cardHolderEntryChecks.withSavedPriorCardRecord(PlayerRecord("42", priorYellows = 1), editingIndex = null),
+        )
         val twoPartialMatches = listOf(
             playerRecordWithCards("23", yellows = 1),
             playerRecordWithCards("", yellows = 1, playerName = "Jarvis"),
@@ -207,6 +256,30 @@ class TestGameCards : GameDomainTestFixtures() {
         assertTrue(sameNumberDifferentName is CardHolderEntryCheck.PossibleDifferentPlayer)
         sameNumberDifferentName as CardHolderEntryCheck.PossibleDifferentPlayer
         assertEquals(listOf(0), sameNumberDifferentName.existingIndices)
+        val sameNumberConflict = cardHolderEntryChecks.sameNumberPlayerIdentityConflict(
+            jerseyNumber = "7",
+            playerName = "James Cutter",
+        )
+        assertEquals(
+            SameNumberPlayerIdentityConflict(
+                existingJerseyNumber = "7",
+                existingPlayerName = "Drew Handler",
+                proposedJerseyNumber = "7",
+                proposedPlayerName = "James Cutter",
+            ),
+            sameNumberConflict,
+        )
+        assertEquals("7", sameNumberConflict!!.existingJerseyNumber)
+        assertEquals("Drew Handler", sameNumberConflict.existingPlayerName)
+        assertEquals("7", sameNumberConflict.proposedJerseyNumber)
+        assertEquals("James Cutter", sameNumberConflict.proposedPlayerName)
+        assertNull(cardHolderEntryChecks.sameNumberPlayerIdentityConflict("7", ""))
+        assertNull(cardHolderEntryChecks.sameNumberPlayerIdentityConflict("99", "New Player"))
+        assertNull(cardHolderEntryChecks.sameNumberPlayerIdentityConflict("7", "Drew Handler"))
+        assertNull(listOf(PlayerRecord("7")).sameNumberPlayerIdentityConflict("7", "New Player"))
+        val stateConflict = standardLiveGameState().copy(teamOnePlayers = cardHolderEntryChecks)
+            .sameNumberPlayerIdentityConflict(TeamId.TEAM_ONE, "7", "James Cutter")
+        assertNotNull(stateConflict)
         assertNull(
             cardHolderEntryChecks.cardHolderEntryCheck(
                 proposed = PlayerRecord("0", priorYellows = 1, priorReds = 0, playerName = "Zero Hero"),
@@ -227,6 +300,8 @@ class TestGameCards : GameDomainTestFixtures() {
         )
 
         assertEquals("Yellow", CardType.YELLOW.label)
+        assertEquals("already has two yellow cards and has been suspended.", PlayerCardAssignmentRejection.TWO_YELLOWS.messageText)
+        assertEquals("now has a red card and has been suspended.", PlayerCardAssignmentRejection.RED_CARD.noticeText)
         val invalidCardEventException = assertThrows(IllegalArgumentException::class.java) {
             GameEvent.TeamCardsChanged(
                 state = standardLiveGameState(),
@@ -238,6 +313,62 @@ class TestGameCards : GameDomainTestFixtures() {
         assertEquals(
             "Failed requirement.",
             invalidCardEventException.message,
+        )
+        assertEquals(
+            "Yellow card on player 4.\nViscous Coupling has 1 blue card.",
+            GameEvent.TeamCardsChanged(
+                state = standardLiveGameState().assessFirstYellowCard(TeamId.TEAM_ONE, "4").state,
+                team = TeamId.TEAM_ONE,
+                teamCardTotal = 1,
+                playerCardType = PlayerCardEventType.YELLOW,
+                playerCardJerseyNumber = "4",
+                playerCardName = null,
+            ).formatMessage(),
+        )
+
+        val unchangedCardCountState = standardLiveGameState().copy(
+            teamOne = standardLiveGameState().teamOne.copy(blueCards = 1, technicalFouls = 2),
+            teamTwo = standardLiveGameState().teamTwo.copy(blueCards = 3, technicalFouls = 4),
+        )
+        assertEquals(
+            unchangedCardCountState,
+            unchangedCardCountState.adjustBlueCardsAndTechs(
+                teamOneBlues = 1,
+                teamOneTechnicalFouls = 2,
+                teamTwoBlues = 3,
+                teamTwoTechnicalFouls = 4,
+                now = 0L,
+            ),
+        )
+        assertEquals(
+            5,
+            unchangedCardCountState.adjustBlueCardsAndTechs(
+                teamOneBlues = 1,
+                teamOneTechnicalFouls = 5,
+                teamTwoBlues = 3,
+                teamTwoTechnicalFouls = 4,
+                now = 0L,
+            ).teamOne.technicalFouls,
+        )
+        assertEquals(
+            6,
+            unchangedCardCountState.adjustBlueCardsAndTechs(
+                teamOneBlues = 1,
+                teamOneTechnicalFouls = 2,
+                teamTwoBlues = 6,
+                teamTwoTechnicalFouls = 4,
+                now = 0L,
+            ).teamTwo.blueCards,
+        )
+        assertEquals(
+            7,
+            unchangedCardCountState.adjustBlueCardsAndTechs(
+                teamOneBlues = 1,
+                teamOneTechnicalFouls = 2,
+                teamTwoBlues = 3,
+                teamTwoTechnicalFouls = 7,
+                now = 0L,
+            ).teamTwo.technicalFouls,
         )
     }
 
@@ -341,6 +472,12 @@ class TestGameCards : GameDomainTestFixtures() {
         assertFalse(
             state.copy(phase = GamePhase.LIVE_POINT)
                 .canReportOffenseSet(true),
+        )
+        // Defensive guard for stale UI actions: Offense set is only meaningful for misconduct countdowns.
+        val nonMisconductBetweenPointsState = standardLiveGameState()
+        assertEquals(
+            nonMisconductBetweenPointsState,
+            nonMisconductBetweenPointsState.reportOffenseSet(nonMisconductBetweenPointsState.startEpoch + 20_000L),
         )
         assertEquals(
             state,
@@ -652,6 +789,9 @@ class TestGameCards : GameDomainTestFixtures() {
 
         // Technical fouls use a separate count, with the same third-and-later misconduct handling.
         state = standardLiveGameState()
+        val technicalFoulPreview = state.previewTechnicalFoul(ANIMAL)
+        assertEquals("This is Animal's first technical foul.", technicalFoulPreview.event.formatMessage())
+        assertEquals(0, state.teamTwo.technicalFouls)
         var technicalFoulResult = state.assessTechnicalFoul(ANIMAL)
         state = technicalFoulResult.state
         assertFalse(technicalFoulResult.needsMisconductChoice)
@@ -723,6 +863,23 @@ class TestGameCards : GameDomainTestFixtures() {
             technicalFoulResult.misconductPrompt().resolutionMessage(againstOffense = true)
                 .contains("Viscous Coupling moves the disc to the reverse brick in the end zone they are defending."),
         )
+        val invalidMisconductPromptException = assertThrows(IllegalStateException::class.java) {
+            GamePrompt.LivePointMisconduct(GameEvent.TimeoutUnavailable(state)).resolutionMessage(againstOffense = true)
+        }
+        assertEquals(
+            "Live-point misconduct prompts require a card or technical-foul event.",
+            invalidMisconductPromptException.message,
+        )
+        val liveMisconductCountdownState = state.withPendingMisconductCountdown()
+            .startMisconductCountdown(state.startEpoch + 20_000L)
+        assertEquals(CountdownKind.TIME_OUT, liveMisconductCountdownState.countdown?.kind)
+        val liveDefenseCheckState = liveMisconductCountdownState.reportOffenseSet(state.startEpoch + 55_000L)
+        assertEquals(CountdownKind.DEFENSE_CHECK, liveDefenseCheckState.countdown?.kind)
+        assertEquals(20, liveDefenseCheckState.countdown?.durationSeconds)
+        val wrongMisconductCountdownState = liveMisconductCountdownState.copy(
+            countdown = liveMisconductCountdownState.countdown!!.copy(kind = CountdownKind.HALFTIME),
+        )
+        assertEquals(wrongMisconductCountdownState, wrongMisconductCountdownState.reportOffenseSet(state.startEpoch + 55_000L))
 
         // Exercise the player-card assignment helpers used by the manual adjustment UI.
         var cardAssignments = emptyList<PlayerRecord>()
@@ -743,8 +900,6 @@ class TestGameCards : GameDomainTestFixtures() {
         assertEquals(
             listOf(
                 EditablePlayerCard(
-                    playerIndex = 0,
-                    cardIndex = 0,
                     index = 0,
                     jerseyNumber = "17",
                     playerName = "",
@@ -752,8 +907,6 @@ class TestGameCards : GameDomainTestFixtures() {
                     reason = CardReason(),
                 ),
                 EditablePlayerCard(
-                    playerIndex = 0,
-                    cardIndex = 1,
                     index = 1,
                     jerseyNumber = "17",
                     playerName = "",
@@ -761,9 +914,9 @@ class TestGameCards : GameDomainTestFixtures() {
                     reason = CardReason(),
                 ),
             ),
-            cardAssignments.editablePlayerCards(),
+            editablePlayerCards(cardAssignments),
         )
-        cardAssignments = removeEditablePlayerCard(cardAssignments, cardAssignments.editablePlayerCards().first())
+        cardAssignments = removeEditablePlayerCard(cardAssignments, editablePlayerCards(cardAssignments).first())
         assertEquals(
             listOf(
                 PlayerRecord(
@@ -772,6 +925,18 @@ class TestGameCards : GameDomainTestFixtures() {
                 )
             ),
             cardAssignments,
+        )
+
+        // Defensive guard for a stale UI row: normal UI flows pass cards from the current record list.
+        val staleEditableCardException = assertThrows(IllegalArgumentException::class.java) {
+            removeEditablePlayerCard(
+                cardAssignments,
+                editablePlayerCards(cardAssignments).single().copy(index = 99),
+            )
+        }
+        assertEquals(
+            "Editable player-card index 99 must match exactly one card.",
+            staleEditableCardException.message,
         )
 
         val priorCardRecord = listOf(
@@ -789,7 +954,26 @@ class TestGameCards : GameDomainTestFixtures() {
         )
         assertEquals(
             listOf(priorPlayerRecord("44", priorYellows = 1)),
-            removeEditablePlayerCard(priorCardRecord, priorCardRecord.editablePlayerCards().single()),
+            removeEditablePlayerCard(priorCardRecord, editablePlayerCards(priorCardRecord).single()),
+        )
+        val singleInGameCardRecord = listOf(playerRecordWithCards("55", yellows = 1))
+        assertTrue(
+            removeEditablePlayerCard(
+                singleInGameCardRecord,
+                editablePlayerCards(singleInGameCardRecord).single(),
+            ).isEmpty()
+        )
+        assertTrue(editablePlayerCards(listOf(PlayerRecord("56"))).isEmpty())
+        val priorRedCardRecord = listOf(
+            PlayerRecord(
+                jerseyNumber = "57",
+                priorReds = 1,
+                cards = listOf(InGamePlayerCardEvent(CardType.RED, index = 0)),
+            )
+        )
+        assertEquals(
+            listOf(priorPlayerRecord("57", priorReds = 1)),
+            removeEditablePlayerCard(priorRedCardRecord, editablePlayerCards(priorRedCardRecord).single()),
         )
 
         cardAssignments = listOf(
@@ -801,7 +985,7 @@ class TestGameCards : GameDomainTestFixtures() {
         )
         cardAssignments = replaceEditablePlayerCard(
             records = cardAssignments,
-            editableCard = cardAssignments.editablePlayerCards().first(),
+            editableCard = editablePlayerCards(cardAssignments).first(),
             jerseyNumber = "8",
             cardType = CardType.YELLOW,
             playerName = "",
@@ -856,7 +1040,7 @@ class TestGameCards : GameDomainTestFixtures() {
         )
         cardAssignments = replaceEditablePlayerCard(
             records = cardAssignments,
-            editableCard = cardAssignments.editablePlayerCards().first(),
+            editableCard = editablePlayerCards(cardAssignments).first(),
             jerseyNumber = "12",
             cardType = CardType.YELLOW,
             playerName = "Mike",
@@ -950,6 +1134,28 @@ class TestGameCards : GameDomainTestFixtures() {
                 VC,
                 "99",
             )
+        )
+        val yellowLookupState = standardLiveGameState().assessFirstYellowCard(VC, "99").state
+        assertTrue(yellowLookupState.playerHasYellowThisGame(VC, "99"))
+        assertEquals(
+            "Undo Yellow on #100 of Viscous Coupling",
+            standardLiveGameState().playerCardAddUndoLabel(VC, CardType.YELLOW, PlayerIdentity("100")),
+        )
+        assertEquals(
+            "Undo Second yellow on #99 of Viscous Coupling",
+            yellowLookupState.playerCardAddUndoLabel(VC, CardType.YELLOW, PlayerIdentity("99")),
+        )
+        assertEquals(
+            "Undo Red on #101 of Viscous Coupling",
+            yellowLookupState.playerCardAddUndoLabel(VC, CardType.RED, PlayerIdentity("101")),
+        )
+        assertEquals(
+            "Undo Edit yellow on #99 of Viscous Coupling",
+            yellowLookupState.playerCardEditUndoLabel(VC, CardType.YELLOW, PlayerIdentity("99")),
+        )
+        assertEquals(
+            "Undo Remove yellow on #99 of Viscous Coupling",
+            yellowLookupState.playerCardRemoveUndoLabel(VC, CardType.YELLOW, PlayerIdentity("99")),
         )
 
         // The UI reconciliation flow should prevent invalid records; if one reaches the model anyway, fail loudly.
@@ -1048,6 +1254,101 @@ class TestGameCards : GameDomainTestFixtures() {
         assertEquals("Cards and technical fouls adjusted.", state.lastEvent)
         assertEquals("Undo Adjust blue card/tech counts", state.undoEntry?.label)
         assertEquals(beforeCardsAdjustment, state.undoEntry?.previous)
+
+        val reasonEditBefore = standardLiveGameState().assessFirstYellowCard(VC, "71").state
+        val unchangedPlayerCardAfter = reasonEditBefore.adjustCardsAndTf(
+            teamOneBlues = reasonEditBefore.teamOne.blueCards,
+            teamOneTechnicalFouls = reasonEditBefore.teamOne.technicalFouls,
+            teamTwoBlues = reasonEditBefore.teamTwo.blueCards,
+            teamTwoTechnicalFouls = reasonEditBefore.teamTwo.technicalFouls,
+            teamOnePlayers = reasonEditBefore.teamOnePlayers,
+            teamTwoPlayers = reasonEditBefore.teamTwoPlayers,
+        )
+        assertEquals(reasonEditBefore, unchangedPlayerCardAfter)
+
+        val countOnlyCorrectionAfter = reasonEditBefore.adjustCardsAndTf(
+            teamOneBlues = reasonEditBefore.teamOne.blueCards + 1,
+            teamOneTechnicalFouls = reasonEditBefore.teamOne.technicalFouls,
+            teamTwoBlues = reasonEditBefore.teamTwo.blueCards,
+            teamTwoTechnicalFouls = reasonEditBefore.teamTwo.technicalFouls,
+            teamOnePlayers = reasonEditBefore.teamOnePlayers,
+            teamTwoPlayers = reasonEditBefore.teamTwoPlayers,
+        )
+        assertEquals(reasonEditBefore.eventLog.size + 1, countOnlyCorrectionAfter.eventLog.size)
+        assertEquals("Cards and technical fouls adjusted.", countOnlyCorrectionAfter.lastEvent)
+
+        // Technical-foul count corrections should log the same manual-correction event for either team.
+        val teamOneTechnicalFoulCorrectionAfter = reasonEditBefore.adjustCardsAndTf(
+            teamOneBlues = reasonEditBefore.teamOne.blueCards,
+            teamOneTechnicalFouls = reasonEditBefore.teamOne.technicalFouls + 1,
+            teamTwoBlues = reasonEditBefore.teamTwo.blueCards,
+            teamTwoTechnicalFouls = reasonEditBefore.teamTwo.technicalFouls,
+            teamOnePlayers = reasonEditBefore.teamOnePlayers,
+            teamTwoPlayers = reasonEditBefore.teamTwoPlayers,
+        )
+        assertEquals(reasonEditBefore.eventLog.size + 1, teamOneTechnicalFoulCorrectionAfter.eventLog.size)
+        assertEquals("Cards and technical fouls adjusted.", teamOneTechnicalFoulCorrectionAfter.lastEvent)
+        val teamTwoTechnicalFoulCorrectionAfter = reasonEditBefore.adjustCardsAndTf(
+            teamOneBlues = reasonEditBefore.teamOne.blueCards,
+            teamOneTechnicalFouls = reasonEditBefore.teamOne.technicalFouls,
+            teamTwoBlues = reasonEditBefore.teamTwo.blueCards,
+            teamTwoTechnicalFouls = reasonEditBefore.teamTwo.technicalFouls + 1,
+            teamOnePlayers = reasonEditBefore.teamOnePlayers,
+            teamTwoPlayers = reasonEditBefore.teamTwoPlayers,
+        )
+        assertEquals(reasonEditBefore.eventLog.size + 1, teamTwoTechnicalFoulCorrectionAfter.eventLog.size)
+        assertEquals("Cards and technical fouls adjusted.", teamTwoTechnicalFoulCorrectionAfter.lastEvent)
+
+        val reasonEditAfter = reasonEditBefore.adjustCardsAndTf(
+            teamOneBlues = reasonEditBefore.teamOne.blueCards,
+            teamOneTechnicalFouls = reasonEditBefore.teamOne.technicalFouls,
+            teamTwoBlues = reasonEditBefore.teamTwo.blueCards,
+            teamTwoTechnicalFouls = reasonEditBefore.teamTwo.technicalFouls,
+            teamOnePlayers = listOf(
+                PlayerRecord(
+                    jerseyNumber = "71",
+                    cards = listOf(
+                        InGamePlayerCardEvent(
+                            CardType.YELLOW,
+                            index = 0,
+                            reason = CardReason(preset = "Pushing"),
+                        )
+                    ),
+                )
+            ),
+            teamTwoPlayers = reasonEditBefore.teamTwoPlayers,
+        )
+        assertEquals(EventLogType.YELLOW_CARD, reasonEditAfter.eventLog.last().type)
+
+        val yellowIdentityEditAfter = reasonEditBefore.adjustCardsAndTf(
+            teamOneBlues = reasonEditBefore.teamOne.blueCards,
+            teamOneTechnicalFouls = reasonEditBefore.teamOne.technicalFouls,
+            teamTwoBlues = reasonEditBefore.teamTwo.blueCards,
+            teamTwoTechnicalFouls = reasonEditBefore.teamTwo.technicalFouls,
+            teamOnePlayers = listOf(
+                PlayerRecord(
+                    jerseyNumber = "72",
+                    cards = listOf(InGamePlayerCardEvent(CardType.YELLOW, index = 0)),
+                )
+            ),
+            teamTwoPlayers = reasonEditBefore.teamTwoPlayers,
+        )
+        assertEquals(EventLogType.YELLOW_CARD, yellowIdentityEditAfter.eventLog.last().type)
+
+        val cardTypeEditAfter = reasonEditBefore.adjustCardsAndTf(
+            teamOneBlues = reasonEditBefore.teamOne.blueCards,
+            teamOneTechnicalFouls = reasonEditBefore.teamOne.technicalFouls,
+            teamTwoBlues = reasonEditBefore.teamTwo.blueCards,
+            teamTwoTechnicalFouls = reasonEditBefore.teamTwo.technicalFouls,
+            teamOnePlayers = listOf(
+                PlayerRecord(
+                    jerseyNumber = "71",
+                    cards = listOf(InGamePlayerCardEvent(CardType.RED, index = 0)),
+                )
+            ),
+            teamTwoPlayers = reasonEditBefore.teamTwoPlayers,
+        )
+        assertEquals("Cards and technical fouls adjusted.", cardTypeEditAfter.lastEvent)
     }
 
 }

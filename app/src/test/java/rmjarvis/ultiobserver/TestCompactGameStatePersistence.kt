@@ -109,6 +109,7 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
         assertEquals(previous.nearAttackingTeam, patch.nearAttackingTeam)
         assertEquals(previous.pullingTeam, patch.pullingTeam)
         assertEquals(previous.pullingFromEnd, patch.pullingFromEnd)
+        assertEquals(previous.topDisplayedEnd, patch.topDisplayedEnd)
         assertEquals(previous.pullPromptTarget, patch.pullPromptTarget)
         assertEquals(previous.initialGenderRatio, patch.initialGenderRatio)
         assertEquals(previous.firstHalfGenZone, patch.firstHalfGenZone)
@@ -255,6 +256,7 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
                 ),
             ),
             nearAttackingTeam = TeamId.TEAM_TWO,
+            topDisplayedEnd = FieldEnd.NEAR,
             pullPromptTarget = PullPromptTarget.BOTH,
             initialGenderRatio = GenderRatio.FOUR_WOMEN_THREE_MEN,
             firstHalfGenZone = FieldEnd.NEAR,
@@ -343,6 +345,7 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
             teamTwoPlayers = listOf(playerRecordWithCards("20", yellows = 1)),
             eventLog = listOf(EventLogEntry(timestampEpoch = 1_000L, type = EventLogType.FIRST_PULL)),
             nearAttackingTeam = TeamId.TEAM_ONE,
+            topDisplayedEnd = FieldEnd.FAR,
             pullPromptTarget = PullPromptTarget.NEITHER,
             initialGenderRatio = GenderRatio.FOUR_MEN_THREE_WOMEN,
             firstHalfGenZone = FieldEnd.FAR,

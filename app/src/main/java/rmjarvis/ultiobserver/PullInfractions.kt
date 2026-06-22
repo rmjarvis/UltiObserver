@@ -133,9 +133,6 @@ fun GameState.assessPullInfraction(
         PullInfractionType.FALSE_START -> this.recordFalseStart(now)
         PullInfractionType.MAJORITY_PULL -> this.recordMajorityPullViolation(now)
     }
-    if (updatedState == this) {
-        return PullInfractionAssessmentResult(this)
-    }
     return PullInfractionAssessmentResult(
         state = updatedState,
         event = GameEvent.PullInfractionRecorded(

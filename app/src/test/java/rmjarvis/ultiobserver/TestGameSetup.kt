@@ -37,6 +37,11 @@ class TestGameSetup : GameDomainTestFixtures() {
         assertThrows(IllegalArgumentException::class.java) {
             TeamLiveState("Custom", TeamColorChoice.CUSTOM)
         }
+        val teamWithoutStaff = TeamLiveState("No Staff", TeamColorChoice.WHITE)
+        assertFalse(teamWithoutStaff.hasCoachOrCaptainInfo())
+        assertTrue(teamWithoutStaff.copy(coaches = "Coach").hasCoachOrCaptainInfo())
+        assertTrue(teamWithoutStaff.copy(fieldCaptains = "Field captain").hasCoachOrCaptainInfo())
+        assertTrue(teamWithoutStaff.copy(spiritCaptains = "Spirit captain").hasCoachOrCaptainInfo())
 
         val defaultSetupState = GameSetupState(
             startDate = LocalDate.of(2026, 1, 1),
@@ -58,6 +63,10 @@ class TestGameSetup : GameDomainTestFixtures() {
         val teamTwoPlayers = listOf(priorPlayerRecord("23", priorReds = 1))
 
         // Create a live game from setup and verify the setup form can be reconstructed from live state.
+        val noPriorCardsState = createLiveGameState(standardGameSetup(startTime = LocalTime.of(8, 30)))
+        assertTrue(noPriorCardsState.teamOnePlayers.isEmpty())
+        assertTrue(noPriorCardsState.teamTwoPlayers.isEmpty())
+
         val setup = standardGameSetup(
             startTime = LocalTime.of(8, 30),
             rules = GameRules(

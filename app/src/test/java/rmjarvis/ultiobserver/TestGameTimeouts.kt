@@ -110,6 +110,8 @@ class TestGameTimeouts : GameDomainTestFixtures() {
             state.countdown?.nextTimingCue(betweenPointsTimeoutTime)?.countdownTime,
         )
         assertEquals("Undo Timeout by Viscous Coupling", state.undoEntry?.label)
+        val timeoutUnavailablePreview = state.copy(phase = GamePhase.GAME_OVER).previewTimeout(VC, betweenPointsTimeoutTime)
+        assertTrue(timeoutUnavailablePreview.event is GameEvent.TimeoutUnavailable)
 
         // Pull-side between-points timeouts use the pull-specific 1-minute cue.
         val pullSideState = standardLiveGameState().copy(

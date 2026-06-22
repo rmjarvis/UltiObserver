@@ -81,6 +81,7 @@ class TestGameOtherActions : GameDomainTestFixtures() {
 
         // Pull-prompt changes are independent of display orientation and field positions.
         state = standardLiveGameState(pullingTeam = VC, pullingFromEnd = FieldEnd.FAR)
+        assertEquals(state, state.withPullPromptTarget(PullPromptTarget.NEAR))
         state = state.flipFieldDisplay()
         val flippedDisplayState = state
         state = state.withPullPromptTarget(PullPromptTarget.BOTH)
@@ -110,6 +111,10 @@ class TestGameOtherActions : GameDomainTestFixtures() {
         assertEquals("Pull in", state.countdown?.label)
         assertEquals(40, state.countdown?.durationSeconds)
         assertNull(state.countdown?.nextTimingCue(nearPromptCountdown.targetEpoch))
+        val noCountdownPromptState = standardLiveGameState().copy(countdown = null)
+            .withPullPromptTarget(PullPromptTarget.BOTH)
+        assertEquals(PullPromptTarget.BOTH, noCountdownPromptState.pullPromptTarget)
+        assertNull(noCountdownPromptState.countdown)
 
         // Timeout-extended between-points countdowns still swap between offense-ready and pull timing.
         state = standardLiveGameState()

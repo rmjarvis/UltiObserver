@@ -41,6 +41,19 @@ class TestMixed : GameDomainTestFixtures() {
         val fixedFourWomen = mixedLiveGameState(ratioRule = GenderRatioRule.FIXED_4W_3M)
         assertEquals(GenderRatio.FOUR_MEN_THREE_WOMEN, fixedFourMen.currentGenderRatio())
         assertEquals(GenderRatio.FOUR_WOMEN_THREE_MEN, fixedFourWomen.currentGenderRatio())
+        assertEquals(GenderRatio.FOUR_WOMEN_THREE_MEN, GenderRatio.FOUR_MEN_THREE_WOMEN.flip())
+        assertEquals(GenderRatio.FOUR_MEN_THREE_WOMEN, GenderRatio.FOUR_WOMEN_THREE_MEN.flip())
+        assertEquals("Gen Zone", GenderRatioRule.GEN_ZONE.displayText)
+        assertEquals("4W/3M", GenderRatio.FOUR_WOMEN_THREE_MEN.displayText)
+        assertTrue(GenderRatioRule.ABBA.hasDisplayablePointRatio())
+        assertTrue(GenderRatioRule.FIXED_4M_3W.hasDisplayablePointRatio())
+        assertTrue(GenderRatioRule.FIXED_4W_3M.hasDisplayablePointRatio())
+        assertFalse(GenderRatioRule.GEN_ZONE.hasDisplayablePointRatio())
+        assertFalse(GenderRatioRule.OFFENSE_DECIDES.hasDisplayablePointRatio())
+        assertFalse(GenderRatioRule.NA.hasDisplayablePointRatio())
+        assertTrue(GenderRatioRule.ABBA.hasStartingPullChoice())
+        assertTrue(GenderRatioRule.GEN_ZONE.hasStartingPullChoice())
+        assertFalse(GenderRatioRule.OFFENSE_DECIDES.hasStartingPullChoice())
 
         val noAppAssistance = mixedLiveGameState(ratioRule = GenderRatioRule.NA)
         assertNull(noAppAssistance.currentGenderRatio())
@@ -75,6 +88,11 @@ class TestMixed : GameDomainTestFixtures() {
         assertNull(openDivisionState.currentGenderRatio())
         assertNull(openDivisionState.ratioChoosingTeam())
         assertFalse(openDivisionState.usesMajorityPullRule())
+        assertFalse(
+            mixedLiveGameState(ratioRule = GenderRatioRule.ABBA)
+                .copy(rules = GameRules(useMajorityPullRule = false))
+                .usesMajorityPullRule()
+        )
     }
 
     /// Test majority-pull violations use their own label while sharing the pull-violation ladder.
@@ -110,6 +128,7 @@ class TestMixed : GameDomainTestFixtures() {
             majorityPullResult.message(),
         )
         assertNull(state.assessPullInfraction(VC).event)
+        assertEquals(state, state.recordMajorityPullViolation(timestampAt(state, LocalTime.of(12, 1))))
         assertEquals(state, state.recordOffsides(timestampAt(state, LocalTime.of(12, 1))))
 
         val falseStartResult = state.assessPullInfraction(
@@ -118,6 +137,28 @@ class TestMixed : GameDomainTestFixtures() {
             PullInfractionType.FALSE_START,
         )
         assertEquals(PullInfractionType.FALSE_START, (falseStartResult.event as GameEvent.PullInfractionRecorded).infraction)
+
+        val animalPullingState = mixedLiveGameState(
+            ratioRule = GenderRatioRule.ABBA,
+            pullingTeam = ANIMAL,
+        )
+        val animalPreview = animalPullingState.previewPullInfraction(ANIMAL, PullInfractionType.MAJORITY_PULL)
+            .event as GameEvent.PullInfractionRecorded
+        assertEquals(1, animalPreview.state.teamTwo.majorityPullViolations)
+        val animalMajorityPullResult = animalPullingState.assessPullInfraction(
+            ANIMAL,
+            timestampAt(animalPullingState, LocalTime.of(12, 3)),
+            PullInfractionType.MAJORITY_PULL,
+        )
+        assertEquals(1, animalMajorityPullResult.state.teamTwo.majorityPullViolations)
+        assertEquals("Majority pull violation on Animal.", animalMajorityPullResult.state.lastEvent)
+
+        // Direct helper calls can arrive after stale UI or test setup states; normal UI disables these paths.
+        val openDivisionState = standardLiveGameState()
+        assertEquals(openDivisionState, openDivisionState.recordMajorityPullViolation(timestampAt(state, LocalTime.of(12, 4))))
+        val skippedPullState = mixedLiveGameState(ratioRule = GenderRatioRule.ABBA)
+            .copy(pullSkippedForCurrentPoint = true)
+        assertEquals(skippedPullState, skippedPullState.recordMajorityPullViolation(timestampAt(state, LocalTime.of(12, 5))))
     }
 
     /// Test majority-pull corrections preserve their distinct event-log label.
@@ -148,12 +189,14 @@ class TestMixed : GameDomainTestFixtures() {
      * @param initialRatio The first-point ABBA ratio.
      * @param firstHalfGenZone The Gen Zone end for the first half.
      * @param switchGenZoneAtHalftime Whether Gen Zone switches after halftime.
+     * @param pullingTeam The team pulling the opening pull.
      */
     private fun mixedLiveGameState(
         ratioRule: GenderRatioRule,
         initialRatio: GenderRatio = GenderRatio.FOUR_MEN_THREE_WOMEN,
         firstHalfGenZone: FieldEnd = FieldEnd.FAR,
         switchGenZoneAtHalftime: Boolean = true,
+        pullingTeam: TeamId = TeamId.TEAM_ONE,
     ): GameState {
         return createLiveGameState(
             standardGameSetup(
@@ -166,6 +209,7 @@ class TestMixed : GameDomainTestFixtures() {
                     genderRatioRule = ratioRule,
                     useMajorityPullRule = true,
                 ),
+                pullingTeam = pullingTeam,
             ).copy(
                 division = GameDivision.MIXED,
                 initialGenderRatio = initialRatio,

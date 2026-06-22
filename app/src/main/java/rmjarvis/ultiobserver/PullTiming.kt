@@ -477,7 +477,7 @@ private fun GameState.recordTimeViolationTimeout(team: TeamId, now: Long): GameS
 private fun GameState.buildTimeViolationCountdown(
     now: Long,
     kind: CountdownKind,
-    target: BetweenPointsCountdownTarget = currentCountdownTarget(),
+    target: BetweenPointsCountdownTarget,
     timing: PullTimingSeconds,
 ): CountdownState {
     val durationSeconds = timing.durationSecondsFor(target)

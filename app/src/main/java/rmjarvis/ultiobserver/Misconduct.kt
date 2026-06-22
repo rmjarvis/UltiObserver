@@ -14,7 +14,7 @@ import kotlin.math.max
 @Serializable
 class PlayerIdentity private constructor(
     val jerseyNumber: String,
-    val playerName: String = "",
+    val playerName: String,
 ) {
     init {
         require(jerseyNumber.isNotBlank() || playerName.isNotBlank()) {
@@ -326,8 +326,9 @@ internal fun List<PlayerRecord>.withSavedPriorCardRecord(
     return if (editingIndex == null) {
         this + record
     } else {
+        val targetIndex: Int = editingIndex
         mapIndexed { index, existing ->
-            if (index == editingIndex) record else existing
+            if (index == targetIndex) record else existing
         }
     }
 }
@@ -578,6 +579,16 @@ fun GameState.adjustCardsAndTf(
     val adjustedTeamOneTechnicalFouls = teamOneTechnicalFouls.coerceAtLeast(0)
     val adjustedTeamTwoBlues = teamTwoBlues.coerceAtLeast(0)
     val adjustedTeamTwoTechnicalFouls = teamTwoTechnicalFouls.coerceAtLeast(0)
+    if (
+        adjustedTeamOneBlues == teamOne.blueCards &&
+            adjustedTeamOneTechnicalFouls == teamOne.technicalFouls &&
+            adjustedTeamTwoBlues == teamTwo.blueCards &&
+            adjustedTeamTwoTechnicalFouls == teamTwo.technicalFouls &&
+            teamOnePlayers == this.teamOnePlayers &&
+            teamTwoPlayers == this.teamTwoPlayers
+    ) {
+        return this
+    }
     val entries = buildCardAndTfAdjustmentEntries(
         teamOneBlues = adjustedTeamOneBlues,
         teamOneTechnicalFouls = adjustedTeamOneTechnicalFouls,
@@ -668,7 +679,7 @@ private fun MutableList<EventLogEntry>.addPlayerCardDeltas(
         val identityKey = identity.identity().key()
         val before = beforeRecords.firstOrNull { it.identity().key() == identityKey }
         val after = afterRecords.firstOrNull { it.identity().key() == identityKey }
-        val eventPlayer = (before ?: after ?: identity).identity()
+        val eventPlayer = identity.identity()
         addCardCountDelta(
             now = now,
             team = team,
@@ -707,8 +718,8 @@ private fun getSingleChangedPlayerCard(
     beforeRecords: List<PlayerRecord>,
     afterRecords: List<PlayerRecord>,
 ): PlayerCardChange? {
-    val beforeCards = beforeRecords.editablePlayerCards()
-    val afterCards = afterRecords.editablePlayerCards()
+    val beforeCards = editablePlayerCards(beforeRecords)
+    val afterCards = editablePlayerCards(afterRecords)
     if (beforeCards.size != afterCards.size) {
         return null
     }
@@ -792,9 +803,6 @@ private fun MutableList<EventLogEntry>.addTechnicalFoulDelta(now: Long, team: Te
  * @param records The player records to validate.
  */
 private fun requirePlayerRecordsValid(records: List<PlayerRecord>) {
-    require(records.all { it.yellows >= 0 && it.reds >= 0 }) {
-        "Player records cannot have negative card counts."
-    }
     require(records.all { it.hasLegalCounts() }) {
         "Player records must be no cards, one yellow, second yellow, red, or one yellow plus red."
     }
@@ -847,18 +855,20 @@ fun playerCardAssignmentRejection(
 }
 
 /// Return editable in-game yellow/red card rows for one team's player records.
-fun List<PlayerRecord>.editablePlayerCards(): List<EditablePlayerCard> {
-    return flatMapIndexed { playerIndex, player ->
-        player.cards.mapIndexed { cardIndex, card ->
-            EditablePlayerCard(
-                playerIndex = playerIndex,
-                cardIndex = cardIndex,
-                index = card.index,
-                jerseyNumber = player.jerseyNumber,
-                playerName = player.playerName,
-                cardType = card.cardType,
-                reason = card.reason,
-            )
+fun editablePlayerCards(players: List<PlayerRecord>): List<EditablePlayerCard> {
+    return buildList {
+        for (player in players) {
+            for (card in player.cards) {
+                add(
+                    EditablePlayerCard(
+                        index = card.index,
+                        jerseyNumber = player.jerseyNumber,
+                        playerName = player.playerName,
+                        cardType = card.cardType,
+                        reason = card.reason,
+                    )
+                )
+            }
         }
     }.sortedBy { it.index }
 }
@@ -902,12 +912,11 @@ fun replaceEditablePlayerCard(
     playerName: String,
     reason: CardReason,
 ): List<PlayerRecord> {
-    val originalCard = records[editableCard.playerIndex].cards[editableCard.cardIndex]
     return addPlayerCardAssignment(
         records = removeEditablePlayerCard(records, editableCard),
         jerseyNumber = jerseyNumber,
         cardType = cardType,
-        index = originalCard.index,
+        index = editableCard.index,
         playerName = playerName,
         reason = reason,
     )
@@ -923,17 +932,25 @@ fun removeEditablePlayerCard(
     records: List<PlayerRecord>,
     editableCard: EditablePlayerCard,
 ): List<PlayerRecord> {
-    val updatedRecords = records.mapIndexedNotNull { playerIndex, record ->
-        if (playerIndex != editableCard.playerIndex) {
-            record
-        } else {
-            val updatedCards = record.cards.filterIndexed { cardIndex, _ -> cardIndex != editableCard.cardIndex }
-            if (updatedCards.isEmpty() && record.priorYellows == 0 && record.priorReds == 0) {
-                null
-            } else {
-                record.copy(cards = updatedCards)
+    var removedCards = 0
+    val updatedRecords = records.mapNotNull { record ->
+        val updatedCards = record.cards.filter { card ->
+            val keepCard = card.index != editableCard.index
+            if (!keepCard) {
+                removedCards += 1
             }
+            keepCard
         }
+        if (updatedCards.size == record.cards.size) {
+            record
+        } else if (updatedCards.isEmpty() && record.priorYellows == 0 && record.priorReds == 0) {
+            null
+        } else {
+            record.copy(cards = updatedCards)
+        }
+    }
+    require(removedCards == 1) {
+        "Editable player-card index ${editableCard.index} must match exactly one card."
     }
     requirePlayerRecordsValid(updatedRecords)
     return updatedRecords
@@ -949,7 +966,7 @@ fun removeEditablePlayerCard(
 private fun PlayerRecord.withAddedCard(
     cardType: CardType,
     index: Int,
-    reason: CardReason = CardReason(),
+    reason: CardReason,
 ): PlayerRecord {
     return copy(cards = cards + InGamePlayerCardEvent(cardType = cardType, index = index, reason = reason))
 }
@@ -1158,7 +1175,7 @@ fun GameState.assessFirstYellowCard(
             teamCardTotal = cardTotal,
             playerCardType = PlayerCardEventType.YELLOW,
             playerCardJerseyNumber = identity.jerseyNumber,
-            playerCardName = updatedState.playerCardFor(team, identity.jerseyNumber, identity.playerName)?.playerName,
+            playerCardName = identity.playerName,
         ),
     )
 }
@@ -1195,7 +1212,7 @@ fun GameState.assessRedCard(
             teamCardTotal = cardTotal,
             playerCardType = PlayerCardEventType.RED,
             playerCardJerseyNumber = identity.jerseyNumber,
-            playerCardName = updatedState.playerCardFor(team, identity.jerseyNumber, identity.playerName)?.playerName,
+            playerCardName = identity.playerName,
         ),
     )
 }
@@ -1233,7 +1250,7 @@ fun GameState.assessSecondYellowCard(
             teamCardTotal = cardTotal,
             playerCardType = PlayerCardEventType.SECOND_YELLOW,
             playerCardJerseyNumber = identity.jerseyNumber,
-            playerCardName = updatedState.playerCardFor(team, identity.jerseyNumber, identity.playerName)?.playerName,
+            playerCardName = identity.playerName,
         ),
     )
 }
@@ -1346,8 +1363,6 @@ private fun CountdownState.toBetweenPointsMisconductCountdown(): CountdownState 
 /**
  * One editable in-game player-card event.
  *
- * @param playerIndex Index of the player record containing this card.
- * @param cardIndex Index of the card event within that player record.
  * @param index Assessment-order index for this card event.
  * @param jerseyNumber The player's jersey number.
  * @param playerName The player's name, or blank when unknown.
@@ -1355,8 +1370,6 @@ private fun CountdownState.toBetweenPointsMisconductCountdown(): CountdownState 
  * @param reason Optional reason recorded for this card.
  */
 data class EditablePlayerCard(
-    val playerIndex: Int,
-    val cardIndex: Int,
     val index: Int,
     val jerseyNumber: String,
     val playerName: String,
@@ -1450,7 +1463,7 @@ private fun GameState.addInGameRedCard(
 private fun updatePlayerCardRecord(
     records: List<PlayerRecord>,
     jerseyNumber: String,
-    playerName: String = "",
+    playerName: String,
     transform: (PlayerRecord) -> PlayerRecord,
 ): List<PlayerRecord> {
     val identity = PlayerIdentity(jerseyNumber, playerName)
@@ -1582,7 +1595,7 @@ private fun GameState.withPlayerCards(
 private fun GameState.playerCardFor(
     team: TeamId,
     jerseyNumber: String,
-    playerName: String = "",
+    playerName: String,
 ): PlayerRecord? {
     val identity = PlayerIdentity(jerseyNumber, playerName)
     return playerCardsFor(team).firstOrNull { it.identity().matches(identity) }
@@ -1795,8 +1808,7 @@ fun GamePrompt.LivePointMisconduct.resolutionMessage(againstOffense: Boolean): S
  * @param againstOffense Whether the penalty is against the offense rather than the defense.
  */
 private fun GamePrompt.LivePointMisconduct.misconductResolution(againstOffense: Boolean): String {
-    val misconductTeam = event.misconductTeam()
-    val state = event.stateAfterMisconduct()
+    val (misconductTeam, state) = event.misconductContext()
     val offenseTeam = if (againstOffense) misconductTeam else misconductTeam.flip()
     val defenseTeam = offenseTeam.flip()
     val offenseName = state.teamName(offenseTeam)
@@ -1813,20 +1825,11 @@ private fun GamePrompt.LivePointMisconduct.misconductResolution(againstOffense: 
         "Then defense has 20 seconds to check the disc in."
 }
 
-/// Return the team that triggered the live-point misconduct prompt.
-private fun GameEvent.misconductTeam(): TeamId {
+/// Return the team and state that triggered the live-point misconduct prompt.
+private fun GameEvent.misconductContext(): Pair<TeamId, GameState> {
     return when (this) {
-        is GameEvent.TeamCardsChanged -> team
-        is GameEvent.TechnicalFoulsChanged -> team
-        else -> error("Live-point misconduct prompts require a card or technical-foul event.")
-    }
-}
-
-/// Return the state after the event that triggered the live-point misconduct prompt.
-private fun GameEvent.stateAfterMisconduct(): GameState {
-    return when (this) {
-        is GameEvent.TeamCardsChanged -> state
-        is GameEvent.TechnicalFoulsChanged -> state
+        is GameEvent.TeamCardsChanged -> team to state
+        is GameEvent.TechnicalFoulsChanged -> team to state
         else -> error("Live-point misconduct prompts require a card or technical-foul event.")
     }
 }

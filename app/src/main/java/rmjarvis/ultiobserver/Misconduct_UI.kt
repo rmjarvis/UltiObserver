@@ -328,7 +328,7 @@ internal fun AdjustCardsDialog(
                     CardCountRow("Blue", teamOneB, { teamOneB += 1 }, { teamOneB = maxOf(0, teamOneB - 1) })
                     CardCountRow("Tech", teamOneTf, { teamOneTf += 1 }, { teamOneTf = maxOf(0, teamOneTf - 1) })
                     PlayerCardAdjustmentActions(
-                        hasEditableCards = workingTeamOnePlayerCards.editablePlayerCards().isNotEmpty(),
+                        hasEditableCards = editablePlayerCards(workingTeamOnePlayerCards).isNotEmpty(),
                         onEditExisting = { editingPlayerCardsFor = TeamId.TEAM_ONE },
                         onAddYellow = { pendingManualAdd = PendingManualCardAdd(TeamId.TEAM_ONE, CardType.YELLOW) },
                         onAddRed = { pendingManualAdd = PendingManualCardAdd(TeamId.TEAM_ONE, CardType.RED) },
@@ -339,7 +339,7 @@ internal fun AdjustCardsDialog(
                     CardCountRow("Blue", teamTwoB, { teamTwoB += 1 }, { teamTwoB = maxOf(0, teamTwoB - 1) })
                     CardCountRow("Tech", teamTwoTf, { teamTwoTf += 1 }, { teamTwoTf = maxOf(0, teamTwoTf - 1) })
                     PlayerCardAdjustmentActions(
-                        hasEditableCards = workingTeamTwoPlayerCards.editablePlayerCards().isNotEmpty(),
+                        hasEditableCards = editablePlayerCards(workingTeamTwoPlayerCards).isNotEmpty(),
                         onEditExisting = { editingPlayerCardsFor = TeamId.TEAM_TWO },
                         onAddYellow = { pendingManualAdd = PendingManualCardAdd(TeamId.TEAM_TWO, CardType.YELLOW) },
                         onAddRed = { pendingManualAdd = PendingManualCardAdd(TeamId.TEAM_TWO, CardType.RED) },
@@ -363,7 +363,7 @@ internal fun AdjustCardsDialog(
     editingPlayerCardsFor?.let { team ->
         EditablePlayerCardsDialog(
             teamName = state.teamFor(team).name,
-            cards = recordsFor(team).editablePlayerCards(),
+            cards = editablePlayerCards(recordsFor(team)),
             includeDelete = true,
             onDismiss = { editingPlayerCardsFor = null },
             onEdit = { card ->
@@ -740,7 +740,7 @@ internal fun TeamCardDialog(
     editingExistingCardsFor?.let { editTeam ->
         EditablePlayerCardsDialog(
             teamName = state.teamFor(editTeam).name,
-            cards = state.playerCards(editTeam).editablePlayerCards(),
+            cards = editablePlayerCards(state.playerCards(editTeam)),
             includeDelete = false,
             onDismiss = { editingExistingCardsFor = null },
             confirmLabel = "Done",
@@ -1066,7 +1066,7 @@ private fun CardChoiceDialog(
     val yellowCount = state.teamYellowCards(team)
     val redCount = state.teamRedCards(team)
     val blueCount = teamState.blueCards
-    val hasEditableCards = state.playerCards(team).editablePlayerCards().isNotEmpty()
+    val hasEditableCards = editablePlayerCards(state.playerCards(team)).isNotEmpty()
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Assess a card") },

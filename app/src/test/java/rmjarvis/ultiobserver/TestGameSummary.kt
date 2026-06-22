@@ -37,6 +37,20 @@ class TestGameSummary : GameDomainTestFixtures() {
             ),
             state.gameOverSummaryText(),
         )
+        assertEquals(listOf(state.teamTwo, state.teamOne), state.winnerFirstTeams())
+        assertEquals(
+            listOf(state.teamTwo.copy(score = 2), state.teamOne.copy(score = 1)),
+            state.copy(
+                teamOne = state.teamOne.copy(score = 1),
+                teamTwo = state.teamTwo.copy(score = 2),
+            ).winnerFirstTeams(),
+        )
+        val laterAlphabeticalTeam = state.teamOne.copy(name = "Z Team", score = 1)
+        val earlierAlphabeticalTeam = state.teamTwo.copy(name = "A Team", score = 1)
+        assertEquals(
+            listOf(earlierAlphabeticalTeam, laterAlphabeticalTeam),
+            state.copy(teamOne = laterAlphabeticalTeam, teamTwo = earlierAlphabeticalTeam).winnerFirstTeams(),
+        )
     }
 
     /// Verify team display text includes player cards, blue cards, and technical fouls.
@@ -269,6 +283,8 @@ class TestGameSummary : GameDomainTestFixtures() {
         assertEquals("Mike and Gary", state.toSetupState().observers)
         assertEquals("Road", state.toSetupState().fieldEndName(FieldEnd.NEAR))
         assertEquals("Trees", state.toSetupState().fieldEndName(FieldEnd.FAR))
+        assertEquals("Road", state.fieldEndDisplayName(FieldEnd.NEAR))
+        assertEquals("Trees", state.fieldEndDisplayName(FieldEnd.FAR))
         assertEquals("Viscous Coupling pulls from Road", state.toSetupState().startingPullSummary())
         assertEquals("Pull prompts for both ends", state.toSetupState().pullPromptSummary())
         assertEquals(true, state.toSetupState().usesMixedDivision())
@@ -276,6 +292,13 @@ class TestGameSummary : GameDomainTestFixtures() {
         val defaultEndsSetup = setup.copy(nearEndName = "", farEndName = "", pullPromptTarget = PullPromptTarget.NEAR)
         assertEquals("Near end", defaultEndsSetup.fieldEndName(FieldEnd.NEAR))
         assertEquals("Far end", defaultEndsSetup.fieldEndName(FieldEnd.FAR))
+        val defaultEndsState = state.copy(nearEndName = "", farEndName = "")
+        assertEquals("Near end", defaultEndsState.fieldEndDisplayName(FieldEnd.NEAR))
+        assertEquals("Far end", defaultEndsState.fieldEndDisplayName(FieldEnd.FAR))
         assertEquals("Pull prompts for Near end", defaultEndsSetup.pullPromptSummary())
+        assertEquals("Road", PullPromptTarget.NEAR.displayText(setup))
+        assertEquals("Trees", PullPromptTarget.FAR.displayText(setup))
+        assertEquals("both ends", PullPromptTarget.BOTH.displayText(setup))
+        assertEquals("neither end", PullPromptTarget.NEITHER.displayText(setup))
     }
 }
