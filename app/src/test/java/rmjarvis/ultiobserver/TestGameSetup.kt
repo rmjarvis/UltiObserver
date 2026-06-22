@@ -124,6 +124,11 @@ class TestGameSetup : GameDomainTestFixtures() {
         assertEquals(40, state.countdown?.durationSeconds)
         assertEquals(state.startEpoch + 40_000L, state.countdown?.targetEpoch)
 
+        // Returning from Update game setup without edits should not create an undo entry.
+        val unchangedState = applySetupToLiveGame(state, state.toSetupState(), 10_000L)
+        assertEquals(state, unchangedState)
+        assertNull(unchangedState.undoEntry)
+
         // Edit setup before the first point and verify opening pull changes resync current pull and field state.
         val editedBeforePlay = setup.copy(
             startTime = LocalTime.of(8, 45),

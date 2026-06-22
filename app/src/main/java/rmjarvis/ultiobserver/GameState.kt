@@ -680,6 +680,10 @@ fun applySetupToLiveGame(
     setup: GameSetupState,
     now: Long,
 ): GameState {
+    if (setup == existing.toSetupState()) {
+        return existing
+    }
+
     val openingNearAttackingTeam = if (setup.pullingFromEnd == FieldEnd.FAR) {
         setup.pullingTeam
     } else {
