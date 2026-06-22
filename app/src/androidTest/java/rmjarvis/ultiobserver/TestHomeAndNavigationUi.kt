@@ -248,7 +248,12 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("settings-OFFENSE_TWENTY-NONE").performScrollTo().performClick()
         pressAppBack()
         waitForText("Use sounds and vibration for timing cues?")
-        composeRule.onNodeWithTag("settings-global-alert-SOUNDS_ON").performClick()
+        composeRule.onNodeWithTag("settings-global-alert-SOUNDS_ON").performScrollTo().performClick()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.activity.appViewModel.timingAlertPreferences.globalMode ==
+                TimingAlertGlobalMode.SOUNDS_ON
+        }
+        composeRule.onNodeWithTag("settings-sound-volume").performScrollTo()
         waitForText("Ear buds are recommended when using sounds with UltiObserver.")
         if (!hasTimingCueHaptics) {
             waitForText("This phone reports that vibration is unavailable.", substring = true)

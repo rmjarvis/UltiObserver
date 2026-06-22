@@ -39,7 +39,11 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Event log").performClick()
         waitForText("Event log")
         waitForText("No events logged yet.")
-        pressDialogBack()
+        if (shouldUsePlatformBackDismissalCoverage()) {
+            pressDialogBack()
+        } else {
+            composeRule.onNodeWithText("OK").performClick()
+        }
         openMoreActionsDialog()
         openMoreActionsDialogAndCancel("Adjust score")
         openMoreActionsDialogAndCancel("Adjust timeouts")
@@ -72,22 +76,22 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
 
         // Less-common game-state actions should be reachable and leave a visible result.
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Apply half cap now").performClick()
+        composeRule.onNodeWithText("Apply half cap now").performScrollTo().performClick()
         waitForText("Undo Half cap now")
         assertLiveScreen()
 
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Apply soft cap now").performClick()
+        composeRule.onNodeWithText("Apply soft cap now").performScrollTo().performClick()
         waitForText("Undo Soft cap now")
         assertLiveScreen()
 
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Apply hard cap now").performClick()
+        composeRule.onNodeWithText("Apply hard cap now").performScrollTo().performClick()
         waitForText("Undo Hard cap now")
         assertLiveScreen()
 
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Start halftime").performClick()
+        composeRule.onNodeWithText("Start halftime").performScrollTo().performClick()
         waitForText("Halftime")
         // Back dismissal and OK are equivalent acknowledgements for this prompt.
         if (shouldUsePlatformBackDismissalCoverage()) {

@@ -199,9 +199,17 @@ private class AndroidTimingAlertSoundPlayer : TimingAlertSoundPlayer {
         soundPool.play(soundId, leftVolume, rightVolume, priority, loop, rate)
     }
 
-    /// Release the Android SoundPool.
+    /// Release the Android SoundPool without blocking Android component teardown.
     override fun release() {
-        soundPool.release()
+        Thread(
+            {
+                soundPool.release()
+            },
+            "TimingAlertSoundPoolRelease",
+        ).apply {
+            isDaemon = true
+            start()
+        }
     }
 }
 

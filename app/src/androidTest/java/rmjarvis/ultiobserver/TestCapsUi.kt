@@ -4,6 +4,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -61,7 +62,7 @@ class TestCapsUi : MainActivityUiTestFixtures() {
         waitForText("is scheduled for", substring = true)
         composeRule.onNodeWithText("No").performClick()
         waitForText("Halftime")
-        composeRule.onNodeWithText("OK").performClick()
+        composeRule.onAllNodesWithText("OK").onLast().performClick()
 
         // Hard cap can be deferred, then applied on a tied score to keep the game live.
         startLiveGameWithDueCap("Hard cap", "Hard cap")
