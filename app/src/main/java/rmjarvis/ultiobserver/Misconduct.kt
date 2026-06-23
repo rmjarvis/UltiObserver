@@ -533,6 +533,15 @@ fun GameState.adjustBlueCardsAndTechs(
     ) {
         return this
     }
+    val entries = buildCardAndTfAdjustmentEntries(
+        teamOneBlues = adjustedTeamOneBlues,
+        teamOneTechnicalFouls = adjustedTeamOneTechnicalFouls,
+        teamTwoBlues = adjustedTeamTwoBlues,
+        teamTwoTechnicalFouls = adjustedTeamTwoTechnicalFouls,
+        teamOnePlayers = teamOnePlayers,
+        teamTwoPlayers = teamTwoPlayers,
+        now = now,
+    )
 
     return copy(
         teamOne = teamOne.copy(
@@ -544,12 +553,7 @@ fun GameState.adjustBlueCardsAndTechs(
             technicalFouls = adjustedTeamTwoTechnicalFouls,
         ),
         lastEvent = "Adjust blue card/tech counts.",
-    ).withEventLogEntry(
-        EventLogEntry(
-            timestampEpoch = now,
-            type = EventLogType.BLUE_CARD_AND_TECH_ADJUSTED,
-        )
-    ).withUndo(this, "Undo Adjust blue card/tech counts")
+    ).withEventLogEntries(entries).withUndo(this, "Undo Adjust blue card/tech counts")
 }
 
 /**
@@ -762,14 +766,19 @@ private fun MutableList<EventLogEntry>.addCardCountDelta(
     player: PlayerIdentity? = null,
 ) {
     if (delta != 0) {
-        repeat(kotlin.math.abs(delta)) {
+        val entryCount = if (type == EventLogType.BLUE_CARD) {
+            1
+        } else {
+            kotlin.math.abs(delta)
+        }
+        repeat(entryCount) {
             add(
                 EventLogEntry(
                     timestampEpoch = now,
                     type = type,
                     team = team,
                     player = player,
-                    delta = if (delta > 0) 1 else -1,
+                    delta = if (entryCount == 1) delta else if (delta > 0) 1 else -1,
                 )
             )
         }

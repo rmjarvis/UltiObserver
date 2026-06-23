@@ -31,7 +31,6 @@ enum class EventLogType {
     YELLOW_CARD,
     RED_CARD,
     BLUE_CARD,
-    BLUE_CARD_AND_TECH_ADJUSTED,
     TECHNICAL_FOUL,
     OFFSIDES,
     FALSE_START,
@@ -132,7 +131,6 @@ private fun GameState.formatEventLogDescription(entry: EventLogEntry): String {
         EventLogType.YELLOW_CARD,
         EventLogType.RED_CARD,
         EventLogType.BLUE_CARD -> cardEventDescription(entry)
-        EventLogType.BLUE_CARD_AND_TECH_ADJUSTED -> "Adjusted blue card/tech counts"
         EventLogType.TECHNICAL_FOUL -> technicalFoulDescription(entry)
         EventLogType.OFFSIDES,
         EventLogType.FALSE_START,
@@ -161,6 +159,8 @@ private fun GameState.cardEventDescription(entry: EventLogEntry): String {
     val delta = entry.delta
     val previousPlayer = entry.previousPlayer
     return when {
+        entry.type == EventLogType.BLUE_CARD && delta != null ->
+            "Adjusted ${teamName(entry.team!!)} blue cards ${delta.formatDelta()}"
         previousPlayer != null -> cardEditDescription(entry, label.lowercase(), previousPlayer)
         delta == null -> "$label on ${cardAdjustmentTarget(entry)}"
         else -> "${delta.adjustmentVerb()} ${label.lowercase()} on ${cardAdjustmentTarget(entry)}"
@@ -222,7 +222,7 @@ private fun GameState.pullInfractionDescription(entry: EventLogEntry): String {
 private fun GameState.timeViolationDescription(entry: EventLogEntry): String {
     val outcome = entry.timeViolationOutcome!!
     val suffix = when (outcome) {
-        TimeViolationOutcome.WARNING -> " warning"
+        TimeViolationOutcome.WARNING -> ", warning"
         TimeViolationOutcome.TIMEOUT -> ", timeout charged"
         TimeViolationOutcome.NO_TIMEOUT -> ", no timeout remaining"
     }

@@ -4,27 +4,32 @@ import java.time.LocalTime
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/// Tests for persisted event-log entries and compact display formatting.
+/**
+ * Tests for persisted event-log entries and compact display formatting.
+ */
 class TestEventLog : GameDomainTestFixtures() {
-    /// Verify first-pull entries use nominal start time unless the first point starts early.
+    /**
+     * Verify first-pull entries use nominal start time unless the first point starts early.
+     */
     @Test
-    fun firstPullUsesNominalStartUnlessStartedEarly() {
-        val ANIMAL = TeamId.TEAM_TWO
+    fun firstPullTime() {
+        // A first pull after scheduled start uses the nominal game start time.
+        val animal = TeamId.TEAM_TWO
         var state = standardLiveGameState(
             startTime = LocalTime.of(12, 0),
-            pullingTeam = ANIMAL,
+            pullingTeam = animal,
             pullingFromEnd = FieldEnd.NEAR,
         )
-
         state = state.beginLivePoint(timestampAt(state, LocalTime.of(12, 3)))
         assertEquals(
             listOf("12:00  First pull by Animal"),
             state.formatEventLogLines(),
         )
 
+        // A first pull before scheduled start uses the actual early pull time.
         state = standardLiveGameState(
             startTime = LocalTime.of(12, 0),
-            pullingTeam = ANIMAL,
+            pullingTeam = animal,
             pullingFromEnd = FieldEnd.NEAR,
         )
         state = state.beginLivePoint(timestampAt(state, LocalTime.of(11, 58)))
@@ -34,11 +39,14 @@ class TestEventLog : GameDomainTestFixtures() {
         )
     }
 
-    /// Verify normal game actions append compact event-log entries in game-local time.
+    /**
+     * Verify normal game actions append compact event-log entries in game-local time.
+     */
     @Test
-    fun significantGameEventsAreLogged() {
-        val VC = TeamId.TEAM_ONE
-        val ANIMAL = TeamId.TEAM_TWO
+    fun significantGameEvents() {
+        // Start a game whose rule settings let the narrative reach each event-log type.
+        val vc = TeamId.TEAM_ONE
+        val animal = TeamId.TEAM_TWO
         var state = standardLiveGameState(
             startTime = LocalTime.of(12, 0),
             rules = GameRules(
@@ -48,28 +56,46 @@ class TestEventLog : GameDomainTestFixtures() {
                 useHardCap = false,
                 timeoutsPerHalf = 1,
             ),
-            pullingTeam = ANIMAL,
+            pullingTeam = animal,
         )
 
+        // Opening pull, misconduct, and timeout entries include the local game time.
         state = state.beginLivePoint(timestampAt(state, LocalTime.of(12, 0)))
-        state = state.assessBlueCard(VC, timestampAt(state, LocalTime.of(12, 2))).state
-        state = state.assessTimeout(VC, timestampAt(state, LocalTime.of(12, 3))).state.continueLivePoint()
-        state = state.assessYellowCard(ANIMAL, "23", timestampAt(state, LocalTime.of(12, 4)), playerName = "Jarvis").state
-        state = state.assessYellowCard(ANIMAL, "23", timestampAt(state, LocalTime.of(12, 4)), playerName = "Jarvis").state
-        state = state.assessTechnicalFoul(VC, timestampAt(state, LocalTime.of(12, 5))).state
-        state = recordGoalAt(state, ANIMAL, LocalTime.of(12, 7))
+        state = state.assessBlueCard(vc, timestampAt(state, LocalTime.of(12, 2))).state
+        state = state.assessTimeout(vc, timestampAt(state, LocalTime.of(12, 3)))
+            .state
+            .continueLivePoint()
+        state = state.assessYellowCard(
+            animal,
+            "23",
+            timestampAt(state, LocalTime.of(12, 4)),
+            playerName = "Jarvis",
+        ).state
+        state = state.assessYellowCard(
+            animal,
+            "23",
+            timestampAt(state, LocalTime.of(12, 4)),
+            playerName = "Jarvis",
+        ).state
+        state = state.assessTechnicalFoul(vc, timestampAt(state, LocalTime.of(12, 5))).state
+
+        // Point, pull-infraction, and time-violation entries use their specific outcomes.
+        state = recordGoalAt(state, animal, LocalTime.of(12, 7))
         state = state.recordOffsides(timestampAt(state, LocalTime.of(12, 8)))
         state = state.recordFalseStart(timestampAt(state, LocalTime.of(12, 9)))
         state = state.startPullSequence(timestampAt(state, LocalTime.of(12, 10)))
         state = state.expiredPullDecisionState()
-            .assessTimeViolation(ANIMAL, timestampAt(state, LocalTime.of(12, 11))).state
+            .assessTimeViolation(animal, timestampAt(state, LocalTime.of(12, 11))).state
         state = state.expiredPullDecisionState()
-            .assessTimeViolation(ANIMAL, timestampAt(state, LocalTime.of(12, 12))).state
+            .assessTimeViolation(animal, timestampAt(state, LocalTime.of(12, 12))).state
         state = state.expiredPullDecisionState()
-            .assessTimeViolation(ANIMAL, timestampAt(state, LocalTime.of(12, 13))).state
+            .assessTimeViolation(animal, timestampAt(state, LocalTime.of(12, 13))).state
+
+        // Halftime and game-over entries close the event-log narrative.
         state = startHalftimeNowAt(state, LocalTime.of(12, 14))
         state = endGameNowAt(state, LocalTime.of(12, 15))
 
+        // The final event log should contain the representative entries in event order.
         assertEquals(
             listOf(
                 "12:00  First pull by Animal",
@@ -81,7 +107,7 @@ class TestEventLog : GameDomainTestFixtures() {
                 "12:07  Animal Goal",
                 "12:08  Offsides on Animal",
                 "12:09  False start on Viscous Coupling",
-                "12:11  Time violation on Animal warning",
+                "12:11  Time violation on Animal, warning",
                 "12:12  Time violation on Animal, timeout charged",
                 "12:13  Time violation on Animal, no timeout remaining",
                 "12:14  Halftime",
@@ -91,35 +117,49 @@ class TestEventLog : GameDomainTestFixtures() {
         )
     }
 
-    /// Verify manual Blue/Tech count corrections use one compact event and undo label.
+    /**
+     * Verify manual Blue/Tech count corrections log specific count deltas with a broad undo label.
+     */
     @Test
-    fun blueCardAndTechAdjustmentsUseCompactLogEntry() {
+    fun blueCardAndTechAdjustments() {
+        // Count-only card and technical-foul adjustments can change several team counts at once.
         val state = standardLiveGameState(startTime = LocalTime.of(12, 0))
         val adjusted = state.adjustBlueCardsAndTechs(
-            teamOneBlues = 1,
+            teamOneBlues = 2,
             teamOneTechnicalFouls = 2,
             teamTwoBlues = 0,
             teamTwoTechnicalFouls = 1,
             now = timestampAt(state, LocalTime.of(12, 5)),
         )
 
+        // The undo label stays broad, while the event log lists each changed count.
         assertEquals("Adjust blue card/tech counts.", adjusted.lastEvent)
         assertEquals("Undo Adjust blue card/tech counts", adjusted.undoEntry?.label)
         assertEquals(
-            listOf("12:05  Adjusted blue card/tech counts"),
+            listOf(
+                "12:05  Adjusted Viscous Coupling blue cards +2",
+                "12:05  Adjusted Viscous Coupling technical fouls +2",
+                "12:05  Adjusted Animal technical fouls +1",
+            ),
             adjusted.formatEventLogLines(),
         )
         assertEquals(state, adjusted.undoEntry?.previous)
     }
 
-    /// Verify manual corrections log the meaningful before/after deltas.
+    /**
+     * Verify manual corrections log the meaningful before/after deltas.
+     */
     @Test
-    fun manualCorrectionsLogDeltas() {
-        val VC = TeamId.TEAM_ONE
-        val ANIMAL = TeamId.TEAM_TWO
+    fun manualCorrectionDeltas() {
+        // Seed existing records so later corrections can log added, removed, and changed values.
+        val vc = TeamId.TEAM_ONE
+        val animal = TeamId.TEAM_TWO
         var state = standardLiveGameState(startTime = LocalTime.of(12, 0))
-        state = state.assessYellowCard(ANIMAL, "17", timestampAt(state, LocalTime.of(12, 1))).state
-        state = state.assessTechnicalFoul(VC, timestampAt(state, LocalTime.of(12, 1))).state
+        state = state.assessYellowCard(animal, "17", timestampAt(state, LocalTime.of(12, 1)))
+            .state
+        state = state.assessTechnicalFoul(vc, timestampAt(state, LocalTime.of(12, 1))).state
+
+        // Manual pull-infraction corrections log one entry for each changed count.
         state = state.adjustPullInfractions(
             teamOneOffsides = 0,
             teamOneFalseStarts = 1,
@@ -127,6 +167,8 @@ class TestEventLog : GameDomainTestFixtures() {
             teamTwoFalseStarts = 0,
             now = timestampAt(state, LocalTime.of(12, 2)),
         )
+
+        // Manual card and technical-foul corrections log added and removed records.
         state = state.adjustCardsAndTf(
             teamOneBlues = 1,
             teamOneTechnicalFouls = 0,
@@ -137,6 +179,8 @@ class TestEventLog : GameDomainTestFixtures() {
             now = timestampAt(state, LocalTime.of(12, 3)),
             undoLabel = "",
         )
+
+        // Score and timeout corrections log the visible before/after deltas.
         state = state.adjustScore(
             teamOneScore = 3,
             teamTwoScore = 5,
@@ -152,6 +196,8 @@ class TestEventLog : GameDomainTestFixtures() {
             teamTwoTimeoutsUsed = 0,
             now = timestampAt(state, LocalTime.of(12, 6)),
         )
+
+        // Follow-up corrections log removed pull infractions and edited player-card records.
         state = state.adjustPullInfractions(
             teamOneOffsides = 0,
             teamOneFalseStarts = 0,
@@ -170,13 +216,14 @@ class TestEventLog : GameDomainTestFixtures() {
             undoLabel = "",
         )
 
+        // The final event log should contain only the visible correction deltas.
         assertEquals(
             listOf(
                 "12:01  Yellow card on Animal #17",
                 "12:01  Technical foul on Viscous Coupling",
                 "12:02  Adjusted Viscous Coupling false starts +1",
                 "12:02  Adjusted Animal offsides +1",
-                "12:03  Added blue card on Viscous Coupling",
+                "12:03  Adjusted Viscous Coupling blue cards +1",
                 "12:03  Adjusted Viscous Coupling technical fouls -1",
                 "12:03  Added red card on Viscous Coupling #11",
                 "12:03  Removed yellow card on Animal #17",
@@ -188,15 +235,21 @@ class TestEventLog : GameDomainTestFixtures() {
             ),
             state.formatEventLogLines(),
         )
-        assertEquals(VC, state.eventLog.last().team)
+        assertEquals(vc, state.eventLog.last().team)
     }
 
-    /// Verify same-player card corrections do not add event-log entries.
+    /**
+     * Verify same-player card corrections do not add event-log entries.
+     */
     @Test
-    fun samePlayerCardCorrectionsAreNotLogged() {
-        val ANIMAL = TeamId.TEAM_TWO
+    fun samePlayerCardCorrections() {
+        // Record the original player card through the normal card pathway.
+        val animal = TeamId.TEAM_TWO
         var state = standardLiveGameState(startTime = LocalTime.of(12, 0))
-        state = state.assessYellowCard(ANIMAL, "12", timestampAt(state, LocalTime.of(12, 1))).state
+        state = state.assessYellowCard(animal, "12", timestampAt(state, LocalTime.of(12, 1)))
+            .state
+
+        // Editing the player's name does not create a separate event-log correction.
         state = state.adjustCardsAndTf(
             teamOneBlues = 0,
             teamOneTechnicalFouls = 0,
@@ -207,6 +260,8 @@ class TestEventLog : GameDomainTestFixtures() {
             now = timestampAt(state, LocalTime.of(12, 2)),
             undoLabel = "",
         )
+
+        // Editing the reason details also leaves the event log unchanged.
         state = state.adjustCardsAndTf(
             teamOneBlues = 0,
             teamOneTechnicalFouls = 0,
@@ -230,6 +285,7 @@ class TestEventLog : GameDomainTestFixtures() {
             undoLabel = "",
         )
 
+        // Same-player card edits leave only the original card event in the event log.
         assertEquals(
             listOf(
                 "12:01  Yellow card on Animal #12",
@@ -238,19 +294,26 @@ class TestEventLog : GameDomainTestFixtures() {
         )
     }
 
-    /// Verify undo restores the previous event log along with the previous game state.
+    /**
+     * Verify undo restores the previous event log along with the previous game state.
+     */
     @Test
-    fun undoRestoresPreviousEventLog() {
-        val ANIMAL = TeamId.TEAM_TWO
+    fun undoRestoresEventLog() {
+        // Record one event-log entry that will be removed by undo.
+        val animal = TeamId.TEAM_TWO
         val state = standardLiveGameState(startTime = LocalTime.of(12, 0))
         val afterCard = state.assessRedCard(
-            team = ANIMAL,
+            team = animal,
             jerseyNumber = "",
             now = timestampAt(state, LocalTime.of(12, 10)),
             playerName = "No Number",
         ).state
 
-        assertEquals(listOf("12:10  Red card on Animal No Number"), afterCard.formatEventLogLines())
+        // Undoing the only logged event returns the event log to empty.
+        assertEquals(
+            listOf("12:10  Red card on Animal No Number"),
+            afterCard.formatEventLogLines(),
+        )
         assertEquals(emptyList<String>(), afterCard.undoLastAction().formatEventLogLines())
     }
 }
