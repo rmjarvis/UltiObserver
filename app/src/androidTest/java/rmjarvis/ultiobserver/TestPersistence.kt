@@ -26,9 +26,11 @@ class TestPersistence {
     @get:Rule
     val composeRule = createComposeRule()
 
-    /// Test Android app-private storage for each persisted app-data bucket.
+    /**
+     * Test Android app-private storage for each persisted app-data bucket.
+     */
     @Test
-    fun fileStoragePersistsStateInAppPrivateFiles() {
+    fun fileStorageRoundTrip() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val storageDir = File(context.filesDir, "persistence-test-${System.nanoTime()}")
 
@@ -112,29 +114,34 @@ class TestPersistence {
         }
     }
 
-    /// Test the startup recovery dialog that appears after persisted phone data is reset.
+    /**
+     * Test the startup recovery dialog that appears after persisted phone data is reset.
+     */
     @Test
-    fun startupRecoveryNoticeCanBeDismissed() {
+    fun startupRecoveryNotice() {
+        // Use storage that reports repaired profile and settings buckets at startup.
         val viewModel = AppViewModel(
             StartupRecoveryNoticeStorage(
                 setOf(PersistedData.PROFILE, PersistedData.SETTINGS)
             )
         )
 
+        // Render the app from scratch so the startup notice is shown over Home.
         composeRule.setContent {
             UltiObserverTheme(dynamicColor = false) {
                 UltiObserverApp(viewModel)
             }
         }
 
+        // The notice names the repaired buckets while leaving Home visible behind the dialog.
         composeRule.onNodeWithText("Phone data reset").assertIsDisplayed()
-        composeRule.onNodeWithText(
-            "Sorry, some phone data was corrupt, so UltiObserver had to revert to default values for Profile and Settings."
-        ).assertIsDisplayed()
+        val recoveryMessage = "Sorry, some phone data was corrupt, so UltiObserver had to " +
+            "revert to default values for Profile and Settings."
+        composeRule.onNodeWithText(recoveryMessage).assertIsDisplayed()
         composeRule.onNodeWithText("Start new game").assertIsDisplayed()
 
+        // Dismissing the notice removes only the dialog.
         composeRule.onNodeWithText("OK").performClick()
-
         composeRule.onAllNodesWithText("Phone data reset").assertCountEquals(0)
         composeRule.onNodeWithText("Start new game").assertIsDisplayed()
     }
