@@ -129,7 +129,7 @@ internal fun MoreActionsContent(
                         onAction(state.endGameNow(now))
                     },
                 )
-                if (!state.halftimeTaken && !state.halfCapApplied) {
+                if (state.halfCapRelevant(state.teamOne.score, state.teamTwo.score)) {
                     OtherMenuButton(
                         label = "Apply half cap now",
                         onClick = {
@@ -137,7 +137,7 @@ internal fun MoreActionsContent(
                         },
                     )
                 }
-                if (!state.softCapApplied) {
+                if (state.softCapRelevant()) {
                     OtherMenuButton(
                         label = "Apply soft cap now",
                         onClick = {
@@ -145,7 +145,7 @@ internal fun MoreActionsContent(
                         },
                     )
                 }
-                if (!state.hardCapApplied) {
+                if (state.hardCapRelevant()) {
                     OtherMenuButton(
                         label = "Apply hard cap now",
                         onClick = {
