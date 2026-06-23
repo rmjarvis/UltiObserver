@@ -170,14 +170,15 @@ internal val appStateJson = Json {
     prettyPrint = true
 }
 
-/// Encode a current-game bucket using compact undo/redo storage.
+/// Encode a current-game bucket using serialized undo/redo patch chains.
 internal fun encodeCurrentGameSnapshot(state: CurrentGameSnapshot): String {
-    return appStateJson.encodeToString(PersistedCurrentGameSnapshot.fromCurrentGameSnapshot(state))
+    return appStateJson.encodeToString(SerializedCurrentGameSnapshot.fromCurrentGameSnapshot(state))
 }
 
-/// Decode a current-game bucket from compact undo/redo storage.
+/// Decode a current-game bucket from serialized undo/redo patch chains.
 private fun decodeCurrentGameSnapshot(jsonObject: JsonObject): CurrentGameSnapshot {
-    return appStateJson.decodeFromJsonElement<PersistedCurrentGameSnapshot>(jsonObject).toCurrentGameSnapshot()
+    return appStateJson.decodeFromJsonElement<SerializedCurrentGameSnapshot>(jsonObject)
+        .toCurrentGameSnapshot()
 }
 
 /**

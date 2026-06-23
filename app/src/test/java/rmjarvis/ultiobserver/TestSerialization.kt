@@ -9,40 +9,58 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
-/// Tests for compact current-game persistence patching and restoration.
-class TestCompactGameStatePersistence : GameDomainTestFixtures() {
-    /// Verify game-state patches restore changed, unchanged, nullable, and list-replacement fields.
+/**
+ * Tests for JSON serialization of current-game snapshots and undo/redo patch chains.
+ */
+class TestSerialization : GameDomainTestFixtures() {
+    /**
+     * Verify game-state patches restore changed fields, unchanged fields, nullable values,
+     * prefix-list patches, and full list replacements.
+     */
     @Test
-    fun gameStatePatchRestoresAllFieldKinds() {
-        val later = compactPatchLaterState()
-        val previous = compactPatchPreviousState()
-
+    fun gameStatePatches() {
+        // A full game-state patch should store previous values for each changed field.
+        val later = patchLaterState()
+        val previous = patchPreviousState()
         val patch = GameStatePatch.fromLaterAndPrevious(later, previous)
-        val prefixPatch = ListPatch.fromLaterAndPrevious(listOf(1, 2), listOf(1))!!
-        val replacementPatch = ListPatch.fromLaterAndPrevious(listOf(1, 2), listOf(9))!!
-        val longerReplacementPatch = ListPatch.fromLaterAndPrevious(listOf(1), listOf(1, 2))!!
-
         assertPatchProperties(patch, previous)
         assertEquals(previous, patch.applyTo(later))
+
+        // Empty patches should be no-ops for game and team state.
         assertEquals(later, GameStatePatch().applyTo(later))
         assertEquals(later.teamOne, TeamLiveStatePatch().applyTo(later.teamOne))
+
+        // Identical lists do not need a patch.
         assertNull(ListPatch.fromLaterAndPrevious(listOf(1, 2), listOf(1, 2)))
+
+        // A previous list that is a prefix of the later list can be restored by size.
+        val prefixPatch = ListPatch.fromLaterAndPrevious(listOf(1, 2), listOf(1))!!
         assertEquals(1, prefixPatch.previousSize)
         assertNull(prefixPatch.replacement)
         assertEquals(listOf(1), prefixPatch.applyTo(listOf(1, 2)))
+
+        // A non-prefix previous list must be restored by replacement.
+        val replacementPatch = ListPatch.fromLaterAndPrevious(listOf(1, 2), listOf(9))!!
         assertNull(replacementPatch.previousSize)
         assertEquals(listOf(9), replacementPatch.replacement)
         assertEquals(listOf(9), replacementPatch.applyTo(listOf(1, 2)))
+
+        // Longer previous lists are also restored by replacement.
+        val longerReplacementPatch = ListPatch.fromLaterAndPrevious(listOf(1), listOf(1, 2))!!
         assertEquals(listOf(1, 2), longerReplacementPatch.replacement)
         assertEquals(listOf(1, 2), longerReplacementPatch.applyTo(listOf(1)))
     }
 
-    /// Verify compact persisted states restore null and populated undo/redo chains.
+    /**
+     * Verify serialized game states restore setup metadata, live state, null undo entries,
+     * and populated redo chains.
+     */
     @Test
-    fun persistedGameStateRestoresUndoAndRedoChains() {
-        val later = compactPatchLaterState()
-        val previous = compactPatchPreviousState()
-        val undoBacked = later.copy(undoEntry = UndoEntry("Undo Compact patch", previous))
+    fun serializedUndoRedoChains() {
+        // Build a current-game snapshot whose live state has been undone once.
+        val later = patchLaterState()
+        val previous = patchPreviousState()
+        val undoBacked = later.copy(undoEntry = UndoEntry("Undo Test patch", previous))
         val undone = undoBacked.undoLastAction()
         val snapshot = CurrentGameSnapshot(
             setupState = standardGameSetup(startTime = LocalTime.of(8, 0)),
@@ -50,31 +68,40 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
             setupMode = SetupMode.EDIT_CURRENT_GAME,
             hasSetupDraft = false,
         )
+        val serializedSnapshot = SerializedCurrentGameSnapshot.fromCurrentGameSnapshot(snapshot)
+        val serializedLiveState = serializedSnapshot.liveState!!
+        val serializedUndoEntry = serializedLiveState.undoEntry
+        val restored = serializedSnapshot.toCurrentGameSnapshot()
 
-        val persisted = PersistedCurrentGameSnapshot.fromCurrentGameSnapshot(snapshot)
-        val persistedLiveState = persisted.liveState!!
-        val persistedUndoEntry = persistedLiveState.undoEntry
-        val restored = persisted.toCurrentGameSnapshot()
+        // Serialized current-game metadata should match the source snapshot.
+        assertEquals(snapshot.versionName, serializedSnapshot.versionName)
+        assertEquals(snapshot.versionCode, serializedSnapshot.versionCode)
+        assertEquals(snapshot.setupState, serializedSnapshot.setupState)
+        assertEquals(snapshot.setupMode, serializedSnapshot.setupMode)
+        assertEquals(snapshot.hasSetupDraft, serializedSnapshot.hasSetupDraft)
 
-        assertEquals(snapshot.versionName, persisted.versionName)
-        assertEquals(snapshot.versionCode, persisted.versionCode)
-        assertEquals(snapshot.setupState, persisted.setupState)
-        assertEquals(snapshot.setupMode, persisted.setupMode)
-        assertEquals(snapshot.hasSetupDraft, persisted.hasSetupDraft)
-        assertEquals(undone.copy(undoEntry = null, redoEntry = null), persistedLiveState.state)
-        assertNull(persistedUndoEntry)
-        assertEquals(undoBacked.copy(undoEntry = null, redoEntry = null), persistedLiveState.redoEntry!!.state)
-        assertEquals("Undo Compact patch", persistedLiveState.redoEntry!!.undoEntry!!.label)
+        // The current live state stores its nested undo and redo state as patch chains.
+        assertEquals(undone.copy(undoEntry = null, redoEntry = null), serializedLiveState.state)
+        assertNull(serializedUndoEntry)
+        assertEquals(
+            undoBacked.copy(undoEntry = null, redoEntry = null),
+            serializedLiveState.redoEntry!!.state,
+        )
+        assertEquals("Undo Test patch", serializedLiveState.redoEntry!!.undoEntry!!.label)
         assertEquals(
             GameStatePatch.fromLaterAndPrevious(undoBacked.copy(undoEntry = null), previous),
-            persistedLiveState.redoEntry!!.undoEntry!!.patchToPrevious,
+            serializedLiveState.redoEntry!!.undoEntry!!.patchToPrevious,
         )
-        assertNull(persistedLiveState.redoEntry!!.undoEntry!!.previousUndoEntry)
+        assertNull(serializedLiveState.redoEntry!!.undoEntry!!.previousUndoEntry)
+
+        // Restoring the serialized snapshot should rebuild the original undo/redo chain.
         assertEquals(snapshot, restored)
         assertEquals(undoBacked, restored.liveState!!.redoLastAction())
+
+        // Empty snapshots and standalone serialized live states should restore directly.
         assertEquals(
             CurrentGameSnapshot(),
-            PersistedCurrentGameSnapshot(
+            SerializedCurrentGameSnapshot(
                 versionName = APP_STATE_VERSION_NAME,
                 versionCode = APP_STATE_VERSION_CODE,
                 setupState = newGameSetupState(),
@@ -83,10 +110,18 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
                 hasSetupDraft = false,
             ).toCurrentGameSnapshot(),
         )
-        assertEquals(later, PersistedGameState(state = later, undoEntry = null, redoEntry = null).restore())
+        assertEquals(
+            later,
+            SerializedGameState(state = later, undoEntry = null, redoEntry = null).restore(),
+        )
     }
 
-    /// Verify each game-state patch property matches the corresponding previous-state value.
+    /**
+     * Verify each game-state patch property matches the corresponding previous-state value.
+     *
+     * @param patch The patch created from later and previous game states.
+     * @param previous The previous game state that should be recoverable from the patch.
+     */
     private fun assertPatchProperties(patch: GameStatePatch, previous: GameState) {
         assertEquals(previous.startDate, patch.startDate)
         assertEquals(previous.startTime, patch.startTime)
@@ -133,7 +168,12 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
         assertEquals(previous.lastEvent, patch.lastEvent)
     }
 
-    /// Verify each team patch property matches the corresponding previous-team value.
+    /**
+     * Verify each team patch property matches the corresponding previous-team value.
+     *
+     * @param patch The patch created from later and previous team states.
+     * @param previous The previous team state that should be recoverable from the patch.
+     */
     private fun assertTeamPatchProperties(patch: TeamLiveStatePatch, previous: TeamLiveState) {
         assertEquals(previous.name, patch.name)
         assertEquals(previous.color, patch.color)
@@ -152,20 +192,21 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
         assertEquals(previous.blueCards, patch.blueCards)
     }
 
-    /// Verify compact JSON omits unchanged patch fields and null event-log fields.
+    /**
+     * Verify JSON serialization omits null event-log fields and default patch fields.
+     */
     @Test
-    fun currentGameEncodingOmitsNullAndDefaultPatchFields() {
-        val later = compactPatchLaterState()
-        val previous = compactPatchPreviousState()
+    fun currentGameSerialization() {
+        // Serialization omits null event-log fields and unchanged patch fields.
+        val later = patchLaterState()
+        val previous = patchPreviousState()
         val snapshot = CurrentGameSnapshot(
             setupState = standardGameSetup(startTime = LocalTime.of(8, 0)),
-            liveState = later.copy(undoEntry = UndoEntry("Undo Compact patch", previous)),
+            liveState = later.copy(undoEntry = UndoEntry("Undo Test patch", previous)),
             setupMode = SetupMode.EDIT_CURRENT_GAME,
             hasSetupDraft = false,
         )
-
         val json = encodeCurrentGameSnapshot(snapshot)
-
         assertFalse(json.contains("\"team\": null"))
         assertFalse(json.contains("\"player\": null"))
         assertFalse(json.contains("\"timeViolationOutcome\": null"))
@@ -179,9 +220,12 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
         assertFalse(json.contains("\"observers\": null"))
     }
 
-    /// Verify invalid list patch representations fail loudly.
+    /**
+     * Verify invalid list patch representations fail loudly.
+     */
     @Test
-    fun listPatchRequiresExactlyOneRepresentation() {
+    fun listPatchValidation() {
+        // A list patch must encode either a prefix size or a full replacement.
         assertThrows(IllegalArgumentException::class.java) {
             ListPatch<Int>()
         }
@@ -190,13 +234,20 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
         }
     }
 
-    /// Build a later state with non-null nullable fields and non-prefix list values.
-    private fun compactPatchLaterState(): GameState {
+    /**
+     * Build a later state with non-null nullable fields and non-prefix list values.
+     */
+    private fun patchLaterState(): GameState {
         return standardLiveGameState(
             startDate = LocalDate.of(2026, 2, 3),
             startTime = LocalTime.of(9, 30),
             timeZone = ZoneId.of("America/Chicago"),
-            rules = GameRules(gameTo = 17, halfCapMinutes = 50, softCapMinutes = 80, hardCapMinutes = 95),
+            rules = GameRules(
+                gameTo = 17,
+                halfCapMinutes = 50,
+                softCapMinutes = 80,
+                hardCapMinutes = 95,
+            ),
             pullingTeam = TeamId.TEAM_TWO,
             pullingFromEnd = FieldEnd.NEAR,
         ).copy(
@@ -287,13 +338,20 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
         )
     }
 
-    /// Build a previous state that differs in every patchable field from the later state.
-    private fun compactPatchPreviousState(): GameState {
+    /**
+     * Build a previous state that differs in every patchable field from the later state.
+     */
+    private fun patchPreviousState(): GameState {
         return standardLiveGameState(
             startDate = LocalDate.of(2026, 2, 2),
             startTime = LocalTime.of(8, 15),
             timeZone = ZoneId.of("America/New_York"),
-            rules = GameRules(gameTo = 15, halfCapMinutes = 45, softCapMinutes = 90, hardCapMinutes = 105),
+            rules = GameRules(
+                gameTo = 15,
+                halfCapMinutes = 45,
+                softCapMinutes = 90,
+                hardCapMinutes = 105,
+            ),
             pullingTeam = TeamId.TEAM_ONE,
             pullingFromEnd = FieldEnd.FAR,
         ).copy(
@@ -343,7 +401,9 @@ class TestCompactGameStatePersistence : GameDomainTestFixtures() {
                 playerRecordWithCards("13", yellows = 2),
             ),
             teamTwoPlayers = listOf(playerRecordWithCards("20", yellows = 1)),
-            eventLog = listOf(EventLogEntry(timestampEpoch = 1_000L, type = EventLogType.FIRST_PULL)),
+            eventLog = listOf(
+                EventLogEntry(timestampEpoch = 1_000L, type = EventLogType.FIRST_PULL),
+            ),
             nearAttackingTeam = TeamId.TEAM_ONE,
             topDisplayedEnd = FieldEnd.FAR,
             pullPromptTarget = PullPromptTarget.NEITHER,

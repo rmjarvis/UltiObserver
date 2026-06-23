@@ -9,16 +9,19 @@ import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.Serializable
 
 /**
- * Compact persisted form of the current/setup game bucket.
+ * Serialized form of the current/setup game bucket.
  *
- * @param liveState The live game stored with compact undo/redo chains.
+ * This uses the custom undo/redo serialization described in `SerializedUndoEntry`
+ * instead of native `GameState` serialization for the live-state history.
+ *
+ * @param liveState The live game stored with serialized undo/redo chains.
  */
 @Serializable
-internal data class PersistedCurrentGameSnapshot(
+internal data class SerializedCurrentGameSnapshot(
     val versionName: String,
     val versionCode: Int,
     val setupState: GameSetupState,
-    val liveState: PersistedGameState?,
+    val liveState: SerializedGameState?,
     val setupMode: SetupMode,
     val hasSetupDraft: Boolean,
 ) {
@@ -36,16 +39,16 @@ internal data class PersistedCurrentGameSnapshot(
 
     companion object {
         /**
-         * Build compact storage from the app-facing current-game bucket.
+         * Build serialized state from the app-facing current-game bucket.
          *
-         * @param state The current-game bucket to persist.
+         * @param state The current-game bucket to serialize.
          */
-        fun fromCurrentGameSnapshot(state: CurrentGameSnapshot): PersistedCurrentGameSnapshot {
-            return PersistedCurrentGameSnapshot(
+        fun fromCurrentGameSnapshot(state: CurrentGameSnapshot): SerializedCurrentGameSnapshot {
+            return SerializedCurrentGameSnapshot(
                 versionName = state.versionName,
                 versionCode = state.versionCode,
                 setupState = state.setupState,
-                liveState = state.liveState?.toPersistedGameState(),
+                liveState = state.liveState?.toSerializedGameState(),
                 setupMode = state.setupMode,
                 hasSetupDraft = state.hasSetupDraft,
             )
@@ -54,17 +57,20 @@ internal data class PersistedCurrentGameSnapshot(
 }
 
 /**
- * Compact persisted form of one game state and its undo/redo history.
+ * Serialized form of one game state and its undo/redo history.
+ *
+ * This stores the current state directly and represents history with the patch-chain
+ * serialization described in `SerializedUndoEntry`.
  *
  * @param state The current state without undo or redo links.
  * @param undoEntry Patch chain that reconstructs the previous states from `state`.
- * @param redoEntry Optional redo state, also stored compactly.
+ * @param redoEntry Optional redo state, also stored as serialized state.
  */
 @Serializable
-internal data class PersistedGameState(
+internal data class SerializedGameState(
     val state: GameState,
-    val undoEntry: PersistedUndoEntry?,
-    val redoEntry: PersistedGameState?,
+    val undoEntry: SerializedUndoEntry?,
+    val redoEntry: SerializedGameState?,
 ) {
     /// Restore the full app-facing game state.
     fun restore(): GameState {
@@ -77,17 +83,29 @@ internal data class PersistedGameState(
 }
 
 /**
- * Compact persisted undo entry.
+ * Serialized undo entry.
+ *
+ * A normal serialized `UndoEntry` would contain a full previous `GameState`. Since most
+ * undo entries differ from the current state in only a few fields, that natural shape is
+ * dominated by repeated fields whose values are null, default, or unchanged. That is
+ * especially expensive for persistence because the current-game bucket is rewritten often
+ * and can contain a long undo/redo chain.
+ *
+ * Instead, each undo entry stores a `GameStatePatch` from the later state to the previous
+ * state. The patch contains only fields that differ, with `NullablePatchValue` used where
+ * "unchanged" and "changed to null" must stay distinct. Restoring walks the chain from the
+ * current state backward: apply this patch to the later state, then attach the restored
+ * previous undo entry, if there is one.
  *
  * @param label The user-facing undo label.
  * @param patchToPrevious Fields that turn the later state into the previous state.
- * @param previousUndoEntry The previous state's own compact undo entry, if any.
+ * @param previousUndoEntry The previous state's own serialized undo entry, if any.
  */
 @Serializable
-internal data class PersistedUndoEntry(
+internal data class SerializedUndoEntry(
     val label: String,
     val patchToPrevious: GameStatePatch,
-    val previousUndoEntry: PersistedUndoEntry?,
+    val previousUndoEntry: SerializedUndoEntry?,
 ) {
     /**
      * Restore an app-facing undo entry from the later state that owns it.
@@ -481,28 +499,28 @@ internal data class TeamLiveStatePatch(
     }
 }
 
-/// Convert a game state and its history to compact persistence.
-private fun GameState.toPersistedGameState(): PersistedGameState {
-    return PersistedGameState(
+/// Convert a game state and its history to serialized state.
+private fun GameState.toSerializedGameState(): SerializedGameState {
+    return SerializedGameState(
         state = withoutUndoRedo(),
-        undoEntry = undoEntry?.toPersistedUndoEntry(later = this),
-        redoEntry = redoEntry?.toPersistedGameState(),
+        undoEntry = undoEntry?.toSerializedUndoEntry(later = this),
+        redoEntry = redoEntry?.toSerializedGameState(),
     )
 }
 
 /**
- * Convert an undo entry to compact persistence.
+ * Convert an undo entry to serialized state.
  *
  * @param later The later state that owns this undo entry.
  */
-private fun UndoEntry.toPersistedUndoEntry(later: GameState): PersistedUndoEntry {
-    return PersistedUndoEntry(
+private fun UndoEntry.toSerializedUndoEntry(later: GameState): SerializedUndoEntry {
+    return SerializedUndoEntry(
         label = label,
         patchToPrevious = GameStatePatch.fromLaterAndPrevious(
             later = later.withoutUndoRedo(),
             previous = previous.withoutUndoRedo(),
         ),
-        previousUndoEntry = previous.undoEntry?.toPersistedUndoEntry(later = previous),
+        previousUndoEntry = previous.undoEntry?.toSerializedUndoEntry(later = previous),
     )
 }
 
