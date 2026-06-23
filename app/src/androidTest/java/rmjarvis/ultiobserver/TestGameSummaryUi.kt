@@ -4,26 +4,17 @@ import android.app.Instrumentation
 import android.content.Intent
 import androidx.activity.compose.setContent
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.onFirst
-import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
-import androidx.compose.ui.test.performTouchInput
-import androidx.compose.ui.test.performTextReplacement
-import androidx.compose.ui.test.swipeRight
 import androidx.test.espresso.intent.Intents.intended
 import androidx.test.espresso.intent.Intents.intending
 import androidx.test.espresso.intent.Intents.init
 import androidx.test.espresso.intent.Intents.release
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import java.time.LocalDate
 import java.time.LocalTime
-import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.hamcrest.Description
 import org.hamcrest.TypeSafeMatcher
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -32,31 +23,39 @@ import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 /// Tests for game-over summary UI states.
 @RunWith(AndroidJUnit4::class)
 class TestGameSummaryUi : MainActivityUiTestFixtures() {
-    /// Test the game-over summary branch for teams with no player-specific cards.
+    /**
+     * Test the game-over summary branch for teams with no player-specific cards.
+     */
     @Test
-    fun gameSummaryShowsNoIssuedPlayerCards() {
+    fun gameSummaryWithNoPlayerCards() {
+        // If a team has no yellow or red cards issued, then the game summary says that.
         startLiveGameProgrammatically()
-
         endCurrentGameProgrammatically()
         composeRule.onNodeWithText("OK").performClick()
         waitForText("Game summary")
         waitForText("No yellow or red cards issued.")
         composeRule.onNodeWithText("Share").assertIsDisplayed()
+
+        // The summary page exposes the completed game's event log.
         composeRule.onNodeWithText("Event log").performClick()
         waitForText("Event log")
         waitForText("Game over", substring = true)
         pressDialogBack()
     }
 
-    /// Test the game summary Share action invokes the supplied share callback.
+    /**
+     * Test the game summary Share action invokes the supplied share callback.
+     */
     @Test
-    fun gameSummaryShareButtonInvokesCallback() {
+    fun gameSummaryShareButton() {
+        // We don't actually test the Android share action here.
+        // Instead we have the onShareSummary action be just to change the `shared`
+        // variable to true.
         var shared = false
         val state = createLiveGameState(newGameSetupState()).copy(
             phase = GamePhase.GAME_OVER,
             endEpoch = System.currentTimeMillis(),
         )
-
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.setContent {
                 UltiObserverTheme(dynamicColor = false) {
@@ -70,14 +69,19 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
                 }
             }
         }
-        composeRule.onNodeWithText("Share").performClick()
 
+        // Clicking Share invokes the callback supplied to the summary composable.
+        // I.e. it should change shared to true.
+        composeRule.onNodeWithText("Share").performClick()
         assertTrue(shared)
     }
 
-    /// Test that current and archived summaries share the same compact tournament misconduct report.
+    /**
+     * Test that current and archived summaries share the same compact tournament misconduct report.
+     */
     @Test
-    fun shareButtonSharesTournamentScoreAndMisconductSummary() {
+    fun shareButtonSharesText() {
+        // Seed a finished game with score and misconduct entries for compact summary sharing.
         clearArchivedGamesProgrammatically()
         val expectedShareText = """
             UltiObserver Game Summary
@@ -92,6 +96,7 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
                 1 Blue, 2 Techs
         """.trimIndent()
 
+        // Programmatically set up a game to match the above summary info.
         startLiveGameProgrammatically(
             newGameSetupState().copy(
                 tournamentName = "Philly Open",
@@ -125,13 +130,18 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
         }
         composeRule.waitForIdle()
 
+        // Now end the game to trigger the game summary screen.
+        // Use a helper function (below) to check that Share does share the expected text.
         endCurrentGameProgrammatically()
         composeRule.onNodeWithText("OK").performClick()
         waitForText("Game summary")
         assertNextShareText(expectedShareText)
 
+        // Return to the completed-game action screen before archiving this game.
         composeRule.onNodeWithText("Back").performClick()
         waitForText("Completed game")
+
+        // Archive the game and verify the read-only archive shares the same payload.
         composeRule.onNodeWithText("Archive completed game").performClick()
         waitForText("See archived games")
         composeRule.onNodeWithText("See archived games").performClick()
@@ -156,9 +166,13 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
     }
 
     /// Return an Espresso matcher for the nested share intent created by Android's chooser wrapper.
-    private fun chooserWithShareText(expectedShareText: String) = object : TypeSafeMatcher<Intent>() {
+    private fun chooserWithShareText(
+        expectedShareText: String,
+    ): TypeSafeMatcher<Intent> = object : TypeSafeMatcher<Intent>() {
         override fun describeTo(description: Description) {
-            description.appendText("chooser wrapping ACTION_SEND text/plain with expected game summary text")
+            description.appendText(
+                "chooser wrapping ACTION_SEND text/plain with expected game summary text"
+            )
         }
 
         override fun matchesSafely(intent: Intent): Boolean {
