@@ -75,8 +75,17 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Add previous game card holder").assertIsDisplayed()
         composeRule.onNodeWithText("Cancel").performClick()
         waitForText("Add card holder")
+        composeRule.onNodeWithText("Add card holder").performClick()
+        waitForText("Add previous game card holder")
+        enterPriorCardJersey("42")
+        composeRule.onAllNodesWithText("-1")[0].performClick()
+        composeRule.onNodeWithText("Cancel").assertIsDisplayed()
+        composeRule.onAllNodesWithText("+1")[1].performClick()
+        composeRule.onNodeWithText("Add").performClick()
+        composeRule.onNodeWithText("R 1").performScrollTo().assertIsDisplayed()
         closeSetupEditor()
         waitForText("Start game")
+        composeRule.onNodeWithText("#42: R 1").performScrollTo().assertIsDisplayed()
 
         // The edited setup should still launch a live game.
         startGameFromSetup()
