@@ -13,13 +13,14 @@ import org.junit.runner.RunWith
 
 /// Tests for live-game More actions dialogs and correction flows.
 @RunWith(AndroidJUnit4::class)
-class TestOtherMenuUi : MainActivityUiTestFixtures() {
+class TestMoreActionsUi : MainActivityUiTestFixtures() {
     /**
      * Test the less-common live-game actions behind More actions.
      * The goal is to catch broken dialogs, buttons, and return paths for observer-accessible tools.
      */
     @Test
-    fun otherMenuPathways() {
+    fun moreActionsPathways() {
+        // Start from a live game so More actions exposes the observer-facing correction tools.
         startLiveGameProgrammatically()
 
         // Manual correction dialogs should open and return to More actions cleanly.
@@ -67,22 +68,7 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Swap pulling team").performClick()
         assertLiveScreen()
 
-        // Less-common game-state actions should be reachable and leave a visible result.
-        openMoreActionsDialog()
-        composeRule.onNodeWithText("Apply half cap now").performScrollTo().performClick()
-        waitForText("Undo Half cap now")
-        assertLiveScreen()
-
-        openMoreActionsDialog()
-        composeRule.onNodeWithText("Apply soft cap now").performScrollTo().performClick()
-        waitForText("Undo Soft cap now")
-        assertLiveScreen()
-
-        openMoreActionsDialog()
-        composeRule.onNodeWithText("Apply hard cap now").performScrollTo().performClick()
-        waitForText("Undo Hard cap now")
-        assertLiveScreen()
-
+        // Manual halftime should be reachable and leave a visible result.
         openMoreActionsDialog()
         composeRule.onNodeWithText("Start halftime").performScrollTo().performClick()
         waitForText("Halftime")
@@ -95,9 +81,11 @@ class TestOtherMenuUi : MainActivityUiTestFixtures() {
         assertLiveScreen()
     }
 
-    /// Test that deleting the current game is guarded by the slide confirmation.
+    /**
+     * Test that deleting the current game is guarded by the slide confirmation.
+     */
     @Test
-    fun otherMenuCanDeleteCurrentGameAfterSliderConfirmation() {
+    fun deleteGame() {
         startLiveGameProgrammatically()
 
         openMoreActionsDialog()

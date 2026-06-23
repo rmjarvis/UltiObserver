@@ -79,6 +79,33 @@ class TestCapsUi : MainActivityUiTestFixtures() {
     }
 
     /**
+     * Test that manually applying caps from More actions updates the live game.
+     */
+    @Test
+    fun manualCapActions() {
+        // Half cap can be applied manually from More actions.
+        startLiveGameProgrammatically()
+        openMoreActionsDialog()
+        composeRule.onNodeWithText("Apply half cap now").performScrollTo().performClick()
+        waitForText("Undo Half cap now")
+        assertLiveScreen()
+
+        // Soft cap can be applied manually from More actions.
+        startLiveGameProgrammatically()
+        openMoreActionsDialog()
+        composeRule.onNodeWithText("Apply soft cap now").performScrollTo().performClick()
+        waitForText("Undo Soft cap now")
+        assertLiveScreen()
+
+        // Hard cap can be applied manually from More actions.
+        startLiveGameProgrammatically()
+        openMoreActionsDialog()
+        composeRule.onNodeWithText("Apply hard cap now").performScrollTo().performClick()
+        waitForText("Undo Hard cap now")
+        assertLiveScreen()
+    }
+
+    /**
      * Test that the various "Apply cap now" buttons in the More actions menu are hidden
      * when it would be invalid to apply the cap at that time.  This includes because
      * the cap has already been applied, or the cap is not relevant anymore (half cap
