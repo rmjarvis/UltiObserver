@@ -821,44 +821,51 @@ private fun requirePlayerRecordsValid(records: List<PlayerRecord>) {
 }
 
 /**
- * Reason a new player card cannot be added to an existing player record.
+ * Suspension status reached by a player-card record.
  *
- * @param messageText Text explaining the rejection after the team and player identity.
- * @param noticeText Text warning about the resulting suspension after the team and player identity.
+ * The same status is used in two moments. Before adding another card, `rejectionText` explains
+ * why the assignment is blocked. After adding or editing a card, `noticeText` explains that the
+ * just-finished adjustment created the suspension.
+ *
+ * @param rejectionText Text explaining a blocked card assignment after the team and player
+ * identity.
+ * @param noticeText Text warning about a new suspension after the team and player identity.
  */
-enum class PlayerCardAssignmentRejection(val messageText: String, val noticeText: String) {
+enum class PlayerSuspensionStatus(val rejectionText: String, val noticeText: String) {
     TWO_YELLOWS(
-        messageText = "already has two yellow cards and has been suspended.",
+        rejectionText = "already has two yellow cards and has been suspended.",
         noticeText = "now has two yellow cards and has been suspended.",
     ),
     RED_CARD(
-        messageText = "already has a red card and has been suspended.",
+        rejectionText = "already has a red card and has been suspended.",
         noticeText = "now has a red card and has been suspended.",
     ),
     THREE_TOURNAMENT_YELLOWS(
-        messageText = "already has three yellow cards in the tournament and has been suspended.",
+        rejectionText = "already has three yellow cards in the tournament and has been suspended.",
         noticeText = "now has three yellow cards in the tournament and has been suspended.",
     ),
 }
 
 /**
- * Return why a player cannot receive another card, or null if the assignment can proceed.
+ * Return the suspension status for a player, or null if the player is not suspended.
  *
  * @param records The current player records for that team.
  * @param identity The player receiving the possible card.
  */
-fun playerCardAssignmentRejection(
+fun playerSuspensionStatus(
     records: List<PlayerRecord>,
     identity: PlayerIdentity,
-): PlayerCardAssignmentRejection? {
+): PlayerSuspensionStatus? {
     val existingRecord = records.firstOrNull { it.identity().matches(identity) } ?: return null
+    val yellowEquivalentTournamentCards =
+        existingRecord.priorYellows + existingRecord.yellows + (2 * existingRecord.priorReds)
     return when {
         existingRecord.reds > 0 ->
-            PlayerCardAssignmentRejection.RED_CARD
+            PlayerSuspensionStatus.RED_CARD
         existingRecord.yellows >= 2 ->
-            PlayerCardAssignmentRejection.TWO_YELLOWS
-        existingRecord.priorYellows + existingRecord.yellows + (2 * existingRecord.priorReds) >= 3 ->
-            PlayerCardAssignmentRejection.THREE_TOURNAMENT_YELLOWS
+            PlayerSuspensionStatus.TWO_YELLOWS
+        yellowEquivalentTournamentCards >= 3 ->
+            PlayerSuspensionStatus.THREE_TOURNAMENT_YELLOWS
         else -> null
     }
 }

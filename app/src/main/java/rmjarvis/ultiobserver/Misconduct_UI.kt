@@ -202,9 +202,10 @@ internal fun AdjustCardsDialog(
     }
 
     fun showSuspensionNoticeIfNeeded(team: TeamId, records: List<PlayerRecord>, identity: PlayerIdentity) {
-        val rejection = playerCardAssignmentRejection(records, identity) ?: return
+        val status = playerSuspensionStatus(records, identity) ?: return
         suspensionNoticeMessage =
-            "${state.teamFor(team).name} ${identity.displayText(compact = true)} ${rejection.noticeText}"
+            "${state.teamFor(team).name} ${identity.displayText(compact = true)} " +
+                status.noticeText
     }
 
     fun GameState.withPlayerCards(
@@ -255,10 +256,11 @@ internal fun AdjustCardsDialog(
                 return true
             }
         }
-        val rejection = playerCardAssignmentRejection(records, identity)
-        if (rejection != null) {
+        val status = playerSuspensionStatus(records, identity)
+        if (status != null) {
             invalidCardAssignmentMessage =
-                "${state.teamFor(team).name} ${identity.displayText(compact = true)} ${rejection.messageText}"
+                "${state.teamFor(team).name} ${identity.displayText(compact = true)} " +
+                    status.rejectionText
             return false
         }
         val updatedRecords = addPlayerCardAssignment(
@@ -288,10 +290,11 @@ internal fun AdjustCardsDialog(
         }
         val identity = PlayerIdentity(entry.jerseyNumber, entry.playerName)
         val recordsAfterRemoval = removeEditablePlayerCard(recordsFor(team), originalCard)
-        val rejection = playerCardAssignmentRejection(recordsAfterRemoval, identity)
-        if (rejection != null) {
+        val status = playerSuspensionStatus(recordsAfterRemoval, identity)
+        if (status != null) {
             invalidCardAssignmentMessage =
-                "${state.teamFor(team).name} ${identity.displayText(compact = true)} ${rejection.messageText}"
+                "${state.teamFor(team).name} ${identity.displayText(compact = true)} " +
+                    status.rejectionText
             return false
         }
         val updatedRecords = replaceEditablePlayerCard(
@@ -613,9 +616,10 @@ internal fun TeamCardDialog(
     }
 
     fun showSuspensionNoticeIfNeeded(team: TeamId, records: List<PlayerRecord>, identity: PlayerIdentity) {
-        val rejection = playerCardAssignmentRejection(records, identity) ?: return
+        val status = playerSuspensionStatus(records, identity) ?: return
         suspensionNoticeMessage =
-            "${state.teamFor(team).name} ${identity.displayText(compact = true)} ${rejection.noticeText}"
+            "${state.teamFor(team).name} ${identity.displayText(compact = true)} " +
+                status.noticeText
     }
 
     fun applyExistingCardEdit(team: TeamId, originalCard: EditablePlayerCard, entry: PlayerCardEntry): Boolean {
@@ -625,10 +629,11 @@ internal fun TeamCardDialog(
         }
         val identity = PlayerIdentity(entry.jerseyNumber, entry.playerName)
         val recordsAfterRemoval = removeEditablePlayerCard(state.playerCards(team), originalCard)
-        val rejection = playerCardAssignmentRejection(recordsAfterRemoval, identity)
-        if (rejection != null) {
+        val status = playerSuspensionStatus(recordsAfterRemoval, identity)
+        if (status != null) {
             invalidCardAssignmentMessage =
-                "${state.teamFor(team).name} ${identity.displayText(compact = true)} ${rejection.messageText}"
+                "${state.teamFor(team).name} ${identity.displayText(compact = true)} " +
+                    status.rejectionText
             return false
         }
         val updatedRecords = replaceEditablePlayerCard(
@@ -687,10 +692,11 @@ internal fun TeamCardDialog(
                 return true
             }
         }
-        val rejection = playerCardAssignmentRejection(state.playerCards(team), identity)
-        if (rejection != null) {
+        val status = playerSuspensionStatus(state.playerCards(team), identity)
+        if (status != null) {
             invalidCardAssignmentMessage =
-                "${state.teamFor(team).name} ${identity.displayText(compact = true)} ${rejection.messageText}"
+                "${state.teamFor(team).name} ${identity.displayText(compact = true)} " +
+                    status.rejectionText
             return false
         }
 
