@@ -34,7 +34,8 @@ fun GameState.adjustTimeouts(
     val adjustedTeamOneTimeouts = teamOneTimeoutsUsed.coerceAtLeast(0)
     val adjustedTeamTwoTimeouts = teamTwoTimeoutsUsed.coerceAtLeast(0)
     val entries = buildList {
-        val teamOneDelta = adjustedTeamOneTimeouts - this@adjustTimeouts.teamOne.timeoutsUsedThisHalf
+        val teamOneDelta = adjustedTeamOneTimeouts -
+            this@adjustTimeouts.teamOne.timeoutsUsedThisHalf
         if (teamOneDelta != 0) {
             add(
                 EventLogEntry(
@@ -45,7 +46,8 @@ fun GameState.adjustTimeouts(
                 )
             )
         }
-        val teamTwoDelta = adjustedTeamTwoTimeouts - this@adjustTimeouts.teamTwo.timeoutsUsedThisHalf
+        val teamTwoDelta = adjustedTeamTwoTimeouts -
+            this@adjustTimeouts.teamTwo.timeoutsUsedThisHalf
         if (teamTwoDelta != 0) {
             add(
                 EventLogEntry(
@@ -81,7 +83,10 @@ fun GameState.assessTimeout(
     val timeoutState = this.timeoutEligibleState(now)
         ?: return TimeoutAssessmentResult(this, GameEvent.TimeoutUnavailable(this))
     if (timeoutState.timeoutsRemaining(team) <= 0) {
-        return TimeoutAssessmentResult(this, GameEvent.TeamOutOfTimeouts(state = timeoutState, team = team))
+        return TimeoutAssessmentResult(
+            this,
+            GameEvent.TeamOutOfTimeouts(state = timeoutState, team = team),
+        )
     }
     val chargedState = timeoutState.chargeTimeout(team, now)
     return TimeoutAssessmentResult(
@@ -103,7 +108,9 @@ fun GameState.previewTimeout(
     val timeoutState = this.timeoutEligibleState(now)
         ?: return TimeoutAssessmentPreview(GameEvent.TimeoutUnavailable(this))
     if (timeoutState.timeoutsRemaining(team) <= 0) {
-        return TimeoutAssessmentPreview(GameEvent.TeamOutOfTimeouts(state = timeoutState, team = team))
+        return TimeoutAssessmentPreview(
+            GameEvent.TeamOutOfTimeouts(state = timeoutState, team = team)
+        )
     }
     val chargedState = timeoutState.chargeTimeout(team, now)
     return TimeoutAssessmentPreview(GameEvent.TimeoutCharged(state = chargedState, team = team))
@@ -116,7 +123,8 @@ fun GameState.canRequestTimeout(now: Long): Boolean {
 
 /**
  * Charge a timeout directly and update the relevant countdown.
- * Between points this extends the current timer; during a live point it starts an offense-set timer.
+ * Between points this extends the current timer; during a live point it starts an
+ * offense-set timer.
  *
  * @param team The team whose used-timeout count should increase.
  * @param now The epoch millis used as the start of a live-point timeout countdown.
@@ -191,13 +199,16 @@ fun GameState.timeoutsRemaining(team: TeamId): Int {
     return (this.timeoutsAllowedThisHalf(team) - usedThisHalf).coerceAtLeast(0)
 }
 /**
- * Return the countdown-expiry-adjusted state in which a timeout may be charged, if one is legal now.
- * This treats an expired pre-pull countdown as live play before deciding how the timeout works.
+ * Return the state in which a timeout may be charged, if one is legal now.
+ * This keeps pre-pull countdowns as pre-pull timeout states even after their target time, since
+ * a timeout called at that instant is a timeout before the pull rather than during live play.
  *
- * @param now The current epoch millis, used to treat an expired pre-pull countdown as live
- * play.
+ * @param now The current epoch millis, used to advance halftime into the next pull sequence.
  */
 private fun GameState.timeoutEligibleState(now: Long): GameState? {
+    if (this.phase.isBeforeLivePoint) {
+        return if (this.countdown != null) this else null
+    }
     val transitionedState = applyExpiredCountdownTransitions(now, showDefenseCountdowns = false)
     return when {
         transitionedState.phase.isBeforeLivePoint -> {
