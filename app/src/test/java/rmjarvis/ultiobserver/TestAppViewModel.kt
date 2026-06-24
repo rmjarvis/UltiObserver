@@ -160,6 +160,44 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertTrue(prePullViewModel.hasSetupDraft)
         assertNull(prePullViewModel.liveState)
         assertTrue(prePullViewModel.archivedGames.isEmpty())
+
+        // Undo-backed setup edits before the opening pull are still setup-only and should not be
+        // archived when starting over.
+        val setupOnlyViewModel = AppViewModel(NoOpAppStateStorage)
+        setupOnlyViewModel.startNewGame()
+        setupOnlyViewModel.finishSetup()
+        val setupOnlyPreview = setupOnlyViewModel.liveState!!
+        setupOnlyViewModel.updateLiveGame(
+            applySetupToLiveGame(
+                setupOnlyPreview,
+                setupOnlyPreview.toSetupState().copy(
+                    teamOne = TeamSetup("Edited", TeamColorChoice.WHITE),
+                ),
+                10_000L,
+            )
+        )
+        setupOnlyViewModel.goHome()
+        setupOnlyViewModel.startNewGame()
+        assertEquals(AppScreen.SETUP, setupOnlyViewModel.screen)
+        assertNull(setupOnlyViewModel.liveState)
+        assertTrue(setupOnlyViewModel.archivedGames.isEmpty())
+
+        // A logged event before the opening pull means the current game is real enough to archive.
+        val prePullEventViewModel = AppViewModel(NoOpAppStateStorage)
+        prePullEventViewModel.startNewGame()
+        prePullEventViewModel.finishSetup()
+        val prePullEventState = prePullEventViewModel.liveState!!
+        prePullEventViewModel.updateLiveGame(
+            prePullEventState.assessTimeout(
+                TeamId.TEAM_ONE,
+                prePullEventState.countdown!!.targetEpoch - 1_000L,
+            ).state
+        )
+        prePullEventViewModel.goHome()
+        prePullEventViewModel.startNewGame()
+        assertEquals(AppScreen.SETUP, prePullEventViewModel.screen)
+        assertNull(prePullEventViewModel.liveState)
+        assertEquals(1, prePullEventViewModel.archivedGames.size)
     }
 
     /**

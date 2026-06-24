@@ -157,7 +157,7 @@ internal fun LiveGameScreen(
         state.activeCountdownDisplay(now)
     }
     val canStartPoint = remember(state, now) {
-        state.phase == GamePhase.BETWEEN_POINTS || state.halftimeTransitionReady(now)
+        state.phase.isBeforeLivePoint || state.halftimeTransitionReady(now)
     }
     val hasExpiredPullActions = remember(state) {
         state.hasExpiredPullActions()

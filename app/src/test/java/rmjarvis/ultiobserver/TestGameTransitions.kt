@@ -89,6 +89,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
             mismatchException.message,
         )
         val betweenPointsWithTimeoutCountdown = standardLiveGameState().copy(
+            phase = GamePhase.BETWEEN_POINTS,
             countdown = inPointTimeoutCountdown,
         )
         val betweenPointsMismatchException = assertThrows(IllegalStateException::class.java) {
@@ -130,12 +131,13 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertFalse(state.hasExpiredPullActions())
         assertTrue(state.isInitialLivePreview())
         assertFalse(automaticStartState.isInitialLivePreview())
-        assertFalse(state.copy(teamOne = state.teamOne.copy(score = 1)).isInitialLivePreview())
-        assertFalse(state.copy(teamTwo = state.teamTwo.copy(score = 1)).isInitialLivePreview())
+        assertFalse(state.copy(phase = GamePhase.BETWEEN_POINTS).isInitialLivePreview())
+        assertFalse(state.adjustScore(teamOneScore = 1, teamTwoScore = 0).isInitialLivePreview())
         assertFalse(
-            state.copy(undoEntry = UndoEntry("Undo placeholder", state)).isInitialLivePreview()
+            state.assessTimeout(VC, betweenPointsCountdown.targetEpoch - 1_000L)
+                .state
+                .isInitialLivePreview()
         )
-        assertFalse(state.copy(halftimeTaken = true).isInitialLivePreview())
 
         // In-point timeout countdowns still continue automatically.
         state = state.beginLivePoint()
@@ -218,9 +220,9 @@ class TestGameTransitions : GameDomainTestFixtures() {
             pullingFromEnd = FieldEnd.NEAR,
         )
 
-        // Start the game and verify the first between-points sequence matches the setup.
+        // Start the game and verify the opening-pull sequence matches the setup.
         var state = createLiveGameState(setup)
-        assertEquals(GamePhase.BETWEEN_POINTS, state.phase)
+        assertEquals(GamePhase.PRE_GAME, state.phase)
         assertEquals("Viscous Coupling", state.teamOne.name)
         assertEquals("Animal", state.teamTwo.name)
         assertEquals(0, state.teamOne.score)

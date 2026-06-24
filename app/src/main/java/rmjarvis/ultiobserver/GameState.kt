@@ -167,8 +167,13 @@ enum class GamePhase {
     BETWEEN_POINTS,
     LIVE_POINT,
     HALFTIME,
-    GAME_OVER,
+    GAME_OVER;
+
+    /// Report whether this phase is before the next point has become live.
+    val isBeforeLivePoint: Boolean
+        get() = this == PRE_GAME || this == BETWEEN_POINTS
 }
+
 /**
  * Selectable team jersey color and the display colors that go with it.
  *
@@ -540,13 +545,9 @@ data class GameState(
     val redoEntry: GameState? = null,
     val lastEvent: String = "Pregame setup complete.",
 ) {
-    /// Report whether this state is the pre-pull live preview created directly from setup.
+    /// Report whether this state is still before the opening pull has started.
     fun isInitialLivePreview(): Boolean {
-        return phase == GamePhase.BETWEEN_POINTS &&
-            teamOne.score == 0 &&
-            teamTwo.score == 0 &&
-            undoEntry == null &&
-            !halftimeTaken
+        return phase == GamePhase.PRE_GAME && eventLog.isEmpty()
     }
 
     /**
@@ -715,7 +716,8 @@ data class GameState(
  *
  * @param existing The live state currently being edited.
  * @param setup The setup values returned by the update-game form.
- * @param now The epoch millis for rebuilding the opening pull countdown when pre-play orientation changes.
+ * @param now The epoch millis for rebuilding the opening-pull countdown when its orientation
+ * changes.
  */
 fun applySetupToLiveGame(
     existing: GameState,
@@ -731,9 +733,7 @@ fun applySetupToLiveGame(
     } else {
         setup.pullingTeam.flip()
     }
-    val shouldResyncPullState = existing.teamOne.score == 0 &&
-        existing.teamTwo.score == 0 &&
-        existing.phase != GamePhase.LIVE_POINT
+    val shouldResyncOpeningPullState = existing.phase == GamePhase.PRE_GAME
 
     val base = existing.copy(
         startDate = setup.startDate,
@@ -780,12 +780,12 @@ fun applySetupToLiveGame(
         ),
     )
 
-    val updatedState = if (shouldResyncPullState) {
+    val updatedState = if (shouldResyncOpeningPullState) {
         promptAdjustedBase.copy(
             nearAttackingTeam = openingNearAttackingTeam,
             pullingTeam = setup.pullingTeam,
             pullingFromEnd = setup.pullingFromEnd,
-        ).startPullSequence(now)
+        ).startPullSequence(now, phase = GamePhase.PRE_GAME)
     } else {
         promptAdjustedBase
     }

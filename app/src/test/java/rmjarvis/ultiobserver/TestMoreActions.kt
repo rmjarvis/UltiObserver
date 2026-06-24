@@ -89,6 +89,7 @@ class TestMoreActions : GameDomainTestFixtures() {
             pullingTeam = VC,
             pullingFromEnd = FieldEnd.FAR,
         )
+        state = recordGoalFromCurrentStateAt(state, VC, LocalTime.of(11, 5))
         state = state.startHalftimeNow(timestampAt(state, LocalTime.of(11, 10)))
         val halftimeCountdownBeforeFlip = state.countdown
         state = state.flipFieldDisplay()
@@ -226,6 +227,7 @@ class TestMoreActions : GameDomainTestFixtures() {
             pullingFromEnd = FieldEnd.FAR,
         )
         state = state.adjustTimeouts(teamOneTimeoutsUsed = 1, teamTwoTimeoutsUsed = 2)
+        state = recordGoalFromCurrentStateAt(state, VC, LocalTime.of(11, 5))
         val beforeManualHalftime = state
         val manualHalftimeStartTime = timestampAt(state, LocalTime.of(11, 10))
         state = state.startHalftimeNow(manualHalftimeStartTime)

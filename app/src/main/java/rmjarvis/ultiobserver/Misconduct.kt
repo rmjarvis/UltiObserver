@@ -1900,7 +1900,7 @@ fun GameState.canReportOffenseSet(showDefenseCountdowns: Boolean): Boolean {
     val countdown = countdown ?: return false
     return showDefenseCountdowns && when {
         phase == GamePhase.LIVE_POINT && countdown.kind == CountdownKind.TIME_OUT -> true
-        phase == GamePhase.BETWEEN_POINTS && countdown.kind == CountdownKind.MISCONDUCT_BETWEEN_POINTS -> true
+        phase.isBeforeLivePoint && countdown.kind == CountdownKind.MISCONDUCT_BETWEEN_POINTS -> true
         else -> false
     }
 }
@@ -1923,7 +1923,7 @@ fun GameState.reportOffenseSet(now: Long): GameState {
         phase == GamePhase.LIVE_POINT && countdown.kind == CountdownKind.TIME_OUT -> {
             max(countdown.targetEpoch, now) + 20_000L
         }
-        phase == GamePhase.BETWEEN_POINTS && countdown.kind == CountdownKind.MISCONDUCT_BETWEEN_POINTS -> {
+        phase.isBeforeLivePoint && countdown.kind == CountdownKind.MISCONDUCT_BETWEEN_POINTS -> {
             max(countdown.targetEpoch + 10_000L, now + 20_000L)
         }
         else -> return this

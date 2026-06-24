@@ -144,7 +144,7 @@ fun GameState.chargeTimeout(
         lastEvent = "Timeout charged to ${timeoutState.teamName(team)}."
     )
 
-    if (timeoutState.phase == GamePhase.BETWEEN_POINTS) {
+    if (timeoutState.phase.isBeforeLivePoint) {
         return applyBetweenPointsTimeout(updatedState)
             .withEventLogEntry(
                 EventLogEntry(
@@ -192,16 +192,18 @@ fun GameState.timeoutsRemaining(team: TeamId): Int {
 }
 /**
  * Return the countdown-expiry-adjusted state in which a timeout may be charged, if one is legal now.
- * This treats an expired between-points countdown as live play before deciding how the timeout works.
+ * This treats an expired pre-pull countdown as live play before deciding how the timeout works.
  *
- * @param now The current epoch millis, used to treat an expired between-points countdown as live play.
+ * @param now The current epoch millis, used to treat an expired pre-pull countdown as live
+ * play.
  */
 private fun GameState.timeoutEligibleState(now: Long): GameState? {
     val transitionedState = applyExpiredCountdownTransitions(now, showDefenseCountdowns = false)
-    return when (transitionedState.phase) {
-        GamePhase.BETWEEN_POINTS -> if (transitionedState.countdown != null) transitionedState else null
-        GamePhase.LIVE_POINT -> transitionedState
-        GamePhase.HALFTIME -> null
+    return when {
+        transitionedState.phase.isBeforeLivePoint -> {
+            if (transitionedState.countdown != null) transitionedState else null
+        }
+        transitionedState.phase == GamePhase.LIVE_POINT -> transitionedState
         else -> null
     }
 }

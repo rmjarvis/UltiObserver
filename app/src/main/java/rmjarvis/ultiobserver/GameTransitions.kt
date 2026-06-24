@@ -5,7 +5,8 @@ import kotlin.math.max
 /**
  * Build the initial live-game state from the completed setup form.
  *
- * @param setup The pregame setup choices that define teams, rules, start time, and opening pull orientation.
+ * @param setup The pregame setup choices that define teams, rules, start time, and opening
+ * pull orientation.
  */
 fun createLiveGameState(setup: GameSetupState): GameState {
     val nearAttackingTeam = if (setup.pullingFromEnd == FieldEnd.FAR) {
@@ -61,26 +62,34 @@ fun createLiveGameState(setup: GameSetupState): GameState {
         switchGenZoneAtHalftime = setup.switchGenZoneAtHalftime,
         openingPullingTeam = setup.pullingTeam,
         openingPullingFromEnd = setup.pullingFromEnd,
-        phase = GamePhase.BETWEEN_POINTS,
+        phase = GamePhase.PRE_GAME,
         countdown = initialCountdown,
     )
 }
 /**
- * Start a between-points pull countdown from the current field orientation.
+ * Start a pre-pull countdown from the current field orientation.
  * This is for edge cases where an event does not automatically start the countdown directly.
  *
- * @param now The epoch millis to use as the countdown start so tests and live clock ticks are deterministic.
+ * @param now The epoch millis to use as the countdown start so tests and live clock ticks are
+ * deterministic.
+ * @param phase The pre-pull phase to enter; `PRE_GAME` uses opening-pull timing.
  */
 fun GameState.startPullSequence(
     now: Long,
+    phase: GamePhase = GamePhase.BETWEEN_POINTS,
 ): GameState {
     val countdown = buildBetweenPointsCountdown(
         pullingFromEnd = this.pullingFromEnd,
         sequenceStart = now,
+        kind = if (phase == GamePhase.PRE_GAME) {
+            CountdownKind.OPENING_PULL
+        } else {
+            CountdownKind.BETWEEN_POINTS
+        },
         promptTarget = this.pullPromptTarget,
     )
     return this.copy(
-        phase = GamePhase.BETWEEN_POINTS,
+        phase = phase,
         countdown = countdown,
         pullCountdownExpired = false,
         pullSequenceOffsidesRecorded = false,
@@ -90,6 +99,7 @@ fun GameState.startPullSequence(
         lastEvent = "Pull sequence started.",
     )
 }
+
 /**
  * Record a scored goal and advances the game to halftime, game over, or the next pull sequence.
  *
@@ -401,7 +411,7 @@ fun GameState.recordGoalFromCurrentState(
     scoringTeam: TeamId,
     now: Long,
 ): GameState {
-    val livePointState = if (this.phase == GamePhase.BETWEEN_POINTS) {
+    val livePointState = if (this.phase.isBeforeLivePoint) {
         this.beginLivePoint(now)
     } else {
         this
@@ -447,13 +457,14 @@ fun GameState.applyExpiredCountdownTransitions(
         return this
     }
     return when {
-        this.phase == GamePhase.BETWEEN_POINTS && countdown.kind.usesBetweenPointsTarget() -> {
+        this.phase.isBeforeLivePoint && countdown.kind.usesBetweenPointsTarget() -> {
             this.automaticLivePointState(now)
         }
-        this.phase == GamePhase.BETWEEN_POINTS && countdown.kind == CountdownKind.MISCONDUCT_BETWEEN_POINTS -> {
+        this.phase.isBeforeLivePoint &&
+            countdown.kind == CountdownKind.MISCONDUCT_BETWEEN_POINTS -> {
             if (showDefenseCountdowns) this else this.automaticLivePointState(now)
         }
-        this.phase == GamePhase.BETWEEN_POINTS && countdown.kind == CountdownKind.DEFENSE_CHECK -> {
+        this.phase.isBeforeLivePoint && countdown.kind == CountdownKind.DEFENSE_CHECK -> {
             this.automaticLivePointState(now)
         }
         this.phase == GamePhase.LIVE_POINT && countdown.kind == CountdownKind.TIME_OUT -> {

@@ -466,7 +466,7 @@ class TestPullViolations : GameDomainTestFixtures() {
 
         // Start from a pull sequence with Viscous Coupling pulling to Animal.
         var state = standardLiveGameState()
-        assertEquals(GamePhase.BETWEEN_POINTS, state.phase)
+        assertEquals(GamePhase.PRE_GAME, state.phase)
         assertEquals(VC, state.pullingTeam)
         assertEquals(0, state.teamOne.offsides)
         assertEquals(0, state.teamOne.falseStarts)
@@ -552,7 +552,7 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertEquals(1, previewEvent.state.teamOne.falseStarts)
         pullViolationResult = state.assessPullViolation(ANIMAL)
         state = pullViolationResult.state
-        assertEquals(GamePhase.BETWEEN_POINTS, state.phase)
+        assertEquals(GamePhase.PRE_GAME, state.phase)
         assertNotNull(state.countdown)
         assertEquals(0, state.teamOne.offsides)
         assertEquals(0, state.teamOne.falseStarts)
@@ -771,6 +771,31 @@ class TestPullViolations : GameDomainTestFixtures() {
         )
         assertUndoRestores(state, timeViolationState)
 
+        // If the opening pull has already started the first live point, the reset still belongs
+        // to the pre-game opening-pull sequence.
+        val liveFirstPointState = state.beginLivePoint()
+        val liveFirstPointResult = liveFirstPointState.assessTimeViolation(
+            ANIMAL,
+            firstViolationMoment,
+        )
+        val liveFirstPointWarningEvent =
+            liveFirstPointResult.event as GameEvent.TimeViolationRecorded
+        val liveFirstPointWarningState = liveFirstPointResult.state
+        assertEquals(TimeViolationOutcome.WARNING, liveFirstPointWarningEvent.outcome)
+        assertEquals(GamePhase.PRE_GAME, liveFirstPointWarningState.phase)
+        assertEquals(CountdownKind.PULL_RESET, liveFirstPointWarningState.countdown?.kind)
+
+        // Defensive fallback for restored/archived states that no longer have the start-point
+        // undo entry: a live-point time violation reset returns to the ordinary between-points
+        // phase rather than failing.
+        val strippedLiveFirstPointState = liveFirstPointState.copy(undoEntry = null)
+        val strippedLiveFirstPointResult = strippedLiveFirstPointState.assessTimeViolation(
+            ANIMAL,
+            firstViolationMoment,
+        )
+        assertEquals(GamePhase.BETWEEN_POINTS, strippedLiveFirstPointResult.state.phase)
+        assertEquals(CountdownKind.PULL_RESET, strippedLiveFirstPointResult.state.countdown?.kind)
+
         // When the warning reset expires, it starts the live point like a normal pull countdown.
         val liveAfterWarningReset = timeViolationState.applyExpiredCountdownTransitions(
             firstViolationMoment + 20_000L,
@@ -955,7 +980,7 @@ class TestPullViolations : GameDomainTestFixtures() {
         var timeViolationState = timeViolationResult.state
         assertEquals(ANIMAL, receivingNoTimeoutEvent.team)
         assertEquals(TimeViolationOutcome.NO_TIMEOUT, receivingNoTimeoutEvent.outcome)
-        assertEquals(GamePhase.BETWEEN_POINTS, timeViolationState.phase)
+        assertEquals(GamePhase.PRE_GAME, timeViolationState.phase)
         assertNull(timeViolationState.countdown)
         assertTrue(timeViolationState.pullSkippedForCurrentPoint)
         assertFalse(timeViolationState.canAssessTimeViolation())
@@ -1005,16 +1030,16 @@ class TestPullViolations : GameDomainTestFixtures() {
      */
     @Test
     fun expiredPullRestart() {
-        // Restarting the expired pull countdown restores the ordinary countdown and clears the
-        // action surface.
+        // Restarting the expired opening-pull countdown restores opening-pull timing and clears
+        // the action surface.
         val state = standardLiveGameState()
         val expiredPullDecisionState = state.expiredPullDecisionState()
         val timeViolationState = expiredPullDecisionState.restartPullCountdown(
             state.countdown!!.targetEpoch
         )
-        assertEquals(CountdownKind.BETWEEN_POINTS, timeViolationState.countdown?.kind)
+        assertEquals(CountdownKind.OPENING_PULL, timeViolationState.countdown?.kind)
         assertEquals("Signal in", timeViolationState.countdown?.label)
-        assertEquals(60, timeViolationState.countdown?.durationSeconds)
+        assertEquals(20, timeViolationState.countdown?.durationSeconds)
         assertFalse(timeViolationState.hasExpiredPullActions())
         assertEquals("Undo Restart countdown", timeViolationState.undoEntry?.label)
     }

@@ -259,13 +259,13 @@ internal fun CountdownState.betweenPointsTimingCues(): List<TimingCue> {
 
 /// Report whether the expired-pull action surface should be available.
 fun GameState.hasExpiredPullActions(): Boolean {
-    return this.phase == GamePhase.BETWEEN_POINTS && this.pullCountdownExpired
+    return this.phase.isBeforeLivePoint && this.pullCountdownExpired
 }
 
 /// Report whether a pull time violation can be recorded for the current pull sequence.
 fun GameState.canAssessTimeViolation(): Boolean {
     return !this.pullSkippedForCurrentPoint &&
-        (this.phase == GamePhase.BETWEEN_POINTS || this.phase == GamePhase.LIVE_POINT)
+        (this.phase.isBeforeLivePoint || this.phase == GamePhase.LIVE_POINT)
 }
 
 /// Build the state restored by undoing automatic start point so time violation can still be assessed.
@@ -374,7 +374,7 @@ private fun GameState.recordTimeViolationWarning(team: TeamId, now: Long): GameS
         } else {
             this.teamTwo
         },
-        phase = GamePhase.BETWEEN_POINTS,
+        phase = this.pullResetPhase(),
         countdown = this.buildTimeViolationCountdown(
             now = now,
             kind = CountdownKind.PULL_RESET,
@@ -406,6 +406,11 @@ fun GameState.restartPullCountdown(now: Long): GameState {
         countdown = buildBetweenPointsCountdown(
             pullingFromEnd = this.pullingFromEnd,
             sequenceStart = now,
+            kind = if (this.phase == GamePhase.PRE_GAME) {
+                CountdownKind.OPENING_PULL
+            } else {
+                CountdownKind.BETWEEN_POINTS
+            },
             promptTarget = this.pullPromptTarget,
         ),
         pullCountdownExpired = false,
@@ -433,7 +438,7 @@ private fun GameState.recordTimeViolationTimeout(team: TeamId, now: Long): GameS
         } else {
             this.teamTwo
         },
-        phase = GamePhase.BETWEEN_POINTS,
+        phase = this.pullResetPhase(),
         countdown = buildTimeViolationCountdown(
             now = now,
             kind = CountdownKind.BETWEEN_POINTS,
@@ -543,7 +548,7 @@ private fun GameState.recordTimeViolationWithoutTimeout(team: TeamId, now: Long)
     return this.copy(
         teamOne = if (team == TeamId.TEAM_ONE) this.teamOne.withAddedTimeViolation() else this.teamOne,
         teamTwo = if (team == TeamId.TEAM_TWO) this.teamTwo.withAddedTimeViolation() else this.teamTwo,
-        phase = GamePhase.BETWEEN_POINTS,
+        phase = this.pullResetPhase(),
         countdown = null,
         pullCountdownExpired = false,
         pullSkippedForCurrentPoint = true,
@@ -556,6 +561,15 @@ private fun GameState.recordTimeViolationWithoutTimeout(team: TeamId, now: Long)
             timeViolationOutcome = TimeViolationOutcome.NO_TIMEOUT,
         )
     ).withUndo(this, "Undo Time violation on ${this.teamName(team)}")
+}
+
+/// Return the phase to use for pull-reset states before the next point starts.
+private fun GameState.pullResetPhase(): GamePhase {
+    if (this.phase != GamePhase.LIVE_POINT) {
+        return this.phase
+    }
+    val previousPhase = this.undoEntry?.previous?.phase
+    return if (previousPhase?.isBeforeLivePoint == true) previousPhase else GamePhase.BETWEEN_POINTS
 }
 
 /// Return this team state with one additional time violation.

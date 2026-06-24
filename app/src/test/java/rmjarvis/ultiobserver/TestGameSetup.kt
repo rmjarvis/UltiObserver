@@ -7,7 +7,6 @@ import java.time.LocalTime
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -202,10 +201,10 @@ class TestGameSetup : GameDomainTestFixtures() {
         assertEquals(FieldEnd.NEAR, state.pullingFromEnd)
         assertEquals(VC, state.nearAttackingTeam)
         assertEquals("Pull sequence started.", state.lastEvent)
-        assertEquals(CountdownKind.BETWEEN_POINTS, state.countdown?.kind)
+        assertEquals(CountdownKind.OPENING_PULL, state.countdown?.kind)
         assertEquals("Pull in", state.countdown?.label)
-        assertEquals(80, state.countdown?.durationSeconds)
-        assertEquals(90_000L, state.countdown?.targetEpoch)
+        assertEquals(40, state.countdown?.durationSeconds)
+        assertEquals(50_000L, state.countdown?.targetEpoch)
         assertEquals("Undo Update game setup", state.undoEntry?.label)
         assertEquals(beforeSetupEditBeforePlay, state.undoEntry?.previous)
 
