@@ -687,21 +687,23 @@ data class GameState(
     fun adjustScore(teamOneScore: Int, teamTwoScore: Int, now: Long): GameState {
         val adjustedTeamOneScore = teamOneScore.coerceAtLeast(0)
         val adjustedTeamTwoScore = teamTwoScore.coerceAtLeast(0)
-        val entries = if (adjustedTeamOneScore != this.teamOne.score || adjustedTeamTwoScore != this.teamTwo.score) {
-            listOf(
-                EventLogEntry(
-                    timestampEpoch = now,
-                    type = EventLogType.SCORE_ADJUSTED,
-                    teamOneScore = adjustedTeamOneScore,
-                    teamTwoScore = adjustedTeamTwoScore,
-                )
-            )
-        } else {
-            emptyList()
+        if (
+            adjustedTeamOneScore == this.teamOne.score &&
+            adjustedTeamTwoScore == this.teamTwo.score
+        ) {
+            return this
         }
+        val entries = listOf(
+            EventLogEntry(
+                timestampEpoch = now,
+                type = EventLogType.SCORE_ADJUSTED,
+                teamOneScore = adjustedTeamOneScore,
+                teamTwoScore = adjustedTeamTwoScore,
+            )
+        )
         return this.copy(
-            teamOne = this.teamOne.copy(score = teamOneScore.coerceAtLeast(0)),
-            teamTwo = this.teamTwo.copy(score = teamTwoScore.coerceAtLeast(0)),
+            teamOne = this.teamOne.copy(score = adjustedTeamOneScore),
+            teamTwo = this.teamTwo.copy(score = adjustedTeamTwoScore),
             lastEvent = "Score adjusted.",
         ).withEventLogEntries(entries).withUndo(this, "Undo Score adjustment")
     }
