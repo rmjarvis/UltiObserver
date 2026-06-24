@@ -102,14 +102,14 @@ class TestMixed : GameDomainTestFixtures() {
         val ANIMAL = TeamId.TEAM_TWO
         var state = mixedLiveGameState(ratioRule = GenderRatioRule.ABBA)
 
-        val preview = state.previewPullInfraction(VC, PullInfractionType.MAJORITY_PULL).event!!
+        val preview = state.previewPullViolation(VC, PullViolationType.MAJORITY_PULL).event!!
         assertEquals("Majority pull rule violation", preview.formatPopupTitle())
         assertTrue(state.usesMajorityPullRule())
 
-        val majorityPullResult = state.assessPullInfraction(
+        val majorityPullResult = state.assessPullViolation(
             VC,
             timestampAt(state, LocalTime.of(12, 0)),
-            PullInfractionType.MAJORITY_PULL,
+            PullViolationType.MAJORITY_PULL,
         )
         state = majorityPullResult.state
         assertEquals(GamePhase.LIVE_POINT, state.phase)
@@ -127,28 +127,33 @@ class TestMixed : GameDomainTestFixtures() {
                 "The disc is live -- no defensive check is required.",
             majorityPullResult.message(),
         )
-        assertNull(state.assessPullInfraction(VC).event)
+        assertNull(state.assessPullViolation(VC).event)
         assertEquals(state, state.recordMajorityPullViolation(timestampAt(state, LocalTime.of(12, 1))))
         assertEquals(state, state.recordOffsides(timestampAt(state, LocalTime.of(12, 1))))
 
-        val falseStartResult = state.assessPullInfraction(
+        // False-start selection still resolves to the ordinary receiving-team pull violation.
+        val falseStartResult = state.assessPullViolation(
             ANIMAL,
             timestampAt(state, LocalTime.of(12, 2)),
-            PullInfractionType.FALSE_START,
+            PullViolationType.FALSE_START,
         )
-        assertEquals(PullInfractionType.FALSE_START, (falseStartResult.event as GameEvent.PullInfractionRecorded).infraction)
+        assertEquals(
+            PullViolationType.FALSE_START,
+            (falseStartResult.event as GameEvent.PullViolationRecorded).violation,
+        )
 
+        // Majority-pull counts are tracked on whichever team pulled the current point.
         val animalPullingState = mixedLiveGameState(
             ratioRule = GenderRatioRule.ABBA,
             pullingTeam = ANIMAL,
         )
-        val animalPreview = animalPullingState.previewPullInfraction(ANIMAL, PullInfractionType.MAJORITY_PULL)
-            .event as GameEvent.PullInfractionRecorded
+        val animalPreview = animalPullingState.previewPullViolation(ANIMAL, PullViolationType.MAJORITY_PULL)
+            .event as GameEvent.PullViolationRecorded
         assertEquals(1, animalPreview.state.teamTwo.majorityPullViolations)
-        val animalMajorityPullResult = animalPullingState.assessPullInfraction(
+        val animalMajorityPullResult = animalPullingState.assessPullViolation(
             ANIMAL,
             timestampAt(animalPullingState, LocalTime.of(12, 3)),
-            PullInfractionType.MAJORITY_PULL,
+            PullViolationType.MAJORITY_PULL,
         )
         assertEquals(1, animalMajorityPullResult.state.teamTwo.majorityPullViolations)
         assertEquals("Majority pull violation on Animal.", animalMajorityPullResult.state.lastEvent)
@@ -166,7 +171,7 @@ class TestMixed : GameDomainTestFixtures() {
     fun majorityPullCorrection() {
         val initialState = mixedLiveGameState(ratioRule = GenderRatioRule.ABBA)
         val state = initialState
-            .adjustPullInfractions(
+            .adjustPullViolations(
                 teamOneOffsides = 0,
                 teamOneFalseStarts = 0,
                 teamOneMajorityPulls = 2,

@@ -4,7 +4,7 @@ UltiObserver Privacy Policy
 Effective date: May 21, 2026
 
 UltiObserver is an Android app by Mike Jarvis for managing Ultimate observer
-game information such as time, score, cards, timeouts, pull infractions, and
+game information such as time, score, cards, timeouts, pull violations, and
 game summaries.
 
 Data stored by the app
@@ -16,7 +16,7 @@ device. This may include:
 * Your observer profile name and avatar preference.
 * App settings, including timing cue sound and vibration preferences.
 * Current game setup and state, including team names, tournament name, rules,
-  score, timeouts, pull direction, cards, technical fouls, pull infractions,
+  score, timeouts, pull direction, cards, technical fouls, pull violations,
   time violations, timestamps, and event log entries.
 * Archived games and game summaries.
 

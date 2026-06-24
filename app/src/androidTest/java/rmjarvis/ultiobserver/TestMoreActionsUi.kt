@@ -42,12 +42,12 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
         openMoreActionsDialogAndCancel("Adjust score")
         openMoreActionsDialogAndCancel("Adjust timeouts")
         openMoreActionsDialogAndCancel("Adjust cards / techs")
-        openMoreActionsDialogAndCancel("Adjust pull infractions")
+        openMoreActionsDialogAndCancel("Adjust pull violations")
 
         // Manual correction dialogs should also apply their visible values.
         applyScoreAdjustment()
         applyTimeoutAdjustment()
-        applyPullInfractionAdjustment()
+        applyPullViolationAdjustment()
         applyCardTechAdjustment()
 
         // Orientation controls should update state without breaking the live screen.

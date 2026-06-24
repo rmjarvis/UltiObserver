@@ -116,7 +116,11 @@ class TestGameTimeouts : GameDomainTestFixtures() {
         // Pull-side between-points timeouts use the pull-specific 1-minute cue.
         val pullSideState = standardLiveGameState().copy(
             pullingFromEnd = FieldEnd.NEAR,
-            countdown = buildBetweenPointsCountdown(FieldEnd.NEAR, 1_000L),
+            countdown = buildBetweenPointsCountdown(
+                pullingFromEnd = FieldEnd.NEAR,
+                sequenceStart = 1_000L,
+                promptTarget = PullPromptTarget.NEAR,
+            ),
         )
         val pullSideTimeoutTime = pullSideState.countdown!!.targetEpoch - 1_000L
         val pullSideTimeoutState = pullSideState.assessTimeout(ANIMAL, pullSideTimeoutTime).state

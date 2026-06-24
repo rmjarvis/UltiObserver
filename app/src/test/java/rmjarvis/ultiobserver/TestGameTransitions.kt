@@ -337,8 +337,8 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertNull(state.pendingCapOffer)
 
         // During the next pull sequence, Viscous Coupling records an offsides as the pulling team.
-        val pullInfractionResult = state.assessPullInfraction(VC)
-        state = pullInfractionResult.state
+        val pullViolationResult = state.assessPullViolation(VC)
+        state = pullViolationResult.state
         assertEquals(1, state.teamOne.offsides)
         assertEquals(0, state.teamTwo.offsides)
         assertEquals(GamePhase.LIVE_POINT, state.phase)
@@ -347,7 +347,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
             "This is Viscous Coupling's first pull violation.\n\n" +
                 "Animal starts at the brick mark.\n\n" +
                 "The disc is live -- no defensive check is required.",
-            pullInfractionResult.message(),
+            pullViolationResult.message(),
         )
         assertEquals("Undo Offsides on Viscous Coupling", state.undoEntry?.label)
 

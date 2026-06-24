@@ -115,16 +115,16 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         // Viscous Coupling scores the first point, then Animal false-starts and that entry is
         // undone.
         recordGoal(TeamId.TEAM_ONE, "Undo Goal by $viscousCoupling")
-        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "pull-infraction")).performClick()
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "pull-violation")).performClick()
         waitForText("$viscousCoupling gets to set up on defense.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
         composeRule.onNodeWithText("Undo False start on $animal").performClick()
 
         // Viscous Coupling then records an offsides; the duplicate offsides button is disabled.
-        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-infraction")).performClick()
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-violation")).performClick()
         waitForText("$animal starts at the brick mark.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
-        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-infraction"))
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-violation"))
             .assertIsNotEnabled()
 
         // Animal picks up two yellows and two technical fouls during the live point.
@@ -159,9 +159,9 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             expectedMessage = "$viscousCoupling starts at attacking brick.",
             substring = true,
         )
-        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-infraction"))
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-violation"))
             .assertIsNotEnabled()
-        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "pull-infraction"))
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "pull-violation"))
             .assertIsNotEnabled()
 
         // Viscous Coupling scores the next two points, checking that halftime interrupts the flow.
@@ -242,24 +242,24 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         // Start from an unlocked live point so primary field buttons are visible.
         startLiveGameProgrammatically()
 
-        // Each side can record only one pull infraction of its type for the current pull sequence.
-        // For team 2 (receiving) the pull infraction is a False start.
-        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "pull-infraction")).performClick()
+        // Each side can record only one pull violation of its type for the current pull sequence.
+        // For team 2 (receiving) the pull violation is a False start.
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "pull-violation")).performClick()
         waitForText("Team 1 gets to set up on defense.", substring = true)
         composeRule.onNodeWithText("Cancel").performClick()
-        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "pull-infraction"))
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "pull-violation"))
             .assertIsDisplayed()
-        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "pull-infraction")).performClick()
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "pull-violation")).performClick()
         waitForText("Team 1 gets to set up on defense.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
-        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "pull-infraction"))
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "pull-violation"))
             .assertIsNotEnabled()
 
         // For team 1 (pulling) it is Offsides.
-        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-infraction")).performClick()
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-violation")).performClick()
         waitForText("Team 2 starts at the brick mark.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
-        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-infraction"))
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-violation"))
             .assertIsNotEnabled()
 
         // Timeout during a live point starts a timeout countdown.

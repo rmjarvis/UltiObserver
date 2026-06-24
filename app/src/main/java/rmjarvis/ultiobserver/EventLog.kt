@@ -134,7 +134,7 @@ private fun GameState.formatEventLogDescription(entry: EventLogEntry): String {
         EventLogType.TECHNICAL_FOUL -> technicalFoulDescription(entry)
         EventLogType.OFFSIDES,
         EventLogType.FALSE_START,
-        EventLogType.MAJORITY_PULL -> pullInfractionDescription(entry)
+        EventLogType.MAJORITY_PULL -> pullViolationDescription(entry)
         EventLogType.TIME_VIOLATION -> timeViolationDescription(entry)
         EventLogType.TIMEOUT -> timeoutDescription(entry)
         EventLogType.HALFTIME -> "Halftime"
@@ -207,12 +207,12 @@ private fun GameState.technicalFoulDescription(entry: EventLogEntry): String {
     }
 }
 
-/// Return display text for a pull-infraction event or pull-infraction correction.
-private fun GameState.pullInfractionDescription(entry: EventLogEntry): String {
+/// Return display text for a pull-violation event or pull-violation correction.
+private fun GameState.pullViolationDescription(entry: EventLogEntry): String {
     val delta = entry.delta
-    val label = entry.type.pullInfractionCorrectionLabel()
+    val label = entry.type.pullViolationCorrectionLabel()
     return if (delta == null) {
-        "${entry.type.pullInfractionEventLabel()} on ${teamName(entry.team!!)}"
+        "${entry.type.pullViolationEventLabel()} on ${teamName(entry.team!!)}"
     } else {
         "Adjusted ${teamName(entry.team!!)} $label ${delta.formatDelta()}"
     }
@@ -249,12 +249,12 @@ private fun EventLogType.cardLabel(): String {
     return CARD_LABELS.getValue(this)
 }
 
-/// Return compact display text for a pull-infraction event type.
-private fun EventLogType.pullInfractionEventLabel(): String {
+/// Return compact display text for a pull-violation event type.
+private fun EventLogType.pullViolationEventLabel(): String {
     return PULL_INFRACTION_EVENT_LABELS.getValue(this)
 }
 
-/// Return lowercase display text for pull-infraction correction labels.
-private fun EventLogType.pullInfractionCorrectionLabel(): String {
+/// Return lowercase display text for pull-violation correction labels.
+private fun EventLogType.pullViolationCorrectionLabel(): String {
     return PULL_INFRACTION_CORRECTION_LABELS.getValue(this)
 }

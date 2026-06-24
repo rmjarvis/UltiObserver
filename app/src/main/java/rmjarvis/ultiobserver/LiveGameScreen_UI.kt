@@ -93,8 +93,8 @@ internal fun LiveGameScreen(
     var showEventLogSheet by remember { mutableStateOf(false) }
     var pendingTimeoutRequest by remember { mutableStateOf<PendingTimeoutRequest?>(null) }
     var pendingTimeViolationTeam by remember { mutableStateOf<TeamId?>(null) }
-    var pendingPullInfractionTeam by remember { mutableStateOf<TeamId?>(null) }
-    var pendingPullInfractionType by remember { mutableStateOf(PullInfractionType.OFFSIDES) }
+    var pendingPullViolationTeam by remember { mutableStateOf<TeamId?>(null) }
+    var pendingPullViolationType by remember { mutableStateOf(PullViolationType.OFFSIDES) }
     var pendingTechnicalFoulTeam by remember { mutableStateOf<TeamId?>(null) }
     var pendingTechnicalFoulResolution by remember {
         mutableStateOf<PendingFieldTechnicalFoulResolution?>(null)
@@ -404,10 +404,10 @@ internal fun LiveGameScreen(
                             pendingTimeViolationTeam = team
                         }
                     },
-                    onPullInfraction = { team ->
-                        val infraction = state.pullInfractionTypeFor(team)
-                        pendingPullInfractionTeam = team
-                        pendingPullInfractionType = infraction
+                    onPullViolation = { team ->
+                        val violation = state.pullViolationTypeFor(team)
+                        pendingPullViolationTeam = team
+                        pendingPullViolationType = violation
                     },
                     onCards = { team -> pendingCardTeam = team },
                     onTechnicalFoul = { team -> pendingTechnicalFoulTeam = team },
@@ -564,16 +564,16 @@ internal fun LiveGameScreen(
         )
     }
 
-    pendingPullInfractionTeam?.let { team ->
-        val event = state.previewPullInfraction(team, pendingPullInfractionType).event
-        val canSwitchPullingInfraction = pendingPullInfractionType != PullInfractionType.FALSE_START &&
+    pendingPullViolationTeam?.let { team ->
+        val event = state.previewPullViolation(team, pendingPullViolationType).event
+        val canSwitchPullingViolation = pendingPullViolationType != PullViolationType.FALSE_START &&
             state.usesMajorityPullRule()
         AlertDialog(
             onDismissRequest = {
-                pendingPullInfractionTeam = null
-                pendingPullInfractionType = PullInfractionType.OFFSIDES
+                pendingPullViolationTeam = null
+                pendingPullViolationType = PullViolationType.OFFSIDES
             },
-            title = { Text(event?.formatPopupTitle() ?: "Pull infraction") },
+            title = { Text(event?.formatPopupTitle() ?: "Pull violation") },
             text = {
                 Text(
                     text = event?.formatMessage() ?: "",
@@ -586,15 +586,15 @@ internal fun LiveGameScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.End,
                     ) {
-                        if (canSwitchPullingInfraction) {
+                        if (canSwitchPullingViolation) {
                             TextButton(
                                 onClick = {
-                                    pendingPullInfractionType = if (
-                                        pendingPullInfractionType == PullInfractionType.MAJORITY_PULL
+                                    pendingPullViolationType = if (
+                                        pendingPullViolationType == PullViolationType.MAJORITY_PULL
                                     ) {
-                                        PullInfractionType.OFFSIDES
+                                        PullViolationType.OFFSIDES
                                     } else {
-                                        PullInfractionType.MAJORITY_PULL
+                                        PullViolationType.MAJORITY_PULL
                                     }
                                 },
                                 modifier = Modifier
@@ -604,7 +604,7 @@ internal fun LiveGameScreen(
                             ) {
                                 Text(
                                     if (
-                                        pendingPullInfractionType == PullInfractionType.MAJORITY_PULL
+                                        pendingPullViolationType == PullViolationType.MAJORITY_PULL
                                     ) {
                                         "This was an Offsides"
                                     } else {
@@ -616,8 +616,8 @@ internal fun LiveGameScreen(
                         Row(horizontalArrangement = Arrangement.End) {
                             TextButton(
                                 onClick = {
-                                    pendingPullInfractionTeam = null
-                                    pendingPullInfractionType = PullInfractionType.OFFSIDES
+                                    pendingPullViolationTeam = null
+                                    pendingPullViolationType = PullViolationType.OFFSIDES
                                 },
                                 modifier = Modifier
                                     .height(32.dp)
@@ -628,14 +628,14 @@ internal fun LiveGameScreen(
                             }
                             TextButton(
                                 onClick = {
-                                    val result = state.assessPullInfraction(
+                                    val result = state.assessPullViolation(
                                         team = team,
                                         now = System.currentTimeMillis(),
-                                        infraction = pendingPullInfractionType,
+                                        violation = pendingPullViolationType,
                                     )
                                     onStateChange(result.state)
-                                    pendingPullInfractionTeam = null
-                                    pendingPullInfractionType = PullInfractionType.OFFSIDES
+                                    pendingPullViolationTeam = null
+                                    pendingPullViolationType = PullViolationType.OFFSIDES
                                 },
                                 modifier = Modifier
                                     .height(32.dp)

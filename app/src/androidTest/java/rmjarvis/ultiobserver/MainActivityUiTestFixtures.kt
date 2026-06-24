@@ -587,20 +587,20 @@ abstract class MainActivityUiTestFixtures {
         waitForText("Undo Timeout adjustment")
     }
 
-    /// Exercise the pull-infraction adjustment dialog with a small nonzero correction.
-    protected fun applyPullInfractionAdjustment() {
+    /// Exercise the pull-violation adjustment dialog with a small nonzero correction.
+    protected fun applyPullViolationAdjustment() {
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust pull infractions").performScrollTo().performClick()
-        waitForTag("adjust-pull-infractions-confirm")
+        composeRule.onNodeWithText("Adjust pull violations").performScrollTo().performClick()
+        waitForTag("adjust-pull-violations-confirm")
         composeRule.onAllNodesWithText("+1")[0].performClick()
         composeRule.onAllNodesWithText("+1")[1].performClick()
         composeRule.onAllNodesWithText("+1")[2].performClick()
         composeRule.onAllNodesWithText("+1")[3].performClick()
         composeRule.onAllNodesWithText("-1")[1].performClick()
-        composeRule.onNodeWithTag("adjust-pull-infractions-confirm").performTouchInput {
+        composeRule.onNodeWithTag("adjust-pull-violations-confirm").performTouchInput {
             click()
         }
-        waitForText("Undo Pull infraction adjustment")
+        waitForText("Undo Pull violation adjustment")
     }
 
     /// Exercise the Cards / techs adjustment dialog by changing a visible count.
@@ -883,7 +883,7 @@ abstract class MainActivityUiTestFixtures {
      * Build the test tag for one team action on the live field.
      *
      * @param team The team whose action button is targeted.
-     * @param action The action suffix, such as `goal`, `timeout`, or `pull-infraction`.
+     * @param action The action suffix, such as `goal`, `timeout`, or `pull-violation`.
      */
     protected fun teamActionTag(team: TeamId, action: String): String {
         return "live-${team.name}-$action"

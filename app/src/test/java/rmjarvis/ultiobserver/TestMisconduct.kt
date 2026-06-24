@@ -614,10 +614,10 @@ class TestMisconduct : GameDomainTestFixtures() {
         assertEquals(90, state.countdown?.durationSeconds)
         assertEquals(state.startEpoch + 90_000L, state.countdown?.targetEpoch)
         assertEquals(state, state.withPendingMisconductCountdown())
-        assertFalse(state.canRecordPullInfraction(VC))
-        assertFalse(state.canRecordPullInfraction(ANIMAL))
-        assertEquals(state, state.assessPullInfraction(VC).state)
-        assertEquals(state, state.assessPullInfraction(ANIMAL).state)
+        assertFalse(state.canRecordPullViolation(VC))
+        assertFalse(state.canRecordPullViolation(ANIMAL))
+        assertEquals(state, state.assessPullViolation(VC).state)
+        assertEquals(state, state.assessPullViolation(ANIMAL).state)
         assertTrue(state.canReportOffenseSet(true))
         assertFalse(state.canReportOffenseSet(false))
         val earlySetState = state.reportOffenseSet(state.startEpoch + 70_000L)
@@ -672,7 +672,7 @@ class TestMisconduct : GameDomainTestFixtures() {
         // The no-pull restriction is only for the current point sequence.
         state = recordGoalFromCurrentStateAt(state, VC, LocalTime.of(12, 5))
         assertFalse(state.pullSkippedForCurrentPoint)
-        assertTrue(state.canRecordPullInfraction(VC))
+        assertTrue(state.canRecordPullViolation(VC))
 
         // Defensive countdown helpers reject impossible third-card states that bypass normal
         // card flow.

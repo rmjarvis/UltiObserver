@@ -390,7 +390,7 @@ data class CountdownState(
         }
         val currentTarget = betweenPointsTarget!!
         val newTarget = currentTarget.flip()
-        val timing = pullTiming ?: defaultPullTimingSeconds(kind)
+        val timing = pullTiming!!
         val deltaSeconds = timing.durationSecondsFor(newTarget) - timing.durationSecondsFor(currentTarget)
         return copy(
             label = newTarget.label,

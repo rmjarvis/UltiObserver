@@ -79,7 +79,7 @@ class TestEventLog : GameDomainTestFixtures() {
         ).state
         state = state.assessTechnicalFoul(vc, timestampAt(state, LocalTime.of(12, 5))).state
 
-        // Point, pull-infraction, and time-violation entries use their specific outcomes.
+        // Point, pull-violation, and time-violation entries use their specific outcomes.
         state = recordGoalAt(state, animal, LocalTime.of(12, 7))
         state = state.recordOffsides(timestampAt(state, LocalTime.of(12, 8)))
         state = state.recordFalseStart(timestampAt(state, LocalTime.of(12, 9)))
@@ -159,8 +159,8 @@ class TestEventLog : GameDomainTestFixtures() {
             .state
         state = state.assessTechnicalFoul(vc, timestampAt(state, LocalTime.of(12, 1))).state
 
-        // Manual pull-infraction corrections log one entry for each changed count.
-        state = state.adjustPullInfractions(
+        // Manual pull-violation corrections log one entry for each changed count.
+        state = state.adjustPullViolations(
             teamOneOffsides = 0,
             teamOneFalseStarts = 1,
             teamTwoOffsides = 1,
@@ -197,8 +197,8 @@ class TestEventLog : GameDomainTestFixtures() {
             now = timestampAt(state, LocalTime.of(12, 6)),
         )
 
-        // Follow-up corrections log removed pull infractions and edited player-card records.
-        state = state.adjustPullInfractions(
+        // Follow-up corrections log removed pull violations and edited player-card records.
+        state = state.adjustPullViolations(
             teamOneOffsides = 0,
             teamOneFalseStarts = 0,
             teamTwoOffsides = 1,

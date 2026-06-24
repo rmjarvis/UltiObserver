@@ -62,37 +62,31 @@ class TestGameUndo : GameDomainTestFixtures() {
         val beforeTimeout = state
         state = state.assessTimeout(ANIMAL, 300_000L).state
         assertUndoRestores(beforeTimeout, state)
-
         state = standardLiveGameState()
         val beforeCard = state
         state = state.assessYellowCard(VC, "17").state
         assertUndoRestores(beforeCard, state)
-
         state = standardLiveGameState()
         val beforeTf = state
         state = state.assessTechnicalFoul(ANIMAL).state
         assertUndoRestores(beforeTf, state)
-
         state = standardLiveGameState()
         val beforeOffsides = state
         state = state.recordOffsides()
         assertUndoRestores(beforeOffsides, state)
-
         state = standardLiveGameState()
         val beforeFalseStart = state
         state = state.recordFalseStart()
         assertUndoRestores(beforeFalseStart, state)
 
-        // Undo manual score, timeout, card/techs, and pull-infraction corrections.
+        // Undo manual score, timeout, card/techs, and pull-violation corrections.
         state = standardLiveGameState()
         val beforeScoreCorrection = state
         state = state.adjustScore(2, 3)
         assertUndoRestores(beforeScoreCorrection, state)
-
         val beforeTimeoutCorrection = standardLiveGameState()
         state = beforeTimeoutCorrection.adjustTimeouts(2, 1)
         assertUndoRestores(beforeTimeoutCorrection, state)
-
         val beforeCardCorrection = standardLiveGameState()
         state = beforeCardCorrection.adjustCardsAndTf(
             teamOneBlues = 1,
@@ -103,11 +97,9 @@ class TestGameUndo : GameDomainTestFixtures() {
             teamTwoPlayers = listOf(playerRecordWithCards("23", reds = 1)),
         )
         assertUndoRestores(beforeCardCorrection, state)
-
         val beforePullCorrection = standardLiveGameState()
-        state = beforePullCorrection.adjustPullInfractions(1, 2, 3, 4)
+        state = beforePullCorrection.adjustPullViolations(1, 2, 3, 4)
         assertUndoRestores(beforePullCorrection, state)
-
         val beforeSetupUpdate = standardLiveGameState()
         state = applySetupToLiveGame(
             existing = beforeSetupUpdate,

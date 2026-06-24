@@ -7,32 +7,13 @@ import kotlinx.serialization.Serializable
  * Between-points countdown mode the observer is timing.
  *
  * @param label The short countdown label shown on the live screen.
- * @param standardDurationSeconds The normal between-points duration for this target.
- * @param openingDurationSeconds The shorter opening-pull duration for this target.
  */
 @Serializable
-enum class BetweenPointsCountdownTarget(
-    val label: String,
-    private val standardDurationSeconds: Int,
-    private val openingDurationSeconds: Int,
-) {
-    OFFENSE_READY("Signal in", 60, 20),
-    PULL("Pull in", 80, 40),
-    BOTH("Pull in", 80, 40),
-    NEITHER("Pull in", 80, 40);
-
-    /**
-     * Return the base countdown duration for this target and countdown kind.
-     *
-     * @param kind The countdown kind whose opening/reset rules may override the standard duration.
-     */
-    fun baseDurationSeconds(kind: CountdownKind): Int {
-        return when (kind) {
-            CountdownKind.OPENING_PULL -> openingDurationSeconds
-            CountdownKind.PULL_RESET -> 30
-            else -> standardDurationSeconds
-        }
-    }
+enum class BetweenPointsCountdownTarget(val label: String) {
+    OFFENSE_READY("Signal in"),
+    PULL("Pull in"),
+    BOTH("Pull in"),
+    NEITHER("Pull in");
 
     /// Return the opposite between-points timing target.
     fun flip(): BetweenPointsCountdownTarget {
@@ -110,7 +91,7 @@ internal fun buildBetweenPointsCountdown(
     pullingFromEnd: FieldEnd,
     sequenceStart: Long,
     kind: CountdownKind = CountdownKind.BETWEEN_POINTS,
-    promptTarget: PullPromptTarget = PullPromptTarget.NEAR,
+    promptTarget: PullPromptTarget,
 ): CountdownState {
     require(kind.usesBetweenPointsTarget()) {
         "Countdown kind $kind does not use between-points timing."
@@ -193,7 +174,7 @@ internal fun CountdownState.withPullPromptTarget(
     if (currentTarget == newTarget) {
         return this
     }
-    val timing = pullTiming ?: defaultPullTimingSeconds(kind)
+    val timing = pullTiming!!
     val extensionSeconds = durationSeconds - timing.durationSecondsFor(currentTarget)
     val newDurationSeconds = timing.durationSecondsFor(newTarget) + extensionSeconds
     val sequenceStart = targetEpoch - durationSeconds * 1000L
@@ -220,16 +201,21 @@ fun betweenPointsDisplay(
     sequenceStart: Long,
     now: Long,
     kind: CountdownKind = CountdownKind.BETWEEN_POINTS,
-    promptTarget: PullPromptTarget = PullPromptTarget.NEAR,
+    promptTarget: PullPromptTarget,
 ): Pair<String, Duration> {
-    val countdown = buildBetweenPointsCountdown(pullingFromEnd, sequenceStart, kind, promptTarget)
+    val countdown = buildBetweenPointsCountdown(
+        pullingFromEnd = pullingFromEnd,
+        sequenceStart = sequenceStart,
+        kind = kind,
+        promptTarget = promptTarget,
+    )
     return countdown.label to Duration.ofMillis((countdown.targetEpoch - now).coerceAtLeast(0L))
 }
 
 /// List normal between-points cues, including timeout-extension cues when applicable.
 internal fun CountdownState.betweenPointsTimingCues(): List<TimingCue> {
     val target = betweenPointsTarget!!
-    val timing = pullTiming ?: defaultPullTimingSeconds(kind)
+    val timing = pullTiming!!
     val timeoutCues = if (kind != CountdownKind.PULL_RESET && durationSeconds > timing.durationSecondsFor(target)) {
         target.timeoutCueIds().map { cueId -> TimingCue(cueId, 60) }
     } else {

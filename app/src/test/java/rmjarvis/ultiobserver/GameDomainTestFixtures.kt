@@ -274,13 +274,13 @@ abstract class GameDomainTestFixtures {
     }
 
     /**
-     * Record a pull infraction at a dummy timestamp when timing is not under test.
+     * Record a pull violation at a dummy timestamp when timing is not under test.
      *
-     * @receiver The state receiving the pull-infraction action.
-     * @param team The team committing the pull infraction.
+     * @receiver The state receiving the pull-violation action.
+     * @param team The team committing the pull violation.
      */
-    protected fun GameState.assessPullInfraction(team: TeamId): PullInfractionAssessmentResult {
-        return assessPullInfraction(team, 0L, pullInfractionTypeFor(team))
+    protected fun GameState.assessPullViolation(team: TeamId): PullViolationAssessmentResult {
+        return assessPullViolation(team, 0L, pullViolationTypeFor(team))
     }
 
     /**
@@ -324,17 +324,17 @@ abstract class GameDomainTestFixtures {
     }
 
     /**
-     * Apply a pull-infraction correction at a dummy timestamp when timing is not under test.
+     * Apply a pull-violation correction at a dummy timestamp when timing is not under test.
      *
      * @receiver The state being corrected.
      */
-    protected fun GameState.adjustPullInfractions(
+    protected fun GameState.adjustPullViolations(
         teamOneOffsides: Int,
         teamOneFalseStarts: Int,
         teamTwoOffsides: Int,
         teamTwoFalseStarts: Int,
     ): GameState {
-        return adjustPullInfractions(
+        return adjustPullViolations(
             teamOneOffsides,
             teamOneFalseStarts,
             0,
@@ -346,18 +346,18 @@ abstract class GameDomainTestFixtures {
     }
 
     /**
-     * Apply a pull-infraction correction with an explicit timestamp and no majority-pull deltas.
+     * Apply a pull-violation correction with an explicit timestamp and no majority-pull deltas.
      *
      * @receiver The state being corrected.
      */
-    protected fun GameState.adjustPullInfractions(
+    protected fun GameState.adjustPullViolations(
         teamOneOffsides: Int,
         teamOneFalseStarts: Int,
         teamTwoOffsides: Int,
         teamTwoFalseStarts: Int,
         now: Long,
     ): GameState {
-        return adjustPullInfractions(
+        return adjustPullViolations(
             teamOneOffsides,
             teamOneFalseStarts,
             0,
@@ -433,8 +433,8 @@ abstract class GameDomainTestFixtures {
         return event.formatMessage()
     }
 
-    /// Return the formatted popup message for a pull-infraction assessment.
-    protected fun PullInfractionAssessmentResult.message(): String? {
+    /// Return the formatted popup message for a pull-violation assessment.
+    protected fun PullViolationAssessmentResult.message(): String? {
         return event?.formatMessage()
     }
 

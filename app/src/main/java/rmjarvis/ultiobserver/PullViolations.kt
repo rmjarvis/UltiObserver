@@ -2,36 +2,36 @@ package rmjarvis.ultiobserver
 
 import kotlinx.serialization.Serializable
 
-/// Type of pull infraction recorded during a pull sequence.
+/// Type of pull violation recorded during a pull sequence.
 @Serializable
-enum class PullInfractionType {
+enum class PullViolationType {
     OFFSIDES,
     FALSE_START,
     MAJORITY_PULL,
 }
 
 /**
- * State and optional popup event from trying to record a pull infraction.
+ * State and optional popup event from trying to record a pull violation.
  *
- * @param state The live state after the pull-infraction attempt.
+ * @param state The live state after the pull-violation attempt.
  * @param event The observer-facing event to show, or null when no popup is needed.
  */
-data class PullInfractionAssessmentResult(
+data class PullViolationAssessmentResult(
     val state: GameState,
     val event: GameEvent? = null,
 )
 
 /**
- * Confirmation details for a pull infraction before the observer applies it.
+ * Confirmation details for a pull violation before the observer applies it.
  *
  * @param event The event-shaped preview used to render the confirmation dialog.
  */
-data class PullInfractionAssessmentPreview(
+data class PullViolationAssessmentPreview(
     val event: GameEvent? = null,
 )
 
 /**
- * Replace each team's cumulative pull-infraction counts as a manual correction.
+ * Replace each team's cumulative pull-violation counts as a manual correction.
  *
  * @param teamOneOffsides The corrected offsides count for team one.
  * @param teamOneFalseStarts The corrected false-start count for team one.
@@ -40,7 +40,7 @@ data class PullInfractionAssessmentPreview(
  * @param teamTwoFalseStarts The corrected false-start count for team two.
  * @param teamTwoMajorityPulls The corrected majority-pull violation count for team two.
  */
-fun GameState.adjustPullInfractions(
+fun GameState.adjustPullViolations(
     teamOneOffsides: Int,
     teamOneFalseStarts: Int,
     teamOneMajorityPulls: Int,
@@ -56,44 +56,44 @@ fun GameState.adjustPullInfractions(
     val adjustedTeamTwoFalseStarts = teamTwoFalseStarts.coerceAtLeast(0)
     val adjustedTeamTwoMajorityPulls = teamTwoMajorityPulls.coerceAtLeast(0)
     val entries = buildList {
-        // this@adjustPullInfractions is the GameState receiver; plain this is the list being built.
-        addPullInfractionDelta(
+        // this@adjustPullViolations is the GameState receiver; plain this is the list being built.
+        addPullViolationDelta(
             now = now,
             team = TeamId.TEAM_ONE,
-            infraction = PullInfractionType.OFFSIDES,
-            delta = adjustedTeamOneOffsides - this@adjustPullInfractions.teamOne.offsides,
+            violation = PullViolationType.OFFSIDES,
+            delta = adjustedTeamOneOffsides - this@adjustPullViolations.teamOne.offsides,
         )
-        addPullInfractionDelta(
+        addPullViolationDelta(
             now = now,
             team = TeamId.TEAM_ONE,
-            infraction = PullInfractionType.FALSE_START,
-            delta = adjustedTeamOneFalseStarts - this@adjustPullInfractions.teamOne.falseStarts,
+            violation = PullViolationType.FALSE_START,
+            delta = adjustedTeamOneFalseStarts - this@adjustPullViolations.teamOne.falseStarts,
         )
-        addPullInfractionDelta(
+        addPullViolationDelta(
             now = now,
             team = TeamId.TEAM_ONE,
-            infraction = PullInfractionType.MAJORITY_PULL,
+            violation = PullViolationType.MAJORITY_PULL,
             delta = adjustedTeamOneMajorityPulls -
-                this@adjustPullInfractions.teamOne.majorityPullViolations,
+                this@adjustPullViolations.teamOne.majorityPullViolations,
         )
-        addPullInfractionDelta(
+        addPullViolationDelta(
             now = now,
             team = TeamId.TEAM_TWO,
-            infraction = PullInfractionType.OFFSIDES,
-            delta = adjustedTeamTwoOffsides - this@adjustPullInfractions.teamTwo.offsides,
+            violation = PullViolationType.OFFSIDES,
+            delta = adjustedTeamTwoOffsides - this@adjustPullViolations.teamTwo.offsides,
         )
-        addPullInfractionDelta(
+        addPullViolationDelta(
             now = now,
             team = TeamId.TEAM_TWO,
-            infraction = PullInfractionType.FALSE_START,
-            delta = adjustedTeamTwoFalseStarts - this@adjustPullInfractions.teamTwo.falseStarts,
+            violation = PullViolationType.FALSE_START,
+            delta = adjustedTeamTwoFalseStarts - this@adjustPullViolations.teamTwo.falseStarts,
         )
-        addPullInfractionDelta(
+        addPullViolationDelta(
             now = now,
             team = TeamId.TEAM_TWO,
-            infraction = PullInfractionType.MAJORITY_PULL,
+            violation = PullViolationType.MAJORITY_PULL,
             delta = adjustedTeamTwoMajorityPulls -
-                this@adjustPullInfractions.teamTwo.majorityPullViolations,
+                this@adjustPullViolations.teamTwo.majorityPullViolations,
         )
     }
     return this.copy(
@@ -107,111 +107,111 @@ fun GameState.adjustPullInfractions(
             falseStarts = adjustedTeamTwoFalseStarts,
             majorityPullViolations = adjustedTeamTwoMajorityPulls,
         ),
-        lastEvent = "Pull infractions adjusted.",
-    ).withEventLogEntries(entries).withUndo(this, "Undo Pull infraction adjustment")
+        lastEvent = "Pull violations adjusted.",
+    ).withEventLogEntries(entries).withUndo(this, "Undo Pull violation adjustment")
 }
 
 /**
  * Record offsides or false start for the selected team when allowed on the current pull.
  *
- * @param team The team that committed the pull infraction.
- * @param infraction The pull-infraction type to record.
+ * @param team The team that committed the pull violation.
+ * @param violation The pull-violation type to record.
  */
-fun GameState.assessPullInfraction(
+fun GameState.assessPullViolation(
     team: TeamId,
     now: Long,
-    infraction: PullInfractionType,
-): PullInfractionAssessmentResult {
-    require(this.isPullInfractionSelectionForTeam(team, infraction)) {
-        "Pull infraction $infraction cannot be recorded for $team on this pull."
+    violation: PullViolationType,
+): PullViolationAssessmentResult {
+    require(this.isPullViolationSelectionForTeam(team, violation)) {
+        "Pull violation $violation cannot be recorded for $team on this pull."
     }
-    if (!this.canRecordPullInfraction(team)) {
-        return PullInfractionAssessmentResult(this)
+    if (!this.canRecordPullViolation(team)) {
+        return PullViolationAssessmentResult(this)
     }
-    val updatedState = when (infraction) {
-        PullInfractionType.OFFSIDES -> this.recordOffsides(now)
-        PullInfractionType.FALSE_START -> this.recordFalseStart(now)
-        PullInfractionType.MAJORITY_PULL -> this.recordMajorityPullViolation(now)
+    val updatedState = when (violation) {
+        PullViolationType.OFFSIDES -> this.recordOffsides(now)
+        PullViolationType.FALSE_START -> this.recordFalseStart(now)
+        PullViolationType.MAJORITY_PULL -> this.recordMajorityPullViolation(now)
     }
-    return PullInfractionAssessmentResult(
+    return PullViolationAssessmentResult(
         state = updatedState,
-        event = GameEvent.PullInfractionRecorded(
+        event = GameEvent.PullViolationRecorded(
             state = updatedState,
             team = team,
-            infraction = infraction,
+            violation = violation,
             totalPullViolations = updatedState.pullViolationTotal(team),
         ),
     )
 }
 
 /**
- * Build confirmation details for a pull infraction without changing game state.
+ * Build confirmation details for a pull violation without changing game state.
  *
- * @param team The team that would receive the pull infraction.
- * @param infraction The pull-infraction type to preview.
+ * @param team The team that would receive the pull violation.
+ * @param violation The pull-violation type to preview.
  */
-fun GameState.previewPullInfraction(
+fun GameState.previewPullViolation(
     team: TeamId,
-    infraction: PullInfractionType,
-): PullInfractionAssessmentPreview {
-    require(this.isPullInfractionSelectionForTeam(team, infraction)) {
-        "Pull infraction $infraction cannot be previewed for $team on this pull."
+    violation: PullViolationType,
+): PullViolationAssessmentPreview {
+    require(this.isPullViolationSelectionForTeam(team, violation)) {
+        "Pull violation $violation cannot be previewed for $team on this pull."
     }
-    require(this.canRecordPullInfraction(team)) {
-        "Pull infraction cannot be previewed after the button is disabled for $team."
+    require(this.canRecordPullViolation(team)) {
+        "Pull violation cannot be previewed after the button is disabled for $team."
     }
-    val previewState = this.withPreviewPullInfraction(team, infraction)
-    return PullInfractionAssessmentPreview(
-        event = GameEvent.PullInfractionRecorded(
+    val previewState = this.withPreviewPullViolation(team, violation)
+    return PullViolationAssessmentPreview(
+        event = GameEvent.PullViolationRecorded(
             state = previewState,
             team = team,
-            infraction = infraction,
+            violation = violation,
             totalPullViolations = previewState.pullViolationTotal(team),
         ),
     )
 }
 
-/// Return the pull-infraction type represented by the selected team's field button.
-fun GameState.pullInfractionTypeFor(team: TeamId): PullInfractionType {
+/// Return the pull-violation type represented by the selected team's field button.
+fun GameState.pullViolationTypeFor(team: TeamId): PullViolationType {
     return if (team == this.pullingTeam) {
-        PullInfractionType.OFFSIDES
+        PullViolationType.OFFSIDES
     } else {
-        PullInfractionType.FALSE_START
+        PullViolationType.FALSE_START
     }
 }
 
-/// Return whether a concrete infraction selection belongs to the selected team on this pull.
-private fun GameState.isPullInfractionSelectionForTeam(
+/// Return whether a concrete violation selection belongs to the selected team on this pull.
+private fun GameState.isPullViolationSelectionForTeam(
     team: TeamId,
-    infraction: PullInfractionType,
+    violation: PullViolationType,
 ): Boolean {
-    return infraction == this.pullInfractionTypeFor(team) ||
+    return violation == this.pullViolationTypeFor(team) ||
         (
             team == this.pullingTeam &&
-                infraction == PullInfractionType.MAJORITY_PULL &&
+                violation == PullViolationType.MAJORITY_PULL &&
                 this.usesMajorityPullRule()
         )
 }
 
 /**
- * Return a state shaped like the result of a pull infraction for message preview only.
+ * Return a state shaped like the result of a pull violation for message preview only.
  *
- * @param team The team that would receive the pull infraction.
- * @param infraction The pull infraction that would be recorded.
+ * @param team The team that would receive the pull violation.
+ * @param violation The pull violation that would be recorded.
  */
-private fun GameState.withPreviewPullInfraction(team: TeamId, infraction: PullInfractionType): GameState {
-    return when (infraction) {
-        PullInfractionType.OFFSIDES -> copy(
+private fun GameState.withPreviewPullViolation(team: TeamId, violation: PullViolationType): GameState {
+    return when (violation) {
+        PullViolationType.OFFSIDES -> copy(
             teamOne = if (team == TeamId.TEAM_ONE) teamOne.copy(offsides = teamOne.offsides + 1) else teamOne,
             teamTwo = if (team == TeamId.TEAM_TWO) teamTwo.copy(offsides = teamTwo.offsides + 1) else teamTwo,
             pullSequenceOffsidesRecorded = true,
         )
-        PullInfractionType.FALSE_START -> copy(
+        PullViolationType.FALSE_START -> copy(
             teamOne = if (team == TeamId.TEAM_ONE) teamOne.copy(falseStarts = teamOne.falseStarts + 1) else teamOne,
             teamTwo = if (team == TeamId.TEAM_TWO) teamTwo.copy(falseStarts = teamTwo.falseStarts + 1) else teamTwo,
             pullSequenceFalseStartRecorded = true,
         )
-        PullInfractionType.MAJORITY_PULL -> copy(
+        PullViolationType.MAJORITY_PULL -> copy(
             teamOne = if (team == TeamId.TEAM_ONE) {
                 teamOne.copy(majorityPullViolations = teamOne.majorityPullViolations + 1)
             } else {
@@ -228,11 +228,11 @@ private fun GameState.withPreviewPullInfraction(team: TeamId, infraction: PullIn
 }
 
 /**
- * Report whether the selected team may record a pull infraction on this pull sequence.
+ * Report whether the selected team may record a pull violation on this pull sequence.
  *
- * @param team The team whose infraction button or action is being considered.
+ * @param team The team whose violation button or action is being considered.
  */
-fun GameState.canRecordPullInfraction(team: TeamId): Boolean {
+fun GameState.canRecordPullViolation(team: TeamId): Boolean {
     if (this.pullSkippedForCurrentPoint) {
         return false
     }
@@ -342,24 +342,24 @@ fun GameState.recordFalseStart(now: Long): GameState {
 }
 
 /**
- * Add a pull-infraction correction entry when a count changed.
+ * Add a pull-violation correction entry when a count changed.
  *
  * @param now The correction timestamp.
  * @param team The team whose count changed.
- * @param infraction The pull-infraction count that changed.
+ * @param violation The pull-violation count that changed.
  * @param delta The signed count change.
  */
-private fun MutableList<EventLogEntry>.addPullInfractionDelta(
+private fun MutableList<EventLogEntry>.addPullViolationDelta(
     now: Long,
     team: TeamId,
-    infraction: PullInfractionType,
+    violation: PullViolationType,
     delta: Int,
 ) {
     if (delta != 0) {
         add(
             EventLogEntry(
                 timestampEpoch = now,
-                type = infraction.eventLogType(),
+                type = violation.eventLogType(),
                 team = team,
                 delta = delta,
             )
@@ -367,12 +367,12 @@ private fun MutableList<EventLogEntry>.addPullInfractionDelta(
     }
 }
 
-/// Return the event-log type represented by this pull-infraction type.
-private fun PullInfractionType.eventLogType(): EventLogType {
+/// Return the event-log type represented by this pull-violation type.
+private fun PullViolationType.eventLogType(): EventLogType {
     return when (this) {
-        PullInfractionType.OFFSIDES -> EventLogType.OFFSIDES
-        PullInfractionType.FALSE_START -> EventLogType.FALSE_START
-        PullInfractionType.MAJORITY_PULL -> EventLogType.MAJORITY_PULL
+        PullViolationType.OFFSIDES -> EventLogType.OFFSIDES
+        PullViolationType.FALSE_START -> EventLogType.FALSE_START
+        PullViolationType.MAJORITY_PULL -> EventLogType.MAJORITY_PULL
     }
 }
 
@@ -386,22 +386,22 @@ private fun GameState.pullViolationTotal(teamId: TeamId): Int {
     return team.pullViolationCount()
 }
 
-/// Format a pull-infraction event popup title.
-internal fun GameEvent.PullInfractionRecorded.formatPopupTitle(): String {
-    return when (infraction) {
-        PullInfractionType.OFFSIDES -> "Offsides"
-        PullInfractionType.FALSE_START -> "False start"
-        PullInfractionType.MAJORITY_PULL -> "Majority pull rule violation"
+/// Format a pull-violation event popup title.
+internal fun GameEvent.PullViolationRecorded.formatPopupTitle(): String {
+    return when (violation) {
+        PullViolationType.OFFSIDES -> "Offsides"
+        PullViolationType.FALSE_START -> "False start"
+        PullViolationType.MAJORITY_PULL -> "Majority pull rule violation"
     }
 }
 
-/// Format a pull-infraction event message with the field-position consequence.
-internal fun GameEvent.PullInfractionRecorded.formatMessage(): String {
+/// Format a pull-violation event message with the field-position consequence.
+internal fun GameEvent.PullViolationRecorded.formatMessage(): String {
     val teamName = state.teamName(team)
     val violationLine = "This is $teamName's ${totalPullViolations.ordinalWordText()} pull violation."
-    val consequence = when (infraction) {
-        PullInfractionType.OFFSIDES,
-        PullInfractionType.MAJORITY_PULL -> if (totalPullViolations <= 1) {
+    val consequence = when (violation) {
+        PullViolationType.OFFSIDES,
+        PullViolationType.MAJORITY_PULL -> if (totalPullViolations <= 1) {
             "${state.teamName(state.pullingTeam.flip())} starts at the brick mark."
         } else {
             "${state.teamName(state.pullingTeam.flip())} starts at midfield."
@@ -412,7 +412,7 @@ internal fun GameEvent.PullInfractionRecorded.formatMessage(): String {
                 "$fieldPosition\n\nThe disc is live -- no defensive check is required."
             }
         }
-        PullInfractionType.FALSE_START -> "${state.teamName(state.pullingTeam)} gets to set up on defense."
+        PullViolationType.FALSE_START -> "${state.teamName(state.pullingTeam)} gets to set up on defense."
     }
     return "$violationLine\n\n$consequence"
 }

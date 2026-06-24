@@ -305,7 +305,7 @@ internal data class FieldLayoutMetrics(
  * @param onGoal Callback receiving the team that scored.
  * @param onTimeout Callback receiving the team requesting timeout.
  * @param onTimeViolation Callback receiving the team committing a time violation.
- * @param onPullInfraction Callback receiving the team with a pull infraction.
+ * @param onPullViolation Callback receiving the team with a pull violation.
  * @param onCards Callback opening the card workflow.
  * @param onTechnicalFoul Callback opening the technical-foul workflow.
  * @param onTeamInfo Callback opening the coach/captain information for a team.
@@ -321,7 +321,7 @@ internal fun FieldSketchCard(
     onGoal: (TeamId) -> Unit,
     onTimeout: (TeamId) -> Unit,
     onTimeViolation: (TeamId) -> Unit,
-    onPullInfraction: (TeamId) -> Unit,
+    onPullViolation: (TeamId) -> Unit,
     onCards: (TeamId) -> Unit,
     onTechnicalFoul: (TeamId) -> Unit,
     onTeamInfo: (TeamId) -> Unit,
@@ -365,15 +365,15 @@ internal fun FieldSketchCard(
                 interactionsEnabled = interactionsEnabled,
                 choosesGenderRatio = ratioChoosingTeam == topSlot,
                 timeViolationEnabled = state.canAssessTimeViolation(),
-                pullInfractionEnabled = state.canRecordPullInfraction(topSlot),
-                pullInfractionType = state.pullInfractionTypeFor(topSlot),
+                pullViolationEnabled = state.canRecordPullViolation(topSlot),
+                pullViolationType = state.pullViolationTypeFor(topSlot),
                 fieldEndName = state.fieldEndDisplayName(topEnd),
                 fieldEndLabelAtTop = true,
                 metrics = metrics,
                 onGoal = { onGoal(topSlot) },
                 onTimeout = { onTimeout(topSlot) },
                 onTimeViolation = { onTimeViolation(topSlot) },
-                onPullInfraction = { onPullInfraction(topSlot) },
+                onPullViolation = { onPullViolation(topSlot) },
                 onCards = { onCards(topSlot) },
                 onTechnicalFoul = { onTechnicalFoul(topSlot) },
                 onTeamInfo = { onTeamInfo(topSlot) },
@@ -429,15 +429,15 @@ internal fun FieldSketchCard(
                 interactionsEnabled = interactionsEnabled,
                 choosesGenderRatio = ratioChoosingTeam == bottomSlot,
                 timeViolationEnabled = state.canAssessTimeViolation(),
-                pullInfractionEnabled = state.canRecordPullInfraction(bottomSlot),
-                pullInfractionType = state.pullInfractionTypeFor(bottomSlot),
+                pullViolationEnabled = state.canRecordPullViolation(bottomSlot),
+                pullViolationType = state.pullViolationTypeFor(bottomSlot),
                 fieldEndName = state.fieldEndDisplayName(bottomEnd),
                 fieldEndLabelAtTop = false,
                 metrics = metrics,
                 onGoal = { onGoal(bottomSlot) },
                 onTimeout = { onTimeout(bottomSlot) },
                 onTimeViolation = { onTimeViolation(bottomSlot) },
-                onPullInfraction = { onPullInfraction(bottomSlot) },
+                onPullViolation = { onPullViolation(bottomSlot) },
                 onCards = { onCards(bottomSlot) },
                 onTechnicalFoul = { onTechnicalFoul(bottomSlot) },
                 onTeamInfo = { onTeamInfo(bottomSlot) },
@@ -458,15 +458,15 @@ internal fun FieldSketchCard(
  * @param interactionsEnabled Whether live action buttons should be enabled.
  * @param choosesGenderRatio Whether this team chooses the mixed gender ratio for this point.
  * @param timeViolationEnabled Whether this team can record a time violation for this pull.
- * @param pullInfractionEnabled Whether this team can still record its pull infraction for this pull.
- * @param pullInfractionType The pull-infraction type represented by this team's field button.
+ * @param pullViolationEnabled Whether this team can still record its pull violation for this pull.
+ * @param pullViolationType The pull-violation type represented by this team's field button.
  * @param fieldEndName Display name for the field end represented by this row.
  * @param fieldEndLabelAtTop Whether the field-end label belongs in the top-right corner.
  * @param metrics The measured layout metrics for compact or roomy phone heights.
  * @param onGoal Callback recording a goal for this team.
  * @param onTimeout Callback charging a timeout to this team.
  * @param onTimeViolation Callback recording a time violation for this team.
- * @param onPullInfraction Callback recording this team's pull infraction.
+ * @param onPullViolation Callback recording this team's pull violation.
  * @param onCards Callback opening the card workflow.
  * @param onTechnicalFoul Callback opening the technical-foul workflow.
  * @param onTeamInfo Callback opening coach/captain information for this team.
@@ -483,15 +483,15 @@ private fun EndZonePanel(
     interactionsEnabled: Boolean,
     choosesGenderRatio: Boolean,
     timeViolationEnabled: Boolean,
-    pullInfractionEnabled: Boolean,
-    pullInfractionType: PullInfractionType,
+    pullViolationEnabled: Boolean,
+    pullViolationType: PullViolationType,
     fieldEndName: String,
     fieldEndLabelAtTop: Boolean,
     metrics: FieldLayoutMetrics,
     onGoal: () -> Unit,
     onTimeout: () -> Unit,
     onTimeViolation: () -> Unit,
-    onPullInfraction: () -> Unit,
+    onPullViolation: () -> Unit,
     onCards: () -> Unit,
     onTechnicalFoul: () -> Unit,
     onTeamInfo: () -> Unit,
@@ -568,13 +568,13 @@ private fun EndZonePanel(
             timeoutEnabled = timeoutEnabled,
             interactionsEnabled = interactionsEnabled,
             timeViolationEnabled = timeViolationEnabled,
-            pullInfractionEnabled = pullInfractionEnabled,
-            pullInfractionType = pullInfractionType,
+            pullViolationEnabled = pullViolationEnabled,
+            pullViolationType = pullViolationType,
             metrics = metrics,
             onGoal = onGoal,
             onTimeout = onTimeout,
             onTimeViolation = onTimeViolation,
-            onPullInfraction = onPullInfraction,
+            onPullViolation = onPullViolation,
             onCards = onCards,
             onTechnicalFoul = onTechnicalFoul,
         )
@@ -736,13 +736,13 @@ private fun GenderRatioChooserText(
  * @param timeoutEnabled Whether timeout handling is available in the current state.
  * @param interactionsEnabled Whether the observer can press live actions.
  * @param timeViolationEnabled Whether this team may record a time violation for this pull sequence.
- * @param pullInfractionEnabled Whether this team may record a pull infraction for this pull sequence.
- * @param pullInfractionType The pull-infraction type represented by this team's field button.
+ * @param pullViolationEnabled Whether this team may record a pull violation for this pull sequence.
+ * @param pullViolationType The pull-violation type represented by this team's field button.
  * @param metrics The measured field layout metrics.
  * @param onGoal Callback recording a goal for this team.
  * @param onTimeout Callback charging a timeout to this team.
  * @param onTimeViolation Callback recording a time violation for this team.
- * @param onPullInfraction Callback recording the team's pull infraction.
+ * @param onPullViolation Callback recording the team's pull violation.
  * @param onCards Callback opening the card workflow.
  * @param onTechnicalFoul Callback opening the technical-foul workflow.
  * @param modifier Optional layout modifier.
@@ -756,18 +756,18 @@ private fun TeamActionGrid(
     timeoutEnabled: Boolean,
     interactionsEnabled: Boolean,
     timeViolationEnabled: Boolean,
-    pullInfractionEnabled: Boolean,
-    pullInfractionType: PullInfractionType,
+    pullViolationEnabled: Boolean,
+    pullViolationType: PullViolationType,
     metrics: FieldLayoutMetrics,
     onGoal: () -> Unit,
     onTimeout: () -> Unit,
     onTimeViolation: () -> Unit,
-    onPullInfraction: () -> Unit,
+    onPullViolation: () -> Unit,
     onCards: () -> Unit,
     onTechnicalFoul: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val pullInfractionLabel = pullInfractionType.fieldActionLabel(team)
+    val pullViolationLabel = pullViolationType.fieldActionLabel(team)
     val cardLabel = countedActionLabel("Card", cardPoints)
     val techLabel = countedActionLabel("Tech", team.technicalFouls)
     val timeViolationLabel = "Time viol."
@@ -785,7 +785,7 @@ private fun TeamActionGrid(
         val panelPadding = 4.dp
         val gap = metrics.actionGap
         val naturalGoalWidth = measuredButtonWidth(listOf("Goal"))
-        val naturalMiddleWidth = measuredButtonWidth(listOf(timeViolationLabel, pullInfractionLabel))
+        val naturalMiddleWidth = measuredButtonWidth(listOf(timeViolationLabel, pullViolationLabel))
         val naturalRightWidth = measuredButtonWidth(listOf(cardLabel, techLabel))
         val naturalTimeoutWidth = measuredButtonWidth(listOf(timeoutLabel))
         val naturalButtonWidth = naturalGoalWidth + naturalMiddleWidth + naturalRightWidth + naturalTimeoutWidth
@@ -835,14 +835,14 @@ private fun TeamActionGrid(
                     onClick = onTimeViolation,
                 )
                 TeamFieldActionButton(
-                    label = pullInfractionLabel,
+                    label = pullViolationLabel,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(metrics.actionButtonHeight)
-                        .testTag("live-${teamId.name}-pull-infraction"),
-                    enabled = interactionsEnabled && pullInfractionEnabled,
+                        .testTag("live-${teamId.name}-pull-violation"),
+                    enabled = interactionsEnabled && pullViolationEnabled,
                     containerColor = FieldNeutralButtonColor,
-                    onClick = onPullInfraction,
+                    onClick = onPullViolation,
                 )
             }
             Column(
@@ -885,12 +885,12 @@ private fun TeamActionGrid(
     }
 }
 
-/// Format the compact field-button label for a pull-infraction type.
-internal fun PullInfractionType.fieldActionLabel(team: TeamLiveState): String {
+/// Format the compact field-button label for a pull-violation type.
+internal fun PullViolationType.fieldActionLabel(team: TeamLiveState): String {
     return when (this) {
-        PullInfractionType.OFFSIDES -> countedActionLabel("Offsides", team.offsides)
-        PullInfractionType.FALSE_START -> countedActionLabel("False start", team.falseStarts)
-        PullInfractionType.MAJORITY_PULL -> countedActionLabel(
+        PullViolationType.OFFSIDES -> countedActionLabel("Offsides", team.offsides)
+        PullViolationType.FALSE_START -> countedActionLabel("False start", team.falseStarts)
+        PullViolationType.MAJORITY_PULL -> countedActionLabel(
             // Completeness only: majority pull is selected inside the offsides dialog.
             "Majority pull",
             team.majorityPullViolations,

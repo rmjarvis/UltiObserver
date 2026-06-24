@@ -17,13 +17,13 @@ import androidx.compose.ui.unit.dp
 /**
  * Render the manual offsides/false-start correction dialog.
  *
- * @param state The live state whose current pull-infraction counts seed the dialog.
+ * @param state The live state whose current pull-violation counts seed the dialog.
  * @param onDismiss Callback closing the dialog without changes.
  * @param onConfirm Callback receiving team-one offsides, false starts, majority pulls,
  * team-two offsides, false starts, and majority pulls.
  */
 @Composable
-internal fun AdjustPullInfractionsDialog(
+internal fun AdjustPullViolationsDialog(
     state: GameState,
     onDismiss: () -> Unit,
     onConfirm: (Int, Int, Int, Int, Int, Int) -> Unit,
@@ -37,7 +37,7 @@ internal fun AdjustPullInfractionsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Adjust pull infractions") },
+        title = { Text("Adjust pull violations") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 TeamCorrectionSection(state.teamOne.name) {
@@ -68,7 +68,7 @@ internal fun AdjustPullInfractionsDialog(
                         teamTwoMajorityPulls,
                     )
                 },
-                modifier = Modifier.testTag("adjust-pull-infractions-confirm"),
+                modifier = Modifier.testTag("adjust-pull-violations-confirm"),
             ) {
                 Text("Set")
             }

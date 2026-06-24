@@ -70,17 +70,17 @@ sealed interface GameEvent {
     ) : GameEvent
 
     /**
-     * Event reporting a pull infraction and its rule consequence.
+     * Event reporting a pull violation and its rule consequence.
      *
-     * @param state The live state after recording the infraction.
-     * @param team The team that committed the infraction.
-     * @param infraction The type of pull infraction recorded.
+     * @param state The live state after recording the violation.
+     * @param team The team that committed the violation.
+     * @param violation The type of pull violation recorded.
      * @param totalPullViolations The team's combined pull-violation total after the action.
      */
-    data class PullInfractionRecorded(
+    data class PullViolationRecorded(
         val state: GameState,
         val team: TeamId,
-        val infraction: PullInfractionType,
+        val violation: PullViolationType,
         val totalPullViolations: Int,
     ) : GameEvent
 
@@ -109,7 +109,7 @@ fun GameEvent.formatMessage(): String {
         is GameEvent.TeamOutOfTimeouts -> this.formatMessage()
         is GameEvent.TeamCardsChanged -> this.formatMessage()
         is GameEvent.TechnicalFoulsChanged -> this.formatMessage()
-        is GameEvent.PullInfractionRecorded -> this.formatMessage()
+        is GameEvent.PullViolationRecorded -> this.formatMessage()
         is GameEvent.TimeViolationRecorded -> this.formatMessage()
     }
 }
@@ -123,7 +123,7 @@ fun GameEvent.formatPopupTitle(): String {
         is GameEvent.TeamOutOfTimeouts -> this.formatPopupTitle()
         is GameEvent.TeamCardsChanged -> this.formatPopupTitle()
         is GameEvent.TechnicalFoulsChanged -> this.formatPopupTitle()
-        is GameEvent.PullInfractionRecorded -> this.formatPopupTitle()
+        is GameEvent.PullViolationRecorded -> this.formatPopupTitle()
         is GameEvent.TimeViolationRecorded -> this.formatPopupTitle()
     }
 }

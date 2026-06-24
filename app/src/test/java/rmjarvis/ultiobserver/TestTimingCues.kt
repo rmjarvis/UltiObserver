@@ -445,7 +445,11 @@ class TestTimingCues : GameDomainTestFixtures() {
         assertTrue(halftimeState.halftimeTransitionReady(halftimeCountdown.targetEpoch))
         assertFalse(
             halftimeState.copy(
-                countdown = buildBetweenPointsCountdown(FieldEnd.NEAR, 2_000L),
+                countdown = buildBetweenPointsCountdown(
+                    pullingFromEnd = FieldEnd.NEAR,
+                    sequenceStart = 2_000L,
+                    promptTarget = PullPromptTarget.NEAR,
+                ),
             ).halftimeTransitionReady(halftimeCountdown.targetEpoch)
         )
         val shortHalftimeCountdown = buildHalftimeCountdown(

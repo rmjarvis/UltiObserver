@@ -48,7 +48,7 @@ internal fun MoreActionsContent(
     var showAdjustScoreDialog by remember { mutableStateOf(false) }
     var showAdjustTimeoutsDialog by remember { mutableStateOf(false) }
     var showAdjustCardsDialog by remember { mutableStateOf(false) }
-    var showAdjustPullInfractionsDialog by remember { mutableStateOf(false) }
+    var showAdjustPullViolationsDialog by remember { mutableStateOf(false) }
     var showChangePullPromptsDialog by remember { mutableStateOf(false) }
     var showDeleteGameDialog by remember { mutableStateOf(false) }
 
@@ -99,8 +99,8 @@ internal fun MoreActionsContent(
                     onClick = { showAdjustTimeoutsDialog = true },
                 )
                 OtherMenuButton(
-                    label = "Adjust pull infractions",
-                    onClick = { showAdjustPullInfractionsDialog = true },
+                    label = "Adjust pull violations",
+                    onClick = { showAdjustPullViolationsDialog = true },
                 )
             }
             Column(
@@ -197,10 +197,10 @@ internal fun MoreActionsContent(
         )
     }
 
-    if (showAdjustPullInfractionsDialog) {
-        AdjustPullInfractionsDialog(
+    if (showAdjustPullViolationsDialog) {
+        AdjustPullViolationsDialog(
             state = state,
-            onDismiss = { showAdjustPullInfractionsDialog = false },
+            onDismiss = { showAdjustPullViolationsDialog = false },
             onConfirm = {
                 teamOneOffsides,
                 teamOneFalseStarts,
@@ -209,7 +209,7 @@ internal fun MoreActionsContent(
                 teamTwoFalseStarts,
                 teamTwoMajorityPulls ->
                 onAction(
-                    state.adjustPullInfractions(
+                    state.adjustPullViolations(
                         teamOneOffsides,
                         teamOneFalseStarts,
                         teamOneMajorityPulls,
@@ -219,7 +219,7 @@ internal fun MoreActionsContent(
                         now,
                     )
                 )
-                showAdjustPullInfractionsDialog = false
+                showAdjustPullViolationsDialog = false
             },
         )
     }
