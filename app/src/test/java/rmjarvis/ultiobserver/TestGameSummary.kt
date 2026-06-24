@@ -3,34 +3,18 @@ package rmjarvis.ultiobserver
 import java.time.LocalDate
 import java.time.LocalTime
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/// Tests for completed-game summary text shared outside the app.
+/// Tests for in-app game summaries and the shareable text version.
 class TestGameSummary : GameDomainTestFixtures() {
     /**
-     * Test live team display helpers and model guards.
+     * Test completed-game display text and winner-first team ordering.
      */
     @Test
-    fun teamDisplayModelGuards() {
-        // Custom live-team colors require an explicit ARGB value.
-        assertThrows(IllegalArgumentException::class.java) {
-            TeamLiveState("Custom", TeamColorChoice.CUSTOM)
-        }
-
-        // Coach and captain fields count as team staff information.
-        val teamWithoutStaff = TeamLiveState("No Staff", TeamColorChoice.WHITE)
-        assertFalse(teamWithoutStaff.hasCoachOrCaptainInfo())
-        assertTrue(teamWithoutStaff.copy(coaches = "Coach").hasCoachOrCaptainInfo())
-        assertTrue(teamWithoutStaff.copy(fieldCaptains = "Field captain").hasCoachOrCaptainInfo())
-        assertTrue(teamWithoutStaff.copy(spiritCaptains = "Spirit captain").hasCoachOrCaptainInfo())
-    }
-
-    /// Verify completed-game display text includes start, end, and winner-first score lines.
-    @Test
-    fun displayTextSummarizesTimesAndWinnerFirstScores() {
+    fun completedGameSummaryText() {
+        // Completed-game display text combines game metadata, observer names, times, and
+        // winner-first scores.
         val baseState = standardLiveGameState(
             startDate = LocalDate.of(2026, 5, 19),
             startTime = LocalTime.of(10, 0),
@@ -58,6 +42,8 @@ class TestGameSummary : GameDomainTestFixtures() {
             ),
             state.gameOverSummaryText(),
         )
+
+        // Winning team is listed first if the scores are different.
         assertEquals(listOf(state.teamTwo, state.teamOne), state.winnerFirstTeams())
         assertEquals(
             listOf(state.teamTwo.copy(score = 2), state.teamOne.copy(score = 1)),
@@ -66,17 +52,28 @@ class TestGameSummary : GameDomainTestFixtures() {
                 teamTwo = state.teamTwo.copy(score = 2),
             ).winnerFirstTeams(),
         )
-        val laterAlphabeticalTeam = state.teamOne.copy(name = "Z Team", score = 1)
-        val earlierAlphabeticalTeam = state.teamTwo.copy(name = "A Team", score = 1)
+
+        // Tied teams are listed alphabetically.
+        val zTeam = state.teamOne.copy(name = "Z Team", score = 1)
+        val aTeam = state.teamTwo.copy(name = "A Team", score = 1)
         assertEquals(
-            listOf(earlierAlphabeticalTeam, laterAlphabeticalTeam),
-            state.copy(teamOne = laterAlphabeticalTeam, teamTwo = earlierAlphabeticalTeam).winnerFirstTeams(),
+            listOf(aTeam, zTeam),
+            state.copy(teamOne = zTeam, teamTwo = aTeam).winnerFirstTeams(),
+        )
+        assertEquals(
+            listOf(aTeam, zTeam),
+            state.copy(teamOne = aTeam, teamTwo = zTeam).winnerFirstTeams(),
         )
     }
 
-    /// Verify team display text includes player cards, blue cards, and technical fouls.
+    /**
+     * Test completed-game summaries show all the misconduct that happened during the game.
+     * Player cards are listed individually.
+     * Blue cards and technical fouls get count summaries.
+     */
     @Test
-    fun teamDisplayTextSummarizesIssuedCardsAndTeamCounts() {
+    fun completedGameMisconduct() {
+        // Set up a game with various cards and technical fouls assessed to team 1.
         val state = standardLiveGameState(
             startDate = LocalDate.of(2026, 5, 19),
             startTime = LocalTime.of(10, 0),
@@ -91,7 +88,11 @@ class TestGameSummary : GameDomainTestFixtures() {
             teamTwo = TeamLiveState("Animal", TeamColorChoice.RED),
             teamTwoPlayers = listOf(PlayerRecord(jerseyNumber = "99")),
             teamOnePlayers = listOf(
-                playerRecordWithCards(jerseyNumber = "7", playerName = "Casey Handler", yellows = 1).copy(
+                playerRecordWithCards(
+                    jerseyNumber = "7",
+                    playerName = "Casey Handler",
+                    yellows = 1,
+                ).copy(
                     cards = listOf(
                         InGamePlayerCardEvent(
                             CardType.YELLOW,
@@ -102,7 +103,11 @@ class TestGameSummary : GameDomainTestFixtures() {
                 ),
                 playerRecordWithCards(jerseyNumber = "12", yellows = 2).copy(
                     cards = listOf(
-                        InGamePlayerCardEvent(CardType.YELLOW, index = 1, reason = CardReason(preset = "Taunting")),
+                        InGamePlayerCardEvent(
+                            CardType.YELLOW,
+                            index = 1,
+                            reason = CardReason(preset = "Taunting"),
+                        ),
                         InGamePlayerCardEvent(
                             CardType.YELLOW,
                             index = 3,
@@ -122,6 +127,8 @@ class TestGameSummary : GameDomainTestFixtures() {
             ),
         )
 
+        // The game summary should show each card in the order they were given (index above).
+        // Blues and techs just show total counts.
         assertEquals(
             GameOverTeamSummaryText(
                 teamName = "Viscous Coupling",
@@ -136,6 +143,8 @@ class TestGameSummary : GameDomainTestFixtures() {
             ),
             state.gameOverTeamSummaryText(TeamId.TEAM_ONE),
         )
+
+        // Teams without any misconduct still display explicit zero-count rows.
         assertEquals(
             GameOverTeamSummaryText(
                 teamName = "Animal",
@@ -147,10 +156,14 @@ class TestGameSummary : GameDomainTestFixtures() {
         )
     }
 
-    /// Verify compact share text includes final score and only teams with in-game misconduct.
+    /**
+     * Test the text that gets sent using the share button.
+     * It should share tournament metadata, final score, and any misconduct that happened.
+     */
     @Test
-    fun shareTextSummarizesTournamentScoreAndMisconduct() {
-        val state = standardLiveGameState(
+    fun shareText() {
+        // First, a game with lots of misconduct on one team.
+        var state = standardLiveGameState(
             startDate = LocalDate.of(2026, 5, 19),
             startTime = LocalTime.of(10, 0),
         ).copy(
@@ -169,9 +182,17 @@ class TestGameSummary : GameDomainTestFixtures() {
                 blueCards = 1,
             ),
             teamTwoPlayers = listOf(
-                playerRecordWithCards(jerseyNumber = "7", playerName = "Casey Handler", yellows = 2).copy(
+                playerRecordWithCards(
+                    jerseyNumber = "7",
+                    playerName = "Casey Handler",
+                    yellows = 2,
+                ).copy(
                     cards = listOf(
-                        InGamePlayerCardEvent(CardType.YELLOW, index = 0, reason = CardReason(preset = "Taunting")),
+                        InGamePlayerCardEvent(
+                            CardType.YELLOW,
+                            index = 0,
+                            reason = CardReason(preset = "Taunting"),
+                        ),
                         InGamePlayerCardEvent(
                             CardType.YELLOW,
                             index = 2,
@@ -191,6 +212,7 @@ class TestGameSummary : GameDomainTestFixtures() {
             ),
         )
 
+        // The share text should show all the metadata and misconduct.
         assertEquals(
             """
             UltiObserver Game Summary
@@ -207,12 +229,10 @@ class TestGameSummary : GameDomainTestFixtures() {
             """.trimIndent(),
             state.gameSummaryShareText(),
         )
-    }
 
-    /// Verify clean games say positively that no misconduct was assessed.
-    @Test
-    fun shareTextOmitsBlankTournamentAndReportsNoMisconduct() {
-        val state = standardLiveGameState(
+        // When there is no misconduct on either team, the share text just says that.
+        // It also skips any metadata that doesn't have a value (e.g. tournament, observers).
+        state = standardLiveGameState(
             startDate = LocalDate.of(2026, 5, 19),
             startTime = LocalTime.of(10, 0),
         ).copy(
@@ -221,7 +241,6 @@ class TestGameSummary : GameDomainTestFixtures() {
             teamTwo = TeamLiveState("Animal", TeamColorChoice.RED, score = 12),
             teamOnePlayers = listOf(PlayerRecord(jerseyNumber = "99")),
         )
-
         assertEquals(
             """
             UltiObserver Game Summary
@@ -231,12 +250,9 @@ class TestGameSummary : GameDomainTestFixtures() {
             """.trimIndent(),
             state.gameSummaryShareText(),
         )
-    }
 
-    /// Verify share text handles player-only misconduct and team-only misconduct on different teams.
-    @Test
-    fun shareTextSummarizesSeparatePlayerAndTeamMisconductLines() {
-        val state = standardLiveGameState(
+        // When both teams have some misconduct, the share text lists them separately.
+        state = standardLiveGameState(
             startDate = LocalDate.of(2026, 5, 19),
             startTime = LocalTime.of(10, 0),
         ).copy(
@@ -254,7 +270,6 @@ class TestGameSummary : GameDomainTestFixtures() {
                 playerRecordWithCards(jerseyNumber = "9", yellows = 1, reds = 1),
             ),
         )
-
         assertEquals(
             """
             UltiObserver Game Summary
@@ -272,54 +287,4 @@ class TestGameSummary : GameDomainTestFixtures() {
         )
     }
 
-    /// Verify game information travels from setup into live state and back through setup editing.
-    @Test
-    fun gameInformationTravelsThroughSetupAndLiveState() {
-        val setup = standardGameSetup(
-            startDate = LocalDate.of(2026, 5, 19),
-            startTime = LocalTime.of(10, 0),
-        ).copy(
-            tournamentName = "Philly Open",
-            division = GameDivision.MIXED,
-            level = "Masters",
-            gameContext = "Semifinals",
-            observers = "Mike and Gary",
-            nearEndName = "Road",
-            farEndName = "Trees",
-            pullingFromEnd = FieldEnd.NEAR,
-            pullPromptTarget = PullPromptTarget.BOTH,
-        )
-
-        val state = createLiveGameState(setup)
-
-        assertEquals("Philly Open", state.tournamentName)
-        assertEquals(GameDivision.MIXED, state.division)
-        assertEquals("Masters", state.level)
-        assertEquals("Semifinals", state.gameContext)
-        assertEquals("Mike and Gary", state.observers)
-        assertEquals("Philly Open", state.toSetupState().tournamentName)
-        assertEquals(GameDivision.MIXED, state.toSetupState().division)
-        assertEquals("Masters", state.toSetupState().level)
-        assertEquals("Semifinals", state.toSetupState().gameContext)
-        assertEquals("Mike and Gary", state.toSetupState().observers)
-        assertEquals("Road", state.toSetupState().fieldEndName(FieldEnd.NEAR))
-        assertEquals("Trees", state.toSetupState().fieldEndName(FieldEnd.FAR))
-        assertEquals("Road", state.fieldEndDisplayName(FieldEnd.NEAR))
-        assertEquals("Trees", state.fieldEndDisplayName(FieldEnd.FAR))
-        assertEquals("Viscous Coupling pulls from Road", state.toSetupState().startingPullSummary())
-        assertEquals("Pull prompts for both ends", state.toSetupState().pullPromptSummary())
-        assertEquals(true, state.toSetupState().usesMixedDivision())
-
-        val defaultEndsSetup = setup.copy(nearEndName = "", farEndName = "", pullPromptTarget = PullPromptTarget.NEAR)
-        assertEquals("Near end", defaultEndsSetup.fieldEndName(FieldEnd.NEAR))
-        assertEquals("Far end", defaultEndsSetup.fieldEndName(FieldEnd.FAR))
-        val defaultEndsState = state.copy(nearEndName = "", farEndName = "")
-        assertEquals("Near end", defaultEndsState.fieldEndDisplayName(FieldEnd.NEAR))
-        assertEquals("Far end", defaultEndsState.fieldEndDisplayName(FieldEnd.FAR))
-        assertEquals("Pull prompts for Near end", defaultEndsSetup.pullPromptSummary())
-        assertEquals("Road", PullPromptTarget.NEAR.displayText(setup))
-        assertEquals("Trees", PullPromptTarget.FAR.displayText(setup))
-        assertEquals("both ends", PullPromptTarget.BOTH.displayText(setup))
-        assertEquals("neither end", PullPromptTarget.NEITHER.displayText(setup))
-    }
 }

@@ -40,6 +40,9 @@ class TestSetup : GameDomainTestFixtures() {
         assertThrows(IllegalArgumentException::class.java) {
             TeamSetup("Custom", TeamColorChoice.CUSTOM)
         }
+        assertThrows(IllegalArgumentException::class.java) {
+            TeamLiveState("Custom", TeamColorChoice.CUSTOM)
+        }
     }
 
     /**
@@ -57,6 +60,8 @@ class TestSetup : GameDomainTestFixtures() {
         )
         assertTrue(noPriorCardsState.teamOnePlayers.isEmpty())
         assertTrue(noPriorCardsState.teamTwoPlayers.isEmpty())
+        assertFalse(noPriorCardsState.teamOne.hasCoachOrCaptainInfo())
+        assertFalse(noPriorCardsState.teamTwo.hasCoachOrCaptainInfo())
 
         // Full setup data round-trips through a live game.
         val setup = fullSetup()
@@ -75,6 +80,8 @@ class TestSetup : GameDomainTestFixtures() {
         assertNull(state.teamTwo.customColorArgb)
         assertEquals("Coach VC", state.teamOne.coaches)
         assertEquals("Animal field captains", state.teamTwo.fieldCaptains)
+        assertTrue(state.teamOne.hasCoachOrCaptainInfo())
+        assertTrue(state.teamTwo.hasCoachOrCaptainInfo())
         assertEquals(VC, state.openingPullingTeam)
         assertEquals(FieldEnd.FAR, state.openingPullingFromEnd)
         assertEquals(VC, state.pullingTeam)
@@ -104,6 +111,50 @@ class TestSetup : GameDomainTestFixtures() {
             20_000L,
         )
         assertEquals(liveState, unchangedLiveState)
+    }
+
+    /**
+     * Test setup display text for field ends, pull prompts, and mixed-division choices.
+     */
+    @Test
+    fun setupDisplayText() {
+        val setup = standardGameSetup(startTime = LocalTime.of(10, 0)).copy(
+            division = GameDivision.MIXED,
+            nearEndName = "Road",
+            farEndName = "Trees",
+            pullingFromEnd = FieldEnd.NEAR,
+            pullPromptTarget = PullPromptTarget.BOTH,
+        )
+        val state = createLiveGameState(setup)
+
+        // Configured field-end names flow into setup summaries and live-state display helpers.
+        assertEquals("Road", setup.fieldEndName(FieldEnd.NEAR))
+        assertEquals("Trees", setup.fieldEndName(FieldEnd.FAR))
+        assertEquals("Viscous Coupling pulls from Road", setup.startingPullSummary())
+        assertEquals("Pull prompts for both ends", setup.pullPromptSummary())
+        assertTrue(setup.usesMixedDivision())
+        assertEquals("Road", state.fieldEndDisplayName(FieldEnd.NEAR))
+        assertEquals("Trees", state.fieldEndDisplayName(FieldEnd.FAR))
+
+        // Blank field-end names fall back to default labels while prompt targets use configured
+        // names.
+        val defaultEndsSetup = setup.copy(
+            nearEndName = "",
+            farEndName = "",
+            pullPromptTarget = PullPromptTarget.NEAR,
+        )
+        val defaultEndsState = state.copy(nearEndName = "", farEndName = "")
+        assertEquals("Near end", defaultEndsSetup.fieldEndName(FieldEnd.NEAR))
+        assertEquals("Far end", defaultEndsSetup.fieldEndName(FieldEnd.FAR))
+        assertEquals("Near end", defaultEndsState.fieldEndDisplayName(FieldEnd.NEAR))
+        assertEquals("Far end", defaultEndsState.fieldEndDisplayName(FieldEnd.FAR))
+        assertEquals("Pull prompts for Near end", defaultEndsSetup.pullPromptSummary())
+
+        // Pull-prompt choices use configured field-end names when they refer to one end.
+        assertEquals("Road", PullPromptTarget.NEAR.displayText(setup))
+        assertEquals("Trees", PullPromptTarget.FAR.displayText(setup))
+        assertEquals("both ends", PullPromptTarget.BOTH.displayText(setup))
+        assertEquals("neither end", PullPromptTarget.NEITHER.displayText(setup))
     }
 
     /**
@@ -215,7 +266,10 @@ class TestSetup : GameDomainTestFixtures() {
         assertEquals(GamePhase.PRE_GAME, blueCardSetupUpdate.phase)
         assertFalse(blueCardSetupUpdate.isInitialLivePreview())
         assertEquals(blueCardPullingTeamBeforeEdit.flip(), blueCardSetupUpdate.openingPullingTeam)
-        assertEquals(blueCardPullingFromEndBeforeEdit.flip(), blueCardSetupUpdate.openingPullingFromEnd)
+        assertEquals(
+            blueCardPullingFromEndBeforeEdit.flip(),
+            blueCardSetupUpdate.openingPullingFromEnd,
+        )
         assertEquals(blueCardPullingTeamBeforeEdit.flip(), blueCardSetupUpdate.pullingTeam)
         assertEquals(blueCardPullingFromEndBeforeEdit.flip(), blueCardSetupUpdate.pullingFromEnd)
         assertEquals(CountdownKind.OPENING_PULL, blueCardSetupUpdate.countdown?.kind)
