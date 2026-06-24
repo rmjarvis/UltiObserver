@@ -161,8 +161,8 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertNull(prePullViewModel.liveState)
         assertTrue(prePullViewModel.archivedGames.isEmpty())
 
-        // Undo-backed setup edits before the opening pull are still setup-only and should not be
-        // archived when starting over.
+        // Undo-backed setup edits before the opening pull are still setup-only, so starting over
+        // should discard them rather than archive them.
         val setupOnlyViewModel = AppViewModel(NoOpAppStateStorage)
         setupOnlyViewModel.startNewGame()
         setupOnlyViewModel.finishSetup()

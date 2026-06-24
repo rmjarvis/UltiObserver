@@ -202,15 +202,16 @@ enum class TeamColorChoice(
  *
  * @param name The team name entered in setup; blank means no explicit name yet.
  * @param color The active jersey color for this team.
- * @param customColorArgb Opaque ARGB value for a saved custom jersey color, or null when none has been picked.
+ * @param customColorArgb Opaque ARGB value for a saved custom jersey color, or null when none
+ * has been picked.
  * @param coaches Free-form coach name/details entered for this team.
  * @param fieldCaptains Free-form field-captain name/details entered for this team.
  * @param spiritCaptains Free-form spirit-captain name/details entered for this team.
  */
 @Serializable
 data class TeamSetup(
-    val name: String = "",
-    val color: TeamColorChoice = TeamColorChoice.WHITE,
+    val name: String,
+    val color: TeamColorChoice,
     val customColorArgb: Long? = null,
     val coaches: String = "",
     val fieldCaptains: String = "",

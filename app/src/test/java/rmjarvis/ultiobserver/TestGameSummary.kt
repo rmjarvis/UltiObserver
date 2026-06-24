@@ -3,10 +3,31 @@ package rmjarvis.ultiobserver
 import java.time.LocalDate
 import java.time.LocalTime
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /// Tests for completed-game summary text shared outside the app.
 class TestGameSummary : GameDomainTestFixtures() {
+    /**
+     * Test live team display helpers and model guards.
+     */
+    @Test
+    fun teamDisplayModelGuards() {
+        // Custom live-team colors require an explicit ARGB value.
+        assertThrows(IllegalArgumentException::class.java) {
+            TeamLiveState("Custom", TeamColorChoice.CUSTOM)
+        }
+
+        // Coach and captain fields count as team staff information.
+        val teamWithoutStaff = TeamLiveState("No Staff", TeamColorChoice.WHITE)
+        assertFalse(teamWithoutStaff.hasCoachOrCaptainInfo())
+        assertTrue(teamWithoutStaff.copy(coaches = "Coach").hasCoachOrCaptainInfo())
+        assertTrue(teamWithoutStaff.copy(fieldCaptains = "Field captain").hasCoachOrCaptainInfo())
+        assertTrue(teamWithoutStaff.copy(spiritCaptains = "Spirit captain").hasCoachOrCaptainInfo())
+    }
+
     /// Verify completed-game display text includes start, end, and winner-first score lines.
     @Test
     fun displayTextSummarizesTimesAndWinnerFirstScores() {
