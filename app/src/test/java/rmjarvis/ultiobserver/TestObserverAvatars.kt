@@ -7,10 +7,12 @@ import org.junit.Test
 
 /// Tests for observer avatar metadata used by Profile and Home.
 class TestObserverAvatars {
-    /// Verify every selectable observer avatar has stable copy and a concrete drawable resource.
+    /**
+     * Test avatar preference ordering, labels, drawable resources, and random sentinel behavior.
+     */
     @Test
-    fun avatarPreferencesHaveAccessibilityLabelsAndDrawableResources() {
-        // Verify the concrete chooser order stays stable for random selection and UI presentation.
+    fun avatarPreferences() {
+        // Concrete chooser order stays stable for random selection and UI presentation.
         assertEquals(
             listOf(
                 ObserverAvatarPreference.SPIKY,
@@ -29,7 +31,7 @@ class TestObserverAvatars {
             concreteObserverAvatarPreferences,
         )
 
-        // Check every user-facing label and concrete drawable used by profile/home UI.
+        // Every preference exposes the label used by profile/home UI.
         val labelsByPreference = mapOf(
             ObserverAvatarPreference.RANDOM to "Random",
             ObserverAvatarPreference.SPIKY to "Spiky brown-haired man",
@@ -45,10 +47,11 @@ class TestObserverAvatars {
             ObserverAvatarPreference.BALD to "Bald man with full beard",
             ObserverAvatarPreference.GREY to "Grey-haired man with short grey beard",
         )
-
         ObserverAvatarPreference.entries.forEach { preference ->
             assertEquals(labelsByPreference[preference], preference.label)
         }
+
+        // Every concrete avatar has a drawable resource.
         concreteObserverAvatarPreferences.forEach { preference ->
             assertTrue(preference.drawableRes != 0)
         }
@@ -61,5 +64,32 @@ class TestObserverAvatars {
             "Random avatar must be resolved before requesting a drawable.",
             randomDrawableException.message,
         )
+    }
+
+    /**
+     * Test resolving the random preference to a concrete Home avatar.
+     */
+    @Test
+    fun randomAvatar() {
+        // Use a fixed chooser to verify random-avatar timing without relying on randomness.
+        val viewModel = AppViewModel(
+            appStateStorage = NoOpAppStateStorage,
+            chooseAvatarIndex = { size ->
+                assertEquals(concreteObserverAvatarPreferences.size, size)
+                2
+            },
+        )
+        assertEquals(ObserverAvatarPreference.RANDOM, viewModel.avatarPreference)
+        assertEquals(concreteObserverAvatarPreferences[2], viewModel.homeAvatarPreference)
+
+        // A concrete avatar preference should be used directly on Home.
+        viewModel.updateAvatarPreference(ObserverAvatarPreference.GREY)
+        assertEquals(ObserverAvatarPreference.GREY, viewModel.avatarPreference)
+        assertEquals(ObserverAvatarPreference.GREY, viewModel.homeAvatarPreference)
+
+        // Returning to random should choose a concrete Home avatar again.
+        viewModel.updateAvatarPreference(ObserverAvatarPreference.RANDOM)
+        assertEquals(ObserverAvatarPreference.RANDOM, viewModel.avatarPreference)
+        assertEquals(concreteObserverAvatarPreferences[2], viewModel.homeAvatarPreference)
     }
 }

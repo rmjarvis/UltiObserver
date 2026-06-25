@@ -327,33 +327,4 @@ class TestAppViewModel : GameDomainTestFixtures() {
         )
         assertEquals(3, viewModel.timingAlertPreferences.repeatCountFor(TimingCueId.HARD_CAP))
     }
-
-    /**
-     * Verify a random avatar preference resolves to a concrete Home avatar on startup and
-     * when reselected.
-     */
-    @Test
-    fun randomAvatarPreference() {
-        // Use a fixed chooser to verify random-avatar timing without relying on randomness.
-        val viewModel = AppViewModel(
-            appStateStorage = NoOpAppStateStorage,
-            chooseAvatarIndex = { size ->
-                assertEquals(concreteObserverAvatarPreferences.size, size)
-                2
-            },
-        )
-        assertEquals(ObserverAvatarPreference.RANDOM, viewModel.avatarPreference)
-        assertEquals(concreteObserverAvatarPreferences[2], viewModel.homeAvatarPreference)
-
-        // A concrete avatar preference should be used directly on Home.
-        viewModel.updateAvatarPreference(ObserverAvatarPreference.GREY)
-        assertEquals(ObserverAvatarPreference.GREY, viewModel.avatarPreference)
-        assertEquals(ObserverAvatarPreference.GREY, viewModel.homeAvatarPreference)
-
-        // Returning to random should choose a concrete Home avatar again.
-        viewModel.updateAvatarPreference(ObserverAvatarPreference.RANDOM)
-        assertEquals(ObserverAvatarPreference.RANDOM, viewModel.avatarPreference)
-        assertEquals(concreteObserverAvatarPreferences[2], viewModel.homeAvatarPreference)
-    }
-
 }
