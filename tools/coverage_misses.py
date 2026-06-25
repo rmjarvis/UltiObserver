@@ -72,6 +72,11 @@ def parse_args() -> argparse.Namespace:
         help="Print allowed UI misses after the actionable misses.",
     )
     parser.add_argument(
+        "--exclude-ui",
+        action="store_true",
+        help="Omit UI source files from the report, useful for JVM-only coverage passes.",
+    )
+    parser.add_argument(
         "--path",
         action="append",
         default=[],
@@ -83,6 +88,17 @@ def parse_args() -> argparse.Namespace:
         help="Exit with status 1 when actionable misses remain.",
     )
     return parser.parse_args()
+
+
+def is_ui_source_file(path: Path) -> bool:
+    """Return whether a source path is a UI/platform entry-point file."""
+
+    name = path.name
+    return (
+        name.endswith("_UI.kt")
+        or name in {"MainActivity.kt", "MainActivityPreview.kt", "UiComponents.kt"}
+        or "/ui/theme/" in path.as_posix()
+    )
 
 
 def line_allowed_reason(
@@ -932,13 +948,16 @@ def main() -> int:
             for line in misses
             if any(path_filter in str(line.path) for path_filter in args.path)
         ]
+    if args.exclude_ui:
+        misses = [line for line in misses if not is_ui_source_file(line.path)]
     actionable = [line for line in misses if line.allowed_reason is None]
     ignored = [line for line in misses if line.allowed_reason is not None]
 
     print_lines("Actionable missed lines/branches:", actionable)
-    print(f"\nIgnored UI misses: {len(ignored)}")
+    ignored_title = "Ignored non-actionable misses" if args.exclude_ui else "Ignored UI misses"
+    print(f"\n{ignored_title}: {len(ignored)}")
     if args.show_ignored:
-        print_lines("Ignored UI missed lines/branches:", ignored)
+        print_lines(f"{ignored_title}:", ignored)
 
     if args.strict and actionable:
         return 1
