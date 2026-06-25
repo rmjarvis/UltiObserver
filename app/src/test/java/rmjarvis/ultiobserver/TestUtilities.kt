@@ -3,19 +3,25 @@ package rmjarvis.ultiobserver
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/// Tests for shared utility formatting helpers.
+/// Tests for shared utility helpers and serializers.
 class TestUtilities {
-    /// Test stable serial names for shared date/time serializers.
+    /**
+     * Test stable serial names for shared date/time serializers.
+     */
     @Test
     fun dateTimeSerializerNames() {
+        // Serializer names are part of the persisted JSON contract.
         assertEquals("LocalDateAsString", LocalDateAsStringSerializer.descriptor.serialName)
         assertEquals("LocalTimeAsString", LocalTimeAsStringSerializer.descriptor.serialName)
         assertEquals("ZoneIdAsString", ZoneIdAsStringSerializer.descriptor.serialName)
     }
 
-    /// Test ordinal suffix formatting for ordinary values and teen exceptions.
+    /**
+     * Test ordinal suffix formatting for ordinary values and teen exceptions.
+     */
     @Test
     fun ordinalText() {
+        // Numeric ordinals use English suffix rules, including teen exceptions.
         val expectedOrdinals = mapOf(
             1 to "1st",
             2 to "2nd",
@@ -42,9 +48,12 @@ class TestUtilities {
         }
     }
 
-    /// Test small ordinal word formatting with numeric fallback.
+    /**
+     * Test small ordinal word formatting with numeric fallback.
+     */
     @Test
     fun ordinalWordText() {
+        // Small ordinal words use names for first through third and numeric ordinals after that.
         val expectedOrdinals = mapOf(
             1 to "first",
             2 to "second",
