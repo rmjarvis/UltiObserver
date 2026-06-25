@@ -631,8 +631,8 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("live-pause-countdown").assertIsDisplayed()
         assertTrue(!composeRule.activity.appViewModel.liveState!!.countdown!!.isPaused())
 
-        // If the auto-advance setting is false, then when the countdown expires, it doesn't
-        // automatically start the point.
+        // If the auto-advance setting is false, then when the opening countdown expires, it
+        // doesn't automatically start the point.
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.appViewModel.updateAutomaticallyAdvanceCountdowns(false)
             val current = activity.appViewModel.liveState!!
@@ -647,7 +647,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.waitUntil(timeoutMillis = 2_000) {
             System.currentTimeMillis() >= checkAfter
         }
-        assertEquals(GamePhase.BETWEEN_POINTS, composeRule.activity.appViewModel.liveState!!.phase)
+        assertEquals(GamePhase.PRE_GAME, composeRule.activity.appViewModel.liveState!!.phase)
         waitForText("Start point")
         composeRule.onAllNodesWithText("Slide right to unlock").assertCountEquals(0)
 

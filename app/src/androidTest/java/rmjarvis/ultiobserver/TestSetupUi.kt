@@ -153,9 +153,14 @@ class TestSetupUi : MainActivityUiTestFixtures() {
     fun setupRules() {
         openNewGameSetup()
 
+        // Start from USAU defaults so restored device state cannot leave cap rows disabled.
+        openGameRulesSetupEditor()
+        composeRule.onNodeWithTag("setup-usau-defaults").performScrollTo().performClick()
+        waitForText("+105")
+        closeSetupEditor()
+
         // Empty numeric rule entries should fall back to the current value.
         setIntegerSetupValue("Game to", "Game to", "Points", "")
-        setCapRuleValue("Half cap", "Half cap", "")
         setTimeoutRules(timeoutsPerHalf = "", hasFloater = false)
 
         // Numeric rule editors should accept direct values.

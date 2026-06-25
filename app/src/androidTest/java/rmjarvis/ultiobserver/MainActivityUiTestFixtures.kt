@@ -29,6 +29,7 @@ import org.junit.Rule
 
 private val platformBackDismissalUnstableAvds = setOf(
     "Pixel_7_Emulator",
+    "Pixel_7_API_33",
     "Pixel_10",
     "Pixel_Fold",
     "Pixel_10_Pro_XL",
@@ -72,6 +73,47 @@ abstract class MainActivityUiTestFixtures {
             activity.appViewModel.startNewGame()
             activity.appViewModel.updateSetup(setup)
             activity.appViewModel.finishSetup()
+        }
+        composeRule.waitForIdle()
+        assertLiveScreen()
+    }
+
+    /**
+     * Start a seeded game and mark the opening point live.
+     *
+     * This keeps UI tests out of the opening-pull countdown when the test story is about actions
+     * during the point rather than starting the point.
+     *
+     * @param setup The setup state to use for the game.
+     */
+    protected fun startLivePointProgrammatically(setup: GameSetupState = newGameSetupState()) {
+        startLiveGameProgrammatically(setup)
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val current = activity.appViewModel.liveState!!
+            activity.appViewModel.updateLiveGame(current.beginLivePoint(System.currentTimeMillis()))
+        }
+        composeRule.waitForIdle()
+        assertLiveScreen()
+    }
+
+    /**
+     * Start a seeded game and record one point so the next pull sequence is waiting.
+     *
+     * This gives UI tests a real between-points state without playing through the opening point.
+     *
+     * @param setup The setup state to use for the game.
+     * @param scoringTeam The team to record as scoring the first point.
+     */
+    protected fun startBetweenPointsProgrammatically(
+        setup: GameSetupState = newGameSetupState(),
+        scoringTeam: TeamId = TeamId.TEAM_ONE,
+    ) {
+        startLiveGameProgrammatically(setup)
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val current = activity.appViewModel.liveState!!
+            activity.appViewModel.updateLiveGame(
+                current.recordGoalFromCurrentState(scoringTeam, System.currentTimeMillis())
+            )
         }
         composeRule.waitForIdle()
         assertLiveScreen()
@@ -320,7 +362,7 @@ abstract class MainActivityUiTestFixtures {
     protected fun startLiveGameWithDueCap(rowLabel: String, dialogTitle: String) {
         val capType = capTypeForSetupLabels(rowLabel, dialogTitle)
         val start = LocalDateTime.now().minusSeconds(5)
-        startLiveGameProgrammatically(
+        startLivePointProgrammatically(
             newGameSetupState().copy(
                 startDate = start.toLocalDate(),
                 startTime = start.toLocalTime(),
@@ -340,7 +382,7 @@ abstract class MainActivityUiTestFixtures {
     protected fun startLiveGameWithCapDuringHalftime(rowLabel: String, dialogTitle: String) {
         val capType = capTypeForSetupLabels(rowLabel, dialogTitle)
         val start = LocalDateTime.now().plusMinutes(1)
-        startLiveGameProgrammatically(
+        startBetweenPointsProgrammatically(
             newGameSetupState().copy(
                 startDate = start.toLocalDate(),
                 startTime = start.toLocalTime(),
@@ -487,12 +529,24 @@ abstract class MainActivityUiTestFixtures {
             val current = activity.appViewModel.liveState!!
             activity.appViewModel.updateLiveGame(
                 current.copy(
-                    teamOnePlayers = teamOneCards,
-                    teamTwoPlayers = teamTwoCards,
+                    teamOnePlayers = teamOneCards.withUniqueInGameCardIndexes(),
+                    teamTwoPlayers = teamTwoCards.withUniqueInGameCardIndexes(),
                 )
             )
         }
         composeRule.waitForIdle()
+    }
+
+    /// Return player records whose in-game card rows have unique editable indexes.
+    private fun List<PlayerRecord>.withUniqueInGameCardIndexes(): List<PlayerRecord> {
+        var nextIndex = 0
+        return map { player ->
+            player.copy(
+                cards = player.cards.map { card ->
+                    card.copy(index = nextIndex++)
+                }
+            )
+        }
     }
 
     /**

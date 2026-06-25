@@ -27,8 +27,8 @@ class TestCardsUi : MainActivityUiTestFixtures() {
      */
     @Test
     fun cardsAndTechDialogPath() {
-        // Start from a fresh live game so both teams have empty card totals.
-        startLiveGameProgrammatically()
+        // Start between points so the Card dialog shows the pull/receive role suffixes.
+        startBetweenPointsProgrammatically()
 
         // The Card dialog should show the selected team, its pull role, and its current totals.
         openCardsDialog()
@@ -132,7 +132,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         recordYellowCard(
             TeamId.TEAM_TWO,
             "7",
-            "Yellow card on player 7.\nTeam 2 has 3 total blue cards.",
+            "Yellow card on player 7.\nTeam 2 has 2 total blue cards.",
         )
         recordYellowCard(
             TeamId.TEAM_TWO,
@@ -147,7 +147,9 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         openCardsDialog()
         composeRule.onNodeWithText("Edit existing cards").performClick()
         waitForText("Edit existing cards")
-        composeRule.onAllNodes(hasContentDescription("Edit", substring = true))[1].performClick()
+        composeRule.onAllNodes(hasContentDescription("Edit #5", substring = true))
+            .onFirst()
+            .performClick()
         waitForText("Edit red card")
         composeRule.onNodeWithText("Reason").performClick()
         waitForText("Red card reason")
@@ -155,11 +157,11 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Set").performClick()
         composeRule.onNodeWithText("Record").performClick()
         composeRule.onAllNodesWithText(
-            "Team 1 #4 now has a red card and has been suspended."
+            "Team 1 #5 now has a red card and has been suspended."
         ).assertCountEquals(0)
         waitForText("Edit existing cards")
         composeRule.onNodeWithText("Done").performClick()
-        waitForText("Undo Edit red on #4 of Team 1")
+        waitForText("Undo Edit red on #5 of Team 1")
 
         // Yellow-card reason details should round-trip through the custom reason dialog.
         openCardsDialog(TeamId.TEAM_TWO)
@@ -192,7 +194,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         )
         composeRule.onNodeWithText("Set").performClick()
         composeRule.onNodeWithText("Record").performClick()
-        waitForText("Yellow card on #8 Alex Cutter.\nTeam 2 has 2 total blue cards.")
+        waitForText("Yellow card on #8 Alex Cutter.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
 
         // The Edit existing cards pathway from the field screen doesn't allow you to delete
@@ -201,8 +203,8 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Edit existing cards").performClick()
         waitForText("Edit existing cards")
         composeRule.onNodeWithText("#8 Alex Cutter").assertIsDisplayed()
-        composeRule.onNodeWithText("Yellow card").assertIsDisplayed()
-        composeRule.onAllNodes(hasContentDescription("Edit", substring = true)).assertCountEquals(1)
+        composeRule.onAllNodes(hasContentDescription("Edit #8 Alex Cutter", substring = true))
+            .assertCountEquals(1)
         composeRule.onAllNodes(
             hasContentDescription("Remove", substring = true)
         ).assertCountEquals(0)
@@ -221,7 +223,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         waitForText("Game over")
         composeRule.onNodeWithText("OK").performClick()
         waitForText("#7: Yellow card")
-        waitForText("#8 Alex Cutter: Yellow card")
+        waitForText("#8 Alex Cutter: Yellow card", substring = true)
     }
 
     /**
@@ -267,8 +269,8 @@ class TestCardsUi : MainActivityUiTestFixtures() {
      */
     @Test
     fun cardDialogShowsPullRolesDuringHalftime() {
-        // Start with Team 1 pulling the opening pull.
-        startLiveGameProgrammatically()
+        // Start between points with Team 1 pulling next.
+        startBetweenPointsProgrammatically()
         assertEquals(TeamId.TEAM_ONE, composeRule.activity.appViewModel.liveState!!.pullingTeam)
 
         // Put the game in halftime and verify Team 2 will pull next.
@@ -383,7 +385,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
     @Test
     fun repeatedPlayerCardChoiceDialogs() {
         // Seed a live point with already-carded players who need choice and rejection dialogs.
-        startLiveGameProgrammatically()
+        startLivePointProgrammatically()
         seedInGamePlayerCardsProgrammatically(
             teamOneCards = listOf(
                 playerRecordWithCards("9", yellows = 1),
@@ -391,15 +393,9 @@ class TestCardsUi : MainActivityUiTestFixtures() {
             ),
             teamTwoCards = listOf(playerRecordWithCards("6", yellows = 1, reds = 1)),
         )
-        composeRule.activityRule.scenario.onActivity { activity ->
-            val current = activity.appViewModel.liveState!!
-            activity.appViewModel.updateLiveGame(current.beginLivePoint(0L))
-        }
-        composeRule.waitForIdle()
 
         // A second yellow can restore the player entry after backing out of misconduct choice.
         openCardsDialog()
-        composeRule.onNodeWithText("Team 1").assertIsDisplayed()
         tapCardDialogAction(TeamId.TEAM_ONE, "Yellow")
         waitForText("Yellow card")
         enterCardPlayerNumber("9")

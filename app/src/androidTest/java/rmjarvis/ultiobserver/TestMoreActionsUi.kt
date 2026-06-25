@@ -68,6 +68,15 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Swap pulling team").performClick()
         assertLiveScreen()
 
+        // Manual halftime is only available between points, so score the opening point first.
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val current = activity.appViewModel.liveState!!
+            activity.appViewModel.updateLiveGame(
+                current.recordGoalFromCurrentState(TeamId.TEAM_ONE, System.currentTimeMillis())
+            )
+        }
+        composeRule.waitForIdle()
+
         // Manual halftime should be reachable and leave a visible result.
         openMoreActionsDialog()
         composeRule.onNodeWithText("Start halftime").performScrollTo().performClick()
