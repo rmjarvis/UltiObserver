@@ -46,6 +46,10 @@ class TestTimeouts : GameDomainTestFixtures() {
         // In this case, the timeout is called by the offense.
         val originalCountdown = state.countdown!!
         val betweenPointsTimeoutTime = originalCountdown.targetEpoch - 1_000L
+        val timeoutPreview = state.previewTimeout(VC, betweenPointsTimeoutTime)
+        assertTrue(timeoutPreview.event is GameEvent.TimeoutCharged)
+        assertEquals(0, state.teamOne.timeoutsUsedThisHalf)
+        assertTrue(state.canRequestTimeout(betweenPointsTimeoutTime))
         var timeoutResult = state.assessTimeout(VC, betweenPointsTimeoutTime)
         assertEquals(
             "Timeout charged to Viscous Coupling. They have 1 timeout remaining in this half.",
@@ -136,6 +140,8 @@ class TestTimeouts : GameDomainTestFixtures() {
             LocalTime.of(9, 5),
         )
         val outOfTimeoutsTime = outOfTimeoutsState.countdown!!.targetEpoch - 1_000L
+        val outOfTimeoutsPreview = outOfTimeoutsState.previewTimeout(VC, outOfTimeoutsTime)
+        assertTrue(outOfTimeoutsPreview.event is GameEvent.TeamOutOfTimeouts)
         timeoutResult = outOfTimeoutsState.assessTimeout(VC, outOfTimeoutsTime)
         assertEquals("Viscous Coupling is out of timeouts.", timeoutResult.message())
         assertEquals("Invalid timeout", timeoutResult.event.formatPopupTitle())
@@ -388,6 +394,7 @@ class TestTimeouts : GameDomainTestFixtures() {
                 1_160_000L,
             ).event is GameEvent.TimeoutUnavailable
         )
+        assertFalse(gameOverTimeoutState.canRequestTimeout(1_160_000L))
     }
 
     /**

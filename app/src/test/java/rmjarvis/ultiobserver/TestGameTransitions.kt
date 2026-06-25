@@ -273,6 +273,8 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertEquals(2, state.timeoutsAllowedThisHalf(ANIMAL))
         assertEquals(2, state.timeoutsRemaining(ANIMAL))
         assertEquals("Undo Goal by Viscous Coupling", state.undoEntry?.label)
+        assertFalse(state.halftimeTransitionReady(halftimeGoalTime + 419_999L))
+        assertTrue(state.halftimeTransitionReady(halftimeGoalTime + 420_000L))
 
         // After halftime, Animal is pulling, since they received for the start of the game.
         assertEquals(ANIMAL, state.pullingTeam)
@@ -478,6 +480,11 @@ class TestGameTransitions : GameDomainTestFixtures() {
             "Countdown OPENING_PULL is not valid while game phase is HALFTIME.",
             halftimeMismatchException.message,
         )
+
+        // Defensive guard for malformed halftime states: without a halftime countdown, or outside
+        // halftime, the helper should simply say the second half is not ready.
+        assertFalse(standardLiveGameState().copy(countdown = null).halftimeTransitionReady(1_000L))
+        assertFalse(standardLiveGameState().halftimeTransitionReady(1_000L))
     }
 
     /**

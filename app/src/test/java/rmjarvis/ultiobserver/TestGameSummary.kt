@@ -32,15 +32,16 @@ class TestGameSummary : GameDomainTestFixtures() {
         )
 
         assertEquals(
-            GameOverSummaryText(
-                title = "Game summary",
-                gameInformationLine = "Philly Open Mixed Division Masters Semifinal",
-                observersLine = "Observers: Mike and Gary",
-                startLine = "Start May 19, 2026 10:00 AM",
-                endLine = "End time 12:42 PM",
-                scoreLines = listOf("Animal 15", "Viscous Coupling 12"),
+            listOf(
+                "Game summary",
+                "Philly Open Mixed Division Masters Semifinal",
+                "Observers: Mike and Gary",
+                "Start May 19, 2026 10:00 AM",
+                "End time 12:42 PM",
+                "Animal 15",
+                "Viscous Coupling 12",
             ),
-            state.gameOverSummaryText(),
+            state.gameOverSummaryText().testDisplayLines(),
         )
 
         // Winning team is listed first if the scores are different.
@@ -124,35 +125,42 @@ class TestGameSummary : GameDomainTestFixtures() {
                         ),
                     ),
                 ),
+                playerRecordWithCards(jerseyNumber = "14", reds = 1).copy(
+                    cards = listOf(
+                        InGamePlayerCardEvent(
+                            CardType.RED,
+                            index = 4,
+                        ),
+                    ),
+                ),
             ),
         )
 
         // The game summary should show each card in the order they were given (index above).
         // Blues and techs just show total counts.
         assertEquals(
-            GameOverTeamSummaryText(
-                teamName = "Viscous Coupling",
-                issuedCardLines = listOf(
-                    "#7 Casey Handler: Yellow card -- Dangerous play",
-                    "#12: Yellow card -- Taunting",
-                    "No Number: Red card -- Egregious dangerous play",
-                    "#12: Yellow card -- Dangerous play",
-                ),
-                blueCardsLine = "Blue cards 2",
-                technicalFoulsLine = "Technical fouls 1",
+            listOf(
+                "Viscous Coupling",
+                "#7 Casey Handler: Yellow card -- Dangerous play",
+                "#12: Yellow card -- Taunting",
+                "No Number: Red card -- Egregious dangerous play",
+                "#12: Yellow card -- Dangerous play",
+                "#14: Red card",
+                "Blue cards 2",
+                "Technical fouls 1",
             ),
-            state.gameOverTeamSummaryText(TeamId.TEAM_ONE),
+            state.gameOverTeamSummaryText(TeamId.TEAM_ONE).testDisplayLines(),
         )
 
         // Teams without any misconduct still display explicit zero-count rows.
         assertEquals(
-            GameOverTeamSummaryText(
-                teamName = "Animal",
-                issuedCardLines = listOf("No yellow or red cards issued."),
-                blueCardsLine = "Blue cards 0",
-                technicalFoulsLine = "Technical fouls 0",
+            listOf(
+                "Animal",
+                "No yellow or red cards issued.",
+                "Blue cards 0",
+                "Technical fouls 0",
             ),
-            state.gameOverTeamSummaryText(TeamId.TEAM_TWO),
+            state.gameOverTeamSummaryText(TeamId.TEAM_TWO).testDisplayLines(),
         )
     }
 
@@ -287,4 +295,26 @@ class TestGameSummary : GameDomainTestFixtures() {
         )
     }
 
+}
+
+/// Return the summary lines that this test expects the completed-game card to display.
+private fun GameOverSummaryText.testDisplayLines(): List<String> {
+    return buildList {
+        add(title)
+        gameInformationLine?.let { add(it) }
+        observersLine?.let { add(it) }
+        add(startLine)
+        add(endLine)
+        addAll(scoreLines)
+    }
+}
+
+/// Return the summary lines that this test expects one completed-game team section to display.
+private fun GameOverTeamSummaryText.testDisplayLines(): List<String> {
+    return buildList {
+        add(teamName)
+        addAll(issuedCardLines)
+        add(blueCardsLine)
+        add(technicalFoulsLine)
+    }
 }

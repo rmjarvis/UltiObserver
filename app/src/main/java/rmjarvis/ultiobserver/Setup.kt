@@ -70,7 +70,7 @@ data class GameSetupState(
     val observers: String = "",
     val nearEndName: String = "",
     val farEndName: String = "",
-    val rules: GameRules = GameRules(),
+    val rules: GameRules,
     val teamOne: TeamSetup = TeamSetup(name = "", color = TeamColorChoice.WHITE),
     val teamTwo: TeamSetup = TeamSetup(name = "", color = TeamColorChoice.BLUE),
     val teamOnePlayers: List<PlayerRecord> = emptyList(),
@@ -86,7 +86,8 @@ data class GameSetupState(
 /**
  * Build the default setup state for a new game.
  *
- * @param now The reference local date-time for choosing the next half-hour start; injectable for tests.
+ * @param now The reference local date-time for choosing the next half-hour start; injectable for
+ * tests.
  * @param rules The rules to prefill, usually defaults or the most recent game's rules.
  */
 internal fun newGameSetupState(
@@ -141,7 +142,7 @@ internal fun setupLevelPresets(): List<String> {
  * @param label The short fixed-width label.
  * @param value The free-form text shown to the right of the label.
  */
-internal data class LabeledSetupSummary(
+internal class LabeledSetupSummary(
     val label: String,
     val value: String,
 )
@@ -257,8 +258,15 @@ internal fun GameSetupState.playersFor(teamId: TeamId): List<PlayerRecord> {
  * @param teamId The team whose players should be replaced.
  * @param players The new player records for that team.
  */
-internal fun GameSetupState.withPlayersFor(teamId: TeamId, players: List<PlayerRecord>): GameSetupState {
-    return if (teamId == TeamId.TEAM_ONE) copy(teamOnePlayers = players) else copy(teamTwoPlayers = players)
+internal fun GameSetupState.withPlayersFor(
+    teamId: TeamId,
+    players: List<PlayerRecord>,
+): GameSetupState {
+    return if (teamId == TeamId.TEAM_ONE) {
+        copy(teamOnePlayers = players)
+    } else {
+        copy(teamTwoPlayers = players)
+    }
 }
 
 /// Return the default user-facing text for a field end.

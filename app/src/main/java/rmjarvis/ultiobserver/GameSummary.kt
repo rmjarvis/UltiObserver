@@ -10,7 +10,7 @@ package rmjarvis.ultiobserver
  * @param endLine Formatted game end time.
  * @param scoreLines Winner-first team score lines.
  */
-internal data class GameOverSummaryText(
+internal class GameOverSummaryText(
     val title: String,
     val gameInformationLine: String?,
     val observersLine: String?,
@@ -27,7 +27,7 @@ internal data class GameOverSummaryText(
  * @param blueCardsLine Team blue-card count line.
  * @param technicalFoulsLine Team technical-foul count line.
  */
-internal data class GameOverTeamSummaryText(
+internal class GameOverTeamSummaryText(
     val teamName: String,
     val issuedCardLines: List<String>,
     val blueCardsLine: String,

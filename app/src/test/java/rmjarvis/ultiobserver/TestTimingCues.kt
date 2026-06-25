@@ -498,8 +498,9 @@ class TestTimingCues : GameDomainTestFixtures() {
         // With a 250 ms polling cadence, the delivery window starts at 500 ms.  An alert 501 ms
         // away is still outside that window, so the listener should sleep for one normal poll and
         // report that nothing is ready to play yet.
-        assertEquals(
-            TimingAlertDeliveryWindowResult(false, 250L),
+        assertTimingAlertDeliveryWindow(
+            readyToPlay = false,
+            delayMillis = 250L,
             timingAlertDeliveryWindow(
                 millisUntilNextAlert = 501L,
                 scheduleCheckMillis = checkMillis,
@@ -508,8 +509,9 @@ class TestTimingCues : GameDomainTestFixtures() {
 
         // Exactly on the delivery-window boundary, the listener commits to this cue and sleeps
         // until the target time rather than taking another normal polling step.
-        assertEquals(
-            TimingAlertDeliveryWindowResult(true, 500L),
+        assertTimingAlertDeliveryWindow(
+            readyToPlay = true,
+            delayMillis = 500L,
             timingAlertDeliveryWindow(
                 millisUntilNextAlert = 500L,
                 scheduleCheckMillis = checkMillis,
@@ -517,8 +519,9 @@ class TestTimingCues : GameDomainTestFixtures() {
         )
 
         // The same targeted-delay rule applies when the cue is only barely in the future.
-        assertEquals(
-            TimingAlertDeliveryWindowResult(true, 1L),
+        assertTimingAlertDeliveryWindow(
+            readyToPlay = true,
+            delayMillis = 1L,
             timingAlertDeliveryWindow(
                 millisUntilNextAlert = 1L,
                 scheduleCheckMillis = checkMillis,
@@ -526,8 +529,9 @@ class TestTimingCues : GameDomainTestFixtures() {
         )
 
         // A cue that is due right now is ready immediately, with no wait needed.
-        assertEquals(
-            TimingAlertDeliveryWindowResult(true, 0L),
+        assertTimingAlertDeliveryWindow(
+            readyToPlay = true,
+            delayMillis = 0L,
             timingAlertDeliveryWindow(
                 millisUntilNextAlert = 0L,
                 scheduleCheckMillis = checkMillis,
@@ -535,8 +539,9 @@ class TestTimingCues : GameDomainTestFixtures() {
         )
 
         // Slightly overdue cues also play immediately, because there is no useful wait left.
-        assertEquals(
-            TimingAlertDeliveryWindowResult(true, 0L),
+        assertTimingAlertDeliveryWindow(
+            readyToPlay = true,
+            delayMillis = 0L,
             timingAlertDeliveryWindow(
                 millisUntilNextAlert = -1L,
                 scheduleCheckMillis = checkMillis,
@@ -903,6 +908,22 @@ class TestTimingCues : GameDomainTestFixtures() {
 
     /// Return the hard-cap cue epoch for the supplied state.
     private fun hardCapTime(state: GameState): Long = state.startEpoch + 105 * 60_000L
+}
+
+/**
+ * Assert the listener-ready decision returned by the timing-alert delivery-window helper.
+ *
+ * @param readyToPlay Whether the alert should play after the requested delay.
+ * @param delayMillis How long the listener should wait before continuing.
+ * @param result The actual helper result.
+ */
+private fun assertTimingAlertDeliveryWindow(
+    readyToPlay: Boolean,
+    delayMillis: Long,
+    result: TimingAlertDeliveryWindowResult,
+) {
+    assertEquals(readyToPlay, result.readyToPlay)
+    assertEquals(delayMillis, result.delayMillis)
 }
 
 /**

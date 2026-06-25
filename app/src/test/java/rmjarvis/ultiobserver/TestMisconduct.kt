@@ -689,6 +689,14 @@ class TestMisconduct : GameDomainTestFixtures() {
             standardLiveGameState().startMisconductCountdown(1_010_000L),
         )
 
+        // Defensive guard for a stale Start misconduct countdown action when no misconduct
+        // countdown is pending.
+        val liveStateWithoutPendingMisconduct = standardLiveGameState().beginLivePoint()
+        assertEquals(
+            liveStateWithoutPendingMisconduct,
+            liveStateWithoutPendingMisconduct.startMisconductCountdown(1_010_000L),
+        )
+
         // A player card that reaches the threshold between points follows the same no-pull
         // consequence.
         state = standardLiveGameState()
@@ -1533,7 +1541,7 @@ class TestMisconduct : GameDomainTestFixtures() {
             ).teamTwo.technicalFouls,
         )
 
-        // Blue-card count corrections should log one specific count-delta entry.
+        // Blue-card count corrections for team 1 should log one specific count-delta entry.
         val correctionBefore = standardLiveGameState()
         val blueCorrectionAfter = correctionBefore.adjustCardsAndTf(
             teamOneBlues = correctionBefore.teamOne.blueCards + 1,
@@ -1545,6 +1553,18 @@ class TestMisconduct : GameDomainTestFixtures() {
         )
         assertEquals(correctionBefore.eventLog.size + 1, blueCorrectionAfter.eventLog.size)
         assertEquals("Cards and technical fouls adjusted.", blueCorrectionAfter.lastEvent)
+
+        // Blue-card count corrections for team 2 should use the same one-entry event-log shape.
+        val teamTwoBlueCorrectionAfter = correctionBefore.adjustCardsAndTf(
+            teamOneBlues = correctionBefore.teamOne.blueCards,
+            teamOneTechnicalFouls = correctionBefore.teamOne.technicalFouls,
+            teamTwoBlues = correctionBefore.teamTwo.blueCards + 1,
+            teamTwoTechnicalFouls = correctionBefore.teamTwo.technicalFouls,
+            teamOnePlayers = correctionBefore.teamOnePlayers,
+            teamTwoPlayers = correctionBefore.teamTwoPlayers,
+        )
+        assertEquals(correctionBefore.eventLog.size + 1, teamTwoBlueCorrectionAfter.eventLog.size)
+        assertEquals("Cards and technical fouls adjusted.", teamTwoBlueCorrectionAfter.lastEvent)
 
         // Technical-foul count corrections should log one specific count-delta entry for either
         // team.
@@ -1638,12 +1658,14 @@ class TestMisconduct : GameDomainTestFixtures() {
         )
         assertEquals(playerCardEditBefore, unchangedPlayerCardAfter)
 
-        // Changing only the player-card reason preserves the original yellow-card event type.
-        val reasonEditAfter = playerCardEditBefore.adjustCardsAndTf(
-            teamOneBlues = playerCardEditBefore.teamOne.blueCards,
-            teamOneTechnicalFouls = playerCardEditBefore.teamOne.technicalFouls,
-            teamTwoBlues = playerCardEditBefore.teamTwo.blueCards,
-            teamTwoTechnicalFouls = playerCardEditBefore.teamTwo.technicalFouls,
+        // Changing one player-card reason preserves the original yellow-card event type while
+        // leaving unchanged player-card rows alone.
+        val multiCardEditBefore = playerCardEditBefore.assessFirstYellowCard(VC, "72").state
+        val reasonEditAfter = multiCardEditBefore.adjustCardsAndTf(
+            teamOneBlues = multiCardEditBefore.teamOne.blueCards,
+            teamOneTechnicalFouls = multiCardEditBefore.teamOne.technicalFouls,
+            teamTwoBlues = multiCardEditBefore.teamTwo.blueCards,
+            teamTwoTechnicalFouls = multiCardEditBefore.teamTwo.technicalFouls,
             teamOnePlayers = listOf(
                 PlayerRecord(
                     jerseyNumber = "71",
@@ -1654,9 +1676,10 @@ class TestMisconduct : GameDomainTestFixtures() {
                             reason = CardReason(preset = "Pushing"),
                         )
                     ),
-                )
+                ),
+                playerRecordWithCards("72", yellows = 1),
             ),
-            teamTwoPlayers = playerCardEditBefore.teamTwoPlayers,
+            teamTwoPlayers = multiCardEditBefore.teamTwoPlayers,
         )
         assertEquals(EventLogType.YELLOW_CARD, reasonEditAfter.eventLog.last().type)
 
@@ -1693,6 +1716,45 @@ class TestMisconduct : GameDomainTestFixtures() {
             teamTwoPlayers = playerCardEditBefore.teamTwoPlayers,
         )
         assertEquals("Cards and technical fouls adjusted.", cardTypeEditAfter.lastEvent)
+
+        // Adding or removing multiple player cards from one player records one event-log entry per
+        // card.
+        val twoYellowAdditionAfter = standardLiveGameState().adjustCardsAndTf(
+            teamOneBlues = 0,
+            teamOneTechnicalFouls = 0,
+            teamTwoBlues = 0,
+            teamTwoTechnicalFouls = 0,
+            teamOnePlayers = listOf(playerRecordWithCards("80", yellows = 2)),
+            teamTwoPlayers = emptyList(),
+        )
+        assertEquals(
+            listOf(1, 1),
+            twoYellowAdditionAfter.eventLog.takeLast(2).map { it.delta },
+        )
+        val twoYellowRemovalBefore = standardLiveGameState()
+            .assessFirstYellowCard(VC, "80")
+            .state
+            .assessSecondYellowCard(VC, "80")
+            .state
+        val twoYellowRemovalAfter = twoYellowRemovalBefore.adjustCardsAndTf(
+            teamOneBlues = twoYellowRemovalBefore.teamOne.blueCards,
+            teamOneTechnicalFouls = twoYellowRemovalBefore.teamOne.technicalFouls,
+            teamTwoBlues = twoYellowRemovalBefore.teamTwo.blueCards,
+            teamTwoTechnicalFouls = twoYellowRemovalBefore.teamTwo.technicalFouls,
+            teamOnePlayers = emptyList(),
+            teamTwoPlayers = twoYellowRemovalBefore.teamTwoPlayers,
+        )
+        assertEquals(
+            listOf(
+                EventLogType.YELLOW_CARD,
+                EventLogType.YELLOW_CARD,
+            ),
+            twoYellowRemovalAfter.eventLog.takeLast(2).map { it.type },
+        )
+        assertEquals(
+            listOf(-1, -1),
+            twoYellowRemovalAfter.eventLog.takeLast(2).map { it.delta },
+        )
     }
 
     /**

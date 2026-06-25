@@ -95,7 +95,7 @@ internal fun TimingCueDisplay.alertKey(): String {
  * @param readyToPlay Whether the caller should deliver the alert after waiting.
  * @param delayMillis The requested delay before continuing, or 0 when no wait is needed.
  */
-internal data class TimingAlertDeliveryWindowResult(
+internal class TimingAlertDeliveryWindowResult(
     val readyToPlay: Boolean,
     val delayMillis: Long,
 )

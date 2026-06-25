@@ -507,19 +507,6 @@ private fun GameState.timeViolationWarningPullTiming(team: TeamId): PullTimingSe
     }
 }
 
-/**
- * Return the field end occupied by a team for the current pull.
- *
- * @param team The team whose field end should be returned.
- */
-internal fun GameState.fieldEndForTeam(team: TeamId): FieldEnd {
-    return if (team == pullingTeam) {
-        pullingFromEnd
-    } else {
-        pullingFromEnd.flip()
-    }
-}
-
 /// Return the between-points timing target for the currently prompted side of the field.
 private fun GameState.currentCountdownTarget(): BetweenPointsCountdownTarget {
     return betweenPointsCountdownTarget(

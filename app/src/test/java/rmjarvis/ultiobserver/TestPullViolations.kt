@@ -796,6 +796,19 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertEquals(GamePhase.BETWEEN_POINTS, strippedLiveFirstPointResult.state.phase)
         assertEquals(CountdownKind.PULL_RESET, strippedLiveFirstPointResult.state.countdown?.kind)
 
+        // Defensive fallback for stale live-point states whose undo entry is unrelated to the
+        // pull-start transition: the reset still lands in a between-points phase.
+        val unrelatedUndoLivePointState = liveFirstPointState.withUndo(
+            liveFirstPointState,
+            "Undo Unrelated live-point action",
+        )
+        val unrelatedUndoWarningResult = unrelatedUndoLivePointState.assessTimeViolation(
+            ANIMAL,
+            firstViolationMoment,
+        )
+        assertEquals(GamePhase.BETWEEN_POINTS, unrelatedUndoWarningResult.state.phase)
+        assertEquals(CountdownKind.PULL_RESET, unrelatedUndoWarningResult.state.countdown?.kind)
+
         // When the warning reset expires, it starts the live point like a normal pull countdown.
         val liveAfterWarningReset = timeViolationState.applyExpiredCountdownTransitions(
             firstViolationMoment + 20_000L,
@@ -824,7 +837,59 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertEquals("Pull in", timeViolationState.countdown?.label)
         assertEquals(50, timeViolationState.countdown?.durationSeconds)
 
-        // A defense time violation warning gets a 30-second reset before the pull.
+        // With both-end prompts, the same warning keeps both cue streams.  The handbook gives the
+        // defense 30 seconds after the offense is ready here, so give-hand and pull cues are
+        // separate instead of merged like the standard between-points timing.
+        state = standardLiveGameState().withPullPromptTarget(PullPromptTarget.BOTH)
+        val bothEndWarningMoment = state.countdown!!.targetEpoch
+        timeViolationResult = state.assessTimeViolation(ANIMAL, bothEndWarningMoment)
+        timeViolationState = timeViolationResult.state
+        assertEquals(
+            BetweenPointsCountdownTarget.BOTH,
+            timeViolationState.countdown?.betweenPointsTarget,
+        )
+        assertEquals(50, timeViolationState.countdown?.durationSeconds)
+        assertEquals(
+            TimingCueId.RECEIVING_TWENTY_FOR_HAND,
+            timeViolationState.countdown?.nextTimingCue(bothEndWarningMoment)?.id,
+        )
+        assertEquals(
+            TimingCueId.RECEIVING_GIVE_HAND,
+            timeViolationState.countdown?.nextTimingCue(bothEndWarningMoment + 20_000L)?.id,
+        )
+        assertEquals(
+            TimingCueId.PULLING_TWENTY_TO_PULL,
+            timeViolationState.countdown?.nextTimingCue(bothEndWarningMoment + 30_000L)?.id,
+        )
+
+        // If this phone is prompting the receiving end, a pulling-team warning still shows the
+        // reset countdown but does not schedule pull cues.
+        state = standardLiveGameState()
+        timeViolationResult = state.assessTimeViolation(VC, state.countdown!!.targetEpoch)
+        timeViolationState = timeViolationResult.state
+        assertEquals(VC, (timeViolationResult.event as GameEvent.TimeViolationRecorded).team)
+        assertEquals(
+            BetweenPointsCountdownTarget.NEITHER,
+            timeViolationState.countdown?.betweenPointsTarget,
+        )
+        assertEquals("Pull in", timeViolationState.countdown?.label)
+        assertEquals(30, timeViolationState.countdown?.durationSeconds)
+        assertNull(
+            timeViolationState.countdown?.nextTimingCue(
+                timeViolationState.countdown!!.targetEpoch - 20_000L,
+            )
+        )
+        state = standardLiveGameState(pullingFromEnd = FieldEnd.NEAR)
+            .withPullPromptTarget(PullPromptTarget.FAR)
+        timeViolationResult = state.assessTimeViolation(VC, state.countdown!!.targetEpoch)
+        timeViolationState = timeViolationResult.state
+        assertEquals(
+            BetweenPointsCountdownTarget.NEITHER,
+            timeViolationState.countdown?.betweenPointsTarget,
+        )
+
+        // A pulling-team time violation warning gets a 30-second reset before the pull when this
+        // phone is prompting the pulling end.
         state = standardLiveGameState(pullingFromEnd = FieldEnd.NEAR)
         assertEquals("Pull in", state.countdown?.label)
         timeViolationResult = state.assessTimeViolation(VC, state.countdown!!.targetEpoch)
@@ -834,6 +899,32 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertEquals(TimeViolationOutcome.WARNING, defenseWarningEvent.outcome)
         assertEquals(CountdownKind.PULL_RESET, timeViolationState.countdown?.kind)
         assertEquals("Pull in", timeViolationState.countdown?.label)
+        assertEquals(30, timeViolationState.countdown?.durationSeconds)
+        assertEquals(
+            "This is Viscous Coupling's first time violation.\n\n" +
+                "The first time violation is a warning. Viscous Coupling now has " +
+                "30 seconds to pull.",
+            timeViolationResult.message(),
+        )
+
+        // The same pulling-team reset applies to far-end and both-end prompt settings when they
+        // include the pulling end.
+        state = standardLiveGameState().withPullPromptTarget(PullPromptTarget.FAR)
+        timeViolationResult = state.assessTimeViolation(VC, state.countdown!!.targetEpoch)
+        timeViolationState = timeViolationResult.state
+        assertEquals(
+            BetweenPointsCountdownTarget.PULL,
+            timeViolationState.countdown?.betweenPointsTarget,
+        )
+        assertEquals(30, timeViolationState.countdown?.durationSeconds)
+
+        state = standardLiveGameState().withPullPromptTarget(PullPromptTarget.BOTH)
+        timeViolationResult = state.assessTimeViolation(VC, state.countdown!!.targetEpoch)
+        timeViolationState = timeViolationResult.state
+        assertEquals(
+            BetweenPointsCountdownTarget.PULL,
+            timeViolationState.countdown?.betweenPointsTarget,
+        )
         assertEquals(30, timeViolationState.countdown?.durationSeconds)
 
         // If this phone is not giving pull prompts, the reset timer is still visible but does not
@@ -1042,5 +1133,18 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertEquals(20, timeViolationState.countdown?.durationSeconds)
         assertFalse(timeViolationState.hasExpiredPullActions())
         assertEquals("Undo Restart countdown", timeViolationState.undoEntry?.label)
+
+        // Restarting an expired countdown after a scored point uses the normal between-points
+        // timing rather than the shorter opening-pull timing.
+        val betweenPointsState = recordGoalFromCurrentStateAt(
+            state.beginLivePoint(),
+            TeamId.TEAM_TWO,
+            LocalTime.of(11, 5),
+        )
+        val betweenPointsRestart = betweenPointsState.expiredPullDecisionState()
+            .restartPullCountdown(betweenPointsState.countdown!!.targetEpoch)
+        assertEquals(CountdownKind.BETWEEN_POINTS, betweenPointsRestart.countdown?.kind)
+        assertEquals("Signal in", betweenPointsRestart.countdown?.label)
+        assertEquals(60, betweenPointsRestart.countdown?.durationSeconds)
     }
 }

@@ -35,6 +35,17 @@ class TestSetup : GameDomainTestFixtures() {
         assertFalse(noPriorCardsState.teamOne.hasCoachOrCaptainInfo())
         assertFalse(noPriorCardsState.teamTwo.hasCoachOrCaptainInfo())
 
+        // Any individual coach/captain field makes live-team staff information visible.
+        assertTrue(noPriorCardsState.teamOne.copy(coaches = "Coach").hasCoachOrCaptainInfo())
+        assertTrue(
+            noPriorCardsState.teamOne.copy(fieldCaptains = "Field captain")
+                .hasCoachOrCaptainInfo()
+        )
+        assertTrue(
+            noPriorCardsState.teamOne.copy(spiritCaptains = "Spirit captain")
+                .hasCoachOrCaptainInfo()
+        )
+
         // Full setup data round-trips through a live game.
         val setup = fullSetup()
         val state = createLiveGameState(setup)
@@ -163,10 +174,12 @@ class TestSetup : GameDomainTestFixtures() {
     }
 
     /**
-     * Test setup display text for field ends, pull prompts, and mixed-division choices.
+     * Test setup display text for field ends, pull prompts, team fields, and setup choices.
      */
     @Test
     fun setupDisplayText() {
+        val VC = TeamId.TEAM_ONE
+        val ANIMAL = TeamId.TEAM_TWO
         val setup = standardGameSetup(startTime = LocalTime.of(10, 0)).copy(
             division = GameDivision.MIXED,
             nearEndName = "Road",
@@ -204,6 +217,172 @@ class TestSetup : GameDomainTestFixtures() {
         assertEquals("Trees", PullPromptTarget.FAR.displayText(setup))
         assertEquals("both ends", PullPromptTarget.BOTH.displayText(setup))
         assertEquals("neither end", PullPromptTarget.NEITHER.displayText(setup))
+
+        // Pull-prompt choice labels are title-cased for the setup dialog option list.
+        assertEquals("Road", PullPromptTarget.NEAR.choiceLabel("Road", "Trees"))
+        assertEquals("Trees", PullPromptTarget.FAR.choiceLabel("Road", "Trees"))
+        assertEquals("Both", PullPromptTarget.BOTH.choiceLabel("Road", "Trees"))
+        assertEquals("Neither", PullPromptTarget.NEITHER.choiceLabel("Road", "Trees"))
+
+        // Division and level option helpers supply the setup dialog lists in display order.
+        assertEquals(
+            listOf(GameDivision.OPEN, GameDivision.WOMENS, GameDivision.MIXED, null),
+            orderedSetupDivisions(),
+        )
+        assertEquals(
+            listOf(
+                "Youth",
+                "College",
+                "Club",
+                "Masters",
+                "Grandmasters",
+                "Great Grandmasters",
+                "Legends",
+            ),
+            setupLevelPresets(),
+        )
+        assertEquals("Open Division", GameDivision.OPEN.setupSummaryLine())
+        assertEquals("Women’s Division", GameDivision.WOMENS.setupSummaryLine())
+        assertEquals("Mixed Division", GameDivision.MIXED.setupSummaryLine())
+        assertEquals("Open", GameDivision.OPEN.displayText)
+        assertEquals("Women’s", GameDivision.WOMENS.displayText)
+        assertEquals("Mixed", GameDivision.MIXED.displayText)
+        assertFalse(setup.copy(division = GameDivision.OPEN).usesMixedDivision())
+        assertFalse(setup.copy(division = null).usesMixedDivision())
+
+        // Team field helpers let the setup UI update either side through the same editor path.
+        assertEquals("Team 1", VC.setupFieldLabel())
+        assertEquals("Team 2", ANIMAL.setupFieldLabel())
+        assertEquals(setup.teamOne, VC.setupTeam(setup))
+        assertEquals(setup.teamTwo, ANIMAL.setupTeam(setup))
+        assertEquals(
+            "Edited VC",
+            setup.withSetupTeam(VC, setup.teamOne.copy(name = "Edited VC")).teamOne.name,
+        )
+        assertEquals(
+            "Edited Animal",
+            setup.withSetupTeam(ANIMAL, setup.teamTwo.copy(name = "Edited Animal")).teamTwo.name,
+        )
+        assertEquals(setup.teamOnePlayers, setup.playersFor(VC))
+        assertEquals(setup.teamTwoPlayers, setup.playersFor(ANIMAL))
+        assertEquals(
+            listOf(priorPlayerRecord("3", priorYellows = 1)),
+            setup.withPlayersFor(VC, listOf(priorPlayerRecord("3", priorYellows = 1)))
+                .teamOnePlayers,
+        )
+        assertEquals(
+            listOf(priorPlayerRecord("4", priorReds = 1)),
+            setup.withPlayersFor(ANIMAL, listOf(priorPlayerRecord("4", priorReds = 1)))
+                .teamTwoPlayers,
+        )
+
+        // Blank team names fall back to stable setup labels in summaries.
+        val blankTeamSetup = defaultEndsSetup.copy(
+            teamOne = TeamSetup("", TeamColorChoice.WHITE),
+            teamTwo = TeamSetup("", TeamColorChoice.BLUE),
+            pullingTeam = ANIMAL,
+            pullingFromEnd = FieldEnd.FAR,
+        )
+        assertEquals("Team 1", VC.setupName(blankTeamSetup))
+        assertEquals("Team 2 pulls from Far end", blankTeamSetup.startingPullSummary())
+    }
+
+    /**
+     * Test compact setup summary text for game information, teams, prior cards, and rules.
+     */
+    @Test
+    fun setupSummaryText() {
+        val setup = standardGameSetup(
+            startDate = LocalDate.of(2026, 1, 1),
+            startTime = LocalTime.of(10, 0),
+        ).copy(
+            tournamentName = " Potlatch ",
+            division = GameDivision.MIXED,
+            level = " Club ",
+            gameContext = " Final ",
+            observers = " Mike and Gary ",
+        )
+
+        // Game-information summary lines trim optional text and omit blank fields.
+        assertEquals(
+            listOf(
+                "Potlatch",
+                "Mixed Division",
+                "Club",
+                "Final",
+                "Observers: Mike and Gary",
+                "Jan 1, 2026",
+                "Start at 10:00 AM",
+            ),
+            setup.gameInformationSummaryLines(),
+        )
+        assertEquals(
+            listOf("Jan 1, 2026", "Start at 10:00 AM"),
+            setup.copy(
+                tournamentName = " ",
+                division = null,
+                level = "",
+                gameContext = " ",
+                observers = "",
+            ).gameInformationSummaryLines(),
+        )
+
+        // Coach and captain summaries trim each line and skip empty staff fields.
+        val staffTeam = TeamSetup(
+            name = "Viscous Coupling",
+            color = TeamColorChoice.WHITE,
+            coaches = " Coach A \n\n Coach B ",
+            fieldCaptains = " Field captain ",
+            spiritCaptains = " Spirit captain ",
+        )
+        assertEquals(
+            listOf(
+                "Coach:" to "Coach A\nCoach B",
+                "Field:" to "Field captain",
+                "Spirit:" to "Spirit captain",
+            ),
+            staffTeam.namesSummary().map { summary -> summary.label to summary.value },
+        )
+        assertTrue(
+            staffTeam.copy(coaches = "", fieldCaptains = "", spiritCaptains = "")
+                .namesSummary()
+                .isEmpty()
+        )
+
+        // Prior-card summaries use the compact player identity and compact card counts.
+        assertEquals(
+            "#17: Y 1\n#23: R 1",
+            listOf(
+                priorPlayerRecord("17", priorYellows = 1),
+                priorPlayerRecord("23", playerName = "Morgan", priorReds = 1),
+            ).teamPriorCardsSummary(),
+        )
+
+        // Rule summaries show enabled caps as minute offsets and disabled caps as dashes.
+        assertEquals(
+            "+45/+90/+105",
+            GameRules(
+                halfCapMinutes = 45,
+                softCapMinutes = 90,
+                hardCapMinutes = 105,
+            ).capRulesSummary(),
+        )
+        assertEquals(
+            "-/-/-",
+            GameRules(
+                useHalfCap = false,
+                useSoftCap = false,
+                useHardCap = false,
+            ).capRulesSummary(),
+        )
+        assertEquals(
+            "2/half + floater",
+            GameRules(timeoutsPerHalf = 2, hasFloaterTimeout = true).formatTimeoutRules(),
+        )
+        assertEquals(
+            "1/half",
+            GameRules(timeoutsPerHalf = 1, hasFloaterTimeout = false).formatTimeoutRules(),
+        )
     }
 
     /**

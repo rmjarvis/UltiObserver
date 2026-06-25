@@ -41,6 +41,7 @@ class TestPersistence {
                 startDate = LocalDate.of(2026, 5, 11),
                 startTime = LocalTime.of(10, 0),
                 timeZone = ZoneId.of("America/New_York"),
+                rules = GameRules(),
                 teamOne = TeamSetup(
                     name = "Viscous Coupling",
                     color = TeamColorChoice.CUSTOM,

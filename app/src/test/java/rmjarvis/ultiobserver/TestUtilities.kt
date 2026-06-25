@@ -1,5 +1,8 @@
 package rmjarvis.ultiobserver
 
+import java.time.Duration
+import java.time.LocalDate
+import java.time.LocalTime
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -14,6 +17,31 @@ class TestUtilities {
         assertEquals("LocalDateAsString", LocalDateAsStringSerializer.descriptor.serialName)
         assertEquals("LocalTimeAsString", LocalTimeAsStringSerializer.descriptor.serialName)
         assertEquals("ZoneIdAsString", ZoneIdAsStringSerializer.descriptor.serialName)
+    }
+
+    /**
+     * Test shared display formatting for dates, times, durations, and counted labels.
+     */
+    @Test
+    fun displayFormatting() {
+        // Game start times use a full display format in setup and a compact format in lists.
+        assertEquals("3:30 PM", formatClockTime(LocalTime.of(15, 30)))
+        assertEquals("Apr 5, 2026", formatStartDate(LocalDate.of(2026, 4, 5)))
+        assertEquals(
+            "4/5/26 3:30 PM",
+            formatCompactStartDateTime(LocalDate.of(2026, 4, 5), LocalTime.of(15, 30)),
+        )
+
+        // Countdown durations clamp negative inputs to zero and keep two-digit seconds.
+        assertEquals("0:00", formatDuration(Duration.ofSeconds(-1)))
+        assertEquals("0:32", formatDuration(Duration.ofSeconds(32)))
+        assertEquals("2:05", formatDuration(Duration.ofSeconds(125)))
+
+        // Counted text uses singular/plural nouns and only adds action counts after the first.
+        assertEquals("1 timeout", countedNounPhrase(1, "timeout"))
+        assertEquals("2 timeouts", countedNounPhrase(2, "timeout"))
+        assertEquals("False start", countedActionLabel("False start", 0))
+        assertEquals("False start (2)", countedActionLabel("False start", 2))
     }
 
     /**
