@@ -18,32 +18,39 @@ import kotlinx.coroutines.delay
  */
 internal class TimingAlertPlayer internal constructor(
     private val soundPlayer: TimingAlertSoundPlayer,
-    loadSound: (TimingAlertSoundPlayer, TimingAlertSoundClip) -> Int,
+    private val loadSound: (TimingAlertSoundPlayer, TimingAlertSoundClip) -> Int,
 ) {
     constructor(context: Context) : this(
         soundPlayer = AndroidTimingAlertSoundPlayer(),
         loadSound = { soundPlayer, clip -> soundPlayer.load(context, clip.rawResourceId(), 1) },
     )
 
-    private val loadedSounds = mutableSetOf<TimingAlertSoundClip>()
+    private enum class SoundLoadState {
+        LOADING,
+        LOADED,
+        FAILED,
+    }
+
+    private val soundLoadStates = mutableMapOf<TimingAlertSoundClip, SoundLoadState>()
     private val pendingPlays = mutableMapOf<TimingAlertSoundClip, MutableList<Float>>()
     private val soundsById = mutableMapOf<Int, TimingAlertSoundClip>()
-    private val soundIds: Map<TimingAlertSoundClip, Int>
+    private val soundIds = mutableMapOf<TimingAlertSoundClip, Int>()
 
     init {
         soundPlayer.setOnLoadCompleteListener { sampleId, status ->
             val clip = soundsById[sampleId] ?: return@setOnLoadCompleteListener
             if (status == 0) {
-                loadedSounds += clip
+                soundLoadStates[clip] = SoundLoadState.LOADED
                 pendingPlays.remove(clip)?.forEach { volume ->
                     playLoaded(clip, volume)
                 }
+            } else {
+                soundLoadStates[clip] = SoundLoadState.FAILED
+                pendingPlays.remove(clip)
             }
         }
-        soundIds = timingAlertSoundClips().associateWith { clip ->
-            loadSound(soundPlayer, clip).also { soundId ->
-                soundsById[soundId] = clip
-            }
+        timingAlertSoundClips().forEach { clip ->
+            loadClip(clip)
         }
     }
 
@@ -67,10 +74,16 @@ internal class TimingAlertPlayer internal constructor(
     fun play(sound: TimingAlertSound, repeatCount: Int, volume: Float) {
         val clip = TimingAlertSoundClip(sound, repeatCount)
         val playVolume = volume.coerceIn(0f, 1f)
-        if (clip in loadedSounds) {
-            playLoaded(clip, playVolume)
-        } else {
-            pendingPlays.getOrPut(clip) { mutableListOf() } += playVolume
+        when (soundLoadStates[clip]) {
+            SoundLoadState.LOADED -> playLoaded(clip, playVolume)
+            SoundLoadState.FAILED -> {
+                pendingPlays.remove(clip)
+                loadClip(clip)
+                pendingPlays[clip] = mutableListOf(playVolume)
+            }
+            SoundLoadState.LOADING, null -> {
+                pendingPlays.getOrPut(clip) { mutableListOf() } += playVolume
+            }
         }
     }
 
@@ -89,6 +102,14 @@ internal class TimingAlertPlayer internal constructor(
     private fun playLoaded(clip: TimingAlertSoundClip, volume: Float) {
         val soundId = soundIds[clip]!!
         soundPlayer.play(soundId, volume, volume, 1, 0, 1f)
+    }
+
+    /// Start or retry loading a sound clip.
+    private fun loadClip(clip: TimingAlertSoundClip) {
+        val soundId = loadSound(soundPlayer, clip)
+        soundIds[clip] = soundId
+        soundsById[soundId] = clip
+        soundLoadStates[clip] = SoundLoadState.LOADING
     }
 }
 
@@ -145,7 +166,14 @@ internal interface TimingAlertSoundPlayer {
      * @param loop SoundPool loop count.
      * @param rate SoundPool playback rate.
      */
-    fun play(soundId: Int, leftVolume: Float, rightVolume: Float, priority: Int, loop: Int, rate: Float)
+    fun play(
+        soundId: Int,
+        leftVolume: Float,
+        rightVolume: Float,
+        priority: Int,
+        loop: Int,
+        rate: Float,
+    )
 
     /// Release all underlying audio resources.
     fun release()
@@ -195,7 +223,14 @@ private class AndroidTimingAlertSoundPlayer : TimingAlertSoundPlayer {
      * @param loop SoundPool loop count.
      * @param rate SoundPool playback rate.
      */
-    override fun play(soundId: Int, leftVolume: Float, rightVolume: Float, priority: Int, loop: Int, rate: Float) {
+    override fun play(
+        soundId: Int,
+        leftVolume: Float,
+        rightVolume: Float,
+        priority: Int,
+        loop: Int,
+        rate: Float,
+    ) {
         soundPool.play(soundId, leftVolume, rightVolume, priority, loop, rate)
     }
 
@@ -349,7 +384,10 @@ internal fun Context.performTimingCueHaptic(durationMillis: Long) {
     }
     val effect = VibrationEffect.createOneShot(durationMillis, VibrationEffect.DEFAULT_AMPLITUDE)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        vibrator.vibrate(effect, VibrationAttributes.createForUsage(VibrationAttributes.USAGE_NOTIFICATION))
+        vibrator.vibrate(
+            effect,
+            VibrationAttributes.createForUsage(VibrationAttributes.USAGE_NOTIFICATION),
+        )
     } else {
         vibrator.vibrate(
             effect,

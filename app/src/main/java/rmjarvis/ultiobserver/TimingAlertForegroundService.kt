@@ -221,12 +221,14 @@ class TimingAlertForegroundService : Service() {
                 return
             }
 
-            val readyToPlay = waitForTimingAlertDeliveryWindow(
+            val deliveryWindow = timingAlertDeliveryWindow(
                 millisUntilNextAlert = nextTimingAlert.targetEpoch - now,
                 scheduleCheckMillis = TIMING_ALERT_SERVICE_SCHEDULE_CHECK_MS,
-                delayMillis = { millis -> delay(millis) },
             )
-            if (readyToPlay) {
+            if (deliveryWindow.delayMillis > 0L) {
+                delay(deliveryWindow.delayMillis)
+            }
+            if (deliveryWindow.readyToPlay) {
                 playTimingAlerts(listOf(nextTimingAlert), snapshot, player)
             }
         }

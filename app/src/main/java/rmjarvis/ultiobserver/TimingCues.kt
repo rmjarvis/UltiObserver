@@ -90,27 +90,42 @@ internal fun TimingCueDisplay.alertKey(): String {
 }
 
 /**
- * Wait until a timing alert is ready to deliver.
+ * Timing-alert listener decision for an upcoming cue.
  *
- * Return false when the listener should poll later.
+ * @param readyToPlay Whether the caller should deliver the alert after waiting.
+ * @param delayMillis The requested delay before continuing, or 0 when no wait is needed.
+ */
+internal data class TimingAlertDeliveryWindowResult(
+    val readyToPlay: Boolean,
+    val delayMillis: Long,
+)
+
+/**
+ * Return the wait/play decision for an upcoming timing alert.
  *
  * @param millisUntilNextAlert Milliseconds between now and the next alert target.
  * @param scheduleCheckMillis Normal listener polling cadence in milliseconds.
- * @param delayMillis Suspended delay implementation, injectable for deterministic tests.
  */
-internal suspend fun waitForTimingAlertDeliveryWindow(
+internal fun timingAlertDeliveryWindow(
     millisUntilNextAlert: Long,
     scheduleCheckMillis: Long,
-    delayMillis: suspend (Long) -> Unit,
-): Boolean {
+): TimingAlertDeliveryWindowResult {
     if (millisUntilNextAlert > 2 * scheduleCheckMillis) {
-        delayMillis(scheduleCheckMillis)
-        return false
+        return TimingAlertDeliveryWindowResult(
+            readyToPlay = false,
+            delayMillis = scheduleCheckMillis,
+        )
     }
     if (millisUntilNextAlert > 0L) {
-        delayMillis(millisUntilNextAlert)
+        return TimingAlertDeliveryWindowResult(
+            readyToPlay = true,
+            delayMillis = millisUntilNextAlert,
+        )
     }
-    return true
+    return TimingAlertDeliveryWindowResult(
+        readyToPlay = true,
+        delayMillis = 0L,
+    )
 }
 
 /**
@@ -212,7 +227,10 @@ internal fun GameState.nextTimingAlert(now: Long): TimingCueDisplay? {
  * @param first The first optional timing cue.
  * @param second The second optional timing cue.
  */
-private fun orderedTimingCues(first: TimingCueDisplay?, second: TimingCueDisplay?): List<TimingCueDisplay> {
+private fun orderedTimingCues(
+    first: TimingCueDisplay?,
+    second: TimingCueDisplay?,
+): List<TimingCueDisplay> {
     return when {
         first == null && second == null -> emptyList()
         first == null -> listOf(second!!)
@@ -225,7 +243,9 @@ private fun orderedTimingCues(first: TimingCueDisplay?, second: TimingCueDisplay
 /// List the configured cue offsets for a countdown.
 private fun CountdownState.timingCues(): List<TimingCue> {
     return when (kind) {
-        CountdownKind.OPENING_PULL, CountdownKind.BETWEEN_POINTS, CountdownKind.PULL_RESET -> betweenPointsTimingCues()
+        CountdownKind.OPENING_PULL,
+        CountdownKind.BETWEEN_POINTS,
+        CountdownKind.PULL_RESET -> betweenPointsTimingCues()
         CountdownKind.MISCONDUCT_BETWEEN_POINTS -> offenseSetTimingCues()
         CountdownKind.DEFENSE_CHECK -> defenseCheckTimingCues()
         CountdownKind.TIME_OUT -> timeoutTimingCues()
