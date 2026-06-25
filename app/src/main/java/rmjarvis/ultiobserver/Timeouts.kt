@@ -123,8 +123,10 @@ fun GameState.canRequestTimeout(now: Long): Boolean {
 
 /**
  * Charge a timeout directly and update the relevant countdown.
- * Between points this extends the current timer; during a live point it starts an
- * offense-set timer.
+ * Between points this extends the current timer. During a live point this starts an
+ * offense-set timer or extends any active countdown.
+ * If there is a pending misconduct countdown that hasn't started yet, start it first
+ * before extending it.
  *
  * @param team The team whose used-timeout count should increase.
  * @param now The epoch millis used as the start of a live-point timeout countdown.
@@ -245,6 +247,21 @@ private fun applyLivePointTimeout(
     state: GameState,
     now: Long,
 ): GameState {
+    val misconductState = if (state.pendingMisconductCountdown) {
+        state.startMisconductCountdown(now).copy(lastEvent = state.lastEvent)
+    } else {
+        state
+    }
+    val activeCountdown = misconductState.countdown
+    if (activeCountdown != null) {
+        return misconductState.copy(
+            pendingMisconductCountdown = false,
+            countdown = activeCountdown.copy(
+                durationSeconds = activeCountdown.durationSeconds + 70,
+                targetEpoch = activeCountdown.targetEpoch + 70_000L,
+            ),
+        )
+    }
     return state.copy(
         pendingMisconductCountdown = false,
         countdown = CountdownState(
