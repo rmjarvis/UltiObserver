@@ -1,7 +1,5 @@
 package rmjarvis.ultiobserver
 
-import java.time.LocalDate
-import java.time.LocalDateTime
 import java.time.LocalTime
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -358,21 +356,4 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertEquals(concreteObserverAvatarPreferences[2], viewModel.homeAvatarPreference)
     }
 
-    /**
-     * Verify new-game setup start-time defaults round to the next half hour and advance
-     * the setup date across midnight.
-     */
-    @Test
-    fun newGameStartTimeDefaults() {
-        // New setup defaults round to the next half hour and advance the date after midnight.
-        val sameDaySetup = newGameSetupState(LocalDateTime.of(2026, 1, 1, 23, 0))
-        assertEquals(LocalDate.of(2026, 1, 1), sameDaySetup.startDate)
-        assertEquals(LocalTime.of(23, 0), sameDaySetup.startTime)
-        assertEquals(105, sameDaySetup.rules.hardCapMinutes)
-
-        // Late-night defaults should advance the setup date to midnight on the next day.
-        val nextDaySetup = newGameSetupState(LocalDateTime.of(2026, 1, 1, 23, 45))
-        assertEquals(LocalDate.of(2026, 1, 2), nextDaySetup.startDate)
-        assertEquals(LocalTime.MIDNIGHT, nextDaySetup.startTime)
-    }
 }

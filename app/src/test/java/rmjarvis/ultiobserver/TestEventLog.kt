@@ -1,5 +1,6 @@
 package rmjarvis.ultiobserver
 
+import java.time.Duration
 import java.time.LocalTime
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -315,5 +316,26 @@ class TestEventLog : GameDomainTestFixtures() {
             afterCard.formatEventLogLines(),
         )
         assertEquals(emptyList<String>(), afterCard.undoLastAction().formatEventLogLines())
+    }
+
+    /**
+     * Verify deterministic clock and duration text used by event-log and timer displays.
+     */
+    @Test
+    fun timeDisplays() {
+        // Clock formatting covers midnight, noon, morning, and afternoon values.
+        assertEquals("12:00 AM", formatClockTime(LocalTime.MIDNIGHT))
+        assertEquals("12:00 PM", formatClockTime(LocalTime.NOON))
+        assertEquals("9:05 AM", formatClockTime(LocalTime.of(9, 5)))
+        assertEquals("3:30 PM", formatClockTime(LocalTime.of(15, 30)))
+
+        // Duration formatting clamps negative durations to zero and formats minute/second
+        // boundaries.
+        assertEquals("0:00", formatDuration(Duration.ofSeconds(-3)))
+        assertEquals("0:00", formatDuration(Duration.ZERO))
+        assertEquals("0:59", formatDuration(Duration.ofSeconds(59)))
+        assertEquals("1:00", formatDuration(Duration.ofSeconds(60)))
+        assertEquals("1:01", formatDuration(Duration.ofSeconds(61)))
+        assertEquals("61:01", formatDuration(Duration.ofSeconds(3661)))
     }
 }

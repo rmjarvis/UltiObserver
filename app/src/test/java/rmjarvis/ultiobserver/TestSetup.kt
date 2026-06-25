@@ -1,6 +1,7 @@
 package rmjarvis.ultiobserver
 
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
@@ -13,39 +14,6 @@ import org.junit.Test
 /// Tests for setup-state conversion and applying setup edits to live games.
 class TestSetup : GameDomainTestFixtures() {
     /**
-     * Test simple setup defaults and team-color model guards.
-     */
-    @Test
-    fun setupDefaultsAndTeamColorGuards() {
-        // The setup state default rules use the current standard game rules.
-        val defaultSetupState = GameSetupState(
-            startDate = LocalDate.of(2026, 1, 1),
-            startTime = LocalTime.of(10, 0),
-            timeZone = ZoneId.of("America/New_York"),
-        )
-        assertEquals(GameRules(), defaultSetupState.rules)
-
-        // Built-in team colors expose label and color values.
-        assertEquals("Pink", TeamColorChoice.PINK.label)
-        assertEquals(0xFFFF4FA3, TeamColorChoice.PINK.accentArgb)
-        assertEquals(0xFF2F1022, TeamColorChoice.PINK.contentArgb)
-
-        // Custom team colors require an explicit ARGB value.
-        assertThrows(IllegalArgumentException::class.java) {
-            TeamColorChoice.CUSTOM.accent
-        }
-        assertThrows(IllegalArgumentException::class.java) {
-            TeamColorChoice.CUSTOM.content
-        }
-        assertThrows(IllegalArgumentException::class.java) {
-            TeamSetup("Custom", TeamColorChoice.CUSTOM)
-        }
-        assertThrows(IllegalArgumentException::class.java) {
-            TeamLiveState("Custom", TeamColorChoice.CUSTOM)
-        }
-    }
-
-    /**
      * Test live-game creation and setup-state conversion from setup form data.
      */
     @Test
@@ -53,6 +21,10 @@ class TestSetup : GameDomainTestFixtures() {
         val VC = TeamId.TEAM_ONE
         val teamOnePlayers = teamOnePriorPlayers()
         val teamTwoPlayers = teamTwoPriorPlayers()
+
+        // A new setup draft starts with the current standard game rules.
+        val newSetupState = newGameSetupState(LocalDateTime.of(2026, 1, 1, 9, 0))
+        assertEquals(GameRules(), newSetupState.rules)
 
         // A setup-created live game has empty player lists when no prior card holders are entered.
         val noPriorCardsState = createLiveGameState(
@@ -111,6 +83,83 @@ class TestSetup : GameDomainTestFixtures() {
             20_000L,
         )
         assertEquals(liveState, unchangedLiveState)
+    }
+
+    /**
+     * Test setup start date/time calculations derived from the current local time.
+     */
+    @Test
+    fun setupStartDateAndTime() {
+        // Times already on a half-hour boundary advance to the following half hour.
+        assertEquals(LocalTime.of(9, 0), nextHalfHourFrom(LocalTime.of(9, 0)))
+        assertEquals(LocalTime.of(10, 0), nextHalfHourFrom(LocalTime.of(9, 30)))
+
+        // Times after a boundary round up to the next half-hour mark.
+        assertEquals(LocalTime.of(9, 30), nextHalfHourFrom(LocalTime.of(9, 0, 1)))
+        assertEquals(LocalTime.of(9, 30), nextHalfHourFrom(LocalTime.of(9, 1)))
+        assertEquals(LocalTime.of(9, 30), nextHalfHourFrom(LocalTime.of(9, 29)))
+
+        // Late-night times wrap to midnight.
+        assertEquals(LocalTime.MIDNIGHT, nextHalfHourFrom(LocalTime.of(23, 45)))
+
+        // New setup start times round to the next half hour on the same date.
+        val sameDaySetup = newGameSetupState(LocalDateTime.of(2026, 1, 1, 23, 0))
+        assertEquals(LocalDate.of(2026, 1, 1), sameDaySetup.startDate)
+        assertEquals(LocalTime.of(23, 0), sameDaySetup.startTime)
+
+        // Rounding past midnight advances the setup date.
+        val nextDaySetup = newGameSetupState(LocalDateTime.of(2026, 1, 1, 23, 45))
+        assertEquals(LocalDate.of(2026, 1, 2), nextDaySetup.startDate)
+        assertEquals(LocalTime.MIDNIGHT, nextDaySetup.startTime)
+
+        // Setup time zones let different local start times refer to the same real instant.
+        val utcSetup = standardGameSetup(
+            startDate = LocalDate.of(2026, 1, 1),
+            startTime = LocalTime.of(18, 0),
+            timeZone = ZoneId.of("UTC"),
+        )
+        val pacificSetup = standardGameSetup(
+            startDate = LocalDate.of(2026, 1, 1),
+            startTime = LocalTime.of(10, 0),
+            timeZone = ZoneId.of("America/Los_Angeles"),
+        )
+        val utcState = createLiveGameState(utcSetup)
+        val pacificState = createLiveGameState(pacificSetup)
+        assertEquals(utcSetup.timeZone, utcState.timeZone)
+        assertEquals(pacificSetup.timeZone, pacificState.timeZone)
+        assertEquals(
+            LocalDateTime.of(2026, 1, 1, 18, 0)
+                .atZone(ZoneId.of("UTC"))
+                .toInstant()
+                .toEpochMilli(),
+            utcState.startEpoch,
+        )
+        assertEquals(utcState.startEpoch, pacificState.startEpoch)
+    }
+
+    /**
+     * Test team-color labels, values, and custom-color guards.
+     */
+    @Test
+    fun teamColorGuards() {
+        // Built-in team colors expose label and color values.
+        assertEquals("Pink", TeamColorChoice.PINK.label)
+        assertEquals(0xFFFF4FA3, TeamColorChoice.PINK.accentArgb)
+        assertEquals(0xFF2F1022, TeamColorChoice.PINK.contentArgb)
+
+        // Custom team colors require an explicit ARGB value.
+        assertThrows(IllegalArgumentException::class.java) {
+            TeamColorChoice.CUSTOM.accent
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            TeamColorChoice.CUSTOM.content
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            TeamSetup("Custom", TeamColorChoice.CUSTOM)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            TeamLiveState("Custom", TeamColorChoice.CUSTOM)
+        }
     }
 
     /**
