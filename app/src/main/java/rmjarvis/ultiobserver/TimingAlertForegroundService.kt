@@ -15,8 +15,6 @@ import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import android.provider.Settings as AndroidSettings
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
@@ -64,11 +62,13 @@ import kotlinx.serialization.encodeToString
  */
 class TimingAlertForegroundService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private var timingAlertPlayer: TimingAlertPlayer? = null
-    private var scheduleJob: Job? = null
-    private var lifetimeJob: Job? = null
-    private var timingAlertSnapshot: TimingAlertServiceSnapshot? = null
     private var wakeLock: PowerManager.WakeLock? = null
+    private val controller by lazy {
+        TimingAlertForegroundServiceController(
+            platform = androidTimingAlertServicePlatform(),
+            serviceScope = serviceScope,
+        )
+    }
 
     /// Return null because this service uses start commands rather than bound calls.
     override fun onBind(intent: Intent?): IBinder? = null
@@ -78,9 +78,9 @@ class TimingAlertForegroundService : Service() {
      *
      * ACTION_UPDATE is sent by Compose whenever active game state or alert settings change.
      * ACTION_CAP_ALARM is sent by TimingAlertAlarmReceiver after AlarmManager fires a scheduled cap
-     * PendingIntent. Returning START_NOT_STICKY tells Android not to recreate this service later
-     * with a null intent if it is killed; Compose or AlarmManager will send a fresh command when
-     * needed.
+     * PendingIntent. Android uses a nullable intent in the Service API, but this service only has
+     * explicit app and AlarmManager commands.  A null command would violate that owned entry path,
+     * so fail loudly instead of silently masking it.
      *
      * @param intent Android command message identifying the service action and carrying serialized
      * extras.
@@ -88,23 +88,89 @@ class TimingAlertForegroundService : Service() {
      * @param startId Android start id for this service command.
      */
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
-            ACTION_UPDATE -> handleTimingAlertUpdate(intent)
-            ACTION_CAP_ALARM -> handleCapAlarm(intent)
-            else -> stopTimingAlertService()
+        val commandIntent = intent!!
+        val commandAction = commandIntent.action
+        if (commandAction == ACTION_UPDATE) {
+            controller.handleTimingAlertUpdate(
+                commandIntent.getStringExtra(EXTRA_TIMING_ALERT_SNAPSHOT)
+                    ?.let { encoded ->
+                        appStateJson.decodeFromString<TimingAlertServiceSnapshot>(encoded)
+                    }
+            )
+        } else if (commandAction == ACTION_CAP_ALARM) {
+            controller.handleCapAlarm(
+                alarmSnapshot = commandIntent.getStringExtra(EXTRA_TIMING_ALERT_SNAPSHOT)
+                    ?.let { encoded ->
+                        appStateJson.decodeFromString<TimingAlertServiceSnapshot>(encoded)
+                    },
+                alarmCue = commandIntent.getStringExtra(EXTRA_CAP_CUE)
+                    ?.let { encoded ->
+                        appStateJson.decodeFromString<TimingAlertServiceCue>(encoded)
+                    },
+            )
+        } else {
+            startTimingAlertForeground()
+            controller.stopTimingAlertService()
         }
         return START_NOT_STICKY
     }
 
     /// Release playback, alarm, wake-lock, and coroutine resources when Android stops the service.
     override fun onDestroy() {
-        scheduleJob?.cancel()
-        lifetimeJob?.cancel()
-        timingAlertPlayer?.release()
-        cancelCapTimingAlertAlarm()
-        releaseTimingAlertWakeLock()
-        serviceScope.cancel()
+        controller.release()
         super.onDestroy()
+    }
+
+    /// Build the Android platform callbacks used by the service controller.
+    private fun androidTimingAlertServicePlatform(): TimingAlertServicePlatform {
+        return object : TimingAlertServicePlatform {
+            override fun startForeground() {
+                startTimingAlertForeground()
+            }
+
+            override fun createPlayer(): TimingAlertPlayer {
+                return TimingAlertPlayer(context = this@TimingAlertForegroundService)
+            }
+
+            override fun currentTimeMillis(): Long {
+                return System.currentTimeMillis()
+            }
+
+            override fun acquireWakeLock() {
+                acquireTimingAlertWakeLock()
+            }
+
+            override fun releaseWakeLock() {
+                releaseTimingAlertWakeLock()
+            }
+
+            override fun scheduleCapAlarm(
+                snapshot: TimingAlertServiceSnapshot,
+                cue: TimingAlertServiceCue,
+            ) {
+                alarmManager().setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    cue.targetEpoch,
+                    capTimingAlertAlarmIntent(snapshot, cue),
+                )
+            }
+
+            override fun cancelCapAlarm() {
+                cancelCapTimingAlertAlarm()
+            }
+
+            override fun hasExactAlarmAccess(): Boolean {
+                return hasExactTimingAlertAlarmAccess()
+            }
+
+            override suspend fun performHaptic(durationMillis: Long) {
+                performTimingCueHaptic(durationMillis)
+            }
+
+            override fun stopSelf() {
+                this@TimingAlertForegroundService.stopSelf()
+            }
+        }
     }
 
     /// Put this service into the foreground with Android's required persistent notification.
@@ -124,9 +190,6 @@ class TimingAlertForegroundService : Service() {
 
     /// Create the notification channel used by the foreground service on Android 8+.
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            return
-        }
         val notificationManager = getSystemService(NotificationManager::class.java)
         val channel = NotificationChannel(
             TIMING_ALERT_SERVICE_CHANNEL_ID,
@@ -157,168 +220,9 @@ class TimingAlertForegroundService : Service() {
             .build()
     }
 
-    /**
-     * Apply the latest active-game state sent from Compose and start background alert delivery.
-     *
-     * The app shell resends this update whenever the live state or timing-alert settings change.
-     * That makes this service a replaceable consumer of the current snapshot rather than an owner
-     * of game rules. Valid updates refresh the maximum service lifetime, replace in-memory state,
-     * start the countdown loop, and reschedule the next cap alarm from the latest snapshot.
-     *
-     * @param intent ACTION_UPDATE message carrying compact alert state.
-     */
-    private fun handleTimingAlertUpdate(intent: Intent) {
-        startTimingAlertForeground()
-        val updatedSnapshot = intent.getStringExtra(EXTRA_TIMING_ALERT_SNAPSHOT)
-            ?.let { encoded -> appStateJson.decodeFromString<TimingAlertServiceSnapshot>(encoded) }
-
-        if (updatedSnapshot == null) {
-            stopTimingAlertService()
-            return
-        }
-
-        refreshTimingAlertServiceLifetime()
-        timingAlertSnapshot = updatedSnapshot
-        if (timingAlertPlayer == null) {
-            timingAlertPlayer = TimingAlertPlayer(context = this)
-        }
-        updateTimingAlertWakeLock(now = System.currentTimeMillis())
-        updateCapTimingAlertAlarm(now = System.currentTimeMillis())
-        startScheduleLoop()
-    }
-
-    /// Start the countdown scheduler coroutine if it is not already active.
-    private fun startScheduleLoop() {
-        if (scheduleJob?.isActive == true) {
-            return
-        }
-        scheduleJob = serviceScope.launch {
-            runTimingAlertLoop()
-        }
-    }
-
-    /**
-     * Deliver active-countdown cues while holding a wake lock only when countdown cues remain.
-     *
-     * The loop intentionally ignores cap cues. Cap cues are scheduled through AlarmManager so the
-     * CPU can sleep between distant cap times. Countdown cues are checked here because their
-     * spacing can be much tighter than Android's idle-alarm cadence.
-     */
-    private suspend fun runTimingAlertLoop() {
-        while (serviceScope.isActive) {
-            val snapshot = timingAlertSnapshot ?: return
-            val player = timingAlertPlayer ?: return
-            val now = System.currentTimeMillis()
-            updateTimingAlertWakeLock(now)
-            val dueTimingAlerts = snapshot.countdownCues.dueTimingAlertServiceCues(now)
-            if (dueTimingAlerts.isNotEmpty()) {
-                playTimingAlerts(dueTimingAlerts, snapshot, player)
-                continue
-            }
-
-            val nextTimingAlert = snapshot.countdownCues.nextTimingAlertServiceCue(now)
-            if (nextTimingAlert == null) {
-                return
-            }
-
-            val deliveryWindow = timingAlertDeliveryWindow(
-                millisUntilNextAlert = nextTimingAlert.targetEpoch - now,
-                scheduleCheckMillis = TIMING_ALERT_SERVICE_SCHEDULE_CHECK_MS,
-            )
-            if (deliveryWindow.delayMillis > 0L) {
-                delay(deliveryWindow.delayMillis)
-            }
-            if (deliveryWindow.readyToPlay) {
-                playTimingAlerts(listOf(nextTimingAlert), snapshot, player)
-            }
-        }
-    }
-
-    /**
-     * Deliver timing alerts and remove them before playback to avoid loop repeats.
-     *
-     * @param cues The cues to deliver.
-     * @param snapshot Compact alert settings for playback.
-     * @param player Sound player used for audible cues.
-     */
-    private suspend fun playTimingAlerts(
-        cues: List<TimingAlertServiceCue>,
-        snapshot: TimingAlertServiceSnapshot,
-        player: TimingAlertPlayer,
-    ) {
-        // This is effectively a one-cue list in normal operation. Keep the list shape because the
-        // due-cue helper naturally returns an empty list for "none due" and can defensively return
-        // more than one cue if Android wakes the service after multiple scheduled instants.
-        cues.forEach { cue ->
-            removeTimingAlertServiceCue(cue)
-            if (cue.alertMode == TimingAlertMode.VIBRATE) {
-                repeat(cue.repeatCount) { pulseIndex ->
-                    performTimingCueHaptic(snapshot.vibrationDurationMillis)
-                    if (pulseIndex < cue.repeatCount - 1) {
-                        delay(snapshot.vibrationDurationMillis + TIMING_ALERT_REPEAT_HAPTIC_GAP_MS)
-                    }
-                }
-            } else {
-                player.play(
-                    cue.alertMode.toTimingAlertSound(),
-                    cue.repeatCount,
-                    snapshot.soundVolume,
-                )
-                if (snapshot.vibrateWithSounds) {
-                    performTimingCueHaptic(snapshot.vibrationDurationMillis)
-                }
-            }
-        }
-    }
-
-    /**
-     * Remove a delivered cue from the in-memory service snapshot.
-     *
-     * @param cue The cue that has been accepted for playback.
-     */
-    private fun removeTimingAlertServiceCue(cue: TimingAlertServiceCue) {
-        val currentSnapshot = timingAlertSnapshot ?: return
-        val alertKey = cue.alertKey()
-        timingAlertSnapshot = currentSnapshot.copy(
-            countdownCues = currentSnapshot.countdownCues.filterNot { it.alertKey() == alertKey },
-            capCues = currentSnapshot.capCues.filterNot { it.alertKey() == alertKey },
-        )
-    }
-
-    /// Refresh the watchdog that stops abandoned foreground timing-alert services.
-    private fun refreshTimingAlertServiceLifetime() {
-        lifetimeJob?.cancel()
-        lifetimeJob = serviceScope.launch {
-            delay(TIMING_ALERT_SERVICE_MAX_LIFETIME_MS)
-            stopTimingAlertService()
-        }
-    }
-
-    /// Release service-held resources and ask Android to stop this service.
-    private fun stopTimingAlertService() {
-        releaseTimingAlertWakeLock()
-        cancelCapTimingAlertAlarm()
-        stopSelf()
-    }
-
-    /// Acquire or release the partial wake lock according to current countdown cue state.
-    private fun updateTimingAlertWakeLock(now: Long) {
-        val snapshot = timingAlertSnapshot ?: run {
-            releaseTimingAlertWakeLock()
-            return
-        }
-        if (snapshot.countdownCues.nextTimingAlertServiceCue(now) != null ||
-            snapshot.countdownCues.dueTimingAlertServiceCues(now).isNotEmpty()
-        ) {
-            acquireTimingAlertWakeLock()
-        } else {
-            releaseTimingAlertWakeLock()
-        }
-    }
-
     /// Keep the CPU awake while countdown timing-alert delivery needs precise scheduling.
     private fun acquireTimingAlertWakeLock() {
-        if (wakeLock?.isHeld == true) {
+        if (wakeLock != null) {
             return
         }
         val powerManager = getSystemService(PowerManager::class.java)
@@ -333,45 +237,8 @@ class TimingAlertForegroundService : Service() {
 
     /// Release any wake lock held for countdown timing-alert delivery.
     private fun releaseTimingAlertWakeLock() {
-        wakeLock?.let { lock ->
-            if (lock.isHeld) {
-                lock.release()
-            }
-        }
+        wakeLock?.release()
         wakeLock = null
-    }
-
-    /**
-     * Schedule the next alert-enabled cap cue, or cancel the cap alarm when none should fire.
-     *
-     * The snapshot builder has already removed cap cues with no alert. This method only chooses the
-     * next strictly future cap cue so an exact-boundary cap is not rescheduled after its alarm
-     * fires.
-     *
-     * @param now Current epoch millis used to choose the next future cap.
-     */
-    private fun updateCapTimingAlertAlarm(now: Long) {
-        val snapshot = timingAlertSnapshot
-        if (snapshot == null) {
-            cancelCapTimingAlertAlarm()
-            return
-        }
-        val capCue = snapshot.capCues.firstOrNull { cue ->
-            cue.targetEpoch > now
-        }
-        if (capCue == null) {
-            cancelCapTimingAlertAlarm()
-            return
-        }
-        if (!hasExactTimingAlertAlarmAccess()) {
-            cancelCapTimingAlertAlarm()
-            return
-        }
-        alarmManager().setExactAndAllowWhileIdle(
-            AlarmManager.RTC_WAKEUP,
-            capCue.targetEpoch,
-            capTimingAlertAlarmIntent(snapshot, capCue),
-        )
     }
 
     /// Cancel any pending cap timing-alert alarm for this app.
@@ -414,53 +281,15 @@ class TimingAlertForegroundService : Service() {
         )
     }
 
-    /**
-     * Deliver one cap alarm that woke the app through AlarmManager.
-     *
-     * AlarmManager sends a broadcast rather than calling this service directly.
-     * TimingAlertAlarmReceiver forwards that broadcast to this service as ACTION_CAP_ALARM. The
-     * service then briefly acquires the wake lock around playback, because an alarm can wake the
-     * app without keeping the CPU awake for the whole sound/vibration sequence.
-     *
-     * @param intent ACTION_CAP_ALARM message carrying serialized alert state and cue data.
-     */
-    private fun handleCapAlarm(intent: Intent) {
-        startTimingAlertForeground()
-        val alarmSnapshot = intent.getStringExtra(EXTRA_TIMING_ALERT_SNAPSHOT)
-            ?.let { encoded -> appStateJson.decodeFromString<TimingAlertServiceSnapshot>(encoded) }
-        val alarmCue = intent.getStringExtra(EXTRA_CAP_CUE)
-            ?.let { encoded -> appStateJson.decodeFromString<TimingAlertServiceCue>(encoded) }
-        if (alarmSnapshot == null) {
-            stopTimingAlertService()
-            return
-        }
-        if (alarmCue == null) {
-            return
-        }
-
-        refreshTimingAlertServiceLifetime()
-        timingAlertSnapshot = alarmSnapshot
-        val player = timingAlertPlayer ?: TimingAlertPlayer(context = this)
-            .also { timingAlertPlayer = it }
-        serviceScope.launch {
-            acquireTimingAlertWakeLock()
-            playTimingAlerts(listOf(alarmCue), alarmSnapshot, player)
-            updateCapTimingAlertAlarm(now = System.currentTimeMillis())
-            updateTimingAlertWakeLock(now = System.currentTimeMillis())
-        }
-    }
-
     companion object {
-        private const val ACTION_UPDATE = "rmjarvis.ultiobserver.TIMING_ALERT_UPDATE"
+        internal const val ACTION_UPDATE = "rmjarvis.ultiobserver.TIMING_ALERT_UPDATE"
         internal const val ACTION_CAP_ALARM = "rmjarvis.ultiobserver.TIMING_ALERT_CAP_ALARM"
-        private const val EXTRA_TIMING_ALERT_SNAPSHOT =
+        internal const val EXTRA_TIMING_ALERT_SNAPSHOT =
             "rmjarvis.ultiobserver.extra.TIMING_ALERT_SNAPSHOT"
-        private const val EXTRA_CAP_CUE = "rmjarvis.ultiobserver.extra.CAP_CUE"
+        internal const val EXTRA_CAP_CUE = "rmjarvis.ultiobserver.extra.CAP_CUE"
         private const val TIMING_ALERT_SERVICE_CHANNEL_ID = "timing_alert_service"
         private const val TIMING_ALERT_SERVICE_NOTIFICATION_ID = 1001
         private const val TIMING_ALERT_CAP_ALARM_REQUEST_CODE = 1002
-        private const val TIMING_ALERT_SERVICE_SCHEDULE_CHECK_MS = 250L
-        private const val TIMING_ALERT_SERVICE_MAX_LIFETIME_MS = 3 * 60 * 60 * 1000L
 
         /**
          * Build the app-to-service command containing the latest active-game alert state.
@@ -483,6 +312,309 @@ class TimingAlertForegroundService : Service() {
 }
 
 /**
+ * Android operations used by the timing-alert service controller.
+ *
+ * The foreground service owns these platform actions at runtime. Tests can replace them with fakes
+ * so the alert scheduling and delivery decisions can be checked without real wake locks, alarms,
+ * or haptic hardware.
+ */
+internal interface TimingAlertServicePlatform {
+    /// Put the Android service into foreground mode with its notification.
+    fun startForeground()
+
+    /// Build the sound player used by this service instance.
+    fun createPlayer(): TimingAlertPlayer
+
+    /// Return the current epoch millis for scheduling decisions.
+    fun currentTimeMillis(): Long
+
+    /// Acquire the wake lock used for near-term countdown cue delivery.
+    fun acquireWakeLock()
+
+    /// Release the wake lock used for near-term countdown cue delivery.
+    fun releaseWakeLock()
+
+    /**
+     * Schedule a cap cue through Android's exact-alarm mechanism.
+     *
+     * @param snapshot Active service snapshot to attach to the alarm payload.
+     * @param cue Cap cue to deliver when the alarm fires.
+     */
+    fun scheduleCapAlarm(snapshot: TimingAlertServiceSnapshot, cue: TimingAlertServiceCue)
+
+    /// Cancel any pending cap timing-alert alarm.
+    fun cancelCapAlarm()
+
+    /// Return whether exact alarms are currently available to this app.
+    fun hasExactAlarmAccess(): Boolean
+
+    /**
+     * Perform one haptic pulse.
+     *
+     * @param durationMillis Requested vibration duration.
+     */
+    suspend fun performHaptic(durationMillis: Long)
+
+    /// Ask Android to stop this foreground service instance.
+    fun stopSelf()
+}
+
+/**
+ * Testable controller for foreground timing-alert delivery.
+ *
+ * This class owns UltiObserver's timing-alert decisions: when a snapshot starts or stops service
+ * work, when a wake lock is needed, which cap cue should be scheduled, and how due cues are
+ * delivered. The Android Service wrapper is intentionally thin and only translates Intents into
+ * these controller calls.
+ *
+ * @param platform Android boundary used for wake locks, alarms, haptics, and service commands.
+ * @param serviceScope Coroutine scope tied to the service lifetime.
+ * @param scheduleCheckMillis Normal polling interval for countdown timing alerts.
+ * @param maxLifetimeMillis Watchdog lifetime before an abandoned service stops itself.
+ */
+internal class TimingAlertForegroundServiceController(
+    private val platform: TimingAlertServicePlatform,
+    private val serviceScope: CoroutineScope,
+    private val scheduleCheckMillis: Long = TIMING_ALERT_SERVICE_SCHEDULE_CHECK_MS,
+    private val maxLifetimeMillis: Long = TIMING_ALERT_SERVICE_MAX_LIFETIME_MS,
+) {
+    private var timingAlertPlayer: TimingAlertPlayer? = null
+    private var scheduleJob: Job? = null
+    private var lifetimeJob: Job? = null
+    internal var timingAlertSnapshot: TimingAlertServiceSnapshot? = null
+        private set
+
+    /**
+     * Apply the latest active-game state sent from Compose and start background alert delivery.
+     *
+     * The app shell resends this update whenever the live state or timing-alert settings change.
+     * That makes this service a replaceable consumer of the current snapshot rather than an owner
+     * of game rules. Valid updates refresh the maximum service lifetime, replace in-memory state,
+     * start the countdown loop, and reschedule the next cap alarm from the latest snapshot.
+     *
+     * @param updatedSnapshot Decoded ACTION_UPDATE payload, or null for an invalid command.
+     */
+    fun handleTimingAlertUpdate(updatedSnapshot: TimingAlertServiceSnapshot?) {
+        platform.startForeground()
+        if (updatedSnapshot == null) {
+            stopTimingAlertService()
+            return
+        }
+
+        refreshTimingAlertServiceLifetime()
+        timingAlertSnapshot = updatedSnapshot
+        if (timingAlertPlayer == null) {
+            timingAlertPlayer = platform.createPlayer()
+        }
+        updateTimingAlertWakeLock(now = platform.currentTimeMillis())
+        updateCapTimingAlertAlarm(now = platform.currentTimeMillis())
+        startScheduleLoop()
+    }
+
+    /**
+     * Deliver one cap alarm that woke the app through AlarmManager.
+     *
+     * AlarmManager sends a broadcast rather than calling this service directly.
+     * TimingAlertAlarmReceiver forwards that broadcast to the service as ACTION_CAP_ALARM. The
+     * service then briefly acquires the wake lock around playback, because an alarm can wake the
+     * app without keeping the CPU awake for the whole sound/vibration sequence.
+     *
+     * @param alarmSnapshot Snapshot payload attached to the alarm.
+     * @param alarmCue Cap cue payload attached to the alarm.
+     */
+    fun handleCapAlarm(
+        alarmSnapshot: TimingAlertServiceSnapshot?,
+        alarmCue: TimingAlertServiceCue?,
+    ) {
+        platform.startForeground()
+        if (alarmSnapshot == null) {
+            stopTimingAlertService()
+            return
+        }
+        if (alarmCue == null) {
+            return
+        }
+
+        refreshTimingAlertServiceLifetime()
+        timingAlertSnapshot = alarmSnapshot
+        val player = timingAlertPlayer ?: platform.createPlayer()
+            .also { timingAlertPlayer = it }
+        serviceScope.launch {
+            platform.acquireWakeLock()
+            playTimingAlerts(listOf(alarmCue), alarmSnapshot, player)
+            updateCapTimingAlertAlarm(now = platform.currentTimeMillis())
+            updateTimingAlertWakeLock(now = platform.currentTimeMillis())
+        }
+    }
+
+    /// Release playback, alarm, wake-lock, and coroutine resources.
+    fun release() {
+        scheduleJob?.cancel()
+        lifetimeJob?.cancel()
+        timingAlertPlayer?.release()
+        platform.cancelCapAlarm()
+        platform.releaseWakeLock()
+        serviceScope.cancel()
+    }
+
+    /// Release service-held resources and ask Android to stop this service.
+    fun stopTimingAlertService() {
+        platform.releaseWakeLock()
+        platform.cancelCapAlarm()
+        platform.stopSelf()
+    }
+
+    /// Start the countdown scheduler coroutine if it is not already active.
+    internal fun startScheduleLoop() {
+        if (scheduleJob?.isActive == true) {
+            return
+        }
+        scheduleJob = serviceScope.launch {
+            runTimingAlertLoop()
+        }
+    }
+
+    /**
+     * Deliver active-countdown cues while holding a wake lock only when countdown cues remain.
+     *
+     * The loop intentionally ignores cap cues. Cap cues are scheduled through AlarmManager so the
+     * CPU can sleep between distant cap times. Countdown cues are checked here because their
+     * spacing can be much tighter than Android's idle-alarm cadence.
+     */
+    internal suspend fun runTimingAlertLoop() {
+        while (serviceScope.isActive) {
+            val snapshot = timingAlertSnapshot ?: return
+            val player = timingAlertPlayer!!
+            val now = platform.currentTimeMillis()
+            updateTimingAlertWakeLock(now)
+            val dueTimingAlerts = snapshot.countdownCues.dueTimingAlertServiceCues(now)
+            if (dueTimingAlerts.isNotEmpty()) {
+                playTimingAlerts(dueTimingAlerts, snapshot, player)
+                continue
+            }
+
+            val nextTimingAlert = snapshot.countdownCues.nextTimingAlertServiceCue(now)
+            if (nextTimingAlert == null) {
+                return
+            }
+
+            val deliveryWindow = timingAlertDeliveryWindow(
+                millisUntilNextAlert = nextTimingAlert.targetEpoch - now,
+                scheduleCheckMillis = scheduleCheckMillis,
+            )
+            delay(deliveryWindow.delayMillis)
+            if (deliveryWindow.readyToPlay) {
+                playTimingAlerts(listOf(nextTimingAlert), snapshot, player)
+            }
+        }
+    }
+
+    /**
+     * Deliver timing alerts and remove them before playback to avoid loop repeats.
+     *
+     * @param cues The cues to deliver.
+     * @param snapshot Compact alert settings for playback.
+     * @param player Sound player used for audible cues.
+     */
+    internal suspend fun playTimingAlerts(
+        cues: List<TimingAlertServiceCue>,
+        snapshot: TimingAlertServiceSnapshot,
+        player: TimingAlertPlayer,
+    ) {
+        // This is effectively a one-cue list in normal operation. Keep the list shape because the
+        // due-cue helper naturally returns an empty list for "none due" and can defensively return
+        // more than one cue if Android wakes the service after multiple scheduled instants.
+        cues.forEach { cue ->
+            removeTimingAlertServiceCue(cue)
+            if (cue.alertMode == TimingAlertMode.VIBRATE) {
+                repeat(cue.repeatCount) { pulseIndex ->
+                    platform.performHaptic(snapshot.vibrationDurationMillis)
+                    if (pulseIndex < cue.repeatCount - 1) {
+                        delay(snapshot.vibrationDurationMillis + TIMING_ALERT_REPEAT_HAPTIC_GAP_MS)
+                    }
+                }
+            } else {
+                player.play(
+                    cue.alertMode.toTimingAlertSound(),
+                    cue.repeatCount,
+                    snapshot.soundVolume,
+                )
+                if (snapshot.vibrateWithSounds) {
+                    platform.performHaptic(snapshot.vibrationDurationMillis)
+                }
+            }
+        }
+    }
+
+    /**
+     * Remove a delivered cue from the in-memory service snapshot.
+     *
+     * @param cue The cue that has been accepted for playback.
+     */
+    private fun removeTimingAlertServiceCue(cue: TimingAlertServiceCue) {
+        val currentSnapshot = timingAlertSnapshot ?: return
+        val alertKey = cue.alertKey()
+        timingAlertSnapshot = currentSnapshot.copy(
+            countdownCues = currentSnapshot.countdownCues.filterNot { it.alertKey() == alertKey },
+            capCues = currentSnapshot.capCues.filterNot { it.alertKey() == alertKey },
+        )
+    }
+
+    /// Refresh the watchdog that stops abandoned foreground timing-alert services.
+    private fun refreshTimingAlertServiceLifetime() {
+        lifetimeJob?.cancel()
+        lifetimeJob = serviceScope.launch {
+            delay(maxLifetimeMillis)
+            stopTimingAlertService()
+        }
+    }
+
+    /// Acquire or release the partial wake lock according to current countdown cue state.
+    internal fun updateTimingAlertWakeLock(now: Long) {
+        val snapshot = timingAlertSnapshot ?: run {
+            platform.releaseWakeLock()
+            return
+        }
+        if (snapshot.countdownCues.nextTimingAlertServiceCue(now) != null ||
+            snapshot.countdownCues.dueTimingAlertServiceCues(now).isNotEmpty()
+        ) {
+            platform.acquireWakeLock()
+        } else {
+            platform.releaseWakeLock()
+        }
+    }
+
+    /**
+     * Schedule the next alert-enabled cap cue, or cancel the cap alarm when none should fire.
+     *
+     * The snapshot builder has already removed cap cues with no alert. This method only chooses the
+     * next strictly future cap cue so an exact-boundary cap is not rescheduled after its alarm
+     * fires.
+     *
+     * @param now Current epoch millis used to choose the next future cap.
+     */
+    internal fun updateCapTimingAlertAlarm(now: Long) {
+        val snapshot = timingAlertSnapshot
+        if (snapshot == null) {
+            platform.cancelCapAlarm()
+            return
+        }
+        val capCue = snapshot.capCues.firstOrNull { cue ->
+            cue.targetEpoch > now
+        }
+        if (capCue == null) {
+            platform.cancelCapAlarm()
+            return
+        }
+        if (!platform.hasExactAlarmAccess()) {
+            platform.cancelCapAlarm()
+            return
+        }
+        platform.scheduleCapAlarm(snapshot, capCue)
+    }
+}
+
+/**
  * Compact service payload containing only timing-alert state needed outside the Compose process.
  *
  * @param soundVolume Playback volume for sound alerts.
@@ -492,7 +624,7 @@ class TimingAlertForegroundService : Service() {
  * @param capCues Relevant cap cues that may need exact alarms later in the game.
  */
 @Serializable
-private data class TimingAlertServiceSnapshot(
+internal data class TimingAlertServiceSnapshot(
     val soundVolume: Float,
     val vibrationDurationMillis: Long,
     val vibrateWithSounds: Boolean,
@@ -509,7 +641,7 @@ private data class TimingAlertServiceSnapshot(
  * @param repeatCount Number of repeated sounds or haptic pulses to deliver.
  */
 @Serializable
-private data class TimingAlertServiceCue(
+internal data class TimingAlertServiceCue(
     val id: TimingCueId,
     val targetEpoch: Long,
     val alertMode: TimingAlertMode,
@@ -522,7 +654,7 @@ private data class TimingAlertServiceCue(
 }
 
 /// Build the compact timing-alert snapshot sent across Android component boundaries.
-private fun GameState.timingAlertSnapshot(
+internal fun GameState.timingAlertSnapshot(
     timingAlertPreferences: TimingAlertPreferences,
 ): TimingAlertServiceSnapshot {
     val now = System.currentTimeMillis()
@@ -539,7 +671,7 @@ private fun GameState.timingAlertSnapshot(
 }
 
 /// Return compact cues for all countdown alerts that may still need delivery.
-private fun CountdownState.timingAlertServiceCues(
+internal fun CountdownState.timingAlertServiceCues(
     now: Long,
     timingAlertPreferences: TimingAlertPreferences,
 ): List<TimingAlertServiceCue> {
@@ -550,7 +682,7 @@ private fun CountdownState.timingAlertServiceCues(
 }
 
 /// Return compact, alert-enabled cues with effective per-cue playback settings.
-private fun List<TimingCueDisplay>.timingAlertServiceCues(
+internal fun List<TimingCueDisplay>.timingAlertServiceCues(
     timingAlertPreferences: TimingAlertPreferences,
 ): List<TimingAlertServiceCue> {
     return mapNotNull { cue ->
@@ -569,18 +701,21 @@ private fun List<TimingCueDisplay>.timingAlertServiceCues(
 }
 
 /// Return compact cues due within the alert-delivery window.
-private fun List<TimingAlertServiceCue>.dueTimingAlertServiceCues(
+internal fun List<TimingAlertServiceCue>.dueTimingAlertServiceCues(
     now: Long,
 ): List<TimingAlertServiceCue> {
     return filter { cue -> now - cue.targetEpoch in 0L..TIMING_ALERT_DUE_WINDOW_MS }
 }
 
 /// Return the next compact cue whose target has not passed yet.
-private fun List<TimingAlertServiceCue>.nextTimingAlertServiceCue(
+internal fun List<TimingAlertServiceCue>.nextTimingAlertServiceCue(
     now: Long,
 ): TimingAlertServiceCue? {
     return firstOrNull { cue -> cue.targetEpoch > now }
 }
+
+internal const val TIMING_ALERT_SERVICE_SCHEDULE_CHECK_MS = 250L
+internal const val TIMING_ALERT_SERVICE_MAX_LIFETIME_MS = 3 * 60 * 60 * 1000L
 
 /// Return whether Android currently allows this app to schedule exact timing-alert alarms.
 internal fun Context.hasExactTimingAlertAlarmAccess(): Boolean {
@@ -615,41 +750,5 @@ class TimingAlertAlarmReceiver : BroadcastReceiver() {
         }
         intent.setClass(context, TimingAlertForegroundService::class.java)
         ContextCompat.startForegroundService(context, intent)
-    }
-}
-
-/**
- * Keep the timing-alert service synchronized with Compose app state.
- *
- * This side effect is the only bridge from the Compose tree into the Android service. Each relevant
- * state change sends a fresh ACTION_UPDATE Intent. When there is no active game, or alerts are off,
- * the same effect stops the service so wake locks and cap alarms are released.
- *
- * @param enabled Whether foreground timing-alert delivery should run.
- * @param liveState Active game state whose alerts should be delivered, or null to stop service.
- * @param timingAlertPreferences User alert preferences to apply.
- */
-@Composable
-internal fun TimingAlertForegroundServiceEffect(
-    enabled: Boolean,
-    liveState: GameState?,
-    timingAlertPreferences: TimingAlertPreferences,
-) {
-    val context = androidx.compose.ui.platform.LocalContext.current.applicationContext
-    LaunchedEffect(enabled, liveState, timingAlertPreferences) {
-        if (!enabled || liveState == null ||
-            timingAlertPreferences.globalMode == TimingAlertGlobalMode.OFF
-        ) {
-            context.stopService(Intent(context, TimingAlertForegroundService::class.java))
-            return@LaunchedEffect
-        }
-        ContextCompat.startForegroundService(
-            context,
-            TimingAlertForegroundService.updateIntent(
-                context = context,
-                liveState = liveState,
-                timingAlertPreferences = timingAlertPreferences,
-            ),
-        )
     }
 }

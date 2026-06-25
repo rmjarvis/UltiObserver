@@ -180,7 +180,7 @@ internal interface TimingAlertSoundPlayer {
 }
 
 /// Android SoundPool adapter for the TimingAlertSoundPlayer interface.
-private class AndroidTimingAlertSoundPlayer : TimingAlertSoundPlayer {
+internal class AndroidTimingAlertSoundPlayer : TimingAlertSoundPlayer {
     private val soundPool = SoundPool.Builder()
         .setMaxStreams(1)
         .setAudioAttributes(
