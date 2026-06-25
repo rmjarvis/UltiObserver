@@ -80,7 +80,7 @@ fun GameState.assessTimeout(
     team: TeamId,
     now: Long,
 ): TimeoutAssessmentResult {
-    val timeoutState = this.timeoutEligibleState(now)
+    val timeoutState = this.timeoutEligibleState()
         ?: return TimeoutAssessmentResult(this, GameEvent.TimeoutUnavailable(this))
     if (timeoutState.timeoutsRemaining(team) <= 0) {
         return TimeoutAssessmentResult(
@@ -105,7 +105,7 @@ fun GameState.previewTimeout(
     team: TeamId,
     now: Long,
 ): TimeoutAssessmentPreview {
-    val timeoutState = this.timeoutEligibleState(now)
+    val timeoutState = this.timeoutEligibleState()
         ?: return TimeoutAssessmentPreview(GameEvent.TimeoutUnavailable(this))
     if (timeoutState.timeoutsRemaining(team) <= 0) {
         return TimeoutAssessmentPreview(
@@ -118,7 +118,7 @@ fun GameState.previewTimeout(
 
 /// Report whether the current game state can process a timeout request.
 fun GameState.canRequestTimeout(now: Long): Boolean {
-    return this.timeoutEligibleState(now) != null
+    return this.timeoutEligibleState() != null
 }
 
 /**
@@ -135,7 +135,7 @@ fun GameState.chargeTimeout(
     team: TeamId,
     now: Long,
 ): GameState {
-    val timeoutState = this.timeoutEligibleState(now) ?: return this
+    val timeoutState = this.timeoutEligibleState() ?: return this
     if (timeoutState.timeoutsRemaining(team) <= 0) {
         return this
     }
@@ -155,7 +155,7 @@ fun GameState.chargeTimeout(
     )
 
     if (timeoutState.phase.isBeforeLivePoint) {
-        return applyBetweenPointsTimeout(updatedState)
+        return applyBetweenPointsTimeout(updatedState, now)
             .withEventLogEntry(
                 EventLogEntry(
                     timestampEpoch = now,
@@ -202,39 +202,45 @@ fun GameState.timeoutsRemaining(team: TeamId): Int {
 }
 /**
  * Return the state in which a timeout may be charged, if one is legal now.
- * This keeps pre-pull countdowns as pre-pull timeout states even after their target time, since
- * a timeout called at that instant is a timeout before the pull rather than during live play.
- *
- * @param now The current epoch millis, used to advance halftime into the next pull sequence.
+ * Pre-pull states are returned directly, even when their countdown has expired or cleared.
  */
-private fun GameState.timeoutEligibleState(now: Long): GameState? {
-    if (this.phase.isBeforeLivePoint) {
-        return if (this.countdown != null) this else null
-    }
-    val transitionedState = applyExpiredCountdownTransitions(now, showDefenseCountdowns = false)
+private fun GameState.timeoutEligibleState(): GameState? {
     return when {
-        transitionedState.phase.isBeforeLivePoint -> {
-            if (transitionedState.countdown != null) transitionedState else null
-        }
-        transitionedState.phase == GamePhase.LIVE_POINT -> transitionedState
+        phase.isBeforeLivePoint -> this
+        phase == GamePhase.LIVE_POINT -> this
         else -> null
     }
 }
 /**
  * Extend a between-points countdown after a timeout is charged before the pull.
- * This is the rules branch that adds 70 seconds to the existing timer.
+ * If the countdown has cleared, rebuild it at zero so the same timeout extension leaves
+ * 70 seconds on the visible timer.
  *
  * @param state The already-charged timeout state whose countdown should be extended.
+ * @param now The epoch millis used when rebuilding a cleared countdown.
  */
 private fun applyBetweenPointsTimeout(
     state: GameState,
+    now: Long,
 ): GameState {
-    val countdown = state.countdown!!
+    val countdown = state.countdown ?: run {
+        buildBetweenPointsCountdown(
+            pullingFromEnd = state.pullingFromEnd,
+            sequenceStart = now,
+            kind = if (state.phase == GamePhase.PRE_GAME) {
+                CountdownKind.OPENING_PULL
+            } else {
+                CountdownKind.BETWEEN_POINTS
+            },
+            promptTarget = state.pullPromptTarget,
+        ).copy(targetEpoch = now)
+    }
     return state.copy(
         countdown = countdown.copy(
             durationSeconds = countdown.durationSeconds + 70,
             targetEpoch = countdown.targetEpoch + 70_000L,
-        )
+        ),
+        pullCountdownExpired = false,
     )
 }
 /**
