@@ -28,6 +28,10 @@ import org.junit.Assert.assertEquals
 import org.junit.Rule
 
 private val platformBackDismissalUnstableAvds = setOf(
+    // API 26 instrumentation Back misses some dialog dismissals on these AVDs,
+    // even though manual emulator Back behaves correctly.
+    "Small_Phone",
+    "Nexus_4",
     "Pixel_7_Emulator",
     "Pixel_7_API_33",
     "Pixel_10",
@@ -159,7 +163,7 @@ abstract class MainActivityUiTestFixtures {
         composeRule.onNodeWithText(buttonText).performScrollTo().performClick()
         waitForText(dialogTitle)
         composeRule.onNodeWithText(fieldLabel).performTextReplacement(value)
-        composeRule.onNodeWithText("Set").performClick()
+        composeRule.onNodeWithTag("setup-integer-set").performClick()
         waitForText("Game to")
         closeSetupEditor()
         waitForText("Start game")
@@ -188,7 +192,7 @@ abstract class MainActivityUiTestFixtures {
             useUnmergedTree = true,
         ).performTextReplacement(minuteText)
         composeRule.onNodeWithText(period).performClick()
-        composeRule.onNodeWithText("Set").performClick()
+        composeRule.onNodeWithTag("setup-start-time-set").performClick()
         waitForText("Date")
         closeSetupEditor()
         waitForText("Start game")
@@ -225,7 +229,7 @@ abstract class MainActivityUiTestFixtures {
             composeRule.onNodeWithTag("setup-$dialogTitle-none").performClick()
         }
         composeRule.onNodeWithText("Minutes").performTextReplacement(value)
-        composeRule.onNodeWithText("Set").performClick()
+        composeRule.onNodeWithTag("setup-$dialogTitle-set").performClick()
         waitForText("Game to")
         closeSetupEditor()
         waitForText("Start game")
@@ -242,7 +246,7 @@ abstract class MainActivityUiTestFixtures {
         composeRule.onNodeWithText(rowLabel).performScrollTo().performClick()
         waitForText(dialogTitle)
         composeRule.onNodeWithTag("setup-$dialogTitle-none").performClick()
-        composeRule.onNodeWithText("Set").performClick()
+        composeRule.onNodeWithTag("setup-$dialogTitle-set").performClick()
         waitForText("Game to")
         closeSetupEditor()
         waitForText("Start game")
@@ -262,7 +266,7 @@ abstract class MainActivityUiTestFixtures {
         if (hasFloater) {
             composeRule.onNodeWithTag("setup-timeouts-floater").performClick()
         }
-        composeRule.onNodeWithText("Set").performClick()
+        composeRule.onNodeWithTag("setup-timeouts-set").performClick()
         waitForText("Game to")
         closeSetupEditor()
         waitForText("Start game")
@@ -408,15 +412,67 @@ abstract class MainActivityUiTestFixtures {
         return currentAvdName() !in platformBackDismissalUnstableAvds
     }
 
+    /**
+     * Dismiss the current dialog through platform Back when stable, otherwise a visible control.
+     *
+     * @param text Visible dialog button text to use on devices where platform Back is unstable.
+     * @param tag Visible dialog control tag to use on devices where platform Back is unstable.
+     * @param clearKeyboard Whether platform Back may need one press to exit focused text entry
+     * before the dialog receives Back.
+     */
+    protected fun dismissDialog(
+        text: String? = null,
+        tag: String? = null,
+        clearKeyboard: Boolean = false,
+    ) {
+        require((text == null) != (tag == null)) {
+            "dismissDialog requires exactly one fallback text or tag."
+        }
+        if (shouldUsePlatformBackDismissalCoverage()) {
+            pressDialogBack()
+            if (clearKeyboard) {
+                // On some API levels, Back first exits focused text entry.  If the dialog's
+                // fallback control is still present, press Back again to exercise dismiss.
+                if (
+                    tag != null &&
+                    composeRule.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()
+                ) {
+                    pressDialogBack()
+                }
+                if (
+                    text != null &&
+                    composeRule.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
+                ) {
+                    pressDialogBack()
+                }
+            }
+        } else if (tag != null) {
+            composeRule.onNodeWithTag(tag).performClick()
+        } else {
+            composeRule.onNodeWithText(text!!).performClick()
+        }
+    }
+
     /// Return whether the test device reports usable timing-cue haptics.
     protected fun deviceHasTimingCueHaptics(): Boolean {
         return composeRule.activity.hasTimingCueHaptics()
     }
 
-    /// Return the configured AVD name for the current emulator.
+    /**
+     * Return the configured AVD name for the current emulator.
+     *
+     * Most emulators report this through `ro.boot.qemu.avd_name`, but `Small_Phone` has reported
+     * that property as blank while still exposing its name through `ro.kernel.qemu.avd_name`.
+     */
     protected fun currentAvdName(): String {
+        return shellProperty("ro.boot.qemu.avd_name")
+            .ifBlank { shellProperty("ro.kernel.qemu.avd_name") }
+    }
+
+    /// Return an Android system property from the test device.
+    private fun shellProperty(name: String): String {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
-        instrumentation.uiAutomation.executeShellCommand("getprop ro.boot.qemu.avd_name").use { descriptor ->
+        instrumentation.uiAutomation.executeShellCommand("getprop $name").use { descriptor ->
             return FileInputStream(descriptor.fileDescriptor).bufferedReader().use { reader ->
                 reader.readText().trim()
             }
@@ -425,7 +481,7 @@ abstract class MainActivityUiTestFixtures {
 
     /// Tap Back from a misconduct offense/defense choice to the card step that opened it.
     protected fun tapBackFromMisconductODChoice() {
-        composeRule.onNodeWithTag("misconduct-choice-back").performClick()
+        dismissDialog(tag = "misconduct-choice-back")
     }
 
     /**
@@ -650,6 +706,8 @@ abstract class MainActivityUiTestFixtures {
         composeRule.onAllNodesWithText("+1")[1].performClick()
         composeRule.onAllNodesWithText("+1")[2].performClick()
         composeRule.onAllNodesWithText("+1")[3].performClick()
+        composeRule.onAllNodesWithText("+1")[4].performClick()
+        composeRule.onAllNodesWithText("+1")[5].performClick()
         composeRule.onAllNodesWithText("-1")[1].performClick()
         composeRule.onNodeWithTag("adjust-pull-violations-confirm").performTouchInput {
             click()
@@ -662,7 +720,7 @@ abstract class MainActivityUiTestFixtures {
         openMoreActionsDialog()
         composeRule.onNodeWithText("Adjust cards / techs").performClick()
         waitForText("Adjust cards / techs")
-        composeRule.onAllNodesWithText("+1")[0].performClick()
+        composeRule.onNodeWithTag("cards-adjust-team-one-blue-increment").performClick()
         composeRule.onNodeWithText("Done").performClick()
         waitForText("Undo Adjust blue card/tech counts")
     }
@@ -834,7 +892,7 @@ abstract class MainActivityUiTestFixtures {
         composeRule.onNodeWithText(buttonText).performScrollTo().performClick()
         waitForText(dialogTitle)
         composeRule.onNodeWithText("Cancel").assertIsDisplayed()
-        composeRule.onNodeWithText("Cancel").performClick()
+        dismissDialog(text = "Cancel")
         waitForText("Game to")
         closeSetupEditor()
     }
@@ -882,7 +940,8 @@ abstract class MainActivityUiTestFixtures {
     /// Open the live Card dialog for one team.
     protected fun openCardsDialog(team: TeamId = TeamId.TEAM_ONE) {
         composeRule.onNodeWithTag(teamActionTag(team, "card")).performClick()
-        composeRule.onNodeWithTag("card-dialog-${team.name}-yellow").assertIsDisplayed()
+        waitForText("Assess a card")
+        composeRule.onNodeWithTag("card-dialog-${team.name}-yellow").assertExists()
     }
 
     /// Open the live More actions dialog.

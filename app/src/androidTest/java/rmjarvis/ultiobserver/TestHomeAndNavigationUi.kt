@@ -213,7 +213,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Event log").performClick()
         waitForText("Event log")
         waitForText("No events logged yet.")
-        pressDialogBack()
+        dismissDialog(text = "OK")
         composeRule.onNodeWithText("Back").performClick()
         waitForText("Archived games")
         waitForText(firstArchivedTitle)
@@ -223,7 +223,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         // This time cancel to get out of the dialog.
         composeRule.onNodeWithTag("delete-all-archived-games").performClick()
         waitForText("This cannot be undone", substring = true)
-        composeRule.onNodeWithText("Cancel").performClick()
+        dismissDialog(text = "Cancel")
         composeRule.onNodeWithText(firstArchivedTitle).assertIsDisplayed()
         composeRule.onNodeWithText(secondArchivedTitle).assertIsDisplayed()
 
@@ -249,7 +249,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText(secondArchivedTitle)
         composeRule.onNodeWithTag("delete-archived-game-$firstArchivedTitle").performClick()
         waitForText("This cannot be undone", substring = true)
-        composeRule.onNodeWithText("Cancel").performClick()
+        dismissDialog(text = "Cancel")
         composeRule.onNodeWithText(firstArchivedTitle).assertIsDisplayed()
         composeRule.onNodeWithText(secondArchivedTitle).assertIsDisplayed()
 
@@ -311,7 +311,9 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         // Check that the source code URL and the privacy policy are active links.
         assertOpensUrl(sourceCodeUrl)
         assertOpensUrl(privacyPolicyUrl)
-        pressAppBack()
+
+        // Back returns from About to Home.
+        dismissDialog(text = "Back")
         waitForText("Start new game")
     }
 
@@ -346,6 +348,21 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("settings-auto-lock-live-point-value").assertTextEquals("No")
         composeRule.onNodeWithTag("settings-show-defense-countdowns-value")
             .assertTextEquals("Yes")
+
+        // When defense countdowns are enabled, their cue section is shown without the disabled
+        // warning.
+        composeRule.onNodeWithTag("settings-open-timing-cue-settings")
+            .performScrollTo()
+            .performClick()
+        waitForText("Defense check countdown")
+        composeRule.onAllNodesWithText(
+            "Note — these cues are not currently enabled.",
+            substring = true,
+        )
+            .assertCountEquals(0)
+        dismissDialog(text = "Back")
+        waitForText("Use sounds and vibration for timing cues?")
+
         composeRule.onNodeWithTag("settings-auto-advance-countdowns").performClick()
         composeRule.onNodeWithTag("settings-auto-lock-live-point").performClick()
         composeRule.onNodeWithTag("settings-show-defense-countdowns").performClick()
@@ -413,7 +430,9 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("settings-RECEIVING_TWENTY_FOR_HAND-TICK").assertIsSelected()
         composeRule.onNodeWithTag("settings-RECEIVING_TWENTY_FOR_HAND-REPEAT_2").assertIsSelected()
         composeRule.onNodeWithTag("settings-OFFENSE_TWENTY-NONE").performScrollTo().performClick()
-        pressAppBack()
+
+        // Back returns from cue settings to the main Settings screen.
+        dismissDialog(text = "Back")
         waitForText("Use sounds and vibration for timing cues?")
         composeRule.onNodeWithTag("settings-global-alert-SOUNDS_ON")
             .performScrollTo()
@@ -435,6 +454,16 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         }
         waitForText("Sound volume 50%")
         waitForText("Also vibrate on cues that use sound?")
+
+        // The sound-volume slider persists the selected cue volume.
+        composeRule.onNodeWithTag("settings-sound-volume")
+            .performScrollTo()
+            .performTouchInput {
+                click(percentOffset(x = 0.75f, y = 0.5f))
+            }
+        assertTrue(
+            composeRule.activity.appViewModel.timingAlertPreferences.soundVolume > 0.5f
+        )
 
         // Re-enabled sound settings should expose vibration, preview, and repeat-count controls.
         composeRule.onNodeWithTag("settings-vibrate-with-sounds").performScrollTo()
@@ -486,7 +515,9 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText("Hard cap")
         pressAppBack()
         waitForText("Use sounds and vibration for timing cues?")
-        pressAppBack()
+
+        // Back returns from Settings to Home.
+        dismissDialog(text = "Back")
         waitForText("Start new game")
     }
 

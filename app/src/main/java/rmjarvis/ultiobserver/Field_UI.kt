@@ -500,7 +500,7 @@ private fun EndZonePanel(
         fontSize = metrics.titleFontSize,
         lineHeight = metrics.titleLineHeight,
     )
-    val hasHeaderTrailingLabel = fieldEndLabelAtTop || (!fieldEndLabelAtTop && choosesGenderRatio)
+    val hasHeaderTrailingLabel = fieldEndLabelAtTop || choosesGenderRatio
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -594,7 +594,6 @@ private fun EndZonePanel(
             GenderRatioChooserLabel(
                 contentColor = team.content,
                 modifier = Modifier.fillMaxWidth(),
-                alignEnd = true,
             )
         }
     }
@@ -680,17 +679,15 @@ private fun GenderRatioStatusBadge(ratio: GenderRatio) {
  *
  * @param contentColor Text color matching the team row.
  * @param modifier Modifier applied by the caller.
- * @param alignEnd Whether the label should sit on the right side of the team row.
  */
 @Composable
 private fun GenderRatioChooserLabel(
     contentColor: Color,
     modifier: Modifier,
-    alignEnd: Boolean,
 ) {
     Row(
         modifier = modifier,
-        horizontalArrangement = if (alignEnd) Arrangement.End else Arrangement.Start,
+        horizontalArrangement = Arrangement.End,
     ) {
         Text(
             text = "Chooses gender ratio",
@@ -775,113 +772,110 @@ private fun TeamActionGrid(
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val buttonTextStyle = MaterialTheme.typography.labelMedium
-    fun measuredButtonWidth(labels: List<String>): Dp {
-        val labelWidthPx = labels.maxOf { label ->
-            textMeasurer.measure(AnnotatedString(label), style = buttonTextStyle).size.width
+    val gap = metrics.actionGap
+    fun measuredButtonWidth(firstLabel: String, secondLabel: String? = null): Dp {
+        var labelWidthPx = textMeasurer
+            .measure(AnnotatedString(firstLabel), style = buttonTextStyle)
+            .size
+            .width
+        if (secondLabel != null) {
+            labelWidthPx = maxOf(
+                labelWidthPx,
+                textMeasurer.measure(AnnotatedString(secondLabel), style = buttonTextStyle)
+                    .size
+                    .width,
+            )
         }
         return with(density) { labelWidthPx.toDp() } + 20.dp
     }
-    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
-        val panelPadding = 4.dp
-        val gap = metrics.actionGap
-        val naturalGoalWidth = measuredButtonWidth(listOf("Goal"))
-        val naturalMiddleWidth = measuredButtonWidth(listOf(timeViolationLabel, pullViolationLabel))
-        val naturalRightWidth = measuredButtonWidth(listOf(cardLabel, techLabel))
-        val naturalTimeoutWidth = measuredButtonWidth(listOf(timeoutLabel))
-        val naturalButtonWidth = naturalGoalWidth + naturalMiddleWidth + naturalRightWidth + naturalTimeoutWidth
-        val availableButtonWidth = (maxWidth - panelPadding * 2f - gap * 3f).coerceAtLeast(0.dp)
-        val widthScale = if (naturalButtonWidth > availableButtonWidth && naturalButtonWidth.value > 0f) {
-            availableButtonWidth.value / naturalButtonWidth.value
-        } else {
-            1f
-        }
-        val goalWidth = naturalGoalWidth * widthScale
-        val middleWidth = naturalMiddleWidth * widthScale
-        val rightWidth = naturalRightWidth * widthScale
-        val timeoutWidth = naturalTimeoutWidth * widthScale
-        val panelWidth = (goalWidth + middleWidth + rightWidth + timeoutWidth + panelPadding * 2f + gap * 3f)
-            .coerceAtMost(maxWidth)
-        Row(
+
+    val panelPadding = 4.dp
+    val goalWidth = measuredButtonWidth("Goal")
+    val middleWidth = measuredButtonWidth(timeViolationLabel, pullViolationLabel)
+    val rightWidth = measuredButtonWidth(cardLabel, techLabel)
+    val timeoutWidth = measuredButtonWidth(timeoutLabel)
+    val panelWidth = goalWidth + middleWidth + rightWidth + timeoutWidth +
+        panelPadding * 2f + gap * 3f
+    Row(
+        modifier = modifier
+            .width(panelWidth)
+            .clip(RoundedCornerShape(8.dp))
+            .background(FieldActionPanelColor)
+            .padding(panelPadding),
+        horizontalArrangement = Arrangement.spacedBy(gap),
+    ) {
+        TeamFieldActionButton(
+            label = "Goal",
             modifier = Modifier
-                .width(panelWidth)
-                .clip(RoundedCornerShape(8.dp))
-                .background(FieldActionPanelColor)
-                .padding(panelPadding),
-            horizontalArrangement = Arrangement.spacedBy(gap),
+                .width(goalWidth)
+                .height(metrics.actionButtonHeight * 2f + gap)
+                .testTag("live-${teamId.name}-goal"),
+            enabled = interactionsEnabled,
+            containerColor = FieldGoalButtonColor,
+            contentColor = Color.White,
+            onClick = onGoal,
+        )
+        Column(
+            modifier = Modifier.width(middleWidth),
+            verticalArrangement = Arrangement.spacedBy(gap),
         ) {
             TeamFieldActionButton(
-                label = "Goal",
+                label = timeViolationLabel,
                 modifier = Modifier
-                    .width(goalWidth)
-                    .height(metrics.actionButtonHeight * 2f + gap)
-                    .testTag("live-${teamId.name}-goal"),
-                enabled = interactionsEnabled,
-                containerColor = FieldGoalButtonColor,
-                contentColor = Color.White,
-                onClick = onGoal,
+                    .fillMaxWidth()
+                    .height(metrics.actionButtonHeight)
+                    .testTag("live-${teamId.name}-time-violation"),
+                enabled = interactionsEnabled && timeViolationEnabled,
+                containerColor = FieldNeutralButtonColor,
+                onClick = onTimeViolation,
             )
-            Column(
-                modifier = Modifier.width(middleWidth),
-                verticalArrangement = Arrangement.spacedBy(gap),
-            ) {
-                TeamFieldActionButton(
-                    label = timeViolationLabel,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(metrics.actionButtonHeight)
-                        .testTag("live-${teamId.name}-time-violation"),
-                    enabled = interactionsEnabled && timeViolationEnabled,
-                    containerColor = FieldNeutralButtonColor,
-                    onClick = onTimeViolation,
-                )
-                TeamFieldActionButton(
-                    label = pullViolationLabel,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(metrics.actionButtonHeight)
-                        .testTag("live-${teamId.name}-pull-violation"),
-                    enabled = interactionsEnabled && pullViolationEnabled,
-                    containerColor = FieldNeutralButtonColor,
-                    onClick = onPullViolation,
-                )
-            }
-            Column(
-                modifier = Modifier.width(rightWidth),
-                verticalArrangement = Arrangement.spacedBy(gap),
-            ) {
-                TeamFieldActionButton(
-                    label = cardLabel,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(metrics.actionButtonHeight)
-                        .testTag("live-${teamId.name}-card"),
-                    enabled = interactionsEnabled,
-                    containerColor = FieldCardButtonColor,
-                    onClick = onCards,
-                )
-                TeamFieldActionButton(
-                    label = techLabel,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(metrics.actionButtonHeight)
-                        .testTag("live-${teamId.name}-tech"),
-                    enabled = interactionsEnabled,
-                    containerColor = FieldTechButtonColor,
-                    onClick = onTechnicalFoul,
-                )
-            }
             TeamFieldActionButton(
-                label = timeoutLabel,
+                label = pullViolationLabel,
                 modifier = Modifier
-                    .width(timeoutWidth)
-                    .height(metrics.actionButtonHeight * 2f + gap)
-                    .testTag("live-${teamId.name}-timeout"),
-                enabled = interactionsEnabled && timeoutEnabled,
-                containerColor = FieldTimeoutButtonColor,
-                contentColor = Color.Black,
-                onClick = onTimeout,
+                    .fillMaxWidth()
+                    .height(metrics.actionButtonHeight)
+                    .testTag("live-${teamId.name}-pull-violation"),
+                enabled = interactionsEnabled && pullViolationEnabled,
+                containerColor = FieldNeutralButtonColor,
+                onClick = onPullViolation,
             )
         }
+        Column(
+            modifier = Modifier.width(rightWidth),
+            verticalArrangement = Arrangement.spacedBy(gap),
+        ) {
+            TeamFieldActionButton(
+                label = cardLabel,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(metrics.actionButtonHeight)
+                    .testTag("live-${teamId.name}-card"),
+                enabled = interactionsEnabled,
+                containerColor = FieldCardButtonColor,
+                onClick = onCards,
+            )
+            TeamFieldActionButton(
+                label = techLabel,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(metrics.actionButtonHeight)
+                    .testTag("live-${teamId.name}-tech"),
+                enabled = interactionsEnabled,
+                containerColor = FieldTechButtonColor,
+                onClick = onTechnicalFoul,
+            )
+        }
+        TeamFieldActionButton(
+            label = timeoutLabel,
+            modifier = Modifier
+                .width(timeoutWidth)
+                .height(metrics.actionButtonHeight * 2f + gap)
+                .testTag("live-${teamId.name}-timeout"),
+            enabled = interactionsEnabled && timeoutEnabled,
+            containerColor = FieldTimeoutButtonColor,
+            contentColor = Color.Black,
+            onClick = onTimeout,
+        )
     }
 }
 

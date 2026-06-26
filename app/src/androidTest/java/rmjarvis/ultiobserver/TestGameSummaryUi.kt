@@ -40,7 +40,7 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Event log").performClick()
         waitForText("Event log")
         waitForText("Game over", substring = true)
-        pressDialogBack()
+        dismissDialog(text = "OK")
     }
 
     /**
@@ -54,6 +54,7 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
         var shared = false
         val state = createLiveGameState(newGameSetupState()).copy(
             phase = GamePhase.GAME_OVER,
+            observers = "Mike and Gary",
             endEpoch = System.currentTimeMillis(),
         )
         composeRule.activityRule.scenario.onActivity { activity ->
@@ -69,6 +70,9 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
                 }
             }
         }
+
+        // Observer metadata appears in the visible completed-game summary when it is present.
+        waitForText("Observers: Mike and Gary")
 
         // Clicking Share invokes the callback supplied to the summary composable.
         // I.e. it should change shared to true.
@@ -139,6 +143,13 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
 
         // Return to the completed-game action screen before archiving this game.
         composeRule.onNodeWithText("Back").performClick()
+        waitForText("Completed game")
+
+        // The completed-game card on Home reopens the same summary before it is archived.
+        composeRule.onNodeWithText("Viscous Coupling 12 - 15 Animal").performClick()
+        waitForText("Game summary")
+        assertNextShareText(expectedShareText)
+        dismissDialog(text = "Back")
         waitForText("Completed game")
 
         // Archive the game and verify the read-only archive shares the same payload.

@@ -12,19 +12,17 @@ import androidx.core.content.ContextCompat
  * state change sends a fresh ACTION_UPDATE Intent. When there is no active game, or alerts are off,
  * the same effect stops the service so wake locks and cap alarms are released.
  *
- * @param enabled Whether foreground timing-alert delivery should run.
  * @param liveState Active game state whose alerts should be delivered, or null to stop service.
  * @param timingAlertPreferences User alert preferences to apply.
  */
 @Composable
 internal fun TimingAlertForegroundServiceEffect(
-    enabled: Boolean,
     liveState: GameState?,
     timingAlertPreferences: TimingAlertPreferences,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current.applicationContext
-    LaunchedEffect(enabled, liveState, timingAlertPreferences) {
-        if (!enabled || liveState == null ||
+    LaunchedEffect(liveState, timingAlertPreferences) {
+        if (liveState == null ||
             timingAlertPreferences.globalMode == TimingAlertGlobalMode.OFF
         ) {
             context.stopService(Intent(context, TimingAlertForegroundService::class.java))

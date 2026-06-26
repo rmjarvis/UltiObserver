@@ -426,10 +426,13 @@ def composable_restart_epilogue_reason(
     through app behavior; the meaningful coverage is whether the body of the Composable
     rendered and its callbacks ran.  This rule is narrow: it only allows a lone `}` that
     closes a real `@Composable` function and has the characteristic tiny miss profile
-    we have seen from the generated restart-scope epilogue.
+    we have seen from the generated restart-scope epilogue.  A composable with explicit
+    early `return` statements may have one generated restart epilogue per exit path
+    mapped to the same closing brace, so the miss count should be one plus the number
+    of unlabeled returns in the function body.
     """
 
-    if counters.missed_instructions != 1 or counters.missed_branches != 1:
+    if counters.missed_instructions != counters.missed_branches:
         return None
     if counters.covered_instructions == 0 or counters.covered_branches == 0:
         return None
@@ -442,6 +445,10 @@ def composable_restart_epilogue_reason(
     if opening_index is None:
         return None
     if not opens_composable_function(source_lines, opening_index):
+        return None
+
+    expected_misses = 1 + unlabeled_return_count(source_lines, opening_index, line_index)
+    if counters.missed_instructions != expected_misses:
         return None
 
     return "Compose restart-scope epilogue"
@@ -621,15 +628,19 @@ def compose_remember_lambda_scaffold_reason(
     lambda body, but they do not need to force every cache-hit/cache-miss branch of
     Compose's runtime implementation.
 
-    This recognizer only accepts `val ... = remember(...) {` opener lines and only when
-    the remembered lambda body is covered.  In the example above, the
-    `state.computeNextCapStatus(now)` line still has to run; otherwise the remember
+    This recognizer only accepts ordinary or delegated `val`/`var` remember opener
+    lines and only when the remembered lambda body is covered.  In the example above,
+    the `state.computeNextCapStatus(now)` line still has to run; otherwise the remember
     opener remains actionable.
     """
 
     line_index = line_number - 1
     source = source_lines[line_index].strip()
-    if not (source.startswith("val ") and " = remember(" in source and source.endswith("{")):
+    if not (
+        source.startswith(("val ", "var "))
+        and (" = remember(" in source or " by remember(" in source)
+        and source.endswith("{")
+    ):
         return None
     if counters.covered_instructions == 0 or counters.covered_branches == 0:
         return None
@@ -842,6 +853,38 @@ def opens_composable_function(source_lines: list[str], opening_index: int) -> bo
         return False
 
     return False
+
+
+def unlabeled_return_count(
+    source_lines: list[str],
+    opening_index: int,
+    closing_index: int,
+) -> int:
+    """Return the count of explicit unlabeled returns that exit the outer function body."""
+
+    count = 0
+    nested_function_depth = 0
+    pending_nested_function = False
+    for index in range(opening_index + 1, closing_index):
+        code = source_lines[index].split("//", 1)[0]
+        if nested_function_depth > 0:
+            nested_function_depth += code.count("{") - code.count("}")
+            continue
+
+        if pending_nested_function:
+            if "{" in code:
+                nested_function_depth = code.count("{") - code.count("}")
+                pending_nested_function = False
+            continue
+
+        if re.search(r"\bfun\b", code):
+            pending_nested_function = "{" not in code
+            if not pending_nested_function:
+                nested_function_depth = code.count("{") - code.count("}")
+            continue
+
+        count += len(re.findall(r"\breturn\b(?!@)", code))
+    return count
 
 
 def meaningful_lambda_body_source(source: str) -> bool:

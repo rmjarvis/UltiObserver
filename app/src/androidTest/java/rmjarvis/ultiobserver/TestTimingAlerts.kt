@@ -1,8 +1,10 @@
 package rmjarvis.ultiobserver
 
+import android.accessibilityservice.AccessibilityService
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import java.io.FileInputStream
 import java.time.LocalDateTime
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -570,8 +572,9 @@ class TestTimingAlerts {
             scenario.onActivity { activity ->
                 activity.openExactAlarmSettings()
             }
-            InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+            waitForFocusedPackage("com.android.settings")
             pressSystemBack()
+            waitForFocusedPackage(context.packageName)
         }
     }
 
@@ -739,8 +742,38 @@ class TestTimingAlerts {
     /// Press Back while Android Settings, rather than a Compose screen, is in the foreground.
     private fun pressSystemBack() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
-        instrumentation.uiAutomation.executeShellCommand("input keyevent KEYCODE_BACK").close()
+        instrumentation.uiAutomation.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
         instrumentation.waitForIdleSync()
+    }
+
+    /**
+     * Wait until a package owns the focused window.
+     *
+     * @param packageName The Android package expected to appear in the focused window.
+     */
+    private fun waitForFocusedPackage(packageName: String) {
+        val deadline = System.currentTimeMillis() + 5_000L
+        var focus = focusedWindowLine()
+        while (packageName !in focus && System.currentTimeMillis() < deadline) {
+            Thread.sleep(100L)
+            focus = focusedWindowLine()
+        }
+        assertTrue("Timed out waiting for $packageName focus; last focus was $focus", packageName in focus)
+    }
+
+    /// Return Android's current focused-window line.
+    private fun focusedWindowLine(): String {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.uiAutomation.executeShellCommand("dumpsys window").use { descriptor ->
+            val text = FileInputStream(descriptor.fileDescriptor).bufferedReader().use { reader ->
+                reader.readText()
+            }
+            return text.lineSequence()
+                .firstOrNull { line ->
+                    "mCurrentFocus=" in line || "mFocusedApp=" in line
+                }
+                .orEmpty()
+        }
     }
 
     /// Build a timing-alert service controller with fake Android boundaries.

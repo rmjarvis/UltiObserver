@@ -399,10 +399,7 @@ internal fun LiveGameScreen(
                         pendingTimeoutRequest = PendingTimeoutRequest(team, System.currentTimeMillis())
                     },
                     onTimeViolation = { team ->
-                        val preview = state.previewTimeViolation(team)
-                        if (preview.event != null) {
-                            pendingTimeViolationTeam = team
-                        }
+                        pendingTimeViolationTeam = team
                     },
                     onPullViolation = { team ->
                         val violation = state.pullViolationTypeFor(team)
@@ -538,10 +535,10 @@ internal fun LiveGameScreen(
         val event = state.previewTimeViolation(team).event
         AlertDialog(
             onDismissRequest = { pendingTimeViolationTeam = null },
-            title = { Text(event?.formatPopupTitle() ?: "Time violation") },
+            title = { Text(event.formatPopupTitle()) },
             text = {
                 Text(
-                    text = event?.formatMessage() ?: "",
+                    text = event.formatMessage(),
                     style = MaterialTheme.typography.bodyLarge,
                 )
             },
@@ -573,10 +570,10 @@ internal fun LiveGameScreen(
                 pendingPullViolationTeam = null
                 pendingPullViolationType = PullViolationType.OFFSIDES
             },
-            title = { Text(event?.formatPopupTitle() ?: "Pull violation") },
+            title = { Text(event.formatPopupTitle()) },
             text = {
                 Text(
-                    text = event?.formatMessage() ?: "",
+                    text = event.formatMessage(),
                     style = MaterialTheme.typography.bodyLarge,
                 )
             },
@@ -743,6 +740,7 @@ internal fun LiveGameScreen(
             },
             dismissButton = {
                 TextButton(
+                    modifier = Modifier.testTag("misconduct-resolution-back"),
                     onClick = {
                         pendingTechnicalFoulTeam = pending.team
                         pendingTechnicalFoulResolution = null

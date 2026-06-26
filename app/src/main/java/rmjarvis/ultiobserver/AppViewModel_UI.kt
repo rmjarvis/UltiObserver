@@ -50,7 +50,6 @@ internal fun UltiObserverApp(viewModel: AppViewModel) {
     }
 
     TimingAlertForegroundServiceEffect(
-        enabled = true,
         liveState = appState.liveState.takeUnless { state -> state?.phase == GamePhase.GAME_OVER },
         timingAlertPreferences = appState.timingAlertPreferences,
     )
@@ -151,10 +150,12 @@ internal fun UltiObserverApp(viewModel: AppViewModel) {
         }
 
         AppScreen.SETUP -> {
-            fun finishSetupOrWarnAboutCapAlarms() {
+            fun finishSetup() {
                 if (
                     appState.setupMode == SetupMode.NEW_GAME &&
-                    appState.setupState.rules.hasEnabledCapTimingAlerts(appState.timingAlertPreferences) &&
+                    appState.setupState.rules.hasEnabledCapTimingAlerts(
+                        appState.timingAlertPreferences,
+                    ) &&
                     !context.hasExactTimingAlertAlarmAccess()
                 ) {
                     showMissingExactAlarmAccessDialog = true
@@ -166,8 +167,14 @@ internal fun UltiObserverApp(viewModel: AppViewModel) {
             SetupScreen(
                 state = appState.setupState,
                 onStateChange = viewModel::updateSetup,
-                primaryButtonLabel = if (appState.setupMode == SetupMode.NEW_GAME) "Start game" else "Back to game screen",
-                onPrimaryAction = { finishSetupOrWarnAboutCapAlarms() },
+                primaryButtonLabel = if (appState.setupMode == SetupMode.NEW_GAME) {
+                    "Start game"
+                } else {
+                    "Back to game screen"
+                },
+                onPrimaryAction = {
+                    finishSetup()
+                },
                 onBackHome = viewModel::goHome,
             )
         }
@@ -203,7 +210,9 @@ internal fun UltiObserverApp(viewModel: AppViewModel) {
 
     if (showMissingExactAlarmAccessDialog) {
         AlertDialog(
-            onDismissRequest = { showMissingExactAlarmAccessDialog = false },
+            onDismissRequest = {
+                showMissingExactAlarmAccessDialog = false
+            },
             title = { Text("Cap alert permission") },
             text = {
                 Text(
@@ -240,7 +249,9 @@ internal fun UltiObserverApp(viewModel: AppViewModel) {
             title = { Text(notice.title) },
             text = { Text(notice.message) },
             confirmButton = {
-                TextButton(onClick = viewModel::dismissStartupRecoveryNotice) {
+                TextButton(
+                    onClick = viewModel::dismissStartupRecoveryNotice,
+                ) {
                     Text("OK")
                 }
             },

@@ -27,7 +27,7 @@ data class PullViolationAssessmentResult(
  * @param event The event-shaped preview used to render the confirmation dialog.
  */
 data class PullViolationAssessmentPreview(
-    val event: GameEvent? = null,
+    val event: GameEvent.PullViolationRecorded,
 )
 
 /**

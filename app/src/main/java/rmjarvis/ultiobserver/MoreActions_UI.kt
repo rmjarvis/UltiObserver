@@ -43,7 +43,7 @@ internal fun MoreActionsContent(
     onShowEventLog: () -> Unit,
     onDeleteGame: () -> Unit,
     onAction: (GameState) -> Unit,
-    onStateUpdate: (GameState) -> Unit = onAction,
+    onStateUpdate: (GameState) -> Unit,
 ) {
     var showAdjustScoreDialog by remember { mutableStateOf(false) }
     var showAdjustTimeoutsDialog by remember { mutableStateOf(false) }

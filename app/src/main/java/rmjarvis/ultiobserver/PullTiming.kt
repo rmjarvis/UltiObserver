@@ -53,7 +53,7 @@ data class TimeViolationAssessmentResult(
  * @param event The event-shaped preview used to render the confirmation dialog.
  */
 data class TimeViolationAssessmentPreview(
-    val event: GameEvent? = null,
+    val event: GameEvent.TimeViolationRecorded,
 )
 
 /// Rule outcome from assessing a team's pull time violation.
@@ -310,8 +310,8 @@ fun GameState.assessTimeViolation(team: TeamId, now: Long): TimeViolationAssessm
  * @param team The team that would receive the time violation.
  */
 fun GameState.previewTimeViolation(team: TeamId): TimeViolationAssessmentPreview {
-    if (!this.canAssessTimeViolation()) {
-        return TimeViolationAssessmentPreview()
+    require(this.canAssessTimeViolation()) {
+        "Time violation cannot be previewed when the button is disabled."
     }
     val outcome = timeViolationOutcome(team)
     val previewState = this.withPreviewTimeViolation(team, outcome)

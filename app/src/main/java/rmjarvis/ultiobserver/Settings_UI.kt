@@ -233,7 +233,9 @@ internal fun TimingCueSettingsScreen(
 ) {
     val context = LocalContext.current
     val hasTimingCueHaptics = context.hasTimingCueHaptics()
-    val timingAlertPlayer = remember(context) { TimingAlertPlayer(context) }
+    val timingAlertPlayer = remember(context) {
+        TimingAlertPlayer(context)
+    }
 
     DisposableEffect(timingAlertPlayer) {
         onDispose { timingAlertPlayer.release() }

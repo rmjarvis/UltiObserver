@@ -1,6 +1,7 @@
 package rmjarvis.ultiobserver
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
@@ -9,6 +10,7 @@ import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -20,7 +22,7 @@ import org.junit.runner.RunWith
 
 /// Tests for card and technical-foul UI flows from the live game screen.
 @RunWith(AndroidJUnit4::class)
-class TestCardsUi : MainActivityUiTestFixtures() {
+class TestMisconductUi : MainActivityUiTestFixtures() {
     /**
      * Test the card and technical-foul dialogs from the live screen.
      * This covers the phone-facing dialog sequence, not the full card-accounting matrix.
@@ -39,12 +41,10 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         waitForText("0 blue")
         waitForText("Team total: 0")
         composeRule.onNodeWithText("No existing cards").assertIsDisplayed()
-        if (shouldUsePlatformBackDismissalCoverage()) {
-            pressDialogBack()
-            composeRule.onAllNodesWithText("Current cards:").assertCountEquals(0)
-            openCardsDialog()
-            composeRule.onNodeWithText("Team 1 (pulling)").assertIsDisplayed()
-        }
+        dismissDialog(text = "Close")
+        composeRule.onAllNodesWithText("Current cards:").assertCountEquals(0)
+        openCardsDialog()
+        composeRule.onNodeWithText("Team 1 (pulling)").assertIsDisplayed()
         composeRule.onNodeWithText("Close").performClick()
         openCardsDialog(TeamId.TEAM_TWO)
         composeRule.onNodeWithText("Team 2 (receiving)").assertIsDisplayed()
@@ -56,7 +56,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         tapCardDialogAction(TeamId.TEAM_ONE, "Blue")
         waitForText("Blue Card")
         waitForText("This is Team 1's first blue card.")
-        composeRule.onNodeWithText("Cancel").performClick()
+        dismissDialog(text = "Cancel")
         composeRule.onNodeWithTag("card-dialog-${TeamId.TEAM_ONE.name}-blue").assertIsDisplayed()
         tapCardDialogAction(TeamId.TEAM_ONE, "Blue")
         waitForText("This is Team 1's first blue card.")
@@ -65,7 +65,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         // Same for Tech
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "tech")).performClick()
         waitForText("This is Team 1's first technical foul.")
-        composeRule.onNodeWithText("Cancel").performClick()
+        dismissDialog(text = "Cancel")
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "tech")).performClick()
         waitForText("This is Team 1's first technical foul.")
         composeRule.onNodeWithText("OK").performClick()
@@ -85,16 +85,27 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         tapCardDialogAction(TeamId.TEAM_ONE, "Yellow")
         composeRule.onNodeWithText("Yellow card").assertIsDisplayed()
         composeRule.onNodeWithText("Player number").assertIsDisplayed()
-        composeRule.onNodeWithText("Cancel").performClick()
+        dismissDialog(text = "Cancel")
         composeRule.onNodeWithTag("card-dialog-${TeamId.TEAM_ONE.name}-yellow").assertIsDisplayed()
         tapCardDialogAction(TeamId.TEAM_ONE, "Yellow")
         composeRule.onNodeWithText("Yellow card").assertIsDisplayed()
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Enter a player number or name before recording this card.")
         composeRule.onNodeWithText("OK").performClick()
+
+        // Name-only entries are valid for a player without a number.
+        composeRule.onNodeWithTag("card-player-name").performTextReplacement("Name Only Handler")
+        composeRule.onNodeWithTag("card-player-name").performImeAction()
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Yellow card on Name Only Handler.", substring = true)
+        dismissDialog(text = "OK")
+
+        openCardsDialog()
+        tapCardDialogAction(TeamId.TEAM_ONE, "Yellow")
+        composeRule.onNodeWithText("Yellow card").assertIsDisplayed()
         enterCardPlayerNumber("4")
         composeRule.onNodeWithText("Record").performClick()
-        waitForText("Yellow card on player 4.\nTeam 1 has 2 total blue cards.")
+        waitForText("Yellow card on player 4.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
 
         // A red without an existing yellow records immediately and includes the game-suspension
@@ -106,14 +117,14 @@ class TestCardsUi : MainActivityUiTestFixtures() {
             "5",
             "Red card on player 5.\n" +
                 "Player 5 receives a game suspension.\n" +
-                "Team 1 has 4 total blue cards.",
+                "Team 1 has 5 total blue cards.",
         )
 
         // Choosing Red for a player with a yellow records as a red, not as a second yellow.
         openCardsDialog()
         tapCardDialogAction(TeamId.TEAM_ONE, "Red")
         composeRule.onNodeWithText("Red card").assertIsDisplayed()
-        composeRule.onNodeWithText("Cancel").performClick()
+        dismissDialog(text = "Cancel")
         composeRule.onNodeWithTag("card-dialog-${TeamId.TEAM_ONE.name}-red").assertIsDisplayed()
         tapCardDialogAction(TeamId.TEAM_ONE, "Red")
         composeRule.onNodeWithText("Red card").assertIsDisplayed()
@@ -125,7 +136,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
                 .fetchSemanticsNodes()
                 .isEmpty(),
         )
-        waitForText("Team 1 has 6 total blue cards.", substring = true)
+        waitForText("Team 1 has 7 total blue cards.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
 
         // A second yellow comes from issuing another yellow, not from pressing Red.
@@ -169,6 +180,28 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         waitForText("Yellow card")
         enterCardPlayerNumber("8")
         composeRule.onNodeWithTag("card-player-name").performTextReplacement("Alex Cutter")
+
+        // Backing out of the reason picker leaves the card entry open without changing the reason.
+        composeRule.onNodeWithText("Reason").performClick()
+        waitForText("Yellow card reason")
+        composeRule.onNodeWithText("Other").performClick()
+        composeRule.onNodeWithTag("card-other-reason").performTextReplacement("Discarded reason")
+        composeRule.onAllNodesWithText("Back").onLast().performClick()
+        waitForText("Yellow card")
+        composeRule.onNodeWithText("Reason").assertIsDisplayed()
+
+        // Switching from Other back to a preset clears the abandoned custom reason text.
+        composeRule.onNodeWithText("Reason").performClick()
+        waitForText("Yellow card reason")
+        composeRule.onNodeWithText("Other").performClick()
+        composeRule.onNodeWithTag("card-other-reason").performTextReplacement("Temporary reason")
+        composeRule.onNodeWithText("Dangerous play").performClick()
+        composeRule.onNodeWithText("Other").performClick()
+        composeRule.onNodeWithText("Set").performClick()
+        waitForText("Yellow card")
+        composeRule.onAllNodesWithText("Temporary reason").assertCountEquals(0)
+        composeRule.onNodeWithText("Reason").assertIsDisplayed()
+
         composeRule.onNodeWithText("Reason").performClick()
         waitForText("Yellow card reason")
         composeRule.onNodeWithText("Other").performClick()
@@ -197,6 +230,40 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         waitForText("Yellow card on #8 Alex Cutter.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
 
+        // Existing-card edits reject blank identity and reassignment to a suspended player.
+        recordYellowCard(
+            TeamId.TEAM_TWO,
+            "11",
+            "Yellow card on player 11.",
+            substring = true,
+        )
+        openCardsDialog(TeamId.TEAM_TWO)
+        composeRule.onNodeWithText("Edit existing cards").performClick()
+        waitForText("Edit existing cards")
+        composeRule.onAllNodes(hasContentDescription("Edit #11", substring = true))
+            .onFirst()
+            .performClick()
+        waitForText("Edit yellow card")
+        composeRule.onNodeWithTag("card-player-number").performTextReplacement("")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Enter a player number or name before recording this card.")
+        dismissDialog(text = "OK")
+        waitForText("Edit yellow card")
+        enterCardPlayerNumber("7")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Team 2 #7 already has two yellow cards and has been suspended.")
+        dismissDialog(text = "OK")
+        waitForText("Edit yellow card")
+
+        // Reassigning an existing card to a new unsuspended player saves without a suspension
+        // notice.
+        composeRule.onNodeWithTag("card-player-number").performTextReplacement("")
+        composeRule.onNodeWithTag("card-player-name").performTextReplacement("Name Only Cutter")
+        composeRule.onNodeWithText("Record").performClick()
+        composeRule.onAllNodesWithText("Card suspension").assertCountEquals(0)
+        waitForText("Edit existing cards")
+        composeRule.onNodeWithText("Done").performClick()
+
         // The Edit existing cards pathway from the field screen doesn't allow you to delete
         // a previous card (unlike the More actions version of this).
         openCardsDialog(TeamId.TEAM_TWO)
@@ -208,14 +275,40 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onAllNodes(
             hasContentDescription("Remove", substring = true)
         ).assertCountEquals(0)
-        composeRule.onNodeWithText("Done").performClick()
+
+        // Canceling an existing-card edit returns to the editable-card list.
+        composeRule.onAllNodes(hasContentDescription("Edit #8 Alex Cutter", substring = true))
+            .onFirst()
+            .performClick()
+        waitForText("Edit yellow card")
+        dismissDialog(tag = "card-entry-cancel")
+        waitForText("Edit existing cards")
+        dismissDialog(tag = "editable-player-cards-dismiss")
+        waitForText("Current cards:")
+        composeRule.onNodeWithText("Close").performClick()
         composeRule.onAllNodesWithText("Edit existing cards").assertCountEquals(0)
 
         // Additional cards for the same player should show the existing-card summary in the dialog.
         openCardsDialog(TeamId.TEAM_TWO)
         tapCardDialogAction(TeamId.TEAM_TWO, "Red")
         waitForText("#8 Alex Cutter (Y 1)")
-        composeRule.onNodeWithText("Cancel").performClick()
+        dismissDialog(text = "Cancel")
+
+        // Reassigning an existing yellow onto a player with one yellow should show that the edit
+        // created the suspension.
+        openCardsDialog(TeamId.TEAM_TWO)
+        composeRule.onNodeWithText("Edit existing cards").performClick()
+        waitForText("Edit existing cards")
+        composeRule.onAllNodes(hasContentDescription("Edit Name Only Cutter", substring = true))
+            .onFirst()
+            .performClick()
+        waitForText("Edit yellow card")
+        enterCardPlayerNumber("8")
+        composeRule.onNodeWithTag("card-player-name").performTextReplacement("Alex Cutter")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Team 2 #8 now has two yellow cards and has been suspended.")
+        dismissDialog(text = "OK")
+        composeRule.onNodeWithText("Done").performClick()
 
         // Ending the game renders the already-recorded player cards on the summary.
         openMoreActionsDialog()
@@ -252,7 +345,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
             "#6 Alex Cutter is already listed. Record #6 Bob Cutter as a different player " +
                 "with the same number?"
         )
-        composeRule.onNodeWithText("Cancel").performClick()
+        dismissDialog(tag = "same-number-warning-cancel")
         waitForText("Yellow card")
 
         // If the user is sure that this is correct, they can make two number 6 players,
@@ -300,12 +393,30 @@ class TestCardsUi : MainActivityUiTestFixtures() {
      */
     @Test
     fun cardCorrectionsFromMoreActions() {
-        // Seed existing player cards so the correction dialog can focus on adjustment behavior.
+        // With no player cards yet, both teams expose disabled existing-card actions.
         startLiveGameProgrammatically()
+        openMoreActionsDialog()
+        composeRule.onNodeWithText("Adjust cards / techs").performClick()
+        waitForText("Adjust cards / techs")
+        composeRule.onNodeWithTag("cards-adjust-team-one-edit-existing")
+            .performScrollTo()
+            .assertIsNotEnabled()
+        composeRule.onNodeWithTag("cards-adjust-team-two-edit-existing")
+            .performScrollTo()
+            .assertIsNotEnabled()
+        dismissDialog(text = "Cancel")
+        waitForText("Update game setup")
+
+        // Seed existing player cards so the rest of the correction dialog can focus on
+        // adjustment behavior.
         seedInGamePlayerCardsProgrammatically(
+            teamOneCards = listOf(
+                playerRecordWithCards("12", yellows = 1),
+            ),
             teamTwoCards = listOf(
-                playerRecordWithCards("21", yellows = 2),
+                playerRecordWithCards("23", yellows = 1),
                 playerRecordWithCards("22", yellows = 2),
+                playerRecordWithCards("21", yellows = 1, playerName = "Alex Handler"),
             ),
         )
 
@@ -313,8 +424,23 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         openMoreActionsDialog()
         composeRule.onNodeWithText("Adjust cards / techs").performClick()
         waitForText("Adjust cards / techs")
-        composeRule.onAllNodesWithText("+1")[0].performClick()
-        composeRule.onAllNodesWithText("+1")[1].performClick()
+        composeRule.onNodeWithTag("cards-adjust-team-one-blue-increment").performClick()
+        composeRule.onNodeWithTag("cards-adjust-team-one-blue-decrement").performClick()
+        composeRule.onNodeWithTag("cards-adjust-team-one-tech-increment").performClick()
+        composeRule.onNodeWithTag("cards-adjust-team-one-tech-decrement").performClick()
+        composeRule.onNodeWithTag("cards-adjust-team-one-tech-increment").performClick()
+        composeRule.onNodeWithTag("cards-adjust-team-two-blue-increment").performClick()
+        composeRule.onNodeWithTag("cards-adjust-team-two-blue-decrement").performClick()
+        composeRule.onNodeWithTag("cards-adjust-team-two-tech-increment").performClick()
+        composeRule.onNodeWithTag("cards-adjust-team-two-tech-decrement").performClick()
+        composeRule.onNodeWithTag("cards-adjust-team-two-tech-increment").performClick()
+
+        // A name-only yellow is valid for a player without a number.
+        composeRule.onAllNodesWithText("Add yellow").onFirst().performClick()
+        waitForText("Add yellow card")
+        composeRule.onNodeWithTag("card-player-name").performTextReplacement("Name Only Cutter")
+        composeRule.onNodeWithText("Record").performClick()
+        composeRule.onAllNodesWithText("Card suspension").assertCountEquals(0)
 
         // The correction dialog can add a player red.
         composeRule.onAllNodesWithText("Add red").onFirst().performClick()
@@ -322,7 +448,53 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         enterCardPlayerNumber("9")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Team 1 #9 now has a red card and has been suspended.")
-        composeRule.onNodeWithText("OK").performClick()
+        dismissDialog(text = "OK")
+
+        // The correction dialog can edit a Team 1 player card before saving the correction.
+        composeRule.onNodeWithTag("cards-adjust-team-one-edit-existing")
+            .performScrollTo()
+            .performClick()
+        waitForText("Edit existing cards")
+        composeRule.onAllNodes(
+            hasContentDescription("Edit #12", substring = true)
+        ).onFirst().performClick()
+        waitForText("Edit yellow card")
+
+        // Canceling an existing-card edit returns to the editable-card list.
+        composeRule.onAllNodesWithText("Cancel").onLast().performClick()
+        waitForText("Edit existing cards")
+        composeRule.onAllNodes(
+            hasContentDescription("Edit #12", substring = true)
+        ).onFirst().performClick()
+        waitForText("Edit yellow card")
+
+        // Editing an existing card to no player identity is rejected and leaves the editor open.
+        composeRule.onNodeWithTag("card-player-number").performTextReplacement("")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Enter a player number or name before recording this card.")
+        dismissDialog(text = "OK")
+        waitForText("Edit yellow card")
+
+        // Reassigning an existing card to a suspended player is rejected.
+        enterCardPlayerNumber("9")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Team 1 #9 already has a red card and has been suspended.")
+        dismissDialog(text = "OK")
+        waitForText("Edit yellow card")
+
+        // Filling the name for the same player should save without treating it as a reassignment.
+        composeRule.onNodeWithTag("card-player-number").performTextReplacement("12")
+        composeRule.onNodeWithTag("card-player-name").performTextReplacement("Casey Handler")
+        composeRule.onNodeWithText("Record").performClick()
+
+        // Reassigning an existing card to a name-only player should also save normally.
+        composeRule.onAllNodes(
+            hasContentDescription("Edit #12", substring = true)
+        ).onFirst().performClick()
+        waitForText("Edit yellow card")
+        composeRule.onNodeWithTag("card-player-number").performTextReplacement("")
+        composeRule.onNodeWithText("Record").performClick()
+        composeRule.onAllNodesWithText("Back").onLast().performClick()
 
         // The correction dialog can remove an existing player yellow.
         composeRule.onNodeWithTag("cards-adjust-team-two-edit-existing")
@@ -355,6 +527,40 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Cancel").performClick()
         waitForText("Update game setup")
 
+        // A blank added-card correction is rejected and leaves the add dialog open.
+        openMoreActionsDialog()
+        composeRule.onNodeWithText("Adjust cards / techs").performClick()
+        waitForText("Adjust cards / techs")
+        composeRule.onAllNodesWithText("Add yellow").onFirst().performClick()
+        waitForText("Add yellow card")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Enter a player number or name before recording this card.")
+        dismissDialog(text = "OK")
+        waitForText("Add yellow card")
+        composeRule.onAllNodesWithText("Cancel").onLast().performClick()
+        composeRule.onNodeWithText("Cancel").performClick()
+        waitForText("Update game setup")
+
+        // Same-number corrections ask before creating a distinct player with the same number.
+        openMoreActionsDialog()
+        composeRule.onNodeWithText("Adjust cards / techs").performClick()
+        waitForText("Adjust cards / techs")
+        composeRule.onAllNodesWithText("Add red")[1].performClick()
+        waitForText("Add red card")
+        enterCardPlayerNumber("21")
+        composeRule.onNodeWithTag("card-player-name").performTextReplacement("Different Handler")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Same number, different names")
+        dismissDialog(tag = "same-number-warning-cancel")
+        waitForText("Add red card")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Same number, different names")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("now has a red card and has been suspended.", substring = true)
+        composeRule.onNodeWithText("OK").performClick()
+        composeRule.onNodeWithText("Done").performClick()
+        assertLiveScreen()
+
         // Trying another yellow on a maxed-out player should show the invalid assignment warning.
         openMoreActionsDialog()
         composeRule.onNodeWithText("Adjust cards / techs").performClick()
@@ -364,11 +570,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         enterCardPlayerNumber("22")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Invalid card assignment")
-        if (shouldUsePlatformBackDismissalCoverage()) {
-            pressDialogBack()
-        } else {
-            composeRule.onNodeWithText("OK").performClick()
-        }
+        dismissDialog(text = "OK")
         waitForText("Add yellow card")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Invalid card assignment")
@@ -388,11 +590,70 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         startLivePointProgrammatically()
         seedInGamePlayerCardsProgrammatically(
             teamOneCards = listOf(
+                playerRecordWithCards("11", playerName = "Practice Player"),
                 playerRecordWithCards("9", yellows = 1),
-                playerRecordWithCards("10", yellows = 1),
+                playerRecordWithCards("10", yellows = 1, playerName = "Existing Cutter"),
             ),
             teamTwoCards = listOf(playerRecordWithCards("6", yellows = 1, reds = 1)),
         )
+
+        // Canceling a same-number warning for a red card restores the red-card entry.
+        openCardsDialog()
+        tapCardDialogAction(TeamId.TEAM_ONE, "Red")
+        waitForText("Red card")
+        waitForText("#11 Practice Player")
+        composeRule.onAllNodesWithText("Copy").onFirst().performClick()
+        assertEquals(
+            "11",
+            composeRule.onNodeWithTag("card-player-number")
+                .fetchSemanticsNode()
+                .config[SemanticsProperties.EditableText]
+                .text,
+        )
+        assertEquals(
+            "Practice Player",
+            composeRule.onNodeWithTag("card-player-name")
+                .fetchSemanticsNode()
+                .config[SemanticsProperties.EditableText]
+                .text,
+        )
+        waitForText("#10 Existing Cutter (Y 1)")
+        composeRule.onAllNodesWithText("Copy")[2].performClick()
+        assertEquals(
+            "10",
+            composeRule.onNodeWithTag("card-player-number")
+                .fetchSemanticsNode()
+                .config[SemanticsProperties.EditableText]
+                .text,
+        )
+        assertEquals(
+            "Existing Cutter",
+            composeRule.onNodeWithTag("card-player-name")
+                .fetchSemanticsNode()
+                .config[SemanticsProperties.EditableText]
+                .text,
+        )
+        composeRule.onNodeWithTag("card-player-name").performTextReplacement("Different Cutter")
+        composeRule.onNodeWithTag("card-player-name").performImeAction()
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Same number, different names")
+        dismissDialog(tag = "same-number-warning-cancel")
+        waitForText("Red card")
+        assertEquals(
+            "10",
+            composeRule.onNodeWithTag("card-player-number")
+                .fetchSemanticsNode()
+                .config[SemanticsProperties.EditableText]
+                .text,
+        )
+        assertEquals(
+            "Different Cutter",
+            composeRule.onNodeWithTag("card-player-name")
+                .fetchSemanticsNode()
+                .config[SemanticsProperties.EditableText]
+                .text,
+        )
+        composeRule.onNodeWithText("Cancel").performClick()
 
         // A second yellow can restore the player entry after backing out of misconduct choice.
         openCardsDialog()
@@ -417,6 +678,14 @@ class TestCardsUi : MainActivityUiTestFixtures() {
             "Team 1 moves the disc to the reverse brick in the end zone they are defending.",
             substring = true,
         )
+        dismissDialog(tag = "misconduct-resolution-back")
+        waitForText("Misconduct penalty")
+        waitForText("Was this against the offense or defense?", substring = true)
+        composeRule.onNodeWithText("Offense").performClick()
+        waitForText(
+            "Team 1 moves the disc to the reverse brick in the end zone they are defending.",
+            substring = true,
+        )
         composeRule.onNodeWithText("OK").performClick()
         waitForText("Start misconduct countdown")
 
@@ -427,22 +696,20 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         enterCardPlayerNumber("9")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Team 1 #9 already has two yellow cards and has been suspended.")
-        composeRule.onNodeWithText("OK").performClick()
+        dismissDialog(text = "OK")
         composeRule.onNodeWithText("Yellow card").assertIsDisplayed()
-        composeRule.onNodeWithText("Cancel").performClick()
+        dismissDialog(text = "Cancel")
 
         // Back from a blue-card misconduct choice should cancel that card and return to Card.
-        if (shouldUsePlatformBackDismissalCoverage()) {
-            openCardsDialog()
-            tapCardDialogAction(TeamId.TEAM_ONE, "Blue")
-            waitForText("Blue Card")
-            waitForText("Was this against the offense or defense?", substring = true)
-            pressDialogBack()
-            composeRule.onNodeWithTag("card-dialog-${TeamId.TEAM_ONE.name}-blue")
-                .assertIsDisplayed()
-            composeRule.onAllNodesWithText("Misconduct penalty").assertCountEquals(0)
-            composeRule.onNodeWithText("Close").performClick()
-        }
+        openCardsDialog()
+        tapCardDialogAction(TeamId.TEAM_ONE, "Blue")
+        waitForText("Blue Card")
+        waitForText("Was this against the offense or defense?", substring = true)
+        dismissDialog(text = "Cancel")
+        composeRule.onNodeWithTag("card-dialog-${TeamId.TEAM_ONE.name}-blue")
+            .assertIsDisplayed()
+        composeRule.onAllNodesWithText("Misconduct penalty").assertCountEquals(0)
+        composeRule.onNodeWithText("Close").performClick()
 
         // Assessing a 3rd+ blue card during a point asks about offense or defense to
         // give proper advice about the restart.
@@ -450,17 +717,25 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         tapCardDialogAction(TeamId.TEAM_ONE, "Blue")
         waitForText("Blue Card")
         waitForText("Was this against the offense or defense?", substring = true)
-        composeRule.onNodeWithText("Cancel").performClick()
+        dismissDialog(text = "Cancel")
         composeRule.onNodeWithTag("card-dialog-${TeamId.TEAM_ONE.name}-blue").assertIsDisplayed()
         composeRule.onAllNodesWithText("Misconduct penalty").assertCountEquals(0)
         tapCardDialogAction(TeamId.TEAM_ONE, "Blue")
+        waitForText("Was this against the offense or defense?", substring = true)
+        composeRule.onNodeWithText("Offense").performClick()
+        waitForText(
+            "Team 1 moves the disc to the reverse brick in the end zone they are defending.",
+            substring = true,
+        )
+        dismissDialog(tag = "misconduct-resolution-back")
+        waitForText("Blue Card")
         waitForText("Was this against the offense or defense?", substring = true)
         composeRule.onNodeWithText("Defense").performClick()
         waitForText(
             "Team 2 may move the disc to the brick mark nearest the end zone they are attacking.",
             substring = true,
         )
-        composeRule.onAllNodesWithText("Back").onLast().performClick()
+        dismissDialog(tag = "misconduct-resolution-back")
         waitForText("Blue Card")
         waitForText("Was this against the offense or defense?", substring = true)
         composeRule.onNodeWithText("Defense").performClick()
@@ -486,7 +761,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "tech")).performClick()
         waitForText("Technical Foul")
         waitForText("Was this against the offense or defense?", substring = true)
-        composeRule.onNodeWithText("Cancel").performClick()
+        dismissDialog(text = "Cancel")
         composeRule.onAllNodesWithText("Misconduct penalty").assertCountEquals(0)
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "tech")).performClick()
         waitForText("Was this against the offense or defense?", substring = true)
@@ -495,7 +770,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
             "Team 1 moves the disc to the reverse brick in the end zone they are defending.",
             substring = true,
         )
-        composeRule.onAllNodesWithText("Back").onLast().performClick()
+        dismissDialog(tag = "misconduct-resolution-back")
         waitForText("Was this against the offense or defense?", substring = true)
         composeRule.onNodeWithText("Defense").performClick()
         waitForText(
@@ -538,11 +813,7 @@ class TestCardsUi : MainActivityUiTestFixtures() {
         enterCardPlayerNumber("6")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Team 2 #6 already has a red card and has been suspended.")
-        if (shouldUsePlatformBackDismissalCoverage()) {
-            pressDialogBack()
-        } else {
-            composeRule.onNodeWithText("OK").performClick()
-        }
+        dismissDialog(text = "OK")
         composeRule.onNodeWithText("Red card").assertIsDisplayed()
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Team 2 #6 already has a red card and has been suspended.")

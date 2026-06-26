@@ -477,12 +477,10 @@ class TestPullViolations : GameDomainTestFixtures() {
 
         // Before recording a pull violation, it gets previewed, so the user can
         // apply it or cancel it still.  The preview does not change any state yet.
-        var previewEvent = state.previewPullViolation(VC, PullViolationType.OFFSIDES)
-            .event as GameEvent.PullViolationRecorded
+        var previewEvent = state.previewPullViolation(VC, PullViolationType.OFFSIDES).event
         assertEquals(1, previewEvent.state.teamOne.offsides)
         assertEquals(0, state.teamOne.offsides)
-        previewEvent = state.previewPullViolation(ANIMAL, PullViolationType.FALSE_START)
-            .event as GameEvent.PullViolationRecorded
+        previewEvent = state.previewPullViolation(ANIMAL, PullViolationType.FALSE_START).event
         assertEquals(1, previewEvent.state.teamTwo.falseStarts)
         assertEquals(0, state.teamTwo.falseStarts)
 
@@ -542,13 +540,13 @@ class TestPullViolations : GameDomainTestFixtures() {
             ANIMAL,
             PullViolationType.OFFSIDES,
         )
-            .event as GameEvent.PullViolationRecorded
+            .event
         assertEquals(1, previewEvent.state.teamTwo.offsides)
         previewEvent = animalPullingPreviewState.previewPullViolation(
             VC,
             PullViolationType.FALSE_START,
         )
-            .event as GameEvent.PullViolationRecorded
+            .event
         assertEquals(1, previewEvent.state.teamOne.falseStarts)
         pullViolationResult = state.assessPullViolation(ANIMAL)
         state = pullViolationResult.state
@@ -727,7 +725,13 @@ class TestPullViolations : GameDomainTestFixtures() {
             wrongPhaseState,
             wrongPhaseState.assessTimeViolation(VC, firstViolationMoment).state,
         )
-        assertNull(wrongPhaseState.previewTimeViolation(VC).event)
+        val wrongPhasePreviewException = assertThrows(IllegalArgumentException::class.java) {
+            wrongPhaseState.previewTimeViolation(VC)
+        }
+        assertEquals(
+            "Time violation cannot be previewed when the button is disabled.",
+            wrongPhasePreviewException.message,
+        )
 
         // When clicking Time Violation, we start with a preview so the user can still choose
         // whether to apply the violation or cancel.  The state doesn't change yet.
@@ -1082,7 +1086,13 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertNull(
             timeViolationState.assessTimeViolation(ANIMAL, state.countdown!!.targetEpoch).event
         )
-        assertNull(timeViolationState.previewTimeViolation(ANIMAL).event)
+        val unavailablePreviewException = assertThrows(IllegalArgumentException::class.java) {
+            timeViolationState.previewTimeViolation(ANIMAL)
+        }
+        assertEquals(
+            "Time violation cannot be previewed when the button is disabled.",
+            unavailablePreviewException.message,
+        )
         assertEquals(timeViolationState, timeViolationState.recordFalseStart())
         assertEquals(timeViolationState, timeViolationState.recordOffsides())
         assertEquals(

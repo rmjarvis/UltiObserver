@@ -100,10 +100,12 @@ private data class PendingSameNumberPlayerCardConfirmation(
  *
  * @param team The team receiving the card.
  * @param cardType The card being added.
+ * @param initialEntry The entry values to restore when returning to this add dialog.
  */
 private data class PendingManualCardAdd(
     val team: TeamId,
     val cardType: CardType,
+    val initialEntry: PlayerCardEntry,
 )
 
 /**
@@ -143,7 +145,7 @@ private sealed interface PendingMisconductReturn {
  */
 private data class PendingMisconductChoice(
     val result: CardAssessmentResult,
-    val returnTo: PendingMisconductReturn?,
+    val returnTo: PendingMisconductReturn,
 )
 
 /**
@@ -166,21 +168,45 @@ internal fun AdjustCardsDialog(
     onConfirm: (GameState) -> Unit,
     onStateUpdate: (GameState) -> Unit,
 ) {
-    var teamOneB by remember { mutableStateOf(state.teamOne.blueCards) }
-    var teamOneTf by remember { mutableStateOf(state.teamOne.technicalFouls) }
-    var teamTwoB by remember { mutableStateOf(state.teamTwo.blueCards) }
-    var teamTwoTf by remember { mutableStateOf(state.teamTwo.technicalFouls) }
-    var workingTeamOnePlayerCards by remember { mutableStateOf(state.teamOnePlayers) }
-    var workingTeamTwoPlayerCards by remember { mutableStateOf(state.teamTwoPlayers) }
-    var editingPlayerCardsFor by remember { mutableStateOf<TeamId?>(null) }
-    var pendingManualAdd by remember { mutableStateOf<PendingManualCardAdd?>(null) }
-    var pendingManualEdit by remember { mutableStateOf<PendingManualCardEdit?>(null) }
-    var pendingManualRemove by remember { mutableStateOf<PendingManualCardRemove?>(null) }
+    var teamOneB by remember {
+        mutableStateOf(state.teamOne.blueCards)
+    }
+    var teamOneTf by remember {
+        mutableStateOf(state.teamOne.technicalFouls)
+    }
+    var teamTwoB by remember {
+        mutableStateOf(state.teamTwo.blueCards)
+    }
+    var teamTwoTf by remember {
+        mutableStateOf(state.teamTwo.technicalFouls)
+    }
+    var workingTeamOnePlayerCards by remember {
+        mutableStateOf(state.teamOnePlayers)
+    }
+    var workingTeamTwoPlayerCards by remember {
+        mutableStateOf(state.teamTwoPlayers)
+    }
+    var editingPlayerCardsFor by remember {
+        mutableStateOf<TeamId?>(null)
+    }
+    var pendingManualAdd by remember {
+        mutableStateOf<PendingManualCardAdd?>(null)
+    }
+    var pendingManualEdit by remember {
+        mutableStateOf<PendingManualCardEdit?>(null)
+    }
+    var pendingManualRemove by remember {
+        mutableStateOf<PendingManualCardRemove?>(null)
+    }
     var pendingManualSameNumberConfirmation by remember {
         mutableStateOf<PendingSameNumberPlayerCardConfirmation?>(null)
     }
-    var invalidCardAssignmentMessage by remember { mutableStateOf<String?>(null) }
-    var suspensionNoticeMessage by remember { mutableStateOf<String?>(null) }
+    var invalidCardAssignmentMessage by remember {
+        mutableStateOf<String?>(null)
+    }
+    var suspensionNoticeMessage by remember {
+        mutableStateOf<String?>(null)
+    }
 
     fun recordsFor(team: TeamId): List<PlayerRecord> {
         return if (team == TeamId.TEAM_ONE) workingTeamOnePlayerCards else workingTeamTwoPlayerCards
@@ -328,24 +354,72 @@ internal fun AdjustCardsDialog(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 TeamCorrectionSection(state.teamOne.name) {
-                    CardCountRow("Blue", teamOneB, { teamOneB += 1 }, { teamOneB = maxOf(0, teamOneB - 1) })
-                    CardCountRow("Tech", teamOneTf, { teamOneTf += 1 }, { teamOneTf = maxOf(0, teamOneTf - 1) })
+                    CardCountRow(
+                        label = "Blue",
+                        value = teamOneB,
+                        testTagPrefix = "cards-adjust-team-one-blue",
+                        onIncrement = { teamOneB += 1 },
+                        onDecrement = { teamOneB = maxOf(0, teamOneB - 1) },
+                    )
+                    CardCountRow(
+                        label = "Tech",
+                        value = teamOneTf,
+                        testTagPrefix = "cards-adjust-team-one-tech",
+                        onIncrement = { teamOneTf += 1 },
+                        onDecrement = { teamOneTf = maxOf(0, teamOneTf - 1) },
+                    )
                     PlayerCardAdjustmentActions(
                         hasEditableCards = editablePlayerCards(workingTeamOnePlayerCards).isNotEmpty(),
                         onEditExisting = { editingPlayerCardsFor = TeamId.TEAM_ONE },
-                        onAddYellow = { pendingManualAdd = PendingManualCardAdd(TeamId.TEAM_ONE, CardType.YELLOW) },
-                        onAddRed = { pendingManualAdd = PendingManualCardAdd(TeamId.TEAM_ONE, CardType.RED) },
+                        onAddYellow = {
+                            pendingManualAdd = PendingManualCardAdd(
+                                TeamId.TEAM_ONE,
+                                CardType.YELLOW,
+                                PlayerCardEntry(""),
+                            )
+                        },
+                        onAddRed = {
+                            pendingManualAdd = PendingManualCardAdd(
+                                TeamId.TEAM_ONE,
+                                CardType.RED,
+                                PlayerCardEntry(""),
+                            )
+                        },
                         editExistingTestTag = "cards-adjust-team-one-edit-existing",
                     )
                 }
                 TeamCorrectionSection(state.teamTwo.name) {
-                    CardCountRow("Blue", teamTwoB, { teamTwoB += 1 }, { teamTwoB = maxOf(0, teamTwoB - 1) })
-                    CardCountRow("Tech", teamTwoTf, { teamTwoTf += 1 }, { teamTwoTf = maxOf(0, teamTwoTf - 1) })
+                    CardCountRow(
+                        label = "Blue",
+                        value = teamTwoB,
+                        testTagPrefix = "cards-adjust-team-two-blue",
+                        onIncrement = { teamTwoB += 1 },
+                        onDecrement = { teamTwoB = maxOf(0, teamTwoB - 1) },
+                    )
+                    CardCountRow(
+                        label = "Tech",
+                        value = teamTwoTf,
+                        testTagPrefix = "cards-adjust-team-two-tech",
+                        onIncrement = { teamTwoTf += 1 },
+                        onDecrement = { teamTwoTf = maxOf(0, teamTwoTf - 1) },
+                    )
                     PlayerCardAdjustmentActions(
                         hasEditableCards = editablePlayerCards(workingTeamTwoPlayerCards).isNotEmpty(),
                         onEditExisting = { editingPlayerCardsFor = TeamId.TEAM_TWO },
-                        onAddYellow = { pendingManualAdd = PendingManualCardAdd(TeamId.TEAM_TWO, CardType.YELLOW) },
-                        onAddRed = { pendingManualAdd = PendingManualCardAdd(TeamId.TEAM_TWO, CardType.RED) },
+                        onAddYellow = {
+                            pendingManualAdd = PendingManualCardAdd(
+                                TeamId.TEAM_TWO,
+                                CardType.YELLOW,
+                                PlayerCardEntry(""),
+                            )
+                        },
+                        onAddRed = {
+                            pendingManualAdd = PendingManualCardAdd(
+                                TeamId.TEAM_TWO,
+                                CardType.RED,
+                                PlayerCardEntry(""),
+                            )
+                        },
                         editExistingTestTag = "cards-adjust-team-two-edit-existing",
                     )
                 }
@@ -367,7 +441,6 @@ internal fun AdjustCardsDialog(
         EditablePlayerCardsDialog(
             teamName = state.teamFor(team).name,
             cards = editablePlayerCards(recordsFor(team)),
-            includeDelete = true,
             onDismiss = { editingPlayerCardsFor = null },
             onEdit = { card ->
                 pendingManualEdit = PendingManualCardEdit(team, card)
@@ -382,7 +455,7 @@ internal fun AdjustCardsDialog(
         PlayerCardEntryDialog(
             title = "Add ${pending.cardType.label.lowercase()} card",
             teamName = state.teamFor(pending.team).name,
-            initialEntry = PlayerCardEntry(""),
+            initialEntry = pending.initialEntry,
             candidates = recordsFor(pending.team).playerCardCandidates(),
             cardType = pending.cardType,
             onDismiss = { pendingManualAdd = null },
@@ -438,8 +511,16 @@ internal fun AdjustCardsDialog(
     }
 
     pendingManualSameNumberConfirmation?.let { confirmation ->
+        fun restoreManualCardAdd() {
+            pendingManualSameNumberConfirmation = null
+            pendingManualAdd = PendingManualCardAdd(
+                team = confirmation.team,
+                cardType = confirmation.cardType,
+                initialEntry = confirmation.entry,
+            )
+        }
         AlertDialog(
-            onDismissRequest = { pendingManualSameNumberConfirmation = null },
+            onDismissRequest = ::restoreManualCardAdd,
             title = { Text("Same number, different names") },
             text = {
                 Text(
@@ -456,22 +537,26 @@ internal fun AdjustCardsDialog(
                 TextButton(
                     onClick = {
                         pendingManualSameNumberConfirmation = null
-                        if (applyManualCardAdd(
-                                team = confirmation.team,
-                                cardType = confirmation.cardType,
-                                entry = confirmation.entry,
-                                skipSameNumberWarning = true,
-                            )
-                        ) {
-                            pendingManualAdd = null
-                        }
+                        // This entry already passed validation far enough to create the
+                        // same-number dialog, and the parent editor is blocked while the
+                        // dialog is open. That means this function cannot return false.
+                        applyManualCardAdd(
+                            team = confirmation.team,
+                            cardType = confirmation.cardType,
+                            entry = confirmation.entry,
+                            skipSameNumberWarning = true,
+                        )
+                        pendingManualAdd = null
                     }
                 ) {
                     Text("Record")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { pendingManualSameNumberConfirmation = null }) {
+                TextButton(
+                    modifier = Modifier.testTag("same-number-warning-cancel"),
+                    onClick = ::restoreManualCardAdd,
+                ) {
                     Text("Cancel")
                 }
             }
@@ -526,19 +611,42 @@ internal fun TeamCardDialog(
     onStateOnly: (GameState) -> Unit,
     onStateUpdate: (GameState) -> Unit,
 ) {
-    var pendingYellowTeam by remember { mutableStateOf<TeamId?>(null) }
-    var pendingYellowInitialEntry by remember { mutableStateOf(PlayerCardEntry("")) }
-    var pendingRedTeam by remember { mutableStateOf<TeamId?>(null) }
-    var pendingRedInitialEntry by remember { mutableStateOf(PlayerCardEntry("")) }
-    var pendingBlueTeam by remember { mutableStateOf<TeamId?>(null) }
-    var editingExistingCardsFor by remember { mutableStateOf<TeamId?>(null) }
-    var pendingExistingCardEdit by remember { mutableStateOf<PendingManualCardEdit?>(null) }
-    var pendingExistingCardRemove by remember { mutableStateOf<PendingManualCardRemove?>(null) }
-    var pendingSameNumberConfirmation by remember { mutableStateOf<PendingSameNumberPlayerCardConfirmation?>(null) }
-    var pendingMisconductChoice by remember { mutableStateOf<PendingMisconductChoice?>(null) }
-    var pendingMisconductResolution by remember { mutableStateOf<PendingMisconductResolution?>(null) }
-    var invalidCardAssignmentMessage by remember { mutableStateOf<String?>(null) }
-    var suspensionNoticeMessage by remember { mutableStateOf<String?>(null) }
+    var pendingYellowTeam by remember {
+        mutableStateOf<TeamId?>(null)
+    }
+    var pendingYellowInitialEntry by remember {
+        mutableStateOf(PlayerCardEntry(""))
+    }
+    var pendingRedTeam by remember {
+        mutableStateOf<TeamId?>(null)
+    }
+    var pendingRedInitialEntry by remember {
+        mutableStateOf(PlayerCardEntry(""))
+    }
+    var pendingBlueTeam by remember {
+        mutableStateOf<TeamId?>(null)
+    }
+    var editingExistingCardsFor by remember {
+        mutableStateOf<TeamId?>(null)
+    }
+    var pendingExistingCardEdit by remember {
+        mutableStateOf<PendingManualCardEdit?>(null)
+    }
+    var pendingSameNumberConfirmation by remember {
+        mutableStateOf<PendingSameNumberPlayerCardConfirmation?>(null)
+    }
+    var pendingMisconductChoice by remember {
+        mutableStateOf<PendingMisconductChoice?>(null)
+    }
+    var pendingMisconductResolution by remember {
+        mutableStateOf<PendingMisconductResolution?>(null)
+    }
+    var invalidCardAssignmentMessage by remember {
+        mutableStateOf<String?>(null)
+    }
+    var suspensionNoticeMessage by remember {
+        mutableStateOf<String?>(null)
+    }
 
     fun completeAssessment(result: CardAssessmentResult) {
         onAssessment(
@@ -548,7 +656,7 @@ internal fun TeamCardDialog(
         )
     }
 
-    fun presentAssessment(result: CardAssessmentResult, returnTo: PendingMisconductReturn?) {
+    fun presentAssessment(result: CardAssessmentResult, returnTo: PendingMisconductReturn) {
         if (result.needsMisconductChoice) {
             pendingMisconductChoice = PendingMisconductChoice(result, returnTo)
         } else {
@@ -556,9 +664,8 @@ internal fun TeamCardDialog(
         }
     }
 
-    fun restoreMisconductReturn(returnTo: PendingMisconductReturn?) {
+    fun restoreMisconductReturn(returnTo: PendingMisconductReturn) {
         pendingMisconductChoice = null
-        if (returnTo == null) return
         // No else branch: every PendingMisconductReturn value is handled
         when (returnTo) {
             is PendingMisconductReturn.YellowEntry -> {
@@ -657,17 +764,6 @@ internal fun TeamCardDialog(
         return true
     }
 
-    fun removeExistingCard(team: TeamId, card: EditablePlayerCard) {
-        val updatedRecords = removeEditablePlayerCard(state.playerCards(team), card)
-        onStateUpdate(
-            stateWithPlayerCards(
-                team = team,
-                records = updatedRecords,
-                undoLabel = state.playerCardRemoveUndoLabel(team, card.cardType, card.identity()),
-            )
-        )
-    }
-
     fun assessPlayerCardEntry(
         team: TeamId,
         cardType: CardType,
@@ -719,19 +815,20 @@ internal fun TeamCardDialog(
         }
     }
 
-    val noCardSubdialogOpen = pendingYellowTeam == null &&
-        pendingRedTeam == null &&
-        pendingBlueTeam == null &&
-        editingExistingCardsFor == null &&
-        pendingExistingCardEdit == null &&
-        pendingExistingCardRemove == null &&
-        pendingSameNumberConfirmation == null &&
-        pendingMisconductChoice == null &&
-        pendingMisconductResolution == null &&
-        invalidCardAssignmentMessage == null &&
-        suspensionNoticeMessage == null
+    val cardSubdialogOpen = listOfNotNull(
+        pendingYellowTeam,
+        pendingRedTeam,
+        pendingBlueTeam,
+        editingExistingCardsFor,
+        pendingExistingCardEdit,
+        pendingSameNumberConfirmation,
+        pendingMisconductChoice,
+        pendingMisconductResolution,
+        invalidCardAssignmentMessage,
+        suspensionNoticeMessage,
+    ).isNotEmpty()
 
-    if (noCardSubdialogOpen) {
+    if (!cardSubdialogOpen) {
         CardChoiceDialog(
             state = state,
             team = team,
@@ -747,15 +844,10 @@ internal fun TeamCardDialog(
         EditablePlayerCardsDialog(
             teamName = state.teamFor(editTeam).name,
             cards = editablePlayerCards(state.playerCards(editTeam)),
-            includeDelete = false,
             onDismiss = { editingExistingCardsFor = null },
-            confirmLabel = "Done",
             onConfirm = onDismiss,
             onEdit = { card ->
                 pendingExistingCardEdit = PendingManualCardEdit(editTeam, card)
-            },
-            onRemove = { card ->
-                pendingExistingCardRemove = PendingManualCardRemove(editTeam, card)
             },
         )
     }
@@ -771,22 +863,13 @@ internal fun TeamCardDialog(
             ),
             candidates = emptyList(),
             cardType = pending.card.cardType,
-            onDismiss = { pendingExistingCardEdit = null },
+            onDismiss = {
+                pendingExistingCardEdit = null
+            },
             onConfirm = { entry ->
                 if (applyExistingCardEdit(pending.team, pending.card, entry)) {
                     pendingExistingCardEdit = null
                 }
-            },
-        )
-    }
-
-    pendingExistingCardRemove?.let { pending ->
-        RemoveEditablePlayerCardDialog(
-            card = pending.card,
-            onDismiss = { pendingExistingCardRemove = null },
-            onConfirm = {
-                removeExistingCard(pending.team, pending.card)
-                pendingExistingCardRemove = null
             },
         )
     }
@@ -868,6 +951,7 @@ internal fun TeamCardDialog(
             },
             dismissButton = {
                 TextButton(
+                    modifier = Modifier.testTag("same-number-warning-cancel"),
                     onClick = {
                         pendingSameNumberConfirmation = null
                         restorePlayerCardEntry(confirmation.cardType, confirmation.team, confirmation.entry)
@@ -894,7 +978,9 @@ internal fun TeamCardDialog(
 
     suspensionNoticeMessage?.let { message ->
         AlertDialog(
-            onDismissRequest = { suspensionNoticeMessage = null },
+            onDismissRequest = {
+                suspensionNoticeMessage = null
+            },
             title = { Text("Card suspension") },
             text = { Text(message) },
             confirmButton = {
@@ -1035,6 +1121,7 @@ internal fun TeamCardDialog(
             },
             dismissButton = {
                 TextButton(
+                    modifier = Modifier.testTag("misconduct-resolution-back"),
                     onClick = {
                         restoreMisconductResolutionChoice(pending.choice)
                     },
@@ -1197,6 +1284,7 @@ private fun CardChoiceButton(
 private fun CardCountRow(
     label: String,
     value: Int,
+    testTagPrefix: String,
     onIncrement: () -> Unit,
     onDecrement: () -> Unit,
 ) {
@@ -1207,8 +1295,18 @@ private fun CardCountRow(
     ) {
         Text("$label $value")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SmallActionButton(label = "+1", enabled = true, onClick = onIncrement)
-            SmallActionButton(label = "-1", enabled = value > 0, onClick = onDecrement)
+            SmallActionButton(
+                label = "+1",
+                enabled = true,
+                modifier = Modifier.testTag("$testTagPrefix-increment"),
+                onClick = onIncrement,
+            )
+            SmallActionButton(
+                label = "-1",
+                enabled = value > 0,
+                modifier = Modifier.testTag("$testTagPrefix-decrement"),
+                onClick = onDecrement,
+            )
         }
     }
 }
@@ -1327,16 +1425,14 @@ private fun CompactIconAction(
  * Render one editable in-game player-card record row.
  *
  * @param card The card event represented by this row.
- * @param includeDelete Whether to show the delete action for this card.
  * @param onEdit Callback editing this card.
- * @param onRemove Callback asking to remove this card.
+ * @param onRemove Optional callback asking to remove this card.
  */
 @Composable
 private fun EditablePlayerCardRow(
     card: EditablePlayerCard,
-    includeDelete: Boolean,
     onEdit: () -> Unit,
-    onRemove: () -> Unit,
+    onRemove: (() -> Unit)? = null,
 ) {
     val identity = editablePlayerCardIdentityText(card)
     Card(
@@ -1375,10 +1471,10 @@ private fun EditablePlayerCardRow(
                     onClick = onEdit,
                     icon = Icons.Filled.Edit,
                 )
-                if (includeDelete) {
+                onRemove?.let { remove ->
                     CompactIconAction(
                         contentDescription = "Remove $identity",
-                        onClick = onRemove,
+                        onClick = remove,
                         icon = Icons.Filled.Delete,
                     )
                 }
@@ -1392,21 +1488,19 @@ private fun EditablePlayerCardRow(
  *
  * @param teamName The team whose cards are listed.
  * @param cards The editable in-game cards.
- * @param includeDelete Whether to show delete actions for listed cards.
  * @param onDismiss Callback closing this page.
+ * @param onConfirm Optional confirm button to show instead of the default Back button.
  * @param onEdit Callback editing one card.
- * @param onRemove Callback asking to remove one card.
+ * @param onRemove Optional callback asking to remove one card.
  */
 @Composable
 private fun EditablePlayerCardsDialog(
     teamName: String,
     cards: List<EditablePlayerCard>,
-    includeDelete: Boolean,
     onDismiss: () -> Unit,
-    confirmLabel: String? = null,
     onConfirm: (() -> Unit)? = null,
     onEdit: (EditablePlayerCard) -> Unit,
-    onRemove: (EditablePlayerCard) -> Unit,
+    onRemove: ((EditablePlayerCard) -> Unit)? = null,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1422,25 +1516,25 @@ private fun EditablePlayerCardsDialog(
                 cards.forEach { card ->
                     EditablePlayerCardRow(
                         card = card,
-                        includeDelete = includeDelete,
                         onEdit = { onEdit(card) },
-                        onRemove = { onRemove(card) },
+                        onRemove = onRemove?.let { remove -> { remove(card) } },
                     )
                 }
             }
         },
         confirmButton = {
-            if (confirmLabel != null && onConfirm != null) {
-                TextButton(onClick = onConfirm) {
-                    Text(confirmLabel)
+            onConfirm?.let { confirm ->
+                TextButton(onClick = confirm) {
+                    Text("Done")
                 }
             }
         },
         dismissButton = {
-            if (confirmLabel == null) {
-                TextButton(onClick = onDismiss) {
-                    Text("Back")
-                }
+            TextButton(
+                modifier = Modifier.testTag("editable-player-cards-dismiss"),
+                onClick = onDismiss,
+            ) {
+                Text(if (onConfirm == null) "Back" else "Cancel")
             }
         },
     )
@@ -1505,9 +1599,15 @@ private fun PlayerCardEntryDialog(
     var jerseyNumber by remember(initialEntry) {
         mutableStateOf(initialEntry.jerseyNumber)
     }
-    var playerName by remember(initialEntry) { mutableStateOf(initialEntry.playerName) }
-    var reason by remember(initialEntry) { mutableStateOf(initialEntry.reason) }
-    var showingReasonDialog by remember { mutableStateOf(false) }
+    var playerName by remember(initialEntry) {
+        mutableStateOf(initialEntry.playerName)
+    }
+    var reason by remember(initialEntry) {
+        mutableStateOf(initialEntry.reason)
+    }
+    var showingReasonDialog by remember {
+        mutableStateOf(false)
+    }
     val focusManager = LocalFocusManager.current
 
     AlertDialog(
@@ -1586,7 +1686,10 @@ private fun PlayerCardEntryDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(
+                modifier = Modifier.testTag("card-entry-cancel"),
+                onClick = onDismiss,
+            ) {
                 Text("Cancel")
             }
         },
@@ -1650,9 +1753,15 @@ private fun CardReasonDialog(
     onConfirm: (CardReason) -> Unit,
 ) {
     val presets = cardReasonPresets(cardType)
-    var selectedPreset by remember(initialReason) { mutableStateOf(initialReason.preset) }
-    var otherReason by remember(initialReason) { mutableStateOf(initialReason.otherText) }
-    var details by remember(initialReason) { mutableStateOf(initialReason.details) }
+    var selectedPreset by remember(initialReason) {
+        mutableStateOf(initialReason.preset)
+    }
+    var otherReason by remember(initialReason) {
+        mutableStateOf(initialReason.otherText)
+    }
+    var details by remember(initialReason) {
+        mutableStateOf(initialReason.details)
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1674,9 +1783,7 @@ private fun CardReasonDialog(
                             selected = selectedPreset == preset,
                             onClick = {
                                 selectedPreset = preset
-                                if (preset != "Other") {
-                                    otherReason = ""
-                                }
+                                otherReason = ""
                             },
                         )
                     }

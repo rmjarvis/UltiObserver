@@ -246,7 +246,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         // For team 2 (receiving) the pull violation is a False start.
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "pull-violation")).performClick()
         waitForText("Team 1 gets to set up on defense.", substring = true)
-        composeRule.onNodeWithText("Cancel").performClick()
+        dismissDialog(text = "Cancel")
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "pull-violation"))
             .assertIsDisplayed()
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "pull-violation")).performClick()
@@ -291,7 +291,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         // available.
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "timeout")).performClick()
         waitForText("Timeout charged to Team 1.", substring = true)
-        composeRule.onNodeWithText("Cancel").performClick()
+        dismissDialog(text = "Cancel")
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "timeout")).assertIsDisplayed()
         recordTimeout(TeamId.TEAM_ONE, "Undo Timeout by Team 1")
         composeRule.onNodeWithText("Undo Timeout by Team 1").performClick()
@@ -299,6 +299,31 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         waitForText("Redo")
         composeRule.onNodeWithText("Undo Goal by Team 1").performClick()
         waitForText("Redo")
+    }
+
+    /**
+     * Test switching the pulling team's pull-violation dialog to the mixed majority-pull rule.
+     */
+    @Test
+    fun majorityPullViolationDialog() {
+        // In mixed games using the majority-pull rule, the pulling team's Offsides button can
+        // instead be recorded as a majority-pull violation.
+        val setup = newGameSetupState().copy(division = GameDivision.MIXED)
+        startBetweenPointsProgrammatically(setup, scoringTeam = TeamId.TEAM_ONE)
+
+        // The initial dialog is Offsides, then the switch action toggles to majority pull and back.
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-violation")).performClick()
+        waitForText("Offsides")
+        waitForText("This was a Majority pull rule violation")
+        composeRule.onNodeWithText("This was a Majority pull rule violation").performClick()
+        waitForText("Majority pull rule violation")
+        waitForText("This was an Offsides")
+        composeRule.onNodeWithText("This was an Offsides").performClick()
+        waitForText("Offsides")
+        composeRule.onNodeWithText("This was a Majority pull rule violation").performClick()
+        waitForText("Majority pull rule violation")
+        composeRule.onNodeWithText("OK").performClick()
+        waitForText("Undo Majority pull violation on Team 1")
     }
 
     /**
@@ -353,7 +378,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         startLiveGameProgrammatically()
         showExpiredPullSurface()
 
-        // Half cap can be dismissed over the expired-pull surface.
+        // Half cap stays modal over the expired-pull surface until the observer answers it.
         composeRule.activityRule.scenario.onActivity { activity ->
             val current = activity.appViewModel.liveState!!
             activity.appViewModel.updateLiveGame(current.copy(pendingCapOffer = CapType.HALF))
@@ -479,29 +504,16 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         // until the user confirms it.
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "time-violation")).performClick()
         waitForText("now has 30 seconds to pull.", substring = true)
-        if (shouldUsePlatformBackDismissalCoverage()) {
-            pressDialogBack()
-            assertTrue(
-                composeRule.onAllNodesWithText(
-                    "now has 30 seconds to pull.",
-                    substring = true,
-                ).fetchSemanticsNodes().isEmpty()
-            )
-            composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "time-violation"))
-                .performClick()
-            waitForText("now has 30 seconds to pull.", substring = true)
-        } else {
-            composeRule.onNodeWithText("Cancel").performClick()
-            assertTrue(
-                composeRule.onAllNodesWithText(
-                    "now has 30 seconds to pull.",
-                    substring = true,
-                ).fetchSemanticsNodes().isEmpty()
-            )
-            composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "time-violation"))
-                .performClick()
-            waitForText("now has 30 seconds to pull.", substring = true)
-        }
+        dismissDialog(text = "Cancel")
+        assertTrue(
+            composeRule.onAllNodesWithText(
+                "now has 30 seconds to pull.",
+                substring = true,
+            ).fetchSemanticsNodes().isEmpty()
+        )
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "time-violation"))
+            .performClick()
+        waitForText("now has 30 seconds to pull.", substring = true)
         Thread.sleep(1200)
         val beforeConfirmingTimeViolation = System.currentTimeMillis()
         composeRule.onNodeWithText("OK").performClick()
@@ -515,11 +527,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         showExpiredPullSurface()
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "time-violation")).performClick()
         waitForText("now has 20 seconds to signal readiness.", substring = true)
-        if (shouldUsePlatformBackDismissalCoverage()) {
-            pressDialogBack()
-        } else {
-            composeRule.onNodeWithText("Cancel").performClick()
-        }
+        dismissDialog(text = "Cancel")
         assertTrue(
             composeRule.onAllNodesWithText(
                 "now has 20 seconds to signal readiness.",

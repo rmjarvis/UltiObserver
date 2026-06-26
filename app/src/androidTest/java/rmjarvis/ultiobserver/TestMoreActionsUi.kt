@@ -25,19 +25,13 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
 
         // Manual correction dialogs should open and return to More actions cleanly.
         openMoreActionsDialog()
-        if (shouldUsePlatformBackDismissalCoverage()) {
-            pressDialogBack()
-            composeRule.onAllNodesWithText("Update game setup").assertCountEquals(0)
-            openMoreActionsDialog()
-        }
+        dismissDialog(text = "Close")
+        composeRule.onAllNodesWithText("Update game setup").assertCountEquals(0)
+        openMoreActionsDialog()
         composeRule.onNodeWithText("Event log").performClick()
         waitForText("Event log")
         waitForText("No events logged yet.")
-        if (shouldUsePlatformBackDismissalCoverage()) {
-            pressDialogBack()
-        } else {
-            composeRule.onNodeWithText("OK").performClick()
-        }
+        dismissDialog(text = "OK")
         openMoreActionsDialog()
         openMoreActionsDialogAndCancel("Adjust score")
         openMoreActionsDialogAndCancel("Adjust timeouts")
@@ -56,6 +50,11 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
         waitForText("Undo Flip field display")
         assertLiveScreen()
 
+        // Changing pull prompts can be canceled before applying a new prompt target.
+        openMoreActionsDialog()
+        openMoreActionsDialogAndCancel("Change pull prompts")
+
+        // Changing pull prompts can also apply a new target immediately.
         openMoreActionsDialog()
         composeRule.onNodeWithText("Change pull prompts").performClick()
         waitForText("Change pull prompts")
@@ -82,11 +81,7 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Start halftime").performScrollTo().performClick()
         waitForText("Halftime")
         // Back dismissal and OK are equivalent acknowledgements for this prompt.
-        if (shouldUsePlatformBackDismissalCoverage()) {
-            pressDialogBack()
-        } else {
-            composeRule.onNodeWithText("OK").performClick()
-        }
+        dismissDialog(text = "OK")
         assertLiveScreen()
     }
 
@@ -100,7 +95,7 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
         openMoreActionsDialog()
         composeRule.onNodeWithText("Delete game").performScrollTo().performClick()
         waitForText("This cannot be undone", substring = true)
-        composeRule.onNodeWithText("Cancel").performClick()
+        dismissDialog(text = "Cancel")
         waitForText("Update game setup")
 
         composeRule.onNodeWithText("Delete game").performScrollTo().performClick()

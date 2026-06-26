@@ -68,6 +68,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -142,7 +144,7 @@ private enum class TeamSetupDialog {
 private data class TeamDialog(
     val teamId: TeamId,
     val dialog: TeamSetupDialog,
-    val priorCardIndex: Int? = null,
+    val priorCardIndex: Int = 0,
     val priorCardDraft: PlayerRecord? = null,
 )
 
@@ -233,16 +235,12 @@ internal fun SetupScreen(
             null -> savePriorCardRecord(teamId, record, editingIndex)
             is CardHolderEntryCheck.ExistingCardHolder -> {
                 val existingRecord = teamPlayers[entryCheck.existingIndex]
-                if (editingIndex == null) {
-                    teamDialog = null
-                    existingPriorCardNotice = ExistingPriorCardNotice(
-                        teamId = teamId,
-                        record = record,
-                        existingCardDetail = existingRecord.playerCardNoticeDetail(),
-                    )
-                } else {
-                    savePriorCardRecord(teamId, record, editingIndex)
-                }
+                teamDialog = null
+                existingPriorCardNotice = ExistingPriorCardNotice(
+                    teamId = teamId,
+                    record = record,
+                    existingCardDetail = existingRecord.playerCardNoticeDetail(),
+                )
             }
             is CardHolderEntryCheck.PossibleDifferentPlayer -> {
                 teamDialog = null
@@ -398,7 +396,9 @@ internal fun SetupScreen(
                 state = state,
                 onEditRule = { editingRule = it },
                 onEditTimeouts = { showTimeoutRulesDialog = true },
-                onRulesChange = { onStateChange(state.copy(rules = it)) },
+                onRulesChange = {
+                    onStateChange(state.copy(rules = it))
+                },
                 onUseUsauDefaults = {
                     onStateChange(state.copy(rules = GameRules()))
                 },
@@ -415,9 +415,11 @@ internal fun SetupScreen(
     if (target != null) {
         val targetLabel = target.teamId.setupName(state)
         val targetTeam = target.teamId.setupTeam(state)
-        val onTargetTeamChange: (TeamSetup) -> Unit = { updatedTeam ->
+
+        fun changeTargetTeam(updatedTeam: TeamSetup) {
             onStateChange(state.withSetupTeam(target.teamId, updatedTeam))
         }
+
         // No else branch: every TeamSetupDialog value is handled
         when (target.dialog) {
             TeamSetupDialog.COLOR -> {
@@ -426,11 +428,11 @@ internal fun SetupScreen(
                     teamFieldLabel = target.teamId.setupFieldLabel(),
                     team = targetTeam,
                     onPresetColorSelected = { color ->
-                        onTargetTeamChange(targetTeam.copy(color = color))
+                        changeTargetTeam(targetTeam.copy(color = color))
                         teamDialog = null
                     },
                     onCustomColorSelected = { colorArgb ->
-                        onTargetTeamChange(
+                        changeTargetTeam(
                             targetTeam.copy(
                                 color = TeamColorChoice.CUSTOM,
                                 customColorArgb = colorArgb,
@@ -451,7 +453,7 @@ internal fun SetupScreen(
                     teamFieldLabel = target.teamId.setupFieldLabel(),
                     team = targetTeam,
                     onCustomColorSelected = { colorArgb ->
-                        onTargetTeamChange(
+                        changeTargetTeam(
                             targetTeam.copy(
                                 color = TeamColorChoice.CUSTOM,
                                 customColorArgb = colorArgb,
@@ -468,7 +470,9 @@ internal fun SetupScreen(
                     teamLabel = targetLabel,
                     teamFieldLabel = target.teamId.setupFieldLabel(),
                     team = targetTeam,
-                    onTeamChange = onTargetTeamChange,
+                    onTeamChange = { updatedTeam ->
+                        changeTargetTeam(updatedTeam)
+                    },
                     onDismiss = { teamDialog = null },
                 )
             }
@@ -507,14 +511,12 @@ internal fun SetupScreen(
             }
 
             TeamSetupDialog.EDIT_PRIOR_CARD -> {
-                val recordIndex = requireNotNull(target.priorCardIndex) {
-                    "Edit prior-card dialog requires a prior-card index."
-                }
+                val recordIndex = target.priorCardIndex
                 val teamPlayers = state.playersFor(target.teamId)
                 PriorCardPlayerDialog(
                     teamId = target.teamId,
                     teamName = targetLabel,
-                    initialRecord = target.priorCardDraft ?: teamPlayers[recordIndex],
+                    initialRecord = teamPlayers[recordIndex],
                     isEditing = true,
                     onDismiss = {
                         teamDialog = TeamDialog(target.teamId, TeamSetupDialog.PRIOR_CARDS)
@@ -529,7 +531,9 @@ internal fun SetupScreen(
 
     existingPriorCardNotice?.let { notice ->
         AlertDialog(
-            onDismissRequest = { returnToExistingPriorCardEntry(notice) },
+            onDismissRequest = {
+                returnToExistingPriorCardEntry(notice)
+            },
             title = { Text("Card holder already listed") },
             text = {
                 Text(
@@ -595,12 +599,15 @@ internal fun SetupScreen(
     }
 
     playerDeleteRejectedMessage?.let { message ->
+        fun dismissPlayerDeleteRejectedMessage() {
+            playerDeleteRejectedMessage = null
+        }
         AlertDialog(
-            onDismissRequest = { playerDeleteRejectedMessage = null },
+            onDismissRequest = ::dismissPlayerDeleteRejectedMessage,
             title = { Text("Player not deleted") },
             text = { Text(message) },
             confirmButton = {
-                TextButton(onClick = { playerDeleteRejectedMessage = null }) {
+                TextButton(onClick = ::dismissPlayerDeleteRejectedMessage) {
                     Text("OK")
                 }
             },
@@ -764,34 +771,6 @@ private fun TeamSetupDivider() {
 }
 
 /**
- * Render a compact setup summary row with plain text summary content.
- *
- * @param title The row label.
- * @param summary The prominent summary text for the current setting.
- * @param editTag The test tag attached to the row's Edit button.
- * @param onEdit Callback invoked when the Edit button is tapped.
- */
-@Composable
-private fun SetupSummaryRow(
-    title: String,
-    summary: String,
-    editTag: String,
-    onEdit: () -> Unit,
-) {
-    SetupSummaryRow(
-        title = title,
-        editTag = editTag,
-        onEdit = onEdit,
-    ) {
-        Text(
-            text = summary,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
-    }
-}
-
-/**
  * Render a compact setup summary row with caller-provided summary content.
  *
  * @param title The row label.
@@ -891,7 +870,7 @@ private fun GameInformationSetupDialog(
     }
 
     AlertDialog(
-        onDismissRequest = ::saveAndDismiss,
+        onDismissRequest = onDismiss,
         title = { Text("Game information") },
         text = {
             Column(
@@ -1023,6 +1002,11 @@ private fun GameInformationSetupDialog(
         confirmButton = {
             TextButton(onClick = ::saveAndDismiss) {
                 Text("Done")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
             }
         },
     )
@@ -1223,6 +1207,9 @@ private fun SetupChoiceChip(
         modifier = modifier
             .border(width = 1.dp, color = borderColor, shape = shape)
             .background(color = backgroundColor, shape = shape)
+            .semantics {
+                this.selected = selected
+            }
             .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 7.dp),
         contentAlignment = Alignment.Center,
@@ -1285,6 +1272,7 @@ private fun FieldStartingPullSummary(state: GameSetupState) {
             fontWeight = FontWeight.SemiBold,
         )
         if (state.usesMixedDivision()) {
+            // No else branch: every GenderRatioRule value is handled
             when (state.rules.genderRatioRule) {
                 GenderRatioRule.ABBA -> SetupSummaryValue("First point ratio: ${state.initialGenderRatio.displayText}")
                 GenderRatioRule.GEN_ZONE -> {
@@ -1431,7 +1419,7 @@ private fun StartingPullSetupDialog(
     }
 
     AlertDialog(
-        onDismissRequest = ::saveAndDismiss,
+        onDismissRequest = onDismiss,
         title = { Text("Field/starting pull") },
         text = {
             Column(
@@ -1504,7 +1492,8 @@ private fun StartingPullSetupDialog(
                     farLabel = displayFieldEndName(FieldEnd.FAR),
                     onSelected = { pullingFromEnd = it },
                 )
-                if (state.usesMixedDivision() && state.rules.genderRatioRule.hasStartingPullChoice()) {
+                if (state.usesMixedDivision()) {
+                    // No else branch: every GenderRatioRule value is handled
                     when (state.rules.genderRatioRule) {
                         GenderRatioRule.ABBA -> {
                             Text("First point gender ratio", fontWeight = FontWeight.SemiBold)
@@ -1557,6 +1546,11 @@ private fun StartingPullSetupDialog(
         confirmButton = {
             TextButton(onClick = ::saveAndDismiss) {
                 Text("Done")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
             }
         },
     )
@@ -1743,6 +1737,7 @@ private fun StartDateDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(
+                modifier = Modifier.testTag("setup-start-date-set"),
                 onClick = {
                     val selectedTimestamp = datePickerState.selectedDateMillis!!
                     onConfirm(pickerTimestampToDate(selectedTimestamp))
@@ -1789,6 +1784,7 @@ private fun ExactTimeDialog(
         title = {},
         confirmButton = {
             TextButton(
+                modifier = Modifier.testTag("setup-start-time-set"),
                 onClick = {
                     onConfirm(LocalTime.of(timePickerState.hour, timePickerState.minute))
                 }
@@ -1841,6 +1837,7 @@ private fun IntegerEditDialog(
         },
         confirmButton = {
             TextButton(
+                modifier = Modifier.testTag("setup-integer-set"),
                 onClick = {
                     onConfirm(valueText.toIntOrNull()?.coerceAtLeast(0) ?: initialValue)
                 }
@@ -1913,6 +1910,7 @@ private fun CapRuleEditDialog(
         },
         confirmButton = {
             TextButton(
+                modifier = Modifier.testTag("setup-$title-set"),
                 onClick = {
                     onConfirm(enabled, valueText.toIntOrNull()?.coerceAtLeast(0) ?: initialValue)
                 }
@@ -1972,6 +1970,7 @@ private fun TimeoutRulesDialog(
         },
         confirmButton = {
             TextButton(
+                modifier = Modifier.testTag("setup-timeouts-set"),
                 onClick = {
                     onConfirm(
                         rules.copy(
@@ -2011,10 +2010,18 @@ private fun PriorCardPlayerDialog(
     onDismiss: () -> Unit,
     onConfirm: (PlayerRecord) -> Unit,
 ) {
-    var jerseyNumber by remember(initialRecord) { mutableStateOf(initialRecord?.jerseyNumber ?: "") }
-    var playerName by remember(initialRecord) { mutableStateOf(initialRecord?.playerName ?: "") }
-    var priorYellows by remember(initialRecord) { mutableStateOf(initialRecord?.priorYellows ?: 1) }
-    var priorReds by remember(initialRecord) { mutableStateOf(initialRecord?.priorReds ?: 0) }
+    var jerseyNumber by remember(initialRecord) {
+        mutableStateOf(initialRecord?.jerseyNumber ?: "")
+    }
+    var playerName by remember(initialRecord) {
+        mutableStateOf(initialRecord?.playerName ?: "")
+    }
+    var priorYellows by remember(initialRecord) {
+        mutableStateOf(initialRecord?.priorYellows ?: 1)
+    }
+    var priorReds by remember(initialRecord) {
+        mutableStateOf(initialRecord?.priorReds ?: 0)
+    }
     val trimmedJerseyNumber = jerseyNumber.trim()
     val trimmedPlayerName = playerName.trim()
     val hasPlayerIdentity = trimmedJerseyNumber.isNotEmpty() || trimmedPlayerName.isNotEmpty()
@@ -2703,7 +2710,9 @@ private fun CustomColorPicker(
     onColorChange: (Color) -> Unit,
 ) {
     val controller = rememberColorPickerController()
-    var previewColor by remember(initialColor) { mutableStateOf(initialColor) }
+    var previewColor by remember(initialColor) {
+        mutableStateOf(initialColor)
+    }
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         HsvColorPicker(
             modifier = Modifier
@@ -2858,7 +2867,9 @@ internal fun PullPromptTargetChoiceRow(
         SetupChoiceChip(
             label = target.choiceLabel(nearLabel = nearLabel, farLabel = farLabel),
             selected = selected == target,
-            onClick = { onSelected(target) },
+            onClick = {
+                onSelected(target)
+            },
             modifier = Modifier.testTag("$testTagPrefix-${target.name}"),
         )
     }

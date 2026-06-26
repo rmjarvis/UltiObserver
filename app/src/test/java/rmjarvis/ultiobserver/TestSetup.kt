@@ -1,5 +1,6 @@
 package rmjarvis.ultiobserver
 
+import androidx.compose.ui.graphics.Color
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -157,6 +158,36 @@ class TestSetup : GameDomainTestFixtures() {
         assertEquals("Pink", TeamColorChoice.PINK.label)
         assertEquals(0xFFFF4FA3, TeamColorChoice.PINK.accentArgb)
         assertEquals(0xFF2F1022, TeamColorChoice.PINK.contentArgb)
+        assertEquals(Color(0xFFFF4FA3), TeamColorChoice.PINK.accent)
+        assertEquals(Color(0xFF2F1022), TeamColorChoice.PINK.content)
+
+        // Setup and live teams use built-in colors directly unless the observer picked a custom
+        // color.
+        val builtInSetupTeam = TeamSetup("Built in", TeamColorChoice.PINK)
+        val builtInLiveTeam = TeamLiveState("Built in", TeamColorChoice.PINK)
+        assertEquals(Color(0xFFFF4FA3), builtInSetupTeam.accent)
+        assertEquals(Color(0xFF2F1022), builtInSetupTeam.content)
+        assertEquals(Color(0xFFFF4FA3), builtInLiveTeam.accent)
+        assertEquals(Color(0xFF2F1022), builtInLiveTeam.content)
+
+        // Custom team colors keep the observer-picked background and choose readable text from
+        // the background luminance.
+        val lightCustomSetupTeam = TeamSetup(
+            name = "Light",
+            color = TeamColorChoice.CUSTOM,
+            customColorArgb = 0xFFE7F0F7L,
+        )
+        val darkCustomLiveTeam = TeamLiveState(
+            name = "Dark",
+            color = TeamColorChoice.CUSTOM,
+            customColorArgb = 0xFF203040L,
+        )
+        assertEquals(Color(0xFFE7F0F7), lightCustomSetupTeam.accent)
+        assertEquals(Color(0xFF1F1A17), lightCustomSetupTeam.content)
+        assertEquals(Color(0xFF203040), darkCustomLiveTeam.accent)
+        assertEquals(Color.White, darkCustomLiveTeam.content)
+        assertEquals(Color(0xFF1F1A17), readableContentColor(Color(0xFFE7F0F7)))
+        assertEquals(Color.White, readableContentColor(Color(0xFF203040)))
 
         // Custom team colors require an explicit ARGB value.
         assertThrows(IllegalArgumentException::class.java) {
