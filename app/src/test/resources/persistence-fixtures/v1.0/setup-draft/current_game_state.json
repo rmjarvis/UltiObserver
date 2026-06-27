@@ -1,0 +1,67 @@
+{
+    "versionName": "1.0.1",
+    "versionCode": 2,
+    "setupState": {
+        "startDate": "2026-02-14",
+        "startTime": "13:45",
+        "timeZone": "America/New_York",
+        "tournamentName": "Migration Invitational",
+        "rules": {
+            "gameTo": 11,
+            "halftimeMinutes": 10,
+            "useHalfCap": true,
+            "halfCapMinutes": 50,
+            "useSoftCap": true,
+            "softCapMinutes": 80,
+            "useHardCap": true,
+            "hardCapMinutes": 95,
+            "timeoutsPerHalf": 1,
+            "hasFloaterTimeout": false
+        },
+        "teamOne": {
+            "name": "Bees",
+            "color": "YELLOW"
+        },
+        "teamTwo": {
+            "name": "Ferns",
+            "color": "GREEN"
+        },
+        "priorCards": [
+            {
+                "team": "TEAM_ONE",
+                "jerseyNumber": "7",
+                "priorYellows": 1,
+                "priorReds": 0
+            },
+            {
+                "team": "TEAM_ONE",
+                "jerseyNumber": "N/A",
+                "priorYellows": 1,
+                "priorReds": 0
+            },
+            {
+                "team": "TEAM_ONE",
+                "jerseyNumber": "N/A",
+                "priorYellows": 0,
+                "priorReds": 1
+            },
+            {
+                "team": "TEAM_TWO",
+                "jerseyNumber": "12",
+                "priorYellows": 0,
+                "priorReds": 1
+            },
+            {
+                "team": "TEAM_TWO",
+                "jerseyNumber": "N/A",
+                "priorYellows": 0,
+                "priorReds": 1
+            }
+        ],
+        "pullingTeam": "TEAM_TWO",
+        "pullingFromEnd": "NEAR"
+    },
+    "liveState": null,
+    "setupMode": "NEW_GAME",
+    "hasSetupDraft": true
+}

@@ -1,0 +1,91 @@
+{
+    "state": {
+        "startDate": "2026-01-03",
+        "startTime": "09:30",
+        "timeZone": "America/New_York",
+        "startEpoch": 1767450600000,
+        "endEpoch": 1767450670000,
+        "tournamentName": "Migration Classic",
+        "rules": {
+            "gameTo": 5,
+            "halftimeMinutes": 7,
+            "useHalfCap": false,
+            "halfCapMinutes": 45,
+            "useSoftCap": false,
+            "softCapMinutes": 90,
+            "useHardCap": false,
+            "hardCapMinutes": 105,
+            "timeoutsPerHalf": 2,
+            "hasFloaterTimeout": true
+        },
+        "teamOne": {
+            "name": "Viscous Coupling",
+            "color": "WHITE",
+            "score": 1,
+            "timeoutsUsedThisHalf": 0,
+            "firstHalfTimeoutsUsed": 0,
+            "offsides": 0,
+            "falseStarts": 0,
+            "timeViolationWarningIssued": false,
+            "technicalFouls": 0,
+            "blueCards": 0
+        },
+        "teamTwo": {
+            "name": "Animal",
+            "color": "RED",
+            "score": 0,
+            "timeoutsUsedThisHalf": 0,
+            "firstHalfTimeoutsUsed": 0,
+            "offsides": 0,
+            "falseStarts": 0,
+            "timeViolationWarningIssued": false,
+            "technicalFouls": 0,
+            "blueCards": 0
+        },
+        "priorCards": [],
+        "teamOnePlayerCards": [],
+        "teamTwoPlayerCards": [],
+        "eventLog": [
+            {
+                "timestampEpoch": 1767450600000,
+                "type": "FIRST_PULL",
+                "team": "TEAM_ONE"
+            },
+            {
+                "timestampEpoch": 1767450660000,
+                "type": "GOAL",
+                "team": "TEAM_ONE"
+            },
+            {
+                "timestampEpoch": 1767450670000,
+                "type": "GAME_OVER"
+            }
+        ],
+        "nearAttackingTeam": "TEAM_TWO",
+        "pullingTeam": "TEAM_ONE",
+        "pullingFromEnd": "NEAR",
+        "openingPullingTeam": "TEAM_ONE",
+        "openingPullingFromEnd": "FAR",
+        "phase": "GAME_OVER",
+        "countdown": null,
+        "pullCountdownExpired": false,
+        "pullSequenceOffsidesRecorded": false,
+        "pullSequenceFalseStartRecorded": false,
+        "pullSkippedForCurrentPoint": false,
+        "pendingMisconductCountdown": false,
+        "halftimeTaken": false,
+        "halftimeTargetScore": null,
+        "winningScore": null,
+        "halfCapApplied": false,
+        "softCapApplied": false,
+        "hardCapApplied": false,
+        "pendingCapOffer": null,
+        "undoEntry": null,
+        "redoEntry": null,
+        "lastEvent": "Game over."
+    },
+    "subtitle": "Generated v1.0 short game",
+    "restorableState": null,
+    "versionName": "1.0.0",
+    "versionCode": 1
+}

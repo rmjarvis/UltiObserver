@@ -1,0 +1,36 @@
+{
+    "versionName": "1.0.0",
+    "versionCode": 1,
+    "setupState": {
+        "startDate": "2026-06-27",
+        "startTime": "16:30",
+        "timeZone": "America/New_York",
+        "tournamentName": "",
+        "rules": {
+            "gameTo": 15,
+            "halftimeMinutes": 7,
+            "useHalfCap": true,
+            "halfCapMinutes": 45,
+            "useSoftCap": true,
+            "softCapMinutes": 90,
+            "useHardCap": true,
+            "hardCapMinutes": 105,
+            "timeoutsPerHalf": 2,
+            "hasFloaterTimeout": false
+        },
+        "teamOne": {
+            "name": "",
+            "color": "WHITE"
+        },
+        "teamTwo": {
+            "name": "",
+            "color": "BLUE"
+        },
+        "priorCards": [],
+        "pullingTeam": "TEAM_ONE",
+        "pullingFromEnd": "FAR"
+    },
+    "liveState": null,
+    "setupMode": "NEW_GAME",
+    "hasSetupDraft": false
+}
