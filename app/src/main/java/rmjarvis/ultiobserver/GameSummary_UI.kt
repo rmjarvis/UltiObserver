@@ -38,8 +38,11 @@ import androidx.compose.ui.unit.dp
  * Render a completed game as a read-only summary screen.
  *
  * @param state The completed game state to summarize.
+ * @param summaryContext Optional context explaining why this summary is shown.
  * @param summaryActionText Fixed bottom action label, such as Undo End game or Restore game.
  * @param onSummaryAction Callback invoked by the fixed bottom action.
+ * @param secondarySummaryActionText Optional second fixed-bottom action label.
+ * @param onSecondarySummaryAction Optional callback invoked by the second fixed-bottom action.
  * @param onBack Callback returning to the previous screen.
  * @param gameOverPrompt Optional prompt shown when a live game has just ended.
  * @param onDismissGameOverPrompt Callback dismissing the optional game-over prompt.
@@ -48,8 +51,11 @@ import androidx.compose.ui.unit.dp
 @Composable
 internal fun GameOverSummaryScreen(
     state: GameState,
+    summaryContext: String? = null,
     summaryActionText: String,
     onSummaryAction: () -> Unit,
+    secondarySummaryActionText: String? = null,
+    onSecondarySummaryAction: (() -> Unit)? = null,
     onBack: () -> Unit,
     gameOverPrompt: GamePrompt?,
     onDismissGameOverPrompt: () -> Unit,
@@ -79,8 +85,11 @@ internal fun GameOverSummaryScreen(
                 state = state,
                 onShowEventLog = { showEventLogSheet = true },
                 onShareSummary = { context.shareGameSummary(state) },
+                summaryContext = summaryContext,
                 summaryActionText = summaryActionText,
                 onSummaryAction = onSummaryAction,
+                secondarySummaryActionText = secondarySummaryActionText,
+                onSecondarySummaryAction = onSecondarySummaryAction,
             )
         }
     }
@@ -117,16 +126,22 @@ internal fun GameOverSummaryScreen(
  * @param state The completed game state to summarize.
  * @param onShowEventLog Callback opening the completed game's event log.
  * @param onShareSummary Callback opening Android's text-share sheet for this game summary.
+ * @param summaryContext Optional context explaining why this summary is shown.
  * @param summaryActionText Fixed bottom action label, such as Undo End game or Restore game.
  * @param onSummaryAction Callback invoked by the fixed bottom action.
+ * @param secondarySummaryActionText Optional second fixed-bottom action label.
+ * @param onSecondarySummaryAction Optional callback invoked by the second fixed-bottom action.
  */
 @Composable
 internal fun GameOverSummary(
     state: GameState,
     onShowEventLog: () -> Unit,
     onShareSummary: () -> Unit,
+    summaryContext: String? = null,
     summaryActionText: String,
     onSummaryAction: () -> Unit,
+    secondarySummaryActionText: String? = null,
+    onSecondarySummaryAction: (() -> Unit)? = null,
 ) {
     val summaryText = state.gameOverSummaryText()
     Column(
@@ -168,15 +183,23 @@ internal fun GameOverSummary(
                         text = summaryText.startLine,
                         style = MaterialTheme.typography.bodyMedium,
                     )
-                    Text(
-                        text = summaryText.endLine,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+                    summaryText.endLine?.let { endLine ->
+                        Text(
+                            text = endLine,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
                     summaryText.scoreLines.forEach { scoreLine ->
                         Text(
                             text = scoreLine,
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold,
+                        )
+                    }
+                    if (!summaryContext.isNullOrBlank()) {
+                        Text(
+                            text = summaryContext,
+                            style = MaterialTheme.typography.bodyMedium,
                         )
                     }
                 }
@@ -226,6 +249,19 @@ internal fun GameOverSummary(
                 border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
             ) {
                 Text(summaryActionText)
+            }
+            if (secondarySummaryActionText != null && onSecondarySummaryAction != null) {
+                OutlinedButton(
+                    onClick = onSecondarySummaryAction,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = Color.White,
+                        contentColor = Color.Black,
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
+                ) {
+                    Text(secondarySummaryActionText)
+                }
             }
         }
     }

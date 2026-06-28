@@ -74,13 +74,13 @@ private val SECTION_TITLE_LINE_HEIGHT = 28.dp       // Line height for title
 // Elements of the GameListRow in the bottom SectionCard
 private val GAME_ROW_VERTICAL_PADDING = 24.dp       // 12 dp padding at top and bottom
 private val GAME_ROW_DATE_LINE_HEIGHT = 17.dp       // Line height for start date/time
-private val GAME_ROW_SCORE_LINE_HEIGHT = 24.dp      // Line height for score
-private val GAME_ROW_LINE_GAP = 4.dp                // Space between start date/time and score
+private val GAME_ROW_SUMMARY_LINE_HEIGHT = 24.dp    // Line height for matchup/score summary
+private val GAME_ROW_LINE_GAP = 4.dp                // Space between start date/time and summary
 
 // Total size of the GameListRow
 private val GAME_ROW_HEIGHT =
     GAME_ROW_VERTICAL_PADDING + GAME_ROW_DATE_LINE_HEIGHT + GAME_ROW_LINE_GAP +
-        GAME_ROW_SCORE_LINE_HEIGHT
+        GAME_ROW_SUMMARY_LINE_HEIGHT
 
 // Height of the three central action rows plus the gap before a bottom game section.
 private val ACTIONS_HEIGHT = BUTTON_HEIGHT * 3 + BUTTON_SPACER * 3
@@ -89,7 +89,7 @@ private val ACTIONS_HEIGHT = BUTTON_HEIGHT * 3 + BUTTON_SPACER * 3
 internal fun GameState.gameListEntry(): GameListEntry {
     return GameListEntry(
         title = compactStartDateTime(),
-        subtitle = scoreLine(),
+        subtitle = gameListSummaryLine(),
     )
 }
 
@@ -97,7 +97,7 @@ internal fun GameState.gameListEntry(): GameListEntry {
 internal fun GameSetupState.gameListEntry(): GameListEntry {
     return GameListEntry(
         title = compactStartDateTime(),
-        subtitle = scoreLine(),
+        subtitle = gameListSummaryLine(),
     )
 }
 
@@ -107,14 +107,6 @@ private fun GameState.compactStartDateTime(): String {
 
 private fun GameSetupState.compactStartDateTime(): String {
     return formatCompactStartDateTime(startDate, startTime)
-}
-
-private fun GameState.scoreLine(): String {
-    return "${teamOne.name} ${teamOne.score} - ${teamTwo.score} ${teamTwo.name}"
-}
-
-private fun GameSetupState.scoreLine(): String {
-    return "${teamOne.name.ifBlank { "Team 1" }} 0 - 0 ${teamTwo.name.ifBlank { "Team 2" }}"
 }
 
 // Home screen with quick entry points for current, completed, and archived games.
@@ -165,7 +157,7 @@ internal fun HomeScreen(
             val sectionTitleLineHeight = SECTION_TITLE_LINE_HEIGHT.scaledByFont()
             val gameRowHeight =
                 GAME_ROW_VERTICAL_PADDING + GAME_ROW_DATE_LINE_HEIGHT.scaledByFont() +
-                    GAME_ROW_LINE_GAP + GAME_ROW_SCORE_LINE_HEIGHT.scaledByFont()
+                    GAME_ROW_LINE_GAP + GAME_ROW_SUMMARY_LINE_HEIGHT.scaledByFont()
             val currentGameCardHeight =
                 SECTION_VERTICAL_PADDING + sectionTitleLineHeight + gameRowHeight + SECTION_ITEM_GAP
             val completedGameCardHeight =
@@ -285,7 +277,11 @@ internal fun HomeScreen(
                                 title = "Current game",
                                 subtitle = currentGameSectionSubtitle,
                             ) {
-                                GameListRow(entry = currentGame, onClick = onResumeCurrentGame)
+                                GameListRow(
+                                    entry = currentGame,
+                                    modifier = Modifier.testTag("current-game"),
+                                    onClick = onResumeCurrentGame,
+                                )
                             }
                         }
 
@@ -352,7 +348,7 @@ private fun HomeActions(
             onClick = onOpenArchivedGames,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            HomeActionText("See archived games")
+            HomeActionText("See archived/saved games")
         }
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -404,24 +400,24 @@ internal fun GameListRow(
 ) {
     GameListRow(
         startDateTime = entry.title,
-        scoreLine = entry.subtitle,
+        summaryLine = entry.subtitle,
         modifier = modifier,
         onClick = onClick,
     )
 }
 
 /**
- * Render a tappable game row with date/time above the score line.
+ * Render a tappable game row with date/time above the matchup or score summary.
  *
  * @param startDateTime The compact start date/time line.
- * @param scoreLine The teams and score line.
+ * @param summaryLine The matchup or score summary line.
  * @param modifier Optional row modifier.
  * @param onClick Callback opening the game.
  */
 @Composable
 internal fun GameListRow(
     startDateTime: String,
-    scoreLine: String,
+    summaryLine: String,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
@@ -448,7 +444,7 @@ internal fun GameListRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelLarge,
             )
-            Text(scoreLine, fontWeight = FontWeight.Medium)
+            Text(summaryLine, fontWeight = FontWeight.Medium)
         }
     }
 }

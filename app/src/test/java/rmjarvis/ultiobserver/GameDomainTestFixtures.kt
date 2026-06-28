@@ -41,8 +41,8 @@ abstract class GameDomainTestFixtures {
             startTime = startTime,
             timeZone = timeZone,
             rules = rules,
-            teamOne = TeamSetup("Viscous Coupling", TeamColorChoice.WHITE),
-            teamTwo = TeamSetup("Animal", TeamColorChoice.RED),
+            teamOne = TeamIdentity("Viscous Coupling", TeamColorChoice.WHITE),
+            teamTwo = TeamIdentity("Animal", TeamColorChoice.RED),
             pullingTeam = pullingTeam,
             pullingFromEnd = pullingFromEnd,
         )
@@ -86,6 +86,65 @@ abstract class GameDomainTestFixtures {
     }
 
     /**
+     * Build a live-team state from identity fields plus optional live counters.
+     *
+     * This keeps tests concise while production code constructs live teams from `TeamIdentity`.
+     *
+     * @param name Team display name for the test state.
+     * @param color Team jersey color for the test state.
+     * @param customColorArgb Opaque ARGB value for a custom jersey color, when relevant.
+     * @param coaches Free-form coach details for the test state.
+     * @param fieldCaptains Free-form field-captain details for the test state.
+     * @param spiritCaptains Free-form spirit-captain details for the test state.
+     * @param score Team score.
+     * @param timeoutsUsedThisHalf Timeouts used in the current half.
+     * @param firstHalfTimeoutsUsed Timeouts used in the first half.
+     * @param offsides Offsides count.
+     * @param falseStarts False-start count.
+     * @param majorityPullViolations Majority-pull violation count.
+     * @param timeViolations Time-violation count.
+     * @param technicalFouls Technical-foul count.
+     * @param blueCards Blue-card count.
+     */
+    protected fun testTeamLiveState(
+        name: String,
+        color: TeamColorChoice,
+        customColorArgb: Long? = null,
+        coaches: String = "",
+        fieldCaptains: String = "",
+        spiritCaptains: String = "",
+        score: Int = 0,
+        timeoutsUsedThisHalf: Int = 0,
+        firstHalfTimeoutsUsed: Int = 0,
+        offsides: Int = 0,
+        falseStarts: Int = 0,
+        majorityPullViolations: Int = 0,
+        timeViolations: Int = 0,
+        technicalFouls: Int = 0,
+        blueCards: Int = 0,
+    ): TeamLiveState {
+        return TeamLiveState(
+            identity = TeamIdentity(
+                name = name,
+                color = color,
+                customColorArgb = customColorArgb,
+                coaches = coaches,
+                fieldCaptains = fieldCaptains,
+                spiritCaptains = spiritCaptains,
+            ),
+            score = score,
+            timeoutsUsedThisHalf = timeoutsUsedThisHalf,
+            firstHalfTimeoutsUsed = firstHalfTimeoutsUsed,
+            offsides = offsides,
+            falseStarts = falseStarts,
+            majorityPullViolations = majorityPullViolations,
+            timeViolations = timeViolations,
+            technicalFouls = technicalFouls,
+            blueCards = blueCards,
+        )
+    }
+
+    /**
      * Return an epoch timestamp a fixed number of minutes after a live state's start.
      *
      * @param state The state whose start epoch anchors the timestamp.
@@ -119,6 +178,17 @@ abstract class GameDomainTestFixtures {
             .atZone(state.timeZone)
             .toInstant()
             .toEpochMilli()
+    }
+
+    /**
+     * Return the expected archive context for a game saved when starting another game.
+     *
+     * @param state The state whose time zone formats the saved-at time.
+     * @param now Epoch millis when the game was saved aside.
+     */
+    protected fun savedWhenNewGameStartedContext(state: GameState, now: Long): String {
+        val savedTime = localTimeFromEpoch(now, state.timeZone)
+        return "Saved at ${formatClockTime(savedTime)}, when a new game was started"
     }
 
     /**

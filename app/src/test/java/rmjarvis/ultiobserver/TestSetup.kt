@@ -27,6 +27,28 @@ class TestSetup : GameDomainTestFixtures() {
         val newSetupState = newGameSetupState(LocalDateTime.of(2026, 1, 1, 9, 0))
         assertEquals(GameRules(), newSetupState.rules)
 
+        // A new setup draft can carry tournament context from the previous game while keeping
+        // its own freshly calculated start date and time.
+        val previousGameInfo = fullSetup().copy(
+            rules = GameRules(gameTo = 11),
+            teamOne = TeamIdentity("Previous A", TeamColorChoice.GREEN),
+            teamTwo = TeamIdentity("Previous B", TeamColorChoice.YELLOW),
+        )
+        val repeatedTournamentSetup = newGameSetupState(
+            now = LocalDateTime.of(2026, 1, 1, 9, 15),
+            defaultsFrom = createGameState(previousGameInfo),
+        )
+        assertEquals(LocalDate.of(2026, 1, 1), repeatedTournamentSetup.startDate)
+        assertEquals(LocalTime.of(9, 30), repeatedTournamentSetup.startTime)
+        assertEquals("Potlatch", repeatedTournamentSetup.tournamentName)
+        assertEquals(GameDivision.MIXED, repeatedTournamentSetup.division)
+        assertEquals("Grandmasters", repeatedTournamentSetup.level)
+        assertEquals("Pool play", repeatedTournamentSetup.gameContext)
+        assertEquals("Mike and Gary", repeatedTournamentSetup.observers)
+        assertEquals(GameRules(gameTo = 11), repeatedTournamentSetup.rules)
+        assertEquals("", repeatedTournamentSetup.teamOne.name)
+        assertEquals("", repeatedTournamentSetup.teamTwo.name)
+
         // A setup-created live game has empty player lists when no prior card holders are entered.
         val noPriorCardsState = createLiveGameState(
             standardGameSetup(startTime = LocalTime.of(8, 30))
@@ -37,13 +59,23 @@ class TestSetup : GameDomainTestFixtures() {
         assertFalse(noPriorCardsState.teamTwo.hasCoachOrCaptainInfo())
 
         // Any individual coach/captain field makes live-team staff information visible.
-        assertTrue(noPriorCardsState.teamOne.copy(coaches = "Coach").hasCoachOrCaptainInfo())
         assertTrue(
-            noPriorCardsState.teamOne.copy(fieldCaptains = "Field captain")
+            noPriorCardsState.teamOne
+                .withIdentity(noPriorCardsState.teamOne.identity.copy(coaches = "Coach"))
                 .hasCoachOrCaptainInfo()
         )
         assertTrue(
-            noPriorCardsState.teamOne.copy(spiritCaptains = "Spirit captain")
+            noPriorCardsState.teamOne
+                .withIdentity(
+                    noPriorCardsState.teamOne.identity.copy(fieldCaptains = "Field captain"),
+                )
+                .hasCoachOrCaptainInfo()
+        )
+        assertTrue(
+            noPriorCardsState.teamOne
+                .withIdentity(
+                    noPriorCardsState.teamOne.identity.copy(spiritCaptains = "Spirit captain"),
+                )
                 .hasCoachOrCaptainInfo()
         )
 
@@ -73,6 +105,26 @@ class TestSetup : GameDomainTestFixtures() {
         assertEquals(VC, state.nearAttackingTeam)
         assertEquals(teamOnePlayers, state.teamOnePlayers)
         assertEquals(teamTwoPlayers, state.teamTwoPlayers)
+
+        // Setup-stage game state preserves exact setup fields before opening-pull flow starts.
+        val blankNameSetup = setup.copy(
+            teamOne = setup.teamOne.copy(name = ""),
+            teamTwo = setup.teamTwo.copy(name = ""),
+        )
+        val setupState = createGameState(blankNameSetup)
+        assertEquals(GamePhase.SETUP, setupState.phase)
+        assertFalse(setupState.phase.isBeforeLivePoint)
+        assertNull(setupState.countdown)
+        assertEquals(blankNameSetup, setupState.toSetupState())
+        assertEquals("", setupState.teamOne.name)
+        assertEquals("", setupState.teamTwo.name)
+        val startedSetupState = setupState.startGame()
+        assertEquals(GamePhase.PRE_GAME, startedSetupState.phase)
+        assertTrue(startedSetupState.phase.isBeforeLivePoint)
+        assertEquals("Team 1", startedSetupState.teamOne.name)
+        assertEquals("Team 2", startedSetupState.teamTwo.name)
+        assertEquals(CountdownKind.OPENING_PULL, startedSetupState.countdown?.kind)
+        assertEquals(createLiveGameState(blankNameSetup), startedSetupState)
 
         // The opening pull countdown starts from the game start epoch.
         assertEquals(GamePhase.PRE_GAME, state.phase)
@@ -163,8 +215,8 @@ class TestSetup : GameDomainTestFixtures() {
 
         // Setup and live teams use built-in colors directly unless the observer picked a custom
         // color.
-        val builtInSetupTeam = TeamSetup("Built in", TeamColorChoice.PINK)
-        val builtInLiveTeam = TeamLiveState("Built in", TeamColorChoice.PINK)
+        val builtInSetupTeam = TeamIdentity("Built in", TeamColorChoice.PINK)
+        val builtInLiveTeam = testTeamLiveState("Built in", TeamColorChoice.PINK)
         assertEquals(Color(0xFFFF4FA3), builtInSetupTeam.accent)
         assertEquals(Color(0xFF2F1022), builtInSetupTeam.content)
         assertEquals(Color(0xFFFF4FA3), builtInLiveTeam.accent)
@@ -172,12 +224,12 @@ class TestSetup : GameDomainTestFixtures() {
 
         // Custom team colors keep the observer-picked background and choose readable text from
         // the background luminance.
-        val lightCustomSetupTeam = TeamSetup(
+        val lightCustomSetupTeam = TeamIdentity(
             name = "Light",
             color = TeamColorChoice.CUSTOM,
             customColorArgb = 0xFFE7F0F7L,
         )
-        val darkCustomLiveTeam = TeamLiveState(
+        val darkCustomLiveTeam = testTeamLiveState(
             name = "Dark",
             color = TeamColorChoice.CUSTOM,
             customColorArgb = 0xFF203040L,
@@ -197,10 +249,10 @@ class TestSetup : GameDomainTestFixtures() {
             TeamColorChoice.CUSTOM.content
         }
         assertThrows(IllegalArgumentException::class.java) {
-            TeamSetup("Custom", TeamColorChoice.CUSTOM)
+            TeamIdentity("Custom", TeamColorChoice.CUSTOM)
         }
         assertThrows(IllegalArgumentException::class.java) {
-            TeamLiveState("Custom", TeamColorChoice.CUSTOM)
+            testTeamLiveState("Custom", TeamColorChoice.CUSTOM)
         }
     }
 
@@ -309,8 +361,8 @@ class TestSetup : GameDomainTestFixtures() {
 
         // Blank team names fall back to stable setup labels in summaries.
         val blankTeamSetup = defaultEndsSetup.copy(
-            teamOne = TeamSetup("", TeamColorChoice.WHITE),
-            teamTwo = TeamSetup("", TeamColorChoice.BLUE),
+            teamOne = TeamIdentity("", TeamColorChoice.WHITE),
+            teamTwo = TeamIdentity("", TeamColorChoice.BLUE),
             pullingTeam = ANIMAL,
             pullingFromEnd = FieldEnd.FAR,
         )
@@ -359,7 +411,7 @@ class TestSetup : GameDomainTestFixtures() {
         )
 
         // Coach and captain summaries trim each line and skip empty staff fields.
-        val staffTeam = TeamSetup(
+        val staffTeam = TeamIdentity(
             name = "Viscous Coupling",
             color = TeamColorChoice.WHITE,
             coaches = " Coach A \n\n Coach B ",
@@ -476,9 +528,9 @@ class TestSetup : GameDomainTestFixtures() {
         // returns to setup rather than Home. Show this by inserting this state into a ViewModel
         // that otherwise came from starting a normal game.
         val previewModel = AppViewModel(NoOpAppStateStorage)
-        previewModel.startNewGame()
+        previewModel.startNewGame(now = 123_000L)
         previewModel.updateSetup(setup)
-        previewModel.finishSetup()
+        previewModel.finishSetup(now = 123_000L)
         previewModel.updateLiveGame(state)
         assertEquals(AppScreen.LIVE, previewModel.screen)
         previewModel.goBackFromCurrentScreen()
@@ -496,9 +548,9 @@ class TestSetup : GameDomainTestFixtures() {
         assertFalse(blueCardState.isInitialLivePreview())
 
         val blueCardModel = AppViewModel(NoOpAppStateStorage)
-        blueCardModel.startNewGame()
+        blueCardModel.startNewGame(now = 123_000L)
         blueCardModel.updateSetup(setup)
-        blueCardModel.finishSetup()
+        blueCardModel.finishSetup(now = 123_000L)
         blueCardModel.updateLiveGame(blueCardState)
         assertEquals(AppScreen.LIVE, blueCardModel.screen)
         blueCardModel.goBackFromCurrentScreen()
@@ -651,8 +703,8 @@ class TestSetup : GameDomainTestFixtures() {
         var state = applySetupToLiveGame(
             stateBeforeBlankNames,
             setup.copy(
-                teamOne = TeamSetup("", TeamColorChoice.WHITE),
-                teamTwo = TeamSetup("", TeamColorChoice.BLUE),
+                teamOne = TeamIdentity("", TeamColorChoice.WHITE),
+                teamTwo = TeamIdentity("", TeamColorChoice.BLUE),
             ),
             400_000L,
         )
@@ -667,8 +719,8 @@ class TestSetup : GameDomainTestFixtures() {
         state = applySetupToLiveGame(
             stateBeforeBlankNames,
             setup.copy(
-                teamOne = TeamSetup("", TeamColorChoice.WHITE),
-                teamTwo = TeamSetup("", TeamColorChoice.BLUE),
+                teamOne = TeamIdentity("", TeamColorChoice.WHITE),
+                teamTwo = TeamIdentity("", TeamColorChoice.BLUE),
             ),
             400_000L,
         )
@@ -710,7 +762,7 @@ class TestSetup : GameDomainTestFixtures() {
             observers = "Mike and Gary",
             nearEndName = "Road",
             farEndName = "Trees",
-            teamOne = TeamSetup(
+            teamOne = TeamIdentity(
                 name = "Viscous Coupling",
                 color = TeamColorChoice.CUSTOM,
                 customColorArgb = 0xFF123456L,
@@ -718,7 +770,7 @@ class TestSetup : GameDomainTestFixtures() {
                 fieldCaptains = "VC field captain",
                 spiritCaptains = "VC spirit captain",
             ),
-            teamTwo = TeamSetup(
+            teamTwo = TeamIdentity(
                 name = "Animal",
                 color = TeamColorChoice.YELLOW,
                 coaches = "Animal coaches",
@@ -744,7 +796,7 @@ class TestSetup : GameDomainTestFixtures() {
             nearEndName = "Parking",
             farEndName = "Scoreboard",
             rules = setup.rules.copy(gameTo = 15, timeoutsPerHalf = 2),
-            teamOne = TeamSetup(
+            teamOne = TeamIdentity(
                 name = "VC",
                 color = TeamColorChoice.WHITE,
                 customColorArgb = 0xFF123456L,
@@ -752,7 +804,7 @@ class TestSetup : GameDomainTestFixtures() {
                 fieldCaptains = "Field captain edits",
                 spiritCaptains = "Spirit captain edits",
             ),
-            teamTwo = TeamSetup(
+            teamTwo = TeamIdentity(
                 name = "Animal Ultimate",
                 color = TeamColorChoice.RED,
                 coaches = "Other coach edits",
@@ -780,14 +832,14 @@ class TestSetup : GameDomainTestFixtures() {
             nearEndName = "South",
             farEndName = "North",
             rules = setupEdit1.rules.copy(gameTo = 17, hasFloaterTimeout = false),
-            teamOne = TeamSetup(
+            teamOne = TeamIdentity(
                 name = "Viscous",
                 color = TeamColorChoice.BLACK,
                 coaches = "Post-play coach",
                 fieldCaptains = "Post-play field captain",
                 spiritCaptains = "Post-play spirit captain",
             ),
-            teamTwo = TeamSetup(
+            teamTwo = TeamIdentity(
                 name = "Animal",
                 color = TeamColorChoice.CUSTOM,
                 customColorArgb = 0xFFABCDEFL,

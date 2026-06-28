@@ -259,7 +259,7 @@ class TestSerialization : GameDomainTestFixtures() {
             observers = "Later observer",
             nearEndName = "Later near",
             farEndName = "Later far",
-            teamOne = TeamLiveState(
+            teamOne = testTeamLiveState(
                 name = "Later One",
                 color = TeamColorChoice.CUSTOM,
                 customColorArgb = 0xFF102030L,
@@ -276,7 +276,7 @@ class TestSerialization : GameDomainTestFixtures() {
                 technicalFouls = 5,
                 blueCards = 6,
             ),
-            teamTwo = TeamLiveState(
+            teamTwo = testTeamLiveState(
                 name = "Later Two",
                 color = TeamColorChoice.PINK,
                 coaches = "Later two coach",
@@ -363,7 +363,7 @@ class TestSerialization : GameDomainTestFixtures() {
             observers = "Previous observer",
             nearEndName = "Previous near",
             farEndName = "Previous far",
-            teamOne = TeamLiveState(
+            teamOne = testTeamLiveState(
                 name = "Previous One",
                 color = TeamColorChoice.WHITE,
                 coaches = "Previous one coach",
@@ -379,7 +379,7 @@ class TestSerialization : GameDomainTestFixtures() {
                 technicalFouls = 0,
                 blueCards = 0,
             ),
-            teamTwo = TeamLiveState(
+            teamTwo = testTeamLiveState(
                 name = "Previous Two",
                 color = TeamColorChoice.CUSTOM,
                 customColorArgb = 0xFF304050L,

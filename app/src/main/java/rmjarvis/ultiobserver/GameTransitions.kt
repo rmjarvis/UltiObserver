@@ -3,25 +3,17 @@ package rmjarvis.ultiobserver
 import kotlin.math.max
 
 /**
- * Build the initial live-game state from the completed setup form.
+ * Build a setup-stage game state from the setup form without starting live-game flow.
  *
- * @param setup The pregame setup choices that define teams, rules, start time, and opening
- * pull orientation.
+ * @param setup The pregame setup choices to store exactly as entered.
  */
-fun createLiveGameState(setup: GameSetupState): GameState {
+fun createGameState(setup: GameSetupState): GameState {
     val nearAttackingTeam = if (setup.pullingFromEnd == FieldEnd.FAR) {
         setup.pullingTeam
     } else {
         setup.pullingTeam.flip()
     }
     val startEpoch = epochTimestamp(setup.startDate, setup.startTime, setup.timeZone)
-    val initialCountdown = buildBetweenPointsCountdown(
-        pullingFromEnd = setup.pullingFromEnd,
-        sequenceStart = startEpoch,
-        kind = CountdownKind.OPENING_PULL,
-        promptTarget = setup.pullPromptTarget,
-    )
-
     return GameState(
         startDate = setup.startDate,
         startTime = setup.startTime,
@@ -35,22 +27,8 @@ fun createLiveGameState(setup: GameSetupState): GameState {
         nearEndName = setup.nearEndName,
         farEndName = setup.farEndName,
         rules = setup.rules,
-        teamOne = TeamLiveState(
-            name = setup.teamOne.name.ifBlank { "Team 1" },
-            color = setup.teamOne.color,
-            customColorArgb = setup.teamOne.customColorArgb,
-            coaches = setup.teamOne.coaches,
-            fieldCaptains = setup.teamOne.fieldCaptains,
-            spiritCaptains = setup.teamOne.spiritCaptains,
-        ),
-        teamTwo = TeamLiveState(
-            name = setup.teamTwo.name.ifBlank { "Team 2" },
-            color = setup.teamTwo.color,
-            customColorArgb = setup.teamTwo.customColorArgb,
-            coaches = setup.teamTwo.coaches,
-            fieldCaptains = setup.teamTwo.fieldCaptains,
-            spiritCaptains = setup.teamTwo.spiritCaptains,
-        ),
+        teamOne = TeamLiveState(identity = setup.teamOne),
+        teamTwo = TeamLiveState(identity = setup.teamTwo),
         teamOnePlayers = setup.teamOnePlayers,
         teamTwoPlayers = setup.teamTwoPlayers,
         nearAttackingTeam = nearAttackingTeam,
@@ -62,10 +40,45 @@ fun createLiveGameState(setup: GameSetupState): GameState {
         switchGenZoneAtHalftime = setup.switchGenZoneAtHalftime,
         openingPullingTeam = setup.pullingTeam,
         openingPullingFromEnd = setup.pullingFromEnd,
-        phase = GamePhase.PRE_GAME,
-        countdown = initialCountdown,
+        phase = GamePhase.SETUP,
+        countdown = null,
     )
 }
+
+/**
+ * Start a setup-stage game and prepare the opening-pull live preview.
+ *
+ * @receiver The setup-stage state to start.
+ */
+fun GameState.startGame(): GameState {
+    check(phase == GamePhase.SETUP)
+    return copy(
+        teamOne = teamOne.withIdentity(
+            teamOne.identity.copy(name = teamOne.name.ifBlank { "Team 1" }),
+        ),
+        teamTwo = teamTwo.withIdentity(
+            teamTwo.identity.copy(name = teamTwo.name.ifBlank { "Team 2" }),
+        ),
+        phase = GamePhase.PRE_GAME,
+        countdown = buildBetweenPointsCountdown(
+            pullingFromEnd = pullingFromEnd,
+            sequenceStart = startEpoch,
+            kind = CountdownKind.OPENING_PULL,
+            promptTarget = pullPromptTarget,
+        ),
+    )
+}
+
+/**
+ * Build the initial live-game state from the completed setup form.
+ *
+ * @param setup The pregame setup choices that define teams, rules, start time, and opening
+ * pull orientation.
+ */
+fun createLiveGameState(setup: GameSetupState): GameState {
+    return createGameState(setup).startGame()
+}
+
 /**
  * Start a pre-pull countdown from the current field orientation.
  * This is for edge cases where an event does not automatically start the countdown directly.

@@ -160,8 +160,7 @@ class TestMigration : GameDomainTestFixtures() {
         assertEquals(2, liveState.eventLog.count { it.type == EventLogType.TIMEOUT })
 
         // setup-saved was a game that just got past the setup stage before being archived
-        // and restored as the current game.  It's main important feature is that it has
-        // a restorable state to get back to the live game state.
+        // and restored as the current game.
         val setupSaved = loadMigratedFixture("v1.0", "setup-saved")
         val setupSavedLiveState = setupSaved.liveState!!
         assertEquals(GamePhase.PRE_GAME, setupSavedLiveState.phase)
@@ -170,16 +169,15 @@ class TestMigration : GameDomainTestFixtures() {
         assertTrue(setupSavedLiveState.pullCountdownExpired)
         assertEquals(1, setupSaved.archivedGames.size)
         val setupSavedArchive = setupSaved.archivedGames.single()
-        assertEquals(GamePhase.GAME_OVER, setupSavedArchive.state.phase)
+        assertEquals(ArchivedGameCategory.IN_PROGRESS, setupSavedArchive.category)
+        assertEquals(GamePhase.PRE_GAME, setupSavedArchive.state.phase)
         assertEquals("Simple One", setupSavedArchive.state.teamOne.name)
         assertEquals("Simple Two", setupSavedArchive.state.teamTwo.name)
-        val setupSavedRestorable = setupSavedArchive.restorableState!!
-        assertEquals(GamePhase.PRE_GAME, setupSavedRestorable.phase)
-        assertNull(setupSavedRestorable.countdown)
-        assertTrue(setupSavedRestorable.pullCountdownExpired)
-        assertTrue(setupSavedRestorable.teamOnePlayers.isEmpty())
-        assertTrue(setupSavedRestorable.teamTwoPlayers.isEmpty())
-        assertTrue(setupSavedRestorable.eventLog.isEmpty())
+        assertNull(setupSavedArchive.state.countdown)
+        assertTrue(setupSavedArchive.state.pullCountdownExpired)
+        assertTrue(setupSavedArchive.state.teamOnePlayers.isEmpty())
+        assertTrue(setupSavedArchive.state.teamTwoPlayers.isEmpty())
+        assertTrue(setupSavedArchive.state.eventLog.isEmpty())
 
         // complete-current-game is a game that has finished, but not been archived.
         // So it still has an Undo End game option to take it back to a live game state.
@@ -327,6 +325,8 @@ class TestMigration : GameDomainTestFixtures() {
         val completedArchive = loadMigratedFixture("v1.0", "completed-archive")
         assertEquals(2, completedArchive.archivedGames.size)
         val richArchive = completedArchive.archivedGames.first()
+        assertEquals(ArchivedGameCategory.COMPLETED, richArchive.category)
+        assertEquals("Generated v1.0 rich game", richArchive.summaryContext)
         assertEquals(GamePhase.GAME_OVER, richArchive.state.phase)
         assertEquals("Undo End game", richArchive.state.undoEntry?.label)
         val restoredFromEndGame = richArchive.state.undoLastAction()

@@ -142,12 +142,12 @@ class TestPersistence : GameDomainTestFixtures() {
         val viewModel = AppViewModel(store)
 
         // A fresh ViewModel should keep a setup draft but open at Home.
-        viewModel.startNewGame()
+        viewModel.startNewGame(now = 123_000L)
         val persistedRules = GameRules(gameTo = 13, hardCapMinutes = 95, hasFloaterTimeout = true)
         val draftedSetup = viewModel.setupState.copy(
             rules = persistedRules,
-            teamOne = TeamSetup("Viscous Coupling", TeamColorChoice.BLUE),
-            teamTwo = TeamSetup("Animal", TeamColorChoice.PINK),
+            teamOne = TeamIdentity("Viscous Coupling", TeamColorChoice.BLUE),
+            teamTwo = TeamIdentity("Animal", TeamColorChoice.PINK),
         )
         viewModel.updateSetup(draftedSetup)
         val draftRestored = AppViewModel(FileAppStateStorage(storeDir))
@@ -160,7 +160,7 @@ class TestPersistence : GameDomainTestFixtures() {
         assertEquals(AppScreen.SETUP, draftRestored.screen)
 
         // Finish setup, record an undo-backed game action, and verify it survives restart.
-        draftRestored.finishSetup()
+        draftRestored.finishSetup(now = 123_000L)
         assertFalse(draftRestored.hasSetupDraft)
         val livePointState = draftRestored.liveState!!.beginLivePoint()
         val scoredState = livePointState.recordGoal(
@@ -203,8 +203,8 @@ class TestPersistence : GameDomainTestFixtures() {
         val viewModel = AppViewModel(store)
 
         // Start a live game and clear the setup saves so the event assertion is focused.
-        viewModel.startNewGame()
-        viewModel.finishSetup()
+        viewModel.startNewGame(now = 123_000L)
+        viewModel.finishSetup(now = 123_000L)
         store.savedCurrentGameStates.clear()
 
         // Record an ordinary user-visible event through the same callback used by live UI actions.
@@ -246,7 +246,7 @@ class TestPersistence : GameDomainTestFixtures() {
         assertEquals(2, store.savedProfiles.size)
 
         // Current-game writes should not touch profile or settings storage buckets.
-        viewModel.startNewGame()
+        viewModel.startNewGame(now = 123_000L)
         assertTrue(store.savedCurrentGameStates.single().hasSetupDraft)
         assertEquals(2, store.savedProfiles.size)
         assertEquals(1, store.savedSettings.size)
@@ -269,8 +269,8 @@ class TestPersistence : GameDomainTestFixtures() {
         val viewModel = AppViewModel(FileAppStateStorage(storeDir))
 
         // Complete and archive a game that still has live-only countdown and undo state.
-        viewModel.startNewGame()
-        viewModel.finishSetup()
+        viewModel.startNewGame(now = 123_000L)
+        viewModel.finishSetup(now = 123_000L)
         val beforeEndGame = viewModel.liveState!!
         val completedGame = beforeEndGame.copy(
             phase = GamePhase.GAME_OVER,
@@ -379,10 +379,10 @@ class TestPersistence : GameDomainTestFixtures() {
 
         // Archived games load only JSON files and cleanup removes stale numbered archive files.
         val archivedOne = ArchivedGame(
-            createLiveGameState(setup).copy(phase = GamePhase.GAME_OVER),
-            "First",
+            state = createLiveGameState(setup).copy(phase = GamePhase.GAME_OVER),
+            summaryContext = "First",
         )
-        val archivedTwo = archivedOne.copy(subtitle = "Second")
+        val archivedTwo = archivedOne.copy(summaryContext = "Second")
         store.saveArchivedGames(listOf(archivedOne, archivedTwo))
         val archiveDir = File(storeDir, "archived_games")
         File(archiveDir, "not-json.txt").writeText("ignored")
@@ -423,8 +423,8 @@ class TestPersistence : GameDomainTestFixtures() {
             setupMode = SetupMode.EDIT_CURRENT_GAME,
         )
         val savedArchive = ArchivedGame(
-            createLiveGameState(setup).copy(phase = GamePhase.GAME_OVER),
-            "Final",
+            state = createLiveGameState(setup).copy(phase = GamePhase.GAME_OVER),
+            summaryContext = "Final",
         )
         store.saveCurrentGameState(savedCurrentGameState)
         store.saveProfile(Profile(profileName = "Casey Observer"))
@@ -490,8 +490,11 @@ class TestPersistence : GameDomainTestFixtures() {
         // A single bad archive file should be skipped without losing the other readable summaries.
         val archiveStoreDir = temporaryFolder.newFolder()
         val archiveStore = FileAppStateStorage(archiveStoreDir)
-        val archivedOne = ArchivedGame(savedArchive.state, "First")
-        val archivedTwo = archivedOne.copy(subtitle = "Second")
+        val archivedOne = ArchivedGame(
+            state = savedArchive.state,
+            summaryContext = "First",
+        )
+        val archivedTwo = archivedOne.copy(summaryContext = "Second")
         archiveStore.saveArchivedGames(listOf(archivedOne, archivedTwo))
         File(File(archiveStoreDir, "archived_games"), "00000.json").writeText("{not-json")
         assertEquals(listOf(archivedTwo), archiveStore.loadArchivedGames())
@@ -535,8 +538,8 @@ class TestPersistence : GameDomainTestFixtures() {
             timingAlertPreferences = TimingAlertPreferences(soundVolume = 0.35f),
         )
         val savedArchive = ArchivedGame(
-            createLiveGameState(setup).copy(phase = GamePhase.GAME_OVER),
-            "Final",
+            state = createLiveGameState(setup).copy(phase = GamePhase.GAME_OVER),
+            summaryContext = "Final",
         )
         val debugVersionName = "${BuildConfig.VERSION_NAME}-debug"
 
@@ -549,11 +552,17 @@ class TestPersistence : GameDomainTestFixtures() {
         assertEquals(APP_STATE_VERSION_CODE, Settings().versionCode)
         assertEquals(
             APP_STATE_VERSION_NAME,
-            ArchivedGame(createLiveGameState(setup), "").versionName,
+            ArchivedGame(
+                state = createLiveGameState(setup),
+                summaryContext = "",
+            ).versionName,
         )
         assertEquals(
             APP_STATE_VERSION_CODE,
-            ArchivedGame(createLiveGameState(setup), "").versionCode,
+            ArchivedGame(
+                state = createLiveGameState(setup),
+                summaryContext = "",
+            ).versionCode,
         )
         val persistedVersion = AppVersion(
             versionName = debugVersionName,

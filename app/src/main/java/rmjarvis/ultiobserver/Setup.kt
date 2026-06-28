@@ -71,8 +71,8 @@ data class GameSetupState(
     val nearEndName: String = "",
     val farEndName: String = "",
     val rules: GameRules,
-    val teamOne: TeamSetup = TeamSetup(name = "", color = TeamColorChoice.WHITE),
-    val teamTwo: TeamSetup = TeamSetup(name = "", color = TeamColorChoice.BLUE),
+    val teamOne: TeamIdentity = TeamIdentity(name = "", color = TeamColorChoice.WHITE),
+    val teamTwo: TeamIdentity = TeamIdentity(name = "", color = TeamColorChoice.BLUE),
     val teamOnePlayers: List<PlayerRecord> = emptyList(),
     val teamTwoPlayers: List<PlayerRecord> = emptyList(),
     val pullingTeam: TeamId = TeamId.TEAM_ONE,
@@ -88,11 +88,11 @@ data class GameSetupState(
  *
  * @param now The reference local date-time for choosing the next half-hour start; injectable for
  * tests.
- * @param rules The rules to prefill, usually defaults or the most recent game's rules.
+ * @param defaultsFrom Previous game values to carry forward for repeated tournament assignments.
  */
 internal fun newGameSetupState(
     now: LocalDateTime = LocalDateTime.now(),
-    rules: GameRules = GameRules(),
+    defaultsFrom: GameState? = null,
 ): GameSetupState {
     val startTime = nextHalfHourFrom(now.toLocalTime())
     val startDate = if (startTime.isBefore(now.toLocalTime())) {
@@ -104,7 +104,12 @@ internal fun newGameSetupState(
         startDate = startDate,
         startTime = startTime,
         timeZone = ZoneId.systemDefault(),
-        rules = rules,
+        tournamentName = defaultsFrom?.tournamentName ?: "",
+        division = defaultsFrom?.division,
+        level = defaultsFrom?.level ?: "",
+        gameContext = defaultsFrom?.gameContext ?: "",
+        observers = defaultsFrom?.observers ?: "",
+        rules = defaultsFrom?.rules ?: GameRules(),
     )
 }
 
@@ -148,7 +153,7 @@ internal class LabeledSetupSummary(
 )
 
 /// Return compact coach and captain rows for the setup overview.
-internal fun TeamSetup.namesSummary(): List<LabeledSetupSummary> {
+internal fun TeamIdentity.namesSummary(): List<LabeledSetupSummary> {
     return listOfNotNull(
         coaches.compactLabeledSummary("Coach:"),
         fieldCaptains.compactLabeledSummary("Field:"),
@@ -192,6 +197,12 @@ internal fun GameSetupState.gameInformationSummaryLines(): List<String> {
     )
 }
 
+/// Return the matchup summary line for compact setup-draft list rows.
+internal fun GameSetupState.gameListSummaryLine(): String {
+    return "${TeamId.TEAM_ONE.setupName(this)} vs ${TeamId.TEAM_TWO.setupName(this)} " +
+        "at ${formatClockTime(startTime)}"
+}
+
 /// Return the compact setup summary for the starting pull.
 internal fun GameSetupState.startingPullSummary(): String {
     return "${pullingTeam.setupName(this)} pulls from ${fieldEndName(pullingFromEnd)}"
@@ -233,7 +244,7 @@ internal fun TeamId.setupFieldLabel(): String {
  *
  * @param state The setup state containing both teams.
  */
-internal fun TeamId.setupTeam(state: GameSetupState): TeamSetup {
+internal fun TeamId.setupTeam(state: GameSetupState): TeamIdentity {
     return if (this == TeamId.TEAM_ONE) state.teamOne else state.teamTwo
 }
 
@@ -243,7 +254,7 @@ internal fun TeamId.setupTeam(state: GameSetupState): TeamSetup {
  * @param teamId The team to replace.
  * @param team The updated team setup fields.
  */
-internal fun GameSetupState.withSetupTeam(teamId: TeamId, team: TeamSetup): GameSetupState {
+internal fun GameSetupState.withSetupTeam(teamId: TeamId, team: TeamIdentity): GameSetupState {
     return if (teamId == TeamId.TEAM_ONE) copy(teamOne = team) else copy(teamTwo = team)
 }
 

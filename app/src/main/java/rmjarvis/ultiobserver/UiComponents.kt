@@ -23,10 +23,33 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+
+private const val KEYBOARD_DIALOG_HEIGHT_FRACTION = 0.60f
+
+/// Return the max body height for dialog bodies that can open the keyboard.
+@Composable
+internal fun keyboardDialogBodyMaxHeight(): Dp {
+    return screenHeightFraction(KEYBOARD_DIALOG_HEIGHT_FRACTION)
+}
+
+/**
+ * Return a fraction of the current screen height in dp.
+ *
+ * @param fraction The portion of screen height to use, required to be in (0, 1].
+ */
+@Composable
+private fun screenHeightFraction(fraction: Float): Dp {
+    require(fraction > 0f && fraction <= 1f) {
+        "Screen-height fractions must be in (0, 1]."
+    }
+    return (LocalConfiguration.current.screenHeightDp * fraction).dp
+}
 
 internal val TeamColorChoice.accent: Color
     get() {
@@ -44,10 +67,10 @@ internal val TeamColorChoice.content: Color
         return Color(contentArgb)
     }
 
-internal val TeamSetup.accent: Color
+internal val TeamIdentity.accent: Color
     get() = if (color == TeamColorChoice.CUSTOM) Color(customColorArgb!!) else color.accent
 
-internal val TeamSetup.content: Color
+internal val TeamIdentity.content: Color
     get() = if (color == TeamColorChoice.CUSTOM) readableContentColor(Color(customColorArgb!!)) else color.content
 
 internal val TeamLiveState.accent: Color

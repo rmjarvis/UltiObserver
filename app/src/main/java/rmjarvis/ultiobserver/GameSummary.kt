@@ -7,7 +7,7 @@ package rmjarvis.ultiobserver
  * @param gameInformationLine Optional tournament, division, level, and round/context line.
  * @param observersLine Optional line listing observers assigned to the game.
  * @param startLine Formatted scheduled start date and time.
- * @param endLine Formatted game end time.
+ * @param endLine Formatted game end time, or null for an in-progress saved game.
  * @param scoreLines Winner-first team score lines.
  */
 internal class GameOverSummaryText(
@@ -15,7 +15,7 @@ internal class GameOverSummaryText(
     val gameInformationLine: String?,
     val observersLine: String?,
     val startLine: String,
-    val endLine: String,
+    val endLine: String?,
     val scoreLines: List<String>,
 )
 
@@ -51,13 +51,13 @@ private data class OrderedPlayerCardLine(
  * @receiver The completed game state to summarize.
  */
 internal fun GameState.gameOverSummaryText(): GameOverSummaryText {
-    val endTime = localTimeFromEpoch(endEpoch!!, timeZone)
+    val endTime = endEpoch?.let { localTimeFromEpoch(it, timeZone) }
     return GameOverSummaryText(
         title = "Game summary",
         gameInformationLine = gameInformationSummaryLine(),
         observersLine = observersSummaryLine(),
         startLine = "Start ${formatStartDate(startDate)} ${formatClockTime(startTime)}",
-        endLine = "End time ${formatClockTime(endTime)}",
+        endLine = endTime?.let { "End time ${formatClockTime(it)}" },
         scoreLines = winnerFirstTeams().map { team -> "${team.name} ${team.score}" },
     )
 }

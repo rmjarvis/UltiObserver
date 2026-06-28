@@ -11,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -32,48 +33,57 @@ import androidx.compose.ui.unit.dp
  * Archived-game row in the archived games list.
  *
  * @param startDateTime Compact start date/time text.
- * @param scoreLine Final score text.
+ * @param summaryLine Matchup or score summary text.
  */
 internal data class ArchivedGameListEntry(
     val startDateTime: String,
-    val scoreLine: String,
+    val summaryLine: String,
 )
 
-/// Return the archived-games row summary with compact start time above the final score.
+/// Return the archived-games row summary with compact start time above the summary line.
 internal fun GameState.archivedGameListEntry(): ArchivedGameListEntry {
     return ArchivedGameListEntry(
         startDateTime = formatCompactStartDateTime(startDate, startTime),
-        scoreLine = "${teamOne.name} ${teamOne.score} - ${teamTwo.score} ${teamTwo.name}",
+        summaryLine = gameListSummaryLine(),
     )
 }
 
 /**
- * Render the archived game list, separated from Home so the launch screen has more room.
+ * Render the archived/saved games area
  *
- * @param archivedGames The archived game rows to display.
+ * @param categoryCounts Number of rows in each archive category.
+ * @param selectedCategory Category currently listed, or null on the category landing page.
+ * @param archivedGames The archived game rows to display for the selected category.
+ * @param onOpenCategory Callback opening one category from the landing page.
  * @param onOpenArchivedGame Callback opening an archived game by index.
  * @param onDeleteArchivedGame Callback deleting an archived game by index.
- * @param onDeleteAllArchivedGames Callback deleting every archived game after confirmation.
+ * @param onDeleteAllArchivedGames Callback deleting every game in the selected category.
  * @param onBackHome Callback returning to Home.
+ * @param onBackCategories Callback returning from a category list to the category landing page.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ArchivedGamesScreen(
-    archivedGames: List<ArchivedGameListEntry>,
+    categoryCounts: Map<ArchivedGameCategory, Int>,
+    selectedCategory: ArchivedGameCategory?,
+    archivedGames: List<ArchivedGameListEntry>?,
+    onOpenCategory: (ArchivedGameCategory) -> Unit,
     onOpenArchivedGame: (Int) -> Unit,
     onDeleteArchivedGame: (Int) -> Unit,
     onDeleteAllArchivedGames: () -> Unit,
     onBackHome: () -> Unit,
+    onBackCategories: () -> Unit,
 ) {
     var pendingDeleteIndex by remember { mutableStateOf<Int?>(null) }
     var pendingDeleteAll by remember { mutableStateOf(false) }
+    val category = selectedCategory
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Archived games") },
+                title = { Text(category?.displayText ?: "Archived/saved games") },
                 navigationIcon = {
-                    TextButton(onClick = onBackHome) {
+                    TextButton(onClick = if (category == null) onBackHome else onBackCategories) {
                         Text("Back")
                     }
                 },
@@ -89,8 +99,16 @@ internal fun ArchivedGamesScreen(
                 .testTag("archived-games-screen"),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            if (archivedGames.isEmpty()) {
-                Text("No completed games yet.")
+            if (category == null) {
+                ArchivedGameCategory.entries.forEach { archiveCategory ->
+                    ArchiveCategoryButton(
+                        category = archiveCategory,
+                        count = categoryCounts[archiveCategory] ?: 0,
+                        onOpenCategory = onOpenCategory,
+                    )
+                }
+            } else if (archivedGames == null || archivedGames.isEmpty()) {
+                Text(category.emptyText)
             } else {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -105,6 +123,7 @@ internal fun ArchivedGamesScreen(
                 }
                 archivedGames.forEachIndexed { index, game ->
                     ArchivedGameRow(
+                        displayedIndex = index,
                         entry = game,
                         onClick = { onOpenArchivedGame(index) },
                         onDelete = { pendingDeleteIndex = index },
@@ -132,20 +151,46 @@ internal fun ArchivedGamesScreen(
                 onDeleteAllArchivedGames()
             },
             title = "Delete all games?",
-            message = "Completely delete all archived game data? This cannot be undone.",
+            message = "Completely delete all ${category?.displayText?.lowercase()}? " +
+                "This cannot be undone.",
         )
+    }
+}
+
+/**
+ * Render one category choice on the archived/saved games landing page.
+ *
+ * @param category The archive category represented by this button.
+ * @param count Number of rows currently in the category.
+ * @param onOpenCategory Callback opening this category.
+ */
+@Composable
+private fun ArchiveCategoryButton(
+    category: ArchivedGameCategory,
+    count: Int,
+    onOpenCategory: (ArchivedGameCategory) -> Unit,
+) {
+    Button(
+        onClick = { onOpenCategory(category) },
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("archive-category-${category.name}"),
+    ) {
+        Text("${category.displayText} ($count)")
     }
 }
 
 /**
  * Render an archived game row with a separate right-side delete action.
  *
+ * @param displayedIndex The row index in the currently visible archive category.
  * @param entry The archived game list entry to display.
  * @param onClick Callback opening this archived game.
  * @param onDelete Callback requesting deletion of this archived game.
  */
 @Composable
 private fun ArchivedGameRow(
+    displayedIndex: Int,
     entry: ArchivedGameListEntry,
     onClick: () -> Unit,
     onDelete: () -> Unit,
@@ -156,19 +201,19 @@ private fun ArchivedGameRow(
     ) {
         GameListRow(
             startDateTime = entry.startDateTime,
-            scoreLine = entry.scoreLine,
+            summaryLine = entry.summaryLine,
             onClick = onClick,
             modifier = Modifier
                 .weight(1f)
-                .testTag("archived-game-${entry.scoreLine}"),
+                .testTag("archived-game-$displayedIndex"),
         )
         IconButton(
             onClick = onDelete,
-            modifier = Modifier.testTag("delete-archived-game-${entry.scoreLine}"),
+            modifier = Modifier.testTag("delete-archived-game-$displayedIndex"),
         ) {
             Icon(
                 imageVector = Icons.Filled.Delete,
-                contentDescription = "Delete ${entry.scoreLine}",
+                contentDescription = "Delete ${entry.summaryLine}",
             )
         }
     }

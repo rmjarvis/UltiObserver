@@ -283,11 +283,18 @@ private object V1_0ToV1_1 {
         }
         return JsonObject(
             jsonObject.toMutableMap().apply {
-                this["state"] = migrateV1_0GameStateToV1_1(
-                    jsonObject.getValue("state").jsonObject,
-                    preserveEndGameUndo = true,
-                )
-                this["restorableState"] = migratedRestorableState
+                remove("restorableState")
+                remove("subtitle")?.let { summaryContext ->
+                    this["summaryContext"] = summaryContext
+                }
+                this["state"] = if (migratedRestorableState is JsonNull) {
+                    migrateV1_0GameStateToV1_1(
+                        jsonObject.getValue("state").jsonObject,
+                        preserveEndGameUndo = true,
+                    )
+                } else {
+                    migratedRestorableState
+                }
             }
         )
     }
@@ -335,6 +342,12 @@ private object V1_0ToV1_1 {
                 remove("priorCards")
                 remove("teamOnePlayerCards")
                 remove("teamTwoPlayerCards")
+                this["teamOne"] = migrateV1_0TeamLiveStateToV1_1Identity(
+                    jsonObject.getValue("teamOne").jsonObject,
+                )
+                this["teamTwo"] = migrateV1_0TeamLiveStateToV1_1Identity(
+                    jsonObject.getValue("teamTwo").jsonObject,
+                )
                 this["teamOnePlayers"] = teamOneBuilder.toJsonArray()
                 this["teamTwoPlayers"] = teamTwoBuilder.toJsonArray()
                 this["eventLog"] = JsonArray(migratedEventLog.map { entry ->
@@ -354,12 +367,39 @@ private object V1_0ToV1_1 {
         )
     }
 
+    /// Return an old flat live-team object with editable fields nested under identity.
+    private fun migrateV1_0TeamLiveStateToV1_1Identity(jsonObject: JsonObject): JsonObject {
+        val identityFields = setOf(
+            "name",
+            "color",
+            "customColorArgb",
+            "coaches",
+            "fieldCaptains",
+            "spiritCaptains",
+        )
+        val fields = jsonObject.toMutableMap()
+        val identity = JsonObject(identityFields.mapNotNull { field ->
+            val value = fields.remove(field) ?: return@mapNotNull null
+            field to value
+        }.toMap())
+        fields["identity"] = identity
+        return JsonObject(fields)
+    }
+
     private fun migrateV1_0OpeningPullPhase(jsonObject: JsonObject, phase: GamePhase): GamePhase {
         if (phase != GamePhase.BETWEEN_POINTS) {
             return phase
         }
-        val teamOneScore = jsonObject.getValue("teamOne").jsonObject.getValue("score").jsonPrimitive.int
-        val teamTwoScore = jsonObject.getValue("teamTwo").jsonObject.getValue("score").jsonPrimitive.int
+        val teamOneScore = jsonObject.getValue("teamOne")
+            .jsonObject
+            .getValue("score")
+            .jsonPrimitive
+            .int
+        val teamTwoScore = jsonObject.getValue("teamTwo")
+            .jsonObject
+            .getValue("score")
+            .jsonPrimitive
+            .int
         val pointAlreadyPlayed = teamOneScore + teamTwoScore > 0
         return if (pointAlreadyPlayed) phase else GamePhase.PRE_GAME
     }

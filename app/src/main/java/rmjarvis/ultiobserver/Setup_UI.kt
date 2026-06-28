@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -183,6 +184,7 @@ private data class PossiblePlayerMatchConfirmation(
  * @param onStateChange Callback receiving setup changes from fields and dialogs.
  * @param primaryButtonLabel Label for the fixed bottom action.
  * @param onPrimaryAction Callback starting the game or returning to the live screen.
+ * @param onSaveGameForLater Optional callback to save this as a SETUP game in the archive.
  * @param onBackHome Callback returning to Home.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -192,6 +194,7 @@ internal fun SetupScreen(
     onStateChange: (GameSetupState) -> Unit,
     primaryButtonLabel: String,
     onPrimaryAction: () -> Unit,
+    onSaveGameForLater: (() -> Unit)? = null,
     onBackHome: () -> Unit,
 ) {
     var editingRule by remember { mutableStateOf<RuleEditTarget?>(null) }
@@ -285,17 +288,26 @@ internal fun SetupScreen(
             )
         },
         bottomBar = {
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
                     .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Button(
                     onClick = onPrimaryAction,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(primaryButtonLabel)
+                }
+                if (onSaveGameForLater != null) {
+                    OutlinedButton(
+                        onClick = onSaveGameForLater,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Save game for later")
+                    }
                 }
             }
         },
@@ -416,7 +428,7 @@ internal fun SetupScreen(
         val targetLabel = target.teamId.setupName(state)
         val targetTeam = target.teamId.setupTeam(state)
 
-        fun changeTargetTeam(updatedTeam: TeamSetup) {
+        fun changeTargetTeam(updatedTeam: TeamIdentity) {
             onStateChange(state.withSetupTeam(target.teamId, updatedTeam))
         }
 
@@ -849,6 +861,7 @@ private fun GameInformationSetupDialog(
     var observers by remember { mutableStateOf(state.observers) }
     var showStartDateDialog by remember { mutableStateOf(false) }
     var showStartTimeDialog by remember { mutableStateOf(false) }
+    val dialogBodyMaxHeight = keyboardDialogBodyMaxHeight()
 
     LaunchedEffect(Unit) {
         openingFocusRequester.requestFocus()
@@ -870,11 +883,14 @@ private fun GameInformationSetupDialog(
     }
 
     AlertDialog(
+        modifier = Modifier.imePadding(),
         onDismissRequest = onDismiss,
         title = { Text("Game information") },
         text = {
             Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
+                modifier = Modifier
+                    .heightIn(max = dialogBodyMaxHeight)
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
@@ -1385,6 +1401,7 @@ private fun StartingPullSetupDialog(
     var initialGenderRatio by remember { mutableStateOf(state.initialGenderRatio) }
     var firstHalfGenZone by remember { mutableStateOf(state.firstHalfGenZone) }
     var switchGenZoneAtHalftime by remember { mutableStateOf(state.switchGenZoneAtHalftime) }
+    val dialogBodyMaxHeight = keyboardDialogBodyMaxHeight()
 
     fun commitNearEndLabel() {
         committedNearEndName = nearEndName
@@ -1419,11 +1436,14 @@ private fun StartingPullSetupDialog(
     }
 
     AlertDialog(
+        modifier = Modifier.imePadding(),
         onDismissRequest = onDismiss,
         title = { Text("Field/starting pull") },
         text = {
             Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
+                modifier = Modifier
+                    .heightIn(max = dialogBodyMaxHeight)
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text("Give whatever names you want for the two ends of the field. E.g. Road, Parking Lot, Trees, etc. (default is Near end and Far end).")
@@ -2108,9 +2128,9 @@ private fun PriorCardPlayerDialog(
 @Composable
 private fun TeamEditor(
     fieldLabel: String,
-    team: TeamSetup,
+    team: TeamIdentity,
     priorCards: List<PlayerRecord>,
-    onTeamChange: (TeamSetup) -> Unit,
+    onTeamChange: (TeamIdentity) -> Unit,
     onEditColor: () -> Unit,
     onEditNames: () -> Unit,
     onEditCards: () -> Unit,
@@ -2174,7 +2194,7 @@ private fun TeamEditor(
 
 /// Return colored text-field colors that preview how the team name appears on the field screen.
 @Composable
-private fun teamNameFieldColors(team: TeamSetup) = OutlinedTextFieldDefaults.colors(
+private fun teamNameFieldColors(team: TeamIdentity) = OutlinedTextFieldDefaults.colors(
     focusedContainerColor = team.accent,
     unfocusedContainerColor = team.accent,
     focusedTextColor = team.content,
@@ -2309,7 +2329,7 @@ private fun TeamNamesInlineSummary(
 private fun TeamColorSetupDialog(
     teamLabel: String,
     teamFieldLabel: String,
-    team: TeamSetup,
+    team: TeamIdentity,
     onPresetColorSelected: (TeamColorChoice) -> Unit,
     onCustomColorSelected: (Long) -> Unit,
     onMoreColors: () -> Unit,
@@ -2363,7 +2383,7 @@ private fun TeamColorSetupDialog(
 private fun CustomTeamColorSetupDialog(
     teamLabel: String,
     teamFieldLabel: String,
-    team: TeamSetup,
+    team: TeamIdentity,
     onCustomColorSelected: (Long) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -2446,16 +2466,21 @@ private fun TeamColorDialogActions(
 private fun TeamNamesSetupDialog(
     teamLabel: String,
     teamFieldLabel: String,
-    team: TeamSetup,
-    onTeamChange: (TeamSetup) -> Unit,
+    team: TeamIdentity,
+    onTeamChange: (TeamIdentity) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val dialogBodyMaxHeight = keyboardDialogBodyMaxHeight()
+
     AlertDialog(
+        modifier = Modifier.imePadding(),
         onDismissRequest = onDismiss,
         title = { Text("$teamLabel Names") },
         text = {
             Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
+                modifier = Modifier
+                    .heightIn(max = dialogBodyMaxHeight)
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 TeamNamesTextField(

@@ -42,7 +42,7 @@ class TestPersistence {
                 startTime = LocalTime.of(10, 0),
                 timeZone = ZoneId.of("America/New_York"),
                 rules = GameRules(),
-                teamOne = TeamSetup(
+                teamOne = TeamIdentity(
                     name = "Viscous Coupling",
                     color = TeamColorChoice.CUSTOM,
                     customColorArgb = 0xFF336699L,
@@ -50,7 +50,7 @@ class TestPersistence {
                     fieldCaptains = "Casey Field",
                     spiritCaptains = "Casey Spirit",
                 ),
-                teamTwo = TeamSetup(
+                teamTwo = TeamIdentity(
                     name = "Animal",
                     color = TeamColorChoice.PINK,
                     coaches = "Riley Coach",
@@ -89,7 +89,14 @@ class TestPersistence {
                 countdown = null,
                 undoEntry = null,
             )
-            storage.saveArchivedGames(listOf(ArchivedGame(archivedSummary, "")))
+            storage.saveArchivedGames(
+                listOf(
+                    ArchivedGame(
+                        state = archivedSummary,
+                        summaryContext = "",
+                    )
+                )
+            )
 
             // Load through a fresh storage instance to verify the on-device files round-trip.
             val restoredStorage = FileAppStateStorage(storageDir)

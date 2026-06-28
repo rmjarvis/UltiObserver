@@ -61,7 +61,7 @@ private fun writeActiveGame(dir: File) {
         listOf(
             ArchivedGame(
                 state = shortCompletedGame().pruneUndoHistory(),
-                subtitle = "Generated short game from current code",
+                summaryContext = "Generated short game from current code",
             ),
         )
     )
@@ -80,11 +80,11 @@ private fun writeCompletedArchive(dir: File) {
         listOf(
             ArchivedGame(
                 state = richGame.pruneUndoHistory(),
-                subtitle = "Generated rich game from current code",
+                summaryContext = "Generated rich game from current code",
             ),
             ArchivedGame(
                 state = shortCompletedGame().pruneUndoHistory(),
-                subtitle = "Generated short game from current code",
+                summaryContext = "Generated short game from current code",
             ),
         )
     )
@@ -128,7 +128,7 @@ private fun baseSetup(): GameSetupState {
             genderRatioRule = GenderRatioRule.GEN_ZONE,
             useMajorityPullRule = true,
         ),
-        teamOne = TeamSetup(
+        teamOne = TeamIdentity(
             name = "Viscous Coupling",
             color = TeamColorChoice.CUSTOM,
             customColorArgb = 0xFF1E88E5,
@@ -136,7 +136,7 @@ private fun baseSetup(): GameSetupState {
             fieldCaptains = "Alex Seven",
             spiritCaptains = "Sam Spirit",
         ),
-        teamTwo = TeamSetup(
+        teamTwo = TeamIdentity(
             name = "Animal",
             color = TeamColorChoice.RED,
             coaches = "Jordan Coach",
@@ -185,14 +185,14 @@ private fun nonDefaultSetup(): GameSetupState {
             genderRatioRule = GenderRatioRule.ABBA,
             useMajorityPullRule = true,
         ),
-        teamOne = TeamSetup(
+        teamOne = TeamIdentity(
             name = "Bees",
             color = TeamColorChoice.YELLOW,
             coaches = "Bee Coach",
             fieldCaptains = "Bee Captain",
             spiritCaptains = "Bee Spirit",
         ),
-        teamTwo = TeamSetup(
+        teamTwo = TeamIdentity(
             name = "Ferns",
             color = TeamColorChoice.GREEN,
             coaches = "Fern Coach",

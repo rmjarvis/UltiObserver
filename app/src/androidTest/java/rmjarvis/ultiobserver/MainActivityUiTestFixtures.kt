@@ -74,12 +74,72 @@ abstract class MainActivityUiTestFixtures {
         }
         composeRule.waitForIdle()
         composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.startNewGame()
+            activity.appViewModel.startNewGame(now = 123_000L)
             activity.appViewModel.updateSetup(setup)
-            activity.appViewModel.finishSetup()
+            activity.appViewModel.finishSetup(now = 123_000L)
         }
         composeRule.waitForIdle()
         assertLiveScreen()
+    }
+
+    /**
+     * Build a live-team state from identity fields plus optional live counters.
+     *
+     * This keeps UI tests concise while production code constructs live teams from
+     * `TeamIdentity`.
+     *
+     * @param name Team display name for the test state.
+     * @param color Team jersey color for the test state.
+     * @param customColorArgb Opaque ARGB value for a custom jersey color, when relevant.
+     * @param coaches Free-form coach details for the test state.
+     * @param fieldCaptains Free-form field-captain details for the test state.
+     * @param spiritCaptains Free-form spirit-captain details for the test state.
+     * @param score Team score.
+     * @param timeoutsUsedThisHalf Timeouts used in the current half.
+     * @param firstHalfTimeoutsUsed Timeouts used in the first half.
+     * @param offsides Offsides count.
+     * @param falseStarts False-start count.
+     * @param majorityPullViolations Majority-pull violation count.
+     * @param timeViolations Time-violation count.
+     * @param technicalFouls Technical-foul count.
+     * @param blueCards Blue-card count.
+     */
+    protected fun testTeamLiveState(
+        name: String,
+        color: TeamColorChoice,
+        customColorArgb: Long? = null,
+        coaches: String = "",
+        fieldCaptains: String = "",
+        spiritCaptains: String = "",
+        score: Int = 0,
+        timeoutsUsedThisHalf: Int = 0,
+        firstHalfTimeoutsUsed: Int = 0,
+        offsides: Int = 0,
+        falseStarts: Int = 0,
+        majorityPullViolations: Int = 0,
+        timeViolations: Int = 0,
+        technicalFouls: Int = 0,
+        blueCards: Int = 0,
+    ): TeamLiveState {
+        return TeamLiveState(
+            identity = TeamIdentity(
+                name = name,
+                color = color,
+                customColorArgb = customColorArgb,
+                coaches = coaches,
+                fieldCaptains = fieldCaptains,
+                spiritCaptains = spiritCaptains,
+            ),
+            score = score,
+            timeoutsUsedThisHalf = timeoutsUsedThisHalf,
+            firstHalfTimeoutsUsed = firstHalfTimeoutsUsed,
+            offsides = offsides,
+            falseStarts = falseStarts,
+            majorityPullViolations = majorityPullViolations,
+            timeViolations = timeViolations,
+            technicalFouls = technicalFouls,
+            blueCards = blueCards,
+        )
     }
 
     /**
@@ -554,8 +614,8 @@ abstract class MainActivityUiTestFixtures {
     protected fun seedArchivedGameProgrammatically(teamOneName: String, teamTwoName: String) {
         composeRule.activityRule.scenario.onActivity { activity ->
             val setup = newGameSetupState().copy(
-                teamOne = TeamSetup(name = teamOneName, color = TeamColorChoice.WHITE),
-                teamTwo = TeamSetup(name = teamTwoName, color = TeamColorChoice.BLUE),
+                teamOne = TeamIdentity(name = teamOneName, color = TeamColorChoice.WHITE),
+                teamTwo = TeamIdentity(name = teamTwoName, color = TeamColorChoice.BLUE),
             )
             val completed = createLiveGameState(setup).copy(
                 phase = GamePhase.GAME_OVER,

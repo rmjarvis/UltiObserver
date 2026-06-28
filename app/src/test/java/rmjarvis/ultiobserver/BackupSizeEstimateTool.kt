@@ -19,7 +19,7 @@ fun main() {
     )
     val archivedGame = ArchivedGame(
         state = game.pruneUndoHistory(),
-        subtitle = "Backup size estimate",
+        summaryContext = "Backup size estimate",
     )
 
     val reportDir = File("app/build/reports/backup-size-estimate")
@@ -76,8 +76,8 @@ private fun backupEstimateSetup(): GameSetupState {
             useHardCap = false,
             timeoutsPerHalf = 2,
         ),
-        teamOne = TeamSetup("Viscous Coupling", TeamColorChoice.WHITE),
-        teamTwo = TeamSetup("Animal", TeamColorChoice.RED),
+        teamOne = TeamIdentity("Viscous Coupling", TeamColorChoice.WHITE),
+        teamTwo = TeamIdentity("Animal", TeamColorChoice.RED),
         pullingTeam = TeamId.TEAM_ONE,
         pullingFromEnd = FieldEnd.FAR,
     )

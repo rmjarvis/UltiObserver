@@ -1502,6 +1502,8 @@ private fun EditablePlayerCardsDialog(
     onEdit: (EditablePlayerCard) -> Unit,
     onRemove: ((EditablePlayerCard) -> Unit)? = null,
 ) {
+    val dialogBodyMaxHeight = keyboardDialogBodyMaxHeight()
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Edit existing cards") },
@@ -1509,7 +1511,7 @@ private fun EditablePlayerCardsDialog(
             Column(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier
-                    .heightIn(max = 520.dp)
+                    .heightIn(max = dialogBodyMaxHeight)
                     .verticalScroll(rememberScrollState()),
             ) {
                 Text(teamName, fontWeight = FontWeight.SemiBold)
@@ -1609,6 +1611,7 @@ private fun PlayerCardEntryDialog(
         mutableStateOf(false)
     }
     val focusManager = LocalFocusManager.current
+    val dialogBodyMaxHeight = keyboardDialogBodyMaxHeight()
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1617,7 +1620,7 @@ private fun PlayerCardEntryDialog(
             Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier
-                    .heightIn(max = 520.dp)
+                    .heightIn(max = dialogBodyMaxHeight)
                     .verticalScroll(rememberScrollState()),
             ) {
                 Text(teamName, fontWeight = FontWeight.SemiBold)
@@ -1762,6 +1765,7 @@ private fun CardReasonDialog(
     var details by remember(initialReason) {
         mutableStateOf(initialReason.details)
     }
+    val dialogBodyMaxHeight = keyboardDialogBodyMaxHeight()
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1770,7 +1774,7 @@ private fun CardReasonDialog(
             Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier
-                    .heightIn(max = 520.dp)
+                    .heightIn(max = dialogBodyMaxHeight)
                     .verticalScroll(rememberScrollState()),
             ) {
                 Column(

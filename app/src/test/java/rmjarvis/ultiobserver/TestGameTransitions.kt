@@ -676,8 +676,12 @@ class TestGameTransitions : GameDomainTestFixtures() {
             "Alpha 4\nBeta 4",
             GamePrompt.GameOver(
                 gameOverState.copy(
-                    teamOne = gameOverState.teamOne.copy(name = "Alpha", score = 4),
-                    teamTwo = gameOverState.teamTwo.copy(name = "Beta", score = 4),
+                    teamOne = gameOverState.teamOne
+                        .withIdentity(gameOverState.teamOne.identity.copy(name = "Alpha"))
+                        .copy(score = 4),
+                    teamTwo = gameOverState.teamTwo
+                        .withIdentity(gameOverState.teamTwo.identity.copy(name = "Beta"))
+                        .copy(score = 4),
                 )
             ).formatMessage(),
         )
@@ -685,8 +689,12 @@ class TestGameTransitions : GameDomainTestFixtures() {
             "Alpha 4\nBeta 4",
             GamePrompt.GameOver(
                 gameOverState.copy(
-                    teamOne = gameOverState.teamOne.copy(name = "Beta", score = 4),
-                    teamTwo = gameOverState.teamTwo.copy(name = "Alpha", score = 4),
+                    teamOne = gameOverState.teamOne
+                        .withIdentity(gameOverState.teamOne.identity.copy(name = "Beta"))
+                        .copy(score = 4),
+                    teamTwo = gameOverState.teamTwo
+                        .withIdentity(gameOverState.teamTwo.identity.copy(name = "Alpha"))
+                        .copy(score = 4),
                 )
             ).formatMessage(),
         )

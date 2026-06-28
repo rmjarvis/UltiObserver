@@ -106,16 +106,16 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
                 tournamentName = "Philly Open",
                 startDate = LocalDate.of(2026, 5, 19),
                 startTime = LocalTime.of(10, 0),
-                teamOne = TeamSetup("Viscous Coupling", TeamColorChoice.WHITE),
-                teamTwo = TeamSetup("Animal", TeamColorChoice.RED),
+                teamOne = TeamIdentity("Viscous Coupling", TeamColorChoice.WHITE),
+                teamTwo = TeamIdentity("Animal", TeamColorChoice.RED),
             )
         )
         composeRule.activityRule.scenario.onActivity { activity ->
             val current = activity.appViewModel.liveState!!
             activity.appViewModel.updateLiveGame(
                 current.copy(
-                    teamOne = TeamLiveState("Viscous Coupling", TeamColorChoice.WHITE, score = 12),
-                    teamTwo = TeamLiveState(
+                    teamOne = testTeamLiveState("Viscous Coupling", TeamColorChoice.WHITE, score = 12),
+                    teamTwo = testTeamLiveState(
                         name = "Animal",
                         color = TeamColorChoice.RED,
                         score = 15,
@@ -154,8 +154,10 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
 
         // Archive the game and verify the read-only archive shares the same payload.
         composeRule.onNodeWithText("Archive completed game").performClick()
-        waitForText("See archived games")
-        composeRule.onNodeWithText("See archived games").performClick()
+        waitForText("See archived/saved games")
+        composeRule.onNodeWithText("See archived/saved games").performClick()
+        waitForText("Archived/saved games")
+        composeRule.onNodeWithText("Archived games", substring = true).performClick()
         waitForText("Archived games")
         composeRule.onNodeWithText("Viscous Coupling 12 - 15 Animal").performClick()
         waitForText("Game summary")

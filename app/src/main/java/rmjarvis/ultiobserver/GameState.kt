@@ -163,6 +163,7 @@ enum class PullPromptTarget {
 /// Broad phase of a game.
 @Serializable
 enum class GamePhase {
+    SETUP,
     PRE_GAME,
     BETWEEN_POINTS,
     LIVE_POINT,
@@ -198,9 +199,9 @@ enum class TeamColorChoice(
     CUSTOM("Custom", 0x00000000, 0x00000000),
 }
 /**
- * Setup-screen team identity fields before a live game starts.
+ * Editable identity fields for one team.
  *
- * @param name The team name entered in setup; blank means no explicit name yet.
+ * @param name The team name; blank means no explicit setup name yet.
  * @param color The active jersey color for this team.
  * @param customColorArgb Opaque ARGB value for a saved custom jersey color, or null when none
  * has been picked.
@@ -209,7 +210,7 @@ enum class TeamColorChoice(
  * @param spiritCaptains Free-form spirit-captain name/details entered for this team.
  */
 @Serializable
-data class TeamSetup(
+data class TeamIdentity(
     val name: String,
     val color: TeamColorChoice,
     val customColorArgb: Long? = null,
@@ -270,14 +271,9 @@ enum class GenderRatio(val displayText: String) {
     }
 }
 /**
- * Live counters and display identity for one team.
+ * Live counters and editable identity for one team.
  *
- * @param name The team display name used during live and summary screens.
- * @param color The active jersey color for this team.
- * @param customColorArgb Opaque ARGB value for a saved custom jersey color, or null when none has been picked.
- * @param coaches Free-form coach name/details entered for this team.
- * @param fieldCaptains Free-form field-captain name/details entered for this team.
- * @param spiritCaptains Free-form spirit-captain name/details entered for this team.
+ * @param identity Editable team name, color, coach, and captain details.
  * @param score The team's current score.
  * @param timeoutsUsedThisHalf Number of timeouts this team has used in the current half.
  * @param firstHalfTimeoutsUsed Stored after halftime so floater-timeout carryover can be derived.
@@ -288,12 +284,7 @@ enum class GenderRatio(val displayText: String) {
  */
 @Serializable
 data class TeamLiveState(
-    val name: String,
-    val color: TeamColorChoice,
-    val customColorArgb: Long? = null,
-    val coaches: String = "",
-    val fieldCaptains: String = "",
-    val spiritCaptains: String = "",
+    val identity: TeamIdentity,
     val score: Int = 0,
     val timeoutsUsedThisHalf: Int = 0,
     val firstHalfTimeoutsUsed: Int = 0,
@@ -304,15 +295,32 @@ data class TeamLiveState(
     val technicalFouls: Int = 0,
     val blueCards: Int = 0,
 ) {
-    init {
-        require(color != TeamColorChoice.CUSTOM || customColorArgb != null) {
-            "customColorArgb is required when color is CUSTOM."
-        }
-    }
+    val name: String
+        get() = identity.name
+
+    val color: TeamColorChoice
+        get() = identity.color
+
+    val customColorArgb: Long?
+        get() = identity.customColorArgb
+
+    val coaches: String
+        get() = identity.coaches
+
+    val fieldCaptains: String
+        get() = identity.fieldCaptains
+
+    val spiritCaptains: String
+        get() = identity.spiritCaptains
 
     /// Return this team state with one additional timeout used in the current half.
     fun withAddedTimeout(): TeamLiveState {
         return copy(timeoutsUsedThisHalf = timeoutsUsedThisHalf + 1)
+    }
+
+    /// Return this team state with updated editable identity fields.
+    fun withIdentity(identity: TeamIdentity): TeamLiveState {
+        return copy(identity = identity)
     }
 }
 
@@ -590,6 +598,16 @@ data class GameState(
         return teamFor(team).name
     }
 
+    /// Return the matchup/score summary line for compact game list rows.
+    fun gameListSummaryLine(): String {
+        return if (phase == GamePhase.SETUP) {
+            "${teamOne.name.ifBlank { "Team 1" }} vs " +
+                "${teamTwo.name.ifBlank { "Team 2" }} at ${formatClockTime(startTime)}"
+        } else {
+            "${teamOne.name} ${teamOne.score} - ${teamTwo.score} ${teamTwo.name}"
+        }
+    }
+
     /**
      * Return a field-end name from game state, falling back to the default label.
      *
@@ -749,21 +767,11 @@ fun applySetupToLiveGame(
         nearEndName = setup.nearEndName,
         farEndName = setup.farEndName,
         rules = setup.rules,
-        teamOne = existing.teamOne.copy(
-            name = setup.teamOne.name.ifBlank { "Team 1" },
-            color = setup.teamOne.color,
-            customColorArgb = setup.teamOne.customColorArgb,
-            coaches = setup.teamOne.coaches,
-            fieldCaptains = setup.teamOne.fieldCaptains,
-            spiritCaptains = setup.teamOne.spiritCaptains,
+        teamOne = existing.teamOne.withIdentity(
+            setup.teamOne.copy(name = setup.teamOne.name.ifBlank { "Team 1" }),
         ),
-        teamTwo = existing.teamTwo.copy(
-            name = setup.teamTwo.name.ifBlank { "Team 2" },
-            color = setup.teamTwo.color,
-            customColorArgb = setup.teamTwo.customColorArgb,
-            coaches = setup.teamTwo.coaches,
-            fieldCaptains = setup.teamTwo.fieldCaptains,
-            spiritCaptains = setup.teamTwo.spiritCaptains,
+        teamTwo = existing.teamTwo.withIdentity(
+            setup.teamTwo.copy(name = setup.teamTwo.name.ifBlank { "Team 2" }),
         ),
         teamOnePlayers = setup.teamOnePlayers,
         teamTwoPlayers = setup.teamTwoPlayers,
@@ -807,22 +815,8 @@ fun GameState.toSetupState(): GameSetupState {
         nearEndName = nearEndName,
         farEndName = farEndName,
         rules = rules,
-        teamOne = TeamSetup(
-            name = teamOne.name,
-            color = teamOne.color,
-            customColorArgb = teamOne.customColorArgb,
-            coaches = teamOne.coaches,
-            fieldCaptains = teamOne.fieldCaptains,
-            spiritCaptains = teamOne.spiritCaptains,
-        ),
-        teamTwo = TeamSetup(
-            name = teamTwo.name,
-            color = teamTwo.color,
-            customColorArgb = teamTwo.customColorArgb,
-            coaches = teamTwo.coaches,
-            fieldCaptains = teamTwo.fieldCaptains,
-            spiritCaptains = teamTwo.spiritCaptains,
-        ),
+        teamOne = teamOne.identity,
+        teamTwo = teamTwo.identity,
         teamOnePlayers = teamOnePlayers,
         teamTwoPlayers = teamTwoPlayers,
         pullingTeam = openingPullingTeam,

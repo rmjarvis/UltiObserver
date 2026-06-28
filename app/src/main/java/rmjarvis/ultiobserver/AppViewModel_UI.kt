@@ -88,7 +88,7 @@ internal fun UltiObserverApp(
                 onResumeCurrentGame = viewModel::resumeCurrentGame,
                 onOpenCompletedGame = viewModel::openCompletedGame,
                 onArchiveCompletedGame = viewModel::archiveCompletedGame,
-                onStartNewGame = viewModel::startNewGame,
+                onStartNewGame = { viewModel.startNewGame(System.currentTimeMillis()) },
                 onOpenAbout = viewModel::openAbout,
                 onOpenProfile = viewModel::openProfile,
                 onOpenSettings = viewModel::openSettings,
@@ -146,12 +146,28 @@ internal fun UltiObserverApp(
             val archivedGameEntries = remember(appState.archivedGames) {
                 appState.archivedGames.map { it.state.archivedGameListEntry() }
             }
+            val archiveCategoryCounts = remember(appState.archivedGames) {
+                ArchivedGameCategory.entries.associateWith { category ->
+                    appState.archivedGames.count { it.category == category }
+                }
+            }
+            val selectedCategoryEntries = appState.selectedArchiveCategory?.let { category ->
+                archivedGameEntries.filterIndexed { index, _ ->
+                    appState.archivedGames[index].category == category
+                }
+            }
             ArchivedGamesScreen(
-                archivedGames = archivedGameEntries,
-                onOpenArchivedGame = viewModel::openArchivedGame,
+                categoryCounts = archiveCategoryCounts,
+                selectedCategory = appState.selectedArchiveCategory,
+                archivedGames = selectedCategoryEntries,
+                onOpenCategory = viewModel::openArchivedGameCategory,
+                onOpenArchivedGame = { index ->
+                    viewModel.openArchivedGame(index, System.currentTimeMillis())
+                },
                 onDeleteArchivedGame = viewModel::deleteArchivedGame,
-                onDeleteAllArchivedGames = viewModel::deleteAllArchivedGames,
+                onDeleteAllArchivedGames = viewModel::deleteArchivedGamesInSelectedCategory,
                 onBackHome = viewModel::goHome,
+                onBackCategories = viewModel::openArchivedGames,
             )
         }
 
@@ -167,7 +183,7 @@ internal fun UltiObserverApp(
                     showMissingExactAlarmAccessDialog = true
                     return
                 }
-                viewModel.finishSetup()
+                viewModel.finishSetup(System.currentTimeMillis())
             }
 
             SetupScreen(
@@ -181,6 +197,11 @@ internal fun UltiObserverApp(
                 onPrimaryAction = {
                     finishSetup()
                 },
+                onSaveGameForLater = if (appState.setupMode == SetupMode.NEW_GAME) {
+                    viewModel::saveSetupForLater
+                } else {
+                    null
+                },
                 onBackHome = viewModel::goHome,
             )
         }
@@ -190,8 +211,25 @@ internal fun UltiObserverApp(
             if (archivedGame != null) {
                 GameOverSummaryScreen(
                     state = archivedGame.state,
+                    summaryContext = archivedGame.summaryContext,
                     summaryActionText = "Restore game",
-                    onSummaryAction = viewModel::restoreViewingArchivedGame,
+                    onSummaryAction = {
+                        viewModel.restoreViewingArchivedGame(System.currentTimeMillis())
+                    },
+                    secondarySummaryActionText = if (
+                        archivedGame.category == ArchivedGameCategory.IN_PROGRESS
+                    ) {
+                        "Archive game"
+                    } else {
+                        null
+                    },
+                    onSecondarySummaryAction = if (
+                        archivedGame.category == ArchivedGameCategory.IN_PROGRESS
+                    ) {
+                        { viewModel.archiveSavedInProgressGame(System.currentTimeMillis()) }
+                    } else {
+                        null
+                    },
                     onBack = viewModel::goBackFromCurrentScreen,
                     gameOverPrompt = null,
                     onDismissGameOverPrompt = {},
@@ -240,7 +278,7 @@ internal fun UltiObserverApp(
                 TextButton(
                     onClick = {
                         showMissingExactAlarmAccessDialog = false
-                        viewModel.finishSetup()
+                        viewModel.finishSetup(System.currentTimeMillis())
                     },
                 ) {
                     Text("Ignore")

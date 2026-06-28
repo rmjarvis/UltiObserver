@@ -446,13 +446,20 @@ internal data class TeamLiveStatePatch(
      * @param later The later team state.
      */
     fun applyTo(later: TeamLiveState): TeamLiveState {
-        return later.copy(
+        val updatedIdentity = later.identity.copy(
             name = name ?: later.name,
             color = color ?: later.color,
-            customColorArgb = if (customColorArgb != null) customColorArgb.value else later.customColorArgb,
+            customColorArgb = if (customColorArgb != null) {
+                customColorArgb.value
+            } else {
+                later.customColorArgb
+            },
             coaches = coaches ?: later.coaches,
             fieldCaptains = fieldCaptains ?: later.fieldCaptains,
             spiritCaptains = spiritCaptains ?: later.spiritCaptains,
+        )
+        return later.copy(
+            identity = updatedIdentity,
             score = score ?: later.score,
             timeoutsUsedThisHalf = timeoutsUsedThisHalf ?: later.timeoutsUsedThisHalf,
             firstHalfTimeoutsUsed = firstHalfTimeoutsUsed ?: later.firstHalfTimeoutsUsed,
