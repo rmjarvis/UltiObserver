@@ -31,22 +31,14 @@ internal data class ArchivedGame(
          * @param jsonObject The parsed JSON object from one archived-game file.
          * @param version The version metadata read from that JSON object.
          */
-        fun decodeJson(jsonObject: JsonObject, version: AppVersion): ArchivedGame? {
-            // Placeholder for future version-specific decoding/migration into the current model.
-            return when {
-                version.versionCode == APP_STATE_VERSION_CODE -> decodeCurrentJson(jsonObject)
-                else -> null
-            }
-        }
-
-        /**
-         * Decode current-version archived-game JSON, returning null when the file is corrupt.
-         *
-         * @param jsonObject The parsed archived-game JSON object.
-         */
-        private fun decodeCurrentJson(jsonObject: JsonObject): ArchivedGame? {
+        fun decodeJson(jsonObject: JsonObject, version: AppVersion): PersistenceDecodeResult<ArchivedGame>? {
             return try {
-                appStateJson.decodeFromJsonElement(jsonObject)
+                val migrated = migrateArchivedGameJson(jsonObject, version) ?: return null
+                val archivedGame = appStateJson.decodeFromJsonElement<ArchivedGame>(migrated.jsonObject)
+                PersistenceDecodeResult(
+                    value = archivedGame,
+                    wasMigrated = migrated.wasMigrated,
+                )
             } catch (_: RuntimeException) {
                 null
             }

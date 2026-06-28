@@ -2,6 +2,7 @@ package rmjarvis.ultiobserver
 
 import java.io.File
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
 
@@ -22,7 +23,7 @@ fun main(args: Array<String>) {
 
 private fun writeDefaultBuckets(dir: File) {
     val store = freshStore(dir)
-    store.saveCurrentGameState(CurrentGameSnapshot())
+    store.saveCurrentGameState(defaultCurrentGameSnapshot())
     store.saveProfile(Profile())
     store.saveSettings(Settings())
     store.saveArchivedGames(emptyList())
@@ -72,7 +73,7 @@ private fun writeCompletedArchive(dir: File) {
     val richGame = activeGameWithEvents(richSetup)
         .endGameNow(setupEpoch(richSetup) + 180_000L)
 
-    store.saveCurrentGameState(CurrentGameSnapshot())
+    store.saveCurrentGameState(defaultCurrentGameSnapshot())
     store.saveProfile(fixtureProfile())
     store.saveSettings(fixtureSettings())
     store.saveArchivedGames(
@@ -93,6 +94,16 @@ private fun freshStore(dir: File): FileAppStateStorage {
     dir.deleteRecursively()
     dir.mkdirs()
     return FileAppStateStorage(dir)
+}
+
+private fun defaultCurrentGameSnapshot(): CurrentGameSnapshot {
+    return CurrentGameSnapshot(
+        setupState = newGameSetupState(
+            now = LocalDateTime.of(2026, 6, 27, 16, 1),
+        ).copy(
+            timeZone = ZoneId.of("America/New_York"),
+        ),
+    )
 }
 
 private fun baseSetup(): GameSetupState {

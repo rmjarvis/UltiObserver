@@ -1,0 +1,255 @@
+{
+    "versionName": "1.0.1",
+    "versionCode": 2,
+    "setupState": {
+        "startDate": "2026-01-03",
+        "startTime": "09:30",
+        "timeZone": "America/New_York",
+        "tournamentName": "Migration Classic",
+        "rules": {
+            "gameTo": 5,
+            "halftimeMinutes": 7,
+            "useHalfCap": false,
+            "halfCapMinutes": 45,
+            "useSoftCap": false,
+            "softCapMinutes": 90,
+            "useHardCap": false,
+            "hardCapMinutes": 105,
+            "timeoutsPerHalf": 2,
+            "hasFloaterTimeout": true
+        },
+        "teamOne": {
+            "name": "Simple One",
+            "color": "WHITE"
+        },
+        "teamTwo": {
+            "name": "Simple Two",
+            "color": "BLUE"
+        },
+        "priorCards": [
+            {
+                "team": "TEAM_ONE",
+                "jerseyNumber": "N/A",
+                "priorYellows": 0,
+                "priorReds": 1
+            }
+        ],
+        "pullingTeam": "TEAM_ONE",
+        "pullingFromEnd": "FAR"
+    },
+    "liveState": {
+        "state": {
+            "startDate": "2026-01-03",
+            "startTime": "09:30",
+            "timeZone": "America/New_York",
+            "startEpoch": 1767450600000,
+            "endEpoch": 1767450605000,
+            "tournamentName": "Migration Classic",
+            "rules": {
+                "gameTo": 5,
+                "halftimeMinutes": 7,
+                "useHalfCap": false,
+                "halfCapMinutes": 45,
+                "useSoftCap": false,
+                "softCapMinutes": 90,
+                "useHardCap": false,
+                "hardCapMinutes": 105,
+                "timeoutsPerHalf": 2,
+                "hasFloaterTimeout": true
+            },
+            "teamOne": {
+                "name": "Simple One",
+                "color": "WHITE",
+                "score": 0,
+                "timeoutsUsedThisHalf": 0,
+                "firstHalfTimeoutsUsed": 0,
+                "offsides": 0,
+                "falseStarts": 0,
+                "timeViolationWarningIssued": false,
+                "technicalFouls": 0,
+                "blueCards": 0
+            },
+            "teamTwo": {
+                "name": "Simple Two",
+                "color": "BLUE",
+                "score": 0,
+                "timeoutsUsedThisHalf": 0,
+                "firstHalfTimeoutsUsed": 0,
+                "offsides": 0,
+                "falseStarts": 0,
+                "timeViolationWarningIssued": false,
+                "technicalFouls": 0,
+                "blueCards": 0
+            },
+            "priorCards": [
+                {
+                    "team": "TEAM_ONE",
+                    "jerseyNumber": "N/A",
+                    "priorYellows": 0,
+                    "priorReds": 1
+                }
+            ],
+            "teamOnePlayerCards": [
+                {
+                    "jerseyNumber": "N/A",
+                    "yellows": 2,
+                    "reds": 0
+                }
+            ],
+            "teamTwoPlayerCards": [
+                {
+                    "jerseyNumber": "N/A",
+                    "yellows": 0,
+                    "reds": 1
+                }
+            ],
+            "eventLog": [
+                {
+                    "timestampEpoch": 1767450601000,
+                    "type": "YELLOW_CARD",
+                    "team": "TEAM_ONE",
+                    "playerNumber": "N/A",
+                    "delta": 1
+                },
+                {
+                    "timestampEpoch": 1767450602000,
+                    "type": "YELLOW_CARD",
+                    "team": "TEAM_ONE",
+                    "playerNumber": "N/A"
+                },
+                {
+                    "timestampEpoch": 1767450603000,
+                    "type": "SECOND_YELLOW",
+                    "team": "TEAM_TWO",
+                    "playerNumber": "N/A"
+                },
+                {
+                    "timestampEpoch": 1767450604000,
+                    "type": "YELLOW_CARD",
+                    "team": "TEAM_TWO",
+                    "playerNumber": "N/A",
+                    "delta": -1
+                },
+                {
+                    "timestampEpoch": 1767450604000,
+                    "type": "RED_CARD",
+                    "team": "TEAM_TWO",
+                    "playerNumber": "N/A",
+                    "delta": 1
+                },
+                {
+                    "timestampEpoch": 1767450605000,
+                    "type": "GAME_OVER"
+                }
+            ],
+            "nearAttackingTeam": "TEAM_ONE",
+            "pullingTeam": "TEAM_ONE",
+            "pullingFromEnd": "FAR",
+            "openingPullingTeam": "TEAM_ONE",
+            "openingPullingFromEnd": "FAR",
+            "phase": "GAME_OVER",
+            "countdown": null,
+            "pullCountdownExpired": false,
+            "pullSequenceOffsidesRecorded": false,
+            "pullSequenceFalseStartRecorded": false,
+            "pullSkippedForCurrentPoint": false,
+            "pendingMisconductCountdown": false,
+            "halftimeTaken": false,
+            "halftimeTargetScore": null,
+            "winningScore": null,
+            "halfCapApplied": false,
+            "softCapApplied": false,
+            "hardCapApplied": false,
+            "pendingCapOffer": null,
+            "undoEntry": null,
+            "redoEntry": null,
+            "lastEvent": "Game over."
+        },
+        "undoEntry": {
+            "label": "Undo End Game",
+            "patchToPrevious": {
+                "endEpoch": {
+                    "value": null
+                },
+                "eventLog": {
+                    "previousSize": 5
+                },
+                "phase": "BETWEEN_POINTS",
+                "countdown": {
+                    "value": {
+                        "kind": "OPENING_PULL",
+                        "label": "Signal in",
+                        "durationSeconds": 20,
+                        "targetEpoch": 1767450620000,
+                        "betweenPointsTarget": "OFFENSE_READY"
+                    }
+                },
+                "lastEvent": "Cards and technical fouls adjusted."
+            },
+            "previousUndoEntry": {
+                "label": "Undo Cards / TF Adjustment",
+                "patchToPrevious": {
+                    "teamTwoPlayerCards": {
+                        "replacement": [
+                            {
+                                "jerseyNumber": "N/A",
+                                "yellows": 1,
+                                "reds": 0
+                            }
+                        ]
+                    },
+                    "eventLog": {
+                        "previousSize": 3
+                    },
+                    "lastEvent": "Yellow card for Simple Two #N/A."
+                },
+                "previousUndoEntry": {
+                    "label": "Undo Yellow on #N/A of Simple Two",
+                    "patchToPrevious": {
+                        "teamTwoPlayerCards": {
+                            "previousSize": 0
+                        },
+                        "eventLog": {
+                            "previousSize": 2
+                        },
+                        "lastEvent": "Second yellow for Simple One #N/A."
+                    },
+                    "previousUndoEntry": {
+                        "label": "Undo Second Yellow on #N/A of Simple One",
+                        "patchToPrevious": {
+                            "teamOnePlayerCards": {
+                                "replacement": [
+                                    {
+                                        "jerseyNumber": "N/A",
+                                        "yellows": 1,
+                                        "reds": 0
+                                    }
+                                ]
+                            },
+                            "eventLog": {
+                                "previousSize": 1
+                            },
+                            "lastEvent": "Cards and technical fouls adjusted."
+                        },
+                        "previousUndoEntry": {
+                            "label": "Undo Cards / TF Adjustment",
+                            "patchToPrevious": {
+                                "teamOnePlayerCards": {
+                                    "previousSize": 0
+                                },
+                                "eventLog": {
+                                    "previousSize": 0
+                                },
+                                "lastEvent": "Pregame setup complete."
+                            },
+                            "previousUndoEntry": null
+                        }
+                    }
+                }
+            }
+        },
+        "redoEntry": null
+    },
+    "setupMode": "EDIT_CURRENT_GAME",
+    "hasSetupDraft": false
+}

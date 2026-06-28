@@ -2,6 +2,7 @@ package rmjarvis.ultiobserver
 
 import java.io.File
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
 
@@ -16,13 +17,16 @@ fun main(args: Array<String>) {
         "setup-draft" -> writeSetupDraft(root)
         "active-game" -> writeActiveGame(root)
         "completed-archive" -> writeCompletedArchive(root)
+        "setup-saved" -> writeSetupSaved(root)
+        "complete-current-game" -> writeCompleteCurrentGame(root)
+        "timeout-countdown" -> writeTimeoutCountdown(root)
         else -> error("Unknown persistence fixture scenario: $scenario")
     }
 }
 
 private fun writeDefaultBuckets(dir: File) {
     val store = freshStore(dir)
-    store.saveCurrentGameState(CurrentGameSnapshot())
+    store.saveCurrentGameState(defaultCurrentGameSnapshot())
     store.saveProfile(Profile())
     store.saveSettings(Settings())
     store.saveArchivedGames(emptyList())
@@ -72,7 +76,7 @@ private fun writeCompletedArchive(dir: File) {
     val richGame = activeGameWithEvents(richSetup)
         .endGameNow(setupEpoch(richSetup) + 180_000L)
 
-    store.saveCurrentGameState(CurrentGameSnapshot())
+    store.saveCurrentGameState(defaultCurrentGameSnapshot())
     store.saveProfile(fixtureProfile())
     store.saveSettings(fixtureSettings())
     store.saveArchivedGames(
@@ -89,10 +93,131 @@ private fun writeCompletedArchive(dir: File) {
     )
 }
 
+private fun writeSetupSaved(dir: File) {
+    val store = freshStore(dir)
+    val setup = simpleSetup()
+    val activeGame = createLiveGameState(setup)
+    val summary = activeGame.copy(
+        phase = GamePhase.GAME_OVER,
+        endEpoch = setupEpoch(setup) + 5_000L,
+    )
+
+    store.saveCurrentGameState(
+        CurrentGameSnapshot(
+            setupState = setup,
+            liveState = activeGame,
+            setupMode = SetupMode.EDIT_CURRENT_GAME,
+        )
+    )
+    store.saveProfile(fixtureProfile())
+    store.saveSettings(fixtureSettings())
+    store.saveArchivedGames(
+        listOf(
+            ArchivedGame(
+                state = summary.pruneUndoHistory(),
+                subtitle = "Generated setup-saved v1.0 game",
+                restorableState = activeGame.pruneUndoHistory(clearCountdown = false),
+            ),
+        )
+    )
+}
+
+private fun writeCompleteCurrentGame(dir: File) {
+    val store = freshStore(dir)
+    val setup = completeCurrentSetup()
+    val start = setupEpoch(setup)
+    var game = createLiveGameState(setup)
+    game = game.adjustCardsAndTf(
+        teamOneBlues = 0,
+        teamOneTechnicalFouls = 0,
+        teamTwoBlues = 0,
+        teamTwoTechnicalFouls = 0,
+        teamOnePlayerCards = listOf(InGamePlayerCardRecord(UNKNOWN_PLAYER_NUMBER, yellows = 1)),
+        teamTwoPlayerCards = emptyList(),
+        now = start + 1_000L,
+    )
+    game = game.assessSecondYellowCard(TeamId.TEAM_ONE, UNKNOWN_PLAYER_NUMBER, start + 2_000L).state
+    game = game.assessYellowCard(TeamId.TEAM_TWO, UNKNOWN_PLAYER_NUMBER, start + 3_000L).state
+    game = game.adjustCardsAndTf(
+        teamOneBlues = 0,
+        teamOneTechnicalFouls = 0,
+        teamTwoBlues = 0,
+        teamTwoTechnicalFouls = 0,
+        teamOnePlayerCards = game.teamOnePlayerCards,
+        teamTwoPlayerCards = listOf(InGamePlayerCardRecord(UNKNOWN_PLAYER_NUMBER, reds = 1)),
+        now = start + 4_000L,
+    )
+    game = game.endGameNow(start + 5_000L)
+
+    store.saveCurrentGameState(
+        CurrentGameSnapshot(
+            setupState = setup,
+            liveState = game,
+            setupMode = SetupMode.EDIT_CURRENT_GAME,
+        )
+    )
+    store.saveProfile(fixtureProfile())
+    store.saveSettings(fixtureSettings())
+    store.saveArchivedGames(emptyList())
+}
+
+private fun writeTimeoutCountdown(dir: File) {
+    val store = freshStore(dir)
+    val setup = timeoutCountdownSetup()
+    val start = setupEpoch(setup)
+    var game = createLiveGameState(setup).beginLivePoint(start + 1_000L)
+
+    game = game.assessYellowCard(TeamId.TEAM_ONE, UNKNOWN_PLAYER_NUMBER, start + 2_000L).state
+    game = game.adjustCardsAndTf(
+        teamOneBlues = 0,
+        teamOneTechnicalFouls = 0,
+        teamTwoBlues = 0,
+        teamTwoTechnicalFouls = 0,
+        teamOnePlayerCards = emptyList(),
+        teamTwoPlayerCards = emptyList(),
+        now = start + 3_000L,
+    )
+    game = game.assessYellowCard(TeamId.TEAM_ONE, UNKNOWN_PLAYER_NUMBER, start + 4_000L).state
+    game = game.assessYellowCard(TeamId.TEAM_TWO, UNKNOWN_PLAYER_NUMBER, start + 5_000L).state
+    game = game.assessRedCard(TeamId.TEAM_TWO, UNKNOWN_PLAYER_NUMBER, start + 6_000L).state
+    game = game.adjustCardsAndTf(
+        teamOneBlues = 0,
+        teamOneTechnicalFouls = 0,
+        teamTwoBlues = 0,
+        teamTwoTechnicalFouls = 0,
+        teamOnePlayerCards = game.teamOnePlayerCards,
+        teamTwoPlayerCards = listOf(InGamePlayerCardRecord(UNKNOWN_PLAYER_NUMBER, yellows = 1)),
+        now = start + 7_000L,
+    )
+    game = game.assessRedCard(TeamId.TEAM_TWO, UNKNOWN_PLAYER_NUMBER, start + 8_000L).state
+    game = game.chargeTimeout(TeamId.TEAM_ONE, start + 9_000L)
+
+    store.saveCurrentGameState(
+        CurrentGameSnapshot(
+            setupState = setup,
+            liveState = game,
+            setupMode = SetupMode.EDIT_CURRENT_GAME,
+        )
+    )
+    store.saveProfile(fixtureProfile())
+    store.saveSettings(fixtureSettings())
+    store.saveArchivedGames(emptyList())
+}
+
 private fun freshStore(dir: File): FileAppStateStorage {
     dir.deleteRecursively()
     dir.mkdirs()
     return FileAppStateStorage(dir)
+}
+
+private fun defaultCurrentGameSnapshot(): CurrentGameSnapshot {
+    return CurrentGameSnapshot(
+        setupState = newGameSetupState(
+            now = LocalDateTime.of(2026, 6, 27, 16, 1),
+        ).copy(
+            timeZone = ZoneId.of("America/New_York"),
+        ),
+    )
 }
 
 private fun baseSetup(): GameSetupState {
@@ -113,6 +238,33 @@ private fun baseSetup(): GameSetupState {
         teamTwo = TeamSetup("Animal", TeamColorChoice.RED),
         pullingTeam = TeamId.TEAM_ONE,
         pullingFromEnd = FieldEnd.FAR,
+    )
+}
+
+private fun simpleSetup(): GameSetupState {
+    return baseSetup().copy(
+        teamOne = TeamSetup("Simple One", TeamColorChoice.WHITE),
+        teamTwo = TeamSetup("Simple Two", TeamColorChoice.BLUE),
+    )
+}
+
+private fun completeCurrentSetup(): GameSetupState {
+    return simpleSetup().copy(
+        priorCards = listOf(
+            PlayerCardRecord(TeamId.TEAM_ONE, UNKNOWN_PLAYER_NUMBER, priorYellows = 0, priorReds = 1),
+        ),
+    )
+}
+
+private fun timeoutCountdownSetup(): GameSetupState {
+    return simpleSetup().copy(
+        priorCards = listOf(
+            PlayerCardRecord(TeamId.TEAM_ONE, "5", priorYellows = 1, priorReds = 0),
+            PlayerCardRecord(TeamId.TEAM_ONE, UNKNOWN_PLAYER_NUMBER, priorYellows = 1, priorReds = 0),
+            PlayerCardRecord(TeamId.TEAM_TWO, "6", priorYellows = 1, priorReds = 0),
+            PlayerCardRecord(TeamId.TEAM_TWO, UNKNOWN_PLAYER_NUMBER, priorYellows = 0, priorReds = 1),
+            PlayerCardRecord(TeamId.TEAM_TWO, UNKNOWN_PLAYER_NUMBER, priorYellows = 1, priorReds = 0),
+        ),
     )
 }
 
@@ -137,9 +289,10 @@ private fun nonDefaultSetup(): GameSetupState {
         teamTwo = TeamSetup("Ferns", TeamColorChoice.GREEN),
         priorCards = listOf(
             PlayerCardRecord(TeamId.TEAM_ONE, "7", priorYellows = 1, priorReds = 0),
-            PlayerCardRecord(TeamId.TEAM_ONE, UNKNOWN_PLAYER_NUMBER, priorYellows = 1, priorReds = 0),
             PlayerCardRecord(TeamId.TEAM_ONE, UNKNOWN_PLAYER_NUMBER, priorYellows = 0, priorReds = 1),
+            PlayerCardRecord(TeamId.TEAM_ONE, UNKNOWN_PLAYER_NUMBER, priorYellows = 1, priorReds = 0),
             PlayerCardRecord(TeamId.TEAM_TWO, "12", priorYellows = 0, priorReds = 1),
+            PlayerCardRecord(TeamId.TEAM_TWO, UNKNOWN_PLAYER_NUMBER, priorYellows = 1, priorReds = 0),
             PlayerCardRecord(TeamId.TEAM_TWO, UNKNOWN_PLAYER_NUMBER, priorYellows = 0, priorReds = 1),
         ),
         pullingTeam = TeamId.TEAM_TWO,

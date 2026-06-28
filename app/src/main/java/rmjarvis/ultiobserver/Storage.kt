@@ -52,22 +52,17 @@ internal data class CurrentGameSnapshot(
          * @param jsonObject The parsed JSON object from the current-game bucket.
          * @param version The version metadata read from that JSON object.
          */
-        fun decodeJson(jsonObject: JsonObject, version: AppVersion): CurrentGameSnapshot? {
-            // Placeholder for future version-specific decoding/migration into the current model.
-            return when {
-                version.versionCode == APP_STATE_VERSION_CODE -> decodeCurrentJson(jsonObject)
-                else -> null
-            }
-        }
-
-        /**
-         * Decode current-version current-game JSON, returning null when the bucket is corrupt.
-         *
-         * @param jsonObject The parsed current-game JSON object.
-         */
-        private fun decodeCurrentJson(jsonObject: JsonObject): CurrentGameSnapshot? {
+        fun decodeJson(
+            jsonObject: JsonObject,
+            version: AppVersion,
+        ): PersistenceDecodeResult<CurrentGameSnapshot>? {
             return try {
-                decodeCurrentGameSnapshot(jsonObject)
+                val migrated = migrateCurrentGameSnapshotJson(jsonObject, version) ?: return null
+                val currentGameState = decodeCurrentGameSnapshot(migrated.jsonObject)
+                PersistenceDecodeResult(
+                    value = currentGameState,
+                    wasMigrated = migrated.wasMigrated,
+                )
             } catch (_: RuntimeException) {
                 null
             }
@@ -223,7 +218,10 @@ internal class FileAppStateStorage(
             resetAreas += PersistedData.GAME_STATE
             return CurrentGameSnapshot()
         }
-        return currentGameState
+        if (currentGameState.wasMigrated) {
+            saveCurrentGameState(currentGameState.value)
+        }
+        return currentGameState.value
     }
 
     /**
@@ -251,7 +249,10 @@ internal class FileAppStateStorage(
             resetAreas += PersistedData.PROFILE
             return Profile()
         }
-        return profile
+        if (profile.wasMigrated) {
+            saveProfile(profile.value)
+        }
+        return profile.value
     }
 
     /**
@@ -279,7 +280,10 @@ internal class FileAppStateStorage(
             resetAreas += PersistedData.SETTINGS
             return Settings()
         }
-        return settings
+        if (settings.wasMigrated) {
+            saveSettings(settings.value)
+        }
+        return settings.value
     }
 
     /**
@@ -334,7 +338,8 @@ internal class FileAppStateStorage(
         }
         val archiveFiles = archivedGamesDir.listFiles { file -> file.isFile && file.extension == "json" }
             ?: return emptyList()
-        return archiveFiles
+        var archivedGamesMigrated = false
+        val archivedGames = archiveFiles
             .sortedBy { it.name }
             .mapNotNull { file ->
                 val archivedGame = readExistingJsonObject(file)
@@ -345,8 +350,15 @@ internal class FileAppStateStorage(
                 if (archivedGame == null) {
                     resetAreas += PersistedData.ARCHIVED_GAMES
                 }
-                archivedGame
+                if (archivedGame?.wasMigrated == true) {
+                    archivedGamesMigrated = true
+                }
+                archivedGame?.value
             }
+        if (archivedGamesMigrated) {
+            saveArchivedGames(archivedGames)
+        }
+        return archivedGames
     }
 
     /**

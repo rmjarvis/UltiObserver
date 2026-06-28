@@ -191,22 +191,14 @@ internal data class Settings(
          * @param jsonObject The parsed JSON object from the settings bucket.
          * @param version The version metadata read from that JSON object.
          */
-        fun decodeJson(jsonObject: JsonObject, version: AppVersion): Settings? {
-            // Placeholder for future version-specific decoding/migration into the current model.
-            return when {
-                version.versionCode == APP_STATE_VERSION_CODE -> decodeCurrentJson(jsonObject)
-                else -> null
-            }
-        }
-
-        /**
-         * Decode current-version settings JSON, returning null when the bucket is corrupt.
-         *
-         * @param jsonObject The parsed settings JSON object.
-         */
-        private fun decodeCurrentJson(jsonObject: JsonObject): Settings? {
+        fun decodeJson(jsonObject: JsonObject, version: AppVersion): PersistenceDecodeResult<Settings>? {
             return try {
-                appStateJson.decodeFromJsonElement(jsonObject)
+                val migrated = migrateSettingsJson(jsonObject, version) ?: return null
+                val settings = appStateJson.decodeFromJsonElement<Settings>(migrated.jsonObject)
+                PersistenceDecodeResult(
+                    value = settings,
+                    wasMigrated = migrated.wasMigrated,
+                )
             } catch (_: RuntimeException) {
                 null
             }

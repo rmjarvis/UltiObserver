@@ -344,15 +344,37 @@ class TestPersistence : GameDomainTestFixtures() {
         store.saveCurrentGameState(currentGameState)
         assertEquals(currentGameState, store.loadCurrentGameState())
 
-        // Unsupported current-game versions recover to setup-only state.
+        // A same-persistence-version current game with a different Android version code
+        // is still readable.
         val currentGameStateFile = File(storeDir, "current_game_state.json")
+        store.saveCurrentGameState(currentGameState)
         currentGameStateFile.replaceText(
             "\"versionCode\": ${BuildConfig.VERSION_CODE}",
             "\"versionCode\": 99",
         )
+        assertEquals(currentGameState.copy(versionCode = 99), store.loadCurrentGameState())
+        assertTrue(store.resetPersistedDataAreas.isEmpty())
+
+        // Unsupported current-game persistence versions recover to setup-only state.
+        store.saveCurrentGameState(currentGameState)
+        currentGameStateFile.replaceText(
+            "\"versionName\": \"${BuildConfig.VERSION_NAME}\"",
+            "\"versionName\": \"99.0.0\"",
+        )
         val recoveredState = store.loadCurrentGameState()!!
         assertNull(recoveredState.liveState)
         assertEquals(SetupMode.NEW_GAME, recoveredState.setupMode)
+        assertEquals(setOf(PersistedData.GAME_STATE), store.resetPersistedDataAreas)
+
+        // Invalid current-game version names follow the same reset path.
+        store.saveCurrentGameState(currentGameState)
+        currentGameStateFile.replaceText(
+            "\"versionName\": \"${BuildConfig.VERSION_NAME}\"",
+            "\"versionName\": \"not-a-version\"",
+        )
+        val invalidVersionRecoveredState = store.loadCurrentGameState()!!
+        assertNull(invalidVersionRecoveredState.liveState)
+        assertEquals(SetupMode.NEW_GAME, invalidVersionRecoveredState.setupMode)
         assertEquals(setOf(PersistedData.GAME_STATE), store.resetPersistedDataAreas)
 
         // Archived games load only JSON files and cleanup removes stale numbered archive files.
@@ -539,6 +561,10 @@ class TestPersistence : GameDomainTestFixtures() {
         )
         assertEquals(debugVersionName, persistedVersion.versionName)
         assertEquals(APP_STATE_VERSION_CODE, persistedVersion.versionCode)
+        assertEquals("1.1", currentPersistenceVersion("1.1.0alpha", 99))
+        assertThrows(IllegalArgumentException::class.java) {
+            currentPersistenceVersion("development-build", 99)
+        }
 
         // Missing version names should reset each affected split-state area.
         store.saveProfile(savedProfile)
@@ -564,7 +590,7 @@ class TestPersistence : GameDomainTestFixtures() {
             store.resetPersistedDataAreas,
         )
 
-        // Wrongly typed version fields and unsupported version codes should also reset narrowly.
+        // Wrongly typed version fields and unsupported persistence versions reset narrowly.
         store.saveCurrentGameState(savedCurrentGameState)
         File(storeDir, "current_game_state.json")
             .replaceText("\"versionName\": \"${BuildConfig.VERSION_NAME}\"", "\"versionName\": 1")
@@ -608,11 +634,24 @@ class TestPersistence : GameDomainTestFixtures() {
             store.resetPersistedDataAreas,
         )
 
-        // A later unsupported Profile version code should also reset Profile.
+        // A Profile with the same persistence version but a different revision number, and
+        // thus a different Android version code, is still readable.
         store.saveProfile(savedProfile)
         File(storeDir, "profile.json").replaceText(
             "\"versionCode\": ${BuildConfig.VERSION_CODE}",
             "\"versionCode\": 99",
+        )
+        assertEquals(savedProfile.copy(versionCode = 99), store.loadProfile())
+        assertEquals(
+            setOf(PersistedData.GAME_STATE, PersistedData.SETTINGS, PersistedData.ARCHIVED_GAMES),
+            store.resetPersistedDataAreas,
+        )
+
+        // A later unsupported Profile persistence version should reset Profile.
+        store.saveProfile(savedProfile)
+        File(storeDir, "profile.json").replaceText(
+            "\"versionName\": \"${BuildConfig.VERSION_NAME}\"",
+            "\"versionName\": \"99.0.0\"",
         )
         assertEquals(Profile(), store.loadProfile())
         assertEquals(
@@ -655,7 +694,7 @@ class TestPersistence : GameDomainTestFixtures() {
             store.resetPersistedDataAreas,
         )
 
-        // Debug-style version names are accepted; unsupported version codes are rejected.
+        // Debug-style version names are accepted.
         store.saveProfile(savedProfile)
         File(storeDir, "profile.json")
             .replaceText(
@@ -668,11 +707,11 @@ class TestPersistence : GameDomainTestFixtures() {
             store.resetPersistedDataAreas,
         )
 
-        // A later unsupported Settings version code should reset Settings.
+        // A later unsupported Settings persistence version should reset Settings.
         store.saveSettings(savedSettings)
         File(storeDir, "settings.json").replaceText(
-            "\"versionCode\": ${BuildConfig.VERSION_CODE}",
-            "\"versionCode\": 99",
+            "\"versionName\": \"${BuildConfig.VERSION_NAME}\"",
+            "\"versionName\": \"99.0.0\"",
         )
         assertEquals(Settings(), store.loadSettings())
         assertEquals(
@@ -700,10 +739,12 @@ class TestPersistence : GameDomainTestFixtures() {
             store.resetPersistedDataAreas,
         )
 
-        // A later unsupported archive version code should reset Archived games.
+        // A later unsupported archive persistence version should reset Archived games.
         store.saveArchivedGames(listOf(savedArchive))
-        File(File(storeDir, "archived_games"), "00000.json")
-            .replaceText("\"versionCode\": ${BuildConfig.VERSION_CODE}", "\"versionCode\": 99")
+        File(File(storeDir, "archived_games"), "00000.json").replaceText(
+            "\"versionName\": \"${BuildConfig.VERSION_NAME}\"",
+            "\"versionName\": \"99.0.0\"",
+        )
         assertTrue(store.loadArchivedGames().isEmpty())
         assertEquals(
             setOf(PersistedData.GAME_STATE, PersistedData.SETTINGS, PersistedData.ARCHIVED_GAMES),

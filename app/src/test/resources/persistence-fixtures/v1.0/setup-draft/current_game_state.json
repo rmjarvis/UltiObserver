@@ -36,20 +36,26 @@
             {
                 "team": "TEAM_ONE",
                 "jerseyNumber": "N/A",
-                "priorYellows": 1,
-                "priorReds": 0
+                "priorYellows": 0,
+                "priorReds": 1
             },
             {
                 "team": "TEAM_ONE",
                 "jerseyNumber": "N/A",
-                "priorYellows": 0,
-                "priorReds": 1
+                "priorYellows": 1,
+                "priorReds": 0
             },
             {
                 "team": "TEAM_TWO",
                 "jerseyNumber": "12",
                 "priorYellows": 0,
                 "priorReds": 1
+            },
+            {
+                "team": "TEAM_TWO",
+                "jerseyNumber": "N/A",
+                "priorYellows": 1,
+                "priorReds": 0
             },
             {
                 "team": "TEAM_TWO",

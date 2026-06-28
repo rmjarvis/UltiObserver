@@ -37,6 +37,9 @@ persisted_scenarios = {
         "setup-draft": ScenarioSource("setup-draft", "v1.0.1"),
         "active-game": ScenarioSource("active-game", "v1.0.1"),
         "completed-archive": ScenarioSource("completed-archive", "v1.0.1"),
+        "setup-saved": ScenarioSource("setup-saved", "v1.0.1"),
+        "complete-current-game": ScenarioSource("complete-current-game", "v1.0.1"),
+        "timeout-countdown": ScenarioSource("timeout-countdown", "v1.0.1"),
         "completed-archive-1.0.0": ScenarioSource("completed-archive", "v1.0.0"),
     },
 }
