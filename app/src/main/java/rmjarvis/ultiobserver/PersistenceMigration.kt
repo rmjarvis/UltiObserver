@@ -141,7 +141,7 @@ private fun migrateJsonToCurrent(
         bucket = bucket,
     ) ?: return null
     return MigratedJson(
-        jsonObject = migratedJson.withCurrentVersion(),
+        jsonObject = migratedJson,
         wasMigrated = true,
     )
 }
@@ -168,7 +168,7 @@ private fun migrateJsonBetweenVersions(
 }
 
 /// Return the persistence version from a full version name, such as `1.1` from `1.1.0alpha`.
-private fun AppVersion.persistenceVersion(): String? {
+internal fun AppVersion.persistenceVersion(): String? {
     val match = Regex("""^(\d+)\.(\d+)""").find(versionName) ?: return null
     return "${match.groupValues[1]}.${match.groupValues[2]}"
 }
@@ -183,15 +183,6 @@ internal fun currentPersistenceVersion(
     ) {
         "Current app version $versionName must start with an M.m version."
     }
-}
-
-private fun JsonObject.withCurrentVersion(): JsonObject {
-    return JsonObject(
-        toMutableMap().apply {
-            this["versionName"] = JsonPrimitive(APP_STATE_VERSION_NAME)
-            this["versionCode"] = JsonPrimitive(APP_STATE_VERSION_CODE)
-        }
-    )
 }
 
 /// Implementation details for converting version 1.0 JSON shapes to version 1.1 shapes.
@@ -246,6 +237,9 @@ private object V1_0ToV1_1 {
     }
 
     fun migrateCurrentGameSnapshot(jsonObject: JsonObject): JsonObject {
+        val migratedSetupState = migrateV1_0SetupStateToV1_1(
+            jsonObject.getValue("setupState").jsonObject,
+        )
         val liveState = jsonObject.getValue("liveState")
         val migratedLiveState = if (liveState is JsonNull) {
             JsonNull
@@ -264,11 +258,19 @@ private object V1_0ToV1_1 {
                 }
             )
         }
+        val hadSetupDraft = appStateJson.decodeFromJsonElement<Boolean>(
+            jsonObject.getValue("hasSetupDraft"),
+        )
         return JsonObject(
             jsonObject.toMutableMap().apply {
-                this["setupState"] = migrateV1_0SetupStateToV1_1(
-                    jsonObject.getValue("setupState").jsonObject,
-                )
+                remove("setupState")
+                remove("setupMode")
+                remove("hasSetupDraft")
+                this["setupDraft"] = if (hadSetupDraft) {
+                    migratedSetupState
+                } else {
+                    JsonNull
+                }
                 this["liveState"] = migratedLiveState
             }
         )

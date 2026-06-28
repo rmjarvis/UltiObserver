@@ -334,15 +334,19 @@ class TestPersistence : GameDomainTestFixtures() {
         assertNull(store.loadCurrentGameState())
         assertTrue(store.loadArchivedGames().isEmpty())
 
-        // Current snapshots load normally; unsupported versions recover to setup-only state.
+        // Current setup drafts load normally; unsupported versions recover to empty state.
         val setup = newGameSetupState(LocalDateTime.of(2026, 5, 11, 10, 0))
         val currentGameState = CurrentGameSnapshot(
-            setupState = setup,
-            liveState = null,
-            setupMode = SetupMode.NEW_GAME,
+            setupDraft = setup,
         )
         store.saveCurrentGameState(currentGameState)
         assertEquals(currentGameState, store.loadCurrentGameState())
+        assertThrows(IllegalArgumentException::class.java) {
+            CurrentGameSnapshot(
+                setupDraft = setup,
+                liveState = createLiveGameState(setup),
+            )
+        }
 
         // A same-persistence-version current game with a different Android version code
         // is still readable.
@@ -352,7 +356,7 @@ class TestPersistence : GameDomainTestFixtures() {
             "\"versionCode\": ${BuildConfig.VERSION_CODE}",
             "\"versionCode\": 99",
         )
-        assertEquals(currentGameState.copy(versionCode = 99), store.loadCurrentGameState())
+        assertEquals(currentGameState, store.loadCurrentGameState())
         assertTrue(store.resetPersistedDataAreas.isEmpty())
 
         // Unsupported current-game persistence versions recover to setup-only state.
@@ -418,9 +422,7 @@ class TestPersistence : GameDomainTestFixtures() {
             soundVolume = 0.4f,
         )
         val savedCurrentGameState = CurrentGameSnapshot(
-            setupState = setup,
             liveState = liveState,
-            setupMode = SetupMode.EDIT_CURRENT_GAME,
         )
         val savedArchive = ArchivedGame(
             state = createLiveGameState(setup).copy(phase = GamePhase.GAME_OVER),
@@ -529,9 +531,7 @@ class TestPersistence : GameDomainTestFixtures() {
         val store = FileAppStateStorage(storeDir)
         val setup = newGameSetupState(LocalDateTime.of(2026, 5, 11, 10, 0))
         val savedCurrentGameState = CurrentGameSnapshot(
-            setupState = setup,
             liveState = createLiveGameState(setup),
-            setupMode = SetupMode.EDIT_CURRENT_GAME,
         )
         val savedProfile = Profile(profileName = "Casey Observer")
         val savedSettings = Settings(
@@ -543,27 +543,7 @@ class TestPersistence : GameDomainTestFixtures() {
         )
         val debugVersionName = "${BuildConfig.VERSION_NAME}-debug"
 
-        // New persisted shapes should include the current app version metadata.
-        assertEquals(APP_STATE_VERSION_NAME, CurrentGameSnapshot().versionName)
-        assertEquals(APP_STATE_VERSION_CODE, CurrentGameSnapshot().versionCode)
-        assertEquals(APP_STATE_VERSION_NAME, Profile().versionName)
-        assertEquals(APP_STATE_VERSION_CODE, Profile().versionCode)
-        assertEquals(APP_STATE_VERSION_NAME, Settings().versionName)
-        assertEquals(APP_STATE_VERSION_CODE, Settings().versionCode)
-        assertEquals(
-            APP_STATE_VERSION_NAME,
-            ArchivedGame(
-                state = createLiveGameState(setup),
-                summaryContext = "",
-            ).versionName,
-        )
-        assertEquals(
-            APP_STATE_VERSION_CODE,
-            ArchivedGame(
-                state = createLiveGameState(setup),
-                summaryContext = "",
-            ).versionCode,
-        )
+        // Persistence-version helpers should accept release/debug names and reject invalid names.
         val persistedVersion = AppVersion(
             versionName = debugVersionName,
             versionCode = APP_STATE_VERSION_CODE,
@@ -650,7 +630,7 @@ class TestPersistence : GameDomainTestFixtures() {
             "\"versionCode\": ${BuildConfig.VERSION_CODE}",
             "\"versionCode\": 99",
         )
-        assertEquals(savedProfile.copy(versionCode = 99), store.loadProfile())
+        assertEquals(savedProfile, store.loadProfile())
         assertEquals(
             setOf(PersistedData.GAME_STATE, PersistedData.SETTINGS, PersistedData.ARCHIVED_GAMES),
             store.resetPersistedDataAreas,
@@ -710,7 +690,7 @@ class TestPersistence : GameDomainTestFixtures() {
                 "\"versionName\": \"${BuildConfig.VERSION_NAME}\"",
                 "\"versionName\": \"$debugVersionName\"",
             )
-        assertEquals(savedProfile.copy(versionName = debugVersionName), store.loadProfile())
+        assertEquals(savedProfile, store.loadProfile())
         assertEquals(
             setOf(PersistedData.GAME_STATE, PersistedData.SETTINGS, PersistedData.ARCHIVED_GAMES),
             store.resetPersistedDataAreas,
@@ -740,7 +720,7 @@ class TestPersistence : GameDomainTestFixtures() {
                 "\"versionName\": \"$debugVersionName\"",
             )
         assertEquals(
-            listOf(savedArchive.copy(versionName = debugVersionName)),
+            listOf(savedArchive),
             store.loadArchivedGames(),
         )
         assertEquals(
@@ -833,9 +813,7 @@ class TestPersistence : GameDomainTestFixtures() {
         assertThrows(IOException::class.java) {
             store.saveCurrentGameState(
                 CurrentGameSnapshot(
-                    setupState = setup,
-                    liveState = null,
-                    setupMode = SetupMode.NEW_GAME,
+                    setupDraft = setup,
                 )
             )
         }
@@ -860,9 +838,7 @@ class TestPersistence : GameDomainTestFixtures() {
         )
         val setup = newGameSetupState(LocalDateTime.of(2026, 5, 11, 10, 0))
         val savedState = CurrentGameSnapshot(
-            setupState = setup,
-            liveState = null,
-            setupMode = SetupMode.NEW_GAME,
+            setupDraft = setup,
         )
 
         // Force the atomic path to fail and verify the fallback path replaces each split file.

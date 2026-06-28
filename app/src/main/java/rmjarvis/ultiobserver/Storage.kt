@@ -21,7 +21,7 @@ internal val APP_STATE_VERSION_CODE: Int = BuildConfig.VERSION_CODE
  * App version metadata read from one persisted JSON bucket.
  *
  * @param versionName The human-readable version string.
- * @param versionCode The integer version used for decode and migration decisions.
+ * @param versionCode The integer app version that wrote the file.
  */
 internal data class AppVersion(
     val versionName: String,
@@ -29,22 +29,59 @@ internal data class AppVersion(
 )
 
 /**
- * Current game, setup draft, and setup mode stored as one persistence bucket.
+ * File-level persistence envelope for one app-data bucket.
  *
- * @param setupState The current setup form state, including resumable drafts.
+ * @param versionName The human-readable app version that wrote the file.
+ * @param versionCode The integer app version that wrote the file.
+ * @param data The bucket payload without file-level metadata.
+ */
+@Serializable
+private data class PersistedBucket<T>(
+    val versionName: String,
+    val versionCode: Int,
+    val data: T,
+)
+
+/**
+ * Parsed persisted bucket with metadata separated from payload JSON.
+ *
+ * @param version The version metadata read from the file envelope.
+ * @param data The bucket payload JSON object.
+ */
+private data class StoredJsonBucket(
+    val version: AppVersion,
+    val data: JsonObject,
+)
+
+/**
+ * Current game or setup draft stored as one persistence bucket.
+ *
+ * @param setupDraft Resumable new-game setup draft, or null when no draft is saved.
  * @param liveState The current live or completed game, or null before setup is finished.
- * @param setupMode Whether setup will create a new game or edit the current live game.
- * @param hasSetupDraft Whether Home should offer a resumable setup draft.
  */
 @Serializable
 internal data class CurrentGameSnapshot(
-    val versionName: String = APP_STATE_VERSION_NAME,
-    val versionCode: Int = APP_STATE_VERSION_CODE,
-    val setupState: GameSetupState = newGameSetupState(),
+    val setupDraft: GameSetupState? = null,
     val liveState: GameState? = null,
-    val setupMode: SetupMode = SetupMode.NEW_GAME,
-    val hasSetupDraft: Boolean = false,
 ) {
+    init {
+        require(setupDraft == null || liveState == null) {
+            "Current game snapshot cannot contain both a setup draft and live state."
+        }
+    }
+
+    /// Return the setup form state implied by the saved draft or live game, if one exists.
+    val setupState: GameSetupState?
+        get() = setupDraft ?: liveState?.toSetupState()
+
+    /// Return whether setup would create a new game or edit the current live game.
+    val setupMode: SetupMode
+        get() = if (liveState == null) SetupMode.NEW_GAME else SetupMode.EDIT_CURRENT_GAME
+
+    /// Return whether Home should offer a resumable setup draft.
+    val hasSetupDraft: Boolean
+        get() = setupDraft != null
+
     companion object {
         /**
          * Decode persisted current-game state for a known storage version.
@@ -167,7 +204,33 @@ internal val appStateJson = Json {
 
 /// Encode a current-game bucket using serialized undo/redo patch chains.
 internal fun encodeCurrentGameSnapshot(state: CurrentGameSnapshot): String {
-    return appStateJson.encodeToString(SerializedCurrentGameSnapshot.fromCurrentGameSnapshot(state))
+    return encodePersistedBucket(SerializedCurrentGameSnapshot.fromCurrentGameSnapshot(state))
+}
+
+/// Encode a profile bucket with file-level app version metadata.
+internal fun encodeProfile(state: Profile): String {
+    return encodePersistedBucket(state)
+}
+
+/// Encode a settings bucket with file-level app version metadata.
+internal fun encodeSettings(state: Settings): String {
+    return encodePersistedBucket(state)
+}
+
+/// Encode one archived-game file with file-level app version metadata.
+internal fun encodeArchivedGame(game: ArchivedGame): String {
+    return encodePersistedBucket(game)
+}
+
+/// Encode one persistence payload under the standard file envelope.
+private inline fun <reified T> encodePersistedBucket(data: T): String {
+    return appStateJson.encodeToString(
+        PersistedBucket(
+            versionName = APP_STATE_VERSION_NAME,
+            versionCode = APP_STATE_VERSION_CODE,
+            data = data,
+        )
+    )
 }
 
 /// Decode a current-game bucket from serialized undo/redo patch chains.
@@ -204,10 +267,9 @@ internal class FileAppStateStorage(
         if (!currentGameStateFile.exists()) {
             return null
         }
-        val currentGameState = readExistingJsonObject(currentGameStateFile)
-            ?.let { storedCurrentGameState ->
-                readVersion(storedCurrentGameState)
-                    ?.let { version -> CurrentGameSnapshot.decodeJson(storedCurrentGameState, version) }
+        val currentGameState = readExistingBucket(currentGameStateFile)
+            ?.let { storedBucket ->
+                CurrentGameSnapshot.decodeJson(storedBucket.data, storedBucket.version)
             }
         if (currentGameState == null) {
             // We get here if:
@@ -240,10 +302,9 @@ internal class FileAppStateStorage(
         if (!profileFile.exists()) {
             return null
         }
-        val profile = readExistingJsonObject(profileFile)
-            ?.let { storedProfile ->
-                readVersion(storedProfile)
-                    ?.let { version -> Profile.decodeJson(storedProfile, version) }
+        val profile = readExistingBucket(profileFile)
+            ?.let { storedBucket ->
+                Profile.decodeJson(storedBucket.data, storedBucket.version)
             }
         if (profile == null) {
             resetAreas += PersistedData.PROFILE
@@ -262,7 +323,7 @@ internal class FileAppStateStorage(
      */
     override fun saveProfile(state: Profile) {
         rootDir.mkdirs()
-        profileFile.writeAtomically(appStateJson.encodeToString(state), moveFileAtomically, replaceFile)
+        profileFile.writeAtomically(encodeProfile(state), moveFileAtomically, replaceFile)
     }
 
     /// Load settings state from app-private JSON.
@@ -271,10 +332,9 @@ internal class FileAppStateStorage(
         if (!settingsFile.exists()) {
             return null
         }
-        val settings = readExistingJsonObject(settingsFile)
-            ?.let { storedSettings ->
-                readVersion(storedSettings)
-                    ?.let { version -> Settings.decodeJson(storedSettings, version) }
+        val settings = readExistingBucket(settingsFile)
+            ?.let { storedBucket ->
+                Settings.decodeJson(storedBucket.data, storedBucket.version)
             }
         if (settings == null) {
             resetAreas += PersistedData.SETTINGS
@@ -293,7 +353,16 @@ internal class FileAppStateStorage(
      */
     override fun saveSettings(state: Settings) {
         rootDir.mkdirs()
-        settingsFile.writeAtomically(appStateJson.encodeToString(state), moveFileAtomically, replaceFile)
+        settingsFile.writeAtomically(encodeSettings(state), moveFileAtomically, replaceFile)
+    }
+
+    /**
+     * Read an existing JSON file as a versioned bucket, returning null for unreadable shapes.
+     *
+     * @param file The JSON file to read.
+     */
+    private fun readExistingBucket(file: File): StoredJsonBucket? {
+        return readExistingJsonObject(file)?.toStoredJsonBucket()
     }
 
     /**
@@ -330,6 +399,28 @@ internal class FileAppStateStorage(
         }
     }
 
+    /**
+     * Split one parsed file into version metadata and payload JSON.
+     *
+     * Version 1.0 files stored payload fields and version metadata together at top level.
+     * Current files store version metadata at top level and the payload under `data`.
+     */
+    private fun JsonObject.toStoredJsonBucket(): StoredJsonBucket? {
+        val version = readVersion(this) ?: return null
+        val dataElement = this["data"]
+        if (dataElement != null) {
+            return try {
+                StoredJsonBucket(version = version, data = dataElement.jsonObject)
+            } catch (_: RuntimeException) {
+                null
+            }
+        }
+        if (version.persistenceVersion() != "1.0") {
+            return null
+        }
+        return StoredJsonBucket(version = version, data = this)
+    }
+
     /// Load all readable archived-game summaries from app-private JSON files.
     override fun loadArchivedGames(): List<ArchivedGame> {
         resetAreas.remove(PersistedData.ARCHIVED_GAMES)
@@ -342,10 +433,9 @@ internal class FileAppStateStorage(
         val archivedGames = archiveFiles
             .sortedBy { it.name }
             .mapNotNull { file ->
-                val archivedGame = readExistingJsonObject(file)
-                    ?.let { storedArchivedGame ->
-                        readVersion(storedArchivedGame)
-                            ?.let { version -> ArchivedGame.decodeJson(storedArchivedGame, version) }
+                val archivedGame = readExistingBucket(file)
+                    ?.let { storedBucket ->
+                        ArchivedGame.decodeJson(storedBucket.data, storedBucket.version)
                     }
                 if (archivedGame == null) {
                     resetAreas += PersistedData.ARCHIVED_GAMES
@@ -373,7 +463,7 @@ internal class FileAppStateStorage(
             ?.forEach { file -> Files.delete(file.toPath()) }
         games.forEachIndexed { index, game ->
             File(archivedGamesDir, "%05d.json".format(index))
-                .writeAtomically(appStateJson.encodeToString(game), moveFileAtomically, replaceFile)
+                .writeAtomically(encodeArchivedGame(game), moveFileAtomically, replaceFile)
         }
     }
 }

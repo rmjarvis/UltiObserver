@@ -858,10 +858,8 @@ internal class AppViewModel(
     private fun persistCurrentGameState() {
         appStateStorage.saveCurrentGameState(
             CurrentGameSnapshot(
-                setupState = setupState,
+                setupDraft = setupState.takeIf { liveState == null && hasSetupDraft },
                 liveState = liveState,
-                setupMode = setupMode,
-                hasSetupDraft = hasSetupDraft,
             )
         )
     }

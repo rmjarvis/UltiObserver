@@ -4,7 +4,6 @@ import java.io.File
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
-import kotlinx.serialization.encodeToString
 
 private const val BACKUP_CAP_BYTES = 25L * 1024L * 1024L
 
@@ -13,9 +12,7 @@ fun main() {
     val setup = backupEstimateSetup()
     val game = buildHighActivityFullGame(setup)
     val currentGameSnapshot = CurrentGameSnapshot(
-        setupState = setup,
         liveState = game,
-        setupMode = SetupMode.EDIT_CURRENT_GAME,
     )
     val archivedGame = ArchivedGame(
         state = game.pruneUndoHistory(),
@@ -27,9 +24,9 @@ fun main() {
 
     val samples = listOf(
         BackupSample("current_game_state.json", encodeCurrentGameSnapshot(currentGameSnapshot)),
-        BackupSample("profile.json", appStateJson.encodeToString(Profile(profileName = "Casey Observer"))),
-        BackupSample("settings.json", appStateJson.encodeToString(Settings())),
-        BackupSample("archived_games/00000.json", appStateJson.encodeToString(archivedGame)),
+        BackupSample("profile.json", encodeProfile(Profile(profileName = "Casey Observer"))),
+        BackupSample("settings.json", encodeSettings(Settings())),
+        BackupSample("archived_games/00000.json", encodeArchivedGame(archivedGame)),
     )
 
     samples.forEach { sample ->

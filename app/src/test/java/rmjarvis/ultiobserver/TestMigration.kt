@@ -356,14 +356,7 @@ class TestMigration : GameDomainTestFixtures() {
         val storeDir = temporaryFolder.newFolder()
         fixtureDir(version, scenario).copyRecursively(storeDir, overwrite = true)
         val viewModel = AppViewModel(FileAppStateStorage(storeDir))
-        val oldPersistenceVersion = version.removePrefix("v")
         assertNull(viewModel.startupRecoveryNotice)
-        assertCurrentVersion(File(storeDir, "current_game_state.json"), oldPersistenceVersion)
-        assertCurrentVersion(File(storeDir, "profile.json"), oldPersistenceVersion)
-        assertCurrentVersion(File(storeDir, "settings.json"), oldPersistenceVersion)
-        File(storeDir, "archived_games")
-            .listFiles { file -> file.extension == "json" }
-            ?.forEach { file -> assertCurrentVersion(file, oldPersistenceVersion) }
         return viewModel
     }
 
@@ -374,10 +367,4 @@ class TestMigration : GameDomainTestFixtures() {
         return Paths.get(resource.toURI()).toFile()
     }
 
-    private fun assertCurrentVersion(file: File, oldPersistenceVersion: String) {
-        val text = file.readText()
-        assertTrue(text.contains("\"versionName\": \"${APP_STATE_VERSION_NAME}\""))
-        assertTrue(text.contains("\"versionCode\": $APP_STATE_VERSION_CODE"))
-        assertFalse(text.contains("\"versionName\": \"$oldPersistenceVersion."))
-    }
 }

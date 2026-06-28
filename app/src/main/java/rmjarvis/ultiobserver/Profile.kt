@@ -12,8 +12,6 @@ import kotlinx.serialization.json.decodeFromJsonElement
  */
 @Serializable
 internal data class Profile(
-    val versionName: String = APP_STATE_VERSION_NAME,
-    val versionCode: Int = APP_STATE_VERSION_CODE,
     val profileName: String = "",
     val avatarPreference: ObserverAvatarPreference = ObserverAvatarPreference.RANDOM,
 ) {

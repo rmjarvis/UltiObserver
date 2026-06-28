@@ -63,22 +63,15 @@ class TestSerialization : GameDomainTestFixtures() {
         val undoBacked = later.copy(undoEntry = UndoEntry("Undo Test patch", previous))
         val undone = undoBacked.undoLastAction()
         val snapshot = CurrentGameSnapshot(
-            setupState = standardGameSetup(startTime = LocalTime.of(8, 0)),
             liveState = undone,
-            setupMode = SetupMode.EDIT_CURRENT_GAME,
-            hasSetupDraft = false,
         )
         val serializedSnapshot = SerializedCurrentGameSnapshot.fromCurrentGameSnapshot(snapshot)
         val serializedLiveState = serializedSnapshot.liveState!!
         val serializedUndoEntry = serializedLiveState.undoEntry
         val restored = serializedSnapshot.toCurrentGameSnapshot()
 
-        // Serialized current-game metadata should match the source snapshot.
-        assertEquals(snapshot.versionName, serializedSnapshot.versionName)
-        assertEquals(snapshot.versionCode, serializedSnapshot.versionCode)
-        assertEquals(snapshot.setupState, serializedSnapshot.setupState)
-        assertEquals(snapshot.setupMode, serializedSnapshot.setupMode)
-        assertEquals(snapshot.hasSetupDraft, serializedSnapshot.hasSetupDraft)
+        // Serialized current-game state should match the source snapshot.
+        assertNull(serializedSnapshot.setupDraft)
 
         // The current live state stores its nested undo and redo state as patch chains.
         assertEquals(undone.copy(undoEntry = null, redoEntry = null), serializedLiveState.state)
@@ -102,12 +95,8 @@ class TestSerialization : GameDomainTestFixtures() {
         assertEquals(
             CurrentGameSnapshot(),
             SerializedCurrentGameSnapshot(
-                versionName = APP_STATE_VERSION_NAME,
-                versionCode = APP_STATE_VERSION_CODE,
-                setupState = newGameSetupState(),
+                setupDraft = null,
                 liveState = null,
-                setupMode = SetupMode.NEW_GAME,
-                hasSetupDraft = false,
             ).toCurrentGameSnapshot(),
         )
         assertEquals(
@@ -201,10 +190,7 @@ class TestSerialization : GameDomainTestFixtures() {
         val later = patchLaterState()
         val previous = patchPreviousState()
         val snapshot = CurrentGameSnapshot(
-            setupState = standardGameSetup(startTime = LocalTime.of(8, 0)),
             liveState = later.copy(undoEntry = UndoEntry("Undo Test patch", previous)),
-            setupMode = SetupMode.EDIT_CURRENT_GAME,
-            hasSetupDraft = false,
         )
         val json = encodeCurrentGameSnapshot(snapshot)
         assertFalse(json.contains("\"team\": null"))

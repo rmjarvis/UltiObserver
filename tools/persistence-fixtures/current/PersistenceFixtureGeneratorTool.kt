@@ -2,7 +2,6 @@ package rmjarvis.ultiobserver
 
 import java.io.File
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
 
@@ -33,9 +32,7 @@ private fun writeSetupDraft(dir: File) {
     val store = freshStore(dir)
     store.saveCurrentGameState(
         CurrentGameSnapshot(
-            setupState = nonDefaultSetup(),
-            setupMode = SetupMode.NEW_GAME,
-            hasSetupDraft = true,
+            setupDraft = nonDefaultSetup(),
         )
     )
     store.saveProfile(fixtureProfile())
@@ -50,9 +47,7 @@ private fun writeActiveGame(dir: File) {
 
     store.saveCurrentGameState(
         CurrentGameSnapshot(
-            setupState = setup,
             liveState = game,
-            setupMode = SetupMode.EDIT_CURRENT_GAME,
         )
     )
     store.saveProfile(fixtureProfile())
@@ -97,13 +92,7 @@ private fun freshStore(dir: File): FileAppStateStorage {
 }
 
 private fun defaultCurrentGameSnapshot(): CurrentGameSnapshot {
-    return CurrentGameSnapshot(
-        setupState = newGameSetupState(
-            now = LocalDateTime.of(2026, 6, 27, 16, 1),
-        ).copy(
-            timeZone = ZoneId.of("America/New_York"),
-        ),
-    )
+    return CurrentGameSnapshot()
 }
 
 private fun baseSetup(): GameSetupState {

@@ -30,8 +30,6 @@ internal enum class ArchivedGameCategory(
 internal data class ArchivedGame(
     val state: GameState,
     val summaryContext: String,
-    val versionName: String = APP_STATE_VERSION_NAME,
-    val versionCode: Int = APP_STATE_VERSION_CODE,
 ) {
     /// Return the archive category implied by the stored game phase.
     val category: ArchivedGameCategory

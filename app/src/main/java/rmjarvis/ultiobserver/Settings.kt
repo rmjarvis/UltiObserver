@@ -177,8 +177,6 @@ const val DEFAULT_TIMING_ALERT_REPEAT_COUNT = 1
  */
 @Serializable
 internal data class Settings(
-    val versionName: String = APP_STATE_VERSION_NAME,
-    val versionCode: Int = APP_STATE_VERSION_CODE,
     val automaticallyAdvanceCountdowns: Boolean = true,
     val automaticallyLockLivePoint: Boolean = true,
     val showDefenseCountdowns: Boolean = false,

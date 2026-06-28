@@ -14,26 +14,19 @@ import kotlinx.serialization.Serializable
  * This uses the custom undo/redo serialization described in `SerializedUndoEntry`
  * instead of native `GameState` serialization for the live-state history.
  *
+ * @param setupDraft Resumable new-game setup draft, or null when no draft is saved.
  * @param liveState The live game stored with serialized undo/redo chains.
  */
 @Serializable
 internal data class SerializedCurrentGameSnapshot(
-    val versionName: String,
-    val versionCode: Int,
-    val setupState: GameSetupState,
+    val setupDraft: GameSetupState?,
     val liveState: SerializedGameState?,
-    val setupMode: SetupMode,
-    val hasSetupDraft: Boolean,
 ) {
     /// Convert this storage shape back to the app-facing current-game bucket.
     fun toCurrentGameSnapshot(): CurrentGameSnapshot {
         return CurrentGameSnapshot(
-            versionName = versionName,
-            versionCode = versionCode,
-            setupState = setupState,
+            setupDraft = setupDraft,
             liveState = liveState?.restore(),
-            setupMode = setupMode,
-            hasSetupDraft = hasSetupDraft,
         )
     }
 
@@ -45,12 +38,8 @@ internal data class SerializedCurrentGameSnapshot(
          */
         fun fromCurrentGameSnapshot(state: CurrentGameSnapshot): SerializedCurrentGameSnapshot {
             return SerializedCurrentGameSnapshot(
-                versionName = state.versionName,
-                versionCode = state.versionCode,
-                setupState = state.setupState,
+                setupDraft = state.setupDraft,
                 liveState = state.liveState?.toSerializedGameState(),
-                setupMode = state.setupMode,
-                hasSetupDraft = state.hasSetupDraft,
             )
         }
     }
