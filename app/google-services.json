@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "148268500412",
+    "project_id": "ultiobserver-5207a",
+    "storage_bucket": "ultiobserver-5207a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:148268500412:android:95b18cb3d27dbb2474d7b9",
+        "android_client_info": {
+          "package_name": "rmjarvis.ultiobserver"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCmXKGF056n2_s50j5VSsYVcywSOeLKvCQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
