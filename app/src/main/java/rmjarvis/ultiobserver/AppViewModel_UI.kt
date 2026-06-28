@@ -9,6 +9,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
@@ -37,12 +38,17 @@ internal fun appViewModelFactory(filesDir: File): ViewModelProvider.Factory {
  * Switch between home, setup, and live screens from the app ViewModel state.
  *
  * @param viewModel The app-level ViewModel owning navigation and persisted state.
+ * @param previousRunCrashed Whether Crashlytics recorded a fatal crash in the previous app run.
  */
 @Composable
-internal fun UltiObserverApp(viewModel: AppViewModel) {
+internal fun UltiObserverApp(
+    viewModel: AppViewModel,
+    previousRunCrashed: Boolean,
+) {
     val appState by viewModel.state.collectAsState()
     val context = LocalContext.current
     var showMissingExactAlarmAccessDialog by remember { mutableStateOf(false) }
+    var showPreviousCrashDialog by rememberSaveable { mutableStateOf(previousRunCrashed) }
 
     // Back returns to setup from the initial live preview, otherwise to home.
     BackHandler(enabled = appState.screen != AppScreen.HOME) {
@@ -238,6 +244,30 @@ internal fun UltiObserverApp(viewModel: AppViewModel) {
                     },
                 ) {
                     Text("Ignore")
+                }
+            },
+        )
+    }
+
+    if (showPreviousCrashDialog && appState.startupRecoveryNotice == null) {
+        AlertDialog(
+            onDismissRequest = {
+                showPreviousCrashDialog = false
+            },
+            title = { Text("Sorry, UltiObserver crashed") },
+            text = {
+                Text(
+                    "UltiObserver closed unexpectedly last time it ran. A crash report was sent " +
+                        "to the developers automatically so we can fix the problem."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showPreviousCrashDialog = false
+                    },
+                ) {
+                    Text("OK")
                 }
             },
         )

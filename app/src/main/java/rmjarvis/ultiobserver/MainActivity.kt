@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 
 /// Android Activity entry point for the Compose app.
@@ -18,10 +19,14 @@ class MainActivity : ComponentActivity() {
      */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val previousRunCrashed = FirebaseCrashlytics.getInstance().didCrashOnPreviousExecution()
         enableEdgeToEdge()
         setContent {
             UltiObserverTheme(dynamicColor = false) {
-                UltiObserverApp(appViewModel)
+                UltiObserverApp(
+                    viewModel = appViewModel,
+                    previousRunCrashed = previousRunCrashed,
+                )
             }
         }
     }

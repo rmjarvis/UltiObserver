@@ -11,9 +11,10 @@ import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 private fun MainActivityPreview() {
     UltiObserverTheme(dynamicColor = false) {
         UltiObserverApp(
-            AppViewModel(
+            viewModel = AppViewModel(
                 FileAppStateStorage(File(System.getProperty("java.io.tmpdir"), "ultiobserver-preview"))
-            )
+            ),
+            previousRunCrashed = false,
         )
     }
 }

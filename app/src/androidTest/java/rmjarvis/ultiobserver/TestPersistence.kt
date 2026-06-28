@@ -130,7 +130,10 @@ class TestPersistence {
         // Render the app from scratch so the startup notice is shown over Home.
         composeRule.setContent {
             UltiObserverTheme(dynamicColor = false) {
-                UltiObserverApp(viewModel)
+                UltiObserverApp(
+                    viewModel = viewModel,
+                    previousRunCrashed = false,
+                )
             }
         }
 
@@ -144,6 +147,36 @@ class TestPersistence {
         // Dismissing the notice removes only the dialog.
         composeRule.onNodeWithText("OK").performClick()
         composeRule.onAllNodesWithText("Phone data reset").assertCountEquals(0)
+        composeRule.onNodeWithText("Start new game").assertIsDisplayed()
+    }
+
+    /**
+     * Test the previous-crash apology dialog shown after Crashlytics records a crash.
+     */
+    @Test
+    fun previousCrashNotice() {
+        val viewModel = AppViewModel(StartupRecoveryNoticeStorage(emptySet()))
+
+        // Render the app from scratch as though MainActivity saw a previous Crashlytics crash.
+        composeRule.setContent {
+            UltiObserverTheme(dynamicColor = false) {
+                UltiObserverApp(
+                    viewModel = viewModel,
+                    previousRunCrashed = true,
+                )
+            }
+        }
+
+        // The crash notice explains that the app noticed the previous crash and reported it.
+        composeRule.onNodeWithText("Sorry, UltiObserver crashed").assertIsDisplayed()
+        val crashMessage = "UltiObserver closed unexpectedly last time it ran. A crash report " +
+            "was sent to the developers automatically so we can fix the problem."
+        composeRule.onNodeWithText(crashMessage).assertIsDisplayed()
+        composeRule.onNodeWithText("Start new game").assertIsDisplayed()
+
+        // Dismissing the notice removes only the dialog.
+        composeRule.onNodeWithText("OK").performClick()
+        composeRule.onAllNodesWithText("Sorry, UltiObserver crashed").assertCountEquals(0)
         composeRule.onNodeWithText("Start new game").assertIsDisplayed()
     }
 }
