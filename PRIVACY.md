@@ -1,7 +1,7 @@
 UltiObserver Privacy Policy
 ===========================
 
-Effective date: May 21, 2026
+Effective date: June 28, 2026
 
 UltiObserver is an Android app by Mike Jarvis for managing Ultimate observer
 game information such as time, score, cards, timeouts, pull violations, and
@@ -25,9 +25,21 @@ This information is stored locally in the app's private storage on your device.
 Data collection and sharing
 ---------------------------
 
-UltiObserver does not have ads, analytics, tracking, in-app purchases, or user
-accounts. The app does not send your game data to Mike Jarvis or to any server
-operated by UltiObserver.
+UltiObserver does not have ads, in-app purchases, or user accounts. The app does
+not intentionally send your game data to Mike Jarvis or to any server operated
+by UltiObserver.
+
+UltiObserver uses Firebase Crashlytics and Google Analytics for Firebase to
+collect crash reports and diagnostic information. This may include app version,
+device and operating-system information, crash stack traces, crash timing,
+session and breadcrumb information, and other technical details that help diagnose
+stability problems. This information is sent to Firebase/Google and is available
+to Mike Jarvis for debugging and improving the app.
+
+Crash reports and diagnostic events are not intended to include your game setup,
+scores, cards, event logs, archived games, profile name, or other game-management
+content. If a crash occurs while the app is handling a particular screen or
+action, Firebase may include technical context about that app session.
 
 If you choose to share a game summary, UltiObserver uses Android's normal share
 sheet. The summary is sent only to the app or person you choose in that share
@@ -45,8 +57,9 @@ Permissions
 -----------
 
 UltiObserver requests vibration permission so it can provide optional haptic
-timing cues. It does not request location, contacts, camera, microphone, SMS, or
-internet permission.
+timing cues. It uses internet access to send Firebase crash reports and
+diagnostic information. It does not request location, contacts, camera,
+microphone, or SMS permission.
 
 Deleting your data
 ------------------
