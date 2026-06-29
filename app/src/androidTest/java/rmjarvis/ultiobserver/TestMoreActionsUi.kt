@@ -1,6 +1,9 @@
 package rmjarvis.ultiobserver
 
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -83,6 +86,47 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
         // Back dismissal and OK are equivalent acknowledgements for this prompt.
         dismissDialog(text = "OK")
         assertLiveScreen()
+    }
+
+    /**
+     * Test the fields shown by the pull-violation adjustment dialog.
+     */
+    @Test
+    fun pullViolationAdjustmentFields() {
+        // Standard non-mixed games show the common rows for both teams, but not majority pull.
+        startLiveGameProgrammatically()
+        openMoreActionsDialog()
+        composeRule.onNodeWithText("Adjust pull violations").performScrollTo().performClick()
+        waitForTag("adjust-pull-violations-confirm")
+        assertPullViolationDialogFieldCount("Offsides", 2)
+        assertPullViolationDialogFieldCount("False starts", 2)
+        assertPullViolationDialogFieldCount("Time violations", 2)
+        assertPullViolationDialogFieldCount("Majority pull", 0)
+        dismissDialog(text = "Cancel")
+
+        // Mixed games using the majority-pull rule, so add one majority-pull row per team.
+        startLiveGameProgrammatically(
+            newSetupGameState(now = System.currentTimeMillis()).copy(
+                division = GameDivision.MIXED,
+                rules = GameRules(useMajorityPullRule = true),
+            )
+        )
+        openMoreActionsDialog()
+        composeRule.onNodeWithText("Adjust pull violations").performScrollTo().performClick()
+        waitForTag("adjust-pull-violations-confirm")
+        assertPullViolationDialogFieldCount("Offsides", 2)
+        assertPullViolationDialogFieldCount("False starts", 2)
+        assertPullViolationDialogFieldCount("Time violations", 2)
+        assertPullViolationDialogFieldCount("Majority pull", 2)
+        dismissDialog(text = "Cancel")
+    }
+
+    /// Assert how many labeled correction rows are visible inside the pull-violation dialog body.
+    private fun assertPullViolationDialogFieldCount(label: String, expectedCount: Int) {
+        composeRule.onAllNodes(
+            hasText(label, substring = true) and
+                hasAnyAncestor(hasTestTag("adjust-pull-violations-content"))
+        ).assertCountEquals(expectedCount)
     }
 
     /**

@@ -205,17 +205,21 @@ internal fun MoreActionsContent(
                 teamOneOffsides,
                 teamOneFalseStarts,
                 teamOneMajorityPulls,
+                teamOneTimeViolations,
                 teamTwoOffsides,
                 teamTwoFalseStarts,
-                teamTwoMajorityPulls ->
+                teamTwoMajorityPulls,
+                teamTwoTimeViolations ->
                 onAction(
                     state.adjustPullViolations(
                         teamOneOffsides,
                         teamOneFalseStarts,
                         teamOneMajorityPulls,
+                        teamOneTimeViolations,
                         teamTwoOffsides,
                         teamTwoFalseStarts,
                         teamTwoMajorityPulls,
+                        teamTwoTimeViolations,
                         now,
                     )
                 )

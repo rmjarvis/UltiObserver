@@ -340,51 +340,6 @@ abstract class GameDomainTestFixtures {
     }
 
     /**
-     * Apply a pull-violation correction at a dummy timestamp when timing is not under test.
-     *
-     * @receiver The state being corrected.
-     */
-    protected fun GameState.adjustPullViolations(
-        teamOneOffsides: Int,
-        teamOneFalseStarts: Int,
-        teamTwoOffsides: Int,
-        teamTwoFalseStarts: Int,
-    ): GameState {
-        return adjustPullViolations(
-            teamOneOffsides,
-            teamOneFalseStarts,
-            0,
-            teamTwoOffsides,
-            teamTwoFalseStarts,
-            0,
-            0L,
-        )
-    }
-
-    /**
-     * Apply a pull-violation correction with an explicit timestamp and no majority-pull deltas.
-     *
-     * @receiver The state being corrected.
-     */
-    protected fun GameState.adjustPullViolations(
-        teamOneOffsides: Int,
-        teamOneFalseStarts: Int,
-        teamTwoOffsides: Int,
-        teamTwoFalseStarts: Int,
-        now: Long,
-    ): GameState {
-        return adjustPullViolations(
-            teamOneOffsides,
-            teamOneFalseStarts,
-            0,
-            teamTwoOffsides,
-            teamTwoFalseStarts,
-            0,
-            now,
-        )
-    }
-
-    /**
      * Apply a card/technical-foul correction at a dummy timestamp when timing is not under test.
      *
      * @receiver The state being corrected.

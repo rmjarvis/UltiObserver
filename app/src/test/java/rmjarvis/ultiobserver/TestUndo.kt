@@ -120,9 +120,19 @@ class TestUndo : GameDomainTestFixtures() {
         )
         assertUndoRestores(beforeCardCorrection, state)
 
-        // Pull-violation correction undo restores each team's false-start and offsides counts.
+        // Pull-violation correction undo restores all pull-related correction counts.
         val beforePullCorrection = standardLiveGameState()
-        state = beforePullCorrection.adjustPullViolations(1, 2, 3, 4)
+        state = beforePullCorrection.adjustPullViolations(
+            teamOneOffsides = 1,
+            teamOneFalseStarts = 2,
+            teamOneMajorityPulls = 0,
+            teamOneTimeViolations = 3,
+            teamTwoOffsides = 4,
+            teamTwoFalseStarts = 5,
+            teamTwoMajorityPulls = 0,
+            teamTwoTimeViolations = 6,
+            now = 0L,
+        )
         assertUndoRestores(beforePullCorrection, state)
 
         // Setup update undo restores the live game exactly as it was before the edit.

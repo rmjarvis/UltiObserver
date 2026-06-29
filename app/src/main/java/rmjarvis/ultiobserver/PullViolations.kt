@@ -31,30 +31,37 @@ data class PullViolationAssessmentPreview(
 )
 
 /**
- * Replace each team's cumulative pull-violation counts as a manual correction.
+ * Replace each team's cumulative pull-related counts as a manual correction.
  *
  * @param teamOneOffsides The corrected offsides count for team one.
  * @param teamOneFalseStarts The corrected false-start count for team one.
  * @param teamOneMajorityPulls The corrected majority-pull violation count for team one.
+ * @param teamOneTimeViolations The corrected time-violation count for team one.
  * @param teamTwoOffsides The corrected offsides count for team two.
  * @param teamTwoFalseStarts The corrected false-start count for team two.
  * @param teamTwoMajorityPulls The corrected majority-pull violation count for team two.
+ * @param teamTwoTimeViolations The corrected time-violation count for team two.
+ * @param now The correction timestamp.
  */
 fun GameState.adjustPullViolations(
     teamOneOffsides: Int,
     teamOneFalseStarts: Int,
     teamOneMajorityPulls: Int,
+    teamOneTimeViolations: Int,
     teamTwoOffsides: Int,
     teamTwoFalseStarts: Int,
     teamTwoMajorityPulls: Int,
+    teamTwoTimeViolations: Int,
     now: Long,
 ): GameState {
     val adjustedTeamOneOffsides = teamOneOffsides.coerceAtLeast(0)
     val adjustedTeamOneFalseStarts = teamOneFalseStarts.coerceAtLeast(0)
     val adjustedTeamOneMajorityPulls = teamOneMajorityPulls.coerceAtLeast(0)
+    val adjustedTeamOneTimeViolations = teamOneTimeViolations.coerceAtLeast(0)
     val adjustedTeamTwoOffsides = teamTwoOffsides.coerceAtLeast(0)
     val adjustedTeamTwoFalseStarts = teamTwoFalseStarts.coerceAtLeast(0)
     val adjustedTeamTwoMajorityPulls = teamTwoMajorityPulls.coerceAtLeast(0)
+    val adjustedTeamTwoTimeViolations = teamTwoTimeViolations.coerceAtLeast(0)
     val entries = buildList {
         // this@adjustPullViolations is the GameState receiver; plain this is the list being built.
         addPullViolationDelta(
@@ -76,6 +83,12 @@ fun GameState.adjustPullViolations(
             delta = adjustedTeamOneMajorityPulls -
                 this@adjustPullViolations.teamOne.majorityPullViolations,
         )
+        addTimeViolationDelta(
+            now = now,
+            team = TeamId.TEAM_ONE,
+            delta = adjustedTeamOneTimeViolations -
+                this@adjustPullViolations.teamOne.timeViolations,
+        )
         addPullViolationDelta(
             now = now,
             team = TeamId.TEAM_TWO,
@@ -95,17 +108,25 @@ fun GameState.adjustPullViolations(
             delta = adjustedTeamTwoMajorityPulls -
                 this@adjustPullViolations.teamTwo.majorityPullViolations,
         )
+        addTimeViolationDelta(
+            now = now,
+            team = TeamId.TEAM_TWO,
+            delta = adjustedTeamTwoTimeViolations -
+                this@adjustPullViolations.teamTwo.timeViolations,
+        )
     }
     return this.copy(
         teamOne = this.teamOne.copy(
             offsides = adjustedTeamOneOffsides,
             falseStarts = adjustedTeamOneFalseStarts,
             majorityPullViolations = adjustedTeamOneMajorityPulls,
+            timeViolations = adjustedTeamOneTimeViolations,
         ),
         teamTwo = this.teamTwo.copy(
             offsides = adjustedTeamTwoOffsides,
             falseStarts = adjustedTeamTwoFalseStarts,
             majorityPullViolations = adjustedTeamTwoMajorityPulls,
+            timeViolations = adjustedTeamTwoTimeViolations,
         ),
         lastEvent = "Pull violations adjusted.",
     ).withEventLogEntries(entries).withUndo(this, "Undo Pull violation adjustment")
@@ -360,6 +381,30 @@ private fun MutableList<EventLogEntry>.addPullViolationDelta(
             EventLogEntry(
                 timestampEpoch = now,
                 type = violation.eventLogType(),
+                team = team,
+                delta = delta,
+            )
+        )
+    }
+}
+
+/**
+ * Add a time-violation correction entry when a count changed.
+ *
+ * @param now The correction timestamp.
+ * @param team The team whose time-violation count changed.
+ * @param delta The signed count change.
+ */
+private fun MutableList<EventLogEntry>.addTimeViolationDelta(
+    now: Long,
+    team: TeamId,
+    delta: Int,
+) {
+    if (delta != 0) {
+        add(
+            EventLogEntry(
+                timestampEpoch = now,
+                type = EventLogType.TIME_VIOLATION,
                 team = team,
                 delta = delta,
             )

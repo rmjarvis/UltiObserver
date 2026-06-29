@@ -706,12 +706,9 @@ abstract class MainActivityUiTestFixtures {
         openMoreActionsDialog()
         composeRule.onNodeWithText("Adjust pull violations").performScrollTo().performClick()
         waitForTag("adjust-pull-violations-confirm")
-        composeRule.onAllNodesWithText("+1")[0].performClick()
-        composeRule.onAllNodesWithText("+1")[1].performClick()
-        composeRule.onAllNodesWithText("+1")[2].performClick()
-        composeRule.onAllNodesWithText("+1")[3].performClick()
-        composeRule.onAllNodesWithText("+1")[4].performClick()
-        composeRule.onAllNodesWithText("+1")[5].performClick()
+        repeat(6) { index ->
+            composeRule.onAllNodesWithText("+1")[index].performClick()
+        }
         composeRule.onAllNodesWithText("-1")[1].performClick()
         composeRule.onNodeWithTag("adjust-pull-violations-confirm").performTouchInput {
             click()

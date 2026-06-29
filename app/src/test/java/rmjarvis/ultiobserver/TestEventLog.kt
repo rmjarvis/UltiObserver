@@ -180,8 +180,12 @@ class TestEventLog : GameDomainTestFixtures() {
         state = state.adjustPullViolations(
             teamOneOffsides = 0,
             teamOneFalseStarts = 1,
+            teamOneMajorityPulls = 0,
+            teamOneTimeViolations = state.teamOne.timeViolations,
             teamTwoOffsides = 1,
             teamTwoFalseStarts = 0,
+            teamTwoMajorityPulls = 0,
+            teamTwoTimeViolations = state.teamTwo.timeViolations,
             now = timestampAt(state, LocalTime.of(12, 2)),
         )
 
@@ -218,8 +222,12 @@ class TestEventLog : GameDomainTestFixtures() {
         state = state.adjustPullViolations(
             teamOneOffsides = 0,
             teamOneFalseStarts = 0,
+            teamOneMajorityPulls = 0,
+            teamOneTimeViolations = state.teamOne.timeViolations,
             teamTwoOffsides = 1,
             teamTwoFalseStarts = 0,
+            teamTwoMajorityPulls = 0,
+            teamTwoTimeViolations = state.teamTwo.timeViolations,
             now = timestampAt(state, LocalTime.of(12, 7)),
         )
         state = state.adjustCardsAndTf(

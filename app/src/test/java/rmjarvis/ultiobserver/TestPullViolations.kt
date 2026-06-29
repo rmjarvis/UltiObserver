@@ -683,8 +683,13 @@ class TestPullViolations : GameDomainTestFixtures() {
         val state = standardLiveGameState().adjustPullViolations(
             teamOneOffsides = -1,
             teamOneFalseStarts = 2,
+            teamOneMajorityPulls = 0,
+            teamOneTimeViolations = 0,
             teamTwoOffsides = 3,
             teamTwoFalseStarts = -4,
+            teamTwoMajorityPulls = 0,
+            teamTwoTimeViolations = 0,
+            now = 0L,
         )
         assertEquals(0, state.teamOne.offsides)
         assertEquals(2, state.teamOne.falseStarts)
@@ -692,6 +697,43 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertEquals(0, state.teamTwo.falseStarts)
         assertEquals("Pull violations adjusted.", state.lastEvent)
         assertEquals("Undo Pull violation adjustment", state.undoEntry?.label)
+
+        // The More actions correction also adjusts time violations alongside the strict pull
+        // violations.
+        val baseState = standardLiveGameState(startTime = LocalTime.of(12, 0))
+        val seededState = baseState.copy(
+            teamOne = baseState.teamOne.copy(timeViolations = 1),
+            teamTwo = baseState.teamTwo.copy(timeViolations = 2),
+        )
+        val pullAndTimeState = seededState.adjustPullViolations(
+            teamOneOffsides = -1,
+            teamOneFalseStarts = 2,
+            teamOneMajorityPulls = 0,
+            teamOneTimeViolations = 3,
+            teamTwoOffsides = 3,
+            teamTwoFalseStarts = -4,
+            teamTwoMajorityPulls = 0,
+            teamTwoTimeViolations = 0,
+            now = timestampAt(seededState, LocalTime.of(12, 20)),
+        )
+        assertEquals(0, pullAndTimeState.teamOne.offsides)
+        assertEquals(2, pullAndTimeState.teamOne.falseStarts)
+        assertEquals(3, pullAndTimeState.teamOne.timeViolations)
+        assertEquals(3, pullAndTimeState.teamTwo.offsides)
+        assertEquals(0, pullAndTimeState.teamTwo.falseStarts)
+        assertEquals(0, pullAndTimeState.teamTwo.timeViolations)
+        assertEquals("Pull violations adjusted.", pullAndTimeState.lastEvent)
+        assertEquals("Undo Pull violation adjustment", pullAndTimeState.undoEntry?.label)
+        assertTrue(
+            pullAndTimeState.formatEventLogLines().contains(
+                "12:20  Adjusted Viscous Coupling time violations +2"
+            )
+        )
+        assertTrue(
+            pullAndTimeState.formatEventLogLines().contains(
+                "12:20  Adjusted Animal time violations -2"
+            )
+        )
     }
 
     /**

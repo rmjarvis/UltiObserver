@@ -286,9 +286,11 @@ class TestMixed : GameDomainTestFixtures() {
             teamOneOffsides = -1,
             teamOneFalseStarts = 2,
             teamOneMajorityPulls = 3,
+            teamOneTimeViolations = state.teamOne.timeViolations,
             teamTwoOffsides = 3,
             teamTwoFalseStarts = -4,
             teamTwoMajorityPulls = -2,
+            teamTwoTimeViolations = state.teamTwo.timeViolations,
             now = timestampAt(state, LocalTime.of(12, 20)),
         )
         assertEquals(0, state.teamOne.offsides)

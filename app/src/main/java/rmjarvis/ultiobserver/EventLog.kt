@@ -218,8 +218,12 @@ private fun GameState.pullViolationDescription(entry: EventLogEntry): String {
     }
 }
 
-/// Return display text for a time-violation event.
+/// Return display text for a time-violation event or correction.
 private fun GameState.timeViolationDescription(entry: EventLogEntry): String {
+    val delta = entry.delta
+    if (delta != null) {
+        return "Adjusted ${teamName(entry.team!!)} time violations ${delta.formatDelta()}"
+    }
     val outcome = entry.timeViolationOutcome!!
     val suffix = when (outcome) {
         TimeViolationOutcome.WARNING -> ", warning"
