@@ -52,7 +52,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertEquals(2, state.timeoutsRemaining(ANIMAL))
         assertEquals(VC, state.pullingTeam)
         assertEquals(FieldEnd.NEAR, state.pullingFromEnd)
-        assertEquals(ANIMAL, state.nearAttackingTeam)
+        assertEquals(ANIMAL, state.teamDefendingEnd(FieldEnd.FAR))
         assertEquals(CountdownKind.OPENING_PULL, state.countdown?.kind)
         assertEquals("Pull in", state.countdown?.label)
         assertEquals(40, state.countdown?.durationSeconds)
@@ -146,7 +146,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertEquals(0, state.teamTwo.score)
         assertEquals(VC, state.pullingTeam)
         assertEquals(FieldEnd.FAR, state.pullingFromEnd)
-        assertEquals(VC, state.nearAttackingTeam)
+        assertEquals(VC, state.teamDefendingEnd(FieldEnd.FAR))
         assertEquals("Signal in", state.countdown?.label)
         assertEquals(60, state.countdown?.durationSeconds)
         assertEquals(firstGoalTime + 60_000L, state.countdown?.targetEpoch)
@@ -279,7 +279,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         // After halftime, Animal is pulling, since they received for the start of the game.
         assertEquals(ANIMAL, state.pullingTeam)
         assertEquals(FieldEnd.NEAR, state.pullingFromEnd)
-        assertEquals(VC, state.nearAttackingTeam)
+        assertEquals(VC, state.teamDefendingEnd(FieldEnd.FAR))
         state = state.beginLivePoint()
         assertEquals(GamePhase.LIVE_POINT, state.phase)
         assertNull(state.countdown)
@@ -331,6 +331,39 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertEquals(GamePhase.BETWEEN_POINTS, state.undoEntry?.previous?.phase)
         assertEquals(4, state.undoEntry?.previous?.teamOne?.score)
         assertEquals(5, state.undoEntry?.previous?.teamTwo?.score)
+    }
+
+    /**
+     * Test that the first point start time preserves the scheduled pull as the game anchor.
+     */
+    @Test
+    fun firstPointStartTime() {
+        // If the first pull starts after the scheduled time, the game record and first-pull event
+        // both use the scheduled start time.
+        val lateState = standardLiveGameState(startTime = LocalTime.of(12, 0))
+        val lateStarted = lateState.beginLivePoint(timestampAt(lateState, LocalTime.of(12, 3)))
+        assertEquals(timestampAt(lateState, LocalTime.of(12, 0)), lateStarted.startEpoch)
+        assertEquals(lateStarted.startEpoch, lateStarted.eventLog.single().timestampEpoch)
+
+        // If the observer starts the first point before the scheduled time, the game record keeps
+        // the scheduled start while the event log records the actual first-pull time.
+        val earlyState = standardLiveGameState(startTime = LocalTime.of(12, 0))
+        val earlyPull = timestampAt(earlyState, LocalTime.of(11, 58))
+        val earlyStarted = earlyState.beginLivePoint(earlyPull)
+        assertEquals(timestampAt(earlyState, LocalTime.of(12, 0)), earlyStarted.startEpoch)
+        assertEquals(earlyPull, earlyStarted.eventLog.single().timestampEpoch)
+
+        // Starting a later point after Team 2 has scored does not add another first-pull entry.
+        val afterAnimalGoal = lateStarted.recordGoal(
+            TeamId.TEAM_TWO,
+            timestampAt(lateStarted, LocalTime.of(12, 5)),
+        )
+        val secondPointStarted = afterAnimalGoal.beginLivePoint(
+            timestampAt(afterAnimalGoal, LocalTime.of(12, 6)),
+        )
+        assertEquals(2, secondPointStarted.eventLog.size)
+        assertEquals(EventLogType.FIRST_PULL, secondPointStarted.eventLog.first().type)
+        assertEquals(EventLogType.GOAL, secondPointStarted.eventLog.last().type)
     }
 
     /**
@@ -624,6 +657,47 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertTrue(undoneAutomaticStartState.hasExpiredPullActions())
         assertFalse(state.hasExpiredPullActions())
 
+        // Later between-points countdown expirations also start the point, but do not add another
+        // first-pull event.
+        val laterBetweenPointsState = automaticStartState.recordGoal(
+            TeamId.TEAM_TWO,
+            state.startEpoch + 90_000L,
+        )
+        val laterAutomaticStart = laterBetweenPointsState.applyExpiredCountdownTransitions(
+            laterBetweenPointsState.countdown!!.targetEpoch,
+            showDefenseCountdowns = false,
+        )
+        assertEquals(GamePhase.LIVE_POINT, laterAutomaticStart.phase)
+        assertEquals(
+            listOf(EventLogType.FIRST_PULL, EventLogType.GOAL),
+            laterAutomaticStart.eventLog.map { it.type },
+        )
+        val teamOneLaterBetweenPointsState = automaticStartState.recordGoal(
+            TeamId.TEAM_ONE,
+            state.startEpoch + 95_000L,
+        )
+        val teamOneLaterAutomaticStart =
+            teamOneLaterBetweenPointsState.applyExpiredCountdownTransitions(
+                teamOneLaterBetweenPointsState.countdown!!.targetEpoch,
+                showDefenseCountdowns = false,
+            )
+        assertEquals(GamePhase.LIVE_POINT, teamOneLaterAutomaticStart.phase)
+        assertEquals(
+            listOf(EventLogType.FIRST_PULL, EventLogType.GOAL),
+            teamOneLaterAutomaticStart.eventLog.map { it.type },
+        )
+
+        // A misconduct event before the first pull should not suppress the first-pull log entry.
+        val prePullMisconductState = state.assessBlueCard(VC, state.startEpoch + 5_000L).state
+        val automaticStartAfterMisconduct = prePullMisconductState.applyExpiredCountdownTransitions(
+            betweenPointsCountdown.targetEpoch,
+            showDefenseCountdowns = false,
+        )
+        assertEquals(
+            listOf(EventLogType.BLUE_CARD, EventLogType.FIRST_PULL),
+            automaticStartAfterMisconduct.eventLog.map { it.type },
+        )
+
         // In-point timeout countdowns return to live game when expiring.
         var inPointState = state.beginLivePoint()
         inPointState = inPointState.assessTimeout(VC, 500_000L).state
@@ -677,11 +751,9 @@ class TestGameTransitions : GameDomainTestFixtures() {
             GamePrompt.GameOver(
                 gameOverState.copy(
                     teamOne = gameOverState.teamOne
-                        .withIdentity(gameOverState.teamOne.identity.copy(name = "Alpha"))
-                        .copy(score = 4),
+                        .copy(name = "Alpha", score = 4),
                     teamTwo = gameOverState.teamTwo
-                        .withIdentity(gameOverState.teamTwo.identity.copy(name = "Beta"))
-                        .copy(score = 4),
+                        .copy(name = "Beta", score = 4),
                 )
             ).formatMessage(),
         )
@@ -690,11 +762,9 @@ class TestGameTransitions : GameDomainTestFixtures() {
             GamePrompt.GameOver(
                 gameOverState.copy(
                     teamOne = gameOverState.teamOne
-                        .withIdentity(gameOverState.teamOne.identity.copy(name = "Beta"))
-                        .copy(score = 4),
+                        .copy(name = "Beta", score = 4),
                     teamTwo = gameOverState.teamTwo
-                        .withIdentity(gameOverState.teamTwo.identity.copy(name = "Alpha"))
-                        .copy(score = 4),
+                        .copy(name = "Alpha", score = 4),
                 )
             ).formatMessage(),
         )

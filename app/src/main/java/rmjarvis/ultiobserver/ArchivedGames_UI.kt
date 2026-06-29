@@ -57,7 +57,8 @@ internal fun GameState.archivedGameListEntry(): ArchivedGameListEntry {
  * @param onOpenCategory Callback opening one category from the landing page.
  * @param onOpenArchivedGame Callback opening an archived game by index.
  * @param onDeleteArchivedGame Callback deleting an archived game by index.
- * @param onDeleteAllArchivedGames Callback deleting every game in the selected category.
+ * @param onDeleteAllArchivedGames Callback deleting every archived/saved game.
+ * @param onDeleteAllInSelectedCategory Callback deleting every game in the selected category.
  * @param onBackHome Callback returning to Home.
  * @param onBackCategories Callback returning from a category list to the category landing page.
  */
@@ -71,12 +72,14 @@ internal fun ArchivedGamesScreen(
     onOpenArchivedGame: (Int) -> Unit,
     onDeleteArchivedGame: (Int) -> Unit,
     onDeleteAllArchivedGames: () -> Unit,
+    onDeleteAllInSelectedCategory: () -> Unit,
     onBackHome: () -> Unit,
     onBackCategories: () -> Unit,
 ) {
     var pendingDeleteIndex by remember { mutableStateOf<Int?>(null) }
     var pendingDeleteAll by remember { mutableStateOf(false) }
     val category = selectedCategory
+    val hasAnyArchivedGames = categoryCounts.values.any { it > 0 }
 
     Scaffold(
         topBar = {
@@ -100,34 +103,30 @@ internal fun ArchivedGamesScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             if (category == null) {
+                if (hasAnyArchivedGames) {
+                    DeleteAllButton(onClick = { pendingDeleteAll = true })
+                }
                 ArchivedGameCategory.entries.forEach { archiveCategory ->
                     ArchiveCategoryButton(
                         category = archiveCategory,
-                        count = categoryCounts[archiveCategory] ?: 0,
+                        count = categoryCounts.getValue(archiveCategory),
                         onOpenCategory = onOpenCategory,
                     )
                 }
-            } else if (archivedGames == null || archivedGames.isEmpty()) {
-                Text(category.emptyText)
             } else {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    TextButton(
-                        onClick = { pendingDeleteAll = true },
-                        modifier = Modifier.testTag("delete-all-archived-games"),
-                    ) {
-                        Text("Delete all")
+                val listedGames = archivedGames!!
+                if (listedGames.isEmpty()) {
+                    Text(category.emptyText)
+                } else {
+                    DeleteAllButton(onClick = { pendingDeleteAll = true })
+                    listedGames.forEachIndexed { index, game ->
+                        ArchivedGameRow(
+                            displayedIndex = index,
+                            entry = game,
+                            onClick = { onOpenArchivedGame(index) },
+                            onDelete = { pendingDeleteIndex = index },
+                        )
                     }
-                }
-                archivedGames.forEachIndexed { index, game ->
-                    ArchivedGameRow(
-                        displayedIndex = index,
-                        entry = game,
-                        onClick = { onOpenArchivedGame(index) },
-                        onDelete = { pendingDeleteIndex = index },
-                    )
                 }
             }
         }
@@ -148,12 +147,39 @@ internal fun ArchivedGamesScreen(
             onDismiss = { pendingDeleteAll = false },
             onConfirmDelete = {
                 pendingDeleteAll = false
-                onDeleteAllArchivedGames()
+                if (category == null) {
+                    onDeleteAllArchivedGames()
+                } else {
+                    onDeleteAllInSelectedCategory()
+                }
             },
             title = "Delete all games?",
-            message = "Completely delete all ${category?.displayText?.lowercase()}? " +
-                "This cannot be undone.",
+            message = if (category == null) {
+                "Completely delete all archived and saved games? This cannot be undone."
+            } else {
+                "Completely delete all ${category.displayText.lowercase()}? This cannot be undone."
+            },
         )
+    }
+}
+
+/**
+ * Render the bulk delete action for the archive landing or category page.
+ *
+ * @param onClick Callback requesting delete confirmation.
+ */
+@Composable
+private fun DeleteAllButton(onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.End,
+    ) {
+        TextButton(
+            onClick = onClick,
+            modifier = Modifier.testTag("delete-all-archived-games"),
+        ) {
+            Text("Delete all")
+        }
     }
 }
 

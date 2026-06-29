@@ -56,28 +56,26 @@ internal fun UltiObserverApp(
     }
 
     TimingAlertForegroundServiceEffect(
-        liveState = appState.liveState.takeUnless { state -> state?.phase == GamePhase.GAME_OVER },
+        liveState = appState.currentGame?.takeUnless { state ->
+            state.phase == GamePhase.SETUP || state.phase == GamePhase.GAME_OVER
+        },
         timingAlertPreferences = appState.timingAlertPreferences,
     )
 
     // No else branch: every AppScreen value is handled.
     when (appState.screen) {
         AppScreen.HOME -> {
-            val liveState = appState.liveState
+            val currentState = appState.currentGame
             val currentGame: GameListEntry?
             val completedGamePendingArchive: GameListEntry?
-            if (liveState == null) {
-                currentGame = if (appState.hasSetupDraft) {
-                    appState.setupState.gameListEntry()
-                } else {
-                    null
-                }
-                completedGamePendingArchive = null
-            } else if (liveState.phase == GamePhase.GAME_OVER) {
+            if (currentState == null) {
                 currentGame = null
-                completedGamePendingArchive = liveState.gameListEntry()
+                completedGamePendingArchive = null
+            } else if (currentState.phase == GamePhase.GAME_OVER) {
+                currentGame = null
+                completedGamePendingArchive = currentState.gameListEntry()
             } else {
-                currentGame = liveState.gameListEntry()
+                currentGame = currentState.gameListEntry()
                 completedGamePendingArchive = null
             }
             HomeScreen(
@@ -165,17 +163,20 @@ internal fun UltiObserverApp(
                     viewModel.openArchivedGame(index, System.currentTimeMillis())
                 },
                 onDeleteArchivedGame = viewModel::deleteArchivedGame,
-                onDeleteAllArchivedGames = viewModel::deleteArchivedGamesInSelectedCategory,
+                onDeleteAllArchivedGames = viewModel::deleteAllArchivedGames,
+                onDeleteAllInSelectedCategory = viewModel::deleteArchivedGamesInSelectedCategory,
                 onBackHome = viewModel::goHome,
                 onBackCategories = viewModel::openArchivedGames,
             )
         }
 
         AppScreen.SETUP -> {
+            val setupGame = appState.setupEditDraft ?: appState.currentGame!!
+            val editingCurrentGame = appState.setupEditDraft != null
             fun finishSetup() {
                 if (
-                    appState.setupMode == SetupMode.NEW_GAME &&
-                    appState.setupState.rules.hasEnabledCapTimingAlerts(
+                    !editingCurrentGame &&
+                    setupGame.rules.hasEnabledCapTimingAlerts(
                         appState.timingAlertPreferences,
                     ) &&
                     !context.hasExactTimingAlertAlarmAccess()
@@ -187,20 +188,30 @@ internal fun UltiObserverApp(
             }
 
             SetupScreen(
-                state = appState.setupState,
+                state = setupGame,
                 onStateChange = viewModel::updateSetup,
-                primaryButtonLabel = if (appState.setupMode == SetupMode.NEW_GAME) {
-                    "Start game"
+                title = if (editingCurrentGame) {
+                    "Update game setup"
                 } else {
-                    "Back to game screen"
+                    "Setup game"
+                },
+                primaryButtonLabel = if (editingCurrentGame) {
+                    "Done"
+                } else {
+                    "Start game"
                 },
                 onPrimaryAction = {
                     finishSetup()
                 },
-                onSaveGameForLater = if (appState.setupMode == SetupMode.NEW_GAME) {
-                    viewModel::saveSetupForLater
+                onCancel = if (editingCurrentGame) {
+                    viewModel::cancelSetupEdit
                 } else {
                     null
+                },
+                onSaveGameForLater = if (editingCurrentGame) {
+                    null
+                } else {
+                    viewModel::saveSetupForLater
                 },
                 onBackHome = viewModel::goHome,
             )
@@ -214,7 +225,7 @@ internal fun UltiObserverApp(
                     summaryContext = archivedGame.summaryContext,
                     summaryActionText = "Restore game",
                     onSummaryAction = {
-                        viewModel.restoreViewingArchivedGame(System.currentTimeMillis())
+                        viewModel.restoreCompletedGame(System.currentTimeMillis())
                     },
                     secondarySummaryActionText = if (
                         archivedGame.category == ArchivedGameCategory.IN_PROGRESS
@@ -235,7 +246,7 @@ internal fun UltiObserverApp(
                     onDismissGameOverPrompt = {},
                 )
             } else {
-                val currentLiveState = appState.liveState!!
+                val currentLiveState = appState.currentGame!!
                 LiveGameScreen(
                     state = currentLiveState,
                     automaticallyAdvanceCountdowns = appState.automaticallyAdvanceCountdowns,

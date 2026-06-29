@@ -11,6 +11,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 
@@ -36,76 +38,22 @@ internal data class AppVersion(
  * @param data The bucket payload without file-level metadata.
  */
 @Serializable
-private data class PersistedBucket<T>(
-    val versionName: String,
-    val versionCode: Int,
-    val data: T,
+private class PersistedBucket<T>(
+    private val versionName: String,
+    private val versionCode: Int,
+    private val data: T,
 )
 
 /**
  * Parsed persisted bucket with metadata separated from payload JSON.
  *
  * @param version The version metadata read from the file envelope.
- * @param data The bucket payload JSON object.
+ * @param data The bucket payload JSON.
  */
 private data class StoredJsonBucket(
     val version: AppVersion,
-    val data: JsonObject,
+    val data: JsonElement,
 )
-
-/**
- * Current game or setup draft stored as one persistence bucket.
- *
- * @param setupDraft Resumable new-game setup draft, or null when no draft is saved.
- * @param liveState The current live or completed game, or null before setup is finished.
- */
-@Serializable
-internal data class CurrentGameSnapshot(
-    val setupDraft: GameSetupState? = null,
-    val liveState: GameState? = null,
-) {
-    init {
-        require(setupDraft == null || liveState == null) {
-            "Current game snapshot cannot contain both a setup draft and live state."
-        }
-    }
-
-    /// Return the setup form state implied by the saved draft or live game, if one exists.
-    val setupState: GameSetupState?
-        get() = setupDraft ?: liveState?.toSetupState()
-
-    /// Return whether setup would create a new game or edit the current live game.
-    val setupMode: SetupMode
-        get() = if (liveState == null) SetupMode.NEW_GAME else SetupMode.EDIT_CURRENT_GAME
-
-    /// Return whether Home should offer a resumable setup draft.
-    val hasSetupDraft: Boolean
-        get() = setupDraft != null
-
-    companion object {
-        /**
-         * Decode persisted current-game state for a known storage version.
-         *
-         * @param jsonObject The parsed JSON object from the current-game bucket.
-         * @param version The version metadata read from that JSON object.
-         */
-        fun decodeJson(
-            jsonObject: JsonObject,
-            version: AppVersion,
-        ): PersistenceDecodeResult<CurrentGameSnapshot>? {
-            return try {
-                val migrated = migrateCurrentGameSnapshotJson(jsonObject, version) ?: return null
-                val currentGameState = decodeCurrentGameSnapshot(migrated.jsonObject)
-                PersistenceDecodeResult(
-                    value = currentGameState,
-                    wasMigrated = migrated.wasMigrated,
-                )
-            } catch (_: RuntimeException) {
-                null
-            }
-        }
-    }
-}
 
 /**
  * Independently recoverable persisted app-data bucket.
@@ -156,14 +104,14 @@ internal interface AppStateStorage {
     val resetPersistedDataAreas: Set<PersistedData>
 
     /// Load the persisted current/setup game bucket, if one exists.
-    fun loadCurrentGameState(): CurrentGameSnapshot?
+    fun loadCurrentGame(): GameState?
 
     /**
      * Save the current/setup game bucket.
      *
      * @param state The current-game state snapshot to persist.
      */
-    fun saveCurrentGameState(state: CurrentGameSnapshot)
+    fun saveCurrentGame(state: GameState?)
 
     /// Load the persisted profile bucket, if one exists.
     fun loadProfile(): Profile?
@@ -203,8 +151,8 @@ internal val appStateJson = Json {
 }
 
 /// Encode a current-game bucket using serialized undo/redo patch chains.
-internal fun encodeCurrentGameSnapshot(state: CurrentGameSnapshot): String {
-    return encodePersistedBucket(SerializedCurrentGameSnapshot.fromCurrentGameSnapshot(state))
+internal fun encodeCurrentGame(state: GameState?): String {
+    return encodePersistedBucket(state?.toSerializedGameState())
 }
 
 /// Encode a profile bucket with file-level app version metadata.
@@ -234,9 +182,32 @@ private inline fun <reified T> encodePersistedBucket(data: T): String {
 }
 
 /// Decode a current-game bucket from serialized undo/redo patch chains.
-private fun decodeCurrentGameSnapshot(jsonObject: JsonObject): CurrentGameSnapshot {
-    return appStateJson.decodeFromJsonElement<SerializedCurrentGameSnapshot>(jsonObject)
-        .toCurrentGameSnapshot()
+private fun decodeCurrentGame(jsonElement: JsonElement): GameState? {
+    if (jsonElement is JsonNull) {
+        return null
+    }
+    return appStateJson.decodeFromJsonElement<SerializedGameState>(jsonElement).restore()
+}
+
+/**
+ * Decode persisted current-game state for a known storage version.
+ *
+ * @param jsonElement The payload JSON from the current-game bucket.
+ * @param version The version metadata read from that JSON object.
+ */
+private fun decodeCurrentGameJson(
+    jsonElement: JsonElement,
+    version: AppVersion,
+): PersistenceDecodeResult<GameState?>? {
+    return try {
+        val migrated = migrateCurrentGameJson(jsonElement, version) ?: return null
+        PersistenceDecodeResult(
+            value = decodeCurrentGame(migrated.jsonElement),
+            wasMigrated = migrated.wasMigrated,
+        )
+    } catch (_: RuntimeException) {
+        null
+    }
 }
 
 /**
@@ -262,14 +233,14 @@ internal class FileAppStateStorage(
         get() = resetAreas.toSet()
 
     /// Load current/setup game state from app-private JSON.
-    override fun loadCurrentGameState(): CurrentGameSnapshot? {
+    override fun loadCurrentGame(): GameState? {
         resetAreas.remove(PersistedData.GAME_STATE)
         if (!currentGameStateFile.exists()) {
             return null
         }
         val currentGameState = readExistingBucket(currentGameStateFile)
             ?.let { storedBucket ->
-                CurrentGameSnapshot.decodeJson(storedBucket.data, storedBucket.version)
+                decodeCurrentGameJson(storedBucket.data, storedBucket.version)
             }
         if (currentGameState == null) {
             // We get here if:
@@ -278,10 +249,10 @@ internal class FileAppStateStorage(
             // - our decode function didn't know how to handle that version number
             // - our decode function had an error decoding the json object
             resetAreas += PersistedData.GAME_STATE
-            return CurrentGameSnapshot()
+            return null
         }
         if (currentGameState.wasMigrated) {
-            saveCurrentGameState(currentGameState.value)
+            saveCurrentGame(currentGameState.value)
         }
         return currentGameState.value
     }
@@ -291,9 +262,9 @@ internal class FileAppStateStorage(
      *
      * @param state The current-game state snapshot to persist.
      */
-    override fun saveCurrentGameState(state: CurrentGameSnapshot) {
+    override fun saveCurrentGame(state: GameState?) {
         rootDir.mkdirs()
-        currentGameStateFile.writeAtomically(encodeCurrentGameSnapshot(state), moveFileAtomically, replaceFile)
+        currentGameStateFile.writeAtomically(encodeCurrentGame(state), moveFileAtomically, replaceFile)
     }
 
     /// Load profile state from app-private JSON.
@@ -409,11 +380,7 @@ internal class FileAppStateStorage(
         val version = readVersion(this) ?: return null
         val dataElement = this["data"]
         if (dataElement != null) {
-            return try {
-                StoredJsonBucket(version = version, data = dataElement.jsonObject)
-            } catch (_: RuntimeException) {
-                null
-            }
+            return StoredJsonBucket(version = version, data = dataElement)
         }
         if (version.persistenceVersion() != "1.0") {
             return null

@@ -9,43 +9,6 @@ import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.Serializable
 
 /**
- * Serialized form of the current/setup game bucket.
- *
- * This uses the custom undo/redo serialization described in `SerializedUndoEntry`
- * instead of native `GameState` serialization for the live-state history.
- *
- * @param setupDraft Resumable new-game setup draft, or null when no draft is saved.
- * @param liveState The live game stored with serialized undo/redo chains.
- */
-@Serializable
-internal data class SerializedCurrentGameSnapshot(
-    val setupDraft: GameSetupState?,
-    val liveState: SerializedGameState?,
-) {
-    /// Convert this storage shape back to the app-facing current-game bucket.
-    fun toCurrentGameSnapshot(): CurrentGameSnapshot {
-        return CurrentGameSnapshot(
-            setupDraft = setupDraft,
-            liveState = liveState?.restore(),
-        )
-    }
-
-    companion object {
-        /**
-         * Build serialized state from the app-facing current-game bucket.
-         *
-         * @param state The current-game bucket to serialize.
-         */
-        fun fromCurrentGameSnapshot(state: CurrentGameSnapshot): SerializedCurrentGameSnapshot {
-            return SerializedCurrentGameSnapshot(
-                setupDraft = state.setupDraft,
-                liveState = state.liveState?.toSerializedGameState(),
-            )
-        }
-    }
-}
-
-/**
  * Serialized form of one game state and its undo/redo history.
  *
  * This stores the current state directly and represents history with the patch-chain
@@ -127,8 +90,6 @@ internal data class GameStatePatch(
     @Serializable(with = ZoneIdAsStringSerializer::class)
     val timeZone: ZoneId? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
-    val startEpoch: Long? = null,
-    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val endEpoch: NullablePatchValue<Long>? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val tournamentName: String? = null,
@@ -147,17 +108,15 @@ internal data class GameStatePatch(
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val rules: GameRules? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
-    val teamOne: TeamLiveStatePatch? = null,
+    val teamOne: TeamStatePatch? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
-    val teamTwo: TeamLiveStatePatch? = null,
+    val teamTwo: TeamStatePatch? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val teamOnePlayers: ListPatch<PlayerRecord>? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val teamTwoPlayers: ListPatch<PlayerRecord>? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val eventLog: ListPatch<EventLogEntry>? = null,
-    @EncodeDefault(EncodeDefault.Mode.NEVER)
-    val nearAttackingTeam: TeamId? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val pullingTeam: TeamId? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
@@ -217,7 +176,6 @@ internal data class GameStatePatch(
             startDate = startDate ?: later.startDate,
             startTime = startTime ?: later.startTime,
             timeZone = timeZone ?: later.timeZone,
-            startEpoch = startEpoch ?: later.startEpoch,
             endEpoch = if (endEpoch != null) endEpoch.value else later.endEpoch,
             tournamentName = tournamentName ?: later.tournamentName,
             division = if (division != null) division.value else later.division,
@@ -232,7 +190,6 @@ internal data class GameStatePatch(
             teamOnePlayers = teamOnePlayers?.applyTo(later.teamOnePlayers) ?: later.teamOnePlayers,
             teamTwoPlayers = teamTwoPlayers?.applyTo(later.teamTwoPlayers) ?: later.teamTwoPlayers,
             eventLog = eventLog?.applyTo(later.eventLog) ?: later.eventLog,
-            nearAttackingTeam = nearAttackingTeam ?: later.nearAttackingTeam,
             pullingTeam = pullingTeam ?: later.pullingTeam,
             pullingFromEnd = pullingFromEnd ?: later.pullingFromEnd,
             topDisplayedEnd = topDisplayedEnd ?: later.topDisplayedEnd,
@@ -274,7 +231,6 @@ internal data class GameStatePatch(
                 startDate = previous.startDate.takeIfChangedFrom(later.startDate),
                 startTime = previous.startTime.takeIfChangedFrom(later.startTime),
                 timeZone = previous.timeZone.takeIfChangedFrom(later.timeZone),
-                startEpoch = previous.startEpoch.takeIfChangedFrom(later.startEpoch),
                 endEpoch = nullablePatch(later.endEpoch, previous.endEpoch),
                 tournamentName = previous.tournamentName.takeIfChangedFrom(later.tournamentName),
                 division = nullablePatch(later.division, previous.division),
@@ -284,8 +240,8 @@ internal data class GameStatePatch(
                 nearEndName = previous.nearEndName.takeIfChangedFrom(later.nearEndName),
                 farEndName = previous.farEndName.takeIfChangedFrom(later.farEndName),
                 rules = previous.rules.takeIfChangedFrom(later.rules),
-                teamOne = TeamLiveStatePatch.fromLaterAndPrevious(later.teamOne, previous.teamOne),
-                teamTwo = TeamLiveStatePatch.fromLaterAndPrevious(later.teamTwo, previous.teamTwo),
+                teamOne = TeamStatePatch.fromLaterAndPrevious(later.teamOne, previous.teamOne),
+                teamTwo = TeamStatePatch.fromLaterAndPrevious(later.teamTwo, previous.teamTwo),
                 teamOnePlayers = ListPatch.fromLaterAndPrevious(
                     later.teamOnePlayers,
                     previous.teamOnePlayers,
@@ -295,7 +251,6 @@ internal data class GameStatePatch(
                     previous.teamTwoPlayers,
                 ),
                 eventLog = ListPatch.fromLaterAndPrevious(later.eventLog, previous.eventLog),
-                nearAttackingTeam = previous.nearAttackingTeam.takeIfChangedFrom(later.nearAttackingTeam),
                 pullingTeam = previous.pullingTeam.takeIfChangedFrom(later.pullingTeam),
                 pullingFromEnd = previous.pullingFromEnd.takeIfChangedFrom(later.pullingFromEnd),
                 topDisplayedEnd = previous.topDisplayedEnd.takeIfChangedFrom(later.topDisplayedEnd),
@@ -394,10 +349,10 @@ internal data class ListPatch<T>(
 }
 
 /**
- * Patch for one team's live counters and display identity.
+ * Patch for one team's setup fields and game counters.
  */
 @Serializable
-internal data class TeamLiveStatePatch(
+internal data class TeamStatePatch(
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val name: String? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
@@ -434,8 +389,8 @@ internal data class TeamLiveStatePatch(
      *
      * @param later The later team state.
      */
-    fun applyTo(later: TeamLiveState): TeamLiveState {
-        val updatedIdentity = later.identity.copy(
+    fun applyTo(later: TeamState): TeamState {
+        return later.copy(
             name = name ?: later.name,
             color = color ?: later.color,
             customColorArgb = if (customColorArgb != null) {
@@ -446,9 +401,6 @@ internal data class TeamLiveStatePatch(
             coaches = coaches ?: later.coaches,
             fieldCaptains = fieldCaptains ?: later.fieldCaptains,
             spiritCaptains = spiritCaptains ?: later.spiritCaptains,
-        )
-        return later.copy(
-            identity = updatedIdentity,
             score = score ?: later.score,
             timeoutsUsedThisHalf = timeoutsUsedThisHalf ?: later.timeoutsUsedThisHalf,
             firstHalfTimeoutsUsed = firstHalfTimeoutsUsed ?: later.firstHalfTimeoutsUsed,
@@ -468,11 +420,11 @@ internal data class TeamLiveStatePatch(
          * @param later The later team state in the undo chain.
          * @param previous The previous team state restored by undo.
          */
-        fun fromLaterAndPrevious(later: TeamLiveState, previous: TeamLiveState): TeamLiveStatePatch? {
+        fun fromLaterAndPrevious(later: TeamState, previous: TeamState): TeamStatePatch? {
             if (previous == later) {
                 return null
             }
-            return TeamLiveStatePatch(
+            return TeamStatePatch(
                 name = previous.name.takeIfChangedFrom(later.name),
                 color = previous.color.takeIfChangedFrom(later.color),
                 customColorArgb = nullablePatch(later.customColorArgb, previous.customColorArgb),
@@ -496,7 +448,7 @@ internal data class TeamLiveStatePatch(
 }
 
 /// Convert a game state and its history to serialized state.
-private fun GameState.toSerializedGameState(): SerializedGameState {
+internal fun GameState.toSerializedGameState(): SerializedGameState {
     return SerializedGameState(
         state = withoutUndoRedo(),
         undoEntry = undoEntry?.toSerializedUndoEntry(later = this),

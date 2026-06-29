@@ -192,12 +192,12 @@ class TestCaps : GameDomainTestFixtures() {
         )
         state = state.recordGoalFromCurrentState(
             vc,
-            now = timestampAt(lateStartDate, LocalTime.of(23, 50)),
+            now = epochTimestamp(lateStartDate, LocalTime.of(23, 50), testTimeZone),
         )
         assertNull(state.pendingCapOffer)
         state = state.recordGoalFromCurrentState(
             animal,
-            now = timestampAt(lateStartDate.plusDays(1), LocalTime.of(1, 11)),
+            now = epochTimestamp(lateStartDate.plusDays(1), LocalTime.of(1, 11), testTimeZone),
         )
         assertEquals(CapType.HARD, state.pendingCapOffer)
     }
@@ -307,7 +307,7 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(0, state.teamTwo.timeoutsUsedThisHalf)
         assertEquals(animal, state.pullingTeam)
         assertEquals(FieldEnd.FAR, state.pullingFromEnd)
-        assertEquals(animal, state.nearAttackingTeam)
+        assertEquals(animal, state.teamDefendingEnd(FieldEnd.FAR))
         assertEquals("Halftime.", state.lastEvent)
         assertEquals("Undo Goal by Viscous Coupling", state.undoEntry?.label)
         assertEquals(beforeSoftCapHalftimeGoal, state.undoEntry?.previous)
@@ -579,11 +579,12 @@ class TestCaps : GameDomainTestFixtures() {
     }
 
     /**
-     * Verify force-cap-now actions enable the selected cap and move the nominal start time.
+     * Verify force-cap-now actions enable and immediately apply the selected cap.
      */
     @Test
     fun capNowActions() {
-        // With caps disabled, each force-cap-now action enables one cap and rewinds start time.
+        // With caps disabled, each cap-now action enables and applies one cap without changing
+        // the scheduled start time.
         val state = newCapState(
             capRules.copy(
                 useHalfCap = false,
@@ -593,22 +594,31 @@ class TestCaps : GameDomainTestFixtures() {
         )
         val halfNow = state.makeCapNow(CapType.HALF, timestampAfterStart(state, 42))
         assertTrue(halfNow.rules.useHalfCap)
+        assertTrue(halfNow.halfCapApplied)
+        assertEquals(1, halfNow.halftimeTargetScore)
         assertEquals(state.startDate, halfNow.startDate)
-        assertEquals(LocalTime.of(10, 32), halfNow.startTime)
-        assertEquals("Half cap set to now.", halfNow.lastEvent)
-        assertEquals("Undo Half cap now", halfNow.undoEntry?.label)
+        assertEquals(state.startTime, halfNow.startTime)
+        assertEquals(state.startEpoch, halfNow.startEpoch)
+        assertEquals("Half cap applied.", halfNow.lastEvent)
+        assertEquals("Undo Apply half cap now", halfNow.undoEntry?.label)
         val softNow = state.makeCapNow(CapType.SOFT, timestampAfterStart(state, 42))
         assertTrue(softNow.rules.useSoftCap)
+        assertTrue(softNow.softCapApplied)
+        assertEquals(1, softNow.winningScore)
         assertEquals(state.startDate, softNow.startDate)
-        assertEquals(LocalTime.of(10, 22), softNow.startTime)
-        assertEquals("Soft cap set to now.", softNow.lastEvent)
-        assertEquals("Undo Soft cap now", softNow.undoEntry?.label)
+        assertEquals(state.startTime, softNow.startTime)
+        assertEquals(state.startEpoch, softNow.startEpoch)
+        assertEquals("Soft cap applied.", softNow.lastEvent)
+        assertEquals("Undo Apply soft cap now", softNow.undoEntry?.label)
         val hardNow = state.makeCapNow(CapType.HARD, timestampAfterStart(state, 42))
         assertTrue(hardNow.rules.useHardCap)
+        assertTrue(hardNow.hardCapApplied)
+        assertEquals(1, hardNow.winningScore)
         assertEquals(state.startDate, hardNow.startDate)
-        assertEquals(LocalTime.of(10, 12), hardNow.startTime)
-        assertEquals("Hard cap set to now.", hardNow.lastEvent)
-        assertEquals("Undo Hard cap now", hardNow.undoEntry?.label)
+        assertEquals(state.startTime, hardNow.startTime)
+        assertEquals(state.startEpoch, hardNow.startEpoch)
+        assertEquals("Hard cap applied.", hardNow.lastEvent)
+        assertEquals("Undo Apply hard cap now", hardNow.undoEntry?.label)
     }
 
     /**

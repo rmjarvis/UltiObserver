@@ -22,7 +22,7 @@ fun main(args: Array<String>) {
 
 private fun writeDefaultBuckets(dir: File) {
     val store = freshStore(dir)
-    store.saveCurrentGameState(defaultCurrentGameSnapshot())
+    store.saveCurrentGameState(null)
     store.saveProfile(Profile())
     store.saveSettings(Settings())
     store.saveArchivedGames(emptyList())
@@ -30,11 +30,7 @@ private fun writeDefaultBuckets(dir: File) {
 
 private fun writeSetupDraft(dir: File) {
     val store = freshStore(dir)
-    store.saveCurrentGameState(
-        CurrentGameSnapshot(
-            setupDraft = nonDefaultSetup(),
-        )
-    )
+    store.saveCurrentGameState(nonDefaultSetup())
     store.saveProfile(fixtureProfile())
     store.saveSettings(fixtureSettings())
     store.saveArchivedGames(emptyList())
@@ -45,11 +41,7 @@ private fun writeActiveGame(dir: File) {
     val setup = nonDefaultSetup().copy(division = GameDivision.MIXED)
     val game = activeGameWithEvents(setup)
 
-    store.saveCurrentGameState(
-        CurrentGameSnapshot(
-            liveState = game,
-        )
-    )
+    store.saveCurrentGameState(game)
     store.saveProfile(fixtureProfile())
     store.saveSettings(fixtureSettings())
     store.saveArchivedGames(
@@ -68,7 +60,7 @@ private fun writeCompletedArchive(dir: File) {
     val richGame = activeGameWithEvents(richSetup)
         .endGameNow(setupEpoch(richSetup) + 180_000L)
 
-    store.saveCurrentGameState(defaultCurrentGameSnapshot())
+    store.saveCurrentGameState(null)
     store.saveProfile(fixtureProfile())
     store.saveSettings(fixtureSettings())
     store.saveArchivedGames(
@@ -91,12 +83,14 @@ private fun freshStore(dir: File): FileAppStateStorage {
     return FileAppStateStorage(dir)
 }
 
-private fun defaultCurrentGameSnapshot(): CurrentGameSnapshot {
-    return CurrentGameSnapshot()
-}
-
-private fun baseSetup(): GameSetupState {
-    return GameSetupState(
+private fun baseSetup(): GameState {
+    return newSetupGameState(
+        now = setupEpoch(
+            LocalDate.of(2026, 1, 3),
+            LocalTime.of(9, 30),
+            ZoneId.of("America/New_York"),
+        ),
+    ).copy(
         startDate = LocalDate.of(2026, 1, 3),
         startTime = LocalTime.of(9, 30),
         timeZone = ZoneId.of("America/New_York"),
@@ -117,7 +111,7 @@ private fun baseSetup(): GameSetupState {
             genderRatioRule = GenderRatioRule.GEN_ZONE,
             useMajorityPullRule = true,
         ),
-        teamOne = TeamIdentity(
+        teamOne = TeamState(
             name = "Viscous Coupling",
             color = TeamColorChoice.CUSTOM,
             customColorArgb = 0xFF1E88E5,
@@ -125,7 +119,7 @@ private fun baseSetup(): GameSetupState {
             fieldCaptains = "Alex Seven",
             spiritCaptains = "Sam Spirit",
         ),
-        teamTwo = TeamIdentity(
+        teamTwo = TeamState(
             name = "Animal",
             color = TeamColorChoice.RED,
             coaches = "Jordan Coach",
@@ -142,6 +136,8 @@ private fun baseSetup(): GameSetupState {
         ),
         pullingTeam = TeamId.TEAM_ONE,
         pullingFromEnd = FieldEnd.FAR,
+        openingPullingTeam = TeamId.TEAM_ONE,
+        openingPullingFromEnd = FieldEnd.FAR,
         pullPromptTarget = PullPromptTarget.BOTH,
         initialGenderRatio = GenderRatio.FOUR_WOMEN_THREE_MEN,
         firstHalfGenZone = FieldEnd.NEAR,
@@ -149,7 +145,7 @@ private fun baseSetup(): GameSetupState {
     )
 }
 
-private fun nonDefaultSetup(): GameSetupState {
+private fun nonDefaultSetup(): GameState {
     return baseSetup().copy(
         startDate = LocalDate.of(2026, 2, 14),
         startTime = LocalTime.of(13, 45),
@@ -174,14 +170,14 @@ private fun nonDefaultSetup(): GameSetupState {
             genderRatioRule = GenderRatioRule.ABBA,
             useMajorityPullRule = true,
         ),
-        teamOne = TeamIdentity(
+        teamOne = TeamState(
             name = "Bees",
             color = TeamColorChoice.YELLOW,
             coaches = "Bee Coach",
             fieldCaptains = "Bee Captain",
             spiritCaptains = "Bee Spirit",
         ),
-        teamTwo = TeamIdentity(
+        teamTwo = TeamState(
             name = "Ferns",
             color = TeamColorChoice.GREEN,
             coaches = "Fern Coach",
@@ -198,6 +194,8 @@ private fun nonDefaultSetup(): GameSetupState {
         ),
         pullingTeam = TeamId.TEAM_TWO,
         pullingFromEnd = FieldEnd.NEAR,
+        openingPullingTeam = TeamId.TEAM_TWO,
+        openingPullingFromEnd = FieldEnd.NEAR,
         pullPromptTarget = PullPromptTarget.FAR,
         initialGenderRatio = GenderRatio.FOUR_MEN_THREE_WOMEN,
         firstHalfGenZone = FieldEnd.FAR,
@@ -205,9 +203,9 @@ private fun nonDefaultSetup(): GameSetupState {
     )
 }
 
-private fun activeGameWithEvents(setup: GameSetupState): GameState {
+private fun activeGameWithEvents(setup: GameState): GameState {
     val start = setupEpoch(setup)
-    var game = createLiveGameState(setup)
+    var game = setup.startGame()
     game = game.recordFalseStart(start + 1_000L)
     game = game.recordMajorityPullViolation(start + 2_000L)
     game = game.assessYellowCard(
@@ -310,7 +308,7 @@ private fun activeGameWithEvents(setup: GameSetupState): GameState {
 private fun shortCompletedGame(): GameState {
     val setup = baseSetup()
     val start = setupEpoch(setup)
-    var game = createLiveGameState(setup).beginLivePoint(start + 1_000L)
+    var game = setup.startGame().beginLivePoint(start + 1_000L)
     game = game.recordGoal(TeamId.TEAM_ONE, start + 60_000L)
     return game.endGameNow(start + 70_000L)
 }
@@ -336,6 +334,10 @@ private fun fixtureSettings(): Settings {
     )
 }
 
-private fun setupEpoch(setup: GameSetupState): Long {
+private fun setupEpoch(setup: GameState): Long {
     return epochTimestamp(setup.startDate, setup.startTime, setup.timeZone)
+}
+
+private fun setupEpoch(startDate: LocalDate, startTime: LocalTime, timeZone: ZoneId): Long {
+    return epochTimestamp(startDate, startTime, timeZone)
 }

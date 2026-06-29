@@ -3,80 +3,25 @@ package rmjarvis.ultiobserver
 import kotlin.math.max
 
 /**
- * Build a setup-stage game state from the setup form without starting live-game flow.
- *
- * @param setup The pregame setup choices to store exactly as entered.
- */
-fun createGameState(setup: GameSetupState): GameState {
-    val nearAttackingTeam = if (setup.pullingFromEnd == FieldEnd.FAR) {
-        setup.pullingTeam
-    } else {
-        setup.pullingTeam.flip()
-    }
-    val startEpoch = epochTimestamp(setup.startDate, setup.startTime, setup.timeZone)
-    return GameState(
-        startDate = setup.startDate,
-        startTime = setup.startTime,
-        timeZone = setup.timeZone,
-        startEpoch = startEpoch,
-        tournamentName = setup.tournamentName,
-        division = setup.division,
-        level = setup.level,
-        gameContext = setup.gameContext,
-        observers = setup.observers,
-        nearEndName = setup.nearEndName,
-        farEndName = setup.farEndName,
-        rules = setup.rules,
-        teamOne = TeamLiveState(identity = setup.teamOne),
-        teamTwo = TeamLiveState(identity = setup.teamTwo),
-        teamOnePlayers = setup.teamOnePlayers,
-        teamTwoPlayers = setup.teamTwoPlayers,
-        nearAttackingTeam = nearAttackingTeam,
-        pullingTeam = setup.pullingTeam,
-        pullingFromEnd = setup.pullingFromEnd,
-        pullPromptTarget = setup.pullPromptTarget,
-        initialGenderRatio = setup.initialGenderRatio,
-        firstHalfGenZone = setup.firstHalfGenZone,
-        switchGenZoneAtHalftime = setup.switchGenZoneAtHalftime,
-        openingPullingTeam = setup.pullingTeam,
-        openingPullingFromEnd = setup.pullingFromEnd,
-        phase = GamePhase.SETUP,
-        countdown = null,
-    )
-}
-
-/**
  * Start a setup-stage game and prepare the opening-pull live preview.
  *
  * @receiver The setup-stage state to start.
  */
 fun GameState.startGame(): GameState {
-    check(phase == GamePhase.SETUP)
+    // This is only called from a state with phase == SETUP.
     return copy(
-        teamOne = teamOne.withIdentity(
-            teamOne.identity.copy(name = teamOne.name.ifBlank { "Team 1" }),
-        ),
-        teamTwo = teamTwo.withIdentity(
-            teamTwo.identity.copy(name = teamTwo.name.ifBlank { "Team 2" }),
-        ),
+        teamOne = teamOne.copy(name = teamOne.normalizedName(TeamId.TEAM_ONE)),
+        teamTwo = teamTwo.copy(name = teamTwo.normalizedName(TeamId.TEAM_TWO)),
+        pullingTeam = openingPullingTeam,
+        pullingFromEnd = openingPullingFromEnd,
         phase = GamePhase.PRE_GAME,
         countdown = buildBetweenPointsCountdown(
-            pullingFromEnd = pullingFromEnd,
+            pullingFromEnd = openingPullingFromEnd,
             sequenceStart = startEpoch,
             kind = CountdownKind.OPENING_PULL,
             promptTarget = pullPromptTarget,
         ),
     )
-}
-
-/**
- * Build the initial live-game state from the completed setup form.
- *
- * @param setup The pregame setup choices that define teams, rules, start time, and opening
- * pull orientation.
- */
-fun createLiveGameState(setup: GameSetupState): GameState {
-    return createGameState(setup).startGame()
 }
 
 /**
@@ -137,9 +82,9 @@ fun GameState.recordGoal(
     } else {
         this.teamTwo
     }
-    val nextNearAttackingTeam = this.nearAttackingTeam.flip()
+    val nextTeamDefendingNear = teamDefendingEnd(FieldEnd.FAR)
     val nextPullingTeam = scoringTeam
-    val nextPullingFromEnd = if (scoringTeam == this.nearAttackingTeam) {
+    val nextPullingFromEnd = if (nextTeamDefendingNear == nextPullingTeam) {
         FieldEnd.NEAR
     } else {
         FieldEnd.FAR
@@ -155,7 +100,6 @@ fun GameState.recordGoal(
             teamOne = updatedTeamOne,
             teamTwo = updatedTeamTwo,
             pullingTeam = nextPullingTeam,
-            nearAttackingTeam = nextNearAttackingTeam,
             pullingFromEnd = nextPullingFromEnd,
             phase = GamePhase.BETWEEN_POINTS,
             countdown = buildBetweenPointsCountdown(
@@ -245,7 +189,6 @@ fun GameState.recordGoal(
         teamOne = updatedTeamOne,
         teamTwo = updatedTeamTwo,
         pullingTeam = nextPullingTeam,
-        nearAttackingTeam = nextNearAttackingTeam,
         pullingFromEnd = nextPullingFromEnd,
         phase = GamePhase.BETWEEN_POINTS,
         countdown = countdown,
@@ -304,8 +247,8 @@ fun GameState.startHalftimeNow(
  */
 private fun startHalftime(
     state: GameState,
-    teamOne: TeamLiveState,
-    teamTwo: TeamLiveState,
+    teamOne: TeamState,
+    teamTwo: TeamState,
     existingCapOffer: CapType?,
     now: Long,
     undoPrevious: GameState,
@@ -313,11 +256,6 @@ private fun startHalftime(
 ): GameState {
     val secondHalfPullingTeam = state.openingPullingTeam.flip()
     val secondHalfPullingFromEnd = state.openingPullingFromEnd
-    val secondHalfNearAttackingTeam = if (secondHalfPullingFromEnd == FieldEnd.FAR) {
-        secondHalfPullingTeam
-    } else {
-        secondHalfPullingTeam.flip()
-    }
     val halftimeCountdown = buildHalftimeCountdown(
         halftimeMinutes = state.rules.halftimeMinutes,
         sequenceStart = now,
@@ -345,7 +283,6 @@ private fun startHalftime(
         ),
         pullingTeam = secondHalfPullingTeam,
         pullingFromEnd = secondHalfPullingFromEnd,
-        nearAttackingTeam = secondHalfNearAttackingTeam,
         phase = GamePhase.HALFTIME,
         countdown = halftimeCountdown,
         pullCountdownExpired = false,
@@ -391,10 +328,11 @@ fun GameState.endGameNow(
 }
 /// Mark the pull as complete and enter live-point play.
 fun GameState.beginLivePoint(now: Long): GameState {
-    val firstPullEntry = if (this.eventLog.isEmpty()) {
+    val firstPullTimestamp = this.firstPullLogTimestamp(now)
+    val firstPullEntry = if (this.teamOne.score == 0 && this.teamTwo.score == 0) {
         listOf(
             EventLogEntry(
-                timestampEpoch = this.firstPullLogTimestamp(now),
+                timestampEpoch = firstPullTimestamp,
                 type = EventLogType.FIRST_PULL,
                 team = this.pullingTeam,
             )
@@ -520,10 +458,11 @@ fun GameState.redoLastAction(): GameState {
 /// Enter live-point play from an expired countdown while preserving undo back to the expired-pull actions.
 private fun GameState.automaticLivePointState(now: Long): GameState {
     val previous = this.expiredPullDecisionState()
-    val firstPullEntry = if (this.eventLog.isEmpty()) {
+    val firstPullTimestamp = this.firstPullLogTimestamp(now)
+    val firstPullEntry = if (this.teamOne.score == 0 && this.teamTwo.score == 0) {
         listOf(
             EventLogEntry(
-                timestampEpoch = this.firstPullLogTimestamp(now),
+                timestampEpoch = firstPullTimestamp,
                 type = EventLogType.FIRST_PULL,
                 team = this.pullingTeam,
             )

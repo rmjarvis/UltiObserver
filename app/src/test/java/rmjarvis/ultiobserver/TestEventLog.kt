@@ -38,6 +38,22 @@ class TestEventLog : GameDomainTestFixtures() {
             listOf("11:58  First pull by Animal"),
             state.formatEventLogLines(),
         )
+
+        // A pre-first-point misconduct event does not prevent logging the first pull.
+        state = standardLiveGameState(
+            startTime = LocalTime.of(12, 0),
+            pullingTeam = animal,
+            pullingFromEnd = FieldEnd.NEAR,
+        )
+        state = state.assessBlueCard(animal, timestampAt(state, LocalTime.of(11, 55))).state
+        state = state.beginLivePoint(timestampAt(state, LocalTime.of(12, 0)))
+        assertEquals(
+            listOf(
+                "11:55  Blue card on Animal",
+                "12:00  First pull by Animal",
+            ),
+            state.formatEventLogLines(),
+        )
     }
 
     /**

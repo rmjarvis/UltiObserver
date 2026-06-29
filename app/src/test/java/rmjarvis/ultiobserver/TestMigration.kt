@@ -2,6 +2,7 @@ package rmjarvis.ultiobserver
 
 import java.io.File
 import java.nio.file.Paths
+import kotlinx.serialization.json.jsonObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -85,7 +86,7 @@ class TestMigration : GameDomainTestFixtures() {
         assertNull(liveState.countdown)
         assertTrue(liveState.pullCountdownExpired)
         assertEquals(1, activeGame.archivedGames.size)
-        assertEquals(TeamId.TEAM_ONE, liveState.nearAttackingTeam)
+        assertEquals(TeamId.TEAM_ONE, liveState.teamDefendingEnd(FieldEnd.FAR))
         assertEquals(TeamId.TEAM_TWO, liveState.pullingTeam)
         assertEquals(FieldEnd.NEAR, liveState.pullingFromEnd)
         assertEquals(PullPromptTarget.NEAR, liveState.pullPromptTarget)

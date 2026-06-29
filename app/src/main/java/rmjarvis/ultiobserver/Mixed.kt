@@ -77,12 +77,3 @@ fun GameState.abbaRatioForPoint(pointNumber: Int): GenderRatio {
         initialGenderRatio.flip()
     }
 }
-
-/**
- * Return the team currently defending a field end.
- *
- * @param end The end whose defending team should be returned.
- */
-private fun GameState.teamDefendingEnd(end: FieldEnd): TeamId {
-    return if (end == FieldEnd.NEAR) nearAttackingTeam.flip() else nearAttackingTeam
-}

@@ -1,8 +1,5 @@
 package rmjarvis.ultiobserver
 
-import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.LocalTime
 import java.time.ZoneId
 import kotlinx.serialization.Serializable
 
@@ -31,91 +28,48 @@ enum class GameDivision(val displayText: String) {
 }
 
 /**
- * Setup-screen fields needed to create or edit a live game.
+ * Build a setup-phase game state for a new game.
  *
- * @param startDate The local date selected for the scheduled game start.
- * @param startTime The local clock time selected for the scheduled game start.
- * @param timeZone The time zone that gives the local start date/time its real instant.
- * @param tournamentName Optional tournament name used in completed-game summaries.
- * @param division Optional division context for the game, hidden from summaries when not set.
- * @param level Optional competition level for the game, hidden from summaries when blank.
- * @param gameContext Optional game-stage or round context, such as pool play or semifinals.
- * @param observers Optional list of observers assigned to the game.
- * @param nearEndName Optional custom label for the near/bottom field end.
- * @param farEndName Optional custom label for the far/top field end.
- * @param rules The scoring, cap, halftime, and timeout rules selected for the game.
- * @param teamOne The setup identity for Team 1 before live field orientation is applied.
- * @param teamTwo The setup identity for Team 2 before live field orientation is applied.
- * @param teamOnePlayers Team 1 players with cards carried in from previous games.
- * @param teamTwoPlayers Team 2 players with cards carried in from previous games.
- * @param pullingTeam The team selected to pull first.
- * @param pullingFromEnd The field end from which the first pull is selected to start.
- * @param pullPromptTarget Which field end or ends should receive pulling prompts.
- * @param initialGenderRatio The first ABBA point's gender ratio.
- * @param firstHalfGenZone The Gen Zone end used for the first half.
- * @param switchGenZoneAtHalftime Whether Gen Zone switches ends after halftime.
- */
-@Serializable
-data class GameSetupState(
-    @Serializable(with = LocalDateAsStringSerializer::class)
-    val startDate: LocalDate,
-    @Serializable(with = LocalTimeAsStringSerializer::class)
-    val startTime: LocalTime,
-    @Serializable(with = ZoneIdAsStringSerializer::class)
-    val timeZone: ZoneId,
-    val tournamentName: String = "",
-    val division: GameDivision? = null,
-    val level: String = "",
-    val gameContext: String = "",
-    val observers: String = "",
-    val nearEndName: String = "",
-    val farEndName: String = "",
-    val rules: GameRules,
-    val teamOne: TeamIdentity = TeamIdentity(name = "", color = TeamColorChoice.WHITE),
-    val teamTwo: TeamIdentity = TeamIdentity(name = "", color = TeamColorChoice.BLUE),
-    val teamOnePlayers: List<PlayerRecord> = emptyList(),
-    val teamTwoPlayers: List<PlayerRecord> = emptyList(),
-    val pullingTeam: TeamId = TeamId.TEAM_ONE,
-    val pullingFromEnd: FieldEnd = FieldEnd.FAR,
-    val pullPromptTarget: PullPromptTarget = PullPromptTarget.NEAR,
-    val initialGenderRatio: GenderRatio = GenderRatio.FOUR_MEN_THREE_WOMEN,
-    val firstHalfGenZone: FieldEnd = FieldEnd.FAR,
-    val switchGenZoneAtHalftime: Boolean = true,
-)
-
-/**
- * Build the default setup state for a new game.
- *
- * @param now The reference local date-time for choosing the next half-hour start; injectable for
- * tests.
+ * @param now The reference epoch millis for choosing the next half-hour start.
  * @param defaultsFrom Previous game values to carry forward for repeated tournament assignments.
  */
-internal fun newGameSetupState(
-    now: LocalDateTime = LocalDateTime.now(),
+internal fun newSetupGameState(
+    now: Long,
     defaultsFrom: GameState? = null,
-): GameSetupState {
-    val startTime = nextHalfHourFrom(now.toLocalTime())
-    val startDate = if (startTime.isBefore(now.toLocalTime())) {
-        now.toLocalDate().plusDays(1)
+): GameState {
+    val timeZone = ZoneId.systemDefault()
+    val localNow = localDateTimeFromEpoch(now, timeZone)
+    val startTime = nextHalfHourFrom(localNow.toLocalTime())
+    val startDate = if (startTime.isBefore(localNow.toLocalTime())) {
+        localNow.toLocalDate().plusDays(1)
     } else {
-        now.toLocalDate()
+        localNow.toLocalDate()
     }
-    return GameSetupState(
+    return GameState(
         startDate = startDate,
         startTime = startTime,
-        timeZone = ZoneId.systemDefault(),
+        timeZone = timeZone,
         tournamentName = defaultsFrom?.tournamentName ?: "",
         division = defaultsFrom?.division,
         level = defaultsFrom?.level ?: "",
         gameContext = defaultsFrom?.gameContext ?: "",
         observers = defaultsFrom?.observers ?: "",
         rules = defaultsFrom?.rules ?: GameRules(),
+        teamOne = TeamState(name = "", color = TeamColorChoice.WHITE),
+        teamTwo = TeamState(name = "", color = TeamColorChoice.BLUE),
+        teamOnePlayers = emptyList(),
+        teamTwoPlayers = emptyList(),
+        pullingTeam = TeamId.TEAM_ONE,
+        pullingFromEnd = FieldEnd.FAR,
+        pullPromptTarget = PullPromptTarget.NEAR,
+        initialGenderRatio = GenderRatio.FOUR_MEN_THREE_WOMEN,
+        firstHalfGenZone = FieldEnd.FAR,
+        switchGenZoneAtHalftime = true,
+        openingPullingTeam = TeamId.TEAM_ONE,
+        openingPullingFromEnd = FieldEnd.FAR,
+        phase = GamePhase.SETUP,
+        countdown = null,
     )
-}
-
-/// Return whether this setup needs mixed-division rule options.
-fun GameSetupState.usesMixedDivision(): Boolean {
-    return division == GameDivision.MIXED
 }
 
 /// Return division choices with real divisions first and N/A last so it is most likely to wrap.
@@ -153,7 +107,7 @@ internal class LabeledSetupSummary(
 )
 
 /// Return compact coach and captain rows for the setup overview.
-internal fun TeamIdentity.namesSummary(): List<LabeledSetupSummary> {
+internal fun TeamState.namesSummary(): List<LabeledSetupSummary> {
     return listOfNotNull(
         coaches.compactLabeledSummary("Coach:"),
         fieldCaptains.compactLabeledSummary("Field:"),
@@ -185,7 +139,7 @@ internal fun List<PlayerRecord>.teamPriorCardsSummary(): String {
 }
 
 /// Return setup summary lines for optional game and tournament context.
-internal fun GameSetupState.gameInformationSummaryLines(): List<String> {
+internal fun GameState.gameInformationSummaryLines(): List<String> {
     return listOfNotNull(
         tournamentName.trim().takeIf { it.isNotEmpty() },
         division?.setupSummaryLine(),
@@ -197,24 +151,18 @@ internal fun GameSetupState.gameInformationSummaryLines(): List<String> {
     )
 }
 
-/// Return the matchup summary line for compact setup-draft list rows.
-internal fun GameSetupState.gameListSummaryLine(): String {
-    return "${TeamId.TEAM_ONE.setupName(this)} vs ${TeamId.TEAM_TWO.setupName(this)} " +
-        "at ${formatClockTime(startTime)}"
-}
-
 /// Return the compact setup summary for the starting pull.
-internal fun GameSetupState.startingPullSummary(): String {
-    return "${pullingTeam.setupName(this)} pulls from ${fieldEndName(pullingFromEnd)}"
+internal fun GameState.startingPullSummary(): String {
+    return "${openingPullingTeam.setupName(this)} pulls from ${fieldEndName(openingPullingFromEnd)}"
 }
 
 /// Return the setup summary line for the current pull-prompt preference.
-internal fun GameSetupState.pullPromptSummary(): String {
+internal fun GameState.pullPromptSummary(): String {
     return "Pull prompts for ${pullPromptTarget.displayText(this)}"
 }
 
 /// Return the display label for one field end, falling back when no custom name is set.
-internal fun GameSetupState.fieldEndName(end: FieldEnd): String {
+internal fun GameState.fieldEndName(end: FieldEnd): String {
     val customName = when (end) {
         FieldEnd.NEAR -> nearEndName
         FieldEnd.FAR -> farEndName
@@ -225,54 +173,28 @@ internal fun GameSetupState.fieldEndName(end: FieldEnd): String {
 /**
  * Return a setup-display team name, using fallback labels only for display.
  *
- * @param state The setup state containing team names.
+ * @param state The game state containing team names.
  */
-internal fun TeamId.setupName(state: GameSetupState): String {
-    val name = if (this == TeamId.TEAM_ONE) state.teamOne.name else state.teamTwo.name
-    return name.ifBlank {
-        if (this == TeamId.TEAM_ONE) "Team 1" else "Team 2"
-    }
-}
-
-/// Return the stable setup field label for a team.
-internal fun TeamId.setupFieldLabel(): String {
-    return if (this == TeamId.TEAM_ONE) "Team 1" else "Team 2"
-}
-
-/**
- * Return the setup fields for a team.
- *
- * @param state The setup state containing both teams.
- */
-internal fun TeamId.setupTeam(state: GameSetupState): TeamIdentity {
-    return if (this == TeamId.TEAM_ONE) state.teamOne else state.teamTwo
-}
-
-/**
- * Return setup state with one team's setup fields replaced.
- *
- * @param teamId The team to replace.
- * @param team The updated team setup fields.
- */
-internal fun GameSetupState.withSetupTeam(teamId: TeamId, team: TeamIdentity): GameSetupState {
-    return if (teamId == TeamId.TEAM_ONE) copy(teamOne = team) else copy(teamTwo = team)
+internal fun TeamId.setupName(state: GameState): String {
+    val team = if (this == TeamId.TEAM_ONE) state.teamOne else state.teamTwo
+    return team.normalizedName(this)
 }
 
 /// Return the player records for one setup team.
-internal fun GameSetupState.playersFor(teamId: TeamId): List<PlayerRecord> {
+internal fun GameState.playersFor(teamId: TeamId): List<PlayerRecord> {
     return if (teamId == TeamId.TEAM_ONE) teamOnePlayers else teamTwoPlayers
 }
 
 /**
- * Return this setup state with one team's player records replaced.
+ * Return this game state with one team's player records replaced.
  *
  * @param teamId The team whose players should be replaced.
  * @param players The new player records for that team.
  */
-internal fun GameSetupState.withPlayersFor(
+internal fun GameState.withPlayersFor(
     teamId: TeamId,
     players: List<PlayerRecord>,
-): GameSetupState {
+): GameState {
     return if (teamId == TeamId.TEAM_ONE) {
         copy(teamOnePlayers = players)
     } else {
@@ -289,7 +211,7 @@ internal fun FieldEnd.defaultDisplayText(): String {
 }
 
 /// Return the setup-display text for a pull-prompt target.
-internal fun PullPromptTarget.displayText(state: GameSetupState): String {
+internal fun PullPromptTarget.displayText(state: GameState): String {
     return when (this) {
         PullPromptTarget.NEAR -> state.fieldEndName(FieldEnd.NEAR)
         PullPromptTarget.FAR -> state.fieldEndName(FieldEnd.FAR)

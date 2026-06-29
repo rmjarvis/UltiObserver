@@ -824,7 +824,7 @@ internal fun LiveGameScreen(
  * @param onDismiss Callback closing the dialog.
  */
 @Composable
-private fun TeamNamesDialog(team: TeamLiveState, onDismiss: () -> Unit) {
+private fun TeamNamesDialog(team: TeamState, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(team.name) },

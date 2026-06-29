@@ -182,18 +182,22 @@ private data class PossiblePlayerMatchConfirmation(
  *
  * @param state The setup state currently being edited.
  * @param onStateChange Callback receiving setup changes from fields and dialogs.
+ * @param title Title shown in the setup screen app bar.
  * @param primaryButtonLabel Label for the fixed bottom action.
  * @param onPrimaryAction Callback starting the game or returning to the live screen.
+ * @param onCancel Optional callback to discard setup edits.
  * @param onSaveGameForLater Optional callback to save this as a SETUP game in the archive.
  * @param onBackHome Callback returning to Home.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun SetupScreen(
-    state: GameSetupState,
-    onStateChange: (GameSetupState) -> Unit,
+    state: GameState,
+    onStateChange: (GameState) -> Unit,
+    title: String,
     primaryButtonLabel: String,
     onPrimaryAction: () -> Unit,
+    onCancel: (() -> Unit)? = null,
     onSaveGameForLater: (() -> Unit)? = null,
     onBackHome: () -> Unit,
 ) {
@@ -279,7 +283,7 @@ internal fun SetupScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Setup game") },
+                title = { Text(title) },
                 navigationIcon = {
                     TextButton(onClick = onBackHome) {
                         Text("Back")
@@ -309,6 +313,14 @@ internal fun SetupScreen(
                         Text("Save game for later")
                     }
                 }
+                if (onCancel != null) {
+                    OutlinedButton(
+                        onClick = onCancel,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Cancel")
+                    }
+                }
             }
         },
     ) { innerPadding ->
@@ -327,7 +339,7 @@ internal fun SetupScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 TeamEditor(
-                    fieldLabel = "Team 1",
+                    fieldLabel = TeamId.TEAM_ONE.defaultName(),
                     team = state.teamOne,
                     priorCards = state.teamOnePlayers,
                     onTeamChange = { onStateChange(state.copy(teamOne = it)) },
@@ -343,7 +355,7 @@ internal fun SetupScreen(
                 )
                 TeamSetupDivider()
                 TeamEditor(
-                    fieldLabel = "Team 2",
+                    fieldLabel = TeamId.TEAM_TWO.defaultName(),
                     team = state.teamTwo,
                     priorCards = state.teamTwoPlayers,
                     onTeamChange = { onStateChange(state.copy(teamTwo = it)) },
@@ -426,10 +438,16 @@ internal fun SetupScreen(
     val target = teamDialog
     if (target != null) {
         val targetLabel = target.teamId.setupName(state)
-        val targetTeam = target.teamId.setupTeam(state)
+        val targetTeam = if (target.teamId == TeamId.TEAM_ONE) state.teamOne else state.teamTwo
 
-        fun changeTargetTeam(updatedTeam: TeamIdentity) {
-            onStateChange(state.withSetupTeam(target.teamId, updatedTeam))
+        fun changeTargetTeam(updatedTeam: TeamState) {
+            onStateChange(
+                if (target.teamId == TeamId.TEAM_ONE) {
+                    state.copy(teamOne = updatedTeam)
+                } else {
+                    state.copy(teamTwo = updatedTeam)
+                }
+            )
         }
 
         // No else branch: every TeamSetupDialog value is handled
@@ -437,7 +455,7 @@ internal fun SetupScreen(
             TeamSetupDialog.COLOR -> {
                 TeamColorSetupDialog(
                     teamLabel = targetLabel,
-                    teamFieldLabel = target.teamId.setupFieldLabel(),
+                    teamFieldLabel = target.teamId.defaultName(),
                     team = targetTeam,
                     onPresetColorSelected = { color ->
                         changeTargetTeam(targetTeam.copy(color = color))
@@ -462,7 +480,7 @@ internal fun SetupScreen(
             TeamSetupDialog.CUSTOM_COLOR -> {
                 CustomTeamColorSetupDialog(
                     teamLabel = targetLabel,
-                    teamFieldLabel = target.teamId.setupFieldLabel(),
+                    teamFieldLabel = target.teamId.defaultName(),
                     team = targetTeam,
                     onCustomColorSelected = { colorArgb ->
                         changeTargetTeam(
@@ -480,7 +498,7 @@ internal fun SetupScreen(
             TeamSetupDialog.NAMES -> {
                 TeamNamesSetupDialog(
                     teamLabel = targetLabel,
-                    teamFieldLabel = target.teamId.setupFieldLabel(),
+                    teamFieldLabel = target.teamId.defaultName(),
                     team = targetTeam,
                     onTeamChange = { updatedTeam ->
                         changeTargetTeam(updatedTeam)
@@ -845,8 +863,8 @@ private fun SetupSummaryRow(
  */
 @Composable
 private fun GameInformationSetupDialog(
-    state: GameSetupState,
-    onStateChange: (GameSetupState) -> Unit,
+    state: GameState,
+    onStateChange: (GameState) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val focusManager = LocalFocusManager.current
@@ -1246,7 +1264,7 @@ private fun SetupChoiceChip(
  * @param state The current setup state to summarize.
  */
 @Composable
-private fun GameInformationSummary(state: GameSetupState) {
+private fun GameInformationSummary(state: GameState) {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         state.gameInformationSummaryLines().forEach { line ->
             Text(
@@ -1264,7 +1282,7 @@ private fun GameInformationSummary(state: GameSetupState) {
  * @param state The current setup state to summarize.
  */
 @Composable
-private fun FieldStartingPullSummary(state: GameSetupState) {
+private fun FieldStartingPullSummary(state: GameState) {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(
             text = "Field ends are called:",
@@ -1314,7 +1332,7 @@ private fun FieldStartingPullSummary(state: GameSetupState) {
  * @param state The current setup state whose rules should be summarized.
  */
 @Composable
-private fun GameRulesSummary(state: GameSetupState) {
+private fun GameRulesSummary(state: GameState) {
     val rules = state.rules
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         SetupSummaryValue("Game to ${rules.gameTo}")
@@ -1386,8 +1404,8 @@ private fun SetupEditButton(
  */
 @Composable
 private fun StartingPullSetupDialog(
-    state: GameSetupState,
-    onStateChange: (GameSetupState) -> Unit,
+    state: GameState,
+    onStateChange: (GameState) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val focusManager = LocalFocusManager.current
@@ -1395,8 +1413,8 @@ private fun StartingPullSetupDialog(
     var farEndName by remember { mutableStateOf(state.farEndName) }
     var committedNearEndName by remember { mutableStateOf(state.nearEndName) }
     var committedFarEndName by remember { mutableStateOf(state.farEndName) }
-    var pullingTeam by remember { mutableStateOf(state.pullingTeam) }
-    var pullingFromEnd by remember { mutableStateOf(state.pullingFromEnd) }
+    var pullingTeam by remember { mutableStateOf(state.openingPullingTeam) }
+    var pullingFromEnd by remember { mutableStateOf(state.openingPullingFromEnd) }
     var pullPromptTarget by remember { mutableStateOf(state.pullPromptTarget) }
     var initialGenderRatio by remember { mutableStateOf(state.initialGenderRatio) }
     var firstHalfGenZone by remember { mutableStateOf(state.firstHalfGenZone) }
@@ -1424,8 +1442,8 @@ private fun StartingPullSetupDialog(
             state.copy(
                 nearEndName = nearEndName,
                 farEndName = farEndName,
-                pullingTeam = pullingTeam,
-                pullingFromEnd = pullingFromEnd,
+                openingPullingTeam = pullingTeam,
+                openingPullingFromEnd = pullingFromEnd,
                 pullPromptTarget = pullPromptTarget,
                 initialGenderRatio = initialGenderRatio,
                 firstHalfGenZone = firstHalfGenZone,
@@ -1499,8 +1517,8 @@ private fun StartingPullSetupDialog(
                 )
                 Text("Pulling team", fontWeight = FontWeight.SemiBold)
                 TeamChoiceRow(
-                    firstLabel = state.teamOne.name,
-                    secondLabel = state.teamTwo.name,
+                    teamOne = state.teamOne,
+                    teamTwo = state.teamTwo,
                     selected = pullingTeam,
                     testTagPrefix = "setup-pulling-team",
                     onSelected = { pullingTeam = it },
@@ -1588,7 +1606,7 @@ private fun StartingPullSetupDialog(
  */
 @Composable
 private fun GameRulesSetupDialog(
-    state: GameSetupState,
+    state: GameState,
     onEditRule: (RuleEditTarget) -> Unit,
     onEditTimeouts: () -> Unit,
     onRulesChange: (GameRules) -> Unit,
@@ -1686,7 +1704,7 @@ private fun GameRulesSetupDialog(
  */
 @Composable
 private fun PriorCardsSetupDialog(
-    state: GameSetupState,
+    state: GameState,
     teamId: TeamId,
     teamName: String,
     onAddPlayer: () -> Unit,
@@ -2128,9 +2146,9 @@ private fun PriorCardPlayerDialog(
 @Composable
 private fun TeamEditor(
     fieldLabel: String,
-    team: TeamIdentity,
+    team: TeamState,
     priorCards: List<PlayerRecord>,
-    onTeamChange: (TeamIdentity) -> Unit,
+    onTeamChange: (TeamState) -> Unit,
     onEditColor: () -> Unit,
     onEditNames: () -> Unit,
     onEditCards: () -> Unit,
@@ -2194,7 +2212,7 @@ private fun TeamEditor(
 
 /// Return colored text-field colors that preview how the team name appears on the field screen.
 @Composable
-private fun teamNameFieldColors(team: TeamIdentity) = OutlinedTextFieldDefaults.colors(
+private fun teamNameFieldColors(team: TeamState) = OutlinedTextFieldDefaults.colors(
     focusedContainerColor = team.accent,
     unfocusedContainerColor = team.accent,
     focusedTextColor = team.content,
@@ -2329,7 +2347,7 @@ private fun TeamNamesInlineSummary(
 private fun TeamColorSetupDialog(
     teamLabel: String,
     teamFieldLabel: String,
-    team: TeamIdentity,
+    team: TeamState,
     onPresetColorSelected: (TeamColorChoice) -> Unit,
     onCustomColorSelected: (Long) -> Unit,
     onMoreColors: () -> Unit,
@@ -2383,7 +2401,7 @@ private fun TeamColorSetupDialog(
 private fun CustomTeamColorSetupDialog(
     teamLabel: String,
     teamFieldLabel: String,
-    team: TeamIdentity,
+    team: TeamState,
     onCustomColorSelected: (Long) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -2466,8 +2484,8 @@ private fun TeamColorDialogActions(
 private fun TeamNamesSetupDialog(
     teamLabel: String,
     teamFieldLabel: String,
-    team: TeamIdentity,
-    onTeamChange: (TeamIdentity) -> Unit,
+    team: TeamState,
+    onTeamChange: (TeamState) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val dialogBodyMaxHeight = keyboardDialogBodyMaxHeight()
@@ -2793,16 +2811,16 @@ private fun Color.toOpaqueArgbLong(): Long {
 /**
  * Render a two-choice row for Team 1 vs Team 2 selection.
  *
- * @param firstLabel Label for Team 1, with fallback display applied locally.
- * @param secondLabel Label for Team 2, with fallback display applied locally.
+ * @param teamOne Team-one state for the label.
+ * @param teamTwo Team-two state for the label.
  * @param selected The currently selected team.
  * @param testTagPrefix Prefix for generated chip test tags.
  * @param onSelected Callback receiving the selected team.
  */
 @Composable
 private fun TeamChoiceRow(
-    firstLabel: String,
-    secondLabel: String,
+    teamOne: TeamState,
+    teamTwo: TeamState,
     selected: TeamId,
     testTagPrefix: String,
     onSelected: (TeamId) -> Unit,
@@ -2812,7 +2830,7 @@ private fun TeamChoiceRow(
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         SetupChoiceChip(
-            label = firstLabel.ifBlank { "Team 1" },
+            label = teamOne.normalizedName(TeamId.TEAM_ONE),
             selected = selected == TeamId.TEAM_ONE,
             onClick = {
                 onSelected(TeamId.TEAM_ONE)
@@ -2820,7 +2838,7 @@ private fun TeamChoiceRow(
             modifier = Modifier.testTag("$testTagPrefix-${TeamId.TEAM_ONE.name}"),
         )
         SetupChoiceChip(
-            label = secondLabel.ifBlank { "Team 2" },
+            label = teamTwo.normalizedName(TeamId.TEAM_TWO),
             selected = selected == TeamId.TEAM_TWO,
             onClick = {
                 onSelected(TeamId.TEAM_TWO)

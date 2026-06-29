@@ -21,7 +21,7 @@ class TestPullViolations : GameDomainTestFixtures() {
     @Test
     fun fieldActionLabels() {
         // Field labels include the current violation count for each violation type.
-        val team = testTeamLiveState(
+        val team = TeamState(
             name = "Viscous Coupling",
             color = TeamColorChoice.WHITE,
             offsides = 1,

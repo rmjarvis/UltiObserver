@@ -2,7 +2,6 @@ package rmjarvis.ultiobserver
 
 import java.time.Duration
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
@@ -35,16 +34,20 @@ abstract class GameDomainTestFixtures {
         ),
         pullingTeam: TeamId = TeamId.TEAM_ONE,
         pullingFromEnd: FieldEnd = FieldEnd.FAR,
-    ): GameSetupState {
-        return GameSetupState(
+    ): GameState {
+        return newSetupGameState(
+            now = epochTimestamp(startDate, startTime, ZoneId.systemDefault()),
+        ).copy(
             startDate = startDate,
             startTime = startTime,
             timeZone = timeZone,
             rules = rules,
-            teamOne = TeamIdentity("Viscous Coupling", TeamColorChoice.WHITE),
-            teamTwo = TeamIdentity("Animal", TeamColorChoice.RED),
+            teamOne = TeamState("Viscous Coupling", TeamColorChoice.WHITE),
+            teamTwo = TeamState("Animal", TeamColorChoice.RED),
             pullingTeam = pullingTeam,
             pullingFromEnd = pullingFromEnd,
+            openingPullingTeam = pullingTeam,
+            openingPullingFromEnd = pullingFromEnd,
         )
     }
 
@@ -73,75 +76,34 @@ abstract class GameDomainTestFixtures {
         pullingTeam: TeamId = TeamId.TEAM_ONE,
         pullingFromEnd: FieldEnd = FieldEnd.FAR,
     ): GameState {
-        return createLiveGameState(
-            standardGameSetup(
-                startDate = startDate,
-                startTime = startTime,
-                timeZone = timeZone,
-                rules = rules,
-                pullingTeam = pullingTeam,
-                pullingFromEnd = pullingFromEnd,
-            )
-        )
+        return standardGameSetup(
+            startDate = startDate,
+            startTime = startTime,
+            timeZone = timeZone,
+            rules = rules,
+            pullingTeam = pullingTeam,
+            pullingFromEnd = pullingFromEnd,
+        ).startGame()
+    }
+
+    /// Build an initial live-game state from a setup-phase game state.
+    protected fun createLiveGameState(setup: GameState): GameState {
+        return setup.startGame()
     }
 
     /**
-     * Build a live-team state from identity fields plus optional live counters.
+     * Apply edited setup fields to an existing live game.
      *
-     * This keeps tests concise while production code constructs live teams from `TeamIdentity`.
-     *
-     * @param name Team display name for the test state.
-     * @param color Team jersey color for the test state.
-     * @param customColorArgb Opaque ARGB value for a custom jersey color, when relevant.
-     * @param coaches Free-form coach details for the test state.
-     * @param fieldCaptains Free-form field-captain details for the test state.
-     * @param spiritCaptains Free-form spirit-captain details for the test state.
-     * @param score Team score.
-     * @param timeoutsUsedThisHalf Timeouts used in the current half.
-     * @param firstHalfTimeoutsUsed Timeouts used in the first half.
-     * @param offsides Offsides count.
-     * @param falseStarts False-start count.
-     * @param majorityPullViolations Majority-pull violation count.
-     * @param timeViolations Time-violation count.
-     * @param technicalFouls Technical-foul count.
-     * @param blueCards Blue-card count.
+     * @param existing The live state currently being edited.
+     * @param setup The setup-edited game state returned by the update-game form.
+     * @param now The epoch millis for rebuilding affected countdowns.
      */
-    protected fun testTeamLiveState(
-        name: String,
-        color: TeamColorChoice,
-        customColorArgb: Long? = null,
-        coaches: String = "",
-        fieldCaptains: String = "",
-        spiritCaptains: String = "",
-        score: Int = 0,
-        timeoutsUsedThisHalf: Int = 0,
-        firstHalfTimeoutsUsed: Int = 0,
-        offsides: Int = 0,
-        falseStarts: Int = 0,
-        majorityPullViolations: Int = 0,
-        timeViolations: Int = 0,
-        technicalFouls: Int = 0,
-        blueCards: Int = 0,
-    ): TeamLiveState {
-        return TeamLiveState(
-            identity = TeamIdentity(
-                name = name,
-                color = color,
-                customColorArgb = customColorArgb,
-                coaches = coaches,
-                fieldCaptains = fieldCaptains,
-                spiritCaptains = spiritCaptains,
-            ),
-            score = score,
-            timeoutsUsedThisHalf = timeoutsUsedThisHalf,
-            firstHalfTimeoutsUsed = firstHalfTimeoutsUsed,
-            offsides = offsides,
-            falseStarts = falseStarts,
-            majorityPullViolations = majorityPullViolations,
-            timeViolations = timeViolations,
-            technicalFouls = technicalFouls,
-            blueCards = blueCards,
-        )
+    protected fun applySetupToLiveGame(
+        existing: GameState,
+        setup: GameState,
+        now: Long,
+    ): GameState {
+        return applySetupEditToLiveGame(existing, setup, now)
     }
 
     /**
@@ -155,29 +117,13 @@ abstract class GameDomainTestFixtures {
     }
 
     /**
-     * Return an epoch timestamp for a date and time in the test time zone.
-     *
-     * @param date The local date to convert.
-     * @param time The local time to convert.
-     */
-    protected fun timestampAt(date: LocalDate, time: LocalTime): Long {
-        return LocalDateTime.of(date, time)
-            .atZone(testTimeZone)
-            .toInstant()
-            .toEpochMilli()
-    }
-
-    /**
      * Return an epoch timestamp for a live state's date and supplied local time.
      *
      * @param state The state whose date and time zone anchor the timestamp.
      * @param time The local time to convert.
      */
     protected fun timestampAt(state: GameState, time: LocalTime): Long {
-        return LocalDateTime.of(state.startDate, time)
-            .atZone(state.timeZone)
-            .toInstant()
-            .toEpochMilli()
+        return epochTimestamp(state.startDate, time, state.timeZone)
     }
 
     /**
@@ -222,12 +168,12 @@ abstract class GameDomainTestFixtures {
     }
 
     /**
-     * Start a point at a dummy timestamp when exact event-log timing is not under test.
+     * Start a point at the scheduled game timestamp when exact event-log timing is not under test.
      *
      * @receiver The state whose point should be started.
      */
     protected fun GameState.beginLivePoint(): GameState {
-        return beginLivePoint(0L)
+        return beginLivePoint(startEpoch)
     }
 
     /**

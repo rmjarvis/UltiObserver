@@ -143,6 +143,8 @@ internal fun GameOverSummary(
     secondarySummaryActionText: String? = null,
     onSecondarySummaryAction: (() -> Unit)? = null,
 ) {
+    val secondaryActionText = secondarySummaryActionText
+
     val summaryText = state.gameOverSummaryText()
     Column(
         modifier = Modifier
@@ -250,9 +252,9 @@ internal fun GameOverSummary(
             ) {
                 Text(summaryActionText)
             }
-            if (secondarySummaryActionText != null && onSecondarySummaryAction != null) {
+            if (secondaryActionText != null) {
                 OutlinedButton(
-                    onClick = onSecondarySummaryAction,
+                    onClick = onSecondarySummaryAction!!,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.outlinedButtonColors(
                         containerColor = Color.White,
@@ -260,7 +262,7 @@ internal fun GameOverSummary(
                     ),
                     border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
                 ) {
-                    Text(secondarySummaryActionText)
+                    Text(secondaryActionText)
                 }
             }
         }

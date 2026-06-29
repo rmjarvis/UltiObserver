@@ -129,7 +129,7 @@ class TestUndo : GameDomainTestFixtures() {
         val beforeSetupUpdate = standardLiveGameState()
         state = applySetupToLiveGame(
             existing = beforeSetupUpdate,
-            setup = beforeSetupUpdate.toSetupState().copy(
+            setup = beforeSetupUpdate.copy(
                 rules = beforeSetupUpdate.rules.copy(gameTo = 17),
             ),
             now = 350_000L,

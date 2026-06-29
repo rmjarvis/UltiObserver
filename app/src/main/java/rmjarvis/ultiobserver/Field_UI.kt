@@ -474,7 +474,7 @@ internal fun FieldSketchCard(
 @Composable
 private fun EndZonePanel(
     teamId: TeamId,
-    team: TeamLiveState,
+    team: TeamState,
     cardPoints: Int,
     timeoutsRemaining: Int,
     timeoutEnabled: Boolean,
@@ -611,7 +611,7 @@ private fun EndZonePanel(
 @Composable
 private fun TeamHeaderIdentity(
     teamId: TeamId,
-    team: TeamLiveState,
+    team: TeamState,
     titleTextStyle: androidx.compose.ui.text.TextStyle,
     modifier: Modifier,
     onTeamInfo: () -> Unit,
@@ -747,7 +747,7 @@ private fun GenderRatioChooserText(
 @Composable
 private fun TeamActionGrid(
     teamId: TeamId,
-    team: TeamLiveState,
+    team: TeamState,
     cardPoints: Int,
     timeoutsRemaining: Int,
     timeoutEnabled: Boolean,
@@ -880,7 +880,7 @@ private fun TeamActionGrid(
 }
 
 /// Format the compact field-button label for a pull-violation type.
-internal fun PullViolationType.fieldActionLabel(team: TeamLiveState): String {
+internal fun PullViolationType.fieldActionLabel(team: TeamState): String {
     return when (this) {
         PullViolationType.OFFSIDES -> countedActionLabel("Offsides", team.offsides)
         PullViolationType.FALSE_START -> countedActionLabel("False start", team.falseStarts)

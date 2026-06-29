@@ -312,7 +312,9 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
     fun majorityPullViolationDialog() {
         // In mixed games using the majority-pull rule, the pulling team's Offsides button can
         // instead be recorded as a majority-pull violation.
-        val setup = newGameSetupState().copy(division = GameDivision.MIXED)
+        val setup = newSetupGameState(now = System.currentTimeMillis()).copy(
+            division = GameDivision.MIXED,
+        )
         startBetweenPointsProgrammatically(setup, scoringTeam = TeamId.TEAM_ONE)
 
         // The initial dialog is Offsides, then the switch action toggles to majority pull and back.

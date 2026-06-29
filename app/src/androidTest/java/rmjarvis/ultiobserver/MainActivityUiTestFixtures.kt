@@ -63,18 +63,20 @@ abstract class MainActivityUiTestFixtures {
     /**
      * Start a live game by seeding ViewModel state directly.
      *
-     * This lets UI test functions start with a well-defined game state rather than having to get to that
-     * state via UI actions.
+     * This lets UI test functions start with a well-defined game state rather than having to get
+     * to that state via UI actions.
      *
-     * @param setup The setup state to use; direct injection keeps slow prerequisites out of UI-focused tests.
+     * @param setup The setup-stage game to use; direct injection keeps slow prerequisites out of
+     * UI-focused tests.
      */
-    protected fun startLiveGameProgrammatically(setup: GameSetupState = newGameSetupState()) {
+    protected fun startLiveGameProgrammatically(
+        setup: GameState = newSetupGameState(now = System.currentTimeMillis())
+    ) {
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.appViewModel.deleteCurrentGame()
         }
         composeRule.waitForIdle()
         composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.startNewGame(now = 123_000L)
             activity.appViewModel.updateSetup(setup)
             activity.appViewModel.finishSetup(now = 123_000L)
         }
@@ -83,74 +85,16 @@ abstract class MainActivityUiTestFixtures {
     }
 
     /**
-     * Build a live-team state from identity fields plus optional live counters.
-     *
-     * This keeps UI tests concise while production code constructs live teams from
-     * `TeamIdentity`.
-     *
-     * @param name Team display name for the test state.
-     * @param color Team jersey color for the test state.
-     * @param customColorArgb Opaque ARGB value for a custom jersey color, when relevant.
-     * @param coaches Free-form coach details for the test state.
-     * @param fieldCaptains Free-form field-captain details for the test state.
-     * @param spiritCaptains Free-form spirit-captain details for the test state.
-     * @param score Team score.
-     * @param timeoutsUsedThisHalf Timeouts used in the current half.
-     * @param firstHalfTimeoutsUsed Timeouts used in the first half.
-     * @param offsides Offsides count.
-     * @param falseStarts False-start count.
-     * @param majorityPullViolations Majority-pull violation count.
-     * @param timeViolations Time-violation count.
-     * @param technicalFouls Technical-foul count.
-     * @param blueCards Blue-card count.
-     */
-    protected fun testTeamLiveState(
-        name: String,
-        color: TeamColorChoice,
-        customColorArgb: Long? = null,
-        coaches: String = "",
-        fieldCaptains: String = "",
-        spiritCaptains: String = "",
-        score: Int = 0,
-        timeoutsUsedThisHalf: Int = 0,
-        firstHalfTimeoutsUsed: Int = 0,
-        offsides: Int = 0,
-        falseStarts: Int = 0,
-        majorityPullViolations: Int = 0,
-        timeViolations: Int = 0,
-        technicalFouls: Int = 0,
-        blueCards: Int = 0,
-    ): TeamLiveState {
-        return TeamLiveState(
-            identity = TeamIdentity(
-                name = name,
-                color = color,
-                customColorArgb = customColorArgb,
-                coaches = coaches,
-                fieldCaptains = fieldCaptains,
-                spiritCaptains = spiritCaptains,
-            ),
-            score = score,
-            timeoutsUsedThisHalf = timeoutsUsedThisHalf,
-            firstHalfTimeoutsUsed = firstHalfTimeoutsUsed,
-            offsides = offsides,
-            falseStarts = falseStarts,
-            majorityPullViolations = majorityPullViolations,
-            timeViolations = timeViolations,
-            technicalFouls = technicalFouls,
-            blueCards = blueCards,
-        )
-    }
-
-    /**
      * Start a seeded game and mark the opening point live.
      *
      * This keeps UI tests out of the opening-pull countdown when the test story is about actions
      * during the point rather than starting the point.
      *
-     * @param setup The setup state to use for the game.
+     * @param setup The setup-stage game to use.
      */
-    protected fun startLivePointProgrammatically(setup: GameSetupState = newGameSetupState()) {
+    protected fun startLivePointProgrammatically(
+        setup: GameState = newSetupGameState(now = System.currentTimeMillis())
+    ) {
         startLiveGameProgrammatically(setup)
         composeRule.activityRule.scenario.onActivity { activity ->
             val current = activity.appViewModel.liveState!!
@@ -165,11 +109,11 @@ abstract class MainActivityUiTestFixtures {
      *
      * This gives UI tests a real between-points state without playing through the opening point.
      *
-     * @param setup The setup state to use for the game.
+     * @param setup The setup-stage game to use.
      * @param scoringTeam The team to record as scoring the first point.
      */
     protected fun startBetweenPointsProgrammatically(
-        setup: GameSetupState = newGameSetupState(),
+        setup: GameState = newSetupGameState(now = System.currentTimeMillis()),
         scoringTeam: TeamId = TeamId.TEAM_ONE,
     ) {
         startLiveGameProgrammatically(setup)
@@ -427,7 +371,7 @@ abstract class MainActivityUiTestFixtures {
         val capType = capTypeForSetupLabels(rowLabel, dialogTitle)
         val start = LocalDateTime.now().minusSeconds(5)
         startLivePointProgrammatically(
-            newGameSetupState().copy(
+            newSetupGameState(now = 123_000L).copy(
                 startDate = start.toLocalDate(),
                 startTime = start.toLocalTime(),
                 rules = singleEnabledCapRules(capType, capMinutes = 0),
@@ -447,7 +391,7 @@ abstract class MainActivityUiTestFixtures {
         val capType = capTypeForSetupLabels(rowLabel, dialogTitle)
         val start = LocalDateTime.now().plusMinutes(1)
         startBetweenPointsProgrammatically(
-            newGameSetupState().copy(
+            newSetupGameState(now = 123_000L).copy(
                 startDate = start.toLocalDate(),
                 startTime = start.toLocalTime(),
                 rules = singleEnabledCapRules(capType, capMinutes = 2).copy(halftimeMinutes = 7),
@@ -613,11 +557,11 @@ abstract class MainActivityUiTestFixtures {
      */
     protected fun seedArchivedGameProgrammatically(teamOneName: String, teamTwoName: String) {
         composeRule.activityRule.scenario.onActivity { activity ->
-            val setup = newGameSetupState().copy(
-                teamOne = TeamIdentity(name = teamOneName, color = TeamColorChoice.WHITE),
-                teamTwo = TeamIdentity(name = teamTwoName, color = TeamColorChoice.BLUE),
+            val setup = newSetupGameState(now = 123_000L).copy(
+                teamOne = TeamState(name = teamOneName, color = TeamColorChoice.WHITE),
+                teamTwo = TeamState(name = teamTwoName, color = TeamColorChoice.BLUE),
             )
-            val completed = createLiveGameState(setup).copy(
+            val completed = setup.startGame().copy(
                 phase = GamePhase.GAME_OVER,
                 endEpoch = System.currentTimeMillis(),
                 countdown = null,

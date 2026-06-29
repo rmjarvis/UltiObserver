@@ -45,9 +45,6 @@ internal fun keyboardDialogBodyMaxHeight(): Dp {
  */
 @Composable
 private fun screenHeightFraction(fraction: Float): Dp {
-    require(fraction > 0f && fraction <= 1f) {
-        "Screen-height fractions must be in (0, 1]."
-    }
     return (LocalConfiguration.current.screenHeightDp * fraction).dp
 }
 
@@ -67,16 +64,10 @@ internal val TeamColorChoice.content: Color
         return Color(contentArgb)
     }
 
-internal val TeamIdentity.accent: Color
+internal val TeamState.accent: Color
     get() = if (color == TeamColorChoice.CUSTOM) Color(customColorArgb!!) else color.accent
 
-internal val TeamIdentity.content: Color
-    get() = if (color == TeamColorChoice.CUSTOM) readableContentColor(Color(customColorArgb!!)) else color.content
-
-internal val TeamLiveState.accent: Color
-    get() = if (color == TeamColorChoice.CUSTOM) Color(customColorArgb!!) else color.accent
-
-internal val TeamLiveState.content: Color
+internal val TeamState.content: Color
     get() = if (color == TeamColorChoice.CUSTOM) readableContentColor(Color(customColorArgb!!)) else color.content
 
 /// Return a black-or-white text color for custom jersey colors.

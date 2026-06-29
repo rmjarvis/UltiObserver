@@ -167,7 +167,7 @@ class TestTimeouts : GameDomainTestFixtures() {
 
         val openingPullState = createLiveGameState(
             setupWithRules(timeoutRules(timeoutsPerHalf = 2, hasFloaterTimeout = false))
-                .copy(pullingFromEnd = FieldEnd.NEAR)
+                .copy(openingPullingFromEnd = FieldEnd.NEAR)
         )
         assertEquals(GamePhase.PRE_GAME, openingPullState.phase)
         assertEquals(CountdownKind.OPENING_PULL, openingPullState.countdown?.kind)
@@ -563,7 +563,7 @@ class TestTimeouts : GameDomainTestFixtures() {
         // They now still have 0 left, not -1.
         state = applySetupToLiveGame(
             state,
-            setupWithRules(timeoutRules(timeoutsPerHalf = 1, hasFloaterTimeout = false)),
+            state.copy(rules = timeoutRules(timeoutsPerHalf = 1, hasFloaterTimeout = false)),
             2_560_000L,
         )
         assertEquals(1, state.timeoutsAllowedThisHalf(VC))
@@ -573,8 +573,8 @@ class TestTimeouts : GameDomainTestFixtures() {
         // Expanding the rule set again recomputes remaining from the same used count.
         state = applySetupToLiveGame(
             state,
-            setupWithRules(
-                timeoutRules(
+            state.copy(
+                rules = timeoutRules(
                     timeoutsPerHalf = 3,
                     hasFloaterTimeout = false,
                 )
@@ -592,7 +592,7 @@ class TestTimeouts : GameDomainTestFixtures() {
         state = state.assessTimeout(VC, state.countdown!!.targetEpoch - 1_000L).state
         state = applySetupToLiveGame(
             state,
-            setupWithRules(timeoutRules(timeoutsPerHalf = 1, hasFloaterTimeout = false)),
+            state.copy(rules = timeoutRules(timeoutsPerHalf = 1, hasFloaterTimeout = false)),
             2_600_000L,
         )
         assertEquals(1, state.timeoutsAllowedThisHalf(VC))
@@ -605,7 +605,7 @@ class TestTimeouts : GameDomainTestFixtures() {
         // Adding a floater mid-half also remaps both teams from the same used counts.
         state = applySetupToLiveGame(
             state,
-            setupWithRules(timeoutRules(timeoutsPerHalf = 2, hasFloaterTimeout = true)),
+            state.copy(rules = timeoutRules(timeoutsPerHalf = 2, hasFloaterTimeout = true)),
             2_700_000L,
         )
         assertEquals(3, state.timeoutsAllowedThisHalf(VC))
@@ -621,7 +621,7 @@ class TestTimeouts : GameDomainTestFixtures() {
         state = state.assessTimeout(ANIMAL, 2_850_000L).state
         state = applySetupToLiveGame(
             state,
-            setupWithRules(timeoutRules(timeoutsPerHalf = 1, hasFloaterTimeout = false)),
+            state.copy(rules = timeoutRules(timeoutsPerHalf = 1, hasFloaterTimeout = false)),
             2_900_000L,
         )
         assertEquals(0, state.teamOne.timeoutsUsedThisHalf)
@@ -651,7 +651,7 @@ class TestTimeouts : GameDomainTestFixtures() {
         // Shrinking to zero per-half timeouts removes the carried floater once one has been used.
         state = applySetupToLiveGame(
             state,
-            setupWithRules(timeoutRules(timeoutsPerHalf = 0, hasFloaterTimeout = true)),
+            state.copy(rules = timeoutRules(timeoutsPerHalf = 0, hasFloaterTimeout = true)),
             3_200_000L,
         )
         assertEquals(1, state.teamOne.timeoutsUsedThisHalf)
@@ -661,7 +661,7 @@ class TestTimeouts : GameDomainTestFixtures() {
         // Expanding to two per-half plus a floater restores remaining from the used count.
         state = applySetupToLiveGame(
             state,
-            setupWithRules(timeoutRules(timeoutsPerHalf = 2, hasFloaterTimeout = true)),
+            state.copy(rules = timeoutRules(timeoutsPerHalf = 2, hasFloaterTimeout = true)),
             3_300_000L,
         )
         assertEquals(1, state.teamOne.timeoutsUsedThisHalf)
@@ -737,7 +737,7 @@ class TestTimeouts : GameDomainTestFixtures() {
     private fun setupWithRules(
         rules: GameRules,
         pullingFromEnd: FieldEnd = FieldEnd.FAR,
-    ): GameSetupState {
+    ): GameState {
         return standardGameSetup(
             startTime = LocalTime.of(9, 0),
             rules = rules,

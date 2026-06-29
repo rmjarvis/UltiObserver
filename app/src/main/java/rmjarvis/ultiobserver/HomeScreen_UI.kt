@@ -93,19 +93,7 @@ internal fun GameState.gameListEntry(): GameListEntry {
     )
 }
 
-// Home-screen summary for a setup draft before the first pull.
-internal fun GameSetupState.gameListEntry(): GameListEntry {
-    return GameListEntry(
-        title = compactStartDateTime(),
-        subtitle = gameListSummaryLine(),
-    )
-}
-
 private fun GameState.compactStartDateTime(): String {
-    return formatCompactStartDateTime(startDate, startTime)
-}
-
-private fun GameSetupState.compactStartDateTime(): String {
     return formatCompactStartDateTime(startDate, startTime)
 }
 

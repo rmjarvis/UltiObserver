@@ -195,7 +195,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         waitForText("Yellow card reason")
         composeRule.onNodeWithText("Other").performClick()
         composeRule.onNodeWithTag("card-other-reason").performTextReplacement("Temporary reason")
-        composeRule.onNodeWithText("Dangerous play").performClick()
+        composeRule.onNodeWithText("Dangerous play").performScrollTo().performClick()
         composeRule.onNodeWithText("Other").performClick()
         composeRule.onNodeWithText("Set").performClick()
         waitForText("Yellow card")

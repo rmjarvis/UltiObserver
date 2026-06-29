@@ -24,11 +24,11 @@ class TestFieldUi : MainActivityUiTestFixtures() {
      */
     @Test
     fun genderRatioChooserLayout() {
-        val setup = newGameSetupState().copy(
+        val setup = newSetupGameState(now = 123_000L).copy(
             rules = GameRules(genderRatioRule = GenderRatioRule.GEN_ZONE),
             division = GameDivision.MIXED,
-            teamOne = TeamIdentity("Aardvarks", TeamColorChoice.WHITE),
-            teamTwo = TeamIdentity("Beagles", TeamColorChoice.BLUE),
+            teamOne = TeamState("Aardvarks", TeamColorChoice.WHITE),
+            teamTwo = TeamState("Beagles", TeamColorChoice.BLUE),
             pullingTeam = TeamId.TEAM_ONE,
             pullingFromEnd = FieldEnd.FAR,
             firstHalfGenZone = FieldEnd.FAR,
@@ -56,7 +56,7 @@ class TestFieldUi : MainActivityUiTestFixtures() {
      */
     @Test
     fun genderRatioBadge() {
-        val setup = newGameSetupState().copy(
+        val setup = newSetupGameState(now = System.currentTimeMillis()).copy(
             rules = GameRules(genderRatioRule = GenderRatioRule.ABBA),
             division = GameDivision.MIXED,
             initialGenderRatio = GenderRatio.FOUR_MEN_THREE_WOMEN,
@@ -82,14 +82,14 @@ class TestFieldUi : MainActivityUiTestFixtures() {
     @Test
     fun teamInformationDialog() {
         // Seed staff names through setup so the live field exposes the team-info action.
-        val setup = newGameSetupState().copy(
-            teamOne = TeamIdentity(
+        val setup = newSetupGameState(now = 123_000L).copy(
+            teamOne = TeamState(
                 name = "Viscous Coupling",
                 color = TeamColorChoice.WHITE,
                 coaches = "Coach Alpha\n\nCoach Beta",
                 fieldCaptains = "Casey Captain",
             ),
-            teamTwo = TeamIdentity(
+            teamTwo = TeamState(
                 name = "Animal",
                 color = TeamColorChoice.BLUE,
                 spiritCaptains = "Riley Spirit",
@@ -140,9 +140,9 @@ class TestFieldUi : MainActivityUiTestFixtures() {
             "as though anyone is going to use those"
 
         // Long team names should not clobber short field-end names.
-        val longTeamSetup = newGameSetupState().copy(
-            teamOne = TeamIdentity(longTeamOneName, TeamColorChoice.WHITE),
-            teamTwo = TeamIdentity(longTeamTwoName, TeamColorChoice.BLUE),
+        val longTeamSetup = newSetupGameState(now = 123_000L).copy(
+            teamOne = TeamState(longTeamOneName, TeamColorChoice.WHITE),
+            teamTwo = TeamState(longTeamTwoName, TeamColorChoice.BLUE),
             farEndName = "Far",
             nearEndName = "Near",
         )
@@ -162,9 +162,9 @@ class TestFieldUi : MainActivityUiTestFixtures() {
         )
 
         // Long field-end names should not clobber short team names.
-        val longEndSetup = newGameSetupState().copy(
-            teamOne = TeamIdentity("Amp", TeamColorChoice.WHITE),
-            teamTwo = TeamIdentity("Animal", TeamColorChoice.BLUE),
+        val longEndSetup = newSetupGameState(now = 123_000L).copy(
+            teamOne = TeamState("Amp", TeamColorChoice.WHITE),
+            teamTwo = TeamState("Animal", TeamColorChoice.BLUE),
             farEndName = longFarEndName,
             nearEndName = longNearEndName,
         )
@@ -184,9 +184,9 @@ class TestFieldUi : MainActivityUiTestFixtures() {
         )
 
         // When both labels are long, the start of each one should still have header space.
-        val longBothSetup = newGameSetupState().copy(
-            teamOne = TeamIdentity(longTeamOneName, TeamColorChoice.WHITE),
-            teamTwo = TeamIdentity(longTeamTwoName, TeamColorChoice.BLUE),
+        val longBothSetup = newSetupGameState(now = 123_000L).copy(
+            teamOne = TeamState(longTeamOneName, TeamColorChoice.WHITE),
+            teamTwo = TeamState(longTeamTwoName, TeamColorChoice.BLUE),
             farEndName = longFarEndName,
             nearEndName = longNearEndName,
         )

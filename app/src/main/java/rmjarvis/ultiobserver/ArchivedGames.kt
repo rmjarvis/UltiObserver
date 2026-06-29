@@ -1,6 +1,7 @@
 package rmjarvis.ultiobserver
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 
@@ -55,13 +56,18 @@ internal data class ArchivedGame(
         /**
          * Decode an archived game summary for a known storage version.
          *
-         * @param jsonObject The parsed JSON object from one archived-game file.
+         * @param jsonElement The parsed payload JSON from one archived-game file.
          * @param version The version metadata read from that JSON object.
          */
-        fun decodeJson(jsonObject: JsonObject, version: AppVersion): PersistenceDecodeResult<ArchivedGame>? {
+        fun decodeJson(
+            jsonElement: JsonElement,
+            version: AppVersion,
+        ): PersistenceDecodeResult<ArchivedGame>? {
             return try {
-                val migrated = migrateArchivedGameJson(jsonObject, version) ?: return null
-                val archivedGame = appStateJson.decodeFromJsonElement<ArchivedGame>(migrated.jsonObject)
+                val migrated = migrateArchivedGameJson(jsonElement, version) ?: return null
+                val archivedGame = appStateJson.decodeFromJsonElement<ArchivedGame>(
+                    migrated.jsonElement,
+                )
                 PersistenceDecodeResult(
                     value = archivedGame,
                     wasMigrated = migrated.wasMigrated,

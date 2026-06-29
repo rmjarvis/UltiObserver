@@ -133,33 +133,33 @@ class TestMixed : GameDomainTestFixtures() {
             ratioRule = GenderRatioRule.GEN_ZONE,
             firstHalfGenZone = FieldEnd.FAR,
         )
-        assertEquals(VC, state.nearAttackingTeam)
+        assertEquals(VC, state.teamDefendingEnd(FieldEnd.FAR))
         assertEquals(VC, state.ratioChoosingTeam())
         state = state.recordGoal(VC, timestampAt(state, LocalTime.of(11, 1)))
-        assertEquals(ANIMAL, state.nearAttackingTeam)
+        assertEquals(ANIMAL, state.teamDefendingEnd(FieldEnd.FAR))
         assertEquals(ANIMAL, state.ratioChoosingTeam())
         state = state.recordGoal(ANIMAL, timestampAt(state, LocalTime.of(11, 2)))
-        assertEquals(VC, state.nearAttackingTeam)
+        assertEquals(VC, state.teamDefendingEnd(FieldEnd.FAR))
         assertEquals(VC, state.ratioChoosingTeam())
         state = state.recordGoal(ANIMAL, timestampAt(state, LocalTime.of(11, 3)))
-        assertEquals(ANIMAL, state.nearAttackingTeam)
+        assertEquals(ANIMAL, state.teamDefendingEnd(FieldEnd.FAR))
         assertEquals(ANIMAL, state.ratioChoosingTeam())
         state = state.recordGoal(VC, timestampAt(state, LocalTime.of(11, 4)))
-        assertEquals(VC, state.nearAttackingTeam)
+        assertEquals(VC, state.teamDefendingEnd(FieldEnd.FAR))
         assertEquals(VC, state.ratioChoosingTeam())
 
         // After halftime, the gen zone switches (typically).
         state = state.recordGoal(VC, timestampAt(state, LocalTime.of(11, 5)))
         state = state.copy(halftimeTaken = true)
-        assertEquals(ANIMAL, state.nearAttackingTeam)
+        assertEquals(ANIMAL, state.teamDefendingEnd(FieldEnd.FAR))
         assertEquals(VC, state.ratioChoosingTeam())
         state = state.recordGoal(ANIMAL, timestampAt(state, LocalTime.of(11, 6)))
-        assertEquals(VC, state.nearAttackingTeam)
+        assertEquals(VC, state.teamDefendingEnd(FieldEnd.FAR))
         assertEquals(ANIMAL, state.ratioChoosingTeam())
 
         // However, it is an option to not switch the gen zone at halftime.
         state = state.copy(switchGenZoneAtHalftime = false)
-        assertEquals(VC, state.nearAttackingTeam)
+        assertEquals(VC, state.teamDefendingEnd(FieldEnd.FAR))
         assertEquals(VC, state.ratioChoosingTeam())
 
         // The other rules don't have a team to choose a ratio.

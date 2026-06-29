@@ -1,5 +1,8 @@
 package rmjarvis.ultiobserver
 
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneId
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -7,6 +10,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -20,7 +24,7 @@ internal data class PersistenceDecodeResult<T>(
 
 /// JSON bucket migrated far enough for the current serializer to decode.
 internal data class MigratedJson(
-    val jsonObject: JsonObject,
+    val jsonElement: JsonElement,
     val wasMigrated: Boolean,
 )
 
@@ -32,7 +36,7 @@ private enum class PersistenceBucket {
     ARCHIVED_GAME,
 }
 
-private typealias BucketMigration = (JsonObject) -> JsonObject
+private typealias BucketMigration = (JsonElement) -> JsonElement
 private typealias UnknownPlayerReference = Pair<TeamId, Int>
 private typealias MigratedEventLogEntry = Pair<JsonObject, UnknownPlayerReference?>
 
@@ -74,7 +78,7 @@ private val knownVersionMigrations = listOf(
     VersionMigration(
         sourceVersion = "1.0",
         targetVersion = "1.1",
-        currentGame = V1_0ToV1_1::migrateCurrentGameSnapshot,
+        currentGame = V1_0ToV1_1::migrateCurrentGame,
         profile = null,
         settings = V1_0ToV1_1::migrateSettings,
         archivedGame = V1_0ToV1_1::migrateArchivedGame,
@@ -84,83 +88,80 @@ private val knownVersionMigrations = listOf(
 /**
  * Return current-game JSON migrated to the current persistence version.
  *
- * @param jsonObject The stored current-game JSON.
+ * @param jsonElement The stored current-game JSON.
  * @param version Version metadata read from the stored JSON.
  */
-internal fun migrateCurrentGameSnapshotJson(
-    jsonObject: JsonObject,
-    version: AppVersion,
-): MigratedJson? {
-    return migrateJsonToCurrent(jsonObject, version, PersistenceBucket.CURRENT_GAME)
+internal fun migrateCurrentGameJson(jsonElement: JsonElement, version: AppVersion): MigratedJson? {
+    return migrateJsonToCurrent(jsonElement, version, PersistenceBucket.CURRENT_GAME)
 }
 
 /**
  * Return profile JSON migrated to the current persistence version.
  *
- * @param jsonObject The stored profile JSON.
+ * @param jsonElement The stored profile JSON.
  * @param version Version metadata read from the stored JSON.
  */
-internal fun migrateProfileJson(jsonObject: JsonObject, version: AppVersion): MigratedJson? {
-    return migrateJsonToCurrent(jsonObject, version, PersistenceBucket.PROFILE)
+internal fun migrateProfileJson(jsonElement: JsonElement, version: AppVersion): MigratedJson? {
+    return migrateJsonToCurrent(jsonElement, version, PersistenceBucket.PROFILE)
 }
 
 /**
  * Return settings JSON migrated to the current persistence version.
  *
- * @param jsonObject The stored settings JSON.
+ * @param jsonElement The stored settings JSON.
  * @param version Version metadata read from the stored JSON.
  */
-internal fun migrateSettingsJson(jsonObject: JsonObject, version: AppVersion): MigratedJson? {
-    return migrateJsonToCurrent(jsonObject, version, PersistenceBucket.SETTINGS)
+internal fun migrateSettingsJson(jsonElement: JsonElement, version: AppVersion): MigratedJson? {
+    return migrateJsonToCurrent(jsonElement, version, PersistenceBucket.SETTINGS)
 }
 
 /**
  * Return archived-game JSON migrated to the current persistence version.
  *
- * @param jsonObject The stored archived-game JSON.
+ * @param jsonElement The stored archived-game JSON.
  * @param version Version metadata read from the stored JSON.
  */
-internal fun migrateArchivedGameJson(jsonObject: JsonObject, version: AppVersion): MigratedJson? {
-    return migrateJsonToCurrent(jsonObject, version, PersistenceBucket.ARCHIVED_GAME)
+internal fun migrateArchivedGameJson(jsonElement: JsonElement, version: AppVersion): MigratedJson? {
+    return migrateJsonToCurrent(jsonElement, version, PersistenceBucket.ARCHIVED_GAME)
 }
 
 private fun migrateJsonToCurrent(
-    jsonObject: JsonObject,
+    jsonElement: JsonElement,
     version: AppVersion,
     bucket: PersistenceBucket,
 ): MigratedJson? {
     val storedVersion = version.persistenceVersion() ?: return null
     val currentVersion = currentPersistenceVersion()
     if (storedVersion == currentVersion) {
-        return MigratedJson(jsonObject = jsonObject, wasMigrated = false)
+        return MigratedJson(jsonElement = jsonElement, wasMigrated = false)
     }
     val migratedJson = migrateJsonBetweenVersions(
-        jsonObject = jsonObject,
+        jsonElement = jsonElement,
         sourceVersion = storedVersion,
         currentVersion = currentVersion,
         bucket = bucket,
     ) ?: return null
     return MigratedJson(
-        jsonObject = migratedJson,
+        jsonElement = migratedJson,
         wasMigrated = true,
     )
 }
 
 private fun migrateJsonBetweenVersions(
-    jsonObject: JsonObject,
+    jsonElement: JsonElement,
     sourceVersion: String,
     currentVersion: String,
     bucket: PersistenceBucket,
-): JsonObject? {
+): JsonElement? {
     if (sourceVersion == currentVersion) {
-        return jsonObject
+        return jsonElement
     }
     val versionMigration = knownVersionMigrations.firstOrNull {
         it.sourceVersion == sourceVersion
     } ?: return null
-    val stepJson = versionMigration.converterFor(bucket)?.invoke(jsonObject) ?: jsonObject
+    val stepJson = versionMigration.converterFor(bucket)?.invoke(jsonElement) ?: jsonElement
     return migrateJsonBetweenVersions(
-        jsonObject = stepJson,
+        jsonElement = stepJson,
         sourceVersion = versionMigration.targetVersion,
         currentVersion = currentVersion,
         bucket = bucket,
@@ -189,7 +190,8 @@ internal fun currentPersistenceVersion(
 private object V1_0ToV1_1 {
     private const val UNKNOWN_PLAYER_NUMBER = "N/A"
 
-    fun migrateSettings(jsonObject: JsonObject): JsonObject {
+    fun migrateSettings(jsonElement: JsonElement): JsonElement {
+        val jsonObject = jsonElement.jsonObject
         val timingAlertPreferences = jsonObject.getValue("timingAlertPreferences").jsonObject
         val migratedTimingAlertPreferences = JsonObject(
             timingAlertPreferences.toMutableMap().apply {
@@ -236,7 +238,8 @@ private object V1_0ToV1_1 {
         )
     }
 
-    fun migrateCurrentGameSnapshot(jsonObject: JsonObject): JsonObject {
+    fun migrateCurrentGame(jsonElement: JsonElement): JsonElement {
+        val jsonObject = jsonElement.jsonObject
         val migratedSetupState = migrateV1_0SetupStateToV1_1(
             jsonObject.getValue("setupState").jsonObject,
         )
@@ -261,23 +264,76 @@ private object V1_0ToV1_1 {
         val hadSetupDraft = appStateJson.decodeFromJsonElement<Boolean>(
             jsonObject.getValue("hasSetupDraft"),
         )
-        return JsonObject(
-            jsonObject.toMutableMap().apply {
-                remove("setupState")
-                remove("setupMode")
-                remove("hasSetupDraft")
-                this["setupDraft"] = if (hadSetupDraft) {
-                    migratedSetupState
-                } else {
-                    JsonNull
-                }
-                this["liveState"] = migratedLiveState
-            }
+        if (migratedLiveState !is JsonNull) {
+            return migratedLiveState
+        }
+        if (!hadSetupDraft) {
+            return JsonNull
+        }
+        return appStateJson.encodeToJsonElement(
+            setupGameStateFromJson(migratedSetupState).toSerializedGameState()
         )
     }
 
-    fun migrateArchivedGame(jsonObject: JsonObject): JsonObject {
+    /**
+     * Build a setup-phase game state from migrated v1.0 setup JSON.
+     *
+     * @param jsonObject The setup JSON after v1.0 field migrations have been applied.
+     */
+    private fun setupGameStateFromJson(jsonObject: JsonObject): GameState {
+        val startDate = LocalDate.parse(jsonObject.getValue("startDate").jsonPrimitive.content)
+        val startTime = LocalTime.parse(jsonObject.getValue("startTime").jsonPrimitive.content)
+        val timeZone = ZoneId.of(jsonObject.getValue("timeZone").jsonPrimitive.content)
+        val pullingTeam = jsonObject.decodeOptional("pullingTeam", TeamId.TEAM_ONE)
+        val pullingFromEnd = jsonObject.decodeOptional("pullingFromEnd", FieldEnd.FAR)
+        return GameState(
+            startDate = startDate,
+            startTime = startTime,
+            timeZone = timeZone,
+            tournamentName = jsonObject.decodeOptional("tournamentName", ""),
+            rules = jsonObject.decodeRequired("rules"),
+            teamOne = jsonObject.decodeOptional(
+                "teamOne",
+                TeamState(name = "", color = TeamColorChoice.WHITE),
+            ),
+            teamTwo = jsonObject.decodeOptional(
+                "teamTwo",
+                TeamState(name = "", color = TeamColorChoice.BLUE),
+            ),
+            teamOnePlayers = jsonObject.decodeOptional("teamOnePlayers", emptyList()),
+            teamTwoPlayers = jsonObject.decodeOptional("teamTwoPlayers", emptyList()),
+            pullingTeam = pullingTeam,
+            pullingFromEnd = pullingFromEnd,
+            openingPullingTeam = pullingTeam,
+            openingPullingFromEnd = pullingFromEnd,
+            phase = GamePhase.SETUP,
+            countdown = null,
+        )
+    }
+
+    /**
+     * Decode a required field from a JSON object.
+     *
+     * @param key The field name to decode.
+     */
+    private inline fun <reified T> JsonObject.decodeRequired(key: String): T {
+        return appStateJson.decodeFromJsonElement(getValue(key))
+    }
+
+    /**
+     * Decode an optional field from a JSON object, returning a default when the key is absent.
+     *
+     * @param key The field name to decode.
+     * @param default The value to use when the field is absent.
+     */
+    private inline fun <reified T> JsonObject.decodeOptional(key: String, default: T): T {
+        return this[key]?.let { appStateJson.decodeFromJsonElement<T>(it) } ?: default
+    }
+
+    fun migrateArchivedGame(jsonElement: JsonElement): JsonElement {
+        val jsonObject = jsonElement.jsonObject
         val restorableState = jsonObject.getValue("restorableState")
+        val subtitle = jsonObject.getValue("subtitle")
         val migratedRestorableState = if (restorableState is JsonNull) {
             JsonNull
         } else {
@@ -286,9 +342,8 @@ private object V1_0ToV1_1 {
         return JsonObject(
             jsonObject.toMutableMap().apply {
                 remove("restorableState")
-                remove("subtitle")?.let { summaryContext ->
-                    this["summaryContext"] = summaryContext
-                }
+                remove("subtitle")
+                this["summaryContext"] = subtitle
                 this["state"] = if (migratedRestorableState is JsonNull) {
                     migrateV1_0GameStateToV1_1(
                         jsonObject.getValue("state").jsonObject,
@@ -344,12 +399,6 @@ private object V1_0ToV1_1 {
                 remove("priorCards")
                 remove("teamOnePlayerCards")
                 remove("teamTwoPlayerCards")
-                this["teamOne"] = migrateV1_0TeamLiveStateToV1_1Identity(
-                    jsonObject.getValue("teamOne").jsonObject,
-                )
-                this["teamTwo"] = migrateV1_0TeamLiveStateToV1_1Identity(
-                    jsonObject.getValue("teamTwo").jsonObject,
-                )
                 this["teamOnePlayers"] = teamOneBuilder.toJsonArray()
                 this["teamTwoPlayers"] = teamTwoBuilder.toJsonArray()
                 this["eventLog"] = JsonArray(migratedEventLog.map { entry ->
@@ -367,25 +416,6 @@ private object V1_0ToV1_1 {
                 this["redoEntry"] = JsonNull
             }
         )
-    }
-
-    /// Return an old flat live-team object with editable fields nested under identity.
-    private fun migrateV1_0TeamLiveStateToV1_1Identity(jsonObject: JsonObject): JsonObject {
-        val identityFields = setOf(
-            "name",
-            "color",
-            "customColorArgb",
-            "coaches",
-            "fieldCaptains",
-            "spiritCaptains",
-        )
-        val fields = jsonObject.toMutableMap()
-        val identity = JsonObject(identityFields.mapNotNull { field ->
-            val value = fields.remove(field) ?: return@mapNotNull null
-            field to value
-        }.toMap())
-        fields["identity"] = identity
-        return JsonObject(fields)
     }
 
     private fun migrateV1_0OpeningPullPhase(jsonObject: JsonObject, phase: GamePhase): GamePhase {

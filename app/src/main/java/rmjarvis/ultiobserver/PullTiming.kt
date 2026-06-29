@@ -560,7 +560,7 @@ private fun GameState.pullResetPhase(): GamePhase {
 }
 
 /// Return this team state with one additional time violation.
-private fun TeamLiveState.withAddedTimeViolation(): TeamLiveState {
+private fun TeamState.withAddedTimeViolation(): TeamState {
     return copy(timeViolations = timeViolations + 1)
 }
 

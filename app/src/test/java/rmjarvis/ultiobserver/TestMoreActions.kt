@@ -40,7 +40,7 @@ class TestMoreActions : GameDomainTestFixtures() {
         var state = standardLiveGameState(pullingTeam = VC, pullingFromEnd = FieldEnd.FAR)
         val countdownBeforeFlip = state.countdown!!
         assertEquals(FieldEnd.FAR, state.topDisplayedEnd)
-        assertEquals(VC, state.nearAttackingTeam)
+        assertEquals(VC, state.teamDefendingEnd(FieldEnd.FAR))
         assertEquals(VC, state.pullingTeam)
         assertEquals(FieldEnd.FAR, state.pullingFromEnd)
         assertEquals(PullPromptTarget.NEAR, state.pullPromptTarget)
@@ -49,7 +49,7 @@ class TestMoreActions : GameDomainTestFixtures() {
         assertEquals(20, countdownBeforeFlip.durationSeconds)
         state = state.flipFieldDisplay()
         assertEquals(FieldEnd.NEAR, state.topDisplayedEnd)
-        assertEquals(VC, state.nearAttackingTeam)
+        assertEquals(VC, state.teamDefendingEnd(FieldEnd.FAR))
         assertEquals(VC, state.pullingTeam)
         assertEquals(FieldEnd.FAR, state.pullingFromEnd)
         assertEquals(PullPromptTarget.NEAR, state.pullPromptTarget)
@@ -111,7 +111,7 @@ class TestMoreActions : GameDomainTestFixtures() {
         val flippedDisplayState = state
         state = state.withPullPromptTarget(PullPromptTarget.BOTH)
         assertEquals(FieldEnd.NEAR, state.topDisplayedEnd)
-        assertEquals(VC, state.nearAttackingTeam)
+        assertEquals(VC, state.teamDefendingEnd(FieldEnd.FAR))
         assertEquals(VC, state.pullingTeam)
         assertEquals(FieldEnd.FAR, state.pullingFromEnd)
         assertEquals(PullPromptTarget.BOTH, state.pullPromptTarget)
@@ -158,12 +158,12 @@ class TestMoreActions : GameDomainTestFixtures() {
         // Swapping pulling team changes only pulling team/end while preserving team field
         // positions.
         var state = standardLiveGameState(pullingTeam = VC, pullingFromEnd = FieldEnd.FAR)
-        assertEquals(VC, state.nearAttackingTeam)
+        assertEquals(VC, state.teamDefendingEnd(FieldEnd.FAR))
         assertEquals(VC, state.pullingTeam)
         assertEquals(FieldEnd.FAR, state.pullingFromEnd)
         assertEquals("Signal in", state.countdown?.label)
         state = state.swapPullingTeam()
-        assertEquals(VC, state.nearAttackingTeam)
+        assertEquals(VC, state.teamDefendingEnd(FieldEnd.FAR))
         assertEquals(ANIMAL, state.pullingTeam)
         assertEquals(FieldEnd.NEAR, state.pullingFromEnd)
         assertEquals("Pull in", state.countdown?.label)
@@ -244,7 +244,7 @@ class TestMoreActions : GameDomainTestFixtures() {
         // And they pull from the same end as the first pull.
         assertEquals(ANIMAL, state.pullingTeam)
         assertEquals(FieldEnd.FAR, state.pullingFromEnd)
-        assertEquals(ANIMAL, state.nearAttackingTeam)
+        assertEquals(ANIMAL, state.teamDefendingEnd(FieldEnd.FAR))
 
         // Manual halftime starts the configured halftime countdown from the action time.
         assertEquals(CountdownKind.HALFTIME, state.countdown?.kind)

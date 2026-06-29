@@ -52,7 +52,7 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
         // Instead we have the onShareSummary action be just to change the `shared`
         // variable to true.
         var shared = false
-        val state = createLiveGameState(newGameSetupState()).copy(
+        val state = newSetupGameState(now = 123_000L).startGame().copy(
             phase = GamePhase.GAME_OVER,
             observers = "Mike and Gary",
             endEpoch = System.currentTimeMillis(),
@@ -102,20 +102,20 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
 
         // Programmatically set up a game to match the above summary info.
         startLiveGameProgrammatically(
-            newGameSetupState().copy(
+            newSetupGameState(now = 123_000L).copy(
                 tournamentName = "Philly Open",
                 startDate = LocalDate.of(2026, 5, 19),
                 startTime = LocalTime.of(10, 0),
-                teamOne = TeamIdentity("Viscous Coupling", TeamColorChoice.WHITE),
-                teamTwo = TeamIdentity("Animal", TeamColorChoice.RED),
+                teamOne = TeamState("Viscous Coupling", TeamColorChoice.WHITE),
+                teamTwo = TeamState("Animal", TeamColorChoice.RED),
             )
         )
         composeRule.activityRule.scenario.onActivity { activity ->
             val current = activity.appViewModel.liveState!!
             activity.appViewModel.updateLiveGame(
                 current.copy(
-                    teamOne = testTeamLiveState("Viscous Coupling", TeamColorChoice.WHITE, score = 12),
-                    teamTwo = testTeamLiveState(
+                    teamOne = TeamState("Viscous Coupling", TeamColorChoice.WHITE, score = 12),
+                    teamTwo = TeamState(
                         name = "Animal",
                         color = TeamColorChoice.RED,
                         score = 15,

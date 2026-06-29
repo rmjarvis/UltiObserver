@@ -5,7 +5,9 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import java.io.FileInputStream
-import java.time.LocalDateTime
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneId
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
@@ -53,10 +55,13 @@ class TestTimingAlerts {
             ),
             cueRepeatCounts = mapOf(TimingCueId.HALF_CAP to 3),
         )
-        val setup = newGameSetupState(
-            now = LocalDateTime.of(2026, 5, 19, 10, 0),
-        )
-        val liveState = createLiveGameState(setup)
+        val liveState = newSetupGameState(
+            now = epochTimestamp(
+                LocalDate.of(2026, 5, 19),
+                LocalTime.of(10, 0),
+                ZoneId.systemDefault(),
+            ),
+        ).startGame()
 
         // Starting or updating the background service carries the current user playback settings.
         val updateIntent = TimingAlertForegroundService.updateIntent(
@@ -626,9 +631,15 @@ class TestTimingAlerts {
             // A normal app update goes through Android's service command path rather than calling
             // the controller directly.  Use a live-point timeout state so the snapshot carries a
             // future countdown cue and the service needs to hold a wake lock.
-            val setup = newGameSetupState(now = LocalDateTime.of(2026, 5, 19, 10, 0))
             val serviceUpdateNow = System.currentTimeMillis()
-            val timeoutState = createLiveGameState(setup)
+            val timeoutState = newSetupGameState(
+                now = epochTimestamp(
+                    LocalDate.of(2026, 5, 19),
+                    LocalTime.of(10, 0),
+                    ZoneId.systemDefault(),
+                ),
+            )
+                .startGame()
                 .beginLivePoint(serviceUpdateNow)
                 .assessTimeout(TeamId.TEAM_ONE, serviceUpdateNow)
                 .state

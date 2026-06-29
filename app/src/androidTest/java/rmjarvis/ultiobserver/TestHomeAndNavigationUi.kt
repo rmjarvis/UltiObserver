@@ -87,8 +87,8 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         // More actions should reopen setup in update mode and return to live.
         openMoreActionsDialog()
         composeRule.onNodeWithText("Update game setup").performClick()
-        waitForText("Back to game screen")
-        composeRule.onNodeWithText("Back to game screen").performClick()
+        waitForText("Done")
+        composeRule.onNodeWithText("Done").performClick()
         assertLiveScreen()
 
         // Live screen also has a visible Back button, which returns to Home now.
@@ -117,9 +117,9 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             activity.appViewModel.deleteCurrentGame()
             activity.appViewModel.startNewGame(now = 123_000L)
             activity.appViewModel.updateSetup(
-                newGameSetupState().copy(
-                    teamOne = TeamIdentity(name = teamOneName, color = TeamColorChoice.WHITE),
-                    teamTwo = TeamIdentity(name = teamTwoName, color = TeamColorChoice.BLUE),
+                newSetupGameState(now = 123_000L).copy(
+                    teamOne = TeamState(name = teamOneName, color = TeamColorChoice.WHITE),
+                    teamTwo = TeamState(name = teamTwoName, color = TeamColorChoice.BLUE),
                 )
             )
             activity.appViewModel.finishSetup(now = 123_000L)
@@ -128,9 +128,9 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             )
             activity.appViewModel.startNewGame(now = 123_000L)
             activity.appViewModel.updateSetup(
-                newGameSetupState().copy(
-                    teamOne = TeamIdentity(name = currentTeamOneName, color = TeamColorChoice.WHITE),
-                    teamTwo = TeamIdentity(name = currentTeamTwoName, color = TeamColorChoice.BLUE),
+                newSetupGameState(now = 123_000L).copy(
+                    teamOne = TeamState(name = currentTeamOneName, color = TeamColorChoice.WHITE),
+                    teamTwo = TeamState(name = currentTeamTwoName, color = TeamColorChoice.BLUE),
                 )
             )
             activity.appViewModel.finishSetup(now = 123_000L)
@@ -142,6 +142,8 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.waitForIdle()
 
         // Restoring the archived game replaces the current game and returns to the live screen.
+        // When the archived gave is an active live-point game, the undo buttons are preserved,
+        // unlike when the game was restored from a completed state.
         openSavedInProgressGamesScreen()
         waitForText(archivedTitle)
         composeRule.onNodeWithText(archivedTitle).performClick()
@@ -162,9 +164,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
                 .fetchSemanticsNodes()
                 .isEmpty()
         )
-        assertTrue(
-            composeRule.onAllNodesWithText("Undo Start point").fetchSemanticsNodes().isEmpty()
-        )
+        composeRule.onNodeWithText("Undo Start point").assertIsDisplayed()
 
         // The replaced current game moves into the archive, and the restored game is no longer
         // listed there.
@@ -205,7 +205,23 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         val firstArchivedTitle = "$firstTeamOne 0 - 0 $firstTeamTwo"
         val secondArchivedTitle = "$secondTeamOne 0 - 0 $secondTeamTwo"
 
-        // Cancel once from bulk delete, then confirm it removes every archived row.
+        // The landing page can delete every archived/saved game across categories.
+        seedArchivedGameProgrammatically(firstTeamOne, firstTeamTwo)
+        seedArchivedGameProgrammatically(secondTeamOne, secondTeamTwo)
+        openArchivedGamesScreen()
+        composeRule.onNodeWithText("Archived games (2)").assertIsDisplayed()
+        composeRule.onNodeWithTag("delete-all-archived-games").performClick()
+        waitForText("all archived and saved games", substring = true)
+        dismissDialog(text = "Cancel")
+        composeRule.onNodeWithText("Archived games (2)").assertIsDisplayed()
+        composeRule.onNodeWithTag("delete-all-archived-games").performClick()
+        confirmDeleteWithSlider("Delete all games?")
+        waitForText("Archived games (0)")
+        waitForText("Saved in-progress games (0)")
+        waitForText("Saved setup states (0)")
+        composeRule.onNodeWithText("Back").performClick()
+
+        // Inside one category, delete all removes only the visible category's rows.
         seedArchivedGameProgrammatically(firstTeamOne, firstTeamTwo)
         seedArchivedGameProgrammatically(secondTeamOne, secondTeamTwo)
         openArchivedCompleteGamesScreen()
@@ -315,9 +331,9 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             activity.appViewModel.deleteCurrentGame()
             activity.appViewModel.startNewGame(now = 123_000L)
             activity.appViewModel.updateSetup(
-                newGameSetupState().copy(
-                    teamOne = TeamIdentity("ProgressA$suffix", TeamColorChoice.WHITE),
-                    teamTwo = TeamIdentity("ProgressB$suffix", TeamColorChoice.BLUE),
+                newSetupGameState(now = 123_000L).copy(
+                    teamOne = TeamState("ProgressA$suffix", TeamColorChoice.WHITE),
+                    teamTwo = TeamState("ProgressB$suffix", TeamColorChoice.BLUE),
                 )
             )
             activity.appViewModel.finishSetup(now = 123_000L)

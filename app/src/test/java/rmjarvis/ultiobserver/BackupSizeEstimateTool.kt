@@ -11,9 +11,6 @@ private const val BACKUP_CAP_BYTES = 25L * 1024L * 1024L
 fun main() {
     val setup = backupEstimateSetup()
     val game = buildHighActivityFullGame(setup)
-    val currentGameSnapshot = CurrentGameSnapshot(
-        liveState = game,
-    )
     val archivedGame = ArchivedGame(
         state = game.pruneUndoHistory(),
         summaryContext = "Backup size estimate",
@@ -23,7 +20,7 @@ fun main() {
     reportDir.mkdirs()
 
     val samples = listOf(
-        BackupSample("current_game_state.json", encodeCurrentGameSnapshot(currentGameSnapshot)),
+        BackupSample("current_game_state.json", encodeCurrentGame(game)),
         BackupSample("profile.json", encodeProfile(Profile(profileName = "Casey Observer"))),
         BackupSample("settings.json", encodeSettings(Settings())),
         BackupSample("archived_games/00000.json", encodeArchivedGame(archivedGame)),
@@ -60,8 +57,14 @@ private data class BackupSample(
     val bytes: Long = json.toByteArray(Charsets.UTF_8).size.toLong()
 }
 
-private fun backupEstimateSetup(): GameSetupState {
-    return GameSetupState(
+private fun backupEstimateSetup(): GameState {
+    return newSetupGameState(
+        now = epochTimestamp(
+            LocalDate.of(2026, 6, 1),
+            LocalTime.of(10, 0),
+            ZoneId.systemDefault(),
+        ),
+    ).copy(
         startDate = LocalDate.of(2026, 6, 1),
         startTime = LocalTime.of(10, 0),
         timeZone = ZoneId.of("America/New_York"),
@@ -73,16 +76,18 @@ private fun backupEstimateSetup(): GameSetupState {
             useHardCap = false,
             timeoutsPerHalf = 2,
         ),
-        teamOne = TeamIdentity("Viscous Coupling", TeamColorChoice.WHITE),
-        teamTwo = TeamIdentity("Animal", TeamColorChoice.RED),
+        teamOne = TeamState("Viscous Coupling", TeamColorChoice.WHITE),
+        teamTwo = TeamState("Animal", TeamColorChoice.RED),
         pullingTeam = TeamId.TEAM_ONE,
         pullingFromEnd = FieldEnd.FAR,
+        openingPullingTeam = TeamId.TEAM_ONE,
+        openingPullingFromEnd = FieldEnd.FAR,
     )
 }
 
-private fun buildHighActivityFullGame(setup: GameSetupState): GameState {
+private fun buildHighActivityFullGame(setup: GameState): GameState {
     val clock = EstimateClock(epochTimestamp(setup.startDate, setup.startTime, setup.timeZone))
-    var state = createLiveGameState(setup).beginLivePoint(clock.next())
+    var state = setup.startGame().beginLivePoint(clock.next())
 
     state = addCardPressure(state, clock)
     state = addTechnicalFoulPressure(state, clock)

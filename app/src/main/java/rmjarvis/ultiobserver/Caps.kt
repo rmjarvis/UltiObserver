@@ -78,26 +78,26 @@ internal fun GameRules.hasEnabledCapTimingAlerts(timingAlertPreferences: TimingA
 }
 
 /**
- * Reposition the selected cap so it is due at the current time.
+ * Apply the selected cap immediately.
  * This is the manual cap action from More actions, rather than the normal scheduled cap prompt.
  *
- * @param capType The cap whose scheduled offset should be enabled and aligned to now.
- * @param now The epoch millis that should become the cap's scheduled instant.
+ * @param capType The cap whose rule should be enabled and applied.
+ * @param now The epoch millis used as the end time if hard cap immediately ends the game.
  */
 fun GameState.makeCapNow(
     capType: CapType,
     now: Long,
 ): GameState {
-    val offsetMinutes = capType.offsetMinutes(rules)
-    val offset = offsetMinutes * 60_000L
-    val adjustedStart = localDateTimeFromEpoch(now - offset, this.timeZone)
-    return this.copy(
+    val capEnabledState = this.copy(
         rules = capType.rulesWithCapEnabled(rules),
-        startDate = adjustedStart.toLocalDate(),
-        startTime = adjustedStart.toLocalTime(),
-        startEpoch = now - offset,
-        lastEvent = "${capType.label} set to now.",
-    ).withUndo(this, "Undo ${capType.label} now")
+        pendingCapOffer = null,
+    )
+    return capEnabledState.applyCap(
+        capType = capType,
+        now = now,
+        undoPrevious = this,
+        undoLabel = "Undo Apply ${capType.label.lowercase()} now",
+    )
 }
 /**
  * Apply the cap currently being offered to the observer.
@@ -109,22 +109,44 @@ fun GameState.makeCapNow(
 fun GameState.applyPendingCap(
     now: Long,
 ): GameState {
-    val pendingCap = this.pendingCapOffer!!
-    val currentHigherScore = max(this.teamOne.score, this.teamTwo.score)
-    return when (pendingCap) {
+    val pendingCap = pendingCapOffer!!
+    return applyCap(
+        capType = pendingCap,
+        now = now,
+        undoPrevious = this,
+        undoLabel = "Undo Apply ${pendingCap.label.lowercase()}",
+    )
+}
+
+/**
+ * Apply one cap to the current game state.
+ *
+ * @param capType The cap to apply.
+ * @param now The epoch millis used as the end time if hard cap immediately ends the game.
+ * @param undoPrevious The state that undo should restore.
+ * @param undoLabel The undo label for the action that applied the cap.
+ */
+private fun GameState.applyCap(
+    capType: CapType,
+    now: Long,
+    undoPrevious: GameState,
+    undoLabel: String,
+): GameState {
+    val currentHigherScore = max(teamOne.score, teamTwo.score)
+    return when (capType) {
         CapType.HALF -> this.copy(
             halftimeTargetScore = currentHigherScore + 1,
             halfCapApplied = true,
             pendingCapOffer = null,
             lastEvent = "Half cap applied.",
-        ).withUndo(this, "Undo Apply half cap")
+        ).withUndo(undoPrevious, undoLabel)
 
         CapType.SOFT -> this.copy(
             winningScore = currentHigherScore + 1,
             softCapApplied = true,
             pendingCapOffer = null,
             lastEvent = "Soft cap applied.",
-        ).withUndo(this, "Undo Apply soft cap")
+        ).withUndo(undoPrevious, undoLabel)
 
         CapType.HARD -> {
             if (this.teamOne.score != this.teamTwo.score) {
@@ -135,14 +157,14 @@ fun GameState.applyPendingCap(
                     hardCapApplied = true,
                     pendingCapOffer = null,
                     lastEvent = "Game over.",
-                ).withUndo(this, "Undo Apply hard cap")
+                ).withUndo(undoPrevious, undoLabel)
             } else {
                 this.copy(
                     winningScore = currentHigherScore + 1,
                     hardCapApplied = true,
                     pendingCapOffer = null,
                     lastEvent = "Hard cap applied.",
-                ).withUndo(this, "Undo Apply hard cap")
+                ).withUndo(undoPrevious, undoLabel)
             }
         }
     }

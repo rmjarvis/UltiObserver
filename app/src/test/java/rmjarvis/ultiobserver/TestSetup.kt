@@ -2,7 +2,6 @@ package rmjarvis.ultiobserver
 
 import androidx.compose.ui.graphics.Color
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
@@ -24,19 +23,29 @@ class TestSetup : GameDomainTestFixtures() {
         val teamTwoPlayers = teamTwoPriorPlayers()
 
         // A new setup draft starts with the current standard game rules.
-        val newSetupState = newGameSetupState(LocalDateTime.of(2026, 1, 1, 9, 0))
+        val newSetupState = newSetupGameState(
+            now = epochTimestamp(
+                LocalDate.of(2026, 1, 1),
+                LocalTime.of(9, 0),
+                ZoneId.systemDefault(),
+            ),
+        )
         assertEquals(GameRules(), newSetupState.rules)
 
         // A new setup draft can carry tournament context from the previous game while keeping
         // its own freshly calculated start date and time.
         val previousGameInfo = fullSetup().copy(
             rules = GameRules(gameTo = 11),
-            teamOne = TeamIdentity("Previous A", TeamColorChoice.GREEN),
-            teamTwo = TeamIdentity("Previous B", TeamColorChoice.YELLOW),
+            teamOne = TeamState("Previous A", TeamColorChoice.GREEN),
+            teamTwo = TeamState("Previous B", TeamColorChoice.YELLOW),
         )
-        val repeatedTournamentSetup = newGameSetupState(
-            now = LocalDateTime.of(2026, 1, 1, 9, 15),
-            defaultsFrom = createGameState(previousGameInfo),
+        val repeatedTournamentSetup = newSetupGameState(
+            now = epochTimestamp(
+                LocalDate.of(2026, 1, 1),
+                LocalTime.of(9, 15),
+                ZoneId.systemDefault(),
+            ),
+            defaultsFrom = previousGameInfo,
         )
         assertEquals(LocalDate.of(2026, 1, 1), repeatedTournamentSetup.startDate)
         assertEquals(LocalTime.of(9, 30), repeatedTournamentSetup.startTime)
@@ -58,31 +67,26 @@ class TestSetup : GameDomainTestFixtures() {
         assertFalse(noPriorCardsState.teamOne.hasCoachOrCaptainInfo())
         assertFalse(noPriorCardsState.teamTwo.hasCoachOrCaptainInfo())
 
-        // Any individual coach/captain field makes live-team staff information visible.
+        // Any individual coach/captain field makes team staff information visible.
         assertTrue(
             noPriorCardsState.teamOne
-                .withIdentity(noPriorCardsState.teamOne.identity.copy(coaches = "Coach"))
+                .copy(coaches = "Coach")
                 .hasCoachOrCaptainInfo()
         )
         assertTrue(
             noPriorCardsState.teamOne
-                .withIdentity(
-                    noPriorCardsState.teamOne.identity.copy(fieldCaptains = "Field captain"),
-                )
+                .copy(fieldCaptains = "Field captain")
                 .hasCoachOrCaptainInfo()
         )
         assertTrue(
             noPriorCardsState.teamOne
-                .withIdentity(
-                    noPriorCardsState.teamOne.identity.copy(spiritCaptains = "Spirit captain"),
-                )
+                .copy(spiritCaptains = "Spirit captain")
                 .hasCoachOrCaptainInfo()
         )
 
-        // Full setup data round-trips through a live game.
+        // Full setup data carries directly into a live game.
         val setup = fullSetup()
         val state = createLiveGameState(setup)
-        assertEquals(setup, state.toSetupState())
         assertEquals("Potlatch", state.tournamentName)
         assertEquals(GameDivision.MIXED, state.division)
         assertEquals("Grandmasters", state.level)
@@ -102,7 +106,7 @@ class TestSetup : GameDomainTestFixtures() {
         assertEquals(FieldEnd.FAR, state.openingPullingFromEnd)
         assertEquals(VC, state.pullingTeam)
         assertEquals(FieldEnd.FAR, state.pullingFromEnd)
-        assertEquals(VC, state.nearAttackingTeam)
+        assertEquals(VC, state.teamDefendingEnd(FieldEnd.FAR))
         assertEquals(teamOnePlayers, state.teamOnePlayers)
         assertEquals(teamTwoPlayers, state.teamTwoPlayers)
 
@@ -111,11 +115,11 @@ class TestSetup : GameDomainTestFixtures() {
             teamOne = setup.teamOne.copy(name = ""),
             teamTwo = setup.teamTwo.copy(name = ""),
         )
-        val setupState = createGameState(blankNameSetup)
+        val setupState = blankNameSetup
         assertEquals(GamePhase.SETUP, setupState.phase)
         assertFalse(setupState.phase.isBeforeLivePoint)
         assertNull(setupState.countdown)
-        assertEquals(blankNameSetup, setupState.toSetupState())
+        assertEquals(blankNameSetup, setupState)
         assertEquals("", setupState.teamOne.name)
         assertEquals("", setupState.teamTwo.name)
         val startedSetupState = setupState.startGame()
@@ -134,7 +138,7 @@ class TestSetup : GameDomainTestFixtures() {
         assertEquals(state.startEpoch + 40_000L, state.countdown?.targetEpoch)
 
         // Returning from Update game setup before play starts is a no-op when nothing changed.
-        val unchangedState = applySetupToLiveGame(state, state.toSetupState(), 10_000L)
+        val unchangedState = applySetupToLiveGame(state, state, 10_000L)
         assertEquals(state, unchangedState)
         assertNull(unchangedState.undoEntry)
 
@@ -143,10 +147,82 @@ class TestSetup : GameDomainTestFixtures() {
         assertEquals(GamePhase.LIVE_POINT, liveState.phase)
         val unchangedLiveState = applySetupToLiveGame(
             liveState,
-            liveState.toSetupState(),
+            liveState,
             20_000L,
         )
         assertEquals(liveState, unchangedLiveState)
+
+    }
+
+    /**
+     * Test that every setup-editable game field is recognized as a meaningful update.
+     */
+    @Test
+    fun setupEditDifferences() {
+        // Each setup field should make Done apply one undo-backed setup update.
+        val setup = fullSetup()
+        val state = createLiveGameState(setup)
+        val alternateTimeZone = if (setup.timeZone == ZoneId.of("UTC")) {
+            ZoneId.of("America/New_York")
+        } else {
+            ZoneId.of("UTC")
+        }
+        val setupChanges = listOf<Pair<String, (GameState) -> GameState>>(
+            "start date" to { it.copy(startDate = it.startDate.plusDays(1)) },
+            "start time" to { it.copy(startTime = it.startTime.plusMinutes(5)) },
+            "time zone" to { it.copy(timeZone = alternateTimeZone) },
+            "tournament" to { it.copy(tournamentName = "Changed Tournament") },
+            "division" to { it.copy(division = GameDivision.WOMENS) },
+            "level" to { it.copy(level = "Changed level") },
+            "context" to { it.copy(gameContext = "Changed context") },
+            "observers" to { it.copy(observers = "Changed observer") },
+            "near end" to { it.copy(nearEndName = "Changed near end") },
+            "far end" to { it.copy(farEndName = "Changed far end") },
+            "rules" to { it.copy(rules = it.rules.copy(gameTo = it.rules.gameTo + 1)) },
+            "team one name" to { it.copy(teamOne = it.teamOne.copy(name = "Changed team")) },
+            "team one color" to { it.copy(teamOne = it.teamOne.copy(color = TeamColorChoice.BLACK)) },
+            "team one custom color" to {
+                it.copy(
+                    teamOne = it.teamOne.copy(
+                        color = TeamColorChoice.CUSTOM,
+                        customColorArgb = 0xFFABCDEF,
+                    )
+                )
+            },
+            "team one coaches" to { it.copy(teamOne = it.teamOne.copy(coaches = "Changed coach")) },
+            "team one field captains" to {
+                it.copy(teamOne = it.teamOne.copy(fieldCaptains = "Changed field captain"))
+            },
+            "team one spirit captains" to {
+                it.copy(teamOne = it.teamOne.copy(spiritCaptains = "Changed spirit captain"))
+            },
+            "team two name" to { it.copy(teamTwo = it.teamTwo.copy(name = "Changed opponent")) },
+            "team one players" to {
+                it.copy(teamOnePlayers = it.teamOnePlayers + PlayerRecord("99"))
+            },
+            "team two players" to {
+                it.copy(teamTwoPlayers = it.teamTwoPlayers + PlayerRecord("98"))
+            },
+            "pull prompts" to { it.copy(pullPromptTarget = PullPromptTarget.NEITHER) },
+            "initial ratio" to {
+                it.copy(initialGenderRatio = GenderRatio.FOUR_WOMEN_THREE_MEN)
+            },
+            "Gen Zone end" to { it.copy(firstHalfGenZone = it.firstHalfGenZone.flip()) },
+            "Gen Zone switch" to {
+                it.copy(switchGenZoneAtHalftime = !it.switchGenZoneAtHalftime)
+            },
+            "opening pulling team" to {
+                it.copy(openingPullingTeam = it.openingPullingTeam.flip())
+            },
+            "opening pulling end" to {
+                it.copy(openingPullingFromEnd = it.openingPullingFromEnd.flip())
+            },
+        )
+
+        setupChanges.forEach { (label, edit) ->
+            val updated = applySetupToLiveGame(state, edit(state), 10_000L)
+            assertEquals(label, "Undo Update game setup", updated.undoEntry?.label)
+        }
     }
 
     /**
@@ -167,12 +243,24 @@ class TestSetup : GameDomainTestFixtures() {
         assertEquals(LocalTime.MIDNIGHT, nextHalfHourFrom(LocalTime.of(23, 45)))
 
         // New setup start times round to the next half hour on the same date.
-        val sameDaySetup = newGameSetupState(LocalDateTime.of(2026, 1, 1, 23, 0))
+        val sameDaySetup = newSetupGameState(
+            now = epochTimestamp(
+                LocalDate.of(2026, 1, 1),
+                LocalTime.of(23, 0),
+                ZoneId.systemDefault(),
+            ),
+        )
         assertEquals(LocalDate.of(2026, 1, 1), sameDaySetup.startDate)
         assertEquals(LocalTime.of(23, 0), sameDaySetup.startTime)
 
         // Rounding past midnight advances the setup date.
-        val nextDaySetup = newGameSetupState(LocalDateTime.of(2026, 1, 1, 23, 45))
+        val nextDaySetup = newSetupGameState(
+            now = epochTimestamp(
+                LocalDate.of(2026, 1, 1),
+                LocalTime.of(23, 45),
+                ZoneId.systemDefault(),
+            ),
+        )
         assertEquals(LocalDate.of(2026, 1, 2), nextDaySetup.startDate)
         assertEquals(LocalTime.MIDNIGHT, nextDaySetup.startTime)
 
@@ -192,13 +280,29 @@ class TestSetup : GameDomainTestFixtures() {
         assertEquals(utcSetup.timeZone, utcState.timeZone)
         assertEquals(pacificSetup.timeZone, pacificState.timeZone)
         assertEquals(
-            LocalDateTime.of(2026, 1, 1, 18, 0)
-                .atZone(ZoneId.of("UTC"))
-                .toInstant()
-                .toEpochMilli(),
+            epochTimestamp(LocalDate.of(2026, 1, 1), LocalTime.of(18, 0), ZoneId.of("UTC")),
             utcState.startEpoch,
         )
         assertEquals(utcState.startEpoch, pacificState.startEpoch)
+
+        // Starting a game rebuilds the epoch from the edited setup date and time, rather than
+        // trusting a stale epoch left over from the original setup draft.
+        val editedStartSetup = sameDaySetup.copy(
+            startDate = LocalDate.of(2026, 2, 3),
+            startTime = LocalTime.of(14, 15),
+            timeZone = testTimeZone,
+        )
+        val editedStartState = createLiveGameState(editedStartSetup)
+        val expectedStartEpoch = epochTimestamp(
+            LocalDate.of(2026, 2, 3),
+            LocalTime.of(14, 15),
+            testTimeZone,
+        )
+        assertEquals(expectedStartEpoch, editedStartState.startEpoch)
+        assertEquals(
+            expectedStartEpoch + editedStartState.countdown!!.durationSeconds * 1000L,
+            editedStartState.countdown!!.targetEpoch,
+        )
     }
 
     /**
@@ -215,8 +319,8 @@ class TestSetup : GameDomainTestFixtures() {
 
         // Setup and live teams use built-in colors directly unless the observer picked a custom
         // color.
-        val builtInSetupTeam = TeamIdentity("Built in", TeamColorChoice.PINK)
-        val builtInLiveTeam = testTeamLiveState("Built in", TeamColorChoice.PINK)
+        val builtInSetupTeam = TeamState("Built in", TeamColorChoice.PINK)
+        val builtInLiveTeam = TeamState("Built in", TeamColorChoice.PINK)
         assertEquals(Color(0xFFFF4FA3), builtInSetupTeam.accent)
         assertEquals(Color(0xFF2F1022), builtInSetupTeam.content)
         assertEquals(Color(0xFFFF4FA3), builtInLiveTeam.accent)
@@ -224,12 +328,12 @@ class TestSetup : GameDomainTestFixtures() {
 
         // Custom team colors keep the observer-picked background and choose readable text from
         // the background luminance.
-        val lightCustomSetupTeam = TeamIdentity(
+        val lightCustomSetupTeam = TeamState(
             name = "Light",
             color = TeamColorChoice.CUSTOM,
             customColorArgb = 0xFFE7F0F7L,
         )
-        val darkCustomLiveTeam = testTeamLiveState(
+        val darkCustomLiveTeam = TeamState(
             name = "Dark",
             color = TeamColorChoice.CUSTOM,
             customColorArgb = 0xFF203040L,
@@ -249,10 +353,10 @@ class TestSetup : GameDomainTestFixtures() {
             TeamColorChoice.CUSTOM.content
         }
         assertThrows(IllegalArgumentException::class.java) {
-            TeamIdentity("Custom", TeamColorChoice.CUSTOM)
+            TeamState("Custom", TeamColorChoice.CUSTOM)
         }
         assertThrows(IllegalArgumentException::class.java) {
-            testTeamLiveState("Custom", TeamColorChoice.CUSTOM)
+            TeamState("Custom", TeamColorChoice.CUSTOM)
         }
     }
 
@@ -267,7 +371,7 @@ class TestSetup : GameDomainTestFixtures() {
             division = GameDivision.MIXED,
             nearEndName = "Road",
             farEndName = "Trees",
-            pullingFromEnd = FieldEnd.NEAR,
+            openingPullingFromEnd = FieldEnd.NEAR,
             pullPromptTarget = PullPromptTarget.BOTH,
         )
         val state = createLiveGameState(setup)
@@ -334,17 +438,15 @@ class TestSetup : GameDomainTestFixtures() {
         assertFalse(setup.copy(division = null).usesMixedDivision())
 
         // Team field helpers let the setup UI update either side through the same editor path.
-        assertEquals("Team 1", VC.setupFieldLabel())
-        assertEquals("Team 2", ANIMAL.setupFieldLabel())
-        assertEquals(setup.teamOne, VC.setupTeam(setup))
-        assertEquals(setup.teamTwo, ANIMAL.setupTeam(setup))
+        assertEquals("Team 1", VC.defaultName())
+        assertEquals("Team 2", ANIMAL.defaultName())
         assertEquals(
             "Edited VC",
-            setup.withSetupTeam(VC, setup.teamOne.copy(name = "Edited VC")).teamOne.name,
+            setup.copy(teamOne = setup.teamOne.copy(name = "Edited VC")).teamOne.name,
         )
         assertEquals(
             "Edited Animal",
-            setup.withSetupTeam(ANIMAL, setup.teamTwo.copy(name = "Edited Animal")).teamTwo.name,
+            setup.copy(teamTwo = setup.teamTwo.copy(name = "Edited Animal")).teamTwo.name,
         )
         assertEquals(setup.teamOnePlayers, setup.playersFor(VC))
         assertEquals(setup.teamTwoPlayers, setup.playersFor(ANIMAL))
@@ -361,10 +463,10 @@ class TestSetup : GameDomainTestFixtures() {
 
         // Blank team names fall back to stable setup labels in summaries.
         val blankTeamSetup = defaultEndsSetup.copy(
-            teamOne = TeamIdentity("", TeamColorChoice.WHITE),
-            teamTwo = TeamIdentity("", TeamColorChoice.BLUE),
-            pullingTeam = ANIMAL,
-            pullingFromEnd = FieldEnd.FAR,
+            teamOne = TeamState("", TeamColorChoice.WHITE),
+            teamTwo = TeamState("", TeamColorChoice.BLUE),
+            openingPullingTeam = ANIMAL,
+            openingPullingFromEnd = FieldEnd.FAR,
         )
         assertEquals("Team 1", VC.setupName(blankTeamSetup))
         assertEquals("Team 2 pulls from Far end", blankTeamSetup.startingPullSummary())
@@ -411,7 +513,7 @@ class TestSetup : GameDomainTestFixtures() {
         )
 
         // Coach and captain summaries trim each line and skip empty staff fields.
-        val staffTeam = TeamIdentity(
+        val staffTeam = TeamState(
             name = "Viscous Coupling",
             color = TeamColorChoice.WHITE,
             coaches = " Coach A \n\n Coach B ",
@@ -511,7 +613,7 @@ class TestSetup : GameDomainTestFixtures() {
         assertEquals(FieldEnd.NEAR, state.openingPullingFromEnd)
         assertEquals(ANIMAL, state.pullingTeam)
         assertEquals(FieldEnd.NEAR, state.pullingFromEnd)
-        assertEquals(VC, state.nearAttackingTeam)
+        assertEquals(VC, state.teamDefendingEnd(FieldEnd.FAR))
 
         // The updated opening-pull state is undo-backed.
         assertEquals("Pull sequence started.", state.lastEvent)
@@ -565,9 +667,9 @@ class TestSetup : GameDomainTestFixtures() {
         assertEquals(blueCardPullingTeamBeforeEdit, blueCardState.openingPullingTeam)
         assertEquals(blueCardPullingFromEndBeforeEdit, blueCardState.openingPullingFromEnd)
 
-        val blueCardSetupEdit = blueCardState.toSetupState().copy(
-            pullingTeam = blueCardPullingTeamBeforeEdit.flip(),
-            pullingFromEnd = blueCardPullingFromEndBeforeEdit.flip(),
+        val blueCardSetupEdit = blueCardState.copy(
+            openingPullingTeam = blueCardPullingTeamBeforeEdit.flip(),
+            openingPullingFromEnd = blueCardPullingFromEndBeforeEdit.flip(),
         )
         val blueCardSetupUpdate = applySetupToLiveGame(
             blueCardState,
@@ -598,7 +700,7 @@ class TestSetup : GameDomainTestFixtures() {
         val setup = fullSetup()
         val setupEdit1 = editSetup1(setup)
         val fieldStateAfterGoal = stateAfterGoal(setup, setupEdit1)
-        val setupEdit2 = editSetup2(fieldStateAfterGoal.toSetupState())
+        val setupEdit2 = editSetup2(fieldStateAfterGoal)
         val state = applySetupToLiveGame(fieldStateAfterGoal, setupEdit2, 200_000L)
 
         // After play starts, setup metadata changes but current pull and field state are preserved.
@@ -628,11 +730,11 @@ class TestSetup : GameDomainTestFixtures() {
         assertEquals(fieldStateAfterGoal.teamTwo.score, state.teamTwo.score)
         assertEquals(setupEdit2.teamOnePlayers, state.playerCards(VC))
         assertEquals(setupEdit2.teamTwoPlayers, state.playerCards(ANIMAL))
-        assertEquals(setupEdit2.pullingTeam, state.openingPullingTeam)
-        assertEquals(setupEdit2.pullingFromEnd, state.openingPullingFromEnd)
+        assertEquals(setupEdit2.openingPullingTeam, state.openingPullingTeam)
+        assertEquals(setupEdit2.openingPullingFromEnd, state.openingPullingFromEnd)
         assertEquals(fieldStateAfterGoal.pullingTeam, state.pullingTeam)
         assertEquals(fieldStateAfterGoal.pullingFromEnd, state.pullingFromEnd)
-        assertEquals(fieldStateAfterGoal.nearAttackingTeam, state.nearAttackingTeam)
+        assertEquals(fieldStateAfterGoal.teamDefendingEnd(FieldEnd.FAR), state.teamDefendingEnd(FieldEnd.FAR))
         assertEquals(fieldStateAfterGoal.phase, state.phase)
         assertEquals(fieldStateAfterGoal.countdown?.targetEpoch, state.countdown?.targetEpoch)
         assertEquals("Pull in", state.countdown?.label)
@@ -647,9 +749,9 @@ class TestSetup : GameDomainTestFixtures() {
         // Once the game is going, setup edits to pull orientation are basically ignored.
         // Don't change the actual direction of the pulls in the active game.
         // The only thing that changes is the nominal openingPullingTeam and End.
-        val flippedPullSetup = fieldStateAfterGoal.toSetupState().copy(
-            pullingTeam = setup.pullingTeam.flip(),
-            pullingFromEnd = setup.pullingFromEnd.flip(),
+        val flippedPullSetup = fieldStateAfterGoal.copy(
+            openingPullingTeam = setup.openingPullingTeam.flip(),
+            openingPullingFromEnd = setup.openingPullingFromEnd.flip(),
         )
         val flippedPullState = applySetupToLiveGame(
             fieldStateAfterGoal,
@@ -657,11 +759,11 @@ class TestSetup : GameDomainTestFixtures() {
             20_000L,
         )
         assertEquals(GamePhase.BETWEEN_POINTS, flippedPullState.phase)
-        assertEquals(flippedPullSetup.pullingTeam, flippedPullState.openingPullingTeam)
-        assertEquals(flippedPullSetup.pullingFromEnd, flippedPullState.openingPullingFromEnd)
+        assertEquals(flippedPullSetup.openingPullingTeam, flippedPullState.openingPullingTeam)
+        assertEquals(flippedPullSetup.openingPullingFromEnd, flippedPullState.openingPullingFromEnd)
         assertEquals(fieldStateAfterGoal.pullingTeam, flippedPullState.pullingTeam)
         assertEquals(fieldStateAfterGoal.pullingFromEnd, flippedPullState.pullingFromEnd)
-        assertEquals(fieldStateAfterGoal.nearAttackingTeam, flippedPullState.nearAttackingTeam)
+        assertEquals(fieldStateAfterGoal.teamDefendingEnd(FieldEnd.FAR), flippedPullState.teamDefendingEnd(FieldEnd.FAR))
     }
 
     /**
@@ -674,7 +776,7 @@ class TestSetup : GameDomainTestFixtures() {
 
         // Setup edits do not restart an in-progress countdown.
         val fieldStateAfterGoal = stateAfterGoal(setup, setupEdit1)
-        val setupEdit2 = editSetup2(fieldStateAfterGoal.toSetupState())
+        val setupEdit2 = editSetup2(fieldStateAfterGoal)
         val pendingCountdown = fieldStateAfterGoal.countdown
         val state = applySetupToLiveGame(
             fieldStateAfterGoal,
@@ -703,8 +805,8 @@ class TestSetup : GameDomainTestFixtures() {
         var state = applySetupToLiveGame(
             stateBeforeBlankNames,
             setup.copy(
-                teamOne = TeamIdentity("", TeamColorChoice.WHITE),
-                teamTwo = TeamIdentity("", TeamColorChoice.BLUE),
+                teamOne = TeamState("", TeamColorChoice.WHITE),
+                teamTwo = TeamState("", TeamColorChoice.BLUE),
             ),
             400_000L,
         )
@@ -719,8 +821,8 @@ class TestSetup : GameDomainTestFixtures() {
         state = applySetupToLiveGame(
             stateBeforeBlankNames,
             setup.copy(
-                teamOne = TeamIdentity("", TeamColorChoice.WHITE),
-                teamTwo = TeamIdentity("", TeamColorChoice.BLUE),
+                teamOne = TeamState("", TeamColorChoice.WHITE),
+                teamTwo = TeamState("", TeamColorChoice.BLUE),
             ),
             400_000L,
         )
@@ -739,7 +841,7 @@ class TestSetup : GameDomainTestFixtures() {
     }
 
     /// Return a setup state with all editable fields populated.
-    private fun fullSetup(): GameSetupState {
+    private fun fullSetup(): GameState {
         val VC = TeamId.TEAM_ONE
         return standardGameSetup(
             startTime = LocalTime.of(8, 30),
@@ -762,7 +864,7 @@ class TestSetup : GameDomainTestFixtures() {
             observers = "Mike and Gary",
             nearEndName = "Road",
             farEndName = "Trees",
-            teamOne = TeamIdentity(
+            teamOne = TeamState(
                 name = "Viscous Coupling",
                 color = TeamColorChoice.CUSTOM,
                 customColorArgb = 0xFF123456L,
@@ -770,7 +872,7 @@ class TestSetup : GameDomainTestFixtures() {
                 fieldCaptains = "VC field captain",
                 spiritCaptains = "VC spirit captain",
             ),
-            teamTwo = TeamIdentity(
+            teamTwo = TeamState(
                 name = "Animal",
                 color = TeamColorChoice.YELLOW,
                 coaches = "Animal coaches",
@@ -784,7 +886,7 @@ class TestSetup : GameDomainTestFixtures() {
     }
 
     /// Return the first alternate setup used by setup-edit tests.
-    private fun editSetup1(setup: GameSetupState): GameSetupState {
+    private fun editSetup1(setup: GameState): GameState {
         val ANIMAL = TeamId.TEAM_TWO
         return setup.copy(
             startTime = LocalTime.of(8, 45),
@@ -796,7 +898,7 @@ class TestSetup : GameDomainTestFixtures() {
             nearEndName = "Parking",
             farEndName = "Scoreboard",
             rules = setup.rules.copy(gameTo = 15, timeoutsPerHalf = 2),
-            teamOne = TeamIdentity(
+            teamOne = TeamState(
                 name = "VC",
                 color = TeamColorChoice.WHITE,
                 customColorArgb = 0xFF123456L,
@@ -804,7 +906,7 @@ class TestSetup : GameDomainTestFixtures() {
                 fieldCaptains = "Field captain edits",
                 spiritCaptains = "Spirit captain edits",
             ),
-            teamTwo = TeamIdentity(
+            teamTwo = TeamState(
                 name = "Animal Ultimate",
                 color = TeamColorChoice.RED,
                 coaches = "Other coach edits",
@@ -813,14 +915,14 @@ class TestSetup : GameDomainTestFixtures() {
             ),
             teamOnePlayers = teamOnePriorPlayers() + priorPlayerRecord("8", priorYellows = 2),
             teamTwoPlayers = teamTwoPriorPlayers(),
-            pullingTeam = ANIMAL,
-            pullingFromEnd = FieldEnd.NEAR,
+            openingPullingTeam = ANIMAL,
+            openingPullingFromEnd = FieldEnd.NEAR,
             pullPromptTarget = PullPromptTarget.BOTH,
         )
     }
 
     /// Return the second alternate setup used by setup-edit tests.
-    private fun editSetup2(setupEdit1: GameSetupState): GameSetupState {
+    private fun editSetup2(setupEdit1: GameState): GameState {
         val VC = TeamId.TEAM_ONE
         return setupEdit1.copy(
             startTime = LocalTime.of(9, 0),
@@ -832,14 +934,14 @@ class TestSetup : GameDomainTestFixtures() {
             nearEndName = "South",
             farEndName = "North",
             rules = setupEdit1.rules.copy(gameTo = 17, hasFloaterTimeout = false),
-            teamOne = TeamIdentity(
+            teamOne = setupEdit1.teamOne.copy(
                 name = "Viscous",
                 color = TeamColorChoice.BLACK,
                 coaches = "Post-play coach",
                 fieldCaptains = "Post-play field captain",
                 spiritCaptains = "Post-play spirit captain",
             ),
-            teamTwo = TeamIdentity(
+            teamTwo = setupEdit1.teamTwo.copy(
                 name = "Animal",
                 color = TeamColorChoice.CUSTOM,
                 customColorArgb = 0xFFABCDEFL,
@@ -849,16 +951,16 @@ class TestSetup : GameDomainTestFixtures() {
             ),
             teamOnePlayers = emptyList(),
             teamTwoPlayers = emptyList(),
-            pullingTeam = VC,
-            pullingFromEnd = FieldEnd.FAR,
+            openingPullingTeam = VC,
+            openingPullingFromEnd = FieldEnd.FAR,
             pullPromptTarget = PullPromptTarget.NEITHER,
         )
     }
 
     /// Return a live game state after play has started and Viscous Coupling has scored.
     private fun stateAfterGoal(
-        setup: GameSetupState,
-        setupEdit1: GameSetupState,
+        setup: GameState,
+        setupEdit1: GameState,
     ): GameState {
         val VC = TeamId.TEAM_ONE
         var state = createLiveGameState(setup)

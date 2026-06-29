@@ -194,10 +194,12 @@ def copy_project_path(path: str, workdir: Path) -> None:
 
 
 def copy_local_files(workdir: Path) -> None:
-    # Currently just local.properties
-    source = repo_root / "local.properties"
-    if source.is_file():
-        shutil.copy2(source, workdir / "local.properties")
+    for path in ("local.properties", "app/google-services.json"):
+        source = repo_root / path
+        target = workdir / path
+        if source.is_file():
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
 
 
 def inject_generator(workdir: Path, generator: Path) -> None:

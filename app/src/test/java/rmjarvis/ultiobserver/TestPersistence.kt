@@ -3,7 +3,12 @@ package rmjarvis.ultiobserver
 import java.io.File
 import java.io.IOException
 import java.nio.file.AtomicMoveNotSupportedException
-import java.time.LocalDateTime
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneId
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -146,8 +151,8 @@ class TestPersistence : GameDomainTestFixtures() {
         val persistedRules = GameRules(gameTo = 13, hardCapMinutes = 95, hasFloaterTimeout = true)
         val draftedSetup = viewModel.setupState.copy(
             rules = persistedRules,
-            teamOne = TeamIdentity("Viscous Coupling", TeamColorChoice.BLUE),
-            teamTwo = TeamIdentity("Animal", TeamColorChoice.PINK),
+            teamOne = TeamState("Viscous Coupling", TeamColorChoice.BLUE),
+            teamTwo = TeamState("Animal", TeamColorChoice.PINK),
         )
         viewModel.updateSetup(draftedSetup)
         val draftRestored = AppViewModel(FileAppStateStorage(storeDir))
@@ -205,13 +210,13 @@ class TestPersistence : GameDomainTestFixtures() {
         // Start a live game and clear the setup saves so the event assertion is focused.
         viewModel.startNewGame(now = 123_000L)
         viewModel.finishSetup(now = 123_000L)
-        store.savedCurrentGameStates.clear()
+        store.savedCurrentGames.clear()
 
         // Record an ordinary user-visible event through the same callback used by live UI actions.
         val livePointState = viewModel.liveState!!.beginLivePoint()
         viewModel.updateLiveGame(livePointState)
-        assertEquals("Point is live.", store.savedCurrentGameStates.single().liveState!!.lastEvent)
-        assertEquals(livePointState, store.savedCurrentGameStates.single().liveState)
+        assertEquals("Point is live.", store.savedCurrentGames.single()!!.lastEvent)
+        assertEquals(livePointState, store.savedCurrentGames.single())
         assertTrue(store.savedProfiles.isEmpty())
         assertTrue(store.savedSettings.isEmpty())
     }
@@ -227,13 +232,13 @@ class TestPersistence : GameDomainTestFixtures() {
         val viewModel = AppViewModel(store)
         viewModel.updateProfileName("Casey Observer")
         assertEquals("Casey Observer", store.savedProfiles.single().profileName)
-        assertTrue(store.savedCurrentGameStates.isEmpty())
+        assertTrue(store.savedCurrentGames.isEmpty())
         assertTrue(store.savedSettings.isEmpty())
 
         // Settings and current-game writes likewise stay in their own buckets.
         viewModel.updateAvatarPreference(ObserverAvatarPreference.BLUE)
         assertEquals(ObserverAvatarPreference.BLUE, store.savedProfiles.last().avatarPreference)
-        assertTrue(store.savedCurrentGameStates.isEmpty())
+        assertTrue(store.savedCurrentGames.isEmpty())
         assertTrue(store.savedSettings.isEmpty())
 
         // Settings writes should not touch current-game or profile storage buckets.
@@ -242,17 +247,17 @@ class TestPersistence : GameDomainTestFixtures() {
             TimingAlertGlobalMode.OFF,
             store.savedSettings.single().timingAlertPreferences.globalMode,
         )
-        assertTrue(store.savedCurrentGameStates.isEmpty())
+        assertTrue(store.savedCurrentGames.isEmpty())
         assertEquals(2, store.savedProfiles.size)
 
         // Current-game writes should not touch profile or settings storage buckets.
         viewModel.startNewGame(now = 123_000L)
-        assertTrue(store.savedCurrentGameStates.single().hasSetupDraft)
+        assertEquals(GamePhase.SETUP, store.savedCurrentGames.single()!!.phase)
         assertEquals(2, store.savedProfiles.size)
         assertEquals(1, store.savedSettings.size)
 
         // The default no-op store should accept the same split-bucket writes without side effects.
-        NoOpAppStateStorage.saveCurrentGameState(CurrentGameSnapshot())
+        NoOpAppStateStorage.saveCurrentGame(null)
         NoOpAppStateStorage.saveProfile(Profile())
         NoOpAppStateStorage.saveSettings(Settings())
         NoOpAppStateStorage.saveArchivedGames(emptyList())
@@ -331,54 +336,48 @@ class TestPersistence : GameDomainTestFixtures() {
         // Empty storage loads no current game and no archived games.
         val storeDir = temporaryFolder.newFolder()
         val store = FileAppStateStorage(storeDir)
-        assertNull(store.loadCurrentGameState())
+        assertNull(store.loadCurrentGame())
         assertTrue(store.loadArchivedGames().isEmpty())
 
-        // Current setup drafts load normally; unsupported versions recover to empty state.
-        val setup = newGameSetupState(LocalDateTime.of(2026, 5, 11, 10, 0))
-        val currentGameState = CurrentGameSnapshot(
-            setupDraft = setup,
+        // Current setup games load normally; unsupported versions recover to empty state.
+        val setup = newSetupGameState(
+            now = epochTimestamp(
+                LocalDate.of(2026, 5, 11),
+                LocalTime.of(10, 0),
+                ZoneId.systemDefault(),
+            ),
         )
-        store.saveCurrentGameState(currentGameState)
-        assertEquals(currentGameState, store.loadCurrentGameState())
-        assertThrows(IllegalArgumentException::class.java) {
-            CurrentGameSnapshot(
-                setupDraft = setup,
-                liveState = createLiveGameState(setup),
-            )
-        }
+        val currentGameState = setup
+        store.saveCurrentGame(currentGameState)
+        assertEquals(currentGameState, store.loadCurrentGame())
 
         // A same-persistence-version current game with a different Android version code
         // is still readable.
         val currentGameStateFile = File(storeDir, "current_game_state.json")
-        store.saveCurrentGameState(currentGameState)
+        store.saveCurrentGame(currentGameState)
         currentGameStateFile.replaceText(
             "\"versionCode\": ${BuildConfig.VERSION_CODE}",
             "\"versionCode\": 99",
         )
-        assertEquals(currentGameState, store.loadCurrentGameState())
+        assertEquals(currentGameState, store.loadCurrentGame())
         assertTrue(store.resetPersistedDataAreas.isEmpty())
 
-        // Unsupported current-game persistence versions recover to setup-only state.
-        store.saveCurrentGameState(currentGameState)
+        // Unsupported current-game persistence versions recover to empty state.
+        store.saveCurrentGame(currentGameState)
         currentGameStateFile.replaceText(
             "\"versionName\": \"${BuildConfig.VERSION_NAME}\"",
             "\"versionName\": \"99.0.0\"",
         )
-        val recoveredState = store.loadCurrentGameState()!!
-        assertNull(recoveredState.liveState)
-        assertEquals(SetupMode.NEW_GAME, recoveredState.setupMode)
+        assertNull(store.loadCurrentGame())
         assertEquals(setOf(PersistedData.GAME_STATE), store.resetPersistedDataAreas)
 
         // Invalid current-game version names follow the same reset path.
-        store.saveCurrentGameState(currentGameState)
+        store.saveCurrentGame(currentGameState)
         currentGameStateFile.replaceText(
             "\"versionName\": \"${BuildConfig.VERSION_NAME}\"",
             "\"versionName\": \"not-a-version\"",
         )
-        val invalidVersionRecoveredState = store.loadCurrentGameState()!!
-        assertNull(invalidVersionRecoveredState.liveState)
-        assertEquals(SetupMode.NEW_GAME, invalidVersionRecoveredState.setupMode)
+        assertNull(store.loadCurrentGame())
         assertEquals(setOf(PersistedData.GAME_STATE), store.resetPersistedDataAreas)
 
         // Archived games load only JSON files and cleanup removes stale numbered archive files.
@@ -415,34 +414,36 @@ class TestPersistence : GameDomainTestFixtures() {
         // A corrupt current-game file resets only current game.
         val storeDir = temporaryFolder.newFolder()
         val store = FileAppStateStorage(storeDir)
-        val setup = newGameSetupState(LocalDateTime.of(2026, 5, 11, 10, 0))
+        val setup = newSetupGameState(
+            now = epochTimestamp(
+                LocalDate.of(2026, 5, 11),
+                LocalTime.of(10, 0),
+                ZoneId.systemDefault(),
+            ),
+        )
         val liveState = createLiveGameState(setup).beginLivePoint()
         val timingPreferences = TimingAlertPreferences(
             globalMode = TimingAlertGlobalMode.VIBRATION_ONLY,
             soundVolume = 0.4f,
         )
-        val savedCurrentGameState = CurrentGameSnapshot(
-            liveState = liveState,
-        )
+        val savedCurrentGame = liveState
         val savedArchive = ArchivedGame(
             state = createLiveGameState(setup).copy(phase = GamePhase.GAME_OVER),
             summaryContext = "Final",
         )
-        store.saveCurrentGameState(savedCurrentGameState)
+        store.saveCurrentGame(savedCurrentGame)
         store.saveProfile(Profile(profileName = "Casey Observer"))
         store.saveSettings(Settings(timingAlertPreferences = timingPreferences))
 
-        // Corrupting the typed live-state field should reset only the current-game bucket.
+        // Corrupting the typed current-game payload should reset only the current-game bucket.
         val currentGameStateFile = File(storeDir, "current_game_state.json")
         currentGameStateFile.writeText(
             currentGameStateFile.readText().replace(
-                "\"liveState\": {",
-                "\"liveState\": \"broken\", \"ignoredLiveState\": {",
+                "\"state\": {",
+                "\"state\": \"broken\", \"ignoredState\": {",
             )
         )
-        val recoveredState = store.loadCurrentGameState()!!
-        assertNull(recoveredState.liveState)
-        assertEquals(SetupMode.NEW_GAME, recoveredState.setupMode)
+        assertNull(store.loadCurrentGame())
         assertEquals(setOf(PersistedData.GAME_STATE), store.resetPersistedDataAreas)
 
         // App startup should preserve readable buckets and report the current-game reset.
@@ -521,29 +522,15 @@ class TestPersistence : GameDomainTestFixtures() {
     }
 
     /**
-     * Verify app-version metadata is written, debug version names are accepted, and invalid
-     * versions reset only affected persistence buckets.
+     * Verify app-version metadata is written, compatible version names are accepted, and
+     * unsupported persistence versions reset only affected buckets.
      */
     @Test
     fun appVersionRecovery() {
-        // Build representative saved records for every persisted app-data bucket.
-        val storeDir = temporaryFolder.newFolder()
-        val store = FileAppStateStorage(storeDir)
-        val setup = newGameSetupState(LocalDateTime.of(2026, 5, 11, 10, 0))
-        val savedCurrentGameState = CurrentGameSnapshot(
-            liveState = createLiveGameState(setup),
-        )
-        val savedProfile = Profile(profileName = "Casey Observer")
-        val savedSettings = Settings(
-            timingAlertPreferences = TimingAlertPreferences(soundVolume = 0.35f),
-        )
-        val savedArchive = ArchivedGame(
-            state = createLiveGameState(setup).copy(phase = GamePhase.GAME_OVER),
-            summaryContext = "Final",
-        )
+        val records = persistenceRecords()
         val debugVersionName = "${BuildConfig.VERSION_NAME}-debug"
 
-        // Persistence-version helpers should accept release/debug names and reject invalid names.
+        // Persistence-version helpers should accept current version names and reject invalid names.
         val persistedVersion = AppVersion(
             versionName = debugVersionName,
             versionCode = APP_STATE_VERSION_CODE,
@@ -555,198 +542,99 @@ class TestPersistence : GameDomainTestFixtures() {
             currentPersistenceVersion("development-build", 99)
         }
 
-        // Missing version names should reset each affected split-state area.
-        store.saveProfile(savedProfile)
-        File(storeDir, "profile.json").removeStoredAppVersion()
-        assertEquals(Profile(), store.loadProfile())
-        assertEquals(setOf(PersistedData.PROFILE), store.resetPersistedDataAreas)
-
-        // Settings with missing version metadata should reset only Settings in addition.
-        store.saveSettings(savedSettings)
-        File(storeDir, "settings.json").removeStoredAppVersion()
-        assertEquals(Settings(), store.loadSettings())
-        assertEquals(
-            setOf(PersistedData.PROFILE, PersistedData.SETTINGS),
-            store.resetPersistedDataAreas,
-        )
-
-        // Archives with missing version metadata should reset only Archived games in addition.
-        store.saveArchivedGames(listOf(savedArchive))
-        File(File(storeDir, "archived_games"), "00000.json").removeStoredAppVersion()
-        assertTrue(store.loadArchivedGames().isEmpty())
-        assertEquals(
-            setOf(PersistedData.PROFILE, PersistedData.SETTINGS, PersistedData.ARCHIVED_GAMES),
-            store.resetPersistedDataAreas,
-        )
-
-        // Wrongly typed version fields and unsupported persistence versions reset narrowly.
-        store.saveCurrentGameState(savedCurrentGameState)
-        File(storeDir, "current_game_state.json")
-            .replaceText("\"versionName\": \"${BuildConfig.VERSION_NAME}\"", "\"versionName\": 1")
-        assertEquals(CurrentGameSnapshot(), store.loadCurrentGameState())
-        assertEquals(
-            setOf(
-                PersistedData.GAME_STATE,
-                PersistedData.PROFILE,
-                PersistedData.SETTINGS,
-                PersistedData.ARCHIVED_GAMES,
-            ),
-            store.resetPersistedDataAreas,
-        )
-
-        // A wrongly typed Profile version code should reset only Profile in addition.
-        store.saveProfile(savedProfile)
-        File(storeDir, "profile.json")
-            .replaceText("\"versionCode\": ${BuildConfig.VERSION_CODE}", "\"versionCode\": \"bad\"")
-        assertEquals(Profile(), store.loadProfile())
-        assertEquals(
-            setOf(
-                PersistedData.GAME_STATE,
-                PersistedData.SETTINGS,
-                PersistedData.ARCHIVED_GAMES,
-                PersistedData.PROFILE,
-            ),
-            store.resetPersistedDataAreas,
-        )
-
-        // A missing Profile version code follows the same narrow reset path.
-        store.saveProfile(savedProfile)
-        File(storeDir, "profile.json").removeStoredVersionCode()
-        assertEquals(Profile(), store.loadProfile())
-        assertEquals(
-            setOf(
-                PersistedData.GAME_STATE,
-                PersistedData.SETTINGS,
-                PersistedData.ARCHIVED_GAMES,
-                PersistedData.PROFILE,
-            ),
-            store.resetPersistedDataAreas,
-        )
+        // File-backed saves should write version metadata and wrap payloads under data.
+        val metadataStore = newFileStore()
+        metadataStore.store.saveProfile(records.profile)
+        val metadataJson = File(metadataStore.storeDir, "profile.json").readText()
+        assertTrue(metadataJson.contains("\"versionName\": \"${BuildConfig.VERSION_NAME}\""))
+        assertTrue(metadataJson.contains("\"versionCode\": ${BuildConfig.VERSION_CODE}"))
+        assertTrue(metadataJson.contains("\"data\""))
+        assertTrue(metadataStore.store.resetPersistedDataAreas.isEmpty())
 
         // A Profile with the same persistence version but a different revision number, and
         // thus a different Android version code, is still readable.
-        store.saveProfile(savedProfile)
-        File(storeDir, "profile.json").replaceText(
+        val versionCodeStore = newFileStore()
+        versionCodeStore.store.saveProfile(records.profile)
+        File(versionCodeStore.storeDir, "profile.json").replaceText(
             "\"versionCode\": ${BuildConfig.VERSION_CODE}",
             "\"versionCode\": 99",
         )
-        assertEquals(savedProfile, store.loadProfile())
-        assertEquals(
-            setOf(PersistedData.GAME_STATE, PersistedData.SETTINGS, PersistedData.ARCHIVED_GAMES),
-            store.resetPersistedDataAreas,
-        )
-
-        // A later unsupported Profile persistence version should reset Profile.
-        store.saveProfile(savedProfile)
-        File(storeDir, "profile.json").replaceText(
-            "\"versionName\": \"${BuildConfig.VERSION_NAME}\"",
-            "\"versionName\": \"99.0.0\"",
-        )
-        assertEquals(Profile(), store.loadProfile())
-        assertEquals(
-            setOf(
-                PersistedData.GAME_STATE,
-                PersistedData.SETTINGS,
-                PersistedData.ARCHIVED_GAMES,
-                PersistedData.PROFILE,
-            ),
-            store.resetPersistedDataAreas,
-        )
-
-        // Settings with a wrongly typed version code should reset only Settings in addition.
-        store.saveSettings(savedSettings)
-        File(storeDir, "settings.json")
-            .replaceText("\"versionCode\": ${BuildConfig.VERSION_CODE}", "\"versionCode\": \"bad\"")
-        assertEquals(Settings(), store.loadSettings())
-        assertEquals(
-            setOf(
-                PersistedData.GAME_STATE,
-                PersistedData.PROFILE,
-                PersistedData.ARCHIVED_GAMES,
-                PersistedData.SETTINGS,
-            ),
-            store.resetPersistedDataAreas,
-        )
-
-        // Archives with a wrongly typed version code should reset only Archived games in addition.
-        store.saveArchivedGames(listOf(savedArchive))
-        File(File(storeDir, "archived_games"), "00000.json")
-            .replaceText("\"versionCode\": ${BuildConfig.VERSION_CODE}", "\"versionCode\": \"bad\"")
-        assertTrue(store.loadArchivedGames().isEmpty())
-        assertEquals(
-            setOf(
-                PersistedData.GAME_STATE,
-                PersistedData.PROFILE,
-                PersistedData.SETTINGS,
-                PersistedData.ARCHIVED_GAMES,
-            ),
-            store.resetPersistedDataAreas,
-        )
+        assertEquals(records.profile, versionCodeStore.store.loadProfile())
+        assertTrue(versionCodeStore.store.resetPersistedDataAreas.isEmpty())
 
         // Debug-style version names are accepted.
-        store.saveProfile(savedProfile)
-        File(storeDir, "profile.json")
+        val debugProfileStore = newFileStore()
+        debugProfileStore.store.saveProfile(records.profile)
+        File(debugProfileStore.storeDir, "profile.json")
             .replaceText(
                 "\"versionName\": \"${BuildConfig.VERSION_NAME}\"",
                 "\"versionName\": \"$debugVersionName\"",
             )
-        assertEquals(savedProfile, store.loadProfile())
+        assertEquals(records.profile, debugProfileStore.store.loadProfile())
+        assertTrue(debugProfileStore.store.resetPersistedDataAreas.isEmpty())
+
+        // Debug-style archive version names are accepted.
+        val debugArchiveStore = newFileStore()
+        debugArchiveStore.store.saveArchivedGames(listOf(records.archive))
+        File(File(debugArchiveStore.storeDir, "archived_games"), "00000.json")
+            .replaceText(
+                "\"versionName\": \"${BuildConfig.VERSION_NAME}\"",
+                "\"versionName\": \"$debugVersionName\"",
+            )
         assertEquals(
-            setOf(PersistedData.GAME_STATE, PersistedData.SETTINGS, PersistedData.ARCHIVED_GAMES),
-            store.resetPersistedDataAreas,
+            listOf(records.archive),
+            debugArchiveStore.store.loadArchivedGames(),
+        )
+        assertTrue(debugArchiveStore.store.resetPersistedDataAreas.isEmpty())
+
+        // A later unsupported Profile persistence version should reset Profile.
+        val unsupportedProfileStore = newFileStore()
+        unsupportedProfileStore.store.saveProfile(records.profile)
+        File(unsupportedProfileStore.storeDir, "profile.json").replaceText(
+            "\"versionName\": \"${BuildConfig.VERSION_NAME}\"",
+            "\"versionName\": \"99.0.0\"",
+        )
+        assertEquals(Profile(), unsupportedProfileStore.store.loadProfile())
+        assertEquals(
+            setOf(PersistedData.PROFILE),
+            unsupportedProfileStore.store.resetPersistedDataAreas,
         )
 
         // A later unsupported Settings persistence version should reset Settings.
-        store.saveSettings(savedSettings)
-        File(storeDir, "settings.json").replaceText(
+        val unsupportedSettingsStore = newFileStore()
+        unsupportedSettingsStore.store.saveSettings(records.settings)
+        File(unsupportedSettingsStore.storeDir, "settings.json").replaceText(
             "\"versionName\": \"${BuildConfig.VERSION_NAME}\"",
             "\"versionName\": \"99.0.0\"",
         )
-        assertEquals(Settings(), store.loadSettings())
+        assertEquals(Settings(), unsupportedSettingsStore.store.loadSettings())
         assertEquals(
-            setOf(
-                PersistedData.GAME_STATE,
-                PersistedData.ARCHIVED_GAMES,
-                PersistedData.SETTINGS,
-            ),
-            store.resetPersistedDataAreas,
-        )
-
-        // Debug-style archive version names are accepted.
-        store.saveArchivedGames(listOf(savedArchive))
-        File(File(storeDir, "archived_games"), "00000.json")
-            .replaceText(
-                "\"versionName\": \"${BuildConfig.VERSION_NAME}\"",
-                "\"versionName\": \"$debugVersionName\"",
-            )
-        assertEquals(
-            listOf(savedArchive),
-            store.loadArchivedGames(),
-        )
-        assertEquals(
-            setOf(PersistedData.GAME_STATE, PersistedData.SETTINGS),
-            store.resetPersistedDataAreas,
+            setOf(PersistedData.SETTINGS),
+            unsupportedSettingsStore.store.resetPersistedDataAreas,
         )
 
         // A later unsupported archive persistence version should reset Archived games.
-        store.saveArchivedGames(listOf(savedArchive))
-        File(File(storeDir, "archived_games"), "00000.json").replaceText(
+        val unsupportedArchiveStore = newFileStore()
+        unsupportedArchiveStore.store.saveArchivedGames(listOf(records.archive))
+        File(File(unsupportedArchiveStore.storeDir, "archived_games"), "00000.json").replaceText(
             "\"versionName\": \"${BuildConfig.VERSION_NAME}\"",
             "\"versionName\": \"99.0.0\"",
         )
-        assertTrue(store.loadArchivedGames().isEmpty())
+        assertTrue(unsupportedArchiveStore.store.loadArchivedGames().isEmpty())
         assertEquals(
-            setOf(PersistedData.GAME_STATE, PersistedData.SETTINGS, PersistedData.ARCHIVED_GAMES),
-            store.resetPersistedDataAreas,
+            setOf(PersistedData.ARCHIVED_GAMES),
+            unsupportedArchiveStore.store.resetPersistedDataAreas,
         )
     }
 
     /**
-     * Verify malformed split-state JSON reports affected app-data areas, formats recovery
-     * notices, and recovers unreadable paths.
+     * Verify corrupt persisted files report affected app-data areas, format recovery notices,
+     * and recover unreadable paths.
      */
     @Test
-    fun malformedSplitStateRecovery() {
+    fun corruptPersistenceRecovery() {
+        val records = persistenceRecords()
+
         // Malformed split-state JSON reports the affected reset areas and restores defaults.
         val storeDir = temporaryFolder.newFolder()
         File(storeDir, "current_game_state.json").writeText("{not-json")
@@ -785,6 +673,101 @@ class TestPersistence : GameDomainTestFixtures() {
             RecoveryNotice(emptySet())
         }
 
+        // Missing version metadata resets only the affected profile bucket.
+        val missingProfileVersionStore = newFileStore()
+        missingProfileVersionStore.store.saveProfile(records.profile)
+        File(missingProfileVersionStore.storeDir, "profile.json").removeStoredAppVersion()
+        assertEquals(Profile(), missingProfileVersionStore.store.loadProfile())
+        assertEquals(
+            setOf(PersistedData.PROFILE),
+            missingProfileVersionStore.store.resetPersistedDataAreas,
+        )
+
+        // Missing version metadata resets only the affected settings bucket.
+        val missingSettingsVersionStore = newFileStore()
+        missingSettingsVersionStore.store.saveSettings(records.settings)
+        File(missingSettingsVersionStore.storeDir, "settings.json").removeStoredAppVersion()
+        assertEquals(Settings(), missingSettingsVersionStore.store.loadSettings())
+        assertEquals(
+            setOf(PersistedData.SETTINGS),
+            missingSettingsVersionStore.store.resetPersistedDataAreas,
+        )
+
+        // Missing version metadata resets only the affected archived-games bucket.
+        val missingArchiveVersionStore = newFileStore()
+        missingArchiveVersionStore.store.saveArchivedGames(listOf(records.archive))
+        File(File(missingArchiveVersionStore.storeDir, "archived_games"), "00000.json")
+            .removeStoredAppVersion()
+        assertTrue(missingArchiveVersionStore.store.loadArchivedGames().isEmpty())
+        assertEquals(
+            setOf(PersistedData.ARCHIVED_GAMES),
+            missingArchiveVersionStore.store.resetPersistedDataAreas,
+        )
+
+        // Wrongly typed current-game version fields reset only the current-game bucket.
+        val badCurrentVersionStore = newFileStore()
+        badCurrentVersionStore.store.saveCurrentGame(records.currentGame)
+        File(badCurrentVersionStore.storeDir, "current_game_state.json")
+            .replaceText("\"versionName\": \"${BuildConfig.VERSION_NAME}\"", "\"versionName\": 1")
+        assertNull(badCurrentVersionStore.store.loadCurrentGame())
+        assertEquals(
+            setOf(PersistedData.GAME_STATE),
+            badCurrentVersionStore.store.resetPersistedDataAreas,
+        )
+
+        // Wrongly typed Profile version codes reset only the profile bucket.
+        val badProfileVersionStore = newFileStore()
+        badProfileVersionStore.store.saveProfile(records.profile)
+        File(badProfileVersionStore.storeDir, "profile.json")
+            .replaceText("\"versionCode\": ${BuildConfig.VERSION_CODE}", "\"versionCode\": \"bad\"")
+        assertEquals(Profile(), badProfileVersionStore.store.loadProfile())
+        assertEquals(
+            setOf(PersistedData.PROFILE),
+            badProfileVersionStore.store.resetPersistedDataAreas,
+        )
+
+        // Missing Profile version codes follow the same narrow reset path.
+        val missingProfileVersionCodeStore = newFileStore()
+        missingProfileVersionCodeStore.store.saveProfile(records.profile)
+        File(missingProfileVersionCodeStore.storeDir, "profile.json").removeStoredVersionCode()
+        assertEquals(Profile(), missingProfileVersionCodeStore.store.loadProfile())
+        assertEquals(
+            setOf(PersistedData.PROFILE),
+            missingProfileVersionCodeStore.store.resetPersistedDataAreas,
+        )
+
+        // Wrongly typed Settings version codes reset only the settings bucket.
+        val badSettingsVersionStore = newFileStore()
+        badSettingsVersionStore.store.saveSettings(records.settings)
+        File(badSettingsVersionStore.storeDir, "settings.json")
+            .replaceText("\"versionCode\": ${BuildConfig.VERSION_CODE}", "\"versionCode\": \"bad\"")
+        assertEquals(Settings(), badSettingsVersionStore.store.loadSettings())
+        assertEquals(
+            setOf(PersistedData.SETTINGS),
+            badSettingsVersionStore.store.resetPersistedDataAreas,
+        )
+
+        // Wrongly typed archive version codes reset only the archived-games bucket.
+        val badArchiveVersionStore = newFileStore()
+        badArchiveVersionStore.store.saveArchivedGames(listOf(records.archive))
+        File(File(badArchiveVersionStore.storeDir, "archived_games"), "00000.json")
+            .replaceText("\"versionCode\": ${BuildConfig.VERSION_CODE}", "\"versionCode\": \"bad\"")
+        assertTrue(badArchiveVersionStore.store.loadArchivedGames().isEmpty())
+        assertEquals(
+            setOf(PersistedData.ARCHIVED_GAMES),
+            badArchiveVersionStore.store.resetPersistedDataAreas,
+        )
+
+        // Current-version files with metadata but no data payload reset only their bucket.
+        val missingDataStore = newFileStore()
+        missingDataStore.store.saveProfile(records.profile)
+        File(missingDataStore.storeDir, "profile.json").removeStoredData()
+        assertEquals(Profile(), missingDataStore.store.loadProfile())
+        assertEquals(
+            setOf(PersistedData.PROFILE),
+            missingDataStore.store.resetPersistedDataAreas,
+        )
+
         // Unreadable split-state paths recover the affected bucket to defaults.
         val unreadableStoreDir = temporaryFolder.newFolder()
         assertTrue(File(unreadableStoreDir, "profile.json").mkdir())
@@ -807,15 +790,17 @@ class TestPersistence : GameDomainTestFixtures() {
         assertTrue(currentGameStatePath.mkdir())
         assertTrue(File(currentGameStatePath, "blocking-child").writeText("blocker").let { true })
         val store = FileAppStateStorage(storeDir)
-        val setup = newGameSetupState(LocalDateTime.of(2026, 5, 11, 10, 0))
+        val setup = newSetupGameState(
+            now = epochTimestamp(
+                LocalDate.of(2026, 5, 11),
+                LocalTime.of(10, 0),
+                ZoneId.systemDefault(),
+            ),
+        )
 
         // The failed save should throw and remove its temporary write file.
         assertThrows(IOException::class.java) {
-            store.saveCurrentGameState(
-                CurrentGameSnapshot(
-                    setupDraft = setup,
-                )
-            )
+            store.saveCurrentGame(setup)
         }
         assertFalse(File(storeDir, ".current_game_state.json.tmp").exists())
     }
@@ -836,13 +821,17 @@ class TestPersistence : GameDomainTestFixtures() {
                 throw AtomicMoveNotSupportedException(source.path, target.path, "forced fallback")
             },
         )
-        val setup = newGameSetupState(LocalDateTime.of(2026, 5, 11, 10, 0))
-        val savedState = CurrentGameSnapshot(
-            setupDraft = setup,
+        val setup = newSetupGameState(
+            now = epochTimestamp(
+                LocalDate.of(2026, 5, 11),
+                LocalTime.of(10, 0),
+                ZoneId.systemDefault(),
+            ),
         )
+        val savedState = setup
 
         // Force the atomic path to fail and verify the fallback path replaces each split file.
-        store.saveCurrentGameState(savedState)
+        store.saveCurrentGame(savedState)
         store.saveProfile(Profile(profileName = "Casey Observer"))
         store.saveSettings(Settings(timingAlertPreferences = TimingAlertPreferences()))
         assertEquals(3, atomicMoveAttempts)
@@ -851,8 +840,71 @@ class TestPersistence : GameDomainTestFixtures() {
         assertFalse(File(storeDir, ".settings.json.tmp").exists())
 
         // Load through a normal store to verify the fallback wrote valid serialized state.
-        val restoredState = FileAppStateStorage(storeDir).loadCurrentGameState()
+        val restoredState = FileAppStateStorage(storeDir).loadCurrentGame()
         assertEquals(savedState, restoredState)
+    }
+
+    /**
+     * File-backed store and its backing directory for one isolated persistence test block.
+     *
+     * @param storeDir Directory containing the persistence files for this block.
+     * @param store File-backed storage reading and writing `storeDir`.
+     */
+    private data class TestFileStore(
+        val storeDir: File,
+        val store: FileAppStateStorage,
+    )
+
+    /// Build a fresh file-backed store for one narrative block.
+    private fun newFileStore(): TestFileStore {
+        val storeDir = temporaryFolder.newFolder()
+        return TestFileStore(
+            storeDir = storeDir,
+            store = FileAppStateStorage(storeDir),
+        )
+    }
+
+    /**
+     * Representative persisted records used by version and corruption recovery tests.
+     *
+     * @param currentGame Current-game bucket payload.
+     * @param profile Profile bucket payload.
+     * @param settings Settings bucket payload.
+     * @param archive Archived-game bucket payload.
+     */
+    private data class PersistenceRecords(
+        val currentGame: GameState,
+        val profile: Profile,
+        val settings: Settings,
+        val archive: ArchivedGame,
+    )
+
+    /// Build representative records for every persisted app-data bucket.
+    private fun persistenceRecords(): PersistenceRecords {
+        val setup = newSetupGameState(
+            now = epochTimestamp(
+                LocalDate.of(2026, 5, 11),
+                LocalTime.of(10, 0),
+                ZoneId.systemDefault(),
+            ),
+        )
+        return PersistenceRecords(
+            currentGame = createLiveGameState(setup),
+            profile = Profile(profileName = "Casey Observer"),
+            settings = Settings(
+                timingAlertPreferences = TimingAlertPreferences(soundVolume = 0.35f),
+            ),
+            archive = ArchivedGame(
+                state = createLiveGameState(setup).copy(phase = GamePhase.GAME_OVER),
+                summaryContext = "Final",
+            ),
+        )
+    }
+
+    /// Remove the payload field from a current-version persisted bucket.
+    private fun File.removeStoredData() {
+        val jsonObject = appStateJson.parseToJsonElement(readText()).jsonObject
+        writeText(appStateJson.encodeToString(JsonObject(jsonObject - "data")))
     }
 }
 
@@ -894,7 +946,7 @@ private fun File.replaceText(oldValue: String, newValue: String) {
 
 /// Recording fake for AppViewModel persistence writes without touching the file system.
 private class RecordingAppStateStorage : AppStateStorage {
-    val savedCurrentGameStates = mutableListOf<CurrentGameSnapshot>()
+    val savedCurrentGames = mutableListOf<GameState?>()
     val savedProfiles = mutableListOf<Profile>()
     val savedSettings = mutableListOf<Settings>()
     val savedArchivedGames = mutableListOf<List<ArchivedGame>>()
@@ -902,15 +954,15 @@ private class RecordingAppStateStorage : AppStateStorage {
     override val resetPersistedDataAreas: Set<PersistedData> = emptySet()
 
     /// Load no current game for this recording fake.
-    override fun loadCurrentGameState(): CurrentGameSnapshot? = null
+    override fun loadCurrentGame(): GameState? = null
 
     /**
      * Record a current-game save request.
      *
      * @param state The current-game state passed by the ViewModel.
      */
-    override fun saveCurrentGameState(state: CurrentGameSnapshot) {
-        savedCurrentGameStates += state
+    override fun saveCurrentGame(state: GameState?) {
+        savedCurrentGames += state
     }
 
     /// Load no profile for this recording fake.

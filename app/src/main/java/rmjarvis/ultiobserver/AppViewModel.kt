@@ -25,9 +25,8 @@ internal enum class AppScreen {
  * Snapshot of app-level UI/session state owned by AppViewModel.
  *
  * @param screen The top-level app screen currently routed by the app shell.
- * @param setupState The current setup form state, including drafts and setup edits.
- * @param liveState The mutable current game, or null when only a setup draft exists.
- * @param setupMode Whether setup is creating a new game or editing the current game.
+ * @param currentGame The mutable current game, including setup drafts and completed games.
+ * @param setupEditDraft Uncommitted setup edits for an existing current game.
  * @param profileName The observer profile name.
  * @param avatarPreference The stored observer avatar preference.
  * @param homeAvatarPreference The concrete avatar shown on Home after resolving random choices.
@@ -38,14 +37,12 @@ internal enum class AppScreen {
  * @param archivedGames The archived game summaries loaded into the app session.
  * @param selectedArchiveCategory The archive category currently open from the category landing page.
  * @param viewingArchivedGame The archived game currently open as a read-only summary.
- * @param hasSetupDraft Whether Home should expose a resumable setup draft.
  * @param startupRecoveryNotice The startup data-recovery notice, if corrupted app data was reset.
  */
 internal data class AppUiState(
     val screen: AppScreen = AppScreen.HOME,
-    val setupState: GameSetupState,
-    val liveState: GameState?,
-    val setupMode: SetupMode,
+    val currentGame: GameState?,
+    val setupEditDraft: GameState?,
     val profileName: String,
     val avatarPreference: ObserverAvatarPreference,
     val homeAvatarPreference: ObserverAvatarPreference,
@@ -56,7 +53,6 @@ internal data class AppUiState(
     val archivedGames: List<ArchivedGame>,
     val selectedArchiveCategory: ArchivedGameCategory?,
     val viewingArchivedGame: ArchivedGame?,
-    val hasSetupDraft: Boolean,
     val startupRecoveryNotice: RecoveryNotice?,
 )
 
@@ -80,18 +76,16 @@ internal class AppViewModel(
     // Injected so tests can make random avatar selection deterministic.
     private val chooseAvatarIndex: (Int) -> Int = { size -> Random.nextInt(size) },
 ) : ViewModel() {
-    private val persistedCurrentGameState = appStateStorage.loadCurrentGameState()
+    private val persistedCurrentGame = appStateStorage.loadCurrentGame()
     private val persistedProfile = appStateStorage.loadProfile()
     private val persistedSettings = appStateStorage.loadSettings()
-    private val restoredSetupDraft = persistedCurrentGameState?.hasSetupDraft ?: false
     private val restoredArchivedGames = appStateStorage.loadArchivedGames()
     private val recoveredPersistedDataAreas = appStateStorage.resetPersistedDataAreas
 
     private val _state = MutableStateFlow(
         AppUiState(
-            setupState = persistedCurrentGameState?.setupState ?: newGameSetupState(),
-            liveState = persistedCurrentGameState?.liveState,
-            setupMode = persistedCurrentGameState?.setupMode ?: SetupMode.NEW_GAME,
+            currentGame = persistedCurrentGame,
+            setupEditDraft = null,
             profileName = persistedProfile?.profileName ?: "",
             avatarPreference = persistedProfile?.avatarPreference ?: ObserverAvatarPreference.RANDOM,
             homeAvatarPreference = resolveHomeAvatarPreference(
@@ -104,7 +98,6 @@ internal class AppViewModel(
             archivedGames = restoredArchivedGames,
             selectedArchiveCategory = null,
             viewingArchivedGame = null,
-            hasSetupDraft = restoredSetupDraft,
             startupRecoveryNotice = recoveredPersistedDataAreas.takeIf { it.isNotEmpty() }?.let { resetAreas ->
                 RecoveryNotice(resetAreas)
             },
@@ -115,12 +108,23 @@ internal class AppViewModel(
 
     val screen: AppScreen
         get() = state.value.screen
-    val setupState: GameSetupState
-        get() = state.value.setupState
+    val currentGame: GameState?
+        get() = state.value.currentGame
+    val setupEditDraft: GameState?
+        get() = state.value.setupEditDraft
+    val setupState: GameState
+        get() = setupEditDraft ?: currentGame ?: error("No setup state is active.")
     val liveState: GameState?
-        get() = state.value.liveState
+        get() = currentGame?.takeUnless { it.phase == GamePhase.SETUP }
     val setupMode: SetupMode
-        get() = state.value.setupMode
+        get() {
+            val game = currentGame
+            return if (setupEditDraft != null || (game != null && game.phase != GamePhase.SETUP)) {
+                SetupMode.EDIT_CURRENT_GAME
+            } else {
+                SetupMode.NEW_GAME
+            }
+        }
     val profileName: String
         get() = state.value.profileName
     val avatarPreference: ObserverAvatarPreference
@@ -142,7 +146,7 @@ internal class AppViewModel(
     val viewingArchivedGame: ArchivedGame?
         get() = state.value.viewingArchivedGame
     val hasSetupDraft: Boolean
-        get() = state.value.hasSetupDraft
+        get() = currentGame?.phase == GamePhase.SETUP
     val startupRecoveryNotice: RecoveryNotice?
         get() = state.value.startupRecoveryNotice
 
@@ -151,17 +155,15 @@ internal class AppViewModel(
     }
 
     val currentLiveState: GameState?
-        get() = viewingArchivedGame?.state ?: liveState
+        get() = viewingArchivedGame?.state ?: currentGame
 
     val viewingReadOnlySummary: Boolean
         get() = viewingArchivedGame != null
 
     val currentGameHomeSubtitle: String?
         get() {
-            val current = liveState
+            val current = currentGame
             return when {
-                current?.isInitialLivePreview() == true -> "Tap to resume"
-                current == null && hasSetupDraft -> "Tap to resume"
                 current != null && current.phase != GamePhase.GAME_OVER -> "Tap to resume"
                 else -> null
             }
@@ -174,6 +176,7 @@ internal class AppViewModel(
                 screen = AppScreen.HOME,
                 selectedArchiveCategory = null,
                 viewingArchivedGame = null,
+                setupEditDraft = null,
             )
         }
     }
@@ -200,13 +203,17 @@ internal class AppViewModel(
             return
         }
 
+        if (screen == AppScreen.SETUP && setupEditDraft != null) {
+            cancelSetupEdit()
+            return
+        }
+
         if (screen != AppScreen.LIVE) {
             goHome()
             return
         }
 
-        val current = liveState!!
-        if (current.isInitialLivePreview()) {
+        if (currentGame?.isInitialLivePreview() == true) {
             reopenSetupDraftFromInitialPreview()
             return
         }
@@ -215,16 +222,17 @@ internal class AppViewModel(
     }
 
     /**
-     * Replace setup form state and preserve a new-game draft when appropriate.
+     * Replace the setup game being edited.
      *
-     * @param updatedSetup The setup form state produced by the UI.
+     * @param updatedGame The setup-edited game state produced by the UI.
      */
-    fun updateSetup(updatedSetup: GameSetupState) {
-        _state.update { it.copy(setupState = updatedSetup) }
-        if (setupMode == SetupMode.NEW_GAME) {
-            _state.update { it.copy(hasSetupDraft = true) }
+    fun updateSetup(updatedGame: GameState) {
+        if (setupEditDraft != null) {
+            _state.update { it.copy(setupEditDraft = updatedGame) }
+            return
         }
-        persistCurrentGameState()
+        _state.update { it.copy(currentGame = updatedGame) }
+        persistCurrentGame()
     }
 
     /**
@@ -235,8 +243,8 @@ internal class AppViewModel(
     fun updateLiveGame(updatedGame: GameState) {
         if (viewingArchivedGame == null) {
             // All live game event logging flows through this ViewModel boundary.
-            _state.update { it.copy(liveState = updatedGame) }
-            persistCurrentGameState()
+            _state.update { it.copy(currentGame = updatedGame) }
+            persistCurrentGame()
         }
     }
 
@@ -451,13 +459,14 @@ internal class AppViewModel(
 
     /// Resume the current setup draft, initial live preview, or active live game from Home.
     fun resumeCurrentGame() {
-        val current = liveState
-        if (current == null) {
-            resumeSetupDraft()
-            return
-        }
-        if (current.isInitialLivePreview()) {
-            reopenSetupDraftFromInitialPreview()
+        val current = currentGame ?: return
+        if (current.phase == GamePhase.SETUP) {
+            _state.update {
+                it.copy(
+                    viewingArchivedGame = null,
+                    screen = AppScreen.SETUP,
+                )
+            }
             return
         }
         if (current.phase != GamePhase.GAME_OVER) {
@@ -465,23 +474,9 @@ internal class AppViewModel(
         }
     }
 
-    /// Resume a saved setup draft when no live game exists yet.
-    fun resumeSetupDraft() {
-        if (liveState == null && hasSetupDraft) {
-            _state.update {
-                it.copy(
-                    viewingArchivedGame = null,
-                    setupMode = SetupMode.NEW_GAME,
-                    screen = AppScreen.SETUP,
-                )
-            }
-            persistCurrentGameState()
-        }
-    }
-
     /// Open the current completed game summary from Home.
     fun openCompletedGame() {
-        val current = liveState ?: return
+        val current = currentGame ?: return
         if (current.phase == GamePhase.GAME_OVER) {
             openScreen(AppScreen.LIVE)
         }
@@ -496,7 +491,7 @@ internal class AppViewModel(
         val actualIndex = archivedGameIndex(index)
         val archived = archivedGames[actualIndex]
         if (archived.category == ArchivedGameCategory.SETUP) {
-            restoreSavedSetup(actualIndex, archived, now)
+            restoreArchivedGame(actualIndex, now)
             return
         }
         _state.update {
@@ -509,7 +504,7 @@ internal class AppViewModel(
 
     /// Move the current completed game into the archived games list.
     fun archiveCompletedGame() {
-        val completed = liveState ?: return
+        val completed = currentGame ?: return
         if (completed.phase != GamePhase.GAME_OVER) {
             return
         }
@@ -520,46 +515,49 @@ internal class AppViewModel(
         _state.update {
             it.copy(
                 archivedGames = updatedArchivedGames,
-                liveState = null,
+                currentGame = null,
                 viewingArchivedGame = null,
             )
         }
         persistArchivedGames()
-        persistCurrentGameState()
+        persistCurrentGame()
     }
 
     /**
-     * Restore one archived game as the current game.
+     * Restore one archived game from storage as the current game.
      *
      * @param index The archived-game index to restore.
+     * @param now Epoch millis when any displaced current game is saved aside.
      */
-    fun restoreArchivedGame(index: Int, now: Long) {
-        val archived = archivedGames.getOrNull(index) ?: return
+    private fun restoreArchivedGame(index: Int, now: Long) {
+        val archived = archivedGames[index]
         val updatedArchivedGames = archivedGames.toMutableList().also { games ->
             games.removeAt(index)
-            liveState?.let { current ->
-                games += archivedGameFor(current, now)
+            archiveCurrentGameIfNeeded(now)?.let { archivedCurrent ->
+                games += archivedCurrent
             }
         }
         val restoredState = archived.state
         _state.update {
             it.copy(
                 archivedGames = updatedArchivedGames,
-                setupState = restoredState.toSetupState(),
-                liveState = restoredState,
+                currentGame = restoredState,
+                setupEditDraft = null,
                 viewingArchivedGame = null,
                 selectedArchiveCategory = null,
-                setupMode = SetupMode.EDIT_CURRENT_GAME,
-                hasSetupDraft = false,
-                screen = AppScreen.LIVE,
+                screen = if (restoredState.phase == GamePhase.SETUP) {
+                    AppScreen.SETUP
+                } else {
+                    AppScreen.LIVE
+                },
             )
         }
         persistArchivedGames()
-        persistCurrentGameState()
+        persistCurrentGame()
     }
 
-    /// Restore the archived game currently open as a read-only summary.
-    fun restoreViewingArchivedGame(now: Long) {
+    /// Restore the completed game currently open as a read-only summary.
+    fun restoreCompletedGame(now: Long) {
         val archived = viewingArchivedGame ?: return
         val index = archivedGames.indexOfFirst { it === archived }
         restoreArchivedGame(index, now)
@@ -567,23 +565,24 @@ internal class AppViewModel(
 
     /// Save the current new-game setup as a phase=SETUP GameState, archive it, and return Home.
     fun saveSetupForLater() {
+        // This action is only exposed while creating a setup-phase game.
+        val setupGame = currentGame!!
         val archivedSetup = ArchivedGame(
-            state = createGameState(setupState),
+            state = setupGame,
             summaryContext = "",
         )
         _state.update {
             it.copy(
                 archivedGames = archivedGames + archivedSetup,
-                liveState = null,
+                currentGame = null,
+                setupEditDraft = null,
                 viewingArchivedGame = null,
                 selectedArchiveCategory = null,
-                setupMode = SetupMode.NEW_GAME,
-                hasSetupDraft = false,
                 screen = AppScreen.HOME,
             )
         }
         persistArchivedGames()
-        persistCurrentGameState()
+        persistCurrentGame()
     }
 
     /**
@@ -592,7 +591,8 @@ internal class AppViewModel(
      * @param now The epoch millis to store as the manual game-over time.
      */
     fun archiveSavedInProgressGame(now: Long) {
-        val archived = checkNotNull(viewingArchivedGame)
+        // This action is only exposed while viewing a saved in-progress game.
+        val archived = viewingArchivedGame!!
         val actualIndex = archivedGames.indexOfFirst { it === archived }
         val updatedArchivedGames = archivedGames.toMutableList().also { games ->
             games[actualIndex] = archived.asCompletedArchive(now)
@@ -612,15 +612,14 @@ internal class AppViewModel(
     fun deleteCurrentGame() {
         _state.update {
             it.copy(
-                liveState = null,
+                currentGame = null,
+                setupEditDraft = null,
                 viewingArchivedGame = null,
                 selectedArchiveCategory = null,
-                setupMode = SetupMode.NEW_GAME,
-                hasSetupDraft = false,
                 screen = AppScreen.HOME,
             )
         }
-        persistCurrentGameState()
+        persistCurrentGame()
     }
 
     /**
@@ -642,7 +641,8 @@ internal class AppViewModel(
 
     /// Delete all games in the currently selected archive category.
     fun deleteArchivedGamesInSelectedCategory() {
-        val category = checkNotNull(selectedArchiveCategory)
+        // This action is only exposed from within a selected archive category.
+        val category = selectedArchiveCategory!!
         _state.update {
             it.copy(
                 archivedGames = archivedGames.filterNot { game ->
@@ -654,7 +654,7 @@ internal class AppViewModel(
         persistArchivedGames()
     }
 
-    /// Delete all archived games.
+    /// Delete all archived/saved games.
     fun deleteAllArchivedGames() {
         _state.update {
             it.copy(
@@ -668,33 +668,26 @@ internal class AppViewModel(
 
     /// Start a new game setup, archiving any existing started current game first.
     fun startNewGame(now: Long) {
-        var shouldPersistArchivedGames = false
-        var updatedArchivedGames = archivedGames
-        liveState?.let { existing ->
-            if (!existing.isInitialLivePreview()) {
-                updatedArchivedGames = updatedArchivedGames + archivedGameFor(existing, now)
-                shouldPersistArchivedGames = true
-            }
-        }
+        val archivedCurrent = archiveCurrentGameIfNeeded(now)
+        val updatedArchivedGames = archivedCurrent?.let { archivedGames + it } ?: archivedGames
         val previousSetupDefaults = updatedArchivedGames.lastOrNull()?.state
         _state.update {
             it.copy(
                 archivedGames = updatedArchivedGames,
-                setupState = newGameSetupState(
+                currentGame = newSetupGameState(
+                    now = now,
                     defaultsFrom = previousSetupDefaults,
                 ),
-                liveState = null,
+                setupEditDraft = null,
                 viewingArchivedGame = null,
                 selectedArchiveCategory = null,
-                setupMode = SetupMode.NEW_GAME,
-                hasSetupDraft = true,
                 screen = AppScreen.SETUP,
             )
         }
-        if (shouldPersistArchivedGames) {
+        if (archivedCurrent != null) {
             persistArchivedGames()
         }
-        persistCurrentGameState()
+        persistCurrentGame()
     }
 
     /**
@@ -703,22 +696,23 @@ internal class AppViewModel(
      * @param now The epoch millis used when applying setup edits to an existing pre-play countdown.
      */
     fun finishSetup(now: Long) {
-        val updatedLiveState = if (setupMode == SetupMode.NEW_GAME) {
-            createLiveGameState(setupState)
+        val setupEdit = setupEditDraft
+        val current = currentGame!!
+        val updatedCurrentGame = if (setupEdit == null) {
+            current.startGame()
         } else {
-            applySetupToLiveGame(liveState!!, setupState, now)
+            applySetupEditToLiveGame(current, setupEdit, now)
         }
         _state.update {
             it.copy(
-                liveState = updatedLiveState,
+                currentGame = updatedCurrentGame,
+                setupEditDraft = null,
                 viewingArchivedGame = null,
                 selectedArchiveCategory = null,
-                hasSetupDraft = false,
-                setupMode = SetupMode.EDIT_CURRENT_GAME,
                 screen = AppScreen.LIVE,
             )
         }
-        persistCurrentGameState()
+        persistCurrentGame()
     }
 
     /**
@@ -736,27 +730,50 @@ internal class AppViewModel(
         }
         _state.update {
             it.copy(
-                setupState = currentGame.toSetupState(),
-                setupMode = SetupMode.EDIT_CURRENT_GAME,
+                setupEditDraft = currentGame,
                 screen = AppScreen.SETUP,
             )
         }
-        persistCurrentGameState()
+    }
+
+    /// Discard setup edits for the current live game and return to the live screen.
+    fun cancelSetupEdit() {
+        _state.update {
+            it.copy(
+                setupEditDraft = null,
+                viewingArchivedGame = null,
+                selectedArchiveCategory = null,
+                screen = AppScreen.LIVE,
+            )
+        }
     }
 
     /// Convert the initial live preview back into a resumable setup draft.
     private fun reopenSetupDraftFromInitialPreview() {
         _state.update {
+            val current = it.currentGame!!
             it.copy(
-                liveState = null,
+                currentGame = current.copy(
+                    teamOne = current.teamOne.withBlankDefaultSetupName(TeamId.TEAM_ONE),
+                    teamTwo = current.teamTwo.withBlankDefaultSetupName(TeamId.TEAM_TWO),
+                    phase = GamePhase.SETUP,
+                    countdown = null,
+                    pullCountdownExpired = false,
+                    undoEntry = null,
+                    redoEntry = null,
+                ),
+                setupEditDraft = null,
                 viewingArchivedGame = null,
                 selectedArchiveCategory = null,
-                setupMode = SetupMode.NEW_GAME,
-                hasSetupDraft = true,
                 screen = AppScreen.SETUP,
             )
         }
-        persistCurrentGameState()
+        persistCurrentGame()
+    }
+
+    /// Return this team with a setup placeholder restored to blank.
+    private fun TeamState.withBlankDefaultSetupName(teamId: TeamId): TeamState {
+        return if (name == teamId.defaultName()) copy(name = "") else this
     }
 
     /**
@@ -794,37 +811,6 @@ internal class AppViewModel(
     }
 
     /**
-     * Restore one saved setup archive as the current setup draft.
-     *
-     * @param index The actual archived-games index to restore.
-     * @param archived The saved setup archive to restore.
-     */
-    private fun restoreSavedSetup(index: Int, archived: ArchivedGame, now: Long) {
-        val updatedArchivedGames = archivedGames.toMutableList().also { games ->
-            games.removeAt(index)
-            liveState?.let { current ->
-                if (!current.isInitialLivePreview()) {
-                    games += archivedGameFor(current, now)
-                }
-            }
-        }
-        _state.update {
-            it.copy(
-                archivedGames = updatedArchivedGames,
-                setupState = archived.state.toSetupState(),
-                liveState = null,
-                viewingArchivedGame = null,
-                selectedArchiveCategory = null,
-                setupMode = SetupMode.NEW_GAME,
-                hasSetupDraft = true,
-                screen = AppScreen.SETUP,
-            )
-        }
-        persistArchivedGames()
-        persistCurrentGameState()
-    }
-
-    /**
      * Build the archive entry for a current game without losing active restore state.
      *
      * @param current The live or completed current game being moved out of the current slot.
@@ -844,6 +830,21 @@ internal class AppViewModel(
     }
 
     /**
+     * Return an archive for the current game when automatic save-aside is appropriate.
+     *
+     * Setup-only states are discarded unless the observer explicitly saves them for later.
+     *
+     * @param now Epoch millis when the game is being saved aside.
+     */
+    private fun archiveCurrentGameIfNeeded(now: Long): ArchivedGame? {
+        val current = currentGame ?: return null
+        if (current.phase == GamePhase.SETUP || current.isInitialLivePreview()) {
+            return null
+        }
+        return archivedGameFor(current, now)
+    }
+
+    /**
      * Return context for a game saved because a new game was started.
      *
      * @param current The game being saved aside.
@@ -855,13 +856,8 @@ internal class AppViewModel(
     }
 
     /// Persist the current/setup game bucket.
-    private fun persistCurrentGameState() {
-        appStateStorage.saveCurrentGameState(
-            CurrentGameSnapshot(
-                setupDraft = setupState.takeIf { liveState == null && hasSetupDraft },
-                liveState = liveState,
-            )
-        )
+    private fun persistCurrentGame() {
+        appStateStorage.saveCurrentGame(currentGame)
     }
 
     /// Persist the profile bucket.
@@ -898,7 +894,7 @@ internal class AppViewModel(
      */
     private fun persistRecoveredDataAreas(resetAreas: Set<PersistedData>) {
         if (PersistedData.GAME_STATE in resetAreas) {
-            persistCurrentGameState()
+            persistCurrentGame()
         }
         if (PersistedData.PROFILE in resetAreas) {
             persistProfileState()

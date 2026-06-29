@@ -139,6 +139,11 @@ enum class TeamId {
     fun flip(): TeamId {
         return if (this == TEAM_ONE) TEAM_TWO else TEAM_ONE
     }
+
+    /// Return the default display name for this team.
+    fun defaultName(): String {
+        return if (this == TEAM_ONE) "Team 1" else "Team 2"
+    }
 }
 /// Identity of the field end nearest or farthest from the observer.
 @Serializable
@@ -198,32 +203,6 @@ enum class TeamColorChoice(
     GRAY("Gray", 0xFF708090, 0xFFF7F8FA),
     CUSTOM("Custom", 0x00000000, 0x00000000),
 }
-/**
- * Editable identity fields for one team.
- *
- * @param name The team name; blank means no explicit setup name yet.
- * @param color The active jersey color for this team.
- * @param customColorArgb Opaque ARGB value for a saved custom jersey color, or null when none
- * has been picked.
- * @param coaches Free-form coach name/details entered for this team.
- * @param fieldCaptains Free-form field-captain name/details entered for this team.
- * @param spiritCaptains Free-form spirit-captain name/details entered for this team.
- */
-@Serializable
-data class TeamIdentity(
-    val name: String,
-    val color: TeamColorChoice,
-    val customColorArgb: Long? = null,
-    val coaches: String = "",
-    val fieldCaptains: String = "",
-    val spiritCaptains: String = "",
-) {
-    init {
-        require(color != TeamColorChoice.CUSTOM || customColorArgb != null) {
-            "customColorArgb is required when color is CUSTOM."
-        }
-    }
-}
 /// Configurable rules that affect scoring, caps, halftime, and timeout allowances.
 @Serializable
 data class GameRules(
@@ -271,9 +250,15 @@ enum class GenderRatio(val displayText: String) {
     }
 }
 /**
- * Live counters and editable identity for one team.
+ * State for one team, including setup fields and game counters.
  *
- * @param identity Editable team name, color, coach, and captain details.
+ * @param name The team name; blank means no explicit setup name yet.
+ * @param color The active jersey color for this team.
+ * @param customColorArgb Opaque ARGB value for a saved custom jersey color, or null when none
+ * has been picked.
+ * @param coaches Free-form coach name/details entered for this team.
+ * @param fieldCaptains Free-form field-captain name/details entered for this team.
+ * @param spiritCaptains Free-form spirit-captain name/details entered for this team.
  * @param score The team's current score.
  * @param timeoutsUsedThisHalf Number of timeouts this team has used in the current half.
  * @param firstHalfTimeoutsUsed Stored after halftime so floater-timeout carryover can be derived.
@@ -283,8 +268,13 @@ enum class GenderRatio(val displayText: String) {
  * @param timeViolations Number of time violations recorded for this team.
  */
 @Serializable
-data class TeamLiveState(
-    val identity: TeamIdentity,
+data class TeamState(
+    val name: String,
+    val color: TeamColorChoice,
+    val customColorArgb: Long? = null,
+    val coaches: String = "",
+    val fieldCaptains: String = "",
+    val spiritCaptains: String = "",
     val score: Int = 0,
     val timeoutsUsedThisHalf: Int = 0,
     val firstHalfTimeoutsUsed: Int = 0,
@@ -295,47 +285,39 @@ data class TeamLiveState(
     val technicalFouls: Int = 0,
     val blueCards: Int = 0,
 ) {
-    val name: String
-        get() = identity.name
-
-    val color: TeamColorChoice
-        get() = identity.color
-
-    val customColorArgb: Long?
-        get() = identity.customColorArgb
-
-    val coaches: String
-        get() = identity.coaches
-
-    val fieldCaptains: String
-        get() = identity.fieldCaptains
-
-    val spiritCaptains: String
-        get() = identity.spiritCaptains
+    init {
+        require(color != TeamColorChoice.CUSTOM || customColorArgb != null) {
+            "customColorArgb is required when color is CUSTOM."
+        }
+    }
 
     /// Return this team state with one additional timeout used in the current half.
-    fun withAddedTimeout(): TeamLiveState {
+    fun withAddedTimeout(): TeamState {
         return copy(timeoutsUsedThisHalf = timeoutsUsedThisHalf + 1)
     }
 
-    /// Return this team state with updated editable identity fields.
-    fun withIdentity(identity: TeamIdentity): TeamLiveState {
-        return copy(identity = identity)
+    /**
+     * Return this team's name with its setup fallback applied.
+     *
+     * @param teamId The team id that supplies the side-specific fallback label.
+     */
+    fun normalizedName(teamId: TeamId): String {
+        return name.ifBlank { teamId.defaultName() }
     }
 }
 
 /// Return whether this team has coach or captain details to show during the game.
-internal fun TeamLiveState.hasCoachOrCaptainInfo(): Boolean {
+internal fun TeamState.hasCoachOrCaptainInfo(): Boolean {
     return coaches.isNotBlank() || fieldCaptains.isNotBlank() || spiritCaptains.isNotBlank()
 }
 
 /// Count combined offsides and false-start pull violations for display.
-internal fun TeamLiveState.pullViolationCount(): Int {
+internal fun TeamState.pullViolationCount(): Int {
     return offsides + falseStarts + majorityPullViolations
 }
 
 /// Return teams ordered with the higher-scoring team first for summary display.
-internal fun GameState.winnerFirstTeams(): List<TeamLiveState> {
+internal fun GameState.winnerFirstTeams(): List<TeamState> {
     val teamOneFirst = teamOne.score > teamTwo.score ||
         (teamOne.score == teamTwo.score && teamOne.name <= teamTwo.name)
     return if (teamOneFirst) {
@@ -480,7 +462,6 @@ enum class CountdownKind {
 /**
  * Complete mutable state of one setup/live/completed game.
  *
- * @param startEpoch Epoch millis for the scheduled game start.
  * @param endEpoch Epoch millis when the game ended, or null while active.
  * @param tournamentName Optional tournament name used in completed-game summaries.
  * @param division Optional division context for the game.
@@ -489,7 +470,7 @@ enum class CountdownKind {
  * @param observers Optional list of observers assigned to the game.
  * @param nearEndName Optional custom label for the near field end.
  * @param farEndName Optional custom label for the far field end.
- * @param nearAttackingTeam The team attacking the observer's near end.
+ * @param pullingTeam The team currently pulling.
  * @param pullingFromEnd The field end occupied by the pulling team.
  * @param topDisplayedEnd The field end shown at the top of the live field display.
  * @param pullPromptTarget Which field end or ends should receive pulling prompts.
@@ -511,9 +492,8 @@ data class GameState(
     val startTime: LocalTime,
     @Serializable(with = ZoneIdAsStringSerializer::class)
     val timeZone: ZoneId,
-    val startEpoch: Long,
     val endEpoch: Long? = null,
-    val tournamentName: String = "",
+    val tournamentName: String,
     val division: GameDivision? = null,
     val level: String = "",
     val gameContext: String = "",
@@ -521,12 +501,11 @@ data class GameState(
     val nearEndName: String = "",
     val farEndName: String = "",
     val rules: GameRules,
-    val teamOne: TeamLiveState,
-    val teamTwo: TeamLiveState,
+    val teamOne: TeamState,
+    val teamTwo: TeamState,
     val teamOnePlayers: List<PlayerRecord>,
     val teamTwoPlayers: List<PlayerRecord>,
     val eventLog: List<EventLogEntry> = emptyList(),
-    val nearAttackingTeam: TeamId,
     val pullingTeam: TeamId,
     val pullingFromEnd: FieldEnd,
     val topDisplayedEnd: FieldEnd = FieldEnd.FAR,
@@ -554,6 +533,10 @@ data class GameState(
     val redoEntry: GameState? = null,
     val lastEvent: String = "Pregame setup complete.",
 ) {
+    /// Epoch millis for the scheduled game start.
+    val startEpoch: Long
+        get() = epochTimestamp(startDate, startTime, timeZone)
+
     /// Report whether this state is still before the opening pull has started.
     fun isInitialLivePreview(): Boolean {
         return phase == GamePhase.PRE_GAME && eventLog.isEmpty()
@@ -581,11 +564,11 @@ data class GameState(
     }
 
     /**
-     * Return the live team state for a team id.
+     * Return the team state for a team id.
      *
-     * @param team The team whose live state should be returned.
+     * @param team The team whose state should be returned.
      */
-    fun teamFor(team: TeamId): TeamLiveState {
+    fun teamFor(team: TeamId): TeamState {
         return if (team == TeamId.TEAM_ONE) teamOne else teamTwo
     }
 
@@ -598,11 +581,20 @@ data class GameState(
         return teamFor(team).name
     }
 
+    /**
+     * Return the team currently defending a field end.
+     *
+     * @param end The end whose defending team should be returned.
+     */
+    fun teamDefendingEnd(end: FieldEnd): TeamId {
+        return if (end == pullingFromEnd) pullingTeam else pullingTeam.flip()
+    }
+
     /// Return the matchup/score summary line for compact game list rows.
     fun gameListSummaryLine(): String {
         return if (phase == GamePhase.SETUP) {
-            "${teamOne.name.ifBlank { "Team 1" }} vs " +
-                "${teamTwo.name.ifBlank { "Team 2" }} at ${formatClockTime(startTime)}"
+            "${teamOne.normalizedName(TeamId.TEAM_ONE)} vs " +
+                "${teamTwo.normalizedName(TeamId.TEAM_TWO)} at ${formatClockTime(startTime)}"
         } else {
             "${teamOne.name} ${teamOne.score} - ${teamTwo.score} ${teamTwo.name}"
         }
@@ -730,70 +722,44 @@ data class GameState(
 }
 
 /**
- * Apply an edited setup form to an existing live game.
+ * Apply edited setup fields to an existing live game.
  * This is the model-side return path from the live-game setup editor.
  *
  * @param existing The live state currently being edited.
- * @param setup The setup values returned by the update-game form.
+ * @param edited The setup-edited game state returned by the update-game form.
  * @param now The epoch millis for rebuilding the opening-pull countdown when its orientation
  * changes.
  */
-fun applySetupToLiveGame(
+fun applySetupEditToLiveGame(
     existing: GameState,
-    setup: GameSetupState,
+    edited: GameState,
     now: Long,
 ): GameState {
-    if (setup == existing.toSetupState()) {
+    if (edited.hasSameSetupFieldsAs(existing)) {
         return existing
     }
 
-    val openingNearAttackingTeam = if (setup.pullingFromEnd == FieldEnd.FAR) {
-        setup.pullingTeam
-    } else {
-        setup.pullingTeam.flip()
-    }
     val shouldResyncOpeningPullState = existing.phase == GamePhase.PRE_GAME
 
-    val base = existing.copy(
-        startDate = setup.startDate,
-        startTime = setup.startTime,
-        timeZone = setup.timeZone,
-        startEpoch = epochTimestamp(setup.startDate, setup.startTime, setup.timeZone),
-        tournamentName = setup.tournamentName,
-        division = setup.division,
-        level = setup.level,
-        gameContext = setup.gameContext,
-        observers = setup.observers,
-        nearEndName = setup.nearEndName,
-        farEndName = setup.farEndName,
-        rules = setup.rules,
-        teamOne = existing.teamOne.withIdentity(
-            setup.teamOne.copy(name = setup.teamOne.name.ifBlank { "Team 1" }),
+    val base = edited.copy(
+        teamOne = edited.teamOne.copy(
+            name = edited.teamOne.normalizedName(TeamId.TEAM_ONE),
         ),
-        teamTwo = existing.teamTwo.withIdentity(
-            setup.teamTwo.copy(name = setup.teamTwo.name.ifBlank { "Team 2" }),
+        teamTwo = edited.teamTwo.copy(
+            name = edited.teamTwo.normalizedName(TeamId.TEAM_TWO),
         ),
-        teamOnePlayers = setup.teamOnePlayers,
-        teamTwoPlayers = setup.teamTwoPlayers,
-        pullPromptTarget = setup.pullPromptTarget,
-        initialGenderRatio = setup.initialGenderRatio,
-        firstHalfGenZone = setup.firstHalfGenZone,
-        switchGenZoneAtHalftime = setup.switchGenZoneAtHalftime,
-        openingPullingTeam = setup.pullingTeam,
-        openingPullingFromEnd = setup.pullingFromEnd,
     )
     val promptAdjustedBase = base.copy(
         countdown = base.countdown?.withPullPromptTarget(
             pullingFromEnd = base.pullingFromEnd,
-            promptTarget = setup.pullPromptTarget,
+            promptTarget = edited.pullPromptTarget,
         ),
     )
 
     val updatedState = if (shouldResyncOpeningPullState) {
         promptAdjustedBase.copy(
-            nearAttackingTeam = openingNearAttackingTeam,
-            pullingTeam = setup.pullingTeam,
-            pullingFromEnd = setup.pullingFromEnd,
+            pullingTeam = edited.openingPullingTeam,
+            pullingFromEnd = edited.openingPullingFromEnd,
         ).startPullSequence(now, phase = GamePhase.PRE_GAME)
     } else {
         promptAdjustedBase
@@ -801,32 +767,41 @@ fun applySetupToLiveGame(
     return updatedState.withUndo(existing, "Undo Update game setup")
 }
 
-/// Extract only the setup-screen fields from live state so the setup editor can reopen prefilled.
-fun GameState.toSetupState(): GameSetupState {
-    return GameSetupState(
-        startDate = startDate,
-        startTime = startTime,
-        timeZone = timeZone,
-        tournamentName = tournamentName,
-        division = division,
-        level = level,
-        gameContext = gameContext,
-        observers = observers,
-        nearEndName = nearEndName,
-        farEndName = farEndName,
-        rules = rules,
-        teamOne = teamOne.identity,
-        teamTwo = teamTwo.identity,
-        teamOnePlayers = teamOnePlayers,
-        teamTwoPlayers = teamTwoPlayers,
-        pullingTeam = openingPullingTeam,
-        pullingFromEnd = openingPullingFromEnd,
-        pullPromptTarget = pullPromptTarget,
-        initialGenderRatio = initialGenderRatio,
-        firstHalfGenZone = firstHalfGenZone,
-        switchGenZoneAtHalftime = switchGenZoneAtHalftime,
-    )
+/// Return whether two game states have identical setup-editable fields.
+private fun GameState.hasSameSetupFieldsAs(other: GameState): Boolean {
+    return startDate == other.startDate &&
+        startTime == other.startTime &&
+        timeZone == other.timeZone &&
+        tournamentName == other.tournamentName &&
+        division == other.division &&
+        level == other.level &&
+        gameContext == other.gameContext &&
+        observers == other.observers &&
+        nearEndName == other.nearEndName &&
+        farEndName == other.farEndName &&
+        rules == other.rules &&
+        teamOne.hasSameSetupFieldsAs(other.teamOne) &&
+        teamTwo.hasSameSetupFieldsAs(other.teamTwo) &&
+        teamOnePlayers == other.teamOnePlayers &&
+        teamTwoPlayers == other.teamTwoPlayers &&
+        pullPromptTarget == other.pullPromptTarget &&
+        initialGenderRatio == other.initialGenderRatio &&
+        firstHalfGenZone == other.firstHalfGenZone &&
+        switchGenZoneAtHalftime == other.switchGenZoneAtHalftime &&
+        openingPullingTeam == other.openingPullingTeam &&
+        openingPullingFromEnd == other.openingPullingFromEnd
 }
+
+/// Return whether two team states have identical setup-editable fields.
+private fun TeamState.hasSameSetupFieldsAs(other: TeamState): Boolean {
+    return name == other.name &&
+        color == other.color &&
+        customColorArgb == other.customColorArgb &&
+        coaches == other.coaches &&
+        fieldCaptains == other.fieldCaptains &&
+        spiritCaptains == other.spiritCaptains
+}
+
 
 /**
  * Undo label and previous state for a reversible live-game action.

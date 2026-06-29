@@ -10,10 +10,10 @@ internal object NoOpAppStateStorage : AppStateStorage {
     override val resetPersistedDataAreas: Set<PersistedData> = emptySet()
 
     /// Load no current-game state for unit tests that do not exercise persistence.
-    override fun loadCurrentGameState(): CurrentGameSnapshot? = null
+    override fun loadCurrentGame(): GameState? = null
 
     /// Ignore current-game saves for unit tests that do not exercise persistence.
-    override fun saveCurrentGameState(state: CurrentGameSnapshot) = Unit
+    override fun saveCurrentGame(state: GameState?) = Unit
 
     /// Load no profile state for unit tests that do not exercise persistence.
     override fun loadProfile(): Profile? = null

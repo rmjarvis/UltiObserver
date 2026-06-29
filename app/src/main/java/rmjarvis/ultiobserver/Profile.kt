@@ -1,6 +1,7 @@
 package rmjarvis.ultiobserver
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 
@@ -19,13 +20,16 @@ internal data class Profile(
         /**
          * Decode persisted profile state for a known storage version.
          *
-         * @param jsonObject The parsed JSON object from the profile bucket.
+         * @param jsonElement The parsed payload JSON from the profile bucket.
          * @param version The version metadata read from that JSON object.
          */
-        fun decodeJson(jsonObject: JsonObject, version: AppVersion): PersistenceDecodeResult<Profile>? {
+        fun decodeJson(
+            jsonElement: JsonElement,
+            version: AppVersion,
+        ): PersistenceDecodeResult<Profile>? {
             return try {
-                val migrated = migrateProfileJson(jsonObject, version) ?: return null
-                val profile = appStateJson.decodeFromJsonElement<Profile>(migrated.jsonObject)
+                val migrated = migrateProfileJson(jsonElement, version) ?: return null
+                val profile = appStateJson.decodeFromJsonElement<Profile>(migrated.jsonElement)
                 PersistenceDecodeResult(
                     value = profile,
                     wasMigrated = migrated.wasMigrated,

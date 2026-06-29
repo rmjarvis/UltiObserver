@@ -1,8 +1,9 @@
 package rmjarvis.ultiobserver
 
+import androidx.activity.compose.setContent
+import androidx.compose.runtime.key
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -15,17 +16,13 @@ import java.time.ZoneId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
-import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 
 /// Tests for Android file-backed persistence and startup recovery UI behavior.
 @RunWith(AndroidJUnit4::class)
-class TestPersistence {
-    @get:Rule
-    val composeRule = createComposeRule()
-
+class TestPersistence : MainActivityUiTestFixtures() {
     /**
      * Test Android app-private storage for each persisted app-data bucket.
      */
@@ -37,12 +34,18 @@ class TestPersistence {
         try {
             // Save current live state with undo history through Android file-backed storage.
             val storage = FileAppStateStorage(storageDir)
-            val setup = GameSetupState(
+            val setup = newSetupGameState(
+                now = epochTimestamp(
+                    LocalDate.of(2026, 5, 11),
+                    LocalTime.of(10, 0),
+                    ZoneId.systemDefault(),
+                ),
+            ).copy(
                 startDate = LocalDate.of(2026, 5, 11),
                 startTime = LocalTime.of(10, 0),
                 timeZone = ZoneId.of("America/New_York"),
                 rules = GameRules(),
-                teamOne = TeamIdentity(
+                teamOne = TeamState(
                     name = "Viscous Coupling",
                     color = TeamColorChoice.CUSTOM,
                     customColorArgb = 0xFF336699L,
@@ -50,7 +53,7 @@ class TestPersistence {
                     fieldCaptains = "Casey Field",
                     spiritCaptains = "Casey Spirit",
                 ),
-                teamTwo = TeamIdentity(
+                teamTwo = TeamState(
                     name = "Animal",
                     color = TeamColorChoice.PINK,
                     coaches = "Riley Coach",
@@ -58,18 +61,12 @@ class TestPersistence {
                     spiritCaptains = "Riley Spirit",
                 ),
             )
-            val livePointState = createLiveGameState(setup).beginLivePoint(0L)
+            val livePointState = setup.startGame().beginLivePoint(0L)
             val scoredState = livePointState.recordGoal(
                 scoringTeam = TeamId.TEAM_ONE,
                 now = livePointState.startEpoch + 5 * 60_000L,
             )
-            storage.saveCurrentGameState(
-                CurrentGameSnapshot(
-                    setupState = setup,
-                    liveState = scoredState,
-                    setupMode = SetupMode.NEW_GAME,
-                )
-            )
+            storage.saveCurrentGame(scoredState)
             storage.saveProfile(Profile(profileName = "Casey Observer"))
             val timingPreferences = TimingAlertPreferences(
                 globalMode = TimingAlertGlobalMode.VIBRATION_ONLY,
@@ -100,14 +97,18 @@ class TestPersistence {
 
             // Load through a fresh storage instance to verify the on-device files round-trip.
             val restoredStorage = FileAppStateStorage(storageDir)
-            val restoredCurrentGameState = restoredStorage.loadCurrentGameState()!!
+            val restoredCurrentGame = restoredStorage.loadCurrentGame()!!
             val restoredProfile = restoredStorage.loadProfile()!!
             val restoredSettings = restoredStorage.loadSettings()!!
             val restoredArchivedGame = restoredStorage.loadArchivedGames().single()
 
-            assertEquals(scoredState, restoredCurrentGameState.liveState)
-            assertEquals(setup, restoredCurrentGameState.setupState)
-            val undoRestoredState = restoredCurrentGameState.liveState!!.undoLastAction()
+            assertEquals(scoredState, restoredCurrentGame)
+            assertEquals(setup.startDate, restoredCurrentGame.startDate)
+            assertEquals(setup.startTime, restoredCurrentGame.startTime)
+            assertEquals(setup.timeZone, restoredCurrentGame.timeZone)
+            assertEquals(setup.teamOne, restoredCurrentGame.teamOne.copy(score = 0))
+            assertEquals(setup.teamTwo, restoredCurrentGame.teamTwo.copy(score = 0))
+            val undoRestoredState = restoredCurrentGame.undoLastAction()
             assertEquals(livePointState, undoRestoredState.copy(redoEntry = null))
             assertNotNull(undoRestoredState.redoEntry)
             assertEquals("Casey Observer", restoredProfile.profileName)
@@ -135,14 +136,7 @@ class TestPersistence {
         )
 
         // Render the app from scratch so the startup notice is shown over Home.
-        composeRule.setContent {
-            UltiObserverTheme(dynamicColor = false) {
-                UltiObserverApp(
-                    viewModel = viewModel,
-                    previousRunCrashed = false,
-                )
-            }
-        }
+        renderApp(viewModel = viewModel, previousRunCrashed = false)
 
         // The notice names the repaired buckets while leaving Home visible behind the dialog.
         composeRule.onNodeWithText("Phone data reset").assertIsDisplayed()
@@ -155,6 +149,22 @@ class TestPersistence {
         composeRule.onNodeWithText("OK").performClick()
         composeRule.onAllNodesWithText("Phone data reset").assertCountEquals(0)
         composeRule.onNodeWithText("Start new game").assertIsDisplayed()
+
+        // When both notices are pending, data recovery is shown first because it names the
+        // concrete repaired data.
+        val crashAfterRecoveryViewModel = AppViewModel(
+            StartupRecoveryNoticeStorage(
+                setOf(PersistedData.PROFILE)
+            )
+        )
+        renderApp(viewModel = crashAfterRecoveryViewModel, previousRunCrashed = true)
+        composeRule.onNodeWithText("Phone data reset").assertIsDisplayed()
+        composeRule.onAllNodesWithText("Sorry, UltiObserver crashed").assertCountEquals(0)
+
+        // Dismissing recovery reveals the crash apology next.
+        composeRule.onNodeWithText("OK").performClick()
+        composeRule.onAllNodesWithText("Phone data reset").assertCountEquals(0)
+        composeRule.onNodeWithText("Sorry, UltiObserver crashed").assertIsDisplayed()
     }
 
     /**
@@ -165,14 +175,7 @@ class TestPersistence {
         val viewModel = AppViewModel(StartupRecoveryNoticeStorage(emptySet()))
 
         // Render the app from scratch as though MainActivity saw a previous Crashlytics crash.
-        composeRule.setContent {
-            UltiObserverTheme(dynamicColor = false) {
-                UltiObserverApp(
-                    viewModel = viewModel,
-                    previousRunCrashed = true,
-                )
-            }
-        }
+        renderApp(viewModel = viewModel, previousRunCrashed = true)
 
         // The crash notice explains that the app noticed the previous crash and reported it.
         composeRule.onNodeWithText("Sorry, UltiObserver crashed").assertIsDisplayed()
@@ -182,9 +185,31 @@ class TestPersistence {
         composeRule.onNodeWithText("Start new game").assertIsDisplayed()
 
         // Dismissing the notice removes only the dialog.
-        composeRule.onNodeWithText("OK").performClick()
+        dismissDialog(text = "OK")
         composeRule.onAllNodesWithText("Sorry, UltiObserver crashed").assertCountEquals(0)
         composeRule.onNodeWithText("Start new game").assertIsDisplayed()
+    }
+
+    /**
+     * Render the app with custom startup state while keeping shared activity-fixture helpers.
+     *
+     * @param viewModel App ViewModel to render.
+     * @param previousRunCrashed Whether to show the previous-crash startup notice.
+     */
+    private fun renderApp(viewModel: AppViewModel, previousRunCrashed: Boolean) {
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.setContent {
+                UltiObserverTheme(dynamicColor = false) {
+                    key(viewModel, previousRunCrashed) {
+                        UltiObserverApp(
+                            viewModel = viewModel,
+                            previousRunCrashed = previousRunCrashed,
+                        )
+                    }
+                }
+            }
+        }
+        composeRule.waitForIdle()
     }
 }
 
@@ -197,10 +222,10 @@ private class StartupRecoveryNoticeStorage(
     override val resetPersistedDataAreas: Set<PersistedData>,
 ) : AppStateStorage {
     /// Load no current game for the startup-recovery notice fixture.
-    override fun loadCurrentGameState(): CurrentGameSnapshot? = null
+    override fun loadCurrentGame(): GameState? = null
 
     /// Ignore current-game saves for the startup-recovery notice fixture.
-    override fun saveCurrentGameState(state: CurrentGameSnapshot) = Unit
+    override fun saveCurrentGame(state: GameState?) = Unit
 
     /// Load no profile for the startup-recovery notice fixture.
     override fun loadProfile(): Profile? = null

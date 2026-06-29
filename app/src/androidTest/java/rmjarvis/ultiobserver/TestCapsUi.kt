@@ -87,21 +87,21 @@ class TestCapsUi : MainActivityUiTestFixtures() {
         startLiveGameProgrammatically()
         openMoreActionsDialog()
         composeRule.onNodeWithText("Apply half cap now").performScrollTo().performClick()
-        waitForText("Undo Half cap now")
+        waitForText("Undo Apply half cap now")
         assertLiveScreen()
 
         // Soft cap can be applied manually from More actions.
         startLiveGameProgrammatically()
         openMoreActionsDialog()
         composeRule.onNodeWithText("Apply soft cap now").performScrollTo().performClick()
-        waitForText("Undo Soft cap now")
+        waitForText("Undo Apply soft cap now")
         assertLiveScreen()
 
         // Hard cap can be applied manually from More actions.
         startLiveGameProgrammatically()
         openMoreActionsDialog()
         composeRule.onNodeWithText("Apply hard cap now").performScrollTo().performClick()
-        waitForText("Undo Hard cap now")
+        waitForText("Undo Apply hard cap now")
         assertLiveScreen()
     }
 

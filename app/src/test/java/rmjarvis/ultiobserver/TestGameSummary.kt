@@ -27,8 +27,8 @@ class TestGameSummary : GameDomainTestFixtures() {
             observers = "Mike and Gary",
             endEpoch = timestampAt(baseState, LocalTime.of(12, 42)),
             phase = GamePhase.GAME_OVER,
-            teamOne = testTeamLiveState("Viscous Coupling", TeamColorChoice.WHITE, score = 12),
-            teamTwo = testTeamLiveState("Animal", TeamColorChoice.RED, score = 15),
+            teamOne = TeamState("Viscous Coupling", TeamColorChoice.WHITE, score = 12),
+            teamTwo = TeamState("Animal", TeamColorChoice.RED, score = 15),
         )
 
         assertEquals(
@@ -56,11 +56,9 @@ class TestGameSummary : GameDomainTestFixtures() {
 
         // Tied teams are listed alphabetically.
         val zTeam = state.teamOne
-            .withIdentity(state.teamOne.identity.copy(name = "Z Team"))
-            .copy(score = 1)
+            .copy(name = "Z Team", score = 1)
         val aTeam = state.teamTwo
-            .withIdentity(state.teamTwo.identity.copy(name = "A Team"))
-            .copy(score = 1)
+            .copy(name = "A Team", score = 1)
         assertEquals(
             listOf(aTeam, zTeam),
             state.copy(teamOne = zTeam, teamTwo = aTeam).winnerFirstTeams(),
@@ -84,13 +82,13 @@ class TestGameSummary : GameDomainTestFixtures() {
             startTime = LocalTime.of(10, 0),
         ).copy(
             phase = GamePhase.GAME_OVER,
-            teamOne = testTeamLiveState(
+            teamOne = TeamState(
                 name = "Viscous Coupling",
                 color = TeamColorChoice.WHITE,
                 blueCards = 2,
                 technicalFouls = 1,
             ),
-            teamTwo = testTeamLiveState("Animal", TeamColorChoice.RED),
+            teamTwo = TeamState("Animal", TeamColorChoice.RED),
             teamTwoPlayers = listOf(PlayerRecord(jerseyNumber = "99")),
             teamOnePlayers = listOf(
                 playerRecordWithCards(
@@ -185,8 +183,8 @@ class TestGameSummary : GameDomainTestFixtures() {
             gameContext = "Final",
             observers = "Mike and Gary",
             phase = GamePhase.GAME_OVER,
-            teamOne = testTeamLiveState("Viscous Coupling", TeamColorChoice.WHITE, score = 12),
-            teamTwo = testTeamLiveState(
+            teamOne = TeamState("Viscous Coupling", TeamColorChoice.WHITE, score = 12),
+            teamTwo = TeamState(
                 name = "Animal",
                 color = TeamColorChoice.RED,
                 score = 15,
@@ -249,8 +247,8 @@ class TestGameSummary : GameDomainTestFixtures() {
             startTime = LocalTime.of(10, 0),
         ).copy(
             phase = GamePhase.GAME_OVER,
-            teamOne = testTeamLiveState("Viscous Coupling", TeamColorChoice.WHITE, score = 15),
-            teamTwo = testTeamLiveState("Animal", TeamColorChoice.RED, score = 12),
+            teamOne = TeamState("Viscous Coupling", TeamColorChoice.WHITE, score = 15),
+            teamTwo = TeamState("Animal", TeamColorChoice.RED, score = 12),
             teamOnePlayers = listOf(PlayerRecord(jerseyNumber = "99")),
         )
         assertEquals(
@@ -269,8 +267,8 @@ class TestGameSummary : GameDomainTestFixtures() {
             startTime = LocalTime.of(10, 0),
         ).copy(
             phase = GamePhase.GAME_OVER,
-            teamOne = testTeamLiveState("Viscous Coupling", TeamColorChoice.WHITE, score = 15),
-            teamTwo = testTeamLiveState(
+            teamOne = TeamState("Viscous Coupling", TeamColorChoice.WHITE, score = 15),
+            teamTwo = TeamState(
                 name = "Animal",
                 color = TeamColorChoice.RED,
                 score = 12,

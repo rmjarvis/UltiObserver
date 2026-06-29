@@ -28,7 +28,7 @@ class TestSerialization : GameDomainTestFixtures() {
 
         // Empty patches should be no-ops for game and team state.
         assertEquals(later, GameStatePatch().applyTo(later))
-        assertEquals(later.teamOne, TeamLiveStatePatch().applyTo(later.teamOne))
+        assertEquals(later.teamOne, TeamStatePatch().applyTo(later.teamOne))
 
         // Identical lists do not need a patch.
         assertNull(ListPatch.fromLaterAndPrevious(listOf(1, 2), listOf(1, 2)))
@@ -57,23 +57,15 @@ class TestSerialization : GameDomainTestFixtures() {
      */
     @Test
     fun serializedUndoRedoChains() {
-        // Build a current-game snapshot whose live state has been undone once.
+        // Build a game state whose live state has been undone once.
         val later = patchLaterState()
         val previous = patchPreviousState()
         val undoBacked = later.copy(undoEntry = UndoEntry("Undo Test patch", previous))
         val undone = undoBacked.undoLastAction()
-        val snapshot = CurrentGameSnapshot(
-            liveState = undone,
-        )
-        val serializedSnapshot = SerializedCurrentGameSnapshot.fromCurrentGameSnapshot(snapshot)
-        val serializedLiveState = serializedSnapshot.liveState!!
+        val serializedLiveState = undone.toSerializedGameState()
         val serializedUndoEntry = serializedLiveState.undoEntry
-        val restored = serializedSnapshot.toCurrentGameSnapshot()
 
-        // Serialized current-game state should match the source snapshot.
-        assertNull(serializedSnapshot.setupDraft)
-
-        // The current live state stores its nested undo and redo state as patch chains.
+        // The current game state stores its nested undo and redo state as patch chains.
         assertEquals(undone.copy(undoEntry = null, redoEntry = null), serializedLiveState.state)
         assertNull(serializedUndoEntry)
         assertEquals(
@@ -87,18 +79,12 @@ class TestSerialization : GameDomainTestFixtures() {
         )
         assertNull(serializedLiveState.redoEntry!!.undoEntry!!.previousUndoEntry)
 
-        // Restoring the serialized snapshot should rebuild the original undo/redo chain.
-        assertEquals(snapshot, restored)
-        assertEquals(undoBacked, restored.liveState!!.redoLastAction())
+        // Restoring the serialized state should rebuild the original undo/redo chain.
+        val restored = serializedLiveState.restore()
+        assertEquals(undone, restored)
+        assertEquals(undoBacked, restored.redoLastAction())
 
-        // Empty snapshots and standalone serialized live states should restore directly.
-        assertEquals(
-            CurrentGameSnapshot(),
-            SerializedCurrentGameSnapshot(
-                setupDraft = null,
-                liveState = null,
-            ).toCurrentGameSnapshot(),
-        )
+        // Standalone serialized live states should restore directly.
         assertEquals(
             later,
             SerializedGameState(state = later, undoEntry = null, redoEntry = null).restore(),
@@ -115,7 +101,6 @@ class TestSerialization : GameDomainTestFixtures() {
         assertEquals(previous.startDate, patch.startDate)
         assertEquals(previous.startTime, patch.startTime)
         assertEquals(previous.timeZone, patch.timeZone)
-        assertEquals(previous.startEpoch, patch.startEpoch)
         assertEquals(previous.endEpoch, patch.endEpoch!!.value)
         assertEquals(previous.tournamentName, patch.tournamentName)
         assertEquals(previous.division, patch.division!!.value)
@@ -130,7 +115,6 @@ class TestSerialization : GameDomainTestFixtures() {
         assertEquals(previous.teamOnePlayers, patch.teamOnePlayers!!.replacement)
         assertEquals(previous.teamTwoPlayers, patch.teamTwoPlayers!!.replacement)
         assertEquals(previous.eventLog, patch.eventLog!!.replacement)
-        assertEquals(previous.nearAttackingTeam, patch.nearAttackingTeam)
         assertEquals(previous.pullingTeam, patch.pullingTeam)
         assertEquals(previous.pullingFromEnd, patch.pullingFromEnd)
         assertEquals(previous.topDisplayedEnd, patch.topDisplayedEnd)
@@ -163,7 +147,7 @@ class TestSerialization : GameDomainTestFixtures() {
      * @param patch The patch created from later and previous team states.
      * @param previous The previous team state that should be recoverable from the patch.
      */
-    private fun assertTeamPatchProperties(patch: TeamLiveStatePatch, previous: TeamLiveState) {
+    private fun assertTeamPatchProperties(patch: TeamStatePatch, previous: TeamState) {
         assertEquals(previous.name, patch.name)
         assertEquals(previous.color, patch.color)
         assertEquals(previous.customColorArgb, patch.customColorArgb!!.value)
@@ -189,10 +173,9 @@ class TestSerialization : GameDomainTestFixtures() {
         // Serialization omits null event-log fields and unchanged patch fields.
         val later = patchLaterState()
         val previous = patchPreviousState()
-        val snapshot = CurrentGameSnapshot(
-            liveState = later.copy(undoEntry = UndoEntry("Undo Test patch", previous)),
+        val json = encodeCurrentGame(
+            later.copy(undoEntry = UndoEntry("Undo Test patch", previous))
         )
-        val json = encodeCurrentGameSnapshot(snapshot)
         assertFalse(json.contains("\"team\": null"))
         assertFalse(json.contains("\"player\": null"))
         assertFalse(json.contains("\"timeViolationOutcome\": null"))
@@ -245,7 +228,7 @@ class TestSerialization : GameDomainTestFixtures() {
             observers = "Later observer",
             nearEndName = "Later near",
             farEndName = "Later far",
-            teamOne = testTeamLiveState(
+            teamOne = TeamState(
                 name = "Later One",
                 color = TeamColorChoice.CUSTOM,
                 customColorArgb = 0xFF102030L,
@@ -262,7 +245,7 @@ class TestSerialization : GameDomainTestFixtures() {
                 technicalFouls = 5,
                 blueCards = 6,
             ),
-            teamTwo = testTeamLiveState(
+            teamTwo = TeamState(
                 name = "Later Two",
                 color = TeamColorChoice.PINK,
                 coaches = "Later two coach",
@@ -292,7 +275,6 @@ class TestSerialization : GameDomainTestFixtures() {
                     teamTwoScore = 8,
                 ),
             ),
-            nearAttackingTeam = TeamId.TEAM_TWO,
             topDisplayedEnd = FieldEnd.NEAR,
             pullPromptTarget = PullPromptTarget.BOTH,
             initialGenderRatio = GenderRatio.FOUR_WOMEN_THREE_MEN,
@@ -349,7 +331,7 @@ class TestSerialization : GameDomainTestFixtures() {
             observers = "Previous observer",
             nearEndName = "Previous near",
             farEndName = "Previous far",
-            teamOne = testTeamLiveState(
+            teamOne = TeamState(
                 name = "Previous One",
                 color = TeamColorChoice.WHITE,
                 coaches = "Previous one coach",
@@ -365,7 +347,7 @@ class TestSerialization : GameDomainTestFixtures() {
                 technicalFouls = 0,
                 blueCards = 0,
             ),
-            teamTwo = testTeamLiveState(
+            teamTwo = TeamState(
                 name = "Previous Two",
                 color = TeamColorChoice.CUSTOM,
                 customColorArgb = 0xFF304050L,
@@ -390,7 +372,6 @@ class TestSerialization : GameDomainTestFixtures() {
             eventLog = listOf(
                 EventLogEntry(timestampEpoch = 1_000L, type = EventLogType.FIRST_PULL),
             ),
-            nearAttackingTeam = TeamId.TEAM_ONE,
             topDisplayedEnd = FieldEnd.FAR,
             pullPromptTarget = PullPromptTarget.NEITHER,
             initialGenderRatio = GenderRatio.FOUR_MEN_THREE_WOMEN,
