@@ -170,6 +170,7 @@ private data class PossiblePlayerMatchConfirmation(
  * @param onCancel Optional callback to discard setup edits.
  * @param onSaveGameForLater Optional callback to save this as a SETUP game in the archive.
  * @param onBackHome Callback returning to Home.
+ * @param onHome Callback returning directly to Home.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -182,6 +183,7 @@ internal fun SetupScreen(
     onCancel: (() -> Unit)? = null,
     onSaveGameForLater: (() -> Unit)? = null,
     onBackHome: () -> Unit,
+    onHome: () -> Unit,
 ) {
     var editingRule by remember { mutableStateOf<RuleEditTarget?>(null) }
     var showTimeoutRulesDialog by remember { mutableStateOf(false) }
@@ -267,7 +269,10 @@ internal fun SetupScreen(
             CenterAlignedTopAppBar(
                 title = { Text(title) },
                 navigationIcon = {
-                    TextActionButton(label = "Back", onClick = onBackHome)
+                    TopBarBackButton(onClick = onBackHome)
+                },
+                actions = {
+                    TopBarHomeButton(onClick = onHome)
                 },
             )
         },

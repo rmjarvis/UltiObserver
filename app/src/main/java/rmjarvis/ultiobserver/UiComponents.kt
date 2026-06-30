@@ -3,7 +3,6 @@ package rmjarvis.ultiobserver
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -19,8 +18,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.Button
@@ -73,7 +75,6 @@ internal val NavigationButtonShape: Shape
 internal val AdjustShape = RoundedCornerShape(12.dp)
 internal val BigActionButtonShape = RoundedCornerShape(16.dp)
 internal val PanelShape = RoundedCornerShape(8.dp)
-internal val FieldInfoButtonShape = CircleShape
 internal val MenuButtonShape = RoundedCornerShape(12.dp)
 internal val ChoiceButtonShape = RoundedCornerShape(12.dp)
 internal val SectionCardShape = RoundedCornerShape(20.dp)
@@ -739,6 +740,7 @@ internal fun TextActionButton(
  *
  * @param icon The icon to show.
  * @param contentDescription Accessibility label for the icon action.
+ * @param modifier Optional layout modifier.
  * @param size Button size.
  * @param iconSize Icon size.
  * @param tag Optional test tag.
@@ -748,6 +750,7 @@ internal fun TextActionButton(
 internal fun IconActionButton(
     icon: ImageVector,
     contentDescription: String,
+    modifier: Modifier = Modifier,
     size: Dp = 36.dp,
     iconSize: Dp = 20.dp,
     tag: String? = null,
@@ -755,7 +758,7 @@ internal fun IconActionButton(
 ) {
     IconButton(
         onClick = onClick,
-        modifier = Modifier
+        modifier = modifier
             .withTag(tag)
             .size(size),
     ) {
@@ -765,6 +768,28 @@ internal fun IconActionButton(
             modifier = Modifier.size(iconSize),
         )
     }
+}
+
+/// Render the shared top-bar action that navigates back from the current screen.
+@Composable
+internal fun TopBarBackButton(onClick: () -> Unit) {
+    IconActionButton(
+        icon = Icons.AutoMirrored.Filled.ArrowBack,
+        contentDescription = "Back",
+        tag = "top-bar-back",
+        onClick = onClick,
+    )
+}
+
+/// Render the shared top-bar action that returns directly to Home.
+@Composable
+internal fun TopBarHomeButton(onClick: () -> Unit) {
+    IconActionButton(
+        icon = Icons.Filled.Home,
+        contentDescription = "Home",
+        tag = "top-bar-home",
+        onClick = onClick,
+    )
 }
 
 /**
@@ -978,25 +1003,18 @@ internal fun FieldInfoButton(
     onClick: () -> Unit,
 ) {
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-        OutlinedButton(
+        IconButton(
             onClick = onClick,
             modifier = Modifier
                 .withTag(tag)
                 .size(24.dp)
                 .semantics { contentDescription = "Show $teamName names" },
-            shape = FieldInfoButtonShape,
-            colors = ButtonDefaults.outlinedButtonColors(
-                containerColor = Color.Transparent,
-                contentColor = contentColor,
-            ),
-            border = BorderStroke(1.dp, contentColor),
-            contentPadding = PaddingValues(0.dp),
         ) {
-            Text(
-                text = "i",
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
+            Icon(
+                imageVector = Icons.Outlined.Info,
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier.size(20.dp),
             )
         }
     }

@@ -70,6 +70,7 @@ private data class PendingFieldTechnicalFoulResolution(
  * @param onUpdateGameSetup Callback reopening setup for the current game.
  * @param onDeleteGame Callback deleting the current game.
  * @param onBackHome Callback returning to Home or setup according to ViewModel navigation rules.
+ * @param onHome Callback returning directly to Home.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,6 +83,7 @@ internal fun LiveGameScreen(
     onUpdateGameSetup: () -> Unit,
     onDeleteGame: () -> Unit,
     onBackHome: () -> Unit,
+    onHome: () -> Unit,
 ) {
     var pendingCardTeam by remember { mutableStateOf<TeamId?>(null) }
     var showMoreActionsDialog by remember { mutableStateOf(false) }
@@ -218,6 +220,7 @@ internal fun LiveGameScreen(
                 undoWithoutPhasePrompt(state.undoLastAction())
             },
             onBack = onBackHome,
+            onHome = onHome,
             gameOverPrompt = activeGamePrompt,
             onDismissGameOverPrompt = {
                 activeGamePrompt = null
@@ -232,7 +235,10 @@ internal fun LiveGameScreen(
             CenterAlignedTopAppBar(
                 title = { Text("UltiObserver") },
                 navigationIcon = {
-                    TextActionButton(label = "Back", onClick = onBackHome)
+                    TopBarBackButton(onClick = onBackHome)
+                },
+                actions = {
+                    TopBarHomeButton(onClick = onHome)
                 },
             )
         }

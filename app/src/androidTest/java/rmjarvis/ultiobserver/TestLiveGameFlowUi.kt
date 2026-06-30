@@ -209,14 +209,14 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("$viscousCoupling 4").assertIsDisplayed()
         composeRule.onNodeWithText("$animal 5").assertIsDisplayed()
 
-        // The finished game should go home from the visible Back action, archive, and then
+        // The finished game should go home from the top-bar Back action, archive, and then
         // reopen from Archived games.
-        composeRule.onNodeWithText("Back").performClick()
+        tapTopBarBack()
         waitForText("Completed game")
         composeRule.onNodeWithText("$viscousCoupling 4 - 5 $animal").performClick()
         waitForText("Game summary")
         assertTrue(composeRule.onAllNodesWithText("Game over").fetchSemanticsNodes().isEmpty())
-        composeRule.onNodeWithText("Back").performClick()
+        tapTopBarBack()
         waitForText("Completed game")
         composeRule.onNodeWithText("Archive completed game").performClick()
         waitForText("See archived/saved games")
@@ -228,11 +228,11 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         waitForText("Game summary")
         assertTrue(composeRule.onAllNodesWithText("Game over").fetchSemanticsNodes().isEmpty())
         composeRule.onNodeWithText("$animal 5").assertIsDisplayed()
-        composeRule.onNodeWithText("Back").performClick()
+        tapTopBarBack()
         waitForText("Archived games")
-        composeRule.onNodeWithText("Back").performClick()
+        tapTopBarBack()
         waitForText("Archived/saved games")
-        composeRule.onNodeWithText("Back").performClick()
+        tapTopBarBack()
         waitForText("Start new game")
     }
 

@@ -37,13 +37,17 @@ internal fun ProfileScreen(
     onNameChange: (String) -> Unit,
     onAvatarPreferenceChange: (ObserverAvatarPreference) -> Unit,
     onBackHome: () -> Unit,
+    onHome: () -> Unit,
 ) {
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("Profile") },
                 navigationIcon = {
-                    TextActionButton(label = "Back", onClick = onBackHome)
+                    TopBarBackButton(onClick = onBackHome)
+                },
+                actions = {
+                    TopBarHomeButton(onClick = onHome)
                 },
             )
         },

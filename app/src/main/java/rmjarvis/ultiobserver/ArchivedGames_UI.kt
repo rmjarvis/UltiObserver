@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
  * @param onDeleteAllInSelectedCategory Callback deleting every game in the selected category.
  * @param onBackHome Callback returning to Home.
  * @param onBackCategories Callback returning from a category list to the category landing page.
+ * @param onHome Callback returning directly to Home.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,6 +54,7 @@ internal fun ArchivedGamesScreen(
     onDeleteAllInSelectedCategory: () -> Unit,
     onBackHome: () -> Unit,
     onBackCategories: () -> Unit,
+    onHome: () -> Unit,
 ) {
     var pendingDeleteIndex by remember { mutableStateOf<Int?>(null) }
     var pendingDeleteAll by remember { mutableStateOf(false) }
@@ -64,10 +66,12 @@ internal fun ArchivedGamesScreen(
             CenterAlignedTopAppBar(
                 title = { Text(category?.displayText ?: "Archived/saved games") },
                 navigationIcon = {
-                    TextActionButton(
-                        label = "Back",
+                    TopBarBackButton(
                         onClick = if (category == null) onBackHome else onBackCategories,
                     )
+                },
+                actions = {
+                    TopBarHomeButton(onClick = onHome)
                 },
             )
         },

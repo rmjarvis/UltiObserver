@@ -142,14 +142,14 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
         assertNextShareText(expectedShareText)
 
         // Return to the completed-game action screen before archiving this game.
-        composeRule.onNodeWithText("Back").performClick()
+        tapTopBarBack()
         waitForText("Completed game")
 
         // The completed-game card on Home reopens the same summary before it is archived.
         composeRule.onNodeWithText("Viscous Coupling 12 - 15 Animal").performClick()
         waitForText("Game summary")
         assertNextShareText(expectedShareText)
-        dismissDialog(text = "Back")
+        dismissDialog(tag = "top-bar-back")
         waitForText("Completed game")
 
         // Archive the game and verify the read-only archive shares the same payload.

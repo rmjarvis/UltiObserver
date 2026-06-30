@@ -45,6 +45,7 @@ internal fun SettingsScreen(
     onVibrateWithSoundsChange: (Boolean) -> Unit,
     onOpenTimingCueSettings: () -> Unit,
     onBackHome: () -> Unit,
+    onHome: () -> Unit,
 ) {
     val context = LocalContext.current
     val hasTimingCueHaptics = context.hasTimingCueHaptics()
@@ -53,7 +54,10 @@ internal fun SettingsScreen(
             CenterAlignedTopAppBar(
                 title = { Text("Settings") },
                 navigationIcon = {
-                    TextActionButton(label = "Back", onClick = onBackHome)
+                    TopBarBackButton(onClick = onBackHome)
+                },
+                actions = {
+                    TopBarHomeButton(onClick = onHome)
                 },
             )
         },
@@ -201,6 +205,7 @@ private fun SettingsSwitchRow(
  * @param onTimingCueRepeatCountChange Callback receiving cue-specific repeat-count changes.
  * @param onResetTimingCueSettings Callback restoring all cue settings to defaults.
  * @param onBackSettings Callback returning to the main Settings screen.
+ * @param onHome Callback returning directly to Home.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -211,6 +216,7 @@ internal fun TimingCueSettingsScreen(
     onTimingCueRepeatCountChange: (TimingCueId, Int) -> Unit,
     onResetTimingCueSettings: () -> Unit,
     onBackSettings: () -> Unit,
+    onHome: () -> Unit,
 ) {
     val context = LocalContext.current
     val hasTimingCueHaptics = context.hasTimingCueHaptics()
@@ -227,7 +233,10 @@ internal fun TimingCueSettingsScreen(
             CenterAlignedTopAppBar(
                 title = { Text("Cue sound settings") },
                 navigationIcon = {
-                    TextActionButton(label = "Back", onClick = onBackSettings)
+                    TopBarBackButton(onClick = onBackSettings)
+                },
+                actions = {
+                    TopBarHomeButton(onClick = onHome)
                 },
             )
         },

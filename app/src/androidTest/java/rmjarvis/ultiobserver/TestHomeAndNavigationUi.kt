@@ -43,6 +43,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Profile").assertIsDisplayed()
         composeRule.onNodeWithText("Settings").assertIsDisplayed()
         composeRule.onNodeWithText("See archived/saved games").assertIsDisplayed()
+        composeRule.onNodeWithTag("home-about").assertIsDisplayed()
 
         // New game opens the setup screen.
         openNewGameSetup()
@@ -56,9 +57,9 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         replaceSetupTeamName("Team 1", "Draft Team")
         replaceSetupTeamName("Team 2", "Draft Opponent")
 
-        // Can also use the visible Back button to go back.
+        // Can also use the top-bar Back button to go back.
         // This time with the updated team names in the current game section.
-        composeRule.onNodeWithText("Back").performClick()
+        tapTopBarBack()
         waitForText("Start new game")
         waitForText("Current game")
         composeRule.onNodeWithText("Tap to resume").assertIsDisplayed()
@@ -67,6 +68,10 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
 
         // Before the first pull, Back should return to setup for quick field-layout corrections.
         startGameFromSetup()
+        assertLiveScreen()
+        composeRule.onNodeWithTag("top-bar-home").performClick()
+        waitForText("Current game")
+        composeRule.onNodeWithTag("current-game").performClick()
         assertLiveScreen()
         pressAppBack()
         waitForText("Start game")
@@ -91,8 +96,8 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Done").performClick()
         assertLiveScreen()
 
-        // Live screen also has a visible Back button, which returns to Home now.
-        composeRule.onNodeWithText("Back").performClick()
+        // Live screen also has a top-bar Back button, which returns to Home now.
+        tapTopBarBack()
         waitForText("Current game")
     }
 
@@ -168,7 +173,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
 
         // The replaced current game moves into the archive, and the restored game is no longer
         // listed there.
-        composeRule.onNodeWithText("Back").performClick()
+        tapTopBarBack()
         waitForText("Current game")
         openSavedInProgressGamesScreen()
         waitForText(currentArchivedTitle)
@@ -192,9 +197,9 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Saved setup states (0)").assertIsEnabled()
         composeRule.onNodeWithText("Archived games (0)").performClick()
         waitForText("No completed games yet.")
-        composeRule.onNodeWithText("Back").performClick()
+        tapTopBarBack()
         waitForText("Archived/saved games")
-        composeRule.onNodeWithText("Back").performClick()
+        tapTopBarBack()
 
         // Build two uniquely named archived rows so delete assertions cannot match stale test data.
         val suffix = System.currentTimeMillis().toString().takeLast(6)
@@ -219,7 +224,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText("Archived games (0)")
         waitForText("Saved in-progress games (0)")
         waitForText("Saved setup states (0)")
-        composeRule.onNodeWithText("Back").performClick()
+        tapTopBarBack()
 
         // Inside one category, delete all removes only the visible category's rows.
         seedArchivedGameProgrammatically(firstTeamOne, firstTeamTwo)
@@ -236,7 +241,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText("Event log")
         waitForText("No events logged yet.")
         dismissDialog(text = "OK")
-        composeRule.onNodeWithText("Back").performClick()
+        tapTopBarBack()
         waitForText("Archived games")
         waitForText(firstArchivedTitle)
         waitForText(secondArchivedTitle)
@@ -261,7 +266,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         assertTrue(
             composeRule.onAllNodesWithText(secondArchivedTitle).fetchSemanticsNodes().isEmpty()
         )
-        composeRule.onNodeWithText("Back").performClick()
+        tapTopBarBack()
         waitForText("Archived/saved games")
 
         // Re-seed the archive and verify cancelling a single-game delete leaves both rows intact.
@@ -355,7 +360,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText("when a new game was started", substring = true)
         composeRule.onNodeWithText("Archive game").performClick()
         waitForText("No saved in-progress games.")
-        composeRule.onNodeWithText("Back").performClick()
+        tapTopBarBack()
         composeRule.onNodeWithText("Archived games (1)").performClick()
         waitForText("ProgressA$suffix 0 - 0 ProgressB$suffix")
     }
@@ -366,7 +371,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
     @Test
     fun launchAbout() {
         // About should behave like a quiet informational destination that returns cleanly to Home.
-        composeRule.onNodeWithText("About").performClick()
+        composeRule.onNodeWithTag("home-about").performClick()
         composeRule.onNodeWithTag("about-screen").assertIsDisplayed()
         composeRule.onNodeWithText("Version ${BuildConfig.VERSION_NAME}").assertIsDisplayed()
         val sourceCodeUrl = "https://github.com/rmjarvis/UltiObserver"
@@ -403,7 +408,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         assertOpensUrl(privacyPolicyUrl)
 
         // Back returns from About to Home.
-        dismissDialog(text = "Back")
+        dismissDialog(tag = "top-bar-back")
         waitForText("Start new game")
     }
 
@@ -450,7 +455,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             substring = true,
         )
             .assertCountEquals(0)
-        dismissDialog(text = "Back")
+        dismissDialog(tag = "top-bar-back")
         waitForText("Use sounds and vibration for timing cues?")
 
         composeRule.onNodeWithTag("settings-auto-advance-countdowns").performClick()
@@ -522,7 +527,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("settings-OFFENSE_TWENTY-NONE").performScrollTo().performClick()
 
         // Back returns from cue settings to the main Settings screen.
-        dismissDialog(text = "Back")
+        dismissDialog(tag = "top-bar-back")
         waitForText("Use sounds and vibration for timing cues?")
         composeRule.onNodeWithTag("settings-global-alert-SOUNDS_ON")
             .performScrollTo()
@@ -611,7 +616,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText("Use sounds and vibration for timing cues?")
 
         // Back returns from Settings to Home.
-        dismissDialog(text = "Back")
+        dismissDialog(tag = "top-bar-back")
         waitForText("Start new game")
     }
 
@@ -632,7 +637,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("profile-avatar-BLUE").performScrollTo().performClick()
         composeRule.onNodeWithTag("profile-avatar-BLUE").assertIsSelected()
         composeRule.onNodeWithTag("profile-avatar-RANDOM").assertIsNotSelected()
-        composeRule.onNodeWithText("Back").performClick()
+        tapTopBarBack()
         waitForText("Start new game")
         composeRule.onNodeWithText("Profile").performClick()
         composeRule.onNodeWithTag("profile-avatar-BLUE").performScrollTo()
@@ -642,7 +647,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("profile-avatar-RANDOM").performScrollTo().performClick()
         composeRule.onNodeWithTag("profile-avatar-RANDOM").assertIsSelected()
         composeRule.onNodeWithTag("profile-avatar-BLUE").assertIsNotSelected()
-        composeRule.onNodeWithText("Back").performClick()
+        tapTopBarBack()
         waitForText("Start new game")
     }
 

@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
  * @param secondarySummaryActionText Optional second fixed-bottom action label.
  * @param onSecondarySummaryAction Optional callback invoked by the second fixed-bottom action.
  * @param onBack Callback returning to the previous screen.
+ * @param onHome Callback returning directly to Home.
  * @param gameOverPrompt Optional prompt shown when a live game has just ended.
  * @param onDismissGameOverPrompt Callback dismissing the optional game-over prompt.
  */
@@ -54,6 +55,7 @@ internal fun GameOverSummaryScreen(
     secondarySummaryActionText: String? = null,
     onSecondarySummaryAction: (() -> Unit)? = null,
     onBack: () -> Unit,
+    onHome: () -> Unit,
     gameOverPrompt: GamePrompt?,
     onDismissGameOverPrompt: () -> Unit,
 ) {
@@ -65,7 +67,10 @@ internal fun GameOverSummaryScreen(
             CenterAlignedTopAppBar(
                 title = { Text("UltiObserver") },
                 navigationIcon = {
-                    TextActionButton(label = "Back", onClick = onBack)
+                    TopBarBackButton(onClick = onBack)
+                },
+                actions = {
+                    TopBarHomeButton(onClick = onHome)
                 },
             )
         },

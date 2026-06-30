@@ -97,6 +97,7 @@ internal fun UltiObserverApp(
             AboutScreen(
                 versionName = BuildConfig.VERSION_NAME,
                 onBackHome = viewModel::goHome,
+                onHome = viewModel::goHome,
             )
         }
 
@@ -107,6 +108,7 @@ internal fun UltiObserverApp(
                 onNameChange = viewModel::updateProfileName,
                 onAvatarPreferenceChange = viewModel::updateAvatarPreference,
                 onBackHome = viewModel::goHome,
+                onHome = viewModel::goHome,
             )
         }
 
@@ -125,6 +127,7 @@ internal fun UltiObserverApp(
                 onVibrateWithSoundsChange = viewModel::updateTimingAlertVibrateWithSounds,
                 onOpenTimingCueSettings = viewModel::openTimingCueSettings,
                 onBackHome = viewModel::goHome,
+                onHome = viewModel::goHome,
             )
         }
 
@@ -136,6 +139,7 @@ internal fun UltiObserverApp(
                 onTimingCueRepeatCountChange = viewModel::updateTimingCueRepeatCount,
                 onResetTimingCueSettings = viewModel::resetTimingCueSettingsToDefaults,
                 onBackSettings = viewModel::openSettings,
+                onHome = viewModel::goHome,
             )
         }
 
@@ -166,6 +170,7 @@ internal fun UltiObserverApp(
                 onDeleteAllInSelectedCategory = viewModel::deleteArchivedGamesInSelectedCategory,
                 onBackHome = viewModel::goHome,
                 onBackCategories = viewModel::openArchivedGames,
+                onHome = viewModel::goHome,
             )
         }
 
@@ -213,6 +218,7 @@ internal fun UltiObserverApp(
                     viewModel::saveSetupForLater
                 },
                 onBackHome = viewModel::goHome,
+                onHome = viewModel::goHome,
             )
         }
 
@@ -243,6 +249,7 @@ internal fun UltiObserverApp(
                         null
                     },
                     onBack = viewModel::goBackFromCurrentScreen,
+                    onHome = viewModel::goHome,
                     gameOverPrompt = null,
                     onDismissGameOverPrompt = {},
                 )
@@ -259,6 +266,7 @@ internal fun UltiObserverApp(
                     },
                     onDeleteGame = viewModel::deleteCurrentGame,
                     onBackHome = viewModel::goBackFromCurrentScreen,
+                    onHome = viewModel::goHome,
                 )
             }
         }

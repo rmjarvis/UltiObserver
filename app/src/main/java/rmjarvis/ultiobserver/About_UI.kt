@@ -29,6 +29,7 @@ private const val PRIVACY_POLICY_URL = "https://github.com/rmjarvis/UltiObserver
 internal fun AboutScreen(
     versionName: String,
     onBackHome: () -> Unit,
+    onHome: () -> Unit,
 ) {
     val uriHandler = LocalUriHandler.current
 
@@ -37,7 +38,10 @@ internal fun AboutScreen(
             CenterAlignedTopAppBar(
                 title = { Text("About") },
                 navigationIcon = {
-                    TextActionButton(label = "Back", onClick = onBackHome)
+                    TopBarBackButton(onClick = onBackHome)
+                },
+                actions = {
+                    TopBarHomeButton(onClick = onHome)
                 },
             )
         },

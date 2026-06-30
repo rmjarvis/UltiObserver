@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -295,14 +297,14 @@ internal fun HomeScreen(
                 }
             }
 
-            Text(
-                text = "About",
+            IconActionButton(
+                icon = Icons.Outlined.Info,
+                contentDescription = "About",
+                tag = "home-about",
+                onClick = onOpenAbout,
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .padding(pagePadding)
-                    .clickable(onClick = onOpenAbout),
-                color = PrimaryColor,
-                style = MaterialTheme.typography.labelLarge,
             )
         }
     }

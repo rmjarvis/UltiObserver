@@ -405,6 +405,11 @@ abstract class MainActivityUiTestFixtures {
         waitForText("Start new game")
     }
 
+    /// Tap the current screen's top-bar Back navigation icon.
+    protected fun tapTopBarBack() {
+        composeRule.onNodeWithTag("top-bar-back").performClick()
+    }
+
     /// Send platform Back to the currently focused app window.
     protected fun pressDialogBack() {
         pressBackUnconditionally()
