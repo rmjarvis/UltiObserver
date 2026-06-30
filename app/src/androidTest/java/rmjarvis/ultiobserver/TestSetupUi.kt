@@ -273,9 +273,24 @@ class TestSetupUi : MainActivityUiTestFixtures() {
 
         // Mixed games expose gender-ratio controls in the game-rules editor.
         openGameInformationSetupEditor()
-        composeRule.onNodeWithTag("setup-game-division-${GameDivision.MIXED.name}").performClick()
+        composeRule.onNodeWithTag("setup-game-division-${GameDivision.MIXED.name}")
+            .performScrollTo()
+            .performClick()
         closeSetupEditor()
         waitForText("Start game")
+
+        // Cancel/dismiss on the game-rules editor should discard draft rule changes.
+        openGameRulesSetupEditor()
+        composeRule.onNodeWithText("Cancel").assertIsDisplayed()
+        composeRule.onNodeWithText("Game to").performScrollTo().performClick()
+        waitForText("Points")
+        composeRule.onNodeWithText("Points").performTextReplacement("19")
+        composeRule.onNodeWithTag("setup-integer-set").performClick()
+        waitForText("Game to")
+        dismissDialog(text = "Cancel")
+        waitForText("Start game")
+        waitForText("Game to 15")
+        composeRule.onAllNodesWithText("Game to 19").assertCountEquals(0)
 
         // Empty numeric rule entries should fall back to the current value.
         setIntegerSetupValue("Game to", "Game to", "Points", "")
@@ -288,7 +303,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
             .forEach { ruleLabel ->
                 composeRule.onNodeWithText(ruleLabel).performScrollTo().performClick()
                 waitForText("Cancel")
-                dismissDialog(text = "Cancel")
+                composeRule.onAllNodesWithText("Cancel").onLast().performClick()
                 waitForText("Game to")
             }
         closeSetupEditor()

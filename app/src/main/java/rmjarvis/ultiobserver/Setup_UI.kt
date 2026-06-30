@@ -188,6 +188,7 @@ internal fun SetupScreen(
     var editingRule by remember { mutableStateOf<RuleEditTarget?>(null) }
     var showTimeoutRulesDialog by remember { mutableStateOf(false) }
     var setupDialog by remember { mutableStateOf<SetupDialog?>(null) }
+    var gameRulesDraft by remember { mutableStateOf<GameRules?>(null) }
     var teamDialog by remember { mutableStateOf<TeamDialog?>(null) }
     var existingPriorCardNotice by remember { mutableStateOf<ExistingPriorCardNotice?>(null) }
     var possiblePlayerMatchConfirmation by remember { mutableStateOf<PossiblePlayerMatchConfirmation?>(null) }
@@ -384,7 +385,10 @@ internal fun SetupScreen(
             SetupSummaryRow(
                 title = "Game rules",
                 editTag = "setup-edit-game-rules",
-                onEdit = { setupDialog = SetupDialog.GAME_RULES },
+                onEdit = {
+                    gameRulesDraft = state.rules
+                    setupDialog = SetupDialog.GAME_RULES
+                },
             ) {
                 GameRulesSummary(state)
             }
@@ -411,17 +415,26 @@ internal fun SetupScreen(
         }
 
         SetupDialog.GAME_RULES -> {
+            val rulesDraft = gameRulesDraft ?: state.rules
             GameRulesSetupDialog(
-                state = state,
+                state = state.copy(rules = rulesDraft),
                 onEditRule = { editingRule = it },
                 onEditTimeouts = { showTimeoutRulesDialog = true },
                 onRulesChange = {
-                    onStateChange(state.copy(rules = it))
+                    gameRulesDraft = it
                 },
                 onUseUsauDefaults = {
-                    onStateChange(state.copy(rules = GameRules()))
+                    gameRulesDraft = GameRules()
                 },
-                onDismiss = { setupDialog = null },
+                onConfirm = {
+                    onStateChange(state.copy(rules = rulesDraft))
+                    gameRulesDraft = null
+                    setupDialog = null
+                },
+                onDismiss = {
+                    gameRulesDraft = null
+                    setupDialog = null
+                },
             )
         }
 
@@ -636,20 +649,17 @@ internal fun SetupScreen(
     // If editingRule is set, then on this re-render, open the dialog for specifying rules.
     if (editingRule != null) {
         val target = editingRule!!
+        val rules = gameRulesDraft ?: state.rules
         // No else branch: every RuleEditTarget value is handled
         when (target) {
             RuleEditTarget.GAME_TO -> {
                 IntegerEditDialog(
                     title = target.dialogTitle,
                     fieldLabel = target.fieldLabel,
-                    initialValue = state.rules.gameTo,
+                    initialValue = rules.gameTo,
                     onDismiss = { editingRule = null },
                     onConfirm = { newValue ->
-                        onStateChange(
-                            state.copy(
-                                rules = state.rules.copy(gameTo = newValue.coerceAtLeast(1))
-                            )
-                        )
+                        gameRulesDraft = rules.copy(gameTo = newValue.coerceAtLeast(1))
                         editingRule = null
                     },
                 )
@@ -659,14 +669,10 @@ internal fun SetupScreen(
                 IntegerEditDialog(
                     title = target.dialogTitle,
                     fieldLabel = target.fieldLabel,
-                    initialValue = state.rules.halftimeMinutes,
+                    initialValue = rules.halftimeMinutes,
                     onDismiss = { editingRule = null },
                     onConfirm = { newValue ->
-                        onStateChange(
-                            state.copy(
-                                rules = state.rules.copy(halftimeMinutes = newValue.coerceAtLeast(1))
-                            )
-                        )
+                        gameRulesDraft = rules.copy(halftimeMinutes = newValue.coerceAtLeast(1))
                         editingRule = null
                     },
                 )
@@ -678,15 +684,11 @@ internal fun SetupScreen(
                     fieldLabel = target.fieldLabel,
                     prefixText = "Half cap at:",
                     suffixText = "minutes after start time.",
-                    initialValue = state.rules.halfCapMinutes,
-                    initiallyEnabled = state.rules.useHalfCap,
+                    initialValue = rules.halfCapMinutes,
+                    initiallyEnabled = rules.useHalfCap,
                     onDismiss = { editingRule = null },
                     onConfirm = { enabled, newValue ->
-                        onStateChange(
-                            state.copy(
-                                rules = state.rules.copy(useHalfCap = enabled, halfCapMinutes = newValue)
-                            )
-                        )
+                        gameRulesDraft = rules.copy(useHalfCap = enabled, halfCapMinutes = newValue)
                         editingRule = null
                     },
                 )
@@ -698,15 +700,11 @@ internal fun SetupScreen(
                     fieldLabel = target.fieldLabel,
                     prefixText = "Soft cap at:",
                     suffixText = "minutes after start time.",
-                    initialValue = state.rules.softCapMinutes,
-                    initiallyEnabled = state.rules.useSoftCap,
+                    initialValue = rules.softCapMinutes,
+                    initiallyEnabled = rules.useSoftCap,
                     onDismiss = { editingRule = null },
                     onConfirm = { enabled, newValue ->
-                        onStateChange(
-                            state.copy(
-                                rules = state.rules.copy(useSoftCap = enabled, softCapMinutes = newValue)
-                            )
-                        )
+                        gameRulesDraft = rules.copy(useSoftCap = enabled, softCapMinutes = newValue)
                         editingRule = null
                     },
                 )
@@ -718,15 +716,11 @@ internal fun SetupScreen(
                     fieldLabel = target.fieldLabel,
                     prefixText = "Hard cap at:",
                     suffixText = "minutes after start time.",
-                    initialValue = state.rules.hardCapMinutes,
-                    initiallyEnabled = state.rules.useHardCap,
+                    initialValue = rules.hardCapMinutes,
+                    initiallyEnabled = rules.useHardCap,
                     onDismiss = { editingRule = null },
                     onConfirm = { enabled, newValue ->
-                        onStateChange(
-                            state.copy(
-                                rules = state.rules.copy(useHardCap = enabled, hardCapMinutes = newValue)
-                            )
-                        )
+                        gameRulesDraft = rules.copy(useHardCap = enabled, hardCapMinutes = newValue)
                         editingRule = null
                     },
                 )
@@ -737,11 +731,12 @@ internal fun SetupScreen(
     // If showTimeoutRulesDialog is true, then on this re-render, open the dialog for
     // setting the number of timeouts per half.
     if (showTimeoutRulesDialog) {
+        val rules = gameRulesDraft ?: state.rules
         TimeoutRulesDialog(
-            rules = state.rules,
+            rules = rules,
             onDismiss = { showTimeoutRulesDialog = false },
             onConfirm = { updatedRules ->
-                onStateChange(state.copy(rules = updatedRules))
+                gameRulesDraft = updatedRules
                 showTimeoutRulesDialog = false
             },
         )
@@ -1479,6 +1474,7 @@ private fun StartingPullSetupDialog(
  * @param onEditTimeouts Callback opening the timeout-rules editor.
  * @param onRulesChange Callback receiving updated rules.
  * @param onUseUsauDefaults Callback resetting the rule bundle to USAU defaults.
+ * @param onConfirm Callback applying the rule edits and closing the dialog.
  * @param onDismiss Callback closing the dialog.
  */
 @Composable
@@ -1488,6 +1484,7 @@ private fun GameRulesSetupDialog(
     onEditTimeouts: () -> Unit,
     onRulesChange: (GameRules) -> Unit,
     onUseUsauDefaults: () -> Unit,
+    onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val rules = state.rules
@@ -1560,7 +1557,10 @@ private fun GameRulesSetupDialog(
             }
         },
         confirmButton = {
-            TextActionButton(label = "Done", onClick = onDismiss)
+            TextActionButton(label = "Done", onClick = onConfirm)
+        },
+        dismissButton = {
+            TextActionButton(label = "Cancel", onClick = onDismiss)
         },
     )
 }
