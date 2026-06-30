@@ -24,6 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.unit.dp
 
 // Profile fields for observer identity and home-screen avatar preference.
@@ -63,10 +65,7 @@ internal fun ProfileScreen(
             )
             AvatarPreferenceSelector(
                 avatarPreference = avatarPreference,
-                onAvatarPreferenceChange = { preference ->
-                    onAvatarPreferenceChange(preference)
-                    onBackHome()
-                },
+                onAvatarPreferenceChange = onAvatarPreferenceChange,
             )
         }
     }
@@ -137,6 +136,7 @@ private fun RandomAvatarPreferenceButton(
         border = BorderStroke(1.dp, choiceBorderColor(selected)),
         modifier = Modifier
             .fillMaxWidth()
+            .semantics { this.selected = selected }
             .testTag("profile-avatar-RANDOM"),
     ) {
         Text(
@@ -162,6 +162,7 @@ private fun AvatarPreferenceButton(
         border = BorderStroke(1.dp, choiceBorderColor(selected)),
         modifier = modifier
             .aspectRatio(1f)
+            .semantics { this.selected = selected }
             .testTag("profile-avatar-${preference.name}"),
     ) {
         Box(
