@@ -711,6 +711,31 @@ class TestTimeouts : GameDomainTestFixtures() {
         assertEquals(TeamId.TEAM_TWO, timeoutAdjustmentEntry.team)
         assertEquals(-1, timeoutAdjustmentEntry.delta)
         assertEquals(beforeSingleTeamTimeoutAdjustment, state.undoEntry?.previous)
+
+        // After halftime, the correction can also change first-half counts used for floater carryover.
+        val eventLogSizeBeforeFirstHalfAdjustment = state.eventLog.size
+        state = state.adjustTimeouts(
+            teamOneTimeoutsUsed = state.teamOne.timeoutsUsedThisHalf,
+            teamTwoTimeoutsUsed = state.teamTwo.timeoutsUsedThisHalf,
+            teamOneFirstHalfTimeoutsUsed = 3,
+            teamTwoFirstHalfTimeoutsUsed = 1,
+            now = 3_200_000L,
+        )
+        assertEquals(3, state.teamOne.firstHalfTimeoutsUsed)
+        assertEquals(1, state.teamTwo.firstHalfTimeoutsUsed)
+        assertEquals(2, state.timeoutsAllowedThisHalf(VC))
+        assertEquals(3, state.timeoutsAllowedThisHalf(ANIMAL))
+        assertEquals(eventLogSizeBeforeFirstHalfAdjustment, state.eventLog.size)
+
+        // The dialog uses the same rule helper to update second-half allowance live while editing.
+        assertEquals(
+            3,
+            state.rules.timeoutsAllowedThisHalf(halftimeTaken = true, firstHalfTimeoutsUsed = 2),
+        )
+        assertEquals(
+            2,
+            state.rules.timeoutsAllowedThisHalf(halftimeTaken = true, firstHalfTimeoutsUsed = 3),
+        )
     }
 
     /// Return game rules with cap timing disabled for focused timeout scenarios.

@@ -17,38 +17,80 @@ import androidx.compose.ui.unit.dp
  *
  * @param state The live state whose current timeout counts seed the dialog.
  * @param onDismiss Callback closing the dialog without changes.
- * @param onConfirm Callback receiving team-one and team-two timeout counts used in the current half.
+ * @param onConfirm Callback receiving team-one and team-two timeout counts used in the current
+ * half, followed by team-one and team-two timeout counts used in the first half.
  */
 @Composable
 internal fun AdjustTimeoutsDialog(
     state: GameState,
     onDismiss: () -> Unit,
-    onConfirm: (Int, Int) -> Unit,
+    onConfirm: (Int, Int, Int, Int) -> Unit,
 ) {
-    val teamOneAllowed = state.timeoutsAllowedThisHalf(TeamId.TEAM_ONE)
-    val teamTwoAllowed = state.timeoutsAllowedThisHalf(TeamId.TEAM_TWO)
     var teamOneTimeoutsUsed by remember { mutableStateOf(state.teamOne.timeoutsUsedThisHalf) }
     var teamTwoTimeoutsUsed by remember { mutableStateOf(state.teamTwo.timeoutsUsedThisHalf) }
+    var teamOneFirstHalfTimeoutsUsed by remember {
+        mutableStateOf(state.teamOne.firstHalfTimeoutsUsed)
+    }
+    var teamTwoFirstHalfTimeoutsUsed by remember {
+        mutableStateOf(state.teamTwo.firstHalfTimeoutsUsed)
+    }
+    val teamOneAllowed = state.rules.timeoutsAllowedThisHalf(
+        halftimeTaken = state.halftimeTaken,
+        firstHalfTimeoutsUsed = teamOneFirstHalfTimeoutsUsed,
+    )
+    val teamTwoAllowed = state.rules.timeoutsAllowedThisHalf(
+        halftimeTaken = state.halftimeTaken,
+        firstHalfTimeoutsUsed = teamTwoFirstHalfTimeoutsUsed,
+    )
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Adjust timeouts") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Adjust the number of timeouts used by each team this half.")
+                Text(
+                    "${state.teamOne.name} is allowed to use ${teamOneAllowed.timeoutCountText()}",
+                )
+                Text(
+                    "${state.teamTwo.name} is allowed to use ${teamTwoAllowed.timeoutCountText()}",
+                )
                 SmallCountEditor(
-                    label = "${state.teamOne.name} used (allowed $teamOneAllowed)",
+                    label = "${state.teamOne.name}",
                     value = teamOneTimeoutsUsed,
                     onValueChange = { teamOneTimeoutsUsed = it },
                 )
                 SmallCountEditor(
-                    label = "${state.teamTwo.name} used (allowed $teamTwoAllowed)",
+                    label = "${state.teamTwo.name}",
                     value = teamTwoTimeoutsUsed,
                     onValueChange = { teamTwoTimeoutsUsed = it },
                 )
+                if (state.halftimeTaken) {
+                    Text("Adjust the number of timeouts used by each team in the first half.")
+                    SmallCountEditor(
+                        label = "${state.teamOne.name}",
+                        value = teamOneFirstHalfTimeoutsUsed,
+                        onValueChange = { teamOneFirstHalfTimeoutsUsed = it },
+                    )
+                    SmallCountEditor(
+                        label = "${state.teamTwo.name}",
+                        value = teamTwoFirstHalfTimeoutsUsed,
+                        onValueChange = { teamTwoFirstHalfTimeoutsUsed = it },
+                    )
+                }
+
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(teamOneTimeoutsUsed, teamTwoTimeoutsUsed) }) {
+            TextButton(
+                onClick = {
+                    onConfirm(
+                        teamOneTimeoutsUsed,
+                        teamTwoTimeoutsUsed,
+                        teamOneFirstHalfTimeoutsUsed,
+                        teamTwoFirstHalfTimeoutsUsed,
+                    )
+                }) {
                 Text("Set")
             }
         },
@@ -58,4 +100,9 @@ internal fun AdjustTimeoutsDialog(
             }
         },
     )
+}
+
+/// Return timeout count text with the correct singular/plural noun.
+private fun Int.timeoutCountText(): String {
+    return if (this == 1) "$this timeout" else "$this timeouts"
 }

@@ -210,11 +210,15 @@ class TestEventLog : GameDomainTestFixtures() {
         state = state.adjustTimeouts(
             teamOneTimeoutsUsed = 1,
             teamTwoTimeoutsUsed = 0,
+            teamOneFirstHalfTimeoutsUsed = state.teamOne.firstHalfTimeoutsUsed,
+            teamTwoFirstHalfTimeoutsUsed = state.teamTwo.firstHalfTimeoutsUsed,
             now = timestampAt(state, LocalTime.of(12, 5)),
         )
         state = state.adjustTimeouts(
             teamOneTimeoutsUsed = 0,
             teamTwoTimeoutsUsed = 0,
+            teamOneFirstHalfTimeoutsUsed = state.teamOne.firstHalfTimeoutsUsed,
+            teamTwoFirstHalfTimeoutsUsed = state.teamTwo.firstHalfTimeoutsUsed,
             now = timestampAt(state, LocalTime.of(12, 6)),
         )
 

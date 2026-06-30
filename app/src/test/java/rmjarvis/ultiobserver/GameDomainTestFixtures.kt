@@ -336,7 +336,13 @@ abstract class GameDomainTestFixtures {
      * @param teamTwoTimeoutsUsed The corrected team-two timeout count.
      */
     protected fun GameState.adjustTimeouts(teamOneTimeoutsUsed: Int, teamTwoTimeoutsUsed: Int): GameState {
-        return adjustTimeouts(teamOneTimeoutsUsed, teamTwoTimeoutsUsed, 0L)
+        return adjustTimeouts(
+            teamOneTimeoutsUsed,
+            teamTwoTimeoutsUsed,
+            teamOne.firstHalfTimeoutsUsed,
+            teamTwo.firstHalfTimeoutsUsed,
+            0L,
+        )
     }
 
     /**

@@ -25,14 +25,22 @@ data class TimeoutAssessmentPreview(
  *
  * @param teamOneTimeoutsUsed The corrected count of team-one timeouts used in the current half.
  * @param teamTwoTimeoutsUsed The corrected count of team-two timeouts used in the current half.
+ * @param teamOneFirstHalfTimeoutsUsed The corrected stored first-half count for team one.
+ * @param teamTwoFirstHalfTimeoutsUsed The corrected stored first-half count for team two.
+ *
+ * The stored first-half counts only affect timeout availability after halftime has been taken.
  */
 fun GameState.adjustTimeouts(
     teamOneTimeoutsUsed: Int,
     teamTwoTimeoutsUsed: Int,
+    teamOneFirstHalfTimeoutsUsed: Int,
+    teamTwoFirstHalfTimeoutsUsed: Int,
     now: Long,
 ): GameState {
     val adjustedTeamOneTimeouts = teamOneTimeoutsUsed.coerceAtLeast(0)
     val adjustedTeamTwoTimeouts = teamTwoTimeoutsUsed.coerceAtLeast(0)
+    val adjustedTeamOneFirstHalfTimeouts = teamOneFirstHalfTimeoutsUsed.coerceAtLeast(0)
+    val adjustedTeamTwoFirstHalfTimeouts = teamTwoFirstHalfTimeoutsUsed.coerceAtLeast(0)
     val entries = buildList {
         val teamOneDelta = adjustedTeamOneTimeouts -
             this@adjustTimeouts.teamOne.timeoutsUsedThisHalf
@@ -62,9 +70,11 @@ fun GameState.adjustTimeouts(
     return this.copy(
         teamOne = this.teamOne.copy(
             timeoutsUsedThisHalf = adjustedTeamOneTimeouts,
+            firstHalfTimeoutsUsed = adjustedTeamOneFirstHalfTimeouts,
         ),
         teamTwo = this.teamTwo.copy(
             timeoutsUsedThisHalf = adjustedTeamTwoTimeouts,
+            firstHalfTimeoutsUsed = adjustedTeamTwoFirstHalfTimeouts,
         ),
         lastEvent = "Timeouts adjusted.",
     ).withEventLogEntries(entries).withUndo(this, "Undo Timeout adjustment")
@@ -182,15 +192,28 @@ fun GameState.chargeTimeout(
  * @param team The team whose first-half floater carryover must be considered.
  */
 fun GameState.timeoutsAllowedThisHalf(team: TeamId): Int {
-    val firstHalfAllowance = this.rules.timeoutsPerHalf + if (this.rules.hasFloaterTimeout) 1 else 0
-    if (!this.halftimeTaken) {
+    return this.rules.timeoutsAllowedThisHalf(
+        halftimeTaken = halftimeTaken,
+        firstHalfTimeoutsUsed = teamFor(team).firstHalfTimeoutsUsed,
+    )
+}
+
+/**
+ * Calculate a team's timeout allowance for the current half from the rule inputs.
+ *
+ * @param halftimeTaken Whether the game has moved past the first half.
+ * @param firstHalfTimeoutsUsed The team's corrected first-half timeout count.
+ */
+fun GameRules.timeoutsAllowedThisHalf(halftimeTaken: Boolean, firstHalfTimeoutsUsed: Int): Int {
+    val firstHalfAllowance = timeoutsPerHalf + if (hasFloaterTimeout) 1 else 0
+    if (!halftimeTaken) {
         return firstHalfAllowance
     }
 
-    val firstHalfTimeoutsUsed = this.teamFor(team).firstHalfTimeoutsUsed
-    val floaterCarries = this.rules.hasFloaterTimeout && firstHalfTimeoutsUsed < firstHalfAllowance
-    return this.rules.timeoutsPerHalf + if (floaterCarries) 1 else 0
+    val floaterCarries = hasFloaterTimeout && firstHalfTimeoutsUsed < firstHalfAllowance
+    return timeoutsPerHalf + if (floaterCarries) 1 else 0
 }
+
 /**
  * Calculate how many timeouts a team still has available in the current half.
  *

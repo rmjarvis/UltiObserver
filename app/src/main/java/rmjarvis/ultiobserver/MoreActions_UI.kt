@@ -177,8 +177,16 @@ internal fun MoreActionsContent(
         AdjustTimeoutsDialog(
             state = state,
             onDismiss = { showAdjustTimeoutsDialog = false },
-            onConfirm = { teamOneTimeoutsUsed, teamTwoTimeoutsUsed ->
-                onAction(state.adjustTimeouts(teamOneTimeoutsUsed, teamTwoTimeoutsUsed, now))
+            onConfirm = { teamOneCurrent, teamTwoCurrent, teamOneFirstHalf, teamTwoFirstHalf ->
+                onAction(
+                    state.adjustTimeouts(
+                        teamOneCurrent,
+                        teamTwoCurrent,
+                        teamOneFirstHalf,
+                        teamTwoFirstHalf,
+                        now,
+                    )
+                )
                 showAdjustTimeoutsDialog = false
             },
         )
