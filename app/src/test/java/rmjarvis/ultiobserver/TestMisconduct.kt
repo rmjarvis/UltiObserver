@@ -218,8 +218,9 @@ class TestMisconduct : GameDomainTestFixtures() {
         assertEquals(0, priorCardRecord.priorReds)
         assertEquals("#8", priorCardRecord.playerIdentity(compact = true))
         assertEquals("#8", priorCardRecord.playerIdentity(compact = false))
-        assertEquals("Y 1", priorCardRecord.cardDetail())
-        assertEquals("prior Y 1", priorCardRecord.cardDetail(includeGame = true))
+        assertEquals("Yellows: 1", priorCardRecord.cardDetail())
+        assertEquals("Y 1", priorCardRecord.cardDetail(compact = true))
+        assertEquals("prior Y 1", priorCardRecord.cardDetail(compact = true, includeGame = true))
         assertEquals("1 yellow card", priorCardRecord.playerCardNoticeDetail())
         assertEquals("2 yellow cards", countedNounPhrase(2, "yellow card"))
 
@@ -232,12 +233,13 @@ class TestMisconduct : GameDomainTestFixtures() {
         )
         assertEquals("#12", namedPriorCardRecord.playerIdentity(compact = true))
         assertEquals("#12 Casey Handler", namedPriorCardRecord.playerIdentity(compact = false))
-        assertEquals("Y 1  R 1", namedPriorCardRecord.cardDetail())
+        assertEquals("Yellows: 1, Reds: 1", namedPriorCardRecord.cardDetail())
+        assertEquals("Y 1  R 1", namedPriorCardRecord.cardDetail(compact = true))
         assertEquals(
             "prior Y 1  R 1 + Y 1",
             namedPriorCardRecord.copy(
                 cards = listOf(InGamePlayerCardEvent(CardType.YELLOW, index = 0)),
-            ).cardDetail(includeGame = true),
+            ).cardDetail(compact = true, includeGame = true),
         )
         assertEquals("1 yellow card and 1 red card", namedPriorCardRecord.playerCardNoticeDetail())
         val numberlessPriorCardRecord = PlayerRecord(
@@ -248,15 +250,20 @@ class TestMisconduct : GameDomainTestFixtures() {
         )
         assertEquals("No Number", numberlessPriorCardRecord.playerIdentity(compact = true))
         assertEquals("No Number", numberlessPriorCardRecord.playerIdentity(compact = false))
-        assertEquals("R 1", numberlessPriorCardRecord.cardDetail())
+        assertEquals("Reds: 1", numberlessPriorCardRecord.cardDetail())
+        assertEquals("R 1", numberlessPriorCardRecord.cardDetail(compact = true))
         assertEquals("1 red card", numberlessPriorCardRecord.playerCardNoticeDetail())
 
         // Empty and in-game-only records have their own concise prior-card display text.
         assertEquals("no prior cards", PlayerRecord("9").playerCardNoticeDetail())
-        assertEquals("R 1", playerRecordWithCards("9", reds = 1).cardDetail(includeGame = true))
+        assertEquals("No prior cards", PlayerRecord("9").cardDetail())
+        assertEquals(
+            "R 1",
+            playerRecordWithCards("9", reds = 1).cardDetail(compact = true, includeGame = true),
+        )
         assertEquals(
             "No prior cards",
-            PlayerRecord("8", priorYellows = 0, priorReds = 0).cardDetail(),
+            PlayerRecord("8", priorYellows = 0, priorReds = 0).cardDetail(compact = true),
         )
 
         // Card-reason preset lists expose expected yellow and red reason choices.

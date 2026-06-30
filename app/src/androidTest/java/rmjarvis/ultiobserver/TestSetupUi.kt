@@ -434,7 +434,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onAllNodesWithText("-1")[1].performClick()
         composeRule.onNodeWithText("Add").performClick()
         composeRule.onNodeWithText("#66").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("Y 2").assertIsDisplayed()
+        composeRule.onNodeWithText("Yellows: 2").assertIsDisplayed()
         closeSetupEditor()
         waitForText("Start game")
 
@@ -492,7 +492,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         waitForText("with 2 yellow cards and 1 red card.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
         composeRule.onNodeWithText("#88 Numbered Player").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("Y 2  R 1").assertIsDisplayed()
+        composeRule.onNodeWithText("Yellows: 2, Reds: 1").assertIsDisplayed()
         closeSetupEditor()
 
         // A number-only existing row should reject silently replacing it with a new named row.

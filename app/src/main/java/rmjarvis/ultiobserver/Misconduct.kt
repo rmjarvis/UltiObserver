@@ -179,17 +179,18 @@ data class PlayerRecord(
     }
 
     /**
-     * Return compact card detail for this player.
+     * Return card detail for this player.
      *
+     * @param compact Whether to use dense yellow/red abbreviations.
      * @param includeGame Whether to include in-game card counts with previous-game card counts.
      */
-    internal fun cardDetail(includeGame: Boolean = false): String {
-        val priorDetail = listOfNotNull(
+    internal fun cardDetail(compact: Boolean = false, includeGame: Boolean = false): String {
+        val compactPriorDetail = listOfNotNull(
             if (priorYellows > 0) "Y $priorYellows" else null,
             if (priorReds > 0) "R $priorReds" else null,
         ).joinToString("  ")
         if (includeGame) {
-            val labeledPriorDetail = priorDetail.takeIf { it.isNotBlank() }?.let { "prior $it" }
+            val labeledPriorDetail = compactPriorDetail.takeIf { it.isNotBlank() }?.let { "prior $it" }
             val inGameDetail = listOfNotNull(
                 if (yellows > 0) "Y $yellows" else null,
                 if (reds > 0) "R $reds" else null,
@@ -199,6 +200,13 @@ data class PlayerRecord(
                 inGameDetail.takeIf { it.isNotBlank() },
             ).joinToString(" + ")
         }
+        if (compact) {
+            return compactPriorDetail.ifBlank { "No prior cards" }
+        }
+        val priorDetail = listOfNotNull(
+            if (priorYellows > 0) "Yellows: $priorYellows" else null,
+            if (priorReds > 0) "Reds: $priorReds" else null,
+        ).joinToString(", ")
         return priorDetail.ifBlank { "No prior cards" }
     }
 
