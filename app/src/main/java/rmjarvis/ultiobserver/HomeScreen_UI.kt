@@ -35,14 +35,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * Compact current/completed game row on Home.
+ * Compact game row in home and archived game lists.
  *
- * @param title The main row text, usually compact start date/time.
- * @param subtitle The supporting row text, usually resume context or score.
+ * @param startDateTime Compact start date/time text.
+ * @param summaryLine Matchup or score summary text.
  */
 internal data class GameListEntry(
-    val title: String,
-    val subtitle: String,
+    val startDateTime: String,
+    val summaryLine: String,
 )
 
 // Define primitive component heights used to calculate the size of each home-screen section.
@@ -88,8 +88,8 @@ private val ACTIONS_HEIGHT = BUTTON_HEIGHT * 3 + BUTTON_SPACER * 3
 // Home-screen summary for a live or completed game.
 internal fun GameState.gameListEntry(): GameListEntry {
     return GameListEntry(
-        title = compactStartDateTime(),
-        subtitle = gameListSummaryLine(),
+        startDateTime = compactStartDateTime(),
+        summaryLine = gameListSummaryLine(),
     )
 }
 
@@ -374,38 +374,15 @@ private fun HomeActionText(text: String) {
 }
 
 /**
- * Render a tappable game row from a list-entry object.
+ * Render a tappable game row with date/time above the matchup or score summary.
  *
- * @param entry The game-list entry containing title and subtitle.
+ * @param entry The game-list entry to display.
  * @param modifier Optional row modifier.
  * @param onClick Callback opening the game.
  */
 @Composable
 internal fun GameListRow(
     entry: GameListEntry,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    GameListRow(
-        startDateTime = entry.title,
-        summaryLine = entry.subtitle,
-        modifier = modifier,
-        onClick = onClick,
-    )
-}
-
-/**
- * Render a tappable game row with date/time above the matchup or score summary.
- *
- * @param startDateTime The compact start date/time line.
- * @param summaryLine The matchup or score summary line.
- * @param modifier Optional row modifier.
- * @param onClick Callback opening the game.
- */
-@Composable
-internal fun GameListRow(
-    startDateTime: String,
-    summaryLine: String,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
@@ -428,11 +405,11 @@ internal fun GameListRow(
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(
-                text = startDateTime,
+                text = entry.startDateTime,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelLarge,
             )
-            Text(summaryLine, fontWeight = FontWeight.Medium)
+            Text(entry.summaryLine, fontWeight = FontWeight.Medium)
         }
     }
 }

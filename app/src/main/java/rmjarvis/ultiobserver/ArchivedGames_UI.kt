@@ -30,25 +30,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 
 /**
- * Archived-game row in the archived games list.
- *
- * @param startDateTime Compact start date/time text.
- * @param summaryLine Matchup or score summary text.
- */
-internal data class ArchivedGameListEntry(
-    val startDateTime: String,
-    val summaryLine: String,
-)
-
-/// Return the archived-games row summary with compact start time above the summary line.
-internal fun GameState.archivedGameListEntry(): ArchivedGameListEntry {
-    return ArchivedGameListEntry(
-        startDateTime = formatCompactStartDateTime(startDate, startTime),
-        summaryLine = gameListSummaryLine(),
-    )
-}
-
-/**
  * Render the archived/saved games area
  *
  * @param categoryCounts Number of rows in each archive category.
@@ -67,7 +48,7 @@ internal fun GameState.archivedGameListEntry(): ArchivedGameListEntry {
 internal fun ArchivedGamesScreen(
     categoryCounts: Map<ArchivedGameCategory, Int>,
     selectedCategory: ArchivedGameCategory?,
-    archivedGames: List<ArchivedGameListEntry>?,
+    archivedGames: List<GameListEntry>?,
     onOpenCategory: (ArchivedGameCategory) -> Unit,
     onOpenArchivedGame: (Int) -> Unit,
     onDeleteArchivedGame: (Int) -> Unit,
@@ -210,14 +191,14 @@ private fun ArchiveCategoryButton(
  * Render an archived game row with a separate right-side delete action.
  *
  * @param displayedIndex The row index in the currently visible archive category.
- * @param entry The archived game list entry to display.
+ * @param entry The game list entry to display.
  * @param onClick Callback opening this archived game.
  * @param onDelete Callback requesting deletion of this archived game.
  */
 @Composable
 private fun ArchivedGameRow(
     displayedIndex: Int,
-    entry: ArchivedGameListEntry,
+    entry: GameListEntry,
     onClick: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -226,8 +207,7 @@ private fun ArchivedGameRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         GameListRow(
-            startDateTime = entry.startDateTime,
-            summaryLine = entry.summaryLine,
+            entry = entry,
             onClick = onClick,
             modifier = Modifier
                 .weight(1f)

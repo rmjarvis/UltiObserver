@@ -142,7 +142,7 @@ internal fun UltiObserverApp(
 
         AppScreen.ARCHIVED_GAMES -> {
             val archivedGameEntries = remember(appState.archivedGames) {
-                appState.archivedGames.map { it.state.archivedGameListEntry() }
+                appState.archivedGames.map { it.state.gameListEntry() }
             }
             val archiveCategoryCounts = remember(appState.archivedGames) {
                 ArchivedGameCategory.entries.associateWith { category ->
