@@ -6,8 +6,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,10 +15,8 @@ import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -32,7 +28,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -237,19 +232,7 @@ internal fun LiveGameScreen(
             CenterAlignedTopAppBar(
                 title = { Text("UltiObserver") },
                 navigationIcon = {
-                    TextButton(onClick = onBackHome) {
-                        Text("Back")
-                    }
-                },
-                actions = {
-                    if (!locked) {
-                        TextButton(
-                            onClick = { locked = true },
-                            modifier = Modifier.testTag("live-top-lock"),
-                        ) {
-                            Text("Lock")
-                        }
-                    }
+                    TextActionButton(label = "Back", onClick = onBackHome)
                 },
             )
         }
@@ -307,93 +290,43 @@ internal fun LiveGameScreen(
                         if (locked) {
                             FieldUnlockControl(onUnlock = { locked = false })
                         } else if (canReportOffenseSet) {
-                            OutlinedButton(
+                            BigActionButton(
+                                label = "Offense is set",
                                 onClick = { onStateChange(state.reportOffenseSet(now)) },
-                                modifier = Modifier
-                                    .height(layoutMetrics.centerButtonHeight)
-                                    .testTag("live-offense-set"),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
-                                    containerColor = Color.White,
-                                    contentColor = Color.Black,
-                                ),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
-                            ) {
-                                Text(
-                                    "Offense is set",
-                                    style = MaterialTheme.typography.labelLarge.copy(
-                                        fontSize = layoutMetrics.centerButtonFontSize,
-                                    ),
-                                )
-                            }
+                                containerColor = FieldNeutralButtonColor,
+                                height = layoutMetrics.centerButtonHeight,
+                                fontSize = layoutMetrics.centerButtonFontSize,
+                                tag = "live-offense-set",
+                            )
                         } else if (canStartPoint) {
-                            OutlinedButton(
+                            BigActionButton(
+                                label = "Start point",
                                 onClick = {
                                     onStateChange(state.beginLivePoint(now))
                                     if (automaticallyLockLivePoint) {
                                         locked = true
                                     }
                                 },
-                                modifier = Modifier.height(layoutMetrics.centerButtonHeight),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
-                                    containerColor = Color.White,
-                                    contentColor = Color.Black,
-                                ),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
-                            ) {
-                                Text(
-                                    "Start point",
-                                    style = MaterialTheme.typography.labelLarge.copy(
-                                        fontSize = layoutMetrics.centerButtonFontSize,
-                                    ),
-                                )
-                            }
+                                containerColor = FieldNeutralButtonColor,
+                                height = layoutMetrics.centerButtonHeight,
+                                fontSize = layoutMetrics.centerButtonFontSize,
+                            )
                         } else if (state.phase == GamePhase.LIVE_POINT && state.countdown != null) {
-                            OutlinedButton(
+                            BigActionButton(
+                                label = "Continue point",
                                 onClick = {
                                     onStateChange(state.continueLivePoint())
                                     if (automaticallyLockLivePoint) {
                                         locked = true
                                     }
                                 },
-                                modifier = Modifier.height(layoutMetrics.centerButtonHeight),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
-                                    containerColor = Color.White,
-                                    contentColor = Color.Black,
-                                ),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
-                            ) {
-                                Text(
-                                    "Continue point",
-                                    style = MaterialTheme.typography.labelLarge.copy(
-                                        fontSize = layoutMetrics.centerButtonFontSize,
-                                    ),
-                                )
-                            }
-                        } else if (state.phase == GamePhase.LIVE_POINT) {
-                            OutlinedButton(
-                                onClick = { locked = true },
-                                modifier = Modifier
-                                    .height(layoutMetrics.centerButtonHeight)
-                                    .testTag("live-center-lock"),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
-                                    containerColor = Color.White,
-                                    contentColor = Color.Black,
-                                ),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
-                            ) {
-                                Text(
-                                    "Lock",
-                                    style = MaterialTheme.typography.labelLarge.copy(
-                                        fontSize = layoutMetrics.centerButtonFontSize,
-                                    ),
-                                )
-                            }
+                                containerColor = FieldNeutralButtonColor,
+                                height = layoutMetrics.centerButtonHeight,
+                                fontSize = layoutMetrics.centerButtonFontSize,
+                            )
                         }
                     },
+                    onLock = if (locked) null else ({ locked = true }),
                     onGoal = { team -> onStateChange(state.recordGoalFromCurrentState(team, now)) },
                     onTimeout = { team ->
                         pendingTimeoutRequest = PendingTimeoutRequest(team, System.currentTimeMillis())
@@ -412,15 +345,14 @@ internal fun LiveGameScreen(
                 )
 
                 // More actions keeps less-common game actions out of the field action grid.
-                SmallActionButton(
+                NavigationButton(
                     label = "More actions",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(layoutMetrics.bottomActionHeight),
+                    fullWidth = true,
+                    height = layoutMetrics.bottomActionHeight,
                     enabled = !locked,
-                    containerColor = Color.White,
-                    contentColor = Color.Black,
-                    borderColor = Color.Black,
+                    colors = neutralOutlinedButtonColors(DarkNeutralColor),
+                    borderColor = MaterialTheme.colorScheme.outline,
+                    compact = true,
                     onClick = { showMoreActionsDialog = true },
                 )
 
@@ -480,9 +412,7 @@ internal fun LiveGameScreen(
                 )
             },
             confirmButton = {
-                TextButton(onClick = { showMoreActionsDialog = false }) {
-                    Text("Close")
-                }
+                TextActionButton(label = "Close", onClick = { showMoreActionsDialog = false })
             },
         )
     }
@@ -513,20 +443,17 @@ internal fun LiveGameScreen(
                 )
             },
             confirmButton = {
-                TextButton(
+                TextActionButton(
+                    label = "OK",
                     onClick = {
                         val result = state.assessTimeout(request.team, request.requestedAt)
                         onStateChange(result.state)
                         pendingTimeoutRequest = null
                     },
-                ) {
-                    Text("OK")
-                }
+                )
             },
             dismissButton = {
-                TextButton(onClick = { pendingTimeoutRequest = null }) {
-                    Text("Cancel")
-                }
+                TextActionButton(label = "Cancel", onClick = { pendingTimeoutRequest = null })
             },
         )
     }
@@ -543,20 +470,17 @@ internal fun LiveGameScreen(
                 )
             },
             confirmButton = {
-                TextButton(
+                TextActionButton(
+                    label = "OK",
                     onClick = {
                         val result = state.assessTimeViolation(team, System.currentTimeMillis())
                         onStateChange(result.state)
                         pendingTimeViolationTeam = null
                     },
-                ) {
-                    Text("OK")
-                }
+                )
             },
             dismissButton = {
-                TextButton(onClick = { pendingTimeViolationTeam = null }) {
-                    Text("Cancel")
-                }
+                TextActionButton(label = "Cancel", onClick = { pendingTimeViolationTeam = null })
             },
         )
     }
@@ -584,7 +508,14 @@ internal fun LiveGameScreen(
                         horizontalAlignment = Alignment.End,
                     ) {
                         if (canSwitchPullingViolation) {
-                            TextButton(
+                            TextActionButton(
+                                label = if (
+                                    pendingPullViolationType == PullViolationType.MAJORITY_PULL
+                                ) {
+                                    "This was an Offsides"
+                                } else {
+                                    "This was a Majority pull rule violation"
+                                },
                                 onClick = {
                                     pendingPullViolationType = if (
                                         pendingPullViolationType == PullViolationType.MAJORITY_PULL
@@ -594,36 +525,24 @@ internal fun LiveGameScreen(
                                         PullViolationType.MAJORITY_PULL
                                     }
                                 },
-                                modifier = Modifier
-                                    .height(32.dp)
-                                    .defaultMinSize(minHeight = 0.dp),
+                                height = 32.dp,
+                                compact = true,
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                            ) {
-                                Text(
-                                    if (
-                                        pendingPullViolationType == PullViolationType.MAJORITY_PULL
-                                    ) {
-                                        "This was an Offsides"
-                                    } else {
-                                        "This was a Majority pull rule violation"
-                                    }
-                                )
-                            }
+                            )
                         }
                         Row(horizontalArrangement = Arrangement.End) {
-                            TextButton(
+                            TextActionButton(
+                                label = "Cancel",
                                 onClick = {
                                     pendingPullViolationTeam = null
                                     pendingPullViolationType = PullViolationType.OFFSIDES
                                 },
-                                modifier = Modifier
-                                    .height(32.dp)
-                                    .defaultMinSize(minHeight = 0.dp),
+                                height = 32.dp,
+                                compact = true,
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                            ) {
-                                Text("Cancel")
-                            }
-                            TextButton(
+                            )
+                            TextActionButton(
+                                label = "OK",
                                 onClick = {
                                     val result = state.assessPullViolation(
                                         team = team,
@@ -634,13 +553,10 @@ internal fun LiveGameScreen(
                                     pendingPullViolationTeam = null
                                     pendingPullViolationType = PullViolationType.OFFSIDES
                                 },
-                                modifier = Modifier
-                                    .height(32.dp)
-                                    .defaultMinSize(minHeight = 0.dp),
+                                height = 32.dp,
+                                compact = true,
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                            ) {
-                                Text("OK")
-                            }
+                            )
                         }
                     }
                 }
@@ -666,15 +582,14 @@ internal fun LiveGameScreen(
             },
             confirmButton = {
                 if (misconductPrompt == null) {
-                    TextButton(
+                    TextActionButton(
+                        label = "OK",
                         onClick = {
                             val result = state.assessTechnicalFoul(team, System.currentTimeMillis())
                             onStateChange(result.state)
                             pendingTechnicalFoulTeam = null
                         },
-                    ) {
-                        Text("OK")
-                    }
+                    )
                 } else {
                     MisconductChoiceButtons(
                         firstLabel = "Cancel",
@@ -702,11 +617,10 @@ internal fun LiveGameScreen(
             },
             dismissButton = if (misconductPrompt == null) {
                 {
-                    TextButton(
+                    TextActionButton(
+                        label = "Cancel",
                         onClick = { pendingTechnicalFoulTeam = null },
-                    ) {
-                        Text("Cancel")
-                    }
+                    )
                 }
             } else {
                 null
@@ -729,25 +643,23 @@ internal fun LiveGameScreen(
                 )
             },
             confirmButton = {
-                TextButton(
+                TextActionButton(
+                    label = "OK",
                     onClick = {
                         onStateChange(pending.result.state.withPendingMisconductCountdown())
                         pendingTechnicalFoulResolution = null
                     },
-                ) {
-                    Text("OK")
-                }
+                )
             },
             dismissButton = {
-                TextButton(
-                    modifier = Modifier.testTag("misconduct-resolution-back"),
+                TextActionButton(
+                    label = "Back",
+                    tag = "misconduct-resolution-back",
                     onClick = {
                         pendingTechnicalFoulTeam = pending.team
                         pendingTechnicalFoulResolution = null
                     },
-                ) {
-                    Text("Back")
-                }
+                )
             },
         )
     }
@@ -764,9 +676,7 @@ internal fun LiveGameScreen(
                 )
             },
             confirmButton = {
-                TextButton(onClick = { dismissActionInfo() }) {
-                    Text("OK")
-                }
+                TextActionButton(label = "OK", onClick = { dismissActionInfo() })
             },
         )
     }
@@ -784,14 +694,10 @@ internal fun LiveGameScreen(
                 )
             },
             confirmButton = {
-                TextButton(onClick = { onStateChange(state.applyPendingCap(now)) }) {
-                    Text("Apply")
-                }
+                TextActionButton(label = "Apply", onClick = { onStateChange(state.applyPendingCap(now)) })
             },
             dismissButton = {
-                TextButton(onClick = { onStateChange(state.deferPendingCap()) }) {
-                    Text("No")
-                }
+                TextActionButton(label = "No", onClick = { onStateChange(state.deferPendingCap()) })
             },
         )
     }
@@ -809,9 +715,7 @@ internal fun LiveGameScreen(
                 )
             },
             confirmButton = {
-                TextButton(onClick = { activeGamePrompt = null }) {
-                    Text("OK")
-                }
+                TextActionButton(label = "OK", onClick = { activeGamePrompt = null })
             },
         )
     }
@@ -844,9 +748,7 @@ private fun TeamNamesDialog(team: TeamState, onDismiss: () -> Unit) {
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("OK")
-            }
+            TextActionButton(label = "OK", onClick = onDismiss)
         },
     )
 }
@@ -962,22 +864,16 @@ private fun UndoRedoBar(
 
     if (redoEntry == null) {
         CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-            OutlinedButton(
-                onClick = { onUndo(state.undoLastAction()) },
+            NavigationButton(
+                label = undoEntry!!.label,
                 enabled = enabled,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(height)
-                    .defaultMinSize(minHeight = 0.dp),
-                colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
-                    containerColor = Color.White,
-                    contentColor = Color.Black,
-                ),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
-            ) {
-                Text(undoEntry!!.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
+                fullWidth = true,
+                height = height,
+                colors = resetOutlinedButtonColors(),
+                borderColor = ResetColor,
+                compact = true,
+                onClick = { onUndo(state.undoLastAction()) },
+            )
         }
         return
     }
@@ -989,43 +885,29 @@ private fun UndoRedoBar(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (undoEntry != null) {
-                OutlinedButton(
-                    onClick = { onUndo(state.undoLastAction()) },
+                NavigationButton(
+                    label = undoEntry.label,
                     enabled = enabled,
-                    modifier = Modifier
-                        .weight(3f)
-                        .height(height)
-                        .defaultMinSize(minHeight = 0.dp),
-                    colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
-                        containerColor = Color.White,
-                        contentColor = Color.Black,
-                    ),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
-                ) {
-                    Text(undoEntry.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
+                    modifier = Modifier.weight(3f),
+                    height = height,
+                    colors = resetOutlinedButtonColors(),
+                    borderColor = ResetColor,
+                    compact = true,
+                    onClick = { onUndo(state.undoLastAction()) },
+                )
             } else {
                 Spacer(modifier = Modifier.weight(3f))
             }
-            OutlinedButton(
-                onClick = { onRedo(state.redoLastAction()) },
+            NavigationButton(
+                label = "Redo",
                 enabled = enabled,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(height)
-                    .defaultMinSize(minHeight = 0.dp),
-                colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
-                    containerColor = Color(0xFF343A40),
-                    contentColor = Color.White,
-                    disabledContainerColor = Color(0xFF343A40),
-                    disabledContentColor = Color.White,
-                ),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
-            ) {
-                Text("Redo")
-            }
+                modifier = Modifier.weight(1f),
+                height = height,
+                colors = redoOutlinedButtonColors(),
+                borderColor = RedoColor,
+                compact = true,
+                onClick = { onRedo(state.redoLastAction()) },
+            )
         }
     }
 }

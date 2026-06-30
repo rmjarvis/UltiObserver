@@ -1,6 +1,5 @@
 package rmjarvis.ultiobserver
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -9,33 +8,23 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToLong
@@ -64,9 +53,7 @@ internal fun SettingsScreen(
             CenterAlignedTopAppBar(
                 title = { Text("Settings") },
                 navigationIcon = {
-                    TextButton(onClick = onBackHome) {
-                        Text("Back")
-                    }
+                    TextActionButton(label = "Back", onClick = onBackHome)
                 },
             )
         },
@@ -120,19 +107,13 @@ internal fun SettingsScreen(
                 },
             )
 
-            Button(
+            MenuButton(
+                label = "Sound settings for individual cues",
+                tag = "settings-open-timing-cue-settings",
+                colors = primaryButtonColors(),
+                borderColor = null,
                 onClick = onOpenTimingCueSettings,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("settings-open-timing-cue-settings"),
-                shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF1565C0),
-                    contentColor = Color.White,
-                ),
-            ) {
-                Text("Sound settings for individual cues")
-            }
+            )
         }
     }
 }
@@ -246,9 +227,7 @@ internal fun TimingCueSettingsScreen(
             CenterAlignedTopAppBar(
                 title = { Text("Cue sound settings") },
                 navigationIcon = {
-                    TextButton(onClick = onBackSettings) {
-                        Text("Back")
-                    }
+                    TextActionButton(label = "Back", onClick = onBackSettings)
                 },
             )
         },
@@ -273,15 +252,13 @@ internal fun TimingCueSettingsScreen(
             timingCueSections.forEach { section ->
                 HorizontalDivider()
                 if (section == timingCueSections.first()) {
-                    OutlinedButton(
+                    MenuButton(
+                        label = "Reset all to defaults",
+                        tag = "settings-reset-timing-cue-defaults",
+                        colors = resetButtonColors(),
+                        borderColor = null,
                         onClick = onResetTimingCueSettings,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("settings-reset-timing-cue-defaults"),
-                        shape = RoundedCornerShape(28.dp),
-                    ) {
-                        Text("Reset all to defaults")
-                    }
+                    )
                 }
                 Text(
                     text = section.title,
@@ -333,11 +310,11 @@ private fun TimingAlertGlobalModeSelector(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             TimingAlertGlobalMode.entries.forEach { mode ->
-                FilterChip(
+                ChoiceChipButton(
+                    label = mode.label,
                     selected = mode == selectedMode,
+                    tag = "settings-global-alert-${mode.name}",
                     onClick = { onModeChange(mode) },
-                    label = { Text(mode.label) },
-                    modifier = Modifier.testTag("settings-global-alert-${mode.name}"),
                 )
             }
         }
@@ -396,16 +373,19 @@ private fun TimingAlertSoundControls(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    OutlinedButton(
+                    MenuButton(
+                        label = "Test",
+                        enabled = hasTimingCueHaptics,
+                        fullWidth = false,
+                        tag = "settings-test-vibration",
+                        colors = neutralOutlinedButtonColors(
+                            containerColor = EmphasizedDarkNeutralColor,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
                         onClick = {
                             onTestVibration(timingAlertPreferences.vibrationDurationMillis)
                         },
-                        enabled = hasTimingCueHaptics,
-                        modifier = Modifier.testTag("settings-test-vibration"),
-                        shape = RoundedCornerShape(28.dp),
-                    ) {
-                        Text("Test")
-                    }
+                    )
                     Text(
                         text = "If the test vibration is too weak, check the vibration strength in your phone's haptic settings.",
                         style = MaterialTheme.typography.bodySmall,
@@ -486,11 +466,16 @@ private fun SoundPreviewRow(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             sounds.forEach { sound ->
-                FilterChip(
-                    selected = false,
+                MenuButton(
+                    label = sound.label,
+                    tag = "settings-sound-preview-${sound.name}",
+                    fullWidth = false,
+                    colors = neutralOutlinedButtonColors(
+                        containerColor = EmphasizedDarkNeutralColor,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
+                    contentPadding = DefaultButtonContentPadding,
                     onClick = { onPreview(sound) },
-                    label = { Text(sound.label) },
-                    modifier = Modifier.testTag("settings-sound-preview-${sound.name}"),
                 )
             }
         }
@@ -551,7 +536,7 @@ private fun TimingCueSettingRow(
                         onClick = { onModeChange(option) },
                         label = option.settingsLabel(),
                         horizontalPadding = 6,
-                        modifier = Modifier.testTag("settings-${cueId.name}-${option.name}"),
+                        tag = "settings-${cueId.name}-${option.name}",
                     )
                 }
                 Row(
@@ -564,13 +549,13 @@ private fun TimingCueSettingRow(
                             onClick = {
                                 onRepeatCountChange(
                                     if (option == repeatCount) DEFAULT_TIMING_ALERT_REPEAT_COUNT else option
-                            )
-                        },
-                        label = "x$option",
-                        horizontalPadding = 8,
-                        modifier = Modifier.testTag("settings-${cueId.name}-REPEAT_$option"),
-                    )
-                }
+                                )
+                            },
+                            label = "x$option",
+                            horizontalPadding = 8,
+                            tag = "settings-${cueId.name}-REPEAT_$option",
+                        )
+                    }
                 }
             }
         }
@@ -582,34 +567,27 @@ private fun TimingCueSettingRow(
  *
  * @param selected Whether this option is currently selected.
  * @param label The visible option label.
- * @param modifier Optional layout and test-tag modifier.
+ * @param modifier Optional layout modifier.
  * @param horizontalPadding Horizontal text padding in density-independent pixels.
+ * @param tag Optional test tag.
  * @param onClick Callback selecting this option.
  */
 @Composable
 private fun CompactTimingAlertOption(
     selected: Boolean,
     label: String,
-    modifier: Modifier = Modifier,
     horizontalPadding: Int = 5,
+    tag: String? = null,
     onClick: () -> Unit,
 ) {
-    val colorScheme = MaterialTheme.colorScheme
-    Surface(
+    ChoiceChipButton(
+        label = label,
+        selected = selected,
+        tag = tag,
+        horizontalPadding = horizontalPadding.dp,
+        verticalPadding = 5.dp,
         onClick = onClick,
-        modifier = modifier.semantics { this.selected = selected },
-        shape = RoundedCornerShape(16.dp),
-        color = if (selected) colorScheme.secondaryContainer else colorScheme.surface,
-        contentColor = if (selected) colorScheme.onSecondaryContainer else colorScheme.onSurface,
-        border = BorderStroke(1.dp, if (selected) colorScheme.secondary else colorScheme.outline),
-    ) {
-        Text(
-            text = label,
-            modifier = Modifier.padding(horizontal = horizontalPadding.dp, vertical = 5.dp),
-            maxLines = 1,
-            style = MaterialTheme.typography.labelMedium,
-        )
-    }
+    )
 }
 
 /// Return the settings-page messages for a global timing-alert mode and haptic capability.

@@ -11,27 +11,16 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,16 +32,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-
-private val CardChoiceYellow = Color(0xFFFFD92F)
-private val CardChoiceRed = Color(0xFFE64B3C)
-private val CardChoiceBlue = Color(0xFF1976D2)
-private val CardReasonButtonColor = Color(0xFFFFF176)
 
 /**
  * Entered player-card details from the yellow/red card dialog.
@@ -271,12 +254,18 @@ internal fun AdjustCardsDialog(
         val identity = PlayerIdentity(entry.jerseyNumber, entry.playerName)
         val records = recordsFor(team)
         if (!skipSameNumberWarning) {
-            val conflict = records.sameNumberPlayerIdentityConflict(identity.jerseyNumber, identity.playerName)
+            val conflict = records.sameNumberPlayerIdentityConflict(
+                identity.jerseyNumber,
+                identity.playerName
+            )
             if (conflict != null) {
                 pendingManualSameNumberConfirmation = PendingSameNumberPlayerCardConfirmation(
                     team = team,
                     cardType = cardType,
-                    entry = entry.copy(jerseyNumber = identity.jerseyNumber, playerName = identity.playerName),
+                    entry = entry.copy(
+                        jerseyNumber = identity.jerseyNumber,
+                        playerName = identity.playerName
+                    ),
                     conflict = conflict,
                 )
                 return true
@@ -309,7 +298,11 @@ internal fun AdjustCardsDialog(
         return true
     }
 
-    fun applyManualCardEdit(team: TeamId, originalCard: EditablePlayerCard, entry: PlayerCardEntry): Boolean {
+    fun applyManualCardEdit(
+        team: TeamId,
+        originalCard: EditablePlayerCard,
+        entry: PlayerCardEntry
+    ): Boolean {
         if (entry.jerseyNumber.isBlank() && entry.playerName.isBlank()) {
             invalidCardAssignmentMessage = "Enter a player number or name before recording this card."
             return false
@@ -426,14 +419,10 @@ internal fun AdjustCardsDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { finalizeAdjustment() }) {
-                Text("Done")
-            }
+            TextActionButton(label = "Done", onClick = { finalizeAdjustment() })
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
+            TextActionButton(label = "Cancel", onClick = onDismiss)
         },
     )
 
@@ -534,7 +523,8 @@ internal fun AdjustCardsDialog(
                 )
             },
             confirmButton = {
-                TextButton(
+                TextActionButton(
+                    label = "Record",
                     onClick = {
                         pendingManualSameNumberConfirmation = null
                         // This entry already passed validation far enough to create the
@@ -548,17 +538,14 @@ internal fun AdjustCardsDialog(
                         )
                         pendingManualAdd = null
                     }
-                ) {
-                    Text("Record")
-                }
+                )
             },
             dismissButton = {
-                TextButton(
-                    modifier = Modifier.testTag("same-number-warning-cancel"),
+                TextActionButton(
+                    label = "Cancel",
+                    tag = "same-number-warning-cancel",
                     onClick = ::restoreManualCardAdd,
-                ) {
-                    Text("Cancel")
-                }
+                )
             }
         )
     }
@@ -569,9 +556,7 @@ internal fun AdjustCardsDialog(
             title = { Text("Invalid card assignment") },
             text = { Text(message) },
             confirmButton = {
-                TextButton(onClick = { invalidCardAssignmentMessage = null }) {
-                    Text("OK")
-                }
+                TextActionButton(label = "OK", onClick = { invalidCardAssignmentMessage = null })
             },
         )
     }
@@ -582,9 +567,7 @@ internal fun AdjustCardsDialog(
             title = { Text("Card suspension") },
             text = { Text(message) },
             confirmButton = {
-                TextButton(onClick = { suspensionNoticeMessage = null }) {
-                    Text("OK")
-                }
+                TextActionButton(label = "OK", onClick = { suspensionNoticeMessage = null })
             },
         )
     }
@@ -722,14 +705,22 @@ internal fun TeamCardDialog(
         )
     }
 
-    fun showSuspensionNoticeIfNeeded(team: TeamId, records: List<PlayerRecord>, identity: PlayerIdentity) {
+    fun showSuspensionNoticeIfNeeded(
+        team: TeamId,
+        records: List<PlayerRecord>,
+        identity: PlayerIdentity
+    ) {
         val status = playerSuspensionStatus(records, identity) ?: return
         suspensionNoticeMessage =
             "${state.teamFor(team).name} ${identity.displayText(compact = true)} " +
                 status.noticeText
     }
 
-    fun applyExistingCardEdit(team: TeamId, originalCard: EditablePlayerCard, entry: PlayerCardEntry): Boolean {
+    fun applyExistingCardEdit(
+        team: TeamId,
+        originalCard: EditablePlayerCard,
+        entry: PlayerCardEntry
+    ): Boolean {
         if (entry.jerseyNumber.isBlank() && entry.playerName.isBlank()) {
             invalidCardAssignmentMessage = "Enter a player number or name before recording this card."
             return false
@@ -775,9 +766,16 @@ internal fun TeamCardDialog(
             return false
         }
         val identity = PlayerIdentity(entry.jerseyNumber, entry.playerName)
-        val normalizedEntry = entry.copy(jerseyNumber = identity.jerseyNumber, playerName = identity.playerName)
+        val normalizedEntry = entry.copy(
+            jerseyNumber = identity.jerseyNumber,
+            playerName = identity.playerName
+        )
         if (!skipSameNumberWarning) {
-            val conflict = state.sameNumberPlayerIdentityConflict(team, identity.jerseyNumber, identity.playerName)
+            val conflict = state.sameNumberPlayerIdentityConflict(
+                team,
+                identity.jerseyNumber,
+                identity.playerName
+            )
             if (conflict != null) {
                 pendingSameNumberConfirmation = PendingSameNumberPlayerCardConfirmation(
                     team = team,
@@ -800,14 +798,26 @@ internal fun TeamCardDialog(
         when (cardType) {
             CardType.YELLOW -> {
                 presentAssessment(
-                    state.assessYellowCard(team, identity.jerseyNumber, now, identity.playerName, entry.reason),
+                    state.assessYellowCard(
+                        team,
+                        identity.jerseyNumber,
+                        now,
+                        identity.playerName,
+                        entry.reason
+                    ),
                     PendingMisconductReturn.YellowEntry(team, normalizedEntry),
                 )
                 return true
             }
             CardType.RED -> {
                 presentAssessment(
-                    state.assessRedCard(team, identity.jerseyNumber, now, identity.playerName, entry.reason),
+                    state.assessRedCard(
+                        team,
+                        identity.jerseyNumber,
+                        now,
+                        identity.playerName,
+                        entry.reason
+                    ),
                     PendingMisconductReturn.RedEntry(team, normalizedEntry),
                 )
                 return true
@@ -935,7 +945,8 @@ internal fun TeamCardDialog(
                 )
             },
             confirmButton = {
-                TextButton(
+                TextActionButton(
+                    label = "Record",
                     onClick = {
                         pendingSameNumberConfirmation = null
                         assessPlayerCardEntry(
@@ -945,20 +956,21 @@ internal fun TeamCardDialog(
                             skipSameNumberWarning = true,
                         )
                     }
-                ) {
-                    Text("Record")
-                }
+                )
             },
             dismissButton = {
-                TextButton(
-                    modifier = Modifier.testTag("same-number-warning-cancel"),
+                TextActionButton(
+                    label = "Cancel",
+                    tag = "same-number-warning-cancel",
                     onClick = {
                         pendingSameNumberConfirmation = null
-                        restorePlayerCardEntry(confirmation.cardType, confirmation.team, confirmation.entry)
+                        restorePlayerCardEntry(
+                            confirmation.cardType,
+                            confirmation.team,
+                            confirmation.entry
+                        )
                     }
-                ) {
-                    Text("Cancel")
-                }
+                )
             },
         )
     }
@@ -969,9 +981,7 @@ internal fun TeamCardDialog(
             title = { Text("Invalid card assignment") },
             text = { Text(message) },
             confirmButton = {
-                TextButton(onClick = { invalidCardAssignmentMessage = null }) {
-                    Text("OK")
-                }
+                TextActionButton(label = "OK", onClick = { invalidCardAssignmentMessage = null })
             },
         )
     }
@@ -984,9 +994,7 @@ internal fun TeamCardDialog(
             title = { Text("Card suspension") },
             text = { Text(message) },
             confirmButton = {
-                TextButton(onClick = { suspensionNoticeMessage = null }) {
-                    Text("OK")
-                }
+                TextActionButton(label = "OK", onClick = { suspensionNoticeMessage = null })
             },
         )
     }
@@ -1009,15 +1017,14 @@ internal fun TeamCardDialog(
             },
             confirmButton = {
                 if (misconductPrompt == null) {
-                    TextButton(
+                    TextActionButton(
+                        label = "OK",
                         onClick = {
                             val result = state.assessBlueCard(blueTeam, now)
                             onStateOnly(result.state)
                             pendingBlueTeam = null
                         },
-                    ) {
-                        Text("OK")
-                    }
+                    )
                 } else {
                     MisconductChoiceButtons(
                         firstLabel = "Cancel",
@@ -1049,9 +1056,7 @@ internal fun TeamCardDialog(
             },
             dismissButton = if (misconductPrompt == null) {
                 {
-                    TextButton(onClick = { pendingBlueTeam = null }) {
-                        Text("Cancel")
-                    }
+                    TextActionButton(label = "Cancel", onClick = { pendingBlueTeam = null })
                 }
             } else {
                 null
@@ -1075,7 +1080,7 @@ internal fun TeamCardDialog(
             confirmButton = {
                 MisconductChoiceButtons(
                     firstLabel = "Back",
-                    firstModifier = Modifier.testTag("misconduct-choice-back"),
+                    firstTag = "misconduct-choice-back",
                     onFirst = { restoreMisconductReturn(pending.returnTo) },
                     onOffense = {
                         pendingMisconductResolution = PendingMisconductResolution(
@@ -1110,24 +1115,22 @@ internal fun TeamCardDialog(
                 )
             },
             confirmButton = {
-                TextButton(
+                TextActionButton(
+                    label = "OK",
                     onClick = {
                         onStateOnly(pending.choice.result.state.withPendingMisconductCountdown())
                         pendingMisconductResolution = null
                     },
-                ) {
-                    Text("OK")
-                }
+                )
             },
             dismissButton = {
-                TextButton(
-                    modifier = Modifier.testTag("misconduct-resolution-back"),
+                TextActionButton(
+                    label = "Back",
+                    tag = "misconduct-resolution-back",
                     onClick = {
                         restoreMisconductResolutionChoice(pending.choice)
                     },
-                ) {
-                    Text("Back")
-                }
+                )
             },
         )
     }
@@ -1170,29 +1173,29 @@ private fun CardChoiceDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    CardChoiceButton(
+                    BigActionButton(
                         label = "Yellow",
-                        color = CardChoiceYellow,
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("card-dialog-${team.name}-yellow"),
+                        containerColor = YellowCardButtonColor,
+                        borderColor = null,
+                        modifier = Modifier.weight(1f),
+                        tag = "card-dialog-${team.name}-yellow",
                         onClick = onYellow,
                     )
-                    CardChoiceButton(
+                    BigActionButton(
                         label = "Red",
-                        color = CardChoiceRed,
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("card-dialog-${team.name}-red"),
+                        containerColor = RedCardButtonColor,
+                        borderColor = null,
+                        modifier = Modifier.weight(1f),
+                        tag = "card-dialog-${team.name}-red",
                         onClick = onRed,
                     )
-                    CardChoiceButton(
+                    BigActionButton(
                         label = "Blue",
-                        color = CardChoiceBlue,
+                        containerColor = BlueCardButtonColor,
                         contentColor = Color.White,
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("card-dialog-${team.name}-blue"),
+                        borderColor = null,
+                        modifier = Modifier.weight(1f),
+                        tag = "card-dialog-${team.name}-blue",
                         onClick = onBlue,
                     )
                 }
@@ -1206,7 +1209,10 @@ private fun CardChoiceDialog(
                         Text("$redCount red", style = MaterialTheme.typography.bodyMedium)
                         Text("$blueCount blue", style = MaterialTheme.typography.bodyMedium)
                     }
-                    Text("Team total: ${state.teamCardTotal(team)}", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        "Team total: ${state.teamCardTotal(team)}",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
                 }
                 ExistingCardsButton(
                     hasEditableCards = hasEditableCards,
@@ -1215,9 +1221,7 @@ private fun CardChoiceDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Close")
-            }
+            TextActionButton(label = "Close", onClick = onDismiss)
         },
     )
 }
@@ -1233,50 +1237,12 @@ private fun ExistingCardsButton(
     hasEditableCards: Boolean,
     onClick: () -> Unit,
 ) {
-    OutlinedButton(
-        onClick = onClick,
+    MenuButton(
+        label = if (hasEditableCards) "Edit existing cards" else "No existing cards",
         enabled = hasEditableCards,
-        modifier = Modifier.fillMaxWidth(),
-        border = BorderStroke(1.dp, if (hasEditableCards) Color.Black else MaterialTheme.colorScheme.outline),
-        colors = ButtonDefaults.outlinedButtonColors(
-            containerColor = Color.White,
-            contentColor = Color.Black,
-            disabledContainerColor = Color.White,
-            disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-        ),
-    ) {
-        Text(if (hasEditableCards) "Edit existing cards" else "No existing cards")
-    }
-}
-
-/**
- * Render one color-coded card choice button.
- *
- * @param label The card color label.
- * @param color The button background color.
- * @param contentColor The text color to use on the button.
- * @param modifier Modifier applied to the button.
- * @param onClick Callback selecting this card color.
- */
-@Composable
-private fun CardChoiceButton(
-    label: String,
-    color: Color,
-    contentColor: Color = Color.Black,
-    modifier: Modifier,
-    onClick: () -> Unit,
-) {
-    Button(
+        colors = neutralOutlinedButtonColors(EmphasizedLightNeutralColor),
         onClick = onClick,
-        modifier = modifier,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = color,
-            contentColor = contentColor,
-        ),
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-    ) {
-        Text(label, maxLines = 1, softWrap = false)
-    }
+    )
 }
 
 // Compact +/- row for a single card or tech count.
@@ -1288,27 +1254,14 @@ private fun CardCountRow(
     onIncrement: () -> Unit,
     onDecrement: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text("$label $value")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SmallActionButton(
-                label = "+1",
-                enabled = true,
-                modifier = Modifier.testTag("$testTagPrefix-increment"),
-                onClick = onIncrement,
-            )
-            SmallActionButton(
-                label = "-1",
-                enabled = value > 0,
-                modifier = Modifier.testTag("$testTagPrefix-decrement"),
-                onClick = onDecrement,
-            )
-        }
-    }
+    CorrectionCountRow(
+        label = label,
+        value = value,
+        incrementTag = "$testTagPrefix-increment",
+        decrementTag = "$testTagPrefix-decrement",
+        onIncrement = onIncrement,
+        onDecrement = onDecrement,
+    )
 }
 
 /**
@@ -1330,93 +1283,27 @@ private fun PlayerCardAdjustmentActions(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            PlayerCardAddButton(
+            BigActionButton(
                 label = "Add yellow",
-                color = CardChoiceYellow,
+                containerColor = YellowCardButtonColor,
+                borderColor = null,
                 onClick = onAddYellow,
                 modifier = Modifier.weight(1f),
             )
-            PlayerCardAddButton(
+            BigActionButton(
                 label = "Add red",
-                color = CardChoiceRed,
+                containerColor = RedCardButtonColor,
+                borderColor = null,
                 onClick = onAddRed,
                 modifier = Modifier.weight(1f),
             )
         }
-        OutlinedButton(
-            onClick = onEditExisting,
+        MenuButton(
+            label = if (hasEditableCards) "Edit/remove existing cards" else "No existing cards",
             enabled = hasEditableCards,
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag(editExistingTestTag),
-            border = BorderStroke(1.dp, if (hasEditableCards) Color.Black else MaterialTheme.colorScheme.outline),
-            colors = ButtonDefaults.outlinedButtonColors(
-                containerColor = Color.White,
-                contentColor = Color.Black,
-                disabledContainerColor = Color.White,
-                disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-            ),
-        ) {
-            Text(if (hasEditableCards) "Edit/remove existing cards" else "No existing cards")
-        }
-    }
-}
-
-/**
- * Render one colored add-card action in the manual adjustment dialog.
- *
- * @param label The button label.
- * @param color The card color used for the button background.
- * @param onClick Callback adding that card type.
- * @param modifier Modifier applied to the button.
- */
-@Composable
-private fun PlayerCardAddButton(
-    label: String,
-    color: Color,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Button(
-        onClick = onClick,
-        modifier = modifier,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = color,
-            contentColor = Color.Black,
-        ),
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-    ) {
-        Text(label, maxLines = 1, softWrap = false)
-    }
-}
-
-/**
- * Render an icon action with a stable compact footprint.
- *
- * @param contentDescription Accessibility label for the icon button.
- * @param onClick Callback invoked when the button is tapped.
- * @param icon The icon to show.
- * @param size Button size.
- */
-@Composable
-private fun CompactIconAction(
-    contentDescription: String,
-    onClick: () -> Unit,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    size: Dp = 36.dp,
-) {
-    IconButton(
-        onClick = onClick,
-        modifier = Modifier
-            .width(size)
-            .height(size),
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            modifier = Modifier
-                .width(20.dp)
-                .height(20.dp),
+            tag = editExistingTestTag,
+            colors = neutralOutlinedButtonColors(EmphasizedLightNeutralColor),
+            onClick = onEditExisting,
         )
     }
 }
@@ -1435,10 +1322,7 @@ private fun EditablePlayerCardRow(
     onRemove: (() -> Unit)? = null,
 ) {
     val identity = editablePlayerCardIdentityText(card)
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-    ) {
+    DialogListItemCard {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1466,16 +1350,16 @@ private fun EditablePlayerCardRow(
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                CompactIconAction(
+                IconActionButton(
+                    icon = Icons.Filled.Edit,
                     contentDescription = "Edit $identity",
                     onClick = onEdit,
-                    icon = Icons.Filled.Edit,
                 )
                 onRemove?.let { remove ->
-                    CompactIconAction(
+                    IconActionButton(
+                        icon = Icons.Filled.Delete,
                         contentDescription = "Remove $identity",
                         onClick = remove,
-                        icon = Icons.Filled.Delete,
                     )
                 }
             }
@@ -1526,18 +1410,15 @@ private fun EditablePlayerCardsDialog(
         },
         confirmButton = {
             onConfirm?.let { confirm ->
-                TextButton(onClick = confirm) {
-                    Text("Done")
-                }
+                TextActionButton(label = "Done", onClick = confirm)
             }
         },
         dismissButton = {
-            TextButton(
-                modifier = Modifier.testTag("editable-player-cards-dismiss"),
+            TextActionButton(
+                label = if (onConfirm == null) "Back" else "Cancel",
+                tag = "editable-player-cards-dismiss",
                 onClick = onDismiss,
-            ) {
-                Text(if (onConfirm == null) "Back" else "Cancel")
-            }
+            )
         },
     )
 }
@@ -1560,14 +1441,10 @@ private fun RemoveEditablePlayerCardDialog(
         title = { Text("Remove card?") },
         text = { Text("Remove this ${card.cardType.label.lowercase()} card from ${PlayerIdentity(card.jerseyNumber, card.playerName).displayText(compact = false)}?") },
         confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text("Remove")
-            }
+            TextActionButton(label = "Remove", onClick = onConfirm)
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
+            TextActionButton(label = "Cancel", onClick = onDismiss)
         },
     )
 }
@@ -1610,10 +1487,10 @@ private fun PlayerCardEntryDialog(
     var showingReasonDialog by remember {
         mutableStateOf(false)
     }
-    val focusManager = LocalFocusManager.current
     val dialogBodyMaxHeight = keyboardDialogBodyMaxHeight()
 
     AlertDialog(
+        modifier = dialogInitialFocusModifier(),
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
@@ -1624,27 +1501,18 @@ private fun PlayerCardEntryDialog(
                     .verticalScroll(rememberScrollState()),
             ) {
                 Text(teamName, fontWeight = FontWeight.SemiBold)
-                OutlinedTextField(
+                TextEntry(
                     value = jerseyNumber,
                     onValueChange = { jerseyNumber = it.filter(Char::isDigit) },
-                    label = { Text("Player number") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus(force = true) }),
-                    singleLine = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("card-player-number"),
+                    labelText = "Player number",
+                    keyboardType = KeyboardType.Number,
+                    tag = "card-player-number",
                 )
-                OutlinedTextField(
+                TextEntry(
                     value = playerName,
                     onValueChange = { playerName = it },
-                    label = { Text("Player name") },
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus(force = true) }),
-                    singleLine = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("card-player-name"),
+                    labelText = "Player name",
+                    tag = "card-player-name",
                 )
                 if (candidates.isNotEmpty()) {
                     Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
@@ -1660,21 +1528,16 @@ private fun PlayerCardEntryDialog(
                         }
                     }
                 }
-                Button(
+                MenuButton(
+                    label = reason.text().ifBlank { "Reason" },
+                    colors = neutralOutlinedButtonColors(EmphasizedLightNeutralColor),
                     onClick = { showingReasonDialog = true },
-                    modifier = Modifier.fillMaxWidth(),
-                    border = BorderStroke(1.dp, Color.Black),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = CardReasonButtonColor,
-                        contentColor = Color.Black,
-                    ),
-                ) {
-                    Text(reason.text().ifBlank { "Reason" })
-                }
+                )
             }
         },
         confirmButton = {
-            TextButton(
+            TextActionButton(
+                label = "Record",
                 onClick = {
                     onConfirm(
                         PlayerCardEntry(
@@ -1684,17 +1547,14 @@ private fun PlayerCardEntryDialog(
                         )
                     )
                 },
-            ) {
-                Text("Record")
-            }
+            )
         },
         dismissButton = {
-            TextButton(
-                modifier = Modifier.testTag("card-entry-cancel"),
+            TextActionButton(
+                label = "Cancel",
+                tag = "card-entry-cancel",
                 onClick = onDismiss,
-            ) {
-                Text("Cancel")
-            }
+            )
         },
     )
 
@@ -1731,12 +1591,11 @@ private fun PlayerCardCandidateRow(candidate: PlayerCardCandidate, onCopy: () ->
             "${PlayerIdentity(candidate.jerseyNumber, candidate.playerName).displayText(compact = false)}$detail",
             modifier = Modifier.weight(1f),
         )
-        TextButton(
-            onClick = onCopy,
+        TextActionButton(
+            label = "Copy",
             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-        ) {
-            Text("Copy")
-        }
+            onClick = onCopy,
+        )
     }
 }
 
@@ -1766,8 +1625,10 @@ private fun CardReasonDialog(
         mutableStateOf(initialReason.details)
     }
     val dialogBodyMaxHeight = keyboardDialogBodyMaxHeight()
+    val focusManager = LocalFocusManager.current
 
     AlertDialog(
+        modifier = dialogInitialFocusModifier(),
         onDismissRequest = onDismiss,
         title = { Text("${cardType.label} card reason") },
         text = {
@@ -1785,40 +1646,41 @@ private fun CardReasonDialog(
                         ReasonChoiceButton(
                             label = preset,
                             selected = selectedPreset == preset,
-                            onClick = { selectedPreset = preset },
+                            onClick = {
+                                focusManager.clearFocus(force = true)
+                                selectedPreset = preset
+                            },
                         )
                     }
                     ReasonChoiceButton(
                         label = "Other",
                         selected = selectedPreset == "Other",
-                        onClick = { selectedPreset = "Other" },
+                        onClick = {
+                            focusManager.clearFocus(force = true)
+                            selectedPreset = "Other"
+                        },
                     )
                 }
                 if (selectedPreset == "Other") {
-                    OutlinedTextField(
+                    TextEntry(
                         value = otherReason,
                         onValueChange = { otherReason = it },
-                        label = { Text("Other reason") },
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        singleLine = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("card-other-reason"),
+                        labelText = "Other reason",
+                        tag = "card-other-reason",
                     )
                 }
-                OutlinedTextField(
+                TextEntry(
                     value = details,
                     onValueChange = { details = it },
-                    label = { Text("More details") },
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("card-reason-details"),
+                    labelText = "More details",
+                    singleLine = false,
+                    tag = "card-reason-details",
                 )
             }
         },
         confirmButton = {
-            TextButton(
+            TextActionButton(
+                label = "Set",
                 onClick = {
                     onConfirm(
                         CardReason(
@@ -1828,14 +1690,10 @@ private fun CardReasonDialog(
                         )
                     )
                 },
-            ) {
-                Text("Set")
-            }
+            )
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Back")
-            }
+            TextActionButton(label = "Back", onClick = onDismiss)
         },
     )
 }
@@ -1849,27 +1707,11 @@ private fun CardReasonDialog(
  */
 @Composable
 private fun ReasonChoiceButton(label: String, selected: Boolean, onClick: () -> Unit) {
-    if (selected) {
-        Button(
-            onClick = onClick,
-            modifier = Modifier
-                .widthIn(min = 0.dp)
-                .height(34.dp),
-            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
-        ) {
-            Text(label)
-        }
-    } else {
-        OutlinedButton(
-            onClick = onClick,
-            modifier = Modifier
-                .widthIn(min = 0.dp)
-                .height(34.dp),
-            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
-        ) {
-            Text(label)
-        }
-    }
+    ChoiceChipButton(
+        label = label,
+        selected = selected,
+        onClick = onClick,
+    )
 }
 
 /**
@@ -1900,7 +1742,7 @@ private fun List<PlayerRecord>.playerCardCandidates(): List<PlayerCardCandidate>
         PlayerCardCandidate(
             jerseyNumber = player.jerseyNumber,
             playerName = player.playerName,
-            detail = player.cardDetail(includeGame = true),
+            detail = player.cardDetail(compact = true, includeGame = true),
         )
     }
 }

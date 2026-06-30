@@ -10,7 +10,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
@@ -31,9 +30,7 @@ internal fun EventLogDialog(state: GameState, onDismiss: () -> Unit) {
             EventLogDialogContent(state = state)
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("OK")
-            }
+            TextActionButton(label = "OK", onClick = onDismiss)
         },
     )
 }

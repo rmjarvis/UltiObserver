@@ -14,7 +14,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
@@ -38,9 +37,7 @@ internal fun AboutScreen(
             CenterAlignedTopAppBar(
                 title = { Text("About") },
                 navigationIcon = {
-                    TextButton(onClick = onBackHome) {
-                        Text("Back")
-                    }
+                    TextActionButton(label = "Back", onClick = onBackHome)
                 },
             )
         },
@@ -81,7 +78,7 @@ internal fun AboutScreen(
                             uriHandler.openUri(SOURCE_CODE_URL)
                         },
                     ),
-                color = MaterialTheme.colorScheme.primary,
+                color = PrimaryColor,
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
@@ -104,7 +101,7 @@ internal fun AboutScreen(
                             uriHandler.openUri(PRIVACY_POLICY_URL)
                         },
                     ),
-                color = MaterialTheme.colorScheme.primary,
+                color = PrimaryColor,
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,

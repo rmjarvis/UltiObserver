@@ -649,7 +649,7 @@ abstract class MainActivityUiTestFixtures {
         composeRule.onNodeWithTag("live-unlock-slider").performTouchInput {
             swipeRight()
         }
-        waitForText("Lock")
+        waitForTag("live-center-lock")
     }
 
     /**

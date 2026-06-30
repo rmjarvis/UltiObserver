@@ -11,16 +11,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,9 +41,7 @@ internal fun ProfileScreen(
             CenterAlignedTopAppBar(
                 title = { Text("Profile") },
                 navigationIcon = {
-                    TextButton(onClick = onBackHome) {
-                        Text("Back")
-                    }
+                    TextActionButton(label = "Back", onClick = onBackHome)
                 },
             )
         },
@@ -59,14 +54,12 @@ internal fun ProfileScreen(
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            OutlinedTextField(
+            TextEntry(
                 value = name,
                 onValueChange = onNameChange,
-                label = { Text("Name") },
-                singleLine = true,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("profile-name-field"),
+                labelText = "Name",
+                colors = pageOutlinedTextFieldColors(),
+                tag = "profile-name-field",
             )
             AvatarPreferenceSelector(
                 avatarPreference = avatarPreference,
@@ -136,13 +129,12 @@ private fun RandomAvatarPreferenceButton(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    val colorScheme = MaterialTheme.colorScheme
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(8.dp),
-        color = if (selected) colorScheme.secondaryContainer else colorScheme.surface,
-        contentColor = if (selected) colorScheme.onSecondaryContainer else colorScheme.onSurface,
-        border = BorderStroke(1.dp, if (selected) colorScheme.secondary else colorScheme.outlineVariant),
+        shape = PanelShape,
+        color = choiceContainerColor(selected),
+        contentColor = choiceContentColor(selected),
+        border = BorderStroke(1.dp, choiceBorderColor(selected)),
         modifier = Modifier
             .fillMaxWidth()
             .testTag("profile-avatar-RANDOM"),
@@ -162,13 +154,12 @@ private fun AvatarPreferenceButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val colorScheme = MaterialTheme.colorScheme
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(8.dp),
-        color = if (selected) colorScheme.secondaryContainer else colorScheme.surface,
-        contentColor = if (selected) colorScheme.onSecondaryContainer else colorScheme.onSurface,
-        border = BorderStroke(1.dp, if (selected) colorScheme.secondary else colorScheme.outlineVariant),
+        shape = PanelShape,
+        color = choiceContainerColor(selected),
+        contentColor = choiceContentColor(selected),
+        border = BorderStroke(1.dp, choiceBorderColor(selected)),
         modifier = modifier
             .aspectRatio(1f)
             .testTag("profile-avatar-${preference.name}"),

@@ -3,7 +3,6 @@ package rmjarvis.ultiobserver
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,7 +10,6 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -23,17 +21,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DatePicker
@@ -41,38 +33,28 @@ import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimeInput
 import androidx.compose.material3.TimePickerDialog
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -285,9 +267,7 @@ internal fun SetupScreen(
             CenterAlignedTopAppBar(
                 title = { Text(title) },
                 navigationIcon = {
-                    TextButton(onClick = onBackHome) {
-                        Text("Back")
-                    }
+                    TextActionButton(label = "Back", onClick = onBackHome)
                 },
             )
         },
@@ -299,27 +279,37 @@ internal fun SetupScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Button(
-                    onClick = onPrimaryAction,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(primaryButtonLabel)
+                if (onCancel != null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        NavigationButton(
+                            label = "Cancel",
+                            modifier = Modifier.weight(1f),
+                            colors = resetButtonColors(),
+                            onClick = onCancel,
+                        )
+                        NavigationButton(
+                            label = primaryButtonLabel,
+                            modifier = Modifier.weight(2f),
+                            onClick = onPrimaryAction,
+                        )
+                    }
+                } else {
+                    NavigationButton(
+                        label = primaryButtonLabel,
+                        fullWidth = true,
+                        onClick = onPrimaryAction,
+                    )
                 }
                 if (onSaveGameForLater != null) {
-                    OutlinedButton(
+                    NavigationButton(
+                        label = "Save game for later",
+                        fullWidth = true,
+                        colors = secondaryButtonColors(),
                         onClick = onSaveGameForLater,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Save game for later")
-                    }
-                }
-                if (onCancel != null) {
-                    OutlinedButton(
-                        onClick = onCancel,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Cancel")
-                    }
+                    )
                 }
             }
         },
@@ -572,22 +562,20 @@ internal fun SetupScreen(
                 )
             },
             confirmButton = {
-                TextButton(
+                TextActionButton(
+                    label = "OK",
                     onClick = {
                         existingPriorCardNotice = null
                         teamDialog = TeamDialog(notice.teamId, TeamSetupDialog.PRIOR_CARDS)
                     }
-                ) {
-                    Text("OK")
-                }
+                )
             },
             dismissButton = {
-                TextButton(
+                TextActionButton(
+                    label = "Back",
                     onClick = { returnToExistingPriorCardEntry(notice) },
-                    modifier = Modifier.testTag("setup-existing-card-holder-back"),
-                ) {
-                    Text("Back")
-                }
+                    tag = "setup-existing-card-holder-back",
+                )
             },
         )
     }
@@ -607,23 +595,21 @@ internal fun SetupScreen(
                 )
             },
             confirmButton = {
-                TextButton(
+                TextActionButton(
+                    label = "Add",
                     onClick = {
                         possiblePlayerMatchConfirmation = null
                         savePriorCardRecord(confirmation.teamId, confirmation.record, editingIndex = null)
                     }
-                ) {
-                    Text("Add")
-                }
+                )
             },
             dismissButton = {
-                TextButton(
+                TextActionButton(
+                    label = "Cancel",
                     onClick = {
                         returnToPossiblePlayerMatchEntry(confirmation)
                     }
-                ) {
-                    Text("Cancel")
-                }
+                )
             },
         )
     }
@@ -637,9 +623,7 @@ internal fun SetupScreen(
             title = { Text("Player not deleted") },
             text = { Text(message) },
             confirmButton = {
-                TextButton(onClick = ::dismissPlayerDeleteRejectedMessage) {
-                    Text("OK")
-                }
+                TextActionButton(label = "OK", onClick = ::dismissPlayerDeleteRejectedMessage)
             },
         )
     }
@@ -770,7 +754,7 @@ private fun SetupFieldBox(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
+        shape = PanelShape,
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 1.dp,
     ) {
@@ -780,7 +764,7 @@ private fun SetupFieldBox(
                 .border(
                     width = 1.dp,
                     color = MaterialTheme.colorScheme.outlineVariant,
-                    shape = RoundedCornerShape(8.dp),
+                    shape = PanelShape,
                 )
                 .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -817,7 +801,7 @@ private fun SetupSummaryRow(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
+        shape = PanelShape,
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 1.dp,
     ) {
@@ -827,7 +811,7 @@ private fun SetupSummaryRow(
                 .border(
                     width = 1.dp,
                     color = MaterialTheme.colorScheme.outlineVariant,
-                    shape = RoundedCornerShape(8.dp),
+                    shape = PanelShape,
                 )
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -846,7 +830,7 @@ private fun SetupSummaryRow(
             }
             SetupEditButton(
                 onClick = onEdit,
-                modifier = Modifier.testTag(editTag),
+                tag = editTag,
             ) {
                 Text("Edit")
             }
@@ -867,8 +851,6 @@ private fun GameInformationSetupDialog(
     onStateChange: (GameState) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val focusManager = LocalFocusManager.current
-    val openingFocusRequester = remember { FocusRequester() }
     var startDate by remember { mutableStateOf(state.startDate) }
     var startTime by remember { mutableStateOf(state.startTime) }
     var tournamentName by remember { mutableStateOf(state.tournamentName) }
@@ -880,10 +862,6 @@ private fun GameInformationSetupDialog(
     var showStartDateDialog by remember { mutableStateOf(false) }
     var showStartTimeDialog by remember { mutableStateOf(false) }
     val dialogBodyMaxHeight = keyboardDialogBodyMaxHeight()
-
-    LaunchedEffect(Unit) {
-        openingFocusRequester.requestFocus()
-    }
 
     fun saveAndDismiss() {
         onStateChange(
@@ -901,7 +879,9 @@ private fun GameInformationSetupDialog(
     }
 
     AlertDialog(
-        modifier = Modifier.imePadding(),
+        modifier = Modifier
+            .imePadding()
+            .then(dialogInitialFocusModifier()),
         onDismissRequest = onDismiss,
         title = { Text("Game information") },
         text = {
@@ -919,9 +899,6 @@ private fun GameInformationSetupDialog(
                 DateTimeDisplayField(
                     value = formatStartDate(startDate),
                     testTag = "setup-start-date-field",
-                    modifier = Modifier
-                        .focusRequester(openingFocusRequester)
-                        .focusable(),
                     onClick = { showStartDateDialog = true },
                 )
 
@@ -933,8 +910,23 @@ private fun GameInformationSetupDialog(
                 DateTimeDisplayField(
                     value = formatClockTime(startTime),
                     testTag = "setup-start-time-field",
-                    modifier = Modifier,
                     onClick = { showStartTimeDialog = true },
+                )
+
+                TextEntry(
+                    value = observers,
+                    onValueChange = { observers = it },
+                    labelText = "Observers",
+                    promptText = "Observer names",
+                    capitalization = KeyboardCapitalization.Sentences,
+                    tag = "setup-observers",
+                )
+                TextEntry(
+                    value = tournamentName,
+                    onValueChange = { tournamentName = it },
+                    labelText = "Tournament name",
+                    capitalization = KeyboardCapitalization.Words,
+                    tag = "setup-tournament-name",
                 )
 
                 Text("Division", fontWeight = FontWeight.SemiBold)
@@ -963,85 +955,30 @@ private fun GameInformationSetupDialog(
                     },
                 )
                 if (customLevelVisible) {
-                    OutlinedTextField(
+                    TextEntry(
                         value = level,
                         onValueChange = { level = it },
-                        label = { Text("Other level") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(
-                            capitalization = KeyboardCapitalization.Words,
-                            imeAction = ImeAction.Done,
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onDone = { focusManager.clearFocus(force = true) },
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("setup-game-level-other-text"),
+                        labelText = "Other level",
+                        capitalization = KeyboardCapitalization.Words,
+                        tag = "setup-game-level-other-text",
                     )
                 }
 
-                OutlinedTextField(
-                    value = tournamentName,
-                    onValueChange = { tournamentName = it },
-                    label = { Text("Tournament name") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Words,
-                        imeAction = ImeAction.Done,
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onDone = { focusManager.clearFocus(force = true) },
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("setup-tournament-name"),
-                )
-                OutlinedTextField(
+                TextEntry(
                     value = gameContext,
                     onValueChange = { gameContext = it },
-                    label = { Text("Game context") },
-                    placeholder = { Text("Pool play, Semi-finals, etc.") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Sentences,
-                        imeAction = ImeAction.Done,
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onDone = { focusManager.clearFocus(force = true) },
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("setup-game-context"),
-                )
-                OutlinedTextField(
-                    value = observers,
-                    onValueChange = { observers = it },
-                    label = { Text("Observers") },
-                    placeholder = { Text("Observer names") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Sentences,
-                        imeAction = ImeAction.Done,
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onDone = { focusManager.clearFocus(force = true) },
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("setup-observers"),
+                    labelText = "Game context",
+                    promptText = "Pool play, Semi-finals, etc.",
+                    capitalization = KeyboardCapitalization.Sentences,
+                    tag = "setup-game-context",
                 )
             }
         },
         confirmButton = {
-            TextButton(onClick = ::saveAndDismiss) {
-                Text("Done")
-            }
+            TextActionButton(label = "Done", onClick = ::saveAndDismiss)
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
+            TextActionButton(label = "Cancel", onClick = onDismiss)
         },
     )
 
@@ -1096,20 +1033,20 @@ private fun GameLevelChoiceRow(
                 label = level,
                 selected = selectedLevel == level && !customLevelVisible,
                 onClick = { onSelected(level) },
-                modifier = Modifier.testTag("setup-game-level-${level.testTagText()}"),
+                tag = "setup-game-level-${level.testTagText()}",
             )
         }
         SetupChoiceChip(
             label = "Other",
             selected = customLevelVisible,
             onClick = onOther,
-            modifier = Modifier.testTag("setup-game-level-other"),
+            tag = "setup-game-level-other",
         )
         SetupChoiceChip(
             label = "N/A",
             selected = selectedLevel.isEmpty() && !customLevelVisible,
             onClick = onClear,
-            modifier = Modifier.testTag("setup-game-level-NA"),
+            tag = "setup-game-level-NA",
         )
     }
 }
@@ -1146,7 +1083,7 @@ private fun GameDivisionChoiceRow(
                 label = division?.displayText ?: "N/A",
                 selected = selected == division,
                 onClick = { onSelected(division) },
-                modifier = Modifier.testTag("setup-game-division-${division?.name ?: "NA"}"),
+                tag = "setup-game-division-${division?.name ?: "NA"}",
             )
         }
     }
@@ -1173,7 +1110,7 @@ private fun GenderRatioRuleChoiceRow(
                 label = rule.displayText,
                 selected = selected == rule,
                 onClick = { onSelected(rule) },
-                modifier = Modifier.testTag("setup-gender-ratio-rule-${rule.name}"),
+                tag = "setup-gender-ratio-rule-${rule.name}",
             )
         }
     }
@@ -1200,7 +1137,7 @@ private fun GenderRatioChoiceRow(
                 label = ratio.displayText,
                 selected = selected == ratio,
                 onClick = { onSelected(ratio) },
-                modifier = Modifier.testTag("setup-initial-gender-ratio-${ratio.name}"),
+                tag = "setup-initial-gender-ratio-${ratio.name}",
             )
         }
     }
@@ -1212,50 +1149,21 @@ private fun GenderRatioChoiceRow(
  * @param label The user-facing choice text.
  * @param selected Whether this choice is currently selected.
  * @param onClick Callback selecting this choice.
- * @param modifier Modifier applied by the caller, usually for test tags.
+ * @param tag Optional test tag.
  */
 @Composable
 private fun SetupChoiceChip(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
+    tag: String? = null,
 ) {
-    val shape = RoundedCornerShape(50)
-    val backgroundColor = if (selected) {
-        Color(0xFF1565C0)
-    } else {
-        MaterialTheme.colorScheme.surface
-    }
-    val contentColor = if (selected) {
-        Color.White
-    } else {
-        MaterialTheme.colorScheme.onSurface
-    }
-    val borderColor = if (selected) {
-        Color(0xFF0D47A1)
-    } else {
-        MaterialTheme.colorScheme.outline
-    }
-    Box(
-        modifier = modifier
-            .border(width = 1.dp, color = borderColor, shape = shape)
-            .background(color = backgroundColor, shape = shape)
-            .semantics {
-                this.selected = selected
-            }
-            .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 7.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = label,
-            color = contentColor,
-            style = MaterialTheme.typography.labelLarge,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
+    ChoiceChipButton(
+        label = label,
+        selected = selected,
+        tag = tag,
+        onClick = onClick,
+    )
 }
 
 /**
@@ -1369,27 +1277,24 @@ private fun SetupSummaryValue(text: String) {
 }
 
 /**
- * Render a prominent green setup edit button.
+ * Render a neutral setup edit button.
  *
  * @param onClick Callback invoked when the button is tapped.
- * @param modifier Modifier applied to the button.
+ * @param tag Optional test tag.
  * @param contentPadding Padding inside the button.
  * @param content Button content.
  */
 @Composable
 private fun SetupEditButton(
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
+    tag: String? = null,
+    contentPadding: PaddingValues = DefaultButtonContentPadding,
     content: @Composable RowScope.() -> Unit,
 ) {
-    OutlinedButton(
+    MenuButton(
         onClick = onClick,
-        modifier = modifier,
-        colors = ButtonDefaults.outlinedButtonColors(
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
-        ),
+        fullWidth = false,
+        tag = tag,
         contentPadding = contentPadding,
         content = content,
     )
@@ -1408,7 +1313,6 @@ private fun StartingPullSetupDialog(
     onStateChange: (GameState) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val focusManager = LocalFocusManager.current
     var nearEndName by remember { mutableStateOf(state.nearEndName) }
     var farEndName by remember { mutableStateOf(state.farEndName) }
     var committedNearEndName by remember { mutableStateOf(state.nearEndName) }
@@ -1454,7 +1358,9 @@ private fun StartingPullSetupDialog(
     }
 
     AlertDialog(
-        modifier = Modifier.imePadding(),
+        modifier = Modifier
+            .imePadding()
+            .then(dialogInitialFocusModifier()),
         onDismissRequest = onDismiss,
         title = { Text("Field/starting pull") },
         text = {
@@ -1465,55 +1371,25 @@ private fun StartingPullSetupDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text("Give whatever names you want for the two ends of the field. E.g. Road, Parking Lot, Trees, etc. (default is Near end and Far end).")
-                OutlinedTextField(
+                TextEntry(
                     value = farEndName,
                     onValueChange = { farEndName = it },
-                    label = { Text("Far/top end name") },
-                    placeholder = { Text(FieldEnd.FAR.defaultDisplayText()) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Sentences,
-                        imeAction = ImeAction.Done,
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onDone = {
-                            commitFarEndLabel()
-                            focusManager.clearFocus()
-                        },
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .onFocusChanged {
-                            if (!it.isFocused) {
-                                commitFarEndLabel()
-                            }
-                        }
-                        .testTag("setup-far-end-name"),
+                    labelText = "Far/top end name",
+                    promptText = FieldEnd.FAR.defaultDisplayText(),
+                    capitalization = KeyboardCapitalization.Sentences,
+                    tag = "setup-far-end-name",
+                    onDone = { commitFarEndLabel() },
+                    onFocusLost = { commitFarEndLabel() },
                 )
-                OutlinedTextField(
+                TextEntry(
                     value = nearEndName,
                     onValueChange = { nearEndName = it },
-                    label = { Text("Near/bottom end name") },
-                    placeholder = { Text(FieldEnd.NEAR.defaultDisplayText()) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Sentences,
-                        imeAction = ImeAction.Done,
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onDone = {
-                            commitNearEndLabel()
-                            focusManager.clearFocus()
-                        },
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .onFocusChanged {
-                            if (!it.isFocused) {
-                                commitNearEndLabel()
-                            }
-                        }
-                        .testTag("setup-near-end-name"),
+                    labelText = "Near/bottom end name",
+                    promptText = FieldEnd.NEAR.defaultDisplayText(),
+                    capitalization = KeyboardCapitalization.Sentences,
+                    tag = "setup-near-end-name",
+                    onDone = { commitNearEndLabel() },
+                    onFocusLost = { commitNearEndLabel() },
                 )
                 Text("Pulling team", fontWeight = FontWeight.SemiBold)
                 TeamChoiceRow(
@@ -1582,14 +1458,10 @@ private fun StartingPullSetupDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = ::saveAndDismiss) {
-                Text("Done")
-            }
+            TextActionButton(label = "Done", onClick = ::saveAndDismiss)
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
+            TextActionButton(label = "Cancel", onClick = onDismiss)
         },
     )
 }
@@ -1673,20 +1545,17 @@ private fun GameRulesSetupDialog(
                         )
                     }
                 }
-                OutlinedButton(
+                MenuButton(
+                    label = "Reset to USAU defaults",
+                    tag = "setup-usau-defaults",
+                    colors = resetButtonColors(),
+                    borderColor = null,
                     onClick = onUseUsauDefaults,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("setup-usau-defaults"),
-                ) {
-                    Text("Reset to USAU defaults")
-                }
+                )
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Done")
-            }
+            TextActionButton(label = "Done", onClick = onDismiss)
         },
     )
 }
@@ -1740,15 +1609,15 @@ private fun PriorCardsSetupDialog(
                         }
                     }
                 }
-                OutlinedButton(onClick = onAddPlayer) {
-                    Text("Add card holder")
-                }
+                MenuButton(
+                    label = "Add card holder",
+                    colors = neutralOutlinedButtonColors(),
+                    onClick = onAddPlayer,
+                )
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Done")
-            }
+            TextActionButton(label = "Done", onClick = onDismiss)
         },
     )
 }
@@ -1774,20 +1643,17 @@ private fun StartDateDialog(
     DatePickerDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(
-                modifier = Modifier.testTag("setup-start-date-set"),
+            TextActionButton(
+                label = "Set",
+                tag = "setup-start-date-set",
                 onClick = {
                     val selectedTimestamp = datePickerState.selectedDateMillis!!
                     onConfirm(pickerTimestampToDate(selectedTimestamp))
                 }
-            ) {
-                Text("Set")
-            }
+            )
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
+            TextActionButton(label = "Cancel", onClick = onDismiss)
         },
     ) {
         DatePicker(
@@ -1818,22 +1684,20 @@ private fun ExactTimeDialog(
     )
 
     TimePickerDialog(
+        modifier = dialogInitialFocusModifier(),
         onDismissRequest = onDismiss,
         title = {},
         confirmButton = {
-            TextButton(
-                modifier = Modifier.testTag("setup-start-time-set"),
+            TextActionButton(
+                label = "Set",
+                tag = "setup-start-time-set",
                 onClick = {
                     onConfirm(LocalTime.of(timePickerState.hour, timePickerState.minute))
                 }
-            ) {
-                Text("Set")
-            }
+            )
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
+            TextActionButton(label = "Cancel", onClick = onDismiss)
         },
     ) {
         TimeInput(state = timePickerState)
@@ -1860,33 +1724,30 @@ private fun IntegerEditDialog(
     var valueText by remember { mutableStateOf(initialValue.toString()) }
 
     AlertDialog(
+        modifier = dialogInitialFocusModifier(),
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(
+                TextEntry(
                     value = valueText,
                     onValueChange = { valueText = it.filter(Char::isDigit) },
-                    label = { Text(fieldLabel) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true,
+                    labelText = fieldLabel,
+                    keyboardType = KeyboardType.Number,
                 )
             }
         },
         confirmButton = {
-            TextButton(
-                modifier = Modifier.testTag("setup-integer-set"),
+            TextActionButton(
+                label = "Set",
+                tag = "setup-integer-set",
                 onClick = {
                     onConfirm(valueText.toIntOrNull()?.coerceAtLeast(0) ?: initialValue)
                 }
-            ) {
-                Text("Set")
-            }
+            )
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
+            TextActionButton(label = "Cancel", onClick = onDismiss)
         },
     )
 }
@@ -1918,6 +1779,7 @@ private fun CapRuleEditDialog(
     var enabled by remember { mutableStateOf(initiallyEnabled) }
 
     AlertDialog(
+        modifier = dialogInitialFocusModifier(),
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
@@ -1935,31 +1797,27 @@ private fun CapRuleEditDialog(
                     )
                 }
                 Text(prefixText)
-                OutlinedTextField(
+                TextEntry(
                     value = valueText,
                     onValueChange = { valueText = it.filter(Char::isDigit) },
-                    label = { Text(fieldLabel) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true,
+                    labelText = fieldLabel,
+                    keyboardType = KeyboardType.Number,
                     enabled = enabled,
                 )
                 Text(suffixText)
             }
         },
         confirmButton = {
-            TextButton(
-                modifier = Modifier.testTag("setup-$title-set"),
+            TextActionButton(
+                label = "Set",
+                tag = "setup-$title-set",
                 onClick = {
                     onConfirm(enabled, valueText.toIntOrNull()?.coerceAtLeast(0) ?: initialValue)
                 }
-            ) {
-                Text("Set")
-            }
+            )
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
+            TextActionButton(label = "Cancel", onClick = onDismiss)
         },
     )
 }
@@ -1981,16 +1839,16 @@ private fun TimeoutRulesDialog(
     var hasFloater by remember { mutableStateOf(rules.hasFloaterTimeout) }
 
     AlertDialog(
+        modifier = dialogInitialFocusModifier(),
         onDismissRequest = onDismiss,
         title = { Text("Timeout rules") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
+                TextEntry(
                     value = timeoutsText,
                     onValueChange = { timeoutsText = it.filter(Char::isDigit).take(2) },
-                    label = { Text("Timeouts per half") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true,
+                    labelText = "Timeouts per half",
+                    keyboardType = KeyboardType.Number,
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -2007,8 +1865,9 @@ private fun TimeoutRulesDialog(
             }
         },
         confirmButton = {
-            TextButton(
-                modifier = Modifier.testTag("setup-timeouts-set"),
+            TextActionButton(
+                label = "Set",
+                tag = "setup-timeouts-set",
                 onClick = {
                     onConfirm(
                         rules.copy(
@@ -2017,14 +1876,10 @@ private fun TimeoutRulesDialog(
                         )
                     )
                 }
-            ) {
-                Text("Set")
-            }
+            )
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
+            TextActionButton(label = "Cancel", onClick = onDismiss)
         },
     )
 }
@@ -2064,9 +1919,9 @@ private fun PriorCardPlayerDialog(
     val trimmedPlayerName = playerName.trim()
     val hasPlayerIdentity = trimmedJerseyNumber.isNotEmpty() || trimmedPlayerName.isNotEmpty()
     val confirmLabel = if (isEditing) "Update" else "Add"
-    val focusManager = LocalFocusManager.current
 
     AlertDialog(
+        modifier = dialogInitialFocusModifier(),
         onDismissRequest = onDismiss,
         title = { Text(if (isEditing) "Edit previous game card holder" else "Add previous game card holder") },
         text = {
@@ -2076,38 +1931,37 @@ private fun PriorCardPlayerDialog(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
-                OutlinedTextField(
+                TextEntry(
                     value = jerseyNumber,
                     onValueChange = { jerseyNumber = it.filter(Char::isDigit) },
-                    label = { Text("Number") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus(force = true) }),
-                    singleLine = true,
-                    modifier = Modifier.testTag("setup-prior-card-jersey"),
+                    labelText = "Number",
+                    keyboardType = KeyboardType.Number,
+                    tag = "setup-prior-card-jersey",
                 )
-                OutlinedTextField(
+                TextEntry(
                     value = playerName,
                     onValueChange = { playerName = it },
-                    label = { Text("Name") },
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus(force = true) }),
-                    singleLine = true,
-                    modifier = Modifier.testTag("setup-prior-card-name"),
+                    labelText = "Name",
+                    capitalization = KeyboardCapitalization.Words,
+                    tag = "setup-prior-card-name",
                 )
-                SmallCountEditor(
+                CorrectionCountRow(
                     label = "Yellow",
                     value = priorYellows,
-                    onValueChange = { priorYellows = it.coerceAtLeast(0) },
+                    onIncrement = { priorYellows += 1 },
+                    onDecrement = { priorYellows = maxOf(0, priorYellows - 1) },
                 )
-                SmallCountEditor(
+                CorrectionCountRow(
                     label = "Red",
                     value = priorReds,
-                    onValueChange = { priorReds = it.coerceAtLeast(0) },
+                    onIncrement = { priorReds += 1 },
+                    onDecrement = { priorReds = maxOf(0, priorReds - 1) },
                 )
             }
         },
         confirmButton = {
-            TextButton(
+            TextActionButton(
+                label = confirmLabel,
                 enabled = hasPlayerIdentity,
                 onClick = {
                     onConfirm(
@@ -2120,14 +1974,10 @@ private fun PriorCardPlayerDialog(
                         )
                     )
                 }
-            ) {
-                Text(confirmLabel)
-            }
+            )
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
+            TextActionButton(label = "Cancel", onClick = onDismiss)
         },
     )
 }
@@ -2153,7 +2003,6 @@ private fun TeamEditor(
     onEditNames: () -> Unit,
     onEditCards: () -> Unit,
 ) {
-    val focusManager = LocalFocusManager.current
     val namesSummary = team.namesSummary()
     val cardsSummary = priorCards.teamPriorCardsSummary()
 
@@ -2163,33 +2012,21 @@ private fun TeamEditor(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            OutlinedTextField(
+            TextEntry(
                 value = team.name,
                 onValueChange = {
                     onTeamChange(team.copy(name = it))
                 },
-                placeholder = {
-                    Text(
-                        text = fieldLabel,
-                        color = team.content.copy(alpha = 0.65f),
-                    )
-                },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Words,
-                    imeAction = ImeAction.Done,
-                ),
-                keyboardActions = KeyboardActions(
-                    onDone = { focusManager.clearFocus(force = true) },
-                ),
+                promptText = fieldLabel,
+                promptTextColor = team.content.copy(alpha = 0.65f),
+                capitalization = KeyboardCapitalization.Words,
+                modifier = Modifier.weight(1f),
                 colors = teamNameFieldColors(team),
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag("setup-$fieldLabel-name"),
+                tag = "setup-$fieldLabel-name",
             )
             SetupEditButton(
                 onClick = onEditColor,
-                modifier = Modifier.testTag("setup-$fieldLabel-color-button"),
+                tag = "setup-$fieldLabel-color-button",
                 contentPadding = compactSetupButtonPadding(),
             ) {
                 Text(
@@ -2254,38 +2091,25 @@ private fun TeamSetupDetailColumns(
             modifier = Modifier.weight(2f),
             verticalArrangement = Arrangement.spacedBy(3.dp),
         ) {
-            OutlinedButton(
-                onClick = onEditNames,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("setup-$fieldLabel-names-button"),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = Color.White,
-                    contentColor = MaterialTheme.colorScheme.onSurface,
-                ),
+            MenuButton(
+                label = "Coach/Captains",
+                tag = "setup-$fieldLabel-names-button",
                 contentPadding = compactSetupButtonPadding(),
-            ) {
-                Text("Coach/Captains")
-            }
+                onClick = onEditNames,
+            )
             TeamNamesInlineSummary(namesSummary = namesSummary)
         }
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(3.dp),
         ) {
-            OutlinedButton(
-                onClick = onEditCards,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("setup-$fieldLabel-cards-button"),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = Color(0xFFFFD600),
-                    contentColor = Color.Black,
-                ),
+            MenuButton(
+                label = "Cards",
+                tag = "setup-$fieldLabel-cards-button",
+                colors = setupCardsButtonColors(),
                 contentPadding = compactSetupButtonPadding(),
-            ) {
-                Text("Cards")
-            }
+                onClick = onEditCards,
+            )
             Text(
                 text = cardsSummary,
                 style = MaterialTheme.typography.bodySmall,
@@ -2453,21 +2277,19 @@ private fun TeamColorDialogActions(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        TextButton(
+        TextActionButton(
+            label = "Cancel",
+            compact = true,
+            contentPadding = PaddingValues(horizontal = 0.dp, vertical = 8.dp),
             onClick = onCancel,
-            modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 1.dp),
+        )
+        TextActionButton(
+            label = confirmText,
+            compact = true,
+            tag = confirmTestTag,
             contentPadding = PaddingValues(horizontal = 0.dp, vertical = 8.dp),
-        ) {
-            Text("Cancel")
-        }
-        TextButton(
             onClick = onConfirm,
-            modifier = (confirmTestTag?.let { Modifier.testTag(it) } ?: Modifier)
-                .defaultMinSize(minWidth = 1.dp, minHeight = 1.dp),
-            contentPadding = PaddingValues(horizontal = 0.dp, vertical = 8.dp),
-        ) {
-            Text(confirmText)
-        }
+        )
     }
 }
 
@@ -2491,7 +2313,9 @@ private fun TeamNamesSetupDialog(
     val dialogBodyMaxHeight = keyboardDialogBodyMaxHeight()
 
     AlertDialog(
-        modifier = Modifier.imePadding(),
+        modifier = Modifier
+            .imePadding()
+            .then(dialogInitialFocusModifier()),
         onDismissRequest = onDismiss,
         title = { Text("$teamLabel Names") },
         text = {
@@ -2528,9 +2352,7 @@ private fun TeamNamesSetupDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Done")
-            }
+            TextActionButton(label = "Done", onClick = onDismiss)
         },
     )
 }
@@ -2550,15 +2372,14 @@ private fun TeamNamesTextField(
     testTag: String,
     onValueChange: (String) -> Unit,
 ) {
-    OutlinedTextField(
+    TextEntry(
         value = value,
         onValueChange = onValueChange,
-        label = { Text(label) },
+        labelText = label,
+        singleLine = false,
         minLines = 2,
-        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag(testTag),
+        capitalization = KeyboardCapitalization.Words,
+        tag = testTag,
     )
 }
 
@@ -2574,26 +2395,18 @@ private fun TeamNamesTextField(
 private fun DateTimeDisplayField(
     value: String,
     testTag: String,
-    modifier: Modifier,
     onClick: () -> Unit,
 ) {
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .testTag(testTag)
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surface,
+    MenuButton(
+        tag = testTag,
+        colors = dialogInputButtonColors(),
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+        onClick = onClick,
     ) {
-        Box(
+        Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .border(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.outline,
-                    shape = RoundedCornerShape(12.dp),
-                )
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.Start,
         ) {
             Text(
                 text = value,
@@ -2617,9 +2430,9 @@ private fun EditableValueRow(
     value: String,
     onClick: () -> Unit,
 ) {
-    OutlinedButton(
+    MenuButton(
+        colors = neutralOutlinedButtonColors(),
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -2720,7 +2533,7 @@ private fun ColorSwatch(
             )
             .padding(if (selected) 1.dp else 0.dp)
             .background(
-                color = if (selected) Color(0xFFF2D23C) else Color.Transparent,
+                color = if (selected) AvatarSelectedColor else Color.Transparent,
                 shape = RoundedCornerShape(6.dp),
             )
             .padding(if (selected) 3.dp else 0.dp)
@@ -2835,7 +2648,7 @@ private fun TeamChoiceRow(
             onClick = {
                 onSelected(TeamId.TEAM_ONE)
             },
-            modifier = Modifier.testTag("$testTagPrefix-${TeamId.TEAM_ONE.name}"),
+            tag = "$testTagPrefix-${TeamId.TEAM_ONE.name}",
         )
         SetupChoiceChip(
             label = teamTwo.normalizedName(TeamId.TEAM_TWO),
@@ -2843,7 +2656,7 @@ private fun TeamChoiceRow(
             onClick = {
                 onSelected(TeamId.TEAM_TWO)
             },
-            modifier = Modifier.testTag("$testTagPrefix-${TeamId.TEAM_TWO.name}"),
+            tag = "$testTagPrefix-${TeamId.TEAM_TWO.name}",
         )
     }
 }
@@ -2875,7 +2688,7 @@ private fun FieldEndChoiceRow(
             onClick = {
                 onSelected(FieldEnd.NEAR)
             },
-            modifier = Modifier.testTag("$testTagPrefix-${FieldEnd.NEAR.name}"),
+            tag = "$testTagPrefix-${FieldEnd.NEAR.name}",
         )
         SetupChoiceChip(
             label = farLabel,
@@ -2883,7 +2696,7 @@ private fun FieldEndChoiceRow(
             onClick = {
                 onSelected(FieldEnd.FAR)
             },
-            modifier = Modifier.testTag("$testTagPrefix-${FieldEnd.FAR.name}"),
+            tag = "$testTagPrefix-${FieldEnd.FAR.name}",
         )
     }
 }
@@ -2913,7 +2726,7 @@ internal fun PullPromptTargetChoiceRow(
             onClick = {
                 onSelected(target)
             },
-            modifier = Modifier.testTag("$testTagPrefix-${target.name}"),
+            tag = "$testTagPrefix-${target.name}",
         )
     }
 
@@ -2935,50 +2748,6 @@ internal fun PullPromptTargetChoiceRow(
     }
 }
 
-/**
- * Render a small +/- editor for integer setup and correction values.
- *
- * @param label The count label.
- * @param value The current count value.
- * @param onValueChange Callback receiving the adjusted count.
- */
-@Composable
-internal fun SmallCountEditor(
-    label: String,
-    value: Int,
-    onValueChange: (Int) -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Text(
-            text = label,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.width(104.dp),
-        )
-        SmallActionButton(
-            label = "-1",
-            onClick = {
-                onValueChange((value - 1).coerceAtLeast(0))
-            },
-        )
-        Text(
-            value.toString(),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.width(24.dp),
-        )
-        SmallActionButton(
-            label = "+1",
-            onClick = {
-                onValueChange(value + 1)
-            },
-        )
-    }
-}
 
 /**
  * Render one row in the setup list of players carrying prior cards.
@@ -2999,10 +2768,7 @@ private fun PlayerRecordRow(
     onEdit: () -> Unit,
     onRemove: () -> Unit,
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-    ) {
+    DialogListItemCard {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -3020,30 +2786,18 @@ private fun PlayerRecordRow(
                 Text(detail)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                IconButton(
+                IconActionButton(
+                    icon = Icons.Filled.Edit,
+                    contentDescription = "Edit $label",
+                    tag = editTag,
                     onClick = onEdit,
-                    modifier = Modifier
-                        .size(36.dp)
-                        .testTag(editTag),
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Edit,
-                        contentDescription = "Edit $label",
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-                IconButton(
+                )
+                IconActionButton(
+                    icon = Icons.Filled.Delete,
+                    contentDescription = "Remove $label",
+                    tag = removeTag,
                     onClick = onRemove,
-                    modifier = Modifier
-                        .size(36.dp)
-                        .testTag(removeTag),
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Delete,
-                        contentDescription = "Remove $label",
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
+                )
             }
         }
     }

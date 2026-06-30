@@ -11,15 +11,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -67,9 +64,10 @@ internal fun ArchivedGamesScreen(
             CenterAlignedTopAppBar(
                 title = { Text(category?.displayText ?: "Archived/saved games") },
                 navigationIcon = {
-                    TextButton(onClick = if (category == null) onBackHome else onBackCategories) {
-                        Text("Back")
-                    }
+                    TextActionButton(
+                        label = "Back",
+                        onClick = if (category == null) onBackHome else onBackCategories,
+                    )
                 },
             )
         },
@@ -155,12 +153,11 @@ private fun DeleteAllButton(onClick: () -> Unit) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.End,
     ) {
-        TextButton(
+        TextActionButton(
+            label = "Delete all",
+            tag = "delete-all-archived-games",
             onClick = onClick,
-            modifier = Modifier.testTag("delete-all-archived-games"),
-        ) {
-            Text("Delete all")
-        }
+        )
     }
 }
 
@@ -177,14 +174,12 @@ private fun ArchiveCategoryButton(
     count: Int,
     onOpenCategory: (ArchivedGameCategory) -> Unit,
 ) {
-    Button(
+    NavigationButton(
+        label = "${category.displayText} ($count)",
+        fullWidth = true,
+        tag = "archive-category-${category.name}",
         onClick = { onOpenCategory(category) },
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag("archive-category-${category.name}"),
-    ) {
-        Text("${category.displayText} ($count)")
-    }
+    )
 }
 
 /**
@@ -213,15 +208,14 @@ private fun ArchivedGameRow(
                 .weight(1f)
                 .testTag("archived-game-$displayedIndex"),
         )
-        IconButton(
+        IconActionButton(
+            icon = Icons.Filled.Delete,
+            contentDescription = "Delete ${entry.summaryLine}",
+            size = 48.dp,
+            iconSize = 24.dp,
+            tag = "delete-archived-game-$displayedIndex",
             onClick = onDelete,
-            modifier = Modifier.testTag("delete-archived-game-$displayedIndex"),
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Delete,
-                contentDescription = "Delete ${entry.summaryLine}",
-            )
-        }
+        )
     }
 }
 
@@ -262,9 +256,7 @@ internal fun DeleteGameDialog(
         },
         confirmButton = {},
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
+            TextActionButton(label = "Cancel", onClick = onDismiss)
         },
     )
 }

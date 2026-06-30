@@ -12,32 +12,28 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 /**
- * Render a completed game as a read-only summary screen.
+ * Render a game as a read-only summary screen.
  *
- * @param state The completed game state to summarize.
+ * @param state The game state to summarize.
+ * @param completed Whether this is a completed-game summary rather than an in-progress archive.
  * @param summaryContext Optional context explaining why this summary is shown.
  * @param summaryActionText Fixed bottom action label, such as Undo End game or Restore game.
  * @param onSummaryAction Callback invoked by the fixed bottom action.
@@ -51,6 +47,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 internal fun GameOverSummaryScreen(
     state: GameState,
+    completed: Boolean = true,
     summaryContext: String? = null,
     summaryActionText: String,
     onSummaryAction: () -> Unit,
@@ -68,9 +65,7 @@ internal fun GameOverSummaryScreen(
             CenterAlignedTopAppBar(
                 title = { Text("UltiObserver") },
                 navigationIcon = {
-                    TextButton(onClick = onBack) {
-                        Text("Back")
-                    }
+                    TextActionButton(label = "Back", onClick = onBack)
                 },
             )
         },
@@ -83,6 +78,7 @@ internal fun GameOverSummaryScreen(
         ) {
             GameOverSummary(
                 state = state,
+                completed = completed,
                 onShowEventLog = { showEventLogSheet = true },
                 onShareSummary = { context.shareGameSummary(state) },
                 summaryContext = summaryContext,
@@ -112,19 +108,18 @@ internal fun GameOverSummaryScreen(
                 )
             },
             confirmButton = {
-                TextButton(onClick = onDismissGameOverPrompt) {
-                    Text("OK")
-                }
+                TextActionButton(label = "OK", onClick = onDismissGameOverPrompt)
             },
         )
     }
 }
 
 /**
- * Render the read-only summary view shown once the game is over.
+ * Render the read-only summary view shown for completed or archived in-progress games.
  *
- * @param state The completed game state to summarize.
- * @param onShowEventLog Callback opening the completed game's event log.
+ * @param state The game state to summarize.
+ * @param completed Whether this is a completed-game summary rather than an in-progress archive.
+ * @param onShowEventLog Callback opening the game's event log.
  * @param onShareSummary Callback opening Android's text-share sheet for this game summary.
  * @param summaryContext Optional context explaining why this summary is shown.
  * @param summaryActionText Fixed bottom action label, such as Undo End game or Restore game.
@@ -135,6 +130,7 @@ internal fun GameOverSummaryScreen(
 @Composable
 internal fun GameOverSummary(
     state: GameState,
+    completed: Boolean = true,
     onShowEventLog: () -> Unit,
     onShareSummary: () -> Unit,
     summaryContext: String? = null,
@@ -160,7 +156,7 @@ internal fun GameOverSummary(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                colors = CardDefaults.cardColors(containerColor = EmphasizedDarkNeutralColor),
             ) {
                 Column(
                     modifier = Modifier
@@ -168,7 +164,11 @@ internal fun GameOverSummary(
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text(summaryText.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text(
+                        summaryText.title,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
                     summaryText.gameInformationLine?.let { gameInformationLine ->
                         Text(
                             text = gameInformationLine,
@@ -223,47 +223,39 @@ internal fun GameOverSummary(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                OutlinedButton(
+                NavigationButton(
+                    label = "Event log",
+                    modifier = Modifier.weight(1f),
+                    colors = neutralOutlinedButtonColors(DarkNeutralColor),
+                    borderColor = MaterialTheme.colorScheme.outline,
                     onClick = onShowEventLog,
+                )
+                NavigationButton(
+                    label = "Share",
                     modifier = Modifier.weight(1f),
-                ) {
-                    Text("Event log")
-                }
-                Button(
+                    colors = secondaryButtonColors(),
                     onClick = onShareSummary,
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF1565C0),
-                        contentColor = Color.White,
-                    ),
-                ) {
-                    Text("Share")
-                }
+                )
             }
 
-            OutlinedButton(
+            NavigationButton(
+                label = summaryActionText,
+                fullWidth = true,
+                colors = if (completed) {
+                    resetButtonColors()
+                } else {
+                    primaryButtonColors()
+                },
                 onClick = onSummaryAction,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = Color.White,
-                    contentColor = Color.Black,
-                ),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
-            ) {
-                Text(summaryActionText)
-            }
+            )
             if (secondaryActionText != null) {
-                OutlinedButton(
+                NavigationButton(
+                    label = secondaryActionText,
+                    fullWidth = true,
+                    colors = neutralOutlinedButtonColors(DarkNeutralColor),
+                    borderColor = MaterialTheme.colorScheme.outline,
                     onClick = onSecondarySummaryAction!!,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = Color.White,
-                        contentColor = Color.Black,
-                    ),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
-                ) {
-                    Text(secondaryActionText)
-                }
+                )
             }
         }
     }
@@ -301,7 +293,11 @@ private fun GameOverTeamSummary(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(summaryText.teamName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                summaryText.teamName,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
             summaryText.issuedCardLines.forEach { line ->
                 Text(line, style = MaterialTheme.typography.bodyMedium)
             }

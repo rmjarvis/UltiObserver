@@ -148,7 +148,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText(archivedTitle)
         composeRule.onNodeWithText(archivedTitle).performClick()
         waitForText("Game summary")
-        composeRule.onNodeWithText("Restore game").performClick()
+        composeRule.onNodeWithText("Make current").performClick()
 
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "card")).assertIsDisplayed()
         waitForText("More actions")
@@ -350,7 +350,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText("ProgressA$suffix 0 - 0 ProgressB$suffix")
         composeRule.onNodeWithText("ProgressA$suffix 0 - 0 ProgressB$suffix").performClick()
         waitForText("Game summary")
-        composeRule.onNodeWithText("Restore game").assertIsDisplayed()
+        composeRule.onNodeWithText("Make current").assertIsDisplayed()
         waitForText("Saved at", substring = true)
         waitForText("when a new game was started", substring = true)
         composeRule.onNodeWithText("Archive game").performClick()
@@ -566,7 +566,11 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         } else {
             composeRule.onNodeWithTag("settings-vibrate-with-sounds").assertIsNotEnabled()
         }
-        composeRule.onNodeWithText("Off").performClick()
+        composeRule.onNodeWithTag("settings-global-alert-OFF").performScrollTo().performClick()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.activity.appViewModel.timingAlertPreferences.globalMode ==
+                TimingAlertGlobalMode.OFF
+        }
         waitForText("No sound or vibration will be used for any timing cues.")
         composeRule.onAllNodesWithTag("settings-sound-volume").assertCountEquals(0)
         composeRule.onAllNodesWithTag("settings-vibrate-with-sounds").assertCountEquals(0)

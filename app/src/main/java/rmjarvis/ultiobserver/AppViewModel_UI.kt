@@ -3,7 +3,6 @@ package rmjarvis.ultiobserver
 import androidx.activity.compose.BackHandler
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -220,23 +219,25 @@ internal fun UltiObserverApp(
         AppScreen.LIVE -> {
             val archivedGame = appState.viewingArchivedGame
             if (archivedGame != null) {
+                val isInProgressArchive = archivedGame.category == ArchivedGameCategory.IN_PROGRESS
                 GameOverSummaryScreen(
                     state = archivedGame.state,
+                    completed = !isInProgressArchive,
                     summaryContext = archivedGame.summaryContext,
-                    summaryActionText = "Restore game",
+                    summaryActionText = if (isInProgressArchive) {
+                        "Make current"
+                    } else {
+                        "Restore game"
+                    },
                     onSummaryAction = {
                         viewModel.restoreCompletedGame(System.currentTimeMillis())
                     },
-                    secondarySummaryActionText = if (
-                        archivedGame.category == ArchivedGameCategory.IN_PROGRESS
-                    ) {
+                    secondarySummaryActionText = if (isInProgressArchive) {
                         "Archive game"
                     } else {
                         null
                     },
-                    onSecondarySummaryAction = if (
-                        archivedGame.category == ArchivedGameCategory.IN_PROGRESS
-                    ) {
+                    onSecondarySummaryAction = if (isInProgressArchive) {
                         { viewModel.archiveSavedInProgressGame(System.currentTimeMillis()) }
                     } else {
                         null
@@ -276,24 +277,22 @@ internal fun UltiObserverApp(
                 )
             },
             confirmButton = {
-                TextButton(
+                TextActionButton(
+                    label = "Open settings",
                     onClick = {
                         showMissingExactAlarmAccessDialog = false
                         context.openExactAlarmSettings()
                     },
-                ) {
-                    Text("Open settings")
-                }
+                )
             },
             dismissButton = {
-                TextButton(
+                TextActionButton(
+                    label = "Ignore",
                     onClick = {
                         showMissingExactAlarmAccessDialog = false
                         viewModel.finishSetup(System.currentTimeMillis())
                     },
-                ) {
-                    Text("Ignore")
-                }
+                )
             },
         )
     }
@@ -311,13 +310,12 @@ internal fun UltiObserverApp(
                 )
             },
             confirmButton = {
-                TextButton(
+                TextActionButton(
+                    label = "OK",
                     onClick = {
                         showPreviousCrashDialog = false
                     },
-                ) {
-                    Text("OK")
-                }
+                )
             },
         )
     }
@@ -328,11 +326,7 @@ internal fun UltiObserverApp(
             title = { Text(notice.title) },
             text = { Text(notice.message) },
             confirmButton = {
-                TextButton(
-                    onClick = viewModel::dismissStartupRecoveryNotice,
-                ) {
-                    Text("OK")
-                }
+                TextActionButton(label = "OK", onClick = viewModel::dismissStartupRecoveryNotice)
             },
         )
     }

@@ -10,10 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -68,69 +65,69 @@ internal fun MoreActionsContent(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                OtherMenuButton(
+                MenuButton(
                     label = "Update game setup",
                     onClick = onUpdateGameSetup,
                 )
-                OtherMenuButton(
+                MenuButton(
                     label = "Flip field display",
                     onClick = {
                         onAction(state.flipFieldDisplay())
                     },
                 )
-                OtherMenuButton(
-                    label = "Change pull prompts",
-                    onClick = {
-                        showChangePullPromptsDialog = true
-                    },
-                )
-                OtherMenuButton(
+                MenuButton(
                     label = "Swap pulling team",
                     onClick = {
                         onAction(state.swapPullingTeam())
                     },
                 )
-                OtherMenuButton(
+                MenuButton(
                     label = "Adjust score",
                     onClick = { showAdjustScoreDialog = true },
                 )
-                OtherMenuButton(
+                MenuButton(
                     label = "Adjust timeouts",
                     onClick = { showAdjustTimeoutsDialog = true },
                 )
-                OtherMenuButton(
+                MenuButton(
                     label = "Adjust pull violations",
                     onClick = { showAdjustPullViolationsDialog = true },
+                )
+                MenuButton(
+                    label = "Adjust cards / techs",
+                    onClick = { showAdjustCardsDialog = true },
                 )
             }
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                OtherMenuButton(
-                    label = "Adjust cards / techs",
-                    onClick = { showAdjustCardsDialog = true },
+                MenuButton(
+                    label = "Change pull prompts",
+                    onClick = {
+                        showChangePullPromptsDialog = true
+                    },
                 )
-                OtherMenuButton(
+                MenuButton(
                     label = "Event log",
                     onClick = onShowEventLog,
                 )
                 if (!state.halftimeTaken && state.phase == GamePhase.BETWEEN_POINTS) {
-                    OtherMenuButton(
+                    MenuButton(
                         label = "Start halftime",
                         onClick = {
                             onAction(state.startHalftimeNow(now))
                         },
                     )
                 }
-                OtherMenuButton(
+                MenuButton(
                     label = "End game",
                     onClick = {
                         onAction(state.endGameNow(now))
                     },
                 )
                 if (state.halfCapRelevant(state.teamOne.score, state.teamTwo.score)) {
-                    OtherMenuButton(
+                    MenuButton(
                         label = "Apply half cap now",
                         onClick = {
                             onAction(state.makeCapNow(CapType.HALF, now))
@@ -138,7 +135,7 @@ internal fun MoreActionsContent(
                     )
                 }
                 if (state.softCapRelevant()) {
-                    OtherMenuButton(
+                    MenuButton(
                         label = "Apply soft cap now",
                         onClick = {
                             onAction(state.makeCapNow(CapType.SOFT, now))
@@ -146,15 +143,17 @@ internal fun MoreActionsContent(
                     )
                 }
                 if (state.hardCapRelevant()) {
-                    OtherMenuButton(
+                    MenuButton(
                         label = "Apply hard cap now",
                         onClick = {
                             onAction(state.makeCapNow(CapType.HARD, now))
                         },
                     )
                 }
-                OtherMenuButton(
+                MenuButton(
                     label = "Delete game",
+                    colors = resetButtonColors(),
+                    borderColor = null,
                     onClick = { showDeleteGameDialog = true },
                 )
             }
@@ -248,7 +247,8 @@ internal fun MoreActionsContent(
     }
 
     if (showDeleteGameDialog) {
-        // DeleteGameDialog lives in ArchivedGames_UI.kt because game deletion is mostly archived-game UI.
+        // DeleteGameDialog lives in ArchivedGames_UI.kt because game deletion is
+        // mostly archived-game UI.
         DeleteGameDialog(
             onDismiss = { showDeleteGameDialog = false },
             onConfirmDelete = {
@@ -295,14 +295,10 @@ private fun ChangePullPromptsDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(selected) }) {
-                Text("Set")
-            }
+            TextActionButton(label = "Set", onClick = { onConfirm(selected) })
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
+            TextActionButton(label = "Cancel", onClick = onDismiss)
         },
     )
 }
@@ -328,46 +324,27 @@ private fun AdjustScoreDialog(
         title = { Text("Adjust score") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                SmallCountEditor(
+                CorrectionCountRow(
                     label = state.teamOne.name,
                     value = teamOneScore,
-                    onValueChange = { teamOneScore = it.coerceAtLeast(0) },
+                    emphasizedLabel = true,
+                    onIncrement = { teamOneScore += 1 },
+                    onDecrement = { teamOneScore = maxOf(0, teamOneScore - 1) },
                 )
-                SmallCountEditor(
+                CorrectionCountRow(
                     label = state.teamTwo.name,
                     value = teamTwoScore,
-                    onValueChange = { teamTwoScore = it.coerceAtLeast(0) },
+                    emphasizedLabel = true,
+                    onIncrement = { teamTwoScore += 1 },
+                    onDecrement = { teamTwoScore = maxOf(0, teamTwoScore - 1) },
                 )
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(teamOneScore, teamTwoScore) }) {
-                Text("Set")
-            }
+            TextActionButton(label = "Set", onClick = { onConfirm(teamOneScore, teamTwoScore) })
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
+            TextActionButton(label = "Cancel", onClick = onDismiss)
         },
     )
-}
-
-/**
- * Render a simple menu button that fills the width of its column in More actions.
- *
- * @param label The button label.
- * @param onClick Callback invoked when the button is tapped.
- */
-@Composable
-private fun OtherMenuButton(
-    label: String,
-    onClick: () -> Unit,
-) {
-    OutlinedButton(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Text(label)
-    }
 }

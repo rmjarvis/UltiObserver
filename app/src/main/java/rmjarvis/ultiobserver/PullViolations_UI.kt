@@ -6,7 +6,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,29 +50,74 @@ internal fun AdjustPullViolationsDialog(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 TeamCorrectionSection(state.teamOne.name) {
-                    SmallCountEditor("Offsides", teamOneOffsides) { teamOneOffsides = it.coerceAtLeast(0) }
-                    SmallCountEditor("False starts", teamOneFalseStarts) { teamOneFalseStarts = it.coerceAtLeast(0) }
+                    CorrectionCountRow(
+                        label = "Offsides",
+                        value = teamOneOffsides,
+                        onIncrement = { teamOneOffsides += 1 },
+                        onDecrement = { teamOneOffsides = maxOf(0, teamOneOffsides - 1) },
+                    )
+                    CorrectionCountRow(
+                        label = "False starts",
+                        value = teamOneFalseStarts,
+                        onIncrement = { teamOneFalseStarts += 1 },
+                        onDecrement = { teamOneFalseStarts = maxOf(0, teamOneFalseStarts - 1) },
+                    )
                     if (showMajorityPullRows) {
-                        SmallCountEditor("Majority pull", teamOneMajorityPulls) {
-                            teamOneMajorityPulls = it.coerceAtLeast(0)
-                        }
+                        CorrectionCountRow(
+                            label = "Majority pull",
+                            value = teamOneMajorityPulls,
+                            onIncrement = { teamOneMajorityPulls += 1 },
+                            onDecrement = {
+                                teamOneMajorityPulls = maxOf(0, teamOneMajorityPulls - 1)
+                            },
+                        )
                     }
-                    SmallCountEditor("Time violations", teamOneTimeViolations) { teamOneTimeViolations = it.coerceAtLeast(0) }
+                    CorrectionCountRow(
+                        label = "Time violations",
+                        value = teamOneTimeViolations,
+                        onIncrement = { teamOneTimeViolations += 1 },
+                        onDecrement = {
+                            teamOneTimeViolations = maxOf(0, teamOneTimeViolations - 1)
+                        },
+                    )
                 }
                 TeamCorrectionSection(state.teamTwo.name) {
-                    SmallCountEditor("Offsides", teamTwoOffsides) { teamTwoOffsides = it.coerceAtLeast(0) }
-                    SmallCountEditor("False starts", teamTwoFalseStarts) { teamTwoFalseStarts = it.coerceAtLeast(0) }
+                    CorrectionCountRow(
+                        label = "Offsides",
+                        value = teamTwoOffsides,
+                        onIncrement = { teamTwoOffsides += 1 },
+                        onDecrement = { teamTwoOffsides = maxOf(0, teamTwoOffsides - 1) },
+                    )
+                    CorrectionCountRow(
+                        label = "False starts",
+                        value = teamTwoFalseStarts,
+                        onIncrement = { teamTwoFalseStarts += 1 },
+                        onDecrement = { teamTwoFalseStarts = maxOf(0, teamTwoFalseStarts - 1) },
+                    )
                     if (showMajorityPullRows) {
-                        SmallCountEditor("Majority pull", teamTwoMajorityPulls) {
-                            teamTwoMajorityPulls = it.coerceAtLeast(0)
-                        }
+                        CorrectionCountRow(
+                            label = "Majority pull",
+                            value = teamTwoMajorityPulls,
+                            onIncrement = { teamTwoMajorityPulls += 1 },
+                            onDecrement = {
+                                teamTwoMajorityPulls = maxOf(0, teamTwoMajorityPulls - 1)
+                            },
+                        )
                     }
-                    SmallCountEditor("Time violations", teamTwoTimeViolations) { teamTwoTimeViolations = it.coerceAtLeast(0) }
+                    CorrectionCountRow(
+                        label = "Time violations",
+                        value = teamTwoTimeViolations,
+                        onIncrement = { teamTwoTimeViolations += 1 },
+                        onDecrement = {
+                            teamTwoTimeViolations = maxOf(0, teamTwoTimeViolations - 1)
+                        },
+                    )
                 }
             }
         },
         confirmButton = {
-            TextButton(
+            TextActionButton(
+                label = "Set",
                 onClick = {
                     onConfirm(
                         teamOneOffsides,
@@ -86,15 +130,11 @@ internal fun AdjustPullViolationsDialog(
                         teamTwoTimeViolations,
                     )
                 },
-                modifier = Modifier.testTag("adjust-pull-violations-confirm"),
-            ) {
-                Text("Set")
-            }
+                tag = "adjust-pull-violations-confirm",
+            )
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
+            TextActionButton(label = "Cancel", onClick = onDismiss)
         },
     )
 }

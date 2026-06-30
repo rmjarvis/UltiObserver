@@ -3,8 +3,8 @@ package rmjarvis.ultiobserver
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,34 +55,48 @@ internal fun AdjustTimeoutsDialog(
                 Text(
                     "${state.teamTwo.name} is allowed to use ${teamTwoAllowed.timeoutCountText()}",
                 )
-                SmallCountEditor(
-                    label = "${state.teamOne.name}",
+                CorrectionCountRow(
+                    label = state.teamOne.name,
                     value = teamOneTimeoutsUsed,
-                    onValueChange = { teamOneTimeoutsUsed = it },
+                    emphasizedLabel = true,
+                    onIncrement = { teamOneTimeoutsUsed += 1 },
+                    onDecrement = { teamOneTimeoutsUsed = maxOf(0, teamOneTimeoutsUsed - 1) },
                 )
-                SmallCountEditor(
-                    label = "${state.teamTwo.name}",
+                CorrectionCountRow(
+                    label = state.teamTwo.name,
                     value = teamTwoTimeoutsUsed,
-                    onValueChange = { teamTwoTimeoutsUsed = it },
+                    emphasizedLabel = true,
+                    onIncrement = { teamTwoTimeoutsUsed += 1 },
+                    onDecrement = { teamTwoTimeoutsUsed = maxOf(0, teamTwoTimeoutsUsed - 1) },
                 )
                 if (state.halftimeTaken) {
                     Text("Adjust the number of timeouts used by each team in the first half.")
-                    SmallCountEditor(
-                        label = "${state.teamOne.name}",
+                    CorrectionCountRow(
+                        label = state.teamOne.name,
                         value = teamOneFirstHalfTimeoutsUsed,
-                        onValueChange = { teamOneFirstHalfTimeoutsUsed = it },
+                        emphasizedLabel = true,
+                        onIncrement = { teamOneFirstHalfTimeoutsUsed += 1 },
+                        onDecrement = {
+                            teamOneFirstHalfTimeoutsUsed =
+                                maxOf(0, teamOneFirstHalfTimeoutsUsed - 1)
+                        },
                     )
-                    SmallCountEditor(
-                        label = "${state.teamTwo.name}",
+                    CorrectionCountRow(
+                        label = state.teamTwo.name,
                         value = teamTwoFirstHalfTimeoutsUsed,
-                        onValueChange = { teamTwoFirstHalfTimeoutsUsed = it },
+                        emphasizedLabel = true,
+                        onIncrement = { teamTwoFirstHalfTimeoutsUsed += 1 },
+                        onDecrement = {
+                            teamTwoFirstHalfTimeoutsUsed =
+                                maxOf(0, teamTwoFirstHalfTimeoutsUsed - 1)
+                        },
                     )
                 }
-
             }
         },
         confirmButton = {
-            TextButton(
+            TextActionButton(
+                label = "Set",
                 onClick = {
                     onConfirm(
                         teamOneTimeoutsUsed,
@@ -90,14 +104,11 @@ internal fun AdjustTimeoutsDialog(
                         teamOneFirstHalfTimeoutsUsed,
                         teamTwoFirstHalfTimeoutsUsed,
                     )
-                }) {
-                Text("Set")
-            }
+                },
+            )
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
+            TextActionButton(label = "Cancel", onClick = onDismiss)
         },
     )
 }

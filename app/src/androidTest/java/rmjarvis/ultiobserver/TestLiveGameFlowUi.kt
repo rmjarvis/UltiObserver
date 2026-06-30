@@ -51,8 +51,8 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         // full unlock.
         startPointWithFailedSwipeThenUnlock()
 
-        // The top-right Lock action should relock the same live layout.
-        composeRule.onNodeWithTag("live-top-lock").performClick()
+        // The field-strip Lock action should relock the same live layout.
+        composeRule.onNodeWithTag("live-center-lock").performClick()
         waitForText("Slide right to unlock")
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).assertIsNotEnabled()
         unlockLiveScreen()
@@ -86,7 +86,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             verifyMisconductBackReturnsToNumberDialog = true,
         )
         waitForText("Start misconduct countdown")
-        composeRule.onNodeWithTag("live-top-lock").performClick()
+        composeRule.onNodeWithTag("live-center-lock").performClick()
         waitForText("Slide right to unlock")
         composeRule.onAllNodesWithTag("live-start-misconduct-countdown").assertCountEquals(0)
         unlockLiveScreen()
@@ -286,7 +286,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
         waitForText("Undo Goal by Team 1")
         composeRule.onNodeWithText("Undo Goal by Team 1").performClick()
-        waitForText("Lock")
+        waitForTag("live-center-lock")
         waitForText("Redo")
         composeRule.onNodeWithText("Redo").performClick()
         waitForText("Undo Goal by Team 1")
@@ -482,7 +482,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         showExpiredPullSurface()
 
         // Locking the screen hides expired-pull correction actions until the observer unlocks it.
-        composeRule.onNodeWithTag("live-top-lock").performClick()
+        composeRule.onNodeWithTag("live-center-lock").performClick()
         waitForText("Slide right to unlock")
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "time-violation"))
             .assertIsNotEnabled()
@@ -571,7 +571,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).assertIsNotEnabled()
         unlockLiveScreen()
         composeRule.onNodeWithText("Undo Start point").performClick()
-        waitForText("Lock")
+        waitForTag("live-center-lock")
         composeRule.onAllNodesWithText("Slide right to unlock").assertCountEquals(0)
         composeRule.onNodeWithText("Redo").performClick()
 
@@ -621,7 +621,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.waitUntil(timeoutMillis = 10_000) {
             composeRule.activity.appViewModel.liveState!!.phase == GamePhase.LIVE_POINT
         }
-        waitForText("Lock")
+        waitForTag("live-center-lock")
         composeRule.onAllNodesWithText("Slide right to unlock").assertCountEquals(0)
     }
 
@@ -685,11 +685,11 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             activity.appViewModel.updateAutomaticallyLockLivePoint(false)
         }
         composeRule.onNodeWithText("Start point").performClick()
-        waitForText("Lock")
+        waitForTag("live-center-lock")
         composeRule.onAllNodesWithText("Slide right to unlock").assertCountEquals(0)
         recordTimeout(TeamId.TEAM_ONE, "Undo Timeout by Team 1")
         composeRule.onNodeWithText("Continue point").performClick()
-        waitForText("Lock")
+        waitForTag("live-center-lock")
         composeRule.onAllNodesWithText("Slide right to unlock").assertCountEquals(0)
 
         // Automatic countdown expiration should also leave the point unlocked when locking is
@@ -712,7 +712,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         }
         waitForText("Undo Start point")
         composeRule.onAllNodesWithText("Slide right to unlock").assertCountEquals(0)
-        composeRule.onNodeWithTag("live-top-lock").assertIsDisplayed()
+        composeRule.onNodeWithTag("live-center-lock").assertIsDisplayed()
 
         // Reset the auto-lock setting to true for other tests.
         composeRule.activityRule.scenario.onActivity { activity ->

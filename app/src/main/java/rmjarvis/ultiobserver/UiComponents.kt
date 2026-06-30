@@ -1,41 +1,129 @@
 package rmjarvis.ultiobserver
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ButtonColors
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldColors
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 
 private const val KEYBOARD_DIALOG_HEIGHT_FRACTION = 0.60f
 
+internal val NavigationButtonShape: Shape
+    @Composable get() = ButtonDefaults.shape
+internal val AdjustShape = RoundedCornerShape(12.dp)
+internal val BigActionButtonShape = RoundedCornerShape(16.dp)
+internal val PanelShape = RoundedCornerShape(8.dp)
+internal val FieldInfoButtonShape = CircleShape
+internal val MenuButtonShape = RoundedCornerShape(12.dp)
+internal val ChoiceButtonShape = RoundedCornerShape(12.dp)
+internal val SectionCardShape = RoundedCornerShape(20.dp)
+internal val GameRowShape = RoundedCornerShape(16.dp)
+
+internal val SelectedColor = Color(0xFF1565C0)
+internal val SelectedBorderColor = Color(0xFF0D47A1)
+internal val YellowCardButtonColor = Color(0xFFFFD92F)
+internal val RedCardButtonColor = Color(0xFFE64B3C)
+internal val BlueCardButtonColor = Color(0xFF1976D2)
+internal val AvatarSelectedColor = Color(0xFFF2D23C)
+internal val FieldBorderColor = Color(0xFF9E9A8D)
+internal val FieldActionPanelColor = Color(0xCCFFFFFF)
+internal val FieldPullAreaColor = Color(0xFFA8D5A0)
+internal val GoalButtonColor = Color(0xFF2E7D32)
+internal val CardButtonColor = Color(0xFFFDD835)
+internal val TechButtonColor = Color(0xFFFFB74D)
+internal val TimeoutButtonColor = Color(0xFF90CAF9)
+internal val FieldNeutralButtonColor = Color(0xFFF7F2EA)
+internal val SliderOverlayColor = Color(0x66FFFFFF)
+internal val FourMenThreeWomenBadgeColor = Color(0xFFBFE3FF)
+internal val FourMenThreeWomenBadgeBorderColor = Color(0xFF5D99C2)
+internal val FourWomenThreeMenBadgeColor = Color(0xFFFFD1DC)
+internal val FourWomenThreeMenBadgeBorderColor = Color(0xFFD07B8F)
+internal val GenderRatioBadgeTextColor = Color(0xFF1D2024)
+
+private val OptionBorderLightColor = Color(0xFFD8CBA7)
+private val OptionDarkModeColor = Color(0xFF3B3522)
+private val OptionBorderDarkColor = Color(0xFF9A8432)
 /// Return the max body height for dialog bodies that can open the keyboard.
 @Composable
 internal fun keyboardDialogBodyMaxHeight(): Dp {
     return screenHeightFraction(KEYBOARD_DIALOG_HEIGHT_FRACTION)
+}
+
+/// Return a modifier that parks initial dialog focus on a non-keyboard surface.
+@Composable
+internal fun dialogInitialFocusModifier(): Modifier {
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+    return Modifier
+        .focusRequester(focusRequester)
+        .focusable()
+}
+
+/// Return this modifier with a test tag appended when one is requested.
+private fun Modifier.withTag(tag: String?): Modifier {
+    return if (tag == null) this else testTag(tag)
 }
 
 /**
@@ -79,38 +167,738 @@ internal fun readableContentColor(background: Color): Color {
     }
 }
 
+/// Neutral fill for buttons inside dialogs.
+internal val LightNeutralColor: Color
+    @Composable get() = MaterialTheme.colorScheme.surfaceContainerLow
+
+/// Neutral fill for buttons on ordinary white pages.
+internal val DarkNeutralColor: Color
+    @Composable get() = MaterialTheme.colorScheme.surfaceContainerHigh
+
+/// Stronger neutral fill for buttons inside dialogs.
+internal val EmphasizedLightNeutralColor: Color
+    @Composable get() = MaterialTheme.colorScheme.surfaceBright
+
+/// Stronger neutral fill for buttons on ordinary white pages.
+internal val EmphasizedDarkNeutralColor: Color
+    @Composable get() = MaterialTheme.colorScheme.surfaceVariant
+
+/// Primary action fill for navigation and other important actions.
+internal val PrimaryColor: Color
+    @Composable get() = MaterialTheme.colorScheme.primary
+
+/// Content color to use on PrimaryColor.
+internal val OnPrimaryColor: Color
+    @Composable get() = MaterialTheme.colorScheme.onPrimary
+
+/// Secondary action fill for non-danger actions that should stand out from neutral controls.
+internal val SecondaryColor = Color(0xFF486F9E)
+
+/// Content color to use on SecondaryColor.
+internal val OnSecondaryColor = Color.White
+
+/// Reset/undo/delete fill for actions that should signal a little caution.
+internal val ResetColor = Color(0xFF9E4B3E)
+
+/// Content color to use on ResetColor.
+internal val OnResetColor = Color.White
+
+/// Redo fill for tertiary actions.
+internal val RedoColor = Color(0xFF4F565C)
+
+/// Content color to use on RedoColor.
+internal val OnRedoColor = Color.White
+
+/// Unselected choice fill.
+internal val OptionColor: Color
+    @Composable get() = if (isSystemInDarkTheme()) OptionDarkModeColor else MaterialTheme.colorScheme.surface
+
+/// Fill for dialog value-entry controls such as text fields and picker launchers.
+internal val InputColor: Color
+    @Composable get() = MaterialTheme.colorScheme.surface
+
+/// Return app-standard outlined-button colors for neutral action buttons.
+@Composable
+internal fun neutralOutlinedButtonColors(
+    containerColor: Color = LightNeutralColor,
+    contentColor: Color = MaterialTheme.colorScheme.onSurface,
+): ButtonColors {
+    return ButtonDefaults.outlinedButtonColors(
+        containerColor = containerColor,
+        contentColor = contentColor,
+        disabledContainerColor = containerColor.copy(alpha = 0.45f),
+        disabledContentColor = contentColor.copy(alpha = 0.38f),
+    )
+}
+
+/// Return the default filled primary button colors.
+@Composable
+internal fun primaryButtonColors(): ButtonColors {
+    return ButtonDefaults.buttonColors(
+        containerColor = PrimaryColor,
+        contentColor = OnPrimaryColor,
+    )
+}
+
+/// Return filled secondary action button colors.
+@Composable
+internal fun secondaryButtonColors(): ButtonColors {
+    return ButtonDefaults.buttonColors(
+        containerColor = SecondaryColor,
+        contentColor = OnSecondaryColor,
+    )
+}
+
+/// Return filled reset/undo/delete button colors.
+@Composable
+internal fun resetButtonColors(): ButtonColors {
+    return ButtonDefaults.buttonColors(
+        containerColor = ResetColor,
+        contentColor = OnResetColor,
+    )
+}
+
+/// Return outlined reset/undo button colors.
+@Composable
+internal fun resetOutlinedButtonColors(): ButtonColors {
+    return ButtonDefaults.outlinedButtonColors(
+        containerColor = ResetColor,
+        contentColor = OnResetColor,
+        disabledContainerColor = ResetColor.copy(alpha = 0.45f),
+        disabledContentColor = OnResetColor.copy(alpha = 0.38f),
+    )
+}
+
+/// Return outlined redo button colors.
+@Composable
+internal fun redoOutlinedButtonColors(): ButtonColors {
+    return ButtonDefaults.outlinedButtonColors(
+        containerColor = RedoColor,
+        contentColor = OnRedoColor,
+        disabledContainerColor = RedoColor.copy(alpha = 0.45f),
+        disabledContentColor = OnRedoColor.copy(alpha = 0.38f),
+    )
+}
+
+/// Return colors for dialog picker launchers that visually match dialog text fields.
+@Composable
+internal fun dialogInputButtonColors(): ButtonColors {
+    return ButtonDefaults.outlinedButtonColors(
+        containerColor = InputColor,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+    )
+}
+
+/// Return colors for setup previous-card menu actions.
+@Composable
+internal fun setupCardsButtonColors(): ButtonColors {
+    return ButtonDefaults.outlinedButtonColors(
+        containerColor = CardButtonColor,
+        contentColor = Color.Black,
+    )
+}
+
+/// Return the standard Material button content padding.
+internal val DefaultButtonContentPadding: PaddingValues
+    get() = ButtonDefaults.ContentPadding
+
+/// Return the app-standard selected/unselected choice fill.
+@Composable
+internal fun choiceContainerColor(selected: Boolean): Color {
+    return if (selected) SelectedColor else OptionColor
+}
+
+/// Return the app-standard selected/unselected choice content color.
+@Composable
+internal fun choiceContentColor(selected: Boolean): Color {
+    return if (selected) Color.White else MaterialTheme.colorScheme.onSurface
+}
+
+/// Return the app-standard selected/unselected choice border color.
+@Composable
+internal fun choiceBorderColor(selected: Boolean): Color {
+    if (selected) {
+        return SelectedBorderColor
+    }
+    return if (isSystemInDarkTheme()) OptionBorderDarkColor else OptionBorderLightColor
+}
+
 /**
- * Render a small general-purpose outlined action button.
+ * Render a standard app selected/unselected choice chip.
+ *
+ * @param label The visible choice text.
+ * @param selected Whether this choice is currently selected.
+ * @param tag Optional test tag.
+ * @param horizontalPadding Horizontal text padding in density-independent pixels.
+ * @param verticalPadding Vertical text padding in density-independent pixels.
+ * @param onClick Callback selecting the choice.
+ */
+@Composable
+internal fun ChoiceChipButton(
+    label: String,
+    selected: Boolean,
+    tag: String? = null,
+    horizontalPadding: Dp = 10.dp,
+    verticalPadding: Dp = 7.dp,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier
+            .withTag(tag)
+            .semantics { this.selected = selected },
+        shape = ChoiceButtonShape,
+        color = choiceContainerColor(selected),
+        contentColor = choiceContentColor(selected),
+        border = BorderStroke(1.dp, choiceBorderColor(selected)),
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = horizontalPadding, vertical = verticalPadding),
+            style = MaterialTheme.typography.labelLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+/**
+ * Render a filled list item inside a dialog with enough edge contrast to read as a row.
+ *
+ * @param content Row content.
+ */
+@Composable
+internal fun DialogListItemCard(
+    content: @Composable () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = EmphasizedLightNeutralColor,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+    ) {
+        content()
+    }
+}
+
+/// Return app-standard outlined text-field colors for fields inside dialogs.
+@Composable
+internal fun dialogOutlinedTextFieldColors(): TextFieldColors {
+    return OutlinedTextFieldDefaults.colors(
+        focusedContainerColor = InputColor,
+        unfocusedContainerColor = InputColor,
+        disabledContainerColor = LightNeutralColor,
+        errorContainerColor = InputColor,
+        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+    )
+}
+
+/// Return app-standard outlined text-field colors for fields on ordinary pages.
+@Composable
+internal fun pageOutlinedTextFieldColors(): TextFieldColors {
+    return OutlinedTextFieldDefaults.colors()
+}
+
+/**
+ * Render a standard app text-entry field.
+ *
+ * @param value Current field text.
+ * @param onValueChange Callback receiving each edited value.
+ * @param labelText Optional field label.
+ * @param promptText Optional placeholder text shown when the field is empty.
+ * @param enabled Whether the field accepts edits.
+ * @param singleLine Whether the field should stay on one line.
+ * @param minLines Minimum line count for multi-line fields.
+ * @param capitalization Keyboard capitalization behavior.
+ * @param keyboardType Keyboard type requested from the platform.
+ * @param imeAction IME action requested from the platform keyboard.
+ * @param fullWidth Whether the field should fill the available width.
+ * @param modifier Optional layout modifier, reserved for row weight when needed.
+ * @param tag Optional test tag.
+ * @param colors Text-field colors.
+ * @param promptTextColor Optional color for placeholder text.
+ * @param onDone Optional domain action to run before clearing focus from the Done key.
+ * @param onFocusLost Optional domain action to run when focus leaves the field.
+ */
+@Composable
+internal fun TextEntry(
+    value: String,
+    onValueChange: (String) -> Unit,
+    labelText: String? = null,
+    promptText: String? = null,
+    enabled: Boolean = true,
+    singleLine: Boolean = true,
+    minLines: Int = 1,
+    capitalization: KeyboardCapitalization = KeyboardCapitalization.None,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    imeAction: ImeAction = ImeAction.Done,
+    fullWidth: Boolean = true,
+    modifier: Modifier = Modifier,
+    tag: String? = null,
+    colors: TextFieldColors = dialogOutlinedTextFieldColors(),
+    promptTextColor: Color? = null,
+    onDone: (() -> Unit)? = null,
+    onFocusLost: (() -> Unit)? = null,
+) {
+    val focusManager = LocalFocusManager.current
+    var textModifier = if (fullWidth) modifier.fillMaxWidth() else modifier
+    if (onFocusLost != null) {
+        textModifier = textModifier.onFocusChanged {
+            if (!it.isFocused) {
+                onFocusLost()
+            }
+        }
+    }
+    if (tag != null) {
+        textModifier = textModifier.testTag(tag)
+    }
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = labelText?.let { text -> { Text(text) } },
+        placeholder = promptText?.let { text ->
+            {
+                if (promptTextColor == null) {
+                    Text(text)
+                } else {
+                    Text(text = text, color = promptTextColor)
+                }
+            }
+        },
+        enabled = enabled,
+        singleLine = singleLine,
+        minLines = minLines,
+        keyboardOptions = KeyboardOptions(
+            capitalization = capitalization,
+            keyboardType = keyboardType,
+            imeAction = imeAction,
+        ),
+        keyboardActions = KeyboardActions(
+            onDone = {
+                onDone?.invoke()
+                focusManager.clearFocus(force = true)
+            },
+        ),
+        colors = colors,
+        modifier = textModifier,
+    )
+}
+
+/// Return a button layout modifier from semantic sizing options.
+private fun buttonLayoutModifier(
+    modifier: Modifier = Modifier,
+    fullWidth: Boolean = false,
+    width: Dp? = null,
+    height: Dp? = null,
+): Modifier {
+    var result = modifier
+    if (fullWidth) {
+        result = result.fillMaxWidth()
+    }
+    if (width != null) {
+        result = result.width(width)
+    }
+    if (height != null) {
+        result = result.height(height)
+    }
+    return result
+}
+
+/**
+ * Render a button that opens another page or top-level app surface.
+ *
+ * @param label The button label.
+ * @param fullWidth Whether the button should fill the available width.
+ * @param height Optional fixed button height.
+ * @param modifier Optional layout modifier, reserved for row weight when needed.
+ * @param enabled Whether the button is enabled.
+ * @param colors Button colors.
+ * @param borderColor Optional button border color.
+ * @param compact Whether to remove default minimum sizing for fixed-height bars.
+ * @param tag Optional test tag.
+ * @param onClick Callback invoked when the button is tapped.
+ */
+@Composable
+internal fun NavigationButton(
+    label: String,
+    fullWidth: Boolean = false,
+    height: Dp? = null,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    colors: ButtonColors = ButtonDefaults.buttonColors(),
+    borderColor: Color? = null,
+    compact: Boolean = false,
+    tag: String? = null,
+    onClick: () -> Unit,
+) {
+    StandardRoleButton(
+        label = label,
+        modifier = buttonLayoutModifier(
+            modifier = modifier,
+            fullWidth = fullWidth,
+            height = height,
+        ),
+        enabled = enabled,
+        shape = NavigationButtonShape,
+        colors = colors,
+        borderColor = borderColor,
+        compact = compact,
+        tag = tag,
+        contentPadding = null,
+        onClick = onClick,
+    )
+}
+
+/**
+ * Render a full-width or otherwise prominent page action button.
+ *
+ * @param label The button label.
+ * @param fullWidth Whether the button should fill the available width.
+ * @param height Optional fixed button height.
+ * @param enabled Whether the button is enabled.
+ * @param modifier Optional layout modifier, reserved for row weight when needed.
+ * @param containerColor Button background color.
+ * @param contentColor Button text color.
+ * @param borderColor Optional button border color.
+ * @param minHeight Minimum visual button height.
+ * @param fontSize Optional button label font size.
+ * @param tag Optional test tag.
+ * @param onClick Callback invoked when the button is tapped.
+ */
+@Composable
+internal fun BigActionButton(
+    label: String,
+    fullWidth: Boolean = false,
+    height: Dp? = null,
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier,
+    containerColor: Color = DarkNeutralColor,
+    contentColor: Color = MaterialTheme.colorScheme.onSurface,
+    borderColor: Color? = MaterialTheme.colorScheme.outline,
+    minHeight: Dp = 34.dp,
+    fontSize: TextUnit? = null,
+    tag: String? = null,
+    onClick: () -> Unit,
+) {
+    StandardRoleButton(
+        label = label,
+        modifier = buttonLayoutModifier(
+            modifier = modifier,
+            fullWidth = fullWidth,
+            height = height,
+        )
+            .defaultMinSize(minHeight = minHeight),
+        enabled = enabled,
+        shape = BigActionButtonShape,
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = containerColor,
+            contentColor = contentColor,
+            disabledContainerColor = containerColor.copy(alpha = 0.45f),
+            disabledContentColor = contentColor.copy(alpha = 0.38f),
+        ),
+        borderColor = borderColor,
+        compact = true,
+        tag = tag,
+        contentPadding = null,
+        fontSize = fontSize,
+        onClick = onClick,
+    )
+}
+
+/**
+ * Render a secondary menu/action button that performs an optional task in the current flow.
+ *
+ * @param label The button label.
+ * @param fullWidth Whether the button should fill the available width.
+ * @param enabled Whether the button is enabled.
+ * @param colors Button colors.
+ * @param borderColor Optional button border color.
+ * @param contentPadding Padding inside the button.
+ * @param maxLines Maximum menu-label line count.
+ * @param tag Optional test tag.
+ * @param onClick Callback invoked when the button is tapped.
+ */
+@Composable
+internal fun MenuButton(
+    label: String,
+    fullWidth: Boolean = true,
+    enabled: Boolean = true,
+    colors: ButtonColors = neutralOutlinedButtonColors(),
+    borderColor: Color? = MaterialTheme.colorScheme.outline,
+    contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
+    maxLines: Int = 3,
+    tag: String? = null,
+    onClick: () -> Unit,
+) {
+    StandardRoleButton(
+        label = label,
+        modifier = buttonLayoutModifier(fullWidth = fullWidth),
+        enabled = enabled,
+        shape = MenuButtonShape,
+        colors = colors,
+        borderColor = borderColor,
+        compact = false,
+        tag = tag,
+        contentPadding = contentPadding,
+        textMaxLines = maxLines,
+        softWrap = true,
+        onClick = onClick,
+    )
+}
+
+/**
+ * Render a secondary menu/action button with custom row content.
+ *
+ * @param fullWidth Whether the button should fill the available width.
+ * @param enabled Whether the button is enabled.
+ * @param colors Button colors.
+ * @param borderColor Optional button border color.
+ * @param contentPadding Padding inside the button.
+ * @param tag Optional test tag.
+ * @param onClick Callback invoked when the button is tapped.
+ * @param content Button content.
+ */
+@Composable
+internal fun MenuButton(
+    fullWidth: Boolean = true,
+    enabled: Boolean = true,
+    colors: ButtonColors = neutralOutlinedButtonColors(),
+    borderColor: Color? = MaterialTheme.colorScheme.outline,
+    contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
+    tag: String? = null,
+    onClick: () -> Unit,
+    content: @Composable RowScope.() -> Unit,
+) {
+    val buttonModifier = buttonLayoutModifier(fullWidth = fullWidth).withTag(tag)
+    if (borderColor == null) {
+        Button(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = buttonModifier,
+            shape = MenuButtonShape,
+            colors = colors,
+            contentPadding = contentPadding,
+            content = content,
+        )
+    } else {
+        OutlinedButton(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = buttonModifier,
+            shape = MenuButtonShape,
+            colors = colors,
+            border = BorderStroke(1.dp, borderColor),
+            contentPadding = contentPadding,
+            content = content,
+        )
+    }
+}
+
+/**
+ * Render a plain text action used in top bars and dialog action slots.
+ *
+ * @param label The button label.
+ * @param height Optional fixed button height.
+ * @param compact Whether to remove default minimum sizing.
+ * @param enabled Whether the button is enabled.
+ * @param contentPadding Padding inside the button.
+ * @param tag Optional test tag.
+ * @param onClick Callback invoked when the button is tapped.
+ */
+@Composable
+internal fun TextActionButton(
+    label: String,
+    height: Dp? = null,
+    compact: Boolean = false,
+    enabled: Boolean = true,
+    contentPadding: PaddingValues = ButtonDefaults.TextButtonContentPadding,
+    tag: String? = null,
+    onClick: () -> Unit,
+) {
+    val taggedModifier = buttonLayoutModifier(height = height).withTag(tag)
+    val buttonModifier = if (compact) {
+        taggedModifier.defaultMinSize(minWidth = 1.dp, minHeight = 0.dp)
+    } else {
+        taggedModifier
+    }
+    TextButton(
+        onClick = onClick,
+        modifier = buttonModifier,
+        enabled = enabled,
+        contentPadding = contentPadding,
+    ) {
+        Text(label, maxLines = 1, softWrap = false)
+    }
+}
+
+/**
+ * Render a compact icon-only action.
+ *
+ * @param icon The icon to show.
+ * @param contentDescription Accessibility label for the icon action.
+ * @param size Button size.
+ * @param iconSize Icon size.
+ * @param tag Optional test tag.
+ * @param onClick Callback invoked when the icon is tapped.
+ */
+@Composable
+internal fun IconActionButton(
+    icon: ImageVector,
+    contentDescription: String,
+    size: Dp = 36.dp,
+    iconSize: Dp = 20.dp,
+    tag: String? = null,
+    onClick: () -> Unit,
+) {
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier
+            .withTag(tag)
+            .size(size),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            modifier = Modifier.size(iconSize),
+        )
+    }
+}
+
+/**
+ * Render a semantic button role with the role's shape already selected by the caller.
  *
  * @param label The button label.
  * @param modifier Optional layout modifier.
  * @param enabled Whether the button is enabled.
- * @param containerColor Button background color.
- * @param contentColor Button text color.
- * @param borderColor Button border color.
+ * @param shape Button role shape.
+ * @param colors Button colors.
+ * @param borderColor Optional button border color.
+ * @param compact Whether to remove default minimum sizing for fixed-height bars.
+ * @param tag Optional test tag.
+ * @param contentPadding Optional padding inside the button.
+ * @param fontSize Optional button label font size.
+ * @param textMaxLines Maximum button-label line count.
+ * @param softWrap Whether the button label may wrap.
  * @param onClick Callback invoked when the button is tapped.
  */
 @Composable
-internal fun SmallActionButton(
+private fun StandardRoleButton(
     label: String,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    containerColor: Color = Color.Transparent,
-    contentColor: Color = MaterialTheme.colorScheme.primary,
-    borderColor: Color = MaterialTheme.colorScheme.outline,
+    modifier: Modifier,
+    enabled: Boolean,
+    shape: Shape,
+    colors: ButtonColors,
+    borderColor: Color?,
+    compact: Boolean,
+    tag: String?,
+    contentPadding: PaddingValues?,
+    fontSize: TextUnit? = null,
+    textMaxLines: Int = 1,
+    softWrap: Boolean = false,
     onClick: () -> Unit,
 ) {
+    val taggedModifier = modifier.withTag(tag)
+    val buttonModifier = if (compact) {
+        taggedModifier.defaultMinSize(minHeight = 0.dp)
+    } else {
+        taggedModifier
+    }
+    val resolvedContentPadding = contentPadding ?: if (compact) {
+        PaddingValues(horizontal = 8.dp, vertical = 3.dp)
+    } else {
+        ButtonDefaults.ContentPadding
+    }
+    val content: @Composable () -> Unit = {
+        val textStyle = if (fontSize == null) {
+            MaterialTheme.typography.labelLarge
+        } else {
+            MaterialTheme.typography.labelLarge.copy(fontSize = fontSize)
+        }
+        Text(
+            label,
+            textAlign = TextAlign.Center,
+            style = textStyle,
+            maxLines = textMaxLines,
+            softWrap = softWrap,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+    val button: @Composable () -> Unit = {
+        if (borderColor == null) {
+            Button(
+                onClick = onClick,
+                enabled = enabled,
+                modifier = buttonModifier,
+                shape = shape,
+                colors = colors,
+                contentPadding = resolvedContentPadding,
+            ) {
+                content()
+            }
+        } else {
+            OutlinedButton(
+                onClick = onClick,
+                enabled = enabled,
+                modifier = buttonModifier,
+                shape = shape,
+                colors = colors,
+                border = BorderStroke(1.dp, borderColor),
+                contentPadding = resolvedContentPadding,
+            ) {
+                content()
+            }
+        }
+    }
+    if (compact) {
+        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+            button()
+        }
+    } else {
+        button()
+    }
+}
+
+/**
+ * Render a compact numeric adjustment button.
+ *
+ * @param label The button label.
+ * @param enabled Whether the button is enabled.
+ * @param containerColor Button background color.
+ * @param contentColor Button text color.
+ * @param borderColor Button border color.
+ * @param tag Optional test tag.
+ * @param onClick Callback invoked when the button is tapped.
+ */
+@Composable
+internal fun AdjustButton(
+    label: String,
+    enabled: Boolean = true,
+    containerColor: Color = LightNeutralColor,
+    contentColor: Color = MaterialTheme.colorScheme.onSurface,
+    borderColor: Color = MaterialTheme.colorScheme.outline,
+    tag: String? = null,
+    onClick: () -> Unit,
+) {
+    val buttonWidth = 38.dp
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
         OutlinedButton(
             onClick = onClick,
             enabled = enabled,
-            modifier = modifier.defaultMinSize(minHeight = 34.dp),
+            modifier = buttonLayoutModifier(width = buttonWidth)
+                .withTag(tag)
+                .defaultMinSize(minHeight = 34.dp),
+            shape = AdjustShape,
             colors = ButtonDefaults.outlinedButtonColors(
                 containerColor = containerColor,
                 contentColor = contentColor,
+                disabledContainerColor = containerColor.copy(alpha = 0.45f),
+                disabledContentColor = contentColor.copy(alpha = 0.38f),
             ),
             border = BorderStroke(1.dp, borderColor),
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
+            contentPadding = PaddingValues(horizontal = 0.dp, vertical = 3.dp),
         ) {
             Text(
                 label,
@@ -122,10 +910,203 @@ internal fun SmallActionButton(
 }
 
 /**
+ * Render one field action with stable sizing inside the live-team action grid.
+ *
+ * @param label Text shown in the button.
+ * @param fullWidth Whether the button should fill the available width.
+ * @param width Optional fixed button width.
+ * @param height Button height.
+ * @param enabled Whether the button can be pressed.
+ * @param containerColor Button background color.
+ * @param contentColor Button text color.
+ * @param borderColor Button border color.
+ * @param tag Optional test tag.
+ * @param onClick Callback invoked when the observer taps the action.
+ */
+@Composable
+internal fun FieldControlButton(
+    label: String,
+    fullWidth: Boolean = false,
+    width: Dp? = null,
+    height: Dp,
+    enabled: Boolean,
+    containerColor: Color = Color.White,
+    contentColor: Color = Color.Black,
+    borderColor: Color = Color.Black,
+    tag: String? = null,
+    onClick: () -> Unit,
+) {
+    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+        OutlinedButton(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = buttonLayoutModifier(fullWidth = fullWidth, width = width, height = height)
+                .withTag(tag)
+                .defaultMinSize(minWidth = 0.dp, minHeight = 0.dp),
+            shape = PanelShape,
+            colors = ButtonDefaults.outlinedButtonColors(
+                containerColor = containerColor,
+                contentColor = contentColor,
+            ),
+            border = BorderStroke(1.dp, borderColor),
+            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+/**
+ * Render the compact information affordance next to a live team name.
+ *
+ * @param teamName The team name used in the accessibility label.
+ * @param contentColor Color that contrasts with the team background.
+ * @param tag Optional test tag.
+ * @param onClick Callback opening the team information view.
+ */
+@Composable
+internal fun FieldInfoButton(
+    teamName: String,
+    contentColor: Color,
+    tag: String? = null,
+    onClick: () -> Unit,
+) {
+    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+        OutlinedButton(
+            onClick = onClick,
+            modifier = Modifier
+                .withTag(tag)
+                .size(24.dp)
+                .semantics { contentDescription = "Show $teamName names" },
+            shape = FieldInfoButtonShape,
+            colors = ButtonDefaults.outlinedButtonColors(
+                containerColor = Color.Transparent,
+                contentColor = contentColor,
+            ),
+            border = BorderStroke(1.dp, contentColor),
+            contentPadding = PaddingValues(0.dp),
+        ) {
+            Text(
+                text = "i",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
+/**
+ * Render the pause/resume countdown control.
+ *
+ * @param isPaused Whether the button is currently paused.
+ * @param enabled Whether the button can be pressed.
+ * @param onClick Callback invoked when the observer toggles pause state.
+ */
+@Composable
+internal fun PauseResumeButton(
+    isPaused: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val contentColor = MaterialTheme.colorScheme.onSurface
+    val iconColor = if (enabled) contentColor else contentColor.copy(alpha = 0.38f)
+    val description = if (isPaused) "Resume countdown" else "Pause countdown"
+    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+        OutlinedButton(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = Modifier
+                .defaultMinSize(minWidth = 34.dp, minHeight = 34.dp)
+                .testTag(if (isPaused) "live-resume-countdown" else "live-pause-countdown")
+                .semantics { contentDescription = description },
+            shape = AdjustShape,
+            colors = ButtonDefaults.outlinedButtonColors(
+                containerColor = DarkNeutralColor,
+                contentColor = contentColor,
+                disabledContainerColor = DarkNeutralColor.copy(alpha = 0.45f),
+                disabledContentColor = contentColor.copy(alpha = 0.38f),
+            ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
+        ) {
+            Icon(
+                imageVector = if (isPaused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = iconColor,
+            )
+        }
+    }
+}
+
+/**
+ * Render a compact count-correction row with label/count on the left and actions on the right.
+ *
+ * @param label The count label.
+ * @param value The current count value.
+ * @param emphasizedLabel Whether the label/count text should be styled as the row's main content.
+ * @param incrementTag Optional test tag for the increment button.
+ * @param decrementTag Optional test tag for the decrement button.
+ * @param onIncrement Callback increasing the count.
+ * @param onDecrement Callback decreasing the count.
+ */
+@Composable
+internal fun CorrectionCountRow(
+    label: String,
+    value: Int,
+    emphasizedLabel: Boolean = false,
+    incrementTag: String? = null,
+    decrementTag: String? = null,
+    onIncrement: () -> Unit,
+    onDecrement: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "$label: $value",
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = 8.dp),
+            style = if (emphasizedLabel) {
+                MaterialTheme.typography.titleMedium
+            } else {
+                MaterialTheme.typography.bodyLarge
+            },
+            fontWeight = if (emphasizedLabel) FontWeight.SemiBold else null,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            AdjustButton(
+                label = "+1",
+                tag = incrementTag,
+                onClick = onIncrement,
+            )
+            AdjustButton(
+                label = "-1",
+                enabled = value > 0,
+                tag = decrementTag,
+                onClick = onDecrement,
+            )
+        }
+    }
+}
+
+/**
  * Render compact misconduct side-choice dialog actions as one row.
  *
  * @param firstLabel The leftmost action label, usually `Cancel` or `Back`.
- * @param firstModifier Modifier for the leftmost action.
+ * @param firstTag Optional test tag for the leftmost action.
  * @param onFirst Callback for the leftmost action.
  * @param onOffense Callback for choosing offense.
  * @param onDefense Callback for choosing defense.
@@ -133,7 +1114,7 @@ internal fun SmallActionButton(
 @Composable
 internal fun MisconductChoiceButtons(
     firstLabel: String,
-    firstModifier: Modifier = Modifier,
+    firstTag: String? = null,
     onFirst: () -> Unit,
     onOffense: () -> Unit,
     onDefense: () -> Unit,
@@ -143,35 +1124,22 @@ internal fun MisconductChoiceButtons(
         horizontalArrangement = Arrangement.End,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CompactDialogTextButton(
+        TextActionButton(
             label = firstLabel,
-            modifier = firstModifier,
+            tag = firstTag,
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
             onClick = onFirst,
         )
-        CompactDialogTextButton(label = "Offense", onClick = onOffense)
-        CompactDialogTextButton(label = "Defense", onClick = onDefense)
-    }
-}
-
-/**
- * Render a dialog action button whose label can use more of its visible width.
- *
- * @param label The action label.
- * @param modifier Modifier applied to the button.
- * @param onClick Callback invoked when the action is tapped.
- */
-@Composable
-private fun CompactDialogTextButton(
-    label: String,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    TextButton(
-        onClick = onClick,
-        modifier = modifier,
-        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-    ) {
-        Text(label, maxLines = 1, softWrap = false)
+        TextActionButton(
+            label = "Offense",
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+            onClick = onOffense,
+        )
+        TextActionButton(
+            label = "Defense",
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+            onClick = onDefense,
+        )
     }
 }
 
@@ -191,7 +1159,8 @@ internal fun SectionCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(20.dp),
+        shape = SectionCardShape,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
             modifier = Modifier
@@ -238,7 +1207,16 @@ internal fun TeamCorrectionSection(
     content: @Composable () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(title, fontWeight = FontWeight.SemiBold)
-        content()
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Column(
+            modifier = Modifier.padding(start = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            content()
+        }
     }
 }

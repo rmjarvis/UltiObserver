@@ -13,10 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -278,14 +275,20 @@ internal fun HomeScreen(
                             SectionCard(
                                 title = "Completed game",
                             ) {
-                                GameListRow(entry = completedGamePendingArchive, onClick = onOpenCompletedGame)
+                                GameListRow(
+                                    entry = completedGamePendingArchive,
+                                    onClick = onOpenCompletedGame
+                                )
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Button(
+                                BigActionButton(
+                                    label = "Archive completed game",
+                                    fullWidth = true,
+                                    containerColor = PrimaryColor,
+                                    contentColor = OnPrimaryColor,
+                                    borderColor = null,
+                                    minHeight = BUTTON_HEIGHT,
                                     onClick = onArchiveCompletedGame,
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) {
-                                    Text("Archive completed game")
-                                }
+                                )
                             }
                         }
                     }
@@ -298,7 +301,7 @@ internal fun HomeScreen(
                     .align(Alignment.TopStart)
                     .padding(pagePadding)
                     .clickable(onClick = onOpenAbout),
-                color = MaterialTheme.colorScheme.primary,
+                color = PrimaryColor,
                 style = MaterialTheme.typography.labelLarge,
             )
         }
@@ -326,51 +329,38 @@ private fun HomeActions(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Button(
+        NavigationButton(
+            label = "Start new game",
+            fullWidth = true,
             onClick = onStartNewGame,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            HomeActionText("Start new game")
-        }
-        OutlinedButton(
+        )
+        NavigationButton(
+            label = "See archived/saved games",
+            fullWidth = true,
+            colors = neutralOutlinedButtonColors(DarkNeutralColor),
+            borderColor = MaterialTheme.colorScheme.outline,
             onClick = onOpenArchivedGames,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            HomeActionText("See archived/saved games")
-        }
+        )
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            OutlinedButton(
+            NavigationButton(
+                label = "Profile",
+                modifier = Modifier.weight(1f),
+                colors = neutralOutlinedButtonColors(DarkNeutralColor),
+                borderColor = MaterialTheme.colorScheme.outline,
                 onClick = onOpenProfile,
+            )
+            NavigationButton(
+                label = "Settings",
                 modifier = Modifier.weight(1f),
-            ) {
-                HomeActionText("Profile")
-            }
-            OutlinedButton(
+                colors = neutralOutlinedButtonColors(DarkNeutralColor),
+                borderColor = MaterialTheme.colorScheme.outline,
                 onClick = onOpenSettings,
-                modifier = Modifier.weight(1f),
-            ) {
-                HomeActionText("Settings")
-            }
+            )
         }
     }
-}
-
-/**
- * Render a single-line Home button label.
- *
- * @param text The label text.
- */
-@Composable
-private fun HomeActionText(text: String) {
-    Text(
-        text = text,
-        textAlign = TextAlign.Center,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-    )
 }
 
 /**
@@ -392,11 +382,11 @@ internal fun GameListRow(
             .clickable(onClick = onClick)
             .border(
                 width = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant,
-                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.outline,
+                shape = GameRowShape,
             ),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        shape = GameRowShape,
+        color = DarkNeutralColor,
     ) {
         Column(
             modifier = Modifier
