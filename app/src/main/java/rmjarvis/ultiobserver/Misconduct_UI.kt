@@ -1785,10 +1785,7 @@ private fun CardReasonDialog(
                         ReasonChoiceButton(
                             label = preset,
                             selected = selectedPreset == preset,
-                            onClick = {
-                                selectedPreset = preset
-                                otherReason = ""
-                            },
+                            onClick = { selectedPreset = preset },
                         )
                     }
                     ReasonChoiceButton(

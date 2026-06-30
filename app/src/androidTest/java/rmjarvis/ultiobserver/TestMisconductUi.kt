@@ -186,27 +186,37 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         waitForText("Yellow card reason")
         composeRule.onNodeWithText("Other").performClick()
         composeRule.onNodeWithTag("card-other-reason").performTextReplacement("Discarded reason")
+        composeRule.onNodeWithTag("card-other-reason").performImeAction()
         composeRule.onAllNodesWithText("Back").onLast().performClick()
         waitForText("Yellow card")
         composeRule.onNodeWithText("Reason").assertIsDisplayed()
 
-        // Switching from Other back to a preset clears the abandoned custom reason text.
+        // Switching from Other to a preset and back keeps the custom reason draft.
         composeRule.onNodeWithText("Reason").performClick()
         waitForText("Yellow card reason")
         composeRule.onNodeWithText("Other").performClick()
         composeRule.onNodeWithTag("card-other-reason").performTextReplacement("Temporary reason")
+        composeRule.onNodeWithTag("card-other-reason").performImeAction()
         composeRule.onNodeWithText("Dangerous play").performScrollTo().performClick()
         composeRule.onNodeWithText("Other").performClick()
+        assertEquals(
+            "Temporary reason",
+            composeRule.onNodeWithTag("card-other-reason")
+                .fetchSemanticsNode()
+                .config[SemanticsProperties.EditableText]
+                .text,
+        )
         composeRule.onNodeWithText("Set").performClick()
         waitForText("Yellow card")
-        composeRule.onAllNodesWithText("Temporary reason").assertCountEquals(0)
-        composeRule.onNodeWithText("Reason").assertIsDisplayed()
+        composeRule.onNodeWithText("Temporary reason").assertIsDisplayed()
 
-        composeRule.onNodeWithText("Reason").performClick()
+        composeRule.onNodeWithText("Temporary reason").performClick()
         waitForText("Yellow card reason")
         composeRule.onNodeWithText("Other").performClick()
         composeRule.onNodeWithTag("card-other-reason").performTextReplacement("Sideline language")
+        composeRule.onNodeWithTag("card-other-reason").performImeAction()
         composeRule.onNodeWithTag("card-reason-details").performTextReplacement("after warning")
+        composeRule.onNodeWithTag("card-reason-details").performImeAction()
         composeRule.onNodeWithText("Set").performClick()
         composeRule.onNodeWithText("Sideline language: after warning").assertIsDisplayed()
         composeRule.onNodeWithText("Sideline language: after warning").performClick()
@@ -345,7 +355,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
             "#6 Alex Cutter is already listed. Record #6 Bob Cutter as a different player " +
                 "with the same number?"
         )
-        dismissDialog(tag = "same-number-warning-cancel")
+        composeRule.onNodeWithTag("same-number-warning-cancel").performClick()
         waitForText("Yellow card")
 
         // If the user is sure that this is correct, they can make two number 6 players,
@@ -551,7 +561,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("card-player-name").performTextReplacement("Different Handler")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Same number, different names")
-        dismissDialog(tag = "same-number-warning-cancel")
+        composeRule.onNodeWithTag("same-number-warning-cancel").performClick()
         waitForText("Add red card")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Same number, different names")
@@ -637,7 +647,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("card-player-name").performImeAction()
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Same number, different names")
-        dismissDialog(tag = "same-number-warning-cancel")
+        composeRule.onNodeWithTag("same-number-warning-cancel").performClick()
         waitForText("Red card")
         assertEquals(
             "10",
