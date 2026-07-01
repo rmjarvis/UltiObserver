@@ -172,6 +172,8 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         ).assertCountEquals(0)
         waitForText("Edit existing cards")
         composeRule.onNodeWithText("Done").performClick()
+        waitForText("Current cards:")
+        composeRule.onNodeWithText("Close").performClick()
         waitForText("Undo Edit red on #5 of Team 1")
 
         // Yellow-card reason details should round-trip through the custom reason dialog.
@@ -293,9 +295,10 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         waitForText("Edit yellow card")
         dismissDialog(tag = "card-entry-cancel")
         waitForText("Edit existing cards")
-        dismissDialog(tag = "editable-player-cards-dismiss")
+        dismissDialog(text = "Done")
         waitForText("Current cards:")
         composeRule.onNodeWithText("Close").performClick()
+        assertLiveScreen()
         composeRule.onAllNodesWithText("Edit existing cards").assertCountEquals(0)
 
         // Additional cards for the same player should show the existing-card summary in the dialog.
@@ -504,7 +507,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         waitForText("Edit yellow card")
         composeRule.onNodeWithTag("card-player-number").performTextReplacement("")
         composeRule.onNodeWithText("Record").performClick()
-        composeRule.onAllNodesWithText("Back").onLast().performClick()
+        composeRule.onAllNodesWithText("Done").onLast().performClick()
 
         // The correction dialog can remove an existing player yellow.
         composeRule.onNodeWithTag("cards-adjust-team-two-edit-existing")
@@ -516,7 +519,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         ).onFirst().performClick()
         waitForText("Remove card?")
         composeRule.onAllNodesWithText("Remove").onLast().performClick()
-        composeRule.onAllNodesWithText("Back").onLast().performClick()
+        composeRule.onAllNodesWithText("Done").onLast().performClick()
         composeRule.onNodeWithText("Done").performClick()
         waitForText("Undo Adjust blue card/tech counts")
 
@@ -533,7 +536,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         ).onFirst().performClick()
         waitForText("Remove card?")
         composeRule.onAllNodesWithText("Cancel").onLast().performClick()
-        composeRule.onAllNodesWithText("Back").onLast().performClick()
+        composeRule.onAllNodesWithText("Done").onLast().performClick()
         composeRule.onNodeWithText("Cancel").performClick()
         waitForText("Update game setup")
 

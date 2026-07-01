@@ -882,7 +882,7 @@ private fun GameInformationSetupDialog(
         modifier = Modifier
             .imePadding()
             .then(dialogInitialFocusModifier()),
-        onDismissRequest = onDismiss,
+        onDismissRequest = ::saveAndDismiss,
         title = { Text("Game information") },
         text = {
             Column(
@@ -1361,7 +1361,7 @@ private fun StartingPullSetupDialog(
         modifier = Modifier
             .imePadding()
             .then(dialogInitialFocusModifier()),
-        onDismissRequest = onDismiss,
+        onDismissRequest = ::saveAndDismiss,
         title = { Text("Field/starting pull") },
         text = {
             Column(
@@ -1489,7 +1489,7 @@ private fun GameRulesSetupDialog(
 ) {
     val rules = state.rules
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = onConfirm,
         title = { Text("Game rules") },
         text = {
             Column(
@@ -2237,8 +2237,13 @@ private fun CustomTeamColorSetupDialog(
     var customColor by remember(team.customColorArgb, team.color) {
         mutableStateOf(team.customColorArgb?.let(::Color) ?: team.accent)
     }
+
+    fun useColorAndDismiss() {
+        onCustomColorSelected(customColor.toOpaqueArgbLong())
+    }
+
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = ::useColorAndDismiss,
         title = { Text("$teamLabel Color") },
         text = {
             CustomColorPicker(
@@ -2254,9 +2259,7 @@ private fun CustomTeamColorSetupDialog(
                 confirmText = "Use this color",
                 confirmTestTag = null,
                 onCancel = onDismiss,
-                onConfirm = {
-                    onCustomColorSelected(customColor.toOpaqueArgbLong())
-                },
+                onConfirm = ::useColorAndDismiss,
             )
         },
     )

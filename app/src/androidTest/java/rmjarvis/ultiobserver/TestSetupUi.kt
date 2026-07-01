@@ -115,7 +115,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("setup-Team 1-color-custom").assertIsDisplayed()
         composeRule.onNodeWithTag("setup-Team 1-color-more").performClick()
         waitForText("Use this color")
-        dismissDialog(text = "Cancel")
+        dismissDialog(text = "Use this color")
         waitForText("Start game")
 
         // Team-contact fields should accept multi-line coaches plus captain names.
@@ -213,14 +213,22 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         waitForText("Pull prompts for both ends")
         waitForText("First point ratio: 4W/3M")
 
-        // Cancel/dismiss is an explicit discard path for this editor, unlike Done.
+        // Cancel is the explicit discard path for this editor.
         openStartingPullSetupEditor()
         composeRule.onNodeWithTag("setup-near-end-name")
             .performTextReplacement("Canceled end")
         composeRule.onNodeWithTag("setup-near-end-name").performImeAction()
-        dismissDialog(text = "Cancel", clearKeyboard = true)
+        composeRule.onNodeWithText("Cancel").performClick()
         composeRule.onAllNodesWithText("Canceled end").assertCountEquals(0)
         waitForText("Road / Trees")
+
+        // Dismissal follows Done so accidental outside taps keep entered setup edits.
+        openStartingPullSetupEditor()
+        composeRule.onNodeWithTag("setup-far-end-name")
+            .performTextReplacement("River")
+        composeRule.onNodeWithTag("setup-far-end-name").performImeAction()
+        dismissDialog(text = "Done", clearKeyboard = true)
+        waitForText("Road / River")
 
         // Gen Zone setup uses field-end labels and can show that the zone switches at halftime.
         openGameRulesSetupEditor()
@@ -279,7 +287,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         closeSetupEditor()
         waitForText("Start game")
 
-        // Cancel/dismiss on the game-rules editor should discard draft rule changes.
+        // Cancel on the game-rules editor should discard draft rule changes.
         openGameRulesSetupEditor()
         composeRule.onNodeWithText("Cancel").assertIsDisplayed()
         composeRule.onNodeWithText("Game to").performScrollTo().performClick()
@@ -287,10 +295,20 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Points").performTextReplacement("19")
         composeRule.onNodeWithTag("setup-integer-set").performClick()
         waitForText("Game to")
-        dismissDialog(text = "Cancel")
+        composeRule.onNodeWithText("Cancel").performClick()
         waitForText("Start game")
         waitForText("Game to 15")
         composeRule.onAllNodesWithText("Game to 19").assertCountEquals(0)
+
+        // Dismissal follows Done so edited setup rules are kept.
+        openGameRulesSetupEditor()
+        composeRule.onNodeWithText("Game to").performScrollTo().performClick()
+        waitForText("Points")
+        composeRule.onNodeWithText("Points").performTextReplacement("19")
+        composeRule.onNodeWithTag("setup-integer-set").performClick()
+        waitForText("Game to")
+        dismissDialog(text = "Done")
+        waitForText("Game to 19")
 
         // Empty numeric rule entries should fall back to the current value.
         setIntegerSetupValue("Game to", "Game to", "Points", "")
@@ -410,14 +428,22 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         waitForText("Semifinals")
         waitForText("Observers: Mike and Gary")
 
-        // Cancel/dismiss is an explicit discard path for this editor, unlike Done.
+        // Cancel is the explicit discard path for this editor.
         openGameInformationSetupEditor()
         composeRule.onNodeWithTag("setup-tournament-name")
             .performTextReplacement("Canceled Tournament")
         composeRule.onNodeWithTag("setup-tournament-name").performImeAction()
-        dismissDialog(text = "Cancel", clearKeyboard = true)
+        composeRule.onNodeWithText("Cancel").performClick()
         composeRule.onAllNodesWithText("Canceled Tournament").assertCountEquals(0)
         waitForText("College Nationals")
+
+        // Dismissal follows Done so text-entry setup edits survive accidental outside taps.
+        openGameInformationSetupEditor()
+        composeRule.onNodeWithTag("setup-tournament-name")
+            .performTextReplacement("Dismissed Tournament")
+        composeRule.onNodeWithTag("setup-tournament-name").performImeAction()
+        dismissDialog(text = "Done", clearKeyboard = true)
+        waitForText("Dismissed Tournament")
     }
 
     /**

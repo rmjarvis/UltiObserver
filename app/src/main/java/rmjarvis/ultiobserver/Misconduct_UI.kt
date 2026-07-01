@@ -855,7 +855,6 @@ internal fun TeamCardDialog(
             teamName = state.teamFor(editTeam).name,
             cards = editablePlayerCards(state.playerCards(editTeam)),
             onDismiss = { editingExistingCardsFor = null },
-            onConfirm = onDismiss,
             onEdit = { card ->
                 pendingExistingCardEdit = PendingManualCardEdit(editTeam, card)
             },
@@ -1373,7 +1372,6 @@ private fun EditablePlayerCardRow(
  * @param teamName The team whose cards are listed.
  * @param cards The editable in-game cards.
  * @param onDismiss Callback closing this page.
- * @param onConfirm Optional confirm button to show instead of the default Back button.
  * @param onEdit Callback editing one card.
  * @param onRemove Optional callback asking to remove one card.
  */
@@ -1382,7 +1380,6 @@ private fun EditablePlayerCardsDialog(
     teamName: String,
     cards: List<EditablePlayerCard>,
     onDismiss: () -> Unit,
-    onConfirm: (() -> Unit)? = null,
     onEdit: (EditablePlayerCard) -> Unit,
     onRemove: ((EditablePlayerCard) -> Unit)? = null,
 ) {
@@ -1409,14 +1406,9 @@ private fun EditablePlayerCardsDialog(
             }
         },
         confirmButton = {
-            onConfirm?.let { confirm ->
-                TextActionButton(label = "Done", onClick = confirm)
-            }
-        },
-        dismissButton = {
             TextActionButton(
-                label = if (onConfirm == null) "Back" else "Cancel",
-                tag = "editable-player-cards-dismiss",
+                label = "Done",
+                tag = "editable-player-cards-done",
                 onClick = onDismiss,
             )
         },
