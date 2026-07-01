@@ -593,7 +593,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         unlockLiveScreen()
 
         // If auto-advance is re-enabled before undoing a manual start from an expired countdown,
-        // undo should not immediately relock the observer out of the restored live screen.
+        // undo should keep the redo path intact rather than immediately auto-advancing again.
         startLiveGameProgrammatically()
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.appViewModel.updateAutomaticallyAdvanceCountdowns(false)
@@ -616,9 +616,8 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         }
         composeRule.waitForIdle()
         composeRule.onNodeWithText("Undo Start point").performClick()
-        composeRule.waitUntil(timeoutMillis = 10_000) {
-            composeRule.activity.appViewModel.liveState!!.phase == GamePhase.LIVE_POINT
-        }
+        waitForText("Start point")
+        waitForText("Redo")
         waitForTag("live-center-lock")
         composeRule.onAllNodesWithText("Slide right to unlock").assertCountEquals(0)
     }

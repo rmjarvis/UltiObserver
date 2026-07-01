@@ -656,6 +656,20 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertTrue(undoneAutomaticStartState.hasExpiredPullActions(betweenPointsCountdown.targetEpoch))
         assertFalse(state.hasExpiredPullActions(betweenPointsCountdown.targetEpoch - 1L))
 
+        // An undone manual start from an active countdown preserves the redo chain even if the
+        // restored countdown has since expired.
+        val manuallyStartedState = state.beginLivePoint(betweenPointsCountdown.targetEpoch - 1L)
+        val undoneManualStartState = manuallyStartedState.undoLastAction()
+        assertNotNull(undoneManualStartState.redoEntry)
+        assertEquals(
+            undoneManualStartState,
+            undoneManualStartState.applyExpiredCountdownTransitions(
+                betweenPointsCountdown.targetEpoch,
+                showDefenseCountdowns = false,
+            ),
+        )
+        assertEquals(manuallyStartedState, undoneManualStartState.redoLastAction())
+
         // Later between-points countdown expirations also start the point, but do not add another
         // first-pull event.
         val laterBetweenPointsState = automaticStartState.recordGoal(

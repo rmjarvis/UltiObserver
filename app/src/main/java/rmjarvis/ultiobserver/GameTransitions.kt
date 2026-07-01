@@ -386,6 +386,12 @@ internal fun GameState.halftimeTransitionReady(now: Long): Boolean {
 /**
  * Apply automatic timer expirations that do not require an observer button press.
  *
+ * Note -- don't apply any automatic transitions when there is a redo chain attached to
+ * the current state to avoid clearing the redo path.  Otherwise, backing up into a state
+ * with an expired countdown can immediately move forward, which feels awkward to the
+ * user, but more importantly severs the redo chain.  So the user can't replay the path
+ * back to the present anymore.
+ *
  * @param now The current epoch millis so tests and background ticks can drive deterministic transitions.
  * @param showDefenseCountdowns Whether timeout offense-set expirations wait for defense.
  */
@@ -398,6 +404,9 @@ fun GameState.applyExpiredCountdownTransitions(
         return this
     }
     if (now < countdown.targetEpoch) {
+        return this
+    }
+    if (this.redoEntry != null) {
         return this
     }
     return when {
