@@ -268,6 +268,11 @@ data class PlayerRecord(
     }
 }
 
+/// Return the total in-game cards of one type across these player records.
+internal fun List<PlayerRecord>.inGameCardCount(cardType: CardType): Int {
+    return sumOf { it.cardCount(cardType) }
+}
+
 /// Result of comparing an entered card holder with existing records.
 sealed class CardHolderEntryCheck {
     /**

@@ -724,8 +724,8 @@ abstract class MainActivityUiTestFixtures {
     /// Exercise the Cards / techs adjustment dialog by changing a visible count.
     protected fun applyCardTechAdjustment() {
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust cards / techs").performClick()
-        waitForText("Adjust cards / techs")
+        composeRule.onNodeWithText("Adjust cards / techs").performScrollTo().performClick()
+        waitForTag("cards-adjust-team-one-blue-increment")
         composeRule.onNodeWithTag("cards-adjust-team-one-blue-increment").performClick()
         composeRule.onNodeWithText("Done").performClick()
         waitForText("Undo Adjust blue card/tech counts")

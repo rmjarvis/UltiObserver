@@ -363,6 +363,8 @@ internal fun AdjustCardsDialog(
                     )
                     PlayerCardAdjustmentActions(
                         hasEditableCards = editablePlayerCards(workingTeamOnePlayerCards).isNotEmpty(),
+                        yellowCount = workingTeamOnePlayerCards.inGameCardCount(CardType.YELLOW),
+                        redCount = workingTeamOnePlayerCards.inGameCardCount(CardType.RED),
                         onEditExisting = { editingPlayerCardsFor = TeamId.TEAM_ONE },
                         onAddYellow = {
                             pendingManualAdd = PendingManualCardAdd(
@@ -398,6 +400,8 @@ internal fun AdjustCardsDialog(
                     )
                     PlayerCardAdjustmentActions(
                         hasEditableCards = editablePlayerCards(workingTeamTwoPlayerCards).isNotEmpty(),
+                        yellowCount = workingTeamTwoPlayerCards.inGameCardCount(CardType.YELLOW),
+                        redCount = workingTeamTwoPlayerCards.inGameCardCount(CardType.RED),
                         onEditExisting = { editingPlayerCardsFor = TeamId.TEAM_TWO },
                         onAddYellow = {
                             pendingManualAdd = PendingManualCardAdd(
@@ -1267,6 +1271,8 @@ private fun CardCountRow(
  * Render player-card actions for one team in the manual adjustment dialog.
  *
  * @param hasEditableCards Whether this team has in-game player cards that can be edited.
+ * @param yellowCount Current in-game yellow-card count for this team.
+ * @param redCount Current in-game red-card count for this team.
  * @param onEditExisting Callback opening the existing-card editor.
  * @param onAddYellow Callback adding one yellow card.
  * @param onAddRed Callback adding one red card.
@@ -1275,6 +1281,8 @@ private fun CardCountRow(
 @Composable
 private fun PlayerCardAdjustmentActions(
     hasEditableCards: Boolean,
+    yellowCount: Int,
+    redCount: Int,
     onEditExisting: () -> Unit,
     onAddYellow: () -> Unit,
     onAddRed: () -> Unit,
@@ -1283,14 +1291,14 @@ private fun PlayerCardAdjustmentActions(
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             BigActionButton(
-                label = "Add yellow",
+                label = "Add yellow ($yellowCount)",
                 containerColor = YellowCardButtonColor,
                 borderColor = null,
                 onClick = onAddYellow,
                 modifier = Modifier.weight(1f),
             )
             BigActionButton(
-                label = "Add red",
+                label = "Add red ($redCount)",
                 containerColor = RedCardButtonColor,
                 borderColor = null,
                 onClick = onAddRed,

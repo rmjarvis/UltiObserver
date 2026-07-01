@@ -186,7 +186,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         // Backing out of the reason picker leaves the card entry open without changing the reason.
         composeRule.onNodeWithText("Reason").performClick()
         waitForText("Yellow card reason")
-        composeRule.onNodeWithText("Other").performClick()
+        composeRule.onNodeWithText("Other").performScrollTo().performClick()
         composeRule.onNodeWithTag("card-other-reason").performTextReplacement("Discarded reason")
         composeRule.onNodeWithTag("card-other-reason").performImeAction()
         composeRule.onAllNodesWithText("Back").onLast().performClick()
@@ -196,11 +196,11 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         // Switching from Other to a preset and back keeps the custom reason draft.
         composeRule.onNodeWithText("Reason").performClick()
         waitForText("Yellow card reason")
-        composeRule.onNodeWithText("Other").performClick()
+        composeRule.onNodeWithText("Other").performScrollTo().performClick()
         composeRule.onNodeWithTag("card-other-reason").performTextReplacement("Temporary reason")
         composeRule.onNodeWithTag("card-other-reason").performImeAction()
         composeRule.onNodeWithText("Dangerous play").performScrollTo().performClick()
-        composeRule.onNodeWithText("Other").performClick()
+        composeRule.onNodeWithText("Other").performScrollTo().performClick()
         assertEquals(
             "Temporary reason",
             composeRule.onNodeWithTag("card-other-reason")
@@ -214,7 +214,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
 
         composeRule.onNodeWithText("Temporary reason").performClick()
         waitForText("Yellow card reason")
-        composeRule.onNodeWithText("Other").performClick()
+        composeRule.onNodeWithText("Other").performScrollTo().performClick()
         composeRule.onNodeWithTag("card-other-reason").performTextReplacement("Sideline language")
         composeRule.onNodeWithTag("card-other-reason").performImeAction()
         composeRule.onNodeWithTag("card-reason-details").performTextReplacement("after warning")
@@ -409,14 +409,16 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         // With no player cards yet, both teams expose disabled existing-card actions.
         startLiveGameProgrammatically()
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust cards / techs").performClick()
-        waitForText("Adjust cards / techs")
+        composeRule.onNodeWithText("Adjust cards / techs").performScrollTo().performClick()
+        waitForTag("cards-adjust-team-one-blue-increment")
         composeRule.onNodeWithTag("cards-adjust-team-one-edit-existing")
             .performScrollTo()
             .assertIsNotEnabled()
         composeRule.onNodeWithTag("cards-adjust-team-two-edit-existing")
             .performScrollTo()
             .assertIsNotEnabled()
+        composeRule.onAllNodesWithText("Add yellow (0)").assertCountEquals(2)
+        composeRule.onAllNodesWithText("Add red (0)").assertCountEquals(2)
         dismissDialog(text = "Cancel")
         waitForText("Update game setup")
 
@@ -435,8 +437,8 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
 
         // Team-count controls can adjust blue cards and technical fouls.
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust cards / techs").performClick()
-        waitForText("Adjust cards / techs")
+        composeRule.onNodeWithText("Adjust cards / techs").performScrollTo().performClick()
+        waitForTag("cards-adjust-team-one-blue-increment")
         composeRule.onNodeWithTag("cards-adjust-team-one-blue-increment").performClick()
         composeRule.onNodeWithTag("cards-adjust-team-one-blue-decrement").performClick()
         composeRule.onNodeWithTag("cards-adjust-team-one-tech-increment").performClick()
@@ -449,14 +451,14 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("cards-adjust-team-two-tech-increment").performClick()
 
         // A name-only yellow is valid for a player without a number.
-        composeRule.onAllNodesWithText("Add yellow").onFirst().performClick()
+        composeRule.onNodeWithText("Add yellow (1)").performClick()
         waitForText("Add yellow card")
         composeRule.onNodeWithTag("card-player-name").performTextReplacement("Name Only Cutter")
         composeRule.onNodeWithText("Record").performClick()
         composeRule.onAllNodesWithText("Card suspension").assertCountEquals(0)
 
         // The correction dialog can add a player red.
-        composeRule.onAllNodesWithText("Add red").onFirst().performClick()
+        composeRule.onAllNodesWithText("Add red (0)").onFirst().performClick()
         waitForText("Add red card")
         enterCardPlayerNumber("9")
         composeRule.onNodeWithText("Record").performClick()
@@ -525,8 +527,8 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
 
         // Removing a player-backed card can be canceled without applying a partial correction.
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust cards / techs").performClick()
-        waitForText("Adjust cards / techs")
+        composeRule.onNodeWithText("Adjust cards / techs").performScrollTo().performClick()
+        waitForTag("cards-adjust-team-one-blue-increment")
         composeRule.onNodeWithTag("cards-adjust-team-two-edit-existing")
             .performScrollTo()
             .performClick()
@@ -542,9 +544,9 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
 
         // A blank added-card correction is rejected and leaves the add dialog open.
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust cards / techs").performClick()
-        waitForText("Adjust cards / techs")
-        composeRule.onAllNodesWithText("Add yellow").onFirst().performClick()
+        composeRule.onNodeWithText("Adjust cards / techs").performScrollTo().performClick()
+        waitForTag("cards-adjust-team-one-blue-increment")
+        composeRule.onNodeWithText("Add yellow (2)").performClick()
         waitForText("Add yellow card")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Enter a player number or name before recording this card.")
@@ -556,9 +558,9 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
 
         // Same-number corrections ask before creating a distinct player with the same number.
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust cards / techs").performClick()
-        waitForText("Adjust cards / techs")
-        composeRule.onAllNodesWithText("Add red")[1].performClick()
+        composeRule.onNodeWithText("Adjust cards / techs").performScrollTo().performClick()
+        waitForTag("cards-adjust-team-one-blue-increment")
+        composeRule.onNodeWithText("Add red (0)").performClick()
         waitForText("Add red card")
         enterCardPlayerNumber("21")
         composeRule.onNodeWithTag("card-player-name").performTextReplacement("Different Handler")
@@ -576,9 +578,9 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
 
         // Trying another yellow on a maxed-out player should show the invalid assignment warning.
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust cards / techs").performClick()
-        waitForText("Adjust cards / techs")
-        composeRule.onAllNodesWithText("Add yellow")[1].performClick()
+        composeRule.onNodeWithText("Adjust cards / techs").performScrollTo().performClick()
+        waitForTag("cards-adjust-team-one-blue-increment")
+        composeRule.onNodeWithText("Add yellow (3)").performClick()
         waitForText("Add yellow card")
         enterCardPlayerNumber("22")
         composeRule.onNodeWithText("Record").performClick()
