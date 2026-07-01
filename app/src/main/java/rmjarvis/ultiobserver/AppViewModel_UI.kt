@@ -144,34 +144,80 @@ internal fun UltiObserverApp(
         }
 
         AppScreen.ARCHIVED_GAMES -> {
-            val archivedGameEntries = remember(appState.archivedGames) {
-                appState.archivedGames.map { it.state.gameListEntry() }
-            }
-            val archiveCategoryCounts = remember(appState.archivedGames) {
-                ArchivedGameCategory.entries.associateWith { category ->
-                    appState.archivedGames.count { it.category == category }
+            val archivedGame = appState.viewingArchivedGame
+            if (archivedGame != null) {
+                val isInProgressArchive = archivedGame.category == ArchivedGameCategory.IN_PROGRESS
+                GameOverSummaryScreen(
+                    state = archivedGame.state,
+                    completed = !isInProgressArchive,
+                    summaryContext = archivedGame.summaryContext,
+                    summaryActionText = if (isInProgressArchive) {
+                        "Make current"
+                    } else {
+                        "Restore game"
+                    },
+                    onSummaryAction = {
+                        viewModel.restoreCompletedGame(System.currentTimeMillis())
+                    },
+                    secondarySummaryActionText = if (isInProgressArchive) {
+                        "Archive game"
+                    } else {
+                        null
+                    },
+                    onSecondarySummaryAction = if (isInProgressArchive) {
+                        { viewModel.archiveSavedInProgressGame(System.currentTimeMillis()) }
+                    } else {
+                        null
+                    },
+                    onBack = viewModel::goBackFromCurrentScreen,
+                    onHome = viewModel::goHome,
+                    gameOverPrompt = null,
+                    onDismissGameOverPrompt = {},
+                )
+            } else {
+                val archivedGameEntries = remember(appState.archivedGames) {
+                    appState.archivedGames.map { it.state.gameListEntry() }
                 }
-            }
-            val selectedCategoryEntries = appState.selectedArchiveCategory?.let { category ->
-                archivedGameEntries.filterIndexed { index, _ ->
-                    appState.archivedGames[index].category == category
+                val currentInProgressGame = appState.currentGame
+                    ?.takeUnless { it.phase == GamePhase.SETUP }
+                    ?.gameListEntry()
+                val archiveCategoryCounts = remember(appState.archivedGames, currentInProgressGame) {
+                    ArchivedGameCategory.entries.associateWith { category ->
+                        val currentCount = if (
+                            category == ArchivedGameCategory.IN_PROGRESS &&
+                            currentInProgressGame != null
+                        ) {
+                            1
+                        } else {
+                            0
+                        }
+                        currentCount + appState.archivedGames.count { it.category == category }
+                    }
                 }
+                val selectedCategoryEntries = appState.selectedArchiveCategory?.let { category ->
+                    archivedGameEntries.filterIndexed { index, _ ->
+                        appState.archivedGames[index].category == category
+                    }
+                }
+                ArchivedGamesScreen(
+                    categoryCounts = archiveCategoryCounts,
+                    hasSavedOrArchivedGames = appState.archivedGames.isNotEmpty(),
+                    selectedCategory = appState.selectedArchiveCategory,
+                    currentInProgressGame = currentInProgressGame,
+                    archivedGames = selectedCategoryEntries,
+                    onOpenCategory = viewModel::openArchivedGameCategory,
+                    onOpenCurrentGame = viewModel::openCurrentGameSummary,
+                    onOpenArchivedGame = { index ->
+                        viewModel.openArchivedGame(index, System.currentTimeMillis())
+                    },
+                    onDeleteArchivedGame = viewModel::deleteArchivedGame,
+                    onDeleteAllArchivedGames = viewModel::deleteAllArchivedGames,
+                    onDeleteAllInSelectedCategory = viewModel::deleteArchivedGamesInSelectedCategory,
+                    onBackHome = viewModel::goHome,
+                    onBackCategories = viewModel::openArchivedGames,
+                    onHome = viewModel::goHome,
+                )
             }
-            ArchivedGamesScreen(
-                categoryCounts = archiveCategoryCounts,
-                selectedCategory = appState.selectedArchiveCategory,
-                archivedGames = selectedCategoryEntries,
-                onOpenCategory = viewModel::openArchivedGameCategory,
-                onOpenArchivedGame = { index ->
-                    viewModel.openArchivedGame(index, System.currentTimeMillis())
-                },
-                onDeleteArchivedGame = viewModel::deleteArchivedGame,
-                onDeleteAllArchivedGames = viewModel::deleteAllArchivedGames,
-                onDeleteAllInSelectedCategory = viewModel::deleteArchivedGamesInSelectedCategory,
-                onBackHome = viewModel::goHome,
-                onBackCategories = viewModel::openArchivedGames,
-                onHome = viewModel::goHome,
-            )
         }
 
         AppScreen.SETUP -> {
@@ -223,31 +269,15 @@ internal fun UltiObserverApp(
         }
 
         AppScreen.LIVE -> {
-            val archivedGame = appState.viewingArchivedGame
-            if (archivedGame != null) {
-                val isInProgressArchive = archivedGame.category == ArchivedGameCategory.IN_PROGRESS
+            val currentSummaryGame = appState.currentGame.takeIf {
+                appState.viewingCurrentGameSummary
+            }
+            if (currentSummaryGame != null) {
                 GameOverSummaryScreen(
-                    state = archivedGame.state,
-                    completed = !isInProgressArchive,
-                    summaryContext = archivedGame.summaryContext,
-                    summaryActionText = if (isInProgressArchive) {
-                        "Make current"
-                    } else {
-                        "Restore game"
-                    },
-                    onSummaryAction = {
-                        viewModel.restoreCompletedGame(System.currentTimeMillis())
-                    },
-                    secondarySummaryActionText = if (isInProgressArchive) {
-                        "Archive game"
-                    } else {
-                        null
-                    },
-                    onSecondarySummaryAction = if (isInProgressArchive) {
-                        { viewModel.archiveSavedInProgressGame(System.currentTimeMillis()) }
-                    } else {
-                        null
-                    },
+                    state = currentSummaryGame,
+                    completed = false,
+                    summaryActionText = "Back to game",
+                    onSummaryAction = viewModel::resumeCurrentGame,
                     onBack = viewModel::goBackFromCurrentScreen,
                     onHome = viewModel::goHome,
                     gameOverPrompt = null,
@@ -264,6 +294,8 @@ internal fun UltiObserverApp(
                     onUpdateGameSetup = {
                         viewModel.editCurrentGame(currentLiveState)
                     },
+                    onOpenGameSummary = viewModel::openCurrentGameSummary,
+                    onArchiveCompletedGame = viewModel::archiveCompletedGame,
                     onDeleteGame = viewModel::deleteCurrentGame,
                     onBackHome = viewModel::goBackFromCurrentScreen,
                     onHome = viewModel::goHome,

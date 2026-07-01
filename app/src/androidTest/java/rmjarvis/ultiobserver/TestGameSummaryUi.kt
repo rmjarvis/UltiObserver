@@ -141,7 +141,21 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
         waitForText("Game summary")
         assertNextShareText(expectedShareText)
 
-        // Return to the completed-game action screen before archiving this game.
+        // The completed-game summary can archive directly, and the archived summary shares
+        // the same payload.
+        composeRule.onNodeWithText("Archive game").performClick()
+        waitForText("See archived/saved games")
+        composeRule.onNodeWithText("See archived/saved games").performClick()
+        waitForText("Archived/saved games")
+        composeRule.onNodeWithText("Archived games", substring = true).performClick()
+        waitForText("Archived games")
+        composeRule.onNodeWithText("Viscous Coupling 12 - 15 Animal").performClick()
+        waitForText("Game summary")
+        assertNextShareText(expectedShareText)
+
+        // Restore the archive so the Home-screen archive action stays covered too.
+        composeRule.onNodeWithText("Restore game").performClick()
+        waitForText("Game summary")
         tapTopBarBack()
         waitForText("Completed game")
 
@@ -152,16 +166,14 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
         dismissDialog(tag = "top-bar-back")
         waitForText("Completed game")
 
-        // Archive the game and verify the read-only archive shares the same payload.
+        // Archive the game from Home and verify it returns to the archive list.
         composeRule.onNodeWithText("Archive completed game").performClick()
         waitForText("See archived/saved games")
         composeRule.onNodeWithText("See archived/saved games").performClick()
         waitForText("Archived/saved games")
         composeRule.onNodeWithText("Archived games", substring = true).performClick()
         waitForText("Archived games")
-        composeRule.onNodeWithText("Viscous Coupling 12 - 15 Animal").performClick()
-        waitForText("Game summary")
-        assertNextShareText(expectedShareText)
+        waitForText("Viscous Coupling 12 - 15 Animal")
     }
 
     /// Click Share, assert the outgoing Android chooser payload, and cancel the chooser.

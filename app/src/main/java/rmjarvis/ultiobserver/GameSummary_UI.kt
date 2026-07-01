@@ -30,7 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 /**
- * Render a game as a read-only summary screen.
+ * Render a game summary screen.
  *
  * @param state The game state to summarize.
  * @param completed Whether this is a completed-game summary rather than an in-progress archive.
@@ -120,7 +120,7 @@ internal fun GameOverSummaryScreen(
 }
 
 /**
- * Render the read-only summary view shown for completed or archived in-progress games.
+ * Render the summary content shown for completed or archived in-progress games.
  *
  * @param state The game state to summarize.
  * @param completed Whether this is a completed-game summary rather than an in-progress archive.

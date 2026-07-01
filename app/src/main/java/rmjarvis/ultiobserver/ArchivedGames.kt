@@ -17,7 +17,7 @@ internal enum class ArchivedGameCategory(
     val emptyText: String,
 ) {
     COMPLETED("Archived games", "No completed games yet."),
-    IN_PROGRESS("Saved in-progress games", "No saved in-progress games."),
+    IN_PROGRESS("In-progress games", "No in-progress games."),
     SETUP("Saved setup states", "No saved setup states."),
 }
 

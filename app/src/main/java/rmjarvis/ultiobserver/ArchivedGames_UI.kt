@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.rememberScrollState
@@ -13,6 +14,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -22,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
@@ -30,9 +33,12 @@ import androidx.compose.ui.unit.dp
  * Render the archived/saved games area
  *
  * @param categoryCounts Number of rows in each archive category.
+ * @param hasSavedOrArchivedGames Whether stored archive rows exist for bulk deletion.
  * @param selectedCategory Category currently listed, or null on the category landing page.
+ * @param currentInProgressGame The current game to list in the in-progress category, if any.
  * @param archivedGames The archived game rows to display for the selected category.
  * @param onOpenCategory Callback opening one category from the landing page.
+ * @param onOpenCurrentGame Callback opening the current game summary.
  * @param onOpenArchivedGame Callback opening an archived game by index.
  * @param onDeleteArchivedGame Callback deleting an archived game by index.
  * @param onDeleteAllArchivedGames Callback deleting every archived/saved game.
@@ -45,9 +51,12 @@ import androidx.compose.ui.unit.dp
 @Composable
 internal fun ArchivedGamesScreen(
     categoryCounts: Map<ArchivedGameCategory, Int>,
+    hasSavedOrArchivedGames: Boolean,
     selectedCategory: ArchivedGameCategory?,
+    currentInProgressGame: GameListEntry?,
     archivedGames: List<GameListEntry>?,
     onOpenCategory: (ArchivedGameCategory) -> Unit,
+    onOpenCurrentGame: () -> Unit,
     onOpenArchivedGame: (Int) -> Unit,
     onDeleteArchivedGame: (Int) -> Unit,
     onDeleteAllArchivedGames: () -> Unit,
@@ -59,7 +68,6 @@ internal fun ArchivedGamesScreen(
     var pendingDeleteIndex by remember { mutableStateOf<Int?>(null) }
     var pendingDeleteAll by remember { mutableStateOf(false) }
     val category = selectedCategory
-    val hasAnyArchivedGames = categoryCounts.values.any { it > 0 }
 
     Scaffold(
         topBar = {
@@ -86,7 +94,7 @@ internal fun ArchivedGamesScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             if (category == null) {
-                if (hasAnyArchivedGames) {
+                if (hasSavedOrArchivedGames) {
                     DeleteAllButton(onClick = { pendingDeleteAll = true })
                 }
                 ArchivedGameCategory.entries.forEach { archiveCategory ->
@@ -98,7 +106,16 @@ internal fun ArchivedGamesScreen(
                 }
             } else {
                 val listedGames = archivedGames!!
-                if (listedGames.isEmpty()) {
+                if (category == ArchivedGameCategory.IN_PROGRESS) {
+                    InProgressGamesList(
+                        currentGame = currentInProgressGame,
+                        savedGames = listedGames,
+                        onOpenCurrentGame = onOpenCurrentGame,
+                        onOpenArchivedGame = onOpenArchivedGame,
+                        onDeleteSavedGame = { pendingDeleteIndex = it },
+                        onDeleteAllSavedGames = { pendingDeleteAll = true },
+                    )
+                } else if (listedGames.isEmpty()) {
                     Text(category.emptyText)
                 } else {
                     DeleteAllButton(onClick = { pendingDeleteAll = true })
@@ -106,6 +123,8 @@ internal fun ArchivedGamesScreen(
                         ArchivedGameRow(
                             displayedIndex = index,
                             entry = game,
+                            rowTagPrefix = "archived-game",
+                            deleteTagPrefix = "delete-archived-game",
                             onClick = { onOpenArchivedGame(index) },
                             onDelete = { pendingDeleteIndex = index },
                         )
@@ -139,11 +158,114 @@ internal fun ArchivedGamesScreen(
             title = "Delete all games?",
             message = if (category == null) {
                 "Completely delete all archived and saved games? This cannot be undone."
+            } else if (category == ArchivedGameCategory.IN_PROGRESS) {
+                "Completely delete all saved games? This cannot be undone."
             } else {
                 "Completely delete all ${category.displayText.lowercase()}? This cannot be undone."
             },
         )
     }
+}
+
+/**
+ * Render the in-progress category with the live current game separate from saved games.
+ *
+ * @param currentGame The current game row to show above saved games, if any.
+ * @param savedGames Saved in-progress game rows.
+ * @param onOpenCurrentGame Callback opening the current game summary.
+ * @param onOpenArchivedGame Callback opening one saved in-progress game.
+ * @param onDeleteSavedGame Callback requesting deletion of one saved in-progress game.
+ * @param onDeleteAllSavedGames Callback requesting deletion of all saved in-progress games.
+ */
+@Composable
+private fun InProgressGamesList(
+    currentGame: GameListEntry?,
+    savedGames: List<GameListEntry>,
+    onOpenCurrentGame: () -> Unit,
+    onOpenArchivedGame: (Int) -> Unit,
+    onDeleteSavedGame: (Int) -> Unit,
+    onDeleteAllSavedGames: () -> Unit,
+) {
+    if (currentGame == null && savedGames.isEmpty()) {
+        Text(ArchivedGameCategory.IN_PROGRESS.emptyText)
+        return
+    }
+
+    if (currentGame != null) {
+        ArchiveSectionLabel("Current game")
+        GameListRow(
+            entry = currentGame,
+            onClick = onOpenCurrentGame,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("current-in-progress-game"),
+        )
+    }
+
+    if (savedGames.isNotEmpty()) {
+        SavedGamesHeader(
+            showTopDivider = currentGame != null,
+            onDeleteAllSavedGames = onDeleteAllSavedGames,
+        )
+        savedGames.forEachIndexed { index, game ->
+            ArchivedGameRow(
+                displayedIndex = index,
+                entry = game,
+                rowTagPrefix = "saved-in-progress-game",
+                deleteTagPrefix = "delete-saved-in-progress-game",
+                onClick = { onOpenArchivedGame(index) },
+                onDelete = { onDeleteSavedGame(index) },
+            )
+        }
+    }
+}
+
+/**
+ * Render the saved in-progress games header with its bulk delete action.
+ *
+ * @param showTopDivider Whether to separate the saved section from the current game.
+ * @param onDeleteAllSavedGames Callback requesting deletion of all saved in-progress games.
+ */
+@Composable
+private fun SavedGamesHeader(
+    showTopDivider: Boolean,
+    onDeleteAllSavedGames: () -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        if (showTopDivider) {
+            HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ArchiveSectionLabel("Saved games")
+            TextActionButton(
+                label = "Delete all",
+                compact = true,
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                tag = "delete-all-archived-games",
+                onClick = onDeleteAllSavedGames,
+            )
+        }
+    }
+}
+
+/**
+ * Render a subsection label in an archive category list.
+ *
+ * @param text The label text.
+ */
+@Composable
+private fun ArchiveSectionLabel(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleMedium,
+    )
 }
 
 /**
@@ -191,6 +313,8 @@ private fun ArchiveCategoryButton(
  *
  * @param displayedIndex The row index in the currently visible archive category.
  * @param entry The game list entry to display.
+ * @param rowTagPrefix Prefix for the row test tag.
+ * @param deleteTagPrefix Prefix for the delete action test tag.
  * @param onClick Callback opening this archived game.
  * @param onDelete Callback requesting deletion of this archived game.
  */
@@ -198,6 +322,8 @@ private fun ArchiveCategoryButton(
 private fun ArchivedGameRow(
     displayedIndex: Int,
     entry: GameListEntry,
+    rowTagPrefix: String = "archived-game",
+    deleteTagPrefix: String = "delete-archived-game",
     onClick: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -210,14 +336,14 @@ private fun ArchivedGameRow(
             onClick = onClick,
             modifier = Modifier
                 .weight(1f)
-                .testTag("archived-game-$displayedIndex"),
+                .testTag("$rowTagPrefix-$displayedIndex"),
         )
         IconActionButton(
             icon = Icons.Filled.Delete,
             contentDescription = "Delete ${entry.summaryLine}",
             size = 48.dp,
             iconSize = 24.dp,
-            tag = "delete-archived-game-$displayedIndex",
+            tag = "$deleteTagPrefix-$displayedIndex",
             onClick = onDelete,
         )
     }

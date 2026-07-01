@@ -68,6 +68,8 @@ private data class PendingFieldTechnicalFoulResolution(
  * @param showDefenseCountdowns Whether timeout offense-set expirations wait for defense.
  * @param onStateChange Callback receiving updated live state from user actions and timer transitions.
  * @param onUpdateGameSetup Callback reopening setup for the current game.
+ * @param onOpenGameSummary Callback opening the current game summary.
+ * @param onArchiveCompletedGame Callback archiving the current completed game.
  * @param onDeleteGame Callback deleting the current game.
  * @param onBackHome Callback returning to Home or setup according to ViewModel navigation rules.
  * @param onHome Callback returning directly to Home.
@@ -81,6 +83,8 @@ internal fun LiveGameScreen(
     showDefenseCountdowns: Boolean,
     onStateChange: (GameState) -> Unit,
     onUpdateGameSetup: () -> Unit,
+    onOpenGameSummary: () -> Unit,
+    onArchiveCompletedGame: () -> Unit,
     onDeleteGame: () -> Unit,
     onBackHome: () -> Unit,
     onHome: () -> Unit,
@@ -219,6 +223,8 @@ internal fun LiveGameScreen(
             onSummaryAction = {
                 undoWithoutPhasePrompt(state.undoLastAction())
             },
+            secondarySummaryActionText = "Archive game",
+            onSecondarySummaryAction = onArchiveCompletedGame,
             onBack = onBackHome,
             onHome = onHome,
             gameOverPrompt = activeGamePrompt,
@@ -408,6 +414,10 @@ internal fun LiveGameScreen(
                     onShowEventLog = {
                         showMoreActionsDialog = false
                         showEventLogSheet = true
+                    },
+                    onShowGameSummary = {
+                        showMoreActionsDialog = false
+                        onOpenGameSummary()
                     },
                     onDeleteGame = onDeleteGame,
                     onAction = { updatedState ->

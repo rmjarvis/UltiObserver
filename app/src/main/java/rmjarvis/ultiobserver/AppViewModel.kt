@@ -36,7 +36,8 @@ internal enum class AppScreen {
  * @param showDefenseCountdowns Whether timeout offense-set expirations wait for defense.
  * @param archivedGames The archived game summaries loaded into the app session.
  * @param selectedArchiveCategory The archive category currently open from the category landing page.
- * @param viewingArchivedGame The archived game currently open as a read-only summary.
+ * @param viewingArchivedGame The archived game currently open as a summary.
+ * @param viewingCurrentGameSummary Whether the current live game is open as a summary.
  * @param startupRecoveryNotice The startup data-recovery notice, if corrupted app data was reset.
  */
 internal data class AppUiState(
@@ -53,6 +54,7 @@ internal data class AppUiState(
     val archivedGames: List<ArchivedGame>,
     val selectedArchiveCategory: ArchivedGameCategory?,
     val viewingArchivedGame: ArchivedGame?,
+    val viewingCurrentGameSummary: Boolean,
     val startupRecoveryNotice: RecoveryNotice?,
 )
 
@@ -98,6 +100,7 @@ internal class AppViewModel(
             archivedGames = restoredArchivedGames,
             selectedArchiveCategory = null,
             viewingArchivedGame = null,
+            viewingCurrentGameSummary = false,
             startupRecoveryNotice = recoveredPersistedDataAreas.takeIf { it.isNotEmpty() }?.let { resetAreas ->
                 RecoveryNotice(resetAreas)
             },
@@ -145,6 +148,8 @@ internal class AppViewModel(
         get() = state.value.selectedArchiveCategory
     val viewingArchivedGame: ArchivedGame?
         get() = state.value.viewingArchivedGame
+    val viewingCurrentGameSummary: Boolean
+        get() = state.value.viewingCurrentGameSummary
     val hasSetupDraft: Boolean
         get() = currentGame?.phase == GamePhase.SETUP
     val startupRecoveryNotice: RecoveryNotice?
@@ -157,9 +162,6 @@ internal class AppViewModel(
     val currentLiveState: GameState?
         get() = viewingArchivedGame?.state ?: currentGame
 
-    val viewingReadOnlySummary: Boolean
-        get() = viewingArchivedGame != null
-
     val currentGameHomeSubtitle: String?
         get() {
             val current = currentGame
@@ -169,13 +171,14 @@ internal class AppViewModel(
             }
         }
 
-    /// Navigate to Home and clear any read-only archived-game view.
+    /// Navigate to Home and clear any summary view.
     fun goHome() {
         _state.update {
             it.copy(
                 screen = AppScreen.HOME,
                 selectedArchiveCategory = null,
                 viewingArchivedGame = null,
+                viewingCurrentGameSummary = false,
                 setupEditDraft = null,
             )
         }
@@ -193,6 +196,21 @@ internal class AppViewModel(
                 it.copy(
                     screen = AppScreen.ARCHIVED_GAMES,
                     viewingArchivedGame = null,
+                    viewingCurrentGameSummary = false,
+                )
+            }
+            return
+        }
+
+        if (viewingCurrentGameSummary) {
+            _state.update {
+                it.copy(
+                    screen = if (selectedArchiveCategory == null) {
+                        AppScreen.LIVE
+                    } else {
+                        AppScreen.ARCHIVED_GAMES
+                    },
+                    viewingCurrentGameSummary = false,
                 )
             }
             return
@@ -236,16 +254,14 @@ internal class AppViewModel(
     }
 
     /**
-     * Replace the mutable live game when the app is not viewing an archived summary.
+     * Replace the mutable live game.
      *
      * @param updatedGame The live-game state returned from a model action.
      */
     fun updateLiveGame(updatedGame: GameState) {
-        if (viewingArchivedGame == null) {
-            // All live game event logging flows through this ViewModel boundary.
-            _state.update { it.copy(currentGame = updatedGame) }
-            persistCurrentGame()
-        }
+        // All live game event logging flows through this ViewModel boundary.
+        _state.update { it.copy(currentGame = updatedGame) }
+        persistCurrentGame()
     }
 
     /**
@@ -442,6 +458,7 @@ internal class AppViewModel(
         _state.update {
             it.copy(
                 viewingArchivedGame = null,
+                viewingCurrentGameSummary = false,
                 selectedArchiveCategory = null,
                 screen = AppScreen.ARCHIVED_GAMES,
             )
@@ -464,7 +481,19 @@ internal class AppViewModel(
             _state.update {
                 it.copy(
                     viewingArchivedGame = null,
+                    viewingCurrentGameSummary = false,
                     screen = AppScreen.SETUP,
+                )
+            }
+            return
+        }
+        if (viewingCurrentGameSummary) {
+            _state.update {
+                it.copy(
+                    viewingArchivedGame = null,
+                    viewingCurrentGameSummary = false,
+                    selectedArchiveCategory = null,
+                    screen = AppScreen.LIVE,
                 )
             }
             return
@@ -482,8 +511,24 @@ internal class AppViewModel(
         }
     }
 
+    /// Open the current game summary from in-progress game navigation.
+    fun openCurrentGameSummary() {
+        val current = currentGame ?: return
+        if (current.phase == GamePhase.GAME_OVER) {
+            openCompletedGame()
+            return
+        }
+        _state.update {
+            it.copy(
+                viewingArchivedGame = null,
+                viewingCurrentGameSummary = true,
+                screen = AppScreen.LIVE,
+            )
+        }
+    }
+
     /**
-     * Open one archived game as a read-only summary.
+     * Open one archived game summary from archive navigation.
      *
      * @param index The archived-game index in the displayed Archived games list.
      */
@@ -497,7 +542,8 @@ internal class AppViewModel(
         _state.update {
             it.copy(
                 viewingArchivedGame = archived,
-                screen = AppScreen.LIVE,
+                viewingCurrentGameSummary = false,
+                screen = AppScreen.ARCHIVED_GAMES,
             )
         }
     }
@@ -517,6 +563,9 @@ internal class AppViewModel(
                 archivedGames = updatedArchivedGames,
                 currentGame = null,
                 viewingArchivedGame = null,
+                viewingCurrentGameSummary = false,
+                selectedArchiveCategory = null,
+                screen = AppScreen.HOME,
             )
         }
         persistArchivedGames()
@@ -544,6 +593,7 @@ internal class AppViewModel(
                 currentGame = restoredState,
                 setupEditDraft = null,
                 viewingArchivedGame = null,
+                viewingCurrentGameSummary = false,
                 selectedArchiveCategory = null,
                 screen = if (restoredState.phase == GamePhase.SETUP) {
                     AppScreen.SETUP
@@ -556,7 +606,7 @@ internal class AppViewModel(
         persistCurrentGame()
     }
 
-    /// Restore the completed game currently open as a read-only summary.
+    /// Restore the archived game currently open as a summary.
     fun restoreCompletedGame(now: Long) {
         val archived = viewingArchivedGame ?: return
         val index = archivedGames.indexOfFirst { it === archived }
@@ -577,6 +627,7 @@ internal class AppViewModel(
                 currentGame = null,
                 setupEditDraft = null,
                 viewingArchivedGame = null,
+                viewingCurrentGameSummary = false,
                 selectedArchiveCategory = null,
                 screen = AppScreen.HOME,
             )
@@ -601,6 +652,7 @@ internal class AppViewModel(
             it.copy(
                 archivedGames = updatedArchivedGames,
                 viewingArchivedGame = null,
+                viewingCurrentGameSummary = false,
                 selectedArchiveCategory = ArchivedGameCategory.IN_PROGRESS,
                 screen = AppScreen.ARCHIVED_GAMES,
             )
@@ -615,6 +667,7 @@ internal class AppViewModel(
                 currentGame = null,
                 setupEditDraft = null,
                 viewingArchivedGame = null,
+                viewingCurrentGameSummary = false,
                 selectedArchiveCategory = null,
                 screen = AppScreen.HOME,
             )
@@ -634,6 +687,7 @@ internal class AppViewModel(
             it.copy(
                 archivedGames = updatedArchivedGames,
                 viewingArchivedGame = null,
+                viewingCurrentGameSummary = false,
             )
         }
         persistArchivedGames()
@@ -649,6 +703,7 @@ internal class AppViewModel(
                     game.category == category
                 },
                 viewingArchivedGame = null,
+                viewingCurrentGameSummary = false,
             )
         }
         persistArchivedGames()
@@ -660,6 +715,7 @@ internal class AppViewModel(
             it.copy(
                 archivedGames = emptyList(),
                 viewingArchivedGame = null,
+                viewingCurrentGameSummary = false,
                 selectedArchiveCategory = null,
             )
         }
@@ -680,6 +736,7 @@ internal class AppViewModel(
                 ),
                 setupEditDraft = null,
                 viewingArchivedGame = null,
+                viewingCurrentGameSummary = false,
                 selectedArchiveCategory = null,
                 screen = AppScreen.SETUP,
             )
@@ -708,6 +765,7 @@ internal class AppViewModel(
                 currentGame = updatedCurrentGame,
                 setupEditDraft = null,
                 viewingArchivedGame = null,
+                viewingCurrentGameSummary = false,
                 selectedArchiveCategory = null,
                 screen = AppScreen.LIVE,
             )
@@ -721,9 +779,6 @@ internal class AppViewModel(
      * @param currentGame The live-game state whose setup fields should be edited.
      */
     fun editCurrentGame(currentGame: GameState) {
-        if (viewingArchivedGame != null) {
-            return
-        }
         if (currentGame.isInitialLivePreview()) {
             reopenSetupDraftFromInitialPreview()
             return
@@ -742,6 +797,7 @@ internal class AppViewModel(
             it.copy(
                 setupEditDraft = null,
                 viewingArchivedGame = null,
+                viewingCurrentGameSummary = false,
                 selectedArchiveCategory = null,
                 screen = AppScreen.LIVE,
             )
@@ -763,6 +819,7 @@ internal class AppViewModel(
                 ),
                 setupEditDraft = null,
                 viewingArchivedGame = null,
+                viewingCurrentGameSummary = false,
                 selectedArchiveCategory = null,
                 screen = AppScreen.SETUP,
             )
@@ -776,7 +833,7 @@ internal class AppViewModel(
     }
 
     /**
-     * Open a normal app screen and clear any archived summary left from read-only viewing.
+     * Open a normal app screen and clear any summary view.
      *
      * @param targetScreen The destination screen to show.
      */
@@ -784,6 +841,7 @@ internal class AppViewModel(
         _state.update {
             it.copy(
                 viewingArchivedGame = null,
+                viewingCurrentGameSummary = false,
                 selectedArchiveCategory = null,
                 screen = targetScreen,
             )

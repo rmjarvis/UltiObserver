@@ -9,6 +9,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasContentDescription
@@ -146,8 +147,22 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         }
         composeRule.waitForIdle()
 
+        // The in-progress archive list shows the current game separately from saved games,
+        // and its summary returns directly to that current live game.
+        openSavedInProgressGamesScreen()
+        waitForText("Current game")
+        waitForText("Saved games")
+        waitForText(currentArchivedTitle)
+        composeRule.onNodeWithTag("current-in-progress-game").performClick()
+        waitForText("Game summary")
+        composeRule.onNodeWithText("Back to game").performClick()
+        waitForText("More actions")
+        composeRule.onNodeWithText(currentTeamOneName).assertIsDisplayed()
+        composeRule.onNodeWithText(currentTeamTwoName).assertIsDisplayed()
+        tapTopBarBack()
+
         // Restoring the archived game replaces the current game and returns to the live screen.
-        // When the archived gave is an active live-point game, the undo buttons are preserved,
+        // When the archived game is an active live-point game, the undo buttons are preserved,
         // unlike when the game was restored from a completed state.
         openSavedInProgressGamesScreen()
         waitForText(archivedTitle)
@@ -171,15 +186,22 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         )
         composeRule.onNodeWithText("Undo Start point").assertIsDisplayed()
 
-        // The replaced current game moves into the archive, and the restored game is no longer
-        // listed there.
+        // The restored game appears only as the current-game row, and the replaced current game
+        // becomes the single saved in-progress row.
         tapTopBarBack()
         waitForText("Current game")
         openSavedInProgressGamesScreen()
+        waitForText(archivedTitle)
         waitForText(currentArchivedTitle)
         composeRule.onNodeWithText(currentTeamOneName, substring = true).assertIsDisplayed()
         composeRule.onNodeWithText(currentTeamTwoName, substring = true).assertIsDisplayed()
-        assertTrue(composeRule.onAllNodesWithText(archivedTitle).fetchSemanticsNodes().isEmpty())
+        composeRule.onAllNodesWithTag("current-in-progress-game").assertCountEquals(1)
+        composeRule.onAllNodesWithTag("saved-in-progress-game-0").assertCountEquals(1)
+        composeRule.onAllNodesWithTag("saved-in-progress-game-1").assertCountEquals(0)
+        composeRule.onNodeWithTag("current-in-progress-game")
+            .assertTextContains(archivedTitle, substring = true)
+        composeRule.onNodeWithTag("saved-in-progress-game-0")
+            .assertTextContains(currentArchivedTitle, substring = true)
     }
 
     /**
@@ -193,7 +215,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         openArchivedGamesScreen()
         composeRule.onNodeWithTag("archived-games-screen").assertIsDisplayed()
         composeRule.onNodeWithText("Archived games (0)").assertIsEnabled()
-        composeRule.onNodeWithText("Saved in-progress games (0)").assertIsEnabled()
+        composeRule.onNodeWithText("In-progress games (0)").assertIsEnabled()
         composeRule.onNodeWithText("Saved setup states (0)").assertIsEnabled()
         composeRule.onNodeWithText("Archived games (0)").performClick()
         waitForText("No completed games yet.")
@@ -222,7 +244,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("delete-all-archived-games").performClick()
         confirmDeleteWithSlider("Delete all games?")
         waitForText("Archived games (0)")
-        waitForText("Saved in-progress games (0)")
+        waitForText("In-progress games (0)")
         waitForText("Saved setup states (0)")
         tapTopBarBack()
 
@@ -233,7 +255,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText(firstArchivedTitle)
         waitForText(secondArchivedTitle)
 
-        // Opening an archived row should expose the read-only summary and its persisted event log.
+        // Opening an archived row should expose its summary and persisted event log.
         composeRule.onNodeWithText(firstArchivedTitle).performClick()
         waitForText("Game summary")
         composeRule.onNodeWithText("Share").assertIsDisplayed()
@@ -330,8 +352,8 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText(setupTeamOne).assertIsDisplayed()
         composeRule.onNodeWithText(setupTeamTwo).assertIsDisplayed()
 
-        // Start a in-progress game, but then start another new game.  This moves what was
-        // the current game into the Saved in-progress games section of the archive.
+        // Start an in-progress game, but then start another new game.  This moves what was
+        // the current game into the saved games section of the in-progress archive.
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.appViewModel.deleteCurrentGame()
             activity.appViewModel.startNewGame(now = 123_000L)
@@ -351,7 +373,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         // Got to the archive screen, find that saved game.  You can either reopen it or archive
         // it. Here we archive it.
         openArchivedGamesScreen()
-        composeRule.onNodeWithText("Saved in-progress games (1)").performClick()
+        composeRule.onNodeWithText("In-progress games (1)").performClick()
         waitForText("ProgressA$suffix 0 - 0 ProgressB$suffix")
         composeRule.onNodeWithText("ProgressA$suffix 0 - 0 ProgressB$suffix").performClick()
         waitForText("Game summary")
@@ -359,7 +381,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText("Saved at", substring = true)
         waitForText("when a new game was started", substring = true)
         composeRule.onNodeWithText("Archive game").performClick()
-        waitForText("No saved in-progress games.")
+        waitForText("No in-progress games.")
         tapTopBarBack()
         composeRule.onNodeWithText("Archived games (1)").performClick()
         waitForText("ProgressA$suffix 0 - 0 ProgressB$suffix")
@@ -667,7 +689,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
     /// Open the saved in-progress games category from Home.
     private fun openSavedInProgressGamesScreen() {
         openArchivedGamesScreen()
-        composeRule.onNodeWithText("Saved in-progress games", substring = true).performClick()
-        waitForText("Saved in-progress games")
+        composeRule.onNodeWithText("In-progress games", substring = true).performClick()
+        waitForText("In-progress games")
     }
 }

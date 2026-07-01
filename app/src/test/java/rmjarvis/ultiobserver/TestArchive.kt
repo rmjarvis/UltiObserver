@@ -18,12 +18,12 @@ class TestArchive : GameDomainTestFixtures() {
     val temporaryFolder = TemporaryFolder()
 
     /**
-     * Verify archived games open as read-only live summaries, ignore live-game edit
-     * callbacks, and return to the archive list on Back.
+     * Verify archived games open as summaries within archive navigation and return to the
+     * archive list on Back.
      */
     @Test
-    fun archivedReadOnlySummary() {
-        // Archive a completed game and open it as the current read-only summary.
+    fun archivedGameSummary() {
+        // Archive a completed game and open it as an archived summary.
         val viewModel = AppViewModel(NoOpAppStateStorage)
         viewModel.startNewGame(now = 123_000L)
         viewModel.finishSetup(now = 123_000L)
@@ -36,23 +36,15 @@ class TestArchive : GameDomainTestFixtures() {
         val archivedGame = viewModel.archivedGames.single().state
         assertEquals(GamePhase.GAME_OVER, archivedGame.phase)
 
-        // Opening the archive should show it as a live-screen-shaped read-only summary.
+        // Opening the archive should show the summary without leaving archive navigation.
         viewModel.openArchivedGame(0, now = 123_000L)
-        assertEquals(AppScreen.LIVE, viewModel.screen)
-        assertTrue(viewModel.viewingReadOnlySummary)
-        assertEquals(archivedGame, viewModel.currentLiveState)
-
-        // Live-game callbacks are ignored while viewing an archived read-only summary.
-        val changedArchivedGame = archivedGame.copy(teamOne = archivedGame.teamOne.copy(score = 99))
-        viewModel.updateLiveGame(changedArchivedGame)
-        assertNull(viewModel.liveState)
-        assertEquals(archivedGame, viewModel.currentLiveState)
+        assertEquals(AppScreen.ARCHIVED_GAMES, viewModel.screen)
+        assertEquals(archivedGame, viewModel.viewingArchivedGame!!.state)
 
         // Back navigation returns from the archived summary to the archive list.
         viewModel.goBackFromCurrentScreen()
         assertEquals(AppScreen.ARCHIVED_GAMES, viewModel.screen)
-        assertFalse(viewModel.viewingReadOnlySummary)
-        assertNull(viewModel.currentLiveState)
+        assertNull(viewModel.viewingArchivedGame)
 
         // Back from a selected archive category returns to the category landing page.
         viewModel.openArchivedGameCategory(ArchivedGameCategory.COMPLETED)
@@ -61,12 +53,68 @@ class TestArchive : GameDomainTestFixtures() {
         assertEquals(AppScreen.ARCHIVED_GAMES, viewModel.screen)
         assertNull(viewModel.selectedArchiveCategory)
 
-        // Edit-game callbacks are ignored while viewing a read-only archive.
+        // Reopening the archived summary preserves the same archive navigation state.
         viewModel.openArchivedGame(0, now = 123_000L)
-        viewModel.editCurrentGame(archivedGame)
+        assertEquals(AppScreen.ARCHIVED_GAMES, viewModel.screen)
+        assertEquals(archivedGame, viewModel.viewingArchivedGame!!.state)
+    }
+
+    /**
+     * Verify the current game can open from archive navigation as a summary without being
+     * moved into archived storage.
+     */
+    @Test
+    fun currentGameSummary() {
+        // A live current game can be viewed as a summary without creating an archive row.
+        val viewModel = AppViewModel(NoOpAppStateStorage)
+        viewModel.startNewGame(now = 123_000L)
+        viewModel.finishSetup(now = 123_000L)
+        val currentGame = viewModel.liveState!!.beginLivePoint(123_000L)
+        viewModel.updateLiveGame(currentGame)
+        viewModel.openArchivedGames()
+        viewModel.openArchivedGameCategory(ArchivedGameCategory.IN_PROGRESS)
+        viewModel.openCurrentGameSummary()
         assertEquals(AppScreen.LIVE, viewModel.screen)
-        assertTrue(viewModel.viewingReadOnlySummary)
-        assertEquals(archivedGame, viewModel.currentLiveState)
+        assertTrue(viewModel.viewingCurrentGameSummary)
+        assertTrue(viewModel.archivedGames.isEmpty())
+        assertEquals(currentGame, viewModel.currentLiveState)
+
+        // Back returns to the in-progress archive list, while explicit resume returns to live play.
+        viewModel.goBackFromCurrentScreen()
+        assertEquals(AppScreen.ARCHIVED_GAMES, viewModel.screen)
+        assertEquals(ArchivedGameCategory.IN_PROGRESS, viewModel.selectedArchiveCategory)
+        assertFalse(viewModel.viewingCurrentGameSummary)
+        viewModel.openCurrentGameSummary()
+        viewModel.resumeCurrentGame()
+        assertEquals(AppScreen.LIVE, viewModel.screen)
+        assertFalse(viewModel.viewingCurrentGameSummary)
+
+        // When the same summary opens from live-game navigation, Back returns to live play.
+        viewModel.openCurrentGameSummary()
+        viewModel.goBackFromCurrentScreen()
+        assertEquals(AppScreen.LIVE, viewModel.screen)
+        assertFalse(viewModel.viewingCurrentGameSummary)
+
+        // A completed current game opens the normal current-game summary.
+        val completedCurrentGame = currentGame.copy(phase = GamePhase.GAME_OVER)
+        viewModel.updateLiveGame(completedCurrentGame)
+        viewModel.openArchivedGames()
+        viewModel.openArchivedGameCategory(ArchivedGameCategory.IN_PROGRESS)
+        viewModel.openCurrentGameSummary()
+        assertEquals(AppScreen.LIVE, viewModel.screen)
+        assertFalse(viewModel.viewingCurrentGameSummary)
+        assertEquals(GamePhase.GAME_OVER, viewModel.liveState!!.phase)
+        assertEquals(completedCurrentGame, viewModel.currentLiveState)
+
+        // A stale UI callback should not leave archive navigation when no current game exists.
+        viewModel.deleteCurrentGame()
+        viewModel.openArchivedGames()
+        viewModel.openArchivedGameCategory(ArchivedGameCategory.IN_PROGRESS)
+        viewModel.openCurrentGameSummary()
+        assertEquals(AppScreen.ARCHIVED_GAMES, viewModel.screen)
+        assertEquals(ArchivedGameCategory.IN_PROGRESS, viewModel.selectedArchiveCategory)
+        assertFalse(viewModel.viewingCurrentGameSummary)
+        assertNull(viewModel.currentLiveState)
     }
 
     /**
@@ -93,7 +141,8 @@ class TestArchive : GameDomainTestFixtures() {
         viewModel.openArchivedGame(0, now = 123_000L)
         viewModel.restoreCompletedGame(now = 123_000L)
         assertEquals(AppScreen.LIVE, viewModel.screen)
-        assertFalse(viewModel.viewingReadOnlySummary)
+        assertFalse(viewModel.viewingCurrentGameSummary)
+        assertNull(viewModel.viewingArchivedGame)
         assertEquals(archivedState, viewModel.liveState)
         assertTrue(viewModel.archivedGames.isEmpty())
     }
@@ -212,7 +261,7 @@ class TestArchive : GameDomainTestFixtures() {
      */
     @Test
     fun viewedSavedInProgressDirectArchive() {
-        // Build a saved in-progress archive and open its read-only summary.
+        // Build a saved in-progress archive and open its summary.
         val viewModel = AppViewModel(NoOpAppStateStorage)
         viewModel.startNewGame(now = 123_000L)
         viewModel.finishSetup(now = 123_000L)
@@ -243,7 +292,7 @@ class TestArchive : GameDomainTestFixtures() {
         viewModel.openArchivedGames()
         viewModel.openArchivedGameCategory(ArchivedGameCategory.IN_PROGRESS)
         viewModel.openArchivedGame(0, now = 123_000L)
-        assertEquals(AppScreen.LIVE, viewModel.screen)
+        assertEquals(AppScreen.ARCHIVED_GAMES, viewModel.screen)
         assertEquals(ArchivedGameCategory.IN_PROGRESS, viewModel.viewingArchivedGame!!.category)
 
         // The summary-page archive action moves the game to the completed section and returns
@@ -275,7 +324,7 @@ class TestArchive : GameDomainTestFixtures() {
 
     /**
      * Verify a completed current game can be reopened from Home and then moved into
-     * Archived games as a read-only summary.
+     * Archived games as a summary reached from archive navigation.
      */
     @Test
     fun completedCurrentGameArchive() {
@@ -290,7 +339,8 @@ class TestArchive : GameDomainTestFixtures() {
         viewModel.openCompletedGame()
         assertEquals(AppScreen.LIVE, viewModel.screen)
         assertEquals(completedGame, viewModel.currentLiveState)
-        assertFalse(viewModel.viewingReadOnlySummary)
+        assertFalse(viewModel.viewingCurrentGameSummary)
+        assertNull(viewModel.viewingArchivedGame)
 
         // Archiving the completed current game clears the current slot.
         viewModel.goHome()
@@ -299,11 +349,10 @@ class TestArchive : GameDomainTestFixtures() {
         assertEquals(1, viewModel.archivedGames.size)
         assertEquals("", viewModel.archivedGames.single().summaryContext)
 
-        // Opening the archived copy should expose it as a read-only summary.
+        // Opening the archived copy should expose it as an archive summary.
         viewModel.openArchivedGame(0, now = 123_000L)
-        assertEquals(AppScreen.LIVE, viewModel.screen)
-        assertTrue(viewModel.viewingReadOnlySummary)
-        assertEquals(viewModel.archivedGames.single().state, viewModel.currentLiveState)
+        assertEquals(AppScreen.ARCHIVED_GAMES, viewModel.screen)
+        assertEquals(viewModel.archivedGames.single().state, viewModel.viewingArchivedGame!!.state)
     }
 
     /**
@@ -392,7 +441,8 @@ class TestArchive : GameDomainTestFixtures() {
         viewModel.openArchivedGame(1, now = 123_000L)
         viewModel.restoreCompletedGame(now = 123_000L)
         assertEquals(AppScreen.LIVE, viewModel.screen)
-        assertFalse(viewModel.viewingReadOnlySummary)
+        assertFalse(viewModel.viewingCurrentGameSummary)
+        assertNull(viewModel.viewingArchivedGame)
         assertEquals("Second Archive", viewModel.liveState!!.teamOne.name)
         assertEquals(1, viewModel.archivedGames.size)
         assertEquals("First Archive", viewModel.archivedGames.single().state.teamOne.name)
@@ -419,7 +469,7 @@ class TestArchive : GameDomainTestFixtures() {
         viewModel.archiveCompletedGame()
         assertEquals(1, viewModel.archivedGames.size)
         viewModel.openArchivedGame(0, now = 123_000L)
-        assertTrue(viewModel.viewingReadOnlySummary)
+        assertNotNull(viewModel.viewingArchivedGame)
         viewModel.deleteArchivedGame(0)
         assertTrue(viewModel.archivedGames.isEmpty())
         assertNull(viewModel.currentLiveState)
@@ -451,7 +501,7 @@ class TestArchive : GameDomainTestFixtures() {
         viewModel.archiveCompletedGame()
         assertEquals(3, viewModel.archivedGames.size)
         viewModel.openArchivedGame(1, now = 123_000L)
-        assertTrue(viewModel.viewingReadOnlySummary)
+        assertNotNull(viewModel.viewingArchivedGame)
         viewModel.deleteAllArchivedGames()
         assertTrue(viewModel.archivedGames.isEmpty())
         assertNull(viewModel.currentLiveState)

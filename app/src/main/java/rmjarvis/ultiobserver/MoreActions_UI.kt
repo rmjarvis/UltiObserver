@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
  * @param now The current epoch millis for actions that depend on clock time.
  * @param onUpdateGameSetup Callback reopening setup for the current game.
  * @param onShowEventLog Callback opening the current game's event log.
+ * @param onShowGameSummary Callback opening the current game summary.
  * @param onDeleteGame Callback deleting the current game after confirmation.
  * @param onAction Callback receiving an updated live game state after a model action.
  * @param onStateUpdate Callback receiving an updated live game state without closing More actions.
@@ -38,6 +39,7 @@ internal fun MoreActionsContent(
     now: Long,
     onUpdateGameSetup: () -> Unit,
     onShowEventLog: () -> Unit,
+    onShowGameSummary: () -> Unit,
     onDeleteGame: () -> Unit,
     onAction: (GameState) -> Unit,
     onStateUpdate: (GameState) -> Unit,
@@ -111,6 +113,10 @@ internal fun MoreActionsContent(
                 MenuButton(
                     label = "Event log",
                     onClick = onShowEventLog,
+                )
+                MenuButton(
+                    label = "Game summary",
+                    onClick = onShowGameSummary,
                 )
                 if (!state.halftimeTaken && state.phase == GamePhase.BETWEEN_POINTS) {
                     MenuButton(
