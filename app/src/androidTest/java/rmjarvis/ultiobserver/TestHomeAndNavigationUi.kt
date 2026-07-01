@@ -342,15 +342,54 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Save game for later").performClick()
         waitForText("Start new game")
 
-        // Now go to the archive screen, find that saved game and reopen it.
+        // Start a different current setup draft, then verify the setup archive page separates
+        // that current draft from the saved setup states.
+        val currentSetupTeamOne = "CurrentSetupA$suffix"
+        val currentSetupTeamTwo = "CurrentSetupB$suffix"
+        openNewGameSetup()
+        replaceSetupTeamName("Team 1", currentSetupTeamOne)
+        replaceSetupTeamName("Team 2", currentSetupTeamTwo)
+        tapTopBarBack()
+
         openArchivedGamesScreen()
-        composeRule.onNodeWithText("Saved setup states (1)").assertIsEnabled()
-        composeRule.onNodeWithText("Saved setup states (1)").performClick()
-        waitForText("$setupTeamOne vs $setupTeamTwo", substring = true)
-        composeRule.onNodeWithTag("archived-game-0").performClick()
+        composeRule.onNodeWithText("Saved setup states (2)").assertIsEnabled()
+        composeRule.onNodeWithText("Saved setup states (2)").performClick()
+        waitForText("Current setup")
+        waitForText("Saved setup states")
+        val currentSetupTitle = "$currentSetupTeamOne vs $currentSetupTeamTwo"
+        val savedSetupTitle = "$setupTeamOne vs $setupTeamTwo"
+        waitForText(currentSetupTitle, substring = true)
+        waitForText(savedSetupTitle, substring = true)
+        composeRule.onAllNodesWithTag("current-setup-state").assertCountEquals(1)
+        composeRule.onAllNodesWithTag("saved-setup-state-0").assertCountEquals(1)
+        composeRule.onAllNodesWithTag("saved-setup-state-1").assertCountEquals(0)
+        composeRule.onNodeWithTag("current-setup-state")
+            .assertTextContains(currentSetupTitle, substring = true)
+        composeRule.onNodeWithTag("saved-setup-state-0")
+            .assertTextContains(savedSetupTitle, substring = true)
+
+        // The current setup row resumes the editable setup draft.
+        composeRule.onNodeWithTag("current-setup-state").performClick()
+        waitForText("Start game")
+        composeRule.onNodeWithText(currentSetupTeamOne).assertIsDisplayed()
+        composeRule.onNodeWithText(currentSetupTeamTwo).assertIsDisplayed()
+        tapTopBarBack()
+
+        // The saved setup row restores that saved state and saves the previous current setup
+        // draft into the saved setup states.
+        openArchivedGamesScreen()
+        composeRule.onNodeWithText("Saved setup states (2)").performClick()
+        composeRule.onNodeWithTag("saved-setup-state-0").performClick()
         waitForText("Start game")
         composeRule.onNodeWithText(setupTeamOne).assertIsDisplayed()
         composeRule.onNodeWithText(setupTeamTwo).assertIsDisplayed()
+        tapTopBarBack()
+        openArchivedGamesScreen()
+        composeRule.onNodeWithText("Saved setup states (2)").performClick()
+        composeRule.onNodeWithTag("current-setup-state")
+            .assertTextContains(savedSetupTitle, substring = true)
+        composeRule.onNodeWithTag("saved-setup-state-0")
+            .assertTextContains(currentSetupTitle, substring = true)
 
         // Start an in-progress game, but then start another new game.  This moves what was
         // the current game into the saved games section of the in-progress archive.

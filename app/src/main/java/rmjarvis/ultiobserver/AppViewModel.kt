@@ -582,7 +582,7 @@ internal class AppViewModel(
         val archived = archivedGames[index]
         val updatedArchivedGames = archivedGames.toMutableList().also { games ->
             games.removeAt(index)
-            archiveCurrentGameIfNeeded(now)?.let { archivedCurrent ->
+            archiveCurrentGame(now)?.let { archivedCurrent ->
                 games += archivedCurrent
             }
         }
@@ -722,9 +722,9 @@ internal class AppViewModel(
         persistArchivedGames()
     }
 
-    /// Start a new game setup, archiving any existing started current game first.
+    /// Start a new game setup, archiving any existing current game first.
     fun startNewGame(now: Long) {
-        val archivedCurrent = archiveCurrentGameIfNeeded(now)
+        val archivedCurrent = archiveCurrentGame(now)
         val updatedArchivedGames = archivedCurrent?.let { archivedGames + it } ?: archivedGames
         val previousSetupDefaults = updatedArchivedGames.lastOrNull()?.state
         _state.update {
@@ -887,17 +887,12 @@ internal class AppViewModel(
     }
 
     /**
-     * Return an archive for the current game when automatic save-aside is appropriate.
-     *
-     * Setup-only states are discarded unless the observer explicitly saves them for later.
+     * Return an archive for the current game when it is replaced.
      *
      * @param now Epoch millis when the game is being saved aside.
      */
-    private fun archiveCurrentGameIfNeeded(now: Long): ArchivedGame? {
+    private fun archiveCurrentGame(now: Long): ArchivedGame? {
         val current = currentGame ?: return null
-        if (current.phase == GamePhase.SETUP || current.isInitialLivePreview()) {
-            return null
-        }
         return archivedGameFor(current, now)
     }
 

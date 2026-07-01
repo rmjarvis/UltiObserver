@@ -174,33 +174,38 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertFalse(viewModel.hasSetupDraft)
         assertEquals(livePreview.teamOne.name, viewModel.liveState!!.teamOne.name)
 
-        // Starting over from an unstarted setup draft should replace it without archiving it.
+        // Starting over from an unstarted setup draft should save the old draft aside.
         val setupDraftViewModel = AppViewModel(NoOpAppStateStorage)
         setupDraftViewModel.startNewGame(now = 123_000L)
         setupDraftViewModel.updateSetup(
             setupDraftViewModel.setupState.copy(
-                teamOne = TeamState("Discarded setup", TeamColorChoice.WHITE),
+                teamOne = TeamState("Saved setup", TeamColorChoice.WHITE),
             )
         )
+        val savedSetupDraft = setupDraftViewModel.setupState
         setupDraftViewModel.startNewGame(now = 123_000L)
         assertEquals(AppScreen.SETUP, setupDraftViewModel.screen)
         assertTrue(setupDraftViewModel.hasSetupDraft)
-        assertTrue(setupDraftViewModel.archivedGames.isEmpty())
+        assertEquals(1, setupDraftViewModel.archivedGames.size)
+        assertEquals(ArchivedGameCategory.SETUP, setupDraftViewModel.archivedGames.single().category)
+        assertEquals(savedSetupDraft, setupDraftViewModel.archivedGames.single().state)
         assertEquals("", setupDraftViewModel.setupState.teamOne.name)
 
-        // Starting over before the first real point should discard setup-only state.
+        // Starting over before the first real point should save the initial live preview aside.
         val prePullViewModel = AppViewModel(NoOpAppStateStorage)
         prePullViewModel.startNewGame(now = 123_000L)
         prePullViewModel.finishSetup(now = 123_000L)
+        val prePullPreview = prePullViewModel.liveState!!
         prePullViewModel.goHome()
         prePullViewModel.startNewGame(now = 123_000L)
         assertEquals(AppScreen.SETUP, prePullViewModel.screen)
         assertTrue(prePullViewModel.hasSetupDraft)
         assertNull(prePullViewModel.liveState)
-        assertTrue(prePullViewModel.archivedGames.isEmpty())
+        assertEquals(1, prePullViewModel.archivedGames.size)
+        assertEquals(ArchivedGameCategory.IN_PROGRESS, prePullViewModel.archivedGames.single().category)
+        assertEquals(prePullPreview, prePullViewModel.archivedGames.single().state)
 
-        // Undo-backed setup edits before the opening pull are still setup-only, so starting over
-        // should discard them rather than archive them.
+        // Undo-backed setup edits before the opening pull are also preserved when starting over.
         val setupOnlyViewModel = AppViewModel(NoOpAppStateStorage)
         setupOnlyViewModel.startNewGame(now = 123_000L)
         setupOnlyViewModel.finishSetup(now = 123_000L)
@@ -215,27 +220,31 @@ class TestAppViewModel : GameDomainTestFixtures() {
             )
         )
         setupOnlyViewModel.goHome()
+        val setupOnlyEditedPreview = setupOnlyViewModel.liveState!!
         setupOnlyViewModel.startNewGame(now = 123_000L)
         assertEquals(AppScreen.SETUP, setupOnlyViewModel.screen)
         assertNull(setupOnlyViewModel.liveState)
-        assertTrue(setupOnlyViewModel.archivedGames.isEmpty())
+        assertEquals(1, setupOnlyViewModel.archivedGames.size)
+        assertEquals(ArchivedGameCategory.IN_PROGRESS, setupOnlyViewModel.archivedGames.single().category)
+        assertEquals(setupOnlyEditedPreview, setupOnlyViewModel.archivedGames.single().state)
 
-        // A logged event before the opening pull means the current game is real enough to archive.
+        // A logged event before the opening pull is preserved the same way.
         val prePullEventViewModel = AppViewModel(NoOpAppStateStorage)
         prePullEventViewModel.startNewGame(now = 123_000L)
         prePullEventViewModel.finishSetup(now = 123_000L)
         val prePullEventState = prePullEventViewModel.liveState!!
-        prePullEventViewModel.updateLiveGame(
-            prePullEventState.assessTimeout(
-                TeamId.TEAM_ONE,
-                prePullEventState.countdown!!.targetEpoch - 1_000L,
-            ).state
+        val prePullEventUpdatedState = prePullEventState.assessTimeout(
+            TeamId.TEAM_ONE,
+            prePullEventState.countdown!!.targetEpoch - 1_000L,
         )
+        prePullEventViewModel.updateLiveGame(prePullEventUpdatedState.state)
         prePullEventViewModel.goHome()
         prePullEventViewModel.startNewGame(now = 123_000L)
         assertEquals(AppScreen.SETUP, prePullEventViewModel.screen)
         assertNull(prePullEventViewModel.liveState)
         assertEquals(1, prePullEventViewModel.archivedGames.size)
+        assertEquals(ArchivedGameCategory.IN_PROGRESS, prePullEventViewModel.archivedGames.single().category)
+        assertEquals(prePullEventUpdatedState.state, prePullEventViewModel.archivedGames.single().state)
     }
 
     /**

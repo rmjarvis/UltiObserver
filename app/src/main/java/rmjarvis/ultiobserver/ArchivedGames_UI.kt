@@ -36,9 +36,11 @@ import androidx.compose.ui.unit.dp
  * @param hasSavedOrArchivedGames Whether stored archive rows exist for bulk deletion.
  * @param selectedCategory Category currently listed, or null on the category landing page.
  * @param currentInProgressGame The current game to list in the in-progress category, if any.
+ * @param currentSetupDraft The current setup draft to list in the setup category, if any.
  * @param archivedGames The archived game rows to display for the selected category.
  * @param onOpenCategory Callback opening one category from the landing page.
  * @param onOpenCurrentGame Callback opening the current game summary.
+ * @param onOpenCurrentSetup Callback opening the current setup draft.
  * @param onOpenArchivedGame Callback opening an archived game by index.
  * @param onDeleteArchivedGame Callback deleting an archived game by index.
  * @param onDeleteAllArchivedGames Callback deleting every archived/saved game.
@@ -54,9 +56,11 @@ internal fun ArchivedGamesScreen(
     hasSavedOrArchivedGames: Boolean,
     selectedCategory: ArchivedGameCategory?,
     currentInProgressGame: GameListEntry?,
+    currentSetupDraft: GameListEntry?,
     archivedGames: List<GameListEntry>?,
     onOpenCategory: (ArchivedGameCategory) -> Unit,
     onOpenCurrentGame: () -> Unit,
+    onOpenCurrentSetup: () -> Unit,
     onOpenArchivedGame: (Int) -> Unit,
     onDeleteArchivedGame: (Int) -> Unit,
     onDeleteAllArchivedGames: () -> Unit,
@@ -115,6 +119,15 @@ internal fun ArchivedGamesScreen(
                         onDeleteSavedGame = { pendingDeleteIndex = it },
                         onDeleteAllSavedGames = { pendingDeleteAll = true },
                     )
+                } else if (category == ArchivedGameCategory.SETUP) {
+                    SetupStatesList(
+                        currentSetup = currentSetupDraft,
+                        savedSetups = listedGames,
+                        onOpenCurrentSetup = onOpenCurrentSetup,
+                        onOpenSavedSetup = onOpenArchivedGame,
+                        onDeleteSavedSetup = { pendingDeleteIndex = it },
+                        onDeleteAllSavedSetups = { pendingDeleteAll = true },
+                    )
                 } else if (listedGames.isEmpty()) {
                     Text(category.emptyText)
                 } else {
@@ -160,6 +173,8 @@ internal fun ArchivedGamesScreen(
                 "Completely delete all archived and saved games? This cannot be undone."
             } else if (category == ArchivedGameCategory.IN_PROGRESS) {
                 "Completely delete all saved games? This cannot be undone."
+            } else if (category == ArchivedGameCategory.SETUP) {
+                "Completely delete all saved setup states? This cannot be undone."
             } else {
                 "Completely delete all ${category.displayText.lowercase()}? This cannot be undone."
             },
@@ -203,9 +218,10 @@ private fun InProgressGamesList(
     }
 
     if (savedGames.isNotEmpty()) {
-        SavedGamesHeader(
+        SavedArchiveSectionHeader(
+            label = "Saved games",
             showTopDivider = currentGame != null,
-            onDeleteAllSavedGames = onDeleteAllSavedGames,
+            onDeleteAllSavedItems = onDeleteAllSavedGames,
         )
         savedGames.forEachIndexed { index, game ->
             ArchivedGameRow(
@@ -221,15 +237,71 @@ private fun InProgressGamesList(
 }
 
 /**
- * Render the saved in-progress games header with its bulk delete action.
+ * Render the setup category with the current setup draft separate from saved setup states.
  *
- * @param showTopDivider Whether to separate the saved section from the current game.
- * @param onDeleteAllSavedGames Callback requesting deletion of all saved in-progress games.
+ * @param currentSetup The current setup draft row to show above saved setup states, if any.
+ * @param savedSetups Saved setup-state rows.
+ * @param onOpenCurrentSetup Callback opening the current setup draft.
+ * @param onOpenSavedSetup Callback opening one saved setup state.
+ * @param onDeleteSavedSetup Callback requesting deletion of one saved setup state.
+ * @param onDeleteAllSavedSetups Callback requesting deletion of all saved setup states.
  */
 @Composable
-private fun SavedGamesHeader(
+private fun SetupStatesList(
+    currentSetup: GameListEntry?,
+    savedSetups: List<GameListEntry>,
+    onOpenCurrentSetup: () -> Unit,
+    onOpenSavedSetup: (Int) -> Unit,
+    onDeleteSavedSetup: (Int) -> Unit,
+    onDeleteAllSavedSetups: () -> Unit,
+) {
+    if (currentSetup == null && savedSetups.isEmpty()) {
+        Text(ArchivedGameCategory.SETUP.emptyText)
+        return
+    }
+
+    if (currentSetup != null) {
+        ArchiveSectionLabel("Current setup")
+        GameListRow(
+            entry = currentSetup,
+            onClick = onOpenCurrentSetup,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("current-setup-state"),
+        )
+    }
+
+    if (savedSetups.isNotEmpty()) {
+        SavedArchiveSectionHeader(
+            label = "Saved setup states",
+            showTopDivider = currentSetup != null,
+            onDeleteAllSavedItems = onDeleteAllSavedSetups,
+        )
+        savedSetups.forEachIndexed { index, setup ->
+            ArchivedGameRow(
+                displayedIndex = index,
+                entry = setup,
+                rowTagPrefix = "saved-setup-state",
+                deleteTagPrefix = "delete-saved-setup-state",
+                onClick = { onOpenSavedSetup(index) },
+                onDelete = { onDeleteSavedSetup(index) },
+            )
+        }
+    }
+}
+
+/**
+ * Render a saved-items section header with its bulk delete action.
+ *
+ * @param label The subsection label.
+ * @param showTopDivider Whether to separate the saved section from the current item.
+ * @param onDeleteAllSavedItems Callback requesting deletion of all saved items in the section.
+ */
+@Composable
+private fun SavedArchiveSectionHeader(
+    label: String,
     showTopDivider: Boolean,
-    onDeleteAllSavedGames: () -> Unit,
+    onDeleteAllSavedItems: () -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -243,13 +315,13 @@ private fun SavedGamesHeader(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            ArchiveSectionLabel("Saved games")
+            ArchiveSectionLabel(label)
             TextActionButton(
                 label = "Delete all",
                 compact = true,
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
                 tag = "delete-all-archived-games",
-                onClick = onDeleteAllSavedGames,
+                onClick = onDeleteAllSavedItems,
             )
         }
     }

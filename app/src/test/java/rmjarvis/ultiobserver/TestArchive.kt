@@ -118,11 +118,11 @@ class TestArchive : GameDomainTestFixtures() {
     }
 
     /**
-     * Verify restoring an archived game promotes it to current game while discarding any
+     * Verify restoring an archived game promotes it to current game while saving any
      * active current preview.
      */
     @Test
-    fun archiveRestoreDiscardsCurrentPreview() {
+    fun archiveRestoreSavesCurrentPreview() {
         // Archive a completed game, then create a separate current preview.
         val viewModel = AppViewModel(NoOpAppStateStorage)
         viewModel.startNewGame(now = 123_000L)
@@ -132,19 +132,22 @@ class TestArchive : GameDomainTestFixtures() {
         viewModel.archiveCompletedGame()
         val archivedState = viewModel.archivedGames.single().state
 
-        // Create a separate current preview that will be discarded during restore.
+        // Create a separate current preview that will be saved during restore.
         viewModel.startNewGame(now = 123_000L)
         viewModel.finishSetup(now = 123_000L)
-        assertTrue(viewModel.liveState!!.isInitialLivePreview())
+        val previewState = viewModel.liveState!!
+        assertTrue(previewState.isInitialLivePreview())
 
-        // Restoring the archive promotes it and discards the previous current preview.
+        // Restoring the archive promotes it and saves the previous current preview.
         viewModel.openArchivedGame(0, now = 123_000L)
         viewModel.restoreCompletedGame(now = 123_000L)
         assertEquals(AppScreen.LIVE, viewModel.screen)
         assertFalse(viewModel.viewingCurrentGameSummary)
         assertNull(viewModel.viewingArchivedGame)
         assertEquals(archivedState, viewModel.liveState)
-        assertTrue(viewModel.archivedGames.isEmpty())
+        assertEquals(1, viewModel.archivedGames.size)
+        assertEquals(ArchivedGameCategory.IN_PROGRESS, viewModel.archivedGames.single().category)
+        assertEquals(previewState, viewModel.archivedGames.single().state)
     }
 
     /**
@@ -194,20 +197,26 @@ class TestArchive : GameDomainTestFixtures() {
         assertEquals(savedSetup, directRestoreViewModel.setupState)
         assertTrue(directRestoreViewModel.archivedGames.isEmpty())
 
-        // Restoring a saved setup over an initial live preview discards the preview like setup.
+        // Restoring a saved setup over an initial live preview saves that preview aside.
         val initialPreviewRestoreViewModel = AppViewModel(NoOpAppStateStorage)
         initialPreviewRestoreViewModel.startNewGame(now = 123_000L)
         initialPreviewRestoreViewModel.updateSetup(savedSetup)
         initialPreviewRestoreViewModel.saveSetupForLater()
         initialPreviewRestoreViewModel.startNewGame(now = 123_000L)
         initialPreviewRestoreViewModel.finishSetup(now = 123_000L)
-        assertTrue(initialPreviewRestoreViewModel.liveState!!.isInitialLivePreview())
+        val initialPreview = initialPreviewRestoreViewModel.liveState!!
+        assertTrue(initialPreview.isInitialLivePreview())
         initialPreviewRestoreViewModel.openArchivedGames()
         initialPreviewRestoreViewModel.openArchivedGameCategory(ArchivedGameCategory.SETUP)
         initialPreviewRestoreViewModel.openArchivedGame(0, now = 123_000L)
         assertEquals(AppScreen.SETUP, initialPreviewRestoreViewModel.screen)
         assertEquals(savedSetup, initialPreviewRestoreViewModel.setupState)
-        assertTrue(initialPreviewRestoreViewModel.archivedGames.isEmpty())
+        assertEquals(1, initialPreviewRestoreViewModel.archivedGames.size)
+        assertEquals(
+            ArchivedGameCategory.IN_PROGRESS,
+            initialPreviewRestoreViewModel.archivedGames.single().category,
+        )
+        assertEquals(initialPreview, initialPreviewRestoreViewModel.archivedGames.single().state)
 
         // Starting another game carries forward tournament context and rules, but not teams.
         viewModel.startNewGame(now = 123_000L)
@@ -220,7 +229,7 @@ class TestArchive : GameDomainTestFixtures() {
         assertEquals("", viewModel.setupState.teamOne.name)
         assertEquals("", viewModel.setupState.teamTwo.name)
 
-        // Restoring a saved setup discards an unsaved setup-only draft
+        // Restoring a saved setup saves the current setup draft aside instead of losing it.
         val unsavedDraft = viewModel.setupState.copy(
             teamOne = TeamState("Unsaved", TeamColorChoice.WHITE),
         )
@@ -231,8 +240,10 @@ class TestArchive : GameDomainTestFixtures() {
         assertEquals(AppScreen.SETUP, viewModel.screen)
         assertTrue(viewModel.hasSetupDraft)
         assertNull(viewModel.liveState)
-        assertTrue(viewModel.archivedGames.isEmpty())
         assertEquals(savedSetup, viewModel.setupState)
+        assertEquals(1, viewModel.archivedGames.size)
+        assertEquals(ArchivedGameCategory.SETUP, viewModel.archivedGames.single().category)
+        assertEquals(unsavedDraft, viewModel.archivedGames.single().state)
 
         // Restoring a saved setup while a real current game exists archives that current game,
         // putting it in the IN_PROGRESS category in the archive.
@@ -249,11 +260,13 @@ class TestArchive : GameDomainTestFixtures() {
         viewModel.updateLiveGame(viewModel.liveState!!.beginLivePoint())
         viewModel.openArchivedGames()
         viewModel.openArchivedGameCategory(ArchivedGameCategory.SETUP)
-        viewModel.openArchivedGame(0, now = 123_000L)
+        viewModel.openArchivedGame(1, now = 123_000L)
         assertEquals(savedSetup, viewModel.setupState)
-        assertEquals(1, viewModel.archivedGames.size)
-        assertEquals(ArchivedGameCategory.IN_PROGRESS, viewModel.archivedGames.single().category)
-        assertEquals("Current", viewModel.archivedGames.single().state.teamOne.name)
+        assertEquals(2, viewModel.archivedGames.size)
+        assertEquals(ArchivedGameCategory.SETUP, viewModel.archivedGames.first().category)
+        assertEquals(unsavedDraft, viewModel.archivedGames.first().state)
+        assertEquals(ArchivedGameCategory.IN_PROGRESS, viewModel.archivedGames.last().category)
+        assertEquals("Current", viewModel.archivedGames.last().state.teamOne.name)
     }
 
     /**

@@ -181,15 +181,21 @@ internal fun UltiObserverApp(
                 val currentInProgressGame = appState.currentGame
                     ?.takeUnless { it.phase == GamePhase.SETUP }
                     ?.gameListEntry()
-                val archiveCategoryCounts = remember(appState.archivedGames, currentInProgressGame) {
+                val currentSetupDraft = appState.currentGame
+                    ?.takeIf { it.phase == GamePhase.SETUP }
+                    ?.gameListEntry()
+                val archiveCategoryCounts = remember(
+                    appState.archivedGames,
+                    currentInProgressGame,
+                    currentSetupDraft,
+                ) {
                     ArchivedGameCategory.entries.associateWith { category ->
-                        val currentCount = if (
+                        val currentCount = when {
                             category == ArchivedGameCategory.IN_PROGRESS &&
-                            currentInProgressGame != null
-                        ) {
-                            1
-                        } else {
-                            0
+                                currentInProgressGame != null -> 1
+                            category == ArchivedGameCategory.SETUP &&
+                                currentSetupDraft != null -> 1
+                            else -> 0
                         }
                         currentCount + appState.archivedGames.count { it.category == category }
                     }
@@ -204,9 +210,11 @@ internal fun UltiObserverApp(
                     hasSavedOrArchivedGames = appState.archivedGames.isNotEmpty(),
                     selectedCategory = appState.selectedArchiveCategory,
                     currentInProgressGame = currentInProgressGame,
+                    currentSetupDraft = currentSetupDraft,
                     archivedGames = selectedCategoryEntries,
                     onOpenCategory = viewModel::openArchivedGameCategory,
                     onOpenCurrentGame = viewModel::openCurrentGameSummary,
+                    onOpenCurrentSetup = viewModel::resumeCurrentGame,
                     onOpenArchivedGame = { index ->
                         viewModel.openArchivedGame(index, System.currentTimeMillis())
                     },
