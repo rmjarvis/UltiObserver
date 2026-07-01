@@ -44,7 +44,7 @@ fun GameState.ratioChoosingTeam(): TeamId? {
     }
     return when (rules.genderRatioRule) {
         GenderRatioRule.GEN_ZONE -> {
-            val activeGenZone = if (halftimeTaken && switchGenZoneAtHalftime) {
+            val activeGenZone = if (halftimeTaken && rules.switchGenZoneAtHalftime) {
                 firstHalfGenZone.flip()
             } else {
                 firstHalfGenZone

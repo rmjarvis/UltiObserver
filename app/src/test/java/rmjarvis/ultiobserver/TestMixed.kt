@@ -158,7 +158,9 @@ class TestMixed : GameDomainTestFixtures() {
         assertEquals(ANIMAL, state.ratioChoosingTeam())
 
         // However, it is an option to not switch the gen zone at halftime.
-        state = state.copy(switchGenZoneAtHalftime = false)
+        state = state.copy(
+            rules = state.rules.copy(switchGenZoneAtHalftime = false),
+        )
         assertEquals(VC, state.teamDefendingEnd(FieldEnd.FAR))
         assertEquals(VC, state.ratioChoosingTeam())
 
@@ -338,6 +340,7 @@ class TestMixed : GameDomainTestFixtures() {
                     useSoftCap = false,
                     useHardCap = false,
                     genderRatioRule = ratioRule,
+                    switchGenZoneAtHalftime = switchGenZoneAtHalftime,
                     useMajorityPullRule = true,
                 ),
                 pullingTeam = pullingTeam,
@@ -345,7 +348,6 @@ class TestMixed : GameDomainTestFixtures() {
                 division = GameDivision.MIXED,
                 initialGenderRatio = initialRatio,
                 firstHalfGenZone = firstHalfGenZone,
-                switchGenZoneAtHalftime = switchGenZoneAtHalftime,
             )
         )
     }

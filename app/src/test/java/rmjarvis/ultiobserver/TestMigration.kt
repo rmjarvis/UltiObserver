@@ -47,7 +47,7 @@ class TestMigration : GameDomainTestFixtures() {
         assertEquals(PullPromptTarget.NEAR, setupDraft.setupState.pullPromptTarget)
         assertEquals(GenderRatio.FOUR_MEN_THREE_WOMEN, setupDraft.setupState.initialGenderRatio)
         assertEquals(FieldEnd.FAR, setupDraft.setupState.firstHalfGenZone)
-        assertTrue(setupDraft.setupState.switchGenZoneAtHalftime)
+        assertTrue(setupDraft.setupState.rules.switchGenZoneAtHalftime)
         assertEquals(
             listOf(
                 PlayerRecord("7", priorYellows = 1),

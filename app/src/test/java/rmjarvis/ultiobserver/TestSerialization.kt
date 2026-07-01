@@ -122,7 +122,6 @@ class TestSerialization : GameDomainTestFixtures() {
         assertEquals(previous.pullPromptTarget, patch.pullPromptTarget)
         assertEquals(previous.initialGenderRatio, patch.initialGenderRatio)
         assertEquals(previous.firstHalfGenZone, patch.firstHalfGenZone)
-        assertEquals(previous.switchGenZoneAtHalftime, patch.switchGenZoneAtHalftime)
         assertEquals(previous.openingPullingTeam, patch.openingPullingTeam)
         assertEquals(previous.openingPullingFromEnd, patch.openingPullingFromEnd)
         assertEquals(previous.phase, patch.phase)
@@ -218,6 +217,7 @@ class TestSerialization : GameDomainTestFixtures() {
                 halfCapMinutes = 50,
                 softCapMinutes = 80,
                 hardCapMinutes = 95,
+                switchGenZoneAtHalftime = false,
             ),
             pullingTeam = TeamId.TEAM_TWO,
             pullingFromEnd = FieldEnd.NEAR,
@@ -282,7 +282,6 @@ class TestSerialization : GameDomainTestFixtures() {
             pullPromptTarget = PullPromptTarget.BOTH,
             initialGenderRatio = GenderRatio.FOUR_WOMEN_THREE_MEN,
             firstHalfGenZone = FieldEnd.NEAR,
-            switchGenZoneAtHalftime = false,
             openingPullingTeam = TeamId.TEAM_TWO,
             openingPullingFromEnd = FieldEnd.NEAR,
             phase = GamePhase.GAME_OVER,
@@ -322,6 +321,7 @@ class TestSerialization : GameDomainTestFixtures() {
                 halfCapMinutes = 45,
                 softCapMinutes = 90,
                 hardCapMinutes = 105,
+                switchGenZoneAtHalftime = true,
             ),
             pullingTeam = TeamId.TEAM_ONE,
             pullingFromEnd = FieldEnd.FAR,
@@ -380,7 +380,6 @@ class TestSerialization : GameDomainTestFixtures() {
             pullPromptTarget = PullPromptTarget.NEITHER,
             initialGenderRatio = GenderRatio.FOUR_MEN_THREE_WOMEN,
             firstHalfGenZone = FieldEnd.FAR,
-            switchGenZoneAtHalftime = true,
             openingPullingTeam = TeamId.TEAM_ONE,
             openingPullingFromEnd = FieldEnd.FAR,
             phase = GamePhase.BETWEEN_POINTS,

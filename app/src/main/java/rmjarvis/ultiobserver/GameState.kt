@@ -203,7 +203,7 @@ enum class TeamColorChoice(
     GRAY("Gray", 0xFF708090, 0xFFF7F8FA),
     CUSTOM("Custom", 0x00000000, 0x00000000),
 }
-/// Configurable rules that affect scoring, caps, halftime, and timeout allowances.
+/// Configurable rules that affect scoring, caps, halftime, timeouts, and mixed play.
 @Serializable
 data class GameRules(
     val gameTo: Int = 15,
@@ -217,6 +217,7 @@ data class GameRules(
     val timeoutsPerHalf: Int = 2,
     val hasFloaterTimeout: Boolean = false,
     val genderRatioRule: GenderRatioRule = GenderRatioRule.ABBA,
+    val switchGenZoneAtHalftime: Boolean = true,
     val useMajorityPullRule: Boolean = true,
 )
 /**
@@ -477,7 +478,6 @@ enum class CountdownKind {
  * @param pullPromptTarget Which field end or ends should receive pulling prompts.
  * @param initialGenderRatio The first ABBA point's gender ratio.
  * @param firstHalfGenZone The Gen Zone end used for the first half.
- * @param switchGenZoneAtHalftime Whether Gen Zone switches ends after halftime.
  * @param openingPullingTeam The team that pulled to start the game.
  * @param openingPullingFromEnd The field end used by the opening pull.
  * @param teamOnePlayers Team 1 known player records, including prior-card details and in-game cards.
@@ -514,7 +514,6 @@ data class GameState(
     val pullPromptTarget: PullPromptTarget = PullPromptTarget.NEAR,
     val initialGenderRatio: GenderRatio = GenderRatio.FOUR_MEN_THREE_WOMEN,
     val firstHalfGenZone: FieldEnd = FieldEnd.FAR,
-    val switchGenZoneAtHalftime: Boolean = true,
     val openingPullingTeam: TeamId,
     val openingPullingFromEnd: FieldEnd,
     val phase: GamePhase,
@@ -790,7 +789,6 @@ private fun GameState.hasSameSetupFieldsAs(other: GameState): Boolean {
         pullPromptTarget == other.pullPromptTarget &&
         initialGenderRatio == other.initialGenderRatio &&
         firstHalfGenZone == other.firstHalfGenZone &&
-        switchGenZoneAtHalftime == other.switchGenZoneAtHalftime &&
         openingPullingTeam == other.openingPullingTeam &&
         openingPullingFromEnd == other.openingPullingFromEnd
 }

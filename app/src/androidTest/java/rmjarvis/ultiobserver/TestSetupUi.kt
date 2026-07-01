@@ -232,27 +232,37 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         dismissDialog(text = "Done", clearKeyboard = true)
         waitForText("Road / River")
 
-        // Gen Zone setup uses field-end labels and can show that the zone switches at halftime.
+        // Gen Zone setup uses field-end labels and the rules say whether the zone switches.
         openGameRulesSetupEditor()
         composeRule.onNodeWithTag("setup-gender-ratio-rule-${GenderRatioRule.GEN_ZONE.name}")
             .performScrollTo()
             .performClick()
         closeSetupEditor()
         openStartingPullSetupEditor()
+        waitForText("Which end is the \"gen zone\" in the first half?")
         composeRule.onNodeWithTag("setup-first-half-gen-zone-${FieldEnd.NEAR.name}")
             .performScrollTo()
             .performClick()
         closeSetupEditor()
         waitForText("First-half Gen Zone: Road")
-        waitForText("Gen Zone switches in second half")
+        waitForText("Gen Zone switches at halftime")
 
         // Gen Zone setup can also keep the same zone for the whole game.
-        openStartingPullSetupEditor()
+        openGameRulesSetupEditor()
         composeRule.onNodeWithTag("setup-switch-gen-zone-at-halftime")
             .performScrollTo()
             .performClick()
         closeSetupEditor()
         waitForText("Gen Zone: Road")
+        composeRule.onAllNodesWithText("First-half Gen Zone: Road").assertCountEquals(0)
+        waitForText("Gen Zone stays the same all game")
+        openStartingPullSetupEditor()
+        composeRule.onNodeWithText("Which end is the \"gen zone\"?")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onAllNodesWithText("Which end is the \"gen zone\" in the first half?")
+            .assertCountEquals(0)
+        closeSetupEditor()
 
         // Fixed mixed ratios do not add a starting-pull choice to the field editor.
         openGameRulesSetupEditor()
@@ -264,6 +274,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onAllNodesWithText("First point gender ratio").assertCountEquals(0)
         composeRule.onAllNodesWithText("Which end is the \"gen zone\" in the first half?")
             .assertCountEquals(0)
+        composeRule.onAllNodesWithText("Which end is the \"gen zone\"?").assertCountEquals(0)
         closeSetupEditor()
     }
 
@@ -346,9 +357,13 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("setup-gender-ratio-rule-${GenderRatioRule.GEN_ZONE.name}")
             .performScrollTo()
             .performClick()
+        composeRule.onNodeWithTag("setup-switch-gen-zone-at-halftime")
+            .performScrollTo()
+            .performClick()
         composeRule.onNodeWithTag("setup-majority-pull-rule").performScrollTo().performClick()
         closeSetupEditor()
         waitForText("Ratio: Gen Zone")
+        waitForText("Gen Zone stays the same all game")
         waitForText("Majority pull rule not active")
 
         // Timeout rules should accept a floater timeout configuration.

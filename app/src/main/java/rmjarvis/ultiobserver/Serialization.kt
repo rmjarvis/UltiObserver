@@ -132,8 +132,6 @@ internal data class GameStatePatch(
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val firstHalfGenZone: FieldEnd? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
-    val switchGenZoneAtHalftime: Boolean? = null,
-    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val openingPullingTeam: TeamId? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val openingPullingFromEnd: FieldEnd? = null,
@@ -199,7 +197,6 @@ internal data class GameStatePatch(
             pullPromptTarget = pullPromptTarget ?: later.pullPromptTarget,
             initialGenderRatio = initialGenderRatio ?: later.initialGenderRatio,
             firstHalfGenZone = firstHalfGenZone ?: later.firstHalfGenZone,
-            switchGenZoneAtHalftime = switchGenZoneAtHalftime ?: later.switchGenZoneAtHalftime,
             openingPullingTeam = openingPullingTeam ?: later.openingPullingTeam,
             openingPullingFromEnd = openingPullingFromEnd ?: later.openingPullingFromEnd,
             phase = phase ?: later.phase,
@@ -261,9 +258,6 @@ internal data class GameStatePatch(
                 pullPromptTarget = previous.pullPromptTarget.takeIfChangedFrom(later.pullPromptTarget),
                 initialGenderRatio = previous.initialGenderRatio.takeIfChangedFrom(later.initialGenderRatio),
                 firstHalfGenZone = previous.firstHalfGenZone.takeIfChangedFrom(later.firstHalfGenZone),
-                switchGenZoneAtHalftime = previous.switchGenZoneAtHalftime.takeIfChangedFrom(
-                    later.switchGenZoneAtHalftime,
-                ),
                 openingPullingTeam = previous.openingPullingTeam.takeIfChangedFrom(later.openingPullingTeam),
                 openingPullingFromEnd = previous.openingPullingFromEnd.takeIfChangedFrom(later.openingPullingFromEnd),
                 phase = previous.phase.takeIfChangedFrom(later.phase),

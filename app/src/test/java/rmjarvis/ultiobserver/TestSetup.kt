@@ -208,9 +208,6 @@ class TestSetup : GameDomainTestFixtures() {
                 it.copy(initialGenderRatio = GenderRatio.FOUR_WOMEN_THREE_MEN)
             },
             "Gen Zone end" to { it.copy(firstHalfGenZone = it.firstHalfGenZone.flip()) },
-            "Gen Zone switch" to {
-                it.copy(switchGenZoneAtHalftime = !it.switchGenZoneAtHalftime)
-            },
             "opening pulling team" to {
                 it.copy(openingPullingTeam = it.openingPullingTeam.flip())
             },

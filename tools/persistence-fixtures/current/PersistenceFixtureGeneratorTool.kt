@@ -110,6 +110,7 @@ private fun baseSetup(): GameState {
             timeoutsPerHalf = 2,
             hasFloaterTimeout = true,
             genderRatioRule = GenderRatioRule.GEN_ZONE,
+            switchGenZoneAtHalftime = false,
             useMajorityPullRule = true,
         ),
         teamOne = TeamState(
@@ -142,7 +143,6 @@ private fun baseSetup(): GameState {
         pullPromptTarget = PullPromptTarget.BOTH,
         initialGenderRatio = GenderRatio.FOUR_WOMEN_THREE_MEN,
         firstHalfGenZone = FieldEnd.NEAR,
-        switchGenZoneAtHalftime = false,
     )
 }
 
@@ -201,7 +201,6 @@ private fun nonDefaultSetup(): GameState {
         pullPromptTarget = PullPromptTarget.FAR,
         initialGenderRatio = GenderRatio.FOUR_MEN_THREE_WOMEN,
         firstHalfGenZone = FieldEnd.FAR,
-        switchGenZoneAtHalftime = true,
     )
 }
 

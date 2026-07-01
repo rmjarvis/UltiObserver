@@ -1271,9 +1271,8 @@ private fun FieldStartingPullSummary(state: GameState) {
             when (state.rules.genderRatioRule) {
                 GenderRatioRule.ABBA -> SetupSummaryValue("First point ratio: ${state.initialGenderRatio.displayText}")
                 GenderRatioRule.GEN_ZONE -> {
-                    if (state.switchGenZoneAtHalftime) {
+                    if (state.rules.switchGenZoneAtHalftime) {
                         SetupSummaryValue("First-half Gen Zone: ${state.fieldEndName(state.firstHalfGenZone)}")
-                        SetupSummaryValue("Gen Zone switches in second half")
                     } else {
                         SetupSummaryValue("Gen Zone: ${state.fieldEndName(state.firstHalfGenZone)}")
                     }
@@ -1302,6 +1301,15 @@ private fun GameRulesSummary(state: GameState) {
         SetupSummaryValue("TO: ${rules.formatTimeoutRules()}")
         if (state.usesMixedDivision()) {
             SetupSummaryValue("Ratio: ${rules.genderRatioRule.displayText}")
+            if (rules.genderRatioRule == GenderRatioRule.GEN_ZONE) {
+                SetupSummaryValue(
+                    if (rules.switchGenZoneAtHalftime) {
+                        "Gen Zone switches at halftime"
+                    } else {
+                        "Gen Zone stays the same all game"
+                    }
+                )
+            }
             SetupSummaryValue(
                 if (rules.useMajorityPullRule) {
                     "Majority pull rule active"
@@ -1375,7 +1383,6 @@ private fun StartingPullSetupDialog(
     var pullPromptTarget by remember { mutableStateOf(state.pullPromptTarget) }
     var initialGenderRatio by remember { mutableStateOf(state.initialGenderRatio) }
     var firstHalfGenZone by remember { mutableStateOf(state.firstHalfGenZone) }
-    var switchGenZoneAtHalftime by remember { mutableStateOf(state.switchGenZoneAtHalftime) }
     val dialogBodyMaxHeight = keyboardDialogBodyMaxHeight()
 
     fun commitNearEndLabel() {
@@ -1404,7 +1411,6 @@ private fun StartingPullSetupDialog(
                 pullPromptTarget = pullPromptTarget,
                 initialGenderRatio = initialGenderRatio,
                 firstHalfGenZone = firstHalfGenZone,
-                switchGenZoneAtHalftime = switchGenZoneAtHalftime,
             )
         )
         onDismiss()
@@ -1470,8 +1476,13 @@ private fun StartingPullSetupDialog(
                             )
                         }
                         GenderRatioRule.GEN_ZONE -> {
+                            val genZonePrompt = if (state.rules.switchGenZoneAtHalftime) {
+                                "Which end is the \"gen zone\" in the first half?"
+                            } else {
+                                "Which end is the \"gen zone\"?"
+                            }
                             Text(
-                                "Which end is the \"gen zone\" in the first half?",
+                                genZonePrompt,
                                 fontWeight = FontWeight.SemiBold,
                             )
                             Text("The team in this end zone decided the gender ratio for each point.")
@@ -1482,18 +1493,6 @@ private fun StartingPullSetupDialog(
                                 onSelected = { firstHalfGenZone = it },
                                 testTagPrefix = "setup-first-half-gen-zone",
                             )
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                            ) {
-                                Text("Switch end in the second half?", fontWeight = FontWeight.SemiBold)
-                                Checkbox(
-                                    checked = switchGenZoneAtHalftime,
-                                    onCheckedChange = { switchGenZoneAtHalftime = it },
-                                    modifier = Modifier.testTag("setup-switch-gen-zone-at-halftime"),
-                                )
-                            }
                         }
                         GenderRatioRule.OFFENSE_DECIDES,
                         GenderRatioRule.NA,
@@ -1585,6 +1584,22 @@ private fun GameRulesSetupDialog(
                         selected = rules.genderRatioRule,
                         onSelected = { onRulesChange(rules.copy(genderRatioRule = it)) },
                     )
+                    if (rules.genderRatioRule == GenderRatioRule.GEN_ZONE) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text("Switch Gen Zone at halftime")
+                            Checkbox(
+                                checked = rules.switchGenZoneAtHalftime,
+                                onCheckedChange = {
+                                    onRulesChange(rules.copy(switchGenZoneAtHalftime = it))
+                                },
+                                modifier = Modifier.testTag("setup-switch-gen-zone-at-halftime"),
+                            )
+                        }
+                    }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,

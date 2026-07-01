@@ -65,7 +65,6 @@ internal fun newSetupGameState(
         pullPromptTarget = PullPromptTarget.NEAR,
         initialGenderRatio = GenderRatio.FOUR_MEN_THREE_WOMEN,
         firstHalfGenZone = FieldEnd.FAR,
-        switchGenZoneAtHalftime = true,
         openingPullingTeam = TeamId.TEAM_ONE,
         openingPullingFromEnd = FieldEnd.FAR,
         phase = GamePhase.SETUP,
