@@ -468,6 +468,7 @@ enum class CountdownKind {
  * @param level Optional competition level for the game.
  * @param gameContext Optional game-stage or round context, such as pool play or semifinals.
  * @param observers Optional list of observers assigned to the game.
+ * @param fieldName Optional field name or number where the game is scheduled.
  * @param nearEndName Optional custom label for the near field end.
  * @param farEndName Optional custom label for the far field end.
  * @param pullingTeam The team currently pulling.
@@ -498,6 +499,7 @@ data class GameState(
     val level: String = "",
     val gameContext: String = "",
     val observers: String = "",
+    val fieldName: String = "",
     val nearEndName: String = "",
     val farEndName: String = "",
     val rules: GameRules,
@@ -777,6 +779,7 @@ private fun GameState.hasSameSetupFieldsAs(other: GameState): Boolean {
         level == other.level &&
         gameContext == other.gameContext &&
         observers == other.observers &&
+        fieldName == other.fieldName &&
         nearEndName == other.nearEndName &&
         farEndName == other.farEndName &&
         rules == other.rules &&

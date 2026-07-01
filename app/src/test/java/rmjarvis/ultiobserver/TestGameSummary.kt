@@ -25,6 +25,7 @@ class TestGameSummary : GameDomainTestFixtures() {
             level = "Masters",
             gameContext = "Semifinal",
             observers = "Mike and Gary",
+            fieldName = "Field 7",
             endEpoch = timestampAt(baseState, LocalTime.of(12, 42)),
             phase = GamePhase.GAME_OVER,
             teamOne = TeamState("Viscous Coupling", TeamColorChoice.WHITE, score = 12),
@@ -37,6 +38,7 @@ class TestGameSummary : GameDomainTestFixtures() {
                 "Philly Open Mixed Division Masters Semifinal",
                 "Observers: Mike and Gary",
                 "Start May 19, 2026 10:00 AM",
+                "Field: Field 7",
                 "End time 12:42 PM",
                 "Animal 15",
                 "Viscous Coupling 12",
@@ -182,6 +184,7 @@ class TestGameSummary : GameDomainTestFixtures() {
             level = "Masters",
             gameContext = "Final",
             observers = "Mike and Gary",
+            fieldName = "Field 7",
             phase = GamePhase.GAME_OVER,
             teamOne = TeamState("Viscous Coupling", TeamColorChoice.WHITE, score = 12),
             teamTwo = TeamState(
@@ -229,6 +232,7 @@ class TestGameSummary : GameDomainTestFixtures() {
             Philly Open Open Division Masters Final
             Observers: Mike and Gary
             May 19, 2026, 10:00 AM
+            Field: Field 7
             Animal 15, Viscous Coupling 12
             Misconduct:
               Animal:
@@ -306,6 +310,7 @@ private fun GameOverSummaryText.testDisplayLines(): List<String> {
         gameInformationLine?.let { add(it) }
         observersLine?.let { add(it) }
         add(startLine)
+        fieldLine?.let { add(it) }
         endLine?.let { add(it) }
         addAll(scoreLines)
     }

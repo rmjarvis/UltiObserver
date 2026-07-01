@@ -859,6 +859,7 @@ private fun GameInformationSetupDialog(
     var customLevelVisible by remember { mutableStateOf(state.level.isCustomSetupLevel()) }
     var gameContext by remember { mutableStateOf(state.gameContext) }
     var observers by remember { mutableStateOf(state.observers) }
+    var fieldName by remember { mutableStateOf(state.fieldName) }
     var showStartDateDialog by remember { mutableStateOf(false) }
     var showStartTimeDialog by remember { mutableStateOf(false) }
     val dialogBodyMaxHeight = keyboardDialogBodyMaxHeight()
@@ -873,6 +874,7 @@ private fun GameInformationSetupDialog(
                 level = level,
                 gameContext = gameContext,
                 observers = observers,
+                fieldName = fieldName,
             )
         )
         onDismiss()
@@ -920,6 +922,13 @@ private fun GameInformationSetupDialog(
                     promptText = "Observer names",
                     capitalization = KeyboardCapitalization.Sentences,
                     tag = "setup-observers",
+                )
+                TextEntry(
+                    value = fieldName,
+                    onValueChange = { fieldName = it },
+                    labelText = "Field name/number",
+                    capitalization = KeyboardCapitalization.Words,
+                    tag = "setup-field-name",
                 )
                 TextEntry(
                     value = tournamentName,

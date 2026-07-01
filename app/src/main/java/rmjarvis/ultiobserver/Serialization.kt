@@ -102,6 +102,8 @@ internal data class GameStatePatch(
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val observers: String? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val fieldName: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val nearEndName: String? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val farEndName: String? = null,
@@ -182,6 +184,7 @@ internal data class GameStatePatch(
             level = level ?: later.level,
             gameContext = gameContext ?: later.gameContext,
             observers = observers ?: later.observers,
+            fieldName = fieldName ?: later.fieldName,
             nearEndName = nearEndName ?: later.nearEndName,
             farEndName = farEndName ?: later.farEndName,
             rules = rules ?: later.rules,
@@ -237,6 +240,7 @@ internal data class GameStatePatch(
                 level = previous.level.takeIfChangedFrom(later.level),
                 gameContext = previous.gameContext.takeIfChangedFrom(later.gameContext),
                 observers = previous.observers.takeIfChangedFrom(later.observers),
+                fieldName = previous.fieldName.takeIfChangedFrom(later.fieldName),
                 nearEndName = previous.nearEndName.takeIfChangedFrom(later.nearEndName),
                 farEndName = previous.farEndName.takeIfChangedFrom(later.farEndName),
                 rules = previous.rules.takeIfChangedFrom(later.rules),

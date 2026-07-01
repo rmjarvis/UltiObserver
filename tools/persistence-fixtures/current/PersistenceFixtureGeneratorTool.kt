@@ -22,7 +22,7 @@ fun main(args: Array<String>) {
 
 private fun writeDefaultBuckets(dir: File) {
     val store = freshStore(dir)
-    store.saveCurrentGameState(null)
+    store.saveCurrentGame(null)
     store.saveProfile(Profile())
     store.saveSettings(Settings())
     store.saveArchivedGames(emptyList())
@@ -30,7 +30,7 @@ private fun writeDefaultBuckets(dir: File) {
 
 private fun writeSetupDraft(dir: File) {
     val store = freshStore(dir)
-    store.saveCurrentGameState(nonDefaultSetup())
+    store.saveCurrentGame(nonDefaultSetup())
     store.saveProfile(fixtureProfile())
     store.saveSettings(fixtureSettings())
     store.saveArchivedGames(emptyList())
@@ -41,7 +41,7 @@ private fun writeActiveGame(dir: File) {
     val setup = nonDefaultSetup().copy(division = GameDivision.MIXED)
     val game = activeGameWithEvents(setup)
 
-    store.saveCurrentGameState(game)
+    store.saveCurrentGame(game)
     store.saveProfile(fixtureProfile())
     store.saveSettings(fixtureSettings())
     store.saveArchivedGames(
@@ -60,7 +60,7 @@ private fun writeCompletedArchive(dir: File) {
     val richGame = activeGameWithEvents(richSetup)
         .endGameNow(setupEpoch(richSetup) + 180_000L)
 
-    store.saveCurrentGameState(null)
+    store.saveCurrentGame(null)
     store.saveProfile(fixtureProfile())
     store.saveSettings(fixtureSettings())
     store.saveArchivedGames(
@@ -99,6 +99,7 @@ private fun baseSetup(): GameState {
         level = "Club",
         gameContext = "Semifinal",
         observers = "Casey / Morgan",
+        fieldName = "Field 3",
         nearEndName = "Pavilion",
         farEndName = "Oak",
         rules = GameRules(
@@ -154,6 +155,7 @@ private fun nonDefaultSetup(): GameState {
         level = "College",
         gameContext = "Pool play",
         observers = "Mike Jarvis",
+        fieldName = "Field 7",
         nearEndName = "Tent",
         farEndName = "Scoreboard",
         rules = GameRules(
@@ -233,14 +235,18 @@ private fun activeGameWithEvents(setup: GameState): GameState {
         teamOneOffsides = 1,
         teamOneFalseStarts = 1,
         teamOneMajorityPulls = 1,
+        teamOneTimeViolations = 0,
         teamTwoOffsides = 1,
         teamTwoFalseStarts = 1,
         teamTwoMajorityPulls = 0,
+        teamTwoTimeViolations = 1,
         now = start + 140_000L,
     )
     game = game.adjustTimeouts(
         teamOneTimeoutsUsed = 1,
         teamTwoTimeoutsUsed = 1,
+        teamOneFirstHalfTimeoutsUsed = 1,
+        teamTwoFirstHalfTimeoutsUsed = 0,
         now = start + 150_000L,
     )
     game = game.adjustCardsAndTf(

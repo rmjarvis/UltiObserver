@@ -7,6 +7,7 @@ package rmjarvis.ultiobserver
  * @param gameInformationLine Optional tournament, division, level, and round/context line.
  * @param observersLine Optional line listing observers assigned to the game.
  * @param startLine Formatted scheduled start date and time.
+ * @param fieldLine Optional line showing the field name or number.
  * @param endLine Formatted game end time, or null for an in-progress saved game.
  * @param scoreLines Winner-first team score lines.
  */
@@ -15,6 +16,7 @@ internal class GameOverSummaryText(
     val gameInformationLine: String?,
     val observersLine: String?,
     val startLine: String,
+    val fieldLine: String?,
     val endLine: String?,
     val scoreLines: List<String>,
 )
@@ -57,6 +59,7 @@ internal fun GameState.gameOverSummaryText(): GameOverSummaryText {
         gameInformationLine = gameInformationSummaryLine(),
         observersLine = observersSummaryLine(),
         startLine = "Start ${formatStartDate(startDate)} ${formatClockTime(startTime)}",
+        fieldLine = fieldSummaryLine(),
         endLine = endTime?.let { "End time ${formatClockTime(it)}" },
         scoreLines = winnerFirstTeams().map { team -> "${team.name} ${team.score}" },
     )
@@ -98,6 +101,7 @@ internal fun GameState.gameSummaryShareText(): String {
         gameInformationSummaryLine()?.let { add(it) }
         observersSummaryLine()?.let { add(it) }
         add("${formatStartDate(startDate)}, ${formatClockTime(startTime)}")
+        fieldSummaryLine()?.let { add(it) }
         add(orderedTeams.joinToString(", ") { team -> "${team.name} ${team.score}" })
         if (misconductLines.isEmpty()) {
             add("No misconduct assessments")
@@ -121,6 +125,11 @@ private fun GameState.gameInformationSummaryLine(): String? {
 /// Return optional observer-assignment text for completed-game summaries.
 private fun GameState.observersSummaryLine(): String? {
     return observers.trim().takeIf { it.isNotEmpty() }?.let { "Observers: $it" }
+}
+
+/// Return optional field-assignment text for completed-game summaries.
+private fun GameState.fieldSummaryLine(): String? {
+    return fieldName.trim().takeIf { it.isNotEmpty() }?.let { "Field: $it" }
 }
 
 /// Return compact per-team misconduct lines for the share summary.

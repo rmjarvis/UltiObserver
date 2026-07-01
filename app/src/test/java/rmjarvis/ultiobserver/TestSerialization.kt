@@ -107,6 +107,7 @@ class TestSerialization : GameDomainTestFixtures() {
         assertEquals(previous.level, patch.level)
         assertEquals(previous.gameContext, patch.gameContext)
         assertEquals(previous.observers, patch.observers)
+        assertEquals(previous.fieldName, patch.fieldName)
         assertEquals(previous.nearEndName, patch.nearEndName)
         assertEquals(previous.farEndName, patch.farEndName)
         assertEquals(previous.rules, patch.rules)
@@ -187,6 +188,7 @@ class TestSerialization : GameDomainTestFixtures() {
         assertFalse(json.contains("\"previousSize\": null"))
         assertFalse(json.contains("\"gameContext\": null"))
         assertFalse(json.contains("\"observers\": null"))
+        assertFalse(json.contains("\"fieldName\": null"))
     }
 
     /**
@@ -226,6 +228,7 @@ class TestSerialization : GameDomainTestFixtures() {
             level = "Club",
             gameContext = "Later semifinal",
             observers = "Later observer",
+            fieldName = "Later field",
             nearEndName = "Later near",
             farEndName = "Later far",
             teamOne = TeamState(
@@ -329,6 +332,7 @@ class TestSerialization : GameDomainTestFixtures() {
             level = "Masters",
             gameContext = "Previous pool game",
             observers = "Previous observer",
+            fieldName = "Previous field",
             nearEndName = "Previous near",
             farEndName = "Previous far",
             teamOne = TeamState(

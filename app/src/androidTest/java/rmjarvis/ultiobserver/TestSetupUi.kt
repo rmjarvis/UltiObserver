@@ -159,7 +159,9 @@ class TestSetupUi : MainActivityUiTestFixtures() {
 
         // Mixed setup makes gender-ratio choices visible in the starting-pull editor.
         openGameInformationSetupEditor()
-        composeRule.onNodeWithTag("setup-game-division-${GameDivision.MIXED.name}").performClick()
+        composeRule.onNodeWithTag("setup-game-division-${GameDivision.MIXED.name}")
+            .performScrollTo()
+            .performClick()
         closeSetupEditor()
 
         // Starting-pull setup accepts custom end names, either team, either field end, prompts,
@@ -372,7 +374,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         // Optional game-information fields initially show placeholder values in the editor.
         openGameInformationSetupEditor()
         composeRule.onAllNodesWithText("N/A").assertCountEquals(2)
-        composeRule.onNodeWithText("Level").assertIsDisplayed()
+        composeRule.onNodeWithText("Level").performScrollTo().assertIsDisplayed()
         closeSetupEditor()
 
         // Optional tournament, division, level, context, and observer fields should persist.
@@ -419,6 +421,8 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("setup-game-context").performImeAction()
         composeRule.onNodeWithTag("setup-observers").performTextReplacement("Mike and Gary")
         composeRule.onNodeWithTag("setup-observers").performImeAction()
+        composeRule.onNodeWithTag("setup-field-name").performTextReplacement("Field 7")
+        composeRule.onNodeWithTag("setup-field-name").performImeAction()
         closeSetupEditor()
 
         // The setup screen should show the populated game-information summary.
@@ -427,6 +431,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         waitForText("Community showcase")
         waitForText("Semifinals")
         waitForText("Observers: Mike and Gary")
+        waitForText("Field: Field 7")
 
         // Cancel is the explicit discard path for this editor.
         openGameInformationSetupEditor()

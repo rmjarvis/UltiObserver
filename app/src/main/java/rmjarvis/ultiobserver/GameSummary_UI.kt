@@ -190,6 +190,12 @@ internal fun GameOverSummary(
                         text = summaryText.startLine,
                         style = MaterialTheme.typography.bodyMedium,
                     )
+                    summaryText.fieldLine?.let { fieldLine ->
+                        Text(
+                            text = fieldLine,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
                     summaryText.endLine?.let { endLine ->
                         Text(
                             text = endLine,

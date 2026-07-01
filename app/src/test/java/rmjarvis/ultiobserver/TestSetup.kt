@@ -486,6 +486,7 @@ class TestSetup : GameDomainTestFixtures() {
             level = " Club ",
             gameContext = " Final ",
             observers = " Mike and Gary ",
+            fieldName = " Field 7 ",
         )
 
         // Game-information summary lines trim optional text and omit blank fields.
@@ -498,6 +499,7 @@ class TestSetup : GameDomainTestFixtures() {
                 "Observers: Mike and Gary",
                 "Jan 1, 2026",
                 "Start at 10:00 AM",
+                "Field: Field 7",
             ),
             setup.gameInformationSummaryLines(),
         )
@@ -509,6 +511,7 @@ class TestSetup : GameDomainTestFixtures() {
                 level = "",
                 gameContext = " ",
                 observers = "",
+                fieldName = " ",
             ).gameInformationSummaryLines(),
         )
 

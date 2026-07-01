@@ -54,6 +54,7 @@ internal fun newSetupGameState(
         level = defaultsFrom?.level ?: "",
         gameContext = defaultsFrom?.gameContext ?: "",
         observers = defaultsFrom?.observers ?: "",
+        fieldName = defaultsFrom?.fieldName ?: "",
         rules = defaultsFrom?.rules ?: GameRules(),
         teamOne = TeamState(name = "", color = TeamColorChoice.WHITE),
         teamTwo = TeamState(name = "", color = TeamColorChoice.BLUE),
@@ -148,6 +149,7 @@ internal fun GameState.gameInformationSummaryLines(): List<String> {
         observers.trim().takeIf { it.isNotEmpty() }?.let { "Observers: $it" },
         formatStartDate(startDate),
         "Start at ${formatClockTime(startTime)}",
+        fieldName.trim().takeIf { it.isNotEmpty() }?.let { "Field: $it" },
     )
 }
 
