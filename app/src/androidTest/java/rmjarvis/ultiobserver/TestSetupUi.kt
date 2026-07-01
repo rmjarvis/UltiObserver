@@ -508,8 +508,14 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("#67 Sideline Caller").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("No prior cards").assertIsDisplayed()
 
-        // Removing the zero-prior player should empty the prior-card editor.
+        // Removing the zero-prior player asks for confirmation and can be canceled.
         composeRule.onNodeWithTag("setup-prior-card-remove-0").performScrollTo().performClick()
+        waitForText("Remove card holder?")
+        dismissDialog(text = "Cancel")
+        composeRule.onNodeWithText("#67 Sideline Caller").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("setup-prior-card-remove-0").performScrollTo().performClick()
+        waitForText("Remove card holder?")
+        composeRule.onNodeWithText("Remove").performClick()
         waitForText("No card holders added yet")
     }
 
@@ -627,6 +633,8 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         openPriorCardsSetupEditor()
         composeRule.onNodeWithText("#88 Numbered Player").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithTag("setup-prior-card-remove-0").performScrollTo().performClick()
+        waitForText("Remove card holder?")
+        composeRule.onNodeWithText("Remove").performClick()
         composeRule.onNodeWithText("A Very Long Player Name With No Number")
             .performScrollTo()
             .assertIsDisplayed()
@@ -681,6 +689,8 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         openPriorCardsSetupEditor(TeamId.TEAM_ONE)
         composeRule.onNodeWithText("#9").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithTag("setup-prior-card-remove-0").performScrollTo().performClick()
+        waitForText("Remove card holder?")
+        composeRule.onNodeWithText("Remove").performClick()
 
         waitForText("Player not deleted")
         waitForText("#9 has an in-game card and cannot be deleted.")

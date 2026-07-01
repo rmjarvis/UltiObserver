@@ -132,6 +132,19 @@ private data class TeamDialog(
 )
 
 /**
+ * Prior-card row waiting for delete confirmation.
+ *
+ * @param teamId The team whose prior-card row may be removed.
+ * @param recordIndex Original setup prior-card index for the row.
+ * @param record Prior-card record shown in the confirmation text.
+ */
+private data class PendingPriorCardRemoval(
+    val teamId: TeamId,
+    val recordIndex: Int,
+    val record: PlayerRecord,
+)
+
+/**
  * Notice shown when a new card-holder entry matches an existing row.
  *
  * @param teamId The team whose existing card holder matched.
@@ -192,6 +205,7 @@ internal fun SetupScreen(
     var teamDialog by remember { mutableStateOf<TeamDialog?>(null) }
     var existingPriorCardNotice by remember { mutableStateOf<ExistingPriorCardNotice?>(null) }
     var possiblePlayerMatchConfirmation by remember { mutableStateOf<PossiblePlayerMatchConfirmation?>(null) }
+    var pendingPriorCardRemoval by remember { mutableStateOf<PendingPriorCardRemoval?>(null) }
     var playerDeleteRejectedMessage by remember { mutableStateOf<String?>(null) }
     val scrollState = rememberScrollState()
 
@@ -527,7 +541,11 @@ internal fun SetupScreen(
                         teamDialog = TeamDialog(target.teamId, TeamSetupDialog.EDIT_PRIOR_CARD, index)
                     },
                     onRemovePlayer = { index ->
-                        removePriorCardRecord(target.teamId, index)
+                        pendingPriorCardRemoval = PendingPriorCardRemoval(
+                            teamId = target.teamId,
+                            recordIndex = index,
+                            record = state.playersFor(target.teamId)[index],
+                        )
                     },
                     onDismiss = { teamDialog = null },
                 )
@@ -642,6 +660,32 @@ internal fun SetupScreen(
             text = { Text(message) },
             confirmButton = {
                 TextActionButton(label = "OK", onClick = ::dismissPlayerDeleteRejectedMessage)
+            },
+        )
+    }
+
+    pendingPriorCardRemoval?.let { pending ->
+        fun dismissPriorCardRemoval() {
+            pendingPriorCardRemoval = null
+        }
+
+        AlertDialog(
+            onDismissRequest = ::dismissPriorCardRemoval,
+            title = { Text("Remove card holder?") },
+            text = {
+                Text("Remove prior cards for ${pending.record.playerIdentity(compact = false)}?")
+            },
+            confirmButton = {
+                TextActionButton(
+                    label = "Remove",
+                    onClick = {
+                        removePriorCardRecord(pending.teamId, pending.recordIndex)
+                        dismissPriorCardRemoval()
+                    },
+                )
+            },
+            dismissButton = {
+                TextActionButton(label = "Cancel", onClick = ::dismissPriorCardRemoval)
             },
         )
     }

@@ -1436,10 +1436,15 @@ private fun RemoveEditablePlayerCardDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
 ) {
+    val playerIdentity = PlayerIdentity(card.jerseyNumber, card.playerName)
+        .displayText(compact = false)
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Remove card?") },
-        text = { Text("Remove this ${card.cardType.label.lowercase()} card from ${PlayerIdentity(card.jerseyNumber, card.playerName).displayText(compact = false)}?") },
+        text = {
+            Text("Remove this ${card.cardType.label.lowercase()} card assessed to $playerIdentity?")
+        },
         confirmButton = {
             TextActionButton(label = "Remove", onClick = onConfirm)
         },
