@@ -185,7 +185,7 @@ internal class AndroidTimingAlertSoundPlayer : TimingAlertSoundPlayer {
         .setMaxStreams(1)
         .setAudioAttributes(
             AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
+                .setUsage(AudioAttributes.USAGE_MEDIA)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                 .build()
         )
@@ -267,7 +267,7 @@ private val timingAlertRawResources = mapOf(
         R.raw.timing_ding_x2,
         R.raw.timing_ding_x3,
     ),
-    // Public-domain excerpts from Wikimedia Commons: Knocking_on_wood_or_door.ogg.
+    // Pixabay Content License excerpt from freesound_community/ripper351: wood door knock.
     TimingAlertSound.KNOCK to listOf(
         R.raw.timing_knock,
         R.raw.timing_knock_x2,
