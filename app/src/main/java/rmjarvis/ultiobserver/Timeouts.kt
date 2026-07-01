@@ -263,7 +263,6 @@ private fun applyBetweenPointsTimeout(
             durationSeconds = countdown.durationSeconds + 70,
             targetEpoch = countdown.targetEpoch + 70_000L,
         ),
-        pullCountdownExpired = false,
     )
 }
 /**

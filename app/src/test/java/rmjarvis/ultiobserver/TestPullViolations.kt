@@ -748,14 +748,13 @@ class TestPullViolations : GameDomainTestFixtures() {
         // pull reset.
         var state = standardLiveGameState()
         val firstViolationMoment = state.countdown!!.targetEpoch
-        assertFalse(state.hasExpiredPullActions())
+        assertFalse(state.hasExpiredPullActions(firstViolationMoment - 1L))
         assertTrue(state.canAssessTimeViolation())
-        assertEquals(state, state.restartPullCountdown(firstViolationMoment))
+        assertEquals(state, state.restartPullCountdown(firstViolationMoment - 1L))
         assertFalse(
             state.copy(
                 phase = GamePhase.LIVE_POINT,
-                pullCountdownExpired = true,
-            ).hasExpiredPullActions()
+            ).hasExpiredPullActions(firstViolationMoment)
         )
 
         // If the game phase is not between points, then a time violation is not possible.
@@ -1183,8 +1182,14 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertEquals(CountdownKind.OPENING_PULL, timeViolationState.countdown?.kind)
         assertEquals("Signal in", timeViolationState.countdown?.label)
         assertEquals(20, timeViolationState.countdown?.durationSeconds)
-        assertFalse(timeViolationState.hasExpiredPullActions())
+        assertFalse(timeViolationState.hasExpiredPullActions(state.countdown!!.targetEpoch))
         assertEquals("Undo Restart countdown", timeViolationState.undoEntry?.label)
+
+        // An active pull countdown that reaches its target is also treated as expired for
+        // restart purposes; the UI should not leave it sitting at 0:00.
+        val activeExpiredRestart = state.restartPullCountdown(state.countdown!!.targetEpoch)
+        assertEquals(CountdownKind.OPENING_PULL, activeExpiredRestart.countdown?.kind)
+        assertEquals("Undo Restart countdown", activeExpiredRestart.undoEntry?.label)
 
         // Restarting an expired countdown after a scored point uses the normal between-points
         // timing rather than the shorter opening-pull timing.

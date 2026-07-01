@@ -436,7 +436,6 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
                         durationSeconds = 100,
                         targetEpoch = targetEpoch,
                     ),
-                    pullCountdownExpired = false,
                 )
             )
         }
@@ -461,7 +460,6 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
                         durationSeconds = 70,
                         targetEpoch = System.currentTimeMillis() + 70_000L,
                     ),
-                    pullCountdownExpired = false,
                 )
             )
         }
@@ -728,7 +726,6 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
                 current.copy(
                     phase = GamePhase.BETWEEN_POINTS,
                     countdown = null,
-                    pullCountdownExpired = true,
                 )
             )
         }
@@ -772,7 +769,6 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
                         durationSeconds = 70,
                         targetEpoch = dueEpoch + 20_000L,
                     ),
-                    pullCountdownExpired = false,
                 )
             )
         }

@@ -84,7 +84,7 @@ class TestMigration : GameDomainTestFixtures() {
         assertNull(liveState.undoEntry)
         assertNull(liveState.redoEntry)
         assertNull(liveState.countdown)
-        assertTrue(liveState.pullCountdownExpired)
+        assertTrue(liveState.hasExpiredPullActions(liveState.startEpoch))
         assertEquals(1, activeGame.archivedGames.size)
         assertEquals(TeamId.TEAM_ONE, liveState.teamDefendingEnd(FieldEnd.FAR))
         assertEquals(TeamId.TEAM_TWO, liveState.pullingTeam)
@@ -167,7 +167,7 @@ class TestMigration : GameDomainTestFixtures() {
         assertEquals(GamePhase.PRE_GAME, setupSavedLiveState.phase)
         assertNull(setupSavedLiveState.undoEntry)
         assertNull(setupSavedLiveState.countdown)
-        assertTrue(setupSavedLiveState.pullCountdownExpired)
+        assertTrue(setupSavedLiveState.hasExpiredPullActions(setupSavedLiveState.startEpoch))
         assertEquals(1, setupSaved.archivedGames.size)
         val setupSavedArchive = setupSaved.archivedGames.single()
         assertEquals(ArchivedGameCategory.IN_PROGRESS, setupSavedArchive.category)
@@ -175,7 +175,7 @@ class TestMigration : GameDomainTestFixtures() {
         assertEquals("Simple One", setupSavedArchive.state.teamOne.name)
         assertEquals("Simple Two", setupSavedArchive.state.teamTwo.name)
         assertNull(setupSavedArchive.state.countdown)
-        assertTrue(setupSavedArchive.state.pullCountdownExpired)
+        assertTrue(setupSavedArchive.state.hasExpiredPullActions(setupSavedArchive.state.startEpoch))
         assertTrue(setupSavedArchive.state.teamOnePlayers.isEmpty())
         assertTrue(setupSavedArchive.state.teamTwoPlayers.isEmpty())
         assertTrue(setupSavedArchive.state.eventLog.isEmpty())
@@ -253,7 +253,7 @@ class TestMigration : GameDomainTestFixtures() {
         val timeoutCountdownLiveState = timeoutCountdown.liveState!!
         assertEquals(GamePhase.LIVE_POINT, timeoutCountdownLiveState.phase)
         assertNull(timeoutCountdownLiveState.countdown)
-        assertFalse(timeoutCountdownLiveState.pullCountdownExpired)
+        assertFalse(timeoutCountdownLiveState.hasExpiredPullActions(timeoutCountdownLiveState.startEpoch))
         assertEquals(1, timeoutCountdownLiveState.teamOne.timeoutsUsedThisHalf)
         assertEquals(
             listOf(

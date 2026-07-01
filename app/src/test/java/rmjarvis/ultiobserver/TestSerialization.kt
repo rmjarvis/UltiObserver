@@ -126,7 +126,6 @@ class TestSerialization : GameDomainTestFixtures() {
         assertEquals(previous.openingPullingFromEnd, patch.openingPullingFromEnd)
         assertEquals(previous.phase, patch.phase)
         assertEquals(previous.countdown, patch.countdown!!.value)
-        assertEquals(previous.pullCountdownExpired, patch.pullCountdownExpired)
         assertEquals(previous.pullSequenceOffsidesRecorded, patch.pullSequenceOffsidesRecorded)
         assertEquals(previous.pullSequenceFalseStartRecorded, patch.pullSequenceFalseStartRecorded)
         assertEquals(previous.pullSkippedForCurrentPoint, patch.pullSkippedForCurrentPoint)
@@ -292,7 +291,6 @@ class TestSerialization : GameDomainTestFixtures() {
                 targetEpoch = 4_000L,
                 betweenPointsTarget = BetweenPointsCountdownTarget.PULL,
             ),
-            pullCountdownExpired = true,
             pullSequenceOffsidesRecorded = true,
             pullSequenceFalseStartRecorded = true,
             pullSkippedForCurrentPoint = true,
@@ -384,7 +382,6 @@ class TestSerialization : GameDomainTestFixtures() {
             openingPullingFromEnd = FieldEnd.FAR,
             phase = GamePhase.BETWEEN_POINTS,
             countdown = null,
-            pullCountdownExpired = false,
             pullSequenceOffsidesRecorded = false,
             pullSequenceFalseStartRecorded = false,
             pullSkippedForCurrentPoint = false,

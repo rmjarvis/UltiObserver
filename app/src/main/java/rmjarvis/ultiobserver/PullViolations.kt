@@ -286,7 +286,6 @@ fun GameState.recordOffsides(now: Long): GameState {
         },
         phase = GamePhase.LIVE_POINT,
         countdown = null,
-        pullCountdownExpired = false,
         pullSequenceOffsidesRecorded = true,
         lastEvent = "Offsides on ${this.teamName(team)}.",
     ).withEventLogEntry(
@@ -321,7 +320,6 @@ fun GameState.recordMajorityPullViolation(now: Long): GameState {
         },
         phase = GamePhase.LIVE_POINT,
         countdown = null,
-        pullCountdownExpired = false,
         pullSequenceOffsidesRecorded = true,
         lastEvent = "Majority pull violation on ${this.teamName(team)}.",
     ).withEventLogEntry(
@@ -350,7 +348,6 @@ fun GameState.recordFalseStart(now: Long): GameState {
         } else {
             this.teamTwo
         },
-        pullCountdownExpired = false,
         pullSequenceFalseStartRecorded = true,
         lastEvent = "False start on ${this.teamName(team)}.",
     ).withEventLogEntry(

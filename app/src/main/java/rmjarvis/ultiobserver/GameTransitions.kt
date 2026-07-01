@@ -49,7 +49,6 @@ fun GameState.startPullSequence(
     return this.copy(
         phase = phase,
         countdown = countdown,
-        pullCountdownExpired = false,
         pullSequenceOffsidesRecorded = false,
         pullSequenceFalseStartRecorded = false,
         pullSkippedForCurrentPoint = false,
@@ -107,7 +106,6 @@ fun GameState.recordGoal(
                 sequenceStart = now,
                 promptTarget = this.pullPromptTarget,
             ),
-            pullCountdownExpired = false,
             pullSequenceOffsidesRecorded = false,
             pullSequenceFalseStartRecorded = false,
             pullSkippedForCurrentPoint = false,
@@ -126,7 +124,6 @@ fun GameState.recordGoal(
             endEpoch = now,
             phase = GamePhase.GAME_OVER,
             countdown = null,
-            pullCountdownExpired = false,
             winningScore = gameWinningScore,
             lastEvent = "Game over.",
         ).withEventLogEntry(
@@ -192,7 +189,6 @@ fun GameState.recordGoal(
         pullingFromEnd = nextPullingFromEnd,
         phase = GamePhase.BETWEEN_POINTS,
         countdown = countdown,
-        pullCountdownExpired = false,
         pullSequenceOffsidesRecorded = false,
         pullSequenceFalseStartRecorded = false,
         pullSkippedForCurrentPoint = false,
@@ -285,7 +281,6 @@ private fun startHalftime(
         pullingFromEnd = secondHalfPullingFromEnd,
         phase = GamePhase.HALFTIME,
         countdown = halftimeCountdown,
-        pullCountdownExpired = false,
         pullSequenceOffsidesRecorded = false,
         pullSequenceFalseStartRecorded = false,
         pullSkippedForCurrentPoint = false,
@@ -315,7 +310,6 @@ fun GameState.endGameNow(
         endEpoch = now,
         phase = GamePhase.GAME_OVER,
         countdown = null,
-        pullCountdownExpired = false,
         pendingMisconductCountdown = false,
         pendingCapOffer = null,
         lastEvent = "Game over.",
@@ -343,7 +337,6 @@ fun GameState.beginLivePoint(now: Long): GameState {
     return this.copy(
         phase = GamePhase.LIVE_POINT,
         countdown = null,
-        pullCountdownExpired = false,
         pullSequenceOffsidesRecorded = false,
         pullSequenceFalseStartRecorded = false,
         pullSkippedForCurrentPoint = false,
@@ -432,7 +425,6 @@ fun GameState.applyExpiredCountdownTransitions(
                     sequenceStart = countdown.targetEpoch,
                     promptTarget = this.pullPromptTarget,
                 ),
-                pullCountdownExpired = false,
                 pullSkippedForCurrentPoint = false,
                 pendingMisconductCountdown = false,
             )
@@ -473,7 +465,6 @@ private fun GameState.automaticLivePointState(now: Long): GameState {
     return copy(
         phase = GamePhase.LIVE_POINT,
         countdown = null,
-        pullCountdownExpired = false,
         pullSequenceOffsidesRecorded = false,
         pullSequenceFalseStartRecorded = false,
         pullSkippedForCurrentPoint = false,
@@ -486,7 +477,6 @@ private fun GameState.automaticContinueLivePointState(): GameState {
     return copy(
         phase = GamePhase.LIVE_POINT,
         countdown = null,
-        pullCountdownExpired = false,
         pendingMisconductCountdown = false,
         lastEvent = "Point continued.",
     )

@@ -636,7 +636,6 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertEquals("Undo Start point", automaticStartState.undoEntry?.label)
         val expiredPullDecisionState = state.copy(
             countdown = null,
-            pullCountdownExpired = true,
         )
         val undoneAutomaticStartState = assertUndoRestores(
             expiredPullDecisionState,
@@ -654,8 +653,8 @@ class TestGameTransitions : GameDomainTestFixtures() {
                 showDefenseCountdowns = false,
             ),
         )
-        assertTrue(undoneAutomaticStartState.hasExpiredPullActions())
-        assertFalse(state.hasExpiredPullActions())
+        assertTrue(undoneAutomaticStartState.hasExpiredPullActions(betweenPointsCountdown.targetEpoch))
+        assertFalse(state.hasExpiredPullActions(betweenPointsCountdown.targetEpoch - 1L))
 
         // Later between-points countdown expirations also start the point, but do not add another
         // first-pull event.

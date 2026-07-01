@@ -391,7 +391,6 @@ private object V1_0ToV1_1 {
                 teamTwoBuilder,
             )
         }
-        val hadCountdown = jsonObject.getValue("countdown") !is JsonNull
         val phase = appStateJson.decodeFromJsonElement<GamePhase>(jsonObject.getValue("phase"))
         val migratedPhase = migrateV1_0OpeningPullPhase(jsonObject, phase)
         return JsonObject(
@@ -406,9 +405,6 @@ private object V1_0ToV1_1 {
                 })
                 this["phase"] = JsonPrimitive(migratedPhase.name)
                 this["countdown"] = JsonNull
-                if (hadCountdown && phase.isBeforeLivePoint) {
-                    this["pullCountdownExpired"] = JsonPrimitive(true)
-                }
                 this["undoEntry"] = migrateV1_0GameStateEndGameUndoEntry(
                     jsonObject.getValue("undoEntry"),
                     preserveEndGameUndo,

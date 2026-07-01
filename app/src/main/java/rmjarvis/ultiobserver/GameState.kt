@@ -518,7 +518,6 @@ data class GameState(
     val openingPullingFromEnd: FieldEnd,
     val phase: GamePhase,
     val countdown: CountdownState?,
-    val pullCountdownExpired: Boolean = false,
     val pullSequenceOffsidesRecorded: Boolean = false,
     val pullSequenceFalseStartRecorded: Boolean = false,
     val pullSkippedForCurrentPoint: Boolean = false,

@@ -758,7 +758,6 @@ internal class AppViewModel(
                     teamTwo = current.teamTwo.withBlankDefaultSetupName(TeamId.TEAM_TWO),
                     phase = GamePhase.SETUP,
                     countdown = null,
-                    pullCountdownExpired = false,
                     undoEntry = null,
                     redoEntry = null,
                 ),

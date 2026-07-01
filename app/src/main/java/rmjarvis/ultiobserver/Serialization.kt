@@ -140,8 +140,6 @@ internal data class GameStatePatch(
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val countdown: NullablePatchValue<CountdownState>? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
-    val pullCountdownExpired: Boolean? = null,
-    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val pullSequenceOffsidesRecorded: Boolean? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val pullSequenceFalseStartRecorded: Boolean? = null,
@@ -201,7 +199,6 @@ internal data class GameStatePatch(
             openingPullingFromEnd = openingPullingFromEnd ?: later.openingPullingFromEnd,
             phase = phase ?: later.phase,
             countdown = if (countdown != null) countdown.value else later.countdown,
-            pullCountdownExpired = pullCountdownExpired ?: later.pullCountdownExpired,
             pullSequenceOffsidesRecorded = pullSequenceOffsidesRecorded ?: later.pullSequenceOffsidesRecorded,
             pullSequenceFalseStartRecorded = pullSequenceFalseStartRecorded ?: later.pullSequenceFalseStartRecorded,
             pullSkippedForCurrentPoint = pullSkippedForCurrentPoint ?: later.pullSkippedForCurrentPoint,
@@ -262,7 +259,6 @@ internal data class GameStatePatch(
                 openingPullingFromEnd = previous.openingPullingFromEnd.takeIfChangedFrom(later.openingPullingFromEnd),
                 phase = previous.phase.takeIfChangedFrom(later.phase),
                 countdown = nullablePatch(later.countdown, previous.countdown),
-                pullCountdownExpired = previous.pullCountdownExpired.takeIfChangedFrom(later.pullCountdownExpired),
                 pullSequenceOffsidesRecorded = previous.pullSequenceOffsidesRecorded.takeIfChangedFrom(
                     later.pullSequenceOffsidesRecorded,
                 ),

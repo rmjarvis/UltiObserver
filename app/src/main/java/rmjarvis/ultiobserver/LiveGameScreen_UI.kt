@@ -156,8 +156,8 @@ internal fun LiveGameScreen(
     val canStartPoint = remember(state, now) {
         state.phase.isBeforeLivePoint || state.halftimeTransitionReady(now)
     }
-    val hasExpiredPullActions = remember(state) {
-        state.hasExpiredPullActions()
+    val hasExpiredPullActions = remember(state, now) {
+        state.hasExpiredPullActions(now)
     }
     val canReportOffenseSet = remember(state, showDefenseCountdowns) {
         state.canReportOffenseSet(showDefenseCountdowns)

@@ -257,9 +257,19 @@ internal fun CountdownState.betweenPointsTimingCues(): List<TimingCue> {
     }
 }
 
-/// Report whether the expired-pull action surface should be available.
-fun GameState.hasExpiredPullActions(): Boolean {
-    return this.phase.isBeforeLivePoint && this.pullCountdownExpired
+/**
+ * Report whether the expired-pull action surface should be available.
+ *
+ * @param now The epoch millis used to decide whether an active pull countdown has expired.
+ */
+fun GameState.hasExpiredPullActions(now: Long): Boolean {
+    if (!this.phase.isBeforeLivePoint || this.pullSkippedForCurrentPoint) {
+        return false
+    }
+    val countdown = this.countdown ?: return true
+    return countdown.kind.usesBetweenPointsTarget() &&
+        !countdown.isPaused() &&
+        now >= countdown.targetEpoch
 }
 
 /// Report whether a pull time violation can be recorded for the current pull sequence.
@@ -272,7 +282,6 @@ fun GameState.canAssessTimeViolation(): Boolean {
 internal fun GameState.expiredPullDecisionState(): GameState {
     return this.copy(
         countdown = null,
-        pullCountdownExpired = true,
     )
 }
 
@@ -381,7 +390,6 @@ private fun GameState.recordTimeViolationWarning(team: TeamId, now: Long): GameS
             target = countdownTarget,
             timing = timing,
         ),
-        pullCountdownExpired = false,
         lastEvent = "Time violation warning on ${this.teamName(team)}.",
     ).withEventLogEntry(
         EventLogEntry(
@@ -399,7 +407,7 @@ private fun GameState.recordTimeViolationWarning(team: TeamId, now: Long): GameS
  * @param now The epoch millis used as the restarted countdown's sequence start.
  */
 fun GameState.restartPullCountdown(now: Long): GameState {
-    if (!this.hasExpiredPullActions()) {
+    if (!this.hasExpiredPullActions(now)) {
         return this
     }
     return this.copy(
@@ -413,7 +421,6 @@ fun GameState.restartPullCountdown(now: Long): GameState {
             },
             promptTarget = this.pullPromptTarget,
         ),
-        pullCountdownExpired = false,
         lastEvent = "Pull countdown restarted.",
     ).withUndo(this, "Undo Restart countdown")
 }
@@ -445,7 +452,6 @@ private fun GameState.recordTimeViolationTimeout(team: TeamId, now: Long): GameS
             target = countdownTarget,
             timing = TimeViolationTimeoutResetTiming,
         ),
-        pullCountdownExpired = false,
         lastEvent = "Timeout charged to ${this.teamName(team)} for time violation.",
     ).withEventLogEntry(
         EventLogEntry(
@@ -537,7 +543,6 @@ private fun GameState.recordTimeViolationWithoutTimeout(team: TeamId, now: Long)
         teamTwo = if (team == TeamId.TEAM_TWO) this.teamTwo.withAddedTimeViolation() else this.teamTwo,
         phase = this.pullResetPhase(),
         countdown = null,
-        pullCountdownExpired = false,
         pullSkippedForCurrentPoint = true,
         lastEvent = "Time violation on ${this.teamName(team)}.",
     ).withEventLogEntry(

@@ -353,7 +353,7 @@ class TestTimeouts : GameDomainTestFixtures() {
         // represents a call at the deadline.  The countdown keeps the normal timeout-extension
         // duration metadata for cue selection, but only 70 seconds remain on the visible timer.
         val expiredDecisionState = expiredPullState.expiredPullDecisionState()
-        assertTrue(expiredDecisionState.hasExpiredPullActions())
+        assertTrue(expiredDecisionState.hasExpiredPullActions(expiredCountdownNow))
         assertTrue(expiredDecisionState.canRequestTimeout(expiredCountdownNow))
         assertTrue(
             expiredDecisionState.previewTimeout(
@@ -375,7 +375,7 @@ class TestTimeouts : GameDomainTestFixtures() {
             Duration.ofSeconds(70),
             expiredDecisionTimeoutState.countdown?.remainingDuration(expiredCountdownNow),
         )
-        assertFalse(expiredDecisionTimeoutState.hasExpiredPullActions())
+        assertFalse(expiredDecisionTimeoutState.hasExpiredPullActions(expiredCountdownNow))
 
         // The same expired-pull action surface before the opening pull keeps opening-pull
         // timing metadata while showing only the timeout's 70 seconds.
@@ -392,7 +392,7 @@ class TestTimeouts : GameDomainTestFixtures() {
             Duration.ofSeconds(70),
             expiredOpeningTimeoutState.countdown?.remainingDuration(expiredOpeningPullNow),
         )
-        assertFalse(expiredOpeningTimeoutState.hasExpiredPullActions())
+        assertFalse(expiredOpeningTimeoutState.hasExpiredPullActions(expiredOpeningPullNow))
 
         // A timeout is not available while the halftime countdown itself is still running.
         val halftimeEnd = state.countdown!!.targetEpoch
