@@ -473,14 +473,10 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         assertArchiveRowsInOrder(fallOpenTitle, summerMixedTitle, summerOpenTitle)
         selectArchiveSort(ArchiveSortMode.DATE_OLDEST)
         assertArchiveRowsInOrder(summerOpenTitle, summerMixedTitle, fallOpenTitle)
-        selectArchiveSort(ArchiveSortMode.TEAM_ONE_AZ)
+        selectArchiveSort(ArchiveSortMode.TEAM_ONE)
         assertArchiveRowsInOrder(summerOpenTitle, summerMixedTitle, fallOpenTitle)
-        selectArchiveSort(ArchiveSortMode.TEAM_ONE_ZA)
-        assertArchiveRowsInOrder(fallOpenTitle, summerMixedTitle, summerOpenTitle)
-        selectArchiveSort(ArchiveSortMode.TEAM_TWO_AZ)
+        selectArchiveSort(ArchiveSortMode.TEAM_TWO)
         assertArchiveRowsInOrder(summerMixedTitle, fallOpenTitle, summerOpenTitle)
-        selectArchiveSort(ArchiveSortMode.TEAM_TWO_ZA)
-        assertArchiveRowsInOrder(summerOpenTitle, fallOpenTitle, summerMixedTitle)
 
         // Delete all in a filtered archive list deletes only the currently shown rows.
         composeRule.onNodeWithTag("archive-filter-button").performClick()

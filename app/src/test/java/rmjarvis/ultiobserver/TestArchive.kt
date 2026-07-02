@@ -201,9 +201,9 @@ class TestArchive : GameDomainTestFixtures() {
                 "    Levels: Club, College",
                 "    Teams: Ring of Fire, Truck Stop",
                 "    Observers: Gary, Mike",
-                "Sorted by second team, Z-A",
+                "Sorted by second team",
             ).joinToString("\n"),
-            filterAndSortSummaryText(mixedSelections, ArchiveSortMode.TEAM_TWO_ZA),
+            filterAndSortSummaryText(mixedSelections, ArchiveSortMode.TEAM_TWO),
         )
 
         // Filters are only applied to completed archives; other categories keep storage order.
@@ -211,7 +211,7 @@ class TestArchive : GameDomainTestFixtures() {
             archivedGames = archives,
             selectedCategory = ArchivedGameCategory.SETUP,
             filterSelections = mixedSelections,
-            sortMode = ArchiveSortMode.TEAM_TWO_ZA,
+            sortMode = ArchiveSortMode.TEAM_TWO,
         )
         assertEquals(listOf("Ring of Fire vs Truck Stop at 9:00 AM"), savedSetupState.summaryLines())
         assertEquals(listOf(4), savedSetupState.selectedGames!!.map { it.index })
@@ -221,7 +221,7 @@ class TestArchive : GameDomainTestFixtures() {
             archivedGames = archives,
             selectedCategory = ArchivedGameCategory.IN_PROGRESS,
             filterSelections = mixedSelections,
-            sortMode = ArchiveSortMode.TEAM_TWO_ZA,
+            sortMode = ArchiveSortMode.TEAM_TWO,
         )
         assertEquals(listOf("Drag'n Thrust 0 - 0 Mixtape"), savedLiveState.summaryLines())
         assertEquals(listOf(5), savedLiveState.selectedGames!!.map { it.index })
@@ -229,7 +229,7 @@ class TestArchive : GameDomainTestFixtures() {
             archivedGames = archives,
             selectedCategory = null,
             filterSelections = mixedSelections,
-            sortMode = ArchiveSortMode.TEAM_TWO_ZA,
+            sortMode = ArchiveSortMode.TEAM_TWO,
         )
         assertNull(categoryLandingState.selectedGames)
         assertTrue(categoryLandingState.availableFilterValues.isEmpty())
@@ -522,10 +522,8 @@ class TestArchive : GameDomainTestFixtures() {
             listOf(
                 "Date newest first",
                 "Date oldest first",
-                "First team A-Z",
-                "First team Z-A",
-                "Second team A-Z",
-                "Second team Z-A",
+                "First team",
+                "Second team",
             ),
             ArchiveSortMode.entries.map { it.displayText },
         )
@@ -553,7 +551,7 @@ class TestArchive : GameDomainTestFixtures() {
                 archivedGames = archives,
                 selectedCategory = ArchivedGameCategory.COMPLETED,
                 filterSelections = ArchiveFilterSelections(),
-                sortMode = ArchiveSortMode.TEAM_ONE_AZ,
+                sortMode = ArchiveSortMode.TEAM_ONE,
             ).summaryLines(),
         )
         assertEquals(
@@ -562,25 +560,7 @@ class TestArchive : GameDomainTestFixtures() {
                 archivedGames = archives,
                 selectedCategory = ArchivedGameCategory.COMPLETED,
                 filterSelections = ArchiveFilterSelections(),
-                sortMode = ArchiveSortMode.TEAM_ONE_ZA,
-            ).summaryLines(),
-        )
-        assertEquals(
-            listOf("Zeta 0 - 0 Beta", "Middle 0 - 0 Delta", "Alpha 0 - 0 Omega"),
-            getFilteredArchiveState(
-                archivedGames = archives,
-                selectedCategory = ArchivedGameCategory.COMPLETED,
-                filterSelections = ArchiveFilterSelections(),
-                sortMode = ArchiveSortMode.TEAM_TWO_AZ,
-            ).summaryLines(),
-        )
-        assertEquals(
-            listOf("Alpha 0 - 0 Omega", "Middle 0 - 0 Delta", "Zeta 0 - 0 Beta"),
-            getFilteredArchiveState(
-                archivedGames = archives,
-                selectedCategory = ArchivedGameCategory.COMPLETED,
-                filterSelections = ArchiveFilterSelections(),
-                sortMode = ArchiveSortMode.TEAM_TWO_ZA,
+                sortMode = ArchiveSortMode.TEAM_TWO,
             ).summaryLines(),
         )
     }
@@ -599,9 +579,9 @@ class TestArchive : GameDomainTestFixtures() {
             ArchiveFilterField.TOURNAMENT,
             setOf("Summer Solstice"),
         )
-        viewModel.updateArchiveSortMode(ArchiveSortMode.TEAM_TWO_ZA)
+        viewModel.updateArchiveSortMode(ArchiveSortMode.TEAM_TWO)
         assertEquals(setOf("Summer Solstice"), viewModel.archiveFilterSelections.tournaments)
-        assertEquals(ArchiveSortMode.TEAM_TWO_ZA, viewModel.archiveSortMode)
+        assertEquals(ArchiveSortMode.TEAM_TWO, viewModel.archiveSortMode)
 
         // ViewModel filter wrappers update and clear the same local archive filter state that
         // the filtered archive-list model reads.
@@ -629,11 +609,11 @@ class TestArchive : GameDomainTestFixtures() {
             ArchiveFilterField.TOURNAMENT,
             setOf("Summer Solstice"),
         )
-        viewModel.updateArchiveSortMode(ArchiveSortMode.TEAM_TWO_ZA)
+        viewModel.updateArchiveSortMode(ArchiveSortMode.TEAM_TWO)
         viewModel.returnToArchivedGameCategories()
         assertNull(viewModel.selectedArchiveCategory)
         assertEquals(setOf("Summer Solstice"), viewModel.archiveFilterSelections.tournaments)
-        assertEquals(ArchiveSortMode.TEAM_TWO_ZA, viewModel.archiveSortMode)
+        assertEquals(ArchiveSortMode.TEAM_TWO, viewModel.archiveSortMode)
 
         // Opening the archive section again starts with fresh filter/sort state.
         viewModel.goHome()

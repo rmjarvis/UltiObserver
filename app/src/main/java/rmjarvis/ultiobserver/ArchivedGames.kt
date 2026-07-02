@@ -306,10 +306,8 @@ internal enum class ArchiveSortMode(
 ) {
     DATE_NEWEST("Date newest first", "Sorted by date, newest first"),
     DATE_OLDEST("Date oldest first", "Sorted by date, oldest first"),
-    TEAM_ONE_AZ("First team A-Z", "Sorted by first team, A-Z"),
-    TEAM_ONE_ZA("First team Z-A", "Sorted by first team, Z-A"),
-    TEAM_TWO_AZ("Second team A-Z", "Sorted by second team, A-Z"),
-    TEAM_TWO_ZA("Second team Z-A", "Sorted by second team, Z-A"),
+    TEAM_ONE("First team", "Sorted by first team"),
+    TEAM_TWO("Second team", "Sorted by second team"),
 }
 
 /**
@@ -510,21 +508,15 @@ private fun ArchiveSortMode.comparator(): Comparator<IndexedValue<GameState>> {
         ArchiveSortMode.DATE_OLDEST -> compareBy<IndexedValue<GameState>> {
             it.value.startEpoch
         }.thenBy { it.index }
-        ArchiveSortMode.TEAM_ONE_AZ -> compareBy<IndexedValue<GameState>, String>(
+        ArchiveSortMode.TEAM_ONE -> compareBy<IndexedValue<GameState>, String>(
             String.CASE_INSENSITIVE_ORDER,
         ) {
             it.value.teamOne.name
         }.thenBy { it.value.startEpoch }
-        ArchiveSortMode.TEAM_ONE_ZA -> compareByDescending<IndexedValue<GameState>> {
-            it.value.teamOne.name.lowercase()
-        }.thenBy { it.value.startEpoch }
-        ArchiveSortMode.TEAM_TWO_AZ -> compareBy<IndexedValue<GameState>, String>(
+        ArchiveSortMode.TEAM_TWO -> compareBy<IndexedValue<GameState>, String>(
             String.CASE_INSENSITIVE_ORDER,
         ) {
             it.value.teamTwo.name
-        }.thenBy { it.value.startEpoch }
-        ArchiveSortMode.TEAM_TWO_ZA -> compareByDescending<IndexedValue<GameState>> {
-            it.value.teamTwo.name.lowercase()
         }.thenBy { it.value.startEpoch }
     }
 }
