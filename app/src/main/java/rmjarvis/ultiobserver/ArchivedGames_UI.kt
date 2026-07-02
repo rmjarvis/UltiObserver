@@ -217,8 +217,10 @@ internal fun ArchivedGamesScreen(
                 "Completely delete all saved games? This cannot be undone."
             } else if (category == ArchivedGameCategory.SETUP) {
                 "Completely delete all saved setup states? This cannot be undone."
+            } else if (archiveFilterSelections.isActive()) {
+                "Delete all the currently displayed archived games? This cannot be undone."
             } else {
-                "Completely delete all ${category.displayText.lowercase()}? This cannot be undone."
+                "Completely delete all archived games? This cannot be undone."
             },
         )
     }

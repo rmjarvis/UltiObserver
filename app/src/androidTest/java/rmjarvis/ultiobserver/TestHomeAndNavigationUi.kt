@@ -492,6 +492,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText(summerMixedTitle)
         assertTrue(composeRule.onAllNodesWithText(fallOpenTitle).fetchSemanticsNodes().isEmpty())
         composeRule.onNodeWithTag("delete-all-archived-games").performClick()
+        waitForText("currently displayed archived games", substring = true)
         confirmDeleteWithSlider("Delete all games?")
         waitForText("No archived games match these filters.")
         composeRule.onAllNodesWithTag("delete-all-archived-games").assertCountEquals(0)
