@@ -1,10 +1,7 @@
 package rmjarvis.ultiobserver
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -41,27 +38,20 @@ internal fun EventLogDialog(state: GameState, onDismiss: () -> Unit) {
 @Composable
 private fun EventLogDialogContent(state: GameState) {
     val rows = state.formatEventLogLines()
-    Column(
-        modifier = Modifier
-            .fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ScrollableDialogRegion(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        ScrollableDialogRegion(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            if (rows.isEmpty()) {
-                Text("No events logged yet.", style = MaterialTheme.typography.bodyMedium)
-            } else {
-                rows.forEach { row ->
-                    Text(
-                        text = row,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontFamily = FontFamily.Monospace,
-                    )
-                }
+        if (rows.isEmpty()) {
+            Text("No events logged yet.", style = MaterialTheme.typography.bodyMedium)
+        } else {
+            rows.forEach { row ->
+                Text(
+                    text = row,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontFamily = FontFamily.Monospace,
+                )
             }
         }
-        Spacer(modifier = Modifier.height(4.dp))
     }
 }

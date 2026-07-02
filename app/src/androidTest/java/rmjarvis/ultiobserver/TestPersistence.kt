@@ -143,7 +143,7 @@ class TestPersistence : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Start new game").assertIsDisplayed()
 
         // Dismissing the notice removes only the dialog.
-        composeRule.onNodeWithText("OK").performClick()
+        dismissDialog(text = "OK")
         composeRule.onAllNodesWithText("Phone data reset").assertCountEquals(0)
         composeRule.onNodeWithText("Start new game").assertIsDisplayed()
 
@@ -159,7 +159,7 @@ class TestPersistence : MainActivityUiTestFixtures() {
         composeRule.onAllNodesWithText("Sorry, UltiObserver crashed").assertCountEquals(0)
 
         // Dismissing recovery reveals the crash apology next.
-        composeRule.onNodeWithText("OK").performClick()
+        dismissDialog(text = "OK")
         composeRule.onAllNodesWithText("Phone data reset").assertCountEquals(0)
         composeRule.onNodeWithText("Sorry, UltiObserver crashed").assertIsDisplayed()
     }

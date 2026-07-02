@@ -40,9 +40,9 @@ import androidx.compose.ui.unit.sp
  * @param headerDetail Optional detail shown after the date/time.
  * @param summaryLine Matchup or score summary text.
  */
-internal data class GameListEntry(
+internal class GameListEntry(
     val startDateTime: String,
-    val headerDetail: String? = null,
+    val headerDetail: String?,
     val summaryLine: String,
 )
 

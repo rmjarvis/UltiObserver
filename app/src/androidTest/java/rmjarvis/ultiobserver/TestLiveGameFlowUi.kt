@@ -3,6 +3,7 @@ package rmjarvis.ultiobserver
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
@@ -576,6 +577,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         // For a time out during a point, the countdown expiring automatically continues
         // the point and locks the screen.
         composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appViewModel.updateAutomaticallyLockLivePoint(true)
             val current = activity.appViewModel.liveState!!
             activity.appViewModel.updateLiveGame(
                 current.copy(
@@ -676,11 +678,21 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
     fun disableAutomaticLock() {
         startLiveGameProgrammatically()
 
-        // Manual start-point and timeout paths should stay unlocked when live-point locking is
-        // disabled.
-        composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.updateAutomaticallyLockLivePoint(false)
-        }
+        // Disable live-point locking through Settings, then return to the current game.
+        tapTopBarHome()
+        waitForText("Current game")
+        composeRule.onNodeWithText("Settings").performClick()
+        waitForText("Automatically lock screen when play becomes live?")
+        composeRule.onNodeWithTag("settings-auto-advance-countdowns-value").assertTextEquals("Yes")
+        composeRule.onNodeWithTag("settings-auto-lock-live-point-value").assertTextEquals("Yes")
+        composeRule.onNodeWithTag("settings-auto-lock-live-point").performClick()
+        composeRule.onNodeWithTag("settings-auto-lock-live-point-value").assertTextEquals("No")
+        tapTopBarBack()
+        waitForText("Current game")
+        composeRule.onNodeWithTag("current-game").performClick()
+        assertLiveScreen()
+
+        // Manual start-point and timeout paths stay unlocked when live-point locking is disabled.
         composeRule.onNodeWithText("Start point").performClick()
         waitForTag("live-center-lock")
         composeRule.onAllNodesWithText("Slide right to unlock").assertCountEquals(0)
@@ -693,8 +705,6 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         // disabled.
         startLiveGameProgrammatically()
         composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.updateAutomaticallyAdvanceCountdowns(true)
-            activity.appViewModel.updateAutomaticallyLockLivePoint(false)
             val current = activity.appViewModel.liveState!!
             activity.appViewModel.updateLiveGame(
                 current.copy(
@@ -711,10 +721,12 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.onAllNodesWithText("Slide right to unlock").assertCountEquals(0)
         composeRule.onNodeWithTag("live-center-lock").assertIsDisplayed()
 
-        // Reset the auto-lock setting to true for other tests.
-        composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.updateAutomaticallyLockLivePoint(true)
-        }
+        // Restore the ordinary lock setting through Settings.
+        tapTopBarHome()
+        waitForText("Current game")
+        composeRule.onNodeWithText("Settings").performClick()
+        composeRule.onNodeWithTag("settings-auto-lock-live-point").performClick()
+        composeRule.onNodeWithTag("settings-auto-lock-live-point-value").assertTextEquals("Yes")
     }
 
     /// Put the current game on the between-points expired-pull action surface.

@@ -15,6 +15,7 @@ import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.percentOffset
@@ -69,10 +70,16 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("current-game").performClick()
         waitForText("Start game")
 
+        // The setup screen's top-bar Home button returns to the resumable current-game row.
+        tapTopBarHome()
+        waitForText("Current game")
+        composeRule.onNodeWithTag("current-game").performClick()
+        waitForText("Start game")
+
         // Before the first pull, Back should return to setup for quick field-layout corrections.
         startGameFromSetup()
         assertLiveScreen()
-        composeRule.onNodeWithTag("top-bar-home").performClick()
+        tapTopBarHome()
         waitForText("Current game")
         composeRule.onNodeWithTag("current-game").performClick()
         assertLiveScreen()
@@ -92,7 +99,18 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("current-game").performClick()
         assertLiveScreen()
 
+        // During active play, the live screen's top-bar Home button returns to the resume row.
+        tapTopBarHome()
+        waitForText("Current game")
+        composeRule.onNodeWithTag("current-game").performClick()
+        assertLiveScreen()
+
         // More actions should reopen setup in update mode and return to live.
+        openMoreActionsDialog()
+        composeRule.onNodeWithText("Update game setup").performClick()
+        waitForText("Done")
+        composeRule.onNodeWithText("Cancel").performClick()
+        assertLiveScreen()
         openMoreActionsDialog()
         composeRule.onNodeWithText("Update game setup").performClick()
         waitForText("Done")
@@ -220,10 +238,11 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("In-progress games (0)").assertIsEnabled()
         composeRule.onNodeWithText("Saved setup states (0)").assertIsEnabled()
         composeRule.onNodeWithText("Archived games (0)").performClick()
-        waitForText("No completed games yet.")
+        waitForText("No archived games yet.")
         tapTopBarBack()
         waitForText("Archived/saved games")
-        tapTopBarBack()
+        tapTopBarHome()
+        waitForText("Start new game")
 
         // Build two uniquely named archived rows so delete assertions cannot match stale test data.
         val suffix = System.currentTimeMillis().toString().takeLast(6)
@@ -258,14 +277,16 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText(secondArchivedTitle)
 
         // Opening an archived row should expose its summary and persisted event log.
-        composeRule.onNodeWithText(firstArchivedTitle).performClick()
+        composeRule.onNodeWithTag("archived-game-0").performClick()
         waitForText("Game summary")
         composeRule.onNodeWithText("Share").assertIsDisplayed()
         composeRule.onNodeWithText("Event log").performClick()
         waitForText("Event log")
         waitForText("No events logged yet.")
         dismissDialog(text = "OK")
-        tapTopBarBack()
+        tapTopBarHome()
+        waitForText("Start new game")
+        openArchivedCompleteGamesScreen()
         waitForText("Archived games")
         waitForText(firstArchivedTitle)
         waitForText(secondArchivedTitle)
@@ -283,15 +304,15 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("delete-all-archived-games").performClick()
         waitForText("This cannot be undone", substring = true)
         confirmDeleteWithSlider("Delete all games?")
-        waitForText("No completed games yet.")
+        waitForText("No archived games yet.")
         assertTrue(
             composeRule.onAllNodesWithText(firstArchivedTitle).fetchSemanticsNodes().isEmpty()
         )
         assertTrue(
             composeRule.onAllNodesWithText(secondArchivedTitle).fetchSemanticsNodes().isEmpty()
         )
-        tapTopBarBack()
-        waitForText("Archived/saved games")
+        tapTopBarHome()
+        waitForText("Start new game")
 
         // Re-seed the archive and verify cancelling a single-game delete leaves both rows intact.
         seedArchivedGameProgrammatically(firstTeamOne, firstTeamTwo)
@@ -316,7 +337,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         // Delete the last archived row and verify Archived games returns to its empty state.
         composeRule.onNodeWithTag("delete-archived-game-0").performClick()
         confirmDeleteWithSlider()
-        waitForText("No completed games yet.")
+        waitForText("No archived games yet.")
         assertTrue(
             composeRule.onAllNodesWithText(secondArchivedTitle).fetchSemanticsNodes().isEmpty()
         )
@@ -375,9 +396,18 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         assertArchiveDateRange(today.minusDays(30), today)
         composeRule.onNodeWithTag("archive-date-preset-THIS_YEAR").performClick()
         assertArchiveDateRange(LocalDate.of(today.year, 1, 1), today)
+        composeRule.onNodeWithTag("archive-custom-start-date").performClick()
+        composeRule.onAllNodesWithText("Cancel").onLast().performClick()
+        composeRule.onNodeWithTag("archive-custom-end-date").performClick()
+        composeRule.onAllNodesWithText("Cancel").onLast().performClick()
+        assertArchiveDateRange(LocalDate.of(today.year, 1, 1), today)
 
         // A custom start date can be committed without an end date.
         composeRule.onNodeWithTag("archive-clear-filter-DATE").performClick()
+        waitForText("Start: None")
+        waitForText("End: None")
+        composeRule.onNodeWithTag("archive-custom-start-date").performClick()
+        composeRule.onAllNodesWithText("Cancel").onLast().performClick()
         waitForText("Start: None")
         waitForText("End: None")
         composeRule.onNodeWithTag("archive-custom-start-date").performClick()
@@ -434,7 +464,11 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("archive-filter-field-TOURNAMENT").performClick()
         composeRule.onNodeWithTag("archive-filter-value-$summerTournament")
             .assertTextContains("$summerTournament (2)", substring = true)
+        // Both the checkbox and the rest of its row toggle the value.  Reselect so the combined
+        // filter story below still narrows to the summer/open game.
+        composeRule.onNodeWithTag("archive-filter-checkbox-$summerTournament").performClick()
         composeRule.onNodeWithTag("archive-filter-value-$summerTournament").performClick()
+        composeRule.onNodeWithTag("archive-filter-checkbox-$summerTournament").performClick()
         composeRule.onNodeWithText("Back").performClick()
         composeRule.onNodeWithTag("archive-filter-field-DIVISION").performClick()
         composeRule.onNodeWithTag("archive-filter-value-Open").performClick()
@@ -456,6 +490,19 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("archive-filter-and-sort-summary")
             .assertTextContains("Filters:", substring = true)
             .assertTextContains("Tournament: $summerTournament", substring = true)
+            .assertTextContains("Division: Open", substring = true)
+            .assertTextContains("Level: Club", substring = true)
+            .assertTextContains("Team: Aone$suffix", substring = true)
+            .assertTextContains("Observer: Mike", substring = true)
+
+        // A single checkbox-style filter can be cleared from its own filter page.
+        composeRule.onNodeWithTag("archive-filter-button").performClick()
+        composeRule.onNodeWithTag("archive-filter-field-TOURNAMENT").performClick()
+        composeRule.onNodeWithTag("archive-clear-filter-TOURNAMENT").performClick()
+        composeRule.onNodeWithText("Back").performClick()
+        composeRule.onNodeWithText("Done").performClick()
+        composeRule.onNodeWithTag("archive-filter-and-sort-summary")
+            .assertTextContains("Filters:", substring = true)
             .assertTextContains("Division: Open", substring = true)
             .assertTextContains("Level: Club", substring = true)
             .assertTextContains("Team: Aone$suffix", substring = true)
@@ -501,11 +548,34 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onAllNodesWithTag("archived-game-0").assertCountEquals(1)
         composeRule.onAllNodesWithTag("archived-game-1").assertCountEquals(0)
 
+        // If the active filters include the last completed game and that game is deleted, the
+        // controls stay available so the user can clear the filters from the empty result page.
+        composeRule.onNodeWithTag("archive-filter-button").performClick()
+        composeRule.onNodeWithTag("archive-filter-field-TOURNAMENT").performClick()
+        composeRule.onNodeWithTag("archive-filter-value-$fallTournament").performClick()
+        composeRule.onNodeWithText("Back").performClick()
+        composeRule.onNodeWithText("Done").performClick()
+        waitForText(fallOpenTitle)
+        composeRule.onNodeWithTag("delete-all-archived-games").performClick()
+        waitForText("currently displayed archived games", substring = true)
+        confirmDeleteWithSlider("Delete all games?")
+        waitForText("No archived games match these filters.")
+        composeRule.onAllNodesWithTag("delete-all-archived-games").assertCountEquals(0)
+        composeRule.onNodeWithTag("archive-filter-button").performClick()
+        composeRule.onNodeWithTag("archive-filter-field-TEAM").performClick()
+        waitForText("No values available.")
+        composeRule.onNodeWithText("Back").performClick()
+        composeRule.onNodeWithTag("archive-clear-filters").performClick()
+        composeRule.onNodeWithText("Done").performClick()
+        waitForText("No archived games yet.")
+
         // Other saved categories do not show archive filter controls.
         tapTopBarBack()
         composeRule.onNodeWithText("In-progress games", substring = true).performClick()
         waitForText("In-progress games")
         composeRule.onAllNodesWithTag("archive-filter-button").assertCountEquals(0)
+        tapTopBarHome()
+        waitForText("Start new game")
     }
 
     /**
@@ -523,11 +593,21 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         val suffix = System.currentTimeMillis().toString().takeLast(6)
         val setupTeamOne = "SetupA$suffix"
         val setupTeamTwo = "SetupB$suffix"
+        val savedSetupTitle = "$setupTeamOne vs $setupTeamTwo"
         openNewGameSetup()
         replaceSetupTeamName("Team 1", setupTeamOne)
         replaceSetupTeamName("Team 2", setupTeamTwo)
         composeRule.onNodeWithText("Save game for later").performClick()
         waitForText("Start new game")
+
+        // Without a current setup draft, the setup archive page shows only saved setup states.
+        openArchivedGamesScreen()
+        composeRule.onNodeWithText("Saved setup states (1)").performClick()
+        waitForText(savedSetupTitle, substring = true)
+        composeRule.onAllNodesWithTag("current-setup-state").assertCountEquals(0)
+        composeRule.onAllNodesWithTag("saved-setup-state-0").assertCountEquals(1)
+        tapTopBarBack()
+        tapTopBarBack()
 
         // Start a different current setup draft, then verify the setup archive page separates
         // that current draft from the saved setup states.
@@ -544,7 +624,6 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText("Current setup")
         waitForText("Saved setup states")
         val currentSetupTitle = "$currentSetupTeamOne vs $currentSetupTeamTwo"
-        val savedSetupTitle = "$setupTeamOne vs $setupTeamTwo"
         waitForText(currentSetupTitle, substring = true)
         waitForText(savedSetupTitle, substring = true)
         composeRule.onAllNodesWithTag("current-setup-state").assertCountEquals(1)
@@ -578,30 +657,62 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("saved-setup-state-0")
             .assertTextContains(currentSetupTitle, substring = true)
 
-        // Start an in-progress game, but then start another new game.  This moves what was
-        // the current game into the saved games section of the in-progress archive.
+        // A single saved setup row can be deleted without removing the current setup draft.
+        composeRule.onNodeWithTag("delete-saved-setup-state-0").performClick()
+        dismissDialog(text = "Cancel")
+        composeRule.onNodeWithTag("saved-setup-state-0")
+            .assertTextContains(currentSetupTitle, substring = true)
+        composeRule.onNodeWithTag("delete-saved-setup-state-0").performClick()
+        confirmDeleteWithSlider()
+        composeRule.onAllNodesWithTag("saved-setup-state-0").assertCountEquals(0)
+        composeRule.onNodeWithTag("current-setup-state")
+            .assertTextContains(savedSetupTitle, substring = true)
+
+        // Delete all in the saved setup section removes only the saved setup rows.  Once the
+        // current setup is also removed, the setup category shows its empty state.
+        val bulkCurrentSetupTitle = "BulkCurrentSetupA$suffix vs BulkCurrentSetupB$suffix"
+        seedCurrentSetupAndSavePrevious("BulkCurrentSetupA$suffix", "BulkCurrentSetupB$suffix")
+        openArchivedGamesScreen()
+        composeRule.onNodeWithText("Saved setup states (2)").performClick()
+        waitForText("Saved setup states")
+        waitForText(bulkCurrentSetupTitle, substring = true)
+        waitForText(savedSetupTitle, substring = true)
+        composeRule.onNodeWithTag("delete-all-archived-games").performClick()
+        waitForText("all saved setup states", substring = true)
+        confirmDeleteWithSlider("Delete all games?")
+        composeRule.onAllNodesWithTag("saved-setup-state-0").assertCountEquals(0)
+        composeRule.onNodeWithTag("current-setup-state")
+            .assertTextContains(bulkCurrentSetupTitle, substring = true)
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.appViewModel.deleteCurrentGame()
-            activity.appViewModel.startNewGame(now = 123_000L)
-            activity.appViewModel.updateSetup(
-                newSetupGameState(now = 123_000L).copy(
-                    teamOne = TeamState("ProgressA$suffix", TeamColorChoice.WHITE),
-                    teamTwo = TeamState("ProgressB$suffix", TeamColorChoice.BLUE),
-                )
-            )
-            activity.appViewModel.finishSetup(now = 123_000L)
-            activity.appViewModel.updateLiveGame(activity.appViewModel.liveState!!.beginLivePoint(0L))
-            activity.appViewModel.startNewGame(now = 123_000L)
-            activity.appViewModel.goHome()
         }
         composeRule.waitForIdle()
+        openArchivedGamesScreen()
+        composeRule.onNodeWithText("Saved setup states (0)").performClick()
+        waitForText("No saved setup states.")
+        tapTopBarHome()
+        waitForText("Start new game")
 
-        // Got to the archive screen, find that saved game.  You can either reopen it or archive
+        // Without saved in-progress games, the in-progress archive page shows only the current
+        // active game.
+        val currentProgressTitle = "CurrentProgressA$suffix 0 - 0 CurrentProgressB$suffix"
+        seedCurrentInProgressGame("CurrentProgressA$suffix", "CurrentProgressB$suffix")
+        openArchivedGamesScreen()
+        composeRule.onNodeWithText("In-progress games (1)").performClick()
+        waitForText(currentProgressTitle)
+        composeRule.onAllNodesWithTag("current-in-progress-game").assertCountEquals(1)
+        composeRule.onAllNodesWithTag("saved-in-progress-game-0").assertCountEquals(0)
+
+        // Start an in-progress game, but then start another new game.  This moves what was
+        // the current game into the saved games section of the in-progress archive.
+        seedSavedInProgressGame("ProgressA$suffix", "ProgressB$suffix")
+
+        // Go to the archive screen, find that saved game.  You can either reopen it or archive
         // it. Here we archive it.
         openArchivedGamesScreen()
         composeRule.onNodeWithText("In-progress games (1)").performClick()
         waitForText("ProgressA$suffix 0 - 0 ProgressB$suffix")
-        composeRule.onNodeWithText("ProgressA$suffix 0 - 0 ProgressB$suffix").performClick()
+        composeRule.onNodeWithTag("saved-in-progress-game-0").performClick()
         waitForText("Game summary")
         composeRule.onNodeWithText("Make current").assertIsDisplayed()
         composeRule.onNodeWithText("Archive game").performClick()
@@ -609,6 +720,32 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         tapTopBarBack()
         composeRule.onNodeWithText("Archived games (1)").performClick()
         waitForText("ProgressA$suffix 0 - 0 ProgressB$suffix")
+
+        // A single saved in-progress row can be deleted without removing other archives.
+        val deleteProgressTitle = "DeleteProgressA$suffix 0 - 0 DeleteProgressB$suffix"
+        seedSavedInProgressGame("DeleteProgressA$suffix", "DeleteProgressB$suffix")
+        openArchivedGamesScreen()
+        composeRule.onNodeWithText("In-progress games (1)").performClick()
+        waitForText(deleteProgressTitle)
+        composeRule.onNodeWithTag("delete-saved-in-progress-game-0").performClick()
+        dismissDialog(text = "Cancel")
+        waitForText(deleteProgressTitle)
+        composeRule.onNodeWithTag("delete-saved-in-progress-game-0").performClick()
+        confirmDeleteWithSlider()
+        waitForText("No in-progress games.")
+
+        // Delete all in the saved in-progress category removes the saved rows shown there.
+        val bulkProgressTitle = "BulkProgressA$suffix 0 - 0 BulkProgressB$suffix"
+        seedSavedInProgressGame("BulkProgressA$suffix", "BulkProgressB$suffix")
+        openArchivedGamesScreen()
+        composeRule.onNodeWithText("In-progress games (1)").performClick()
+        waitForText(bulkProgressTitle)
+        composeRule.onNodeWithTag("delete-all-archived-games").performClick()
+        waitForText("all saved games", substring = true)
+        confirmDeleteWithSlider("Delete all games?")
+        waitForText("No in-progress games.")
+        tapTopBarHome()
+        waitForText("Start new game")
     }
 
     /**
@@ -655,6 +792,12 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
 
         // Back returns from About to Home.
         dismissDialog(tag = "top-bar-back")
+        waitForText("Start new game")
+
+        // The About top-bar Home button also returns directly to Home.
+        composeRule.onNodeWithTag("home-about").performClick()
+        composeRule.onNodeWithTag("about-screen").assertIsDisplayed()
+        tapTopBarHome()
         waitForText("Start new game")
     }
 
@@ -864,6 +1007,22 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         // Back returns from Settings to Home.
         dismissDialog(tag = "top-bar-back")
         waitForText("Start new game")
+
+        // Timing cue settings can return directly to Home from their top bar.
+        composeRule.onNodeWithText("Settings").performClick()
+        waitForText("Use sounds and vibration for timing cues?")
+        composeRule.onNodeWithTag("settings-open-timing-cue-settings")
+            .performScrollTo()
+            .performClick()
+        waitForText("Cue sound settings")
+        tapTopBarHome()
+        waitForText("Start new game")
+
+        // The main Settings screen can also return directly to Home from its top bar.
+        composeRule.onNodeWithText("Settings").performClick()
+        waitForText("Use sounds and vibration for timing cues?")
+        tapTopBarHome()
+        waitForText("Start new game")
     }
 
     /**
@@ -893,7 +1052,9 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("profile-avatar-RANDOM").performScrollTo().performClick()
         composeRule.onNodeWithTag("profile-avatar-RANDOM").assertIsSelected()
         composeRule.onNodeWithTag("profile-avatar-BLUE").assertIsNotSelected()
-        tapTopBarBack()
+
+        // Profile can return directly to Home from its top bar.
+        tapTopBarHome()
         waitForText("Start new game")
     }
 
@@ -985,6 +1146,73 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
                 )
             )
             activity.appViewModel.archiveCompletedGame()
+        }
+        composeRule.waitForIdle()
+    }
+
+    /**
+     * Seed one saved in-progress game by starting it, then starting a replacement draft.
+     *
+     * This lets archive-page tests exercise saved in-progress actions without scoring through a
+     * live game in the UI.
+     *
+     * @param teamOne Team 1 name for the saved game.
+     * @param teamTwo Team 2 name for the saved game.
+     */
+    private fun seedSavedInProgressGame(teamOne: String, teamTwo: String) {
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appViewModel.deleteCurrentGame()
+            activity.appViewModel.seedCurrentInProgressGame(teamOne, teamTwo)
+            activity.appViewModel.startNewGame(now = 123_000L)
+            activity.appViewModel.goHome()
+        }
+        composeRule.waitForIdle()
+    }
+
+    /**
+     * Seed one current in-progress game without creating a saved in-progress archive.
+     *
+     * @param teamOne Team 1 name for the current game.
+     * @param teamTwo Team 2 name for the current game.
+     */
+    private fun seedCurrentInProgressGame(teamOne: String, teamTwo: String) {
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appViewModel.deleteCurrentGame()
+            activity.appViewModel.seedCurrentInProgressGame(teamOne, teamTwo)
+            activity.appViewModel.goHome()
+        }
+        composeRule.waitForIdle()
+    }
+
+    /// Set up the current game as an active live-point game.
+    private fun AppViewModel.seedCurrentInProgressGame(teamOne: String, teamTwo: String) {
+        startNewGame(now = 123_000L)
+        updateSetup(
+            newSetupGameState(now = 123_000L).copy(
+                teamOne = TeamState(teamOne, TeamColorChoice.WHITE),
+                teamTwo = TeamState(teamTwo, TeamColorChoice.BLUE),
+            )
+        )
+        finishSetup(now = 123_000L)
+        updateLiveGame(liveState!!.beginLivePoint(0L))
+    }
+
+    /**
+     * Start a new setup draft, saving the previous current setup draft if one exists.
+     *
+     * @param teamOne Team 1 name for the new current setup draft.
+     * @param teamTwo Team 2 name for the new current setup draft.
+     */
+    private fun seedCurrentSetupAndSavePrevious(teamOne: String, teamTwo: String) {
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appViewModel.startNewGame(now = 123_000L)
+            activity.appViewModel.updateSetup(
+                newSetupGameState(now = 123_000L).copy(
+                    teamOne = TeamState(teamOne, TeamColorChoice.WHITE),
+                    teamTwo = TeamState(teamTwo, TeamColorChoice.BLUE),
+                )
+            )
+            activity.appViewModel.goHome()
         }
         composeRule.waitForIdle()
     }

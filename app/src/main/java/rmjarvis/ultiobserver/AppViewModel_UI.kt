@@ -82,22 +82,40 @@ internal fun UltiObserverApp(
                 currentGame = currentGame,
                 currentGameSectionSubtitle = viewModel.currentGameHomeSubtitle,
                 completedGamePendingArchive = completedGamePendingArchive,
-                onResumeCurrentGame = viewModel::resumeCurrentGame,
-                onOpenCompletedGame = viewModel::openCompletedGame,
-                onArchiveCompletedGame = viewModel::archiveCompletedGame,
+                onResumeCurrentGame = {
+                    viewModel.resumeCurrentGame()
+                },
+                onOpenCompletedGame = {
+                    viewModel.openCompletedGame()
+                },
+                onArchiveCompletedGame = {
+                    viewModel.archiveCompletedGame()
+                },
                 onStartNewGame = { viewModel.startNewGame(System.currentTimeMillis()) },
-                onOpenAbout = viewModel::openAbout,
-                onOpenProfile = viewModel::openProfile,
-                onOpenSettings = viewModel::openSettings,
-                onOpenArchivedGames = viewModel::openArchivedGames,
+                onOpenAbout = {
+                    viewModel.openAbout()
+                },
+                onOpenProfile = {
+                    viewModel.openProfile()
+                },
+                onOpenSettings = {
+                    viewModel.openSettings()
+                },
+                onOpenArchivedGames = {
+                    viewModel.openArchivedGames()
+                },
             )
         }
 
         AppScreen.ABOUT -> {
             AboutScreen(
                 versionName = BuildConfig.VERSION_NAME,
-                onBackHome = viewModel::goHome,
-                onHome = viewModel::goHome,
+                onBackHome = {
+                    viewModel.goHome()
+                },
+                onHome = {
+                    viewModel.goHome()
+                },
             )
         }
 
@@ -105,10 +123,18 @@ internal fun UltiObserverApp(
             ProfileScreen(
                 name = appState.profileName,
                 avatarPreference = appState.avatarPreference,
-                onNameChange = viewModel::updateProfileName,
-                onAvatarPreferenceChange = viewModel::updateAvatarPreference,
-                onBackHome = viewModel::goHome,
-                onHome = viewModel::goHome,
+                onNameChange = { name ->
+                    viewModel.updateProfileName(name)
+                },
+                onAvatarPreferenceChange = { preference ->
+                    viewModel.updateAvatarPreference(preference)
+                },
+                onBackHome = {
+                    viewModel.goHome()
+                },
+                onHome = {
+                    viewModel.goHome()
+                },
             )
         }
 
@@ -118,16 +144,36 @@ internal fun UltiObserverApp(
                 automaticallyLockLivePoint = appState.automaticallyLockLivePoint,
                 showDefenseCountdowns = appState.showDefenseCountdowns,
                 timingAlertPreferences = appState.timingAlertPreferences,
-                onAutomaticallyAdvanceCountdownsChange = viewModel::updateAutomaticallyAdvanceCountdowns,
-                onAutomaticallyLockLivePointChange = viewModel::updateAutomaticallyLockLivePoint,
-                onShowDefenseCountdownsChange = viewModel::updateShowDefenseCountdowns,
-                onGlobalModeChange = viewModel::updateTimingAlertGlobalMode,
-                onSoundVolumeChange = viewModel::updateTimingAlertSoundVolume,
-                onVibrationDurationChange = viewModel::updateTimingAlertVibrationDuration,
-                onVibrateWithSoundsChange = viewModel::updateTimingAlertVibrateWithSounds,
-                onOpenTimingCueSettings = viewModel::openTimingCueSettings,
-                onBackHome = viewModel::goHome,
-                onHome = viewModel::goHome,
+                onAutomaticallyAdvanceCountdownsChange = { enabled ->
+                    viewModel.updateAutomaticallyAdvanceCountdowns(enabled)
+                },
+                onAutomaticallyLockLivePointChange = { enabled ->
+                    viewModel.updateAutomaticallyLockLivePoint(enabled)
+                },
+                onShowDefenseCountdownsChange = { enabled ->
+                    viewModel.updateShowDefenseCountdowns(enabled)
+                },
+                onGlobalModeChange = { mode ->
+                    viewModel.updateTimingAlertGlobalMode(mode)
+                },
+                onSoundVolumeChange = { volume ->
+                    viewModel.updateTimingAlertSoundVolume(volume)
+                },
+                onVibrationDurationChange = { duration ->
+                    viewModel.updateTimingAlertVibrationDuration(duration)
+                },
+                onVibrateWithSoundsChange = { enabled ->
+                    viewModel.updateTimingAlertVibrateWithSounds(enabled)
+                },
+                onOpenTimingCueSettings = {
+                    viewModel.openTimingCueSettings()
+                },
+                onBackHome = {
+                    viewModel.goHome()
+                },
+                onHome = {
+                    viewModel.goHome()
+                },
             )
         }
 
@@ -135,11 +181,21 @@ internal fun UltiObserverApp(
             TimingCueSettingsScreen(
                 timingAlertPreferences = appState.timingAlertPreferences,
                 showDefenseCountdowns = appState.showDefenseCountdowns,
-                onTimingCueModeChange = viewModel::updateTimingCueMode,
-                onTimingCueRepeatCountChange = viewModel::updateTimingCueRepeatCount,
-                onResetTimingCueSettings = viewModel::resetTimingCueSettingsToDefaults,
-                onBackSettings = viewModel::openSettings,
-                onHome = viewModel::goHome,
+                onTimingCueModeChange = { cueType, mode ->
+                    viewModel.updateTimingCueMode(cueType, mode)
+                },
+                onTimingCueRepeatCountChange = { cueType, count ->
+                    viewModel.updateTimingCueRepeatCount(cueType, count)
+                },
+                onResetTimingCueSettings = {
+                    viewModel.resetTimingCueSettingsToDefaults()
+                },
+                onBackSettings = {
+                    viewModel.openSettings()
+                },
+                onHome = {
+                    viewModel.goHome()
+                },
             )
         }
 
@@ -165,12 +221,18 @@ internal fun UltiObserverApp(
                         null
                     },
                     onSecondarySummaryAction = if (isInProgressArchive) {
-                        { viewModel.archiveSavedInProgressGame(System.currentTimeMillis()) }
+                        {
+                            viewModel.archiveSavedInProgressGame(System.currentTimeMillis())
+                        }
                     } else {
                         null
                     },
-                    onBack = viewModel::goBackFromCurrentScreen,
-                    onHome = viewModel::goHome,
+                    onBack = {
+                        viewModel.goBackFromCurrentScreen()
+                    },
+                    onHome = {
+                        viewModel.goHome()
+                    },
                     gameOverPrompt = null,
                     onDismissGameOverPrompt = {},
                 )
@@ -208,24 +270,54 @@ internal fun UltiObserverApp(
                     filteredArchiveState = appState.filteredArchiveState(),
                     currentInProgressGame = currentInProgressGame,
                     currentSetupDraft = currentSetupDraft,
-                    onOpenCategory = viewModel::openArchivedGameCategory,
-                    onUpdateArchiveFilterSelections = viewModel::updateArchiveFilterSelections,
-                    onUpdateArchiveDateFilter = viewModel::updateArchiveDateFilter,
-                    onClearArchiveFilter = viewModel::clearArchiveFilter,
-                    onClearArchiveFilterSelections = viewModel::clearArchiveFilterSelections,
-                    onUpdateArchiveSortMode = viewModel::updateArchiveSortMode,
-                    onOpenCurrentGame = viewModel::openCurrentGameSummary,
-                    onOpenCurrentSetup = viewModel::resumeCurrentGame,
+                    onOpenCategory = { category ->
+                        viewModel.openArchivedGameCategory(category)
+                    },
+                    onUpdateArchiveFilterSelections = { field, values ->
+                        viewModel.updateArchiveFilterSelections(field, values)
+                    },
+                    onUpdateArchiveDateFilter = { dateFilter ->
+                        viewModel.updateArchiveDateFilter(dateFilter)
+                    },
+                    onClearArchiveFilter = { field ->
+                        viewModel.clearArchiveFilter(field)
+                    },
+                    onClearArchiveFilterSelections = {
+                        viewModel.clearArchiveFilterSelections()
+                    },
+                    onUpdateArchiveSortMode = { sortMode ->
+                        viewModel.updateArchiveSortMode(sortMode)
+                    },
+                    onOpenCurrentGame = {
+                        viewModel.openCurrentGameSummary()
+                    },
+                    onOpenCurrentSetup = {
+                        viewModel.resumeCurrentGame()
+                    },
                     onOpenArchivedGame = { index ->
                         viewModel.openArchivedGame(index, System.currentTimeMillis())
                     },
-                    onDeleteArchivedGame = viewModel::deleteArchivedGame,
-                    onDeleteAllArchivedGames = viewModel::deleteAllArchivedGames,
-                    onDeleteSelectedArchivedGames = viewModel::deleteSelectedArchivedGames,
-                    onDeleteAllInSelectedCategory = viewModel::deleteArchivedGamesInSelectedCategory,
-                    onBackHome = viewModel::goHome,
-                    onBackCategories = viewModel::returnToArchivedGameCategories,
-                    onHome = viewModel::goHome,
+                    onDeleteArchivedGame = { index ->
+                        viewModel.deleteArchivedGame(index)
+                    },
+                    onDeleteAllArchivedGames = {
+                        viewModel.deleteAllArchivedGames()
+                    },
+                    onDeleteSelectedArchivedGames = { indices ->
+                        viewModel.deleteSelectedArchivedGames(indices)
+                    },
+                    onDeleteAllInSelectedCategory = {
+                        viewModel.deleteArchivedGamesInSelectedCategory()
+                    },
+                    onBackHome = {
+                        viewModel.goHome()
+                    },
+                    onBackCategories = {
+                        viewModel.returnToArchivedGameCategories()
+                    },
+                    onHome = {
+                        viewModel.goHome()
+                    },
                 )
             }
         }
@@ -249,7 +341,9 @@ internal fun UltiObserverApp(
 
             SetupScreen(
                 state = setupGame,
-                onStateChange = viewModel::updateSetup,
+                onStateChange = { updatedState ->
+                    viewModel.updateSetup(updatedState)
+                },
                 title = if (editingCurrentGame) {
                     "Update game setup"
                 } else {
@@ -264,17 +358,25 @@ internal fun UltiObserverApp(
                     finishSetup()
                 },
                 onCancel = if (editingCurrentGame) {
-                    viewModel::cancelSetupEdit
+                    {
+                        viewModel.cancelSetupEdit()
+                    }
                 } else {
                     null
                 },
                 onSaveGameForLater = if (editingCurrentGame) {
                     null
                 } else {
-                    viewModel::saveSetupForLater
+                    {
+                        viewModel.saveSetupForLater()
+                    }
                 },
-                onBackHome = viewModel::goHome,
-                onHome = viewModel::goHome,
+                onBackHome = {
+                    viewModel.goHome()
+                },
+                onHome = {
+                    viewModel.goHome()
+                },
             )
         }
 
@@ -287,9 +389,15 @@ internal fun UltiObserverApp(
                     state = currentSummaryGame,
                     completed = false,
                     summaryActionText = "Back to game",
-                    onSummaryAction = viewModel::resumeCurrentGame,
-                    onBack = viewModel::goBackFromCurrentScreen,
-                    onHome = viewModel::goHome,
+                    onSummaryAction = {
+                        viewModel.resumeCurrentGame()
+                    },
+                    onBack = {
+                        viewModel.goBackFromCurrentScreen()
+                    },
+                    onHome = {
+                        viewModel.goHome()
+                    },
                     gameOverPrompt = null,
                     onDismissGameOverPrompt = {},
                 )
@@ -300,15 +408,27 @@ internal fun UltiObserverApp(
                     automaticallyAdvanceCountdowns = appState.automaticallyAdvanceCountdowns,
                     automaticallyLockLivePoint = appState.automaticallyLockLivePoint,
                     showDefenseCountdowns = appState.showDefenseCountdowns,
-                    onStateChange = viewModel::updateLiveGame,
+                    onStateChange = { updatedState ->
+                        viewModel.updateLiveGame(updatedState)
+                    },
                     onUpdateGameSetup = {
                         viewModel.editCurrentGame(currentLiveState)
                     },
-                    onOpenGameSummary = viewModel::openCurrentGameSummary,
-                    onArchiveCompletedGame = viewModel::archiveCompletedGame,
-                    onDeleteGame = viewModel::deleteCurrentGame,
-                    onBackHome = viewModel::goBackFromCurrentScreen,
-                    onHome = viewModel::goHome,
+                    onOpenGameSummary = {
+                        viewModel.openCurrentGameSummary()
+                    },
+                    onArchiveCompletedGame = {
+                        viewModel.archiveCompletedGame()
+                    },
+                    onDeleteGame = {
+                        viewModel.deleteCurrentGame()
+                    },
+                    onBackHome = {
+                        viewModel.goBackFromCurrentScreen()
+                    },
+                    onHome = {
+                        viewModel.goHome()
+                    },
                 )
             }
         }
@@ -372,11 +492,18 @@ internal fun UltiObserverApp(
 
     appState.startupRecoveryNotice?.let { notice ->
         AlertDialog(
-            onDismissRequest = viewModel::dismissStartupRecoveryNotice,
+            onDismissRequest = {
+                viewModel.dismissStartupRecoveryNotice()
+            },
             title = { Text(notice.title) },
             text = { Text(notice.message) },
             confirmButton = {
-                TextActionButton(label = "OK", onClick = viewModel::dismissStartupRecoveryNotice)
+                TextActionButton(
+                    label = "OK",
+                    onClick = {
+                        viewModel.dismissStartupRecoveryNotice()
+                    },
+                )
             },
         )
     }

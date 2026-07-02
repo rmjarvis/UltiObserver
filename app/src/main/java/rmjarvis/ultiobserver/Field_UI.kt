@@ -313,7 +313,7 @@ internal data class FieldLayoutMetrics(
  * @param showPullIndicator Whether the center strip should show pull direction.
  * @param metrics The precomputed field layout metrics.
  * @param centerContent The live action or unlock content rendered in the center strip.
- * @param onLock Optional callback for locking the live screen from the field strip.
+ * @param onLock Callback locking the live screen from the field strip.
  * @param onGoal Callback receiving the team that scored.
  * @param onTimeout Callback receiving the team requesting timeout.
  * @param onTimeViolation Callback receiving the team committing a time violation.
@@ -330,7 +330,7 @@ internal fun FieldSketchCard(
     showPullIndicator: Boolean,
     metrics: FieldLayoutMetrics,
     centerContent: @Composable () -> Unit,
-    onLock: (() -> Unit)?,
+    onLock: () -> Unit,
     onGoal: (TeamId) -> Unit,
     onTimeout: (TeamId) -> Unit,
     onTimeViolation: (TeamId) -> Unit,
@@ -407,29 +407,25 @@ internal fun FieldSketchCard(
                             .align(Alignment.CenterStart)
                             .padding(start = metrics.centerPullIndicatorStartPadding),
                     )
-                    if (onLock != null || currentGenderRatio != null) {
-                        Column(
-                            modifier = Modifier
-                                .align(Alignment.CenterEnd)
-                                .padding(end = metrics.centerAccessoryEndPadding),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(metrics.centerAccessoryGap),
-                        ) {
-                            onLock?.let { lock ->
-                                FieldCenterLockIcon(
-                                    onClick = lock,
-                                    size = metrics.centerLockSize,
-                                    padding = metrics.centerLockPadding,
-                                )
-                            }
-                            currentGenderRatio?.let { ratio ->
-                                GenderRatioStatusBadge(
-                                    ratio = ratio,
-                                    horizontalPadding = metrics.genderRatioBadgeHorizontalPadding,
-                                    verticalPadding = metrics.genderRatioBadgeVerticalPadding,
-                                    fontSize = metrics.genderRatioBadgeFontSize,
-                                )
-                            }
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .padding(end = metrics.centerAccessoryEndPadding),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(metrics.centerAccessoryGap),
+                    ) {
+                        FieldCenterLockIcon(
+                            onClick = onLock,
+                            size = metrics.centerLockSize,
+                            padding = metrics.centerLockPadding,
+                        )
+                        currentGenderRatio?.let { ratio ->
+                            GenderRatioStatusBadge(
+                                ratio = ratio,
+                                horizontalPadding = metrics.genderRatioBadgeHorizontalPadding,
+                                verticalPadding = metrics.genderRatioBadgeVerticalPadding,
+                                fontSize = metrics.genderRatioBadgeFontSize,
+                            )
                         }
                     }
                 }

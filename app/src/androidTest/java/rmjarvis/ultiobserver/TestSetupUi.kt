@@ -4,9 +4,8 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.click
-import androidx.compose.ui.test.hasAnyAncestor
-import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onLast
@@ -94,6 +93,12 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         waitForText("$aardvarks Color")
         composeRule.onNodeWithTag("setup-Team 1-color-more").performClick()
         waitForText("Use this color")
+        dismissDialog(text = "Cancel")
+        waitForText("Start game")
+        composeRule.onNodeWithTag("setup-Team 1-color-button").performScrollTo().performClick()
+        waitForText("$aardvarks Color")
+        composeRule.onNodeWithTag("setup-Team 1-color-more").performClick()
+        waitForText("Use this color")
         composeRule.onNodeWithTag("setup-Team 1-color-custom-picker")
             .performTouchInput {
                 click(percentOffset(0.75f, 0.35f))
@@ -126,6 +131,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         waitForText("$aardvarks Names")
         composeRule.onNodeWithTag("setup-Team 1-coaches")
             .performTextReplacement("Coach Alpha\nCoach Beta")
+        composeRule.onNodeWithTag("setup-Team 1-coaches").performImeAction()
         composeRule.onNodeWithTag("setup-Team 1-field-captains")
             .performTextReplacement("Field Captain")
         composeRule.onNodeWithTag("setup-Team 1-spirit-captains")
@@ -167,13 +173,20 @@ class TestSetupUi : MainActivityUiTestFixtures() {
             .performClick()
         closeSetupEditor()
 
-        // Starting-pull setup accepts custom end names, either team, either field end, prompts,
-        // and the ABBA first-point gender ratio.
+        // Starting-pull setup accepts custom end names, committing them both through focus loss
+        // and the IME Done action.
         openStartingPullSetupEditor()
+        composeRule.onNodeWithTag("setup-far-end-name").performTextReplacement("Trees")
+        composeRule.onNodeWithTag("setup-near-end-name").performClick()
+        composeRule.onNodeWithTag("setup-pulling-from-${FieldEnd.FAR.name}")
+            .assertTextContains("Trees", substring = true)
         composeRule.onNodeWithTag("setup-near-end-name").performTextReplacement("Road")
         composeRule.onNodeWithTag("setup-near-end-name").performImeAction()
-        composeRule.onNodeWithTag("setup-far-end-name").performTextReplacement("Trees")
-        composeRule.onNodeWithTag("setup-far-end-name").performImeAction()
+        composeRule.onNodeWithTag("setup-pulling-from-${FieldEnd.NEAR.name}")
+            .assertTextContains("Road", substring = true)
+
+        // The same editor also accepts either team, either field end, prompts, and the ABBA
+        // first-point gender ratio.
         composeRule.onNodeWithTag("setup-pulling-team-${TeamId.TEAM_TWO.name}")
             .performScrollTo()
             .performClick()
@@ -233,6 +246,11 @@ class TestSetupUi : MainActivityUiTestFixtures() {
             .performTextReplacement("River")
         composeRule.onNodeWithTag("setup-far-end-name").performImeAction()
         dismissDialog(text = "Done", clearKeyboard = true)
+        waitForText("Road / River")
+
+        // Dismissal also follows Done when no text field has focus.
+        openStartingPullSetupEditor()
+        dismissDialog(text = "Done")
         waitForText("Road / River")
 
         // Gen Zone setup uses field-end labels and the rules say whether the zone switches.
@@ -438,22 +456,33 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("setup-game-context").performTextReplacement("Semifinals")
         composeRule.onNodeWithTag("setup-game-context").performImeAction()
 
-        // Observer rows can add another blank row, and only the last blank row can be removed.
+        // Observer rows can add another row, but only the last blank row can be removed.
         composeRule.onAllNodesWithTag("setup-remove-observer-0").assertCountEquals(0)
         composeRule.onAllNodesWithTag("setup-remove-observer-1").assertCountEquals(1)
-        assertSetupAddObserverRow(1)
+        assertSingleSetupAddObserver()
+        composeRule.onNodeWithTag("setup-remove-observer-1")
+            .performScrollTo()
+            .performClick()
+        composeRule.onAllNodesWithTag("setup-remove-observer-0").assertCountEquals(0)
+        composeRule.onAllNodesWithTag("setup-observer-1").assertCountEquals(0)
+        assertSingleSetupAddObserver()
+        composeRule.onNodeWithTag("setup-observer-0").performTextReplacement("Mike")
+        composeRule.onNodeWithTag("setup-observer-0").performImeAction()
         composeRule.onNodeWithTag("setup-add-observer")
             .performScrollTo()
             .performClick()
-        composeRule.onAllNodesWithTag("setup-remove-observer-1").assertCountEquals(0)
-        composeRule.onAllNodesWithTag("setup-remove-observer-2").assertCountEquals(1)
-        assertSetupAddObserverRow(2)
-        composeRule.onNodeWithTag("setup-remove-observer-2").performClick()
-        assertSetupAddObserverRow(1)
-        composeRule.onNodeWithTag("setup-observer-0").performTextReplacement("Mike")
-        composeRule.onNodeWithTag("setup-observer-0").performImeAction()
+        assertSingleSetupAddObserver()
         composeRule.onNodeWithTag("setup-observer-1").performTextReplacement("Gary")
         composeRule.onNodeWithTag("setup-observer-1").performImeAction()
+        composeRule.onNodeWithTag("setup-add-observer")
+            .performScrollTo()
+            .performClick()
+        composeRule.onNodeWithTag("setup-observer-2")
+            .performScrollTo()
+            .performTextReplacement("Bill")
+        composeRule.onNodeWithTag("setup-observer-2").performImeAction()
+        composeRule.onAllNodesWithTag("setup-remove-observer-2").assertCountEquals(0)
+        assertSingleSetupAddObserver()
         composeRule.onNodeWithTag("setup-field-name").performTextReplacement("Field 7")
         composeRule.onNodeWithTag("setup-field-name").performImeAction()
         closeSetupEditor()
@@ -463,7 +492,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         waitForText("Open Division")
         waitForText("Community showcase")
         waitForText("Semifinals")
-        waitForText("Observers: Mike, Gary")
+        waitForText("Observers: Mike, Gary, Bill")
         waitForText("Field: Field 7")
 
         // Cancel is the explicit discard path for this editor.
@@ -479,8 +508,12 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         openGameInformationSetupEditor()
         composeRule.onNodeWithTag("setup-tournament-name")
             .performTextReplacement("Dismissed Tournament")
-        composeRule.onNodeWithTag("setup-tournament-name").performImeAction()
         dismissDialog(text = "Done", clearKeyboard = true)
+        waitForText("Dismissed Tournament")
+
+        // Dismissal also follows Done when no text field has focus.
+        openGameInformationSetupEditor()
+        dismissDialog(text = "Done")
         waitForText("Dismissed Tournament")
     }
 
@@ -767,12 +800,8 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onAllNodesWithText("#23 Jarvis").assertCountEquals(0)
     }
 
-    /// Assert that the add-observer action is attached to the requested observer row.
-    private fun assertSetupAddObserverRow(index: Int) {
+    /// Assert that only one add-observer action is currently visible.
+    private fun assertSingleSetupAddObserver() {
         composeRule.onAllNodesWithTag("setup-add-observer").assertCountEquals(1)
-        composeRule.onAllNodes(
-            hasTestTag("setup-add-observer") and
-                hasAnyAncestor(hasTestTag("setup-observer-row-$index"))
-        ).assertCountEquals(1)
     }
 }

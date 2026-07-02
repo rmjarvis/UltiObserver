@@ -308,8 +308,12 @@ private fun ArchiveListWithControls(
                         entry = game.entry,
                         rowTagPrefix = "archived-game",
                         deleteTagPrefix = "delete-archived-game",
-                        onClick = { onOpenArchivedGame(game.index) },
-                        onDelete = { onDeleteArchivedGame(game.index) },
+                        onClick = {
+                            onOpenArchivedGame(game.index)
+                        },
+                        onDelete = {
+                            onDeleteArchivedGame(game.index)
+                        },
                     )
                 }
             }
@@ -382,9 +386,6 @@ private fun ArchiveListControls(
  */
 @Composable
 private fun ArchiveFilterAndSortSummary(text: String) {
-    if (text.isEmpty()) {
-        return
-    }
     Text(
         text = text,
         style = MaterialTheme.typography.bodySmall,
@@ -433,9 +434,13 @@ private fun ArchiveFilterDialog(
         ArchiveValueFilterDialog(
             field = field,
             selectedValues = filterSelections.valuesFor(field),
-            availableValues = availableValues[field].orEmpty(),
-            onUpdateValues = { onUpdateValues(field, it) },
-            onClear = { onClearFilter(field) },
+            availableValues = availableValues.getValue(field),
+            onUpdateValues = { values ->
+                onUpdateValues(field, values)
+            },
+            onClear = {
+                onClearFilter(field)
+            },
             onBack = { selectedField = null },
         )
     }
@@ -560,6 +565,7 @@ private fun ArchiveValueFilterDialog(
                     ) {
                         Checkbox(
                             checked = checked,
+                            modifier = Modifier.testTag("archive-filter-checkbox-${option.value}"),
                             onCheckedChange = {
                                 onUpdateValues(selectedValues.toggled(option.value))
                             },
@@ -593,8 +599,8 @@ private fun ArchiveDateFilterDialog(
     onBack: () -> Unit,
 ) {
     val today = remember { LocalDate.now() }
-    var selectedStart by remember(dateFilter) { mutableStateOf(dateFilter?.startDate()) }
-    var selectedEnd by remember(dateFilter) { mutableStateOf(dateFilter?.endDate()) }
+    var selectedStart by remember { mutableStateOf(dateFilter?.startDate()) }
+    var selectedEnd by remember { mutableStateOf(dateFilter?.endDate()) }
     var datePickerTarget by remember { mutableStateOf<ArchiveCustomDateTarget?>(null) }
 
     fun setDateRange(start: LocalDate?, end: LocalDate?) {
@@ -810,8 +816,12 @@ private fun InProgressGamesList(
                 entry = game.entry,
                 rowTagPrefix = "saved-in-progress-game",
                 deleteTagPrefix = "delete-saved-in-progress-game",
-                onClick = { onOpenArchivedGame(game.index) },
-                onDelete = { onDeleteSavedGame(game.index) },
+                onClick = {
+                    onOpenArchivedGame(game.index)
+                },
+                onDelete = {
+                    onDeleteSavedGame(game.index)
+                },
             )
         }
     }
@@ -864,8 +874,12 @@ private fun SetupStatesList(
                 entry = setup.entry,
                 rowTagPrefix = "saved-setup-state",
                 deleteTagPrefix = "delete-saved-setup-state",
-                onClick = { onOpenSavedSetup(setup.index) },
-                onDelete = { onDeleteSavedSetup(setup.index) },
+                onClick = {
+                    onOpenSavedSetup(setup.index)
+                },
+                onDelete = {
+                    onDeleteSavedSetup(setup.index)
+                },
             )
         }
     }

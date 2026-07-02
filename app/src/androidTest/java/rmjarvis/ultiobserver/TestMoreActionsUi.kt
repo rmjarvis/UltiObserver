@@ -38,8 +38,35 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
         openMoreActionsDialog()
         composeRule.onNodeWithText("Game summary").performClick()
         waitForText("Game summary")
-        composeRule.onNodeWithText("Back to game").performClick()
+        tapTopBarBack()
         assertLiveScreen()
+        openMoreActionsDialog()
+        composeRule.onNodeWithText("Game summary").performClick()
+        waitForText("Game summary")
+        tapTopBarHome()
+        waitForText("Current game")
+        composeRule.onNodeWithTag("current-game").performClick()
+        assertLiveScreen()
+
+        // Once the observer starts the opening point, update setup mode edits the current game.
+        startPointAndUnlock()
+        openMoreActionsDialog()
+        composeRule.onNodeWithText("Update game setup").performClick()
+        waitForText("Done")
+        replaceSetupTeamName("Team 1", "Updated Team")
+        composeRule.onNodeWithText("Done").performClick()
+        waitForText("Updated Team")
+
+        // Update setup mode can also return directly Home, preserving the current game.
+        openMoreActionsDialog()
+        composeRule.onNodeWithText("Update game setup").performClick()
+        waitForText("Done")
+        tapTopBarHome()
+        waitForText("Current game")
+        composeRule.onNodeWithTag("current-game").performClick()
+        assertLiveScreen()
+
+        // Run through all the adjust pathways, but just cancel them for now.
         openMoreActionsDialog()
         openMoreActionsDialogAndCancel("Adjust score")
         openMoreActionsDialogAndCancel("Adjust timeouts")
@@ -91,6 +118,29 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
         // Back dismissal and OK are equivalent acknowledgements for this prompt.
         dismissDialog(text = "OK")
         assertLiveScreen()
+
+        // Once halftime has been taken, timeout adjustment includes first-half rows too.
+        openMoreActionsDialog()
+        composeRule.onNodeWithText("Adjust timeouts").performScrollTo().performClick()
+        waitForText("Adjust the number of timeouts used by each team in the first half.")
+        composeRule.onAllNodesWithText("+1")[2].performClick()
+        composeRule.onAllNodesWithText("+1")[3].performClick()
+        composeRule.onAllNodesWithText("-1")[2].performClick()
+        composeRule.onAllNodesWithText("-1")[3].performClick()
+        composeRule.onAllNodesWithText("+1")[2].performClick()
+        composeRule.onNodeWithText("Set").performClick()
+        waitForText("Undo Timeout adjustment")
+
+        // Timeout adjustment copy uses singular text when only one timeout is available.
+        startLiveGameProgrammatically(
+            newSetupGameState(now = System.currentTimeMillis()).copy(
+                rules = GameRules(timeoutsPerHalf = 1),
+            )
+        )
+        openMoreActionsDialog()
+        composeRule.onNodeWithText("Adjust timeouts").performScrollTo().performClick()
+        waitForText("Team 1 is allowed to use 1 timeout")
+        dismissDialog(text = "Cancel")
     }
 
     /**
@@ -123,6 +173,12 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
         assertPullViolationDialogFieldCount("False starts", 2)
         assertPullViolationDialogFieldCount("Time violations", 2)
         assertPullViolationDialogFieldCount("Majority pull", 2)
+        repeat(8) { index ->
+            composeRule.onAllNodesWithText("+1")[index].performClick()
+        }
+        repeat(8) { index ->
+            composeRule.onAllNodesWithText("-1")[index].performClick()
+        }
         dismissDialog(text = "Cancel")
     }
 

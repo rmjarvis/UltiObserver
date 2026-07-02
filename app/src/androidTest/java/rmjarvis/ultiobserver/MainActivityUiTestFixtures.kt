@@ -410,6 +410,11 @@ abstract class MainActivityUiTestFixtures {
         composeRule.onNodeWithTag("top-bar-back").performClick()
     }
 
+    /// Tap the current screen's top-bar Home navigation icon.
+    protected fun tapTopBarHome() {
+        composeRule.onNodeWithTag("top-bar-home").performClick()
+    }
+
     /// Send platform Back to the currently focused app window.
     protected fun pressDialogBack() {
         pressBackUnconditionally()
@@ -690,6 +695,8 @@ abstract class MainActivityUiTestFixtures {
         composeRule.onAllNodesWithText("+1")[0].performClick()
         composeRule.onAllNodesWithText("+1")[1].performClick()
         composeRule.onAllNodesWithText("-1")[0].performClick()
+        composeRule.onAllNodesWithText("-1")[1].performClick()
+        composeRule.onAllNodesWithText("+1")[0].performClick()
         composeRule.onNodeWithText("Set").performClick()
         waitForText("Undo Score adjustment")
     }
@@ -697,11 +704,15 @@ abstract class MainActivityUiTestFixtures {
     /// Exercise the timeout adjustment dialog with a small nonzero correction.
     protected fun applyTimeoutAdjustment() {
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust timeouts").performClick()
-        waitForText("Adjust timeouts")
+        composeRule.onNodeWithTag("more-actions-adjust-timeouts")
+            .performScrollTo()
+            .performTouchInput { click() }
+        waitForText("Adjust the number of timeouts used by each team this half.")
         composeRule.onAllNodesWithText("+1")[0].performClick()
         composeRule.onAllNodesWithText("+1")[1].performClick()
         composeRule.onAllNodesWithText("-1")[0].performClick()
+        composeRule.onAllNodesWithText("-1")[1].performClick()
+        composeRule.onAllNodesWithText("+1")[0].performClick()
         composeRule.onNodeWithText("Set").performClick()
         waitForText("Undo Timeout adjustment")
     }
@@ -714,7 +725,10 @@ abstract class MainActivityUiTestFixtures {
         repeat(6) { index ->
             composeRule.onAllNodesWithText("+1")[index].performClick()
         }
-        composeRule.onAllNodesWithText("-1")[1].performClick()
+        repeat(6) { index ->
+            composeRule.onAllNodesWithText("-1")[index].performClick()
+        }
+        composeRule.onAllNodesWithText("+1")[0].performClick()
         composeRule.onNodeWithTag("adjust-pull-violations-confirm").performTouchInput {
             click()
         }
@@ -963,7 +977,7 @@ abstract class MainActivityUiTestFixtures {
      */
     protected fun openMoreActionsDialogAndCancel(label: String) {
         composeRule.onNodeWithText(label).performScrollTo().performClick()
-        composeRule.onAllNodesWithText("Cancel").onLast().performClick()
+        dismissDialog(text = "Cancel")
         waitForText("Update game setup")
     }
 

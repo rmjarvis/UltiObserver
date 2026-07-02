@@ -140,7 +140,9 @@ private fun RandomAvatarPreferenceButton(
         border = BorderStroke(1.dp, choiceBorderColor(selected)),
         modifier = Modifier
             .fillMaxWidth()
-            .semantics { this.selected = selected }
+            .semantics {
+                this.selected = selected
+            }
             .testTag("profile-avatar-RANDOM"),
     ) {
         Text(
@@ -166,7 +168,9 @@ private fun AvatarPreferenceButton(
         border = BorderStroke(1.dp, choiceBorderColor(selected)),
         modifier = modifier
             .aspectRatio(1f)
-            .semantics { this.selected = selected }
+            .semantics {
+                this.selected = selected
+            }
             .testTag("profile-avatar-${preference.name}"),
     ) {
         Box(

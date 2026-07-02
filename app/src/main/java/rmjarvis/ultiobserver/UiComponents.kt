@@ -96,16 +96,16 @@ private const val KEYBOARD_DIALOG_HEIGHT_FRACTION = 0.60f
 
 internal val NavigationButtonShape: Shape
     @Composable get() = ButtonDefaults.shape
-internal val AdjustShape = RoundedCornerShape(12.dp)
-internal val BigActionButtonShape = RoundedCornerShape(16.dp)
+private val AdjustShape = RoundedCornerShape(12.dp)
+private val BigActionButtonShape = RoundedCornerShape(16.dp)
 internal val PanelShape = RoundedCornerShape(8.dp)
-internal val MenuButtonShape = RoundedCornerShape(12.dp)
-internal val ChoiceButtonShape = RoundedCornerShape(12.dp)
-internal val SectionCardShape = RoundedCornerShape(20.dp)
+private val MenuButtonShape = RoundedCornerShape(12.dp)
+private val ChoiceButtonShape = RoundedCornerShape(12.dp)
+private val SectionCardShape = RoundedCornerShape(20.dp)
 internal val GameRowShape = RoundedCornerShape(16.dp)
 
-internal val SelectedColor = Color(0xFF1565C0)
-internal val SelectedBorderColor = Color(0xFF0D47A1)
+private val SelectedColor = Color(0xFF1565C0)
+private val SelectedBorderColor = Color(0xFF0D47A1)
 internal val YellowCardButtonColor = Color(0xFFFFD92F)
 internal val RedCardButtonColor = Color(0xFFE64B3C)
 internal val BlueCardButtonColor = Color(0xFF1976D2)
@@ -153,8 +153,6 @@ internal fun dialogInitialFocusModifier(): Modifier {
  * @param maxHeight Maximum height before the body scrolls.
  * @param verticalArrangement Vertical spacing for the content column.
  * @param showBottomChevron Whether to show a down-chevron below the bottom fade.
- * @param contentBottomPadding Extra space after content once the body scrolls.
- * @param bottomChevronOffset Vertical offset for the bottom chevron.
  * @param content Dialog body content.
  */
 @Composable
@@ -163,11 +161,10 @@ internal fun ScrollableDialogRegion(
     maxHeight: Dp = keyboardDialogBodyMaxHeight(),
     verticalArrangement: Arrangement.Vertical = Arrangement.spacedBy(12.dp),
     showBottomChevron: Boolean = true,
-    contentBottomPadding: Dp = 0.dp,
-    bottomChevronOffset: Dp = 0.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val scrollState = rememberScrollState()
+    val bottomChevronOffset = 22.dp
     // Dialog measurement can produce tiny scroll ranges even when no meaningful content is hidden.
     val overflowIndicatorThreshold = with(LocalDensity.current) { 24.dp.roundToPx() }
     val showScrollIndicators = scrollState.maxValue > overflowIndicatorThreshold
@@ -176,17 +173,7 @@ internal fun ScrollableDialogRegion(
     ) {
         Column(
             modifier = Modifier
-                .verticalScroll(scrollState)
-                .padding(
-                    bottom = if (
-                        showScrollIndicators &&
-                        (scrollState.canScrollForward || scrollState.canScrollBackward)
-                    ) {
-                        contentBottomPadding
-                    } else {
-                        0.dp
-                    }
-                ),
+                .verticalScroll(scrollState),
             verticalArrangement = verticalArrangement,
             content = content,
         )
@@ -319,13 +306,13 @@ internal val OnSecondaryColor = Color.White
 internal val ResetColor = Color(0xFF9E4B3E)
 
 /// Content color to use on ResetColor.
-internal val OnResetColor = Color.White
+private val OnResetColor = Color.White
 
 /// Redo fill for tertiary actions.
 internal val RedoColor = Color(0xFF4F565C)
 
 /// Content color to use on RedoColor.
-internal val OnRedoColor = Color.White
+private val OnRedoColor = Color.White
 
 /// Unselected choice fill.
 internal val OptionColor: Color
@@ -464,7 +451,9 @@ internal fun ChoiceChipButton(
         onClick = onClick,
         modifier = Modifier
             .withTag(tag)
-            .semantics { this.selected = selected },
+            .semantics {
+                this.selected = selected
+            },
         shape = ChoiceButtonShape,
         color = choiceContainerColor(selected),
         contentColor = choiceContentColor(selected),
@@ -532,8 +521,6 @@ internal fun pageOutlinedTextFieldColors(): TextFieldColors {
  * @param minLines Minimum line count for multi-line fields.
  * @param capitalization Keyboard capitalization behavior.
  * @param keyboardType Keyboard type requested from the platform.
- * @param imeAction IME action requested from the platform keyboard.
- * @param fullWidth Whether the field should fill the available width.
  * @param modifier Optional layout modifier, reserved for row weight when needed.
  * @param tag Optional test tag.
  * @param colors Text-field colors.
@@ -552,8 +539,6 @@ internal fun TextEntry(
     minLines: Int = 1,
     capitalization: KeyboardCapitalization = KeyboardCapitalization.None,
     keyboardType: KeyboardType = KeyboardType.Text,
-    imeAction: ImeAction = ImeAction.Done,
-    fullWidth: Boolean = true,
     modifier: Modifier = Modifier,
     tag: String? = null,
     colors: TextFieldColors = dialogOutlinedTextFieldColors(),
@@ -578,7 +563,7 @@ internal fun TextEntry(
     }
     val focusManager = LocalFocusManager.current
     val textScrollState = rememberScrollState()
-    var textModifier = if (fullWidth) modifier.fillMaxWidth() else modifier
+    var textModifier = modifier.fillMaxWidth()
     if (onFocusLost != null) {
         textModifier = textModifier.onFocusChanged {
             if (!it.isFocused) {
@@ -609,15 +594,11 @@ internal fun TextEntry(
         keyboardOptions = KeyboardOptions(
             capitalization = capitalization,
             keyboardType = keyboardType,
-            imeAction = imeAction,
+            imeAction = ImeAction.Done,
         ),
         onKeyboardAction = {
-            if (imeAction == ImeAction.Done) {
-                onDone?.invoke()
-                focusManager.clearFocus(force = true)
-            } else {
-                it()
-            }
+            onDone?.invoke()
+            focusManager.clearFocus(force = true)
         },
         colors = colors,
         scrollState = textScrollState,
@@ -663,7 +644,7 @@ private fun textEntryLineLimits(singleLine: Boolean, minLines: Int): TextFieldLi
  * @param modifier Optional layout modifier, reserved for row weight when needed.
  * @param enabled Whether the button is enabled.
  * @param colors Button colors.
- * @param borderColor Optional button border color.
+ * @param borderColor Button border color.
  * @param compact Whether to remove default minimum sizing for fixed-height bars.
  * @param tag Optional test tag.
  * @param onClick Callback invoked when the button is tapped.
@@ -813,35 +794,22 @@ internal fun MenuButton(
     fullWidth: Boolean = true,
     enabled: Boolean = true,
     colors: ButtonColors = neutralOutlinedButtonColors(),
-    borderColor: Color? = MaterialTheme.colorScheme.outline,
+    borderColor: Color = MaterialTheme.colorScheme.outline,
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
     tag: String? = null,
     onClick: () -> Unit,
     content: @Composable RowScope.() -> Unit,
 ) {
-    val buttonModifier = buttonLayoutModifier(fullWidth = fullWidth).withTag(tag)
-    if (borderColor == null) {
-        Button(
-            onClick = onClick,
-            enabled = enabled,
-            modifier = buttonModifier,
-            shape = MenuButtonShape,
-            colors = colors,
-            contentPadding = contentPadding,
-            content = content,
-        )
-    } else {
-        OutlinedButton(
-            onClick = onClick,
-            enabled = enabled,
-            modifier = buttonModifier,
-            shape = MenuButtonShape,
-            colors = colors,
-            border = BorderStroke(1.dp, borderColor),
-            contentPadding = contentPadding,
-            content = content,
-        )
-    }
+    OutlinedButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = buttonLayoutModifier(fullWidth = fullWidth).withTag(tag),
+        shape = MenuButtonShape,
+        colors = colors,
+        border = BorderStroke(1.dp, borderColor),
+        contentPadding = contentPadding,
+        content = content,
+    )
 }
 
 /**

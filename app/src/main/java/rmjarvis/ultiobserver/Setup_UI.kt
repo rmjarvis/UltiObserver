@@ -427,7 +427,7 @@ internal fun SetupScreen(
         }
 
         SetupDialog.GAME_RULES -> {
-            val rulesDraft = gameRulesDraft ?: state.rules
+            val rulesDraft = gameRulesDraft!!
             GameRulesSetupDialog(
                 state = state.copy(rules = rulesDraft),
                 onEditRule = { editingRule = it },
@@ -653,11 +653,18 @@ internal fun SetupScreen(
             playerDeleteRejectedMessage = null
         }
         AlertDialog(
-            onDismissRequest = ::dismissPlayerDeleteRejectedMessage,
+            onDismissRequest = {
+                dismissPlayerDeleteRejectedMessage()
+            },
             title = { Text("Player not deleted") },
             text = { Text(message) },
             confirmButton = {
-                TextActionButton(label = "OK", onClick = ::dismissPlayerDeleteRejectedMessage)
+                TextActionButton(
+                    label = "OK",
+                    onClick = {
+                        dismissPlayerDeleteRejectedMessage()
+                    },
+                )
             },
         )
     }
@@ -668,7 +675,9 @@ internal fun SetupScreen(
         }
 
         AlertDialog(
-            onDismissRequest = ::dismissPriorCardRemoval,
+            onDismissRequest = {
+                dismissPriorCardRemoval()
+            },
             title = { Text("Remove card holder?") },
             text = {
                 Text("Remove prior cards for ${pending.record.playerIdentity(compact = false)}?")
@@ -683,7 +692,12 @@ internal fun SetupScreen(
                 )
             },
             dismissButton = {
-                TextActionButton(label = "Cancel", onClick = ::dismissPriorCardRemoval)
+                TextActionButton(
+                    label = "Cancel",
+                    onClick = {
+                        dismissPriorCardRemoval()
+                    },
+                )
             },
         )
     }
@@ -691,7 +705,7 @@ internal fun SetupScreen(
     // If editingRule is set, then on this re-render, open the dialog for specifying rules.
     if (editingRule != null) {
         val target = editingRule!!
-        val rules = gameRulesDraft ?: state.rules
+        val rules = gameRulesDraft!!
         // No else branch: every RuleEditTarget value is handled
         when (target) {
             RuleEditTarget.GAME_TO -> {
@@ -773,7 +787,7 @@ internal fun SetupScreen(
     // If showTimeoutRulesDialog is true, then on this re-render, open the dialog for
     // setting the number of timeouts per half.
     if (showTimeoutRulesDialog) {
-        val rules = gameRulesDraft ?: state.rules
+        val rules = gameRulesDraft!!
         TimeoutRulesDialog(
             rules = rules,
             onDismiss = { showTimeoutRulesDialog = false },
@@ -930,13 +944,13 @@ private fun GameInformationSetupDialog(
         modifier = Modifier
             .imePadding()
             .then(dialogInitialFocusModifier()),
-        onDismissRequest = ::saveAndDismiss,
+        onDismissRequest = {
+            saveAndDismiss()
+        },
         title = { Text("Game information") },
         text = {
             ScrollableDialogRegion(
                 maxHeight = dialogBodyMaxHeight,
-                contentBottomPadding = 36.dp,
-                bottomChevronOffset = 22.dp,
             ) {
                 Text(
                     text = "Date",
@@ -1031,7 +1045,12 @@ private fun GameInformationSetupDialog(
             }
         },
         confirmButton = {
-            TextActionButton(label = "Done", onClick = ::saveAndDismiss)
+            TextActionButton(
+                label = "Done",
+                onClick = {
+                    saveAndDismiss()
+                },
+            )
         },
         dismissButton = {
             TextActionButton(label = "Cancel", onClick = onDismiss)
@@ -1097,7 +1116,9 @@ private fun ObserverNameEntries(
             ) {
                 TextEntry(
                     value = observerName,
-                    onValueChange = { name -> onUpdateObserver(index, name) },
+                    onValueChange = { name ->
+                        onUpdateObserver(index, name)
+                    },
                     promptText = "Observer ${index + 1}",
                     capitalization = KeyboardCapitalization.Words,
                     modifier = Modifier.weight(1f),
@@ -1509,7 +1530,9 @@ private fun StartingPullSetupDialog(
         modifier = Modifier
             .imePadding()
             .then(dialogInitialFocusModifier()),
-        onDismissRequest = ::saveAndDismiss,
+        onDismissRequest = {
+            saveAndDismiss()
+        },
         title = { Text("Field/starting pull") },
         text = {
             ScrollableDialogRegion(
@@ -1597,7 +1620,12 @@ private fun StartingPullSetupDialog(
             }
         },
         confirmButton = {
-            TextActionButton(label = "Done", onClick = ::saveAndDismiss)
+            TextActionButton(
+                label = "Done",
+                onClick = {
+                    saveAndDismiss()
+                },
+            )
         },
         dismissButton = {
             TextActionButton(label = "Cancel", onClick = onDismiss)
@@ -1632,6 +1660,7 @@ private fun GameRulesSetupDialog(
         title = { Text("Game rules") },
         text = {
             ScrollableDialogRegion(
+                maxHeight = 440.dp,
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 EditableValueRow(
@@ -1750,6 +1779,7 @@ private fun PriorCardsSetupDialog(
                 ScrollableDialogRegion(
                     maxHeight = 320.dp,
                     verticalArrangement = Arrangement.spacedBy(10.dp),
+                    showBottomChevron = false,
                 ) {
                     if (teamPriorCards.isEmpty()) {
                         Text("No card holders added yet")
@@ -2354,7 +2384,9 @@ private fun CustomTeamColorSetupDialog(
     }
 
     AlertDialog(
-        onDismissRequest = ::useColorAndDismiss,
+        onDismissRequest = {
+            useColorAndDismiss()
+        },
         title = { Text("$teamLabel Color") },
         text = {
             CustomColorPicker(

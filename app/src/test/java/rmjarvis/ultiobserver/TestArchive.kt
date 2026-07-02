@@ -76,7 +76,7 @@ class TestArchive : GameDomainTestFixtures() {
             ArchivedGameCategory.entries.map { it.displayText },
         )
         assertEquals(
-            listOf("No completed games yet.", "No in-progress games.", "No saved setup states."),
+            listOf("No archived games yet.", "No in-progress games.", "No saved setup states."),
             ArchivedGameCategory.entries.map { it.emptyText },
         )
         assertEquals(

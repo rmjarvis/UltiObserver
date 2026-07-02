@@ -4,6 +4,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onLast
@@ -358,7 +359,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
             "#6 Alex Cutter is already listed. Record #6 Bob Cutter as a different player " +
                 "with the same number?"
         )
-        composeRule.onNodeWithTag("same-number-warning-cancel").performClick()
+        dismissDialog(tag = "same-number-warning-cancel")
         waitForText("Yellow card")
 
         // If the user is sure that this is correct, they can make two number 6 players,
@@ -419,6 +420,10 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
             .assertIsNotEnabled()
         composeRule.onAllNodesWithText("Add yellow (0)").assertCountEquals(2)
         composeRule.onAllNodesWithText("Add red (0)").assertCountEquals(2)
+        composeRule.onAllNodesWithTag("cards-adjust-team-one-add-yellow").assertCountEquals(1)
+        composeRule.onAllNodesWithTag("cards-adjust-team-one-add-red").assertCountEquals(1)
+        composeRule.onAllNodesWithTag("cards-adjust-team-two-add-yellow").assertCountEquals(1)
+        composeRule.onAllNodesWithTag("cards-adjust-team-two-add-red").assertCountEquals(1)
         dismissDialog(text = "Cancel")
         waitForText("Update game setup")
 
@@ -451,14 +456,18 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("cards-adjust-team-two-tech-increment").performClick()
 
         // A name-only yellow is valid for a player without a number.
-        composeRule.onNodeWithText("Add yellow (1)").performClick()
+        composeRule.onNodeWithTag("cards-adjust-team-one-add-yellow")
+            .performScrollTo()
+            .performClick()
         waitForText("Add yellow card")
         composeRule.onNodeWithTag("card-player-name").performTextReplacement("Name Only Cutter")
         composeRule.onNodeWithText("Record").performClick()
         composeRule.onAllNodesWithText("Card suspension").assertCountEquals(0)
 
         // The correction dialog can add a player red.
-        composeRule.onAllNodesWithText("Add red (0)").onFirst().performClick()
+        composeRule.onNodeWithTag("cards-adjust-team-one-add-red")
+            .performScrollTo()
+            .performClick()
         waitForText("Add red card")
         enterCardPlayerNumber("9")
         composeRule.onNodeWithText("Record").performClick()
@@ -546,7 +555,9 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         openMoreActionsDialog()
         composeRule.onNodeWithText("Adjust cards / techs").performScrollTo().performClick()
         waitForTag("cards-adjust-team-one-blue-increment")
-        composeRule.onNodeWithText("Add yellow (2)").performClick()
+        composeRule.onNodeWithTag("cards-adjust-team-one-add-yellow")
+            .performScrollTo()
+            .performClick()
         waitForText("Add yellow card")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Enter a player number or name before recording this card.")
@@ -560,13 +571,15 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         openMoreActionsDialog()
         composeRule.onNodeWithText("Adjust cards / techs").performScrollTo().performClick()
         waitForTag("cards-adjust-team-one-blue-increment")
-        composeRule.onNodeWithText("Add red (0)").performClick()
+        composeRule.onNodeWithTag("cards-adjust-team-two-add-red")
+            .performScrollTo()
+            .performClick()
         waitForText("Add red card")
         enterCardPlayerNumber("21")
         composeRule.onNodeWithTag("card-player-name").performTextReplacement("Different Handler")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Same number, different names")
-        composeRule.onNodeWithTag("same-number-warning-cancel").performClick()
+        dismissDialog(tag = "same-number-warning-cancel")
         waitForText("Add red card")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Same number, different names")
@@ -580,7 +593,9 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         openMoreActionsDialog()
         composeRule.onNodeWithText("Adjust cards / techs").performScrollTo().performClick()
         waitForTag("cards-adjust-team-one-blue-increment")
-        composeRule.onNodeWithText("Add yellow (3)").performClick()
+        composeRule.onNodeWithTag("cards-adjust-team-two-add-yellow")
+            .performScrollTo()
+            .performClick()
         waitForText("Add yellow card")
         enterCardPlayerNumber("22")
         composeRule.onNodeWithText("Record").performClick()
@@ -652,7 +667,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("card-player-name").performImeAction()
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Same number, different names")
-        composeRule.onNodeWithTag("same-number-warning-cancel").performClick()
+        dismissDialog(tag = "same-number-warning-cancel")
         waitForText("Red card")
         assertEquals(
             "10",

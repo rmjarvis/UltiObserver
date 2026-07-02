@@ -376,6 +376,8 @@ internal fun AdjustCardsDialog(
                                 PlayerCardEntry(""),
                             )
                         },
+                        addYellowTestTag = "cards-adjust-team-one-add-yellow",
+                        addRedTestTag = "cards-adjust-team-one-add-red",
                         editExistingTestTag = "cards-adjust-team-one-edit-existing",
                     )
                 }
@@ -413,6 +415,8 @@ internal fun AdjustCardsDialog(
                                 PlayerCardEntry(""),
                             )
                         },
+                        addYellowTestTag = "cards-adjust-team-two-add-yellow",
+                        addRedTestTag = "cards-adjust-team-two-add-red",
                         editExistingTestTag = "cards-adjust-team-two-edit-existing",
                     )
                 }
@@ -509,7 +513,9 @@ internal fun AdjustCardsDialog(
             )
         }
         AlertDialog(
-            onDismissRequest = ::restoreManualCardAdd,
+            onDismissRequest = {
+                restoreManualCardAdd()
+            },
             title = { Text("Same number, different names") },
             text = {
                 Text(
@@ -544,7 +550,9 @@ internal fun AdjustCardsDialog(
                 TextActionButton(
                     label = "Cancel",
                     tag = "same-number-warning-cancel",
-                    onClick = ::restoreManualCardAdd,
+                    onClick = {
+                        restoreManualCardAdd()
+                    },
                 )
             }
         )
@@ -1175,6 +1183,7 @@ private fun CardChoiceDialog(
                     BigActionButton(
                         label = "Yellow",
                         containerColor = YellowCardButtonColor,
+                        contentColor = Color.Black,
                         borderColor = null,
                         modifier = Modifier.weight(1f),
                         tag = "card-dialog-${team.name}-yellow",
@@ -1183,6 +1192,7 @@ private fun CardChoiceDialog(
                     BigActionButton(
                         label = "Red",
                         containerColor = RedCardButtonColor,
+                        contentColor = Color.Black,
                         borderColor = null,
                         modifier = Modifier.weight(1f),
                         tag = "card-dialog-${team.name}-red",
@@ -1272,6 +1282,8 @@ private fun CardCountRow(
  * @param onEditExisting Callback opening the existing-card editor.
  * @param onAddYellow Callback adding one yellow card.
  * @param onAddRed Callback adding one red card.
+ * @param addYellowTestTag Test tag for the add-yellow action.
+ * @param addRedTestTag Test tag for the add-red action.
  * @param editExistingTestTag Test tag for the existing-card editor action.
  */
 @Composable
@@ -1282,6 +1294,8 @@ private fun PlayerCardAdjustmentActions(
     onEditExisting: () -> Unit,
     onAddYellow: () -> Unit,
     onAddRed: () -> Unit,
+    addYellowTestTag: String,
+    addRedTestTag: String,
     editExistingTestTag: String,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1289,16 +1303,20 @@ private fun PlayerCardAdjustmentActions(
             BigActionButton(
                 label = "Add yellow ($yellowCount)",
                 containerColor = YellowCardButtonColor,
+                contentColor = Color.Black,
                 borderColor = null,
                 onClick = onAddYellow,
                 modifier = Modifier.weight(1f),
+                tag = addYellowTestTag,
             )
             BigActionButton(
                 label = "Add red ($redCount)",
                 containerColor = RedCardButtonColor,
+                contentColor = Color.Black,
                 borderColor = null,
                 onClick = onAddRed,
                 modifier = Modifier.weight(1f),
+                tag = addRedTestTag,
             )
         }
         MenuButton(

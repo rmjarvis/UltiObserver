@@ -107,7 +107,6 @@ internal fun LiveGameScreen(
     var activeGamePrompt by remember { mutableStateOf<GamePrompt?>(null) }
     var previouslyObservedPhase by remember { mutableStateOf(state.phase) }
     var suppressNextPhasePrompt by remember { mutableStateOf(false) }
-    var autoLockSuppressionState by remember { mutableStateOf<GameState?>(null) }
 
     /**
      * Show a transient action-info popup.
@@ -126,13 +125,12 @@ internal fun LiveGameScreen(
     }
 
     /**
-     * Apply undo while suppressing phase-change prompts and automatic locking caused by restored state.
+     * Apply undo while suppressing phase-change prompts caused by restored state.
      *
      * @param updatedState The state produced by undo.
      */
     fun undoWithoutPhasePrompt(updatedState: GameState) {
         suppressNextPhasePrompt = updatedState.phase != state.phase
-        autoLockSuppressionState = updatedState
         activeGamePrompt = null
         onStateChange(updatedState)
     }
@@ -181,15 +179,7 @@ internal fun LiveGameScreen(
                 showDefenseCountdowns = showDefenseCountdowns,
             )
             if (transitionedState != state) {
-                val suppressAutoLock = autoLockSuppressionState == state
-                if (suppressAutoLock) {
-                    autoLockSuppressionState = null
-                }
-                if (
-                    transitionedState.phase == GamePhase.LIVE_POINT &&
-                    automaticallyLockLivePoint &&
-                    !suppressAutoLock
-                ) {
+                if (automaticallyLockLivePoint) {
                     locked = true
                 }
                 onStateChange(transitionedState)
@@ -306,6 +296,7 @@ internal fun LiveGameScreen(
                                 label = "Offense is set",
                                 onClick = { onStateChange(state.reportOffenseSet(now)) },
                                 containerColor = FieldNeutralButtonColor,
+                                contentColor = Color.Black,
                                 height = layoutMetrics.centerButtonHeight,
                                 fontSize = layoutMetrics.centerButtonFontSize,
                                 tag = "live-offense-set",
@@ -320,6 +311,7 @@ internal fun LiveGameScreen(
                                     }
                                 },
                                 containerColor = FieldNeutralButtonColor,
+                                contentColor = Color.Black,
                                 height = layoutMetrics.centerButtonHeight,
                                 fontSize = layoutMetrics.centerButtonFontSize,
                             )
@@ -333,12 +325,13 @@ internal fun LiveGameScreen(
                                     }
                                 },
                                 containerColor = FieldNeutralButtonColor,
+                                contentColor = Color.Black,
                                 height = layoutMetrics.centerButtonHeight,
                                 fontSize = layoutMetrics.centerButtonFontSize,
                             )
                         }
                     },
-                    onLock = if (locked) null else ({ locked = true }),
+                    onLock = { locked = true },
                     onGoal = { team -> onStateChange(state.recordGoalFromCurrentState(team, now)) },
                     onTimeout = { team ->
                         pendingTimeoutRequest = PendingTimeoutRequest(team, System.currentTimeMillis())
@@ -410,7 +403,10 @@ internal fun LiveGameScreen(
                 MoreActionsContent(
                     state = state,
                     now = now,
-                    onUpdateGameSetup = onUpdateGameSetup,
+                    onUpdateGameSetup = {
+                        showMoreActionsDialog = false
+                        onUpdateGameSetup()
+                    },
                     onShowEventLog = {
                         showMoreActionsDialog = false
                         showEventLogSheet = true

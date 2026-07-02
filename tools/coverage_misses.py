@@ -24,6 +24,16 @@ CALLBACK_LAMBDA_OPENER = re.compile(
 NO_OP_CALLBACK_LAMBDA = re.compile(
     rf"^{CALLBACK_NAME_PATTERN}\s*=\s*\{{\}},?$"
 )
+SEMANTICS_LAMBDA_OPENER = re.compile(
+    r"^(?:[A-Za-z_]\w*\s*=\s*)?"
+    r"(?:[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*\.|\.)?"
+    r"semantics\s*\{\s*$"
+)
+ON_FOCUS_CHANGED_LAMBDA_OPENER = re.compile(
+    r"^(?:[A-Za-z_]\w*\s*=\s*)?"
+    r"(?:[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*\.|\.)?"
+    r"onFocusChanged\s*\{\s*$"
+)
 
 
 @dataclass(frozen=True)
@@ -134,6 +144,16 @@ def line_allowed_reason(
         line_number,
         coverage_by_line,
         counters,
+    ) or semantics_lambda_cache_scaffold_reason(
+        source_lines,
+        line_number,
+        coverage_by_line,
+        counters,
+    ) or on_focus_changed_lambda_cache_scaffold_reason(
+        source_lines,
+        line_number,
+        coverage_by_line,
+        counters,
     ) or composable_restart_epilogue_reason(
         source_lines,
         line_number,
@@ -154,6 +174,11 @@ def line_allowed_reason(
         coverage_by_line,
         counters,
     ) or launched_effect_scaffold_reason(
+        source_lines,
+        line_number,
+        coverage_by_line,
+        counters,
+    ) or launched_effect_closing_epilogue_reason(
         source_lines,
         line_number,
         coverage_by_line,
@@ -439,6 +464,97 @@ def callback_lambda_scaffold_reason(
         return None
 
     return "UI callback lambda scaffold"
+
+
+def semantics_lambda_cache_scaffold_reason(
+    source_lines: list[str],
+    line_number: int,
+    coverage_by_line: dict[int, LineCounters],
+    counters: LineCounters,
+) -> str | None:
+    """
+    Return a reason for generated Compose lambda-cache branches on `semantics` openers.
+
+    A semantics modifier such as:
+
+        .semantics {
+            this.selected = selected
+        }
+
+    is lowered into a lambda that captures values such as `selected`.  Compose can
+    cache that lambda across recompositions, so JaCoCo may map generated cache/reuse
+    branches to the `.semantics {` opener.  The user-visible behavior is in the lambda
+    body, for example `this.selected = selected`; that line must still be covered.
+
+    Keep this rule narrow to the inspected cache-miss profile: exactly one missed and
+    one covered branch on the opener, with one missed instruction.  If the semantics
+    body is not covered, or if a broader miss appears on a semantics block, the line
+    remains actionable.
+    """
+
+    if counters.missed_instructions != 1:
+        return None
+    if counters.missed_branches != 1 or counters.covered_branches != 1:
+        return None
+    if counters.covered_instructions == 0:
+        return None
+
+    line_index = line_number - 1
+    source = source_lines[line_index].strip()
+    if SEMANTICS_LAMBDA_OPENER.fullmatch(source) is None:
+        return None
+
+    if not lambda_body_is_covered(source_lines, line_index, coverage_by_line):
+        return None
+
+    return "Compose semantics lambda cache scaffold"
+
+
+def on_focus_changed_lambda_cache_scaffold_reason(
+    source_lines: list[str],
+    line_number: int,
+    coverage_by_line: dict[int, LineCounters],
+    counters: LineCounters,
+) -> str | None:
+    """
+    Return a reason for generated Compose lambda-cache branches on `onFocusChanged`.
+
+    A focus modifier such as:
+
+        textModifier = textModifier.onFocusChanged {
+            if (!it.isFocused) {
+                onFocusLost()
+            }
+        }
+
+    is lowered into a cached callback lambda.  Compose decides during recomposition
+    whether the captured callback has changed, whether a cached lambda is available,
+    and whether it can reuse that lambda or has to create a new one.  JaCoCo can map
+    one of those generated cache/reuse branches to the `onFocusChanged` opener.
+
+    The user-visible focus behavior lives in the lambda body, for example the
+    `it.isFocused` branch and the `onFocusLost()` call.  This rule is separate from
+    the semantics cache rule because focus changes are real app behavior, and only
+    this exact callback-cache profile should be ignored.  If the focus body is not
+    fully covered, the opener stays actionable.
+    """
+
+    if counters.missed_instructions != 2:
+        return None
+    if counters.missed_branches != 1 or counters.covered_branches != 1:
+        return None
+    if counters.covered_instructions == 0:
+        return None
+
+    line_index = line_number - 1
+    source = source_lines[line_index].strip()
+    if ON_FOCUS_CHANGED_LAMBDA_OPENER.fullmatch(source) is None:
+        return None
+
+    if not lambda_body_is_covered(source_lines, line_index, coverage_by_line):
+        return None
+
+    return "Compose onFocusChanged lambda cache scaffold"
 
 
 def composable_restart_epilogue_reason(
@@ -749,6 +865,69 @@ def launched_effect_scaffold_reason(
     if not composable_body_has_covered_code(source_lines, line_index, coverage_by_line):
         return None
     return "Compose LaunchedEffect coroutine scaffold"
+
+
+def launched_effect_closing_epilogue_reason(
+    source_lines: list[str],
+    line_number: int,
+    coverage_by_line: dict[int, LineCounters],
+    counters: LineCounters,
+) -> str | None:
+    """
+    Return a reason for Kotlin coroutine completion code mapped to a `LaunchedEffect` close.
+
+    A `LaunchedEffect` that collects a long-lived flow can have a small generated
+    completion epilogue mapped to the closing brace even when the effect body itself
+    was covered:
+
+        LaunchedEffect(fieldState) {
+            snapshotFlow { fieldState.text.toString() }.collect { text ->
+                ...
+            }
+        }
+
+    The `collect` call is effectively a long-running early return for coverage purposes:
+    normal execution suspends there until Compose cancels the effect, so the coroutine
+    does not fall through to the lambda's closing brace.  That close-brace code is the
+    coroutine state machine's normal completion bookkeeping, not a user path.
+
+    This rule accepts only a bare closing brace whose matching opener is a
+    `LaunchedEffect` body containing a `collect` call, whose body lines are covered,
+    and whose counters match the no-branch, no-covered-instruction profile observed
+    for this generated epilogue.
+    """
+
+    if counters.missed_instructions != 3 or counters.covered_instructions != 0:
+        return None
+    if counters.missed_branches != 0 or counters.covered_branches != 0:
+        return None
+
+    line_index = line_number - 1
+    if source_lines[line_index].strip() != "}":
+        return None
+
+    opening_index = matching_opening_brace_index(source_lines, line_index)
+    if opening_index is None:
+        return None
+    if not line_opens_launched_effect_body(source_lines, opening_index):
+        return None
+    if not launched_effect_body_contains_collect(source_lines, opening_index):
+        return None
+    if not lambda_body_is_covered(source_lines, opening_index, coverage_by_line):
+        return None
+
+    return "Compose LaunchedEffect coroutine closing epilogue"
+
+
+def launched_effect_body_contains_collect(source_lines: list[str], opening_index: int) -> bool:
+    """Return whether a `LaunchedEffect` body contains a Flow-style collect call."""
+
+    end_index = block_end_index(source_lines, opening_index)
+    for index in range(opening_index + 1, end_index):
+        source = source_lines[index].strip()
+        if ".collect" in source or source.startswith("collect"):
+            return True
+    return False
 
 
 def line_opens_launched_effect_body(source_lines: list[str], line_index: int) -> bool:
