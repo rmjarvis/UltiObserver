@@ -468,7 +468,7 @@ enum class CountdownKind {
  * @param division Optional division context for the game.
  * @param level Optional competition level for the game.
  * @param gameContext Optional game-stage or round context, such as pool play or semifinals.
- * @param observers Optional list of observers assigned to the game.
+ * @param observerNames Optional observer names assigned to the game.
  * @param fieldName Optional field name or number where the game is scheduled.
  * @param nearEndName Optional custom label for the near field end.
  * @param farEndName Optional custom label for the far field end.
@@ -498,7 +498,7 @@ data class GameState(
     val division: GameDivision? = null,
     val level: String = "",
     val gameContext: String = "",
-    val observers: String = "",
+    val observerNames: List<String> = emptyList(),
     val fieldName: String = "",
     val nearEndName: String = "",
     val farEndName: String = "",
@@ -776,7 +776,7 @@ private fun GameState.hasSameSetupFieldsAs(other: GameState): Boolean {
         division == other.division &&
         level == other.level &&
         gameContext == other.gameContext &&
-        observers == other.observers &&
+        observerNames == other.observerNames &&
         fieldName == other.fieldName &&
         nearEndName == other.nearEndName &&
         farEndName == other.farEndName &&

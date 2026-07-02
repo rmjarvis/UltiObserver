@@ -37,27 +37,77 @@ private data class FakeArchiveTemplate(
     val tournamentName: String,
     val division: GameDivision?,
     val level: String,
-    val observers: String,
+    val observerNames: List<String>,
 )
 
 private fun fakeCompletedArchiveGames(): List<GameState> {
     val timeZone = ZoneId.of("America/New_York")
     val today = LocalDate.now()
     val templates = listOf(
-        FakeArchiveTemplate("Summer Solstice", GameDivision.OPEN, "Club", "Mike Jarvis"),
-        FakeArchiveTemplate("Summer Solstice", GameDivision.MIXED, "Club", "Casey Lee"),
-        FakeArchiveTemplate("Summer Solstice", GameDivision.WOMENS, "Club", "Morgan Hall"),
-        FakeArchiveTemplate("Fall Brawl", GameDivision.OPEN, "College", "Priya Shah"),
-        FakeArchiveTemplate("Fall Brawl", GameDivision.MIXED, "College", "Mike Jarvis"),
-        FakeArchiveTemplate("Fall Brawl", GameDivision.WOMENS, "College", ""),
-        FakeArchiveTemplate("Winter Classic", GameDivision.OPEN, "Masters", "Sam Ortiz"),
-        FakeArchiveTemplate("Winter Classic", GameDivision.MIXED, "Masters", "Lee Chen"),
-        FakeArchiveTemplate("Regional Qualifier", GameDivision.OPEN, "Elite", "Taylor Reed"),
-        FakeArchiveTemplate("Regional Qualifier", GameDivision.MIXED, "Elite", "Mike Jarvis"),
-        FakeArchiveTemplate("City League", GameDivision.OPEN, "League", "Jordan Kim"),
-        FakeArchiveTemplate("City League", null, "", "Casey Lee"),
-        FakeArchiveTemplate("", GameDivision.MIXED, "Recreational", ""),
-        FakeArchiveTemplate("", null, "", "Morgan Hall"),
+        FakeArchiveTemplate(
+            "Summer Solstice",
+            GameDivision.OPEN,
+            "Club",
+            listOf("Mike Jarvis", "Casey Lee"),
+        ),
+        FakeArchiveTemplate(
+            "Summer Solstice",
+            GameDivision.MIXED,
+            "Club",
+            listOf("Casey Lee", "Morgan Hall"),
+        ),
+        FakeArchiveTemplate(
+            "Summer Solstice",
+            GameDivision.WOMENS,
+            "Club",
+            listOf("Morgan Hall", "Priya Shah"),
+        ),
+        FakeArchiveTemplate(
+            "Fall Brawl",
+            GameDivision.OPEN,
+            "College",
+            listOf("Priya Shah", "Sam Ortiz"),
+        ),
+        FakeArchiveTemplate(
+            "Fall Brawl",
+            GameDivision.MIXED,
+            "College",
+            listOf("Mike Jarvis", "Lee Chen"),
+        ),
+        FakeArchiveTemplate("Fall Brawl", GameDivision.WOMENS, "College", emptyList()),
+        FakeArchiveTemplate(
+            "Winter Classic",
+            GameDivision.OPEN,
+            "Masters",
+            listOf("Sam Ortiz", "Taylor Reed"),
+        ),
+        FakeArchiveTemplate(
+            "Winter Classic",
+            GameDivision.MIXED,
+            "Masters",
+            listOf("Lee Chen", "Jordan Kim"),
+        ),
+        FakeArchiveTemplate(
+            "Regional Qualifier",
+            GameDivision.OPEN,
+            "Elite",
+            listOf("Taylor Reed", "Mike Jarvis", "Casey Lee"),
+        ),
+        FakeArchiveTemplate(
+            "Regional Qualifier",
+            GameDivision.MIXED,
+            "Elite",
+            listOf("Mike Jarvis", "Morgan Hall", "Priya Shah", "Sam Ortiz"),
+        ),
+        FakeArchiveTemplate(
+            "City League",
+            GameDivision.OPEN,
+            "League",
+            listOf("Jordan Kim", "Lee Chen"),
+        ),
+        FakeArchiveTemplate("City League", null, "", listOf("Casey Lee", "Taylor Reed")),
+        FakeArchiveTemplate("", GameDivision.MIXED, "Recreational", emptyList()),
+        FakeArchiveTemplate("", null, "", listOf("Morgan Hall", "Jordan Kim")),
     )
     val teamNames = listOf(
         "Atlas" to "Beacon",
@@ -122,7 +172,7 @@ private fun fakeCompletedGame(
         division = template.division,
         level = template.level,
         gameContext = listOf("Pool play", "Quarterfinal", "Semifinal", "Final")[gameIndex % 4],
-        observers = template.observers,
+        observerNames = template.observerNames,
         fieldName = "Field ${(gameIndex % 9) + 1}",
         nearEndName = listOf("HQ", "Trees", "Parking", "Stadium")[gameIndex % 4],
         farEndName = listOf("Scoreboard", "River", "Tents", "Track")[gameIndex % 4],

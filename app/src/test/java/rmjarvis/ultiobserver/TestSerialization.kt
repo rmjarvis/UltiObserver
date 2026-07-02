@@ -106,7 +106,7 @@ class TestSerialization : GameDomainTestFixtures() {
         assertEquals(previous.division, patch.division!!.value)
         assertEquals(previous.level, patch.level)
         assertEquals(previous.gameContext, patch.gameContext)
-        assertEquals(previous.observers, patch.observers)
+        assertEquals(previous.observerNames, patch.observerNames!!.replacement)
         assertEquals(previous.fieldName, patch.fieldName)
         assertEquals(previous.nearEndName, patch.nearEndName)
         assertEquals(previous.farEndName, patch.farEndName)
@@ -185,7 +185,7 @@ class TestSerialization : GameDomainTestFixtures() {
         assertFalse(json.contains("\"replacement\": null"))
         assertFalse(json.contains("\"previousSize\": null"))
         assertFalse(json.contains("\"gameContext\": null"))
-        assertFalse(json.contains("\"observers\": null"))
+        assertFalse(json.contains("\"observerNames\": null"))
         assertFalse(json.contains("\"fieldName\": null"))
     }
 
@@ -226,7 +226,7 @@ class TestSerialization : GameDomainTestFixtures() {
             division = GameDivision.WOMENS,
             level = "Club",
             gameContext = "Later semifinal",
-            observers = "Later observer",
+            observerNames = listOf("Later observer", "Later partner"),
             fieldName = "Later field",
             nearEndName = "Later near",
             farEndName = "Later far",
@@ -329,7 +329,7 @@ class TestSerialization : GameDomainTestFixtures() {
             division = null,
             level = "Masters",
             gameContext = "Previous pool game",
-            observers = "Previous observer",
+            observerNames = listOf("Previous observer"),
             fieldName = "Previous field",
             nearEndName = "Previous near",
             farEndName = "Previous far",

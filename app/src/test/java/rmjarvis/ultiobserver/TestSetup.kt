@@ -54,7 +54,7 @@ class TestSetup : GameDomainTestFixtures() {
         assertEquals("Grandmasters", repeatedTournamentSetup.level)
         assertEquals(GameRules(gameTo = 11), repeatedTournamentSetup.rules)
         assertEquals("", repeatedTournamentSetup.gameContext)
-        assertEquals("", repeatedTournamentSetup.observers)
+        assertEquals(emptyList<String>(), repeatedTournamentSetup.observerNames)
         assertEquals("", repeatedTournamentSetup.teamOne.name)
         assertEquals("", repeatedTournamentSetup.teamTwo.name)
 
@@ -91,7 +91,7 @@ class TestSetup : GameDomainTestFixtures() {
         assertEquals(GameDivision.MIXED, state.division)
         assertEquals("Grandmasters", state.level)
         assertEquals("Pool play", state.gameContext)
-        assertEquals("Mike and Gary", state.observers)
+        assertEquals(listOf("Mike", "Gary"), state.observerNames)
         assertEquals("Road", state.nearEndName)
         assertEquals("Trees", state.farEndName)
         assertEquals(PullPromptTarget.FAR, state.pullPromptTarget)
@@ -175,7 +175,7 @@ class TestSetup : GameDomainTestFixtures() {
             "division" to { it.copy(division = GameDivision.WOMENS) },
             "level" to { it.copy(level = "Changed level") },
             "context" to { it.copy(gameContext = "Changed context") },
-            "observers" to { it.copy(observers = "Changed observer") },
+            "observers" to { it.copy(observerNames = listOf("Changed observer")) },
             "near end" to { it.copy(nearEndName = "Changed near end") },
             "far end" to { it.copy(farEndName = "Changed far end") },
             "rules" to { it.copy(rules = it.rules.copy(gameTo = it.rules.gameTo + 1)) },
@@ -482,7 +482,7 @@ class TestSetup : GameDomainTestFixtures() {
             division = GameDivision.MIXED,
             level = " Club ",
             gameContext = " Final ",
-            observers = " Mike and Gary ",
+            observerNames = listOf(" Mike ", " Gary "),
             fieldName = " Field 7 ",
         )
 
@@ -493,7 +493,7 @@ class TestSetup : GameDomainTestFixtures() {
                 "Mixed Division",
                 "Club",
                 "Final",
-                "Observers: Mike and Gary",
+                "Observers: Mike, Gary",
                 "Jan 1, 2026",
                 "Start at 10:00 AM",
                 "Field: Field 7",
@@ -507,7 +507,7 @@ class TestSetup : GameDomainTestFixtures() {
                 division = null,
                 level = "",
                 gameContext = " ",
-                observers = "",
+                observerNames = emptyList(),
                 fieldName = " ",
             ).gameInformationSummaryLines(),
         )
@@ -590,7 +590,7 @@ class TestSetup : GameDomainTestFixtures() {
         assertEquals(GameDivision.OPEN, state.division)
         assertEquals("Youth", state.level)
         assertEquals("Quarterfinal", state.gameContext)
-        assertEquals("Alex and Blake", state.observers)
+        assertEquals(listOf("Alex", "Blake"), state.observerNames)
         assertEquals("Parking", state.nearEndName)
         assertEquals("Scoreboard", state.farEndName)
         assertEquals(PullPromptTarget.BOTH, state.pullPromptTarget)
@@ -709,7 +709,7 @@ class TestSetup : GameDomainTestFixtures() {
         assertEquals(GameDivision.WOMENS, state.division)
         assertEquals("Semi-pro showcase", state.level)
         assertEquals("Final", state.gameContext)
-        assertEquals("Casey", state.observers)
+        assertEquals(listOf("Casey"), state.observerNames)
         assertEquals("South", state.nearEndName)
         assertEquals("North", state.farEndName)
         assertEquals(PullPromptTarget.NEITHER, state.pullPromptTarget)
@@ -861,7 +861,7 @@ class TestSetup : GameDomainTestFixtures() {
             division = GameDivision.MIXED,
             level = "Grandmasters",
             gameContext = "Pool play",
-            observers = "Mike and Gary",
+            observerNames = listOf("Mike", "Gary"),
             nearEndName = "Road",
             farEndName = "Trees",
             teamOne = TeamState(
@@ -894,7 +894,7 @@ class TestSetup : GameDomainTestFixtures() {
             division = GameDivision.OPEN,
             level = "Youth",
             gameContext = "Quarterfinal",
-            observers = "Alex and Blake",
+            observerNames = listOf("Alex", "Blake"),
             nearEndName = "Parking",
             farEndName = "Scoreboard",
             rules = setup.rules.copy(gameTo = 15, timeoutsPerHalf = 2),
@@ -930,7 +930,7 @@ class TestSetup : GameDomainTestFixtures() {
             division = GameDivision.WOMENS,
             level = "Semi-pro showcase",
             gameContext = "Final",
-            observers = "Casey",
+            observerNames = listOf("Casey"),
             nearEndName = "South",
             farEndName = "North",
             rules = setupEdit1.rules.copy(gameTo = 17, hasFloaterTimeout = false),

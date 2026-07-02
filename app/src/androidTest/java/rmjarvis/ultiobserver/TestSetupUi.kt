@@ -5,6 +5,9 @@ import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.click
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithTag
@@ -434,8 +437,23 @@ class TestSetupUi : MainActivityUiTestFixtures() {
             .performTextReplacement("Community showcase")
         composeRule.onNodeWithTag("setup-game-context").performTextReplacement("Semifinals")
         composeRule.onNodeWithTag("setup-game-context").performImeAction()
-        composeRule.onNodeWithTag("setup-observers").performTextReplacement("Mike and Gary")
-        composeRule.onNodeWithTag("setup-observers").performImeAction()
+
+        // Observer rows can add another blank row, and only the last blank row can be removed.
+        composeRule.onAllNodesWithTag("setup-remove-observer-0").assertCountEquals(0)
+        composeRule.onAllNodesWithTag("setup-remove-observer-1").assertCountEquals(1)
+        assertSetupAddObserverRow(1)
+        composeRule.onNodeWithTag("setup-add-observer")
+            .performScrollTo()
+            .performClick()
+        composeRule.onAllNodesWithTag("setup-remove-observer-1").assertCountEquals(0)
+        composeRule.onAllNodesWithTag("setup-remove-observer-2").assertCountEquals(1)
+        assertSetupAddObserverRow(2)
+        composeRule.onNodeWithTag("setup-remove-observer-2").performClick()
+        assertSetupAddObserverRow(1)
+        composeRule.onNodeWithTag("setup-observer-0").performTextReplacement("Mike")
+        composeRule.onNodeWithTag("setup-observer-0").performImeAction()
+        composeRule.onNodeWithTag("setup-observer-1").performTextReplacement("Gary")
+        composeRule.onNodeWithTag("setup-observer-1").performImeAction()
         composeRule.onNodeWithTag("setup-field-name").performTextReplacement("Field 7")
         composeRule.onNodeWithTag("setup-field-name").performImeAction()
         closeSetupEditor()
@@ -445,7 +463,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         waitForText("Open Division")
         waitForText("Community showcase")
         waitForText("Semifinals")
-        waitForText("Observers: Mike and Gary")
+        waitForText("Observers: Mike, Gary")
         waitForText("Field: Field 7")
 
         // Cancel is the explicit discard path for this editor.
@@ -747,5 +765,14 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("#23").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Jarvis").performScrollTo().assertIsDisplayed()
         composeRule.onAllNodesWithText("#23 Jarvis").assertCountEquals(0)
+    }
+
+    /// Assert that the add-observer action is attached to the requested observer row.
+    private fun assertSetupAddObserverRow(index: Int) {
+        composeRule.onAllNodesWithTag("setup-add-observer").assertCountEquals(1)
+        composeRule.onAllNodes(
+            hasTestTag("setup-add-observer") and
+                hasAnyAncestor(hasTestTag("setup-observer-row-$index"))
+        ).assertCountEquals(1)
     }
 }

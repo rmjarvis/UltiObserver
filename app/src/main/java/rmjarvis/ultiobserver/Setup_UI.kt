@@ -22,14 +22,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.RemoveCircle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -39,8 +41,10 @@ import androidx.compose.material3.TimeInput
 import androidx.compose.material3.TimePickerDialog
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -896,7 +900,11 @@ private fun GameInformationSetupDialog(
     var level by remember { mutableStateOf(state.level) }
     var customLevelVisible by remember { mutableStateOf(state.level.isCustomSetupLevel()) }
     var gameContext by remember { mutableStateOf(state.gameContext) }
-    var observers by remember { mutableStateOf(state.observers) }
+    val observerNames = remember {
+        mutableStateListOf<String>().apply {
+            addAll(state.observerNames.initialObserverRows())
+        }
+    }
     var fieldName by remember { mutableStateOf(state.fieldName) }
     var showStartDateDialog by remember { mutableStateOf(false) }
     var showStartTimeDialog by remember { mutableStateOf(false) }
@@ -911,7 +919,7 @@ private fun GameInformationSetupDialog(
                 division = division,
                 level = level,
                 gameContext = gameContext,
-                observers = observers,
+                observerNames = observerNames.cleanedObserverNames(),
                 fieldName = fieldName,
             )
         )
@@ -952,13 +960,15 @@ private fun GameInformationSetupDialog(
                     onClick = { showStartTimeDialog = true },
                 )
 
-                TextEntry(
-                    value = observers,
-                    onValueChange = { observers = it },
-                    labelText = "Observers",
-                    promptText = "Observer names",
-                    capitalization = KeyboardCapitalization.Sentences,
-                    tag = "setup-observers",
+                ObserverNameEntries(
+                    observerNames = observerNames,
+                    onAddObserver = { observerNames += "" },
+                    onUpdateObserver = { index, name ->
+                        observerNames[index] = name
+                    },
+                    onRemoveObserver = { index ->
+                        observerNames.removeAt(index)
+                    },
                 )
                 TextEntry(
                     value = fieldName,
@@ -1050,6 +1060,91 @@ private fun GameInformationSetupDialog(
             },
         )
     }
+}
+
+/**
+ * Render structured observer-name entry rows.
+ *
+ * @param observerNames Mutable row values currently shown in the dialog.
+ * @param onAddObserver Callback adding one blank observer row.
+ * @param onUpdateObserver Callback updating one observer row.
+ * @param onRemoveObserver Callback removing one blank observer row.
+ */
+@Composable
+private fun ObserverNameEntries(
+    observerNames: List<String>,
+    onAddObserver: () -> Unit,
+    onUpdateObserver: (Int, String) -> Unit,
+    onRemoveObserver: (Int) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = "Observers",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        observerNames.forEachIndexed { index, observerName ->
+            val addInThisRow = index == observerNames.lastIndex
+            val canRemove = index == observerNames.lastIndex &&
+                observerNames.size > 1 &&
+                observerName.trim().isEmpty()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("setup-observer-row-$index"),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                TextEntry(
+                    value = observerName,
+                    onValueChange = { name -> onUpdateObserver(index, name) },
+                    promptText = "Observer ${index + 1}",
+                    capitalization = KeyboardCapitalization.Words,
+                    modifier = Modifier.weight(1f),
+                    tag = "setup-observer-$index",
+                )
+                CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+                    Row(
+                        modifier = Modifier.width(56.dp),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (canRemove) {
+                            IconActionButton(
+                                icon = Icons.Filled.RemoveCircle,
+                                contentDescription = "Remove observer ${index + 1}",
+                                tag = "setup-remove-observer-$index",
+                                onClick = { onRemoveObserver(index) },
+                            )
+                        }
+                        if (addInThisRow) {
+                            IconActionButton(
+                                icon = Icons.Filled.AddCircle,
+                                contentDescription = "Add observer",
+                                tag = "setup-add-observer",
+                                onClick = onAddObserver,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Return observer rows to show when the game-information dialog opens.
+private fun List<String>.initialObserverRows(): List<String> {
+    val cleanedNames = cleanedObserverNames()
+    return if (cleanedNames.size >= 2) {
+        cleanedNames
+    } else {
+        cleanedNames + List(2 - cleanedNames.size) { "" }
+    }
+}
+
+/// Return trimmed non-empty observer names.
+private fun List<String>.cleanedObserverNames(): List<String> {
+    return map { it.trim() }.filter { it.isNotEmpty() }
 }
 
 /**

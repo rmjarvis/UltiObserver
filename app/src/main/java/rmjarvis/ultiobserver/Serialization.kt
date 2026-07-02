@@ -100,7 +100,7 @@ internal data class GameStatePatch(
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val gameContext: String? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
-    val observers: String? = null,
+    val observerNames: ListPatch<String>? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val fieldName: String? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
@@ -179,7 +179,7 @@ internal data class GameStatePatch(
             division = if (division != null) division.value else later.division,
             level = level ?: later.level,
             gameContext = gameContext ?: later.gameContext,
-            observers = observers ?: later.observers,
+            observerNames = observerNames?.applyTo(later.observerNames) ?: later.observerNames,
             fieldName = fieldName ?: later.fieldName,
             nearEndName = nearEndName ?: later.nearEndName,
             farEndName = farEndName ?: later.farEndName,
@@ -233,7 +233,10 @@ internal data class GameStatePatch(
                 division = nullablePatch(later.division, previous.division),
                 level = previous.level.takeIfChangedFrom(later.level),
                 gameContext = previous.gameContext.takeIfChangedFrom(later.gameContext),
-                observers = previous.observers.takeIfChangedFrom(later.observers),
+                observerNames = ListPatch.fromLaterAndPrevious(
+                    later.observerNames,
+                    previous.observerNames,
+                ),
                 fieldName = previous.fieldName.takeIfChangedFrom(later.fieldName),
                 nearEndName = previous.nearEndName.takeIfChangedFrom(later.nearEndName),
                 farEndName = previous.farEndName.takeIfChangedFrom(later.farEndName),

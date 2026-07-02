@@ -24,7 +24,7 @@ class TestGameSummary : GameDomainTestFixtures() {
             division = GameDivision.MIXED,
             level = "Masters",
             gameContext = "Semifinal",
-            observers = "Mike and Gary",
+            observerNames = listOf("Mike", "Gary"),
             fieldName = "Field 7",
             endEpoch = timestampAt(baseState, LocalTime.of(12, 42)),
             phase = GamePhase.GAME_OVER,
@@ -36,7 +36,7 @@ class TestGameSummary : GameDomainTestFixtures() {
             listOf(
                 "Game summary",
                 "Philly Open Mixed Division Masters Semifinal",
-                "Observers: Mike and Gary",
+                "Observers: Mike, Gary",
                 "Start May 19, 2026 10:00 AM",
                 "Field: Field 7",
                 "End time 12:42 PM",
@@ -183,7 +183,7 @@ class TestGameSummary : GameDomainTestFixtures() {
             division = GameDivision.OPEN,
             level = "Masters",
             gameContext = "Final",
-            observers = "Mike and Gary",
+            observerNames = listOf("Mike", "Gary"),
             fieldName = "Field 7",
             phase = GamePhase.GAME_OVER,
             teamOne = TeamState("Viscous Coupling", TeamColorChoice.WHITE, score = 12),
@@ -230,7 +230,7 @@ class TestGameSummary : GameDomainTestFixtures() {
             """
             UltiObserver Game Summary
             Philly Open Open Division Masters Final
-            Observers: Mike and Gary
+            Observers: Mike, Gary
             May 19, 2026, 10:00 AM
             Field: Field 7
             Animal 15, Viscous Coupling 12

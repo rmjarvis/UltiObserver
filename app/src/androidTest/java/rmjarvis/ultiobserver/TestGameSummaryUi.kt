@@ -54,7 +54,7 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
         var shared = false
         val state = newSetupGameState(now = 123_000L).startGame().copy(
             phase = GamePhase.GAME_OVER,
-            observers = "Mike and Gary",
+            observerNames = listOf("Mike", "Gary"),
             endEpoch = System.currentTimeMillis(),
         )
         composeRule.activityRule.scenario.onActivity { activity ->
@@ -72,7 +72,7 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
         }
 
         // Observer metadata appears in the visible completed-game summary when it is present.
-        waitForText("Observers: Mike and Gary")
+        waitForText("Observers: Mike, Gary")
 
         // Clicking Share invokes the callback supplied to the summary composable.
         // I.e. it should change shared to true.

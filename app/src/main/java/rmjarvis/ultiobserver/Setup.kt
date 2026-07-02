@@ -53,7 +53,7 @@ internal fun newSetupGameState(
         division = defaultsFrom?.division,
         level = defaultsFrom?.level ?: "",
         gameContext = "",
-        observers = "",
+        observerNames = emptyList(),
         fieldName = "",
         rules = defaultsFrom?.rules ?: GameRules(),
         teamOne = TeamState(name = "", color = TeamColorChoice.WHITE),
@@ -145,11 +145,19 @@ internal fun GameState.gameInformationSummaryLines(): List<String> {
         division?.setupSummaryLine(),
         level.trim().takeIf { it.isNotEmpty() },
         gameContext.trim().takeIf { it.isNotEmpty() },
-        observers.trim().takeIf { it.isNotEmpty() }?.let { "Observers: $it" },
+        observerNames.observersDisplayText()?.let { "Observers: $it" },
         formatStartDate(startDate),
         "Start at ${formatClockTime(startTime)}",
         fieldName.trim().takeIf { it.isNotEmpty() }?.let { "Field: $it" },
     )
+}
+
+/// Return observer names trimmed and joined for display.
+internal fun List<String>.observersDisplayText(): String? {
+    return map { it.trim() }
+        .filter { it.isNotEmpty() }
+        .joinToString(", ")
+        .takeIf { it.isNotEmpty() }
 }
 
 /// Return the compact setup summary for the starting pull.

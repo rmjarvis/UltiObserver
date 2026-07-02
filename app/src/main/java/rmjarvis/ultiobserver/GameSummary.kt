@@ -124,7 +124,7 @@ private fun GameState.gameInformationSummaryLine(): String? {
 
 /// Return optional observer-assignment text for completed-game summaries.
 private fun GameState.observersSummaryLine(): String? {
-    return observers.trim().takeIf { it.isNotEmpty() }?.let { "Observers: $it" }
+    return observerNames.observersDisplayText()?.let { "Observers: $it" }
 }
 
 /// Return optional field-assignment text for completed-game summaries.

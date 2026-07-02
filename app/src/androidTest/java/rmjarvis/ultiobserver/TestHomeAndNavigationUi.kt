@@ -974,7 +974,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
                 tournamentName = tournament,
                 division = division,
                 level = "Club",
-                observers = "Mike",
+                observerNames = listOf("Mike"),
                 startDate = startDate,
                 startTime = LocalTime.of(9, 0),
                 teamOne = TeamState(name = teamOne, color = TeamColorChoice.WHITE),

@@ -287,7 +287,7 @@ private val archiveFilterCriteria = listOf(
         field = ArchiveFilterField.OBSERVERS,
         selectedValues = { it.observers },
         replaceValues = { selections, values -> selections.copy(observers = values) },
-        valuesForGame = { listOf(it.archiveObserversFilterValue()) },
+        valuesForGame = { it.archiveObserverFilterValues() },
     ),
 )
 
@@ -493,8 +493,11 @@ private fun GameState.archiveTeamFilterValues(): List<String> {
     return listOf(teamOne.name, teamTwo.name)
 }
 
-private fun GameState.archiveObserversFilterValue(): String {
-    return observers.trim().ifEmpty { ARCHIVE_FILTER_NA }
+private fun GameState.archiveObserverFilterValues(): List<String> {
+    val observers = observerNames
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+    return observers.ifEmpty { listOf(ARCHIVE_FILTER_NA) }
 }
 
 private fun ArchiveSortMode.comparator(): Comparator<IndexedValue<GameState>> {

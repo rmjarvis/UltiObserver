@@ -32,7 +32,7 @@ class TestArchive : GameDomainTestFixtures() {
             level = "Club",
             teamOne = "Ring of Fire",
             teamTwo = "Truck Stop",
-            observers = "Mike",
+            observerNames = listOf("Mike", "Gary"),
             startDate = LocalDate.of(2026, 5, 1),
             startTime = LocalTime.of(9, 0),
         )
@@ -42,7 +42,7 @@ class TestArchive : GameDomainTestFixtures() {
             level = "Club",
             teamOne = "Drag'n Thrust",
             teamTwo = "Mixtape",
-            observers = "Gary",
+            observerNames = listOf("Gary", "Alex"),
             startDate = LocalDate.of(2026, 5, 2),
             startTime = LocalTime.of(11, 0),
         )
@@ -52,7 +52,7 @@ class TestArchive : GameDomainTestFixtures() {
             level = "College",
             teamOne = "Michigan",
             teamTwo = "Pitt",
-            observers = "",
+            observerNames = emptyList(),
             startDate = LocalDate.of(2026, 6, 1),
             startTime = LocalTime.of(10, 0),
         )
@@ -62,7 +62,7 @@ class TestArchive : GameDomainTestFixtures() {
             level = "",
             teamOne = "Animal",
             teamTwo = "Shame",
-            observers = "",
+            observerNames = emptyList(),
             startDate = LocalDate.of(2025, 12, 31),
             startTime = LocalTime.of(13, 0),
         )
@@ -118,7 +118,7 @@ class TestArchive : GameDomainTestFixtures() {
             summerOpen.valueCounts(ArchiveFilterField.TEAM),
         )
         assertEquals(
-            listOf("Mike" to 1),
+            listOf("Gary" to 1, "Mike" to 1),
             summerOpen.valueCounts(ArchiveFilterField.OBSERVERS),
         )
 
@@ -130,7 +130,7 @@ class TestArchive : GameDomainTestFixtures() {
             sortMode = ArchiveSortMode.DATE_NEWEST,
         )
         assertEquals(
-            listOf("Mike" to 1, ARCHIVE_FILTER_NA to 1),
+            listOf("Gary" to 1, "Mike" to 1, ARCHIVE_FILTER_NA to 1),
             openDivision.valueCounts(ArchiveFilterField.OBSERVERS),
         )
 
@@ -486,7 +486,7 @@ class TestArchive : GameDomainTestFixtures() {
             division = GameDivision.OPEN,
             level = "Club",
             gameContext = "Pool play",
-            observers = "Mike",
+            observerNames = listOf("Mike"),
             rules = tournamentRules,
             teamOne = TeamState("", TeamColorChoice.GREEN),
             teamTwo = TeamState("Known Opponent", TeamColorChoice.YELLOW),
@@ -547,7 +547,7 @@ class TestArchive : GameDomainTestFixtures() {
         assertEquals("Club", viewModel.setupState.level)
         assertEquals(tournamentRules, viewModel.setupState.rules)
         assertEquals("", viewModel.setupState.gameContext)
-        assertEquals("", viewModel.setupState.observers)
+        assertEquals(emptyList<String>(), viewModel.setupState.observerNames)
         assertEquals("", viewModel.setupState.teamOne.name)
         assertEquals("", viewModel.setupState.teamTwo.name)
 
@@ -1034,7 +1034,7 @@ class TestArchive : GameDomainTestFixtures() {
      * @param level Competition level for the archive.
      * @param teamOne Team 1 name.
      * @param teamTwo Team 2 name.
-     * @param observers Observer text for the archive.
+     * @param observerNames Observer names for the archive.
      * @param startDate Local start date for the archive.
      * @param startTime Local start time for the archive.
      */
@@ -1044,7 +1044,7 @@ class TestArchive : GameDomainTestFixtures() {
         level: String = "",
         teamOne: String,
         teamTwo: String,
-        observers: String = "",
+        observerNames: List<String> = emptyList(),
         startDate: LocalDate,
         startTime: LocalTime,
     ): GameState {
@@ -1058,7 +1058,7 @@ class TestArchive : GameDomainTestFixtures() {
             level = level,
             teamOne = TeamState(teamOne, TeamColorChoice.WHITE),
             teamTwo = TeamState(teamTwo, TeamColorChoice.BLUE),
-            observers = observers,
+            observerNames = observerNames,
         )
     }
 
