@@ -1,9 +1,6 @@
 package rmjarvis.ultiobserver
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -43,10 +40,8 @@ internal fun AdjustPullViolationsDialog(
         onDismissRequest = onDismiss,
         title = { Text("Adjust pull violations") },
         text = {
-            Column(
-                modifier = Modifier
-                    .testTag("adjust-pull-violations-content")
-                    .verticalScroll(rememberScrollState()),
+            ScrollableDialogRegion(
+                modifier = Modifier.testTag("adjust-pull-violations-content"),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 TeamCorrectionSection(state.teamOne.name) {

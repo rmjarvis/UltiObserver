@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
@@ -459,10 +458,8 @@ private fun ArchiveFilterFieldListDialog(
         onDismissRequest = onDismiss,
         title = { Text("Filter games by:") },
         text = {
-            Column(
-                modifier = Modifier
-                    .heightIn(max = 420.dp)
-                    .verticalScroll(rememberScrollState()),
+            ScrollableDialogRegion(
+                maxHeight = 420.dp,
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 ArchiveFilterField.entries.forEach { field ->
@@ -535,10 +532,8 @@ private fun ArchiveValueFilterDialog(
         onDismissRequest = onBack,
         title = { Text(field.displayText) },
         text = {
-            Column(
-                modifier = Modifier
-                    .heightIn(max = 420.dp)
-                    .verticalScroll(rememberScrollState()),
+            ScrollableDialogRegion(
+                maxHeight = 420.dp,
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 TextActionButton(
@@ -609,10 +604,8 @@ private fun ArchiveDateFilterDialog(
         onDismissRequest = onBack,
         title = { Text("Date") },
         text = {
-            Column(
-                modifier = Modifier
-                    .heightIn(max = 420.dp)
-                    .verticalScroll(rememberScrollState()),
+            ScrollableDialogRegion(
+                maxHeight = 420.dp,
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 TextActionButton(
@@ -745,10 +738,8 @@ private fun ArchiveSortDialog(
         onDismissRequest = onDismiss,
         title = { Text("Sort games by:") },
         text = {
-            Column(
-                modifier = Modifier
-                    .heightIn(max = 420.dp)
-                    .verticalScroll(rememberScrollState()),
+            ScrollableDialogRegion(
+                maxHeight = 420.dp,
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 ArchiveSortMode.entries.forEach { mode ->

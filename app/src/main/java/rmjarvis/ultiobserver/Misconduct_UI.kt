@@ -7,13 +7,10 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -342,8 +339,7 @@ internal fun AdjustCardsDialog(
         onDismissRequest = onDismiss,
         title = { Text("Adjust cards / techs") },
         text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
+            ScrollableDialogRegion(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 TeamCorrectionSection(state.teamOne.name) {
@@ -1391,17 +1387,12 @@ private fun EditablePlayerCardsDialog(
     onEdit: (EditablePlayerCard) -> Unit,
     onRemove: ((EditablePlayerCard) -> Unit)? = null,
 ) {
-    val dialogBodyMaxHeight = keyboardDialogBodyMaxHeight()
-
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Edit existing cards") },
         text = {
-            Column(
+            ScrollableDialogRegion(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier
-                    .heightIn(max = dialogBodyMaxHeight)
-                    .verticalScroll(rememberScrollState()),
             ) {
                 Text(teamName, fontWeight = FontWeight.SemiBold)
                 cards.forEach { card ->
@@ -1492,18 +1483,13 @@ private fun PlayerCardEntryDialog(
     var showingReasonDialog by remember {
         mutableStateOf(false)
     }
-    val dialogBodyMaxHeight = keyboardDialogBodyMaxHeight()
-
     AlertDialog(
         modifier = dialogInitialFocusModifier(),
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            Column(
+            ScrollableDialogRegion(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier
-                    .heightIn(max = dialogBodyMaxHeight)
-                    .verticalScroll(rememberScrollState()),
             ) {
                 Text(teamName, fontWeight = FontWeight.SemiBold)
                 TextEntry(
@@ -1629,7 +1615,6 @@ private fun CardReasonDialog(
     var details by remember(initialReason) {
         mutableStateOf(initialReason.details)
     }
-    val dialogBodyMaxHeight = keyboardDialogBodyMaxHeight()
     val focusManager = LocalFocusManager.current
 
     AlertDialog(
@@ -1637,11 +1622,8 @@ private fun CardReasonDialog(
         onDismissRequest = onDismiss,
         title = { Text("${cardType.label} card reason") },
         text = {
-            Column(
+            ScrollableDialogRegion(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier
-                    .heightIn(max = dialogBodyMaxHeight)
-                    .verticalScroll(rememberScrollState()),
             ) {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(2.dp),

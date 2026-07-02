@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -926,11 +925,10 @@ private fun GameInformationSetupDialog(
         onDismissRequest = ::saveAndDismiss,
         title = { Text("Game information") },
         text = {
-            Column(
-                modifier = Modifier
-                    .heightIn(max = dialogBodyMaxHeight)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ScrollableDialogRegion(
+                maxHeight = dialogBodyMaxHeight,
+                contentBottomPadding = 36.dp,
+                bottomChevronOffset = 22.dp,
             ) {
                 Text(
                     text = "Date",
@@ -1419,10 +1417,8 @@ private fun StartingPullSetupDialog(
         onDismissRequest = ::saveAndDismiss,
         title = { Text("Field/starting pull") },
         text = {
-            Column(
-                modifier = Modifier
-                    .heightIn(max = dialogBodyMaxHeight)
-                    .verticalScroll(rememberScrollState()),
+            ScrollableDialogRegion(
+                maxHeight = dialogBodyMaxHeight,
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text("Give whatever names you want for the two ends of the field. E.g. Road, Parking Lot, Trees, etc. (default is Near end and Far end).")
@@ -1540,8 +1536,7 @@ private fun GameRulesSetupDialog(
         onDismissRequest = onConfirm,
         title = { Text("Game rules") },
         text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
+            ScrollableDialogRegion(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 EditableValueRow(
@@ -1657,10 +1652,8 @@ private fun PriorCardsSetupDialog(
         title = { Text("$teamName Cards from Previous Games") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Column(
-                    modifier = Modifier
-                        .heightIn(max = 320.dp)
-                        .verticalScroll(rememberScrollState()),
+                ScrollableDialogRegion(
+                    maxHeight = 320.dp,
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     if (teamPriorCards.isEmpty()) {
@@ -2350,10 +2343,8 @@ private fun TeamNamesSetupDialog(
         onDismissRequest = onDismiss,
         title = { Text("$teamLabel Names") },
         text = {
-            Column(
-                modifier = Modifier
-                    .heightIn(max = dialogBodyMaxHeight)
-                    .verticalScroll(rememberScrollState()),
+            ScrollableDialogRegion(
+                maxHeight = dialogBodyMaxHeight,
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 TeamNamesTextField(

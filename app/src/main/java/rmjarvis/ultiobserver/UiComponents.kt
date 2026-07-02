@@ -1,25 +1,36 @@
 package rmjarvis.ultiobserver
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Info
@@ -46,17 +57,23 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
@@ -127,6 +144,99 @@ internal fun dialogInitialFocusModifier(): Modifier {
     return Modifier
         .focusRequester(focusRequester)
         .focusable()
+}
+
+/**
+ * Render a vertically scrollable dialog body with overflow fades.
+ *
+ * @param modifier Optional modifier for the outer scroll region.
+ * @param maxHeight Maximum height before the body scrolls.
+ * @param verticalArrangement Vertical spacing for the content column.
+ * @param showBottomChevron Whether to show a down-chevron below the bottom fade.
+ * @param contentBottomPadding Extra space after content once the body scrolls.
+ * @param bottomChevronOffset Vertical offset for the bottom chevron.
+ * @param content Dialog body content.
+ */
+@Composable
+internal fun ScrollableDialogRegion(
+    modifier: Modifier = Modifier,
+    maxHeight: Dp = keyboardDialogBodyMaxHeight(),
+    verticalArrangement: Arrangement.Vertical = Arrangement.spacedBy(12.dp),
+    showBottomChevron: Boolean = true,
+    contentBottomPadding: Dp = 0.dp,
+    bottomChevronOffset: Dp = 0.dp,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val scrollState = rememberScrollState()
+    // Dialog measurement can produce tiny scroll ranges even when no meaningful content is hidden.
+    val overflowIndicatorThreshold = with(LocalDensity.current) { 24.dp.roundToPx() }
+    val showScrollIndicators = scrollState.maxValue > overflowIndicatorThreshold
+    Box(
+        modifier = modifier.heightIn(max = maxHeight),
+    ) {
+        Column(
+            modifier = Modifier
+                .verticalScroll(scrollState)
+                .padding(
+                    bottom = if (
+                        showScrollIndicators &&
+                        (scrollState.canScrollForward || scrollState.canScrollBackward)
+                    ) {
+                        contentBottomPadding
+                    } else {
+                        0.dp
+                    }
+                ),
+            verticalArrangement = verticalArrangement,
+            content = content,
+        )
+        if (showScrollIndicators && scrollState.canScrollBackward) {
+            DialogScrollFade(align = Alignment.TopCenter, topToBottom = true)
+        }
+        if (showScrollIndicators && scrollState.canScrollForward) {
+            DialogScrollFade(align = Alignment.BottomCenter, topToBottom = false)
+            if (showBottomChevron) {
+                Icon(
+                    imageVector = Icons.Filled.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .offset(y = bottomChevronOffset)
+                        .size(24.dp),
+                )
+            }
+        }
+    }
+}
+
+/// Render one edge fade for a scrollable dialog body.
+@Composable
+private fun BoxScope.DialogScrollFade(
+    align: Alignment,
+    topToBottom: Boolean,
+) {
+    Box(
+        modifier = Modifier
+            .align(align)
+            .fillMaxWidth()
+            .height(36.dp)
+            .background(
+                Brush.verticalGradient(
+                    colors = if (topToBottom) {
+                        listOf(
+                            MaterialTheme.colorScheme.surfaceContainerHigh,
+                            Color.Transparent,
+                        )
+                    } else {
+                        listOf(
+                            Color.Transparent,
+                            MaterialTheme.colorScheme.surfaceContainerHigh,
+                        )
+                    }
+                )
+            ),
+    )
 }
 
 /// Return this modifier with a test tag appended when one is requested.
@@ -451,7 +561,23 @@ internal fun TextEntry(
     onDone: (() -> Unit)? = null,
     onFocusLost: (() -> Unit)? = null,
 ) {
+    val fieldState = rememberTextFieldState(initialText = value)
+    val latestValue by rememberUpdatedState(value)
+    val latestOnValueChange by rememberUpdatedState(onValueChange)
+    LaunchedEffect(value) {
+        if (fieldState.text.toString() != value) {
+            fieldState.setTextAndPlaceCursorAtEnd(value)
+        }
+    }
+    LaunchedEffect(fieldState) {
+        snapshotFlow { fieldState.text.toString() }.collect { text ->
+            if (text != latestValue) {
+                latestOnValueChange(text)
+            }
+        }
+    }
     val focusManager = LocalFocusManager.current
+    val textScrollState = rememberScrollState()
     var textModifier = if (fullWidth) modifier.fillMaxWidth() else modifier
     if (onFocusLost != null) {
         textModifier = textModifier.onFocusChanged {
@@ -464,8 +590,7 @@ internal fun TextEntry(
         textModifier = textModifier.testTag(tag)
     }
     OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
+        state = fieldState,
         label = labelText?.let { text -> { Text(text) } },
         placeholder = promptText?.let { text ->
             {
@@ -477,20 +602,25 @@ internal fun TextEntry(
             }
         },
         enabled = enabled,
-        singleLine = singleLine,
-        minLines = minLines,
+        lineLimits = textEntryLineLimits(
+            singleLine = singleLine,
+            minLines = minLines,
+        ),
         keyboardOptions = KeyboardOptions(
             capitalization = capitalization,
             keyboardType = keyboardType,
             imeAction = imeAction,
         ),
-        keyboardActions = KeyboardActions(
-            onDone = {
+        onKeyboardAction = {
+            if (imeAction == ImeAction.Done) {
                 onDone?.invoke()
                 focusManager.clearFocus(force = true)
-            },
-        ),
+            } else {
+                it()
+            }
+        },
         colors = colors,
+        scrollState = textScrollState,
         modifier = textModifier,
     )
 }
@@ -513,6 +643,15 @@ private fun buttonLayoutModifier(
         result = result.height(height)
     }
     return result
+}
+
+/// Return line limits for the state-backed Material text-field API.
+private fun textEntryLineLimits(singleLine: Boolean, minLines: Int): TextFieldLineLimits {
+    return if (singleLine) {
+        TextFieldLineLimits.SingleLine
+    } else {
+        TextFieldLineLimits.MultiLine(minHeightInLines = minLines)
+    }
 }
 
 /**
