@@ -52,9 +52,9 @@ class TestSetup : GameDomainTestFixtures() {
         assertEquals("Potlatch", repeatedTournamentSetup.tournamentName)
         assertEquals(GameDivision.MIXED, repeatedTournamentSetup.division)
         assertEquals("Grandmasters", repeatedTournamentSetup.level)
-        assertEquals("Pool play", repeatedTournamentSetup.gameContext)
-        assertEquals("Mike and Gary", repeatedTournamentSetup.observers)
         assertEquals(GameRules(gameTo = 11), repeatedTournamentSetup.rules)
+        assertEquals("", repeatedTournamentSetup.gameContext)
+        assertEquals("", repeatedTournamentSetup.observers)
         assertEquals("", repeatedTournamentSetup.teamOne.name)
         assertEquals("", repeatedTournamentSetup.teamTwo.name)
 

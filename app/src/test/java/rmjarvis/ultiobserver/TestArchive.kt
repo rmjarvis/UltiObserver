@@ -539,14 +539,15 @@ class TestArchive : GameDomainTestFixtures() {
         )
         assertEquals(initialPreview, initialPreviewRestoreViewModel.archivedGames.single())
 
-        // Starting another game carries forward tournament context and rules, but not teams.
+        // Starting another game carries forward tournament, division, level, and rules, but not
+        // other fields that typically change each game.
         viewModel.startNewGame(now = 123_000L)
         assertEquals("Summer Solstice", viewModel.setupState.tournamentName)
         assertEquals(GameDivision.OPEN, viewModel.setupState.division)
         assertEquals("Club", viewModel.setupState.level)
-        assertEquals("Pool play", viewModel.setupState.gameContext)
-        assertEquals("Mike", viewModel.setupState.observers)
         assertEquals(tournamentRules, viewModel.setupState.rules)
+        assertEquals("", viewModel.setupState.gameContext)
+        assertEquals("", viewModel.setupState.observers)
         assertEquals("", viewModel.setupState.teamOne.name)
         assertEquals("", viewModel.setupState.teamTwo.name)
 
