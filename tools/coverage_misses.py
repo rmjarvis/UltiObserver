@@ -96,7 +96,13 @@ def is_ui_source_file(path: Path) -> bool:
     name = path.name
     return (
         name.endswith("_UI.kt")
-        or name in {"MainActivity.kt", "MainActivityPreview.kt", "UiComponents.kt"}
+        or name in {
+            "MainActivity.kt",
+            "MainActivityPreview.kt",
+            "TimingAlertAudio.kt",
+            "TimingAlertForegroundService.kt",
+            "UiComponents.kt",
+        }
         or "/ui/theme/" in path.as_posix()
     )
 

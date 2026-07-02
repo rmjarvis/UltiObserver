@@ -1399,6 +1399,24 @@ class TestMisconduct : GameDomainTestFixtures() {
         )
         val yellowLookupState = standardLiveGameState().assessFirstYellowCard(VC, "99").state
         assertTrue(yellowLookupState.playerHasYellowThisGame(VC, "99"))
+
+        // Team-level player records count in-game cards without including prior cards.
+        assertEquals(
+            2,
+            listOf(
+                playerRecordWithCards(jerseyNumber = "6", yellows = 1),
+                playerRecordWithCards(jerseyNumber = "9", yellows = 1, reds = 1),
+                PlayerRecord(jerseyNumber = "12", priorYellows = 1),
+            ).inGameCardCount(CardType.YELLOW),
+        )
+        assertEquals(
+            1,
+            listOf(
+                playerRecordWithCards(jerseyNumber = "6", yellows = 1),
+                playerRecordWithCards(jerseyNumber = "9", yellows = 1, reds = 1),
+                PlayerRecord(jerseyNumber = "12", priorReds = 1),
+            ).inGameCardCount(CardType.RED),
+        )
         assertEquals(
             "Undo Yellow on #100 of Viscous Coupling",
             standardLiveGameState().playerCardAddUndoLabel(

@@ -130,6 +130,10 @@ val filteredCoverageExclusions = listOf(
     "**/ComposableSingletons*.*",
     // IDE previews are design-time helpers rather than app behavior.
     "**/*Preview*.*",
+    // Debug-only tools are not part of the user-facing app coverage scope.
+    "rmjarvis/ultiobserver/ArchiveSeedToolActivity.class",
+    "rmjarvis/ultiobserver/ArchiveSeedToolActivityKt.class",
+    "rmjarvis/ultiobserver/FakeArchiveTemplate.class",
     // Static theme definitions are visual constants, not interactive behavior.
     "**/rmjarvis/ultiobserver/ui/theme/**",
 )

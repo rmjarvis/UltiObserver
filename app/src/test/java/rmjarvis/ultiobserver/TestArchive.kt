@@ -20,12 +20,12 @@ class TestArchive : GameDomainTestFixtures() {
     val temporaryFolder = TemporaryFolder()
 
     /**
-     * Verify archive filtering exposes cascading values and keeps missing values
-     * selectable as N/A.
+     * Verify archive string filters expose cascading values, selectable N/A values,
+     * and summaries of the selected checkbox-style values.
      */
     @Test
-    fun archiveFilterSelections() {
-        // Build archives with overlapping tournament, division, team, and observer data.
+    fun archiveStringFilterSelections() {
+        // Build archives with overlapping tournament, division, level, team, and observer data.
         val ring = archiveForFilterTest(
             tournament = "Pro Elite Challenge",
             division = GameDivision.OPEN,
@@ -52,7 +52,7 @@ class TestArchive : GameDomainTestFixtures() {
             level = "College",
             teamOne = "Michigan",
             teamTwo = "Pitt",
-            observerNames = emptyList(),
+            observerNames = listOf("  Alex  ", ""),
             startDate = LocalDate.of(2026, 6, 1),
             startTime = LocalTime.of(10, 0),
         )
@@ -66,10 +66,27 @@ class TestArchive : GameDomainTestFixtures() {
             startDate = LocalDate.of(2025, 12, 31),
             startTime = LocalTime.of(13, 0),
         )
+        val savedSetup = ring.copy(phase = GamePhase.SETUP)
+        val savedInProgress = dragN.copy(phase = GamePhase.LIVE_POINT)
+        val archives = listOf(ring, dragN, machine, unknownTournament, savedSetup, savedInProgress)
+
+        // The category and filter labels are the user-facing choices shown by the archive UI.
+        assertEquals(
+            listOf("Archived games", "In-progress games", "Saved setup states"),
+            ArchivedGameCategory.entries.map { it.displayText },
+        )
+        assertEquals(
+            listOf("No completed games yet.", "No in-progress games.", "No saved setup states."),
+            ArchivedGameCategory.entries.map { it.emptyText },
+        )
+        assertEquals(
+            listOf("Tournament", "Division", "Level", "Team", "Date", "Observers"),
+            ArchiveFilterField.entries.map { it.displayText },
+        )
 
         // Combining tournament and division filters keeps only rows matching both filters.
         val summerOpen = getFilteredArchiveState(
-            archivedGames = listOf(ring, dragN, machine, unknownTournament),
+            archivedGames = archives,
             selectedCategory = ArchivedGameCategory.COMPLETED,
             filterSelections = ArchiveFilterSelections(
                 tournaments = setOf("Pro Elite Challenge"),
@@ -82,6 +99,7 @@ class TestArchive : GameDomainTestFixtures() {
             "Pro Elite Challenge",
             summerOpen.selectedGames!!.single().entry.headerDetail,
         )
+        assertEquals(listOf(0), summerOpen.selectedGames.map { it.index })
         assertEquals(
             listOf(
                 "Filters:",
@@ -92,9 +110,29 @@ class TestArchive : GameDomainTestFixtures() {
             summerOpen.filterAndSortSummaryText,
         )
 
+        // Replacing selected values stores each checkbox-style filter in its own field.
+        val selections = ArchiveFilterSelections()
+            .withValues(ArchiveFilterField.TOURNAMENT, setOf("Pro Elite Challenge"))
+            .withValues(ArchiveFilterField.DIVISION, setOf("Open", "Mixed"))
+            .withValues(ArchiveFilterField.LEVEL, setOf("Club"))
+            .withValues(ArchiveFilterField.TEAM, setOf("Ring of Fire"))
+            .withValues(ArchiveFilterField.OBSERVERS, setOf("Gary"))
+        assertTrue(selections.isActive())
+        assertEquals(setOf("Pro Elite Challenge"), selections.valuesFor(ArchiveFilterField.TOURNAMENT))
+        assertEquals(setOf("Open", "Mixed"), selections.valuesFor(ArchiveFilterField.DIVISION))
+        assertEquals(setOf("Club"), selections.valuesFor(ArchiveFilterField.LEVEL))
+        assertEquals(setOf("Ring of Fire"), selections.valuesFor(ArchiveFilterField.TEAM))
+        assertEquals(setOf("Gary"), selections.valuesFor(ArchiveFilterField.OBSERVERS))
+
+        // Clearing one checkbox-style filter leaves that field with no selected values.
+        assertEquals(emptySet<String>(), selections.without(ArchiveFilterField.DIVISION).divisions)
+        assertEquals(emptySet<String>(), selections.without(ArchiveFilterField.LEVEL).levels)
+        assertEquals(emptySet<String>(), selections.without(ArchiveFilterField.TEAM).teams)
+        assertEquals(emptySet<String>(), selections.without(ArchiveFilterField.OBSERVERS).observers)
+
         // Available values include counts of games matching that value under other filters.
         val unfiltered = getFilteredArchiveState(
-            archivedGames = listOf(ring, dragN, machine, unknownTournament),
+            archivedGames = archives,
             selectedCategory = ArchivedGameCategory.COMPLETED,
             filterSelections = ArchiveFilterSelections(),
             sortMode = ArchiveSortMode.DATE_NEWEST,
@@ -106,6 +144,10 @@ class TestArchive : GameDomainTestFixtures() {
                 ARCHIVE_FILTER_NA to 1,
             ),
             unfiltered.valueCounts(ArchiveFilterField.TOURNAMENT),
+        )
+        assertEquals(
+            listOf("Club" to 2, "College" to 1, ARCHIVE_FILTER_NA to 1),
+            unfiltered.valueCounts(ArchiveFilterField.LEVEL),
         )
 
         // Available values for one filter reflect all other filters, but not that same filter.
@@ -124,102 +166,330 @@ class TestArchive : GameDomainTestFixtures() {
 
         // Missing values are displayed as N/A and sorted after concrete values.
         val openDivision = getFilteredArchiveState(
-            archivedGames = listOf(ring, dragN, machine, unknownTournament),
+            archivedGames = archives,
             selectedCategory = ArchivedGameCategory.COMPLETED,
             filterSelections = ArchiveFilterSelections(divisions = setOf("Open")),
             sortMode = ArchiveSortMode.DATE_NEWEST,
         )
         assertEquals(
-            listOf("Gary" to 1, "Mike" to 1, ARCHIVE_FILTER_NA to 1),
+            listOf("Alex" to 1, "Gary" to 1, "Mike" to 1),
             openDivision.valueCounts(ArchiveFilterField.OBSERVERS),
         )
+        val noObserverGames = getFilteredArchiveState(
+            archivedGames = archives,
+            selectedCategory = ArchivedGameCategory.COMPLETED,
+            filterSelections = ArchiveFilterSelections(
+                observers = setOf(ARCHIVE_FILTER_NA),
+            ),
+            sortMode = ArchiveSortMode.DATE_OLDEST,
+        )
+        assertEquals(listOf("Animal 0 - 0 Shame"), noObserverGames.summaryLines())
 
-        // A date filter must include at least one bound.
+        // Multiple selected values are summarized with plural labels and N/A last.
+        val mixedSelections = ArchiveFilterSelections(
+            tournaments = setOf(ARCHIVE_FILTER_NA, "Pro Elite Challenge"),
+            divisions = setOf("Open", "Mixed"),
+            levels = setOf("College", "Club"),
+            teams = setOf("Ring of Fire", "Truck Stop"),
+            observers = setOf("Gary", "Mike"),
+        )
+        assertEquals(
+            listOf(
+                "Filters:",
+                "    Tournaments: Pro Elite Challenge, N/A",
+                "    Divisions: Mixed, Open",
+                "    Levels: Club, College",
+                "    Teams: Ring of Fire, Truck Stop",
+                "    Observers: Gary, Mike",
+                "Sorted by second team, Z-A",
+            ).joinToString("\n"),
+            filterAndSortSummaryText(mixedSelections, ArchiveSortMode.TEAM_TWO_ZA),
+        )
+
+        // Filters are only applied to completed archives; other categories keep storage order.
+        val savedSetupState = getFilteredArchiveState(
+            archivedGames = archives,
+            selectedCategory = ArchivedGameCategory.SETUP,
+            filterSelections = mixedSelections,
+            sortMode = ArchiveSortMode.TEAM_TWO_ZA,
+        )
+        assertEquals(listOf("Ring of Fire vs Truck Stop at 9:00 AM"), savedSetupState.summaryLines())
+        assertEquals(listOf(4), savedSetupState.selectedGames!!.map { it.index })
+        assertTrue(savedSetupState.availableFilterValues.isEmpty())
+        assertEquals("", savedSetupState.filterAndSortSummaryText)
+        val savedLiveState = getFilteredArchiveState(
+            archivedGames = archives,
+            selectedCategory = ArchivedGameCategory.IN_PROGRESS,
+            filterSelections = mixedSelections,
+            sortMode = ArchiveSortMode.TEAM_TWO_ZA,
+        )
+        assertEquals(listOf("Drag'n Thrust 0 - 0 Mixtape"), savedLiveState.summaryLines())
+        assertEquals(listOf(5), savedLiveState.selectedGames!!.map { it.index })
+        val categoryLandingState = getFilteredArchiveState(
+            archivedGames = archives,
+            selectedCategory = null,
+            filterSelections = mixedSelections,
+            sortMode = ArchiveSortMode.TEAM_TWO_ZA,
+        )
+        assertNull(categoryLandingState.selectedGames)
+        assertTrue(categoryLandingState.availableFilterValues.isEmpty())
+        assertEquals("", categoryLandingState.filterAndSortSummaryText)
+    }
+
+    /**
+     * Verify archive date filters handle presets, inclusive custom ranges,
+     * open-ended bounds, and normalized reversed bounds.
+     */
+    @Test
+    fun archiveDateFilterSelections() {
+        // Build archives spread across the dates used by the date-range controls.
+        val newYear = archiveForFilterTest(
+            tournament = "New Year Kickoff",
+            teamOne = "New Year",
+            teamTwo = "Opponent",
+            startDate = LocalDate.of(2026, 1, 1),
+            startTime = LocalTime.of(9, 0),
+        )
+        val lastWeekEdge = archiveForFilterTest(
+            tournament = "Weekly Warmup",
+            teamOne = "Week Edge",
+            teamTwo = "Opponent",
+            startDate = LocalDate.of(2026, 5, 26),
+            startTime = LocalTime.of(10, 0),
+        )
+        val lastThirtyEdge = archiveForFilterTest(
+            tournament = "Monthly Warmup",
+            teamOne = "Thirty Edge",
+            teamTwo = "Opponent",
+            startDate = LocalDate.of(2026, 5, 3),
+            startTime = LocalTime.of(10, 0),
+        )
+        val todayGame = archiveForFilterTest(
+            tournament = "Today Classic",
+            teamOne = "Today",
+            teamTwo = "Opponent",
+            startDate = LocalDate.of(2026, 6, 2),
+            startTime = LocalTime.of(11, 0),
+        )
+        val futureGame = archiveForFilterTest(
+            tournament = "Tomorrow Classic",
+            teamOne = "Tomorrow",
+            teamTwo = "Opponent",
+            startDate = LocalDate.of(2026, 6, 3),
+            startTime = LocalTime.of(11, 0),
+        )
+        val olderGame = archiveForFilterTest(
+            tournament = "Last Year Finale",
+            teamOne = "Older",
+            teamTwo = "Opponent",
+            startDate = LocalDate.of(2025, 12, 31),
+            startTime = LocalTime.of(13, 0),
+        )
+        val archives = listOf(
+            newYear,
+            lastWeekEdge,
+            lastThirtyEdge,
+            todayGame,
+            futureGame,
+            olderGame,
+        )
+        val today = LocalDate.of(2026, 6, 2)
+
+        // Date preset labels and bounds match the quick-pick buttons in the UI.
+        assertEquals(
+            listOf("Today", "Last 7 days", "Last 30 days", "This year"),
+            ArchiveDatePreset.entries.map { it.displayText },
+        )
+        assertEquals(today, ArchiveDatePreset.TODAY.startDate(today))
+        assertEquals(today.minusDays(7), ArchiveDatePreset.LAST_7_DAYS.startDate(today))
+        assertEquals(today.minusDays(30), ArchiveDatePreset.LAST_30_DAYS.startDate(today))
+        assertEquals(LocalDate.of(2026, 1, 1), ArchiveDatePreset.THIS_YEAR.startDate(today))
+        ArchiveDatePreset.entries.forEach { preset ->
+            assertEquals(today, preset.endDate(today))
+        }
+
+        // A date filter must include at least one bound, and Date is active independently
+        // from the checkbox-style fields.
         assertThrows(IllegalArgumentException::class.java) {
             ArchiveDateFilter(start = null, end = null)
         }
+        val todaySelection = ArchiveFilterSelections(
+            dateRange = ArchiveDateFilter(
+                start = ArchiveDatePreset.TODAY.startDate(today),
+                end = ArchiveDatePreset.TODAY.endDate(today),
+            )
+        )
+        assertTrue(todaySelection.isActive())
+        assertFalse(todaySelection.without(ArchiveFilterField.DATE).isActive())
+        assertEquals(today, todaySelection.dateRange!!.start)
+        assertEquals(today, todaySelection.dateRange.end)
+        assertThrows(IllegalStateException::class.java) {
+            todaySelection.withValues(ArchiveFilterField.DATE, emptySet())
+        }
+        assertThrows(IllegalStateException::class.java) {
+            todaySelection.valuesFor(ArchiveFilterField.DATE)
+        }
 
-        // Team filters match either side, N/A values are selectable, and custom dates are inclusive.
-        val animalCustomRange = getFilteredArchiveState(
-            archivedGames = listOf(ring, dragN, machine, unknownTournament),
+        // A same-day range keeps only games on that date and summarizes the exact range.
+        val todayOnly = getFilteredArchiveState(
+            archivedGames = archives,
             selectedCategory = ArchivedGameCategory.COMPLETED,
             filterSelections = ArchiveFilterSelections(
-                teams = setOf("Animal"),
-                observers = setOf(ARCHIVE_FILTER_NA),
                 dateRange = ArchiveDateFilter(
-                    start = LocalDate.of(2025, 12, 1),
-                    end = LocalDate.of(2025, 12, 31),
+                    start = today,
+                    end = today,
+                ),
+            ),
+            sortMode = ArchiveSortMode.DATE_NEWEST,
+        )
+        assertEquals(listOf("Today 0 - 0 Opponent"), todayOnly.summaryLines())
+        assertEquals(
+            listOf(
+                "Filters:",
+                "    Date range: Jun 2, 2026 - Jun 2, 2026",
+                "Sorted by date, newest first",
+            ).joinToString("\n"),
+            todayOnly.filterAndSortSummaryText,
+        )
+
+        // The other preset-equivalent ranges are inclusive of their start and end dates, while
+        // excluding games after today.
+        val lastSevenDays = getFilteredArchiveState(
+            archivedGames = archives,
+            selectedCategory = ArchivedGameCategory.COMPLETED,
+            filterSelections = ArchiveFilterSelections(
+                dateRange = ArchiveDateFilter(
+                    start = ArchiveDatePreset.LAST_7_DAYS.startDate(today),
+                    end = ArchiveDatePreset.LAST_7_DAYS.endDate(today),
                 ),
             ),
             sortMode = ArchiveSortMode.DATE_OLDEST,
         )
-        assertEquals(listOf("Animal 0 - 0 Shame"), animalCustomRange.summaryLines())
-
-        // Reversed custom dates are normalized to the same inclusive range.
-        val reversedAnimalCustomRange = getFilteredArchiveState(
-            archivedGames = listOf(ring, dragN, machine, unknownTournament),
-            selectedCategory = ArchivedGameCategory.COMPLETED,
-            filterSelections = ArchiveFilterSelections(
-                teams = setOf("Animal"),
-                observers = setOf(ARCHIVE_FILTER_NA),
-                dateRange = ArchiveDateFilter(
-                    start = LocalDate.of(2025, 12, 31),
-                    end = LocalDate.of(2025, 12, 1),
-                ),
-            ),
-            sortMode = ArchiveSortMode.DATE_OLDEST,
+        assertEquals(
+            listOf("Week Edge 0 - 0 Opponent", "Today 0 - 0 Opponent"),
+            lastSevenDays.summaryLines(),
         )
-        assertEquals(listOf("Animal 0 - 0 Shame"), reversedAnimalCustomRange.summaryLines())
-
-        // Open-ended custom dates keep everything before an end or everything after a start.
-        val throughMayTwo = getFilteredArchiveState(
-            archivedGames = listOf(ring, dragN, machine, unknownTournament),
+        val lastThirtyDays = getFilteredArchiveState(
+            archivedGames = archives,
             selectedCategory = ArchivedGameCategory.COMPLETED,
             filterSelections = ArchiveFilterSelections(
                 dateRange = ArchiveDateFilter(
-                    start = null,
-                    end = LocalDate.of(2026, 5, 2),
+                    start = ArchiveDatePreset.LAST_30_DAYS.startDate(today),
+                    end = ArchiveDatePreset.LAST_30_DAYS.endDate(today),
                 ),
             ),
             sortMode = ArchiveSortMode.DATE_OLDEST,
         )
         assertEquals(
             listOf(
-                "Animal 0 - 0 Shame",
-                "Ring of Fire 0 - 0 Truck Stop",
-                "Drag'n Thrust 0 - 0 Mixtape",
+                "Thirty Edge 0 - 0 Opponent",
+                "Week Edge 0 - 0 Opponent",
+                "Today 0 - 0 Opponent",
             ),
-            throughMayTwo.summaryLines(),
+            lastThirtyDays.summaryLines(),
         )
-        val fromMayTwo = getFilteredArchiveState(
-            archivedGames = listOf(ring, dragN, machine, unknownTournament),
+        val thisYear = getFilteredArchiveState(
+            archivedGames = archives,
             selectedCategory = ArchivedGameCategory.COMPLETED,
             filterSelections = ArchiveFilterSelections(
                 dateRange = ArchiveDateFilter(
-                    start = LocalDate.of(2026, 5, 2),
+                    start = ArchiveDatePreset.THIS_YEAR.startDate(today),
+                    end = ArchiveDatePreset.THIS_YEAR.endDate(today),
+                ),
+            ),
+            sortMode = ArchiveSortMode.DATE_OLDEST,
+        )
+        assertEquals(
+            listOf(
+                "New Year 0 - 0 Opponent",
+                "Thirty Edge 0 - 0 Opponent",
+                "Week Edge 0 - 0 Opponent",
+                "Today 0 - 0 Opponent",
+            ),
+            thisYear.summaryLines(),
+        )
+
+        // An end-only custom date keeps everything on or before the end date.
+        val throughLastWeek = getFilteredArchiveState(
+            archivedGames = archives,
+            selectedCategory = ArchivedGameCategory.COMPLETED,
+            filterSelections = ArchiveFilterSelections(
+                dateRange = ArchiveDateFilter(
+                    start = null,
+                    end = LocalDate.of(2026, 5, 26),
+                ),
+            ),
+            sortMode = ArchiveSortMode.DATE_OLDEST,
+        )
+        assertEquals(
+            listOf(
+                "Older 0 - 0 Opponent",
+                "New Year 0 - 0 Opponent",
+                "Thirty Edge 0 - 0 Opponent",
+                "Week Edge 0 - 0 Opponent",
+            ),
+            throughLastWeek.summaryLines(),
+        )
+        assertEquals(
+            listOf(
+                "Filters:",
+                "    Date range: on or before May 26, 2026",
+                "Sorted by date, oldest first",
+            ).joinToString("\n"),
+            throughLastWeek.filterAndSortSummaryText,
+        )
+
+        // A start-only custom date keeps everything on or after the start date.
+        val fromLastWeek = getFilteredArchiveState(
+            archivedGames = archives,
+            selectedCategory = ArchivedGameCategory.COMPLETED,
+            filterSelections = ArchiveFilterSelections(
+                dateRange = ArchiveDateFilter(
+                    start = LocalDate.of(2026, 5, 26),
                     end = null,
                 ),
             ),
             sortMode = ArchiveSortMode.DATE_OLDEST,
         )
         assertEquals(
-            listOf("Drag'n Thrust 0 - 0 Mixtape", "Michigan 0 - 0 Pitt"),
-            fromMayTwo.summaryLines(),
+            listOf(
+                "Week Edge 0 - 0 Opponent",
+                "Today 0 - 0 Opponent",
+                "Tomorrow 0 - 0 Opponent",
+            ),
+            fromLastWeek.summaryLines(),
+        )
+        assertEquals(
+            listOf(
+                "Filters:",
+                "    Date range: on or after May 26, 2026",
+                "Sorted by date, oldest first",
+            ).joinToString("\n"),
+            fromLastWeek.filterAndSortSummaryText,
         )
 
-        // Concrete date filters can express the same range as a date preset button.
-        val lastSevenDays = getFilteredArchiveState(
-            archivedGames = listOf(ring, dragN, machine, unknownTournament),
+        // Reversed custom dates are normalized to the same inclusive range.
+        val reversedRange = getFilteredArchiveState(
+            archivedGames = archives,
             selectedCategory = ArchivedGameCategory.COMPLETED,
             filterSelections = ArchiveFilterSelections(
                 dateRange = ArchiveDateFilter(
-                    start = LocalDate.of(2026, 5, 26),
-                    end = LocalDate.of(2026, 6, 2),
+                    start = LocalDate.of(2026, 6, 2),
+                    end = LocalDate.of(2026, 5, 26),
                 ),
             ),
-            sortMode = ArchiveSortMode.DATE_NEWEST,
+            sortMode = ArchiveSortMode.DATE_OLDEST,
         )
-        assertEquals(listOf("Michigan 0 - 0 Pitt"), lastSevenDays.summaryLines())
+        assertEquals(
+            listOf("Week Edge 0 - 0 Opponent", "Today 0 - 0 Opponent"),
+            reversedRange.summaryLines(),
+        )
+
+        // Active date filters narrow available string-filter values by date.
+        assertEquals(
+            listOf("Today Classic" to 1),
+            todayOnly.valueCounts(ArchiveFilterField.TOURNAMENT),
+        )
     }
 
     /**
@@ -248,6 +518,17 @@ class TestArchive : GameDomainTestFixtures() {
         )
         val archives = listOf(zeta, alpha, middle)
 
+        assertEquals(
+            listOf(
+                "Date newest first",
+                "Date oldest first",
+                "First team A-Z",
+                "First team Z-A",
+                "Second team A-Z",
+                "Second team Z-A",
+            ),
+            ArchiveSortMode.entries.map { it.displayText },
+        )
         assertEquals(
             listOf("Alpha 0 - 0 Omega", "Middle 0 - 0 Delta", "Zeta 0 - 0 Beta"),
             getFilteredArchiveState(
@@ -322,7 +603,33 @@ class TestArchive : GameDomainTestFixtures() {
         assertEquals(setOf("Summer Solstice"), viewModel.archiveFilterSelections.tournaments)
         assertEquals(ArchiveSortMode.TEAM_TWO_ZA, viewModel.archiveSortMode)
 
+        // ViewModel filter wrappers update and clear the same local archive filter state that
+        // the filtered archive-list model reads.
+        val dateFilter = ArchiveDateFilter(
+            start = LocalDate.of(2026, 6, 1),
+            end = LocalDate.of(2026, 6, 2),
+        )
+        viewModel.updateArchiveDateFilter(dateFilter)
+        assertEquals(dateFilter, viewModel.archiveFilterSelections.dateRange)
+        viewModel.clearArchiveFilter(ArchiveFilterField.DATE)
+        assertNull(viewModel.archiveFilterSelections.dateRange)
+        viewModel.updateArchiveDateFilter(dateFilter)
+        viewModel.updateArchiveFilterSelections(ArchiveFilterField.DIVISION, setOf("Open"))
+        val filteredState = viewModel.state.value.filteredArchiveState()
+        assertTrue(filteredState.selectedGames!!.isEmpty())
+        assertTrue(filteredState.availableFilterValues.containsKey(ArchiveFilterField.TOURNAMENT))
+        assertTrue(filteredState.filterAndSortSummaryText.contains("Date range:"))
+        viewModel.clearArchiveFilter(ArchiveFilterField.DIVISION)
+        assertTrue(viewModel.archiveFilterSelections.divisions.isEmpty())
+        viewModel.clearArchiveFilterSelections()
+        assertFalse(viewModel.archiveFilterSelections.isActive())
+
         // Returning to the category landing page keeps the state for continued archive browsing.
+        viewModel.updateArchiveFilterSelections(
+            ArchiveFilterField.TOURNAMENT,
+            setOf("Summer Solstice"),
+        )
+        viewModel.updateArchiveSortMode(ArchiveSortMode.TEAM_TWO_ZA)
         viewModel.returnToArchivedGameCategories()
         assertNull(viewModel.selectedArchiveCategory)
         assertEquals(setOf("Summer Solstice"), viewModel.archiveFilterSelections.tournaments)
@@ -333,6 +640,10 @@ class TestArchive : GameDomainTestFixtures() {
         viewModel.openArchivedGames()
         assertFalse(viewModel.archiveFilterSelections.isActive())
         assertEquals(ArchiveSortMode.DATE_NEWEST, viewModel.archiveSortMode)
+
+        // Back from the archive category landing page leaves archive navigation.
+        viewModel.goBackFromCurrentScreen()
+        assertEquals(AppScreen.HOME, viewModel.screen)
     }
 
     /**
@@ -358,6 +669,7 @@ class TestArchive : GameDomainTestFixtures() {
         viewModel.openArchivedGame(0, now = 123_000L)
         assertEquals(AppScreen.ARCHIVED_GAMES, viewModel.screen)
         assertEquals(archivedGame, viewModel.viewingArchivedGame!!)
+        assertEquals(archivedGame, viewModel.currentLiveState)
 
         // Back navigation returns from the archived summary to the archive list.
         viewModel.goBackFromCurrentScreen()

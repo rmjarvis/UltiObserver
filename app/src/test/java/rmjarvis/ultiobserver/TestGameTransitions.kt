@@ -646,6 +646,8 @@ class TestGameTransitions : GameDomainTestFixtures() {
             undoneAutomaticStartState.redoLastAction().undoLastAction(),
         )
         assertEquals(state, state.redoLastAction())
+
+        // An expired-pull decision surface does not auto-start again when its countdown is gone.
         assertEquals(
             undoneAutomaticStartState,
             undoneAutomaticStartState.applyExpiredCountdownTransitions(
@@ -653,8 +655,30 @@ class TestGameTransitions : GameDomainTestFixtures() {
                 showDefenseCountdowns = false,
             ),
         )
+
+        // Expired-pull actions are available only for active pull countdown decisions.
         assertTrue(undoneAutomaticStartState.hasExpiredPullActions(betweenPointsCountdown.targetEpoch))
         assertFalse(state.hasExpiredPullActions(betweenPointsCountdown.targetEpoch - 1L))
+        assertFalse(
+            state.copy(
+                pullSkippedForCurrentPoint = true,
+            ).hasExpiredPullActions(betweenPointsCountdown.targetEpoch)
+        )
+        assertFalse(
+            state.copy(
+                countdown = betweenPointsCountdown.pause(betweenPointsCountdown.targetEpoch - 1L),
+            ).hasExpiredPullActions(betweenPointsCountdown.targetEpoch)
+        )
+        assertFalse(
+            state.copy(
+                countdown = CountdownState(
+                    kind = CountdownKind.TIME_OUT,
+                    label = "Timeout",
+                    durationSeconds = 70,
+                    targetEpoch = betweenPointsCountdown.targetEpoch,
+                ),
+            ).hasExpiredPullActions(betweenPointsCountdown.targetEpoch)
+        )
 
         // An undone manual start from an active countdown preserves the redo chain even if the
         // restored countdown has since expired.

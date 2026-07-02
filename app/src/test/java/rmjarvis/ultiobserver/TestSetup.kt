@@ -176,6 +176,7 @@ class TestSetup : GameDomainTestFixtures() {
             "level" to { it.copy(level = "Changed level") },
             "context" to { it.copy(gameContext = "Changed context") },
             "observers" to { it.copy(observerNames = listOf("Changed observer")) },
+            "field" to { it.copy(fieldName = "Changed field") },
             "near end" to { it.copy(nearEndName = "Changed near end") },
             "far end" to { it.copy(farEndName = "Changed far end") },
             "rules" to { it.copy(rules = it.rules.copy(gameTo = it.rules.gameTo + 1)) },
@@ -507,7 +508,7 @@ class TestSetup : GameDomainTestFixtures() {
                 division = null,
                 level = "",
                 gameContext = " ",
-                observerNames = emptyList(),
+                observerNames = listOf(" ", ""),
                 fieldName = " ",
             ).gameInformationSummaryLines(),
         )

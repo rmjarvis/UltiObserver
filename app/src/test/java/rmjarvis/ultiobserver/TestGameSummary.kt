@@ -69,6 +69,23 @@ class TestGameSummary : GameDomainTestFixtures() {
             listOf(aTeam, zTeam),
             state.copy(teamOne = aTeam, teamTwo = zTeam).winnerFirstTeams(),
         )
+
+        // Summaries for an in-progress game do not invent an end time.
+        assertEquals(
+            listOf(
+                "Game summary",
+                "Philly Open Mixed Division Masters Semifinal",
+                "Observers: Mike, Gary",
+                "Start May 19, 2026 10:00 AM",
+                "Field: Field 7",
+                "Animal 15",
+                "Viscous Coupling 12",
+            ),
+            state.copy(
+                phase = GamePhase.LIVE_POINT,
+                endEpoch = null,
+            ).gameOverSummaryText().testDisplayLines(),
+        )
     }
 
     /**

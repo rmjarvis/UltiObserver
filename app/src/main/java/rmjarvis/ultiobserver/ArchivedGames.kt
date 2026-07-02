@@ -122,10 +122,7 @@ internal data class ArchiveFilterSelections(
 
     /// Return the selected values for one checkbox-style field.
     fun valuesFor(field: ArchiveFilterField): Set<String> {
-        return archiveFilterCriteria
-            .firstOrNull { it.field == field }
-            ?.selectedValues(this)
-            ?: emptySet()
+        return archiveFilterCriterion(field).selectedValues(this)
     }
 
     /**
@@ -135,10 +132,7 @@ internal data class ArchiveFilterSelections(
      * @param values The selected values for that field.
      */
     fun withValues(field: ArchiveFilterField, values: Set<String>): ArchiveFilterSelections {
-        return archiveFilterCriteria
-            .firstOrNull { it.field == field }
-            ?.replaceValues(this, values)
-            ?: this
+        return archiveFilterCriterion(field).replaceValues(this, values)
     }
 
     /// Return filters with one field cleared.
@@ -149,6 +143,16 @@ internal data class ArchiveFilterSelections(
             withValues(field, emptySet())
         }
     }
+}
+
+/**
+ * Return the checkbox-style criterion for a field, failing for anything that isn't in our
+ * archiveFilterCriteria helper.  Specifically, we expect this to fail if run on
+ * non-checkbox filters such as DATE.
+ */
+private fun archiveFilterCriterion(field: ArchiveFilterField): ArchiveFilterCriterion {
+    return archiveFilterCriteria.firstOrNull { it.field == field }
+        ?: error("${field.displayText} is not a checkbox-style archive filter.")
 }
 
 private data class ArchiveFilterSummaryLine(
@@ -218,7 +222,6 @@ private fun ArchiveDateFilter.summaryText(): String {
     val start = startDate()
     val end = endDate()
     return when {
-        start == null && end == null -> "All dates"
         start == null -> "on or before ${formatStartDate(end!!)}"
         end == null -> "on or after ${formatStartDate(start)}"
         else -> "${formatStartDate(start)} - ${formatStartDate(end)}"
@@ -428,8 +431,7 @@ private fun IndexedValue<GameState>.matches(
     return archiveFilterCriteria.all { criterion ->
         criterion.matches(state, filterSelections, ignoredField)
     } && (
-        ignoredField == ArchiveFilterField.DATE ||
-            filterSelections.dateRange == null ||
+        filterSelections.dateRange == null ||
             filterSelections.dateRange.includes(state.startDate)
         )
 }
