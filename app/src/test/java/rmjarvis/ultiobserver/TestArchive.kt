@@ -79,6 +79,10 @@ class TestArchive : GameDomainTestFixtures() {
         )
         assertEquals(listOf("Ring of Fire 0 - 0 Truck Stop"), summerOpen.summaryLines())
         assertEquals(
+            "Pro Elite Challenge",
+            summerOpen.selectedGames!!.single().entry.headerDetail,
+        )
+        assertEquals(
             listOf(
                 "Filters:",
                 "    Tournament: Pro Elite Challenge",

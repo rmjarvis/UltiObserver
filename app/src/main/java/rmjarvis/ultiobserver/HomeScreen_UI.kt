@@ -37,10 +37,12 @@ import androidx.compose.ui.unit.sp
  * Compact game row in home and archived game lists.
  *
  * @param startDateTime Compact start date/time text.
+ * @param headerDetail Optional detail shown after the date/time.
  * @param summaryLine Matchup or score summary text.
  */
 internal data class GameListEntry(
     val startDateTime: String,
+    val headerDetail: String? = null,
     val summaryLine: String,
 )
 
@@ -88,6 +90,7 @@ private val ACTIONS_HEIGHT = BUTTON_HEIGHT * 3 + BUTTON_SPACER * 3
 internal fun GameState.gameListEntry(): GameListEntry {
     return GameListEntry(
         startDateTime = compactStartDateTime(),
+        headerDetail = tournamentName.trim().ifEmpty { null },
         summaryLine = gameListSummaryLine(),
     )
 }
@@ -397,11 +400,19 @@ internal fun GameListRow(
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(
-                text = entry.startDateTime,
+                text = entry.headerLine(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Clip,
             )
             Text(entry.summaryLine, fontWeight = FontWeight.Medium)
         }
     }
+}
+
+private fun GameListEntry.headerLine(): String {
+    return headerDetail?.let { detail ->
+        "$startDateTime - $detail"
+    } ?: startDateTime
 }
