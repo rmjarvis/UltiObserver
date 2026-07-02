@@ -72,6 +72,12 @@ internal fun MoreActionsContent(
                     onClick = onUpdateGameSetup,
                 )
                 MenuButton(
+                    label = "Change pull prompts",
+                    onClick = {
+                        showChangePullPromptsDialog = true
+                    },
+                )
+                MenuButton(
                     label = "Flip field display",
                     onClick = {
                         onAction(state.flipFieldDisplay())
@@ -105,18 +111,12 @@ internal fun MoreActionsContent(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 MenuButton(
-                    label = "Change pull prompts",
-                    onClick = {
-                        showChangePullPromptsDialog = true
-                    },
+                    label = "Game summary",
+                    onClick = onShowGameSummary,
                 )
                 MenuButton(
                     label = "Event log",
                     onClick = onShowEventLog,
-                )
-                MenuButton(
-                    label = "Game summary",
-                    onClick = onShowGameSummary,
                 )
                 if (!state.halftimeTaken && state.phase == GamePhase.BETWEEN_POINTS) {
                     MenuButton(
