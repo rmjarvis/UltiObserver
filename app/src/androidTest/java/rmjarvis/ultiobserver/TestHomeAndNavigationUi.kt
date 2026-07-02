@@ -607,8 +607,6 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("ProgressA$suffix 0 - 0 ProgressB$suffix").performClick()
         waitForText("Game summary")
         composeRule.onNodeWithText("Make current").assertIsDisplayed()
-        waitForText("Saved at", substring = true)
-        waitForText("when a new game was started", substring = true)
         composeRule.onNodeWithText("Archive game").performClick()
         waitForText("No in-progress games.")
         tapTopBarBack()

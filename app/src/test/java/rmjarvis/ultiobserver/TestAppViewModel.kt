@@ -85,12 +85,9 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertTrue(viewModel.hasSetupDraft)
         assertEquals(1, viewModel.archivedGames.size)
         val archivedGame = viewModel.archivedGames.single()
-        assertEquals(
-            savedWhenNewGameStartedContext(currentGameBeforeStartingOver, 123_000L),
-            archivedGame.summaryContext,
-        )
-        assertEquals(currentGameBeforeStartingOver, archivedGame.state)
-        assertNull(archivedGame.state.endEpoch)
+        assertEquals(ArchivedGameCategory.IN_PROGRESS, archivedGame.archiveCategory)
+        assertEquals(currentGameBeforeStartingOver, archivedGame)
+        assertNull(archivedGame.endEpoch)
         assertNull(viewModel.liveState)
         assertEquals("Tap to resume", viewModel.currentGameHomeSubtitle)
     }
@@ -187,8 +184,11 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertEquals(AppScreen.SETUP, setupDraftViewModel.screen)
         assertTrue(setupDraftViewModel.hasSetupDraft)
         assertEquals(1, setupDraftViewModel.archivedGames.size)
-        assertEquals(ArchivedGameCategory.SETUP, setupDraftViewModel.archivedGames.single().category)
-        assertEquals(savedSetupDraft, setupDraftViewModel.archivedGames.single().state)
+        assertEquals(
+            ArchivedGameCategory.SETUP,
+            setupDraftViewModel.archivedGames.single().archiveCategory,
+        )
+        assertEquals(savedSetupDraft, setupDraftViewModel.archivedGames.single())
         assertEquals("", setupDraftViewModel.setupState.teamOne.name)
 
         // Starting over before the first real point should save the initial live preview aside.
@@ -202,8 +202,11 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertTrue(prePullViewModel.hasSetupDraft)
         assertNull(prePullViewModel.liveState)
         assertEquals(1, prePullViewModel.archivedGames.size)
-        assertEquals(ArchivedGameCategory.IN_PROGRESS, prePullViewModel.archivedGames.single().category)
-        assertEquals(prePullPreview, prePullViewModel.archivedGames.single().state)
+        assertEquals(
+            ArchivedGameCategory.IN_PROGRESS,
+            prePullViewModel.archivedGames.single().archiveCategory,
+        )
+        assertEquals(prePullPreview, prePullViewModel.archivedGames.single())
 
         // Undo-backed setup edits before the opening pull are also preserved when starting over.
         val setupOnlyViewModel = AppViewModel(NoOpAppStateStorage)
@@ -225,8 +228,11 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertEquals(AppScreen.SETUP, setupOnlyViewModel.screen)
         assertNull(setupOnlyViewModel.liveState)
         assertEquals(1, setupOnlyViewModel.archivedGames.size)
-        assertEquals(ArchivedGameCategory.IN_PROGRESS, setupOnlyViewModel.archivedGames.single().category)
-        assertEquals(setupOnlyEditedPreview, setupOnlyViewModel.archivedGames.single().state)
+        assertEquals(
+            ArchivedGameCategory.IN_PROGRESS,
+            setupOnlyViewModel.archivedGames.single().archiveCategory,
+        )
+        assertEquals(setupOnlyEditedPreview, setupOnlyViewModel.archivedGames.single())
 
         // A logged event before the opening pull is preserved the same way.
         val prePullEventViewModel = AppViewModel(NoOpAppStateStorage)
@@ -243,8 +249,11 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertEquals(AppScreen.SETUP, prePullEventViewModel.screen)
         assertNull(prePullEventViewModel.liveState)
         assertEquals(1, prePullEventViewModel.archivedGames.size)
-        assertEquals(ArchivedGameCategory.IN_PROGRESS, prePullEventViewModel.archivedGames.single().category)
-        assertEquals(prePullEventUpdatedState.state, prePullEventViewModel.archivedGames.single().state)
+        assertEquals(
+            ArchivedGameCategory.IN_PROGRESS,
+            prePullEventViewModel.archivedGames.single().archiveCategory,
+        )
+        assertEquals(prePullEventUpdatedState.state, prePullEventViewModel.archivedGames.single())
     }
 
     /**

@@ -46,10 +46,7 @@ private fun writeActiveGame(dir: File) {
     store.saveSettings(fixtureSettings())
     store.saveArchivedGames(
         listOf(
-            ArchivedGame(
-                state = shortCompletedGame().pruneUndoHistory(),
-                summaryContext = "Generated short game from current code",
-            ),
+            shortCompletedGame().pruneUndoHistory(),
         )
     )
 }
@@ -65,14 +62,8 @@ private fun writeCompletedArchive(dir: File) {
     store.saveSettings(fixtureSettings())
     store.saveArchivedGames(
         listOf(
-            ArchivedGame(
-                state = richGame.pruneUndoHistory(),
-                summaryContext = "Generated rich game from current code",
-            ),
-            ArchivedGame(
-                state = shortCompletedGame().pruneUndoHistory(),
-                summaryContext = "Generated short game from current code",
-            ),
+            richGame.pruneUndoHistory(),
+            shortCompletedGame().pruneUndoHistory(),
         )
     )
 }

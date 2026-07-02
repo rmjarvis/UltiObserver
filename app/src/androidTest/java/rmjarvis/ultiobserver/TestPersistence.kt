@@ -88,10 +88,7 @@ class TestPersistence : MainActivityUiTestFixtures() {
             )
             storage.saveArchivedGames(
                 listOf(
-                    ArchivedGame(
-                        state = archivedSummary,
-                        summaryContext = "",
-                    )
+                    archivedSummary
                 )
             )
 
@@ -115,9 +112,9 @@ class TestPersistence : MainActivityUiTestFixtures() {
             assertEquals(false, restoredSettings.automaticallyAdvanceCountdowns)
             assertEquals(false, restoredSettings.automaticallyLockLivePoint)
             assertEquals(timingPreferences, restoredSettings.timingAlertPreferences)
-            assertEquals(archivedSummary, restoredArchivedGame.state)
-            assertNull(restoredArchivedGame.state.undoEntry)
-            assertNull(restoredArchivedGame.state.redoEntry)
+            assertEquals(archivedSummary, restoredArchivedGame)
+            assertNull(restoredArchivedGame.undoEntry)
+            assertNull(restoredArchivedGame.redoEntry)
         } finally {
             storageDir.deleteRecursively()
         }
@@ -240,8 +237,8 @@ private class StartupRecoveryNoticeStorage(
     override fun saveSettings(state: Settings) = Unit
 
     /// Load no archived games for the startup-recovery notice fixture.
-    override fun loadArchivedGames(): List<ArchivedGame> = emptyList()
+    override fun loadArchivedGames(): List<GameState> = emptyList()
 
     /// Ignore archived-game saves for the startup-recovery notice fixture.
-    override fun saveArchivedGames(games: List<ArchivedGame>) = Unit
+    override fun saveArchivedGames(games: List<GameState>) = Unit
 }

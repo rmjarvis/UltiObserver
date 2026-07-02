@@ -28,8 +28,8 @@ internal object NoOpAppStateStorage : AppStateStorage {
     override fun saveSettings(state: Settings) = Unit
 
     /// Load no archived games for unit tests that do not exercise persistence.
-    override fun loadArchivedGames(): List<ArchivedGame> = emptyList()
+    override fun loadArchivedGames(): List<GameState> = emptyList()
 
     /// Ignore archived-game saves for unit tests that do not exercise persistence.
-    override fun saveArchivedGames(games: List<ArchivedGame>) = Unit
+    override fun saveArchivedGames(games: List<GameState>) = Unit
 }

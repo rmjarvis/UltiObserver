@@ -53,9 +53,9 @@ internal data class AppUiState(
     val automaticallyAdvanceCountdowns: Boolean,
     val automaticallyLockLivePoint: Boolean,
     val showDefenseCountdowns: Boolean,
-    val archivedGames: List<ArchivedGame>,
+    val archivedGames: List<GameState>,
     val selectedArchiveCategory: ArchivedGameCategory?,
-    val viewingArchivedGame: ArchivedGame?,
+    val viewingArchivedGame: GameState?,
     val viewingCurrentGameSummary: Boolean,
     val archiveFilterSelections: ArchiveFilterSelections,
     val archiveSortMode: ArchiveSortMode,
@@ -167,11 +167,11 @@ internal class AppViewModel(
         get() = state.value.automaticallyLockLivePoint
     val showDefenseCountdowns: Boolean
         get() = state.value.showDefenseCountdowns
-    val archivedGames: List<ArchivedGame>
+    val archivedGames: List<GameState>
         get() = state.value.archivedGames
     val selectedArchiveCategory: ArchivedGameCategory?
         get() = state.value.selectedArchiveCategory
-    val viewingArchivedGame: ArchivedGame?
+    val viewingArchivedGame: GameState?
         get() = state.value.viewingArchivedGame
     val viewingCurrentGameSummary: Boolean
         get() = state.value.viewingCurrentGameSummary
@@ -189,7 +189,7 @@ internal class AppViewModel(
     }
 
     val currentLiveState: GameState?
-        get() = viewingArchivedGame?.state ?: currentGame
+        get() = viewingArchivedGame ?: currentGame
 
     val currentGameHomeSubtitle: String?
         get() {
@@ -622,8 +622,8 @@ internal class AppViewModel(
      */
     fun openArchivedGame(index: Int, now: Long) {
         val archived = archivedGames[index]
-        if (archived.category == ArchivedGameCategory.SETUP) {
-            restoreArchivedGame(index, now)
+        if (archived.archiveCategory == ArchivedGameCategory.SETUP) {
+            restoreArchivedGame(index)
             return
         }
         _state.update {
@@ -641,10 +641,7 @@ internal class AppViewModel(
         if (completed.phase != GamePhase.GAME_OVER) {
             return
         }
-        val updatedArchivedGames = archivedGames + ArchivedGame(
-            state = completed.pruneUndoHistory(),
-            summaryContext = "",
-        )
+        val updatedArchivedGames = archivedGames + completed.pruneUndoHistory()
         _state.update {
             it.copy(
                 archivedGames = updatedArchivedGames,
@@ -663,17 +660,16 @@ internal class AppViewModel(
      * Restore one archived game from storage as the current game.
      *
      * @param index The archived-game index to restore.
-     * @param now Epoch millis when any displaced current game is saved aside.
      */
-    private fun restoreArchivedGame(index: Int, now: Long) {
+    private fun restoreArchivedGame(index: Int) {
         val archived = archivedGames[index]
         val updatedArchivedGames = archivedGames.toMutableList().also { games ->
             games.removeAt(index)
-            archiveCurrentGame(now)?.let { archivedCurrent ->
+            archiveCurrentGame()?.let { archivedCurrent ->
                 games += archivedCurrent
             }
         }
-        val restoredState = archived.state
+        val restoredState = archived
         _state.update {
             it.copy(
                 archivedGames = updatedArchivedGames,
@@ -697,20 +693,16 @@ internal class AppViewModel(
     fun restoreCompletedGame(now: Long) {
         val archived = viewingArchivedGame ?: return
         val index = archivedGames.indexOfFirst { it === archived }
-        restoreArchivedGame(index, now)
+        restoreArchivedGame(index)
     }
 
     /// Save the current new-game setup as a phase=SETUP GameState, archive it, and return Home.
     fun saveSetupForLater() {
         // This action is only exposed while creating a setup-phase game.
         val setupGame = currentGame!!
-        val archivedSetup = ArchivedGame(
-            state = setupGame,
-            summaryContext = "",
-        )
         _state.update {
             it.copy(
-                archivedGames = archivedGames + archivedSetup,
+                archivedGames = archivedGames + setupGame,
                 currentGame = null,
                 setupEditDraft = null,
                 viewingArchivedGame = null,
@@ -786,7 +778,7 @@ internal class AppViewModel(
         _state.update {
             it.copy(
                 archivedGames = archivedGames.filterNot { game ->
-                    game.category == category
+                    game.archiveCategory == category
                 },
                 viewingArchivedGame = null,
                 viewingCurrentGameSummary = false,
@@ -828,9 +820,9 @@ internal class AppViewModel(
 
     /// Start a new game setup, archiving any existing current game first.
     fun startNewGame(now: Long) {
-        val archivedCurrent = archiveCurrentGame(now)
+        val archivedCurrent = archiveCurrentGame()
         val updatedArchivedGames = archivedCurrent?.let { archivedGames + it } ?: archivedGames
-        val previousSetupDefaults = updatedArchivedGames.lastOrNull()?.state
+        val previousSetupDefaults = updatedArchivedGames.lastOrNull()
         _state.update {
             it.copy(
                 archivedGames = updatedArchivedGames,
@@ -954,42 +946,20 @@ internal class AppViewModel(
 
     /**
      * Build the archive entry for a current game without losing active restore state.
-     *
-     * @param current The live or completed current game being moved out of the current slot.
-     * @param now Epoch millis when the game is being saved aside.
      */
-    private fun archivedGameFor(current: GameState, now: Long): ArchivedGame {
+    private fun archivedGameFor(current: GameState): GameState {
         if (current.phase == GamePhase.GAME_OVER) {
-            return ArchivedGame(
-                state = current.pruneUndoHistory(),
-                summaryContext = "",
-            )
+            return current.pruneUndoHistory()
         }
-        return ArchivedGame(
-            state = current,
-            summaryContext = savedWhenNewGameStartedContext(current, now),
-        )
+        return current
     }
 
     /**
      * Return an archive for the current game when it is replaced.
-     *
-     * @param now Epoch millis when the game is being saved aside.
      */
-    private fun archiveCurrentGame(now: Long): ArchivedGame? {
+    private fun archiveCurrentGame(): GameState? {
         val current = currentGame ?: return null
-        return archivedGameFor(current, now)
-    }
-
-    /**
-     * Return context for a game saved because a new game was started.
-     *
-     * @param current The game being saved aside.
-     * @param now Epoch millis when the game was saved.
-     */
-    private fun savedWhenNewGameStartedContext(current: GameState, now: Long): String {
-        val savedTime = localTimeFromEpoch(now, current.timeZone)
-        return "Saved at ${formatClockTime(savedTime)}, when a new game was started"
+        return archivedGameFor(current)
     }
 
     /// Persist the current/setup game bucket.

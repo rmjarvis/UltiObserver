@@ -333,27 +333,14 @@ private object V1_0ToV1_1 {
     fun migrateArchivedGame(jsonElement: JsonElement): JsonElement {
         val jsonObject = jsonElement.jsonObject
         val restorableState = jsonObject.getValue("restorableState")
-        val subtitle = jsonObject.getValue("subtitle")
-        val migratedRestorableState = if (restorableState is JsonNull) {
-            JsonNull
+        return if (restorableState is JsonNull) {
+            migrateV1_0GameStateToV1_1(
+                jsonObject.getValue("state").jsonObject,
+                preserveEndGameUndo = true,
+            )
         } else {
             migrateV1_0GameStateToV1_1(restorableState.jsonObject, preserveEndGameUndo = false)
         }
-        return JsonObject(
-            jsonObject.toMutableMap().apply {
-                remove("restorableState")
-                remove("subtitle")
-                this["summaryContext"] = subtitle
-                this["state"] = if (migratedRestorableState is JsonNull) {
-                    migrateV1_0GameStateToV1_1(
-                        jsonObject.getValue("state").jsonObject,
-                        preserveEndGameUndo = true,
-                    )
-                } else {
-                    migratedRestorableState
-                }
-            }
-        )
     }
 
     private fun migrateV1_0SetupStateToV1_1(jsonObject: JsonObject): JsonObject {

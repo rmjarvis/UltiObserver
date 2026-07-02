@@ -133,15 +133,15 @@ internal interface AppStateStorage {
      */
     fun saveSettings(state: Settings)
 
-    /// Load all readable archived-game summaries.
-    fun loadArchivedGames(): List<ArchivedGame>
+    /// Load all readable archived games.
+    fun loadArchivedGames(): List<GameState>
 
     /**
-     * Save the archived-game summaries.
+     * Save the archived games.
      *
-     * @param games The ordered archived-game summaries to persist.
+     * @param games The ordered archived games to persist.
      */
-    fun saveArchivedGames(games: List<ArchivedGame>)
+    fun saveArchivedGames(games: List<GameState>)
 }
 
 internal val appStateJson = Json {
@@ -166,7 +166,7 @@ internal fun encodeSettings(state: Settings): String {
 }
 
 /// Encode one archived-game file with file-level app version metadata.
-internal fun encodeArchivedGame(game: ArchivedGame): String {
+internal fun encodeArchivedGame(game: GameState): String {
     return encodePersistedBucket(game)
 }
 
@@ -203,6 +203,27 @@ private fun decodeCurrentGameJson(
         val migrated = migrateCurrentGameJson(jsonElement, version) ?: return null
         PersistenceDecodeResult(
             value = decodeCurrentGame(migrated.jsonElement),
+            wasMigrated = migrated.wasMigrated,
+        )
+    } catch (_: RuntimeException) {
+        null
+    }
+}
+
+/**
+ * Decode persisted archived game state for a known storage version.
+ *
+ * @param jsonElement The payload JSON from one archived-game bucket.
+ * @param version The version metadata read from that JSON object.
+ */
+private fun decodeArchivedGameJson(
+    jsonElement: JsonElement,
+    version: AppVersion,
+): PersistenceDecodeResult<GameState>? {
+    return try {
+        val migrated = migrateArchivedGameJson(jsonElement, version) ?: return null
+        PersistenceDecodeResult(
+            value = appStateJson.decodeFromJsonElement<GameState>(migrated.jsonElement),
             wasMigrated = migrated.wasMigrated,
         )
     } catch (_: RuntimeException) {
@@ -388,8 +409,8 @@ internal class FileAppStateStorage(
         return StoredJsonBucket(version = version, data = this)
     }
 
-    /// Load all readable archived-game summaries from app-private JSON files.
-    override fun loadArchivedGames(): List<ArchivedGame> {
+    /// Load all readable archived games from app-private JSON files.
+    override fun loadArchivedGames(): List<GameState> {
         resetAreas.remove(PersistedData.ARCHIVED_GAMES)
         if (!archivedGamesDir.exists()) {
             return emptyList()
@@ -402,7 +423,7 @@ internal class FileAppStateStorage(
             .mapNotNull { file ->
                 val archivedGame = readExistingBucket(file)
                     ?.let { storedBucket ->
-                        ArchivedGame.decodeJson(storedBucket.data, storedBucket.version)
+                        decodeArchivedGameJson(storedBucket.data, storedBucket.version)
                     }
                 if (archivedGame == null) {
                     resetAreas += PersistedData.ARCHIVED_GAMES
@@ -419,11 +440,11 @@ internal class FileAppStateStorage(
     }
 
     /**
-     * Replace the archived-game JSON directory with the supplied ordered summaries.
+     * Replace the archived-game JSON directory with the supplied ordered games.
      *
-     * @param games The archived-game summaries to write as numbered JSON files.
+     * @param games The archived games to write as numbered JSON files.
      */
-    override fun saveArchivedGames(games: List<ArchivedGame>) {
+    override fun saveArchivedGames(games: List<GameState>) {
         archivedGamesDir.mkdirs()
         archivedGamesDir
             .listFiles { file -> file.isFile && file.extension == "json" }

@@ -34,7 +34,6 @@ import androidx.compose.ui.unit.dp
  *
  * @param state The game state to summarize.
  * @param completed Whether this is a completed-game summary rather than an in-progress archive.
- * @param summaryContext Optional context explaining why this summary is shown.
  * @param summaryActionText Fixed bottom action label, such as Undo End game or Restore game.
  * @param onSummaryAction Callback invoked by the fixed bottom action.
  * @param secondarySummaryActionText Optional second fixed-bottom action label.
@@ -49,7 +48,6 @@ import androidx.compose.ui.unit.dp
 internal fun GameOverSummaryScreen(
     state: GameState,
     completed: Boolean = true,
-    summaryContext: String? = null,
     summaryActionText: String,
     onSummaryAction: () -> Unit,
     secondarySummaryActionText: String? = null,
@@ -86,7 +84,6 @@ internal fun GameOverSummaryScreen(
                 completed = completed,
                 onShowEventLog = { showEventLogSheet = true },
                 onShareSummary = { context.shareGameSummary(state) },
-                summaryContext = summaryContext,
                 summaryActionText = summaryActionText,
                 onSummaryAction = onSummaryAction,
                 secondarySummaryActionText = secondarySummaryActionText,
@@ -126,7 +123,6 @@ internal fun GameOverSummaryScreen(
  * @param completed Whether this is a completed-game summary rather than an in-progress archive.
  * @param onShowEventLog Callback opening the game's event log.
  * @param onShareSummary Callback opening Android's text-share sheet for this game summary.
- * @param summaryContext Optional context explaining why this summary is shown.
  * @param summaryActionText Fixed bottom action label, such as Undo End game or Restore game.
  * @param onSummaryAction Callback invoked by the fixed bottom action.
  * @param secondarySummaryActionText Optional second fixed-bottom action label.
@@ -138,7 +134,6 @@ internal fun GameOverSummary(
     completed: Boolean = true,
     onShowEventLog: () -> Unit,
     onShareSummary: () -> Unit,
-    summaryContext: String? = null,
     summaryActionText: String,
     onSummaryAction: () -> Unit,
     secondarySummaryActionText: String? = null,
@@ -207,12 +202,6 @@ internal fun GameOverSummary(
                             text = scoreLine,
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold,
-                        )
-                    }
-                    if (!summaryContext.isNullOrBlank()) {
-                        Text(
-                            text = summaryContext,
-                            style = MaterialTheme.typography.bodyMedium,
                         )
                     }
                 }

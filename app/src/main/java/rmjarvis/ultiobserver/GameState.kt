@@ -543,7 +543,7 @@ data class GameState(
     }
 
     /**
-     * Drop undo/redo state, optionally keeping the immediate end-game undo for archived summaries.
+     * Drop undo/redo state, optionally keeping the immediate end-game undo for archived games.
      *
      * @param clearCountdown Whether to clear an active countdown from the returned state.
      */

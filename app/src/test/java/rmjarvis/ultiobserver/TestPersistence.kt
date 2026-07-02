@@ -305,7 +305,7 @@ class TestPersistence : GameDomainTestFixtures() {
         viewModel.goHome()
         viewModel.archiveCompletedGame()
 
-        // Verify current game and archived summaries are written separately from profile/settings.
+        // Verify current game and archived games are written separately from profile/settings.
         assertTrue(File(storeDir, "current_game_state.json").exists())
         assertFalse(File(storeDir, "profile.json").exists())
         assertFalse(File(storeDir, "settings.json").exists())
@@ -316,15 +316,15 @@ class TestPersistence : GameDomainTestFixtures() {
         assertEquals(AppScreen.HOME, restored.screen)
         assertNull(restored.liveState)
         assertEquals(1, restored.archivedGames.size)
-        assertNull(restored.archivedGames.single().state.countdown)
-        assertEquals("Undo End game", restored.archivedGames.single().state.undoEntry?.label)
+        assertNull(restored.archivedGames.single().countdown)
+        assertEquals("Undo End game", restored.archivedGames.single().undoEntry?.label)
         assertEquals(
             beforeEndGame.pruneUndoHistory(),
-            restored.archivedGames.single().state.undoEntry!!.previous,
+            restored.archivedGames.single().undoEntry!!.previous,
         )
-        assertNull(restored.archivedGames.single().state.redoEntry)
-        assertEquals(GamePhase.GAME_OVER, restored.archivedGames.single().state.phase)
-        assertEquals(completedGame.eventLog, restored.archivedGames.single().state.eventLog)
+        assertNull(restored.archivedGames.single().redoEntry)
+        assertEquals(GamePhase.GAME_OVER, restored.archivedGames.single().phase)
+        assertEquals(completedGame.eventLog, restored.archivedGames.single().eventLog)
     }
 
     /**
@@ -381,11 +381,11 @@ class TestPersistence : GameDomainTestFixtures() {
         assertEquals(setOf(PersistedData.GAME_STATE), store.resetPersistedDataAreas)
 
         // Archived games load only JSON files and cleanup removes stale numbered archive files.
-        val archivedOne = ArchivedGame(
-            state = createLiveGameState(setup).copy(phase = GamePhase.GAME_OVER),
-            summaryContext = "First",
+        val archivedOne = createLiveGameState(setup).copy(phase = GamePhase.GAME_OVER)
+        val archivedTwo = createLiveGameState(setup).copy(
+            phase = GamePhase.GAME_OVER,
+            teamOne = setup.teamOne.copy(name = "Archive Two"),
         )
-        val archivedTwo = archivedOne.copy(summaryContext = "Second")
         store.saveArchivedGames(listOf(archivedOne, archivedTwo))
         val archiveDir = File(storeDir, "archived_games")
         File(archiveDir, "not-json.txt").writeText("ignored")
@@ -427,10 +427,7 @@ class TestPersistence : GameDomainTestFixtures() {
             soundVolume = 0.4f,
         )
         val savedCurrentGame = liveState
-        val savedArchive = ArchivedGame(
-            state = createLiveGameState(setup).copy(phase = GamePhase.GAME_OVER),
-            summaryContext = "Final",
-        )
+        val savedArchive = createLiveGameState(setup).copy(phase = GamePhase.GAME_OVER)
         store.saveCurrentGame(savedCurrentGame)
         store.saveProfile(Profile(profileName = "Casey Observer"))
         store.saveSettings(Settings(timingAlertPreferences = timingPreferences))
@@ -476,8 +473,8 @@ class TestPersistence : GameDomainTestFixtures() {
         assertEquals(Settings(), store.loadSettings())
         store.saveArchivedGames(listOf(savedArchive))
         File(File(storeDir, "archived_games"), "00000.json").replaceText(
-            "\"state\": {",
-            "\"state\": \"broken\", \"ignoredState\": {",
+            "\"phase\": \"GAME_OVER\"",
+            "\"phase\": 7",
         )
         assertTrue(store.loadArchivedGames().isEmpty())
         assertEquals(
@@ -490,14 +487,13 @@ class TestPersistence : GameDomainTestFixtures() {
             store.resetPersistedDataAreas,
         )
 
-        // A single bad archive file should be skipped without losing the other readable summaries.
+        // A single bad archive file should be skipped without losing the other readable games.
         val archiveStoreDir = temporaryFolder.newFolder()
         val archiveStore = FileAppStateStorage(archiveStoreDir)
-        val archivedOne = ArchivedGame(
-            state = savedArchive.state,
-            summaryContext = "First",
+        val archivedOne = savedArchive
+        val archivedTwo = savedArchive.copy(
+            teamOne = savedArchive.teamOne.copy(name = "Readable archive"),
         )
-        val archivedTwo = archivedOne.copy(summaryContext = "Second")
         archiveStore.saveArchivedGames(listOf(archivedOne, archivedTwo))
         File(File(archiveStoreDir, "archived_games"), "00000.json").writeText("{not-json")
         assertEquals(listOf(archivedTwo), archiveStore.loadArchivedGames())
@@ -876,7 +872,7 @@ class TestPersistence : GameDomainTestFixtures() {
         val currentGame: GameState,
         val profile: Profile,
         val settings: Settings,
-        val archive: ArchivedGame,
+        val archive: GameState,
     )
 
     /// Build representative records for every persisted app-data bucket.
@@ -894,10 +890,7 @@ class TestPersistence : GameDomainTestFixtures() {
             settings = Settings(
                 timingAlertPreferences = TimingAlertPreferences(soundVolume = 0.35f),
             ),
-            archive = ArchivedGame(
-                state = createLiveGameState(setup).copy(phase = GamePhase.GAME_OVER),
-                summaryContext = "Final",
-            ),
+            archive = createLiveGameState(setup).copy(phase = GamePhase.GAME_OVER),
         )
     }
 
@@ -949,7 +942,7 @@ private class RecordingAppStateStorage : AppStateStorage {
     val savedCurrentGames = mutableListOf<GameState?>()
     val savedProfiles = mutableListOf<Profile>()
     val savedSettings = mutableListOf<Settings>()
-    val savedArchivedGames = mutableListOf<List<ArchivedGame>>()
+    val savedArchivedGames = mutableListOf<List<GameState>>()
 
     override val resetPersistedDataAreas: Set<PersistedData> = emptySet()
 
@@ -990,14 +983,14 @@ private class RecordingAppStateStorage : AppStateStorage {
     }
 
     /// Load no archived games for this recording fake.
-    override fun loadArchivedGames(): List<ArchivedGame> = emptyList()
+    override fun loadArchivedGames(): List<GameState> = emptyList()
 
     /**
      * Record an archived-games save request.
      *
      * @param games The archived games passed by the ViewModel.
      */
-    override fun saveArchivedGames(games: List<ArchivedGame>) {
+    override fun saveArchivedGames(games: List<GameState>) {
         savedArchivedGames += games
     }
 }

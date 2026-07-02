@@ -127,17 +127,6 @@ abstract class GameDomainTestFixtures {
     }
 
     /**
-     * Return the expected archive context for a game saved when starting another game.
-     *
-     * @param state The state whose time zone formats the saved-at time.
-     * @param now Epoch millis when the game was saved aside.
-     */
-    protected fun savedWhenNewGameStartedContext(state: GameState, now: Long): String {
-        val savedTime = localTimeFromEpoch(now, state.timeZone)
-        return "Saved at ${formatClockTime(savedTime)}, when a new game was started"
-    }
-
-    /**
      * Record a goal at a local clock time.
      *
      * @param state The live state before the goal.

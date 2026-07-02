@@ -11,10 +11,7 @@ private const val BACKUP_CAP_BYTES = 25L * 1024L * 1024L
 fun main() {
     val setup = backupEstimateSetup()
     val game = buildHighActivityFullGame(setup)
-    val archivedGame = ArchivedGame(
-        state = game.pruneUndoHistory(),
-        summaryContext = "Backup size estimate",
-    )
+    val archivedGame = game.pruneUndoHistory()
 
     val reportDir = File("app/build/reports/backup-size-estimate")
     reportDir.mkdirs()
@@ -47,7 +44,7 @@ fun main() {
     println("Final score: ${game.teamOne.score}-${game.teamTwo.score}")
     println("Event log entries: ${game.eventLog.size}")
     println("Current-game undo depth: ${game.undoDepth()}")
-    println("Archived-game undo depth: ${archivedGame.state.undoDepth()}")
+    println("Archived-game undo depth: ${archivedGame.undoDepth()}")
 }
 
 private data class BackupSample(

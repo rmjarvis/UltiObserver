@@ -170,15 +170,15 @@ class TestMigration : GameDomainTestFixtures() {
         assertTrue(setupSavedLiveState.hasExpiredPullActions(setupSavedLiveState.startEpoch))
         assertEquals(1, setupSaved.archivedGames.size)
         val setupSavedArchive = setupSaved.archivedGames.single()
-        assertEquals(ArchivedGameCategory.IN_PROGRESS, setupSavedArchive.category)
-        assertEquals(GamePhase.PRE_GAME, setupSavedArchive.state.phase)
-        assertEquals("Simple One", setupSavedArchive.state.teamOne.name)
-        assertEquals("Simple Two", setupSavedArchive.state.teamTwo.name)
-        assertNull(setupSavedArchive.state.countdown)
-        assertTrue(setupSavedArchive.state.hasExpiredPullActions(setupSavedArchive.state.startEpoch))
-        assertTrue(setupSavedArchive.state.teamOnePlayers.isEmpty())
-        assertTrue(setupSavedArchive.state.teamTwoPlayers.isEmpty())
-        assertTrue(setupSavedArchive.state.eventLog.isEmpty())
+        assertEquals(ArchivedGameCategory.IN_PROGRESS, setupSavedArchive.archiveCategory)
+        assertEquals(GamePhase.PRE_GAME, setupSavedArchive.phase)
+        assertEquals("Simple One", setupSavedArchive.teamOne.name)
+        assertEquals("Simple Two", setupSavedArchive.teamTwo.name)
+        assertNull(setupSavedArchive.countdown)
+        assertTrue(setupSavedArchive.hasExpiredPullActions(setupSavedArchive.startEpoch))
+        assertTrue(setupSavedArchive.teamOnePlayers.isEmpty())
+        assertTrue(setupSavedArchive.teamTwoPlayers.isEmpty())
+        assertTrue(setupSavedArchive.eventLog.isEmpty())
 
         // complete-current-game is a game that has finished, but not been archived.
         // So it still has an Undo End game option to take it back to a live game state.
@@ -326,11 +326,10 @@ class TestMigration : GameDomainTestFixtures() {
         val completedArchive = loadMigratedFixture("v1.0", "completed-archive")
         assertEquals(2, completedArchive.archivedGames.size)
         val richArchive = completedArchive.archivedGames.first()
-        assertEquals(ArchivedGameCategory.COMPLETED, richArchive.category)
-        assertEquals("Generated v1.0 rich game", richArchive.summaryContext)
-        assertEquals(GamePhase.GAME_OVER, richArchive.state.phase)
-        assertEquals("Undo End game", richArchive.state.undoEntry?.label)
-        val restoredFromEndGame = richArchive.state.undoLastAction()
+        assertEquals(ArchivedGameCategory.COMPLETED, richArchive.archiveCategory)
+        assertEquals(GamePhase.GAME_OVER, richArchive.phase)
+        assertEquals("Undo End game", richArchive.undoEntry?.label)
+        val restoredFromEndGame = richArchive.undoLastAction()
         assertEquals(GamePhase.BETWEEN_POINTS, restoredFromEndGame.phase)
         assertNull(restoredFromEndGame.undoEntry)
         assertNotNull(restoredFromEndGame.redoEntry)
@@ -344,10 +343,10 @@ class TestMigration : GameDomainTestFixtures() {
         // v1.0.0 did not persist the End game undo entry that v1.0.1 preserved, but
         // the completed archive game facts should normalize the same way.
         val completedArchiveV1_0_0 = loadMigratedFixture("v1.0", "completed-archive-1.0.0")
-        assertNull(completedArchiveV1_0_0.archivedGames.first().state.undoEntry)
+        assertNull(completedArchiveV1_0_0.archivedGames.first().undoEntry)
         assertEquals(
             completedArchive.archivedGames.map { game ->
-                game.copy(state = game.state.copy(undoEntry = null, redoEntry = null))
+                game.copy(undoEntry = null, redoEntry = null)
             },
             completedArchiveV1_0_0.archivedGames,
         )

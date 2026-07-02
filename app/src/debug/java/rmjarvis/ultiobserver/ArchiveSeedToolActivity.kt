@@ -26,7 +26,7 @@ internal class ArchiveSeedToolActivity : Activity() {
     private fun seedFakeCompletedArchive(): Int {
         val storage = FileAppStateStorage(filesDir)
         val savedNonCompletedGames = storage.loadArchivedGames()
-            .filter { it.category != ArchivedGameCategory.COMPLETED }
+            .filter { it.archiveCategory != ArchivedGameCategory.COMPLETED }
         val generatedGames = fakeCompletedArchiveGames()
         storage.saveArchivedGames(generatedGames + savedNonCompletedGames)
         return generatedGames.size
@@ -40,7 +40,7 @@ private data class FakeArchiveTemplate(
     val observers: String,
 )
 
-private fun fakeCompletedArchiveGames(): List<ArchivedGame> {
+private fun fakeCompletedArchiveGames(): List<GameState> {
     val timeZone = ZoneId.of("America/New_York")
     val today = LocalDate.now()
     val templates = listOf(
@@ -87,19 +87,16 @@ private fun fakeCompletedArchiveGames(): List<ArchivedGame> {
             val winningFirst = gameIndex % 4 != 0
             val teamOneScore = if (winningFirst) scoreOne else scoreTwo
             val teamTwoScore = if (winningFirst) scoreTwo else scoreOne + 1
-            ArchivedGame(
-                state = fakeCompletedGame(
-                    timeZone = timeZone,
-                    startDate = startDate,
-                    startTime = startTime,
-                    template = template,
-                    teamOneName = teams.first,
-                    teamTwoName = teams.second,
-                    teamOneScore = teamOneScore,
-                    teamTwoScore = teamTwoScore,
-                    gameIndex = gameIndex,
-                ),
-                summaryContext = "Generated fake archive row ${gameIndex + 1}",
+            fakeCompletedGame(
+                timeZone = timeZone,
+                startDate = startDate,
+                startTime = startTime,
+                template = template,
+                teamOneName = teams.first,
+                teamTwoName = teams.second,
+                teamOneScore = teamOneScore,
+                teamTwoScore = teamTwoScore,
+                gameIndex = gameIndex,
             )
         }
     }

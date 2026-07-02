@@ -146,11 +146,11 @@ internal fun UltiObserverApp(
         AppScreen.ARCHIVED_GAMES -> {
             val archivedGame = appState.viewingArchivedGame
             if (archivedGame != null) {
-                val isInProgressArchive = archivedGame.category == ArchivedGameCategory.IN_PROGRESS
+                val isInProgressArchive = archivedGame.archiveCategory ==
+                    ArchivedGameCategory.IN_PROGRESS
                 GameOverSummaryScreen(
-                    state = archivedGame.state,
+                    state = archivedGame,
                     completed = !isInProgressArchive,
-                    summaryContext = archivedGame.summaryContext,
                     summaryActionText = if (isInProgressArchive) {
                         "Make current"
                     } else {
@@ -194,7 +194,9 @@ internal fun UltiObserverApp(
                                 currentSetupDraft != null -> 1
                             else -> 0
                         }
-                        currentCount + appState.archivedGames.count { it.category == category }
+                        currentCount + appState.archivedGames.count {
+                            it.archiveCategory == category
+                        }
                     }
                 }
                 ArchivedGamesScreen(

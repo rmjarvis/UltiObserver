@@ -2,9 +2,6 @@ package rmjarvis.ultiobserver
 
 import java.time.LocalDate
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.decodeFromJsonElement
 
 /**
  * Category describing why a game is stored outside the current-game slot.
@@ -347,76 +344,35 @@ internal data class FilteredArchiveState(
     val filterAndSortSummaryText: String,
 )
 
+/// Return the archive category implied by this game phase.
+internal val GameState.archiveCategory: ArchivedGameCategory
+    get() = when (phase) {
+        GamePhase.SETUP -> ArchivedGameCategory.SETUP
+        GamePhase.GAME_OVER -> ArchivedGameCategory.COMPLETED
+        else -> ArchivedGameCategory.IN_PROGRESS
+    }
+
+/**
+ * Return this in-progress archive converted to a completed archive.
+ *
+ * @param now The epoch millis to store as the manual game-over time.
+ */
+internal fun GameState.asCompletedArchive(now: Long): GameState {
+    return endGameNow(now).pruneUndoHistory()
+}
+
 /// Return archive list rows for one selected category.
-private fun List<ArchivedGame>.archiveListItems(
+private fun List<GameState>.archiveListItems(
     category: ArchivedGameCategory,
 ): List<ArchivedGameListItem> {
     return mapIndexedNotNull { index, game ->
-        if (game.category == category) {
+        if (game.archiveCategory == category) {
             ArchivedGameListItem(
                 index = index,
-                entry = game.state.gameListEntry(),
+                entry = game.gameListEntry(),
             )
         } else {
             null
-        }
-    }
-}
-
-/**
- * Stored archived game state and summary context.
- *
- * @param state The game state shown in archive lists and read-only summaries.
- * @param summaryContext Optional context such as why an active game was saved.
- */
-@Serializable
-internal data class ArchivedGame(
-    val state: GameState,
-    val summaryContext: String,
-) {
-    /// Return the archive category implied by the stored game phase.
-    val category: ArchivedGameCategory
-        get() = when (state.phase) {
-            GamePhase.SETUP -> ArchivedGameCategory.SETUP
-            GamePhase.GAME_OVER -> ArchivedGameCategory.COMPLETED
-            else -> ArchivedGameCategory.IN_PROGRESS
-        }
-
-    /**
-     * Return this in-progress archive converted to a completed archive.
-     *
-     * @param now The epoch millis to store as the manual game-over time.
-     */
-    fun asCompletedArchive(now: Long): ArchivedGame {
-        return ArchivedGame(
-            state = state.endGameNow(now).pruneUndoHistory(),
-            summaryContext = "",
-        )
-    }
-
-    companion object {
-        /**
-         * Decode an archived game summary for a known storage version.
-         *
-         * @param jsonElement The parsed payload JSON from one archived-game file.
-         * @param version The version metadata read from that JSON object.
-         */
-        fun decodeJson(
-            jsonElement: JsonElement,
-            version: AppVersion,
-        ): PersistenceDecodeResult<ArchivedGame>? {
-            return try {
-                val migrated = migrateArchivedGameJson(jsonElement, version) ?: return null
-                val archivedGame = appStateJson.decodeFromJsonElement<ArchivedGame>(
-                    migrated.jsonElement,
-                )
-                PersistenceDecodeResult(
-                    value = archivedGame,
-                    wasMigrated = migrated.wasMigrated,
-                )
-            } catch (_: RuntimeException) {
-                null
-            }
         }
     }
 }
@@ -430,7 +386,7 @@ internal data class ArchivedGame(
  * @param sortMode Sort order for matching games.
  */
 internal fun getFilteredArchiveState(
-    archivedGames: List<ArchivedGame>,
+    archivedGames: List<GameState>,
     selectedCategory: ArchivedGameCategory?,
     filterSelections: ArchiveFilterSelections,
     sortMode: ArchiveSortMode,
@@ -443,7 +399,7 @@ internal fun getFilteredArchiveState(
         )
     }
     val archiveRows = archivedGames.withIndex()
-        .filter { it.value.category == ArchivedGameCategory.COMPLETED }
+        .filter { it.value.archiveCategory == ArchivedGameCategory.COMPLETED }
     val matchingRows = archiveRows
         .filter { it.matches(filterSelections, ignoredField = null) }
         .sortedWith(sortMode.comparator())
@@ -456,7 +412,7 @@ internal fun getFilteredArchiveState(
         selectedGames = matchingRows.map { row ->
             ArchivedGameListItem(
                 index = row.index,
-                entry = row.value.state.gameListEntry(),
+                entry = row.value.gameListEntry(),
             )
         },
         availableFilterValues = availableValues,
@@ -464,11 +420,11 @@ internal fun getFilteredArchiveState(
     )
 }
 
-private fun IndexedValue<ArchivedGame>.matches(
+private fun IndexedValue<GameState>.matches(
     filterSelections: ArchiveFilterSelections,
     ignoredField: ArchiveFilterField?,
 ): Boolean {
-    val state = value.state
+    val state = value
     return archiveFilterCriteria.all { criterion ->
         criterion.matches(state, filterSelections, ignoredField)
     } && (
@@ -491,7 +447,7 @@ private fun ArchiveDateFilter.includes(date: LocalDate): Boolean {
  * Returns a list of ArchiveFilterValueOption, which holds the string value and the count to
  * display on the screen with that value.
  */
-private fun List<IndexedValue<ArchivedGame>>.valueOptionsFor(
+private fun List<IndexedValue<GameState>>.valueOptionsFor(
     criterion: ArchiveFilterCriterion,
 ): List<ArchiveFilterValueOption> {
     return flatMap { game ->
@@ -499,7 +455,7 @@ private fun List<IndexedValue<ArchivedGame>>.valueOptionsFor(
         // to the games that included that value.  Some criteria can have multiple values
         // from a single game (e.g. team names or observers), but we don't want to include
         // repeats, hence the distinct() call.
-        criterion.valuesForGame(game.value.state).distinct().map { value ->
+        criterion.valuesForGame(game.value).distinct().map { value ->
             value to game
         }
     }
@@ -541,29 +497,29 @@ private fun GameState.archiveObserversFilterValue(): String {
     return observers.trim().ifEmpty { ARCHIVE_FILTER_NA }
 }
 
-private fun ArchiveSortMode.comparator(): Comparator<IndexedValue<ArchivedGame>> {
+private fun ArchiveSortMode.comparator(): Comparator<IndexedValue<GameState>> {
     return when (this) {
-        ArchiveSortMode.DATE_NEWEST -> compareByDescending<IndexedValue<ArchivedGame>> {
-            it.value.state.startEpoch
+        ArchiveSortMode.DATE_NEWEST -> compareByDescending<IndexedValue<GameState>> {
+            it.value.startEpoch
         }.thenBy { it.index }
-        ArchiveSortMode.DATE_OLDEST -> compareBy<IndexedValue<ArchivedGame>> {
-            it.value.state.startEpoch
+        ArchiveSortMode.DATE_OLDEST -> compareBy<IndexedValue<GameState>> {
+            it.value.startEpoch
         }.thenBy { it.index }
-        ArchiveSortMode.TEAM_ONE_AZ -> compareBy<IndexedValue<ArchivedGame>, String>(
+        ArchiveSortMode.TEAM_ONE_AZ -> compareBy<IndexedValue<GameState>, String>(
             String.CASE_INSENSITIVE_ORDER,
         ) {
-            it.value.state.teamOne.name
-        }.thenBy { it.value.state.startEpoch }
-        ArchiveSortMode.TEAM_ONE_ZA -> compareByDescending<IndexedValue<ArchivedGame>> {
-            it.value.state.teamOne.name.lowercase()
-        }.thenBy { it.value.state.startEpoch }
-        ArchiveSortMode.TEAM_TWO_AZ -> compareBy<IndexedValue<ArchivedGame>, String>(
+            it.value.teamOne.name
+        }.thenBy { it.value.startEpoch }
+        ArchiveSortMode.TEAM_ONE_ZA -> compareByDescending<IndexedValue<GameState>> {
+            it.value.teamOne.name.lowercase()
+        }.thenBy { it.value.startEpoch }
+        ArchiveSortMode.TEAM_TWO_AZ -> compareBy<IndexedValue<GameState>, String>(
             String.CASE_INSENSITIVE_ORDER,
         ) {
-            it.value.state.teamTwo.name
-        }.thenBy { it.value.state.startEpoch }
-        ArchiveSortMode.TEAM_TWO_ZA -> compareByDescending<IndexedValue<ArchivedGame>> {
-            it.value.state.teamTwo.name.lowercase()
-        }.thenBy { it.value.state.startEpoch }
+            it.value.teamTwo.name
+        }.thenBy { it.value.startEpoch }
+        ArchiveSortMode.TEAM_TWO_ZA -> compareByDescending<IndexedValue<GameState>> {
+            it.value.teamTwo.name.lowercase()
+        }.thenBy { it.value.startEpoch }
     }
 }
