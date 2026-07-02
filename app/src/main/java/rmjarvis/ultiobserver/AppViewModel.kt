@@ -38,6 +38,8 @@ internal enum class AppScreen {
  * @param selectedArchiveCategory The archive category currently open from the category landing page.
  * @param viewingArchivedGame The archived game currently open as a summary.
  * @param viewingCurrentGameSummary Whether the current live game is open as a summary.
+ * @param archiveFilterSelections Selected filters applied to the archive list.
+ * @param archiveSortMode Sort order applied to the archive list.
  * @param startupRecoveryNotice The startup data-recovery notice, if corrupted app data was reset.
  */
 internal data class AppUiState(
@@ -55,8 +57,29 @@ internal data class AppUiState(
     val selectedArchiveCategory: ArchivedGameCategory?,
     val viewingArchivedGame: ArchivedGame?,
     val viewingCurrentGameSummary: Boolean,
+    val archiveFilterSelections: ArchiveFilterSelections,
+    val archiveSortMode: ArchiveSortMode,
     val startupRecoveryNotice: RecoveryNotice?,
-)
+) {
+    /**
+     * Build the archive rows and filter choices for archive navigation.
+     *
+     * The return value has two items:
+     *
+     * selectedGames are the games to show on the screen given the category and active filters.
+     *
+     * availableFilterValues is a map from each filter category to a list of values to include
+     * as possible filter choices (given the other active filters besides that one).
+     */
+    fun filteredArchiveState(): FilteredArchiveState {
+        return getFilteredArchiveState(
+            archivedGames = archivedGames,
+            selectedCategory = selectedArchiveCategory,
+            filterSelections = archiveFilterSelections,
+            sortMode = archiveSortMode,
+        )
+    }
+}
 
 /**
  * App-level state coordinator for the Android UI.
@@ -101,6 +124,8 @@ internal class AppViewModel(
             selectedArchiveCategory = null,
             viewingArchivedGame = null,
             viewingCurrentGameSummary = false,
+            archiveFilterSelections = ArchiveFilterSelections(),
+            archiveSortMode = ArchiveSortMode.DATE_NEWEST,
             startupRecoveryNotice = recoveredPersistedDataAreas.takeIf { it.isNotEmpty() }?.let { resetAreas ->
                 RecoveryNotice(resetAreas)
             },
@@ -150,6 +175,10 @@ internal class AppViewModel(
         get() = state.value.viewingArchivedGame
     val viewingCurrentGameSummary: Boolean
         get() = state.value.viewingCurrentGameSummary
+    val archiveFilterSelections: ArchiveFilterSelections
+        get() = state.value.archiveFilterSelections
+    val archiveSortMode: ArchiveSortMode
+        get() = state.value.archiveSortMode
     val hasSetupDraft: Boolean
         get() = currentGame?.phase == GamePhase.SETUP
     val startupRecoveryNotice: RecoveryNotice?
@@ -460,7 +489,20 @@ internal class AppViewModel(
                 viewingArchivedGame = null,
                 viewingCurrentGameSummary = false,
                 selectedArchiveCategory = null,
+                archiveFilterSelections = ArchiveFilterSelections(),
+                archiveSortMode = ArchiveSortMode.DATE_NEWEST,
                 screen = AppScreen.ARCHIVED_GAMES,
+            )
+        }
+    }
+
+    /// Return to the archive category landing page while preserving archive filter/sort state.
+    fun returnToArchivedGameCategories() {
+        _state.update {
+            it.copy(
+                viewingArchivedGame = null,
+                viewingCurrentGameSummary = false,
+                selectedArchiveCategory = null,
             )
         }
     }
@@ -472,6 +514,52 @@ internal class AppViewModel(
      */
     fun openArchivedGameCategory(category: ArchivedGameCategory) {
         _state.update { it.copy(selectedArchiveCategory = category) }
+    }
+
+    /**
+     * Replace one archive checkbox filter's selected values.
+     *
+     * @param field The filter field to replace.
+     * @param values The selected values for that filter.
+     */
+    fun updateArchiveFilterSelections(field: ArchiveFilterField, values: Set<String>) {
+        _state.update {
+            it.copy(archiveFilterSelections = it.archiveFilterSelections.withValues(field, values))
+        }
+    }
+
+    /**
+     * Replace the archive date filter.
+     *
+     * @param dateFilter The date filter to apply, or null to clear it.
+     */
+    fun updateArchiveDateFilter(dateFilter: ArchiveDateFilter?) {
+        _state.update {
+            it.copy(
+                archiveFilterSelections = it.archiveFilterSelections.copy(dateRange = dateFilter),
+            )
+        }
+    }
+
+    /// Clear one archive filter field.
+    fun clearArchiveFilter(field: ArchiveFilterField) {
+        _state.update {
+            it.copy(archiveFilterSelections = it.archiveFilterSelections.without(field))
+        }
+    }
+
+    /// Clear all archive filters.
+    fun clearArchiveFilterSelections() {
+        _state.update { it.copy(archiveFilterSelections = ArchiveFilterSelections()) }
+    }
+
+    /**
+     * Replace the archive sort mode.
+     *
+     * @param sortMode The sort mode to apply.
+     */
+    fun updateArchiveSortMode(sortMode: ArchiveSortMode) {
+        _state.update { it.copy(archiveSortMode = sortMode) }
     }
 
     /// Resume the current setup draft, initial live preview, or active live game from Home.
@@ -530,13 +618,12 @@ internal class AppViewModel(
     /**
      * Open one archived game summary from archive navigation.
      *
-     * @param index The archived-game index in the displayed Archived games list.
+     * @param index The archived-game storage index.
      */
     fun openArchivedGame(index: Int, now: Long) {
-        val actualIndex = archivedGameIndex(index)
-        val archived = archivedGames[actualIndex]
+        val archived = archivedGames[index]
         if (archived.category == ArchivedGameCategory.SETUP) {
-            restoreArchivedGame(actualIndex, now)
+            restoreArchivedGame(index, now)
             return
         }
         _state.update {
@@ -678,11 +765,10 @@ internal class AppViewModel(
     /**
      * Delete one archived game by index.
      *
-     * @param index The archived-game index to remove.
+     * @param index The archived-game storage index to remove.
      */
     fun deleteArchivedGame(index: Int) {
-        val actualIndex = archivedGameIndex(index)
-        val updatedArchivedGames = archivedGames.toMutableList().also { it.removeAt(actualIndex) }
+        val updatedArchivedGames = archivedGames.toMutableList().also { it.removeAt(index) }
         _state.update {
             it.copy(
                 archivedGames = updatedArchivedGames,
@@ -701,6 +787,24 @@ internal class AppViewModel(
             it.copy(
                 archivedGames = archivedGames.filterNot { game ->
                     game.category == category
+                },
+                viewingArchivedGame = null,
+                viewingCurrentGameSummary = false,
+            )
+        }
+        persistArchivedGames()
+    }
+
+    /**
+     * Delete archived games by archive storage index.
+     *
+     * @param archiveIndices Full archived-game storage indices to delete.
+     */
+    fun deleteSelectedArchivedGames(archiveIndices: Set<Int>) {
+        _state.update {
+            it.copy(
+                archivedGames = it.archivedGames.filterIndexed { index, _ ->
+                    index !in archiveIndices
                 },
                 viewingArchivedGame = null,
                 viewingCurrentGameSummary = false,
@@ -846,25 +950,6 @@ internal class AppViewModel(
                 screen = targetScreen,
             )
         }
-    }
-
-    /**
-     * Return the real archived-games index for the selected category's displayed index.
-     *
-     * @param displayedIndex Index in the currently visible archive list.
-     */
-    private fun archivedGameIndex(displayedIndex: Int): Int {
-        val category = selectedArchiveCategory ?: return displayedIndex
-        var categoryIndex = 0
-        archivedGames.forEachIndexed { actualIndex, archivedGame ->
-            if (archivedGame.category == category) {
-                if (categoryIndex == displayedIndex) {
-                    return actualIndex
-                }
-                categoryIndex += 1
-            }
-        }
-        error("No archived game at displayed index $displayedIndex in $category")
     }
 
     /**

@@ -175,9 +175,6 @@ internal fun UltiObserverApp(
                     onDismissGameOverPrompt = {},
                 )
             } else {
-                val archivedGameEntries = remember(appState.archivedGames) {
-                    appState.archivedGames.map { it.state.gameListEntry() }
-                }
                 val currentInProgressGame = appState.currentGame
                     ?.takeUnless { it.phase == GamePhase.SETUP }
                     ?.gameListEntry()
@@ -200,19 +197,21 @@ internal fun UltiObserverApp(
                         currentCount + appState.archivedGames.count { it.category == category }
                     }
                 }
-                val selectedCategoryEntries = appState.selectedArchiveCategory?.let { category ->
-                    archivedGameEntries.filterIndexed { index, _ ->
-                        appState.archivedGames[index].category == category
-                    }
-                }
                 ArchivedGamesScreen(
                     categoryCounts = archiveCategoryCounts,
                     hasSavedOrArchivedGames = appState.archivedGames.isNotEmpty(),
                     selectedCategory = appState.selectedArchiveCategory,
+                    archiveFilterSelections = appState.archiveFilterSelections,
+                    archiveSortMode = appState.archiveSortMode,
+                    filteredArchiveState = appState.filteredArchiveState(),
                     currentInProgressGame = currentInProgressGame,
                     currentSetupDraft = currentSetupDraft,
-                    archivedGames = selectedCategoryEntries,
                     onOpenCategory = viewModel::openArchivedGameCategory,
+                    onUpdateArchiveFilterSelections = viewModel::updateArchiveFilterSelections,
+                    onUpdateArchiveDateFilter = viewModel::updateArchiveDateFilter,
+                    onClearArchiveFilter = viewModel::clearArchiveFilter,
+                    onClearArchiveFilterSelections = viewModel::clearArchiveFilterSelections,
+                    onUpdateArchiveSortMode = viewModel::updateArchiveSortMode,
                     onOpenCurrentGame = viewModel::openCurrentGameSummary,
                     onOpenCurrentSetup = viewModel::resumeCurrentGame,
                     onOpenArchivedGame = { index ->
@@ -220,9 +219,10 @@ internal fun UltiObserverApp(
                     },
                     onDeleteArchivedGame = viewModel::deleteArchivedGame,
                     onDeleteAllArchivedGames = viewModel::deleteAllArchivedGames,
+                    onDeleteSelectedArchivedGames = viewModel::deleteSelectedArchivedGames,
                     onDeleteAllInSelectedCategory = viewModel::deleteArchivedGamesInSelectedCategory,
                     onBackHome = viewModel::goHome,
-                    onBackCategories = viewModel::openArchivedGames,
+                    onBackCategories = viewModel::returnToArchivedGameCategories,
                     onHome = viewModel::goHome,
                 )
             }

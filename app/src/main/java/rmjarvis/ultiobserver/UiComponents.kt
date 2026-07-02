@@ -28,6 +28,9 @@ import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
@@ -39,6 +42,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -67,6 +71,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
 
 private const val KEYBOARD_DIALOG_HEIGHT_FRACTION = 0.60f
 
@@ -733,6 +740,67 @@ internal fun TextActionButton(
     ) {
         Text(label, maxLines = 1, softWrap = false)
     }
+}
+
+/**
+ * Render a Material date picker that reads and returns a local date.
+ *
+ * @param initialDate The date initially selected in the picker.
+ * @param setButtonTag Test tag for the Set action.
+ * @param onDismiss Callback closing the picker without changing state.
+ * @param onConfirm Callback receiving the selected local date.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun LocalDatePickerDialog(
+    initialDate: LocalDate,
+    setButtonTag: String,
+    onDismiss: () -> Unit,
+    onConfirm: (LocalDate) -> Unit,
+) {
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = dateToPickerTimestamp(initialDate),
+    )
+
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextActionButton(
+                label = "Set",
+                tag = setButtonTag,
+                onClick = {
+                    val selectedTimestamp = datePickerState.selectedDateMillis!!
+                    onConfirm(pickerTimestampToDate(selectedTimestamp))
+                },
+            )
+        },
+        dismissButton = {
+            TextActionButton(label = "Cancel", onClick = onDismiss)
+        },
+    ) {
+        DatePicker(
+            state = datePickerState,
+            title = null,
+        )
+    }
+}
+
+/**
+ * Convert a local date into the UTC timestamp expected by the Material date picker.
+ *
+ * @param date The local date to convert.
+ */
+private fun dateToPickerTimestamp(date: LocalDate): Long {
+    return date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+}
+
+/**
+ * Convert a Material date-picker timestamp back into a local date.
+ *
+ * @param timestamp The UTC midnight timestamp supplied by the picker.
+ */
+private fun pickerTimestampToDate(timestamp: Long): LocalDate {
+    return Instant.ofEpochMilli(timestamp).atZone(ZoneOffset.UTC).toLocalDate()
 }
 
 /**

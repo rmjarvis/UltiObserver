@@ -24,6 +24,8 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import java.time.LocalDate
+import java.time.LocalTime
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -294,8 +296,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         // Re-seed the archive and verify cancelling a single-game delete leaves both rows intact.
         seedArchivedGameProgrammatically(firstTeamOne, firstTeamTwo)
         seedArchivedGameProgrammatically(secondTeamOne, secondTeamTwo)
-        composeRule.onNodeWithText("Archived games", substring = true).performClick()
-        waitForText("Archived games")
+        openArchivedCompleteGamesScreen()
         waitForText(firstArchivedTitle)
         waitForText(secondArchivedTitle)
         composeRule.onNodeWithTag("delete-archived-game-0").performClick()
@@ -319,6 +320,195 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         assertTrue(
             composeRule.onAllNodesWithText(secondArchivedTitle).fetchSemanticsNodes().isEmpty()
         )
+    }
+
+    /**
+     * Test filtering and sorting archived games without affecting other saved categories.
+     */
+    @Test
+    fun archivedGamesFilterAndSort() {
+        clearArchivedGamesProgrammatically()
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appViewModel.deleteCurrentGame()
+        }
+        composeRule.waitForIdle()
+        val suffix = System.currentTimeMillis().toString().takeLast(6)
+        val summerTournament = "Summer$suffix"
+        val fallTournament = "Fall$suffix"
+        val summerOpenTitle = "Aone$suffix 0 - 0 Zed$suffix"
+        val summerMixedTitle = "Bone$suffix 0 - 0 Alpha$suffix"
+        val fallOpenTitle = "Cone$suffix 0 - 0 Mid$suffix"
+        val today = LocalDate.now()
+
+        // Seed three archives whose tournament, division, and team values differ.
+        seedArchiveForFilterTest(
+            tournament = summerTournament,
+            division = GameDivision.OPEN,
+            teamOne = "Aone$suffix",
+            teamTwo = "Zed$suffix",
+            startDate = LocalDate.of(2026, 5, 1),
+        )
+        seedArchiveForFilterTest(
+            tournament = summerTournament,
+            division = GameDivision.MIXED,
+            teamOne = "Bone$suffix",
+            teamTwo = "Alpha$suffix",
+            startDate = LocalDate.of(2026, 5, 2),
+        )
+        seedArchiveForFilterTest(
+            tournament = fallTournament,
+            division = GameDivision.OPEN,
+            teamOne = "Cone$suffix",
+            teamTwo = "Mid$suffix",
+            startDate = today,
+        )
+
+        // The date filter dialog previews each preset range.
+        openArchivedCompleteGamesScreen()
+        composeRule.onNodeWithTag("archive-filter-button").performClick()
+        composeRule.onNodeWithTag("archive-filter-field-DATE").performClick()
+        composeRule.onNodeWithTag("archive-date-preset-TODAY").performClick()
+        assertArchiveDateRange(today, today)
+        composeRule.onNodeWithTag("archive-date-preset-LAST_7_DAYS").performClick()
+        assertArchiveDateRange(today.minusDays(7), today)
+        composeRule.onNodeWithTag("archive-date-preset-LAST_30_DAYS").performClick()
+        assertArchiveDateRange(today.minusDays(30), today)
+        composeRule.onNodeWithTag("archive-date-preset-THIS_YEAR").performClick()
+        assertArchiveDateRange(LocalDate.of(today.year, 1, 1), today)
+
+        // A custom start date can be committed without an end date.
+        composeRule.onNodeWithTag("archive-clear-filter-DATE").performClick()
+        waitForText("Start: None")
+        waitForText("End: None")
+        composeRule.onNodeWithTag("archive-custom-start-date").performClick()
+        composeRule.onNodeWithTag("archive-date-set").performClick()
+        waitForText("Start: ${formatStartDate(today)}")
+        waitForText("End: None")
+        composeRule.onNodeWithText("Done").performClick()
+        waitForText("Date range: on or after ${formatStartDate(today)}", substring = true)
+        waitForText(fallOpenTitle)
+        assertTrue(composeRule.onAllNodesWithText(summerOpenTitle).fetchSemanticsNodes().isEmpty())
+        assertTrue(composeRule.onAllNodesWithText(summerMixedTitle).fetchSemanticsNodes().isEmpty())
+
+        // A custom end date can also be committed without a start date.
+        composeRule.onNodeWithTag("archive-filter-button").performClick()
+        composeRule.onNodeWithTag("archive-filter-field-DATE").performClick()
+        composeRule.onNodeWithTag("archive-clear-filter-DATE").performClick()
+        waitForText("Start: None")
+        waitForText("End: None")
+        composeRule.onNodeWithTag("archive-custom-end-date").performClick()
+        composeRule.onNodeWithTag("archive-date-set").performClick()
+        waitForText("Start: None")
+        waitForText("End: ${formatStartDate(today)}")
+        composeRule.onNodeWithText("Done").performClick()
+        waitForText("Date range: on or before ${formatStartDate(today)}", substring = true)
+        waitForText(summerOpenTitle)
+        waitForText(summerMixedTitle)
+        waitForText(fallOpenTitle)
+
+        // Filtering the games to just today shows the one game we have on that date.
+        composeRule.onNodeWithTag("archive-filter-button").performClick()
+        composeRule.onNodeWithTag("archive-filter-field-DATE").performClick()
+        composeRule.onNodeWithTag("archive-clear-filter-DATE").performClick()
+        composeRule.onNodeWithTag("archive-date-preset-TODAY").performClick()
+        assertArchiveDateRange(today, today)
+        composeRule.onNodeWithText("Done").performClick()
+        composeRule.onNodeWithTag("archive-filter-field-DATE").assertTextEquals("Date")
+        composeRule.onNodeWithText("Done").performClick()
+        waitForText(
+            "Date range: ${formatStartDate(today)} - ${formatStartDate(today)}",
+            substring = true,
+        )
+        waitForText(fallOpenTitle)
+        assertTrue(composeRule.onAllNodesWithText(summerOpenTitle).fetchSemanticsNodes().isEmpty())
+        assertTrue(composeRule.onAllNodesWithText(summerMixedTitle).fetchSemanticsNodes().isEmpty())
+        composeRule.onAllNodesWithTag("archived-game-0").assertCountEquals(1)
+        composeRule.onAllNodesWithTag("archived-game-1").assertCountEquals(0)
+        composeRule.onNodeWithTag("archive-filter-button").performClick()
+        composeRule.onNodeWithTag("archive-filter-field-DATE").performClick()
+        composeRule.onNodeWithTag("archive-clear-filter-DATE").performClick()
+        composeRule.onNodeWithText("Done").performClick()
+
+        // The other filter pages all use checkbox rows with counts.  Selecting compatible
+        // tournament, division, level, team, and observer values narrows the list to one game.
+        composeRule.onNodeWithTag("archive-filter-field-TOURNAMENT").performClick()
+        composeRule.onNodeWithTag("archive-filter-value-$summerTournament")
+            .assertTextContains("$summerTournament (2)", substring = true)
+        composeRule.onNodeWithTag("archive-filter-value-$summerTournament").performClick()
+        composeRule.onNodeWithText("Back").performClick()
+        composeRule.onNodeWithTag("archive-filter-field-DIVISION").performClick()
+        composeRule.onNodeWithTag("archive-filter-value-Open").performClick()
+        composeRule.onNodeWithText("Back").performClick()
+        composeRule.onNodeWithTag("archive-filter-field-LEVEL").performClick()
+        composeRule.onNodeWithTag("archive-filter-value-Club").performClick()
+        composeRule.onNodeWithText("Back").performClick()
+        composeRule.onNodeWithTag("archive-filter-field-TEAM").performClick()
+        composeRule.onNodeWithTag("archive-filter-value-Aone$suffix").performClick()
+        composeRule.onNodeWithText("Back").performClick()
+        composeRule.onNodeWithTag("archive-filter-field-OBSERVERS").performClick()
+        composeRule.onNodeWithTag("archive-filter-value-Mike").performClick()
+        composeRule.onNodeWithText("Back").performClick()
+        composeRule.onNodeWithText("Done").performClick()
+        waitForText(summerOpenTitle)
+        assertTrue(composeRule.onAllNodesWithText(summerMixedTitle).fetchSemanticsNodes().isEmpty())
+        assertTrue(composeRule.onAllNodesWithText(fallOpenTitle).fetchSemanticsNodes().isEmpty())
+        composeRule.onNodeWithText("Filter").assertIsDisplayed()
+        composeRule.onNodeWithTag("archive-filter-and-sort-summary")
+            .assertTextContains("Filters:", substring = true)
+            .assertTextContains("Tournament: $summerTournament", substring = true)
+            .assertTextContains("Division: Open", substring = true)
+            .assertTextContains("Level: Club", substring = true)
+            .assertTextContains("Team: Aone$suffix", substring = true)
+            .assertTextContains("Observer: Mike", substring = true)
+
+        // Clearing filters restores all three rows.
+        composeRule.onNodeWithTag("archive-filter-button").performClick()
+        composeRule.onNodeWithTag("archive-clear-filters").performClick()
+        composeRule.onNodeWithText("Done").performClick()
+        waitForText(summerMixedTitle)
+        waitForText(fallOpenTitle)
+
+        // Every sort choice can reorder the restored archive list.
+        selectArchiveSort(ArchiveSortMode.DATE_NEWEST)
+        assertArchiveRowsInOrder(fallOpenTitle, summerMixedTitle, summerOpenTitle)
+        selectArchiveSort(ArchiveSortMode.DATE_OLDEST)
+        assertArchiveRowsInOrder(summerOpenTitle, summerMixedTitle, fallOpenTitle)
+        selectArchiveSort(ArchiveSortMode.TEAM_ONE_AZ)
+        assertArchiveRowsInOrder(summerOpenTitle, summerMixedTitle, fallOpenTitle)
+        selectArchiveSort(ArchiveSortMode.TEAM_ONE_ZA)
+        assertArchiveRowsInOrder(fallOpenTitle, summerMixedTitle, summerOpenTitle)
+        selectArchiveSort(ArchiveSortMode.TEAM_TWO_AZ)
+        assertArchiveRowsInOrder(summerMixedTitle, fallOpenTitle, summerOpenTitle)
+        selectArchiveSort(ArchiveSortMode.TEAM_TWO_ZA)
+        assertArchiveRowsInOrder(summerOpenTitle, fallOpenTitle, summerMixedTitle)
+
+        // Delete all in a filtered archive list deletes only the currently shown rows.
+        composeRule.onNodeWithTag("archive-filter-button").performClick()
+        composeRule.onNodeWithTag("archive-filter-field-TOURNAMENT").performClick()
+        composeRule.onNodeWithTag("archive-filter-value-$summerTournament").performClick()
+        composeRule.onNodeWithText("Back").performClick()
+        composeRule.onNodeWithText("Done").performClick()
+        waitForText(summerOpenTitle)
+        waitForText(summerMixedTitle)
+        assertTrue(composeRule.onAllNodesWithText(fallOpenTitle).fetchSemanticsNodes().isEmpty())
+        composeRule.onNodeWithTag("delete-all-archived-games").performClick()
+        confirmDeleteWithSlider("Delete all games?")
+        waitForText("No archived games match these filters.")
+        composeRule.onAllNodesWithTag("delete-all-archived-games").assertCountEquals(0)
+        composeRule.onNodeWithTag("archive-filter-button").performClick()
+        composeRule.onNodeWithTag("archive-clear-filters").performClick()
+        composeRule.onNodeWithText("Done").performClick()
+        waitForText(fallOpenTitle)
+        assertTrue(composeRule.onAllNodesWithText(summerOpenTitle).fetchSemanticsNodes().isEmpty())
+        assertTrue(composeRule.onAllNodesWithText(summerMixedTitle).fetchSemanticsNodes().isEmpty())
+        composeRule.onAllNodesWithTag("archived-game-0").assertCountEquals(1)
+        composeRule.onAllNodesWithTag("archived-game-1").assertCountEquals(0)
+
+        // Other saved categories do not show archive filter controls.
+        tapTopBarBack()
+        composeRule.onNodeWithText("In-progress games", substring = true).performClick()
+        waitForText("In-progress games")
+        composeRule.onAllNodesWithTag("archive-filter-button").assertCountEquals(0)
     }
 
     /**
@@ -725,10 +915,82 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText("Archived games")
     }
 
+    /**
+     * Select one archive sort mode through the sort dialog.
+     *
+     * @param sortMode The mode to select.
+     */
+    private fun selectArchiveSort(sortMode: ArchiveSortMode) {
+        composeRule.onNodeWithTag("archive-sort-button").performClick()
+        composeRule.onNodeWithTag("archive-sort-${sortMode.name}").performClick()
+    }
+
+    /**
+     * Assert the date filter dialog displays one inclusive range.
+     *
+     * @param start The expected start date.
+     * @param end The expected end date.
+     */
+    private fun assertArchiveDateRange(start: LocalDate, end: LocalDate) {
+        waitForText("Start: ${formatStartDate(start)}")
+        waitForText("End: ${formatStartDate(end)}")
+    }
+
+    /**
+     * Assert the visible archive row order.
+     *
+     * @param titles The expected row titles, from top to bottom.
+     */
+    private fun assertArchiveRowsInOrder(vararg titles: String) {
+        titles.forEachIndexed { index, title ->
+            composeRule.onNodeWithTag("archived-game-$index")
+                .assertTextContains(title, substring = true)
+        }
+    }
+
     /// Open the saved in-progress games category from Home.
     private fun openSavedInProgressGamesScreen() {
         openArchivedGamesScreen()
         composeRule.onNodeWithText("In-progress games", substring = true).performClick()
         waitForText("In-progress games")
+    }
+
+    /**
+     * Seed one archive with fields used by archive filter/sort UI tests.
+     *
+     * @param tournament Tournament name for the archive.
+     * @param division Division for the archive.
+     * @param teamOne Team 1 name.
+     * @param teamTwo Team 2 name.
+     * @param startDate Start date for sorting and filtering.
+     */
+    private fun seedArchiveForFilterTest(
+        tournament: String,
+        division: GameDivision,
+        teamOne: String,
+        teamTwo: String,
+        startDate: LocalDate,
+    ) {
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val setup = newSetupGameState(now = 123_000L).copy(
+                tournamentName = tournament,
+                division = division,
+                level = "Club",
+                observers = "Mike",
+                startDate = startDate,
+                startTime = LocalTime.of(9, 0),
+                teamOne = TeamState(name = teamOne, color = TeamColorChoice.WHITE),
+                teamTwo = TeamState(name = teamTwo, color = TeamColorChoice.BLUE),
+            )
+            activity.appViewModel.updateLiveGame(
+                setup.startGame().copy(
+                    phase = GamePhase.GAME_OVER,
+                    endEpoch = System.currentTimeMillis(),
+                    countdown = null,
+                )
+            )
+            activity.appViewModel.archiveCompletedGame()
+        }
+        composeRule.waitForIdle()
     }
 }

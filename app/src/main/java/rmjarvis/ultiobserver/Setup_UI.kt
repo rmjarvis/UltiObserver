@@ -28,8 +28,6 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -40,7 +38,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TimeInput
 import androidx.compose.material3.TimePickerDialog
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -60,10 +57,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
-import java.time.ZoneOffset
 import com.github.skydoves.colorpicker.compose.HsvColorPicker
 import com.github.skydoves.colorpicker.compose.rememberColorPickerController
 
@@ -1036,8 +1031,9 @@ private fun GameInformationSetupDialog(
     )
 
     if (showStartDateDialog) {
-        StartDateDialog(
+        LocalDatePickerDialog(
             initialDate = startDate,
+            setButtonTag = "setup-start-date-set",
             onDismiss = { showStartDateDialog = false },
             onConfirm = {
                 startDate = it
@@ -1693,47 +1689,6 @@ private fun PriorCardsSetupDialog(
             TextActionButton(label = "Done", onClick = onDismiss)
         },
     )
-}
-
-/**
- * Render the Material date picker for setup start date.
- *
- * @param initialDate The date initially selected in the picker.
- * @param onDismiss Callback closing the picker without changing state.
- * @param onConfirm Callback receiving the selected local date.
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun StartDateDialog(
-    initialDate: LocalDate,
-    onDismiss: () -> Unit,
-    onConfirm: (LocalDate) -> Unit,
-) {
-    val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = dateToPickerTimestamp(initialDate),
-    )
-
-    DatePickerDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextActionButton(
-                label = "Set",
-                tag = "setup-start-date-set",
-                onClick = {
-                    val selectedTimestamp = datePickerState.selectedDateMillis!!
-                    onConfirm(pickerTimestampToDate(selectedTimestamp))
-                }
-            )
-        },
-        dismissButton = {
-            TextActionButton(label = "Cancel", onClick = onDismiss)
-        },
-    ) {
-        DatePicker(
-            state = datePickerState,
-            title = null,
-        )
-    }
 }
 
 /**
@@ -2877,22 +2832,4 @@ private fun PlayerRecordRow(
             }
         }
     }
-}
-
-/**
- * Convert a local date into the UTC timestamp expected by the Material date picker.
- *
- * @param date The local date to convert.
- */
-private fun dateToPickerTimestamp(date: LocalDate): Long {
-    return date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
-}
-
-/**
- * Convert a Material date-picker timestamp back into a local date.
- *
- * @param timestamp The UTC midnight timestamp supplied by the picker.
- */
-private fun pickerTimestampToDate(timestamp: Long): LocalDate {
-    return Instant.ofEpochMilli(timestamp).atZone(ZoneOffset.UTC).toLocalDate()
 }
