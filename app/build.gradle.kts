@@ -1,5 +1,6 @@
 import org.gradle.api.tasks.testing.Test
 import org.gradle.testing.jacoco.tasks.JacocoReport
+import java.io.File
 import java.util.Properties
 
 val releaseSigningPropertiesFile = rootProject.file("release-signing.properties")
@@ -178,4 +179,39 @@ tasks.register<JavaExec>("estimateBackupSize") {
     mainClass.set("rmjarvis.ultiobserver.BackupSizeEstimateToolKt")
     classpath = unitTestTask.get().classpath
     workingDir = rootProject.projectDir
+}
+
+tasks.register("seedFakeArchive") {
+    group = "manual"
+    description = "Installs debug and populates completed archives with fake filter/sort data."
+    dependsOn("installDebug")
+
+    doLast {
+        val localProperties = Properties().apply {
+            val localPropertiesFile = rootProject.file("local.properties")
+            if (localPropertiesFile.isFile) {
+                localPropertiesFile.inputStream().use { load(it) }
+            }
+        }
+        val sdkDir = localProperties.getProperty("sdk.dir")
+            ?: System.getenv("ANDROID_HOME")
+            ?: System.getenv("ANDROID_SDK_ROOT")
+            ?: error("Set sdk.dir in local.properties or set ANDROID_HOME/ANDROID_SDK_ROOT.")
+        val adb = File(sdkDir, "platform-tools/adb").absolutePath
+        val appId = android.defaultConfig.applicationId
+            ?: error("Missing Android applicationId.")
+        fun runAdb(vararg arguments: String) {
+            val command = listOf(adb) + arguments
+            val exitCode = ProcessBuilder(command)
+                .directory(rootProject.projectDir)
+                .inheritIO()
+                .start()
+                .waitFor()
+            check(exitCode == 0) {
+                "Command failed with exit code $exitCode: ${command.joinToString(" ")}"
+            }
+        }
+        runAdb("shell", "am", "force-stop", appId)
+        runAdb("shell", "am", "start", "-n", "$appId/.ArchiveSeedToolActivity")
+    }
 }
