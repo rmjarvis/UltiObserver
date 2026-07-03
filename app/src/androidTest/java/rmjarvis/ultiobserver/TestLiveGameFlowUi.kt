@@ -536,6 +536,24 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "timeout")).assertIsNotEnabled()
         unlockLiveScreen()
 
+        // Halftime expiration automatically starts the next pull countdown, but that transition
+        // does not make play live yet, so it should leave the screen unlocked.
+        startBetweenPointsProgrammatically()
+        setAutomaticallyAdvanceCountdowns(true)
+        setAutomaticallyLockLivePoint(true)
+        updateCurrentStateProgrammatically {
+            startHalftimeNow(System.currentTimeMillis())
+        }
+        waitForText("Halftime")
+        composeRule.onNodeWithText("OK").performClick()
+        expireActiveCountdownProgrammatically()
+        composeRule.waitUntil(timeoutMillis = 2_000) {
+            accessCurrentGameState().phase == GamePhase.BETWEEN_POINTS
+        }
+        assertEquals(GamePhase.BETWEEN_POINTS, accessCurrentGameState().phase)
+        waitForText("Start point")
+        composeRule.onAllNodesWithText("Slide right to unlock").assertCountEquals(0)
+
         // If auto-advance is re-enabled before undoing a manual start from an expired countdown,
         // undo should keep the redo path intact rather than immediately auto-advancing again.
         startLiveGameProgrammatically()

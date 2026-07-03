@@ -179,7 +179,7 @@ internal fun LiveGameScreen(
                 showDefenseCountdowns = showDefenseCountdowns,
             )
             if (transitionedState != state) {
-                if (automaticallyLockLivePoint) {
+                if (automaticallyLockLivePoint && transitionedState.phase == GamePhase.LIVE_POINT) {
                     locked = true
                 }
                 onStateChange(transitionedState)
