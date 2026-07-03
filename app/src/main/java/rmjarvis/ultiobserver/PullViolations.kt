@@ -210,7 +210,7 @@ private fun GameState.isPullViolationSelectionForTeam(
         (
             team == this.pullingTeam &&
                 violation == PullViolationType.MAJORITY_PULL &&
-                this.usesMajorityPullRule()
+                this.usesMixedDivision()
         )
 }
 
@@ -301,7 +301,7 @@ fun GameState.recordOffsides(now: Long): GameState {
 fun GameState.recordMajorityPullViolation(now: Long): GameState {
     if (
         this.pullSkippedForCurrentPoint ||
-        !this.usesMajorityPullRule() ||
+        !this.usesMixedDivision() ||
         this.pullSequenceOffsidesRecorded
     ) {
         return this

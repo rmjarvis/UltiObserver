@@ -1420,13 +1420,6 @@ private fun GameRulesSummary(state: GameState) {
                     }
                 )
             }
-            SetupSummaryValue(
-                if (rules.useMajorityPullRule) {
-                    "Majority pull rule active"
-                } else {
-                    "Majority pull rule not active"
-                }
-            )
         }
     }
 }
@@ -1714,20 +1707,6 @@ private fun GameRulesSetupDialog(
                                 modifier = Modifier.testTag("setup-switch-gen-zone-at-halftime"),
                             )
                         }
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text("Majority pull rule")
-                        Checkbox(
-                            checked = rules.useMajorityPullRule,
-                            onCheckedChange = {
-                                onRulesChange(rules.copy(useMajorityPullRule = it))
-                            },
-                            modifier = Modifier.testTag("setup-majority-pull-rule"),
-                        )
                     }
                 }
                 MenuButton(

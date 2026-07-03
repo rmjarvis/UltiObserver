@@ -381,11 +381,9 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("setup-switch-gen-zone-at-halftime")
             .performScrollTo()
             .performClick()
-        composeRule.onNodeWithTag("setup-majority-pull-rule").performScrollTo().performClick()
         closeSetupEditor()
         waitForText("Ratio: Gen Zone")
         waitForText("Gen Zone stays the same all game")
-        waitForText("Majority pull rule not active")
 
         // Timeout rules should accept a floater timeout configuration.
         setTimeoutRules(timeoutsPerHalf = "3", hasFloater = true)

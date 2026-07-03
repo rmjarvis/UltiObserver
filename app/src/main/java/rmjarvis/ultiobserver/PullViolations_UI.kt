@@ -34,7 +34,7 @@ internal fun AdjustPullViolationsDialog(
     var teamTwoFalseStarts by remember { mutableStateOf(state.teamTwo.falseStarts) }
     var teamTwoMajorityPulls by remember { mutableStateOf(state.teamTwo.majorityPullViolations) }
     var teamTwoTimeViolations by remember { mutableStateOf(state.teamTwo.timeViolations) }
-    val showMajorityPullRows = state.usesMajorityPullRule()
+    val showMajorityPullRows = state.usesMixedDivision()
 
     AlertDialog(
         onDismissRequest = onDismiss,

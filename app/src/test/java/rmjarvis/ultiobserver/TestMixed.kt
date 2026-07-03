@@ -189,7 +189,6 @@ class TestMixed : GameDomainTestFixtures() {
         var state = mixedLiveGameState()
         val preview = state.previewPullViolation(VC, PullViolationType.MAJORITY_PULL).event
         assertEquals("Majority pull rule violation", preview.formatPopupTitle())
-        assertTrue(state.usesMajorityPullRule())
 
         // Recording a majority-pull violation uses its own event labels and the shared
         // pull-violation ladder.
@@ -265,20 +264,12 @@ class TestMixed : GameDomainTestFixtures() {
             skippedPullState,
             skippedPullState.recordMajorityPullViolation(timestampAt(state, LocalTime.of(12, 5))),
         )
-
-        // Majority-pull rules only apply when the division and rules both enable them.
-        assertFalse(openDivisionState.usesMajorityPullRule())
-        assertFalse(
-            mixedLiveGameState()
-                .copy(rules = GameRules(useMajorityPullRule = false))
-                .usesMajorityPullRule()
-        )
     }
 
     /**
      * Test manual majority pull adjustments.
-     * When doing mixed division and majority pull rule is enabled, these are available
-     * to be adjusted alongside offsides and false starts.
+     * When doing mixed division, these are available to be adjusted alongside offsides and false
+     * starts.
      */
     @Test
     fun majorityPullAdjustments() {
@@ -341,7 +332,6 @@ class TestMixed : GameDomainTestFixtures() {
                     useHardCap = false,
                     genderRatioRule = ratioRule,
                     switchGenZoneAtHalftime = switchGenZoneAtHalftime,
-                    useMajorityPullRule = true,
                 ),
                 pullingTeam = pullingTeam,
             ).copy(

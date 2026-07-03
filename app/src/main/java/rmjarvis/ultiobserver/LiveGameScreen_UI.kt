@@ -500,7 +500,7 @@ internal fun LiveGameScreen(
     pendingPullViolationTeam?.let { team ->
         val event = state.previewPullViolation(team, pendingPullViolationType).event
         val canSwitchPullingViolation = pendingPullViolationType != PullViolationType.FALSE_START &&
-            state.usesMajorityPullRule()
+            state.usesMixedDivision()
         AlertDialog(
             onDismissRequest = {
                 pendingPullViolationTeam = null

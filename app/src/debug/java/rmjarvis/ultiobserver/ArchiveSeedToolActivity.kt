@@ -231,7 +231,6 @@ private fun fakeArchiveRules(division: GameDivision?, gameIndex: Int): GameRules
         } else {
             GenderRatioRule.NA
         },
-        useMajorityPullRule = gameIndex % 2 == 0,
     )
 }
 

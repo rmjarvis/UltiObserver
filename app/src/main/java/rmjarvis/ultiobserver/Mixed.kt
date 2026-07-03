@@ -59,11 +59,6 @@ fun GameState.ratioChoosingTeam(): TeamId? {
     }
 }
 
-/// Return whether majority-pull violations may be assessed in this game.
-fun GameState.usesMajorityPullRule(): Boolean {
-    return usesMixedDivision() && rules.useMajorityPullRule
-}
-
 /**
  * Return the ABBA gender ratio for one point number.
  *

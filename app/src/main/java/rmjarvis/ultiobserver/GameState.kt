@@ -218,7 +218,6 @@ data class GameRules(
     val hasFloaterTimeout: Boolean = false,
     val genderRatioRule: GenderRatioRule = GenderRatioRule.ABBA,
     val switchGenZoneAtHalftime: Boolean = true,
-    val useMajorityPullRule: Boolean = true,
 )
 /**
  * Gender-ratio pattern used for a mixed-division game.

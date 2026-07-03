@@ -159,11 +159,10 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
         assertPullViolationDialogFieldCount("Majority pull", 0)
         dismissDialog(text = "Cancel")
 
-        // Mixed games using the majority-pull rule, so add one majority-pull row per team.
+        // Mixed games show one majority-pull row per team.
         startLiveGameProgrammatically(
             newSetupGameState(now = System.currentTimeMillis()).copy(
                 division = GameDivision.MIXED,
-                rules = GameRules(useMajorityPullRule = true),
             )
         )
         openMoreActionsDialog()

@@ -102,7 +102,6 @@ private fun baseSetup(): GameState {
             hasFloaterTimeout = true,
             genderRatioRule = GenderRatioRule.GEN_ZONE,
             switchGenZoneAtHalftime = false,
-            useMajorityPullRule = true,
         ),
         teamOne = TeamState(
             name = "Viscous Coupling",
@@ -161,7 +160,6 @@ private fun nonDefaultSetup(): GameState {
             timeoutsPerHalf = 1,
             hasFloaterTimeout = false,
             genderRatioRule = GenderRatioRule.ABBA,
-            useMajorityPullRule = true,
         ),
         teamOne = TeamState(
             name = "Bees",
