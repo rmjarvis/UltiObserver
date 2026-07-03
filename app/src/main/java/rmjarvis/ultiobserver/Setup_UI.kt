@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -942,7 +941,6 @@ private fun GameInformationSetupDialog(
 
     AlertDialog(
         modifier = Modifier
-            .imePadding()
             .then(dialogInitialFocusModifier()),
         onDismissRequest = {
             saveAndDismiss()
@@ -1521,7 +1519,6 @@ private fun StartingPullSetupDialog(
 
     AlertDialog(
         modifier = Modifier
-            .imePadding()
             .then(dialogInitialFocusModifier()),
         onDismissRequest = {
             saveAndDismiss()
@@ -1853,7 +1850,7 @@ private fun IntegerEditDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            TextEntryDialogBody(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 TextEntry(
                     value = valueText,
                     onValueChange = { valueText = it.filter(Char::isDigit) },
@@ -1908,7 +1905,7 @@ private fun CapRuleEditDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            TextEntryDialogBody(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -1968,7 +1965,7 @@ private fun TimeoutRulesDialog(
         onDismissRequest = onDismiss,
         title = { Text("Timeout rules") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            TextEntryDialogBody(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 TextEntry(
                     value = timeoutsText,
                     onValueChange = { timeoutsText = it.filter(Char::isDigit).take(2) },
@@ -2050,7 +2047,7 @@ private fun PriorCardPlayerDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (isEditing) "Edit previous game card holder" else "Add previous game card holder") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            TextEntryDialogBody(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
                     text = teamName,
                     style = MaterialTheme.typography.titleMedium,
@@ -2444,7 +2441,6 @@ private fun TeamNamesSetupDialog(
 
     AlertDialog(
         modifier = Modifier
-            .imePadding()
             .then(dialogInitialFocusModifier()),
         onDismissRequest = onDismiss,
         title = { Text("$teamLabel Names") },

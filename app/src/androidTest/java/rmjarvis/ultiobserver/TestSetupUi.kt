@@ -131,7 +131,6 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         waitForText("$aardvarks Names")
         composeRule.onNodeWithTag("setup-Team 1-coaches")
             .performTextReplacement("Coach Alpha\nCoach Beta")
-        composeRule.onNodeWithTag("setup-Team 1-coaches").performImeAction()
         composeRule.onNodeWithTag("setup-Team 1-field-captains")
             .performTextReplacement("Field Captain")
         composeRule.onNodeWithTag("setup-Team 1-spirit-captains")
@@ -173,23 +172,22 @@ class TestSetupUi : MainActivityUiTestFixtures() {
             .performClick()
         closeSetupEditor()
 
-        // Starting-pull setup accepts custom end names, committing them both through focus loss
-        // and the IME Done action.
+        // Starting-pull setup accepts custom end names, committing them through focus loss to
+        // another text field and through tapping an ordinary choice control.
         openStartingPullSetupEditor()
         composeRule.onNodeWithTag("setup-far-end-name").performTextReplacement("Trees")
         composeRule.onNodeWithTag("setup-near-end-name").performClick()
         composeRule.onNodeWithTag("setup-pulling-from-${FieldEnd.FAR.name}")
             .assertTextContains("Trees", substring = true)
         composeRule.onNodeWithTag("setup-near-end-name").performTextReplacement("Road")
-        composeRule.onNodeWithTag("setup-near-end-name").performImeAction()
+        composeRule.onNodeWithTag("setup-pulling-team-${TeamId.TEAM_TWO.name}")
+            .performScrollTo()
+            .performClick()
         composeRule.onNodeWithTag("setup-pulling-from-${FieldEnd.NEAR.name}")
             .assertTextContains("Road", substring = true)
 
         // The same editor also accepts either team, either field end, prompts, and the ABBA
         // first-point gender ratio.
-        composeRule.onNodeWithTag("setup-pulling-team-${TeamId.TEAM_TWO.name}")
-            .performScrollTo()
-            .performClick()
         composeRule.onNodeWithTag("setup-pulling-team-${TeamId.TEAM_ONE.name}")
             .performScrollTo()
             .performClick()

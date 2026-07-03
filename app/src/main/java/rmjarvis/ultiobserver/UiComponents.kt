@@ -72,9 +72,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.changedToDown
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -138,10 +142,12 @@ internal fun keyboardDialogBodyMaxHeight(): Dp {
 @Composable
 internal fun dialogInitialFocusModifier(): Modifier {
     val focusRequester = remember { FocusRequester() }
+    val clearFocusAndHideKeyboard = rememberClearFocusAndHideKeyboard()
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
     }
     return Modifier
+        .clearFocusOnPointerDown(clearFocusAndHideKeyboard)
         .focusRequester(focusRequester)
         .focusable()
 }
@@ -164,12 +170,15 @@ internal fun ScrollableDialogRegion(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val scrollState = rememberScrollState()
+    val clearFocusAndHideKeyboard = rememberClearFocusAndHideKeyboard()
     val bottomChevronOffset = 22.dp
     // Dialog measurement can produce tiny scroll ranges even when no meaningful content is hidden.
     val overflowIndicatorThreshold = with(LocalDensity.current) { 24.dp.roundToPx() }
     val showScrollIndicators = scrollState.maxValue > overflowIndicatorThreshold
     Box(
-        modifier = modifier.heightIn(max = maxHeight),
+        modifier = modifier
+            .clearFocusOnPointerDown(clearFocusAndHideKeyboard)
+            .heightIn(max = maxHeight),
     ) {
         Column(
             modifier = Modifier
@@ -195,6 +204,30 @@ internal fun ScrollableDialogRegion(
             }
         }
     }
+}
+
+/**
+ * Render a non-scrollable dialog body that clears active text-entry focus when tapped.
+ *
+ * Use this for compact dialog bodies containing `TextEntry`; use `ScrollableDialogRegion` when
+ * the content may need to scroll.
+ *
+ * @param verticalArrangement Vertical spacing for the content column.
+ * @param content Dialog body content.
+ */
+@Composable
+internal fun TextEntryDialogBody(
+    verticalArrangement: Arrangement.Vertical = Arrangement.spacedBy(12.dp),
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val clearFocusAndHideKeyboard = rememberClearFocusAndHideKeyboard()
+    Column(
+        modifier = Modifier
+            .clearFocusOnPointerDown(clearFocusAndHideKeyboard)
+            .fillMaxWidth(),
+        verticalArrangement = verticalArrangement,
+        content = content,
+    )
 }
 
 /// Render one edge fade for a scrollable dialog body.
@@ -447,8 +480,12 @@ internal fun ChoiceChipButton(
     verticalPadding: Dp = 7.dp,
     onClick: () -> Unit,
 ) {
+    val clearFocusAndHideKeyboard = rememberClearFocusAndHideKeyboard()
     Surface(
-        onClick = onClick,
+        onClick = {
+            clearFocusAndHideKeyboard()
+            onClick()
+        },
         modifier = Modifier
             .withTag(tag)
             .semantics {
@@ -549,6 +586,7 @@ internal fun TextEntry(
     val fieldState = rememberTextFieldState(initialText = value)
     val latestValue by rememberUpdatedState(value)
     val latestOnValueChange by rememberUpdatedState(onValueChange)
+    val clearFocusAndHideKeyboard = rememberClearFocusAndHideKeyboard()
     LaunchedEffect(value) {
         if (fieldState.text.toString() != value) {
             fieldState.setTextAndPlaceCursorAtEnd(value)
@@ -561,7 +599,6 @@ internal fun TextEntry(
             }
         }
     }
-    val focusManager = LocalFocusManager.current
     val textScrollState = rememberScrollState()
     var textModifier = modifier.fillMaxWidth()
     if (onFocusLost != null) {
@@ -594,16 +631,45 @@ internal fun TextEntry(
         keyboardOptions = KeyboardOptions(
             capitalization = capitalization,
             keyboardType = keyboardType,
-            imeAction = ImeAction.Done,
+            imeAction = if (singleLine) ImeAction.Done else ImeAction.Default,
         ),
         onKeyboardAction = {
             onDone?.invoke()
-            focusManager.clearFocus(force = true)
+            clearFocusAndHideKeyboard()
         },
         colors = colors,
         scrollState = textScrollState,
         modifier = textModifier,
     )
+}
+
+/// Return a callback that clears text-field focus and hides the platform keyboard.
+@Composable
+private fun rememberClearFocusAndHideKeyboard(): () -> Unit {
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    return remember(focusManager, keyboardController) {
+        {
+            focusManager.clearFocus(force = true)
+            keyboardController?.hide()
+        }
+    }
+}
+
+/// Clear focus when the user taps otherwise inert dialog body space.
+private fun Modifier.clearFocusOnPointerDown(
+    clearFocusAndHideKeyboard: () -> Unit,
+): Modifier {
+    return pointerInput(clearFocusAndHideKeyboard) {
+        awaitPointerEventScope {
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Final)
+                if (event.changes.any { it.changedToDown() }) {
+                    clearFocusAndHideKeyboard()
+                }
+            }
+        }
+    }
 }
 
 /// Return a button layout modifier from semantic sizing options.
@@ -800,8 +866,12 @@ internal fun MenuButton(
     onClick: () -> Unit,
     content: @Composable RowScope.() -> Unit,
 ) {
+    val clearFocusAndHideKeyboard = rememberClearFocusAndHideKeyboard()
     OutlinedButton(
-        onClick = onClick,
+        onClick = {
+            clearFocusAndHideKeyboard()
+            onClick()
+        },
         enabled = enabled,
         modifier = buttonLayoutModifier(fullWidth = fullWidth).withTag(tag),
         shape = MenuButtonShape,
@@ -833,6 +903,7 @@ internal fun TextActionButton(
     tag: String? = null,
     onClick: () -> Unit,
 ) {
+    val clearFocusAndHideKeyboard = rememberClearFocusAndHideKeyboard()
     val taggedModifier = buttonLayoutModifier(height = height).withTag(tag)
     val buttonModifier = if (compact) {
         taggedModifier.defaultMinSize(minWidth = 1.dp, minHeight = 0.dp)
@@ -840,7 +911,10 @@ internal fun TextActionButton(
         taggedModifier
     }
     TextButton(
-        onClick = onClick,
+        onClick = {
+            clearFocusAndHideKeyboard()
+            onClick()
+        },
         modifier = buttonModifier,
         enabled = enabled,
         contentPadding = contentPadding,
@@ -1000,6 +1074,7 @@ private fun StandardRoleButton(
     softWrap: Boolean = false,
     onClick: () -> Unit,
 ) {
+    val clearFocusAndHideKeyboard = rememberClearFocusAndHideKeyboard()
     val taggedModifier = modifier.withTag(tag)
     val buttonModifier = if (compact) {
         taggedModifier.defaultMinSize(minHeight = 0.dp)
@@ -1029,7 +1104,10 @@ private fun StandardRoleButton(
     val button: @Composable () -> Unit = {
         if (borderColor == null) {
             Button(
-                onClick = onClick,
+                onClick = {
+                    clearFocusAndHideKeyboard()
+                    onClick()
+                },
                 enabled = enabled,
                 modifier = buttonModifier,
                 shape = shape,
@@ -1040,7 +1118,10 @@ private fun StandardRoleButton(
             }
         } else {
             OutlinedButton(
-                onClick = onClick,
+                onClick = {
+                    clearFocusAndHideKeyboard()
+                    onClick()
+                },
                 enabled = enabled,
                 modifier = buttonModifier,
                 shape = shape,
@@ -1082,10 +1163,14 @@ internal fun AdjustButton(
     tag: String? = null,
     onClick: () -> Unit,
 ) {
+    val clearFocusAndHideKeyboard = rememberClearFocusAndHideKeyboard()
     val buttonWidth = 38.dp
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
         OutlinedButton(
-            onClick = onClick,
+            onClick = {
+                clearFocusAndHideKeyboard()
+                onClick()
+            },
             enabled = enabled,
             modifier = buttonLayoutModifier(width = buttonWidth)
                 .withTag(tag)
@@ -1136,9 +1221,13 @@ internal fun FieldControlButton(
     tag: String? = null,
     onClick: () -> Unit,
 ) {
+    val clearFocusAndHideKeyboard = rememberClearFocusAndHideKeyboard()
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
         OutlinedButton(
-            onClick = onClick,
+            onClick = {
+                clearFocusAndHideKeyboard()
+                onClick()
+            },
             enabled = enabled,
             modifier = buttonLayoutModifier(fullWidth = fullWidth, width = width, height = height)
                 .withTag(tag)
@@ -1177,9 +1266,13 @@ internal fun FieldInfoButton(
     tag: String? = null,
     onClick: () -> Unit,
 ) {
+    val clearFocusAndHideKeyboard = rememberClearFocusAndHideKeyboard()
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
         IconButton(
-            onClick = onClick,
+            onClick = {
+                clearFocusAndHideKeyboard()
+                onClick()
+            },
             modifier = Modifier
                 .withTag(tag)
                 .size(24.dp)
