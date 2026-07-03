@@ -829,6 +829,7 @@ internal class AppViewModel(
                 currentGame = newSetupGameState(
                     now = now,
                     defaultsFrom = previousSetupDefaults,
+                    defaultObserverName = profileName,
                 ),
                 setupEditDraft = null,
                 viewingArchivedGame = null,

@@ -1056,6 +1056,16 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         // Profile can return directly to Home from its top bar.
         tapTopBarHome()
         waitForText("Start new game")
+
+        // A new game's first observer defaults to the saved Profile name.
+        openNewGameSetup()
+        openGameInformationSetupEditor()
+        composeRule.onNodeWithTag("setup-observer-0")
+            .performScrollTo()
+            .assertTextContains("Casey Observer")
+        composeRule.onNodeWithTag("setup-observer-1")
+            .performScrollTo()
+            .assertTextContains("Observer 2")
     }
 
     /// Open Archived games from Home and wait until the page is visible.

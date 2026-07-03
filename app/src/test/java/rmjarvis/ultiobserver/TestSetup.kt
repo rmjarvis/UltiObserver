@@ -58,6 +58,30 @@ class TestSetup : GameDomainTestFixtures() {
         assertEquals("", repeatedTournamentSetup.teamOne.name)
         assertEquals("", repeatedTournamentSetup.teamTwo.name)
 
+        // A profile observer default seeds the first observer, while whitespace stays empty.
+        assertEquals(
+            listOf("Casey Observer"),
+            newSetupGameState(
+                now = epochTimestamp(
+                    LocalDate.of(2026, 1, 1),
+                    LocalTime.of(9, 15),
+                    ZoneId.systemDefault(),
+                ),
+                defaultObserverName = " Casey Observer ",
+            ).observerNames,
+        )
+        assertEquals(
+            emptyList<String>(),
+            newSetupGameState(
+                now = epochTimestamp(
+                    LocalDate.of(2026, 1, 1),
+                    LocalTime.of(9, 15),
+                    ZoneId.systemDefault(),
+                ),
+                defaultObserverName = "   ",
+            ).observerNames,
+        )
+
         // A setup-created live game has empty player lists when no prior card holders are entered.
         val noPriorCardsState = createLiveGameState(
             standardGameSetup(startTime = LocalTime.of(8, 30))

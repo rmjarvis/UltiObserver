@@ -369,6 +369,25 @@ class TestAppViewModel : GameDomainTestFixtures() {
     }
 
     /**
+     * Verify the observer profile name seeds new setup drafts as the first observer.
+     */
+    @Test
+    fun profileNameSeedsNewGameObserver() {
+        // New game setup should start with the profile name as the first observer, since the
+        // observer using the phone will usually work their own game.
+        val viewModel = AppViewModel(NoOpAppStateStorage)
+        viewModel.updateProfileName(" Casey Observer ")
+        viewModel.startNewGame(now = 123_000L)
+        assertEquals(listOf("Casey Observer"), viewModel.setupState.observerNames)
+
+        // Blank or whitespace profile names should not create an empty observer entry.
+        val blankProfileViewModel = AppViewModel(NoOpAppStateStorage)
+        blankProfileViewModel.updateProfileName("   ")
+        blankProfileViewModel.startNewGame(now = 123_000L)
+        assertEquals(emptyList<String>(), blankProfileViewModel.setupState.observerNames)
+    }
+
+    /**
      * Verify restoring timing cue defaults resets cue-level preferences while preserving
      * global sound and vibration settings.
      */

@@ -32,10 +32,12 @@ enum class GameDivision(val displayText: String) {
  *
  * @param now The reference epoch millis for choosing the next half-hour start.
  * @param defaultsFrom Previous game values to carry forward for repeated tournament assignments.
+ * @param defaultObserverName Profile observer name to use as the first observer for a new game.
  */
 internal fun newSetupGameState(
     now: Long,
     defaultsFrom: GameState? = null,
+    defaultObserverName: String = "",
 ): GameState {
     val timeZone = ZoneId.systemDefault()
     val localNow = localDateTimeFromEpoch(now, timeZone)
@@ -53,7 +55,10 @@ internal fun newSetupGameState(
         division = defaultsFrom?.division,
         level = defaultsFrom?.level ?: "",
         gameContext = "",
-        observerNames = emptyList(),
+        observerNames = defaultObserverName.trim()
+            .takeIf { it.isNotEmpty() }
+            ?.let { listOf(it) }
+            ?: emptyList(),
         fieldName = "",
         rules = defaultsFrom?.rules ?: GameRules(),
         teamOne = TeamState(name = "", color = TeamColorChoice.WHITE),
