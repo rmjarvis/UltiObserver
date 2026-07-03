@@ -2265,7 +2265,9 @@ private fun TeamNamesInlineSummary(
                     text = summary.label,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.width(40.dp),
+                    modifier = Modifier.width(48.dp),
+                    maxLines = 1,
+                    softWrap = false,
                 )
                 Text(
                     text = summary.value,
