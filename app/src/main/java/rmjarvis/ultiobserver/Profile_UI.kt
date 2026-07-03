@@ -67,6 +67,11 @@ internal fun ProfileScreen(
                 colors = pageOutlinedTextFieldColors(),
                 tag = "profile-name-field",
             )
+            Text(
+                text = "Used as the default first observer when starting a new game.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             AvatarPreferenceSelector(
                 avatarPreference = avatarPreference,
                 onAvatarPreferenceChange = onAvatarPreferenceChange,

@@ -1028,6 +1028,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         // Profile should save both the observer name and selected avatar across navigation.
         composeRule.onNodeWithText("Profile").performClick()
         waitForText("Name")
+        waitForText("Used as the default first observer when starting a new game.")
         waitForText("Home avatar")
         waitForText("Use a random avatar")
         waitForText("Or choose a specific avatar:")
