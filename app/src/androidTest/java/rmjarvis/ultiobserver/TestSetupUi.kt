@@ -740,14 +740,11 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         openNewGameSetup()
 
         // Seed a setup player row that already has current-game card state.
-        composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.updateSetup(
-                activity.appViewModel.setupState.copy(
-                    teamOnePlayers = listOf(playerRecordWithCards("9", yellows = 1)),
-                )
+        updateCurrentStateProgrammatically {
+            copy(
+                teamOnePlayers = listOf(playerRecordWithCards("9", yellows = 1)),
             )
         }
-        composeRule.waitForIdle()
 
         // Removing that row should be blocked and should leave the player visible.
         openPriorCardsSetupEditor(TeamId.TEAM_ONE)
@@ -770,17 +767,14 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         openNewGameSetup()
 
         // Seed separate number-only and name-only rows that both have current-game card state.
-        composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.updateSetup(
-                activity.appViewModel.setupState.copy(
-                    teamOnePlayers = listOf(
-                        playerRecordWithCards("23", yellows = 1),
-                        playerRecordWithCards("", yellows = 1, playerName = "Jarvis"),
-                    ),
-                )
+        updateCurrentStateProgrammatically {
+            copy(
+                teamOnePlayers = listOf(
+                    playerRecordWithCards("23", yellows = 1),
+                    playerRecordWithCards("", yellows = 1, playerName = "Jarvis"),
+                ),
             )
         }
-        composeRule.waitForIdle()
 
         // Adding a holder that would cleanly match both rows should warn instead of merging them.
         openPriorCardsSetupEditor(TeamId.TEAM_ONE)

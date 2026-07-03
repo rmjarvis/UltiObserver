@@ -33,35 +33,7 @@ class TestTimingAlertsUi : MainActivityUiTestFixtures() {
         // * global mode needs to be vibration or sound.
         // * at least one cap needs to have a sound/vibrate action and be enabled in the rules.
         // Here we turn on all three and use vibration.
-        var hasExactAlarmAccess = true
-        composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.updateSetup(
-                activity.appViewModel.setupState.copy(
-                    rules = GameRules(
-                        useHalfCap = true,
-                        useSoftCap = true,
-                        useHardCap = true,
-                    ),
-                ),
-            )
-            activity.appViewModel.updateTimingAlertGlobalMode(
-                TimingAlertGlobalMode.VIBRATION_ONLY,
-            )
-            activity.appViewModel.resetTimingCueSettingsToDefaults()
-            activity.appViewModel.updateTimingCueMode(
-                TimingCueId.HALF_CAP,
-                TimingAlertMode.VIBRATE,
-            )
-            activity.appViewModel.updateTimingCueMode(
-                TimingCueId.SOFT_CAP,
-                TimingAlertMode.VIBRATE,
-            )
-            activity.appViewModel.updateTimingCueMode(
-                TimingCueId.HARD_CAP,
-                TimingAlertMode.VIBRATE,
-            )
-            hasExactAlarmAccess = activity.hasExactTimingAlertAlarmAccess()
-        }
+        val hasExactAlarmAccess = enableCapTimingAlertsProgrammatically()
 
         // Starting setup either shows the exact-alarm warning or goes directly to the live screen,
         // according to the Android permission state captured after the test seeded alert settings.
@@ -95,6 +67,43 @@ class TestTimingAlertsUi : MainActivityUiTestFixtures() {
         waitForText("Cap alert permission")
         composeRule.onNodeWithText("Ignore").performClick()
         assertLiveScreen()
+    }
+
+    /**
+     * Enable all cap timing alerts and report whether Android currently allows exact alarms.
+     *
+     * Cap rules live on the current game, while timing-alert preferences are app settings. Keep
+     * both direct setup steps out of the UI narrative.
+     */
+    private fun enableCapTimingAlertsProgrammatically(): Boolean {
+        updateCurrentStateProgrammatically {
+            copy(
+                rules = GameRules(
+                    useHalfCap = true,
+                    useSoftCap = true,
+                    useHardCap = true,
+                ),
+            )
+        }
+
+        val defaultPreferences = TimingAlertPreferences()
+        setTimingAlertPreferences(
+            defaultPreferences.copy(
+                globalMode = TimingAlertGlobalMode.VIBRATION_ONLY,
+                cueModes = defaultPreferences.cueModes + mapOf(
+                    TimingCueId.HALF_CAP to TimingAlertMode.VIBRATE,
+                    TimingCueId.SOFT_CAP to TimingAlertMode.VIBRATE,
+                    TimingCueId.HARD_CAP to TimingAlertMode.VIBRATE,
+                ),
+            )
+        )
+
+        var hasExactAlarmAccess = true
+        composeRule.activityRule.scenario.onActivity { activity ->
+            hasExactAlarmAccess = activity.hasExactTimingAlertAlarmAccess()
+        }
+        composeRule.waitForIdle()
+        return hasExactAlarmAccess
     }
 
 }

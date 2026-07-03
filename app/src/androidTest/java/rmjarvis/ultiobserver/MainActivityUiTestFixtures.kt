@@ -44,12 +44,17 @@ abstract class MainActivityUiTestFixtures {
     @get:Rule
     val composeRule = createAndroidComposeRule<MainActivity>()
 
-    /// Open the new-game setup screen from Home.
-    protected fun openNewGameSetup() {
+    /// Remove any current game and wait for the UI to observe the empty current-game state.
+    protected fun clearCurrentGameProgrammatically() {
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.appViewModel.deleteCurrentGame()
         }
         composeRule.waitForIdle()
+    }
+
+    /// Open the new-game setup screen from Home.
+    protected fun openNewGameSetup() {
+        clearCurrentGameProgrammatically()
         composeRule.onNodeWithText("Start new game").performClick()
         waitForText("Setup game")
     }
@@ -72,10 +77,7 @@ abstract class MainActivityUiTestFixtures {
     protected fun startLiveGameProgrammatically(
         setup: GameState = newSetupGameState(now = System.currentTimeMillis())
     ) {
-        composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.deleteCurrentGame()
-        }
-        composeRule.waitForIdle()
+        clearCurrentGameProgrammatically()
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.appViewModel.updateSetup(setup)
             activity.appViewModel.finishSetup(now = 123_000L)
@@ -633,9 +635,29 @@ abstract class MainActivityUiTestFixtures {
     }
 
     /**
+     * Update the current game state directly.
+     *
+     * This keeps UI-focused tests from spelling out Activity/ViewModel plumbing when they need a
+     * specific model prerequisite before exercising behavior through Compose.
+     */
+    protected fun updateCurrentStateProgrammatically(update: GameState.() -> GameState) {
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val current = activity.appViewModel.currentGame!!
+            activity.appViewModel.updateLiveGame(current.update())
+        }
+        composeRule.waitForIdle()
+    }
+
+    /// Read the current game state directly for model assertions or wait conditions.
+    protected fun accessCurrentGameState(): GameState {
+        return composeRule.activity.appViewModel.currentGame!!
+    }
+
+    /**
      * Move the active countdown target relative to now by direct ViewModel state update.
      *
-     * This lets UI tests exercise expired-countdown behavior deterministically without waiting for real time to pass.
+     * This lets UI tests exercise expired-countdown behavior deterministically without waiting for
+     * real time to pass.
      *
      * @param secondsRemaining The desired countdown seconds remaining; negative values force expiry.
      */
@@ -650,6 +672,81 @@ abstract class MainActivityUiTestFixtures {
                     )
                 )
             )
+        }
+        composeRule.waitForIdle()
+    }
+
+    /// Force the active countdown to its expired state without waiting for real time to pass.
+    protected fun expireActiveCountdownProgrammatically() {
+        setActiveCountdownRemainingProgrammatically(secondsRemaining = -1)
+    }
+
+    /**
+     * Start a live-point timeout countdown whose target is relative to now.
+     *
+     * This lets UI tests exercise timeout-countdown behavior without charging a team timeout,
+     * handling confirmation dialogs, or setting up per-team timeout availability. The current game
+     * is put in a live point, since timeout countdowns are live-point countdowns.
+     *
+     * @param secondsRemaining The desired countdown seconds remaining; the default is the normal
+     * timeout duration.
+     */
+    protected fun startTimeoutCountdownProgrammatically(secondsRemaining: Int = 70) {
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val current = activity.appViewModel.liveState!!
+            activity.appViewModel.updateLiveGame(
+                current.copy(
+                    phase = GamePhase.LIVE_POINT,
+                    countdown = CountdownState(
+                        kind = CountdownKind.TIME_OUT,
+                        label = "Offense set in",
+                        durationSeconds = 70,
+                        targetEpoch = System.currentTimeMillis() + secondsRemaining * 1000L,
+                    ),
+                )
+            )
+        }
+        composeRule.waitForIdle()
+    }
+
+    /**
+     * Establish whether countdown expiry should automatically advance live game state.
+     *
+     * Tests that depend on this persisted setting should set it explicitly rather than relying on
+     * cleanup from earlier tests.
+     *
+     * @param automaticallyAdvance Whether expired countdowns should drive model transitions.
+     */
+    protected fun setAutomaticallyAdvanceCountdowns(automaticallyAdvance: Boolean) {
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appViewModel.updateAutomaticallyAdvanceCountdowns(automaticallyAdvance)
+        }
+        composeRule.waitForIdle()
+    }
+
+    /**
+     * Establish whether automatic live-point transitions should lock the live screen.
+     *
+     * Tests that depend on this persisted setting should set it explicitly rather than relying on
+     * cleanup from earlier tests.
+     *
+     * @param automaticallyLock Whether automatic live-point entry should enable lock mode.
+     */
+    protected fun setAutomaticallyLockLivePoint(automaticallyLock: Boolean) {
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appViewModel.updateAutomaticallyLockLivePoint(automaticallyLock)
+        }
+        composeRule.waitForIdle()
+    }
+
+    /**
+     * Establish the timing-alert preferences for tests that depend on persisted alert settings.
+     *
+     * @param preferences The timing-alert preferences the test expects.
+     */
+    protected fun setTimingAlertPreferences(preferences: TimingAlertPreferences) {
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appViewModel.updateTimingAlertPreferences(preferences)
         }
         composeRule.waitForIdle()
     }

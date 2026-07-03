@@ -349,10 +349,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
     @Test
     fun archivedGamesFilterAndSort() {
         clearArchivedGamesProgrammatically()
-        composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.deleteCurrentGame()
-        }
-        composeRule.waitForIdle()
+        clearCurrentGameProgrammatically()
         val suffix = System.currentTimeMillis().toString().takeLast(6)
         val summerTournament = "Summer$suffix"
         val fallTournament = "Fall$suffix"
@@ -584,10 +581,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
     @Test
     fun savedGames() {
         clearArchivedGamesProgrammatically()
-        composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.deleteCurrentGame()
-        }
-        composeRule.waitForIdle()
+        clearCurrentGameProgrammatically()
 
         // Start setting up a game, then save it for later.
         val suffix = System.currentTimeMillis().toString().takeLast(6)
@@ -683,10 +677,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onAllNodesWithTag("saved-setup-state-0").assertCountEquals(0)
         composeRule.onNodeWithTag("current-setup-state")
             .assertTextContains(bulkCurrentSetupTitle, substring = true)
-        composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.deleteCurrentGame()
-        }
-        composeRule.waitForIdle()
+        clearCurrentGameProgrammatically()
         openArchivedGamesScreen()
         composeRule.onNodeWithText("Saved setup states (0)").performClick()
         waitForText("No saved setup states.")
@@ -807,15 +798,19 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
     @Test
     fun launchSettings() {
         // Seed settings directly so this UI-focused test can start at a meaningful cue state.
-        composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.updateTimingAlertGlobalMode(TimingAlertGlobalMode.VIBRATION_ONLY)
-            activity.appViewModel.updateTimingAlertSoundVolume(0.5f)
-            activity.appViewModel.updateTimingAlertVibrateWithSounds(true)
-            activity.appViewModel.updateTimingCueMode(
-                TimingCueId.RECEIVING_TWENTY_FOR_HAND,
-                TimingAlertMode.NONE,
+        setAutomaticallyAdvanceCountdowns(true)
+        setAutomaticallyLockLivePoint(true)
+        val defaultPreferences = TimingAlertPreferences()
+        setTimingAlertPreferences(
+            defaultPreferences.copy(
+                globalMode = TimingAlertGlobalMode.VIBRATION_ONLY,
+                soundVolume = 0.5f,
+                vibrateWithSounds = true,
+                cueModes = defaultPreferences.cueModes + mapOf(
+                    TimingCueId.RECEIVING_TWENTY_FOR_HAND to TimingAlertMode.NONE,
+                ),
             )
-        }
+        )
 
         // Settings should expose automatic live-play options.
         composeRule.onNodeWithText("Settings").performClick()

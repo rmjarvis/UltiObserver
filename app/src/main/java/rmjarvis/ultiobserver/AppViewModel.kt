@@ -329,6 +329,16 @@ internal class AppViewModel(
     }
 
     /**
+     * Replace all timing-alert preferences.
+     *
+     * @param preferences The timing-alert preferences to use.
+     */
+    fun updateTimingAlertPreferences(preferences: TimingAlertPreferences) {
+        _state.update { it.copy(timingAlertPreferences = preferences) }
+        persistSettingsState()
+    }
+
+    /**
      * Update timing-alert playback volume.
      *
      * @param volume The new sound volume value from settings.

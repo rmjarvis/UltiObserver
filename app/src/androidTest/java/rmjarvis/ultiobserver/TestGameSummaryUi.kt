@@ -112,29 +112,25 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
                 teamTwo = TeamState("Animal", TeamColorChoice.RED),
             )
         )
-        composeRule.activityRule.scenario.onActivity { activity ->
-            val current = activity.appViewModel.liveState!!
-            activity.appViewModel.updateLiveGame(
-                current.copy(
-                    teamOne = TeamState("Viscous Coupling", TeamColorChoice.WHITE, score = 12),
-                    teamTwo = TeamState(
-                        name = "Animal",
-                        color = TeamColorChoice.RED,
-                        score = 15,
-                        technicalFouls = 2,
-                        blueCards = 1,
+        updateCurrentStateProgrammatically {
+            copy(
+                teamOne = TeamState("Viscous Coupling", TeamColorChoice.WHITE, score = 12),
+                teamTwo = TeamState(
+                    name = "Animal",
+                    color = TeamColorChoice.RED,
+                    score = 15,
+                    technicalFouls = 2,
+                    blueCards = 1,
+                ),
+                teamTwoPlayers = listOf(
+                    playerRecordWithCards(jerseyNumber = "7", yellows = 2),
+                    PlayerRecord(
+                        jerseyNumber = "12",
+                        cards = listOf(InGamePlayerCardEvent(CardType.RED, index = 2)),
                     ),
-                    teamTwoPlayers = listOf(
-                        playerRecordWithCards(jerseyNumber = "7", yellows = 2),
-                        PlayerRecord(
-                            jerseyNumber = "12",
-                            cards = listOf(InGamePlayerCardEvent(CardType.RED, index = 2)),
-                        ),
-                    ),
-                )
+                ),
             )
         }
-        composeRule.waitForIdle()
 
         // Now end the game to trigger the game summary screen.
         // Use a helper function (below) to check that Share does share the expected text.

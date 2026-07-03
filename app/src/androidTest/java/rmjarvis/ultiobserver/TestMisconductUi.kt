@@ -30,6 +30,10 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
      */
     @Test
     fun cardsAndTechDialogPath() {
+        // This long narrative is about card dialogs, not countdown transitions. Keep countdowns
+        // from auto-advancing and locking the field if a slow emulator reaches zero mid-test.
+        setAutomaticallyAdvanceCountdowns(false)
+
         // Start between points so the Card dialog shows the pull/receive role suffixes.
         startBetweenPointsProgrammatically()
 
@@ -378,19 +382,15 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
     fun cardDialogShowsPullRolesDuringHalftime() {
         // Start between points with Team 1 pulling next.
         startBetweenPointsProgrammatically()
-        assertEquals(TeamId.TEAM_ONE, composeRule.activity.appViewModel.liveState!!.pullingTeam)
+        assertEquals(TeamId.TEAM_ONE, accessCurrentGameState().pullingTeam)
 
         // Put the game in halftime and verify Team 2 will pull next.
-        composeRule.activityRule.scenario.onActivity { activity ->
-            val current = activity.appViewModel.liveState!!
-            activity.appViewModel.updateLiveGame(
-                current.startHalftimeNow(System.currentTimeMillis())
-            )
+        updateCurrentStateProgrammatically {
+            startHalftimeNow(System.currentTimeMillis())
         }
-        composeRule.waitForIdle()
         waitForText("Halftime")
         composeRule.onNodeWithText("OK").performClick()
-        assertEquals(TeamId.TEAM_TWO, composeRule.activity.appViewModel.liveState!!.pullingTeam)
+        assertEquals(TeamId.TEAM_TWO, accessCurrentGameState().pullingTeam)
 
         // Assessing a card during halftime indicates whether the team is pulling or
         // receiving for the first point in the second half.
@@ -777,17 +777,13 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         waitForText("Start misconduct countdown")
 
         // Same for the 3rd or later tech.
-        composeRule.activityRule.scenario.onActivity { activity ->
-            val current = activity.appViewModel.liveState!!
-            activity.appViewModel.updateLiveGame(
-                current.copy(
-                    countdown = null,
-                    pendingMisconductCountdown = false,
-                    teamOne = current.teamOne.copy(technicalFouls = 2),
-                )
+        updateCurrentStateProgrammatically {
+            copy(
+                countdown = null,
+                pendingMisconductCountdown = false,
+                teamOne = teamOne.copy(technicalFouls = 2),
             )
         }
-        composeRule.waitForIdle()
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "tech")).performClick()
         waitForText("Technical Foul")
         waitForText("Was this against the offense or defense?", substring = true)

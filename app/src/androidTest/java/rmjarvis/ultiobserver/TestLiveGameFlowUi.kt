@@ -28,6 +28,8 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
     fun normalGamePath() {
         // Clear the archive so tests related to it don't get confused by previous runs.
         clearArchivedGamesProgrammatically()
+        setAutomaticallyAdvanceCountdowns(true)
+        setAutomaticallyLockLivePoint(true)
         val viscousCoupling = "Viscous Coupling"
         val animal = "Animal"
 
@@ -178,7 +180,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         // Touch the visible correction controls, then jump the countdown to its expired state.
         composeRule.onAllNodesWithText("+5").onFirst().performClick()
         composeRule.onAllNodesWithText("-5").onFirst().performClick()
-        setActiveCountdownRemainingProgrammatically(secondsRemaining = -1)
+        expireActiveCountdownProgrammatically()
         waitForText("Start point")
 
         // After halftime, Animal scores and uses one second-half timeout before the next pull.
@@ -277,7 +279,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         val beforeConfirmingTimeout = System.currentTimeMillis()
         composeRule.onNodeWithText("OK").performClick()
         waitForText("Continue point")
-        val timeoutCountdown = composeRule.activity.appViewModel.liveState!!.countdown!!
+        val timeoutCountdown = accessCurrentGameState().countdown!!
         assertEquals(CountdownKind.TIME_OUT, timeoutCountdown.kind)
         assertTrue(timeoutCountdown.targetEpoch >= timeoutRequestedAt + 69_000L)
         assertTrue(timeoutCountdown.targetEpoch < beforeConfirmingTimeout + 69_500L)
@@ -386,10 +388,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         showExpiredPullSurface()
 
         // Half cap stays modal over the expired-pull surface until the observer answers it.
-        composeRule.activityRule.scenario.onActivity { activity ->
-            val current = activity.appViewModel.liveState!!
-            activity.appViewModel.updateLiveGame(current.copy(pendingCapOffer = CapType.HALF))
-        }
+        showPendingCapOfferProgrammatically(CapType.HALF)
         waitForText("Apply half cap?")
         if (shouldUsePlatformBackDismissalCoverage()) {
             pressDialogBack()
@@ -398,19 +397,13 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("No").performClick()
 
         // Soft cap can be applied from the same expired-pull surface.
-        composeRule.activityRule.scenario.onActivity { activity ->
-            val current = activity.appViewModel.liveState!!
-            activity.appViewModel.updateLiveGame(current.copy(pendingCapOffer = CapType.SOFT))
-        }
+        showPendingCapOfferProgrammatically(CapType.SOFT)
         waitForText("Apply soft cap?")
         composeRule.onNodeWithText("Apply").performClick()
         waitForText("Undo Apply soft cap")
 
         // Hard cap uses the same prompt surface but has distinct application logic.
-        composeRule.activityRule.scenario.onActivity { activity ->
-            val current = activity.appViewModel.liveState!!
-            activity.appViewModel.updateLiveGame(current.copy(pendingCapOffer = CapType.HARD))
-        }
+        showPendingCapOfferProgrammatically(CapType.HARD)
         waitForText("Apply hard cap?")
         composeRule.onNodeWithText("Apply").performClick()
         waitForText("Undo Apply hard cap")
@@ -424,22 +417,8 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         startLiveGameProgrammatically()
 
         // A misconduct penalty between points skips the pull and has a special countdown.
-        composeRule.activityRule.scenario.onActivity { activity ->
-            val current = activity.appViewModel.liveState!!
-            val targetEpoch = System.currentTimeMillis() + 90_000L
-            activity.appViewModel.updateShowDefenseCountdowns(true)
-            activity.appViewModel.updateLiveGame(
-                current.copy(
-                    phase = GamePhase.BETWEEN_POINTS,
-                    countdown = CountdownState(
-                        kind = CountdownKind.MISCONDUCT_BETWEEN_POINTS,
-                        label = "Offense set in",
-                        durationSeconds = 100,
-                        targetEpoch = targetEpoch,
-                    ),
-                )
-            )
-        }
+        setShowDefenseCountdownsProgrammatically(true)
+        startBetweenPointsMisconductCountdownProgrammatically(secondsRemaining = 90)
 
         // When the defense countdowns are enabled, it shows a prompt for when the offense is
         // set and then a countdown for the defensive check.
@@ -449,27 +428,12 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
 
         // A live-point timeout countdown exposes the same pattern when defense countdowns are
         // enabled.
-        composeRule.activityRule.scenario.onActivity { activity ->
-            val current = activity.appViewModel.liveState!!
-            activity.appViewModel.updateShowDefenseCountdowns(true)
-            activity.appViewModel.updateLiveGame(
-                current.copy(
-                    phase = GamePhase.LIVE_POINT,
-                    countdown = CountdownState(
-                        kind = CountdownKind.TIME_OUT,
-                        label = "Offense set in",
-                        durationSeconds = 70,
-                        targetEpoch = System.currentTimeMillis() + 70_000L,
-                    ),
-                )
-            )
-        }
+        setShowDefenseCountdownsProgrammatically(true)
+        startTimeoutCountdownProgrammatically()
         waitForText("Offense is set")
         composeRule.onNodeWithTag("live-offense-set").performClick()
         waitForText("Defense check in", substring = true)
-        composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.updateShowDefenseCountdowns(false)
-        }
+        setShowDefenseCountdownsProgrammatically(false)
     }
 
     /**
@@ -523,7 +487,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         val beforeConfirmingTimeViolation = System.currentTimeMillis()
         composeRule.onNodeWithText("OK").performClick()
         waitForText("Undo Time violation warning on", substring = true)
-        val timeViolationCountdown = composeRule.activity.appViewModel.liveState!!.countdown!!
+        val timeViolationCountdown = accessCurrentGameState().countdown!!
         assertTrue(timeViolationCountdown.targetEpoch >= beforeConfirmingTimeViolation + 29_000L)
         assertTrue(timeViolationCountdown.targetEpoch <= System.currentTimeMillis() + 31_000L)
 
@@ -549,23 +513,11 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
     fun automaticLockScreen() {
         // Enable automatic advancement and lock, then expire the opening pull countdown.
         startLiveGameProgrammatically()
-        composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.updateAutomaticallyAdvanceCountdowns(true)
-            activity.appViewModel.updateAutomaticallyLockLivePoint(true)
-        }
-        composeRule.waitForIdle()
+        setAutomaticallyAdvanceCountdowns(true)
+        setAutomaticallyLockLivePoint(true)
 
         // After pull countdown expires, the point starts and the screen locks.
-        composeRule.activityRule.scenario.onActivity { activity ->
-            val current = activity.appViewModel.liveState!!
-            activity.appViewModel.updateLiveGame(
-                current.copy(
-                    countdown = current.countdown!!.copy(
-                        targetEpoch = System.currentTimeMillis() - 1_000L,
-                    ),
-                )
-            )
-        }
+        expireActiveCountdownProgrammatically()
         waitForText("Slide right to unlock")
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).assertIsNotEnabled()
         unlockLiveScreen()
@@ -576,20 +528,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
 
         // For a time out during a point, the countdown expiring automatically continues
         // the point and locks the screen.
-        composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.updateAutomaticallyLockLivePoint(true)
-            val current = activity.appViewModel.liveState!!
-            activity.appViewModel.updateLiveGame(
-                current.copy(
-                    countdown = CountdownState(
-                        kind = CountdownKind.TIME_OUT,
-                        label = "Offense set in",
-                        durationSeconds = 70,
-                        targetEpoch = System.currentTimeMillis() - 1_000L,
-                    ),
-                )
-            )
-        }
+        startTimeoutCountdownProgrammatically(secondsRemaining = -1)
         waitForText("Slide right to unlock")
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "timeout")).assertIsNotEnabled()
         unlockLiveScreen()
@@ -597,26 +536,14 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         // If auto-advance is re-enabled before undoing a manual start from an expired countdown,
         // undo should keep the redo path intact rather than immediately auto-advancing again.
         startLiveGameProgrammatically()
-        composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.updateAutomaticallyAdvanceCountdowns(false)
-            activity.appViewModel.updateAutomaticallyLockLivePoint(true)
-            val current = activity.appViewModel.liveState!!
-            activity.appViewModel.updateLiveGame(
-                current.copy(
-                    countdown = current.countdown!!.copy(
-                        targetEpoch = System.currentTimeMillis() - 1_000L,
-                    ),
-                )
-            )
-        }
+        setAutomaticallyAdvanceCountdowns(false)
+        setAutomaticallyLockLivePoint(true)
+        expireActiveCountdownProgrammatically()
         waitForText("Start point")
         composeRule.onNodeWithText("Start point").performClick()
         waitForText("Slide right to unlock")
         unlockLiveScreen()
-        composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.updateAutomaticallyAdvanceCountdowns(true)
-        }
-        composeRule.waitForIdle()
+        setAutomaticallyAdvanceCountdowns(true)
         composeRule.onNodeWithText("Undo Start point").performClick()
         waitForText("Start point")
         waitForText("Redo")
@@ -638,36 +565,22 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("live-pause-countdown").performClick()
         waitForText("Paused")
         composeRule.onNodeWithTag("live-resume-countdown").assertIsDisplayed()
-        assertTrue(composeRule.activity.appViewModel.liveState!!.countdown!!.isPaused())
+        assertTrue(accessCurrentGameState().countdown!!.isPaused())
         composeRule.onNodeWithTag("live-resume-countdown").performClick()
         composeRule.onAllNodesWithText("Paused").assertCountEquals(0)
         composeRule.onNodeWithTag("live-pause-countdown").assertIsDisplayed()
-        assertTrue(!composeRule.activity.appViewModel.liveState!!.countdown!!.isPaused())
+        assertTrue(!accessCurrentGameState().countdown!!.isPaused())
 
         // If the auto-advance setting is false, then when the opening countdown expires, it
         // doesn't automatically start the point.
-        composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.updateAutomaticallyAdvanceCountdowns(false)
-            val current = activity.appViewModel.liveState!!
-            activity.appViewModel.updateLiveGame(
-                current.copy(
-                    countdown = current.countdown!!.copy(
-                        targetEpoch = System.currentTimeMillis() - 1_000L,
-                    ),
-                )
-            )
-        }
+        setAutomaticallyAdvanceCountdowns(false)
+        expireActiveCountdownProgrammatically()
         composeRule.waitUntil(timeoutMillis = 2_000) {
             System.currentTimeMillis() >= checkAfter
         }
-        assertEquals(GamePhase.PRE_GAME, composeRule.activity.appViewModel.liveState!!.phase)
+        assertEquals(GamePhase.PRE_GAME, accessCurrentGameState().phase)
         waitForText("Start point")
         composeRule.onAllNodesWithText("Slide right to unlock").assertCountEquals(0)
-
-        // Reset the auto-advance setting to true for other tests.
-        composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.updateAutomaticallyAdvanceCountdowns(true)
-        }
     }
 
     /**
@@ -676,6 +589,8 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
      */
     @Test
     fun disableAutomaticLock() {
+        setAutomaticallyAdvanceCountdowns(true)
+        setAutomaticallyLockLivePoint(true)
         startLiveGameProgrammatically()
 
         // Disable live-point locking through Settings, then return to the current game.
@@ -704,43 +619,74 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         // Automatic countdown expiration should also leave the point unlocked when locking is
         // disabled.
         startLiveGameProgrammatically()
-        composeRule.activityRule.scenario.onActivity { activity ->
-            val current = activity.appViewModel.liveState!!
-            activity.appViewModel.updateLiveGame(
-                current.copy(
-                    countdown = current.countdown!!.copy(
-                        targetEpoch = System.currentTimeMillis() - 1_000L,
-                    ),
-                )
-            )
-        }
+        expireActiveCountdownProgrammatically()
         composeRule.waitUntil(timeoutMillis = 2_000) {
-            composeRule.activity.appViewModel.liveState!!.phase == GamePhase.LIVE_POINT
+            accessCurrentGameState().phase == GamePhase.LIVE_POINT
         }
         waitForText("Undo Start point")
         composeRule.onAllNodesWithText("Slide right to unlock").assertCountEquals(0)
         composeRule.onNodeWithTag("live-center-lock").assertIsDisplayed()
-
-        // Restore the ordinary lock setting through Settings.
-        tapTopBarHome()
-        waitForText("Current game")
-        composeRule.onNodeWithText("Settings").performClick()
-        composeRule.onNodeWithTag("settings-auto-lock-live-point").performClick()
-        composeRule.onNodeWithTag("settings-auto-lock-live-point-value").assertTextEquals("Yes")
     }
 
     /// Put the current game on the between-points expired-pull action surface.
     private fun showExpiredPullSurface() {
-        composeRule.activityRule.scenario.onActivity { activity ->
-            val current = activity.appViewModel.liveState!!
-            activity.appViewModel.updateLiveGame(
-                current.copy(
-                    phase = GamePhase.BETWEEN_POINTS,
-                    countdown = null,
-                )
+        updateCurrentStateProgrammatically {
+            copy(
+                phase = GamePhase.BETWEEN_POINTS,
+                countdown = null,
             )
         }
         waitForText("Restart countdown")
+    }
+
+    /// Put a cap prompt over the current live-game surface without reaching it through the clock.
+    private fun showPendingCapOfferProgrammatically(capType: CapType) {
+        updateCurrentStateProgrammatically {
+            copy(pendingCapOffer = capType)
+        }
+    }
+
+    /// Start the special between-points misconduct countdown.
+    private fun startBetweenPointsMisconductCountdownProgrammatically(secondsRemaining: Int) {
+        startPullStyleCountdownProgrammatically(
+            phase = GamePhase.BETWEEN_POINTS,
+            kind = CountdownKind.MISCONDUCT_BETWEEN_POINTS,
+            durationSeconds = 100,
+            secondsRemaining = secondsRemaining,
+        )
+    }
+
+    /// Turn on showDefenseCountdowns setting.
+    private fun setShowDefenseCountdownsProgrammatically(show: Boolean) {
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appViewModel.updateShowDefenseCountdowns(show)
+        }
+        composeRule.waitForIdle()
+    }
+
+    /**
+     * Start a pull-style "Offense set in" countdown in the requested game phase.
+     *
+     * This lets UI tests exercise countdown surfaces that look like pull timing without going
+     * through the game actions that normally create those countdowns.
+     */
+    private fun startPullStyleCountdownProgrammatically(
+        phase: GamePhase,
+        kind: CountdownKind,
+        durationSeconds: Int,
+        secondsRemaining: Int,
+    ) {
+        updateCurrentStateProgrammatically {
+            copy(
+                phase = phase,
+                countdown = CountdownState(
+                    kind = kind,
+                    label = "Offense set in",
+                    durationSeconds = durationSeconds,
+                    targetEpoch = System.currentTimeMillis() + secondsRemaining * 1000L,
+                ),
+            )
+        }
     }
 
     /**
@@ -763,24 +709,28 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         cueDueInMillis: Long = 500L,
         waitAfterDueMillis: Long = 300L,
     ) {
-        var dueEpoch = 0L
-        composeRule.activityRule.scenario.onActivity { activity ->
-            val now = System.currentTimeMillis()
-            dueEpoch = if (cueAlreadyDue) now - 500L else now + cueDueInMillis
-            activity.appViewModel.updateTimingAlertGlobalMode(globalMode)
-            activity.appViewModel.updateTimingAlertVibrateWithSounds(vibrateWithSounds)
-            activity.appViewModel.updateTimingCueMode(TimingCueId.OFFENSE_TWENTY, cueMode)
-            val current = activity.appViewModel.liveState!!
-            activity.appViewModel.updateLiveGame(
-                current.copy(
-                    phase = GamePhase.LIVE_POINT,
-                    countdown = CountdownState(
-                        kind = CountdownKind.TIME_OUT,
-                        label = "Offense set in",
-                        durationSeconds = 70,
-                        targetEpoch = dueEpoch + 20_000L,
-                    ),
-                )
+        val defaultPreferences = TimingAlertPreferences()
+        setTimingAlertPreferences(
+            defaultPreferences.copy(
+                globalMode = globalMode,
+                vibrateWithSounds = vibrateWithSounds,
+                cueModes = defaultPreferences.cueModes + mapOf(
+                    TimingCueId.OFFENSE_TWENTY to cueMode,
+                ),
+            )
+        )
+
+        val now = System.currentTimeMillis()
+        val dueEpoch = if (cueAlreadyDue) now - 500L else now + cueDueInMillis
+        updateCurrentStateProgrammatically {
+            copy(
+                phase = GamePhase.LIVE_POINT,
+                countdown = CountdownState(
+                    kind = CountdownKind.TIME_OUT,
+                    label = "Offense set in",
+                    durationSeconds = 70,
+                    targetEpoch = dueEpoch + 20_000L,
+                ),
             )
         }
         waitForText("Offense set in", substring = true)

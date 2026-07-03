@@ -115,17 +115,13 @@ class TestCapsUi : MainActivityUiTestFixtures() {
     fun capVisibilityInMoreActions() {
         // If the caps have already been applied, they cannot be applied again.
         startLiveGameProgrammatically()
-        composeRule.activityRule.scenario.onActivity { activity ->
-            val current = activity.appViewModel.liveState!!
-            activity.appViewModel.updateLiveGame(
-                current.copy(
-                    halfCapApplied = true,
-                    softCapApplied = true,
-                    hardCapApplied = true,
-                )
+        updateCurrentStateProgrammatically {
+            copy(
+                halfCapApplied = true,
+                softCapApplied = true,
+                hardCapApplied = true,
             )
         }
-        composeRule.waitForIdle()
         openMoreActionsDialog()
         assertTrue(
             composeRule.onAllNodesWithText("Apply half cap now")
@@ -144,18 +140,14 @@ class TestCapsUi : MainActivityUiTestFixtures() {
         )
 
         // Once halftime has already happened, half cap should stay hidden even if not applied.
-        composeRule.activityRule.scenario.onActivity { activity ->
-            val current = activity.appViewModel.liveState!!
-            activity.appViewModel.updateLiveGame(
-                current.copy(
-                    halftimeTaken = true,
-                    halfCapApplied = false,
-                    softCapApplied = false,
-                    hardCapApplied = false,
-                )
+        updateCurrentStateProgrammatically {
+            copy(
+                halftimeTaken = true,
+                halfCapApplied = false,
+                softCapApplied = false,
+                hardCapApplied = false,
             )
         }
-        composeRule.waitForIdle()
         assertTrue(
             composeRule.onAllNodesWithText("Apply half cap now")
                 .fetchSemanticsNodes()
@@ -163,23 +155,19 @@ class TestCapsUi : MainActivityUiTestFixtures() {
         )
 
         // Disabled cap rules should not expose manual cap actions.
-        composeRule.activityRule.scenario.onActivity { activity ->
-            val current = activity.appViewModel.liveState!!
-            activity.appViewModel.updateLiveGame(
-                current.copy(
-                    rules = current.rules.copy(
-                        useHalfCap = false,
-                        useSoftCap = false,
-                        useHardCap = false,
-                    ),
-                    halftimeTaken = false,
-                    halfCapApplied = false,
-                    softCapApplied = false,
-                    hardCapApplied = false,
-                )
+        updateCurrentStateProgrammatically {
+            copy(
+                rules = rules.copy(
+                    useHalfCap = false,
+                    useSoftCap = false,
+                    useHardCap = false,
+                ),
+                halftimeTaken = false,
+                halfCapApplied = false,
+                softCapApplied = false,
+                hardCapApplied = false,
             )
         }
-        composeRule.waitForIdle()
         assertTrue(
             composeRule.onAllNodesWithText("Apply half cap now")
                 .fetchSemanticsNodes()
