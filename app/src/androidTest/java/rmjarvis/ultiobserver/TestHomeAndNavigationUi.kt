@@ -1003,6 +1003,12 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         dismissDialog(tag = "top-bar-back")
         waitForText("Start new game")
 
+        // Save and return returns from Settings to Home.
+        composeRule.onNodeWithText("Settings").performClick()
+        waitForText("Use sounds and vibration for timing cues?")
+        composeRule.onNodeWithText("Save and return").performClick()
+        waitForText("Start new game")
+
         // Timing cue settings can return directly to Home from their top bar.
         composeRule.onNodeWithText("Settings").performClick()
         waitForText("Use sounds and vibration for timing cues?")
@@ -1013,7 +1019,17 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         tapTopBarHome()
         waitForText("Start new game")
 
-        // The main Settings screen can also return directly to Home from its top bar.
+        // Timing cue settings can return directly to Home from their bottom action.
+        composeRule.onNodeWithText("Settings").performClick()
+        waitForText("Use sounds and vibration for timing cues?")
+        composeRule.onNodeWithTag("settings-open-timing-cue-settings")
+            .performScrollTo()
+            .performClick()
+        waitForText("Cue sound settings")
+        composeRule.onNodeWithText("Save and return home").performClick()
+        waitForText("Start new game")
+
+        // The main Settings screen can also still return directly to Home from its top bar.
         composeRule.onNodeWithText("Settings").performClick()
         waitForText("Use sounds and vibration for timing cues?")
         tapTopBarHome()
@@ -1049,7 +1065,13 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("profile-avatar-RANDOM").assertIsSelected()
         composeRule.onNodeWithTag("profile-avatar-BLUE").assertIsNotSelected()
 
-        // Profile can return directly to Home from its top bar.
+        // Save and return returns directly to Home.
+        composeRule.onNodeWithText("Save and return").performClick()
+        waitForText("Start new game")
+
+        // Profile can still return directly to Home from its top bar.
+        composeRule.onNodeWithText("Profile").performClick()
+        waitForText("Name")
         tapTopBarHome()
         waitForText("Start new game")
 

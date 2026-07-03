@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.verticalScroll
@@ -61,6 +62,17 @@ internal fun SettingsScreen(
                 },
             )
         },
+        bottomBar = {
+            NavigationButton(
+                label = "Save and return",
+                fullWidth = true,
+                colors = primaryButtonColors(),
+                modifier = Modifier
+                    .navigationBarsPadding()
+                    .padding(16.dp),
+                onClick = onHome,
+            )
+        },
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -114,7 +126,7 @@ internal fun SettingsScreen(
             MenuButton(
                 label = "Sound settings for individual cues",
                 tag = "settings-open-timing-cue-settings",
-                colors = primaryButtonColors(),
+                colors = secondaryButtonColors(),
                 borderColor = null,
                 onClick = onOpenTimingCueSettings,
             )
@@ -238,6 +250,17 @@ internal fun TimingCueSettingsScreen(
                 actions = {
                     TopBarHomeButton(onClick = onHome)
                 },
+            )
+        },
+        bottomBar = {
+            NavigationButton(
+                label = "Save and return home",
+                fullWidth = true,
+                colors = primaryButtonColors(),
+                modifier = Modifier
+                    .navigationBarsPadding()
+                    .padding(16.dp),
+                onClick = onHome,
             )
         },
     ) { innerPadding ->

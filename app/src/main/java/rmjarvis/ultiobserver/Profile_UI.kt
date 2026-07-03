@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.rememberScrollState
@@ -49,6 +50,17 @@ internal fun ProfileScreen(
                 actions = {
                     TopBarHomeButton(onClick = onHome)
                 },
+            )
+        },
+        bottomBar = {
+            NavigationButton(
+                label = "Save and return",
+                fullWidth = true,
+                colors = primaryButtonColors(),
+                modifier = Modifier
+                    .navigationBarsPadding()
+                    .padding(16.dp),
+                onClick = onHome,
             )
         },
     ) { innerPadding ->
