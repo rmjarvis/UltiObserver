@@ -1584,6 +1584,20 @@ fun GameState.teamCardTotal(team: TeamId): Int {
     }
     return yellowCards + currentTeam.blueCards + (2 * redCards)
 }
+
+/**
+ * Format the team card total line shown alongside the team's current card components.
+ *
+ * @param team The team whose card total should be displayed.
+ */
+internal fun GameState.teamCardTotalDetailLine(team: TeamId): String {
+    return "Team card total: ${teamCardTotal(team)}${teamCardTotalExplanation(team)}"
+}
+
+/// Return the red-card weighting explanation when red cards contribute to one team's total.
+private fun GameState.teamCardTotalExplanation(team: TeamId): String {
+    return if (teamRedCards(team) > 0) " (red cards count as 2)" else ""
+}
 /**
  * Return the stored player records for one team.
  *
@@ -1651,9 +1665,9 @@ fun GameEvent.needsMisconductChoice(): Boolean {
 
 /// Format a team-card event message, including player-card and misconduct cue details.
 internal fun GameEvent.TeamCardsChanged.formatMessage(): String {
-    val totalMessage = this.totalBlueCardMessage()
+    val totalMessage = this.teamCardTotalMessage()
     val baseMessage = if (playerCardType == null) {
-        "This is ${state.teamName(team)}'s ${teamCardTotal.ordinalWordText()} blue card."
+        "Blue card on ${state.teamName(team)}.\n$totalMessage"
     } else {
         val jerseyNumber = playerCardJerseyNumber as String
         (playerCardEventLines(playerCardType, jerseyNumber, playerCardName.orEmpty()) + totalMessage).joinToString("\n")
@@ -1665,17 +1679,11 @@ internal fun GameEvent.TeamCardsChanged.formatMessage(): String {
     )
 }
 
-/// Format the team blue-card total, marking mixed yellow/red/blue totals explicitly.
-private fun GameEvent.TeamCardsChanged.totalBlueCardMessage(): String {
-    val totalModifier = if (
-        teamCardTotal > 1 &&
-        (state.teamYellowCards(team) > 0 || state.teamRedCards(team) > 0)
-    ) {
-        "total "
-    } else {
-        ""
-    }
-    return "${state.teamName(team)} has ${countedNounPhrase(teamCardTotal, "${totalModifier}blue card")}."
+/// Format the team-card total, explaining red-card weighting when it affects the count.
+private fun GameEvent.TeamCardsChanged.teamCardTotalMessage(): String {
+    return "${state.teamName(team)} has " +
+        "${countedNounPhrase(teamCardTotal, "card")} total" +
+        "${state.teamCardTotalExplanation(team)}."
 }
 
 /**

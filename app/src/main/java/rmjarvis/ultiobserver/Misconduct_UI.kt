@@ -1219,7 +1219,7 @@ private fun CardChoiceDialog(
                         Text("$blueCount blue", style = MaterialTheme.typography.bodyMedium)
                     }
                     Text(
-                        "Team total: ${state.teamCardTotal(team)}",
+                        state.teamCardTotalDetailLine(team),
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }

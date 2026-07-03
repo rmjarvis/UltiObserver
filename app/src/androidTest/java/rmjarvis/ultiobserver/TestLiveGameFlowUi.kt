@@ -76,13 +76,16 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         recordYellowCard(
             TeamId.TEAM_ONE,
             "17",
-            "Yellow card on player 17.\n$viscousCoupling has 1 blue card.",
+            "Yellow card on player 17.\n$viscousCoupling has 1 card total.",
         )
-        recordBlueCard(TeamId.TEAM_ONE, "This is $viscousCoupling's second blue card.")
+        recordBlueCard(
+            TeamId.TEAM_ONE,
+            "Blue card on $viscousCoupling.\n$viscousCoupling has 2 cards total.",
+        )
         recordYellowCard(
             team = TeamId.TEAM_ONE,
             playerNumber = "8",
-            expectedMessage = "$viscousCoupling has 3 total blue cards.",
+            expectedMessage = "$viscousCoupling has 3 cards total.",
             misconductChoice = "Offense",
             expectedMisconductMessage = "$viscousCoupling moves the disc to the reverse " +
                 "brick in the end zone they are defending.",
@@ -100,7 +103,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         recordYellowCard(
             team = TeamId.TEAM_ONE,
             playerNumber = "9",
-            expectedMessage = "$viscousCoupling has 4 total blue cards.",
+            expectedMessage = "$viscousCoupling has 4 cards total.",
             misconductChoice = "Defense",
             expectedMisconductMessage = "$animal may move the disc to the brick mark nearest " +
                 "the end zone they are attacking.",
@@ -108,7 +111,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         recordRedCard(
             team = TeamId.TEAM_ONE,
             playerNumber = "12",
-            expectedMessage = "$viscousCoupling has 6 total blue cards.",
+            expectedMessage = "$viscousCoupling has 6 cards total (red cards count as 2).",
             misconductChoice = "Defense",
             expectedMisconductMessage = "$animal may move the disc to the brick mark nearest " +
                 "the end zone they are attacking.",
@@ -134,12 +137,12 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         recordYellowCard(
             TeamId.TEAM_TWO,
             "23",
-            "Yellow card on player 23.\n$animal has 1 blue card.",
+            "Yellow card on player 23.\n$animal has 1 card total.",
         )
         recordYellowCard(
             TeamId.TEAM_TWO,
             "8",
-            "Yellow card on player 8.\n$animal has 2 total blue cards.",
+            "Yellow card on player 8.\n$animal has 2 cards total.",
         )
         recordTechnicalFoul(TeamId.TEAM_TWO, "This is $animal's first technical foul.")
         recordTechnicalFoul(TeamId.TEAM_TWO, "This is $animal's second technical foul.")

@@ -55,7 +55,7 @@ class TestMisconduct : GameDomainTestFixtures() {
         )
         state = cardResult.state
         assertEquals(
-            "Yellow card on #24 Drew Handler.\nViscous Coupling has 1 blue card.",
+            "Yellow card on #24 Drew Handler.\nViscous Coupling has 1 card total.",
             cardResult.message(),
         )
         assertEquals(
@@ -133,7 +133,7 @@ class TestMisconduct : GameDomainTestFixtures() {
         assertEquals(
             "Yellow card on Name Only.\n" +
                 "Name Only is suspended for the rest of the tournament.\n" +
-                "Viscous Coupling has 1 blue card.",
+                "Viscous Coupling has 1 card total.",
             cardResult.message(),
         )
     }
@@ -275,7 +275,7 @@ class TestMisconduct : GameDomainTestFixtures() {
 
         // Formatted player-card events include the player number and updated team card count.
         assertEquals(
-            "Yellow card on player 4.\nViscous Coupling has 1 blue card.",
+            "Yellow card on player 4.\nViscous Coupling has 1 card total.",
             GameEvent.TeamCardsChanged(
                 state = standardLiveGameState().assessFirstYellowCard(TeamId.TEAM_ONE, "4").state,
                 team = TeamId.TEAM_ONE,
@@ -284,6 +284,20 @@ class TestMisconduct : GameDomainTestFixtures() {
                 playerCardJerseyNumber = "4",
                 playerCardName = null,
             ).formatMessage(),
+        )
+        assertEquals(
+            "Team card total: 1",
+            standardLiveGameState()
+                .assessFirstYellowCard(TeamId.TEAM_ONE, "4")
+                .state
+                .teamCardTotalDetailLine(TeamId.TEAM_ONE),
+        )
+        assertEquals(
+            "Team card total: 2 (red cards count as 2)",
+            standardLiveGameState()
+                .assessRedCard(TeamId.TEAM_ONE, "4")
+                .state
+                .teamCardTotalDetailLine(TeamId.TEAM_ONE),
         )
     }
 
@@ -571,7 +585,7 @@ class TestMisconduct : GameDomainTestFixtures() {
         state = cardResult.state
         assertFalse(cardResult.needsMisconductChoice)
         assertEquals(
-            "Yellow card on player 17.\nViscous Coupling has 1 blue card.",
+            "Yellow card on player 17.\nViscous Coupling has 1 card total.",
             cardResult.message(),
         )
         assertEquals("Misconduct", cardResult.event.formatPopupTitle())
@@ -590,7 +604,7 @@ class TestMisconduct : GameDomainTestFixtures() {
         assertEquals(
             "Second yellow on player 17.\n" +
                 "Player 17 receives a game suspension.\n" +
-                "Viscous Coupling has 2 total blue cards.",
+                "Viscous Coupling has 2 cards total.",
             cardResult.message(),
         )
         assertEquals(2, state.teamYellowCards(VC))
@@ -610,7 +624,8 @@ class TestMisconduct : GameDomainTestFixtures() {
         assertEquals(3, state.teamCardTotal(VC))
         assertEquals(1, state.playerCards(VC).size)
         assertEquals(
-            "This is Viscous Coupling's third blue card.\n\n" +
+            "Blue card on Viscous Coupling.\n" +
+                "Viscous Coupling has 3 cards total.\n\n" +
                 "Penalty against Viscous Coupling. No pull. Animal starts at attacking brick.",
             cardResult.message(),
         )
@@ -711,7 +726,7 @@ class TestMisconduct : GameDomainTestFixtures() {
         cardResult = state.assessYellowCard(VC, "14")
         assertFalse(cardResult.needsMisconductChoice)
         assertEquals(
-            "Yellow card on player 14.\nViscous Coupling has 3 total blue cards.\n\n" +
+            "Yellow card on player 14.\nViscous Coupling has 3 cards total.\n\n" +
                 "Penalty against Viscous Coupling. No pull. Animal starts at attacking brick.",
             cardResult.message(),
         )
@@ -726,7 +741,7 @@ class TestMisconduct : GameDomainTestFixtures() {
         state = cardResult.state
         assertTrue(cardResult.needsMisconductChoice)
         assertEquals(
-            "Yellow card on player 14.\nViscous Coupling has 3 total blue cards.",
+            "Yellow card on player 14.\nViscous Coupling has 3 cards total.",
             cardResult.message(),
         )
         assertEquals(3, state.teamCardTotal(VC))
@@ -739,7 +754,7 @@ class TestMisconduct : GameDomainTestFixtures() {
         assertEquals(
             "Red card on player 23.\n" +
                 "Player 23 receives a game suspension.\n" +
-                "Animal has 2 total blue cards.",
+                "Animal has 2 cards total (red cards count as 2).",
             cardResult.message(),
         )
         assertEquals("Misconduct", cardResult.event.formatPopupTitle())
@@ -759,7 +774,7 @@ class TestMisconduct : GameDomainTestFixtures() {
         assertEquals(
             "Red card on player 23.\n" +
                 "Player 23 receives a game suspension.\n" +
-                "Animal has 3 total blue cards.",
+                "Animal has 3 cards total (red cards count as 2).",
             cardResult.message(),
         )
         val misconductPrompt = cardResult.misconductPrompt()
@@ -769,19 +784,19 @@ class TestMisconduct : GameDomainTestFixtures() {
         assertEquals(
             "Red card on player 23.\n" +
                 "Player 23 receives a game suspension.\n" +
-                "Animal has 3 total blue cards.\n\nWas this against the offense or defense?",
+                "Animal has 3 cards total (red cards count as 2).\n\nWas this against the offense or defense?",
             misconductPrompt.formatMessage(),
         )
         assertEquals(
             "Red card on player 23.\n" +
                 "Player 23 receives a game suspension.\n" +
-                "Animal has 3 total blue cards.\n\nWas this against the offense or defense?",
+                "Animal has 3 cards total (red cards count as 2).\n\nWas this against the offense or defense?",
             misconductGamePrompt.formatMessage(),
         )
         assertEquals(
             "Red card on player 23.\n" +
                 "Player 23 receives a game suspension.\n" +
-                "Animal has 3 total blue cards.\n\n" +
+                "Animal has 3 cards total (red cards count as 2).\n\n" +
                 "Animal moves the disc to the reverse brick in the end zone they are defending. " +
                 "Viscous Coupling may instead choose to leave the disc where it is " +
                 "(keeping the current stall count +1, max 9).\n\n" +
@@ -814,7 +829,7 @@ class TestMisconduct : GameDomainTestFixtures() {
         assertEquals(
             "Red card on player 8.\n" +
                 "Player 8 is suspended for the rest of the tournament.\n" +
-                "Animal has 3 total blue cards.\n\n" +
+                "Animal has 3 cards total (red cards count as 2).\n\n" +
                 "Penalty against Animal. No pull. Disc at negative brick in defending end zone.",
             cardResult.message(),
         )
@@ -836,7 +851,7 @@ class TestMisconduct : GameDomainTestFixtures() {
         assertEquals(
             "Second yellow on player 8.\n" +
                 "Player 8 receives a game suspension.\n" +
-                "Animal has 2 total blue cards.",
+                "Animal has 2 cards total.",
             cardResult.message(),
         )
 
@@ -856,7 +871,7 @@ class TestMisconduct : GameDomainTestFixtures() {
         assertEquals(
             "Yellow card on player 44.\n" +
                 "Player 44 is suspended for the rest of the tournament.\n" +
-                "Viscous Coupling has 1 blue card.",
+                "Viscous Coupling has 1 card total.",
             cardResult.message(),
         )
 
@@ -869,7 +884,7 @@ class TestMisconduct : GameDomainTestFixtures() {
         assertEquals(
             "Red card on player 31.\n" +
                 "Player 31 is suspended for the rest of the tournament.\n" +
-                "Animal has 2 total blue cards.",
+                "Animal has 2 cards total (red cards count as 2).",
             cardResult.message(),
         )
 
@@ -885,7 +900,7 @@ class TestMisconduct : GameDomainTestFixtures() {
         assertEquals(
             "Red card on player 35.\n" +
                 "Player 35 is suspended for the rest of the tournament.\n" +
-                "Animal has 2 total blue cards.",
+                "Animal has 2 cards total (red cards count as 2).",
             cardResult.message(),
         )
 
@@ -902,7 +917,7 @@ class TestMisconduct : GameDomainTestFixtures() {
         assertEquals(
             "Second yellow on player 36.\n" +
                 "Player 36 is suspended for the rest of the tournament.\n" +
-                "Animal has 2 total blue cards.",
+                "Animal has 2 cards total.",
             cardResult.message(),
         )
 
@@ -915,7 +930,7 @@ class TestMisconduct : GameDomainTestFixtures() {
             "Red card on player 29.\n" +
                 "Player 29 receives a game suspension.\n" +
                 "Player 29 must also sit out the first half of the next game, if there is one.\n" +
-                "Animal has 2 total blue cards.",
+                "Animal has 2 cards total (red cards count as 2).",
             cardResult.message(),
         )
 
@@ -928,7 +943,7 @@ class TestMisconduct : GameDomainTestFixtures() {
             "Red card on player 30.\n" +
                 "Player 30 receives a game suspension.\n" +
                 "Player 30 must also sit out the first half of the next game, if there is one.\n" +
-                "Animal has 2 total blue cards.",
+                "Animal has 2 cards total (red cards count as 2).",
             cardResult.message(),
         )
 
@@ -941,19 +956,19 @@ class TestMisconduct : GameDomainTestFixtures() {
             "Red card on player 32.\n" +
                 "Player 32 receives a game suspension.\n" +
                 "Player 32 must also sit out the first half of the next game, if there is one.\n" +
-                "Animal has 2 total blue cards.",
+                "Animal has 2 cards total (red cards count as 2).",
             cardResult.message(),
         )
 
         // Blue cards count as one team card point each and do not create player records.
         state = standardLiveGameState()
         val bluePreview = state.previewBlueCard(ANIMAL)
-        assertEquals("This is Animal's first blue card.", bluePreview.event.formatMessage())
+        assertEquals("Blue card on Animal.\nAnimal has 1 card total.", bluePreview.event.formatMessage())
         assertEquals(0, state.teamTwo.blueCards)
         cardResult = state.assessBlueCard(ANIMAL)
         state = cardResult.state
         assertFalse(cardResult.needsMisconductChoice)
-        assertEquals("This is Animal's first blue card.", cardResult.message())
+        assertEquals("Blue card on Animal.\nAnimal has 1 card total.", cardResult.message())
         assertEquals(1, state.teamTwo.blueCards)
         assertEquals(1, state.teamCardTotal(ANIMAL))
         assertTrue(state.playerCards(ANIMAL).isEmpty())
@@ -961,7 +976,7 @@ class TestMisconduct : GameDomainTestFixtures() {
         cardResult = state.assessBlueCard(ANIMAL)
         state = cardResult.state
         assertFalse(cardResult.needsMisconductChoice)
-        assertEquals("This is Animal's second blue card.", cardResult.message())
+        assertEquals("Blue card on Animal.\nAnimal has 2 cards total.", cardResult.message())
         assertEquals(2, state.teamTwo.blueCards)
         assertEquals(2, state.teamCardTotal(ANIMAL))
 
@@ -971,7 +986,8 @@ class TestMisconduct : GameDomainTestFixtures() {
         assertEquals(3, state.teamTwo.blueCards)
         assertEquals(3, state.teamCardTotal(ANIMAL))
         assertEquals(
-            "This is Animal's third blue card.\n\n" +
+            "Blue card on Animal.\n" +
+                "Animal has 3 cards total.\n\n" +
                 "Penalty against Animal. No pull. Disc at negative brick in defending end zone.",
             cardResult.message(),
         )
@@ -982,7 +998,8 @@ class TestMisconduct : GameDomainTestFixtures() {
         assertEquals(4, state.teamTwo.blueCards)
         assertEquals(4, state.teamCardTotal(ANIMAL))
         assertEquals(
-            "This is Animal's 4th blue card.\n\n" +
+            "Blue card on Animal.\n" +
+                "Animal has 4 cards total.\n\n" +
                 "Penalty against Animal. No pull. Disc at negative brick in defending end zone.",
             cardResult.message(),
         )
@@ -1056,7 +1073,10 @@ class TestMisconduct : GameDomainTestFixtures() {
         state = cardResult.state
         assertEquals(GamePhase.LIVE_POINT, state.phase)
         assertTrue(cardResult.needsMisconductChoice)
-        assertEquals("This is Viscous Coupling's third blue card.", cardResult.message())
+        assertEquals(
+            "Blue card on Viscous Coupling.\nViscous Coupling has 3 cards total.",
+            cardResult.message(),
+        )
 
         val prompt = cardResult.misconductPrompt().formatMessage()
         assertTrue(prompt.contains("Was this against the offense or defense?"))

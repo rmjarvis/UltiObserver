@@ -781,7 +781,7 @@ private fun GenderRatioChooserText(
  *
  * @param teamId The team whose test tags identify each action.
  * @param team The live team state used for count labels.
- * @param cardPoints The team's total blue-card count.
+ * @param cardPoints The team's card total for misconduct thresholds.
  * @param timeoutsRemaining Timeouts remaining in the current half.
  * @param timeoutEnabled Whether timeout handling is available in the current state.
  * @param interactionsEnabled Whether the observer can press live actions.

@@ -44,7 +44,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         waitForText("0 yellow")
         waitForText("0 red")
         waitForText("0 blue")
-        waitForText("Team total: 0")
+        waitForText("Team card total: 0")
         composeRule.onNodeWithText("No existing cards").assertIsDisplayed()
         dismissDialog(text = "Close")
         composeRule.onAllNodesWithText("Current cards:").assertCountEquals(0)
@@ -60,11 +60,11 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         openCardsDialog()
         tapCardDialogAction(TeamId.TEAM_ONE, "Blue")
         waitForText("Blue Card")
-        waitForText("This is Team 1's first blue card.")
+        waitForText("Blue card on Team 1.\nTeam 1 has 1 card total.")
         dismissDialog(text = "Cancel")
         composeRule.onNodeWithTag("card-dialog-${TeamId.TEAM_ONE.name}-blue").assertIsDisplayed()
         tapCardDialogAction(TeamId.TEAM_ONE, "Blue")
-        waitForText("This is Team 1's first blue card.")
+        waitForText("Blue card on Team 1.\nTeam 1 has 1 card total.")
         composeRule.onNodeWithText("OK").performClick()
 
         // Same for Tech
@@ -78,7 +78,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         // Do these on team two as well to cover those cases.
         openCardsDialog(TeamId.TEAM_TWO)
         tapCardDialogAction(TeamId.TEAM_TWO, "Blue")
-        waitForText("This is Team 2's first blue card.")
+        waitForText("Blue card on Team 2.\nTeam 2 has 1 card total.")
         composeRule.onNodeWithText("OK").performClick()
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "tech")).performClick()
         waitForText("This is Team 2's first technical foul.")
@@ -122,7 +122,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
             "5",
             "Red card on player 5.\n" +
                 "Player 5 receives a game suspension.\n" +
-                "Team 1 has 5 total blue cards.",
+                "Team 1 has 5 cards total (red cards count as 2).",
         )
 
         // Choosing Red for a player with a yellow records as a red, not as a second yellow.
@@ -141,14 +141,14 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
                 .fetchSemanticsNodes()
                 .isEmpty(),
         )
-        waitForText("Team 1 has 7 total blue cards.", substring = true)
+        waitForText("Team 1 has 7 cards total (red cards count as 2).", substring = true)
         composeRule.onNodeWithText("OK").performClick()
 
         // A second yellow comes from issuing another yellow, not from pressing Red.
         recordYellowCard(
             TeamId.TEAM_TWO,
             "7",
-            "Yellow card on player 7.\nTeam 2 has 2 total blue cards.",
+            "Yellow card on player 7.\nTeam 2 has 2 cards total.",
         )
         recordYellowCard(
             TeamId.TEAM_TWO,
@@ -371,7 +371,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Same number, different names")
         composeRule.onNodeWithText("Record").performClick()
-        waitForText("Yellow card on #6 Bob Cutter.\nTeam 2 has 2 total blue cards.")
+        waitForText("Yellow card on #6 Bob Cutter.\nTeam 2 has 2 cards total.")
         composeRule.onNodeWithText("OK").performClick()
     }
 
