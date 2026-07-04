@@ -72,11 +72,11 @@ class TestArchive : GameDomainTestFixtures() {
 
         // The category and filter labels are the user-facing choices shown by the archive UI.
         assertEquals(
-            listOf("Archived games", "In-progress games", "Saved setup states"),
+            listOf("Archived games", "In-progress games", "Saved setup drafts"),
             ArchivedGameCategory.entries.map { it.displayText },
         )
         assertEquals(
-            listOf("No archived games yet.", "No in-progress games.", "No saved setup states."),
+            listOf("No archived games yet.", "No in-progress games.", "No saved setup drafts."),
             ArchivedGameCategory.entries.map { it.emptyText },
         )
         assertEquals(
@@ -213,7 +213,7 @@ class TestArchive : GameDomainTestFixtures() {
             filterSelections = mixedSelections,
             sortMode = ArchiveSortMode.TEAM_TWO,
         )
-        assertEquals(listOf("Ring of Fire vs Truck Stop at 9:00 AM"), savedSetupState.summaryLines())
+        assertEquals(listOf("Ring of Fire vs Truck Stop"), savedSetupState.summaryLines())
         assertEquals(listOf(4), savedSetupState.selectedGames!!.map { it.index })
         assertTrue(savedSetupState.availableFilterValues.isEmpty())
         assertEquals("", savedSetupState.filterAndSortSummaryText)
@@ -764,8 +764,8 @@ class TestArchive : GameDomainTestFixtures() {
     }
 
     /**
-     * Verify setup drafts can be saved for later, removed from saved setups when loaded,
-     * and used as the source for repeated tournament game-information defaults.
+     * Verify setup drafts can be saved for later, edited in place, explicitly promoted
+     * to current, and used as the source for repeated tournament game-information defaults.
      */
     @Test
     fun savedSetupLifecycle() {
@@ -779,6 +779,7 @@ class TestArchive : GameDomainTestFixtures() {
             level = "Club",
             gameContext = "Pool play",
             observerNames = listOf("Mike"),
+            fieldName = "Field 7",
             rules = tournamentRules,
             teamOne = TeamState("", TeamColorChoice.GREEN),
             teamTwo = TeamState("Known Opponent", TeamColorChoice.YELLOW),
@@ -793,43 +794,70 @@ class TestArchive : GameDomainTestFixtures() {
         assertEquals(GamePhase.SETUP, viewModel.archivedGames.single().phase)
         assertEquals(savedSetup, viewModel.archivedGames.single())
         assertEquals(
-            "Team 1 vs Known Opponent at ${formatClockTime(savedSetup.startTime)}",
+            "Team 1 vs Known Opponent on Field 7",
             viewModel.archivedGames.single().gameListSummaryLine(),
         )
-
-        // Opening a saved setup when no current game exists restores it as the current setup draft.
-        val directRestoreViewModel = AppViewModel(NoOpAppStateStorage)
-        directRestoreViewModel.startNewGame(now = 123_000L)
-        directRestoreViewModel.updateSetup(savedSetup)
-        directRestoreViewModel.saveSetupForLater()
-        directRestoreViewModel.openArchivedGames()
-        directRestoreViewModel.openArchivedGameCategory(ArchivedGameCategory.SETUP)
-        directRestoreViewModel.openArchivedGame(0, now = 123_000L)
-        assertEquals(AppScreen.SETUP, directRestoreViewModel.screen)
-        assertTrue(directRestoreViewModel.hasSetupDraft)
-        assertEquals(savedSetup, directRestoreViewModel.setupState)
-        assertTrue(directRestoreViewModel.archivedGames.isEmpty())
-
-        // Restoring a saved setup over an initial live preview saves that preview aside.
-        val initialPreviewRestoreViewModel = AppViewModel(NoOpAppStateStorage)
-        initialPreviewRestoreViewModel.startNewGame(now = 123_000L)
-        initialPreviewRestoreViewModel.updateSetup(savedSetup)
-        initialPreviewRestoreViewModel.saveSetupForLater()
-        initialPreviewRestoreViewModel.startNewGame(now = 123_000L)
-        initialPreviewRestoreViewModel.finishSetup(now = 123_000L)
-        val initialPreview = initialPreviewRestoreViewModel.liveState!!
-        assertTrue(initialPreview.isInitialLivePreview())
-        initialPreviewRestoreViewModel.openArchivedGames()
-        initialPreviewRestoreViewModel.openArchivedGameCategory(ArchivedGameCategory.SETUP)
-        initialPreviewRestoreViewModel.openArchivedGame(0, now = 123_000L)
-        assertEquals(AppScreen.SETUP, initialPreviewRestoreViewModel.screen)
-        assertEquals(savedSetup, initialPreviewRestoreViewModel.setupState)
-        assertEquals(1, initialPreviewRestoreViewModel.archivedGames.size)
+        assertEquals("Summer Solstice", viewModel.archivedGames.single().gameListEntry().headerDetail)
         assertEquals(
-            ArchivedGameCategory.IN_PROGRESS,
-            initialPreviewRestoreViewModel.archivedGames.single().archiveCategory,
+            "Team 1 vs Known Opponent on Field 7",
+            viewModel.archivedGames.single().gameListEntry().summaryLine,
         )
-        assertEquals(initialPreview, initialPreviewRestoreViewModel.archivedGames.single())
+
+        // Saved setup rows are ordered by scheduled time and show field detail in the wrapping
+        // row text, leaving the single-line header for tournament detail.
+        val laterSetup = savedSetup.copy(
+            startTime = LocalTime.of(12, 0),
+            fieldName = "12",
+            teamOne = TeamState("Later", TeamColorChoice.GREEN),
+        )
+        val textFieldSetup = savedSetup.copy(
+            startTime = LocalTime.of(13, 0),
+            fieldName = "football field",
+            teamOne = TeamState("Text", TeamColorChoice.GREEN),
+        )
+        val earlierSetup = savedSetup.copy(
+            startTime = LocalTime.of(9, 0),
+            fieldName = "",
+            teamOne = TeamState("Earlier", TeamColorChoice.GREEN),
+        )
+        val setupArchiveState = getFilteredArchiveState(
+            archivedGames = listOf(laterSetup, textFieldSetup, earlierSetup),
+            selectedCategory = ArchivedGameCategory.SETUP,
+            filterSelections = ArchiveFilterSelections(),
+            sortMode = ArchiveSortMode.DATE_NEWEST,
+        )
+        assertEquals(
+            listOf(
+                "Earlier vs Known Opponent",
+                "Later vs Known Opponent on field 12",
+                "Text vs Known Opponent on football field",
+            ),
+            setupArchiveState.summaryLines(),
+        )
+        val setupArchiveRows = setupArchiveState.selectedGames!!
+        assertEquals("Summer Solstice", setupArchiveRows[0].entry.headerDetail)
+        assertEquals("Summer Solstice", setupArchiveRows[1].entry.headerDetail)
+        assertEquals("Summer Solstice", setupArchiveRows[2].entry.headerDetail)
+
+        // Opening a saved setup edits the archived row directly rather than making it current.
+        viewModel.openArchivedGames()
+        viewModel.openArchivedGameCategory(ArchivedGameCategory.SETUP)
+        viewModel.openArchivedGame(0, now = 123_000L)
+        assertEquals(AppScreen.SETUP, viewModel.screen)
+        assertEquals(SetupMode.EDIT_SAVED_SETUP, viewModel.setupMode)
+        assertFalse(viewModel.hasSetupDraft)
+        assertEquals(savedSetup, viewModel.setupState)
+        assertEquals(savedSetup, viewModel.archivedGames.single())
+        val editedSavedSetup = savedSetup.copy(
+            fieldName = "Field 8",
+            teamTwo = TeamState("Edited Opponent", TeamColorChoice.YELLOW),
+        )
+        viewModel.updateSetup(editedSavedSetup)
+        assertEquals(editedSavedSetup, viewModel.archivedGames.single())
+        viewModel.goBackFromCurrentScreen()
+        assertEquals(AppScreen.ARCHIVED_GAMES, viewModel.screen)
+        assertEquals(ArchivedGameCategory.SETUP, viewModel.selectedArchiveCategory)
+        assertNull(viewModel.currentGame)
 
         // Starting another game carries forward tournament, division, level, and rules, but not
         // other fields that typically change each game.
@@ -840,10 +868,11 @@ class TestArchive : GameDomainTestFixtures() {
         assertEquals(tournamentRules, viewModel.setupState.rules)
         assertEquals("", viewModel.setupState.gameContext)
         assertEquals(emptyList<String>(), viewModel.setupState.observerNames)
+        assertEquals("", viewModel.setupState.fieldName)
         assertEquals("", viewModel.setupState.teamOne.name)
         assertEquals("", viewModel.setupState.teamTwo.name)
 
-        // Restoring a saved setup saves the current setup draft aside instead of losing it.
+        // Making a saved setup current saves the previous current setup draft aside.
         val unsavedDraft = viewModel.setupState.copy(
             teamOne = TeamState("Unsaved", TeamColorChoice.WHITE),
         )
@@ -851,15 +880,17 @@ class TestArchive : GameDomainTestFixtures() {
         viewModel.openArchivedGames()
         viewModel.openArchivedGameCategory(ArchivedGameCategory.SETUP)
         viewModel.openArchivedGame(0, now = 123_000L)
+        viewModel.makeEditedSetupCurrent()
         assertEquals(AppScreen.SETUP, viewModel.screen)
         assertTrue(viewModel.hasSetupDraft)
         assertNull(viewModel.liveState)
-        assertEquals(savedSetup, viewModel.setupState)
+        assertEquals(editedSavedSetup, viewModel.setupState)
+        assertEquals(SetupMode.NEW_GAME, viewModel.setupMode)
         assertEquals(1, viewModel.archivedGames.size)
         assertEquals(ArchivedGameCategory.SETUP, viewModel.archivedGames.single().archiveCategory)
         assertEquals(unsavedDraft, viewModel.archivedGames.single())
 
-        // Restoring a saved setup while a real current game exists archives that current game,
+        // Making a saved setup current while a real current game exists archives that current game,
         // putting it in the IN_PROGRESS category in the archive.
         viewModel.saveSetupForLater()
         viewModel.startNewGame(now = 123_000L)
@@ -875,7 +906,8 @@ class TestArchive : GameDomainTestFixtures() {
         viewModel.openArchivedGames()
         viewModel.openArchivedGameCategory(ArchivedGameCategory.SETUP)
         viewModel.openArchivedGame(1, now = 123_000L)
-        assertEquals(savedSetup, viewModel.setupState)
+        viewModel.makeEditedSetupCurrent()
+        assertEquals(editedSavedSetup, viewModel.setupState)
         assertEquals(2, viewModel.archivedGames.size)
         assertEquals(ArchivedGameCategory.SETUP, viewModel.archivedGames.first().archiveCategory)
         assertEquals(unsavedDraft, viewModel.archivedGames.first())

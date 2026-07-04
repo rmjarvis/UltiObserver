@@ -20,6 +20,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.percentOffset
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextReplacement
@@ -27,6 +28,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import java.time.LocalDate
 import java.time.LocalTime
+import kotlin.math.abs
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -236,7 +238,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("archived-games-screen").assertIsDisplayed()
         composeRule.onNodeWithText("Archived games (0)").assertIsEnabled()
         composeRule.onNodeWithText("In-progress games (0)").assertIsEnabled()
-        composeRule.onNodeWithText("Saved setup states (0)").assertIsEnabled()
+        composeRule.onNodeWithText("Saved setup drafts (0)").assertIsEnabled()
         composeRule.onNodeWithText("Archived games (0)").performClick()
         waitForText("No archived games yet.")
         tapTopBarBack()
@@ -266,7 +268,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         confirmDeleteWithSlider("Delete all games?")
         waitForText("Archived games (0)")
         waitForText("In-progress games (0)")
-        waitForText("Saved setup states (0)")
+        waitForText("Saved setup drafts (0)")
         tapTopBarBack()
 
         // Inside one category, delete all removes only the visible category's rows.
@@ -588,23 +590,29 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         val setupTeamOne = "SetupA$suffix"
         val setupTeamTwo = "SetupB$suffix"
         val savedSetupTitle = "$setupTeamOne vs $setupTeamTwo"
+        val setupField = suffix
         openNewGameSetup()
         replaceSetupTeamName("Team 1", setupTeamOne)
         replaceSetupTeamName("Team 2", setupTeamTwo)
-        composeRule.onNodeWithText("Save game for later").performClick()
+        openGameInformationSetupEditor()
+        composeRule.onNodeWithTag("setup-field-name").performTextReplacement(setupField)
+        composeRule.onNodeWithTag("setup-field-name").performImeAction()
+        closeSetupEditor()
+        composeRule.onNodeWithText("Save as a draft").performClick()
         waitForText("Start new game")
 
-        // Without a current setup draft, the setup archive page shows only saved setup states.
+        // Without a current setup draft, the setup archive page shows only saved setup drafts.
         openArchivedGamesScreen()
-        composeRule.onNodeWithText("Saved setup states (1)").performClick()
+        composeRule.onNodeWithText("Saved setup drafts (1)").performClick()
         waitForText(savedSetupTitle, substring = true)
+        waitForText("on field $setupField", substring = true)
         composeRule.onAllNodesWithTag("current-setup-state").assertCountEquals(0)
         composeRule.onAllNodesWithTag("saved-setup-state-0").assertCountEquals(1)
         tapTopBarBack()
         tapTopBarBack()
 
         // Start a different current setup draft, then verify the setup archive page separates
-        // that current draft from the saved setup states.
+        // that current draft from the saved setup drafts.
         val currentSetupTeamOne = "CurrentSetupA$suffix"
         val currentSetupTeamTwo = "CurrentSetupB$suffix"
         openNewGameSetup()
@@ -613,10 +621,10 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         tapTopBarBack()
 
         openArchivedGamesScreen()
-        composeRule.onNodeWithText("Saved setup states (2)").assertIsEnabled()
-        composeRule.onNodeWithText("Saved setup states (2)").performClick()
+        composeRule.onNodeWithText("Saved setup drafts (2)").assertIsEnabled()
+        composeRule.onNodeWithText("Saved setup drafts (2)").performClick()
         waitForText("Current setup")
-        waitForText("Saved setup states")
+        waitForText("Saved setup drafts")
         val currentSetupTitle = "$currentSetupTeamOne vs $currentSetupTeamTwo"
         waitForText(currentSetupTitle, substring = true)
         waitForText(savedSetupTitle, substring = true)
@@ -635,52 +643,78 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText(currentSetupTeamTwo).assertIsDisplayed()
         tapTopBarBack()
 
-        // The saved setup row restores that saved state and saves the previous current setup
-        // draft into the saved setup states.
+        // The saved setup row edits the saved draft in place until it is explicitly made current.
+        val editedSetupTeamTwo = "EditedSetupB$suffix"
+        val editedSavedSetupTitle = "$setupTeamOne vs $editedSetupTeamTwo"
         openArchivedGamesScreen()
-        composeRule.onNodeWithText("Saved setup states (2)").performClick()
+        composeRule.onNodeWithText("Saved setup drafts (2)").performClick()
         composeRule.onNodeWithTag("saved-setup-state-0").performClick()
-        waitForText("Start game")
+        waitForText("Saved setup draft")
+        waitForText("Make current")
+        waitForText("Save draft")
+        val makeCurrentBounds = composeRule.onNodeWithText("Make current")
+            .fetchSemanticsNode()
+            .boundsInRoot
+        val saveDraftBounds = composeRule.onNodeWithText("Save draft")
+            .fetchSemanticsNode()
+            .boundsInRoot
+        assertTrue(makeCurrentBounds.bottom <= saveDraftBounds.top)
+        assertTrue(abs(makeCurrentBounds.width - saveDraftBounds.width) < 1f)
         composeRule.onNodeWithText(setupTeamOne).assertIsDisplayed()
         composeRule.onNodeWithText(setupTeamTwo).assertIsDisplayed()
+        replaceSetupTeamName("Team 2", editedSetupTeamTwo)
+        tapTopBarBack()
+        waitForText("Saved setup drafts")
+        composeRule.onNodeWithTag("current-setup-state")
+            .assertTextContains(currentSetupTitle, substring = true)
+        composeRule.onNodeWithTag("saved-setup-state-0")
+            .assertTextContains(editedSavedSetupTitle, substring = true)
+
+        // Make current performs the swap, saving the previous current setup draft aside.
+        composeRule.onNodeWithTag("saved-setup-state-0").performClick()
+        waitForText("Saved setup draft")
+        composeRule.onNodeWithText("Make current").performClick()
+        waitForText("Start game")
+        composeRule.onNodeWithText(setupTeamOne).assertIsDisplayed()
+        composeRule.onNodeWithText(editedSetupTeamTwo).assertIsDisplayed()
         tapTopBarBack()
         openArchivedGamesScreen()
-        composeRule.onNodeWithText("Saved setup states (2)").performClick()
+        composeRule.onNodeWithText("Saved setup drafts (2)").performClick()
         composeRule.onNodeWithTag("current-setup-state")
-            .assertTextContains(savedSetupTitle, substring = true)
+            .assertTextContains(editedSavedSetupTitle, substring = true)
         composeRule.onNodeWithTag("saved-setup-state-0")
             .assertTextContains(currentSetupTitle, substring = true)
 
         // A single saved setup row can be deleted without removing the current setup draft.
         composeRule.onNodeWithTag("delete-saved-setup-state-0").performClick()
-        dismissDialog(text = "Cancel")
+        composeRule.onNodeWithText("Cancel").performClick()
         composeRule.onNodeWithTag("saved-setup-state-0")
             .assertTextContains(currentSetupTitle, substring = true)
         composeRule.onNodeWithTag("delete-saved-setup-state-0").performClick()
         confirmDeleteWithSlider()
         composeRule.onAllNodesWithTag("saved-setup-state-0").assertCountEquals(0)
         composeRule.onNodeWithTag("current-setup-state")
-            .assertTextContains(savedSetupTitle, substring = true)
+            .assertTextContains(editedSavedSetupTitle, substring = true)
 
         // Delete all in the saved setup section removes only the saved setup rows.  Once the
         // current setup is also removed, the setup category shows its empty state.
         val bulkCurrentSetupTitle = "BulkCurrentSetupA$suffix vs BulkCurrentSetupB$suffix"
         seedCurrentSetupAndSavePrevious("BulkCurrentSetupA$suffix", "BulkCurrentSetupB$suffix")
         openArchivedGamesScreen()
-        composeRule.onNodeWithText("Saved setup states (2)").performClick()
-        waitForText("Saved setup states")
+        composeRule.onNodeWithText("Saved setup drafts (2)").performClick()
+        waitForText("Saved setup drafts")
         waitForText(bulkCurrentSetupTitle, substring = true)
-        waitForText(savedSetupTitle, substring = true)
+        waitForText(editedSavedSetupTitle, substring = true)
         composeRule.onNodeWithTag("delete-all-archived-games").performClick()
-        waitForText("all saved setup states", substring = true)
+        waitForText("all saved setup drafts", substring = true)
         confirmDeleteWithSlider("Delete all games?")
         composeRule.onAllNodesWithTag("saved-setup-state-0").assertCountEquals(0)
         composeRule.onNodeWithTag("current-setup-state")
             .assertTextContains(bulkCurrentSetupTitle, substring = true)
         clearCurrentGameProgrammatically()
         openArchivedGamesScreen()
-        composeRule.onNodeWithText("Saved setup states (0)").performClick()
-        waitForText("No saved setup states.")
+        composeRule.onNodeWithText("Saved setup drafts (0)").performClick()
+        waitForText("No saved setup drafts.")
         tapTopBarHome()
         waitForText("Start new game")
 

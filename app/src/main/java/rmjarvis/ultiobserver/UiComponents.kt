@@ -1461,7 +1461,6 @@ internal fun SectionCard(
             ) {
                 Text(
                     title,
-                    modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
@@ -1470,7 +1469,9 @@ internal fun SectionCard(
                 if (subtitle != null) {
                     Text(
                         subtitle,
+                        modifier = Modifier.weight(1f),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.End,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )

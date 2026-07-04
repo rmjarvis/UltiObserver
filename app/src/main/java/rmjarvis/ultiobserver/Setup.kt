@@ -3,11 +3,12 @@ package rmjarvis.ultiobserver
 import java.time.ZoneId
 import kotlinx.serialization.Serializable
 
-/// Mode describing whether setup is creating a new game or editing the current one.
+/// Mode describing which setup bucket the setup screen is editing.
 @Serializable
 internal enum class SetupMode {
     NEW_GAME,
     EDIT_CURRENT_GAME,
+    EDIT_SAVED_SETUP,
 }
 
 /**

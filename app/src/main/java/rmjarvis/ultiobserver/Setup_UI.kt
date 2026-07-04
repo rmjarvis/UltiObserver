@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.RemoveCircle
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -177,7 +178,10 @@ private data class PossiblePlayerMatchConfirmation(
  * @param title Title shown in the setup screen app bar.
  * @param primaryButtonLabel Label for the fixed bottom action.
  * @param onPrimaryAction Callback starting the game or returning to the live screen.
- * @param onCancel Optional callback to discard setup edits.
+ * @param onSecondaryAction Optional second bottom action beside or below the primary action.
+ * @param secondaryButtonLabel Label for the optional second bottom action.
+ * @param secondaryButtonColors Colors for the optional second bottom action.
+ * @param secondaryActionFullWidth Whether the optional second action should stack below primary.
  * @param onSaveGameForLater Optional callback to save this as a SETUP game in the archive.
  * @param onBackHome Callback returning to Home.
  * @param onHome Callback returning directly to Home.
@@ -190,7 +194,10 @@ internal fun SetupScreen(
     title: String,
     primaryButtonLabel: String,
     onPrimaryAction: () -> Unit,
-    onCancel: (() -> Unit)? = null,
+    onSecondaryAction: (() -> Unit)? = null,
+    secondaryButtonLabel: String = "Cancel",
+    secondaryButtonColors: ButtonColors = resetButtonColors(),
+    secondaryActionFullWidth: Boolean = false,
     onSaveGameForLater: (() -> Unit)? = null,
     onBackHome: () -> Unit,
     onHome: () -> Unit,
@@ -296,16 +303,28 @@ internal fun SetupScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                if (onCancel != null) {
+                if (onSecondaryAction != null && secondaryActionFullWidth) {
+                    NavigationButton(
+                        label = primaryButtonLabel,
+                        fullWidth = true,
+                        onClick = onPrimaryAction,
+                    )
+                    NavigationButton(
+                        label = secondaryButtonLabel,
+                        fullWidth = true,
+                        colors = secondaryButtonColors,
+                        onClick = onSecondaryAction,
+                    )
+                } else if (onSecondaryAction != null) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         NavigationButton(
-                            label = "Cancel",
+                            label = secondaryButtonLabel,
                             modifier = Modifier.weight(1f),
-                            colors = resetButtonColors(),
-                            onClick = onCancel,
+                            colors = secondaryButtonColors,
+                            onClick = onSecondaryAction,
                         )
                         NavigationButton(
                             label = primaryButtonLabel,
@@ -322,7 +341,7 @@ internal fun SetupScreen(
                 }
                 if (onSaveGameForLater != null) {
                     NavigationButton(
-                        label = "Save game for later",
+                        label = "Save as a draft",
                         fullWidth = true,
                         colors = secondaryButtonColors(),
                         onClick = onSaveGameForLater,

@@ -16,7 +16,7 @@ internal enum class ArchivedGameCategory(
 ) {
     COMPLETED("Archived games", "No archived games yet."),
     IN_PROGRESS("In-progress games", "No in-progress games."),
-    SETUP("Saved setup states", "No saved setup states."),
+    SETUP("Saved setup drafts", "No saved setup drafts."),
 }
 
 /// Text used for missing filter values.
@@ -366,7 +366,8 @@ internal fun GameState.asCompletedArchive(now: Long): GameState {
 private fun List<GameState>.archiveListItems(
     category: ArchivedGameCategory,
 ): List<ArchivedGameListItem> {
-    return mapIndexedNotNull { index, game ->
+    val allGames = this
+    val matchingGames = mapIndexedNotNull { index, game ->
         if (game.archiveCategory == category) {
             ArchivedGameListItem(
                 index = index,
@@ -375,6 +376,14 @@ private fun List<GameState>.archiveListItems(
         } else {
             null
         }
+    }
+    return if (category == ArchivedGameCategory.SETUP) {
+        matchingGames.sortedWith(
+            compareBy<ArchivedGameListItem> { allGames[it.index].startEpoch }
+                .thenBy { it.index }
+        )
+    } else {
+        matchingGames
     }
 }
 

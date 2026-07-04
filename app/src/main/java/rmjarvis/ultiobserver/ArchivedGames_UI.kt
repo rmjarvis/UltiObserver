@@ -216,7 +216,7 @@ internal fun ArchivedGamesScreen(
             } else if (category == ArchivedGameCategory.IN_PROGRESS) {
                 "Completely delete all saved games? This cannot be undone."
             } else if (category == ArchivedGameCategory.SETUP) {
-                "Completely delete all saved setup states? This cannot be undone."
+                "Completely delete all saved setup drafts? This cannot be undone."
             } else if (archiveFilterSelections.isActive()) {
                 "Delete all the currently displayed archived games? This cannot be undone."
             } else {
@@ -828,14 +828,14 @@ private fun InProgressGamesList(
 }
 
 /**
- * Render the setup category with the current setup draft separate from saved setup states.
+ * Render the setup category with the current setup draft separate from saved setup drafts.
  *
- * @param currentSetup The current setup draft row to show above saved setup states, if any.
+ * @param currentSetup The current setup draft row to show above saved setup drafts, if any.
  * @param savedSetups Saved setup-state rows.
  * @param onOpenCurrentSetup Callback opening the current setup draft.
  * @param onOpenSavedSetup Callback opening one saved setup state.
  * @param onDeleteSavedSetup Callback requesting deletion of one saved setup state.
- * @param onDeleteAllSavedSetups Callback requesting deletion of all saved setup states.
+ * @param onDeleteAllSavedSetups Callback requesting deletion of all saved setup drafts.
  */
 @Composable
 private fun SetupStatesList(
@@ -864,7 +864,7 @@ private fun SetupStatesList(
 
     if (savedSetups.isNotEmpty()) {
         SavedArchiveSectionHeader(
-            label = "Saved setup states",
+            label = "Saved setup drafts",
             showTopDivider = currentSetup != null,
             onDeleteAllSavedItems = onDeleteAllSavedSetups,
         )

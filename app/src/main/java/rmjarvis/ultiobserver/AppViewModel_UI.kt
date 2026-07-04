@@ -323,11 +323,11 @@ internal fun UltiObserverApp(
         }
 
         AppScreen.SETUP -> {
-            val setupGame = appState.setupEditDraft ?: appState.currentGame!!
-            val editingCurrentGame = appState.setupEditDraft != null
+            val setupGame = appState.setupState
+            val setupMode = appState.setupMode
             fun finishSetup() {
                 if (
-                    !editingCurrentGame &&
+                    setupMode == SetupMode.NEW_GAME &&
                     setupGame.rules.hasEnabledCapTimingAlerts(
                         appState.timingAlertPreferences,
                     ) &&
@@ -344,35 +344,56 @@ internal fun UltiObserverApp(
                 onStateChange = { updatedState ->
                     viewModel.updateSetup(updatedState)
                 },
-                title = if (editingCurrentGame) {
-                    "Update game setup"
-                } else {
-                    "Setup game"
+                title = when (setupMode) {
+                    SetupMode.EDIT_CURRENT_GAME -> "Update game setup"
+                    SetupMode.EDIT_SAVED_SETUP -> "Saved setup draft"
+                    SetupMode.NEW_GAME -> "Setup game"
                 },
-                primaryButtonLabel = if (editingCurrentGame) {
-                    "Done"
-                } else {
-                    "Start game"
+                primaryButtonLabel = when (setupMode) {
+                    SetupMode.EDIT_CURRENT_GAME -> "Done"
+                    SetupMode.EDIT_SAVED_SETUP -> "Make current"
+                    SetupMode.NEW_GAME -> "Start game"
                 },
                 onPrimaryAction = {
-                    finishSetup()
-                },
-                onCancel = if (editingCurrentGame) {
-                    {
-                        viewModel.cancelSetupEdit()
+                    if (setupMode == SetupMode.EDIT_SAVED_SETUP) {
+                        viewModel.makeEditedSetupCurrent()
+                    } else {
+                        finishSetup()
                     }
-                } else {
-                    null
                 },
-                onSaveGameForLater = if (editingCurrentGame) {
-                    null
+                onSecondaryAction = when (setupMode) {
+                    SetupMode.EDIT_CURRENT_GAME -> {
+                        { viewModel.cancelSetupEdit() }
+                    }
+                    SetupMode.EDIT_SAVED_SETUP -> {
+                        { viewModel.openSavedSetupDrafts() }
+                    }
+                    SetupMode.NEW_GAME -> null
+                },
+                secondaryButtonLabel = if (setupMode == SetupMode.EDIT_SAVED_SETUP) {
+                    "Save draft"
                 } else {
+                    "Cancel"
+                },
+                secondaryButtonColors = if (setupMode == SetupMode.EDIT_SAVED_SETUP) {
+                    secondaryButtonColors()
+                } else {
+                    resetButtonColors()
+                },
+                secondaryActionFullWidth = setupMode == SetupMode.EDIT_SAVED_SETUP,
+                onSaveGameForLater = if (setupMode == SetupMode.NEW_GAME) {
                     {
                         viewModel.saveSetupForLater()
                     }
+                } else {
+                    null
                 },
                 onBackHome = {
-                    viewModel.goHome()
+                    if (setupMode == SetupMode.EDIT_SAVED_SETUP) {
+                        viewModel.openSavedSetupDrafts()
+                    } else {
+                        viewModel.goHome()
+                    }
                 },
                 onHome = {
                     viewModel.goHome()

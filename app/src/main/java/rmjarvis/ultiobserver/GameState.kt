@@ -592,8 +592,10 @@ data class GameState(
     /// Return the matchup/score summary line for compact game list rows.
     fun gameListSummaryLine(): String {
         return if (phase == GamePhase.SETUP) {
-            "${teamOne.normalizedName(TeamId.TEAM_ONE)} vs " +
-                "${teamTwo.normalizedName(TeamId.TEAM_TWO)} at ${formatClockTime(startTime)}"
+            val matchup = "${teamOne.normalizedName(TeamId.TEAM_ONE)} vs " +
+                teamTwo.normalizedName(TeamId.TEAM_TWO)
+            val field = setupDraftFieldText()
+            if (field == null) matchup else "$matchup on $field"
         } else {
             "${teamOne.name} ${teamOne.score} - ${teamTwo.score} ${teamTwo.name}"
         }
@@ -718,6 +720,14 @@ data class GameState(
             lastEvent = "Score adjusted.",
         ).withEventLogEntries(entries).withUndo(this, "Undo Score adjustment")
     }
+}
+
+private fun GameState.setupDraftFieldText(): String? {
+    val field = fieldName.trim()
+    if (field.isEmpty()) {
+        return null
+    }
+    return if (field.contains("field", ignoreCase = true)) field else "field $field"
 }
 
 /**
