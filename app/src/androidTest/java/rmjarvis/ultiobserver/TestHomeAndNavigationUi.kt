@@ -151,8 +151,8 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
                 )
             )
             activity.appViewModel.finishSetup(now = 123_000L)
-            activity.appViewModel.updateLiveGame(
-                activity.appViewModel.liveState!!.beginLivePoint(0L)
+            activity.appViewModel.updateCurrentGame(
+                activity.appViewModel.currentGame!!.beginLivePoint(0L)
             )
             activity.appViewModel.startNewGame(now = 123_000L)
             activity.appViewModel.updateSetup(
@@ -162,8 +162,8 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
                 )
             )
             activity.appViewModel.finishSetup(now = 123_000L)
-            activity.appViewModel.updateLiveGame(
-                activity.appViewModel.liveState!!.beginLivePoint(0L)
+            activity.appViewModel.updateCurrentGame(
+                activity.appViewModel.currentGame!!.beginLivePoint(0L)
             )
             activity.appViewModel.goHome()
         }
@@ -1211,7 +1211,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
                 teamOne = TeamState(name = teamOne, color = TeamColorChoice.WHITE),
                 teamTwo = TeamState(name = teamTwo, color = TeamColorChoice.BLUE),
             )
-            activity.appViewModel.updateLiveGame(
+            activity.appViewModel.updateCurrentGame(
                 setup.startGame().copy(
                     phase = GamePhase.GAME_OVER,
                     endEpoch = System.currentTimeMillis(),
@@ -1267,7 +1267,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             )
         )
         finishSetup(now = 123_000L)
-        updateLiveGame(liveState!!.beginLivePoint(0L))
+        updateCurrentGame(currentGame!!.beginLivePoint(0L))
     }
 
     /**

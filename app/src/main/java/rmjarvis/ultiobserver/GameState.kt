@@ -129,7 +129,7 @@ internal fun localTimeFromEpoch(epoch: Long, timeZone: ZoneId): LocalTime {
     return localDateTimeFromEpoch(epoch, timeZone).toLocalTime()
 }
 
-/// Identity of one of the two teams in setup and live game state.
+/// Identity of one of the two teams in setup and in-progress game state.
 @Serializable
 enum class TeamId {
     TEAM_ONE,
@@ -536,9 +536,10 @@ data class GameState(
     val startEpoch: Long
         get() = epochTimestamp(startDate, startTime, timeZone)
 
-    /// Report whether this state is still before the opening pull has started.
-    fun isInitialLivePreview(): Boolean {
-        return phase == GamePhase.PRE_GAME && eventLog.isEmpty()
+    /// Report whether game events have started after setup.
+    fun hasStarted(): Boolean {
+        return phase != GamePhase.SETUP &&
+            (phase != GamePhase.PRE_GAME || eventLog.isNotEmpty())
     }
 
     /**
@@ -731,10 +732,10 @@ private fun GameState.setupDraftFieldText(): String? {
 }
 
 /**
- * Apply edited setup fields to an existing live game.
- * This is the model-side return path from the live-game setup editor.
+ * Apply edited setup fields to an existing current game.
+ * This is the model-side return path from the update-game setup editor.
  *
- * @param existing The live state currently being edited.
+ * @param existing The current-game state being edited.
  * @param edited The setup-edited game state returned by the update-game form.
  * @param now The epoch millis for rebuilding the opening-pull countdown when its orientation
  * changes.
@@ -813,10 +814,10 @@ private fun TeamState.hasSameSetupFieldsAs(other: TeamState): Boolean {
 
 
 /**
- * Undo label and previous state for a reversible live-game action.
+ * Undo label and previous state for a reversible current-game action.
  *
  * @param label The user-facing undo button label.
- * @param previous The live state restored by undoing the action.
+ * @param previous The current-game state restored by undoing the action.
  */
 @Serializable
 data class UndoEntry(

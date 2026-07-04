@@ -49,7 +49,7 @@ internal fun UltiObserverApp(
     var showMissingExactAlarmAccessDialog by remember { mutableStateOf(false) }
     var showPreviousCrashDialog by rememberSaveable { mutableStateOf(previousRunCrashed) }
 
-    // Back returns to setup from the initial live preview, otherwise to home.
+    // Back returns to setup from the pre-pull preview, otherwise to home.
     BackHandler(enabled = appState.screen != AppScreen.HOME) {
         viewModel.goBackFromCurrentScreen()
     }
@@ -456,17 +456,17 @@ internal fun UltiObserverApp(
                     onDismissGameOverPrompt = {},
                 )
             } else {
-                val currentLiveState = appState.currentGame!!
+                val currentGame = appState.currentGame!!
                 LiveGameScreen(
-                    state = currentLiveState,
+                    state = currentGame,
                     automaticallyAdvanceCountdowns = appState.automaticallyAdvanceCountdowns,
                     automaticallyLockLivePoint = appState.automaticallyLockLivePoint,
                     showDefenseCountdowns = appState.showDefenseCountdowns,
                     onStateChange = { updatedState ->
-                        viewModel.updateLiveGame(updatedState)
+                        viewModel.updateCurrentGame(updatedState)
                     },
                     onUpdateGameSetup = {
-                        viewModel.editCurrentGame(currentLiveState)
+                        viewModel.editCurrentGame(currentGame)
                     },
                     onOpenGameSummary = {
                         viewModel.openCurrentGameSummary()

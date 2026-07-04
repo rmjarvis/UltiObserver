@@ -40,13 +40,13 @@ class TestFieldUi : MainActivityUiTestFixtures() {
         assertChooserMarkerAboveFieldMidpoint()
 
         // Moving the Gen Zone to the bottom end uses the bottom-row inline chooser marker.
-        updateLiveGameState { it.copy(firstHalfGenZone = FieldEnd.NEAR) }
+        updateCurrentGameState { it.copy(firstHalfGenZone = FieldEnd.NEAR) }
         composeRule.onAllNodesWithText("Chooses gender ratio").assertCountEquals(1)
         assertChooserMarkerBelowFieldMidpoint()
 
         // Flipping the displayed field end puts the same choosing team at the top again through
         // the opposite pull-orientation calculation.
-        updateLiveGameState { it.copy(topDisplayedEnd = FieldEnd.NEAR) }
+        updateCurrentGameState { it.copy(topDisplayedEnd = FieldEnd.NEAR) }
         composeRule.onAllNodesWithText("Chooses gender ratio").assertCountEquals(1)
         assertChooserMarkerAboveFieldMidpoint()
     }
@@ -67,7 +67,7 @@ class TestFieldUi : MainActivityUiTestFixtures() {
         waitForText("4M/3W")
 
         // Later ABBA points can show the opposite ratio.
-        updateLiveGameState {
+        updateCurrentGameState {
             it.copy(
                 teamOne = it.teamOne.copy(score = 1),
                 initialGenderRatio = GenderRatio.FOUR_MEN_THREE_WOMEN,
@@ -153,7 +153,7 @@ class TestFieldUi : MainActivityUiTestFixtures() {
             expectedTeamEllipsized = true,
             expectedEndEllipsized = false,
         )
-        updateLiveGameState { it.copy(topDisplayedEnd = FieldEnd.NEAR) }
+        updateCurrentGameState { it.copy(topDisplayedEnd = FieldEnd.NEAR) }
         assertTopFieldHeader(
             longTeamTwoName,
             "Near",
@@ -175,7 +175,7 @@ class TestFieldUi : MainActivityUiTestFixtures() {
             expectedTeamEllipsized = false,
             expectedEndEllipsized = true,
         )
-        updateLiveGameState { it.copy(topDisplayedEnd = FieldEnd.NEAR) }
+        updateCurrentGameState { it.copy(topDisplayedEnd = FieldEnd.NEAR) }
         assertTopFieldHeader(
             "Animal",
             longNearEndName,
@@ -197,7 +197,7 @@ class TestFieldUi : MainActivityUiTestFixtures() {
             expectedTeamEllipsized = true,
             expectedEndEllipsized = true,
         )
-        updateLiveGameState { it.copy(topDisplayedEnd = FieldEnd.NEAR) }
+        updateCurrentGameState { it.copy(topDisplayedEnd = FieldEnd.NEAR) }
         assertTopFieldHeader(
             longTeamTwoName,
             longNearEndName,
@@ -266,10 +266,10 @@ class TestFieldUi : MainActivityUiTestFixtures() {
         return textLayoutResults.single().isLineEllipsized(0)
     }
 
-    /// Update the live game state directly to focus this test on field rendering.
-    private fun updateLiveGameState(update: (GameState) -> GameState) {
+    /// Update the current game state directly to focus this test on field rendering.
+    private fun updateCurrentGameState(update: (GameState) -> GameState) {
         composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.updateLiveGame(update(activity.appViewModel.liveState!!))
+            activity.appViewModel.updateCurrentGame(update(activity.appViewModel.currentGame!!))
         }
         composeRule.waitForIdle()
     }

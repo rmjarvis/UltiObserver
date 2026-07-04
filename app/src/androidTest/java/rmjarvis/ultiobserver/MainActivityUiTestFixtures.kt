@@ -99,8 +99,8 @@ abstract class MainActivityUiTestFixtures {
     ) {
         startLiveGameProgrammatically(setup)
         composeRule.activityRule.scenario.onActivity { activity ->
-            val current = activity.appViewModel.liveState!!
-            activity.appViewModel.updateLiveGame(current.beginLivePoint(System.currentTimeMillis()))
+            val current = activity.appViewModel.currentGame!!
+            activity.appViewModel.updateCurrentGame(current.beginLivePoint(System.currentTimeMillis()))
         }
         composeRule.waitForIdle()
         assertLiveScreen()
@@ -120,8 +120,8 @@ abstract class MainActivityUiTestFixtures {
     ) {
         startLiveGameProgrammatically(setup)
         composeRule.activityRule.scenario.onActivity { activity ->
-            val current = activity.appViewModel.liveState!!
-            activity.appViewModel.updateLiveGame(
+            val current = activity.appViewModel.currentGame!!
+            activity.appViewModel.updateCurrentGame(
                 current.recordGoalFromCurrentState(scoringTeam, System.currentTimeMillis())
             )
         }
@@ -578,7 +578,7 @@ abstract class MainActivityUiTestFixtures {
                 endEpoch = System.currentTimeMillis(),
                 countdown = null,
             )
-            activity.appViewModel.updateLiveGame(completed)
+            activity.appViewModel.updateCurrentGame(completed)
             activity.appViewModel.archiveCompletedGame()
         }
         composeRule.waitForIdle()
@@ -598,8 +598,8 @@ abstract class MainActivityUiTestFixtures {
         teamTwoCards: List<PlayerRecord> = emptyList(),
     ) {
         composeRule.activityRule.scenario.onActivity { activity ->
-            val current = activity.appViewModel.liveState!!
-            activity.appViewModel.updateLiveGame(
+            val current = activity.appViewModel.currentGame!!
+            activity.appViewModel.updateCurrentGame(
                 current.copy(
                     teamOnePlayers = teamOneCards.withUniqueInGameCardIndexes(),
                     teamTwoPlayers = teamTwoCards.withUniqueInGameCardIndexes(),
@@ -628,8 +628,8 @@ abstract class MainActivityUiTestFixtures {
      */
     protected fun endCurrentGameProgrammatically() {
         composeRule.activityRule.scenario.onActivity { activity ->
-            val current = activity.appViewModel.liveState!!
-            activity.appViewModel.updateLiveGame(current.endGameNow(System.currentTimeMillis()))
+            val current = activity.appViewModel.currentGame!!
+            activity.appViewModel.updateCurrentGame(current.endGameNow(System.currentTimeMillis()))
         }
         waitForText("Game over")
     }
@@ -643,7 +643,7 @@ abstract class MainActivityUiTestFixtures {
     protected fun updateCurrentStateProgrammatically(update: GameState.() -> GameState) {
         composeRule.activityRule.scenario.onActivity { activity ->
             val current = activity.appViewModel.currentGame!!
-            activity.appViewModel.updateLiveGame(current.update())
+            activity.appViewModel.updateCurrentGame(current.update())
         }
         composeRule.waitForIdle()
     }
@@ -663,9 +663,9 @@ abstract class MainActivityUiTestFixtures {
      */
     protected fun setActiveCountdownRemainingProgrammatically(secondsRemaining: Int) {
         composeRule.activityRule.scenario.onActivity { activity ->
-            val current = activity.appViewModel.liveState!!
+            val current = activity.appViewModel.currentGame!!
             val countdown = current.countdown!!
-            activity.appViewModel.updateLiveGame(
+            activity.appViewModel.updateCurrentGame(
                 current.copy(
                     countdown = countdown.copy(
                         targetEpoch = System.currentTimeMillis() + secondsRemaining * 1000L,
@@ -693,8 +693,8 @@ abstract class MainActivityUiTestFixtures {
      */
     protected fun startTimeoutCountdownProgrammatically(secondsRemaining: Int = 70) {
         composeRule.activityRule.scenario.onActivity { activity ->
-            val current = activity.appViewModel.liveState!!
-            activity.appViewModel.updateLiveGame(
+            val current = activity.appViewModel.currentGame!!
+            activity.appViewModel.updateCurrentGame(
                 current.copy(
                     phase = GamePhase.LIVE_POINT,
                     countdown = CountdownState(

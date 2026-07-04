@@ -136,12 +136,12 @@ class TestPersistence : GameDomainTestFixtures() {
     }
 
     /**
-     * Verify persisted current-game state restores setup drafts, active live games, and
+     * Verify persisted current-game state restores setup drafts, active games, and
      * undo/redo history across ViewModel restarts.
      */
     @Test
     fun currentGamePersistence() {
-        // Use real file storage so setup-draft and live-game restart behavior is exercised.
+        // Use real file storage so setup-draft and current-game restart behavior is exercised.
         val storeDir = temporaryFolder.newFolder()
         val store = FileAppStateStorage(storeDir)
         val viewModel = AppViewModel(store)
@@ -160,41 +160,41 @@ class TestPersistence : GameDomainTestFixtures() {
         assertEquals(draftedSetup, draftRestored.setupState)
         assertEquals(persistedRules, draftRestored.setupState.rules)
         assertTrue(draftRestored.hasSetupDraft)
-        assertNull(draftRestored.liveState)
+        assertEquals(GamePhase.SETUP, draftRestored.currentGame?.phase)
         draftRestored.resumeCurrentGame()
         assertEquals(AppScreen.SETUP, draftRestored.screen)
 
         // Finish setup, record an undo-backed game action, and verify it survives restart.
         draftRestored.finishSetup(now = 123_000L)
         assertFalse(draftRestored.hasSetupDraft)
-        val livePointState = draftRestored.liveState!!.beginLivePoint()
+        val livePointState = draftRestored.currentGame!!.beginLivePoint()
         val scoredState = livePointState.recordGoal(
             scoringTeam = TeamId.TEAM_ONE,
             now = livePointState.startEpoch + 5 * 60_000L,
         )
-        draftRestored.updateLiveGame(scoredState)
+        draftRestored.updateCurrentGame(scoredState)
 
-        // A restarted ViewModel should restore the live game and its undo history.
+        // A restarted ViewModel should restore the current game and its undo history.
         val gameRestored = AppViewModel(FileAppStateStorage(storeDir))
         assertEquals(AppScreen.HOME, gameRestored.screen)
-        assertEquals(scoredState, gameRestored.liveState)
-        assertEquals(persistedRules, gameRestored.liveState!!.rules)
-        assertNotNull(gameRestored.liveState!!.undoEntry)
+        assertEquals(scoredState, gameRestored.currentGame)
+        assertEquals(persistedRules, gameRestored.currentGame!!.rules)
+        assertNotNull(gameRestored.currentGame!!.undoEntry)
         assertSame(
-            gameRestored.liveState!!.rules,
-            gameRestored.liveState!!.undoEntry!!.previous.rules,
+            gameRestored.currentGame!!.rules,
+            gameRestored.currentGame!!.undoEntry!!.previous.rules,
         )
         gameRestored.resumeCurrentGame()
         assertEquals(AppScreen.LIVE, gameRestored.screen)
-        val undoRestoredState = gameRestored.liveState!!.undoLastAction()
+        val undoRestoredState = gameRestored.currentGame!!.undoLastAction()
         assertEquals(livePointState, undoRestoredState.copy(redoEntry = null))
         assertNotNull(undoRestoredState.redoEntry)
 
         // Persisting the undone state should preserve the redo entry across another restart.
-        gameRestored.updateLiveGame(undoRestoredState)
+        gameRestored.updateCurrentGame(undoRestoredState)
         val redoRestored = AppViewModel(FileAppStateStorage(storeDir))
-        assertEquals(undoRestoredState, redoRestored.liveState)
-        assertEquals(scoredState, redoRestored.liveState!!.redoLastAction())
+        assertEquals(undoRestoredState, redoRestored.currentGame)
+        assertEquals(scoredState, redoRestored.currentGame!!.redoLastAction())
     }
 
     /**
@@ -213,8 +213,8 @@ class TestPersistence : GameDomainTestFixtures() {
         store.savedCurrentGames.clear()
 
         // Record an ordinary user-visible event through the same callback used by live UI actions.
-        val livePointState = viewModel.liveState!!.beginLivePoint()
-        viewModel.updateLiveGame(livePointState)
+        val livePointState = viewModel.currentGame!!.beginLivePoint()
+        viewModel.updateCurrentGame(livePointState)
         assertEquals("Point is live.", store.savedCurrentGames.single()!!.lastEvent)
         assertEquals(livePointState, store.savedCurrentGames.single())
         assertTrue(store.savedProfiles.isEmpty())
@@ -276,7 +276,7 @@ class TestPersistence : GameDomainTestFixtures() {
         // Complete and archive a game that still has live-only countdown and undo state.
         viewModel.startNewGame(now = 123_000L)
         viewModel.finishSetup(now = 123_000L)
-        val beforeEndGame = viewModel.liveState!!
+        val beforeEndGame = viewModel.currentGame!!
         val completedGame = beforeEndGame.copy(
             phase = GamePhase.GAME_OVER,
             countdown = CountdownState(
@@ -301,7 +301,7 @@ class TestPersistence : GameDomainTestFixtures() {
                 ),
             )
         )
-        viewModel.updateLiveGame(completedGame)
+        viewModel.updateCurrentGame(completedGame)
         viewModel.goHome()
         viewModel.archiveCompletedGame()
 
@@ -314,7 +314,7 @@ class TestPersistence : GameDomainTestFixtures() {
         // Restore from disk and verify the archived game keeps summary state and undo.
         val restored = AppViewModel(FileAppStateStorage(storeDir))
         assertEquals(AppScreen.HOME, restored.screen)
-        assertNull(restored.liveState)
+        assertNull(restored.currentGame)
         assertEquals(1, restored.archivedGames.size)
         assertNull(restored.archivedGames.single().countdown)
         assertEquals("Undo End game", restored.archivedGames.single().undoEntry?.label)
@@ -445,7 +445,7 @@ class TestPersistence : GameDomainTestFixtures() {
 
         // App startup should preserve readable buckets and report the current-game reset.
         val recoveredViewModel = AppViewModel(FileAppStateStorage(storeDir))
-        assertNull(recoveredViewModel.liveState)
+        assertNull(recoveredViewModel.currentGame)
         assertEquals("Casey Observer", recoveredViewModel.profileName)
         assertEquals(timingPreferences, recoveredViewModel.timingAlertPreferences)
         assertEquals(
@@ -638,7 +638,7 @@ class TestPersistence : GameDomainTestFixtures() {
         File(storeDir, "settings.json").writeText("{not-json")
         val viewModel = AppViewModel(FileAppStateStorage(storeDir))
         assertEquals(AppScreen.HOME, viewModel.screen)
-        assertNull(viewModel.liveState)
+        assertNull(viewModel.currentGame)
         assertEquals("", viewModel.profileName)
         assertEquals(TimingAlertPreferences(), viewModel.timingAlertPreferences)
         assertEquals(

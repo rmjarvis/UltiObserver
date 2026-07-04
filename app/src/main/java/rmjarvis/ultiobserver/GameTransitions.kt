@@ -3,7 +3,7 @@ package rmjarvis.ultiobserver
 import kotlin.math.max
 
 /**
- * Start a setup-stage game and prepare the opening-pull live preview.
+ * Start a setup-stage game and prepare the opening-pull pre-game state.
  *
  * @receiver The setup-stage state to start.
  */
@@ -296,7 +296,7 @@ private fun startHalftime(
     ).withUndo(undoPrevious, undoLabel)
 }
 /**
- * End the current game immediately from any non-finished live state.
+ * End the current game immediately from any non-finished state.
  *
  * @param now The epoch millis to store as the actual game end time.
  */

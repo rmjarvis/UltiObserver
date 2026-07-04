@@ -30,7 +30,7 @@ class TestMigration : GameDomainTestFixtures() {
     fun migrateFixturesFromV1_0() {
         // default-buckets was created with the defaults for everything.
         val defaultBuckets = loadMigratedFixture("v1.0", "default-buckets")
-        assertNull(defaultBuckets.liveState)
+        assertNull(defaultBuckets.currentGame)
         assertFalse(defaultBuckets.hasSetupDraft)
         assertEquals("", defaultBuckets.profileName)
         assertTrue(defaultBuckets.archivedGames.isEmpty())
@@ -71,7 +71,7 @@ class TestMigration : GameDomainTestFixtures() {
         // player number to be "unknown".  We convert these unknown player numbers into
         // N/A (1), N/A (2), etc. in the name field.  Or just N/A if there is only one.
         val activeGame = loadMigratedFixture("v1.0", "active-game")
-        val liveState = activeGame.liveState!!
+        val currentState = activeGame.currentGame!!
         assertEquals("Casey Observer", activeGame.profileName)
         assertEquals(ObserverAvatarPreference.BLUE, activeGame.avatarPreference)
         assertFalse(activeGame.automaticallyAdvanceCountdowns)
@@ -81,29 +81,29 @@ class TestMigration : GameDomainTestFixtures() {
         assertEquals(250L, activeGame.timingAlertPreferences.vibrationDurationMillis)
         assertTrue(activeGame.timingAlertPreferences.vibrateWithSounds)
         assertEquals(SetupMode.EDIT_CURRENT_GAME, activeGame.setupMode)
-        assertNull(liveState.undoEntry)
-        assertNull(liveState.redoEntry)
-        assertNull(liveState.countdown)
-        assertTrue(liveState.hasExpiredPullActions(liveState.startEpoch))
+        assertNull(currentState.undoEntry)
+        assertNull(currentState.redoEntry)
+        assertNull(currentState.countdown)
+        assertTrue(currentState.hasExpiredPullActions(currentState.startEpoch))
         assertEquals(1, activeGame.archivedGames.size)
-        assertEquals(TeamId.TEAM_ONE, liveState.teamDefendingEnd(FieldEnd.FAR))
-        assertEquals(TeamId.TEAM_TWO, liveState.pullingTeam)
-        assertEquals(FieldEnd.NEAR, liveState.pullingFromEnd)
-        assertEquals(PullPromptTarget.NEAR, liveState.pullPromptTarget)
-        assertEquals(TeamId.TEAM_TWO, liveState.openingPullingTeam)
-        assertEquals(FieldEnd.NEAR, liveState.openingPullingFromEnd)
-        assertEquals(1, liveState.teamOne.score)
-        assertEquals(1, liveState.teamTwo.score)
-        assertEquals(2, liveState.teamOne.blueCards)
-        assertEquals(1, liveState.teamOne.technicalFouls)
-        assertEquals(1, liveState.teamTwo.blueCards)
-        assertEquals(2, liveState.teamTwo.technicalFouls)
-        assertEquals(1, liveState.teamOne.offsides)
-        assertEquals(1, liveState.teamOne.falseStarts)
-        assertEquals(1, liveState.teamOne.timeoutsUsedThisHalf)
-        assertEquals(1, liveState.teamTwo.offsides)
-        assertEquals(1, liveState.teamTwo.falseStarts)
-        assertEquals(1, liveState.teamTwo.timeoutsUsedThisHalf)
+        assertEquals(TeamId.TEAM_ONE, currentState.teamDefendingEnd(FieldEnd.FAR))
+        assertEquals(TeamId.TEAM_TWO, currentState.pullingTeam)
+        assertEquals(FieldEnd.NEAR, currentState.pullingFromEnd)
+        assertEquals(PullPromptTarget.NEAR, currentState.pullPromptTarget)
+        assertEquals(TeamId.TEAM_TWO, currentState.openingPullingTeam)
+        assertEquals(FieldEnd.NEAR, currentState.openingPullingFromEnd)
+        assertEquals(1, currentState.teamOne.score)
+        assertEquals(1, currentState.teamTwo.score)
+        assertEquals(2, currentState.teamOne.blueCards)
+        assertEquals(1, currentState.teamOne.technicalFouls)
+        assertEquals(1, currentState.teamTwo.blueCards)
+        assertEquals(2, currentState.teamTwo.technicalFouls)
+        assertEquals(1, currentState.teamOne.offsides)
+        assertEquals(1, currentState.teamOne.falseStarts)
+        assertEquals(1, currentState.teamOne.timeoutsUsedThisHalf)
+        assertEquals(1, currentState.teamTwo.offsides)
+        assertEquals(1, currentState.teamTwo.falseStarts)
+        assertEquals(1, currentState.teamTwo.timeoutsUsedThisHalf)
         assertEquals(
             listOf(
                 PlayerRecord(
@@ -126,7 +126,7 @@ class TestMigration : GameDomainTestFixtures() {
                     cards = listOf(InGamePlayerCardEvent(CardType.RED, 3)),
                 ),
             ),
-            liveState.teamOnePlayers,
+            currentState.teamOnePlayers,
         )
         assertEquals(
             listOf(
@@ -150,24 +150,24 @@ class TestMigration : GameDomainTestFixtures() {
                     ),
                 ),
             ),
-            liveState.teamTwoPlayers,
+            currentState.teamTwoPlayers,
         )
-        assertTrue(liveState.eventLog.any { entry ->
+        assertTrue(currentState.eventLog.any { entry ->
             entry.type == EventLogType.YELLOW_CARD &&
                 entry.player == PlayerIdentity("", "N/A (2)")
         })
-        assertEquals(2, liveState.eventLog.count { it.type == EventLogType.OFFSIDES })
-        assertEquals(2, liveState.eventLog.count { it.type == EventLogType.FALSE_START })
-        assertEquals(2, liveState.eventLog.count { it.type == EventLogType.TIMEOUT })
+        assertEquals(2, currentState.eventLog.count { it.type == EventLogType.OFFSIDES })
+        assertEquals(2, currentState.eventLog.count { it.type == EventLogType.FALSE_START })
+        assertEquals(2, currentState.eventLog.count { it.type == EventLogType.TIMEOUT })
 
         // setup-saved was a game that just got past the setup stage before being archived
         // and restored as the current game.
         val setupSaved = loadMigratedFixture("v1.0", "setup-saved")
-        val setupSavedLiveState = setupSaved.liveState!!
-        assertEquals(GamePhase.PRE_GAME, setupSavedLiveState.phase)
-        assertNull(setupSavedLiveState.undoEntry)
-        assertNull(setupSavedLiveState.countdown)
-        assertTrue(setupSavedLiveState.hasExpiredPullActions(setupSavedLiveState.startEpoch))
+        val setupSavedCurrentGame = setupSaved.currentGame!!
+        assertEquals(GamePhase.PRE_GAME, setupSavedCurrentGame.phase)
+        assertNull(setupSavedCurrentGame.undoEntry)
+        assertNull(setupSavedCurrentGame.countdown)
+        assertTrue(setupSavedCurrentGame.hasExpiredPullActions(setupSavedCurrentGame.startEpoch))
         assertEquals(1, setupSaved.archivedGames.size)
         val setupSavedArchive = setupSaved.archivedGames.single()
         assertEquals(ArchivedGameCategory.IN_PROGRESS, setupSavedArchive.archiveCategory)
@@ -181,13 +181,13 @@ class TestMigration : GameDomainTestFixtures() {
         assertTrue(setupSavedArchive.eventLog.isEmpty())
 
         // complete-current-game is a game that has finished, but not been archived.
-        // So it still has an Undo End game option to take it back to a live game state.
+        // So it still has an Undo End game option to take it back to in-progress state.
         // It also exercises a few different paths for unknown players than the other
         // games do.
         val completeCurrentGame = loadMigratedFixture("v1.0", "complete-current-game")
-        val completeCurrentLiveState = completeCurrentGame.liveState!!
-        assertEquals(GamePhase.GAME_OVER, completeCurrentLiveState.phase)
-        assertEquals("Undo End game", completeCurrentLiveState.undoEntry?.label)
+        val completeCurrentState = completeCurrentGame.currentGame!!
+        assertEquals(GamePhase.GAME_OVER, completeCurrentState.phase)
+        assertEquals("Undo End game", completeCurrentState.undoEntry?.label)
         assertEquals(
             listOf(
                 PlayerRecord(
@@ -200,7 +200,7 @@ class TestMigration : GameDomainTestFixtures() {
                     ),
                 ),
             ),
-            completeCurrentLiveState.teamOnePlayers,
+            completeCurrentState.teamOnePlayers,
         )
         assertEquals(
             listOf(
@@ -214,31 +214,31 @@ class TestMigration : GameDomainTestFixtures() {
                     playerName = "N/A (2)",
                 ),
             ),
-            completeCurrentLiveState.teamTwoPlayers,
+            completeCurrentState.teamTwoPlayers,
         )
         assertEquals(
             2,
-            completeCurrentLiveState.eventLog.count { entry ->
+            completeCurrentState.eventLog.count { entry ->
                 entry.type == EventLogType.YELLOW_CARD &&
                     entry.player == PlayerIdentity("", "N/A")
             },
         )
-        assertTrue(completeCurrentLiveState.eventLog.any { entry ->
+        assertTrue(completeCurrentState.eventLog.any { entry ->
             entry.type == EventLogType.RED_CARD &&
                 entry.player == PlayerIdentity("", "N/A (1)")
         })
         assertEquals(
             2,
-            completeCurrentLiveState.eventLog.count { entry ->
+            completeCurrentState.eventLog.count { entry ->
                 entry.type == EventLogType.YELLOW_CARD &&
                     entry.player == PlayerIdentity("", "N/A (2)")
             },
         )
-        assertFalse(completeCurrentLiveState.eventLog.any { entry ->
+        assertFalse(completeCurrentState.eventLog.any { entry ->
             entry.type == EventLogType.RED_CARD &&
                 entry.player == PlayerIdentity("", "N/A (2)")
         })
-        val restoredCompleteCurrentGame = completeCurrentLiveState.undoLastAction()
+        val restoredCompleteCurrentGame = completeCurrentState.undoLastAction()
         assertEquals(GamePhase.BETWEEN_POINTS, restoredCompleteCurrentGame.phase)
         assertNull(restoredCompleteCurrentGame.undoEntry)
         assertNotNull(restoredCompleteCurrentGame.redoEntry)
@@ -250,11 +250,11 @@ class TestMigration : GameDomainTestFixtures() {
         // There are also some more obscure patterns with the unknown players getting cards,
         // which weren't covered in other games yet.
         val timeoutCountdown = loadMigratedFixture("v1.0", "timeout-countdown")
-        val timeoutCountdownLiveState = timeoutCountdown.liveState!!
-        assertEquals(GamePhase.LIVE_POINT, timeoutCountdownLiveState.phase)
-        assertNull(timeoutCountdownLiveState.countdown)
-        assertFalse(timeoutCountdownLiveState.hasExpiredPullActions(timeoutCountdownLiveState.startEpoch))
-        assertEquals(1, timeoutCountdownLiveState.teamOne.timeoutsUsedThisHalf)
+        val timeoutCountdownCurrentGame = timeoutCountdown.currentGame!!
+        assertEquals(GamePhase.LIVE_POINT, timeoutCountdownCurrentGame.phase)
+        assertNull(timeoutCountdownCurrentGame.countdown)
+        assertFalse(timeoutCountdownCurrentGame.hasExpiredPullActions(timeoutCountdownCurrentGame.startEpoch))
+        assertEquals(1, timeoutCountdownCurrentGame.teamOne.timeoutsUsedThisHalf)
         assertEquals(
             listOf(
                 PlayerRecord("5", priorYellows = 1),
@@ -269,7 +269,7 @@ class TestMigration : GameDomainTestFixtures() {
                     playerName = "N/A (2)",
                 ),
             ),
-            timeoutCountdownLiveState.teamOnePlayers,
+            timeoutCountdownCurrentGame.teamOnePlayers,
         )
         assertEquals(
             listOf(
@@ -286,37 +286,37 @@ class TestMigration : GameDomainTestFixtures() {
                 ),
                 PlayerRecord("", "N/A (3)"),
             ),
-            timeoutCountdownLiveState.teamTwoPlayers,
+            timeoutCountdownCurrentGame.teamTwoPlayers,
         )
         assertEquals(
             2,
-            timeoutCountdownLiveState.eventLog.count { entry ->
+            timeoutCountdownCurrentGame.eventLog.count { entry ->
                 entry.type == EventLogType.YELLOW_CARD &&
                     entry.team == TeamId.TEAM_ONE &&
                     entry.player == PlayerIdentity("", "N/A (1)")
             },
         )
-        assertTrue(timeoutCountdownLiveState.eventLog.any { entry ->
+        assertTrue(timeoutCountdownCurrentGame.eventLog.any { entry ->
             entry.type == EventLogType.YELLOW_CARD &&
                 entry.team == TeamId.TEAM_ONE &&
                 entry.player == PlayerIdentity("", "N/A (2)")
         })
-        assertTrue(timeoutCountdownLiveState.eventLog.any { entry ->
+        assertTrue(timeoutCountdownCurrentGame.eventLog.any { entry ->
             entry.type == EventLogType.YELLOW_CARD &&
                 entry.team == TeamId.TEAM_TWO &&
                 entry.player == PlayerIdentity("", "N/A (2)")
         })
-        assertTrue(timeoutCountdownLiveState.eventLog.any { entry ->
+        assertTrue(timeoutCountdownCurrentGame.eventLog.any { entry ->
             entry.type == EventLogType.RED_CARD &&
                 entry.team == TeamId.TEAM_TWO &&
                 entry.player == PlayerIdentity("", "N/A (1)")
         })
-        assertTrue(timeoutCountdownLiveState.eventLog.any { entry ->
+        assertTrue(timeoutCountdownCurrentGame.eventLog.any { entry ->
             entry.type == EventLogType.RED_CARD &&
                 entry.team == TeamId.TEAM_TWO &&
                 entry.player == PlayerIdentity("", "N/A (2)")
         })
-        assertTrue(timeoutCountdownLiveState.eventLog.any { entry ->
+        assertTrue(timeoutCountdownCurrentGame.eventLog.any { entry ->
             entry.type == EventLogType.RED_CARD &&
                 entry.team == TeamId.TEAM_TWO &&
                 entry.player == PlayerIdentity("", "N/A (3)")

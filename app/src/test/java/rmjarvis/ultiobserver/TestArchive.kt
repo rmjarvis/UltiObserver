@@ -636,11 +636,11 @@ class TestArchive : GameDomainTestFixtures() {
         val viewModel = AppViewModel(NoOpAppStateStorage)
         viewModel.startNewGame(now = 123_000L)
         viewModel.finishSetup(now = 123_000L)
-        val finishedGame = viewModel.liveState!!.copy(phase = GamePhase.GAME_OVER)
-        viewModel.updateLiveGame(finishedGame)
+        val finishedGame = viewModel.currentGame!!.copy(phase = GamePhase.GAME_OVER)
+        viewModel.updateCurrentGame(finishedGame)
         viewModel.goHome()
         viewModel.archiveCompletedGame()
-        assertNull(viewModel.liveState)
+        assertNull(viewModel.currentGame)
         assertEquals(1, viewModel.archivedGames.size)
         val archivedGame = viewModel.archivedGames.single()
         assertEquals(GamePhase.GAME_OVER, archivedGame.phase)
@@ -649,7 +649,7 @@ class TestArchive : GameDomainTestFixtures() {
         viewModel.openArchivedGame(0, now = 123_000L)
         assertEquals(AppScreen.ARCHIVED_GAMES, viewModel.screen)
         assertEquals(archivedGame, viewModel.viewingArchivedGame!!)
-        assertEquals(archivedGame, viewModel.currentLiveState)
+        assertEquals(archivedGame, viewModel.displayedGame)
 
         // Back navigation returns from the archived summary to the archive list.
         viewModel.goBackFromCurrentScreen()
@@ -679,15 +679,15 @@ class TestArchive : GameDomainTestFixtures() {
         val viewModel = AppViewModel(NoOpAppStateStorage)
         viewModel.startNewGame(now = 123_000L)
         viewModel.finishSetup(now = 123_000L)
-        val currentGame = viewModel.liveState!!.beginLivePoint(123_000L)
-        viewModel.updateLiveGame(currentGame)
+        val currentGame = viewModel.currentGame!!.beginLivePoint(123_000L)
+        viewModel.updateCurrentGame(currentGame)
         viewModel.openArchivedGames()
         viewModel.openArchivedGameCategory(ArchivedGameCategory.IN_PROGRESS)
         viewModel.openCurrentGameSummary()
         assertEquals(AppScreen.LIVE, viewModel.screen)
         assertTrue(viewModel.viewingCurrentGameSummary)
         assertTrue(viewModel.archivedGames.isEmpty())
-        assertEquals(currentGame, viewModel.currentLiveState)
+        assertEquals(currentGame, viewModel.displayedGame)
 
         // Back returns to the in-progress archive list, while explicit resume returns to live play.
         viewModel.goBackFromCurrentScreen()
@@ -707,14 +707,14 @@ class TestArchive : GameDomainTestFixtures() {
 
         // A completed current game opens the normal current-game summary.
         val completedCurrentGame = currentGame.copy(phase = GamePhase.GAME_OVER)
-        viewModel.updateLiveGame(completedCurrentGame)
+        viewModel.updateCurrentGame(completedCurrentGame)
         viewModel.openArchivedGames()
         viewModel.openArchivedGameCategory(ArchivedGameCategory.IN_PROGRESS)
         viewModel.openCurrentGameSummary()
         assertEquals(AppScreen.LIVE, viewModel.screen)
         assertFalse(viewModel.viewingCurrentGameSummary)
-        assertEquals(GamePhase.GAME_OVER, viewModel.liveState!!.phase)
-        assertEquals(completedCurrentGame, viewModel.currentLiveState)
+        assertEquals(GamePhase.GAME_OVER, viewModel.currentGame!!.phase)
+        assertEquals(completedCurrentGame, viewModel.displayedGame)
 
         // A stale UI callback should not leave archive navigation when no current game exists.
         viewModel.deleteCurrentGame()
@@ -724,7 +724,7 @@ class TestArchive : GameDomainTestFixtures() {
         assertEquals(AppScreen.ARCHIVED_GAMES, viewModel.screen)
         assertEquals(ArchivedGameCategory.IN_PROGRESS, viewModel.selectedArchiveCategory)
         assertFalse(viewModel.viewingCurrentGameSummary)
-        assertNull(viewModel.currentLiveState)
+        assertNull(viewModel.displayedGame)
     }
 
     /**
@@ -737,16 +737,16 @@ class TestArchive : GameDomainTestFixtures() {
         val viewModel = AppViewModel(NoOpAppStateStorage)
         viewModel.startNewGame(now = 123_000L)
         viewModel.finishSetup(now = 123_000L)
-        val archivedGame = viewModel.liveState!!.copy(phase = GamePhase.GAME_OVER)
-        viewModel.updateLiveGame(archivedGame)
+        val archivedGame = viewModel.currentGame!!.copy(phase = GamePhase.GAME_OVER)
+        viewModel.updateCurrentGame(archivedGame)
         viewModel.archiveCompletedGame()
         val archivedState = viewModel.archivedGames.single()
 
         // Create a separate current preview that will be saved during restore.
         viewModel.startNewGame(now = 123_000L)
         viewModel.finishSetup(now = 123_000L)
-        val previewState = viewModel.liveState!!
-        assertTrue(previewState.isInitialLivePreview())
+        val previewState = viewModel.currentGame!!
+        assertFalse(previewState.hasStarted())
 
         // Restoring the archive promotes it and saves the previous current preview.
         viewModel.openArchivedGame(0, now = 123_000L)
@@ -754,7 +754,7 @@ class TestArchive : GameDomainTestFixtures() {
         assertEquals(AppScreen.LIVE, viewModel.screen)
         assertFalse(viewModel.viewingCurrentGameSummary)
         assertNull(viewModel.viewingArchivedGame)
-        assertEquals(archivedState, viewModel.liveState)
+        assertEquals(archivedState, viewModel.currentGame)
         assertEquals(1, viewModel.archivedGames.size)
         assertEquals(
             ArchivedGameCategory.IN_PROGRESS,
@@ -788,7 +788,7 @@ class TestArchive : GameDomainTestFixtures() {
         viewModel.saveSetupForLater()
         assertEquals(AppScreen.HOME, viewModel.screen)
         assertFalse(viewModel.hasSetupDraft)
-        assertNull(viewModel.liveState)
+        assertNull(viewModel.currentGame)
         assertEquals(1, viewModel.archivedGames.size)
         assertEquals(ArchivedGameCategory.SETUP, viewModel.archivedGames.single().archiveCategory)
         assertEquals(GamePhase.SETUP, viewModel.archivedGames.single().phase)
@@ -883,7 +883,7 @@ class TestArchive : GameDomainTestFixtures() {
         viewModel.makeEditedSetupCurrent()
         assertEquals(AppScreen.SETUP, viewModel.screen)
         assertTrue(viewModel.hasSetupDraft)
-        assertNull(viewModel.liveState)
+        assertEquals(GamePhase.SETUP, viewModel.currentGame?.phase)
         assertEquals(editedSavedSetup, viewModel.setupState)
         assertEquals(SetupMode.NEW_GAME, viewModel.setupMode)
         assertEquals(1, viewModel.archivedGames.size)
@@ -901,8 +901,8 @@ class TestArchive : GameDomainTestFixtures() {
             )
         )
         viewModel.finishSetup(now = 123_000L)
-        assertEquals("Current 0 - 0 Live", viewModel.liveState!!.gameListSummaryLine())
-        viewModel.updateLiveGame(viewModel.liveState!!.beginLivePoint())
+        assertEquals("Current 0 - 0 Live", viewModel.currentGame!!.gameListSummaryLine())
+        viewModel.updateCurrentGame(viewModel.currentGame!!.beginLivePoint())
         viewModel.openArchivedGames()
         viewModel.openArchivedGameCategory(ArchivedGameCategory.SETUP)
         viewModel.openArchivedGame(1, now = 123_000L)
@@ -927,10 +927,10 @@ class TestArchive : GameDomainTestFixtures() {
         val viewModel = AppViewModel(NoOpAppStateStorage)
         viewModel.startNewGame(now = 123_000L)
         viewModel.finishSetup(now = 123_000L)
-        viewModel.updateLiveGame(
-            viewModel.liveState!!.copy(
+        viewModel.updateCurrentGame(
+            viewModel.currentGame!!.copy(
                 phase = GamePhase.GAME_OVER,
-                teamOne = viewModel.liveState!!.teamOne.copy(name = "Completed first"),
+                teamOne = viewModel.currentGame!!.teamOne.copy(name = "Completed first"),
             )
         )
         viewModel.archiveCompletedGame()
@@ -938,8 +938,8 @@ class TestArchive : GameDomainTestFixtures() {
 
         viewModel.startNewGame(now = 123_000L)
         viewModel.finishSetup(now = 123_000L)
-        viewModel.updateLiveGame(viewModel.liveState!!.beginLivePoint())
-        val savedLiveState = viewModel.liveState!!
+        viewModel.updateCurrentGame(viewModel.currentGame!!.beginLivePoint())
+        val savedLiveState = viewModel.currentGame!!
         viewModel.startNewGame(now = 123_000L)
         assertEquals(2, viewModel.archivedGames.size)
         assertEquals(existingCompletedArchive, viewModel.archivedGames.first())
@@ -977,10 +977,10 @@ class TestArchive : GameDomainTestFixtures() {
         viewModel.openArchivedGameCategory(ArchivedGameCategory.COMPLETED)
         viewModel.openArchivedGame(1, now = 123_000L)
         viewModel.restoreCompletedGame()
-        assertEquals(GamePhase.GAME_OVER, viewModel.liveState!!.phase)
+        assertEquals(GamePhase.GAME_OVER, viewModel.currentGame!!.phase)
         assertEquals(
             savedLiveState.pruneUndoHistory(clearCountdown = false),
-            viewModel.liveState!!.undoLastAction().copy(redoEntry = null),
+            viewModel.currentGame!!.undoLastAction().copy(redoEntry = null),
         )
     }
 
@@ -994,20 +994,20 @@ class TestArchive : GameDomainTestFixtures() {
         val viewModel = AppViewModel(NoOpAppStateStorage)
         viewModel.startNewGame(now = 123_000L)
         viewModel.finishSetup(now = 123_000L)
-        val completedGame = viewModel.liveState!!.copy(phase = GamePhase.GAME_OVER)
-        viewModel.updateLiveGame(completedGame)
+        val completedGame = viewModel.currentGame!!.copy(phase = GamePhase.GAME_OVER)
+        viewModel.updateCurrentGame(completedGame)
         assertNull(viewModel.currentGameHomeSubtitle)
         viewModel.goHome()
         viewModel.openCompletedGame()
         assertEquals(AppScreen.LIVE, viewModel.screen)
-        assertEquals(completedGame, viewModel.currentLiveState)
+        assertEquals(completedGame, viewModel.displayedGame)
         assertFalse(viewModel.viewingCurrentGameSummary)
         assertNull(viewModel.viewingArchivedGame)
 
         // Archiving the completed current game clears the current slot.
         viewModel.goHome()
         viewModel.archiveCompletedGame()
-        assertNull(viewModel.liveState)
+        assertNull(viewModel.currentGame)
         assertEquals(1, viewModel.archivedGames.size)
         assertEquals(
             ArchivedGameCategory.COMPLETED,
@@ -1030,7 +1030,7 @@ class TestArchive : GameDomainTestFixtures() {
         val viewModel = AppViewModel(NoOpAppStateStorage)
         viewModel.startNewGame(now = 123_000L)
         viewModel.finishSetup(now = 123_000L)
-        val initialLiveState = viewModel.liveState!!
+        val initialLiveState = viewModel.currentGame!!
         val beforeEndGame = initialLiveState.copy(
             undoEntry = UndoEntry("Undo Start point", initialLiveState),
         )
@@ -1039,7 +1039,7 @@ class TestArchive : GameDomainTestFixtures() {
             undoEntry = UndoEntry("Undo End game", beforeEndGame),
             redoEntry = beforeEndGame,
         )
-        viewModel.updateLiveGame(completedGame)
+        viewModel.updateCurrentGame(completedGame)
         viewModel.archiveCompletedGame()
         val archivedState = viewModel.archivedGames.single()
         val prunedBeforeEndGame = beforeEndGame.pruneUndoHistory()
@@ -1050,7 +1050,7 @@ class TestArchive : GameDomainTestFixtures() {
         // Restoring the archive keeps the end-game undo while older undo entries stay pruned.
         viewModel.openArchivedGame(0, now = 123_000L)
         viewModel.restoreCompletedGame()
-        val restoredGame = viewModel.liveState!!
+        val restoredGame = viewModel.currentGame!!
         val restoredUndo = restoredGame.undoLastAction()
         assertEquals(GamePhase.GAME_OVER, restoredGame.phase)
         assertEquals("Undo End game", restoredGame.undoEntry?.label)
@@ -1068,15 +1068,15 @@ class TestArchive : GameDomainTestFixtures() {
         val viewModel = AppViewModel(NoOpAppStateStorage)
         viewModel.restoreCompletedGame()
         assertEquals(AppScreen.HOME, viewModel.screen)
-        assertNull(viewModel.liveState)
+        assertNull(viewModel.currentGame)
         assertTrue(viewModel.archivedGames.isEmpty())
 
         // Restoring from the full archive list removes the selected archive and promotes it
         // to current game.
         viewModel.startNewGame(now = 123_000L)
         viewModel.finishSetup(now = 123_000L)
-        viewModel.updateLiveGame(
-            viewModel.liveState!!.copy(
+        viewModel.updateCurrentGame(
+            viewModel.currentGame!!.copy(
                 phase = GamePhase.GAME_OVER,
                 teamOne = TeamState("First Archive", TeamColorChoice.WHITE),
             )
@@ -1086,8 +1086,8 @@ class TestArchive : GameDomainTestFixtures() {
         // Add a second archive so a valid restore can prove it removes only the selected game.
         viewModel.startNewGame(now = 123_000L)
         viewModel.finishSetup(now = 123_000L)
-        viewModel.updateLiveGame(
-            viewModel.liveState!!.copy(
+        viewModel.updateCurrentGame(
+            viewModel.currentGame!!.copy(
                 phase = GamePhase.GAME_OVER,
                 teamOne = TeamState("Second Archive", TeamColorChoice.WHITE),
             )
@@ -1102,7 +1102,7 @@ class TestArchive : GameDomainTestFixtures() {
         assertEquals(AppScreen.LIVE, viewModel.screen)
         assertFalse(viewModel.viewingCurrentGameSummary)
         assertNull(viewModel.viewingArchivedGame)
-        assertEquals("Second Archive", viewModel.liveState!!.teamOne.name)
+        assertEquals("Second Archive", viewModel.currentGame!!.teamOne.name)
         assertEquals(1, viewModel.archivedGames.size)
         assertEquals("First Archive", viewModel.archivedGames.single().teamOne.name)
     }
@@ -1113,35 +1113,35 @@ class TestArchive : GameDomainTestFixtures() {
      */
     @Test
     fun gameDeletion() {
-        // Deleting the current game clears current and currentLive state.
+        // Deleting the current game clears current and displayed game state.
         val viewModel = AppViewModel(NoOpAppStateStorage)
         viewModel.startNewGame(now = 123_000L)
         viewModel.finishSetup(now = 123_000L)
-        val currentGame = viewModel.liveState!!
+        val currentGame = viewModel.currentGame!!
         viewModel.deleteCurrentGame()
         assertEquals(AppScreen.HOME, viewModel.screen)
-        assertNull(viewModel.liveState)
-        assertNull(viewModel.currentLiveState)
+        assertNull(viewModel.currentGame)
+        assertNull(viewModel.displayedGame)
 
         // Deleting a viewed archived game clears the selection.
-        viewModel.updateLiveGame(currentGame.copy(phase = GamePhase.GAME_OVER))
+        viewModel.updateCurrentGame(currentGame.copy(phase = GamePhase.GAME_OVER))
         viewModel.archiveCompletedGame()
         assertEquals(1, viewModel.archivedGames.size)
         viewModel.openArchivedGame(0, now = 123_000L)
         assertNotNull(viewModel.viewingArchivedGame)
         viewModel.deleteArchivedGame(0)
         assertTrue(viewModel.archivedGames.isEmpty())
-        assertNull(viewModel.currentLiveState)
+        assertNull(viewModel.displayedGame)
 
         // Category bulk delete clears only the selected category.
-        viewModel.updateLiveGame(currentGame.beginLivePoint())
+        viewModel.updateCurrentGame(currentGame.beginLivePoint())
         viewModel.startNewGame(now = 123_000L)
         assertEquals(1, viewModel.archivedGames.size)
         assertEquals(
             ArchivedGameCategory.IN_PROGRESS,
             viewModel.archivedGames.single().archiveCategory,
         )
-        viewModel.updateLiveGame(currentGame.copy(phase = GamePhase.GAME_OVER))
+        viewModel.updateCurrentGame(currentGame.copy(phase = GamePhase.GAME_OVER))
         viewModel.archiveCompletedGame()
         assertEquals(2, viewModel.archivedGames.size)
         viewModel.openArchivedGames()
@@ -1157,7 +1157,7 @@ class TestArchive : GameDomainTestFixtures() {
         // Selected bulk delete can target the filtered row indices without removing hidden
         // archived games or other categories.
         listOf("First filtered game", "Hidden game", "Second filtered game").forEach { teamName ->
-            viewModel.updateLiveGame(
+            viewModel.updateCurrentGame(
                 currentGame.copy(
                     phase = GamePhase.GAME_OVER,
                     teamOne = currentGame.teamOne.copy(name = teamName),
@@ -1175,9 +1175,9 @@ class TestArchive : GameDomainTestFixtures() {
         assertEquals("Hidden game", viewModel.archivedGames.last().teamOne.name)
 
         // Deleting all archived games clears the archive list and the viewed archive.
-        viewModel.updateLiveGame(currentGame.copy(phase = GamePhase.GAME_OVER))
+        viewModel.updateCurrentGame(currentGame.copy(phase = GamePhase.GAME_OVER))
         viewModel.archiveCompletedGame()
-        viewModel.updateLiveGame(
+        viewModel.updateCurrentGame(
             currentGame.copy(
                 phase = GamePhase.GAME_OVER,
                 teamOne = currentGame.teamOne.copy(name = "Second archived game"),
@@ -1189,7 +1189,7 @@ class TestArchive : GameDomainTestFixtures() {
         assertNotNull(viewModel.viewingArchivedGame)
         viewModel.deleteAllArchivedGames()
         assertTrue(viewModel.archivedGames.isEmpty())
-        assertNull(viewModel.currentLiveState)
+        assertNull(viewModel.displayedGame)
     }
 
     /**
@@ -1202,7 +1202,7 @@ class TestArchive : GameDomainTestFixtures() {
         val viewModel = AppViewModel(NoOpAppStateStorage)
         viewModel.startNewGame(now = 123_000L)
         viewModel.finishSetup(now = 123_000L)
-        val beforeUndoAction = viewModel.liveState!!
+        val beforeUndoAction = viewModel.currentGame!!
         val completedGame = beforeUndoAction.copy(
             phase = GamePhase.GAME_OVER,
             countdown = CountdownState(
@@ -1214,10 +1214,10 @@ class TestArchive : GameDomainTestFixtures() {
             ),
             undoEntry = UndoEntry("Undo End game", beforeUndoAction),
         )
-        viewModel.updateLiveGame(completedGame)
+        viewModel.updateCurrentGame(completedGame)
         viewModel.startNewGame(now = 123_000L)
         assertEquals(AppScreen.SETUP, viewModel.screen)
-        assertNull(viewModel.liveState)
+        assertEquals(GamePhase.SETUP, viewModel.currentGame?.phase)
         assertEquals(1, viewModel.archivedGames.size)
         assertEquals(GamePhase.GAME_OVER, viewModel.archivedGames.single().phase)
         assertNull(viewModel.archivedGames.single().countdown)
@@ -1245,15 +1245,15 @@ class TestArchive : GameDomainTestFixtures() {
         )
         viewModel.updateSetup(setup)
         viewModel.finishSetup(now = 123_000L)
-        val activeGame = viewModel.liveState!!.beginLivePoint()
+        val activeGame = viewModel.currentGame!!.beginLivePoint()
         assertNotNull(activeGame.undoEntry)
-        viewModel.updateLiveGame(activeGame)
+        viewModel.updateCurrentGame(activeGame)
 
         // Starting a new game saves the current game without ending it or pruning undo.
         viewModel.startNewGame(now = 123_000L)
         assertEquals(AppScreen.SETUP, viewModel.screen)
         assertTrue(viewModel.hasSetupDraft)
-        assertNull(viewModel.liveState)
+        assertEquals(GamePhase.SETUP, viewModel.currentGame?.phase)
         assertEquals(1, viewModel.archivedGames.size)
         val archivedGame = viewModel.archivedGames.single()
         assertEquals(ArchivedGameCategory.IN_PROGRESS, archivedGame.archiveCategory)
@@ -1272,8 +1272,8 @@ class TestArchive : GameDomainTestFixtures() {
         )
         restoredViewModel.updateSetup(replacementSetup)
         restoredViewModel.finishSetup(now = 123_000L)
-        val replacementCurrent = restoredViewModel.liveState!!.beginLivePoint()
-        restoredViewModel.updateLiveGame(replacementCurrent)
+        val replacementCurrent = restoredViewModel.currentGame!!.beginLivePoint()
+        restoredViewModel.updateCurrentGame(replacementCurrent)
 
         // Restoring the archive should save the replaced current game.
         restoredViewModel.openArchivedGame(0, now = 123_000L)
@@ -1288,8 +1288,8 @@ class TestArchive : GameDomainTestFixtures() {
         assertEquals(ArchivedGameCategory.IN_PROGRESS, replacementArchive.archiveCategory)
         assertFalse(restoredViewModel.hasSetupDraft)
         assertEquals(SetupMode.EDIT_CURRENT_GAME, restoredViewModel.setupMode)
-        assertEquals(activeGame, restoredViewModel.liveState)
-        assertEquals(GamePhase.LIVE_POINT, restoredViewModel.liveState!!.phase)
+        assertEquals(activeGame, restoredViewModel.currentGame)
+        assertEquals(GamePhase.LIVE_POINT, restoredViewModel.currentGame!!.phase)
         assertEquals(setup.teamOne.name, restoredViewModel.setupState.teamOne.name)
         assertEquals(setup.teamTwo.name, restoredViewModel.setupState.teamTwo.name)
     }
@@ -1317,11 +1317,11 @@ class TestArchive : GameDomainTestFixtures() {
         )
         viewModel.updateSetup(viewModel.setupState.copy(rules = tournamentRules))
         viewModel.finishSetup(now = 123_000L)
-        viewModel.updateLiveGame(viewModel.liveState!!.copy(phase = GamePhase.GAME_OVER))
+        viewModel.updateCurrentGame(viewModel.currentGame!!.copy(phase = GamePhase.GAME_OVER))
         viewModel.archiveCompletedGame()
         viewModel.startNewGame(now = 123_000L)
         assertEquals(tournamentRules, viewModel.setupState.rules)
-        assertNull(viewModel.liveState)
+        assertEquals(GamePhase.SETUP, viewModel.currentGame?.phase)
         assertEquals(SetupMode.NEW_GAME, viewModel.setupMode)
     }
 
@@ -1337,8 +1337,8 @@ class TestArchive : GameDomainTestFixtures() {
         val currentRules = GameRules(gameTo = 11, hardCapMinutes = 80, hasFloaterTimeout = true)
         viewModel.updateSetup(viewModel.setupState.copy(rules = currentRules))
         viewModel.finishSetup(now = 123_000L)
-        viewModel.updateLiveGame(viewModel.liveState!!.beginLivePoint())
-        val savedState = viewModel.liveState!!
+        viewModel.updateCurrentGame(viewModel.currentGame!!.beginLivePoint())
+        val savedState = viewModel.currentGame!!
         viewModel.startNewGame(now = 123_000L)
         assertEquals(currentRules, viewModel.setupState.rules)
         assertEquals(currentRules, viewModel.archivedGames.single().rules)

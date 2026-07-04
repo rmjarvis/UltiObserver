@@ -38,7 +38,7 @@ internal enum class AppScreen {
  * @param archivedGames The archived game summaries loaded into the app session.
  * @param selectedArchiveCategory The archive category currently open from the category landing page.
  * @param viewingArchivedGame The archived game currently open as a summary.
- * @param viewingCurrentGameSummary Whether the current live game is open as a summary.
+ * @param viewingCurrentGameSummary Whether the current game is open as a summary.
  * @param archiveFilterSelections Selected filters applied to the archive list.
  * @param archiveSortMode Sort order applied to the archive list.
  * @param startupRecoveryNotice The startup data-recovery notice, if corrupted app data was reset.
@@ -107,7 +107,7 @@ internal data class AppUiState(
  * It survives normal Activity recreation, such as rotation, so the UI can be rebuilt without
  * losing in-memory state; process restart recovery still comes from the app's storage layer.
  *
- * UltiObserver's AppViewModel owns top-level navigation, setup/live-game state, profile state,
+ * UltiObserver's AppViewModel owns top-level navigation, current-game state, profile state,
  * settings, archived-game lists, startup recovery notices, and the app actions that persist or
  * move between those states. Domain rules stay in the model helpers; this class coordinates the
  * app session around those model results.
@@ -164,8 +164,6 @@ internal class AppViewModel(
         get() = state.value.editingSavedSetupIndex
     val setupState: GameState
         get() = state.value.setupState
-    val liveState: GameState?
-        get() = currentGame?.takeUnless { it.phase == GamePhase.SETUP }
     val setupMode: SetupMode
         get() = state.value.setupMode
     val profileName: String
@@ -203,7 +201,7 @@ internal class AppViewModel(
         persistRecoveredDataAreas(recoveredPersistedDataAreas)
     }
 
-    val currentLiveState: GameState?
+    val displayedGame: GameState?
         get() = viewingArchivedGame ?: currentGame
 
     val currentGameHomeSubtitle: String?
@@ -229,7 +227,7 @@ internal class AppViewModel(
         }
     }
 
-    /// Navigate back according to the current top-level screen and live-game state.
+    /// Navigate back according to the current top-level screen and current-game state.
     fun goBackFromCurrentScreen() {
         if (screen == AppScreen.TIMING_CUE_SETTINGS) {
             openSettings()
@@ -281,7 +279,7 @@ internal class AppViewModel(
             return
         }
 
-        if (currentGame?.isInitialLivePreview() == true) {
+        if (currentGame?.hasStarted() == false) {
             reopenSetupDraftFromInitialPreview()
             return
         }
@@ -314,12 +312,12 @@ internal class AppViewModel(
     }
 
     /**
-     * Replace the mutable live game.
+     * Replace the mutable current game.
      *
-     * @param updatedGame The live-game state returned from a model action.
+     * @param updatedGame The current-game state returned from a model action.
      */
-    fun updateLiveGame(updatedGame: GameState) {
-        // All live game event logging flows through this ViewModel boundary.
+    fun updateCurrentGame(updatedGame: GameState) {
+        // All current-game event logging flows through this ViewModel boundary.
         _state.update { it.copy(currentGame = updatedGame) }
         persistCurrentGame()
     }
@@ -595,7 +593,7 @@ internal class AppViewModel(
         _state.update { it.copy(archiveSortMode = sortMode) }
     }
 
-    /// Resume the current setup draft, initial live preview, or active live game from Home.
+    /// Resume the current setup draft, pre-pull preview, or in-progress game from Home.
     fun resumeCurrentGame() {
         val current = currentGame ?: return
         if (current.phase == GamePhase.SETUP) {
@@ -807,7 +805,7 @@ internal class AppViewModel(
         persistCurrentGame()
     }
 
-    /// Delete the current live/setup/completed game state and return Home.
+    /// Delete the current setup/in-progress/completed game state and return Home.
     fun deleteCurrentGame() {
         _state.update {
             it.copy(
@@ -916,7 +914,7 @@ internal class AppViewModel(
     }
 
     /**
-     * Finish setup and enter or update the live game.
+     * Finish setup and enter or update the in-progress game.
      *
      * @param now The epoch millis used when applying setup edits to an existing pre-play countdown.
      */
@@ -943,12 +941,12 @@ internal class AppViewModel(
     }
 
     /**
-     * Reopen setup for the current live game when editing is allowed.
+     * Reopen setup for the current in-progress game when editing is allowed.
      *
-     * @param currentGame The live-game state whose setup fields should be edited.
+     * @param currentGame The current-game state whose setup fields should be edited.
      */
     fun editCurrentGame(currentGame: GameState) {
-        if (currentGame.isInitialLivePreview()) {
+        if (!currentGame.hasStarted()) {
             reopenSetupDraftFromInitialPreview()
             return
         }
@@ -961,7 +959,7 @@ internal class AppViewModel(
         }
     }
 
-    /// Discard setup edits for the current live game and return to the live screen.
+    /// Discard setup edits for the current game and return to the live screen.
     fun cancelSetupEdit() {
         _state.update {
             it.copy(
@@ -975,7 +973,7 @@ internal class AppViewModel(
         }
     }
 
-    /// Convert the initial live preview back into a resumable setup draft.
+    /// Convert the pre-pull preview back into a resumable setup draft.
     private fun reopenSetupDraftFromInitialPreview() {
         _state.update {
             val current = it.currentGame!!

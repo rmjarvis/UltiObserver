@@ -11,10 +11,10 @@ import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/// Tests for setup-state conversion and applying setup edits to live games.
+/// Tests for setup-state conversion and applying setup edits to current games.
 class TestSetup : GameDomainTestFixtures() {
     /**
-     * Test live-game creation and setup-state conversion from setup form data.
+     * Test current-game creation and setup-state conversion from setup form data.
      */
     @Test
     fun setupRoundTrip() {
@@ -82,7 +82,7 @@ class TestSetup : GameDomainTestFixtures() {
             ).observerNames,
         )
 
-        // A setup-created live game has empty player lists when no prior card holders are entered.
+        // A setup-created current game has empty player lists when no prior card holders are entered.
         val noPriorCardsState = createLiveGameState(
             standardGameSetup(startTime = LocalTime.of(8, 30))
         )
@@ -108,7 +108,7 @@ class TestSetup : GameDomainTestFixtures() {
                 .hasCoachOrCaptainInfo()
         )
 
-        // Full setup data carries directly into a live game.
+        // Full setup data carries directly into a current game.
         val setup = fullSetup()
         val state = createLiveGameState(setup)
         assertEquals("Potlatch", state.tournamentName)
@@ -649,21 +649,21 @@ class TestSetup : GameDomainTestFixtures() {
         assertEquals("Undo Update game setup", state.undoEntry?.label)
         assertEquals(initialState, state.undoEntry?.previous)
         assertTrue(state.eventLog.isEmpty())
-        assertTrue(state.isInitialLivePreview())
+        assertFalse(state.hasStarted())
 
-        // One consequence of being in the initial live preview state is that pressing Back
+        // One consequence of being in the pre-pull preview state is that pressing Back
         // returns to setup rather than Home. Show this by inserting this state into a ViewModel
         // that otherwise came from starting a normal game.
         val previewModel = AppViewModel(NoOpAppStateStorage)
         previewModel.startNewGame(now = 123_000L)
         previewModel.updateSetup(setup)
         previewModel.finishSetup(now = 123_000L)
-        previewModel.updateLiveGame(state)
+        previewModel.updateCurrentGame(state)
         assertEquals(AppScreen.LIVE, previewModel.screen)
         previewModel.goBackFromCurrentScreen()
         assertEquals(AppScreen.SETUP, previewModel.screen)
         assertTrue(previewModel.hasSetupDraft)
-        assertNull(previewModel.liveState)
+        assertEquals(GamePhase.SETUP, previewModel.currentGame?.phase)
 
         // A blue card before the first point starts is a real game event, so Back returns Home
         // rather than setup even though the game is still in the pre-game phase.
@@ -672,18 +672,18 @@ class TestSetup : GameDomainTestFixtures() {
             state.countdown!!.targetEpoch - 1_000L,
         ).state
         assertEquals(GamePhase.PRE_GAME, blueCardState.phase)
-        assertFalse(blueCardState.isInitialLivePreview())
+        assertTrue(blueCardState.hasStarted())
 
         val blueCardModel = AppViewModel(NoOpAppStateStorage)
         blueCardModel.startNewGame(now = 123_000L)
         blueCardModel.updateSetup(setup)
         blueCardModel.finishSetup(now = 123_000L)
-        blueCardModel.updateLiveGame(blueCardState)
+        blueCardModel.updateCurrentGame(blueCardState)
         assertEquals(AppScreen.LIVE, blueCardModel.screen)
         blueCardModel.goBackFromCurrentScreen()
         assertEquals(AppScreen.HOME, blueCardModel.screen)
         assertFalse(blueCardModel.hasSetupDraft)
-        assertEquals(blueCardState, blueCardModel.liveState)
+        assertEquals(blueCardState, blueCardModel.currentGame)
 
         // Until the opening pull starts, setup edits to pull orientation should still retarget the
         // first pull even after a real pre-game event.
@@ -702,7 +702,7 @@ class TestSetup : GameDomainTestFixtures() {
             20_000L,
         )
         assertEquals(GamePhase.PRE_GAME, blueCardSetupUpdate.phase)
-        assertFalse(blueCardSetupUpdate.isInitialLivePreview())
+        assertTrue(blueCardSetupUpdate.hasStarted())
         assertEquals(blueCardPullingTeamBeforeEdit.flip(), blueCardSetupUpdate.openingPullingTeam)
         assertEquals(
             blueCardPullingFromEndBeforeEdit.flip(),
@@ -982,7 +982,7 @@ class TestSetup : GameDomainTestFixtures() {
         )
     }
 
-    /// Return a live game state after play has started and Viscous Coupling has scored.
+    /// Return a current-game state after play has started and Viscous Coupling has scored.
     private fun stateAfterGoal(
         setup: GameState,
         setupEdit1: GameState,
