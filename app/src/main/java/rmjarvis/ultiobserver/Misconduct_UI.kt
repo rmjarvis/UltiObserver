@@ -139,6 +139,34 @@ private data class PendingMisconductResolution(
     val againstOffense: Boolean,
 )
 
+/**
+ * One active step in the manual card/tech correction dialog.
+ *
+ * This mirrors the live Card dialog flow: nested card editors, confirmations, and notices are
+ * represented as one value so only the visible dialog step is mounted.
+ */
+private sealed interface AdjustCardsDialogStep {
+    data object CardCounts : AdjustCardsDialogStep
+    data class ExistingCards(val team: TeamId) : AdjustCardsDialogStep
+    data class CardAdd(val pending: PendingManualCardAdd) : AdjustCardsDialogStep
+    data class CardEdit(
+        val pending: PendingManualCardEdit,
+        val initialEntry: PlayerCardEntry,
+    ) : AdjustCardsDialogStep
+    data class CardRemove(val pending: PendingManualCardRemove) : AdjustCardsDialogStep
+    data class SameNumberConfirmation(
+        val confirmation: PendingSameNumberPlayerCardConfirmation
+    ) : AdjustCardsDialogStep
+    data class InvalidAssignment(
+        val message: String,
+        val returnTo: AdjustCardsDialogStep,
+    ) : AdjustCardsDialogStep
+    data class SuspensionNotice(
+        val message: String,
+        val returnTo: AdjustCardsDialogStep,
+    ) : AdjustCardsDialogStep
+}
+
 // Manual card/techs correction dialog, including per-player card edits.
 @Composable
 internal fun AdjustCardsDialog(
@@ -166,26 +194,8 @@ internal fun AdjustCardsDialog(
     var workingTeamTwoPlayerCards by remember {
         mutableStateOf(state.teamTwoPlayers)
     }
-    var editingPlayerCardsFor by remember {
-        mutableStateOf<TeamId?>(null)
-    }
-    var pendingManualAdd by remember {
-        mutableStateOf<PendingManualCardAdd?>(null)
-    }
-    var pendingManualEdit by remember {
-        mutableStateOf<PendingManualCardEdit?>(null)
-    }
-    var pendingManualRemove by remember {
-        mutableStateOf<PendingManualCardRemove?>(null)
-    }
-    var pendingManualSameNumberConfirmation by remember {
-        mutableStateOf<PendingSameNumberPlayerCardConfirmation?>(null)
-    }
-    var invalidCardAssignmentMessage by remember {
-        mutableStateOf<String?>(null)
-    }
-    var suspensionNoticeMessage by remember {
-        mutableStateOf<String?>(null)
+    var step by remember {
+        mutableStateOf<AdjustCardsDialogStep>(AdjustCardsDialogStep.CardCounts)
     }
 
     fun recordsFor(team: TeamId): List<PlayerRecord> {
@@ -207,11 +217,14 @@ internal fun AdjustCardsDialog(
         ).getNextAssessmentIndex()
     }
 
-    fun showSuspensionNoticeIfNeeded(team: TeamId, records: List<PlayerRecord>, identity: PlayerIdentity) {
-        val status = playerSuspensionStatus(records, identity) ?: return
-        suspensionNoticeMessage =
-            "${state.teamFor(team).name} ${identity.displayText(compact = true)} " +
-                status.noticeText
+    fun suspensionNoticeMessage(
+        team: TeamId,
+        records: List<PlayerRecord>,
+        identity: PlayerIdentity
+    ): String? {
+        val status = playerSuspensionStatus(records, identity) ?: return null
+        return "${state.teamFor(team).name} ${identity.displayText(compact = true)} " +
+            status.noticeText
     }
 
     fun GameState.withPlayerCards(
@@ -243,10 +256,22 @@ internal fun AdjustCardsDialog(
         )
     }
 
-    fun applyManualCardAdd(team: TeamId, cardType: CardType, entry: PlayerCardEntry, skipSameNumberWarning: Boolean = false): Boolean {
+    fun applyManualCardAdd(
+        pending: PendingManualCardAdd,
+        entry: PlayerCardEntry,
+        skipSameNumberWarning: Boolean = false,
+    ) {
+        val team = pending.team
+        val cardType = pending.cardType
+        val returnTo = AdjustCardsDialogStep.CardAdd(
+            pending.copy(initialEntry = entry)
+        )
         if (entry.jerseyNumber.isBlank() && entry.playerName.isBlank()) {
-            invalidCardAssignmentMessage = "Enter a player number or name before recording this card."
-            return false
+            step = AdjustCardsDialogStep.InvalidAssignment(
+                "Enter a player number or name before recording this card.",
+                returnTo,
+            )
+            return
         }
         val identity = PlayerIdentity(entry.jerseyNumber, entry.playerName)
         val records = recordsFor(team)
@@ -256,24 +281,28 @@ internal fun AdjustCardsDialog(
                 identity.playerName
             )
             if (conflict != null) {
-                pendingManualSameNumberConfirmation = PendingSameNumberPlayerCardConfirmation(
-                    team = team,
-                    cardType = cardType,
-                    entry = entry.copy(
-                        jerseyNumber = identity.jerseyNumber,
-                        playerName = identity.playerName
+                step = AdjustCardsDialogStep.SameNumberConfirmation(
+                    PendingSameNumberPlayerCardConfirmation(
+                        team = team,
+                        cardType = cardType,
+                        entry = entry.copy(
+                            jerseyNumber = identity.jerseyNumber,
+                            playerName = identity.playerName
+                        ),
+                        conflict = conflict,
                     ),
-                    conflict = conflict,
                 )
-                return true
+                return
             }
         }
         val status = playerSuspensionStatus(records, identity)
         if (status != null) {
-            invalidCardAssignmentMessage =
+            step = AdjustCardsDialogStep.InvalidAssignment(
                 "${state.teamFor(team).name} ${identity.displayText(compact = true)} " +
-                    status.rejectionText
-            return false
+                    status.rejectionText,
+                returnTo,
+            )
+            return
         }
         val updatedRecords = addPlayerCardAssignment(
             records = records,
@@ -284,7 +313,7 @@ internal fun AdjustCardsDialog(
             reason = entry.reason,
         )
         setRecordsFor(team, updatedRecords)
-        showSuspensionNoticeIfNeeded(team, updatedRecords, identity)
+        val noticeMessage = suspensionNoticeMessage(team, updatedRecords, identity)
         onStateUpdate(
             state.withPlayerCards(
                 team = team,
@@ -292,26 +321,40 @@ internal fun AdjustCardsDialog(
                 undoLabel = state.playerCardAddUndoLabel(team, cardType, identity),
             )
         )
-        return true
+        step = if (noticeMessage != null) {
+            AdjustCardsDialogStep.SuspensionNotice(
+                noticeMessage,
+                AdjustCardsDialogStep.CardCounts,
+            )
+        } else {
+            AdjustCardsDialogStep.CardCounts
+        }
     }
 
     fun applyManualCardEdit(
-        team: TeamId,
-        originalCard: EditablePlayerCard,
+        pending: PendingManualCardEdit,
         entry: PlayerCardEntry
-    ): Boolean {
+    ) {
+        val team = pending.team
+        val originalCard = pending.card
+        val returnTo = AdjustCardsDialogStep.CardEdit(pending, entry)
         if (entry.jerseyNumber.isBlank() && entry.playerName.isBlank()) {
-            invalidCardAssignmentMessage = "Enter a player number or name before recording this card."
-            return false
+            step = AdjustCardsDialogStep.InvalidAssignment(
+                "Enter a player number or name before recording this card.",
+                returnTo,
+            )
+            return
         }
         val identity = PlayerIdentity(entry.jerseyNumber, entry.playerName)
         val recordsAfterRemoval = removeEditablePlayerCard(recordsFor(team), originalCard)
         val status = playerSuspensionStatus(recordsAfterRemoval, identity)
         if (status != null) {
-            invalidCardAssignmentMessage =
+            step = AdjustCardsDialogStep.InvalidAssignment(
                 "${state.teamFor(team).name} ${identity.displayText(compact = true)} " +
-                    status.rejectionText
-            return false
+                    status.rejectionText,
+                returnTo,
+            )
+            return
         }
         val updatedRecords = replaceEditablePlayerCard(
             records = recordsFor(team),
@@ -322,8 +365,10 @@ internal fun AdjustCardsDialog(
             reason = entry.reason,
         )
         setRecordsFor(team, updatedRecords)
-        if (!identity.matches(originalCard.identity())) {
-            showSuspensionNoticeIfNeeded(team, updatedRecords, identity)
+        val noticeMessage = if (!identity.matches(originalCard.identity())) {
+            suspensionNoticeMessage(team, updatedRecords, identity)
+        } else {
+            null
         }
         onStateUpdate(
             state.withPlayerCards(
@@ -332,252 +377,296 @@ internal fun AdjustCardsDialog(
                 undoLabel = state.playerCardEditUndoLabel(team, originalCard.cardType, identity),
             )
         )
-        return true
+        val returnToList = AdjustCardsDialogStep.ExistingCards(team)
+        step = if (noticeMessage != null) {
+            AdjustCardsDialogStep.SuspensionNotice(noticeMessage, returnToList)
+        } else {
+            returnToList
+        }
     }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Adjust cards / techs") },
-        text = {
-            ScrollableDialogRegion(
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                TeamCorrectionSection(state.teamOne.name) {
-                    CardCountRow(
-                        label = "Blue",
-                        value = teamOneB,
-                        testTagPrefix = "cards-adjust-team-one-blue",
-                        onIncrement = { teamOneB += 1 },
-                        onDecrement = { teamOneB = maxOf(0, teamOneB - 1) },
-                    )
-                    CardCountRow(
-                        label = "Tech",
-                        value = teamOneTf,
-                        testTagPrefix = "cards-adjust-team-one-tech",
-                        onIncrement = { teamOneTf += 1 },
-                        onDecrement = { teamOneTf = maxOf(0, teamOneTf - 1) },
-                    )
-                    PlayerCardAdjustmentActions(
-                        hasEditableCards = editablePlayerCards(workingTeamOnePlayerCards).isNotEmpty(),
-                        yellowCount = workingTeamOnePlayerCards.inGameCardCount(CardType.YELLOW),
-                        redCount = workingTeamOnePlayerCards.inGameCardCount(CardType.RED),
-                        onEditExisting = { editingPlayerCardsFor = TeamId.TEAM_ONE },
-                        onAddYellow = {
-                            pendingManualAdd = PendingManualCardAdd(
-                                TeamId.TEAM_ONE,
-                                CardType.YELLOW,
-                                PlayerCardEntry(""),
+    when (val activeStep = step) {
+        AdjustCardsDialogStep.CardCounts -> {
+            AlertDialog(
+                onDismissRequest = onDismiss,
+                title = { Text("Adjust cards / techs") },
+                text = {
+                    ScrollableDialogRegion(
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        TeamCorrectionSection(state.teamOne.name) {
+                            CardCountRow(
+                                label = "Blue",
+                                value = teamOneB,
+                                testTagPrefix = "cards-adjust-team-one-blue",
+                                onIncrement = { teamOneB += 1 },
+                                onDecrement = { teamOneB = maxOf(0, teamOneB - 1) },
                             )
-                        },
-                        onAddRed = {
-                            pendingManualAdd = PendingManualCardAdd(
-                                TeamId.TEAM_ONE,
-                                CardType.RED,
-                                PlayerCardEntry(""),
+                            CardCountRow(
+                                label = "Tech",
+                                value = teamOneTf,
+                                testTagPrefix = "cards-adjust-team-one-tech",
+                                onIncrement = { teamOneTf += 1 },
+                                onDecrement = { teamOneTf = maxOf(0, teamOneTf - 1) },
                             )
-                        },
-                        addYellowTestTag = "cards-adjust-team-one-add-yellow",
-                        addRedTestTag = "cards-adjust-team-one-add-red",
-                        editExistingTestTag = "cards-adjust-team-one-edit-existing",
-                    )
-                }
-                TeamCorrectionSection(state.teamTwo.name) {
-                    CardCountRow(
-                        label = "Blue",
-                        value = teamTwoB,
-                        testTagPrefix = "cards-adjust-team-two-blue",
-                        onIncrement = { teamTwoB += 1 },
-                        onDecrement = { teamTwoB = maxOf(0, teamTwoB - 1) },
-                    )
-                    CardCountRow(
-                        label = "Tech",
-                        value = teamTwoTf,
-                        testTagPrefix = "cards-adjust-team-two-tech",
-                        onIncrement = { teamTwoTf += 1 },
-                        onDecrement = { teamTwoTf = maxOf(0, teamTwoTf - 1) },
-                    )
-                    PlayerCardAdjustmentActions(
-                        hasEditableCards = editablePlayerCards(workingTeamTwoPlayerCards).isNotEmpty(),
-                        yellowCount = workingTeamTwoPlayerCards.inGameCardCount(CardType.YELLOW),
-                        redCount = workingTeamTwoPlayerCards.inGameCardCount(CardType.RED),
-                        onEditExisting = { editingPlayerCardsFor = TeamId.TEAM_TWO },
-                        onAddYellow = {
-                            pendingManualAdd = PendingManualCardAdd(
-                                TeamId.TEAM_TWO,
-                                CardType.YELLOW,
-                                PlayerCardEntry(""),
+                            PlayerCardAdjustmentActions(
+                                hasEditableCards = editablePlayerCards(
+                                    workingTeamOnePlayerCards
+                                ).isNotEmpty(),
+                                yellowCount = workingTeamOnePlayerCards.inGameCardCount(
+                                    CardType.YELLOW
+                                ),
+                                redCount = workingTeamOnePlayerCards.inGameCardCount(
+                                    CardType.RED
+                                ),
+                                onEditExisting = {
+                                    step = AdjustCardsDialogStep.ExistingCards(TeamId.TEAM_ONE)
+                                },
+                                onAddYellow = {
+                                    step = AdjustCardsDialogStep.CardAdd(
+                                        PendingManualCardAdd(
+                                            TeamId.TEAM_ONE,
+                                            CardType.YELLOW,
+                                            PlayerCardEntry(""),
+                                        )
+                                    )
+                                },
+                                onAddRed = {
+                                    step = AdjustCardsDialogStep.CardAdd(
+                                        PendingManualCardAdd(
+                                            TeamId.TEAM_ONE,
+                                            CardType.RED,
+                                            PlayerCardEntry(""),
+                                        )
+                                    )
+                                },
+                                addYellowTestTag = "cards-adjust-team-one-add-yellow",
+                                addRedTestTag = "cards-adjust-team-one-add-red",
+                                editExistingTestTag = "cards-adjust-team-one-edit-existing",
                             )
-                        },
-                        onAddRed = {
-                            pendingManualAdd = PendingManualCardAdd(
-                                TeamId.TEAM_TWO,
-                                CardType.RED,
-                                PlayerCardEntry(""),
+                        }
+                        TeamCorrectionSection(state.teamTwo.name) {
+                            CardCountRow(
+                                label = "Blue",
+                                value = teamTwoB,
+                                testTagPrefix = "cards-adjust-team-two-blue",
+                                onIncrement = { teamTwoB += 1 },
+                                onDecrement = { teamTwoB = maxOf(0, teamTwoB - 1) },
                             )
-                        },
-                        addYellowTestTag = "cards-adjust-team-two-add-yellow",
-                        addRedTestTag = "cards-adjust-team-two-add-red",
-                        editExistingTestTag = "cards-adjust-team-two-edit-existing",
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            TextActionButton(label = "Done", onClick = { finalizeAdjustment() })
-        },
-        dismissButton = {
-            TextActionButton(label = "Cancel", onClick = onDismiss)
-        },
-    )
-
-    editingPlayerCardsFor?.let { team ->
-        EditablePlayerCardsDialog(
-            teamName = state.teamFor(team).name,
-            cards = editablePlayerCards(recordsFor(team)),
-            onDismiss = { editingPlayerCardsFor = null },
-            onEdit = { card ->
-                pendingManualEdit = PendingManualCardEdit(team, card)
-            },
-            onRemove = { card ->
-                pendingManualRemove = PendingManualCardRemove(team, card)
-            },
-        )
-    }
-
-    pendingManualAdd?.let { pending ->
-        PlayerCardEntryDialog(
-            title = "Add ${pending.cardType.label.lowercase()} card",
-            teamName = state.teamFor(pending.team).name,
-            initialEntry = pending.initialEntry,
-            candidates = recordsFor(pending.team).playerCardCandidates(),
-            cardType = pending.cardType,
-            onDismiss = { pendingManualAdd = null },
-            onConfirm = { entry ->
-                if (applyManualCardAdd(pending.team, pending.cardType, entry)) {
-                    pendingManualAdd = null
-                }
-            },
-        )
-    }
-
-    pendingManualEdit?.let { pending ->
-        PlayerCardEntryDialog(
-            title = "Edit ${pending.card.cardType.label.lowercase()} card",
-            teamName = state.teamFor(pending.team).name,
-            initialEntry = PlayerCardEntry(
-                jerseyNumber = pending.card.jerseyNumber,
-                playerName = pending.card.playerName,
-                reason = pending.card.reason,
-            ),
-            candidates = emptyList(),
-            cardType = pending.card.cardType,
-            onDismiss = { pendingManualEdit = null },
-            onConfirm = { entry ->
-                if (applyManualCardEdit(pending.team, pending.card, entry)) {
-                    pendingManualEdit = null
-                }
-            },
-        )
-    }
-
-    pendingManualRemove?.let { pending ->
-        RemoveEditablePlayerCardDialog(
-            card = pending.card,
-            onDismiss = { pendingManualRemove = null },
-            onConfirm = {
-                val updatedRecords = removeEditablePlayerCard(recordsFor(pending.team), pending.card)
-                setRecordsFor(pending.team, updatedRecords)
-                onStateUpdate(
-                    state.withPlayerCards(
-                        team = pending.team,
-                        records = updatedRecords,
-                        undoLabel = state.playerCardRemoveUndoLabel(
-                            team = pending.team,
-                            cardType = pending.card.cardType,
-                            identity = pending.card.identity(),
-                        ),
-                    )
-                )
-                pendingManualRemove = null
-            }
-        )
-    }
-
-    pendingManualSameNumberConfirmation?.let { confirmation ->
-        fun restoreManualCardAdd() {
-            pendingManualSameNumberConfirmation = null
-            pendingManualAdd = PendingManualCardAdd(
-                team = confirmation.team,
-                cardType = confirmation.cardType,
-                initialEntry = confirmation.entry,
+                            CardCountRow(
+                                label = "Tech",
+                                value = teamTwoTf,
+                                testTagPrefix = "cards-adjust-team-two-tech",
+                                onIncrement = { teamTwoTf += 1 },
+                                onDecrement = { teamTwoTf = maxOf(0, teamTwoTf - 1) },
+                            )
+                            PlayerCardAdjustmentActions(
+                                hasEditableCards = editablePlayerCards(
+                                    workingTeamTwoPlayerCards
+                                ).isNotEmpty(),
+                                yellowCount = workingTeamTwoPlayerCards.inGameCardCount(
+                                    CardType.YELLOW
+                                ),
+                                redCount = workingTeamTwoPlayerCards.inGameCardCount(
+                                    CardType.RED
+                                ),
+                                onEditExisting = {
+                                    step = AdjustCardsDialogStep.ExistingCards(TeamId.TEAM_TWO)
+                                },
+                                onAddYellow = {
+                                    step = AdjustCardsDialogStep.CardAdd(
+                                        PendingManualCardAdd(
+                                            TeamId.TEAM_TWO,
+                                            CardType.YELLOW,
+                                            PlayerCardEntry(""),
+                                        )
+                                    )
+                                },
+                                onAddRed = {
+                                    step = AdjustCardsDialogStep.CardAdd(
+                                        PendingManualCardAdd(
+                                            TeamId.TEAM_TWO,
+                                            CardType.RED,
+                                            PlayerCardEntry(""),
+                                        )
+                                    )
+                                },
+                                addYellowTestTag = "cards-adjust-team-two-add-yellow",
+                                addRedTestTag = "cards-adjust-team-two-add-red",
+                                editExistingTestTag = "cards-adjust-team-two-edit-existing",
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextActionButton(label = "Done", onClick = { finalizeAdjustment() })
+                },
+                dismissButton = {
+                    TextActionButton(label = "Cancel", onClick = onDismiss)
+                },
             )
         }
-        AlertDialog(
-            onDismissRequest = {
-                restoreManualCardAdd()
-            },
-            title = { Text("Same number, different names") },
-            text = {
-                Text(
-                    "${PlayerIdentity(
-                        confirmation.conflict.existingJerseyNumber,
-                        confirmation.conflict.existingPlayerName,
-                    ).displayText(compact = false)} is already listed. Record ${PlayerIdentity(
-                        confirmation.conflict.proposedJerseyNumber,
-                        confirmation.conflict.proposedPlayerName,
-                    ).displayText(compact = false)} as a different player with the same number?"
-                )
-            },
-            confirmButton = {
-                TextActionButton(
-                    label = "Record",
-                    onClick = {
-                        pendingManualSameNumberConfirmation = null
-                        // This entry already passed validation far enough to create the
-                        // same-number dialog, and the parent editor is blocked while the
-                        // dialog is open. That means this function cannot return false.
-                        applyManualCardAdd(
-                            team = confirmation.team,
-                            cardType = confirmation.cardType,
-                            entry = confirmation.entry,
-                            skipSameNumberWarning = true,
+
+        is AdjustCardsDialogStep.ExistingCards -> {
+            EditablePlayerCardsDialog(
+                teamName = state.teamFor(activeStep.team).name,
+                cards = editablePlayerCards(recordsFor(activeStep.team)),
+                onDismiss = { step = AdjustCardsDialogStep.CardCounts },
+                onEdit = { card ->
+                    step = AdjustCardsDialogStep.CardEdit(
+                        PendingManualCardEdit(activeStep.team, card),
+                        PlayerCardEntry(
+                            jerseyNumber = card.jerseyNumber,
+                            playerName = card.playerName,
+                            reason = card.reason,
+                        ),
+                    )
+                },
+                onRemove = { card ->
+                    step = AdjustCardsDialogStep.CardRemove(
+                        PendingManualCardRemove(activeStep.team, card)
+                    )
+                },
+            )
+        }
+
+        is AdjustCardsDialogStep.CardAdd -> {
+            val pending = activeStep.pending
+            PlayerCardEntryDialog(
+                title = "Add ${pending.cardType.label.lowercase()} card",
+                teamName = state.teamFor(pending.team).name,
+                initialEntry = pending.initialEntry,
+                candidates = recordsFor(pending.team).playerCardCandidates(),
+                cardType = pending.cardType,
+                onDismiss = { step = AdjustCardsDialogStep.CardCounts },
+                onConfirm = { entry -> applyManualCardAdd(pending, entry) },
+            )
+        }
+
+        is AdjustCardsDialogStep.CardEdit -> {
+            val pending = activeStep.pending
+            PlayerCardEntryDialog(
+                title = "Edit ${pending.card.cardType.label.lowercase()} card",
+                teamName = state.teamFor(pending.team).name,
+                initialEntry = activeStep.initialEntry,
+                candidates = emptyList(),
+                cardType = pending.card.cardType,
+                onDismiss = { step = AdjustCardsDialogStep.ExistingCards(pending.team) },
+                onConfirm = { entry -> applyManualCardEdit(pending, entry) },
+            )
+        }
+
+        is AdjustCardsDialogStep.CardRemove -> {
+            val pending = activeStep.pending
+            RemoveEditablePlayerCardDialog(
+                card = pending.card,
+                onDismiss = { step = AdjustCardsDialogStep.ExistingCards(pending.team) },
+                onConfirm = {
+                    val updatedRecords = removeEditablePlayerCard(
+                        recordsFor(pending.team),
+                        pending.card,
+                    )
+                    setRecordsFor(pending.team, updatedRecords)
+                    onStateUpdate(
+                        state.withPlayerCards(
+                            team = pending.team,
+                            records = updatedRecords,
+                            undoLabel = state.playerCardRemoveUndoLabel(
+                                team = pending.team,
+                                cardType = pending.card.cardType,
+                                identity = pending.card.identity(),
+                            ),
                         )
-                        pendingManualAdd = null
-                    }
-                )
-            },
-            dismissButton = {
-                TextActionButton(
-                    label = "Cancel",
-                    tag = "same-number-warning-cancel",
-                    onClick = {
-                        restoreManualCardAdd()
-                    },
+                    )
+                    step = AdjustCardsDialogStep.ExistingCards(pending.team)
+                }
+            )
+        }
+
+        is AdjustCardsDialogStep.SameNumberConfirmation -> {
+            val confirmation = activeStep.confirmation
+
+            fun restoreManualCardAdd() {
+                step = AdjustCardsDialogStep.CardAdd(
+                    PendingManualCardAdd(
+                        team = confirmation.team,
+                        cardType = confirmation.cardType,
+                        initialEntry = confirmation.entry,
+                    )
                 )
             }
-        )
-    }
 
-    invalidCardAssignmentMessage?.let { message ->
-        AlertDialog(
-            onDismissRequest = { invalidCardAssignmentMessage = null },
-            title = { Text("Invalid card assignment") },
-            text = { Text(message) },
-            confirmButton = {
-                TextActionButton(label = "OK", onClick = { invalidCardAssignmentMessage = null })
-            },
-        )
-    }
+            AlertDialog(
+                onDismissRequest = {
+                    restoreManualCardAdd()
+                },
+                title = { Text("Same number, different names") },
+                text = {
+                    Text(
+                        "${PlayerIdentity(
+                            confirmation.conflict.existingJerseyNumber,
+                            confirmation.conflict.existingPlayerName,
+                        ).displayText(compact = false)} is already listed. Record ${PlayerIdentity(
+                            confirmation.conflict.proposedJerseyNumber,
+                            confirmation.conflict.proposedPlayerName,
+                        ).displayText(compact = false)} as a different player with the same number?"
+                    )
+                },
+                confirmButton = {
+                    TextActionButton(
+                        label = "Record",
+                        onClick = {
+                            applyManualCardAdd(
+                                pending = PendingManualCardAdd(
+                                    team = confirmation.team,
+                                    cardType = confirmation.cardType,
+                                    initialEntry = confirmation.entry,
+                                ),
+                                entry = confirmation.entry,
+                                skipSameNumberWarning = true,
+                            )
+                        }
+                    )
+                },
+                dismissButton = {
+                    TextActionButton(
+                        label = "Cancel",
+                        tag = "same-number-warning-cancel",
+                        onClick = {
+                            restoreManualCardAdd()
+                        },
+                    )
+                }
+            )
+        }
 
-    suspensionNoticeMessage?.let { message ->
-        AlertDialog(
-            onDismissRequest = { suspensionNoticeMessage = null },
-            title = { Text("Card suspension") },
-            text = { Text(message) },
-            confirmButton = {
-                TextActionButton(label = "OK", onClick = { suspensionNoticeMessage = null })
-            },
-        )
+        is AdjustCardsDialogStep.InvalidAssignment -> {
+            AlertDialog(
+                onDismissRequest = { step = activeStep.returnTo },
+                title = { Text("Invalid card assignment") },
+                text = { Text(activeStep.message) },
+                confirmButton = {
+                    TextActionButton(
+                        label = "OK",
+                        onClick = { step = activeStep.returnTo },
+                    )
+                },
+            )
+        }
+
+        is AdjustCardsDialogStep.SuspensionNotice -> {
+            AlertDialog(
+                onDismissRequest = { step = activeStep.returnTo },
+                title = { Text("Card suspension") },
+                text = { Text(activeStep.message) },
+                confirmButton = {
+                    TextActionButton(
+                        label = "OK",
+                        onClick = { step = activeStep.returnTo },
+                    )
+                },
+            )
+        }
     }
 }
 
