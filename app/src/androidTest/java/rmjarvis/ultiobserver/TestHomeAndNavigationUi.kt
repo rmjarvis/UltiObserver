@@ -974,7 +974,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         pressAppBack()
         waitForText("Use sounds and vibration for timing cues?")
         composeRule.onNodeWithTag("settings-global-alert-SOUNDS_ON").performClick()
-        waitForText("Sound settings for individual cues")
+        waitForText("Sound/vibration settings for individual cues")
         composeRule.onNodeWithTag("settings-open-timing-cue-settings")
             .performScrollTo()
             .performClick()

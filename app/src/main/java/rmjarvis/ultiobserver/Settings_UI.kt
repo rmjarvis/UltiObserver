@@ -117,18 +117,11 @@ internal fun SettingsScreen(
                 onSoundVolumeChange = onSoundVolumeChange,
                 onVibrationDurationChange = onVibrationDurationChange,
                 onVibrateWithSoundsChange = onVibrateWithSoundsChange,
+                onOpenTimingCueSettings = onOpenTimingCueSettings,
                 hasTimingCueHaptics = hasTimingCueHaptics,
                 onTestVibration = { durationMillis ->
                     context.performTimingCueHaptic(durationMillis)
                 },
-            )
-
-            MenuButton(
-                label = "Sound settings for individual cues",
-                tag = "settings-open-timing-cue-settings",
-                colors = secondaryButtonColors(),
-                borderColor = null,
-                onClick = onOpenTimingCueSettings,
             )
         }
     }
@@ -360,6 +353,7 @@ private fun TimingAlertGlobalModeSelector(
  * @param onSoundVolumeChange Callback receiving sound volume changes.
  * @param onVibrationDurationChange Callback receiving vibration duration changes in milliseconds.
  * @param onVibrateWithSoundsChange Callback receiving the sound-plus-vibration toggle state.
+ * @param onOpenTimingCueSettings Callback opening per-cue timing alert settings.
  * @param hasTimingCueHaptics Whether this device reports usable timing-cue haptics.
  * @param onTestVibration Callback playing a haptic test for the selected duration.
  */
@@ -369,6 +363,7 @@ private fun TimingAlertSoundControls(
     onSoundVolumeChange: (Float) -> Unit,
     onVibrationDurationChange: (Long) -> Unit,
     onVibrateWithSoundsChange: (Boolean) -> Unit,
+    onOpenTimingCueSettings: () -> Unit,
     hasTimingCueHaptics: Boolean,
     onTestVibration: (Long) -> Unit,
 ) {
@@ -381,6 +376,57 @@ private fun TimingAlertSoundControls(
                 text = message,
                 style = MaterialTheme.typography.bodyMedium,
             )
+        }
+        if (timingAlertPreferences.globalMode == TimingAlertGlobalMode.SOUNDS_ON) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Also vibrate on cues that use sound?",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = if (timingAlertPreferences.vibrateWithSounds) "Yes" else "No",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.testTag("settings-vibrate-with-sounds-value"),
+                    )
+                    Switch(
+                        checked = timingAlertPreferences.vibrateWithSounds,
+                        onCheckedChange = onVibrateWithSoundsChange,
+                        enabled = hasTimingCueHaptics,
+                        modifier = Modifier.testTag("settings-vibrate-with-sounds"),
+                    )
+                }
+            }
+        }
+        MenuButton(
+            label = "Sound/vibration settings for individual cues",
+            tag = "settings-open-timing-cue-settings",
+            colors = secondaryButtonColors(),
+            borderColor = null,
+            onClick = onOpenTimingCueSettings,
+        )
+        if (timingAlertPreferences.globalMode == TimingAlertGlobalMode.SOUNDS_ON) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = "Sound volume ${(timingAlertPreferences.soundVolume * 100).toInt()}%",
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Slider(
+                    value = timingAlertPreferences.soundVolume,
+                    onValueChange = onSoundVolumeChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("settings-sound-volume"),
+                )
+            }
         }
         if (timingAlertPreferences.globalMode != TimingAlertGlobalMode.OFF) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -424,49 +470,6 @@ private fun TimingAlertSoundControls(
                         modifier = Modifier.weight(1f),
                     )
                 }
-            }
-        }
-        if (timingAlertPreferences.globalMode != TimingAlertGlobalMode.SOUNDS_ON) {
-            return@Column
-        }
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                text = "Sound volume ${(timingAlertPreferences.soundVolume * 100).toInt()}%",
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Slider(
-                value = timingAlertPreferences.soundVolume,
-                onValueChange = onSoundVolumeChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("settings-sound-volume"),
-            )
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "Also vibrate on cues that use sound?",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.weight(1f),
-            )
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = if (timingAlertPreferences.vibrateWithSounds) "Yes" else "No",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.testTag("settings-vibrate-with-sounds-value"),
-                )
-                Switch(
-                    checked = timingAlertPreferences.vibrateWithSounds,
-                    onCheckedChange = onVibrateWithSoundsChange,
-                    enabled = hasTimingCueHaptics,
-                    modifier = Modifier.testTag("settings-vibrate-with-sounds"),
-                )
             }
         }
     }
