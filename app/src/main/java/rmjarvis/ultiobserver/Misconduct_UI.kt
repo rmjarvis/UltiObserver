@@ -582,6 +582,41 @@ internal fun AdjustCardsDialog(
 }
 
 /**
+ * One active step in the live Card dialog flow.
+ *
+ * Keeping the flow as a single value makes dialog ownership explicit: platform Back and
+ * outside-tap dismissal always apply to the visible step, instead of relying on several nullable
+ * dialog flags to compose into the right window ordering.
+ */
+private sealed interface TeamCardDialogStep {
+    data object InitialCardChoice : TeamCardDialogStep
+    data class ExistingCards(val team: TeamId) : TeamCardDialogStep
+    data class ExistingCardEdit(
+        val pending: PendingManualCardEdit,
+        val initialEntry: PlayerCardEntry,
+    ) : TeamCardDialogStep
+    data class CardedPlayerEntry(
+        val team: TeamId,
+        val cardType: CardType,
+        val initialEntry: PlayerCardEntry,
+    ) : TeamCardDialogStep
+    data class SameNumberConfirmation(
+        val confirmation: PendingSameNumberPlayerCardConfirmation
+    ) : TeamCardDialogStep
+    data class BlueCardConfirmation(val team: TeamId) : TeamCardDialogStep
+    data class OffenseDefenseChoice(val pending: PendingMisconductChoice) : TeamCardDialogStep
+    data class MisconductResolution(val pending: PendingMisconductResolution) : TeamCardDialogStep
+    data class InvalidAssignment(
+        val message: String,
+        val returnTo: TeamCardDialogStep,
+    ) : TeamCardDialogStep
+    data class SuspensionNotice(
+        val message: String,
+        val returnTo: TeamCardDialogStep,
+    ) : TeamCardDialogStep
+}
+
+/**
  * Render the dialog flow for recording a card for one team.
  *
  * @param state The current live game state used for team names, card summaries, and assessments.
@@ -602,41 +637,8 @@ internal fun TeamCardDialog(
     onStateOnly: (GameState) -> Unit,
     onStateUpdate: (GameState) -> Unit,
 ) {
-    var pendingYellowTeam by remember {
-        mutableStateOf<TeamId?>(null)
-    }
-    var pendingYellowInitialEntry by remember {
-        mutableStateOf(PlayerCardEntry(""))
-    }
-    var pendingRedTeam by remember {
-        mutableStateOf<TeamId?>(null)
-    }
-    var pendingRedInitialEntry by remember {
-        mutableStateOf(PlayerCardEntry(""))
-    }
-    var pendingBlueTeam by remember {
-        mutableStateOf<TeamId?>(null)
-    }
-    var editingExistingCardsFor by remember {
-        mutableStateOf<TeamId?>(null)
-    }
-    var pendingExistingCardEdit by remember {
-        mutableStateOf<PendingManualCardEdit?>(null)
-    }
-    var pendingSameNumberConfirmation by remember {
-        mutableStateOf<PendingSameNumberPlayerCardConfirmation?>(null)
-    }
-    var pendingMisconductChoice by remember {
-        mutableStateOf<PendingMisconductChoice?>(null)
-    }
-    var pendingMisconductResolution by remember {
-        mutableStateOf<PendingMisconductResolution?>(null)
-    }
-    var invalidCardAssignmentMessage by remember {
-        mutableStateOf<String?>(null)
-    }
-    var suspensionNoticeMessage by remember {
-        mutableStateOf<String?>(null)
+    var step by remember {
+        mutableStateOf<TeamCardDialogStep>(TeamCardDialogStep.InitialCardChoice)
     }
 
     fun completeAssessment(result: CardAssessmentResult) {
@@ -647,52 +649,78 @@ internal fun TeamCardDialog(
         )
     }
 
-    fun presentAssessment(result: CardAssessmentResult, returnTo: PendingMisconductReturn) {
-        if (result.needsMisconductChoice) {
-            pendingMisconductChoice = PendingMisconductChoice(result, returnTo)
-        } else {
-            completeAssessment(result)
-        }
+    fun cardedPlayerEntryStep(
+        team: TeamId,
+        cardType: CardType,
+        entry: PlayerCardEntry,
+    ): TeamCardDialogStep.CardedPlayerEntry {
+        return TeamCardDialogStep.CardedPlayerEntry(team, cardType, entry)
     }
 
-    fun restoreMisconductReturn(returnTo: PendingMisconductReturn) {
-        pendingMisconductChoice = null
+    fun blueCardConfirmationStep(team: TeamId): TeamCardDialogStep.BlueCardConfirmation {
+        return TeamCardDialogStep.BlueCardConfirmation(team)
+    }
+
+    fun offenseDefenseChoiceStep(
+        pending: PendingMisconductChoice
+    ): TeamCardDialogStep.OffenseDefenseChoice {
+        return TeamCardDialogStep.OffenseDefenseChoice(pending)
+    }
+
+    fun misconductResolutionStep(
+        pending: PendingMisconductResolution
+    ): TeamCardDialogStep.MisconductResolution {
+        return TeamCardDialogStep.MisconductResolution(pending)
+    }
+
+    fun sameNumberConfirmationStep(
+        confirmation: PendingSameNumberPlayerCardConfirmation
+    ): TeamCardDialogStep.SameNumberConfirmation {
+        return TeamCardDialogStep.SameNumberConfirmation(confirmation)
+    }
+
+    fun invalidAssignmentStep(
+        message: String,
+        returnTo: TeamCardDialogStep,
+    ): TeamCardDialogStep.InvalidAssignment {
+        return TeamCardDialogStep.InvalidAssignment(message, returnTo)
+    }
+
+    fun suspensionNoticeStep(
+        message: String,
+        returnTo: TeamCardDialogStep,
+    ): TeamCardDialogStep.SuspensionNotice {
+        return TeamCardDialogStep.SuspensionNotice(message, returnTo)
+    }
+
+    fun stepForPendingMisconductReturn(returnTo: PendingMisconductReturn): TeamCardDialogStep {
         // No else branch: every PendingMisconductReturn value is handled
-        when (returnTo) {
+        return when (returnTo) {
             is PendingMisconductReturn.YellowEntry -> {
-                pendingYellowInitialEntry = returnTo.entry
-                pendingYellowTeam = returnTo.team
+                cardedPlayerEntryStep(returnTo.team, CardType.YELLOW, returnTo.entry)
             }
             is PendingMisconductReturn.RedEntry -> {
-                pendingRedInitialEntry = returnTo.entry
-                pendingRedTeam = returnTo.team
+                cardedPlayerEntryStep(returnTo.team, CardType.RED, returnTo.entry)
             }
             is PendingMisconductReturn.BlueCard -> {
-                pendingBlueTeam = returnTo.team
+                blueCardConfirmationStep(returnTo.team)
             }
         }
     }
 
-    fun restoreMisconductResolutionChoice(choice: PendingMisconductChoice) {
-        pendingMisconductResolution = null
-        if (choice.returnTo is PendingMisconductReturn.BlueCard) {
-            restoreMisconductReturn(choice.returnTo)
+    fun stepForMisconductResolutionDismissal(choice: PendingMisconductChoice): TeamCardDialogStep {
+        return if (choice.returnTo is PendingMisconductReturn.BlueCard) {
+            stepForPendingMisconductReturn(choice.returnTo)
         } else {
-            pendingMisconductChoice = choice
+            offenseDefenseChoiceStep(choice)
         }
     }
 
-    fun restorePlayerCardEntry(cardType: CardType, team: TeamId, entry: PlayerCardEntry) {
-        // No else branch: every CardType value is handled.
-        when (cardType) {
-            CardType.YELLOW -> {
-                pendingYellowInitialEntry = entry
-                pendingYellowTeam = team
-            }
-            CardType.RED -> {
-                pendingRedInitialEntry = entry
-                pendingRedTeam = team
-            }
+    fun presentAssessment(result: CardAssessmentResult, returnTo: PendingMisconductReturn) {
+        if (result.needsMisconductChoice) {
+            step = offenseDefenseChoiceStep(PendingMisconductChoice(result, returnTo))
+        } else {
+            completeAssessment(result)
         }
     }
 
@@ -713,53 +741,72 @@ internal fun TeamCardDialog(
         )
     }
 
-    fun showSuspensionNoticeIfNeeded(
+    fun suspensionNoticeMessage(
         team: TeamId,
         records: List<PlayerRecord>,
         identity: PlayerIdentity
-    ) {
-        val status = playerSuspensionStatus(records, identity) ?: return
-        suspensionNoticeMessage =
-            "${state.teamFor(team).name} ${identity.displayText(compact = true)} " +
-                status.noticeText
+    ): String? {
+        val status = playerSuspensionStatus(records, identity) ?: return null
+        return "${state.teamFor(team).name} ${identity.displayText(compact = true)} " +
+            status.noticeText
     }
 
     fun applyExistingCardEdit(
-        team: TeamId,
-        originalCard: EditablePlayerCard,
+        pending: PendingManualCardEdit,
         entry: PlayerCardEntry
     ): Boolean {
+        val returnTo = TeamCardDialogStep.ExistingCardEdit(pending, entry)
         if (entry.jerseyNumber.isBlank() && entry.playerName.isBlank()) {
-            invalidCardAssignmentMessage = "Enter a player number or name before recording this card."
+            step = invalidAssignmentStep(
+                "Enter a player number or name before recording this card.",
+                returnTo,
+            )
             return false
         }
         val identity = PlayerIdentity(entry.jerseyNumber, entry.playerName)
-        val recordsAfterRemoval = removeEditablePlayerCard(state.playerCards(team), originalCard)
+        val recordsAfterRemoval = removeEditablePlayerCard(
+            state.playerCards(pending.team),
+            pending.card,
+        )
         val status = playerSuspensionStatus(recordsAfterRemoval, identity)
         if (status != null) {
-            invalidCardAssignmentMessage =
-                "${state.teamFor(team).name} ${identity.displayText(compact = true)} " +
-                    status.rejectionText
+            step = invalidAssignmentStep(
+                "${state.teamFor(pending.team).name} ${identity.displayText(compact = true)} " +
+                    status.rejectionText,
+                returnTo,
+            )
             return false
         }
         val updatedRecords = replaceEditablePlayerCard(
-            records = state.playerCards(team),
-            editableCard = originalCard,
+            records = state.playerCards(pending.team),
+            editableCard = pending.card,
             jerseyNumber = identity.jerseyNumber,
-            cardType = originalCard.cardType,
+            cardType = pending.card.cardType,
             playerName = identity.playerName,
             reason = entry.reason,
         )
-        if (!identity.matches(originalCard.identity())) {
-            showSuspensionNoticeIfNeeded(team, updatedRecords, identity)
+        val noticeMessage = if (!identity.matches(pending.card.identity())) {
+            suspensionNoticeMessage(pending.team, updatedRecords, identity)
+        } else {
+            null
         }
         onStateUpdate(
             stateWithPlayerCards(
-                team = team,
+                team = pending.team,
                 records = updatedRecords,
-                undoLabel = state.playerCardEditUndoLabel(team, originalCard.cardType, identity),
+                undoLabel = state.playerCardEditUndoLabel(
+                    pending.team,
+                    pending.card.cardType,
+                    identity,
+                ),
             )
         )
+        val returnToList = TeamCardDialogStep.ExistingCards(pending.team)
+        step = if (noticeMessage != null) {
+            suspensionNoticeStep(noticeMessage, returnToList)
+        } else {
+            returnToList
+        }
         return true
     }
 
@@ -769,8 +816,12 @@ internal fun TeamCardDialog(
         entry: PlayerCardEntry,
         skipSameNumberWarning: Boolean = false,
     ): Boolean {
+        val returnTo = cardedPlayerEntryStep(team, cardType, entry)
         if (entry.jerseyNumber.isBlank() && entry.playerName.isBlank()) {
-            invalidCardAssignmentMessage = "Enter a player number or name before recording this card."
+            step = invalidAssignmentStep(
+                "Enter a player number or name before recording this card.",
+                returnTo,
+            )
             return false
         }
         val identity = PlayerIdentity(entry.jerseyNumber, entry.playerName)
@@ -785,20 +836,24 @@ internal fun TeamCardDialog(
                 identity.playerName
             )
             if (conflict != null) {
-                pendingSameNumberConfirmation = PendingSameNumberPlayerCardConfirmation(
-                    team = team,
-                    cardType = cardType,
-                    entry = normalizedEntry,
-                    conflict = conflict,
+                step = sameNumberConfirmationStep(
+                    PendingSameNumberPlayerCardConfirmation(
+                        team = team,
+                        cardType = cardType,
+                        entry = normalizedEntry,
+                        conflict = conflict,
+                    )
                 )
                 return true
             }
         }
         val status = playerSuspensionStatus(state.playerCards(team), identity)
         if (status != null) {
-            invalidCardAssignmentMessage =
+            step = invalidAssignmentStep(
                 "${state.teamFor(team).name} ${identity.displayText(compact = true)} " +
-                    status.rejectionText
+                    status.rejectionText,
+                returnTo,
+            )
             return false
         }
 
@@ -833,313 +888,282 @@ internal fun TeamCardDialog(
         }
     }
 
-    val cardSubdialogOpen = listOfNotNull(
-        pendingYellowTeam,
-        pendingRedTeam,
-        pendingBlueTeam,
-        editingExistingCardsFor,
-        pendingExistingCardEdit,
-        pendingSameNumberConfirmation,
-        pendingMisconductChoice,
-        pendingMisconductResolution,
-        invalidCardAssignmentMessage,
-        suspensionNoticeMessage,
-    ).isNotEmpty()
-
-    if (!cardSubdialogOpen) {
-        CardChoiceDialog(
-            state = state,
-            team = team,
-            onYellow = { pendingYellowTeam = team },
-            onRed = { pendingRedTeam = team },
-            onBlue = { pendingBlueTeam = team },
-            onEditExisting = { editingExistingCardsFor = team },
-            onDismiss = onDismiss,
-        )
-    }
-
-    editingExistingCardsFor?.let { editTeam ->
-        EditablePlayerCardsDialog(
-            teamName = state.teamFor(editTeam).name,
-            cards = editablePlayerCards(state.playerCards(editTeam)),
-            onDismiss = { editingExistingCardsFor = null },
-            onEdit = { card ->
-                pendingExistingCardEdit = PendingManualCardEdit(editTeam, card)
-            },
-        )
-    }
-
-    pendingExistingCardEdit?.let { pending ->
-        PlayerCardEntryDialog(
-            title = "Edit ${pending.card.cardType.label.lowercase()} card",
-            teamName = state.teamFor(pending.team).name,
-            initialEntry = PlayerCardEntry(
-                jerseyNumber = pending.card.jerseyNumber,
-                playerName = pending.card.playerName,
-                reason = pending.card.reason,
-            ),
-            candidates = emptyList(),
-            cardType = pending.card.cardType,
-            onDismiss = {
-                pendingExistingCardEdit = null
-            },
-            onConfirm = { entry ->
-                if (applyExistingCardEdit(pending.team, pending.card, entry)) {
-                    pendingExistingCardEdit = null
-                }
-            },
-        )
-    }
-
-    if (pendingYellowTeam != null) {
-        PlayerCardEntryDialog(
-            title = "Yellow card",
-            teamName = state.teamFor(pendingYellowTeam!!).name,
-            initialEntry = pendingYellowInitialEntry,
-            candidates = state.cardedPlayerCandidates(pendingYellowTeam!!),
-            cardType = CardType.YELLOW,
-            onDismiss = {
-                pendingYellowInitialEntry = PlayerCardEntry("")
-                pendingYellowTeam = null
-            },
-            onConfirm = { entry ->
-                val team = pendingYellowTeam!!
-                if (assessPlayerCardEntry(team, CardType.YELLOW, entry)) {
-                    pendingYellowInitialEntry = PlayerCardEntry("")
-                    pendingYellowTeam = null
-                }
-            },
-        )
-    }
-
-    if (pendingRedTeam != null) {
-        PlayerCardEntryDialog(
-            title = "Red card",
-            teamName = state.teamFor(pendingRedTeam!!).name,
-            initialEntry = pendingRedInitialEntry,
-            candidates = state.cardedPlayerCandidates(pendingRedTeam!!),
-            cardType = CardType.RED,
-            onDismiss = {
-                pendingRedInitialEntry = PlayerCardEntry("")
-                pendingRedTeam = null
-            },
-            onConfirm = { entry ->
-                val team = pendingRedTeam!!
-                if (assessPlayerCardEntry(team, CardType.RED, entry)) {
-                    pendingRedInitialEntry = PlayerCardEntry("")
-                    pendingRedTeam = null
-                }
-            },
-        )
-    }
-
-    pendingSameNumberConfirmation?.let { confirmation ->
-        AlertDialog(
-            onDismissRequest = {
-                pendingSameNumberConfirmation = null
-                restorePlayerCardEntry(confirmation.cardType, confirmation.team, confirmation.entry)
-            },
-            title = { Text("Same number, different names") },
-            text = {
-                Text(
-                    "${PlayerIdentity(
-                        confirmation.conflict.existingJerseyNumber,
-                        confirmation.conflict.existingPlayerName,
-                    ).displayText(compact = false)} is already listed. Record ${PlayerIdentity(
-                        confirmation.conflict.proposedJerseyNumber,
-                        confirmation.conflict.proposedPlayerName,
-                    ).displayText(compact = false)} as a different player with the same number?"
-                )
-            },
-            confirmButton = {
-                TextActionButton(
-                    label = "Record",
-                    onClick = {
-                        pendingSameNumberConfirmation = null
-                        assessPlayerCardEntry(
-                            team = confirmation.team,
-                            cardType = confirmation.cardType,
-                            entry = confirmation.entry,
-                            skipSameNumberWarning = true,
-                        )
-                    }
-                )
-            },
-            dismissButton = {
-                TextActionButton(
-                    label = "Cancel",
-                    tag = "same-number-warning-cancel",
-                    onClick = {
-                        pendingSameNumberConfirmation = null
-                        restorePlayerCardEntry(
-                            confirmation.cardType,
-                            confirmation.team,
-                            confirmation.entry
-                        )
-                    }
-                )
-            },
-        )
-    }
-
-    invalidCardAssignmentMessage?.let { message ->
-        AlertDialog(
-            onDismissRequest = { invalidCardAssignmentMessage = null },
-            title = { Text("Invalid card assignment") },
-            text = { Text(message) },
-            confirmButton = {
-                TextActionButton(label = "OK", onClick = { invalidCardAssignmentMessage = null })
-            },
-        )
-    }
-
-    suspensionNoticeMessage?.let { message ->
-        AlertDialog(
-            onDismissRequest = {
-                suspensionNoticeMessage = null
-            },
-            title = { Text("Card suspension") },
-            text = { Text(message) },
-            confirmButton = {
-                TextActionButton(label = "OK", onClick = { suspensionNoticeMessage = null })
-            },
-        )
-    }
-
-    pendingBlueTeam?.let { blueTeam ->
-        val event = state.previewBlueCard(blueTeam).event
-        val misconductPrompt = if (event.needsMisconductChoice()) {
-            GamePrompt.LivePointMisconduct(event)
-        } else {
-            null
+    // No else branch: every TeamCardDialogStep value is handled.
+    when (val activeStep = step) {
+        TeamCardDialogStep.InitialCardChoice -> {
+            CardChoiceDialog(
+                state = state,
+                team = team,
+                onYellow = {
+                    step = cardedPlayerEntryStep(team, CardType.YELLOW, PlayerCardEntry(""))
+                },
+                onRed = {
+                    step = cardedPlayerEntryStep(team, CardType.RED, PlayerCardEntry(""))
+                },
+                onBlue = { step = blueCardConfirmationStep(team) },
+                onEditExisting = { step = TeamCardDialogStep.ExistingCards(team) },
+                onDismiss = onDismiss,
+            )
         }
-        AlertDialog(
-            onDismissRequest = { pendingBlueTeam = null },
-            title = { Text("Blue Card") },
-            text = {
-                Text(
-                    text = misconductPrompt?.formatMessage() ?: event.formatMessage(),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-            },
-            confirmButton = {
-                if (misconductPrompt == null) {
+        is TeamCardDialogStep.ExistingCards -> {
+            EditablePlayerCardsDialog(
+                teamName = state.teamFor(activeStep.team).name,
+                cards = editablePlayerCards(state.playerCards(activeStep.team)),
+                onDismiss = { step = TeamCardDialogStep.InitialCardChoice },
+                onEdit = { card ->
+                    step = TeamCardDialogStep.ExistingCardEdit(
+                        PendingManualCardEdit(activeStep.team, card),
+                        PlayerCardEntry(
+                            jerseyNumber = card.jerseyNumber,
+                            playerName = card.playerName,
+                            reason = card.reason,
+                        ),
+                    )
+                },
+            )
+        }
+        is TeamCardDialogStep.ExistingCardEdit -> {
+            val pending = activeStep.pending
+            PlayerCardEntryDialog(
+                title = "Edit ${pending.card.cardType.label.lowercase()} card",
+                teamName = state.teamFor(pending.team).name,
+                initialEntry = activeStep.initialEntry,
+                candidates = emptyList(),
+                cardType = pending.card.cardType,
+                onDismiss = { step = TeamCardDialogStep.ExistingCards(pending.team) },
+                onConfirm = { entry -> applyExistingCardEdit(pending, entry) },
+            )
+        }
+        is TeamCardDialogStep.CardedPlayerEntry -> {
+            PlayerCardEntryDialog(
+                title = "${activeStep.cardType.label} card",
+                teamName = state.teamFor(activeStep.team).name,
+                initialEntry = activeStep.initialEntry,
+                candidates = state.cardedPlayerCandidates(activeStep.team),
+                cardType = activeStep.cardType,
+                onDismiss = { step = TeamCardDialogStep.InitialCardChoice },
+                onConfirm = { entry ->
+                    assessPlayerCardEntry(
+                        team = activeStep.team,
+                        cardType = activeStep.cardType,
+                        entry = entry,
+                    )
+                },
+            )
+        }
+        is TeamCardDialogStep.SameNumberConfirmation -> {
+            val confirmation = activeStep.confirmation
+            AlertDialog(
+                onDismissRequest = {
+                    step = cardedPlayerEntryStep(
+                        confirmation.team,
+                        confirmation.cardType,
+                        confirmation.entry,
+                    )
+                },
+                title = { Text("Same number, different names") },
+                text = {
+                    Text(
+                        "${PlayerIdentity(
+                            confirmation.conflict.existingJerseyNumber,
+                            confirmation.conflict.existingPlayerName,
+                        ).displayText(compact = false)} is already listed. Record ${PlayerIdentity(
+                            confirmation.conflict.proposedJerseyNumber,
+                            confirmation.conflict.proposedPlayerName,
+                        ).displayText(compact = false)} as a different player with the same number?"
+                    )
+                },
+                confirmButton = {
+                    TextActionButton(
+                        label = "Record",
+                        onClick = {
+                            assessPlayerCardEntry(
+                                team = confirmation.team,
+                                cardType = confirmation.cardType,
+                                entry = confirmation.entry,
+                                skipSameNumberWarning = true,
+                            )
+                        }
+                    )
+                },
+                dismissButton = {
+                    TextActionButton(
+                        label = "Cancel",
+                        tag = "same-number-warning-cancel",
+                        onClick = {
+                            step = cardedPlayerEntryStep(
+                                confirmation.team,
+                                confirmation.cardType,
+                                confirmation.entry
+                            )
+                        }
+                    )
+                },
+            )
+        }
+        is TeamCardDialogStep.InvalidAssignment -> {
+            AlertDialog(
+                onDismissRequest = { step = activeStep.returnTo },
+                title = { Text("Invalid card assignment") },
+                text = { Text(activeStep.message) },
+                confirmButton = {
+                    TextActionButton(label = "OK", onClick = { step = activeStep.returnTo })
+                },
+            )
+        }
+        is TeamCardDialogStep.SuspensionNotice -> {
+            AlertDialog(
+                onDismissRequest = { step = activeStep.returnTo },
+                title = { Text("Card suspension") },
+                text = { Text(activeStep.message) },
+                confirmButton = {
+                    TextActionButton(label = "OK", onClick = { step = activeStep.returnTo })
+                },
+            )
+        }
+        is TeamCardDialogStep.BlueCardConfirmation -> {
+            val blueTeam = activeStep.team
+            val event = state.previewBlueCard(blueTeam).event
+            val misconductPrompt = if (event.needsMisconductChoice()) {
+                GamePrompt.LivePointMisconduct(event)
+            } else {
+                null
+            }
+            AlertDialog(
+                onDismissRequest = { step = TeamCardDialogStep.InitialCardChoice },
+                title = { Text("Blue Card") },
+                text = {
+                    Text(
+                        text = misconductPrompt?.formatMessage() ?: event.formatMessage(),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                },
+                confirmButton = {
+                    if (misconductPrompt == null) {
+                        TextActionButton(
+                            label = "OK",
+                            onClick = {
+                                val result = state.assessBlueCard(blueTeam, now)
+                                onStateOnly(result.state)
+                            },
+                        )
+                    } else {
+                        MisconductChoiceButtons(
+                            firstLabel = "Cancel",
+                            onFirst = { step = TeamCardDialogStep.InitialCardChoice },
+                            onOffense = {
+                                val result = state.assessBlueCard(blueTeam, now)
+                                step = misconductResolutionStep(
+                                    PendingMisconductResolution(
+                                        choice = PendingMisconductChoice(
+                                            result = result,
+                                            returnTo = PendingMisconductReturn.BlueCard(blueTeam),
+                                        ),
+                                        againstOffense = true,
+                                    )
+                                )
+                            },
+                            onDefense = {
+                                val result = state.assessBlueCard(blueTeam, now)
+                                step = misconductResolutionStep(
+                                    PendingMisconductResolution(
+                                        choice = PendingMisconductChoice(
+                                            result = result,
+                                            returnTo = PendingMisconductReturn.BlueCard(blueTeam),
+                                        ),
+                                        againstOffense = false,
+                                    )
+                                )
+                            },
+                        )
+                    }
+                },
+                dismissButton = if (misconductPrompt == null) {
+                    {
+                        TextActionButton(
+                            label = "Cancel",
+                            onClick = { step = TeamCardDialogStep.InitialCardChoice },
+                        )
+                    }
+                } else {
+                    null
+                },
+            )
+        }
+        is TeamCardDialogStep.OffenseDefenseChoice -> {
+            val pending = activeStep.pending
+            val prompt = GamePrompt.LivePointMisconduct(pending.result.event)
+            AlertDialog(
+                onDismissRequest = {
+                    step = stepForPendingMisconductReturn(pending.returnTo)
+                },
+                title = { Text(prompt.formatTitle()) },
+                text = {
+                    Text(
+                        text = prompt.formatMessage(),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                },
+                confirmButton = {
+                    MisconductChoiceButtons(
+                        firstLabel = "Back",
+                        firstTag = "misconduct-choice-back",
+                        onFirst = { step = stepForPendingMisconductReturn(pending.returnTo) },
+                        onOffense = {
+                            step = misconductResolutionStep(
+                                PendingMisconductResolution(
+                                    choice = pending,
+                                    againstOffense = true,
+                                )
+                            )
+                        },
+                        onDefense = {
+                            step = misconductResolutionStep(
+                                PendingMisconductResolution(
+                                    choice = pending,
+                                    againstOffense = false,
+                                )
+                            )
+                        },
+                    )
+                },
+            )
+        }
+        is TeamCardDialogStep.MisconductResolution -> {
+            val pending = activeStep.pending
+            val prompt = GamePrompt.LivePointMisconduct(pending.choice.result.event)
+            AlertDialog(
+                onDismissRequest = {
+                    step = stepForMisconductResolutionDismissal(pending.choice)
+                },
+                title = { Text(prompt.formatTitle()) },
+                text = {
+                    Text(
+                        text = prompt.resolutionMessage(pending.againstOffense),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                },
+                confirmButton = {
                     TextActionButton(
                         label = "OK",
                         onClick = {
-                            val result = state.assessBlueCard(blueTeam, now)
-                            onStateOnly(result.state)
-                            pendingBlueTeam = null
+                            onStateOnly(
+                                pending.choice.result.state.withPendingMisconductCountdown()
+                            )
                         },
                     )
-                } else {
-                    MisconductChoiceButtons(
-                        firstLabel = "Cancel",
-                        onFirst = { pendingBlueTeam = null },
-                        onOffense = {
-                            val result = state.assessBlueCard(blueTeam, now)
-                            pendingMisconductResolution = PendingMisconductResolution(
-                                choice = PendingMisconductChoice(
-                                    result = result,
-                                    returnTo = PendingMisconductReturn.BlueCard(blueTeam),
-                                ),
-                                againstOffense = true,
-                            )
-                            pendingBlueTeam = null
-                        },
-                        onDefense = {
-                            val result = state.assessBlueCard(blueTeam, now)
-                            pendingMisconductResolution = PendingMisconductResolution(
-                                choice = PendingMisconductChoice(
-                                    result = result,
-                                    returnTo = PendingMisconductReturn.BlueCard(blueTeam),
-                                ),
-                                againstOffense = false,
-                            )
-                            pendingBlueTeam = null
+                },
+                dismissButton = {
+                    TextActionButton(
+                        label = "Back",
+                        tag = "misconduct-resolution-back",
+                        onClick = {
+                            step = stepForMisconductResolutionDismissal(pending.choice)
                         },
                     )
-                }
-            },
-            dismissButton = if (misconductPrompt == null) {
-                {
-                    TextActionButton(label = "Cancel", onClick = { pendingBlueTeam = null })
-                }
-            } else {
-                null
-            },
-        )
-    }
-
-    pendingMisconductChoice?.let { pending ->
-        val prompt = GamePrompt.LivePointMisconduct(pending.result.event)
-        AlertDialog(
-            onDismissRequest = {
-                restoreMisconductReturn(pending.returnTo)
-            },
-            title = { Text(prompt.formatTitle()) },
-            text = {
-                Text(
-                    text = prompt.formatMessage(),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-            },
-            confirmButton = {
-                MisconductChoiceButtons(
-                    firstLabel = "Back",
-                    firstTag = "misconduct-choice-back",
-                    onFirst = { restoreMisconductReturn(pending.returnTo) },
-                    onOffense = {
-                        pendingMisconductResolution = PendingMisconductResolution(
-                            choice = pending,
-                            againstOffense = true,
-                        )
-                        pendingMisconductChoice = null
-                    },
-                    onDefense = {
-                        pendingMisconductResolution = PendingMisconductResolution(
-                            choice = pending,
-                            againstOffense = false,
-                        )
-                        pendingMisconductChoice = null
-                    },
-                )
-            },
-        )
-    }
-
-    pendingMisconductResolution?.let { pending ->
-        val prompt = GamePrompt.LivePointMisconduct(pending.choice.result.event)
-        AlertDialog(
-            onDismissRequest = {
-                restoreMisconductResolutionChoice(pending.choice)
-            },
-            title = { Text(prompt.formatTitle()) },
-            text = {
-                Text(
-                    text = prompt.resolutionMessage(pending.againstOffense),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-            },
-            confirmButton = {
-                TextActionButton(
-                    label = "OK",
-                    onClick = {
-                        onStateOnly(pending.choice.result.state.withPendingMisconductCountdown())
-                        pendingMisconductResolution = null
-                    },
-                )
-            },
-            dismissButton = {
-                TextActionButton(
-                    label = "Back",
-                    tag = "misconduct-resolution-back",
-                    onClick = {
-                        restoreMisconductResolutionChoice(pending.choice)
-                    },
-                )
-            },
-        )
+                },
+            )
+        }
     }
 }
 
