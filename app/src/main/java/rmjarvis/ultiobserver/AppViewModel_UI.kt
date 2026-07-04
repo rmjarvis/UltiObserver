@@ -323,7 +323,7 @@ internal fun UltiObserverApp(
         }
 
         AppScreen.SETUP -> {
-            val setupGame = appState.setupState
+            val setupGame = appState.setupGame
             val setupMode = appState.setupMode
             fun finishSetup() {
                 if (

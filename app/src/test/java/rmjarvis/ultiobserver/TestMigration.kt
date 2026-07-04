@@ -39,22 +39,22 @@ class TestMigration : GameDomainTestFixtures() {
         // The main tricky thing here is the different way the prior cards were stored.
         val setupDraft = loadMigratedFixture("v1.0", "setup-draft")
         assertTrue(setupDraft.hasSetupDraft)
-        assertEquals("Migration Invitational", setupDraft.setupState.tournamentName)
-        assertEquals("Bees", setupDraft.setupState.teamOne.name)
-        assertEquals("Ferns", setupDraft.setupState.teamTwo.name)
-        assertEquals(TeamId.TEAM_TWO, setupDraft.setupState.pullingTeam)
-        assertEquals(FieldEnd.NEAR, setupDraft.setupState.pullingFromEnd)
-        assertEquals(PullPromptTarget.NEAR, setupDraft.setupState.pullPromptTarget)
-        assertEquals(GenderRatio.FOUR_MEN_THREE_WOMEN, setupDraft.setupState.initialGenderRatio)
-        assertEquals(FieldEnd.FAR, setupDraft.setupState.firstHalfGenZone)
-        assertTrue(setupDraft.setupState.rules.switchGenZoneAtHalftime)
+        assertEquals("Migration Invitational", setupDraft.setupGame.tournamentName)
+        assertEquals("Bees", setupDraft.setupGame.teamOne.name)
+        assertEquals("Ferns", setupDraft.setupGame.teamTwo.name)
+        assertEquals(TeamId.TEAM_TWO, setupDraft.setupGame.pullingTeam)
+        assertEquals(FieldEnd.NEAR, setupDraft.setupGame.pullingFromEnd)
+        assertEquals(PullPromptTarget.NEAR, setupDraft.setupGame.pullPromptTarget)
+        assertEquals(GenderRatio.FOUR_MEN_THREE_WOMEN, setupDraft.setupGame.initialGenderRatio)
+        assertEquals(FieldEnd.FAR, setupDraft.setupGame.firstHalfGenZone)
+        assertTrue(setupDraft.setupGame.rules.switchGenZoneAtHalftime)
         assertEquals(
             listOf(
                 PlayerRecord("7", priorYellows = 1),
                 PlayerRecord("", "N/A (1)", priorReds = 1),
                 PlayerRecord("", "N/A (2)", priorYellows = 1),
             ),
-            setupDraft.setupState.teamOnePlayers,
+            setupDraft.setupGame.teamOnePlayers,
         )
         assertEquals(
             listOf(
@@ -62,7 +62,7 @@ class TestMigration : GameDomainTestFixtures() {
                 PlayerRecord("", "N/A (1)", priorYellows = 1),
                 PlayerRecord("", "N/A (2)", priorReds = 1),
             ),
-            setupDraft.setupState.teamTwoPlayers,
+            setupDraft.setupGame.teamTwoPlayers,
         )
 
         // active-game is a still-active game with some of just about every kind of action

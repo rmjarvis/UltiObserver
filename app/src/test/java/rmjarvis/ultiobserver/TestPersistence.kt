@@ -149,7 +149,7 @@ class TestPersistence : GameDomainTestFixtures() {
         // A fresh ViewModel should keep a setup draft but open at Home.
         viewModel.startNewGame(now = 123_000L)
         val persistedRules = GameRules(gameTo = 13, hardCapMinutes = 95, hasFloaterTimeout = true)
-        val draftedSetup = viewModel.setupState.copy(
+        val draftedSetup = viewModel.setupGame.copy(
             rules = persistedRules,
             teamOne = TeamState("Viscous Coupling", TeamColorChoice.BLUE),
             teamTwo = TeamState("Animal", TeamColorChoice.PINK),
@@ -157,8 +157,8 @@ class TestPersistence : GameDomainTestFixtures() {
         viewModel.updateSetup(draftedSetup)
         val draftRestored = AppViewModel(FileAppStateStorage(storeDir))
         assertEquals(AppScreen.HOME, draftRestored.screen)
-        assertEquals(draftedSetup, draftRestored.setupState)
-        assertEquals(persistedRules, draftRestored.setupState.rules)
+        assertEquals(draftedSetup, draftRestored.setupGame)
+        assertEquals(persistedRules, draftRestored.setupGame.rules)
         assertTrue(draftRestored.hasSetupDraft)
         assertEquals(GamePhase.SETUP, draftRestored.currentGame?.phase)
         draftRestored.resumeCurrentGame()

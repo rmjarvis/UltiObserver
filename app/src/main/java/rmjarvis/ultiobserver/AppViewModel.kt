@@ -63,11 +63,11 @@ internal data class AppUiState(
     val archiveSortMode: ArchiveSortMode,
     val startupRecoveryNotice: RecoveryNotice?,
 ) {
-    val setupState: GameState
+    val setupGame: GameState
         get() = editingSavedSetupIndex?.let { archivedGames[it] }
             ?: setupEditDraft
             ?: currentGame
-            ?: error("No setup state is active.")
+            ?: error("No setup game is active.")
 
     val setupMode: SetupMode
         get() {
@@ -162,8 +162,8 @@ internal class AppViewModel(
         get() = state.value.setupEditDraft
     val editingSavedSetupIndex: Int?
         get() = state.value.editingSavedSetupIndex
-    val setupState: GameState
-        get() = state.value.setupState
+    val setupGame: GameState
+        get() = state.value.setupGame
     val setupMode: SetupMode
         get() = state.value.setupMode
     val profileName: String

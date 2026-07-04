@@ -30,7 +30,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertNull(viewModel.currentGameHomeSubtitle)
         assertEquals(SetupMode.NEW_GAME, viewModel.setupMode)
         assertThrows(IllegalStateException::class.java) {
-            viewModel.setupState
+            viewModel.setupGame
         }
 
         // Create a setup draft and verify Home can advertise it as resumable.
@@ -40,7 +40,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertEquals("Tap to resume", viewModel.currentGameHomeSubtitle)
 
         // Finish setup with named teams and verify the current game is created from that draft.
-        val namedSetup = viewModel.setupState.copy(
+        val namedSetup = viewModel.setupGame.copy(
             teamOne = TeamState("Alpha", TeamColorChoice.BLUE),
             teamTwo = TeamState("Beta", TeamColorChoice.PINK),
         )
@@ -66,8 +66,8 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertEquals(AppScreen.SETUP, viewModel.screen)
         assertEquals(SetupMode.EDIT_CURRENT_GAME, viewModel.setupMode)
         viewModel.updateSetup(
-            viewModel.setupState.copy(
-                teamOne = viewModel.setupState.teamOne.copy(name = "Alpha Prime"),
+            viewModel.setupGame.copy(
+                teamOne = viewModel.setupGame.teamOne.copy(name = "Alpha Prime"),
             )
         )
         assertFalse(viewModel.hasSetupDraft)
@@ -101,7 +101,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         // Create a blank-name setup draft and verify Home resumes it as setup, not live play.
         val viewModel = AppViewModel(NoOpAppStateStorage)
         viewModel.startNewGame(now = 123_000L)
-        val draftedSetup = viewModel.setupState.copy(
+        val draftedSetup = viewModel.setupGame.copy(
             teamOne = TeamState("", TeamColorChoice.GREEN),
             teamTwo = TeamState("", TeamColorChoice.YELLOW),
         )
@@ -114,7 +114,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         // Resuming from Home should reopen the setup draft, not live play.
         viewModel.resumeCurrentGame()
         assertEquals(AppScreen.SETUP, viewModel.screen)
-        assertEquals(draftedSetup, viewModel.setupState)
+        assertEquals(draftedSetup, viewModel.setupGame)
 
         // Backing out from the pre-pull preview should restore the original editable draft.
         viewModel.finishSetup(now = 123_000L)
@@ -124,8 +124,8 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertEquals(AppScreen.SETUP, viewModel.screen)
         assertTrue(viewModel.hasSetupDraft)
         assertEquals(GamePhase.SETUP, viewModel.currentGame?.phase)
-        assertEquals("", viewModel.setupState.teamOne.name)
-        assertEquals("", viewModel.setupState.teamTwo.name)
+        assertEquals("", viewModel.setupGame.teamOne.name)
+        assertEquals("", viewModel.setupGame.teamTwo.name)
 
         // Backing out from a new setup draft returns Home while keeping the draft resumable.
         val newSetupBackViewModel = AppViewModel(NoOpAppStateStorage)
@@ -149,8 +149,8 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertEquals(AppScreen.SETUP, viewModel.screen)
         assertTrue(viewModel.hasSetupDraft)
         assertEquals(GamePhase.SETUP, viewModel.currentGame?.phase)
-        assertEquals("", viewModel.setupState.teamOne.name)
-        assertEquals("", viewModel.setupState.teamTwo.name)
+        assertEquals("", viewModel.setupGame.teamOne.name)
+        assertEquals("", viewModel.setupGame.teamTwo.name)
 
         // Update game setup should also treat the pre-pull game as a draft.
         viewModel.finishSetup(now = 123_000L)
@@ -158,8 +158,8 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertEquals(AppScreen.SETUP, viewModel.screen)
         assertTrue(viewModel.hasSetupDraft)
         assertEquals(GamePhase.SETUP, viewModel.currentGame?.phase)
-        assertEquals("", viewModel.setupState.teamOne.name)
-        assertEquals("", viewModel.setupState.teamTwo.name)
+        assertEquals("", viewModel.setupGame.teamOne.name)
+        assertEquals("", viewModel.setupGame.teamTwo.name)
 
         // Once a real point starts, Home should resume the in-progress game instead of setup.
         viewModel.finishSetup(now = 123_000L)
@@ -175,11 +175,11 @@ class TestAppViewModel : GameDomainTestFixtures() {
         val setupDraftViewModel = AppViewModel(NoOpAppStateStorage)
         setupDraftViewModel.startNewGame(now = 123_000L)
         setupDraftViewModel.updateSetup(
-            setupDraftViewModel.setupState.copy(
+            setupDraftViewModel.setupGame.copy(
                 teamOne = TeamState("Saved setup", TeamColorChoice.WHITE),
             )
         )
-        val savedSetupDraft = setupDraftViewModel.setupState
+        val savedSetupDraft = setupDraftViewModel.setupGame
         setupDraftViewModel.startNewGame(now = 123_000L)
         assertEquals(AppScreen.SETUP, setupDraftViewModel.screen)
         assertTrue(setupDraftViewModel.hasSetupDraft)
@@ -189,7 +189,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
             setupDraftViewModel.archivedGames.single().archiveCategory,
         )
         assertEquals(savedSetupDraft, setupDraftViewModel.archivedGames.single())
-        assertEquals("", setupDraftViewModel.setupState.teamOne.name)
+        assertEquals("", setupDraftViewModel.setupGame.teamOne.name)
 
         // Starting over before the first real point should save the pre-pull preview aside.
         val prePullViewModel = AppViewModel(NoOpAppStateStorage)
@@ -287,8 +287,8 @@ class TestAppViewModel : GameDomainTestFixtures() {
         viewModel.editCurrentGame(viewModel.currentGame!!)
         assertEquals(AppScreen.SETUP, viewModel.screen)
         viewModel.updateSetup(
-            viewModel.setupState.copy(
-                rules = viewModel.setupState.rules.copy(gameTo = 17),
+            viewModel.setupGame.copy(
+                rules = viewModel.setupGame.rules.copy(gameTo = 17),
             )
         )
         viewModel.finishSetup(now = 123_000L)
@@ -378,13 +378,13 @@ class TestAppViewModel : GameDomainTestFixtures() {
         val viewModel = AppViewModel(NoOpAppStateStorage)
         viewModel.updateProfileName(" Casey Observer ")
         viewModel.startNewGame(now = 123_000L)
-        assertEquals(listOf("Casey Observer"), viewModel.setupState.observerNames)
+        assertEquals(listOf("Casey Observer"), viewModel.setupGame.observerNames)
 
         // Blank or whitespace profile names should not create an empty observer entry.
         val blankProfileViewModel = AppViewModel(NoOpAppStateStorage)
         blankProfileViewModel.updateProfileName("   ")
         blankProfileViewModel.startNewGame(now = 123_000L)
-        assertEquals(emptyList<String>(), blankProfileViewModel.setupState.observerNames)
+        assertEquals(emptyList<String>(), blankProfileViewModel.setupGame.observerNames)
     }
 
     /**

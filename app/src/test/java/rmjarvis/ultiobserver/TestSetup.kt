@@ -23,14 +23,14 @@ class TestSetup : GameDomainTestFixtures() {
         val teamTwoPlayers = teamTwoPriorPlayers()
 
         // A new setup draft starts with the current standard game rules.
-        val newSetupState = newSetupGameState(
+        val newSetupGame = newSetupGameState(
             now = epochTimestamp(
                 LocalDate.of(2026, 1, 1),
                 LocalTime.of(9, 0),
                 ZoneId.systemDefault(),
             ),
         )
-        assertEquals(GameRules(), newSetupState.rules)
+        assertEquals(GameRules(), newSetupGame.rules)
 
         // A new setup draft can carry tournament context from the previous game while keeping
         // its own freshly calculated start date and time.
@@ -139,20 +139,20 @@ class TestSetup : GameDomainTestFixtures() {
             teamOne = setup.teamOne.copy(name = ""),
             teamTwo = setup.teamTwo.copy(name = ""),
         )
-        val setupState = blankNameSetup
-        assertEquals(GamePhase.SETUP, setupState.phase)
-        assertFalse(setupState.phase.isBeforeLivePoint)
-        assertNull(setupState.countdown)
-        assertEquals(blankNameSetup, setupState)
-        assertEquals("", setupState.teamOne.name)
-        assertEquals("", setupState.teamTwo.name)
-        val startedSetupState = setupState.startGame()
-        assertEquals(GamePhase.PRE_GAME, startedSetupState.phase)
-        assertTrue(startedSetupState.phase.isBeforeLivePoint)
-        assertEquals("Team 1", startedSetupState.teamOne.name)
-        assertEquals("Team 2", startedSetupState.teamTwo.name)
-        assertEquals(CountdownKind.OPENING_PULL, startedSetupState.countdown?.kind)
-        assertEquals(createLiveGameState(blankNameSetup), startedSetupState)
+        val setupGame = blankNameSetup
+        assertEquals(GamePhase.SETUP, setupGame.phase)
+        assertFalse(setupGame.phase.isBeforeLivePoint)
+        assertNull(setupGame.countdown)
+        assertEquals(blankNameSetup, setupGame)
+        assertEquals("", setupGame.teamOne.name)
+        assertEquals("", setupGame.teamTwo.name)
+        val startedSetupGame = setupGame.startGame()
+        assertEquals(GamePhase.PRE_GAME, startedSetupGame.phase)
+        assertTrue(startedSetupGame.phase.isBeforeLivePoint)
+        assertEquals("Team 1", startedSetupGame.teamOne.name)
+        assertEquals("Team 2", startedSetupGame.teamTwo.name)
+        assertEquals(CountdownKind.OPENING_PULL, startedSetupGame.countdown?.kind)
+        assertEquals(createLiveGameState(blankNameSetup), startedSetupGame)
 
         // The opening pull countdown starts from the game start epoch.
         assertEquals(GamePhase.PRE_GAME, state.phase)

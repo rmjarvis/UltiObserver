@@ -773,7 +773,7 @@ class TestArchive : GameDomainTestFixtures() {
         val viewModel = AppViewModel(NoOpAppStateStorage)
         viewModel.startNewGame(now = 123_000L)
         val tournamentRules = GameRules(gameTo = 11, hasFloaterTimeout = true)
-        val savedSetup = viewModel.setupState.copy(
+        val savedSetup = viewModel.setupGame.copy(
             tournamentName = "Summer Solstice",
             division = GameDivision.OPEN,
             level = "Club",
@@ -846,7 +846,7 @@ class TestArchive : GameDomainTestFixtures() {
         assertEquals(AppScreen.SETUP, viewModel.screen)
         assertEquals(SetupMode.EDIT_SAVED_SETUP, viewModel.setupMode)
         assertFalse(viewModel.hasSetupDraft)
-        assertEquals(savedSetup, viewModel.setupState)
+        assertEquals(savedSetup, viewModel.setupGame)
         assertEquals(savedSetup, viewModel.archivedGames.single())
         val editedSavedSetup = savedSetup.copy(
             fieldName = "Field 8",
@@ -862,18 +862,18 @@ class TestArchive : GameDomainTestFixtures() {
         // Starting another game carries forward tournament, division, level, and rules, but not
         // other fields that typically change each game.
         viewModel.startNewGame(now = 123_000L)
-        assertEquals("Summer Solstice", viewModel.setupState.tournamentName)
-        assertEquals(GameDivision.OPEN, viewModel.setupState.division)
-        assertEquals("Club", viewModel.setupState.level)
-        assertEquals(tournamentRules, viewModel.setupState.rules)
-        assertEquals("", viewModel.setupState.gameContext)
-        assertEquals(emptyList<String>(), viewModel.setupState.observerNames)
-        assertEquals("", viewModel.setupState.fieldName)
-        assertEquals("", viewModel.setupState.teamOne.name)
-        assertEquals("", viewModel.setupState.teamTwo.name)
+        assertEquals("Summer Solstice", viewModel.setupGame.tournamentName)
+        assertEquals(GameDivision.OPEN, viewModel.setupGame.division)
+        assertEquals("Club", viewModel.setupGame.level)
+        assertEquals(tournamentRules, viewModel.setupGame.rules)
+        assertEquals("", viewModel.setupGame.gameContext)
+        assertEquals(emptyList<String>(), viewModel.setupGame.observerNames)
+        assertEquals("", viewModel.setupGame.fieldName)
+        assertEquals("", viewModel.setupGame.teamOne.name)
+        assertEquals("", viewModel.setupGame.teamTwo.name)
 
         // Making a saved setup current saves the previous current setup draft aside.
-        val unsavedDraft = viewModel.setupState.copy(
+        val unsavedDraft = viewModel.setupGame.copy(
             teamOne = TeamState("Unsaved", TeamColorChoice.WHITE),
         )
         viewModel.updateSetup(unsavedDraft)
@@ -884,7 +884,7 @@ class TestArchive : GameDomainTestFixtures() {
         assertEquals(AppScreen.SETUP, viewModel.screen)
         assertTrue(viewModel.hasSetupDraft)
         assertEquals(GamePhase.SETUP, viewModel.currentGame?.phase)
-        assertEquals(editedSavedSetup, viewModel.setupState)
+        assertEquals(editedSavedSetup, viewModel.setupGame)
         assertEquals(SetupMode.NEW_GAME, viewModel.setupMode)
         assertEquals(1, viewModel.archivedGames.size)
         assertEquals(ArchivedGameCategory.SETUP, viewModel.archivedGames.single().archiveCategory)
@@ -895,7 +895,7 @@ class TestArchive : GameDomainTestFixtures() {
         viewModel.saveSetupForLater()
         viewModel.startNewGame(now = 123_000L)
         viewModel.updateSetup(
-            viewModel.setupState.copy(
+            viewModel.setupGame.copy(
                 teamOne = TeamState("Current", TeamColorChoice.WHITE),
                 teamTwo = TeamState("Live", TeamColorChoice.BLUE),
             )
@@ -907,7 +907,7 @@ class TestArchive : GameDomainTestFixtures() {
         viewModel.openArchivedGameCategory(ArchivedGameCategory.SETUP)
         viewModel.openArchivedGame(1, now = 123_000L)
         viewModel.makeEditedSetupCurrent()
-        assertEquals(editedSavedSetup, viewModel.setupState)
+        assertEquals(editedSavedSetup, viewModel.setupGame)
         assertEquals(2, viewModel.archivedGames.size)
         assertEquals(ArchivedGameCategory.SETUP, viewModel.archivedGames.first().archiveCategory)
         assertEquals(unsavedDraft, viewModel.archivedGames.first())
@@ -1239,7 +1239,7 @@ class TestArchive : GameDomainTestFixtures() {
         val storeDir = temporaryFolder.newFolder()
         val viewModel = AppViewModel(FileAppStateStorage(storeDir))
         viewModel.startNewGame(now = 123_000L)
-        val setup = viewModel.setupState.copy(
+        val setup = viewModel.setupGame.copy(
             teamOne = TeamState("Viscous Coupling", TeamColorChoice.BLUE),
             teamTwo = TeamState("Animal", TeamColorChoice.PINK),
         )
@@ -1266,7 +1266,7 @@ class TestArchive : GameDomainTestFixtures() {
         // Reload the ViewModel to verify the recoverable active state survives phone storage.
         val restoredViewModel = AppViewModel(FileAppStateStorage(storeDir))
         assertEquals(archivedGame, restoredViewModel.archivedGames.single())
-        val replacementSetup = restoredViewModel.setupState.copy(
+        val replacementSetup = restoredViewModel.setupGame.copy(
             teamOne = TeamState("Replacement Current", TeamColorChoice.WHITE),
             teamTwo = TeamState("Replacement Opponent", TeamColorChoice.BLUE),
         )
@@ -1290,8 +1290,8 @@ class TestArchive : GameDomainTestFixtures() {
         assertEquals(SetupMode.EDIT_CURRENT_GAME, restoredViewModel.setupMode)
         assertEquals(activeGame, restoredViewModel.currentGame)
         assertEquals(GamePhase.LIVE_POINT, restoredViewModel.currentGame!!.phase)
-        assertEquals(setup.teamOne.name, restoredViewModel.setupState.teamOne.name)
-        assertEquals(setup.teamTwo.name, restoredViewModel.setupState.teamTwo.name)
+        assertEquals(setup.teamOne.name, restoredViewModel.setupGame.teamOne.name)
+        assertEquals(setup.teamTwo.name, restoredViewModel.setupGame.teamTwo.name)
     }
 
     /**
@@ -1315,12 +1315,12 @@ class TestArchive : GameDomainTestFixtures() {
             timeoutsPerHalf = 1,
             hasFloaterTimeout = true,
         )
-        viewModel.updateSetup(viewModel.setupState.copy(rules = tournamentRules))
+        viewModel.updateSetup(viewModel.setupGame.copy(rules = tournamentRules))
         viewModel.finishSetup(now = 123_000L)
         viewModel.updateCurrentGame(viewModel.currentGame!!.copy(phase = GamePhase.GAME_OVER))
         viewModel.archiveCompletedGame()
         viewModel.startNewGame(now = 123_000L)
-        assertEquals(tournamentRules, viewModel.setupState.rules)
+        assertEquals(tournamentRules, viewModel.setupGame.rules)
         assertEquals(GamePhase.SETUP, viewModel.currentGame?.phase)
         assertEquals(SetupMode.NEW_GAME, viewModel.setupMode)
     }
@@ -1335,12 +1335,12 @@ class TestArchive : GameDomainTestFixtures() {
         val viewModel = AppViewModel(NoOpAppStateStorage)
         viewModel.startNewGame(now = 123_000L)
         val currentRules = GameRules(gameTo = 11, hardCapMinutes = 80, hasFloaterTimeout = true)
-        viewModel.updateSetup(viewModel.setupState.copy(rules = currentRules))
+        viewModel.updateSetup(viewModel.setupGame.copy(rules = currentRules))
         viewModel.finishSetup(now = 123_000L)
         viewModel.updateCurrentGame(viewModel.currentGame!!.beginLivePoint())
         val savedState = viewModel.currentGame!!
         viewModel.startNewGame(now = 123_000L)
-        assertEquals(currentRules, viewModel.setupState.rules)
+        assertEquals(currentRules, viewModel.setupGame.rules)
         assertEquals(currentRules, viewModel.archivedGames.single().rules)
         assertEquals(savedState, viewModel.archivedGames.single())
         assertEquals(
