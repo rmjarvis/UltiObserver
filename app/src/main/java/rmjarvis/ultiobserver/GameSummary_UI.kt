@@ -24,9 +24,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 /**
@@ -142,6 +144,7 @@ internal fun GameOverSummary(
     val secondaryActionText = secondarySummaryActionText
 
     val summaryText = state.gameOverSummaryText()
+    var teamInfoDialogTeam by remember { mutableStateOf<TeamId?>(null) }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -208,10 +211,16 @@ internal fun GameOverSummary(
             }
 
             GameOverTeamSummary(
+                teamId = TeamId.TEAM_ONE,
+                team = state.teamOne,
                 summaryText = state.gameOverTeamSummaryText(TeamId.TEAM_ONE),
+                onTeamInfo = { teamInfoDialogTeam = TeamId.TEAM_ONE },
             )
             GameOverTeamSummary(
+                teamId = TeamId.TEAM_TWO,
+                team = state.teamTwo,
                 summaryText = state.gameOverTeamSummaryText(TeamId.TEAM_TWO),
+                onTeamInfo = { teamInfoDialogTeam = TeamId.TEAM_TWO },
             )
         }
 
@@ -259,6 +268,13 @@ internal fun GameOverSummary(
             }
         }
     }
+
+    teamInfoDialogTeam?.let { teamId ->
+        TeamNamesDialog(
+            team = state.teamFor(teamId),
+            onDismiss = { teamInfoDialogTeam = null },
+        )
+    }
 }
 
 /**
@@ -278,11 +294,17 @@ internal fun Context.shareGameSummary(state: GameState) {
 /**
  * Render one team-level section inside the game-over summary.
  *
+ * @param teamId Team id used for the optional info-button test tag.
+ * @param team Team metadata used for the name and optional coach/captain info button.
  * @param summaryText Text content for the team summary section.
+ * @param onTeamInfo Callback opening coach/captain details for this team.
  */
 @Composable
 private fun GameOverTeamSummary(
+    teamId: TeamId,
+    team: TeamState,
     summaryText: GameOverTeamSummaryText,
+    onTeamInfo: () -> Unit,
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -293,11 +315,28 @@ private fun GameOverTeamSummary(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(
-                summaryText.teamName,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    summaryText.teamName,
+                    modifier = Modifier.weight(1f, fill = false),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (team.hasCoachOrCaptainInfo()) {
+                    FieldInfoButton(
+                        teamName = team.name,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        onClick = onTeamInfo,
+                        tag = "summary-${teamId.name}-team-info",
+                    )
+                }
+            }
             summaryText.issuedCardLines.forEach { line ->
                 Text(line, style = MaterialTheme.typography.bodyMedium)
             }

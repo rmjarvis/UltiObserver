@@ -734,13 +734,13 @@ internal fun LiveGameScreen(
 }
 
 /**
- * Render coach and captain names for quick live-game reference.
+ * Render coach and captain names for quick reference.
  *
  * @param team The team whose setup-entered names should be displayed.
  * @param onDismiss Callback closing the dialog.
  */
 @Composable
-private fun TeamNamesDialog(team: TeamState, onDismiss: () -> Unit) {
+internal fun TeamNamesDialog(team: TeamState, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(team.name) },

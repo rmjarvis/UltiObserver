@@ -3,9 +3,14 @@ package rmjarvis.ultiobserver
 import android.app.Instrumentation
 import android.content.Intent
 import androidx.activity.compose.setContent
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.espresso.intent.Intents.intended
 import androidx.test.espresso.intent.Intents.intending
 import androidx.test.espresso.intent.Intents.init
@@ -36,6 +41,12 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
         waitForText("No yellow or red cards issued.")
         composeRule.onNodeWithText("Share").assertIsDisplayed()
 
+        // Teams without setup-entered coach/captain names do not expose summary info actions.
+        composeRule.onAllNodesWithTag("summary-${TeamId.TEAM_ONE.name}-team-info")
+            .assertCountEquals(0)
+        composeRule.onAllNodesWithTag("summary-${TeamId.TEAM_TWO.name}-team-info")
+            .assertCountEquals(0)
+
         // The summary page exposes the completed game's event log.
         composeRule.onNodeWithText("Event log").performClick()
         waitForText("Event log")
@@ -58,6 +69,8 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
             fieldName = "Field 7",
             endEpoch = System.currentTimeMillis(),
         )
+        // This bit basically mocks the Android share action.  So it needs this kind
+        // of ugly composeRule.activityRule block.
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.setContent {
                 UltiObserverTheme(dynamicColor = false) {
@@ -80,6 +93,52 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
         // I.e. it should change shared to true.
         composeRule.onNodeWithText("Share").performClick()
         assertTrue(shared)
+    }
+
+    /**
+     * Test the game summary's quick reference dialog for setup-entered team staff.
+     */
+    @Test
+    fun gameSummaryTeamInformationDialog() {
+        val setup = newSetupGameState(now = 123_000L).copy(
+            teamOne = TeamState(
+                name = "Viscous Coupling",
+                color = TeamColorChoice.WHITE,
+                coaches = "Coach Alpha",
+                fieldCaptains = "Casey Captain\nMorgan Captain",
+            ),
+            teamTwo = TeamState(
+                name = "Animal",
+                color = TeamColorChoice.BLUE,
+                spiritCaptains = "Riley Spirit",
+            ),
+        )
+        startLiveGameProgrammatically(setup)
+        endCurrentGameProgrammatically()
+        composeRule.onNodeWithText("OK").performClick()
+        waitForText("Game summary")
+
+        // Team 1's summary info action opens its setup-entered coach and field-captain names.
+        composeRule.onNodeWithTag("summary-${TeamId.TEAM_ONE.name}-team-info")
+            .performScrollTo()
+            .performClick()
+        composeRule.onNodeWithText("Coach").assertIsDisplayed()
+        composeRule.onNodeWithText("Coach Alpha").assertIsDisplayed()
+        composeRule.onNodeWithText("Field captains").assertIsDisplayed()
+        composeRule.onNodeWithText("Casey Captain\nMorgan Captain").assertIsDisplayed()
+        composeRule.onAllNodesWithText("Spirit captain").assertCountEquals(0)
+        composeRule.onNodeWithText("OK").performClick()
+        composeRule.onAllNodesWithText("Coach Alpha").assertCountEquals(0)
+
+        // Team 2's summary info action uses the same dialog path for its spirit captain.
+        composeRule.onNodeWithTag("summary-${TeamId.TEAM_TWO.name}-team-info")
+            .performScrollTo()
+            .performClick()
+        waitForText("Spirit captain")
+        waitForText("Riley Spirit")
+        composeRule.onAllNodesWithText("Coach").assertCountEquals(0)
+        composeRule.onNodeWithText("OK").performClick()
+        composeRule.onAllNodesWithText("Riley Spirit").assertCountEquals(0)
     }
 
     /**
