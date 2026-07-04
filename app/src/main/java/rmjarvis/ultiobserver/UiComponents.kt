@@ -651,6 +651,7 @@ private fun rememberClearFocusAndHideKeyboard(): () -> Unit {
     return remember(focusManager, keyboardController) {
         {
             focusManager.clearFocus(force = true)
+            // Defensive guard: Compose returns null when software keyboard control is unavailable.
             keyboardController?.hide()
         }
     }
@@ -662,6 +663,9 @@ private fun Modifier.clearFocusOnPointerDown(
 ): Modifier {
     return pointerInput(clearFocusAndHideKeyboard) {
         awaitPointerEventScope {
+            // This isn't constantly looping.  The await call waits quietly for an event.
+            // The while(true) means that after that event is handled, it waits again for
+            // the next one.
             while (true) {
                 val event = awaitPointerEvent(PointerEventPass.Final)
                 if (event.changes.any { it.changedToDown() }) {

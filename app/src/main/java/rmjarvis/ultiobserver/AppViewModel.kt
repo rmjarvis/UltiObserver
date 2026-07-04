@@ -360,16 +360,6 @@ internal class AppViewModel(
     }
 
     /**
-     * Replace all timing-alert preferences.
-     *
-     * @param preferences The timing-alert preferences to use.
-     */
-    fun updateTimingAlertPreferences(preferences: TimingAlertPreferences) {
-        _state.update { it.copy(timingAlertPreferences = preferences) }
-        persistSettingsState()
-    }
-
-    /**
      * Update timing-alert playback volume.
      *
      * @param volume The new sound volume value from settings.
@@ -718,40 +708,25 @@ internal class AppViewModel(
         persistCurrentGame()
     }
 
-    /**
-     * Restore one archived game from storage as the current game.
-     *
-     * @param index The archived-game index to restore.
-     */
-    private fun restoreArchivedGame(index: Int) {
-        val archived = archivedGames[index]
+    /// Restore the archived game currently open as a summary.
+    fun restoreCompletedGame() {
+        val archived = viewingArchivedGame ?: return
+        val index = archivedGames.indexOfFirst { it === archived }
         val updatedArchivedGames = archivedGamesWithout(index, appendCurrent = true)
-        val restoredState = archived
         _state.update {
             it.copy(
                 archivedGames = updatedArchivedGames,
-                currentGame = restoredState,
+                currentGame = archived,
                 setupEditDraft = null,
                 editingSavedSetupIndex = null,
                 viewingArchivedGame = null,
                 viewingCurrentGameSummary = false,
                 selectedArchiveCategory = null,
-                screen = if (restoredState.phase == GamePhase.SETUP) {
-                    AppScreen.SETUP
-                } else {
-                    AppScreen.LIVE
-                },
+                screen = AppScreen.LIVE,
             )
         }
         persistArchivedGames()
         persistCurrentGame()
-    }
-
-    /// Restore the archived game currently open as a summary.
-    fun restoreCompletedGame(now: Long) {
-        val archived = viewingArchivedGame ?: return
-        val index = archivedGames.indexOfFirst { it === archived }
-        restoreArchivedGame(index)
     }
 
     /// Save the current new-game setup as a phase=SETUP GameState, archive it, and return Home.
@@ -813,7 +788,7 @@ internal class AppViewModel(
 
     /// Promote the edited saved setup draft into the current-game slot.
     fun makeEditedSetupCurrent() {
-        val savedIndex = editingSavedSetupIndex ?: return
+        val savedIndex = editingSavedSetupIndex!!
         val savedSetup = archivedGames[savedIndex]
         val updatedArchivedGames = archivedGamesWithout(savedIndex, appendCurrent = true)
         _state.update {

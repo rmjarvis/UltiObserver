@@ -746,7 +746,15 @@ abstract class MainActivityUiTestFixtures {
      */
     protected fun setTimingAlertPreferences(preferences: TimingAlertPreferences) {
         composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.updateTimingAlertPreferences(preferences)
+            val viewModel = activity.appViewModel
+            viewModel.updateTimingAlertGlobalMode(preferences.globalMode)
+            viewModel.updateTimingAlertSoundVolume(preferences.soundVolume)
+            viewModel.updateTimingAlertVibrationDuration(preferences.vibrationDurationMillis)
+            viewModel.updateTimingAlertVibrateWithSounds(preferences.vibrateWithSounds)
+            TimingCueId.entries.forEach { cueId ->
+                viewModel.updateTimingCueMode(cueId, preferences.settingsModeFor(cueId))
+                viewModel.updateTimingCueRepeatCount(cueId, preferences.repeatCountFor(cueId))
+            }
         }
         composeRule.waitForIdle()
     }

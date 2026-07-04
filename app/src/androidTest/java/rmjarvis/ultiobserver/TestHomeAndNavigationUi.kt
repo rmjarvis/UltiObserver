@@ -670,6 +670,16 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("saved-setup-state-0")
             .assertTextContains(editedSavedSetupTitle, substring = true)
 
+        // Save draft returns to the saved setup draft list without making the draft current.
+        composeRule.onNodeWithTag("saved-setup-state-0").performClick()
+        waitForText("Saved setup draft")
+        composeRule.onNodeWithText("Save draft").performClick()
+        waitForText("Saved setup drafts")
+        composeRule.onNodeWithTag("current-setup-state")
+            .assertTextContains(currentSetupTitle, substring = true)
+        composeRule.onNodeWithTag("saved-setup-state-0")
+            .assertTextContains(editedSavedSetupTitle, substring = true)
+
         // Make current performs the swap, saving the previous current setup draft aside.
         composeRule.onNodeWithTag("saved-setup-state-0").performClick()
         waitForText("Saved setup draft")
@@ -922,6 +932,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             .performScrollTo()
             .performClick()
         waitForText("Cue sound settings")
+        composeRule.onNodeWithTag("settings-DEFENSE_TWENTY-VIBRATE").performScrollTo()
         waitForText("Note — these cues are not currently enabled.", substring = true)
 
         // Cue settings should show disabled-sound context, support default reset, and
@@ -939,7 +950,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             )
         }
         composeRule.onNodeWithTag("settings-RECEIVING_TWENTY_FOR_HAND-NONE").assertIsSelected()
-        composeRule.onNodeWithTag("settings-reset-timing-cue-defaults").performClick()
+        composeRule.onNodeWithTag("settings-reset-timing-cue-defaults").performScrollTo().performClick()
         composeRule.onNodeWithTag("settings-RECEIVING_TWENTY_FOR_HAND-TICK").assertIsSelected()
         composeRule.onNodeWithTag("settings-RECEIVING_TWENTY_FOR_HAND-REPEAT_2").assertIsSelected()
         composeRule.onNodeWithTag("settings-OFFENSE_TWENTY-NONE").performScrollTo().performClick()
@@ -1005,9 +1016,9 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             "Note — sounds are currently not enabled. If you want sounds",
             substring = true,
         )
-        pressAppBack()
+        dismissDialog(tag = "top-bar-back")
         waitForText("Use sounds and vibration for timing cues?")
-        composeRule.onNodeWithTag("settings-global-alert-SOUNDS_ON").performClick()
+        composeRule.onNodeWithTag("settings-global-alert-SOUNDS_ON").performScrollTo().performClick()
         waitForText("Sound/vibration settings for individual cues")
         composeRule.onNodeWithTag("settings-open-timing-cue-settings")
             .performScrollTo()
@@ -1030,7 +1041,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText("Half cap")
         waitForText("Soft cap")
         waitForText("Hard cap")
-        pressAppBack()
+        dismissDialog(tag = "top-bar-back")
         waitForText("Use sounds and vibration for timing cues?")
 
         // Back returns from Settings to Home.

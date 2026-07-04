@@ -198,29 +198,37 @@ def pointer_input_coroutine_epilogue_reason(
     """
     Return a reason for Kotlin's unreachable pointer-input coroutine epilogue.
 
-    A long-running `pointerInput` detector, such as the live-screen unlock slider,
-    normally exits because Compose cancels/restarts its coroutine.  The Kotlin compiler
-    still emits a theoretical normal-return epilogue after the suspending detector call:
+    A long-running `pointerInput` detector, such as the live-screen unlock slider
+    or a dialog-body pointer event loop, normally exits because Compose cancels/restarts
+    its coroutine.  The Kotlin compiler still emits a theoretical normal-return epilogue
+    after the suspending detector call:
 
         .pointerInput(trackWidthPx) {
             detectDragGestures(...)
         },
 
-    JaCoCo maps that epilogue to two source locations: the `detectDragGestures(` call
+        .pointerInput(clearFocusAndHideKeyboard) {
+            awaitPointerEventScope {
+                while (true) { ... }
+            }
+        }
+
+    JaCoCo maps that epilogue to two source locations: the suspending detector call
     line and the closing brace of the enclosing `pointerInput` block.  A user cannot
     deliberately exercise that normal-return path because Compose owns the coroutine
     lifecycle.
 
     The source shape is the guardrail.  This rule only accepts a `detectDragGestures(`
-    call line or the matching `pointerInput` closing line, and only with the no-branch
-    instruction-miss profiles seen for this generated epilogue.  Real drag callback
-    misses stay actionable because their source lines sit inside the detector lambda,
-    not on the detector call or enclosing `pointerInput` close.
+    or `awaitPointerEventScope {` call line, or the matching closing line for that
+    long-running pointer-input call, and only with the no-branch instruction-miss
+    profiles seen for this generated epilogue.  Real callback misses stay actionable
+    because their source lines sit inside the detector lambda, not on the detector call
+    or enclosing close.
     """
 
     line_index = line_number - 1
     statement = source_lines[line_index].strip()
-    if statement == "detectDragGestures(":
+    if statement in {"detectDragGestures(", "awaitPointerEventScope {"}:
         if counters.missed_instructions != 1 or counters.covered_instructions == 0:
             return None
         if counters.missed_branches != 0 or counters.covered_branches != 0:
@@ -238,23 +246,35 @@ def pointer_input_coroutine_epilogue_reason(
         return None
 
     opening_index = matching_opening_brace_index(source_lines, line_index)
-    if opening_index is None or "pointerInput(" not in source_lines[opening_index]:
+    if opening_index is None:
         return None
-    if not block_contains_detect_drag_gestures(source_lines, opening_index, line_index):
+
+    opening_statement = source_lines[opening_index].strip()
+    if opening_statement == "awaitPointerEventScope {":
+        if nearest_enclosing_pointer_input_index(source_lines, opening_index) is None:
+            return None
+    elif "pointerInput(" in opening_statement:
+        if not block_contains_long_running_pointer_input_call(
+            source_lines,
+            opening_index,
+            line_index,
+        ):
+            return None
+    else:
         return None
 
     return "pointerInput coroutine closing epilogue"
 
 
-def block_contains_detect_drag_gestures(
+def block_contains_long_running_pointer_input_call(
     source_lines: list[str],
     opening_index: int,
     closing_index: int,
 ) -> bool:
-    """Return whether the block contains a direct `detectDragGestures(` call."""
+    """Return whether the block contains a long-running suspending pointer-input call."""
 
     for index in range(opening_index + 1, closing_index):
-        if source_lines[index].strip() == "detectDragGestures(":
+        if source_lines[index].strip() in {"detectDragGestures(", "awaitPointerEventScope {"}:
             return True
     return False
 
@@ -311,7 +331,7 @@ def exhaustive_when_without_else_reason(source_lines: list[str], line_number: in
     """
 
     line_index = line_number - 1
-    if not source_lines[line_index].strip().startswith("when ("):
+    if "when (" not in source_lines[line_index].strip():
         return None
 
     comment_index = nearby_comment_index_before(source_lines, line_index, EXHAUSTIVE_WHEN_COMMENT)
@@ -385,7 +405,7 @@ def defensive_guard_range(source_lines: list[str], statement_index: int) -> rang
     if statement.startswith("if "):
         return range(statement_index, block_end_index(source_lines, statement_index) + 1)
 
-    if "?: return" in statement or statement.startswith("return"):
+    if "?: return" in statement or statement.startswith("return") or "?." in statement:
         return range(statement_index, statement_index + 1)
 
     next_index = next_code_line_after(source_lines, statement_index)
@@ -581,7 +601,8 @@ def composable_restart_epilogue_reason(
     closes a real `@Composable` function and has the characteristic tiny miss profile
     we have seen from the generated restart-scope epilogue.  A composable with explicit
     early `return` statements may have one generated restart epilogue per exit path
-    mapped to the same closing brace, so the miss count should be one plus the number
+    mapped to the same closing brace, but some exit-path epilogues may be covered in
+    a given run.  The remaining miss count should be no more than one plus the number
     of unlabeled returns in the function body.
     """
 
@@ -600,8 +621,8 @@ def composable_restart_epilogue_reason(
     if not opens_composable_function(source_lines, opening_index):
         return None
 
-    expected_misses = 1 + unlabeled_return_count(source_lines, opening_index, line_index)
-    if counters.missed_instructions != expected_misses:
+    maximum_expected_misses = 1 + unlabeled_return_count(source_lines, opening_index, line_index)
+    if not 1 <= counters.missed_instructions <= maximum_expected_misses:
         return None
 
     return "Compose restart-scope epilogue"

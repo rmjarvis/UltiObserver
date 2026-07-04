@@ -223,7 +223,6 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("card-other-reason").performTextReplacement("Sideline language")
         composeRule.onNodeWithTag("card-other-reason").performImeAction()
         composeRule.onNodeWithTag("card-reason-details").performTextReplacement("after warning")
-        composeRule.onNodeWithTag("card-reason-details").performImeAction()
         composeRule.onNodeWithText("Set").performClick()
         composeRule.onNodeWithText("Sideline language: after warning").assertIsDisplayed()
         composeRule.onNodeWithText("Sideline language: after warning").performClick()

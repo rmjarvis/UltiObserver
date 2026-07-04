@@ -213,7 +213,7 @@ internal fun UltiObserverApp(
                         "Restore game"
                     },
                     onSummaryAction = {
-                        viewModel.restoreCompletedGame(System.currentTimeMillis())
+                        viewModel.restoreCompletedGame()
                     },
                     secondarySummaryActionText = if (isInProgressArchive) {
                         "Archive game"
@@ -361,6 +361,7 @@ internal fun UltiObserverApp(
                         finishSetup()
                     }
                 },
+                // No else branch: every SetupMode value is handled.
                 onSecondaryAction = when (setupMode) {
                     SetupMode.EDIT_CURRENT_GAME -> {
                         { viewModel.cancelSetupEdit() }
