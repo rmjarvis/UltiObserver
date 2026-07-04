@@ -446,26 +446,127 @@ internal fun SetupScreen(
 
         SetupDialog.GAME_RULES -> {
             val rulesDraft = gameRulesDraft!!
-            GameRulesSetupDialog(
-                state = state.copy(rules = rulesDraft),
-                onEditRule = { editingRule = it },
-                onEditTimeouts = { showTimeoutRulesDialog = true },
-                onRulesChange = {
-                    gameRulesDraft = it
-                },
-                onUseUsauDefaults = {
-                    gameRulesDraft = GameRules()
-                },
-                onConfirm = {
-                    onStateChange(state.copy(rules = rulesDraft))
-                    gameRulesDraft = null
-                    setupDialog = null
-                },
-                onDismiss = {
-                    gameRulesDraft = null
-                    setupDialog = null
-                },
-            )
+            if (showTimeoutRulesDialog) {
+                TimeoutRulesDialog(
+                    rules = rulesDraft,
+                    onDismiss = { showTimeoutRulesDialog = false },
+                    onConfirm = { updatedRules ->
+                        gameRulesDraft = updatedRules
+                        showTimeoutRulesDialog = false
+                    },
+                )
+            } else if (editingRule == null) {
+                GameRulesSetupDialog(
+                    state = state.copy(rules = rulesDraft),
+                    onEditRule = { editingRule = it },
+                    onEditTimeouts = { showTimeoutRulesDialog = true },
+                    onRulesChange = {
+                        gameRulesDraft = it
+                    },
+                    onUseUsauDefaults = {
+                        gameRulesDraft = GameRules()
+                    },
+                    onConfirm = {
+                        onStateChange(state.copy(rules = rulesDraft))
+                        gameRulesDraft = null
+                        setupDialog = null
+                    },
+                    onDismiss = {
+                        gameRulesDraft = null
+                        setupDialog = null
+                    },
+                )
+            } else {
+                // No else branch: every RuleEditTarget value is handled.
+                when (val target = editingRule!!) {
+                    RuleEditTarget.GAME_TO -> {
+                        IntegerEditDialog(
+                            title = target.dialogTitle,
+                            fieldLabel = target.fieldLabel,
+                            initialValue = rulesDraft.gameTo,
+                            onDismiss = { editingRule = null },
+                            onConfirm = { newValue ->
+                                gameRulesDraft = rulesDraft.copy(
+                                    gameTo = newValue.coerceAtLeast(1)
+                                )
+                                editingRule = null
+                            },
+                        )
+                    }
+
+                    RuleEditTarget.HALFTIME -> {
+                        IntegerEditDialog(
+                            title = target.dialogTitle,
+                            fieldLabel = target.fieldLabel,
+                            initialValue = rulesDraft.halftimeMinutes,
+                            onDismiss = { editingRule = null },
+                            onConfirm = { newValue ->
+                                gameRulesDraft = rulesDraft.copy(
+                                    halftimeMinutes = newValue.coerceAtLeast(1)
+                                )
+                                editingRule = null
+                            },
+                        )
+                    }
+
+                    RuleEditTarget.HALF -> {
+                        CapRuleEditDialog(
+                            title = target.dialogTitle,
+                            fieldLabel = target.fieldLabel,
+                            prefixText = "Half cap at:",
+                            suffixText = "minutes after start time.",
+                            initialValue = rulesDraft.halfCapMinutes,
+                            initiallyEnabled = rulesDraft.useHalfCap,
+                            onDismiss = { editingRule = null },
+                            onConfirm = { enabled, newValue ->
+                                gameRulesDraft = rulesDraft.copy(
+                                    useHalfCap = enabled,
+                                    halfCapMinutes = newValue,
+                                )
+                                editingRule = null
+                            },
+                        )
+                    }
+
+                    RuleEditTarget.SOFT -> {
+                        CapRuleEditDialog(
+                            title = target.dialogTitle,
+                            fieldLabel = target.fieldLabel,
+                            prefixText = "Soft cap at:",
+                            suffixText = "minutes after start time.",
+                            initialValue = rulesDraft.softCapMinutes,
+                            initiallyEnabled = rulesDraft.useSoftCap,
+                            onDismiss = { editingRule = null },
+                            onConfirm = { enabled, newValue ->
+                                gameRulesDraft = rulesDraft.copy(
+                                    useSoftCap = enabled,
+                                    softCapMinutes = newValue,
+                                )
+                                editingRule = null
+                            },
+                        )
+                    }
+
+                    RuleEditTarget.HARD -> {
+                        CapRuleEditDialog(
+                            title = target.dialogTitle,
+                            fieldLabel = target.fieldLabel,
+                            prefixText = "Hard cap at:",
+                            suffixText = "minutes after start time.",
+                            initialValue = rulesDraft.hardCapMinutes,
+                            initiallyEnabled = rulesDraft.useHardCap,
+                            onDismiss = { editingRule = null },
+                            onConfirm = { enabled, newValue ->
+                                gameRulesDraft = rulesDraft.copy(
+                                    useHardCap = enabled,
+                                    hardCapMinutes = newValue,
+                                )
+                                editingRule = null
+                            },
+                        )
+                    }
+                }
+            }
         }
 
         null -> Unit
@@ -546,25 +647,82 @@ internal fun SetupScreen(
             }
 
             TeamSetupDialog.PRIOR_CARDS -> {
-                PriorCardsSetupDialog(
-                    state = state,
-                    teamId = target.teamId,
-                    teamName = targetLabel,
-                    onAddPlayer = {
-                        teamDialog = TeamDialog(target.teamId, TeamSetupDialog.ADD_PRIOR_CARD)
-                    },
-                    onEditPlayer = { index ->
-                        teamDialog = TeamDialog(target.teamId, TeamSetupDialog.EDIT_PRIOR_CARD, index)
-                    },
-                    onRemovePlayer = { index ->
-                        pendingPriorCardRemoval = PendingPriorCardRemoval(
-                            teamId = target.teamId,
-                            recordIndex = index,
-                            record = state.playersFor(target.teamId)[index],
-                        )
-                    },
-                    onDismiss = { teamDialog = null },
-                )
+                val pendingRemoval = pendingPriorCardRemoval
+                val deleteRejectedMessage = playerDeleteRejectedMessage
+                if (pendingRemoval != null) {
+                    fun dismissPriorCardRemoval() {
+                        pendingPriorCardRemoval = null
+                    }
+
+                    AlertDialog(
+                        onDismissRequest = {
+                            dismissPriorCardRemoval()
+                        },
+                        title = { Text("Remove card holder?") },
+                        text = {
+                            Text("Remove prior cards for ${pendingRemoval.record.playerIdentity(compact = false)}?")
+                        },
+                        confirmButton = {
+                            TextActionButton(
+                                label = "Remove",
+                                onClick = {
+                                    removePriorCardRecord(
+                                        pendingRemoval.teamId,
+                                        pendingRemoval.recordIndex,
+                                    )
+                                    dismissPriorCardRemoval()
+                                },
+                            )
+                        },
+                        dismissButton = {
+                            TextActionButton(
+                                label = "Cancel",
+                                onClick = {
+                                    dismissPriorCardRemoval()
+                                },
+                            )
+                        },
+                    )
+                } else if (deleteRejectedMessage != null) {
+                    fun dismissPlayerDeleteRejectedMessage() {
+                        playerDeleteRejectedMessage = null
+                    }
+                    AlertDialog(
+                        onDismissRequest = {
+                            dismissPlayerDeleteRejectedMessage()
+                        },
+                        title = { Text("Player not deleted") },
+                        text = { Text(deleteRejectedMessage) },
+                        confirmButton = {
+                            TextActionButton(
+                                label = "OK",
+                                onClick = {
+                                    dismissPlayerDeleteRejectedMessage()
+                                },
+                            )
+                        },
+                    )
+                } else {
+                    PriorCardsSetupDialog(
+                        state = state,
+                        teamId = target.teamId,
+                        teamName = targetLabel,
+                        onAddPlayer = {
+                            teamDialog = TeamDialog(target.teamId, TeamSetupDialog.ADD_PRIOR_CARD)
+                        },
+                        onEditPlayer = { index ->
+                            teamDialog = TeamDialog(target.teamId, TeamSetupDialog.EDIT_PRIOR_CARD, index)
+                        },
+                        onRemovePlayer = { index ->
+                            pendingPriorCardRemoval = PendingPriorCardRemoval(
+                                teamId = target.teamId,
+                                recordIndex = index,
+                                record = state.playersFor(target.teamId)[index],
+                            )
+                        },
+                        onDismiss = { teamDialog = null },
+                    )
+                }
             }
 
             TeamSetupDialog.ADD_PRIOR_CARD -> {
@@ -666,155 +824,6 @@ internal fun SetupScreen(
         )
     }
 
-    playerDeleteRejectedMessage?.let { message ->
-        fun dismissPlayerDeleteRejectedMessage() {
-            playerDeleteRejectedMessage = null
-        }
-        AlertDialog(
-            onDismissRequest = {
-                dismissPlayerDeleteRejectedMessage()
-            },
-            title = { Text("Player not deleted") },
-            text = { Text(message) },
-            confirmButton = {
-                TextActionButton(
-                    label = "OK",
-                    onClick = {
-                        dismissPlayerDeleteRejectedMessage()
-                    },
-                )
-            },
-        )
-    }
-
-    pendingPriorCardRemoval?.let { pending ->
-        fun dismissPriorCardRemoval() {
-            pendingPriorCardRemoval = null
-        }
-
-        AlertDialog(
-            onDismissRequest = {
-                dismissPriorCardRemoval()
-            },
-            title = { Text("Remove card holder?") },
-            text = {
-                Text("Remove prior cards for ${pending.record.playerIdentity(compact = false)}?")
-            },
-            confirmButton = {
-                TextActionButton(
-                    label = "Remove",
-                    onClick = {
-                        removePriorCardRecord(pending.teamId, pending.recordIndex)
-                        dismissPriorCardRemoval()
-                    },
-                )
-            },
-            dismissButton = {
-                TextActionButton(
-                    label = "Cancel",
-                    onClick = {
-                        dismissPriorCardRemoval()
-                    },
-                )
-            },
-        )
-    }
-
-    // If editingRule is set, then on this re-render, open the dialog for specifying rules.
-    if (editingRule != null) {
-        val target = editingRule!!
-        val rules = gameRulesDraft!!
-        // No else branch: every RuleEditTarget value is handled
-        when (target) {
-            RuleEditTarget.GAME_TO -> {
-                IntegerEditDialog(
-                    title = target.dialogTitle,
-                    fieldLabel = target.fieldLabel,
-                    initialValue = rules.gameTo,
-                    onDismiss = { editingRule = null },
-                    onConfirm = { newValue ->
-                        gameRulesDraft = rules.copy(gameTo = newValue.coerceAtLeast(1))
-                        editingRule = null
-                    },
-                )
-            }
-
-            RuleEditTarget.HALFTIME -> {
-                IntegerEditDialog(
-                    title = target.dialogTitle,
-                    fieldLabel = target.fieldLabel,
-                    initialValue = rules.halftimeMinutes,
-                    onDismiss = { editingRule = null },
-                    onConfirm = { newValue ->
-                        gameRulesDraft = rules.copy(halftimeMinutes = newValue.coerceAtLeast(1))
-                        editingRule = null
-                    },
-                )
-            }
-
-            RuleEditTarget.HALF -> {
-                CapRuleEditDialog(
-                    title = target.dialogTitle,
-                    fieldLabel = target.fieldLabel,
-                    prefixText = "Half cap at:",
-                    suffixText = "minutes after start time.",
-                    initialValue = rules.halfCapMinutes,
-                    initiallyEnabled = rules.useHalfCap,
-                    onDismiss = { editingRule = null },
-                    onConfirm = { enabled, newValue ->
-                        gameRulesDraft = rules.copy(useHalfCap = enabled, halfCapMinutes = newValue)
-                        editingRule = null
-                    },
-                )
-            }
-
-            RuleEditTarget.SOFT -> {
-                CapRuleEditDialog(
-                    title = target.dialogTitle,
-                    fieldLabel = target.fieldLabel,
-                    prefixText = "Soft cap at:",
-                    suffixText = "minutes after start time.",
-                    initialValue = rules.softCapMinutes,
-                    initiallyEnabled = rules.useSoftCap,
-                    onDismiss = { editingRule = null },
-                    onConfirm = { enabled, newValue ->
-                        gameRulesDraft = rules.copy(useSoftCap = enabled, softCapMinutes = newValue)
-                        editingRule = null
-                    },
-                )
-            }
-
-            RuleEditTarget.HARD -> {
-                CapRuleEditDialog(
-                    title = target.dialogTitle,
-                    fieldLabel = target.fieldLabel,
-                    prefixText = "Hard cap at:",
-                    suffixText = "minutes after start time.",
-                    initialValue = rules.hardCapMinutes,
-                    initiallyEnabled = rules.useHardCap,
-                    onDismiss = { editingRule = null },
-                    onConfirm = { enabled, newValue ->
-                        gameRulesDraft = rules.copy(useHardCap = enabled, hardCapMinutes = newValue)
-                        editingRule = null
-                    },
-                )
-            }
-        }
-    }
-
-    // If showTimeoutRulesDialog is true, then on this re-render, open the dialog for
-    // setting the number of timeouts per half.
-    if (showTimeoutRulesDialog) {
-        val rules = gameRulesDraft!!
-        TimeoutRulesDialog(
-            rules = rules,
-            onDismiss = { showTimeoutRulesDialog = false },
-            onConfirm = { updatedRules ->
-                gameRulesDraft = updatedRules
-                showTimeoutRulesDialog = false
-            },
-        )
-    }
 }
 
 /**
@@ -958,122 +967,6 @@ private fun GameInformationSetupDialog(
         onDismiss()
     }
 
-    AlertDialog(
-        modifier = Modifier
-            .then(dialogInitialFocusModifier()),
-        onDismissRequest = {
-            saveAndDismiss()
-        },
-        title = { Text("Game information") },
-        text = {
-            ScrollableDialogRegion(
-                maxHeight = dialogBodyMaxHeight,
-            ) {
-                Text(
-                    text = "Date",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                DateTimeDisplayField(
-                    value = formatStartDate(startDate),
-                    testTag = "setup-start-date-field",
-                    onClick = { showStartDateDialog = true },
-                )
-
-                Text(
-                    text = "Start time",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                DateTimeDisplayField(
-                    value = formatClockTime(startTime),
-                    testTag = "setup-start-time-field",
-                    onClick = { showStartTimeDialog = true },
-                )
-
-                ObserverNameEntries(
-                    observerNames = observerNames,
-                    onAddObserver = { observerNames += "" },
-                    onUpdateObserver = { index, name ->
-                        observerNames[index] = name
-                    },
-                    onRemoveObserver = { index ->
-                        observerNames.removeAt(index)
-                    },
-                )
-                TextEntry(
-                    value = fieldName,
-                    onValueChange = { fieldName = it },
-                    labelText = "Field name/number",
-                    capitalization = KeyboardCapitalization.Words,
-                    tag = "setup-field-name",
-                )
-                TextEntry(
-                    value = tournamentName,
-                    onValueChange = { tournamentName = it },
-                    labelText = "Tournament name",
-                    capitalization = KeyboardCapitalization.Words,
-                    tag = "setup-tournament-name",
-                )
-
-                Text("Division", fontWeight = FontWeight.SemiBold)
-                GameDivisionChoiceRow(
-                    selected = division,
-                    onSelected = { division = it },
-                )
-
-                Text("Level", fontWeight = FontWeight.SemiBold)
-                GameLevelChoiceRow(
-                    selected = level,
-                    customLevelVisible = customLevelVisible,
-                    onSelected = {
-                        level = it
-                        customLevelVisible = false
-                    },
-                    onClear = {
-                        level = ""
-                        customLevelVisible = false
-                    },
-                    onOther = {
-                        if (!level.isCustomSetupLevel()) {
-                            level = ""
-                        }
-                        customLevelVisible = true
-                    },
-                )
-                if (customLevelVisible) {
-                    TextEntry(
-                        value = level,
-                        onValueChange = { level = it },
-                        labelText = "Other level",
-                        capitalization = KeyboardCapitalization.Words,
-                        tag = "setup-game-level-other-text",
-                    )
-                }
-
-                TextEntry(
-                    value = gameContext,
-                    onValueChange = { gameContext = it },
-                    labelText = "Game context",
-                    promptText = "Pool play, Semi-finals, etc.",
-                    capitalization = KeyboardCapitalization.Sentences,
-                    tag = "setup-game-context",
-                )
-            }
-        },
-        confirmButton = {
-            TextActionButton(
-                label = "Done",
-                onClick = {
-                    saveAndDismiss()
-                },
-            )
-        },
-        dismissButton = {
-            TextActionButton(label = "Cancel", onClick = onDismiss)
-        },
-    )
-
     if (showStartDateDialog) {
         LocalDatePickerDialog(
             initialDate = startDate,
@@ -1084,15 +977,129 @@ private fun GameInformationSetupDialog(
                 showStartDateDialog = false
             },
         )
-    }
-
-    if (showStartTimeDialog) {
+    } else if (showStartTimeDialog) {
         ExactTimeDialog(
             initialTime = startTime,
             onDismiss = { showStartTimeDialog = false },
             onConfirm = {
                 startTime = it
                 showStartTimeDialog = false
+            },
+        )
+    } else {
+        AlertDialog(
+            modifier = Modifier
+                .then(dialogInitialFocusModifier()),
+            onDismissRequest = {
+                saveAndDismiss()
+            },
+            title = { Text("Game information") },
+            text = {
+                ScrollableDialogRegion(
+                    maxHeight = dialogBodyMaxHeight,
+                ) {
+                    Text(
+                        text = "Date",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    DateTimeDisplayField(
+                        value = formatStartDate(startDate),
+                        testTag = "setup-start-date-field",
+                        onClick = { showStartDateDialog = true },
+                    )
+
+                    Text(
+                        text = "Start time",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    DateTimeDisplayField(
+                        value = formatClockTime(startTime),
+                        testTag = "setup-start-time-field",
+                        onClick = { showStartTimeDialog = true },
+                    )
+
+                    ObserverNameEntries(
+                        observerNames = observerNames,
+                        onAddObserver = { observerNames += "" },
+                        onUpdateObserver = { index, name ->
+                            observerNames[index] = name
+                        },
+                        onRemoveObserver = { index ->
+                            observerNames.removeAt(index)
+                        },
+                    )
+                    TextEntry(
+                        value = fieldName,
+                        onValueChange = { fieldName = it },
+                        labelText = "Field name/number",
+                        capitalization = KeyboardCapitalization.Words,
+                        tag = "setup-field-name",
+                    )
+                    TextEntry(
+                        value = tournamentName,
+                        onValueChange = { tournamentName = it },
+                        labelText = "Tournament name",
+                        capitalization = KeyboardCapitalization.Words,
+                        tag = "setup-tournament-name",
+                    )
+
+                    Text("Division", fontWeight = FontWeight.SemiBold)
+                    GameDivisionChoiceRow(
+                        selected = division,
+                        onSelected = { division = it },
+                    )
+
+                    Text("Level", fontWeight = FontWeight.SemiBold)
+                    GameLevelChoiceRow(
+                        selected = level,
+                        customLevelVisible = customLevelVisible,
+                        onSelected = {
+                            level = it
+                            customLevelVisible = false
+                        },
+                        onClear = {
+                            level = ""
+                            customLevelVisible = false
+                        },
+                        onOther = {
+                            if (!level.isCustomSetupLevel()) {
+                                level = ""
+                            }
+                            customLevelVisible = true
+                        },
+                    )
+                    if (customLevelVisible) {
+                        TextEntry(
+                            value = level,
+                            onValueChange = { level = it },
+                            labelText = "Other level",
+                            capitalization = KeyboardCapitalization.Words,
+                            tag = "setup-game-level-other-text",
+                        )
+                    }
+
+                    TextEntry(
+                        value = gameContext,
+                        onValueChange = { gameContext = it },
+                        labelText = "Game context",
+                        promptText = "Pool play, Semi-finals, etc.",
+                        capitalization = KeyboardCapitalization.Sentences,
+                        tag = "setup-game-context",
+                    )
+                }
+            },
+            confirmButton = {
+                TextActionButton(
+                    label = "Done",
+                    onClick = {
+                        saveAndDismiss()
+                    },
+                )
+            },
+            dismissButton = {
+                TextActionButton(label = "Cancel", onClick = onDismiss)
             },
         )
     }
