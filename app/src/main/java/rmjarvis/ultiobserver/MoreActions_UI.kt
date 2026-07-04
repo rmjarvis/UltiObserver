@@ -17,6 +17,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
+private enum class MoreActionsChildDialog {
+    ADJUST_SCORE,
+    ADJUST_TIMEOUTS,
+    ADJUST_CARDS,
+    ADJUST_PULL_VIOLATIONS,
+    CHANGE_PULL_PROMPTS,
+    DELETE_GAME,
+}
+
 /**
  * Render the menu content for manual corrections and less-common game actions.
  *
@@ -40,143 +49,21 @@ internal fun MoreActionsContent(
     onAction: (GameState) -> Unit,
     onStateUpdate: (GameState) -> Unit,
 ) {
-    var showAdjustScoreDialog by remember { mutableStateOf(false) }
-    var showAdjustTimeoutsDialog by remember { mutableStateOf(false) }
-    var showAdjustCardsDialog by remember { mutableStateOf(false) }
-    var showAdjustPullViolationsDialog by remember { mutableStateOf(false) }
-    var showChangePullPromptsDialog by remember { mutableStateOf(false) }
-    var showDeleteGameDialog by remember { mutableStateOf(false) }
+    var childDialog by remember { mutableStateOf<MoreActionsChildDialog?>(null) }
 
-    ScrollableDialogRegion(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.Top,
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                MenuButton(
-                    label = "Update game setup",
-                    onClick = onUpdateGameSetup,
-                )
-                MenuButton(
-                    label = "Change pull prompts",
-                    onClick = {
-                        showChangePullPromptsDialog = true
-                    },
-                )
-                MenuButton(
-                    label = "Flip field display",
-                    onClick = {
-                        onAction(state.flipFieldDisplay())
-                    },
-                )
-                MenuButton(
-                    label = "Swap pulling team",
-                    onClick = {
-                        onAction(state.swapPullingTeam())
-                    },
-                )
-                MenuButton(
-                    label = "Adjust score",
-                    onClick = { showAdjustScoreDialog = true },
-                )
-                MenuButton(
-                    label = "Adjust timeouts",
-                    tag = "more-actions-adjust-timeouts",
-                    onClick = { showAdjustTimeoutsDialog = true },
-                )
-                MenuButton(
-                    label = "Adjust pull violations",
-                    onClick = { showAdjustPullViolationsDialog = true },
-                )
-                MenuButton(
-                    label = "Adjust cards / techs",
-                    onClick = { showAdjustCardsDialog = true },
-                )
-            }
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                MenuButton(
-                    label = "Game summary",
-                    onClick = onShowGameSummary,
-                )
-                MenuButton(
-                    label = "Event log",
-                    onClick = onShowEventLog,
-                )
-                if (!state.halftimeTaken && state.phase == GamePhase.BETWEEN_POINTS) {
-                    MenuButton(
-                        label = "Start halftime",
-                        onClick = {
-                            onAction(state.startHalftimeNow(now))
-                        },
-                    )
-                }
-                MenuButton(
-                    label = "End game",
-                    onClick = {
-                        onAction(state.endGameNow(now))
-                    },
-                )
-                if (state.halfCapRelevant(state.teamOne.score, state.teamTwo.score)) {
-                    MenuButton(
-                        label = "Apply half cap now",
-                        onClick = {
-                            onAction(state.makeCapNow(CapType.HALF, now))
-                        },
-                    )
-                }
-                if (state.softCapRelevant()) {
-                    MenuButton(
-                        label = "Apply soft cap now",
-                        onClick = {
-                            onAction(state.makeCapNow(CapType.SOFT, now))
-                        },
-                    )
-                }
-                if (state.hardCapRelevant()) {
-                    MenuButton(
-                        label = "Apply hard cap now",
-                        onClick = {
-                            onAction(state.makeCapNow(CapType.HARD, now))
-                        },
-                    )
-                }
-                MenuButton(
-                    label = "Delete game",
-                    colors = resetButtonColors(),
-                    borderColor = null,
-                    onClick = { showDeleteGameDialog = true },
-                )
-            }
-        }
-    }
-
-    if (showAdjustScoreDialog) {
+    if (childDialog == MoreActionsChildDialog.ADJUST_SCORE) {
         AdjustScoreDialog(
             state = state,
-            onDismiss = { showAdjustScoreDialog = false },
+            onDismiss = { childDialog = null },
             onConfirm = { teamOneScore, teamTwoScore ->
                 onAction(state.adjustScore(teamOneScore, teamTwoScore, now))
-                showAdjustScoreDialog = false
+                childDialog = null
             },
         )
-    }
-
-    if (showAdjustTimeoutsDialog) {
+    } else if (childDialog == MoreActionsChildDialog.ADJUST_TIMEOUTS) {
         AdjustTimeoutsDialog(
             state = state,
-            onDismiss = { showAdjustTimeoutsDialog = false },
+            onDismiss = { childDialog = null },
             onConfirm = { teamOneCurrent, teamTwoCurrent, teamOneFirstHalf, teamTwoFirstHalf ->
                 onAction(
                     state.adjustTimeouts(
@@ -187,28 +74,24 @@ internal fun MoreActionsContent(
                         now,
                     )
                 )
-                showAdjustTimeoutsDialog = false
+                childDialog = null
             },
         )
-    }
-
-    if (showAdjustCardsDialog) {
+    } else if (childDialog == MoreActionsChildDialog.ADJUST_CARDS) {
         AdjustCardsDialog(
             state = state,
             now = now,
-            onDismiss = { showAdjustCardsDialog = false },
+            onDismiss = { childDialog = null },
             onConfirm = { updatedState ->
                 onAction(updatedState)
-                showAdjustCardsDialog = false
+                childDialog = null
             },
             onStateUpdate = onStateUpdate,
         )
-    }
-
-    if (showAdjustPullViolationsDialog) {
+    } else if (childDialog == MoreActionsChildDialog.ADJUST_PULL_VIOLATIONS) {
         AdjustPullViolationsDialog(
             state = state,
-            onDismiss = { showAdjustPullViolationsDialog = false },
+            onDismiss = { childDialog = null },
             onConfirm = {
                 teamOneOffsides,
                 teamOneFalseStarts,
@@ -231,32 +114,143 @@ internal fun MoreActionsContent(
                         now,
                     )
                 )
-                showAdjustPullViolationsDialog = false
+                childDialog = null
             },
         )
-    }
-
-    if (showChangePullPromptsDialog) {
+    } else if (childDialog == MoreActionsChildDialog.CHANGE_PULL_PROMPTS) {
         ChangePullPromptsDialog(
             state = state,
-            onDismiss = { showChangePullPromptsDialog = false },
+            onDismiss = { childDialog = null },
             onConfirm = { target ->
                 onAction(state.withPullPromptTarget(target))
-                showChangePullPromptsDialog = false
+                childDialog = null
             },
         )
-    }
-
-    if (showDeleteGameDialog) {
+    } else if (childDialog == MoreActionsChildDialog.DELETE_GAME) {
         // DeleteGameDialog lives in ArchivedGames_UI.kt because game deletion is
         // mostly archived-game UI.
         DeleteGameDialog(
-            onDismiss = { showDeleteGameDialog = false },
+            onDismiss = { childDialog = null },
             onConfirmDelete = {
-                showDeleteGameDialog = false
+                childDialog = null
                 onDeleteGame()
             },
         )
+    } else {
+        ScrollableDialogRegion(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    MenuButton(
+                        label = "Update game setup",
+                        onClick = onUpdateGameSetup,
+                    )
+                    MenuButton(
+                        label = "Change pull prompts",
+                        onClick = {
+                            childDialog = MoreActionsChildDialog.CHANGE_PULL_PROMPTS
+                        },
+                    )
+                    MenuButton(
+                        label = "Flip field display",
+                        onClick = {
+                            onAction(state.flipFieldDisplay())
+                        },
+                    )
+                    MenuButton(
+                        label = "Swap pulling team",
+                        onClick = {
+                            onAction(state.swapPullingTeam())
+                        },
+                    )
+                    MenuButton(
+                        label = "Adjust score",
+                        onClick = { childDialog = MoreActionsChildDialog.ADJUST_SCORE },
+                    )
+                    MenuButton(
+                        label = "Adjust timeouts",
+                        tag = "more-actions-adjust-timeouts",
+                        onClick = { childDialog = MoreActionsChildDialog.ADJUST_TIMEOUTS },
+                    )
+                    MenuButton(
+                        label = "Adjust pull violations",
+                        onClick = { childDialog = MoreActionsChildDialog.ADJUST_PULL_VIOLATIONS },
+                    )
+                    MenuButton(
+                        label = "Adjust cards / techs",
+                        onClick = { childDialog = MoreActionsChildDialog.ADJUST_CARDS },
+                    )
+                }
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    MenuButton(
+                        label = "Game summary",
+                        onClick = onShowGameSummary,
+                    )
+                    MenuButton(
+                        label = "Event log",
+                        onClick = onShowEventLog,
+                    )
+                    if (!state.halftimeTaken && state.phase == GamePhase.BETWEEN_POINTS) {
+                        MenuButton(
+                            label = "Start halftime",
+                            onClick = {
+                                onAction(state.startHalftimeNow(now))
+                            },
+                        )
+                    }
+                    MenuButton(
+                        label = "End game",
+                        onClick = {
+                            onAction(state.endGameNow(now))
+                        },
+                    )
+                    if (state.halfCapRelevant(state.teamOne.score, state.teamTwo.score)) {
+                        MenuButton(
+                            label = "Apply half cap now",
+                            onClick = {
+                                onAction(state.makeCapNow(CapType.HALF, now))
+                            },
+                        )
+                    }
+                    if (state.softCapRelevant()) {
+                        MenuButton(
+                            label = "Apply soft cap now",
+                            onClick = {
+                                onAction(state.makeCapNow(CapType.SOFT, now))
+                            },
+                        )
+                    }
+                    if (state.hardCapRelevant()) {
+                        MenuButton(
+                            label = "Apply hard cap now",
+                            onClick = {
+                                onAction(state.makeCapNow(CapType.HARD, now))
+                            },
+                        )
+                    }
+                    MenuButton(
+                        label = "Delete game",
+                        colors = resetButtonColors(),
+                        borderColor = null,
+                        onClick = { childDialog = MoreActionsChildDialog.DELETE_GAME },
+                    )
+                }
+            }
+        }
     }
 }
 
