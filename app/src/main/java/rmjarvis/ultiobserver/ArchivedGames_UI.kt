@@ -191,8 +191,7 @@ internal fun ArchivedGamesScreen(
                 onDeleteArchivedGame(deleteIndex)
             },
         )
-    }
-    if (pendingDeleteAll) {
+    } else if (pendingDeleteAll) {
         DeleteGameDialog(
             onDismiss = {
                 pendingDeleteAll = false
@@ -223,8 +222,7 @@ internal fun ArchivedGamesScreen(
                 "Completely delete all archived games? This cannot be undone."
             },
         )
-    }
-    if (showFilterDialog) {
+    } else if (showFilterDialog) {
         ArchiveFilterDialog(
             filterSelections = archiveFilterSelections,
             availableValues = filteredArchiveState.availableFilterValues,
@@ -234,8 +232,7 @@ internal fun ArchivedGamesScreen(
             onClearAll = onClearArchiveFilterSelections,
             onDismiss = { showFilterDialog = false },
         )
-    }
-    if (showSortDialog) {
+    } else if (showSortDialog) {
         ArchiveSortDialog(
             sortMode = archiveSortMode,
             onSortModeSelected = onUpdateArchiveSortMode,
@@ -608,70 +605,10 @@ private fun ArchiveDateFilterDialog(
         selectedEnd = end
     }
 
-    AlertDialog(
-        onDismissRequest = onBack,
-        title = { Text("Date") },
-        text = {
-            ScrollableDialogRegion(
-                maxHeight = 420.dp,
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                TextActionButton(
-                    label = "Clear",
-                    enabled = selectedStart != null || selectedEnd != null,
-                    tag = "archive-clear-filter-DATE",
-                    onClick = {
-                        setDateRange(null, null)
-                    },
-                )
-                ArchiveDatePreset.entries.forEach { preset ->
-                    MenuButton(
-                        label = preset.displayText,
-                        tag = "archive-date-preset-${preset.name}",
-                        onClick = {
-                            setDateRange(preset.startDate(today), preset.endDate(today))
-                        },
-                    )
-                }
-                HorizontalDivider()
-                MenuButton(
-                    label = "Start: ${selectedStart.archiveDateLabel()}",
-                    tag = "archive-custom-start-date",
-                    onClick = { datePickerTarget = ArchiveCustomDateTarget.START },
-                )
-                MenuButton(
-                    label = "End: ${selectedEnd.archiveDateLabel()}",
-                    tag = "archive-custom-end-date",
-                    onClick = { datePickerTarget = ArchiveCustomDateTarget.END },
-                )
-            }
-        },
-        confirmButton = {
-            TextActionButton(
-                label = "Done",
-                onClick = {
-                    onUpdateDateFilter(
-                        if (selectedStart == null && selectedEnd == null) {
-                            null
-                        } else {
-                            ArchiveDateFilter(
-                                start = selectedStart,
-                                end = selectedEnd,
-                            )
-                        }
-                    )
-                    onBack()
-                },
-            )
-        },
-        dismissButton = {
-            TextActionButton(label = "Cancel", onClick = onBack)
-        },
-    )
-
-    datePickerTarget?.let { target ->
+    val pickerTarget = datePickerTarget
+    if (pickerTarget != null) {
         LocalDatePickerDialog(
-            initialDate = if (target == ArchiveCustomDateTarget.START) {
+            initialDate = if (pickerTarget == ArchiveCustomDateTarget.START) {
                 selectedStart ?: today
             } else {
                 selectedEnd ?: today
@@ -679,12 +616,73 @@ private fun ArchiveDateFilterDialog(
             setButtonTag = "archive-date-set",
             onDismiss = { datePickerTarget = null },
             onConfirm = { selectedDate ->
-                if (target == ArchiveCustomDateTarget.START) {
+                if (pickerTarget == ArchiveCustomDateTarget.START) {
                     selectedStart = selectedDate
                 } else {
                     selectedEnd = selectedDate
                 }
                 datePickerTarget = null
+            },
+        )
+    } else {
+        AlertDialog(
+            onDismissRequest = onBack,
+            title = { Text("Date") },
+            text = {
+                ScrollableDialogRegion(
+                    maxHeight = 420.dp,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    TextActionButton(
+                        label = "Clear",
+                        enabled = selectedStart != null || selectedEnd != null,
+                        tag = "archive-clear-filter-DATE",
+                        onClick = {
+                            setDateRange(null, null)
+                        },
+                    )
+                    ArchiveDatePreset.entries.forEach { preset ->
+                        MenuButton(
+                            label = preset.displayText,
+                            tag = "archive-date-preset-${preset.name}",
+                            onClick = {
+                                setDateRange(preset.startDate(today), preset.endDate(today))
+                            },
+                        )
+                    }
+                    HorizontalDivider()
+                    MenuButton(
+                        label = "Start: ${selectedStart.archiveDateLabel()}",
+                        tag = "archive-custom-start-date",
+                        onClick = { datePickerTarget = ArchiveCustomDateTarget.START },
+                    )
+                    MenuButton(
+                        label = "End: ${selectedEnd.archiveDateLabel()}",
+                        tag = "archive-custom-end-date",
+                        onClick = { datePickerTarget = ArchiveCustomDateTarget.END },
+                    )
+                }
+            },
+            confirmButton = {
+                TextActionButton(
+                    label = "Done",
+                    onClick = {
+                        onUpdateDateFilter(
+                            if (selectedStart == null && selectedEnd == null) {
+                                null
+                            } else {
+                                ArchiveDateFilter(
+                                    start = selectedStart,
+                                    end = selectedEnd,
+                                )
+                            }
+                        )
+                        onBack()
+                    },
+                )
+            },
+            dismissButton = {
+                TextActionButton(label = "Cancel", onClick = onBack)
             },
         )
     }
