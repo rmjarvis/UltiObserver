@@ -1525,72 +1525,6 @@ private fun PlayerCardEntryDialog(
     var showingReasonDialog by remember {
         mutableStateOf(false)
     }
-    AlertDialog(
-        modifier = dialogInitialFocusModifier(),
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            ScrollableDialogRegion(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text(teamName, fontWeight = FontWeight.SemiBold)
-                TextEntry(
-                    value = jerseyNumber,
-                    onValueChange = { jerseyNumber = it.filter(Char::isDigit) },
-                    labelText = "Player number",
-                    keyboardType = KeyboardType.Number,
-                    tag = "card-player-number",
-                )
-                TextEntry(
-                    value = playerName,
-                    onValueChange = { playerName = it },
-                    labelText = "Player name",
-                    tag = "card-player-name",
-                )
-                if (candidates.isNotEmpty()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                        Text("Players with cards:", style = MaterialTheme.typography.labelLarge)
-                        candidates.forEach { candidate ->
-                            PlayerCardCandidateRow(
-                                candidate = candidate,
-                                onCopy = {
-                                    jerseyNumber = candidate.jerseyNumber
-                                    playerName = candidate.playerName
-                                },
-                            )
-                        }
-                    }
-                }
-                MenuButton(
-                    label = reason.text().ifBlank { "Reason" },
-                    colors = neutralOutlinedButtonColors(EmphasizedLightNeutralColor),
-                    onClick = { showingReasonDialog = true },
-                )
-            }
-        },
-        confirmButton = {
-            TextActionButton(
-                label = "Record",
-                onClick = {
-                    onConfirm(
-                        PlayerCardEntry(
-                            jerseyNumber = jerseyNumber.trim(),
-                            playerName = playerName.trim(),
-                            reason = reason,
-                        )
-                    )
-                },
-            )
-        },
-        dismissButton = {
-            TextActionButton(
-                label = "Cancel",
-                tag = "card-entry-cancel",
-                onClick = onDismiss,
-            )
-        },
-    )
-
     if (showingReasonDialog) {
         CardReasonDialog(
             cardType = cardType,
@@ -1599,6 +1533,72 @@ private fun PlayerCardEntryDialog(
             onConfirm = { selectedReason ->
                 reason = selectedReason
                 showingReasonDialog = false
+            },
+        )
+    } else {
+        AlertDialog(
+            modifier = dialogInitialFocusModifier(),
+            onDismissRequest = onDismiss,
+            title = { Text(title) },
+            text = {
+                ScrollableDialogRegion(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(teamName, fontWeight = FontWeight.SemiBold)
+                    TextEntry(
+                        value = jerseyNumber,
+                        onValueChange = { jerseyNumber = it.filter(Char::isDigit) },
+                        labelText = "Player number",
+                        keyboardType = KeyboardType.Number,
+                        tag = "card-player-number",
+                    )
+                    TextEntry(
+                        value = playerName,
+                        onValueChange = { playerName = it },
+                        labelText = "Player name",
+                        tag = "card-player-name",
+                    )
+                    if (candidates.isNotEmpty()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                            Text("Players with cards:", style = MaterialTheme.typography.labelLarge)
+                            candidates.forEach { candidate ->
+                                PlayerCardCandidateRow(
+                                    candidate = candidate,
+                                    onCopy = {
+                                        jerseyNumber = candidate.jerseyNumber
+                                        playerName = candidate.playerName
+                                    },
+                                )
+                            }
+                        }
+                    }
+                    MenuButton(
+                        label = reason.text().ifBlank { "Reason" },
+                        colors = neutralOutlinedButtonColors(EmphasizedLightNeutralColor),
+                        onClick = { showingReasonDialog = true },
+                    )
+                }
+            },
+            confirmButton = {
+                TextActionButton(
+                    label = "Record",
+                    onClick = {
+                        onConfirm(
+                            PlayerCardEntry(
+                                jerseyNumber = jerseyNumber.trim(),
+                                playerName = playerName.trim(),
+                                reason = reason,
+                            )
+                        )
+                    },
+                )
+            },
+            dismissButton = {
+                TextActionButton(
+                    label = "Cancel",
+                    tag = "card-entry-cancel",
+                    onClick = onDismiss,
+                )
             },
         )
     }
