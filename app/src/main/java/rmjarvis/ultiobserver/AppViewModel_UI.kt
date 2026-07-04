@@ -400,6 +400,38 @@ internal fun UltiObserverApp(
                     viewModel.goHome()
                 },
             )
+            if (showMissingExactAlarmAccessDialog) {
+                AlertDialog(
+                    onDismissRequest = {
+                        showMissingExactAlarmAccessDialog = false
+                    },
+                    title = { Text("Cap alert permission") },
+                    text = {
+                        Text(
+                            "UltiObserver uses an alarm for cap notifications so they work even if your screen is asleep. " +
+                                "Please enable access in the Alarms & reminders settings for your device."
+                        )
+                    },
+                    confirmButton = {
+                        TextActionButton(
+                            label = "Open settings",
+                            onClick = {
+                                showMissingExactAlarmAccessDialog = false
+                                context.openExactAlarmSettings()
+                            },
+                        )
+                    },
+                    dismissButton = {
+                        TextActionButton(
+                            label = "Ignore",
+                            onClick = {
+                                showMissingExactAlarmAccessDialog = false
+                                viewModel.finishSetup(System.currentTimeMillis())
+                            },
+                        )
+                    },
+                )
+            }
         }
 
         AppScreen.LIVE -> {
@@ -456,40 +488,25 @@ internal fun UltiObserverApp(
         }
     }
 
-    if (showMissingExactAlarmAccessDialog) {
+    val startupRecoveryNotice = appState.startupRecoveryNotice
+    if (startupRecoveryNotice != null) {
+        val notice = startupRecoveryNotice
         AlertDialog(
             onDismissRequest = {
-                showMissingExactAlarmAccessDialog = false
+                viewModel.dismissStartupRecoveryNotice()
             },
-            title = { Text("Cap alert permission") },
-            text = {
-                Text(
-                    "UltiObserver uses an alarm for cap notifications so they work even if your screen is asleep. " +
-                        "Please enable access in the Alarms & reminders settings for your device."
-                )
-            },
+            title = { Text(notice.title) },
+            text = { Text(notice.message) },
             confirmButton = {
                 TextActionButton(
-                    label = "Open settings",
+                    label = "OK",
                     onClick = {
-                        showMissingExactAlarmAccessDialog = false
-                        context.openExactAlarmSettings()
-                    },
-                )
-            },
-            dismissButton = {
-                TextActionButton(
-                    label = "Ignore",
-                    onClick = {
-                        showMissingExactAlarmAccessDialog = false
-                        viewModel.finishSetup(System.currentTimeMillis())
+                        viewModel.dismissStartupRecoveryNotice()
                     },
                 )
             },
         )
-    }
-
-    if (showPreviousCrashDialog && appState.startupRecoveryNotice == null) {
+    } else if (showPreviousCrashDialog) {
         AlertDialog(
             onDismissRequest = {
                 showPreviousCrashDialog = false
@@ -506,24 +523,6 @@ internal fun UltiObserverApp(
                     label = "OK",
                     onClick = {
                         showPreviousCrashDialog = false
-                    },
-                )
-            },
-        )
-    }
-
-    appState.startupRecoveryNotice?.let { notice ->
-        AlertDialog(
-            onDismissRequest = {
-                viewModel.dismissStartupRecoveryNotice()
-            },
-            title = { Text(notice.title) },
-            text = { Text(notice.message) },
-            confirmButton = {
-                TextActionButton(
-                    label = "OK",
-                    onClick = {
-                        viewModel.dismissStartupRecoveryNotice()
                     },
                 )
             },
