@@ -18,6 +18,7 @@ keystores/
 __pycache__/
 /build/
 **/build/
+docs/_build/
 /captures/
 .externalNativeBuild/
 .cxx/

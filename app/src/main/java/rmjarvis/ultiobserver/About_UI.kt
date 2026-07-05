@@ -22,6 +22,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 private const val SOURCE_CODE_URL = "https://github.com/rmjarvis/UltiObserver"
+private const val DOCUMENTATION_URL = "https://rmjarvis.github.io/UltiObserver/"
 private const val PRIVACY_POLICY_URL = "https://github.com/rmjarvis/UltiObserver/blob/main/PRIVACY.md"
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -70,6 +71,44 @@ internal fun AboutScreen(
             )
             HorizontalDivider()
             Text(
+                text = "Documentation",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = DOCUMENTATION_URL,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(
+                        onClick = {
+                            uriHandler.openUri(DOCUMENTATION_URL)
+                        },
+                    ),
+                color = PrimaryColor,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+            )
+            HorizontalDivider()
+            Text(
+                text = "Privacy policy",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = PRIVACY_POLICY_URL,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(
+                        onClick = {
+                            uriHandler.openUri(PRIVACY_POLICY_URL)
+                        },
+                    ),
+                color = PrimaryColor,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+            )
+            HorizontalDivider()
+            Text(
                 text = "Source code",
                 style = MaterialTheme.typography.titleMedium,
             )
@@ -90,25 +129,6 @@ internal fun AboutScreen(
             Text(
                 text = "If you notice any bugs or have requests for features to add, please go to the above GitHub page and make an issue.",
                 style = MaterialTheme.typography.bodyMedium,
-            )
-            HorizontalDivider()
-            Text(
-                text = "Privacy policy",
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Text(
-                text = PRIVACY_POLICY_URL,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(
-                        onClick = {
-                            uriHandler.openUri(PRIVACY_POLICY_URL)
-                        },
-                    ),
-                color = PrimaryColor,
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
             )
         }
     }

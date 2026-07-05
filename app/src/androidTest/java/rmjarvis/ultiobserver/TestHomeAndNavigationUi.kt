@@ -815,8 +815,10 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("about-screen").assertIsDisplayed()
         composeRule.onNodeWithText("Version ${BuildConfig.VERSION_NAME}").assertIsDisplayed()
         val sourceCodeUrl = "https://github.com/rmjarvis/UltiObserver"
+        val documentationUrl = "https://rmjarvis.github.io/UltiObserver/"
         val privacyPolicyUrl = "https://github.com/rmjarvis/UltiObserver/blob/main/PRIVACY.md"
         composeRule.onNodeWithText(sourceCodeUrl).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText(documentationUrl).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText(privacyPolicyUrl).performScrollTo().assertIsDisplayed()
 
         // A helper to check a URL link without actually executing the link.
@@ -843,8 +845,9 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             assertEquals(url, openedIntent?.dataString)
         }
 
-        // Check that the source code URL and the privacy policy are active links.
+        // Check that the source code, documentation, and privacy policy are active links.
         assertOpensUrl(sourceCodeUrl)
+        assertOpensUrl(documentationUrl)
         assertOpensUrl(privacyPolicyUrl)
 
         // Back returns from About to Home.
