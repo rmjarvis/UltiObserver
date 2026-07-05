@@ -204,6 +204,9 @@ internal fun UltiObserverApp(
             if (archivedGame != null) {
                 val isInProgressArchive = archivedGame.archiveCategory ==
                     ArchivedGameCategory.IN_PROGRESS
+                val archiveSavedInProgressAction: () -> Unit = {
+                    viewModel.archiveSavedInProgressGame(System.currentTimeMillis())
+                }
                 GameOverSummaryScreen(
                     state = archivedGame,
                     completed = !isInProgressArchive,
@@ -221,9 +224,7 @@ internal fun UltiObserverApp(
                         null
                     },
                     onSecondarySummaryAction = if (isInProgressArchive) {
-                        {
-                            viewModel.archiveSavedInProgressGame(System.currentTimeMillis())
-                        }
+                        archiveSavedInProgressAction
                     } else {
                         null
                     },
@@ -339,6 +340,16 @@ internal fun UltiObserverApp(
                 viewModel.finishSetup(System.currentTimeMillis())
             }
 
+            val cancelSetupEditAction: () -> Unit = {
+                viewModel.cancelSetupEdit()
+            }
+            val openSavedSetupDraftsAction: () -> Unit = {
+                viewModel.openSavedSetupDrafts()
+            }
+            val saveSetupForLaterAction: () -> Unit = {
+                viewModel.saveSetupForLater()
+            }
+
             SetupScreen(
                 state = setupGame,
                 onStateChange = { updatedState ->
@@ -364,10 +375,10 @@ internal fun UltiObserverApp(
                 // No else branch: every SetupMode value is handled.
                 onSecondaryAction = when (setupMode) {
                     SetupMode.EDIT_CURRENT_GAME -> {
-                        { viewModel.cancelSetupEdit() }
+                        cancelSetupEditAction
                     }
                     SetupMode.EDIT_SAVED_SETUP -> {
-                        { viewModel.openSavedSetupDrafts() }
+                        openSavedSetupDraftsAction
                     }
                     SetupMode.NEW_GAME -> null
                 },
@@ -383,9 +394,7 @@ internal fun UltiObserverApp(
                 },
                 secondaryActionFullWidth = setupMode == SetupMode.EDIT_SAVED_SETUP,
                 onSaveGameForLater = if (setupMode == SetupMode.NEW_GAME) {
-                    {
-                        viewModel.saveSetupForLater()
-                    }
+                    saveSetupForLaterAction
                 } else {
                     null
                 },

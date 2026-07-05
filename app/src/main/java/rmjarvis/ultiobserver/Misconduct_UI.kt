@@ -385,6 +385,7 @@ internal fun AdjustCardsDialog(
         }
     }
 
+    // No else branch: every AdjustCardsDialogStep value is handled.
     when (val activeStep = step) {
         AdjustCardsDialogStep.CardCounts -> {
             AlertDialog(
@@ -539,7 +540,9 @@ internal fun AdjustCardsDialog(
                 candidates = recordsFor(pending.team).playerCardCandidates(),
                 cardType = pending.cardType,
                 onDismiss = { step = AdjustCardsDialogStep.CardCounts },
-                onConfirm = { entry -> applyManualCardAdd(pending, entry) },
+                onConfirm = { entry ->
+                    applyManualCardAdd(pending, entry)
+                },
             )
         }
 
@@ -552,7 +555,9 @@ internal fun AdjustCardsDialog(
                 candidates = emptyList(),
                 cardType = pending.card.cardType,
                 onDismiss = { step = AdjustCardsDialogStep.ExistingCards(pending.team) },
-                onConfirm = { entry -> applyManualCardEdit(pending, entry) },
+                onConfirm = { entry ->
+                    applyManualCardEdit(pending, entry)
+                },
             )
         }
 
@@ -783,7 +788,7 @@ internal fun TeamCardDialog(
     }
 
     fun stepForPendingMisconductReturn(returnTo: PendingMisconductReturn): TeamCardDialogStep {
-        // No else branch: every PendingMisconductReturn value is handled
+        // No else branch: every PendingMisconductReturn value is handled.
         return when (returnTo) {
             is PendingMisconductReturn.YellowEntry -> {
                 cardedPlayerEntryStep(returnTo.team, CardType.YELLOW, returnTo.entry)
@@ -1020,7 +1025,9 @@ internal fun TeamCardDialog(
                 candidates = emptyList(),
                 cardType = pending.card.cardType,
                 onDismiss = { step = TeamCardDialogStep.ExistingCards(pending.team) },
-                onConfirm = { entry -> applyExistingCardEdit(pending, entry) },
+                onConfirm = { entry ->
+                    applyExistingCardEdit(pending, entry)
+                },
             )
         }
         is TeamCardDialogStep.CardedPlayerEntry -> {

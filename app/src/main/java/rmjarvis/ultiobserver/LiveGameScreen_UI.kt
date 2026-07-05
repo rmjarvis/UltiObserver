@@ -870,29 +870,12 @@ private fun UndoRedoBar(
 ) {
     val undoEntry = state.undoEntry
     val redoEntry = state.redoEntry
-    if (undoEntry == null && redoEntry == null) {
-        return
-    }
-
-    if (redoEntry == null) {
-        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-            NavigationButton(
-                label = undoEntry!!.label,
-                enabled = enabled,
-                fullWidth = true,
-                height = height,
-                colors = resetOutlinedButtonColors(),
-                borderColor = ResetColor,
-                compact = true,
-                onClick = { onUndo(state.undoLastAction()) },
-            )
-        }
-        return
-    }
 
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(height),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -905,21 +888,27 @@ private fun UndoRedoBar(
                     colors = resetOutlinedButtonColors(),
                     borderColor = ResetColor,
                     compact = true,
-                    onClick = { onUndo(state.undoLastAction()) },
+                    onClick = {
+                        onUndo(state.undoLastAction())
+                    },
                 )
             } else {
                 Spacer(modifier = Modifier.weight(3f))
             }
-            NavigationButton(
-                label = "Redo",
-                enabled = enabled,
-                modifier = Modifier.weight(1f),
-                height = height,
-                colors = redoOutlinedButtonColors(),
-                borderColor = RedoColor,
-                compact = true,
-                onClick = { onRedo(state.redoLastAction()) },
-            )
+            if (redoEntry != null) {
+                NavigationButton(
+                    label = "Redo",
+                    enabled = enabled,
+                    modifier = Modifier.weight(1f),
+                    height = height,
+                    colors = redoOutlinedButtonColors(),
+                    borderColor = RedoColor,
+                    compact = true,
+                    onClick = {
+                        onRedo(state.redoLastAction())
+                    },
+                )
+            }
         }
     }
 }

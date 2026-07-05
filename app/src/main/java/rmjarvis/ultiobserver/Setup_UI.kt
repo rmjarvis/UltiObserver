@@ -426,7 +426,7 @@ internal fun SetupScreen(
     }
 
     // If setupDialog is set, then on this re-render, open the corresponding dialog box.
-    // No else branch: every SetupDialog value plus null is handled
+    // No else branch: every SetupDialog value plus null is handled.
     when (setupDialog) {
         SetupDialog.GAME_INFORMATION -> {
             GameInformationSetupDialog(
@@ -589,7 +589,7 @@ internal fun SetupScreen(
             )
         }
 
-        // No else branch: every TeamSetupDialog value is handled
+        // No else branch: every TeamSetupDialog value is handled.
         when (target.dialog) {
             TeamSetupDialog.COLOR -> {
                 TeamColorSetupDialog(
@@ -1401,7 +1401,7 @@ private fun FieldStartingPullSummary(state: GameState) {
             fontWeight = FontWeight.SemiBold,
         )
         if (state.usesMixedDivision()) {
-            // No else branch: every GenderRatioRule value is handled
+            // No else branch: every GenderRatioRule value is handled.
             when (state.rules.genderRatioRule) {
                 GenderRatioRule.ABBA -> SetupSummaryValue("First point ratio: ${state.initialGenderRatio.displayText}")
                 GenderRatioRule.GEN_ZONE -> {
@@ -1592,7 +1592,7 @@ private fun StartingPullSetupDialog(
                     onSelected = { pullingFromEnd = it },
                 )
                 if (state.usesMixedDivision()) {
-                    // No else branch: every GenderRatioRule value is handled
+                    // No else branch: every GenderRatioRule value is handled.
                     when (state.rules.genderRatioRule) {
                         GenderRatioRule.ABBA -> {
                             Text("First point gender ratio", fontWeight = FontWeight.SemiBold)

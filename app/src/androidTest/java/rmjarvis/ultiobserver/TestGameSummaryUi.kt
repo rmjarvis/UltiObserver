@@ -52,6 +52,10 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
         waitForText("Event log")
         waitForText("Game over", substring = true)
         dismissDialog(text = "OK")
+
+        // The live game-over summary can undo the End game action and return to play.
+        composeRule.onNodeWithText("Undo End game").performClick()
+        assertLiveScreen()
     }
 
     /**

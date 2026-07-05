@@ -1,6 +1,7 @@
 package rmjarvis.ultiobserver
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertCountEquals
@@ -491,11 +492,12 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         waitForText("Observers: Mike, Gary, Bill")
         waitForText("Field: Field 7")
 
-        // Cancel is the explicit discard path for this editor.
+        // Tapping inert dialog body space should defocus the text field, but Cancel remains the
+        // explicit discard path for this editor.
         openGameInformationSetupEditor()
         composeRule.onNodeWithTag("setup-tournament-name")
             .performTextReplacement("Canceled Tournament")
-        composeRule.onNodeWithTag("setup-tournament-name").performImeAction()
+        composeRule.onNodeWithText("Level").performTouchInput { click() }
         composeRule.onNodeWithText("Cancel").performClick()
         composeRule.onAllNodesWithText("Canceled Tournament").assertCountEquals(0)
         waitForText("College Nationals")
@@ -524,6 +526,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         openPriorCardsSetupEditor()
         composeRule.onNodeWithText("Add card holder").performClick()
         waitForText("Add previous game card holder")
+        composeRule.onNodeWithText("Add").assertIsNotEnabled()
         dismissDialog(text = "Cancel")
         waitForText("Add card holder")
         closeSetupEditor()
@@ -579,6 +582,13 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         waitForText("Remove card holder?")
         composeRule.onNodeWithText("Remove").performClick()
         waitForText("No card holders added yet")
+
+        // A card holder can be identified by name alone when no jersey number is known.
+        composeRule.onNodeWithText("Add card holder").performClick()
+        waitForText("Add previous game card holder")
+        enterPriorCardName("No Number Yet")
+        composeRule.onNodeWithText("Add").performClick()
+        composeRule.onNodeWithText("No Number Yet").performScrollTo().assertIsDisplayed()
     }
 
     /**

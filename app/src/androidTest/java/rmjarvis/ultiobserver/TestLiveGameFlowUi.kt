@@ -11,6 +11,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -67,6 +68,9 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
      */
     @Test
     fun timeouts() {
+        setAutomaticallyAdvanceCountdowns(true)
+        setAutomaticallyLockLivePoint(true)
+
         // Timeout during a live point starts a timeout countdown.
         // Note -- the clock starts when the timeout button is pressed, not when the dialog
         // is confirmed.
@@ -83,6 +87,34 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         assertTrue(timeoutCountdown.targetEpoch >= timeoutRequestedAt + 69_000L)
         assertTrue(timeoutCountdown.targetEpoch < beforeConfirmingTimeout + 69_750L)
 
+        // Manually continuing after a timeout clears the countdown and returns to locked live play.
+        composeRule.onNodeWithText("Continue point").performClick()
+        waitForText("Slide right to unlock")
+        val manuallyContinuedState = accessCurrentGameState()
+        assertEquals(GamePhase.LIVE_POINT, manuallyContinuedState.phase)
+        assertNull(manuallyContinuedState.countdown)
+
+        // Undoing the timeout removes the timeout charge.
+        unlockLiveScreen()
+        assertEquals(1, manuallyContinuedState.teamOne.timeoutsUsedThisHalf)
+        composeRule.onNodeWithText("Undo Timeout by Team 1").performClick()
+        waitForTag("live-center-lock")
+        val undoneTimeoutState = accessCurrentGameState()
+        assertNull(undoneTimeoutState.countdown)
+        assertEquals(0, undoneTimeoutState.teamOne.timeoutsUsedThisHalf)
+
+        // Recording another timeout and letting it expire reaches the same locked live-play state
+        // through the automatic countdown path.
+        recordTimeout(TeamId.TEAM_ONE, "Undo Timeout by Team 1")
+        waitForText("Continue point")
+        expireActiveCountdownProgrammatically()
+        waitForText("Slide right to unlock")
+        val autoContinuedState = accessCurrentGameState()
+        assertEquals(GamePhase.LIVE_POINT, autoContinuedState.phase)
+        assertNull(autoContinuedState.countdown)
+        assertEquals(1, autoContinuedState.teamOne.timeoutsUsedThisHalf)
+        unlockLiveScreen()
+
         // Timeout should remain wired after the undo path, including undo when redo is also
         // available.
         startLivePointProgrammatically()
@@ -95,6 +127,9 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         recordTimeout(TeamId.TEAM_ONE, "Undo Timeout by Team 1")
         composeRule.onNodeWithText("Undo Timeout by Team 1").performClick()
         waitForText("Undo Goal by Team 1")
+        waitForText("Redo")
+        composeRule.onNodeWithText("Undo Goal by Team 1").performClick()
+        waitForTag("live-center-lock")
         waitForText("Redo")
 
         // The timeout button shows the invalid-timeout dialog when the team has none left.
@@ -273,7 +308,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         waitForText("Restart countdown")
 
         // Recording a pulling-team time violation doesn't start the shortened pull clock
-        // countdown until the user confirms it,jsince there is probably stuff to talk
+        // countdown until the user confirms it, since there is probably stuff to talk
         // about with the teams before starting the countdown.
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "time-violation")).performClick()
         waitForText("now has 30 seconds to pull.", substring = true)
@@ -381,6 +416,16 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         // Start with a visible countdown before disabling automatic expiration.
         startLiveGameProgrammatically()
         val checkAfter = System.currentTimeMillis() + 1_200L
+
+        // The visible countdown can be adjusted in either direction from the live controls.
+        val initialCountdownTarget = accessCurrentGameState().countdown!!.targetEpoch
+        composeRule.onNodeWithText("+5").performClick()
+        assertEquals(
+            initialCountdownTarget + 5_000L,
+            accessCurrentGameState().countdown!!.targetEpoch,
+        )
+        composeRule.onNodeWithText("-5").performClick()
+        assertEquals(initialCountdownTarget, accessCurrentGameState().countdown!!.targetEpoch)
 
         // The visible countdown can be paused and resumed before exercising expiration behavior.
         composeRule.onNodeWithTag("live-pause-countdown").performClick()

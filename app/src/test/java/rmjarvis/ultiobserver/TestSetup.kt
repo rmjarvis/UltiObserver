@@ -30,6 +30,7 @@ class TestSetup : GameDomainTestFixtures() {
                 ZoneId.systemDefault(),
             ),
         )
+        assertFalse(newSetupGame.hasStarted())
         assertEquals(GameRules(), newSetupGame.rules)
 
         // A new setup draft can carry tournament context from the previous game while keeping

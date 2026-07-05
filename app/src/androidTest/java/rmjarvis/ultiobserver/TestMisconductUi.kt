@@ -524,6 +524,32 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Done").performClick()
         assertLiveScreen()
 
+        // Editing an existing card onto a player who then has two yellows shows the suspension
+        // notice before returning to the editable-card list.
+        seedInGamePlayerCardsProgrammatically(
+            teamOneCards = listOf(
+                playerRecordWithCards("12", yellows = 1),
+                playerRecordWithCards("13", yellows = 1),
+            ),
+        )
+        openAdjustCardsDialog()
+        composeRule.onNodeWithTag("cards-adjust-team-one-edit-existing")
+            .performScrollTo()
+            .performClick()
+        waitForText("Edit existing cards")
+        composeRule.onAllNodes(
+            hasContentDescription("Edit #12", substring = true)
+        ).onFirst().performClick()
+        waitForText("Edit yellow card")
+        composeRule.onNodeWithTag("card-player-number").performTextReplacement("13")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Team 1 #13 now has two yellow cards and has been suspended.")
+        dismissDialog(text = "OK")
+        waitForText("Edit existing cards")
+        composeRule.onAllNodesWithText("Done").onLast().performClick()
+        composeRule.onNodeWithText("Done").performClick()
+        assertLiveScreen()
+
         // Removing a player-backed card can be canceled without applying a partial correction.
         seedInGamePlayerCardsProgrammatically(
             teamTwoCards = listOf(
@@ -838,6 +864,16 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         )
         composeRule.onNodeWithText("OK").performClick()
         waitForText("Start misconduct countdown")
+
+        // The pending misconduct countdown starts only when the observer is ready for it.
+        composeRule.onNodeWithTag("live-start-misconduct-countdown").performClick()
+        val misconductCountdownState = accessCurrentGameState()
+        val misconductCountdown = misconductCountdownState.countdown!!
+        assertEquals(CountdownKind.TIME_OUT, misconductCountdown.kind)
+        assertEquals(30, misconductCountdown.durationSeconds)
+        assertTrue(!misconductCountdownState.pendingMisconductCountdown)
+        assertTrue(misconductCountdown.targetEpoch > System.currentTimeMillis())
+        composeRule.onAllNodesWithText("Start misconduct countdown").assertCountEquals(0)
 
         // A player with both a yellow and red has no valid additional red card.
         openCardsDialog(TeamId.TEAM_TWO)

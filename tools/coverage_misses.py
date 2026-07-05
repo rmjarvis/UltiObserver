@@ -21,6 +21,9 @@ CALLBACK_LAMBDA_OPENER = re.compile(
     rf"^{CALLBACK_NAME_PATTERN}\s*=\s*\{{\s*"
     r"(?:(?:[A-Za-z_]\w*\s*,\s*)*[A-Za-z_]\w*\s*->\s*)?$"
 )
+LOCAL_UI_CALLBACK_LAMBDA_OPENER = re.compile(
+    r"^val\s+[A-Za-z_]\w*Action\s*:\s*\(\)\s*->\s*Unit\s*=\s*\{\s*$"
+)
 NO_OP_CALLBACK_LAMBDA = re.compile(
     rf"^{CALLBACK_NAME_PATTERN}\s*=\s*\{{\}},?$"
 )
@@ -135,6 +138,7 @@ def line_allowed_reason(
     ) or exhaustive_when_without_else_reason(
         source_lines,
         line_number,
+        counters,
     ) or version_migration_bucket_constructor_reason(
         source_lines,
         line_number,
@@ -311,7 +315,11 @@ def defensive_guard_reason(source_lines: list[str], line_number: int) -> str | N
     return "documented defensive guard"
 
 
-def exhaustive_when_without_else_reason(source_lines: list[str], line_number: int) -> str | None:
+def exhaustive_when_without_else_reason(
+    source_lines: list[str],
+    line_number: int,
+    counters: LineCounters,
+) -> str | None:
     """
     Return a reason for Kotlin's synthetic default on a documented exhaustive `when`.
 
@@ -328,19 +336,71 @@ def exhaustive_when_without_else_reason(source_lines: list[str], line_number: in
     binaries that do not match the source the compiler saw.  That branch is not a user
     pathway in this app.  This recognizer accepts only the `when (` line immediately
     documented by the "No else branch" comment.
+
+    For sealed interfaces lowered through Compose-heavy UI code, JaCoCo can instead map
+    the same synthetic fallback branch to one of the documented `when` block's case
+    lines, usually the final `is SomeStep ->` case.  Keep that allowance narrow: the
+    case line must be inside a documented exhaustive `when`, must have covered
+    instructions, and must only miss exactly one branch with no missed instructions.
     """
 
     line_index = line_number - 1
-    if "when (" not in source_lines[line_index].strip():
-        return None
+    source = source_lines[line_index].strip()
+    if "when (" in source:
+        comment_index = nearby_comment_index_before(source_lines, line_index, EXHAUSTIVE_WHEN_COMMENT)
+        if comment_index is None:
+            return None
+        if next_code_line_after(source_lines, comment_index) != line_index:
+            return None
 
-    comment_index = nearby_comment_index_before(source_lines, line_index, EXHAUSTIVE_WHEN_COMMENT)
-    if comment_index is None:
+        return "documented exhaustive when without else"
+
+    if not exhaustive_when_case_source(source):
         return None
-    if next_code_line_after(source_lines, comment_index) != line_index:
+    if counters.missed_instructions != 0 or counters.covered_instructions == 0:
+        return None
+    if counters.missed_branches != 1 or counters.covered_branches != 1:
+        return None
+    if documented_exhaustive_when_index_for_case_line(source_lines, line_index) is None:
         return None
 
     return "documented exhaustive when without else"
+
+
+def exhaustive_when_case_source(source: str) -> bool:
+    """Return whether a source line is a `when` case arm rather than the `when` opener."""
+
+    if "->" not in source:
+        return False
+    if source.startswith("else"):
+        return False
+    return source.endswith("-> {") or source.endswith("->")
+
+
+def documented_exhaustive_when_index_for_case_line(
+    source_lines: list[str],
+    line_index: int,
+) -> int | None:
+    """Return the enclosing documented exhaustive `when` opener for a case line."""
+
+    for index in range(line_index - 1, -1, -1):
+        source = source_lines[index].strip()
+        if "when (" not in source:
+            continue
+        if block_end_index(source_lines, index) < line_index:
+            continue
+
+        comment_index = nearby_comment_index_before(
+            source_lines,
+            index,
+            EXHAUSTIVE_WHEN_COMMENT,
+        )
+        if comment_index is None:
+            return None
+        if next_code_line_after(source_lines, comment_index) != index:
+            return None
+        return index
+    return None
 
 
 def version_migration_bucket_constructor_reason(
@@ -463,6 +523,18 @@ def callback_lambda_scaffold_reason(
     The exception is a named no-op callback lambda, so lines like
     `onDismissGameOverPrompt = {},` are accepted with the no-branch instruction-only
     profile because there is no function body to check coverage for.
+
+    Some optional callbacks are easier to keep readable by first naming a local action
+    and then passing it through nullable `if`/`when` wiring:
+
+        val saveSetupForLaterAction: () -> Unit = {
+            viewModel.saveSetupForLater()
+        }
+
+    Those local callback openers can receive the same generated wrapper branches as
+    direct `onClick = { ... }` parameters.  This rule accepts only local `val`
+    lambdas whose names end in `Action`, have the exact `() -> Unit` callback type,
+    and have covered executable body lines.
     """
 
     line_index = line_number - 1
@@ -476,6 +548,11 @@ def callback_lambda_scaffold_reason(
 
     if counters.missed_branches == 0 or counters.covered_branches == 0:
         return None
+
+    if LOCAL_UI_CALLBACK_LAMBDA_OPENER.fullmatch(source) is not None:
+        if not lambda_body_is_covered(source_lines, line_index, coverage_by_line):
+            return None
+        return "UI local callback lambda scaffold"
 
     if CALLBACK_LAMBDA_OPENER.fullmatch(source) is None:
         return None

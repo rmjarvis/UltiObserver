@@ -48,14 +48,25 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("current-game").performClick()
         assertLiveScreen()
 
+        // The unlock slider should ignore interrupted, short, and wrong-start swipes first.
+        startPointWithFailedSwipeThenUnlock()
+
         // Once the observer starts the opening point, update setup mode edits the current game.
-        startPointAndUnlock()
         openMoreActionsDialog()
         composeRule.onNodeWithText("Update game setup").performClick()
         waitForText("Done")
         replaceSetupTeamName("Team 1", "Updated Team")
         composeRule.onNodeWithText("Done").performClick()
         waitForText("Updated Team")
+
+        // Update setup mode can cancel a draft setup change without changing the current game.
+        openMoreActionsDialog()
+        composeRule.onNodeWithText("Update game setup").performClick()
+        waitForText("Done")
+        replaceSetupTeamName("Team 1", "Canceled Team")
+        composeRule.onNodeWithText("Cancel").performClick()
+        waitForText("Updated Team")
+        composeRule.onAllNodesWithText("Canceled Team").assertCountEquals(0)
 
         // Update setup mode can also return directly Home, preserving the current game.
         openMoreActionsDialog()
