@@ -291,8 +291,9 @@ internal fun TimingCueSettingsScreen(
                 )
                 if (section.isDefenseCheckCountdownSection() && !showDefenseCountdowns) {
                     Text(
-                        text = "Note — these cues are not currently enabled. " +
-                            "If you want them, enable them on the previous page.",
+                        text = "Note — defensive check countdowns are not currently enabled. " +
+                            "If you want these cues, enable defensive check countdowns " +
+                            "on the previous page.",
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
@@ -583,7 +584,9 @@ private fun TimingCueSettingRow(
                             selected = option == repeatCount,
                             onClick = {
                                 onRepeatCountChange(
-                                    if (option == repeatCount) DEFAULT_TIMING_ALERT_REPEAT_COUNT else option
+                                    // Clicking a selected x2 for instance removes the selection
+                                    // so go back to x1.
+                                    if (option == repeatCount) 1 else option
                                 )
                             },
                             label = "x$option",

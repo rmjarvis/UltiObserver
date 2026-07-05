@@ -141,6 +141,9 @@ internal fun TimingCueId.defaultAlertMode(): TimingAlertMode {
         TimingCueId.HARD_CAP,
         -> TimingAlertMode.DING
         TimingCueId.PULLING_TWENTY_TO_PULL,
+        TimingCueId.PULLING_TEN_TO_PULL,
+        TimingCueId.DEFENSE_TWENTY,
+        TimingCueId.DEFENSE_TEN,
         -> TimingAlertMode.VIBRATE
         else -> TimingAlertMode.NONE
     }
@@ -157,7 +160,7 @@ internal fun TimingCueId.defaultRepeatCount(): Int {
         TimingCueId.SOFT_CAP,
         -> 2
         TimingCueId.HARD_CAP -> 3
-        else -> DEFAULT_TIMING_ALERT_REPEAT_COUNT
+        else -> 1
     }
 }
 
@@ -166,7 +169,6 @@ const val MAX_TIMING_CUE_VIBRATION_MS = 500L
 const val DEFAULT_TIMING_CUE_VIBRATION_MS = 360L
 const val MIN_TIMING_ALERT_REPEAT_COUNT = 1
 const val MAX_TIMING_ALERT_REPEAT_COUNT = 3
-const val DEFAULT_TIMING_ALERT_REPEAT_COUNT = 1
 
 /**
  * User settings stored as one persistence bucket.

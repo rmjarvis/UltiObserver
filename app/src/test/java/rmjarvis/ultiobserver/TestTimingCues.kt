@@ -54,9 +54,12 @@ class TestTimingCues : GameDomainTestFixtures() {
             TimingCueId.RECEIVING_TWENTY_FOR_HAND to TimingAlertMode.TICK,
             TimingCueId.RECEIVING_TEN_FOR_HAND to TimingAlertMode.TICK,
             TimingCueId.PULLING_TWENTY_TO_PULL to TimingAlertMode.VIBRATE,
+            TimingCueId.PULLING_TEN_TO_PULL to TimingAlertMode.VIBRATE,
             TimingCueId.TIMEOUT_CLEAR_FIELD to TimingAlertMode.BEEP,
             TimingCueId.OFFENSE_TWENTY to TimingAlertMode.TICK,
             TimingCueId.OFFENSE_TEN to TimingAlertMode.TICK,
+            TimingCueId.DEFENSE_TWENTY to TimingAlertMode.VIBRATE,
+            TimingCueId.DEFENSE_TEN to TimingAlertMode.VIBRATE,
             TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND to TimingAlertMode.BEEP,
             TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL to TimingAlertMode.BEEP,
             TimingCueId.HALFTIME_FIVE_MINUTES to TimingAlertMode.KNOCK,
@@ -112,7 +115,12 @@ class TestTimingCues : GameDomainTestFixtures() {
 
         // The settings mode remains the cue-specific setting even in vibration-only mode.
         assertEquals(
-            listOf(TimingCueId.PULLING_TWENTY_TO_PULL),
+            listOf(
+                TimingCueId.PULLING_TWENTY_TO_PULL,
+                TimingCueId.PULLING_TEN_TO_PULL,
+                TimingCueId.DEFENSE_TWENTY,
+                TimingCueId.DEFENSE_TEN,
+            ),
             TimingCueId.entries.filter { cueId ->
                 defaultPreferences.settingsModeFor(cueId) == TimingAlertMode.VIBRATE
             },

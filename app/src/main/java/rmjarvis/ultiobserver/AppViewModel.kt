@@ -442,7 +442,7 @@ internal class AppViewModel(
                 timingAlertPreferences = currentPreferences.copy(
                     cueModes = currentPreferences.cueModes + (cueId to mode),
                     cueRepeatCounts = if (mode == TimingAlertMode.NONE) {
-                        currentPreferences.cueRepeatCounts + (cueId to DEFAULT_TIMING_ALERT_REPEAT_COUNT)
+                        currentPreferences.cueRepeatCounts + (cueId to 1)
                     } else {
                         currentPreferences.cueRepeatCounts
                     },

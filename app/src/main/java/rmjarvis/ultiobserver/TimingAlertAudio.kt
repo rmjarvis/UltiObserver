@@ -61,7 +61,7 @@ internal class TimingAlertPlayer internal constructor(
      * @param volume The requested playback volume, clamped to the SoundPool range.
      */
     fun play(sound: TimingAlertSound, volume: Float) {
-        play(sound, DEFAULT_TIMING_ALERT_REPEAT_COUNT, volume)
+        play(sound, 1, volume)
     }
 
     /**

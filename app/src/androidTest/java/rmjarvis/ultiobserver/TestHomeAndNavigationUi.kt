@@ -942,7 +942,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             .performClick()
         waitForText("Cue sound settings")
         composeRule.onNodeWithTag("settings-DEFENSE_TWENTY-VIBRATE").performScrollTo()
-        waitForText("Note — these cues are not currently enabled.", substring = true)
+        waitForText("Note — defensive check countdowns are not currently enabled.", substring = true)
 
         // Cue settings should show disabled-sound context, support default reset, and
         // persist per-cue edits.
