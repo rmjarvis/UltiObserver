@@ -259,7 +259,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
             .performClick()
         closeSetupEditor()
         openStartingPullSetupEditor()
-        waitForText("Which end is the \"gen zone\" in the first half?")
+        waitForText("End for gen zone in first half")
         composeRule.onNodeWithTag("setup-first-half-gen-zone-${FieldEnd.NEAR.name}")
             .performScrollTo()
             .performClick()
@@ -277,10 +277,10 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onAllNodesWithText("First-half Gen Zone: Road").assertCountEquals(0)
         waitForText("Gen Zone stays the same all game")
         openStartingPullSetupEditor()
-        composeRule.onNodeWithText("Which end is the \"gen zone\"?")
+        composeRule.onNodeWithText("End for gen zone")
             .performScrollTo()
             .assertIsDisplayed()
-        composeRule.onAllNodesWithText("Which end is the \"gen zone\" in the first half?")
+        composeRule.onAllNodesWithText("End for gen zone in first half")
             .assertCountEquals(0)
         closeSetupEditor()
 
@@ -292,9 +292,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         closeSetupEditor()
         openStartingPullSetupEditor()
         composeRule.onAllNodesWithText("First point gender ratio").assertCountEquals(0)
-        composeRule.onAllNodesWithText("Which end is the \"gen zone\" in the first half?")
-            .assertCountEquals(0)
-        composeRule.onAllNodesWithText("Which end is the \"gen zone\"?").assertCountEquals(0)
+        composeRule.onAllNodesWithText("gen zone").assertCountEquals(0)
         closeSetupEditor()
     }
 

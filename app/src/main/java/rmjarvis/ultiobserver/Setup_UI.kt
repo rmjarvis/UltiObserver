@@ -1603,9 +1603,9 @@ private fun StartingPullSetupDialog(
                         }
                         GenderRatioRule.GEN_ZONE -> {
                             val genZonePrompt = if (state.rules.switchGenZoneAtHalftime) {
-                                "Which end is the \"gen zone\" in the first half?"
+                                "End for gen zone in first half"
                             } else {
-                                "Which end is the \"gen zone\"?"
+                                "End for gen zone"
                             }
                             Text(
                                 genZonePrompt,
@@ -1626,7 +1626,7 @@ private fun StartingPullSetupDialog(
                         GenderRatioRule.FIXED_4W_3M -> Unit
                     }
                 }
-                Text("For which end do you want timing prompts related to the pull?", fontWeight = FontWeight.SemiBold)
+                Text("Timing prompts for which end?", fontWeight = FontWeight.SemiBold)
                 PullPromptTargetChoiceRow(
                     selected = pullPromptTarget,
                     nearLabel = displayFieldEndName(FieldEnd.NEAR),
