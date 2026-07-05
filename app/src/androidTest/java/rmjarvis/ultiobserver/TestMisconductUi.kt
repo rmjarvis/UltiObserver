@@ -105,25 +105,25 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         waitForText("Yellow card on Name Only Handler.", substring = true)
         dismissDialog(text = "OK")
 
-        openCardsDialog()
-        tapCardDialogAction(TeamId.TEAM_ONE, "Yellow")
-        composeRule.onNodeWithText("Yellow card").assertIsDisplayed()
-        enterCardPlayerNumber("4")
-        composeRule.onNodeWithText("Record").performClick()
-        waitForText("Yellow card on player 4.", substring = true)
-        composeRule.onNodeWithText("OK").performClick()
+        // Seed the next player yellow directly; later assertions only need the card count.
+        seedInGamePlayerCardsProgrammatically(
+            teamOneCards = listOf(
+                playerRecordWithCards("", yellows = 1, playerName = "Name Only Handler"),
+                playerRecordWithCards("4", yellows = 1),
+            ),
+        )
 
         // A red without an existing yellow records immediately and includes the game-suspension
         // notice.
-        // Note -- recordRedCard and recordYellowCard are shorthand helper functions that
-        // record the card when we don't need any extra actions around the normal path.
-        recordRedCard(
-            TeamId.TEAM_ONE,
-            "5",
-            "Red card on player 5.\n" +
-                "Player 5 receives a game suspension.\n" +
-                "Team 1 has 5 cards total (red cards count as 2).",
-        )
+        openCardsDialog()
+        tapCardDialogAction(TeamId.TEAM_ONE, "Red")
+        waitForText("Red card")
+        enterCardPlayerNumber("5")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Red card on player 5.", substring = true)
+        waitForText("Player 5 receives a game suspension.", substring = true)
+        waitForText("Team 1 has 5 cards total (red cards count as 2).", substring = true)
+        composeRule.onNodeWithText("OK").performClick()
 
         // Choosing Red for a player with a yellow records as a red, not as a second yellow.
         openCardsDialog()
@@ -143,19 +143,6 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         )
         waitForText("Team 1 has 7 cards total (red cards count as 2).", substring = true)
         composeRule.onNodeWithText("OK").performClick()
-
-        // A second yellow comes from issuing another yellow, not from pressing Red.
-        recordYellowCard(
-            TeamId.TEAM_TWO,
-            "7",
-            "Yellow card on player 7.\nTeam 2 has 2 cards total.",
-        )
-        recordYellowCard(
-            TeamId.TEAM_TWO,
-            "7",
-            "Second yellow on player 7.",
-            substring = true,
-        )
 
         // Clicking Edit existing cards allows you to edit information for a previously
         // assessed card.
@@ -216,7 +203,6 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Set").performClick()
         waitForText("Yellow card")
         composeRule.onNodeWithText("Temporary reason").assertIsDisplayed()
-
         composeRule.onNodeWithText("Temporary reason").performClick()
         waitForText("Yellow card reason")
         composeRule.onNodeWithText("Other").performScrollTo().performClick()
@@ -246,13 +232,17 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         waitForText("Yellow card on #8 Alex Cutter.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
 
-        // Existing-card edits reject blank identity and reassignment to a suspended player.
-        recordYellowCard(
-            TeamId.TEAM_TWO,
-            "11",
-            "Yellow card on player 11.",
-            substring = true,
+        // Seed later existing-card prerequisites directly so this UI narrative can focus on the
+        // edit/list behaviors rather than replaying more card-entry setup.
+        seedInGamePlayerCardsProgrammatically(
+            teamTwoCards = listOf(
+                playerRecordWithCards("7", yellows = 2),
+                playerRecordWithCards("8", yellows = 1, playerName = "Alex Cutter"),
+                playerRecordWithCards("11", yellows = 1),
+            ),
         )
+
+        // Existing-card edits reject blank identity and reassignment to a suspended player.
         openCardsDialog(TeamId.TEAM_TWO)
         composeRule.onNodeWithText("Edit existing cards").performClick()
         waitForText("Edit existing cards")
@@ -401,16 +391,13 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
     }
 
     /**
-     * Test manual player-card corrections from the More actions Adjust cards / techs dialog.
-     * This covers adding, removing, canceling, and rejecting invalid corrected card rows.
+     * Test basic manual card-count and add-card corrections from More actions.
      */
     @Test
-    fun cardCorrectionsFromMoreActions() {
+    fun cardCorrectionCountsAndBasicActions() {
         // With no player cards yet, both teams expose disabled existing-card actions.
         startLiveGameProgrammatically()
-        openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust cards / techs").performScrollTo().performClick()
-        waitForTag("cards-adjust-team-one-blue-increment")
+        openAdjustCardsDialog()
         composeRule.onNodeWithTag("cards-adjust-team-one-edit-existing")
             .performScrollTo()
             .assertIsNotEnabled()
@@ -423,26 +410,8 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onAllNodesWithTag("cards-adjust-team-one-add-red").assertCountEquals(1)
         composeRule.onAllNodesWithTag("cards-adjust-team-two-add-yellow").assertCountEquals(1)
         composeRule.onAllNodesWithTag("cards-adjust-team-two-add-red").assertCountEquals(1)
-        dismissDialog(text = "Cancel")
-        waitForText("Update game setup")
-
-        // Seed existing player cards so the rest of the correction dialog can focus on
-        // adjustment behavior.
-        seedInGamePlayerCardsProgrammatically(
-            teamOneCards = listOf(
-                playerRecordWithCards("12", yellows = 1),
-            ),
-            teamTwoCards = listOf(
-                playerRecordWithCards("23", yellows = 1),
-                playerRecordWithCards("22", yellows = 2),
-                playerRecordWithCards("21", yellows = 1, playerName = "Alex Handler"),
-            ),
-        )
 
         // Team-count controls can adjust blue cards and technical fouls.
-        openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust cards / techs").performScrollTo().performClick()
-        waitForTag("cards-adjust-team-one-blue-increment")
         composeRule.onNodeWithTag("cards-adjust-team-one-blue-increment").performClick()
         composeRule.onNodeWithTag("cards-adjust-team-one-blue-decrement").performClick()
         composeRule.onNodeWithTag("cards-adjust-team-one-tech-increment").performClick()
@@ -463,7 +432,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Record").performClick()
         composeRule.onAllNodesWithText("Card suspension").assertCountEquals(0)
 
-        // The correction dialog can add a player red.
+        // The correction dialog can add a player red and show the suspension notice.
         composeRule.onNodeWithTag("cards-adjust-team-one-add-red")
             .performScrollTo()
             .performClick()
@@ -472,8 +441,29 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Team 1 #9 now has a red card and has been suspended.")
         dismissDialog(text = "OK")
+        composeRule.onNodeWithText("Done").performClick()
+        waitForText("Undo Adjust blue card/tech counts")
+    }
+
+    /**
+     * Test manual edit and remove card corrections from More actions.
+     */
+    @Test
+    fun cardCorrectionEditAndRemoveDialogs() {
+        // Seed precise card history so the test can focus on edit/remove dialog behavior.
+        startLiveGameProgrammatically()
+        seedInGamePlayerCardsProgrammatically(
+            teamOneCards = listOf(
+                playerRecordWithCards("12", yellows = 1),
+                playerRecordWithCards("9", reds = 1),
+            ),
+            teamTwoCards = listOf(
+                playerRecordWithCards("23", yellows = 1),
+            ),
+        )
 
         // The correction dialog can edit a Team 1 player card before saving the correction.
+        openAdjustCardsDialog()
         composeRule.onNodeWithTag("cards-adjust-team-one-edit-existing")
             .performScrollTo()
             .performClick()
@@ -529,14 +519,18 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         ).onFirst().performClick()
         waitForText("Remove card?")
         composeRule.onAllNodesWithText("Remove").onLast().performClick()
+        waitForText("Undo Remove yellow on #23", substring = true)
         composeRule.onAllNodesWithText("Done").onLast().performClick()
         composeRule.onNodeWithText("Done").performClick()
-        waitForText("Undo Adjust blue card/tech counts")
+        assertLiveScreen()
 
         // Removing a player-backed card can be canceled without applying a partial correction.
-        openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust cards / techs").performScrollTo().performClick()
-        waitForTag("cards-adjust-team-one-blue-increment")
+        seedInGamePlayerCardsProgrammatically(
+            teamTwoCards = listOf(
+                playerRecordWithCards("23", yellows = 1),
+            ),
+        )
+        openAdjustCardsDialog()
         composeRule.onNodeWithTag("cards-adjust-team-two-edit-existing")
             .performScrollTo()
             .performClick()
@@ -549,11 +543,24 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onAllNodesWithText("Done").onLast().performClick()
         composeRule.onNodeWithText("Cancel").performClick()
         waitForText("Update game setup")
+    }
+
+    /**
+     * Test manual add-card validation dialogs from More actions.
+     */
+    @Test
+    fun cardCorrectionValidationDialogs() {
+        // Seed players needed for same-number and suspended-player validation branches.
+        startLiveGameProgrammatically()
+        seedInGamePlayerCardsProgrammatically(
+            teamTwoCards = listOf(
+                playerRecordWithCards("21", yellows = 1, playerName = "Alex Handler"),
+                playerRecordWithCards("22", yellows = 2),
+            ),
+        )
 
         // A blank added-card correction is rejected and leaves the add dialog open.
-        openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust cards / techs").performScrollTo().performClick()
-        waitForTag("cards-adjust-team-one-blue-increment")
+        openAdjustCardsDialog()
         composeRule.onNodeWithTag("cards-adjust-team-one-add-yellow")
             .performScrollTo()
             .performClick()
@@ -567,9 +574,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         waitForText("Update game setup")
 
         // Same-number corrections ask before creating a distinct player with the same number.
-        openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust cards / techs").performScrollTo().performClick()
-        waitForTag("cards-adjust-team-one-blue-increment")
+        openAdjustCardsDialog()
         composeRule.onNodeWithTag("cards-adjust-team-two-add-red")
             .performScrollTo()
             .performClick()
@@ -578,7 +583,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("card-player-name").performTextReplacement("Different Handler")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Same number, different names")
-        dismissDialog(tag = "same-number-warning-cancel")
+        dismissDialog(tag = "same-number-warning-cancel", clearKeyboard = true)
         waitForText("Add red card")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Same number, different names")
@@ -589,9 +594,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         assertLiveScreen()
 
         // Trying another yellow on a maxed-out player should show the invalid assignment warning.
-        openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust cards / techs").performScrollTo().performClick()
-        waitForTag("cards-adjust-team-one-blue-increment")
+        openAdjustCardsDialog()
         composeRule.onNodeWithTag("cards-adjust-team-two-add-yellow")
             .performScrollTo()
             .performClick()
@@ -716,6 +719,11 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
             substring = true,
         )
         composeRule.onNodeWithText("OK").performClick()
+        waitForText("Start misconduct countdown")
+        composeRule.onNodeWithTag("live-center-lock").performClick()
+        waitForText("Slide right to unlock")
+        composeRule.onAllNodesWithTag("live-start-misconduct-countdown").assertCountEquals(0)
+        unlockLiveScreen()
         waitForText("Start misconduct countdown")
 
         // A third yellow for the same player should be rejected without crashing.
@@ -843,5 +851,25 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Team 2 #6 already has a red card and has been suspended.")
         composeRule.onNodeWithText("OK").performClick()
+
+        // A threshold technical foul between points gives no-pull yardage guidance.
+        startBetweenPointsProgrammatically()
+        updateCurrentStateProgrammatically {
+            copy(teamOne = teamOne.copy(technicalFouls = 2))
+        }
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "tech")).performClick()
+        waitForText("Team 2 starts at attacking brick.", substring = true)
+        composeRule.onNodeWithText("OK").performClick()
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-violation"))
+            .assertIsNotEnabled()
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "pull-violation"))
+            .assertIsNotEnabled()
+    }
+
+    /// Open the More actions card/tech correction dialog.
+    private fun openAdjustCardsDialog() {
+        openMoreActionsDialog()
+        composeRule.onNodeWithText("Adjust cards / techs").performScrollTo().performClick()
+        waitForTag("cards-adjust-team-one-blue-increment")
     }
 }

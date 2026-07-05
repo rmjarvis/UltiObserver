@@ -111,6 +111,7 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
         openMoreActionsDialog()
         composeRule.onNodeWithText("Start halftime").performScrollTo().performClick()
         waitForText("Halftime")
+        waitForText("Announce halftime.")
         // Back dismissal and OK are equivalent acknowledgements for this prompt.
         dismissDialog(text = "OK")
         assertLiveScreen()

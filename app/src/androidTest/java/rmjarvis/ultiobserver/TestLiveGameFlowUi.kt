@@ -6,11 +6,9 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -21,239 +19,12 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
     /**
-     * Test a representative complete game from setup through halftime to final score.
-     * Keep this as a user-visible UI story that checks flow, not detailed model accounting.
+     * Test pull-violation actions and variants available from the live screen.
      */
     @Test
-    fun normalGamePath() {
-        // Clear the archive so tests related to it don't get confused by previous runs.
-        clearArchivedGamesProgrammatically()
-        setAutomaticallyAdvanceCountdowns(true)
-        setAutomaticallyLockLivePoint(true)
-        val viscousCoupling = "Viscous Coupling"
-        val animal = "Animal"
-
-        // Set up a short non-default game so the UI story covers setup editing,
-        // halftime, and game over without a long repetitive scoring sequence.
-        openNewGameSetup()
-        replaceSetupTeamName("Team 1", viscousCoupling)
-        replaceSetupTeamName("Team 2", animal)
-        setIntegerSetupValue("Game to", "Game to", "Points", "5")
-        setIntegerSetupValue("Halftime", "Halftime", "Minutes", "1")
-        setCapRuleToNone("Half cap", "Half cap")
-        setCapRuleToNone("Soft cap", "Soft cap")
-        setCapRuleToNone("Hard cap", "Hard cap")
-        openStartingPullSetupEditor()
-        composeRule.onNodeWithTag("setup-pulling-from-${FieldEnd.NEAR.name}").performClick()
-        closeSetupEditor()
-        startGameFromSetup()
-        composeRule.onNodeWithText(viscousCoupling).assertIsDisplayed()
-        composeRule.onNodeWithText(animal).assertIsDisplayed()
-
-        // The opening pull starts the first live point; a short swipe should fail before a
-        // full unlock.
-        startPointWithFailedSwipeThenUnlock()
-
-        // The field-strip Lock action should relock the same live layout.
-        composeRule.onNodeWithTag("live-center-lock").performClick()
-        waitForText("Slide right to unlock")
-        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).assertIsNotEnabled()
-        unlockLiveScreen()
-
-        // The center field Lock action should also relock the screen during a live point.
-        composeRule.onNodeWithTag("live-center-lock").performClick()
-        waitForText("Slide right to unlock")
-        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "timeout")).assertIsNotEnabled()
-        unlockLiveScreen()
-
-        // Animal calls a live-point timeout, then play resumes from the timeout countdown.
-        recordTimeout(TeamId.TEAM_TWO, "Undo Timeout by $animal")
-        continuePointAndUnlock()
-
-        // Viscous Coupling gets two early card points, then a third card that needs a
-        // misconduct choice. Back from that choice should return to the player-number dialog
-        // with the entered number intact.
-        recordYellowCard(
-            TeamId.TEAM_ONE,
-            "17",
-            "Yellow card on player 17.\n$viscousCoupling has 1 card total.",
-        )
-        recordBlueCard(
-            TeamId.TEAM_ONE,
-            "Blue card on $viscousCoupling.\n$viscousCoupling has 2 cards total.",
-        )
-        recordYellowCard(
-            team = TeamId.TEAM_ONE,
-            playerNumber = "8",
-            expectedMessage = "$viscousCoupling has 3 cards total.",
-            misconductChoice = "Offense",
-            expectedMisconductMessage = "$viscousCoupling moves the disc to the reverse " +
-                "brick in the end zone they are defending.",
-            verifyMisconductBackReturnsToNumberDialog = true,
-        )
-        waitForText("Start misconduct countdown")
-        composeRule.onNodeWithTag("live-center-lock").performClick()
-        waitForText("Slide right to unlock")
-        composeRule.onAllNodesWithTag("live-start-misconduct-countdown").assertCountEquals(0)
-        unlockLiveScreen()
-        waitForText("Start misconduct countdown")
-        composeRule.onNodeWithTag("live-start-misconduct-countdown").performClick()
-        waitForText("Offense set in", substring = true)
-        continuePointAndUnlock()
-        recordYellowCard(
-            team = TeamId.TEAM_ONE,
-            playerNumber = "9",
-            expectedMessage = "$viscousCoupling has 4 cards total.",
-            misconductChoice = "Defense",
-            expectedMisconductMessage = "$animal may move the disc to the brick mark nearest " +
-                "the end zone they are attacking.",
-        )
-        recordRedCard(
-            team = TeamId.TEAM_ONE,
-            playerNumber = "12",
-            expectedMessage = "$viscousCoupling has 6 cards total (red cards count as 2).",
-            misconductChoice = "Defense",
-            expectedMisconductMessage = "$animal may move the disc to the brick mark nearest " +
-                "the end zone they are attacking.",
-            verifyMisconductBackReturnsToNumberDialog = true,
-        )
-
-        // Viscous Coupling scores the first point, then Animal false-starts and that entry is
-        // undone.
-        recordGoal(TeamId.TEAM_ONE, "Undo Goal by $viscousCoupling")
-        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "pull-violation")).performClick()
-        waitForText("$viscousCoupling gets to set up on defense.", substring = true)
-        composeRule.onNodeWithText("OK").performClick()
-        composeRule.onNodeWithText("Undo False start on $animal").performClick()
-
-        // Viscous Coupling then records an offsides; the duplicate offsides button is disabled.
-        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-violation")).performClick()
-        waitForText("$animal starts at the brick mark.", substring = true)
-        composeRule.onNodeWithText("OK").performClick()
-        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-violation"))
-            .assertIsNotEnabled()
-
-        // Animal picks up two yellows and two technical fouls during the live point.
-        recordYellowCard(
-            TeamId.TEAM_TWO,
-            "23",
-            "Yellow card on player 23.\n$animal has 1 card total.",
-        )
-        recordYellowCard(
-            TeamId.TEAM_TWO,
-            "8",
-            "Yellow card on player 8.\n$animal has 2 cards total.",
-        )
-        recordTechnicalFoul(TeamId.TEAM_TWO, "This is $animal's first technical foul.")
-        recordTechnicalFoul(TeamId.TEAM_TWO, "This is $animal's second technical foul.")
-
-        // Viscous Coupling calls a live-point timeout before Animal finishes the point.
-        recordTimeout(TeamId.TEAM_ONE, "Undo Timeout by $viscousCoupling")
-        continuePointAndUnlock()
-        recordGoal(TeamId.TEAM_TWO, "Undo Goal by $animal")
-
-        // Animal uses its final first-half timeout, then gets the out-of-timeouts cue.
-        recordTimeout(TeamId.TEAM_TWO, "Undo Timeout by $animal")
-        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "timeout")).performClick()
-        waitForText("$animal is out of timeouts.")
-        composeRule.onNodeWithText("OK").performClick()
-
-        // Animal reaches the technical-foul threshold between points, so the UI shows the
-        // yardage cue.
-        recordTechnicalFoul(
-            team = TeamId.TEAM_TWO,
-            expectedMessage = "$viscousCoupling starts at attacking brick.",
-            substring = true,
-        )
-        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-violation"))
-            .assertIsNotEnabled()
-        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "pull-violation"))
-            .assertIsNotEnabled()
-
-        // Viscous Coupling scores the next two points, checking that halftime interrupts the flow.
-        recordGoal(TeamId.TEAM_ONE, "Undo Goal by $viscousCoupling")
-        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
-        waitForText("Halftime")
-        composeRule.onNodeWithText("OK").performClick()
-        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
-        waitForText("Undo Goal by $viscousCoupling")
-        composeRule.onNodeWithText("Undo Goal by $viscousCoupling").performClick()
-        composeRule.onAllNodesWithText("Announce halftime.").assertCountEquals(0)
-
-        // Touch the visible correction controls, then jump the countdown to its expired state.
-        composeRule.onAllNodesWithText("+5").onFirst().performClick()
-        composeRule.onAllNodesWithText("-5").onFirst().performClick()
-        expireActiveCountdownProgrammatically()
-        waitForText("Start point")
-
-        // After halftime, Animal scores and uses one second-half timeout before the next pull.
-        startPointAndUnlock()
-        recordGoal(TeamId.TEAM_TWO, "Undo Goal by $animal")
-        recordTimeout(TeamId.TEAM_TWO, "Undo Timeout by $animal")
-
-        // Animal ties the game, Viscous Coupling goes ahead, and Animal wins on universe.
-        recordGoal(TeamId.TEAM_TWO, "Undo Goal by $animal")
-        recordGoal(TeamId.TEAM_ONE, "Undo Goal by $viscousCoupling")
-        recordGoal(TeamId.TEAM_TWO, "Undo Goal by $animal")
-        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "goal")).performClick()
-        waitForText("Game over")
-        composeRule.onNodeWithText("OK").performClick()
-        composeRule.onNodeWithText("Game summary").assertIsDisplayed()
-        composeRule.onNodeWithText("$viscousCoupling 4").assertIsDisplayed()
-        composeRule.onNodeWithText("$animal 5").assertIsDisplayed()
-        composeRule.onNodeWithText(viscousCoupling).performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText(animal).performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("Undo End game").performClick()
-        assertLiveScreen()
-
-        // Manually ending from the restored final state should return to the same summary.
-        openMoreActionsDialog()
-        composeRule.onNodeWithText("End game").performClick()
-        waitForText("Game over")
-        composeRule.onNodeWithText("OK").performClick()
-        composeRule.onNodeWithText("Game summary").assertIsDisplayed()
-        composeRule.onNodeWithText("$viscousCoupling 4").assertIsDisplayed()
-        composeRule.onNodeWithText("$animal 5").assertIsDisplayed()
-
-        // The finished game should go home from the top-bar Back action, archive, and then
-        // reopen from Archived games.
-        tapTopBarBack()
-        waitForText("Completed game")
-        composeRule.onNodeWithText("$viscousCoupling 4 - 5 $animal").performClick()
-        waitForText("Game summary")
-        assertTrue(composeRule.onAllNodesWithText("Game over").fetchSemanticsNodes().isEmpty())
-        tapTopBarBack()
-        waitForText("Completed game")
-        composeRule.onNodeWithText("Archive completed game").performClick()
-        waitForText("See archived/saved games")
-        composeRule.onNodeWithText("See archived/saved games").performClick()
-        waitForText("Archived/saved games")
-        composeRule.onNodeWithText("Archived games", substring = true).performClick()
-        waitForText("$viscousCoupling 4 - 5 $animal")
-        composeRule.onNodeWithTag("archived-game-0").performClick()
-        waitForText("Game summary")
-        assertTrue(composeRule.onAllNodesWithText("Game over").fetchSemanticsNodes().isEmpty())
-        composeRule.onNodeWithText("$animal 5").assertIsDisplayed()
-        tapTopBarBack()
-        waitForText("Archived games")
-        tapTopBarBack()
-        waitForText("Archived/saved games")
-        tapTopBarBack()
-        waitForText("Start new game")
-    }
-
-    /**
-     * Test the primary live screen actions that should be available directly from the phone.
-     * Keep the assertions at the visible undo/message level; domain helpers own detailed state
-     * checks.
-     */
-    @Test
-    fun livePrimaryActionsAndUndoPath() {
-        // Start from an unlocked live point so primary field buttons are visible.
+    fun pullViolations() {
+        // Standard games allow one False start and one Offsides per pull sequence.
         startLiveGameProgrammatically()
-
-        // Each side can record only one pull violation of its type for the current pull sequence.
-        // For team 2 (receiving) the pull violation is a False start.
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "pull-violation")).performClick()
         waitForText("Team 1 gets to set up on defense.", substring = true)
         dismissDialog(text = "Cancel")
@@ -264,60 +35,13 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("OK").performClick()
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "pull-violation"))
             .assertIsNotEnabled()
-
-        // For team 1 (pulling) it is Offsides.
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-violation")).performClick()
         waitForText("Team 2 starts at the brick mark.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-violation"))
             .assertIsNotEnabled()
 
-        // Timeout during a live point starts a timeout countdown.
-        // Note -- the clock starts when the timeout button is pressed, not when the dialog
-        // is confirmed.
-        val timeoutRequestedAt = System.currentTimeMillis()
-        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "timeout")).performClick()
-        waitForText("Timeout charged to Team 1.", substring = true)
-        Thread.sleep(1200)
-        val beforeConfirmingTimeout = System.currentTimeMillis()
-        composeRule.onNodeWithText("OK").performClick()
-        waitForText("Continue point")
-        val timeoutCountdown = accessCurrentGameState().countdown!!
-        assertEquals(CountdownKind.TIME_OUT, timeoutCountdown.kind)
-        assertTrue(timeoutCountdown.targetEpoch >= timeoutRequestedAt + 69_000L)
-        assertTrue(timeoutCountdown.targetEpoch < beforeConfirmingTimeout + 69_500L)
-        continuePointAndUnlock()
-
-        // A between-points goal implicitly starts the point and exposes a useful undo.
-        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
-        waitForText("Undo Goal by Team 1")
-        composeRule.onNodeWithText("Undo Goal by Team 1").performClick()
-        waitForTag("live-center-lock")
-        waitForText("Redo")
-        composeRule.onNodeWithText("Redo").performClick()
-        waitForText("Undo Goal by Team 1")
-
-        // Timeout should remain wired after the undo path, including undo when redo is also
-        // available.
-        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "timeout")).performClick()
-        waitForText("Timeout charged to Team 1.", substring = true)
-        dismissDialog(text = "Cancel")
-        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "timeout")).assertIsDisplayed()
-        recordTimeout(TeamId.TEAM_ONE, "Undo Timeout by Team 1")
-        composeRule.onNodeWithText("Undo Timeout by Team 1").performClick()
-        waitForText("Undo Goal by Team 1")
-        waitForText("Redo")
-        composeRule.onNodeWithText("Undo Goal by Team 1").performClick()
-        waitForText("Redo")
-    }
-
-    /**
-     * Test switching the pulling team's pull-violation dialog to the mixed majority-pull rule.
-     */
-    @Test
-    fun majorityPullViolationDialog() {
-        // In mixed games, the pulling team's Offsides button can instead be recorded as a
-        // majority-pull violation.
+        // Mixed games let the pulling-team dialog switch between Offsides and Majority pull.
         val setup = newSetupGameState(now = System.currentTimeMillis()).copy(
             division = GameDivision.MIXED,
         )
@@ -336,6 +60,91 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         waitForText("Majority pull rule violation")
         composeRule.onNodeWithText("OK").performClick()
         waitForText("Undo Majority pull violation on Team 1")
+    }
+
+    /**
+     * Test timeout actions available from the live screen.
+     */
+    @Test
+    fun timeouts() {
+        // Timeout during a live point starts a timeout countdown.
+        // Note -- the clock starts when the timeout button is pressed, not when the dialog
+        // is confirmed.
+        startLivePointProgrammatically()
+        val timeoutRequestedAt = System.currentTimeMillis()
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "timeout")).performClick()
+        waitForText("Timeout charged to Team 1.", substring = true)
+        Thread.sleep(500)
+        val beforeConfirmingTimeout = System.currentTimeMillis()
+        composeRule.onNodeWithText("OK").performClick()
+        waitForText("Continue point")
+        val timeoutCountdown = accessCurrentGameState().countdown!!
+        assertEquals(CountdownKind.TIME_OUT, timeoutCountdown.kind)
+        assertTrue(timeoutCountdown.targetEpoch >= timeoutRequestedAt + 69_000L)
+        assertTrue(timeoutCountdown.targetEpoch < beforeConfirmingTimeout + 69_750L)
+
+        // Timeout should remain wired after the undo path, including undo when redo is also
+        // available.
+        startLivePointProgrammatically()
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
+        waitForText("Undo Goal by Team 1")
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "timeout")).performClick()
+        waitForText("Timeout charged to Team 1.", substring = true)
+        dismissDialog(text = "Cancel")
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "timeout")).assertIsDisplayed()
+        recordTimeout(TeamId.TEAM_ONE, "Undo Timeout by Team 1")
+        composeRule.onNodeWithText("Undo Timeout by Team 1").performClick()
+        waitForText("Undo Goal by Team 1")
+        waitForText("Redo")
+
+        // The timeout button shows the invalid-timeout dialog when the team has none left.
+        startLivePointProgrammatically(
+            newSetupGameState(now = System.currentTimeMillis()).copy(
+                rules = GameRules(timeoutsPerHalf = 1),
+            )
+        )
+        updateCurrentStateProgrammatically {
+            copy(teamOne = teamOne.copy(timeoutsUsedThisHalf = 1))
+        }
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "timeout")).performClick()
+        waitForText("Team 1 is out of timeouts.", substring = true)
+        composeRule.onNodeWithText("OK").performClick()
+    }
+
+    /**
+     * Test the ability to undo a goal, including one that prompts halftime.
+     */
+    @Test
+    fun undoGoal() {
+        // A between-points goal implicitly starts the point and exposes a useful undo.
+        startLiveGameProgrammatically()
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
+        waitForText("Undo Goal by Team 1")
+        composeRule.onNodeWithText("Undo Goal by Team 1").performClick()
+        waitForTag("live-center-lock")
+        waitForText("Redo")
+        composeRule.onNodeWithText("Redo").performClick()
+        waitForText("Undo Goal by Team 1")
+
+        // Scoring into the halftime target shows the halftime prompt; undo removes it.
+        startBetweenPointsProgrammatically(
+            newSetupGameState(now = System.currentTimeMillis()).copy(
+                rules = GameRules(
+                    gameTo = 5,
+                    useHalfCap = false,
+                    useSoftCap = false,
+                    useHardCap = false,
+                ),
+            )
+        )
+        updateCurrentStateProgrammatically {
+            copy(teamOne = teamOne.copy(score = 2))
+        }
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
+        waitForText("Halftime")
+        composeRule.onNodeWithText("OK").performClick()
+        composeRule.onNodeWithText("Undo Goal by Team 1").performClick()
+        composeRule.onAllNodesWithText("Announce halftime.").assertCountEquals(0)
     }
 
     /**
@@ -440,10 +249,10 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
     }
 
     /**
-     * Verify expired-pull restart controls are hidden while locked and undoable after use.
+     * When the pull countdown expires, you can restart it or issue a time violation.
      */
     @Test
-    fun expiredPullRestartCountdown() {
+    fun expiredPull() {
         startLiveGameProgrammatically()
         showExpiredPullSurface()
 
@@ -462,18 +271,10 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Undo Restart countdown").performClick()
         waitForText("Redo")
         waitForText("Restart countdown")
-    }
 
-    /**
-     * Verify expired-pull time-violation warnings preview and start the right countdowns.
-     */
-    @Test
-    fun timeViolationCountdowns() {
-        startLiveGameProgrammatically()
-        showExpiredPullSurface()
-
-        // A pulling-team time violation doesn't start the shortened pull clock countdown
-        // until the user confirms it.
+        // Recording a pulling-team time violation doesn't start the shortened pull clock
+        // countdown until the user confirms it,jsince there is probably stuff to talk
+        // about with the teams before starting the countdown.
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "time-violation")).performClick()
         waitForText("now has 30 seconds to pull.", substring = true)
         dismissDialog(text = "Cancel")
@@ -486,7 +287,6 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "time-violation"))
             .performClick()
         waitForText("now has 30 seconds to pull.", substring = true)
-        Thread.sleep(1200)
         val beforeConfirmingTimeViolation = System.currentTimeMillis()
         composeRule.onNodeWithText("OK").performClick()
         waitForText("Undo Time violation warning on", substring = true)

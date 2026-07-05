@@ -589,8 +589,8 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         openNewGameSetup()
 
         // A normalized duplicate number/name should match the existing row rather than add a copy.
-        addPriorCardHolder(
-            team = TeamId.TEAM_TWO,
+        addPriorCardHolderProgrammatically(
+            TeamId.TEAM_TWO,
             jersey = "88",
             playerName = "Numbered Player",
             yellows = 2,
@@ -610,8 +610,8 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         closeSetupEditor()
 
         // A number-only existing row should reject silently replacing it with a new named row.
-        addPriorCardHolder(
-            team = TeamId.TEAM_TWO,
+        addPriorCardHolderProgrammatically(
+            TeamId.TEAM_TWO,
             jersey = "77",
             playerName = "",
             yellows = 1,
@@ -637,15 +637,15 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         closeSetupEditor()
 
         // Separate number-only and name-only rows should be treated as one existing player match.
-        addPriorCardHolder(
-            team = TeamId.TEAM_TWO,
+        addPriorCardHolderProgrammatically(
+            TeamId.TEAM_TWO,
             jersey = "",
             playerName = "Jarvis",
             yellows = 1,
             reds = 0,
         )
-        addPriorCardHolder(
-            team = TeamId.TEAM_TWO,
+        addPriorCardHolderProgrammatically(
+            TeamId.TEAM_TWO,
             jersey = "23",
             playerName = "",
             yellows = 1,
@@ -684,8 +684,8 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         closeSetupEditor()
 
         // Removing the numbered row should leave unrelated name-only rows visible.
-        addPriorCardHolder(
-            team = TeamId.TEAM_TWO,
+        addPriorCardHolderProgrammatically(
+            TeamId.TEAM_TWO,
             jersey = "",
             playerName = "A Very Long Player Name With No Number",
             yellows = 1,

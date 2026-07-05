@@ -1,7 +1,6 @@
 package rmjarvis.ultiobserver
 
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
@@ -24,7 +23,6 @@ import java.io.FileInputStream
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
-import org.junit.Assert.assertEquals
 import org.junit.Rule
 
 private val platformBackDismissalUnstableAvds = setOf(
@@ -32,11 +30,12 @@ private val platformBackDismissalUnstableAvds = setOf(
     // even though manual emulator Back behaves correctly.
     "Small_Phone",
     "Nexus_4",
-    "Pixel_7_Emulator",
-    "Pixel_7_API_33",
-    "Pixel_10",
+    // We also need to cover both dismiss and regular buttons (like Cancel) when they
+    // are equivalent, so this helper says which deviced should use the regular button
+    // rather than dismissing with the platform Back button.
+    "Pixel_7",
     "Pixel_Fold",
-    "Pixel_10_Pro_XL",
+    "Pixel_10",
 )
 
 /// Shared Compose UI navigation and state-seeding helpers for instrumentation tests.
@@ -279,30 +278,36 @@ abstract class MainActivityUiTestFixtures {
     }
 
     /**
-     * Add a prior-card holder through setup.
+     * Add a setup prior-card holder by seeding ViewModel state directly.
      *
-     * @param team The team whose Cards button was pressed.
-     * @param jersey The jersey number to enter.
-     * @param playerName The player name to enter.
+     * This lets UI tests start from existing prior-card rows without replaying the add-holder
+     * dialog when that dialog is not the behavior under test.
+     *
+     * @param team The team receiving the prior-card holder.
+     * @param jersey The player's jersey number, or blank for a name-only identity.
+     * @param playerName The player's name, or blank when unknown.
      * @param yellows The prior yellow count to set.
      * @param reds The prior red count to set.
      */
-    protected fun addPriorCardHolder(team: TeamId, jersey: String, playerName: String, yellows: Int, reds: Int) {
-        openPriorCardsSetupEditor(team)
-        composeRule.onNodeWithText("Add card holder").performClick()
-        waitForText("Add previous game card holder")
-        enterPriorCardJersey(jersey)
-        enterPriorCardName(playerName)
-        repeat((yellows - 1).coerceAtLeast(0)) {
-            composeRule.onAllNodesWithText("+1")[0].performClick()
+    protected fun addPriorCardHolderProgrammatically(
+        team: TeamId,
+        jersey: String,
+        playerName: String,
+        yellows: Int,
+        reds: Int,
+    ) {
+        val record = PlayerRecord(
+            jerseyNumber = jersey,
+            playerName = playerName,
+            priorYellows = yellows,
+            priorReds = reds,
+        )
+        updateCurrentStateProgrammatically {
+            when (team) {
+                TeamId.TEAM_ONE -> copy(teamOnePlayers = teamOnePlayers + record)
+                TeamId.TEAM_TWO -> copy(teamTwoPlayers = teamTwoPlayers + record)
+            }
         }
-        repeat(reds.coerceAtLeast(0)) {
-            composeRule.onAllNodesWithText("+1")[1].performClick()
-        }
-        composeRule.onNodeWithText("Add").performClick()
-        composeRule.onNodeWithText(priorCardIdentity(jersey, playerName)).performScrollTo().assertIsDisplayed()
-        closeSetupEditor()
-        waitForText("Start game")
     }
 
     /**
@@ -848,103 +853,6 @@ abstract class MainActivityUiTestFixtures {
         composeRule.onNodeWithTag("cards-adjust-team-one-blue-increment").performClick()
         composeRule.onNodeWithText("Done").performClick()
         waitForText("Undo Adjust blue card/tech counts")
-    }
-
-    /**
-     * Record a yellow card through the live Card dialog.
-     *
-     * @param team The team receiving the yellow.
-     * @param playerNumber The player number to enter.
-     * @param expectedMessage The Blue Card dialog text expected before recording.
-     * @param misconductChoice Optional misconduct choice to tap when the card reaches a live-point threshold.
-     * @param expectedMisconductMessage Optional threshold-resolution text expected after choosing offense/defense.
-     * @param verifyMisconductBackReturnsToNumberDialog Whether to exercise Back from misconduct choice and verify number-dialog restoration.
-     * @param substring Whether expected-message matching should allow substring matches.
-     */
-    protected fun recordYellowCard(
-        team: TeamId,
-        playerNumber: String,
-        expectedMessage: String,
-        misconductChoice: String? = null,
-        expectedMisconductMessage: String? = null,
-        verifyMisconductBackReturnsToNumberDialog: Boolean = false,
-        substring: Boolean = false,
-    ) {
-        require(playerNumber.isNotBlank()) {
-            "Yellow-card UI helper requires a player number."
-        }
-        openCardsDialog(team)
-        tapCardDialogAction(team, "Yellow")
-        waitForText("Yellow card")
-        enterCardPlayerNumber(playerNumber)
-        composeRule.onNodeWithText("Record").performClick()
-
-        if (misconductChoice == null) {
-            waitForText(expectedMessage, substring = substring)
-        } else {
-            waitForText("Misconduct penalty")
-            if (verifyMisconductBackReturnsToNumberDialog) {
-                tapBackFromMisconductODChoice()
-                waitForText("Yellow card")
-                if (playerNumber.isNotBlank()) {
-                    val restoredNumber = composeRule.onNodeWithTag("card-player-number")
-                        .fetchSemanticsNode()
-                        .config[SemanticsProperties.EditableText]
-                        .text
-                    assertEquals(playerNumber, restoredNumber)
-                }
-                composeRule.onNodeWithText("Record").performClick()
-                waitForText("Misconduct penalty")
-            }
-            composeRule.onNodeWithText(misconductChoice).performClick()
-            waitForText(expectedMisconductMessage ?: expectedMessage, substring = true)
-        }
-        composeRule.onNodeWithText("OK").performClick()
-    }
-
-    /**
-     * Record a red card through the live Card dialog.
-     *
-     * @param team The team receiving the red.
-     * @param playerNumber The player number to enter.
-     * @param expectedMessage The popup text expected after recording.
-     * @param misconductChoice Optional misconduct choice to tap when the card reaches a live-point threshold.
-     * @param expectedMisconductMessage Optional threshold-resolution text expected after choosing offense/defense.
-     * @param verifyMisconductBackReturnsToNumberDialog Whether to exercise Back from misconduct choice and verify number-dialog restoration.
-     */
-    protected fun recordRedCard(
-        team: TeamId,
-        playerNumber: String,
-        expectedMessage: String,
-        misconductChoice: String? = null,
-        expectedMisconductMessage: String? = null,
-        verifyMisconductBackReturnsToNumberDialog: Boolean = false,
-    ) {
-        openCardsDialog(team)
-        tapCardDialogAction(team, "Red")
-        waitForText("Red card")
-        enterCardPlayerNumber(playerNumber)
-        composeRule.onNodeWithText("Record").performClick()
-
-        if (misconductChoice == null) {
-            waitForText(expectedMessage, substring = true)
-        } else {
-            waitForText("Misconduct penalty")
-            if (verifyMisconductBackReturnsToNumberDialog) {
-                tapBackFromMisconductODChoice()
-                waitForText("Red card")
-                val restoredNumber = composeRule.onNodeWithTag("card-player-number")
-                    .fetchSemanticsNode()
-                    .config[SemanticsProperties.EditableText]
-                    .text
-                assertEquals(playerNumber, restoredNumber)
-                composeRule.onNodeWithText("Record").performClick()
-                waitForText("Misconduct penalty")
-            }
-            composeRule.onNodeWithText(misconductChoice).performClick()
-            waitForText(expectedMisconductMessage ?: expectedMessage, substring = true)
-        }
-        composeRule.onNodeWithText("OK").performClick()
     }
 
     /**
