@@ -520,7 +520,7 @@ internal fun LiveGameScreen(
                         horizontalAlignment = Alignment.End,
                     ) {
                         if (canSwitchPullingViolation) {
-                            TextActionButton(
+                            MenuButton(
                                 label = if (
                                     pendingPullViolationType == PullViolationType.MAJORITY_PULL
                                 ) {
@@ -537,10 +537,9 @@ internal fun LiveGameScreen(
                                         PullViolationType.MAJORITY_PULL
                                     }
                                 },
-                                height = 32.dp,
-                                compact = true,
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                             )
+                            Spacer(modifier = Modifier.height(8.dp))
                         }
                         Row(horizontalArrangement = Arrangement.End) {
                             TextActionButton(

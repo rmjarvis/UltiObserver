@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -914,9 +913,7 @@ private fun SetupSummaryRow(
             SetupEditButton(
                 onClick = onEdit,
                 tag = editTag,
-            ) {
-                Text("Edit")
-            }
+            )
         }
     }
 }
@@ -1470,21 +1467,20 @@ private fun SetupSummaryValue(text: String) {
  * @param onClick Callback invoked when the button is tapped.
  * @param tag Optional test tag.
  * @param contentPadding Padding inside the button.
- * @param content Button content.
  */
 @Composable
 private fun SetupEditButton(
     onClick: () -> Unit,
+    label: String = "Edit",
     tag: String? = null,
     contentPadding: PaddingValues = DefaultButtonContentPadding,
-    content: @Composable RowScope.() -> Unit,
 ) {
     MenuButton(
+        label = label,
         onClick = onClick,
         fullWidth = false,
         tag = tag,
         contentPadding = contentPadding,
-        content = content,
     )
 }
 
@@ -2174,16 +2170,10 @@ private fun TeamEditor(
             )
             SetupEditButton(
                 onClick = onEditColor,
+                label = "Edit\nColor",
                 tag = "setup-$fieldLabel-color-button",
                 contentPadding = compactSetupButtonPadding(),
-            ) {
-                Text(
-                    text = "Edit\nColor",
-                    style = MaterialTheme.typography.labelMedium,
-                    textAlign = TextAlign.Center,
-                    lineHeight = MaterialTheme.typography.labelMedium.fontSize,
-                )
-            }
+            )
         }
         TeamSetupDetailColumns(
             fieldLabel = fieldLabel,
@@ -2550,23 +2540,13 @@ private fun DateTimeDisplayField(
     onClick: () -> Unit,
 ) {
     MenuButton(
+        label = value,
+        fullWidth = false,
         tag = testTag,
         colors = dialogInputButtonColors(),
         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
         onClick = onClick,
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.Start,
-        ) {
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-        }
-    }
+    )
 }
 
 /**
@@ -2583,18 +2563,11 @@ private fun EditableValueRow(
     onClick: () -> Unit,
 ) {
     MenuButton(
+        label = label,
+        trailingLabel = value,
         colors = neutralOutlinedButtonColors(),
         onClick = onClick,
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(label)
-            Text(value, fontWeight = FontWeight.Bold)
-        }
-    }
+    )
 }
 
 /**

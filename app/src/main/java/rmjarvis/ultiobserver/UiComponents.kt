@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -816,6 +815,7 @@ internal fun BigActionButton(
  * @param borderColor Optional button border color.
  * @param contentPadding Padding inside the button.
  * @param maxLines Maximum menu-label line count.
+ * @param trailingLabel Optional value shown on the right side of the button row.
  * @param tag Optional test tag.
  * @param onClick Callback invoked when the button is tapped.
  */
@@ -828,6 +828,7 @@ internal fun MenuButton(
     borderColor: Color? = MaterialTheme.colorScheme.outline,
     contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
     maxLines: Int = 3,
+    trailingLabel: String? = null,
     tag: String? = null,
     onClick: () -> Unit,
 ) {
@@ -843,46 +844,8 @@ internal fun MenuButton(
         contentPadding = contentPadding,
         textMaxLines = maxLines,
         softWrap = true,
+        trailingLabel = trailingLabel,
         onClick = onClick,
-    )
-}
-
-/**
- * Render a secondary menu/action button with custom row content.
- *
- * @param fullWidth Whether the button should fill the available width.
- * @param enabled Whether the button is enabled.
- * @param colors Button colors.
- * @param borderColor Optional button border color.
- * @param contentPadding Padding inside the button.
- * @param tag Optional test tag.
- * @param onClick Callback invoked when the button is tapped.
- * @param content Button content.
- */
-@Composable
-internal fun MenuButton(
-    fullWidth: Boolean = true,
-    enabled: Boolean = true,
-    colors: ButtonColors = neutralOutlinedButtonColors(),
-    borderColor: Color = MaterialTheme.colorScheme.outline,
-    contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
-    tag: String? = null,
-    onClick: () -> Unit,
-    content: @Composable RowScope.() -> Unit,
-) {
-    val clearFocusAndHideKeyboard = rememberClearFocusAndHideKeyboard()
-    OutlinedButton(
-        onClick = {
-            clearFocusAndHideKeyboard()
-            onClick()
-        },
-        enabled = enabled,
-        modifier = buttonLayoutModifier(fullWidth = fullWidth).withTag(tag),
-        shape = MenuButtonShape,
-        colors = colors,
-        border = BorderStroke(1.dp, borderColor),
-        contentPadding = contentPadding,
-        content = content,
     )
 }
 
@@ -1060,6 +1023,7 @@ internal fun TopBarHomeButton(onClick: () -> Unit) {
  * @param fontSize Optional button label font size.
  * @param textMaxLines Maximum button-label line count.
  * @param softWrap Whether the button label may wrap.
+ * @param trailingLabel Optional value shown on the right side of the button row.
  * @param onClick Callback invoked when the button is tapped.
  */
 @Composable
@@ -1076,6 +1040,7 @@ private fun StandardRoleButton(
     fontSize: TextUnit? = null,
     textMaxLines: Int = 1,
     softWrap: Boolean = false,
+    trailingLabel: String? = null,
     onClick: () -> Unit,
 ) {
     val clearFocusAndHideKeyboard = rememberClearFocusAndHideKeyboard()
@@ -1096,14 +1061,38 @@ private fun StandardRoleButton(
         } else {
             MaterialTheme.typography.labelLarge.copy(fontSize = fontSize)
         }
-        Text(
-            label,
-            textAlign = TextAlign.Center,
-            style = textStyle,
-            maxLines = textMaxLines,
-            softWrap = softWrap,
-            overflow = TextOverflow.Ellipsis,
-        )
+        if (trailingLabel == null) {
+            Text(
+                label,
+                textAlign = TextAlign.Center,
+                style = textStyle,
+                maxLines = textMaxLines,
+                softWrap = softWrap,
+                overflow = TextOverflow.Ellipsis,
+            )
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    label,
+                    style = textStyle,
+                    maxLines = textMaxLines,
+                    softWrap = softWrap,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    trailingLabel,
+                    style = textStyle,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = textMaxLines,
+                    softWrap = softWrap,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
     }
     val button: @Composable () -> Unit = {
         if (borderColor == null) {
