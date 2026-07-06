@@ -37,8 +37,8 @@ class TestGameSummary : GameDomainTestFixtures() {
                 "Game summary",
                 "Philly Open Mixed Division Masters Semifinal",
                 "Observers: Mike, Gary",
-                "Start May 19, 2026 10:00 AM",
                 "Field: Field 7",
+                "Start May 19, 2026 10:00 AM",
                 "End time 12:42 PM",
                 "Animal 15",
                 "Viscous Coupling 12",
@@ -76,8 +76,8 @@ class TestGameSummary : GameDomainTestFixtures() {
                 "Game summary",
                 "Philly Open Mixed Division Masters Semifinal",
                 "Observers: Mike, Gary",
-                "Start May 19, 2026 10:00 AM",
                 "Field: Field 7",
+                "Start May 19, 2026 10:00 AM",
                 "Animal 15",
                 "Viscous Coupling 12",
             ),
@@ -248,8 +248,8 @@ class TestGameSummary : GameDomainTestFixtures() {
             UltiObserver Game Summary
             Philly Open Open Division Masters Final
             Observers: Mike, Gary
-            May 19, 2026, 10:00 AM
             Field: Field 7
+            May 19, 2026, 10:00 AM
             Animal 15, Viscous Coupling 12
             Misconduct:
               Animal:
@@ -326,8 +326,8 @@ private fun GameOverSummaryText.testDisplayLines(): List<String> {
         add(title)
         gameInformationLine?.let { add(it) }
         observersLine?.let { add(it) }
-        add(startLine)
         fieldLine?.let { add(it) }
+        add(startLine)
         endLine?.let { add(it) }
         addAll(scoreLines)
     }

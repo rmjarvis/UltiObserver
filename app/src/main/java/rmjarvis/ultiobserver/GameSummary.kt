@@ -6,8 +6,8 @@ package rmjarvis.ultiobserver
  * @param title Heading for the summary card.
  * @param gameInformationLine Optional tournament, division, level, and round/context line.
  * @param observersLine Optional line listing observers assigned to the game.
- * @param startLine Formatted scheduled start date and time.
  * @param fieldLine Optional line showing the field name or number.
+ * @param startLine Formatted scheduled start date and time.
  * @param endLine Formatted game end time, or null for an in-progress saved game.
  * @param scoreLines Winner-first team score lines.
  */
@@ -15,8 +15,8 @@ internal class GameOverSummaryText(
     val title: String,
     val gameInformationLine: String?,
     val observersLine: String?,
-    val startLine: String,
     val fieldLine: String?,
+    val startLine: String,
     val endLine: String?,
     val scoreLines: List<String>,
 )
@@ -58,8 +58,8 @@ internal fun GameState.gameOverSummaryText(): GameOverSummaryText {
         title = "Game summary",
         gameInformationLine = gameInformationSummaryLine(),
         observersLine = observersSummaryLine(),
-        startLine = "Start ${formatStartDate(startDate)} ${formatClockTime(startTime)}",
         fieldLine = fieldSummaryLine(),
+        startLine = "Start ${formatStartDate(startDate)} ${formatClockTime(startTime)}",
         endLine = endTime?.let { "End time ${formatClockTime(it)}" },
         scoreLines = winnerFirstTeams().map { team -> "${team.name} ${team.score}" },
     )
@@ -100,8 +100,8 @@ internal fun GameState.gameSummaryShareText(): String {
         add("UltiObserver Game Summary")
         gameInformationSummaryLine()?.let { add(it) }
         observersSummaryLine()?.let { add(it) }
-        add("${formatStartDate(startDate)}, ${formatClockTime(startTime)}")
         fieldSummaryLine()?.let { add(it) }
+        add("${formatStartDate(startDate)}, ${formatClockTime(startTime)}")
         add(orderedTeams.joinToString(", ") { team -> "${team.name} ${team.score}" })
         if (misconductLines.isEmpty()) {
             add("No misconduct assessments")
