@@ -546,14 +546,14 @@ class TestSetup : GameDomainTestFixtures() {
                 "Club",
                 "Final",
                 "Observers: Mike, Gary",
-                "Jan 1, 2026",
+                "January 1, 2026",
                 "Start at 10:00 AM",
                 "Field: Field 7",
             ),
             setup.gameInformationSummaryLines(),
         )
         assertEquals(
-            listOf("Jan 1, 2026", "Start at 10:00 AM"),
+            listOf("January 1, 2026", "Start at 10:00 AM"),
             setup.copy(
                 tournamentName = " ",
                 division = null,

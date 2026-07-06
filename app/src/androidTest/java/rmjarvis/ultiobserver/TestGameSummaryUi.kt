@@ -150,7 +150,7 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
      */
     @Test
     fun shareButtonSharesText() {
-        // Seed a finished game with score and misconduct entries for compact summary sharing.
+        // Seed a finished game with score and misconduct entries for summary and event-log sharing.
         clearArchivedGamesProgrammatically()
         val expectedShareText = """
             UltiObserver Game Summary
@@ -164,7 +164,6 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
                 #12 Red
                 1 Blue, 2 Techs
         """.trimIndent()
-
         // Programmatically set up a game to match the above summary info.
         startLiveGameProgrammatically(
             newSetupGameState(now = 123_000L).copy(
@@ -200,7 +199,19 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
         endCurrentGameProgrammatically()
         composeRule.onNodeWithText("OK").performClick()
         waitForText("Game summary")
+        val expectedEventLogShareText = accessCurrentGameState().eventLogShareText()
         assertNextShareText(expectedShareText)
+
+        // The same summary exposes the full event log through its dialog Share action.
+        composeRule.onNodeWithText("Event log").performClick()
+        waitForText("Event log")
+        waitForText("Game over", substring = true)
+        assertNextShareText(
+            expectedShareText = expectedEventLogShareText,
+            expectedSubject = "UltiObserver Event Log",
+            shareButtonTag = "event-log-share",
+        )
+        dismissDialog(text = "OK")
 
         // The completed-game summary can archive directly, and the archived summary shares
         // the same payload.
@@ -238,12 +249,23 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
     }
 
     /// Click Share, assert the outgoing Android chooser payload, and cancel the chooser.
-    private fun assertNextShareText(expectedShareText: String) {
-        val expectedIntent = chooserWithShareText(expectedShareText)
+    private fun assertNextShareText(
+        expectedShareText: String,
+        expectedSubject: String = "UltiObserver Game Summary",
+        shareButtonTag: String? = null,
+    ) {
+        val expectedIntent = chooserWithShareText(
+            expectedShareText = expectedShareText,
+            expectedSubject = expectedSubject,
+        )
         init()
         try {
             intending(expectedIntent).respondWith(Instrumentation.ActivityResult(0, null))
-            composeRule.onNodeWithText("Share").performClick()
+            if (shareButtonTag == null) {
+                composeRule.onNodeWithText("Share").performClick()
+            } else {
+                composeRule.onNodeWithTag(shareButtonTag).performClick()
+            }
             intended(expectedIntent)
         } finally {
             release()
@@ -254,6 +276,7 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
     /// Return an Espresso matcher for the nested share intent created by Android's chooser wrapper.
     private fun chooserWithShareText(
         expectedShareText: String,
+        expectedSubject: String,
     ): TypeSafeMatcher<Intent> = object : TypeSafeMatcher<Intent>() {
         override fun describeTo(description: Description) {
             description.appendText(
@@ -268,7 +291,7 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
             val sendIntent = intent.parcelableExtra<Intent>(Intent.EXTRA_INTENT) ?: return false
             return sendIntent.action == Intent.ACTION_SEND &&
                 sendIntent.type == "text/plain" &&
-                sendIntent.getStringExtra(Intent.EXTRA_SUBJECT) == "UltiObserver Game Summary" &&
+                sendIntent.getStringExtra(Intent.EXTRA_SUBJECT) == expectedSubject &&
                 sendIntent.getStringExtra(Intent.EXTRA_TEXT) == expectedShareText
         }
     }

@@ -1,6 +1,7 @@
 package rmjarvis.ultiobserver
 
 import java.time.Duration
+import java.time.LocalDate
 import java.time.LocalTime
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -131,6 +132,116 @@ class TestEventLog : GameDomainTestFixtures() {
                 "12:15  Game over",
             ),
             state.formatEventLogLines(),
+        )
+    }
+
+    /**
+     * Verify event-log share text includes identifying game context and the full log.
+     */
+    @Test
+    fun shareText() {
+        // Build a completed short game with metadata, representative event rows, and a final
+        // score.
+        var state = standardLiveGameState(
+            startDate = LocalDate.of(2026, 7, 3),
+            startTime = LocalTime.of(12, 0),
+            rules = GameRules(
+                gameTo = 3,
+                useHalfCap = false,
+                useSoftCap = false,
+                useHardCap = false,
+            ),
+            pullingTeam = TeamId.TEAM_TWO,
+        ).copy(
+            tournamentName = "Fall Brawl",
+            division = GameDivision.MIXED,
+            level = "Club",
+            observerNames = listOf("Mike Jarvis", "Bobby"),
+            teamOne = TeamState("Amp", TeamColorChoice.WHITE),
+            teamTwo = TeamState("Animal", TeamColorChoice.RED),
+        )
+        val pregameState = state
+        state = state.beginLivePoint(timestampAt(state, LocalTime.of(12, 0)))
+        state = state.assessTimeout(TeamId.TEAM_ONE, timestampAt(state, LocalTime.of(12, 2))).state
+            .continueLivePoint()
+        state = recordGoalAt(state, TeamId.TEAM_TWO, LocalTime.of(12, 5))
+        state = recordGoalFromCurrentStateAt(state, TeamId.TEAM_ONE, LocalTime.of(12, 12))
+        state = recordGoalFromCurrentStateAt(state, TeamId.TEAM_TWO, LocalTime.of(12, 20))
+        val halftimeState = state
+        state = recordGoalFromCurrentStateAt(state, TeamId.TEAM_TWO, LocalTime.of(12, 28))
+
+        // The share text keeps the event log intact and appends final score only for game over.
+        assertEquals(
+            """
+            UltiObserver Event Log
+
+            Animal vs Amp
+            Fall Brawl Mixed Division Club
+            Observers: Mike Jarvis, Bobby
+            July 3, 2026
+
+            12:00  First pull by Animal
+            12:02  Timeout by Amp
+            12:05  Animal Goal
+            12:12  Amp Goal
+            12:20  Animal Goal
+            12:20  Halftime
+            12:28  Animal Goal
+            12:28  Game over
+
+            Final score:
+            Animal 3
+            Amp 1
+            """.trimIndent(),
+            state.eventLogShareText(),
+        )
+
+        // In-progress games omit the final score block.
+        assertEquals(
+            """
+            UltiObserver Event Log
+
+            Animal vs Amp
+            Fall Brawl Mixed Division Club
+            Observers: Mike Jarvis, Bobby
+            July 3, 2026
+
+            12:00  First pull by Animal
+            12:02  Timeout by Amp
+            12:05  Animal Goal
+            12:12  Amp Goal
+            12:20  Animal Goal
+            12:20  Halftime
+            """.trimIndent(),
+            halftimeState.eventLogShareText(),
+        )
+
+        // There is still some useful share text if nothing has been logged yet.
+        assertEquals(
+            """
+            UltiObserver Event Log
+
+            Amp vs Animal
+            Fall Brawl Mixed Division Club
+            Observers: Mike Jarvis, Bobby
+            July 3, 2026
+
+            No events logged yet.
+            """.trimIndent(),
+            pregameState.eventLogShareText(),
+        )
+
+        // Optional game context and observers are omitted when they are blank.
+        assertEquals(
+            """
+            UltiObserver Event Log
+
+            Animal vs Viscous Coupling
+            January 1, 2026
+
+            No events logged yet.
+            """.trimIndent(),
+            standardLiveGameState().eventLogShareText(),
         )
     }
 

@@ -26,7 +26,7 @@ class TestUtilities {
     fun displayFormatting() {
         // Game start times use a full display format in setup and a compact format in lists.
         assertEquals("3:30 PM", formatClockTime(LocalTime.of(15, 30)))
-        assertEquals("Apr 5, 2026", formatStartDate(LocalDate.of(2026, 4, 5)))
+        assertEquals("April 5, 2026", formatStartDate(LocalDate.of(2026, 4, 5)))
         assertEquals(
             "4/5/26 3:30 PM",
             formatCompactStartDateTime(LocalDate.of(2026, 4, 5), LocalTime.of(15, 30)),

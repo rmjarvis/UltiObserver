@@ -113,7 +113,7 @@ internal fun GameState.gameSummaryShareText(): String {
 }
 
 /// Return optional game-information text in the same order used by the setup summary.
-private fun GameState.gameInformationSummaryLine(): String? {
+internal fun GameState.gameInformationSummaryLine(): String? {
     return listOfNotNull(
         tournamentName.trim().takeIf { it.isNotEmpty() },
         division?.setupSummaryLine(),
@@ -123,12 +123,12 @@ private fun GameState.gameInformationSummaryLine(): String? {
 }
 
 /// Return optional observer-assignment text for completed-game summaries.
-private fun GameState.observersSummaryLine(): String? {
+internal fun GameState.observersSummaryLine(): String? {
     return observerNames.observersDisplayText()?.let { "Observers: $it" }
 }
 
 /// Return optional field-assignment text for completed-game summaries.
-private fun GameState.fieldSummaryLine(): String? {
+internal fun GameState.fieldSummaryLine(): String? {
     return fieldName.trim().takeIf { it.isNotEmpty() }?.let { "Field: $it" }
 }
 

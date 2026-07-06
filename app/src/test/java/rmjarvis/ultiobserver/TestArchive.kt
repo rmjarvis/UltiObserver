@@ -346,7 +346,7 @@ class TestArchive : GameDomainTestFixtures() {
         assertEquals(
             listOf(
                 "Filters:",
-                "    Date range: Jun 2, 2026 - Jun 2, 2026",
+                "    Date range: June 2, 2026 - June 2, 2026",
                 "Sorted by date, newest first",
             ).joinToString("\n"),
             todayOnly.filterAndSortSummaryText,

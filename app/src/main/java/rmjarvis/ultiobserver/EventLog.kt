@@ -120,6 +120,34 @@ fun GameState.formatEventLogLines(): List<String> {
 }
 
 /**
+ * Build the full event-log text used by Android sharing.
+ *
+ * @receiver The game state whose event log should be shared.
+ */
+internal fun GameState.eventLogShareText(): String {
+    val rows = formatEventLogLines()
+    return buildList {
+        add("UltiObserver Event Log")
+        add("")
+        add(winnerFirstTeams().joinToString(" vs ") { team -> team.name })
+        gameInformationSummaryLine()?.let { add(it) }
+        observersSummaryLine()?.let { add(it) }
+        add(formatStartDate(startDate))
+        add("")
+        if (rows.isEmpty()) {
+            add("No events logged yet.")
+        } else {
+            addAll(rows)
+        }
+        if (phase == GamePhase.GAME_OVER) {
+            add("")
+            add("Final score:")
+            addAll(winnerFirstTeams().map { team -> "${team.name} ${team.score}" })
+        }
+    }.joinToString("\n")
+}
+
+/**
  * Format the compact description for an event-log entry.
  *
  * @param entry The entry to format.
