@@ -142,6 +142,12 @@ def parse_device(text: str) -> MatrixDevice:
             f"Invalid coverage mode {coverage_mode!r}; "
             f"expected one of {sorted(COVERAGE_MODES)}."
         )
+    if exact_alarm_mode != "skip" and coverage_mode == "gradle":
+        raise ValueError(
+            f"Invalid --device value {text!r}; exact-alarm {exact_alarm_mode!r} roles must "
+            "use direct coverage mode. Gradle connected-test mode may reinstall or reset "
+            "app-op state after the helper sets it."
+        )
     return MatrixDevice(
         serial=serial,
         label=label,

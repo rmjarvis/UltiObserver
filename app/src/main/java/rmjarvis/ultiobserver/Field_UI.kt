@@ -41,13 +41,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
@@ -1037,6 +1035,7 @@ private fun PullDirectionLabel() {
  * @param onTogglePaused Callback for pausing or resuming the countdown.
  * @param expiredPullActions Actions to show after undoing an automatic start point.
  * @param misconductCountdownAction Action to show before starting a live-point misconduct countdown.
+ * @param statusMessage Message to show when no countdown or countdown action occupies the row.
  * @param height Reserved row height so the field layout does not shift when content changes.
  */
 @Composable
@@ -1047,22 +1046,17 @@ internal fun CountdownLine(
     onTogglePaused: () -> Unit,
     expiredPullActions: ExpiredPullActions? = null,
     misconductCountdownAction: MisconductCountdownAction? = null,
+    statusMessage: String? = null,
     height: Dp,
 ) {
-    val visible = countdown != null || expiredPullActions != null || misconductCountdownAction != null
     val displayCountdown = countdown ?: ActiveCountdownDisplay("Pull in", Duration.ZERO, null)
     val titleFontSize = (height.value * 0.4f).coerceIn(22f, 28f).sp
     val labelFontSize = (height.value * 0.21f).coerceIn(12f, 14f).sp
-    val rowModifier = if (visible) {
-        Modifier.fillMaxWidth()
-    } else {
-        Modifier
-            .fillMaxWidth()
-            .clearAndSetSemantics { }
-            .alpha(0f)
-    }
+    val statusFontSize = (height.value * 0.23f).coerceIn(14f, 16f).sp
     Column(
-        modifier = rowModifier.height(height),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(height),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Row(
@@ -1093,7 +1087,7 @@ internal fun CountdownLine(
                         onClick = expiredPullActions.onRestartPullCountdown,
                     )
                 }
-            } else {
+            } else if (countdown != null) {
                 Row(
                     modifier = Modifier.weight(1f),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -1120,35 +1114,48 @@ internal fun CountdownLine(
                 ) {
                     PauseResumeButton(
                         isPaused = displayCountdown.isPaused,
-                        enabled = enabled && visible,
+                        enabled = enabled,
                         onClick = onTogglePaused,
                     )
                     AdjustButton(
                         label = "-5",
-                        enabled = enabled && visible,
+                        enabled = enabled,
                         containerColor = DarkNeutralColor,
                     ) {
                         onAdjust(-5)
                     }
                     AdjustButton(
                         label = "+5",
-                        enabled = enabled && visible,
+                        enabled = enabled,
                         containerColor = DarkNeutralColor,
                     ) {
                         onAdjust(5)
                     }
                 }
+            } else if (statusMessage != null) {
+                Text(
+                    text = statusMessage,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("live-countdown-status-message"),
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontSize = statusFontSize,
+                        lineHeight = (statusFontSize.value + 2f).sp,
+                    ),
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                )
             }
         }
         Text(
-            text = if (countdown == null && (expiredPullActions != null || misconductCountdownAction != null)) {
-                ""
-            } else if (displayCountdown.isPaused) {
+            text = if (countdown != null && displayCountdown.isPaused) {
                 "Paused"
+            } else if (countdown != null && displayCountdown.nextCue != null) {
+                val cue = displayCountdown.nextCue
+                "Next cue at ${formatDuration(cue.countdownTime)} - ${cue.message}"
             } else {
-                displayCountdown.nextCue?.let { cue ->
-                    "Next cue at ${formatDuration(cue.countdownTime)} - ${cue.message}"
-                } ?: ""
+                ""
             },
             style = MaterialTheme.typography.labelMedium.copy(fontSize = labelFontSize),
             color = MaterialTheme.colorScheme.onSurfaceVariant,

@@ -447,6 +447,16 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         assertEquals(GamePhase.PRE_GAME, accessCurrentGameState().phase)
         waitForText("Start point")
         composeRule.onAllNodesWithText("Slide right to unlock").assertCountEquals(0)
+
+        // Locking while an in-point countdown is visible disables the countdown controls.
+        startTimeoutCountdownProgrammatically()
+        val lockedCountdownTarget = accessCurrentGameState().countdown!!.targetEpoch
+        composeRule.onNodeWithTag("live-center-lock").performClick()
+        waitForText("Slide right to unlock")
+        composeRule.onNodeWithTag("live-pause-countdown").assertIsNotEnabled()
+        composeRule.onNodeWithText("+5").assertIsNotEnabled()
+        composeRule.onNodeWithText("-5").assertIsNotEnabled()
+        assertEquals(lockedCountdownTarget, accessCurrentGameState().countdown!!.targetEpoch)
     }
 
     /**

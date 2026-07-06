@@ -153,6 +153,9 @@ internal fun LiveGameScreen(
     val activeCountdown = remember(state, now) {
         state.activeCountdownDisplay(now)
     }
+    val passedCapPointEndMessage = remember(state, now) {
+        state.passedCapPointEndMessage(now)
+    }
     val canStartPoint = remember(state, now) {
         state.phase.isBeforeLivePoint || state.halftimeTransitionReady(now)
     }
@@ -264,18 +267,23 @@ internal fun LiveGameScreen(
                     onTogglePaused = { onStateChange(state.toggleCountdownPaused(now)) },
                     expiredPullActions = if (hasExpiredPullActions && !locked) {
                         ExpiredPullActions(
-                            onRestartPullCountdown = { onStateChange(state.restartPullCountdown(now)) },
+                            onRestartPullCountdown = {
+                                onStateChange(state.restartPullCountdown(now))
+                            },
                         )
                     } else {
                         null
                     },
                     misconductCountdownAction = if (state.pendingMisconductCountdown && !locked) {
                         MisconductCountdownAction(
-                            onStart = { onStateChange(state.startMisconductCountdown(now)) },
+                            onStart = {
+                                onStateChange(state.startMisconductCountdown(now))
+                            },
                         )
                     } else {
                         null
                     },
+                    statusMessage = passedCapPointEndMessage,
                     height = layoutMetrics.countdownHeight,
                 )
 

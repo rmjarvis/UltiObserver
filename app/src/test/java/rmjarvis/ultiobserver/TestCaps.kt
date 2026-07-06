@@ -97,6 +97,65 @@ class TestCaps : GameDomainTestFixtures() {
     }
 
     /**
+     * Verify live-point cap messages only appear after a relevant point-end cap has passed.
+     */
+    @Test
+    fun passedCapPointEndMessages() {
+        // Soft cap produces a live-point message after its scheduled time, until it is applied.
+        val softOnly = newCapState(
+            capRules.copy(
+                useHalfCap = false,
+                useHardCap = false,
+            )
+        ).beginLivePoint()
+        assertNull(softOnly.passedCapPointEndMessage(timestampAfterStart(softOnly, 19)))
+        assertEquals(
+            "Soft cap passed. It will apply at the end of this point.",
+            softOnly.passedCapPointEndMessage(timestampAfterStart(softOnly, 21)),
+        )
+        assertNull(
+            softOnly.copy(softCapApplied = true)
+                .passedCapPointEndMessage(timestampAfterStart(softOnly, 21))
+        )
+
+        // Hard cap uses the same priority as the point-end prompt when multiple caps have passed.
+        val hardAndSoft = newCapState(
+            capRules.copy(
+                useHalfCap = false,
+            )
+        ).beginLivePoint()
+        assertEquals(
+            "Hard cap passed. It will apply at the end of this point.",
+            hardAndSoft.passedCapPointEndMessage(timestampAfterStart(hardAndSoft, 31)),
+        )
+
+        // Half cap messages only appear while half cap can still change halftime.
+        val halfOnly = newCapState(
+            capRules.copy(
+                useSoftCap = false,
+                useHardCap = false,
+            )
+        ).beginLivePoint()
+        assertEquals(
+            "Half cap passed. It will apply at the end of this point.",
+            halfOnly.passedCapPointEndMessage(timestampAfterStart(halfOnly, 11)),
+        )
+        val irrelevantHalf = halfOnly.copy(
+            teamOne = halfOnly.teamOne.copy(score = 6),
+            teamTwo = halfOnly.teamTwo.copy(score = 6),
+        )
+        assertNull(
+            irrelevantHalf.passedCapPointEndMessage(timestampAfterStart(irrelevantHalf, 11))
+        )
+
+        // Point-end messages do not appear outside a live point.
+        assertNull(
+            halfOnly.copy(phase = GamePhase.BETWEEN_POINTS)
+                .passedCapPointEndMessage(timestampAfterStart(halfOnly, 11))
+        )
+    }
+
+    /**
      * Verify half-cap prompting, deferral, disabled caps, and after-midnight eligibility.
      */
     @Test

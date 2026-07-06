@@ -210,6 +210,40 @@ fun GameState.computeNextCapStatus(now: Long): CapStatus? {
         // If any are found, make a CapStatus from this cap's time remaining.
         ?.let { (label, remaining) -> CapStatus(label, remaining) }
 }
+
+/**
+ * Return the message to show during a live point after a cap time has passed.
+ *
+ * The actual cap offer is still made at point end, after the scoring team is known. This helper
+ * only reports caps that could still affect the game when the current point finishes.
+ *
+ * @param now The current epoch millis used to compare against scheduled cap times.
+ */
+internal fun GameState.passedCapPointEndMessage(now: Long): String? {
+    val capType = passedCapForPointEnd(now) ?: return null
+    return "${capType.label} passed. It will apply at the end of this point."
+}
+
+/**
+ * Return the passed cap that should be offered at the end of the current live point.
+ *
+ * This mirrors point-end cap priority: hard cap takes precedence over soft cap, and soft cap
+ * takes precedence over half cap.
+ *
+ * @param now The current epoch millis used to compare against scheduled cap times.
+ */
+private fun GameState.passedCapForPointEnd(now: Long): CapType? {
+    if (phase != GamePhase.LIVE_POINT) {
+        return null
+    }
+    return when {
+        hardCapReached(now) -> CapType.HARD
+        softCapReached(now) -> CapType.SOFT
+        halfCapReached(teamOne.score, teamTwo.score, now) -> CapType.HALF
+        else -> null
+    }
+}
+
 /**
  * Return a one-shot timing cue when a relevant cap reaches its scheduled wall-clock time.
  *
