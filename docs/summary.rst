@@ -4,7 +4,8 @@ Game Summary
 .. figure:: screen-shots/GameSummary.png
    :class: phone-screenshot
    :target: _images/GameSummary.png
-   :alt: Completed game summary with tournament information, field, start and end time, score, and team misconduct totals
+   :alt: Completed game summary with tournament information, field, start and end time,
+      score, and team misconduct totals
 
 After a game is over, the app will show you a post-game summary page with the
 most important information about the game including:

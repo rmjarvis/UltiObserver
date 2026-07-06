@@ -10,8 +10,9 @@ Time and Countdowns
 
 .. figure:: screen-shots/OffenseSignalTimer.png
    :class: phone-screenshot
-   :target: _images/OffenseSignalTimer.ong
-   :alt: Active game screen with a countdown showing the time until the offense needs signal readiness.
+   :target: _images/OffenseSignalTimer.png
+   :alt: Active game screen with a countdown showing the time until the offense needs
+      signal readiness.
 
 The top section of the screen shows the current time, the time until the next
 relevant cap, if any, and a countdown for the next game transition, if appropriate.
@@ -65,21 +66,29 @@ team name and the current score. If you recorded names for the coach and/or capt
 then a small info icon appears next to the team name. Clicking this opens up a popup
 with the names for quick reference.
 
-Below the team names, there are 6 buttons, where you can record important events
-connected to that team:
+Below the team names, there are 6 buttons where you can record important events
+connected to that team.
 
-* **Goal** records a goal for the team, starting the pull countdown for the next point
-  (or starting halftime or ending the game if appropriate).
-* **Time viol.** records a time violation if they don't signal readiness or pull in the
-  time required.
-  See :ref:`time-violations` for details.
-* **Offsides** or **False start** records the appropriate pull violation for that team
-  according to whether they are the pulling or receiving team.
-  See :ref:`pull-violations` for details.
-* **Card** lets you assess a yellow, red or blue card. See :ref:`misconduct` for details.
-* **Tech** lets you assess a technical foul against a team. See :ref:`technical-fouls` for
-  details.
-* **TO** lets you record a timeout called by a team. See :ref:`timeouts` for details.
+Goal
+    Records a goal for the team, starting the pull countdown for the next point
+    (or starting halftime or ending the game if appropriate).
+
+Time viol.
+    Records a time violation if they don't signal readiness or pull in the time required.
+    See :ref:`time-violations` for details.
+
+Offsides / False start
+    Records the appropriate pull violation for that team according to whether they are
+    the pulling or receiving team. See :ref:`pull-violations` for details.
+
+Card
+    Lets you assess a yellow, red or blue card. See :ref:`misconduct` for details.
+
+Tech
+    Lets you assess a technical foul against a team. See :ref:`technical-fouls` for details.
+
+TO
+    Lets you record a timeout called by a team. See :ref:`timeouts` for details.
 
 The four central buttons for violations and misconduct show the current count for that
 event so far in the game. For cards, the count is the total that is relevant for

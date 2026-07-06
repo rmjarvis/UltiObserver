@@ -57,17 +57,32 @@ Version 1.0 was the first public testing release of UltiObserver.
 
 Features included:
 
-* It keeps track of which team is pulling and from which end. The live game screen shows the field orientation as seen from one end of the field. This would normally be the endzone where you have primary responsibility as an observer.
-* It keeps track of the time remaining for observing cues you are responsible for. E.g. if the team at your endzone is receiving, it will give cues for 20 and 10 seconds until they need to signal readiness. Similar for the pull time if the team at your endzone is pulling.
-* For timeouts, it will similarly keep track of the time and tell you when to announce sideline clear, 20 to set, etc.
-* You can customize which (if any) timing cues you want to have associated sounds and/or haptic feedback.
-* It keeps track of misconduct cards for players and teams, including players entering the game with previous cards during that tournament. It will give you a message reminding you of the appropriate misconduct penalty, including tournament suspensions if a player exceeds three yellows in the tournament for instance. Same for technical fouls.
-* It records offsides, false starts, and time violations, and it lets you know what the appropriate starting position is in each case.
-* It tells you when a relevant cap (half, soft, or hard) is coming up, and you can configure it to make a sound or vibrate when the cap goes off.
-* During live points, the screen automatically locks (by default) to avoid errant button presses if you put your phone in your pocket. You can also manually lock it at any time.
-* All actions are undo-able. And even redo-able if you didn't mean to click undo.
-* The current rule set is based on USAU games to points.
-* It keeps a full event log with timestamps in case you need to go back to see when something happened.
-* You can manually override just about everything during the game in case there is some weird situation you need to fix.
-* At the end of a game, the game summary can be easily shared using Android's share action.
-* Completed games are archived for later viewing or sharing. You can even restore a game that has been archived back into a live state.
+- It keeps track of which team is pulling and from which end. The live game screen shows
+  the field orientation as seen from one end of the field. This would normally be the endzone
+  where you have primary responsibility as an observer.
+- It keeps track of the time remaining for observing cues you are responsible for. E.g. if the
+  team at your endzone is receiving, it will give cues for 20 and 10 seconds until they need
+  to signal readiness. Similar for the pull time if the team at your endzone is pulling.
+- For timeouts, it will similarly keep track of the time and tell you when to announce sideline
+  clear, 20 to set, etc.
+- You can customize which (if any) timing cues you want to have associated sounds and/or haptic
+  feedback.
+- It keeps track of misconduct cards for players and teams, including players entering the game
+  with previous cards during that tournament. It will give you a message reminding you of the
+  appropriate misconduct penalty, including tournament suspensions if a player exceeds three
+  yellows in the tournament for instance. Same for technical fouls.
+- It records offsides, false starts, and time violations, and it lets you know what the
+  appropriate starting position is in each case.
+- It tells you when a relevant cap (half, soft, or hard) is coming up, and you can configure
+  it to make a sound or vibrate when the cap goes off.
+- During live points, the screen automatically locks (by default) to avoid errant button
+  presses if you put your phone in your pocket. You can also manually lock it at any time.
+- All actions are undo-able. And even redo-able if you didn't mean to click undo.
+- The current rule set is based on USAU games to points.
+- It keeps a full event log with timestamps in case you need to go back to see when something
+  happened.
+- You can manually override just about everything during the game in case there is some weird
+  situation you need to fix.
+- At the end of a game, the game summary can be easily shared using Android's share action.
+- Completed games are archived for later viewing or sharing. You can even restore a game that
+  has been archived back into a live state.

@@ -29,9 +29,19 @@ you either get the cues for both teams or neither team.
 
 For offense countdowns, the cues that are displayed are:
 
-0:20 - 20 seconds for a hand
-0:10 - 10 seconds for a hand
-0:00 - Give hand
+.. list-table::
+   :class: cue-table
+   :header-rows: 1
+   :widths: 1 3
+
+   * - Time
+     - Cue
+   * - 0:20
+     - 20 seconds for a hand
+   * - 0:10
+     - 10 seconds for a hand
+   * - 0:00
+     - Give hand
 
 If the team hasn't signaled readiness by 0:00, you may choose to issue a time violation.
 See :ref:`time-violations`. The typical thing to do at 0:00 is to raise your hand to signal
@@ -39,9 +49,19 @@ that the team is ready and let them know that you are doing so.
 
 For defense countdowns, the cues that are displayed are:
 
-0:20 - 20 seconds to pull
-0:10 - 10 seconds to pull
-0:00 - Time violation?
+.. list-table::
+   :class: cue-table
+   :header-rows: 1
+   :widths: 1 3
+
+   * - Time
+     - Cue
+   * - 0:20
+     - 20 seconds to pull
+   * - 0:10
+     - 10 seconds to pull
+   * - 0:00
+     - Time violation?
 
 If the team hasn't pulled by 0:00, you may choose to issue a time violation.
 See :ref:`time-violations`.
@@ -59,18 +79,40 @@ adding cues for 1 minute for a hand or 1 minute to pull as appropriate.
 Timeouts during a live point start a timeout countdown, which ends when the offense is
 meant to be set. The timing cues for this countdown are:
 
-0:30 - Sideline players clear the field
-0:20 - 20 seconds offense
-0:10 - 10 seconds offense
-0:05 - Countdown from 5
-0:00 - Offense freeze
+.. list-table::
+   :class: cue-table
+   :header-rows: 1
+   :widths: 1 3
+
+   * - Time
+     - Cue
+   * - 0:30
+     - Sideline players clear the field
+   * - 0:20
+     - 20 seconds offense
+   * - 0:10
+     - 10 seconds offense
+   * - 0:05
+     - Countdown from 5
+   * - 0:00
+     - Offense freeze
 
 If you have defensive check countdowns enabled (see :ref:`settings`), then this will transition
 into a countdown for the defense to check the disc in.  The cues for this are:
 
-0:20 - 20 seconds defense
-0:10 - 10 seconds defense
-0:00 - Offense start when ready
+.. list-table::
+   :class: cue-table
+   :header-rows: 1
+   :widths: 1 3
+
+   * - Time
+     - Cue
+   * - 0:20
+     - 20 seconds defense
+   * - 0:10
+     - 10 seconds defense
+   * - 0:00
+     - Offense start when ready
 
 Halftime Timing
 ---------------
@@ -78,8 +120,17 @@ Halftime Timing
 When halftime starts, a halftime countdown begins showing how much time is left in the half.
 There are two cues for this:
 
-5:00 - 5 minutes
-2:00 - 2 minutes
+.. list-table::
+   :class: cue-table
+   :header-rows: 1
+   :widths: 1 3
+
+   * - Time
+     - Cue
+   * - 5:00
+     - 5 minutes
+   * - 2:00
+     - 2 minutes
 
 When this countdown hits 0:00, it automatically transitions into the regular countdown for
 the first pull of the second half.

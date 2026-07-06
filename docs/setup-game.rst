@@ -60,21 +60,37 @@ Game Information
 
 This is where you can set the basic information about the game being played.
 
-* **Date** This defaults to the current day, so this is likely to be usually correct already.
-  To change the date, click on the button showing the date to open the date setting popup.
-* **Start time** This defaults to the next half hour, which is convenient if you start the game
-  in the app just a little before game time. If you are setting up games well in advance, you'll
-  obviously want to change it. Click the button with the time to open the time setting popup.
-* **Observers** This defaults to include you if you set your profile name. There will
-  initially be one additional entry for your partner. You can add more rows for additional
-  observers by clicking the + icon. The - icon will remove a final blank row.
-* **Field number** This can be a useful reference, since it displays on the saved drafts listing.
-  So if you set up multiple games in the morning, that listing can remind you which field the
-  game is happening on.
-* **Tournament name** Pretty self-explanatory.
-* **Division** Make sure to select **Mixed** here for mixed games to enable mixed-specific rules.
-* **Level** If you want, you can set this. E.g. College, club, master, etc.
-* **Game context** Optional additional context you might want to record. E.g. finals, semis, etc.
+Date
+    This defaults to the current day, so this is likely to be usually correct already.
+    To change the date, click on the button showing the date to open the date setting popup.
+
+Start time
+    This defaults to the next half hour, which is convenient if you start the game
+    in the app just a little before game time. If you are setting up games well in advance,
+    you'll obviously want to change it. Click the button with the time to open the time
+    setting popup.
+
+Observers
+    This defaults to include you if you set your profile name. There will initially be one
+    additional entry for your partner. You can add more rows for additional observers by
+    clicking the + icon. The - icon will remove a final blank row.
+
+Field number
+    This can be a useful reference, since it displays on the saved drafts listing.
+    So if you set up multiple games in the morning, that listing can remind you which field the
+    game is happening on.
+
+Tournament name
+    Pretty self-explanatory.
+
+Division
+    Make sure to select **Mixed** here for mixed games to enable mixed-specific rules.
+
+Level
+    If you want, you can set this. E.g. College, club, master, etc.
+
+Game context
+    Optional additional context you might want to record. E.g. finals, semis, etc.
 
 .. note::
 
@@ -98,19 +114,27 @@ whatever you want.
 
 The rest of the items are the details that are decided at the opening pull.
 
-* **Pulling team**  Which team starts on defense.
-* **Pulling from**  Which end are they pulling from?
-* **First point gender ratio**  This option is only available if the division is set to Mixed
-  and the rules are set to use ABBA for the gender ratio.
-* **End for gen zone in first half** The "gen zone" is the common term for the endzone that
-  decides the gender ratio when playing under that rule. This option is only available if the
-  division is set to Mixed and the rules are set to use Gen zone for the gender ratio. Note that
-  official rules say to switch the gen zone in the second half, but you can switch that in
-  the Rules section.
-* **Timing prompts for which end?** This would normally be whichever end of the field you are
-  going to be located for pulls. Typically, you would just want to receive the pull-related
-  timing prompts for your end of the field, but you can also choose neither or both, which
-  might be appropriate in 3 or 4 person crews.
+Pulling team
+    Which team starts on defense.
+
+Pulling from
+    Which end are they pulling from?
+
+First point gender ratio
+    This option is only available if the division is set to Mixed and the rules are set to use
+    ABBA for the gender ratio.
+
+End for gen zone in first half
+    The "gen zone" is the common term for the endzone that decides the gender ratio when playing
+    under that rule. This option is only available if the division is set to Mixed and the rules
+    are set to use Gen zone for the gender ratio. Note that official rules say to switch the gen
+    zone in the second half, but you can switch that in the Rules section.
+
+Timing prompts for which end?
+    This would normally be whichever end of the field you are going to be located for pulls.
+    Typically, you would just want to receive the pull-related timing prompts for your end of the
+    field, but you can also choose neither or both, which might be appropriate in 3 or 4 person
+    crews.
 
 Game Rules
 ----------
@@ -123,26 +147,50 @@ Game Rules
 This is where you can set the rules that apply to this game in case the tournament has any
 modifications from standard USAU rules.
 
-* **Game to** What is the normal winning score?
-* **Half time** How long is halftime?
-* **Half cap** Is there a half cap? And if so, how long after the start time?
-* **Soft cap** Is there a soft cap? And if so, how long after the start time?
-* **Hard cap** Is there a hard cap? And if so, how long after the start time?
-* **Timeouts** How many time outs does each team have each half, including a possible floater
-  (an extra timeout that can be taken in either half)?
-* **Mixed gender ratio** What rule should be used to determine the gender ratio each point?
-  This option is only available if the division is set to Mixed. Options include:
+Game to
+    What is the normal winning score?
 
-  * **ABBA** - Alternate two at a time starting after the first point. So if the ratio for
-    the first point is M (i.e. 4M/3W), then the pattern will be M W W M M W W M M W W ...
-  * **Gen zone** - The team in a particular end zone decides the ratio each point. The official
-    rules say to switch the end zone at half time (which is definitely a good idea), but if
-    your game is not respecting that rule, you can choose to disable that.
-  * **Offense decides** - The team receiving the pull decides the ratio each point. This used
-    to be the standard way to choose, but is rarely used these days. Still, it's an option.
-  * **4M/3W** - Just use 4 man-matching, 3 woman-matching for the whole game.
-  * **4W/3M** - Just use 4 woman-matching, 3 man-matching for the whole game.
-  * **N/A** - Don't have the app handle anything related to the gender ratio.
+Half time
+    How long is halftime?
+
+Half cap
+    Is there a half cap? And if so, how long after the start time?
+
+Soft cap
+    Is there a soft cap? And if so, how long after the start time?
+
+Hard cap
+    Is there a hard cap? And if so, how long after the start time?
+
+Timeouts
+    How many time outs does each team have each half, including a possible floater
+    (an extra timeout that can be taken in either half)?
+
+Mixed gender ratio
+    What rule should be used to determine the gender ratio each point? This option is only
+    available if the division is set to Mixed. Options include:
+
+    ABBA
+        Alternate two at a time starting after the first point. So if the ratio for the first
+        point is M (i.e. 4M/3W), then the pattern will be M W W M M W W M M W W ...
+
+    Gen zone
+        The team in a particular end zone decides the ratio each point. The official rules say
+        to switch the end zone at half time (which is definitely a good idea), but if your game
+        is not respecting that rule, you can choose to disable that.
+
+    Offense decides
+        The team receiving the pull decides the ratio each point. This used to be the standard
+        way to choose, but is rarely used these days. Still, it's an option.
+
+    4M/3W
+        Just use 4 man-matching, 3 woman-matching for the whole game.
+
+    4W/3M
+        Just use 4 woman-matching, 3 man-matching for the whole game.
+
+    N/A
+        Don't have the app handle anything related to the gender ratio.
 
 At the bottom, there is a button to **Reset to USAU defaults**, which sets all rules back to
 the normal USAU standard rules.

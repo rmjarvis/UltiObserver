@@ -4,7 +4,8 @@ Saved And Archived Games
 .. figure:: screen-shots/ArchiveCategories.png
    :class: phone-screenshot
    :target: _images/ArchiveCategories.png
-   :alt: Saved and archived games screen with archived games, in-progress games, and saved setup drafts
+   :alt: Saved and archived games screen with archived games, in-progress games, and saved
+      setup drafts
 
 UltiObserver keeps track of past games so you can reference them later, including
 potentially share the summary information with people after the fact (cf. :ref:`Share`).

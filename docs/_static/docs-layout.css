@@ -54,6 +54,23 @@
     overflow-wrap: anywhere;
 }
 
+.article-container dl:not(.field-list) {
+    margin: 1rem 0;
+}
+
+.article-container dl:not(.field-list) > dt {
+    font-weight: 700;
+    margin-top: 0.8rem;
+}
+
+.article-container dl:not(.field-list) > dd {
+    margin-left: 0;
+}
+
+.article-container dl:not(.field-list) > dd > p:first-child {
+    margin-top: 0.25rem;
+}
+
 .mobile-only,
 figure:has(img.mobile-only) {
     display: none;
@@ -63,6 +80,11 @@ figure:has(img.mobile-only) {
     display: block;
     max-width: 100%;
     overflow-x: auto;
+}
+
+.article-container table.cue-table {
+    margin-left: 0;
+    margin-right: auto;
 }
 
 .screenshot-row,
