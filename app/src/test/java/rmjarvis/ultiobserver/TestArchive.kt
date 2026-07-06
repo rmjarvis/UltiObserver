@@ -520,8 +520,8 @@ class TestArchive : GameDomainTestFixtures() {
 
         assertEquals(
             listOf(
-                "Date newest first",
-                "Date oldest first",
+                "Date, newest first",
+                "Date, oldest first",
                 "First team",
                 "Second team",
             ),

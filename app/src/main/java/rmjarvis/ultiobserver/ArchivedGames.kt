@@ -304,8 +304,8 @@ internal enum class ArchiveSortMode(
     val displayText: String,
     val summaryText: String,
 ) {
-    DATE_NEWEST("Date newest first", "Sorted by date, newest first"),
-    DATE_OLDEST("Date oldest first", "Sorted by date, oldest first"),
+    DATE_NEWEST("Date, newest first", "Sorted by date, newest first"),
+    DATE_OLDEST("Date, oldest first", "Sorted by date, oldest first"),
     TEAM_ONE("First team", "Sorted by first team"),
     TEAM_TWO("Second team", "Sorted by second team"),
 }
