@@ -27,11 +27,25 @@ class TestPullViolations : GameDomainTestFixtures() {
             offsides = 1,
             falseStarts = 2,
             majorityPullViolations = 3,
+            timeViolations = 4,
         )
 
         assertEquals("Offsides (1)", PullViolationType.OFFSIDES.fieldActionLabel(team))
         assertEquals("False start (2)", PullViolationType.FALSE_START.fieldActionLabel(team))
         assertEquals("Majority pull (3)", PullViolationType.MAJORITY_PULL.fieldActionLabel(team))
+        assertEquals("Time viol. (4)", team.timeViolationFieldActionLabel())
+
+        // Zero-count field labels stay compact until the observer has recorded that event.
+        val newTeam = team.copy(
+            offsides = 0,
+            falseStarts = 0,
+            majorityPullViolations = 0,
+            timeViolations = 0,
+        )
+        assertEquals("Offsides", PullViolationType.OFFSIDES.fieldActionLabel(newTeam))
+        assertEquals("False start", PullViolationType.FALSE_START.fieldActionLabel(newTeam))
+        assertEquals("Majority pull", PullViolationType.MAJORITY_PULL.fieldActionLabel(newTeam))
+        assertEquals("Time viol.", newTeam.timeViolationFieldActionLabel())
     }
 
     /**

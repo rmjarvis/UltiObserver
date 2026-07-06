@@ -820,7 +820,7 @@ private fun TeamActionGrid(
     val pullViolationLabel = pullViolationType.fieldActionLabel(team)
     val cardLabel = countedActionLabel("Card", cardPoints)
     val techLabel = countedActionLabel("Tech", team.technicalFouls)
-    val timeViolationLabel = "Time viol."
+    val timeViolationLabel = team.timeViolationFieldActionLabel()
     val timeoutLabel = "TO ($timeoutsRemaining)"
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current

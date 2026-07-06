@@ -569,6 +569,11 @@ private fun TeamState.withAddedTimeViolation(): TeamState {
     return copy(timeViolations = timeViolations + 1)
 }
 
+/// Format the compact field-button label for a team's time violations.
+internal fun TeamState.timeViolationFieldActionLabel(): String {
+    return countedActionLabel("Time viol.", timeViolations)
+}
+
 /// Format a time-violation event popup title.
 internal fun GameEvent.TimeViolationRecorded.formatPopupTitle(): String = "Time violation"
 
