@@ -1,0 +1,630 @@
+{
+    "versionName": "1.1.0alpha",
+    "versionCode": 3,
+    "data": {
+        "startDate": "2026-07-06",
+        "startTime": "11:30",
+        "timeZone": "America/New_York",
+        "endEpoch": 1783357582557,
+        "tournamentName": "Potlatch Revived",
+        "division": "MIXED",
+        "level": "Legends",
+        "gameContext": "Semifinal",
+        "observerNames": [
+            "Mike Jarvis",
+            "Chris Watcher"
+        ],
+        "fieldName": "17",
+        "nearEndName": "Parking lot",
+        "farEndName": "Trees",
+        "rules": {
+            "gameTo": 15,
+            "halftimeMinutes": 7,
+            "useHalfCap": true,
+            "halfCapMinutes": 45,
+            "useSoftCap": true,
+            "softCapMinutes": 90,
+            "useHardCap": true,
+            "hardCapMinutes": 105,
+            "timeoutsPerHalf": 2,
+            "hasFloaterTimeout": false,
+            "genderRatioRule": "ABBA",
+            "switchGenZoneAtHalftime": true
+        },
+        "teamOne": {
+            "name": "Red Fish Blue Fish",
+            "color": "WHITE",
+            "customColorArgb": null,
+            "coaches": "",
+            "fieldCaptains": "",
+            "spiritCaptains": "",
+            "score": 14,
+            "timeoutsUsedThisHalf": 0,
+            "firstHalfTimeoutsUsed": 2,
+            "offsides": 0,
+            "falseStarts": 0,
+            "majorityPullViolations": 0,
+            "timeViolations": 1,
+            "technicalFouls": 0,
+            "blueCards": 2
+        },
+        "teamTwo": {
+            "name": "Rippit",
+            "color": "GREEN",
+            "customColorArgb": null,
+            "coaches": "",
+            "fieldCaptains": "",
+            "spiritCaptains": "",
+            "score": 12,
+            "timeoutsUsedThisHalf": 0,
+            "firstHalfTimeoutsUsed": 0,
+            "offsides": 2,
+            "falseStarts": 0,
+            "majorityPullViolations": 0,
+            "timeViolations": 0,
+            "technicalFouls": 3,
+            "blueCards": 0
+        },
+        "teamOnePlayers": [
+            {
+                "jerseyNumber": "77",
+                "playerName": "Hank Puller",
+                "priorYellows": 0,
+                "priorReds": 0,
+                "cards": [
+                    {
+                        "cardType": "YELLOW",
+                        "index": 0,
+                        "reason": {
+                            "preset": "Dangerous play",
+                            "otherText": "",
+                            "details": ""
+                        }
+                    }
+                ]
+            }
+        ],
+        "teamTwoPlayers": [],
+        "eventLog": [
+            {
+                "timestampEpoch": 1783351800000,
+                "type": "FIRST_PULL",
+                "team": "TEAM_ONE"
+            },
+            {
+                "timestampEpoch": 1783351860000,
+                "type": "GOAL",
+                "team": "TEAM_ONE"
+            },
+            {
+                "timestampEpoch": 1783351980000,
+                "type": "GOAL",
+                "team": "TEAM_ONE"
+            },
+            {
+                "timestampEpoch": 1783352160000,
+                "type": "GOAL",
+                "team": "TEAM_TWO"
+            },
+            {
+                "timestampEpoch": 1783352280000,
+                "type": "GOAL",
+                "team": "TEAM_TWO"
+            },
+            {
+                "timestampEpoch": 1783352398551,
+                "type": "OFFSIDES",
+                "team": "TEAM_TWO"
+            },
+            {
+                "timestampEpoch": 1783352470284,
+                "type": "TIMEOUT",
+                "team": "TEAM_ONE"
+            },
+            {
+                "timestampEpoch": 1783352548869,
+                "type": "GOAL",
+                "team": "TEAM_ONE"
+            },
+            {
+                "timestampEpoch": 1783352595076,
+                "type": "BLUE_CARD",
+                "team": "TEAM_ONE"
+            },
+            {
+                "timestampEpoch": 1783352643541,
+                "type": "TIME_VIOLATION",
+                "team": "TEAM_ONE",
+                "timeViolationOutcome": "WARNING"
+            },
+            {
+                "timestampEpoch": 1783352647298,
+                "type": "GOAL",
+                "team": "TEAM_TWO"
+            },
+            {
+                "timestampEpoch": 1783352671983,
+                "type": "TECHNICAL_FOUL",
+                "team": "TEAM_TWO"
+            },
+            {
+                "timestampEpoch": 1783352778899,
+                "type": "YELLOW_CARD",
+                "team": "TEAM_ONE",
+                "player": {
+                    "jerseyNumber": "77",
+                    "playerName": "Hank Puller"
+                }
+            },
+            {
+                "timestampEpoch": 1783352855371,
+                "type": "GOAL",
+                "team": "TEAM_TWO"
+            },
+            {
+                "timestampEpoch": 1783352857229,
+                "type": "TIMEOUT",
+                "team": "TEAM_ONE"
+            },
+            {
+                "timestampEpoch": 1783353025221,
+                "type": "TECHNICAL_FOUL",
+                "team": "TEAM_TWO"
+            },
+            {
+                "timestampEpoch": 1783353030181,
+                "type": "GOAL",
+                "team": "TEAM_ONE"
+            },
+            {
+                "timestampEpoch": 1783353451950,
+                "type": "GOAL",
+                "team": "TEAM_ONE"
+            },
+            {
+                "timestampEpoch": 1783353453987,
+                "type": "GOAL",
+                "team": "TEAM_TWO"
+            },
+            {
+                "timestampEpoch": 1783353454992,
+                "type": "GOAL",
+                "team": "TEAM_ONE"
+            },
+            {
+                "timestampEpoch": 1783353455993,
+                "type": "GOAL",
+                "team": "TEAM_TWO"
+            },
+            {
+                "timestampEpoch": 1783353486554,
+                "type": "TECHNICAL_FOUL",
+                "team": "TEAM_TWO"
+            },
+            {
+                "timestampEpoch": 1783353549550,
+                "type": "GOAL",
+                "team": "TEAM_ONE"
+            },
+            {
+                "timestampEpoch": 1783354195703,
+                "type": "GOAL",
+                "team": "TEAM_TWO"
+            },
+            {
+                "timestampEpoch": 1783354229828,
+                "type": "GOAL",
+                "team": "TEAM_TWO"
+            },
+            {
+                "timestampEpoch": 1783354229828,
+                "type": "HALFTIME"
+            },
+            {
+                "timestampEpoch": 1783355125860,
+                "type": "GOAL",
+                "team": "TEAM_ONE"
+            },
+            {
+                "timestampEpoch": 1783355423202,
+                "type": "GOAL",
+                "team": "TEAM_ONE"
+            },
+            {
+                "timestampEpoch": 1783355467390,
+                "type": "GOAL",
+                "team": "TEAM_TWO"
+            },
+            {
+                "timestampEpoch": 1783355580395,
+                "type": "OFFSIDES",
+                "team": "TEAM_TWO"
+            },
+            {
+                "timestampEpoch": 1783355588882,
+                "type": "GOAL",
+                "team": "TEAM_ONE"
+            },
+            {
+                "timestampEpoch": 1783355693261,
+                "type": "GOAL",
+                "team": "TEAM_ONE"
+            },
+            {
+                "timestampEpoch": 1783355854021,
+                "type": "GOAL",
+                "team": "TEAM_TWO"
+            },
+            {
+                "timestampEpoch": 1783356084910,
+                "type": "GOAL",
+                "team": "TEAM_ONE"
+            },
+            {
+                "timestampEpoch": 1783356217667,
+                "type": "BLUE_CARD",
+                "team": "TEAM_ONE"
+            },
+            {
+                "timestampEpoch": 1783356418577,
+                "type": "GOAL",
+                "team": "TEAM_ONE"
+            },
+            {
+                "timestampEpoch": 1783356689693,
+                "type": "GOAL",
+                "team": "TEAM_TWO"
+            },
+            {
+                "timestampEpoch": 1783357355635,
+                "type": "GOAL",
+                "team": "TEAM_TWO"
+            },
+            {
+                "timestampEpoch": 1783357582557,
+                "type": "GOAL",
+                "team": "TEAM_ONE"
+            },
+            {
+                "timestampEpoch": 1783357582557,
+                "type": "GAME_OVER"
+            }
+        ],
+        "pullingTeam": "TEAM_ONE",
+        "pullingFromEnd": "NEAR",
+        "topDisplayedEnd": "NEAR",
+        "pullPromptTarget": "FAR",
+        "initialGenderRatio": "FOUR_WOMEN_THREE_MEN",
+        "firstHalfGenZone": "FAR",
+        "openingPullingTeam": "TEAM_ONE",
+        "openingPullingFromEnd": "NEAR",
+        "phase": "GAME_OVER",
+        "countdown": null,
+        "pullSequenceOffsidesRecorded": false,
+        "pullSequenceFalseStartRecorded": false,
+        "pullSkippedForCurrentPoint": false,
+        "pendingMisconductCountdown": false,
+        "halftimeTaken": true,
+        "halftimeTargetScore": null,
+        "winningScore": 14,
+        "halfCapApplied": false,
+        "softCapApplied": true,
+        "hardCapApplied": false,
+        "pendingCapOffer": null,
+        "undoEntry": {
+            "label": "Undo End game",
+            "previous": {
+                "startDate": "2026-07-06",
+                "startTime": "11:30",
+                "timeZone": "America/New_York",
+                "endEpoch": null,
+                "tournamentName": "Potlatch Revived ",
+                "division": "MIXED",
+                "level": "Legends",
+                "gameContext": "semi-final",
+                "observerNames": [
+                    "Mike Jarvis",
+                    "Chris Watcher"
+                ],
+                "fieldName": "17",
+                "nearEndName": "Parking lot",
+                "farEndName": "Trees",
+                "rules": {
+                    "gameTo": 15,
+                    "halftimeMinutes": 7,
+                    "useHalfCap": true,
+                    "halfCapMinutes": 45,
+                    "useSoftCap": true,
+                    "softCapMinutes": 90,
+                    "useHardCap": true,
+                    "hardCapMinutes": 105,
+                    "timeoutsPerHalf": 2,
+                    "hasFloaterTimeout": false,
+                    "genderRatioRule": "ABBA",
+                    "switchGenZoneAtHalftime": true
+                },
+                "teamOne": {
+                    "name": "Red Fish Blue Fish",
+                    "color": "WHITE",
+                    "customColorArgb": null,
+                    "coaches": "",
+                    "fieldCaptains": "",
+                    "spiritCaptains": "",
+                    "score": 14,
+                    "timeoutsUsedThisHalf": 0,
+                    "firstHalfTimeoutsUsed": 2,
+                    "offsides": 0,
+                    "falseStarts": 0,
+                    "majorityPullViolations": 0,
+                    "timeViolations": 1,
+                    "technicalFouls": 0,
+                    "blueCards": 2
+                },
+                "teamTwo": {
+                    "name": "Rippit",
+                    "color": "GREEN",
+                    "customColorArgb": null,
+                    "coaches": "",
+                    "fieldCaptains": "",
+                    "spiritCaptains": "",
+                    "score": 12,
+                    "timeoutsUsedThisHalf": 0,
+                    "firstHalfTimeoutsUsed": 0,
+                    "offsides": 2,
+                    "falseStarts": 0,
+                    "majorityPullViolations": 0,
+                    "timeViolations": 0,
+                    "technicalFouls": 3,
+                    "blueCards": 0
+                },
+                "teamOnePlayers": [
+                    {
+                        "jerseyNumber": "77",
+                        "playerName": "Hank Puller",
+                        "priorYellows": 0,
+                        "priorReds": 0,
+                        "cards": [
+                            {
+                                "cardType": "YELLOW",
+                                "index": 0,
+                                "reason": {
+                                    "preset": "Dangerous play",
+                                    "otherText": "",
+                                    "details": ""
+                                }
+                            }
+                        ]
+                    }
+                ],
+                "teamTwoPlayers": [],
+                "eventLog": [
+                    {
+                        "timestampEpoch": 1783351800000,
+                        "type": "FIRST_PULL",
+                        "team": "TEAM_ONE"
+                    },
+                    {
+                        "timestampEpoch": 1783351860000,
+                        "type": "GOAL",
+                        "team": "TEAM_ONE"
+                    },
+                    {
+                        "timestampEpoch": 1783351980000,
+                        "type": "GOAL",
+                        "team": "TEAM_ONE"
+                    },
+                    {
+                        "timestampEpoch": 1783352160000,
+                        "type": "GOAL",
+                        "team": "TEAM_TWO"
+                    },
+                    {
+                        "timestampEpoch": 1783352280000,
+                        "type": "GOAL",
+                        "team": "TEAM_TWO"
+                    },
+                    {
+                        "timestampEpoch": 1783352398551,
+                        "type": "OFFSIDES",
+                        "team": "TEAM_TWO"
+                    },
+                    {
+                        "timestampEpoch": 1783352470284,
+                        "type": "TIMEOUT",
+                        "team": "TEAM_ONE"
+                    },
+                    {
+                        "timestampEpoch": 1783352548869,
+                        "type": "GOAL",
+                        "team": "TEAM_ONE"
+                    },
+                    {
+                        "timestampEpoch": 1783352595076,
+                        "type": "BLUE_CARD",
+                        "team": "TEAM_ONE"
+                    },
+                    {
+                        "timestampEpoch": 1783352643541,
+                        "type": "TIME_VIOLATION",
+                        "team": "TEAM_ONE",
+                        "timeViolationOutcome": "WARNING"
+                    },
+                    {
+                        "timestampEpoch": 1783352647298,
+                        "type": "GOAL",
+                        "team": "TEAM_TWO"
+                    },
+                    {
+                        "timestampEpoch": 1783352671983,
+                        "type": "TECHNICAL_FOUL",
+                        "team": "TEAM_TWO"
+                    },
+                    {
+                        "timestampEpoch": 1783352778899,
+                        "type": "YELLOW_CARD",
+                        "team": "TEAM_ONE",
+                        "player": {
+                            "jerseyNumber": "77",
+                            "playerName": "Hank Puller"
+                        }
+                    },
+                    {
+                        "timestampEpoch": 1783352855371,
+                        "type": "GOAL",
+                        "team": "TEAM_TWO"
+                    },
+                    {
+                        "timestampEpoch": 1783352857229,
+                        "type": "TIMEOUT",
+                        "team": "TEAM_ONE"
+                    },
+                    {
+                        "timestampEpoch": 1783353025221,
+                        "type": "TECHNICAL_FOUL",
+                        "team": "TEAM_TWO"
+                    },
+                    {
+                        "timestampEpoch": 1783353030181,
+                        "type": "GOAL",
+                        "team": "TEAM_ONE"
+                    },
+                    {
+                        "timestampEpoch": 1783353451950,
+                        "type": "GOAL",
+                        "team": "TEAM_ONE"
+                    },
+                    {
+                        "timestampEpoch": 1783353453987,
+                        "type": "GOAL",
+                        "team": "TEAM_TWO"
+                    },
+                    {
+                        "timestampEpoch": 1783353454992,
+                        "type": "GOAL",
+                        "team": "TEAM_ONE"
+                    },
+                    {
+                        "timestampEpoch": 1783353455993,
+                        "type": "GOAL",
+                        "team": "TEAM_TWO"
+                    },
+                    {
+                        "timestampEpoch": 1783353486554,
+                        "type": "TECHNICAL_FOUL",
+                        "team": "TEAM_TWO"
+                    },
+                    {
+                        "timestampEpoch": 1783353549550,
+                        "type": "GOAL",
+                        "team": "TEAM_ONE"
+                    },
+                    {
+                        "timestampEpoch": 1783354195703,
+                        "type": "GOAL",
+                        "team": "TEAM_TWO"
+                    },
+                    {
+                        "timestampEpoch": 1783354229828,
+                        "type": "GOAL",
+                        "team": "TEAM_TWO"
+                    },
+                    {
+                        "timestampEpoch": 1783354229828,
+                        "type": "HALFTIME"
+                    },
+                    {
+                        "timestampEpoch": 1783355125860,
+                        "type": "GOAL",
+                        "team": "TEAM_ONE"
+                    },
+                    {
+                        "timestampEpoch": 1783355423202,
+                        "type": "GOAL",
+                        "team": "TEAM_ONE"
+                    },
+                    {
+                        "timestampEpoch": 1783355467390,
+                        "type": "GOAL",
+                        "team": "TEAM_TWO"
+                    },
+                    {
+                        "timestampEpoch": 1783355580395,
+                        "type": "OFFSIDES",
+                        "team": "TEAM_TWO"
+                    },
+                    {
+                        "timestampEpoch": 1783355588882,
+                        "type": "GOAL",
+                        "team": "TEAM_ONE"
+                    },
+                    {
+                        "timestampEpoch": 1783355693261,
+                        "type": "GOAL",
+                        "team": "TEAM_ONE"
+                    },
+                    {
+                        "timestampEpoch": 1783355854021,
+                        "type": "GOAL",
+                        "team": "TEAM_TWO"
+                    },
+                    {
+                        "timestampEpoch": 1783356084910,
+                        "type": "GOAL",
+                        "team": "TEAM_ONE"
+                    },
+                    {
+                        "timestampEpoch": 1783356217667,
+                        "type": "BLUE_CARD",
+                        "team": "TEAM_ONE"
+                    },
+                    {
+                        "timestampEpoch": 1783356418577,
+                        "type": "GOAL",
+                        "team": "TEAM_ONE"
+                    },
+                    {
+                        "timestampEpoch": 1783356689693,
+                        "type": "GOAL",
+                        "team": "TEAM_TWO"
+                    },
+                    {
+                        "timestampEpoch": 1783357355635,
+                        "type": "GOAL",
+                        "team": "TEAM_TWO"
+                    },
+                    {
+                        "timestampEpoch": 1783357582557,
+                        "type": "GOAL",
+                        "team": "TEAM_ONE"
+                    }
+                ],
+                "pullingTeam": "TEAM_ONE",
+                "pullingFromEnd": "NEAR",
+                "topDisplayedEnd": "NEAR",
+                "pullPromptTarget": "FAR",
+                "initialGenderRatio": "FOUR_WOMEN_THREE_MEN",
+                "firstHalfGenZone": "FAR",
+                "openingPullingTeam": "TEAM_ONE",
+                "openingPullingFromEnd": "NEAR",
+                "phase": "BETWEEN_POINTS",
+                "countdown": null,
+                "pullSequenceOffsidesRecorded": false,
+                "pullSequenceFalseStartRecorded": false,
+                "pullSkippedForCurrentPoint": false,
+                "pendingMisconductCountdown": false,
+                "halftimeTaken": true,
+                "halftimeTargetScore": null,
+                "winningScore": 14,
+                "halfCapApplied": false,
+                "softCapApplied": true,
+                "hardCapApplied": false,
+                "pendingCapOffer": null,
+                "undoEntry": null,
+                "redoEntry": null,
+                "lastEvent": "Red Fish Blue Fish scored."
+            }
+        },
+        "redoEntry": null,
+        "lastEvent": "Game over."
+    }
+}
