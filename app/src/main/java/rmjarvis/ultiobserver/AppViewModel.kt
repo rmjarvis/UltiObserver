@@ -805,17 +805,27 @@ internal class AppViewModel(
         persistCurrentGame()
     }
 
-    /// Delete the current setup/in-progress/completed game state and return Home.
+    /// Delete the current setup/in-progress/completed game state.
     fun deleteCurrentGame() {
-        _state.update {
-            it.copy(
+        _state.update { state ->
+            val screenAfterDelete = if (state.screen == AppScreen.ARCHIVED_GAMES) {
+                AppScreen.ARCHIVED_GAMES
+            } else {
+                AppScreen.HOME
+            }
+            val categoryAfterDelete = if (state.screen == AppScreen.ARCHIVED_GAMES) {
+                state.selectedArchiveCategory
+            } else {
+                null
+            }
+            state.copy(
                 currentGame = null,
                 setupEditDraft = null,
                 editingSavedSetupIndex = null,
                 viewingArchivedGame = null,
                 viewingCurrentGameSummary = false,
-                selectedArchiveCategory = null,
-                screen = AppScreen.HOME,
+                selectedArchiveCategory = categoryAfterDelete,
+                screen = screenAfterDelete,
             )
         }
         persistCurrentGame()

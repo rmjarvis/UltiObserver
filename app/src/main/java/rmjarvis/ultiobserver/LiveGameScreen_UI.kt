@@ -70,7 +70,6 @@ private data class PendingFieldTechnicalFoulResolution(
  * @param onUpdateGameSetup Callback reopening setup for the current game.
  * @param onOpenGameSummary Callback opening the current game summary.
  * @param onArchiveCompletedGame Callback archiving the current completed game.
- * @param onDeleteGame Callback deleting the current game.
  * @param onBackHome Callback returning to Home or setup according to ViewModel navigation rules.
  * @param onHome Callback returning directly to Home.
  */
@@ -85,7 +84,6 @@ internal fun LiveGameScreen(
     onUpdateGameSetup: () -> Unit,
     onOpenGameSummary: () -> Unit,
     onArchiveCompletedGame: () -> Unit,
-    onDeleteGame: () -> Unit,
     onBackHome: () -> Unit,
     onHome: () -> Unit,
 ) {
@@ -415,7 +413,6 @@ internal fun LiveGameScreen(
                         showMoreActionsDialog = false
                         onOpenGameSummary()
                     },
-                    onDeleteGame = onDeleteGame,
                     onAction = { updatedState ->
                         onStateChange(updatedState)
                         showMoreActionsDialog = false

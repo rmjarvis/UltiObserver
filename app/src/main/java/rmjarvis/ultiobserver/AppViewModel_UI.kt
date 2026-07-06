@@ -298,6 +298,9 @@ internal fun UltiObserverApp(
                     onOpenArchivedGame = { index ->
                         viewModel.openArchivedGame(index, System.currentTimeMillis())
                     },
+                    onDeleteCurrentGame = {
+                        viewModel.deleteCurrentGame()
+                    },
                     onDeleteArchivedGame = { index ->
                         viewModel.deleteArchivedGame(index)
                     },
@@ -482,9 +485,6 @@ internal fun UltiObserverApp(
                     },
                     onArchiveCompletedGame = {
                         viewModel.archiveCompletedGame()
-                    },
-                    onDeleteGame = {
-                        viewModel.deleteCurrentGame()
                     },
                     onBackHome = {
                         viewModel.goBackFromCurrentScreen()

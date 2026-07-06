@@ -10,7 +10,6 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -195,25 +194,6 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
             hasText(label, substring = true) and
                 hasAnyAncestor(hasTestTag("adjust-pull-violations-content"))
         ).assertCountEquals(expectedCount)
-    }
-
-    /**
-     * Test that deleting the current game is guarded by the slide confirmation.
-     */
-    @Test
-    fun deleteGame() {
-        startLiveGameProgrammatically()
-
-        openMoreActionsDialog()
-        composeRule.onNodeWithText("Delete game").performScrollTo().performClick()
-        waitForText("This cannot be undone", substring = true)
-        dismissDialog(text = "Cancel")
-        waitForText("Update game setup")
-
-        composeRule.onNodeWithText("Delete game").performScrollTo().performClick()
-        confirmDeleteWithSlider()
-        waitForText("Start new game")
-        assertTrue(composeRule.onAllNodesWithText("Current game").fetchSemanticsNodes().isEmpty())
     }
 
 }

@@ -54,6 +54,7 @@ import java.time.LocalDate
  * @param onOpenCurrentGame Callback opening the current game summary.
  * @param onOpenCurrentSetup Callback opening the current setup draft.
  * @param onOpenArchivedGame Callback opening an archived game by index.
+ * @param onDeleteCurrentGame Callback deleting the current game/setup from a category page.
  * @param onDeleteArchivedGame Callback deleting an archived game by index.
  * @param onDeleteAllArchivedGames Callback deleting every archived/saved game.
  * @param onDeleteSelectedArchivedGames Callback deleting selected archive rows.
@@ -82,6 +83,7 @@ internal fun ArchivedGamesScreen(
     onOpenCurrentGame: () -> Unit,
     onOpenCurrentSetup: () -> Unit,
     onOpenArchivedGame: (Int) -> Unit,
+    onDeleteCurrentGame: () -> Unit,
     onDeleteArchivedGame: (Int) -> Unit,
     onDeleteAllArchivedGames: () -> Unit,
     onDeleteSelectedArchivedGames: (Set<Int>) -> Unit,
@@ -91,6 +93,7 @@ internal fun ArchivedGamesScreen(
     onHome: () -> Unit,
 ) {
     var pendingDeleteIndex by remember { mutableStateOf<Int?>(null) }
+    var pendingDeleteCurrentGame by remember { mutableStateOf(false) }
     var pendingDeleteAll by remember { mutableStateOf(false) }
     var pendingDeleteSelectedArchiveIndices by remember { mutableStateOf<Set<Int>?>(null) }
     var showFilterDialog by remember { mutableStateOf(false) }
@@ -164,6 +167,7 @@ internal fun ArchivedGamesScreen(
                             savedGames = selectedGames,
                             onOpenCurrentGame = onOpenCurrentGame,
                             onOpenArchivedGame = onOpenArchivedGame,
+                            onDeleteCurrentGame = { pendingDeleteCurrentGame = true },
                             onDeleteSavedGame = { pendingDeleteIndex = it },
                             onDeleteAllSavedGames = { pendingDeleteAll = true },
                         )
@@ -173,6 +177,7 @@ internal fun ArchivedGamesScreen(
                             savedSetups = selectedGames,
                             onOpenCurrentSetup = onOpenCurrentSetup,
                             onOpenSavedSetup = onOpenArchivedGame,
+                            onDeleteCurrentSetup = { pendingDeleteCurrentGame = true },
                             onDeleteSavedSetup = { pendingDeleteIndex = it },
                             onDeleteAllSavedSetups = { pendingDeleteAll = true },
                         )
@@ -189,6 +194,14 @@ internal fun ArchivedGamesScreen(
             onConfirmDelete = {
                 pendingDeleteIndex = null
                 onDeleteArchivedGame(deleteIndex)
+            },
+        )
+    } else if (pendingDeleteCurrentGame) {
+        DeleteGameDialog(
+            onDismiss = { pendingDeleteCurrentGame = false },
+            onConfirmDelete = {
+                pendingDeleteCurrentGame = false
+                onDeleteCurrentGame()
             },
         )
     } else if (pendingDeleteAll) {
@@ -300,11 +313,10 @@ private fun ArchiveListWithControls(
                 )
             } else {
                 selectedGames.forEachIndexed { displayedIndex, game ->
-                    ArchivedGameRow(
-                        displayedIndex = displayedIndex,
+                    DeletableGameListRow(
                         entry = game.entry,
-                        rowTagPrefix = "archived-game",
-                        deleteTagPrefix = "delete-archived-game",
+                        rowTag = "archived-game-$displayedIndex",
+                        deleteTag = "delete-archived-game-$displayedIndex",
                         onClick = {
                             onOpenArchivedGame(game.index)
                         },
@@ -774,6 +786,7 @@ private fun ArchiveSortDialog(
  * @param savedGames Saved in-progress game rows.
  * @param onOpenCurrentGame Callback opening the current game summary.
  * @param onOpenArchivedGame Callback opening one saved in-progress game.
+ * @param onDeleteCurrentGame Callback requesting deletion of the current game.
  * @param onDeleteSavedGame Callback requesting deletion of one saved in-progress game.
  * @param onDeleteAllSavedGames Callback requesting deletion of all saved in-progress games.
  */
@@ -783,6 +796,7 @@ private fun InProgressGamesList(
     savedGames: List<ArchivedGameListItem>,
     onOpenCurrentGame: () -> Unit,
     onOpenArchivedGame: (Int) -> Unit,
+    onDeleteCurrentGame: () -> Unit,
     onDeleteSavedGame: (Int) -> Unit,
     onDeleteAllSavedGames: () -> Unit,
 ) {
@@ -793,12 +807,12 @@ private fun InProgressGamesList(
 
     if (currentGame != null) {
         ArchiveSectionLabel("Current game")
-        GameListRow(
+        DeletableGameListRow(
             entry = currentGame,
+            rowTag = "current-in-progress-game",
+            deleteTag = "delete-current-in-progress-game",
             onClick = onOpenCurrentGame,
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("current-in-progress-game"),
+            onDelete = onDeleteCurrentGame,
         )
     }
 
@@ -809,11 +823,10 @@ private fun InProgressGamesList(
             onDeleteAllSavedItems = onDeleteAllSavedGames,
         )
         savedGames.forEachIndexed { index, game ->
-            ArchivedGameRow(
-                displayedIndex = index,
+            DeletableGameListRow(
                 entry = game.entry,
-                rowTagPrefix = "saved-in-progress-game",
-                deleteTagPrefix = "delete-saved-in-progress-game",
+                rowTag = "saved-in-progress-game-$index",
+                deleteTag = "delete-saved-in-progress-game-$index",
                 onClick = {
                     onOpenArchivedGame(game.index)
                 },
@@ -832,6 +845,7 @@ private fun InProgressGamesList(
  * @param savedSetups Saved setup-state rows.
  * @param onOpenCurrentSetup Callback opening the current setup draft.
  * @param onOpenSavedSetup Callback opening one saved setup state.
+ * @param onDeleteCurrentSetup Callback requesting deletion of the current setup draft.
  * @param onDeleteSavedSetup Callback requesting deletion of one saved setup state.
  * @param onDeleteAllSavedSetups Callback requesting deletion of all saved setup drafts.
  */
@@ -841,6 +855,7 @@ private fun SetupStatesList(
     savedSetups: List<ArchivedGameListItem>,
     onOpenCurrentSetup: () -> Unit,
     onOpenSavedSetup: (Int) -> Unit,
+    onDeleteCurrentSetup: () -> Unit,
     onDeleteSavedSetup: (Int) -> Unit,
     onDeleteAllSavedSetups: () -> Unit,
 ) {
@@ -851,12 +866,12 @@ private fun SetupStatesList(
 
     if (currentSetup != null) {
         ArchiveSectionLabel("Current setup")
-        GameListRow(
+        DeletableGameListRow(
             entry = currentSetup,
+            rowTag = "current-setup-state",
+            deleteTag = "delete-current-setup-state",
             onClick = onOpenCurrentSetup,
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("current-setup-state"),
+            onDelete = onDeleteCurrentSetup,
         )
     }
 
@@ -867,11 +882,10 @@ private fun SetupStatesList(
             onDeleteAllSavedItems = onDeleteAllSavedSetups,
         )
         savedSetups.forEachIndexed { index, setup ->
-            ArchivedGameRow(
-                displayedIndex = index,
+            DeletableGameListRow(
                 entry = setup.entry,
-                rowTagPrefix = "saved-setup-state",
-                deleteTagPrefix = "delete-saved-setup-state",
+                rowTag = "saved-setup-state-$index",
+                deleteTag = "delete-saved-setup-state-$index",
                 onClick = {
                     onOpenSavedSetup(setup.index)
                 },
@@ -974,21 +988,19 @@ private fun ArchiveCategoryButton(
 }
 
 /**
- * Render an archived game row with a separate right-side delete action.
+ * Render a game list row with a separate right-side delete action.
  *
- * @param displayedIndex The row index in the currently visible archive category.
  * @param entry The game list entry to display.
- * @param rowTagPrefix Prefix for the row test tag.
- * @param deleteTagPrefix Prefix for the delete action test tag.
- * @param onClick Callback opening this archived game.
- * @param onDelete Callback requesting deletion of this archived game.
+ * @param rowTag Test tag for the row-opening action.
+ * @param deleteTag Test tag for the row's delete action.
+ * @param onClick Callback opening this game.
+ * @param onDelete Callback requesting deletion of this game.
  */
 @Composable
-private fun ArchivedGameRow(
-    displayedIndex: Int,
+private fun DeletableGameListRow(
     entry: GameListEntry,
-    rowTagPrefix: String = "archived-game",
-    deleteTagPrefix: String = "delete-archived-game",
+    rowTag: String,
+    deleteTag: String,
     onClick: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -1001,14 +1013,14 @@ private fun ArchivedGameRow(
             onClick = onClick,
             modifier = Modifier
                 .weight(1f)
-                .testTag("$rowTagPrefix-$displayedIndex"),
+                .testTag(rowTag),
         )
         IconActionButton(
             icon = Icons.Filled.Delete,
             contentDescription = "Delete ${entry.summaryLine}",
             size = 48.dp,
             iconSize = 24.dp,
-            tag = "$deleteTagPrefix-$displayedIndex",
+            tag = deleteTag,
             onClick = onDelete,
         )
     }

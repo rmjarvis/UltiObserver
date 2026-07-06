@@ -706,8 +706,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("current-setup-state")
             .assertTextContains(editedSavedSetupTitle, substring = true)
 
-        // Delete all in the saved setup section removes only the saved setup rows.  Once the
-        // current setup is also removed, the setup category shows its empty state.
+        // Delete all in the saved setup section removes only the saved setup rows.
         val bulkCurrentSetupTitle = "BulkCurrentSetupA$suffix vs BulkCurrentSetupB$suffix"
         seedCurrentSetupAndSavePrevious("BulkCurrentSetupA$suffix", "BulkCurrentSetupB$suffix")
         openArchivedGamesScreen()
@@ -721,9 +720,14 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onAllNodesWithTag("saved-setup-state-0").assertCountEquals(0)
         composeRule.onNodeWithTag("current-setup-state")
             .assertTextContains(bulkCurrentSetupTitle, substring = true)
-        clearCurrentGameProgrammatically()
-        openArchivedGamesScreen()
-        composeRule.onNodeWithText("Saved setup drafts (0)").performClick()
+
+        // The current setup row can also be deleted from this category after confirmation.
+        composeRule.onNodeWithTag("delete-current-setup-state").performClick()
+        dismissDialog(text = "Cancel")
+        composeRule.onNodeWithTag("current-setup-state")
+            .assertTextContains(bulkCurrentSetupTitle, substring = true)
+        composeRule.onNodeWithTag("delete-current-setup-state").performClick()
+        confirmDeleteWithSlider()
         waitForText("No saved setup drafts.")
         tapTopBarHome()
         waitForText("Start new game")
@@ -737,6 +741,15 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText(currentProgressTitle)
         composeRule.onAllNodesWithTag("current-in-progress-game").assertCountEquals(1)
         composeRule.onAllNodesWithTag("saved-in-progress-game-0").assertCountEquals(0)
+
+        // The current in-progress row can also be deleted from this category after confirmation.
+        composeRule.onNodeWithTag("delete-current-in-progress-game").performClick()
+        dismissDialog(text = "Cancel")
+        composeRule.onNodeWithTag("current-in-progress-game")
+            .assertTextContains(currentProgressTitle, substring = true)
+        composeRule.onNodeWithTag("delete-current-in-progress-game").performClick()
+        confirmDeleteWithSlider()
+        waitForText("No in-progress games.")
 
         // Start an in-progress game, but then start another new game.  This moves what was
         // the current game into the saved games section of the in-progress archive.

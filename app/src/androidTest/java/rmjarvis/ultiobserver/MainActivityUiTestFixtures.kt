@@ -47,6 +47,7 @@ abstract class MainActivityUiTestFixtures {
     protected fun clearCurrentGameProgrammatically() {
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.appViewModel.deleteCurrentGame()
+            activity.appViewModel.goHome()
         }
         composeRule.waitForIdle()
     }

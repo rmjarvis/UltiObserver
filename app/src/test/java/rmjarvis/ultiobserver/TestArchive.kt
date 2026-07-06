@@ -1123,6 +1123,16 @@ class TestArchive : GameDomainTestFixtures() {
         assertNull(viewModel.currentGame)
         assertNull(viewModel.displayedGame)
 
+        // Deleting the current game from an archive category keeps that category open.
+        viewModel.updateCurrentGame(currentGame.beginLivePoint())
+        viewModel.openArchivedGames()
+        viewModel.openArchivedGameCategory(ArchivedGameCategory.IN_PROGRESS)
+        viewModel.deleteCurrentGame()
+        assertEquals(AppScreen.ARCHIVED_GAMES, viewModel.screen)
+        assertEquals(ArchivedGameCategory.IN_PROGRESS, viewModel.selectedArchiveCategory)
+        assertNull(viewModel.currentGame)
+        assertNull(viewModel.displayedGame)
+
         // Deleting a viewed archived game clears the selection.
         viewModel.updateCurrentGame(currentGame.copy(phase = GamePhase.GAME_OVER))
         viewModel.archiveCompletedGame()

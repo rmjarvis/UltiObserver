@@ -23,7 +23,6 @@ private enum class MoreActionsChildDialog {
     ADJUST_CARDS,
     ADJUST_PULL_VIOLATIONS,
     CHANGE_PULL_PROMPTS,
-    DELETE_GAME,
 }
 
 /**
@@ -34,7 +33,6 @@ private enum class MoreActionsChildDialog {
  * @param onUpdateGameSetup Callback reopening setup for the current game.
  * @param onShowEventLog Callback opening the current game's event log.
  * @param onShowGameSummary Callback opening the current game summary.
- * @param onDeleteGame Callback deleting the current game after confirmation.
  * @param onAction Callback receiving an updated live game state after a model action.
  * @param onStateUpdate Callback receiving an updated live game state without closing More actions.
  */
@@ -45,7 +43,6 @@ internal fun MoreActionsContent(
     onUpdateGameSetup: () -> Unit,
     onShowEventLog: () -> Unit,
     onShowGameSummary: () -> Unit,
-    onDeleteGame: () -> Unit,
     onAction: (GameState) -> Unit,
     onStateUpdate: (GameState) -> Unit,
 ) {
@@ -124,16 +121,6 @@ internal fun MoreActionsContent(
             onConfirm = { target ->
                 onAction(state.withPullPromptTarget(target))
                 childDialog = null
-            },
-        )
-    } else if (childDialog == MoreActionsChildDialog.DELETE_GAME) {
-        // DeleteGameDialog lives in ArchivedGames_UI.kt because game deletion is
-        // mostly archived-game UI.
-        DeleteGameDialog(
-            onDismiss = { childDialog = null },
-            onConfirmDelete = {
-                childDialog = null
-                onDeleteGame()
             },
         )
     } else {
@@ -242,12 +229,6 @@ internal fun MoreActionsContent(
                             },
                         )
                     }
-                    MenuButton(
-                        label = "Delete game",
-                        colors = resetButtonColors(),
-                        borderColor = null,
-                        onClick = { childDialog = MoreActionsChildDialog.DELETE_GAME },
-                    )
                 }
             }
         }
