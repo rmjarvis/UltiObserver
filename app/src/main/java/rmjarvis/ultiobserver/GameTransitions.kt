@@ -14,6 +14,7 @@ fun GameState.startGame(): GameState {
         teamTwo = teamTwo.copy(name = teamTwo.normalizedName(TeamId.TEAM_TWO)),
         pullingTeam = openingPullingTeam,
         pullingFromEnd = openingPullingFromEnd,
+        topDisplayedEnd = pullPromptTarget.initialTopDisplayedEnd(),
         phase = GamePhase.PRE_GAME,
         countdown = buildBetweenPointsCountdown(
             pullingFromEnd = openingPullingFromEnd,

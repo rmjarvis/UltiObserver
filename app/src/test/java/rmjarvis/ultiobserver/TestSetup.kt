@@ -434,6 +434,32 @@ class TestSetup : GameDomainTestFixtures() {
         assertEquals("Both", PullPromptTarget.BOTH.choiceLabel("Road", "Trees"))
         assertEquals("Neither", PullPromptTarget.NEITHER.choiceLabel("Road", "Trees"))
 
+        // Starting a game initially puts the prompt-responsibility end at the bottom.
+        assertEquals(
+            FieldEnd.FAR,
+            setup.copy(pullPromptTarget = PullPromptTarget.NEAR)
+                .startGame()
+                .topDisplayedEnd,
+        )
+        assertEquals(
+            FieldEnd.NEAR,
+            setup.copy(pullPromptTarget = PullPromptTarget.FAR)
+                .startGame()
+                .topDisplayedEnd,
+        )
+        assertEquals(
+            FieldEnd.FAR,
+            setup.copy(pullPromptTarget = PullPromptTarget.BOTH)
+                .startGame()
+                .topDisplayedEnd,
+        )
+        assertEquals(
+            FieldEnd.FAR,
+            setup.copy(pullPromptTarget = PullPromptTarget.NEITHER)
+                .startGame()
+                .topDisplayedEnd,
+        )
+
         // Division and level option helpers supply the setup dialog lists in display order.
         assertEquals(
             listOf(GameDivision.OPEN, GameDivision.WOMENS, GameDivision.MIXED, null),

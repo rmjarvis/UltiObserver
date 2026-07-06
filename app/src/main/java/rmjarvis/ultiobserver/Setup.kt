@@ -250,6 +250,16 @@ internal fun PullPromptTarget.choiceLabel(nearLabel: String, farLabel: String): 
     }
 }
 
+/// Return the initial top field end that puts the observer's prompt end at the bottom.
+internal fun PullPromptTarget.initialTopDisplayedEnd(): FieldEnd {
+    return when (this) {
+        PullPromptTarget.FAR -> FieldEnd.NEAR
+        PullPromptTarget.NEAR,
+        PullPromptTarget.BOTH,
+        PullPromptTarget.NEITHER -> FieldEnd.FAR
+    }
+}
+
 /// Return the compact half/soft/hard cap summary.
 internal fun GameRules.capRulesSummary(): String {
     return "${capSummary(useHalfCap, halfCapMinutes)}/" +
