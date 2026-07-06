@@ -928,13 +928,14 @@ private fun TeamActionGrid(
 
 /// Format the compact field-button label for a pull-violation type.
 internal fun PullViolationType.fieldActionLabel(team: TeamState): String {
+    val pullViolationCount = team.pullViolationCount()
     return when (this) {
-        PullViolationType.OFFSIDES -> countedActionLabel("Offsides", team.offsides)
-        PullViolationType.FALSE_START -> countedActionLabel("False start", team.falseStarts)
+        PullViolationType.OFFSIDES -> countedActionLabel("Offsides", pullViolationCount)
+        PullViolationType.FALSE_START -> countedActionLabel("False start", pullViolationCount)
         PullViolationType.MAJORITY_PULL -> countedActionLabel(
             // Completeness only: majority pull is selected inside the offsides dialog.
             "Majority pull",
-            team.majorityPullViolations,
+            pullViolationCount,
         )
     }
 }

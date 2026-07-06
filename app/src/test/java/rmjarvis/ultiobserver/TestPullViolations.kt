@@ -20,7 +20,7 @@ class TestPullViolations : GameDomainTestFixtures() {
      */
     @Test
     fun fieldActionLabels() {
-        // Field labels include the current violation count for each violation type.
+        // Field labels include the current total pull-violation count for every type.
         val team = TeamState(
             name = "Viscous Coupling",
             color = TeamColorChoice.WHITE,
@@ -30,9 +30,9 @@ class TestPullViolations : GameDomainTestFixtures() {
             timeViolations = 4,
         )
 
-        assertEquals("Offsides (1)", PullViolationType.OFFSIDES.fieldActionLabel(team))
-        assertEquals("False start (2)", PullViolationType.FALSE_START.fieldActionLabel(team))
-        assertEquals("Majority pull (3)", PullViolationType.MAJORITY_PULL.fieldActionLabel(team))
+        assertEquals("Offsides (6)", PullViolationType.OFFSIDES.fieldActionLabel(team))
+        assertEquals("False start (6)", PullViolationType.FALSE_START.fieldActionLabel(team))
+        assertEquals("Majority pull (6)", PullViolationType.MAJORITY_PULL.fieldActionLabel(team))
         assertEquals("Time viol. (4)", team.timeViolationFieldActionLabel())
 
         // Zero-count field labels stay compact until the observer has recorded that event.

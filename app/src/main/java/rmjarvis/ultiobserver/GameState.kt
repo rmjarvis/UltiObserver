@@ -311,7 +311,7 @@ internal fun TeamState.hasCoachOrCaptainInfo(): Boolean {
     return coaches.isNotBlank() || fieldCaptains.isNotBlank() || spiritCaptains.isNotBlank()
 }
 
-/// Count combined offsides and false-start pull violations for display.
+/// Count combined pull violations for display and consequence handling.
 internal fun TeamState.pullViolationCount(): Int {
     return offsides + falseStarts + majorityPullViolations
 }
