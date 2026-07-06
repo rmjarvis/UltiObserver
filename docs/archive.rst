@@ -1,6 +1,11 @@
 Saved And Archived Games
 ========================
 
+.. figure:: screen-shots/ArchiveCategories.png
+   :class: phone-screenshot
+   :target: _images/ArchiveCategories.png
+   :alt: Saved and archived games screen with archived games, in-progress games, and saved setup drafts
+
 UltiObserver keeps track of past games so you can reference them later, including
 potentially share the summary information with people after the fact (cf. :ref:`Share`).
 It also saves setup drafts and in-progress games that might have accidentally been
@@ -9,6 +14,11 @@ home button **See archived/saved games**. That takes you to a page with three me
 
 Archived games
 --------------
+
+.. figure:: screen-shots/AllArchiveGames.png
+   :class: phone-screenshot
+   :target: _images/AllArchiveGames.png
+   :alt: Archived games list showing several saved completed games
 
 Completed games end up here. You can manually archive a completed game from the
 :ref:`Game Summary` page that shows up after a game is over. You can also archive a
@@ -34,6 +44,11 @@ share the game summary with someone, just as you could from the regular Game Sum
 page after the game. Similarly, **Event log** shows the same event log that was available
 from the Game Summary page.
 
+.. figure:: screen-shots/FilterLevel.png
+   :class: phone-screenshot
+   :target: _images/FilterLevel.png
+   :alt: Archive filter screen showing selectable level values
+
 If the list of archived games is very long, it may be useful to filter the games by
 one or more criteria. If you click **Filter**, it will give you options to filter the
 games by:
@@ -58,6 +73,11 @@ options for:
 * This year
 
 which fill the start and end dates appropriately. You can click on those dates to edit them.
+
+.. figure:: screen-shots/FilteredSortedArchive.png
+   :class: phone-screenshot
+   :target: _images/FilteredSortedArchive.png
+   :alt: Filtered archived games list with three active filters and sort with oldest dates first
 
 When filters are enabled, the list of games will show only those games that satisfy all
 active filters.
@@ -99,6 +119,11 @@ also delete all saved in-progress games by pressing **Delete all**.
 
 Saved setup drafts
 ------------------
+
+.. figure:: screen-shots/SavedSetupDrafts.png
+   :class: phone-screenshot
+   :target: _images/SavedSetupDrafts.png
+   :alt: Saved setup drafts screen showing four drafts
 
 Saved setup drafts are games that have not started yet. As mentioned in
 `Setting Up A Game`, you can fill in as much information as you know about each of

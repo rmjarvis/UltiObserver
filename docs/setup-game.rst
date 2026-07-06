@@ -1,6 +1,11 @@
 Setting Up A Game
 =================
 
+.. figure:: screen-shots/SetupTop.png
+   :class: phone-screenshot
+   :target: _images/SetupTop.png
+   :alt: Setup screen with team names, colors, coach and captain information, and cards
+
 Clicking **Start a new game** takes you to the setup screen.
 This is where you enter all the details about the game before the game starts.
 Many of these details can be set well in advance of the game, leaving only the details
@@ -48,6 +53,11 @@ you can just skip entering prior cards here.
 Game Information
 ----------------
 
+.. figure:: screen-shots/GameInformationTop.png
+   :class: phone-screenshot
+   :target: _images/GameInformationTop.png
+   :alt: Game information section with date, start time, observers, field number, and tournament
+
 This is where you can set the basic information about the game being played.
 
 * **Date** This defaults to the current day, so this is likely to be usually correct already.
@@ -75,6 +85,11 @@ This is where you can set the basic information about the game being played.
 Field And Starting Pull
 -----------------------
 
+.. figure:: screen-shots/FieldStartingPullTop.png
+   :class: phone-screenshot
+   :target: _images/FieldStartingPullTop.png
+   :alt: Field and starting pull setup with named field ends, pulling team, pull end, and prompts
+
 The first thing here is what you want to call the two ends of the field. The default
 names are simply **Near end** and **Far end** with the assumption that you are located at
 **Near end** for the purpose of which pull prompts you get. But you can name them something
@@ -99,6 +114,11 @@ The rest of the items are the details that are decided at the opening pull.
 
 Game Rules
 ----------
+
+.. figure:: screen-shots/GameRules.png
+   :class: phone-screenshot
+   :target: _images/GameRules.png
+   :alt: Game rules section with game target, halftime, caps, timeouts, and mixed gender ratio
 
 This is where you can set the rules that apply to this game in case the tournament has any
 modifications from standard USAU rules.

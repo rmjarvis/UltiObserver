@@ -1,6 +1,11 @@
 Game Summary
 ============
 
+.. figure:: screen-shots/GameSummary.png
+   :class: phone-screenshot
+   :target: _images/GameSummary.png
+   :alt: Completed game summary with tournament information, field, start and end time, score, and team misconduct totals
+
 After a game is over, the app will show you a post-game summary page with the
 most important information about the game including:
 
@@ -16,6 +21,11 @@ most important information about the game including:
 Share
 -----
 
+.. figure:: screen-shots/ShareSummary.png
+   :class: phone-screenshot
+   :target: _images/ShareSummary.png
+   :alt: Android share sheet for sharing a game summary
+
 After a game, you will usually need to report this information to the tournament
 director and the head observer. The **Share** button makes this easy to do if you
 have an email or phone number for them.
@@ -30,6 +40,11 @@ other events that don't really matter after the game is over.
 
 Event Log
 ---------
+
+.. figure:: screen-shots/EventLog.png
+   :class: phone-screenshot
+   :target: _images/EventLog.png
+   :alt: Event log dialog with timestamped game events and share button
 
 The event log records all game events with timestamps, including first pull, goals,
 cards, technical fouls, pull violations, time violations, timeouts, halftime,

@@ -1,6 +1,11 @@
 Timing Cues
 ===========
 
+.. figure:: screen-shots/CueSoundSettings.png
+   :class: phone-screenshot
+   :target: _images/CueSoundSettings.png
+   :alt: Cue sound settings screen with per-cue sound, vibration, and repeat controls
+
 One of the main jobs of observers is to keep track of the time limits for different
 intervals during the game. For each of these, UltiObserver starts a countdown showing
 how much time is left until something is supposed to happen (offense ready, pull,
@@ -81,6 +86,11 @@ the first pull of the second half.
 
 Cap Alerts
 ----------
+
+.. figure:: screen-shots/CapAlertPermission.png
+   :class: phone-screenshot
+   :target: _images/CapAlertPermission.png
+   :alt: Permission prompt explaining that cap alerts need alarm access
 
 Half, soft, and hard caps don't have any cues for something to shout at any time, but you
 can set them to vibrate or make a sound when they come due. These are set in the same place

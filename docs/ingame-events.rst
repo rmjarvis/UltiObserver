@@ -7,6 +7,11 @@ team areas of the active game screen.
 Timeouts
 --------
 
+.. figure:: screen-shots/TimeoutCountdown.png
+   :class: phone-screenshot
+   :target: _images/TimeoutCountdown.png
+   :alt: Timeout countdown on the active game screen with the next timing cue
+
 UltiObserver tracks each team's remaining timeouts based on the configured game
 rules. The button in the team area of the game screen shows the number of timeouts
 available for each team in the current half.
@@ -34,6 +39,11 @@ a live point.
 Pull Violations
 ---------------
 
+.. figure:: screen-shots/Offsides.png
+   :class: phone-screenshot
+   :target: _images/Offsides.png
+   :alt: Offsides dialog explaining the restart location and check requirement
+
 The button label for a pull violation is either **Offsides** or **False start**, depending
 on whether they are pulling or receiving. If they have any prior pull violations (of either
 type), the total number of pull violations is shown on the button as well, as this impacts
@@ -50,6 +60,11 @@ same in either case, but this will record the violation event with the correct n
 
 Time Violations
 ---------------
+
+.. figure:: screen-shots/TimeViolation.png
+   :class: phone-screenshot
+   :target: _images/TimeViolation.png
+   :alt: Time violation dialog explaining a warning and restart countdown
 
 If the offense does not signal readiness in time or the defense does not pull in time, you
 may record a time violation by clicking the **Time viol.** button. This does different things

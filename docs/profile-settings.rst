@@ -6,6 +6,11 @@ Profile And Settings
 Profile
 -------
 
+.. figure:: screen-shots/Profile.png
+   :class: phone-screenshot
+   :target: _images/Profile.png
+   :alt: Profile screen with observer name and avatar selection
+
 The main thing to set on the profile screen is your name. When it is set, any new-game setup
 pre-populates the first observer row with that name. The second observer row is
 left blank for the partner assigned to work with you. You can of course change the first
@@ -16,8 +21,15 @@ This is also where you can change the avatar picture that displays on the home s
 The default is to choose randomly from among all the available images, but you may
 select one in particular to always show if you want.
 
+
 Settings
 --------
+
+
+.. figure:: screen-shots/SettingsTop.png
+   :class: phone-screenshot
+   :target: _images/SettingsTop.png
+   :alt: Settings screen with automatic live play, auto-lock, defensive countdown, sound, vibration, and volume controls
 
 Settings is where you can change how the app works in various ways.
 

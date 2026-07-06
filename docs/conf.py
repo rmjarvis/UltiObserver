@@ -14,7 +14,7 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 html_theme = "furo"
 html_title = "UltiObserver"
 html_static_path = ["_static"]
-html_css_files = ["custom.css"]
+html_css_files = ["docs-layout.css"]
 html_theme_options = {
     "source_repository": "https://github.com/rmjarvis/UltiObserver/",
     "source_branch": "main",

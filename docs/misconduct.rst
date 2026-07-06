@@ -6,6 +6,18 @@ This page provides details about how UltiObserver handles various aspects of mis
 Yellow and red cards
 --------------------
 
+.. figure:: screen-shots/YellowCardPlayer.png
+   :class: phone-screenshot
+   :target: _images/YellowCardPlayer.png
+   :alt: Yellow card player entry dialog with number and name fields
+
+
+.. figure:: screen-shots/YellowCardReason.png
+   :class: phone-screenshot desktop-only
+   :target: _images/YellowCardReason.png
+   :alt: Yellow card reason dialog with standard reason buttons and details field
+
+
 To record a card (either yellow or red) assessed against a player, click the **Card** button
 for that player's team. This will open a popup dialog letting you choose the color of the
 card you want to record.
@@ -13,6 +25,11 @@ card you want to record.
 After pressing either yellow or red, you will be prompted to enter the player's information,
 including the number and name if you know it. If you only know the number, that's fine.
 Or if the player doesn't have a number, you can just enter a name.
+
+.. figure:: screen-shots/YellowCardReason.png
+   :class: phone-screenshot mobile-only
+   :target: _images/YellowCardReason.png
+   :alt: Yellow card reason dialog with standard reason buttons and details field
 
 You can also select a reason for the card. There are buttons to choose any of the standard
 reasons given in the rules. Or you can choose **Other** to enter any reason you want.
@@ -24,6 +41,11 @@ If you enter the number and/or name of a player who already has a yellow card, t
 inform you that this is the player's second yellow and they are suspended from the rest of
 the game.
 
+.. figure:: screen-shots/ThirdCardPenalty.png
+   :class: phone-screenshot desktop-only
+   :target: _images/ThirdCardPenalty.png
+   :alt: Third team card penalty dialog asking whether the card was on offense or defense
+
 If you have entered prior cards from previous games at the tournament, and this card takes
 them over the limit of 3 tournament cards (counting reds as 2), it will let you know that
 the player is suspended from all games for the rest of the tournament.
@@ -33,12 +55,18 @@ ask if you really meant to do this, giving you the option to correct the name if
 meant for them to be the same. Since sometimes teams have two players with the same number,
 it will allow you to confirm that this is a different person with the same number.
 
+.. figure:: screen-shots/ThirdCardPenalty.png
+   :class: phone-screenshot mobile-only
+   :target: _images/ThirdCardPenalty.png
+   :alt: Third team card penalty dialog asking whether the card was on offense or defense
+
 Upon recording the card, a message will tell you the total number of cards assessed against
 the team (see :ref:`team-card-totals` below).
 
 If there is a yardage penalty (for the 3rd or later team card) it will tell you what the
 consequence is. For live point misconduct, it will ask you whether the card was against
 the offense or defense so it can tell you the right restart.
+
 
 Editing existing cards
 ----------------------

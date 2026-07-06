@@ -1,0 +1,1 @@
+sphinx-build -b html -W --keep-going . _build/html

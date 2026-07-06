@@ -8,6 +8,11 @@ during the game as well as buttons to record events that happen during the game.
 Time and Countdowns
 -------------------
 
+.. figure:: screen-shots/OffenseSignalTimer.png
+   :class: phone-screenshot
+   :target: _images/OffenseSignalTimer.ong
+   :alt: Active game screen with a countdown showing the time until the offense needs signal readiness.
+
 The top section of the screen shows the current time, the time until the next
 relevant cap, if any, and a countdown for the next game transition, if appropriate.
 
@@ -86,6 +91,11 @@ half.
 
 Locking And Unlocking
 ---------------------
+
+.. figure:: screen-shots/LockedScreen.png
+   :class: phone-screenshot
+   :target: _images/LockedScreen.png
+   :alt: Locked active game screen with an unlock slider
 
 The screen automatically locks during live points by default. This keeps the layout in
 place but disables normal buttons. Drag the unlock slider to the right to unlock the screen.
