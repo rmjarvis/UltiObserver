@@ -976,19 +976,29 @@ private fun PullDirectionIndicator(
     topDisplayedEnd: FieldEnd,
     modifier: Modifier = Modifier,
 ) {
-    Column(
+    BoxWithConstraints(
         modifier = modifier
             .width(64.dp)
             .fillMaxHeight(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceEvenly,
     ) {
-        if (pullingFromEnd == topDisplayedEnd) {
-            PullDirectionLabel()
-        }
-        PullDirectionArrow(pointsTowardBottom = pullingFromEnd == topDisplayedEnd)
-        if (pullingFromEnd == topDisplayedEnd.flip()) {
-            PullDirectionLabel()
+        val arrowHeight = (maxHeight - 22.dp).coerceIn(24.dp, 46.dp)
+        val arrowWidth = (arrowHeight.value * 34f / 46f).dp
+        Column(
+            modifier = Modifier.fillMaxHeight(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceEvenly,
+        ) {
+            if (pullingFromEnd == topDisplayedEnd) {
+                PullDirectionLabel()
+            }
+            PullDirectionArrow(
+                pointsTowardBottom = pullingFromEnd == topDisplayedEnd,
+                width = arrowWidth,
+                height = arrowHeight,
+            )
+            if (pullingFromEnd == topDisplayedEnd.flip()) {
+                PullDirectionLabel()
+            }
         }
     }
 }
@@ -997,9 +1007,15 @@ private fun PullDirectionIndicator(
  * Draw the pull-direction arrow.
  *
  * @param pointsTowardBottom Whether the arrow should point toward the displayed bottom end.
+ * @param width Width for the arrow icon.
+ * @param height Height for the arrow icon.
  */
 @Composable
-private fun PullDirectionArrow(pointsTowardBottom: Boolean) {
+private fun PullDirectionArrow(
+    pointsTowardBottom: Boolean,
+    width: Dp,
+    height: Dp,
+) {
     Icon(
         imageVector = if (pointsTowardBottom) {
             Icons.Filled.South
@@ -1008,8 +1024,8 @@ private fun PullDirectionArrow(pointsTowardBottom: Boolean) {
         },
         contentDescription = null,
         modifier = Modifier
-            .width(34.dp)
-            .height(46.dp),
+            .width(width)
+            .height(height),
         tint = Color.Black,
     )
 }
