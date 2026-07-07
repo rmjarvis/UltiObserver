@@ -17,6 +17,12 @@ Time and Countdowns
 The top section of the screen shows the current time, the time until the next
 relevant cap, if any, and a countdown for the next game transition, if appropriate.
 
+To the right of the cap, there is a small rules icon, which opens up a quick reference
+to the game rules as applied to this game. It shows the target winning and halftime score
+(adjusted by caps if appropriate), the times that any enabled caps will happen
+(based on the start time and the offsets in the rules), the timeout rules, and
+the gender ratio rules for mixed games.
+
 The countdown has a button to pause and restart the countdown if you need to do that.
 There are also **+5** and **-5** buttons, which adjust the remaining time by 5 seconds
 in either direction, if you want to do so.
@@ -112,6 +118,9 @@ Caps
 ----
 
 The next appropriate cap is always shown at the top of the screen to the right of the clock.
+You can also click the small rules icon to the right of the cap to see the cap times
+that apply to this game.
+
 When the time for the cap is reached, UltiObserver will emit a sound or vibration (if these
 are enabled) letting you know. See :ref:`settings` for how to change the sound or
 vibration associated with the three caps.
