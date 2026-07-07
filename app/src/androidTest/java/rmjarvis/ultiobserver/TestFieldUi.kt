@@ -11,6 +11,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import java.time.LocalTime
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -118,6 +119,43 @@ class TestFieldUi : MainActivityUiTestFixtures() {
         composeRule.onAllNodesWithText("Coaches").assertCountEquals(0)
         composeRule.onNodeWithText("OK").performClick()
         composeRule.onAllNodesWithText("Riley Spirit").assertCountEquals(0)
+    }
+
+    /**
+     * Test the live field's game-rules quick reference dialog.
+     */
+    @Test
+    fun gameRulesDialog() {
+        // Seed representative rules through setup so the live field exposes the rules quick
+        // reference and renders the JVM-computed row values.
+        val setup = newSetupGameState(now = 123_000L).copy(
+            startTime = LocalTime.of(10, 0),
+            rules = GameRules(
+                gameTo = 15,
+                halftimeMinutes = 7,
+                useHalfCap = true,
+                halfCapMinutes = 45,
+                useSoftCap = true,
+                softCapMinutes = 90,
+                useHardCap = true,
+                hardCapMinutes = 105,
+                timeoutsPerHalf = 2,
+                genderRatioRule = GenderRatioRule.ABBA,
+            ),
+            division = GameDivision.MIXED,
+        )
+        startLiveGameProgrammatically(setup)
+
+        // Opening the rules affordance shows the compact game-rules reference in the field view.
+        composeRule.onNodeWithTag("live-game-rules").performClick()
+        waitForText("Game rules")
+        composeRule.onNodeWithText("Game to").assertIsDisplayed()
+        composeRule.onNodeWithText("Half cap").assertIsDisplayed()
+        composeRule.onNodeWithText("10:45 AM").assertIsDisplayed()
+        composeRule.onNodeWithText("Gender ratio").assertIsDisplayed()
+        composeRule.onNodeWithText("ABBA").assertIsDisplayed()
+        dismissDialog(text = "OK")
+        composeRule.onAllNodesWithText("Game rules").assertCountEquals(0)
     }
 
     /**

@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.North
 import androidx.compose.material.icons.filled.South
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -195,12 +196,14 @@ internal fun SlideToConfirmControl(
  * @param currentTime The local clock time to display.
  * @param capStatus The next cap status, or null when all caps are passed or irrelevant.
  * @param height The reserved status-line height used for responsive live layout.
+ * @param onGameRules Callback opening the game-rules quick reference.
  */
 @Composable
 internal fun StatusLine(
     currentTime: LocalTime,
     capStatus: CapStatus?,
     height: Dp,
+    onGameRules: () -> Unit,
 ) {
     val clockFontSize = (height.value * 0.68f).coerceIn(28f, 36f).sp
     val capFontSize = (height.value * 0.42f).coerceIn(18f, 22f).sp
@@ -208,18 +211,77 @@ internal fun StatusLine(
         modifier = Modifier
             .fillMaxWidth()
             .height(height),
-        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = formatClockTime(currentTime),
             style = MaterialTheme.typography.headlineMedium.copy(fontSize = clockFontSize),
             fontWeight = FontWeight.Bold,
+            maxLines = 1,
         )
-        Text(
-            text = capStatus?.let { "${it.label} ${formatDuration(it.remaining)}" } ?: "Caps passed",
-            style = MaterialTheme.typography.bodyLarge.copy(fontSize = capFontSize),
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            StatusCapText(
+                text = capStatus?.let { "${it.label} ${formatDuration(it.remaining)}" } ?: "Caps passed",
+                modifier = Modifier.weight(1f),
+                preferredFontSize = capFontSize,
+            )
+            GameRulesIcon(
+                onClick = onGameRules,
+                size = 28.dp,
+                padding = 4.dp,
+                tag = "live-game-rules",
+            )
+        }
+    }
+}
+
+/**
+ * Render cap status text at the largest size that fits beside the rules icon.
+ *
+ * @param text The cap status text to display.
+ * @param preferredFontSize The normal status-line cap font size.
+ * @param modifier Modifier applied by the caller.
+ */
+@Composable
+private fun StatusCapText(
+    text: String,
+    preferredFontSize: TextUnit,
+    modifier: Modifier,
+) {
+    BoxWithConstraints(
+        modifier = modifier,
+        contentAlignment = Alignment.CenterEnd,
+    ) {
+        val textMeasurer = rememberTextMeasurer()
+        val density = LocalDensity.current
+        val preferredStyle = MaterialTheme.typography.bodyLarge.copy(
+            fontSize = preferredFontSize,
             fontWeight = FontWeight.SemiBold,
+        )
+        val maxWidthPx = with(density) { maxWidth.roundToPx() }
+        val minimumFontSize = 16.sp
+        val measuredWidthPx = textMeasurer.measure(
+            AnnotatedString(text),
+            style = preferredStyle,
+        ).size.width
+        val fontSize = fittedStatusCapFontSize(
+            preferredFontSizeSp = preferredFontSize.value,
+            minimumFontSizeSp = minimumFontSize.value,
+            measuredTextWidthPx = measuredWidthPx,
+            maxWidthPx = maxWidthPx,
+        ).sp
+        Text(
+            text = text,
+            style = preferredStyle.copy(fontSize = fontSize),
+            textAlign = TextAlign.End,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -461,6 +523,27 @@ internal fun FieldSketchCard(
             )
         }
     }
+}
+
+/// Render the compact game-rules affordance.
+@Composable
+private fun GameRulesIcon(
+    onClick: () -> Unit,
+    size: Dp,
+    padding: Dp,
+    tag: String,
+) {
+    Icon(
+        imageVector = Icons.Outlined.Description,
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f),
+        modifier = Modifier
+            .testTag(tag)
+            .size(size)
+            .semantics { contentDescription = "Game rules" }
+            .clickable(onClick = onClick)
+            .padding(padding),
+    )
 }
 
 /// Render the compact center-field lock affordance.

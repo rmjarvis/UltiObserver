@@ -104,6 +104,27 @@ internal fun countedActionLabel(baseLabel: String, count: Int): String {
     return if (count > 0) "$baseLabel ($count)" else baseLabel
 }
 
+/**
+ * Return a font size that fits text measured at the preferred size into the available width.
+ *
+ * @param preferredFontSizeSp The desired font size before fitting.
+ * @param minimumFontSizeSp The smallest acceptable font size.
+ * @param measuredTextWidthPx Text width measured at the preferred font size.
+ * @param maxWidthPx The available text width.
+ */
+internal fun fittedStatusCapFontSize(
+    preferredFontSizeSp: Float,
+    minimumFontSizeSp: Float,
+    measuredTextWidthPx: Int,
+    maxWidthPx: Int,
+): Float {
+    return if (maxWidthPx <= 0 || measuredTextWidthPx <= maxWidthPx) {
+        preferredFontSizeSp
+    } else {
+        maxOf(minimumFontSizeSp, preferredFontSizeSp * maxWidthPx / measuredTextWidthPx)
+    }
+}
+
 /// Return a positive integer with its ordinal suffix for UI copy.
 internal fun Int.ordinalText(): String {
     val suffix = if (this % 100 in 11..13) {

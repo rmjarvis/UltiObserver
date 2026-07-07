@@ -29,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -89,6 +90,7 @@ internal fun LiveGameScreen(
 ) {
     var pendingCardTeam by remember { mutableStateOf<TeamId?>(null) }
     var showMoreActionsDialog by remember { mutableStateOf(false) }
+    var showGameRulesDialog by remember { mutableStateOf(false) }
     var showEventLogSheet by remember { mutableStateOf(false) }
     var pendingTimeoutRequest by remember { mutableStateOf<PendingTimeoutRequest?>(null) }
     var pendingTimeViolationTeam by remember { mutableStateOf<TeamId?>(null) }
@@ -257,6 +259,9 @@ internal fun LiveGameScreen(
                     currentTime = currentClockTime,
                     capStatus = capStatus,
                     height = layoutMetrics.statusHeight,
+                    onGameRules = {
+                        showGameRulesDialog = true
+                    },
                 )
 
                 // Reserve the countdown row even when no timer is active so the field stays put.
@@ -445,6 +450,15 @@ internal fun LiveGameScreen(
         TeamNamesDialog(
             team = state.teamFor(team),
             onDismiss = { teamInfoSheetTeam = null },
+        )
+    }
+
+    if (showGameRulesDialog) {
+        GameRulesDialog(
+            state = state,
+            onDismiss = {
+                showGameRulesDialog = false
+            },
         )
     }
 
@@ -733,6 +747,58 @@ internal fun LiveGameScreen(
             confirmButton = {
                 TextActionButton(label = "OK", onClick = { activeGamePrompt = null })
             },
+        )
+    }
+}
+
+/**
+ * Render a compact quick reference for the active game's rules.
+ *
+ * @param state Current game state used to combine setup rules with live cap state.
+ * @param onDismiss Callback closing the dialog.
+ */
+@Composable
+internal fun GameRulesDialog(
+    state: GameState,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Game rules") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                state.gameRulesDialogRows().forEach { row ->
+                    GameRulesRow(row)
+                }
+            }
+        },
+        confirmButton = {
+            TextActionButton(label = "OK", onClick = onDismiss)
+        },
+    )
+}
+
+/// Render one compact game-rules row.
+@Composable
+private fun GameRulesRow(row: GameRulesDialogRow) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = row.label,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+        )
+        Text(
+            text = row.value,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.End,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }

@@ -45,6 +45,66 @@ class TestUtilities {
     }
 
     /**
+     * Test compact status-line cap text fitting.
+     */
+    @Test
+    fun statusCapFontSizeFitting() {
+        // Text that already fits should use the preferred font size.
+        assertEquals(
+            22f,
+            fittedStatusCapFontSize(
+                preferredFontSizeSp = 22f,
+                minimumFontSizeSp = 16f,
+                measuredTextWidthPx = 100,
+                maxWidthPx = 100,
+            ),
+        )
+        assertEquals(
+            22f,
+            fittedStatusCapFontSize(
+                preferredFontSizeSp = 22f,
+                minimumFontSizeSp = 16f,
+                measuredTextWidthPx = 80,
+                maxWidthPx = 100,
+            ),
+        )
+
+        // Text with only three quarters of its measured width should use three quarters of the
+        // preferred size: 24sp * 90px / 120px = 18sp.
+        assertEquals(
+            18f,
+            fittedStatusCapFontSize(
+                preferredFontSizeSp = 24f,
+                minimumFontSizeSp = 16f,
+                measuredTextWidthPx = 120,
+                maxWidthPx = 90,
+            ),
+        )
+
+        // Extreme pressure would scale 24sp to 9sp, so it should clamp to the 16sp minimum.
+        assertEquals(
+            16f,
+            fittedStatusCapFontSize(
+                preferredFontSizeSp = 24f,
+                minimumFontSizeSp = 16f,
+                measuredTextWidthPx = 240,
+                maxWidthPx = 90,
+            ),
+        )
+
+        // A not-yet-measured container should not force a temporary shrink.
+        assertEquals(
+            22f,
+            fittedStatusCapFontSize(
+                preferredFontSizeSp = 22f,
+                minimumFontSizeSp = 16f,
+                measuredTextWidthPx = 100,
+                maxWidthPx = 0,
+            ),
+        )
+    }
+
+    /**
      * Test ordinal suffix formatting for ordinary values and teen exceptions.
      */
     @Test

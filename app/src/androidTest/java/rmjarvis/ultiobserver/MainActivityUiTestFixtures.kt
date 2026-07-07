@@ -25,14 +25,11 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 import org.junit.Rule
 
-private val platformBackDismissalUnstableAvds = setOf(
-    // API 26 instrumentation Back misses some dialog dismissals on these AVDs,
-    // even though manual emulator Back behaves correctly.
+private val explicitControlDismissalCoverageAvds = setOf(
+    // These devices cover explicit dialog controls such as OK and Cancel, while the rest of the
+    // matrix covers platform Back dismissal through pressBackUnconditionally().
     "Small_Phone",
     "Nexus_4",
-    // We also need to cover both dismiss and regular buttons (like Cancel) when they
-    // are equivalent, so this helper says which deviced should use the regular button
-    // rather than dismissing with the platform Back button.
     "Pixel_7",
     "Pixel_Fold",
     "Pixel_10",
@@ -431,14 +428,14 @@ abstract class MainActivityUiTestFixtures {
 
     /// Return whether this AVD should run platform-Back dismissal coverage paths.
     protected fun shouldUsePlatformBackDismissalCoverage(): Boolean {
-        return currentAvdName() !in platformBackDismissalUnstableAvds
+        return currentAvdName() !in explicitControlDismissalCoverageAvds
     }
 
     /**
-     * Dismiss the current dialog through platform Back when stable, otherwise a visible control.
+     * Dismiss the current dialog through the coverage path assigned to this device.
      *
-     * @param text Visible dialog button text to use on devices where platform Back is unstable.
-     * @param tag Visible dialog control tag to use on devices where platform Back is unstable.
+     * @param text Visible dialog button text for devices that cover explicit controls.
+     * @param tag Visible dialog control tag for devices that cover explicit controls.
      * @param clearKeyboard Whether platform Back may need one press to exit focused text entry
      * before the dialog receives Back.
      */
