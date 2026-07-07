@@ -35,17 +35,16 @@ Settings
 Settings is where you can change how the app works in various ways.
 
 Automatically start live play when a countdown expires?
-    The default behavior when a pull or timeout countdown expires is to automatically have the
-    screen move on to the live play screen. If you prefer to do this manually (using either
-    the **Start point** or **Continue point** button) then switch this to **No**.
+    The default behavior when a pull or timeout countdown expires is to automatically advance
+    to live play. If you prefer to do this manually (using either the **Start point** or
+    **Continue point** button) then switch this to **No**.
 
 Automatically lock screen when play becomes live?
     The default behavior is to automatically lock the screen when switching to live action.
-    That way as you are running around following the action and being an observer, you
-    won't accidentally press any buttons in the app. Unlocking is a quick drag action, which
-    is pretty quick, but if you prefer not to have it lock automatically, then switch this
-    to **No**. Note that there is always a lock icon on the live game screen so you can lock
-    the screen manually whenever you need.
+    That way, while you are moving with play, you won’t accidentally press buttons in the app.
+    Unlocking is a quick drag action, which is pretty quick, but if you prefer not to have it
+    lock automatically, then switch this to **No**. Note that there is always a lock icon on
+    the live game screen so you can lock the screen manually whenever you need.
 
 Show defense-check countdown after the offense is set?
     We expect that most observers will not need an explicit countdown for the defensive check

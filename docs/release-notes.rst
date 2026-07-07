@@ -4,8 +4,8 @@ Release History
 Version 1.1
 -----------
 
-Version 1.1 responded to a lot of good feedback from initial testers which prompted a lot of
-real usability improvements.
+Version 1.1 responded to good feedback from initial testers and includes many usability
+improvements.
 
 Highlights include:
 
@@ -69,7 +69,7 @@ Features included:
   feedback.
 - It keeps track of misconduct cards for players and teams, including players entering the game
   with previous cards during that tournament. It will give you a message reminding you of the
-  appropriate misconduct penalty, including tournament suspensions if a player exceeds three
+  appropriate misconduct penalty, including tournament suspensions if a player reaches three
   yellows in the tournament for instance. Same for technical fouls.
 - It records offsides, false starts, and time violations, and it lets you know what the
   appropriate starting position is in each case.

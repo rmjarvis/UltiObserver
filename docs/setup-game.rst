@@ -61,7 +61,7 @@ Game Information
 This is where you can set the basic information about the game being played.
 
 Date
-    This defaults to the current day, so this is likely to be usually correct already.
+    This defaults to the current day, so it is usually already correct.
     To change the date, click on the button showing the date to open the date setting popup.
 
 Start time
@@ -71,9 +71,9 @@ Start time
     setting popup.
 
 Observers
-    This defaults to include you if you set your profile name. There will initially be one
-    additional entry for your partner. You can add more rows for additional observers by
-    clicking the + icon. The - icon will remove a final blank row.
+    If you set your profile name, the first observer row defaults to your name.
+    There will initially be one additional entry for your partner. You can add more rows for
+    additional observers by clicking the + icon. The - icon will remove a final blank row.
 
 Field number
     This can be a useful reference, since it displays on the saved drafts listing.
@@ -106,13 +106,13 @@ Field And Starting Pull
    :target: _images/FieldStartingPullTop.png
    :alt: Field and starting pull setup with named field ends, pulling team, pull end, and prompts
 
-The first thing here is what you want to call the two ends of the field. The default
-names are simply **Near end** and **Far end** with the assumption that you are located at
+Before the flip, you should decide how you want to refer to the two ends of the field. The
+default names are simply **Near end** and **Far end** with the assumption that you are located at
 **Near end** for the purpose of which pull prompts you get. But you can name them something
 more appropriate based on the layout of the field. E.g. Trees, North, Parking Lot, Camera, ...
 whatever you want.
 
-The rest of the items are the details that are decided at the opening pull.
+The rest of the items are the details that are decided at the pregame flip.
 
 Pulling team
     Which team starts on defense.
@@ -163,7 +163,7 @@ Hard cap
     Is there a hard cap? And if so, how long after the start time?
 
 Timeouts
-    How many time outs does each team have each half, including a possible floater
+    How many timeouts does each team have each half, including a possible floater
     (an extra timeout that can be taken in either half)?
 
 Mixed gender ratio

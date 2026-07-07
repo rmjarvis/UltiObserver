@@ -25,9 +25,9 @@ differ from USAU rules.
 Landscape mode
 --------------
 
-Portrait mode is currently the only layout enabled. A future landscape mode could
-put the two field ends left and right instead of top and bottom, which might be more
-intuitive for some users. Especially for side observers in a 3 or 4 person system.
+Portrait mode is currently the only layout enabled. A future landscape mode could orient the
+two field ends on the left and right of the screen instead of top and bottom, which might
+be more intuitive for some users, such as a side observer in a 3 or 4 person system.
 
 Multi-Observer communication
 ----------------------------

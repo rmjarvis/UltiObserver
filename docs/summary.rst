@@ -12,10 +12,14 @@ most important information about the game including:
 
 * The tournament, division, and level
 * Observer names
+* Field number
 * Start and end times
 * Final score
-* Per-player yellow and red cards assessed against each team
+* Per-player yellow and red cards assessed against each team, including reasons if given
 * Total blue cards and technical fouls
+
+Any information that was not set for the game is omitted. If a team had no misconduct assessed
+against them, that is stated explicitly.
 
 .. _summary-share:
 
@@ -37,7 +41,7 @@ has been set up to pass along this information after games.
 
 Shared summaries are intentionally compact. They include just the information given
 on the summary page. They do not include things like pull violations, timeouts, or
-other events that don't really matter after the game is over.
+other events that are no longer relevant after the game is over.
 
 Event Log
 ---------

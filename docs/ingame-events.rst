@@ -31,8 +31,7 @@ normal between-points countdown. It also adds a cue for one minute until either 
 needs to be set or until the pull, depending on which end you are on.
 
 If a team has no timeouts remaining, tapping **TO** shows a message indicating this.
-It will also remind you of the consequence in case you need it if the attempt was made during
-a live point.
+It will also remind you of the consequence if the attempt was made during a live point.
 
 .. _pull-violations:
 
@@ -44,8 +43,8 @@ Pull Violations
    :target: _images/Offsides.png
    :alt: Offsides dialog explaining the restart location and check requirement
 
-The button label for a pull violation is either **Offsides** or **False start**, depending
-on whether they are pulling or receiving. If they have any prior pull violations (of either
+The button label for a team's pull violation is either **Offsides** or **False start**, depending
+on whether that team is pulling or receiving. If they have any prior pull violations (of either
 type), the total number of pull violations is shown on the button as well, as this impacts
 the consequences of the next violation.
 

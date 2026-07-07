@@ -15,7 +15,7 @@ In addition, there are standard timing cues that observers are expected to say a
 points before the end of the countdown. UltiObserver lists these just below the countdown
 to remind you.
 
-As additional help, you can also set it to give vibrations or short sounds at the cue times.
+As additional help, you can also set the app to give vibrations or short sounds at the cue times.
 See :ref:`settings` for details about how to do this.
 
 Time between points
@@ -72,8 +72,8 @@ is appropriate by clicking **Start point** in the center of the game screen.
 Timeout Timing
 --------------
 
-When a timeout is called between points, the regular between points countdown just has
-the timeout duration added to it. There is not much change to the countdown other than
+When a timeout is called between points, the timeout duration is added to the regular
+between-points countdown. There is not much change to the cue schedule other than
 adding cues for 1 minute for a hand or 1 minute to pull as appropriate.
 
 Timeouts during a live point start a timeout countdown, which ends when the offense is

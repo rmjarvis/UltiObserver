@@ -46,8 +46,8 @@ the game.
    :target: _images/ThirdCardPenalty.png
    :alt: Third team card penalty dialog asking whether the card was on offense or defense
 
-If you have entered prior cards from previous games at the tournament, and this card takes
-them over the limit of 3 tournament cards (counting reds as 2), it will let you know that
+If you have entered prior cards from previous games at the tournament, and this card brings them
+to 3 or more cards total in the tournament (counting reds as 2), it will let you know that
 the player is suspended from all games for the rest of the tournament.
 
 If you entered the same number as a previous card holder, but a different name, it will
@@ -109,14 +109,14 @@ the offense or defense so it can tell you the right restart.
 Team Card Totals
 ----------------
 
-In the USAU rules, they say that a blue card is automatically assessed for any yellow card.
-And two blue cards are assessed for any red card. I personally find this language confusing,
-since it blurs the distinction between blue cards that are actually shown as blue cards
-with virtual blue cards that are ancillary consequences of yellow or red cards.
+The USAU rules dictate that a blue card is automatically assessed for any yellow card, and two
+blue cards are assessed for any red card. I personally find this language confusing, because
+it blurs the distinction between actual blue cards and the card totals including yellow and
+red cards, which are relevant for misconduct penalties.
 
 UltiObserver does not use this language. Instead we refer to total cards assessed against
-a team, counting red cards as 2. This feels more intuitive to me and makes the messaging
-less confusing.
+a team, counting red cards as 2. I.e. the number of team cards is calculated as blues +
+yellows + 2 x reds. This feels more intuitive to me and makes the messaging less confusing.
 
 This team card total is the relevant number for determining misconduct penalties. When the
 total is 3 or greater, there are yardage penalties when the misconduct is assessed during

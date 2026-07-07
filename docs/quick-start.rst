@@ -35,11 +35,12 @@ Use the active game screen for common actions during the game.
   (These are also settable options if you don't want that.)
 * You can also manually start a point before the countdown expires by pressing **Start point**.
 * Tap a team's **Goal** button to record a goal for that team.
-* Use **Timeout**, **Offsides**, **False start**, **Time violation**,
-  **Card**, and **Tech** when those events happen.
+* Use **TO**, **Offsides**, **False start**, **Time viol.**, **Card**, and **Tech** when those
+  events happen.
 * Use **Undo** and **Redo** for mistakes.
 * The next relevant cap (half/soft/hard) is always shown at the upper right. If sounds are
-  enabled, it will use the alarm feature on your phone to alert you (default is 2 or 3 dings).
+  enabled, it will use the alarm feature on your phone to alert you (default is 2 or 3 dings,
+  depending on the cap).
 
 After The Game
 --------------

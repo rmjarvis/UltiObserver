@@ -12,7 +12,7 @@ Time and Countdowns
    :class: phone-screenshot
    :target: _images/OffenseSignalTimer.png
    :alt: Active game screen with a countdown showing the time until the offense needs
-      signal readiness.
+      to signal readiness.
 
 The top section of the screen shows the current time, the time until the next
 relevant cap, if any, and a countdown for the next game transition, if appropriate.
@@ -31,14 +31,11 @@ signaling readiness.
 Field Display
 -------------
 
-The field area is oriented so that whichever end you chose to have prompts for is at the
-bottom. The bottom zone represents the end zone where you are at the start of a point.
-The top zone represents the far end of the field.  (If you chose both or neither for
-prompts, the bottom is whichever end was initially named Near end.) The field names are
-given on the screen at the upper right and bottom right of the field area.
-
-The team at the top is the team that starts the point in the far end zone.
-The team at the bottom is the team that starts in the near end zone.
+The field area is oriented so that whichever end you chose for pull prompts is at the
+bottom. If you chose both or neither, the bottom is the end that was initially named Near end.
+The names of each end are given on the screen at the upper right and bottom right
+of the field area.  The top and bottom team areas show which team starts the point in the
+corresponding end zone.
 
 In the central green area, the pull direction is shown on the left side, and a lock
 icon is shown on the right side. Pressing the lock button will lock the screen so you can

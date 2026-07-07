@@ -41,8 +41,8 @@ Corrections
 -----------
 
 More Actions includes buttons to adjust various things about the current game state.
-These let you fix errors or omissions made earlier in the game, which mean the app's
-current recorded game state does not match what actually happened on the field.
+These let you fix errors or omissions made earlier in the game, which have caused the app's
+currently recorded game state to differ from the actual state of the game.
 As with any action, adjustments are undo-backed, so you can undo it if the adjustment
 itself was incorrect.
 

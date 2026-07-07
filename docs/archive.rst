@@ -7,8 +7,8 @@ Saved And Archived Games
    :alt: Saved and archived games screen with archived games, in-progress games, and saved
       setup drafts
 
-UltiObserver keeps track of past games so you can reference them later, including
-potentially share the summary information with people after the fact (cf. :ref:`Share`).
+UltiObserver keeps track of past games so you can reference them later, including sharing
+summary information after the fact. (See :ref:`Share`.)
 It also saves setup drafts and in-progress games that might have accidentally been
 bumped from the current game spot. All of these games are available from the
 home button **See archived/saved games**. That takes you to a page with three menu options.
@@ -30,11 +30,10 @@ The Archived games screen shows a list of all archived games that are currently 
 on your device. Clicking on a game brings up a :ref:`Game Summary` page very similar
 to the one that appears for a current game when the game is over.
 
-The only difference is the button at the bottom, which says **Restore game**. This
-will bring the archived game back to current game state. You probably would rarely if
-ever want to do that. One potential reason would be to be able to edit the reason
-for a yellow or red card to give more details that you didn't have time to enter during
-the game.
+The only difference is the button at the bottom, which says **Restore game**.
+This brings the archived game back as the current game. You would probably rarely, if ever,
+want to do that. One potential reason would be to edit the reason given for a yellow or red card
+or to give more details that you didn't have time to enter during the game.
 
 To save space on your device, archived games do not preserve the full undo history.
 If you restore an archived game, you cannot undo actions from before it was archived.
@@ -83,8 +82,8 @@ which fill the start and end dates appropriately. You can click on those dates t
 When filters are enabled, the list of games will show only those games that satisfy all
 active filters.
 
-You can also change the order for the games to be sorted. The default is reverse chronological, so
-the most recent games are first. But you may change this to something else. The options are:
+You can also change the sort order. The default is reverse chronological, so
+the most recent games are first, but you can change this. The options are:
 
 * Date, newest first
 * Date, oldest first
