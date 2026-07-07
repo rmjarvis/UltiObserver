@@ -170,27 +170,21 @@ Mixed gender ratio
     What rule should be used to determine the gender ratio each point? This option is only
     available if the division is set to Mixed. Options include:
 
-    ABBA
-        Alternate two at a time starting after the first point. So if the ratio for the first
-        point is M (i.e. 4M/3W), then the pattern will be M W W M M W W M M W W ...
+    * **ABBA:** Alternate two at a time starting after the first point. So if the ratio for the
+      first point is M (i.e. 4M/3W), then the pattern will be M W W M M W W M M W W ...
 
-    Gen zone
-        The team in a particular end zone decides the ratio each point. The official rules say
-        to switch the end zone at half time (which is definitely a good idea), but if your game
-        is not respecting that rule, you can choose to disable that.
+    * **Gen zone:** The team in a particular end zone decides the ratio each point. The official
+      rules say to switch the end zone at half time (which is definitely a good idea), but if
+      your game is not respecting that rule, you can choose to disable that.
 
-    Offense decides
-        The team receiving the pull decides the ratio each point. This used to be the standard
-        way to choose, but is rarely used these days. Still, it's an option.
+    * **Offense decides:** The team receiving the pull decides the ratio each point. This used to
+      be the standard way to choose, but is rarely used these days. Still, it's an option.
 
-    4M/3W
-        Just use 4 man-matching, 3 woman-matching for the whole game.
+    * **4M/3W:** Just use 4 man-matching, 3 woman-matching for the whole game.
 
-    4W/3M
-        Just use 4 woman-matching, 3 man-matching for the whole game.
+    * **4W/3M:** Just use 4 woman-matching, 3 man-matching for the whole game.
 
-    N/A
-        Don't have the app handle anything related to the gender ratio.
+    * **N/A:** Don't have the app handle anything related to the gender ratio.
 
 At the bottom, there is a button to **Reset to USAU defaults**, which sets all rules back to
 the normal USAU standard rules.
