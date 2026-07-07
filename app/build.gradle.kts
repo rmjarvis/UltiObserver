@@ -52,7 +52,7 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 3
-        versionName = "1.1.0alpha"
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
