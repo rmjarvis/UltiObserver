@@ -34,6 +34,8 @@ Highlights include:
   yardage-penalty guidance.
 - Improved all the in-game action dialogs with cleaner presentation and better instructions about
   rule consequences where appropriate.
+- Added a small rules icon to the right of the cap timer to list what all the cap times are,
+  along with the other rules that apply to the current game.
 - Reworked yellow and red card entry to support player number, player name, and optional reason
   details.  This includes allowing players with a name but no number.
 - Added the ability to edit details about previously assessed in-game yellow and red cards.
@@ -48,6 +50,7 @@ Highlights include:
   games (typically would only be one of these) and archived completed games.
 - Added a Crashlytics plug-in to log any app crashes that might happen and let me know so I
   can hopefully fix whatever bug caused it.
+- Added comprehensive documentation about how to use the app.
 - Fixed a number of bugs I found along the way.
 
 Version 1.0
