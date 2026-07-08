@@ -1,10 +1,12 @@
 UltiObserver
 ============
 
-UltiObserver is an Android app for Ultimate observers. It helps track the game
-state, score, pull timing, timeouts, caps, misconduct, event log, and shareable
-post-game summary that would otherwise be split between a paper game card and a
-stopwatch.
+UltiObserver is an app for Ultimate observers.
+It provides timing cues between points and during timeouts and misconduct penalties.
+It helps track the game events that need observer attention, including goals, timeouts,
+pull violations, misconduct, and caps.
+After the game, it lets you share a summary with the tournament director or head observer.
+It is intended to replace both the paper score sheet and the stopwatch observers typically use.
 
 The app is Android-first and designed for phone use in portrait mode.
 
