@@ -176,6 +176,7 @@ const val MAX_TIMING_ALERT_REPEAT_COUNT = 3
  * @param automaticallyAdvanceCountdowns Whether expired countdowns should drive model transitions.
  * @param automaticallyLockLivePoint Whether automatic live-point entry should lock the live screen.
  * @param showDefenseCountdowns Whether timeout offense-set expirations wait for defense.
+ * @param showAbbaRatioAsSequence Whether ABBA field badges should show sequence shorthand.
  * @param timingAlertPreferences User-configurable timing cue alert behavior.
  */
 @Serializable
@@ -183,6 +184,7 @@ internal data class Settings(
     val automaticallyAdvanceCountdowns: Boolean = true,
     val automaticallyLockLivePoint: Boolean = true,
     val showDefenseCountdowns: Boolean = false,
+    val showAbbaRatioAsSequence: Boolean = true,
     val timingAlertPreferences: TimingAlertPreferences = TimingAlertPreferences(),
 ) {
     companion object {

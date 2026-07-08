@@ -62,17 +62,24 @@ class TestFieldUi : MainActivityUiTestFixtures() {
             division = GameDivision.MIXED,
             initialGenderRatio = GenderRatio.FOUR_MEN_THREE_WOMEN,
         )
+        setShowAbbaRatioAsSequence(true)
         startLiveGameProgrammatically(setup)
 
-        // The opening point shows the setup-selected ABBA ratio in the center field strip.
-        waitForText("4M/3W")
+        // The opening point shows the default ABBA sequence shorthand in the center field strip.
+        waitForText("M2")
 
-        // Later ABBA points can show the opposite ratio.
+        // Later ABBA points can show the next sequence shorthand.
         updateCurrentGameState {
             it.copy(
                 teamOne = it.teamOne.copy(score = 1),
                 initialGenderRatio = GenderRatio.FOUR_MEN_THREE_WOMEN,
             )
+        }
+        waitForText("W1")
+
+        // The settings option can return the same badge to full-ratio text.
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appViewModel.updateShowAbbaRatioAsSequence(false)
         }
         waitForText("4W/3M")
     }

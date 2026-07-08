@@ -52,6 +52,13 @@ Show defense-check countdown after the offense is set?
     using visible arm chops, rather than a stopwatch. However, if you would prefer to have the
     defense countdown handled by the app, set this option to **Yes**.
 
+Show ABBA gender ratio as M1/M2/W1/W2?
+    The default for mixed games using ABBA is to display the current point's gender ratio using
+    these sequence shorthand names, which indicate whether this is the first or second point in
+    the sequence with either the 4M/3W ratio (``M1`` and ``M2``, respectively) or the
+    4W/3M ratio (``W1`` and ``W2``).  Set this to **No** if you prefer the
+    badge to show the full point ratio as either ``4W/3M`` or ``4M/3W``.
+
 Use sounds and vibration for timing cues?
     There are three options here:
 

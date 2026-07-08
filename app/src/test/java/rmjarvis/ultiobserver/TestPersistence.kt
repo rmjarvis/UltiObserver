@@ -54,6 +54,7 @@ class TestPersistence : GameDomainTestFixtures() {
         viewModel.updateAutomaticallyAdvanceCountdowns(false)
         viewModel.updateAutomaticallyLockLivePoint(false)
         viewModel.updateShowDefenseCountdowns(true)
+        viewModel.updateShowAbbaRatioAsSequence(false)
         viewModel.updateTimingCueMode(TimingCueId.PULLING_TIME_VIOLATION, TimingAlertMode.DING)
         viewModel.updateTimingCueRepeatCount(TimingCueId.PULLING_TIME_VIOLATION, 3)
         assertEquals(
@@ -110,6 +111,7 @@ class TestPersistence : GameDomainTestFixtures() {
         assertFalse(restored.automaticallyAdvanceCountdowns)
         assertFalse(restored.automaticallyLockLivePoint)
         assertTrue(restored.showDefenseCountdowns)
+        assertFalse(restored.showAbbaRatioAsSequence)
         assertEquals(0.4f, restored.timingAlertPreferences.soundVolume, 0f)
         assertEquals(420L, restored.timingAlertPreferences.vibrationDurationMillis)
         assertTrue(restored.timingAlertPreferences.vibrateWithSounds)

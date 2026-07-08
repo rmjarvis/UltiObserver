@@ -36,10 +36,12 @@ internal fun SettingsScreen(
     automaticallyAdvanceCountdowns: Boolean,
     automaticallyLockLivePoint: Boolean,
     showDefenseCountdowns: Boolean,
+    showAbbaRatioAsSequence: Boolean,
     timingAlertPreferences: TimingAlertPreferences,
     onAutomaticallyAdvanceCountdownsChange: (Boolean) -> Unit,
     onAutomaticallyLockLivePointChange: (Boolean) -> Unit,
     onShowDefenseCountdownsChange: (Boolean) -> Unit,
+    onShowAbbaRatioAsSequenceChange: (Boolean) -> Unit,
     onGlobalModeChange: (TimingAlertGlobalMode) -> Unit,
     onSoundVolumeChange: (Float) -> Unit,
     onVibrationDurationChange: (Long) -> Unit,
@@ -103,6 +105,18 @@ internal fun SettingsScreen(
                 checked = showDefenseCountdowns,
                 onCheckedChange = onShowDefenseCountdownsChange,
                 testTag = "settings-show-defense-countdowns",
+            )
+
+            SettingsSwitchWithNote(
+                label = "Show ABBA gender ratio as M1/M2/W1/W2?",
+                note = if (showAbbaRatioAsSequence) {
+                    "Ratio will display as W2, M1, M2, W1, W2... or M2, W1, W2, M1, M2..."
+                } else {
+                    "Ratio will display as either 4W/3M or 4M/3W."
+                },
+                checked = showAbbaRatioAsSequence,
+                onCheckedChange = onShowAbbaRatioAsSequenceChange,
+                testTag = "settings-show-abba-ratio-as-sequence",
             )
 
             HorizontalDivider()

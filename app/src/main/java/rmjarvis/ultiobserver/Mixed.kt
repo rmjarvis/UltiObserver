@@ -37,6 +37,25 @@ fun GameState.currentGenderRatio(): GenderRatio? {
     }
 }
 
+/**
+ * Return the compact field-badge label for this point's mixed gender ratio.
+ *
+ * @param showAbbaRatioAsSequence Whether ABBA badges should use M1/M2/W1/W2 shorthand.
+ */
+fun GameState.currentGenderRatioBadgeText(showAbbaRatioAsSequence: Boolean): String {
+    val currentRatio = currentGenderRatio()
+        ?: error("No current gender ratio is available for a field badge.")
+    if (rules.genderRatioRule != GenderRatioRule.ABBA || !showAbbaRatioAsSequence) {
+        return currentRatio.displayText
+    }
+    val patternIndex = (currentPointNumber() - 1).coerceAtLeast(0) % 4
+    val baseLabels = when (initialGenderRatio) {
+        GenderRatio.FOUR_MEN_THREE_WOMEN -> listOf("M2", "W1", "W2", "M1")
+        GenderRatio.FOUR_WOMEN_THREE_MEN -> listOf("W2", "M1", "M2", "W1")
+    }
+    return baseLabels[patternIndex]
+}
+
 /// Return the team that chooses the point's mixed gender ratio, when the app can know it.
 fun GameState.ratioChoosingTeam(): TeamId? {
     if (!usesMixedDivision()) {

@@ -35,6 +35,7 @@ internal enum class AppScreen {
  * @param automaticallyAdvanceCountdowns Whether active countdowns transition automatically at expiry.
  * @param automaticallyLockLivePoint Whether automatic live-point transitions enable lock mode.
  * @param showDefenseCountdowns Whether timeout offense-set expirations wait for defense.
+ * @param showAbbaRatioAsSequence Whether ABBA field badges show sequence shorthand.
  * @param archivedGames The archived game summaries loaded into the app session.
  * @param selectedArchiveCategory The archive category currently open from the category landing page.
  * @param viewingArchivedGame The archived game currently open as a summary.
@@ -55,6 +56,7 @@ internal data class AppUiState(
     val automaticallyAdvanceCountdowns: Boolean,
     val automaticallyLockLivePoint: Boolean,
     val showDefenseCountdowns: Boolean,
+    val showAbbaRatioAsSequence: Boolean,
     val archivedGames: List<GameState>,
     val selectedArchiveCategory: ArchivedGameCategory?,
     val viewingArchivedGame: GameState?,
@@ -140,6 +142,7 @@ internal class AppViewModel(
             automaticallyAdvanceCountdowns = persistedSettings?.automaticallyAdvanceCountdowns ?: true,
             automaticallyLockLivePoint = persistedSettings?.automaticallyLockLivePoint ?: true,
             showDefenseCountdowns = persistedSettings?.showDefenseCountdowns ?: false,
+            showAbbaRatioAsSequence = persistedSettings?.showAbbaRatioAsSequence ?: true,
             archivedGames = restoredArchivedGames,
             selectedArchiveCategory = null,
             viewingArchivedGame = null,
@@ -180,6 +183,8 @@ internal class AppViewModel(
         get() = state.value.automaticallyLockLivePoint
     val showDefenseCountdowns: Boolean
         get() = state.value.showDefenseCountdowns
+    val showAbbaRatioAsSequence: Boolean
+        get() = state.value.showAbbaRatioAsSequence
     val archivedGames: List<GameState>
         get() = state.value.archivedGames
     val selectedArchiveCategory: ArchivedGameCategory?
@@ -426,6 +431,16 @@ internal class AppViewModel(
      */
     fun updateShowDefenseCountdowns(showDefenseCountdowns: Boolean) {
         _state.update { it.copy(showDefenseCountdowns = showDefenseCountdowns) }
+        persistSettingsState()
+    }
+
+    /**
+     * Update whether ABBA field badges use sequence shorthand.
+     *
+     * @param showAsSequence Whether ABBA badges should display M1/M2/W1/W2 shorthand.
+     */
+    fun updateShowAbbaRatioAsSequence(showAsSequence: Boolean) {
+        _state.update { it.copy(showAbbaRatioAsSequence = showAsSequence) }
         persistSettingsState()
     }
 
@@ -1092,6 +1107,7 @@ internal class AppViewModel(
                 automaticallyAdvanceCountdowns = automaticallyAdvanceCountdowns,
                 automaticallyLockLivePoint = automaticallyLockLivePoint,
                 showDefenseCountdowns = showDefenseCountdowns,
+                showAbbaRatioAsSequence = showAbbaRatioAsSequence,
                 timingAlertPreferences = timingAlertPreferences,
             )
         )

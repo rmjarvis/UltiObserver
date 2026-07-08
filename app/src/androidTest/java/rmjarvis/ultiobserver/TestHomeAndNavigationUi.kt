@@ -862,38 +862,34 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
     }
 
     /**
-     * Test the Settings screen and persisted timing-cue preferences.
+     * Test the main preference options on the Settings screen.
      */
     @Test
-    fun launchSettings() {
+    fun mainSettings() {
         // Seed settings directly so this UI-focused test can start at a meaningful cue state.
         setAutomaticallyAdvanceCountdowns(true)
         setAutomaticallyLockLivePoint(true)
-        val defaultPreferences = TimingAlertPreferences()
-        setTimingAlertPreferences(
-            defaultPreferences.copy(
-                globalMode = TimingAlertGlobalMode.VIBRATION_ONLY,
-                soundVolume = 0.5f,
-                vibrateWithSounds = true,
-                cueModes = defaultPreferences.cueModes + mapOf(
-                    TimingCueId.RECEIVING_TWENTY_FOR_HAND to TimingAlertMode.NONE,
-                ),
-            )
-        )
+        setShowAbbaRatioAsSequence(true)
 
-        // Settings should expose automatic live-play options.
+        // Settings should expose automatic live-play options.  The default is to
+        // automatically advance to live play when countdowns expire and then lock
+        // the screen.  Both aspects of this are settable.
         composeRule.onNodeWithText("Settings").performClick()
-        val hasTimingCueHaptics = deviceHasTimingCueHaptics()
         waitForText("Automatically start live play when a countdown expires?")
         composeRule.onNodeWithTag("settings-auto-advance-countdowns-value").assertTextEquals("Yes")
         composeRule.onNodeWithTag("settings-auto-lock-live-point-value").assertTextEquals("Yes")
-        composeRule.onNodeWithTag("settings-show-defense-countdowns-value")
-            .assertTextEquals("No")
         composeRule.onNodeWithTag("settings-auto-advance-countdowns").performClick()
         composeRule.onNodeWithTag("settings-auto-lock-live-point").performClick()
-        composeRule.onNodeWithTag("settings-show-defense-countdowns").performClick()
         composeRule.onNodeWithTag("settings-auto-advance-countdowns-value").assertTextEquals("No")
         composeRule.onNodeWithTag("settings-auto-lock-live-point-value").assertTextEquals("No")
+        composeRule.onNodeWithTag("settings-auto-advance-countdowns").performClick()
+        composeRule.onNodeWithTag("settings-auto-lock-live-point").performClick()
+
+        // By default we don't show countdowns for the defensive check on timeouts and
+        // misconduct. The next setting can enable those.
+        composeRule.onNodeWithTag("settings-show-defense-countdowns-value")
+            .assertTextEquals("No")
+        composeRule.onNodeWithTag("settings-show-defense-countdowns").performClick()
         composeRule.onNodeWithTag("settings-show-defense-countdowns-value")
             .assertTextEquals("Yes")
 
@@ -909,17 +905,50 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         )
             .assertCountEquals(0)
         dismissDialog(tag = "top-bar-back")
-        waitForText("Use sounds and vibration for timing cues?")
-
-        composeRule.onNodeWithTag("settings-auto-advance-countdowns").performClick()
-        composeRule.onNodeWithTag("settings-auto-lock-live-point").performClick()
+        waitForText("Automatically start live play when a countdown expires?")
         composeRule.onNodeWithTag("settings-show-defense-countdowns").performClick()
         waitForText(
             "most observers will count this off themselves with arm chops",
             substring = true,
         )
 
+        // The default gender ratio badge for ABBA is to show the sequence M2, W1, W2, M1, M2...
+        // or vice versa. The next setting can switch this to just the current ratio.
+        composeRule.onNodeWithTag("settings-show-abba-ratio-as-sequence-value")
+            .assertTextEquals("Yes")
+        composeRule.onNodeWithTag("settings-show-abba-ratio-as-sequence")
+            .performScrollTo()
+            .performClick()
+        composeRule.onNodeWithTag("settings-show-abba-ratio-as-sequence-value")
+            .assertTextEquals("No")
+        waitForText("Ratio will display as either 4W/3M or 4M/3W.")
+        composeRule.onNodeWithTag("settings-show-abba-ratio-as-sequence")
+            .performScrollTo()
+            .performClick()
+        waitForText("Ratio will display as W2, M1, M2, W1, W2", substring = true)
+    }
+
+    /**
+     * Test the timing-cue preferences on the Settings page.
+     */
+    @Test
+    fun cueSettings() {
+        // Seed settings directly so this UI-focused test can start at a meaningful cue state.
+        val defaultPreferences = TimingAlertPreferences()
+        setTimingAlertPreferences(
+            defaultPreferences.copy(
+                globalMode = TimingAlertGlobalMode.VIBRATION_ONLY,
+                soundVolume = 0.5f,
+                vibrateWithSounds = true,
+                cueModes = defaultPreferences.cueModes + mapOf(
+                    TimingCueId.RECEIVING_TWENTY_FOR_HAND to TimingAlertMode.NONE,
+                ),
+            )
+        )
+        val hasTimingCueHaptics = deviceHasTimingCueHaptics()
+
         // With vibration-only mode selected, sound-specific settings should be hidden.
+        composeRule.onNodeWithText("Settings").performClick()
         waitForText("Use sounds and vibration for timing cues?")
         waitForText("Vibration only")
         composeRule.onNodeWithText("Vibration only").performClick()

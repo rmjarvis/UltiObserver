@@ -48,7 +48,10 @@ icon is shown on the right side. Pressing the lock button will lock the screen s
 put it in your pocket without worrying about misclicks during the point.
 
 For mixed division games, if the gender ratio is specified for a given point, a badge
-with the requisite gender ratio will also be shown on the right, below the lock.
+with the requisite gender ratio will also be shown on the right, below the lock. Fixed
+gender-ratio rules show this as ``4M/3W`` or ``4W/3M``. ABBA may show the ratio using one
+of these or using the sequence shorthand: ``M1``, ``M2``, ``W1``, or ``W2``.
+You can choose between these options in the :ref:`Settings`.
 If one team is choosing the gender ratio, then that will be indicated in the team areas
 on the right side, next to the central area.
 

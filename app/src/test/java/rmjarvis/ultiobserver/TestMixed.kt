@@ -4,6 +4,7 @@ import java.time.LocalTime
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -64,28 +65,51 @@ class TestMixed : GameDomainTestFixtures() {
         )
         assertEquals(1, state.currentPointNumber())
         assertEquals(GenderRatio.FOUR_MEN_THREE_WOMEN, state.currentGenderRatio())
+        assertEquals("M2", state.currentGenderRatioBadgeText(showAbbaRatioAsSequence = true))
+        assertEquals("4M/3W", state.currentGenderRatioBadgeText(showAbbaRatioAsSequence = false))
         state = state.recordGoal(VC, timestampAt(state, LocalTime.of(11, 1)))
         assertEquals(2, state.currentPointNumber())
         assertEquals(GenderRatio.FOUR_WOMEN_THREE_MEN, state.currentGenderRatio())
+        assertEquals("W1", state.currentGenderRatioBadgeText(showAbbaRatioAsSequence = true))
+        assertEquals("4W/3M", state.currentGenderRatioBadgeText(showAbbaRatioAsSequence = false))
         state = state.recordGoal(ANIMAL, timestampAt(state, LocalTime.of(11, 2)))
         assertEquals(3, state.currentPointNumber())
         assertEquals(GenderRatio.FOUR_WOMEN_THREE_MEN, state.currentGenderRatio())
+        assertEquals("W2", state.currentGenderRatioBadgeText(showAbbaRatioAsSequence = true))
+        assertEquals("4W/3M", state.currentGenderRatioBadgeText(showAbbaRatioAsSequence = false))
         state = state.recordGoal(VC, timestampAt(state, LocalTime.of(11, 3)))
         assertEquals(4, state.currentPointNumber())
         assertEquals(GenderRatio.FOUR_MEN_THREE_WOMEN, state.currentGenderRatio())
+        assertEquals("M1", state.currentGenderRatioBadgeText(showAbbaRatioAsSequence = true))
+        assertEquals("4M/3W", state.currentGenderRatioBadgeText(showAbbaRatioAsSequence = false))
 
         // Reversing the rule for the first point changes the ratio for subsequent points.
-        val reversedInitial = mixedLiveGameState(
+        state = mixedLiveGameState(
             ratioRule = GenderRatioRule.ABBA,
             initialRatio = GenderRatio.FOUR_WOMEN_THREE_MEN,
         )
-        assertEquals(GenderRatio.FOUR_WOMEN_THREE_MEN, reversedInitial.currentGenderRatio())
+        assertEquals(GenderRatio.FOUR_WOMEN_THREE_MEN, state.currentGenderRatio())
+        assertEquals("W2", state.currentGenderRatioBadgeText(showAbbaRatioAsSequence = true))
+        state = state.recordGoal(VC, timestampAt(state, LocalTime.of(11, 1)))
+        assertEquals("M1", state.currentGenderRatioBadgeText(showAbbaRatioAsSequence = true))
+        state = state.recordGoal(ANIMAL, timestampAt(state, LocalTime.of(11, 2)))
+        assertEquals("M2", state.currentGenderRatioBadgeText(showAbbaRatioAsSequence = true))
+        state = state.recordGoal(VC, timestampAt(state, LocalTime.of(11, 3)))
+        assertEquals("W1", state.currentGenderRatioBadgeText(showAbbaRatioAsSequence = true))
 
         // The two fixed point rules always show their corresponding ratio.
         val fixedFourMen = mixedLiveGameState(ratioRule = GenderRatioRule.FIXED_4M_3W)
         val fixedFourWomen = mixedLiveGameState(ratioRule = GenderRatioRule.FIXED_4W_3M)
         assertEquals(GenderRatio.FOUR_MEN_THREE_WOMEN, fixedFourMen.currentGenderRatio())
         assertEquals(GenderRatio.FOUR_WOMEN_THREE_MEN, fixedFourWomen.currentGenderRatio())
+        assertEquals(
+            "4M/3W",
+            fixedFourMen.currentGenderRatioBadgeText(showAbbaRatioAsSequence = true),
+        )
+        assertEquals(
+            "4W/3M",
+            fixedFourWomen.currentGenderRatioBadgeText(showAbbaRatioAsSequence = true),
+        )
 
         // The other rules don't show a ratio.
         assertNull(mixedLiveGameState(ratioRule = GenderRatioRule.GEN_ZONE).currentGenderRatio())
@@ -99,6 +123,9 @@ class TestMixed : GameDomainTestFixtures() {
         // If the division isn't mixed, then no gender ratio is shown.
         val openDivisionState = standardLiveGameState()
         assertNull(openDivisionState.currentGenderRatio())
+        assertThrows(IllegalStateException::class.java) {
+            openDivisionState.currentGenderRatioBadgeText(showAbbaRatioAsSequence = true)
+        }
     }
 
     /**

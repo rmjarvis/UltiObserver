@@ -368,6 +368,7 @@ internal data class FieldLayoutMetrics(
  * Draw the field as top/bottom end zones plus a center strip for pull direction and controls.
  *
  * @param state The live game state to render.
+ * @param showAbbaRatioAsSequence Whether ABBA field badges should show sequence shorthand.
  * @param interactionsEnabled Whether team action controls should be enabled.
  * @param timeoutEnabled Whether timeout handling is available in the current state.
  * @param showPullIndicator Whether the center strip should show pull direction.
@@ -385,6 +386,7 @@ internal data class FieldLayoutMetrics(
 @Composable
 internal fun FieldSketchCard(
     state: GameState,
+    showAbbaRatioAsSequence: Boolean,
     interactionsEnabled: Boolean,
     timeoutEnabled: Boolean,
     showPullIndicator: Boolean,
@@ -482,6 +484,7 @@ internal fun FieldSketchCard(
                         currentGenderRatio?.let { ratio ->
                             GenderRatioStatusBadge(
                                 ratio = ratio,
+                                label = state.currentGenderRatioBadgeText(showAbbaRatioAsSequence),
                                 horizontalPadding = metrics.genderRatioBadgeHorizontalPadding,
                                 verticalPadding = metrics.genderRatioBadgeVerticalPadding,
                                 fontSize = metrics.genderRatioBadgeFontSize,
@@ -765,6 +768,7 @@ private fun TeamHeaderIdentity(
  * Render a compact non-interactive status badge for the current mixed gender ratio.
  *
  * @param ratio The ratio applying to this point.
+ * @param label The text shown inside the badge.
  * @param horizontalPadding Horizontal badge padding.
  * @param verticalPadding Vertical badge padding.
  * @param fontSize Badge label font size.
@@ -772,6 +776,7 @@ private fun TeamHeaderIdentity(
 @Composable
 private fun GenderRatioStatusBadge(
     ratio: GenderRatio,
+    label: String,
     horizontalPadding: Dp,
     verticalPadding: Dp,
     fontSize: TextUnit,
@@ -796,7 +801,7 @@ private fun GenderRatioStatusBadge(
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = ratio.displayText,
+            text = label,
             color = GenderRatioBadgeTextColor,
             style = MaterialTheme.typography.titleMedium.copy(
                 fontSize = fontSize,

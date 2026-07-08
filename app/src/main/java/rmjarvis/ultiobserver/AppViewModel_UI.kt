@@ -143,6 +143,7 @@ internal fun UltiObserverApp(
                 automaticallyAdvanceCountdowns = appState.automaticallyAdvanceCountdowns,
                 automaticallyLockLivePoint = appState.automaticallyLockLivePoint,
                 showDefenseCountdowns = appState.showDefenseCountdowns,
+                showAbbaRatioAsSequence = appState.showAbbaRatioAsSequence,
                 timingAlertPreferences = appState.timingAlertPreferences,
                 onAutomaticallyAdvanceCountdownsChange = { enabled ->
                     viewModel.updateAutomaticallyAdvanceCountdowns(enabled)
@@ -152,6 +153,9 @@ internal fun UltiObserverApp(
                 },
                 onShowDefenseCountdownsChange = { enabled ->
                     viewModel.updateShowDefenseCountdowns(enabled)
+                },
+                onShowAbbaRatioAsSequenceChange = { enabled ->
+                    viewModel.updateShowAbbaRatioAsSequence(enabled)
                 },
                 onGlobalModeChange = { mode ->
                     viewModel.updateTimingAlertGlobalMode(mode)
@@ -474,6 +478,7 @@ internal fun UltiObserverApp(
                     automaticallyAdvanceCountdowns = appState.automaticallyAdvanceCountdowns,
                     automaticallyLockLivePoint = appState.automaticallyLockLivePoint,
                     showDefenseCountdowns = appState.showDefenseCountdowns,
+                    showAbbaRatioAsSequence = appState.showAbbaRatioAsSequence,
                     onStateChange = { updatedState ->
                         viewModel.updateCurrentGame(updatedState)
                     },

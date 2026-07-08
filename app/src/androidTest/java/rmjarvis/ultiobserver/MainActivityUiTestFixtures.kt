@@ -448,6 +448,11 @@ abstract class MainActivityUiTestFixtures {
             "dismissDialog requires exactly one fallback text or tag."
         }
         if (shouldUsePlatformBackDismissalCoverage()) {
+            if (tag != null) {
+                waitForTag(tag)
+            } else {
+                waitForText(text!!)
+            }
             pressDialogBack()
             if (clearKeyboard) {
                 // On some API levels, Back first exits focused text entry.  If the dialog's
@@ -738,6 +743,21 @@ abstract class MainActivityUiTestFixtures {
     protected fun setAutomaticallyLockLivePoint(automaticallyLock: Boolean) {
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.appViewModel.updateAutomaticallyLockLivePoint(automaticallyLock)
+        }
+        composeRule.waitForIdle()
+    }
+
+    /**
+     * Establish whether ABBA field badges should use sequence shorthand.
+     *
+     * Tests that depend on this persisted setting should set it explicitly rather than relying on
+     * cleanup from earlier tests.
+     *
+     * @param showAsSequence Whether ABBA badges should display M1/M2/W1/W2 shorthand.
+     */
+    protected fun setShowAbbaRatioAsSequence(showAsSequence: Boolean) {
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appViewModel.updateShowAbbaRatioAsSequence(showAsSequence)
         }
         composeRule.waitForIdle()
     }

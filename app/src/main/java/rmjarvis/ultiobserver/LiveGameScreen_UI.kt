@@ -67,6 +67,7 @@ private data class PendingFieldTechnicalFoulResolution(
  * @param automaticallyAdvanceCountdowns Whether expired countdowns should advance model state automatically.
  * @param automaticallyLockLivePoint Whether automatic live-point transitions should lock the screen.
  * @param showDefenseCountdowns Whether timeout offense-set expirations wait for defense.
+ * @param showAbbaRatioAsSequence Whether ABBA field badges should show sequence shorthand.
  * @param onStateChange Callback receiving updated live state from user actions and timer transitions.
  * @param onUpdateGameSetup Callback reopening setup for the current game.
  * @param onOpenGameSummary Callback opening the current game summary.
@@ -81,6 +82,7 @@ internal fun LiveGameScreen(
     automaticallyAdvanceCountdowns: Boolean,
     automaticallyLockLivePoint: Boolean,
     showDefenseCountdowns: Boolean,
+    showAbbaRatioAsSequence: Boolean,
     onStateChange: (GameState) -> Unit,
     onUpdateGameSetup: () -> Unit,
     onOpenGameSummary: () -> Unit,
@@ -295,6 +297,7 @@ internal fun LiveGameScreen(
                 // Sketch the field with two teams and the grass strip between them.
                 FieldSketchCard(
                     state = state,
+                    showAbbaRatioAsSequence = showAbbaRatioAsSequence,
                     interactionsEnabled = !locked,
                     timeoutEnabled = state.canRequestTimeout(now),
                     showPullIndicator = !locked,
