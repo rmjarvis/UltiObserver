@@ -81,13 +81,17 @@ Field number
     game is happening on.
 
 Tournament name
-    Pretty self-explanatory.
+    Pretty self-explanatory. Setting the tournament name will let you filter completed games
+    by tournament, which be useful.
 
 Division
-    Make sure to select **Mixed** here for mixed games to enable mixed-specific rules.
+    This is also just for reference. However, selecting **Mixed** here enables rules related
+    to the gender ratio. You can also filter completed games according to division.
 
 Level
-    If you want, you can set this. E.g. College, club, master, etc.
+    Again, this is mostly just for reference. The one that can matter is **Youth**, which
+    adds an additional 20 seconds to the default time between pulls. You can also filter
+    completed games by level.
 
 Game context
     Optional additional context you might want to record. E.g. finals, semis, etc.
@@ -168,8 +172,8 @@ Timeouts
 
 Time between points
     How many seconds the offense has to signal readiness between points. The defense has
-    up to 20 seconds after this time to pull. USAU defaults are 60 seconds, or 80 seconds
-    for Youth games.
+    up to 20 seconds after this time to pull. Note that if the level is set to **Youth**,
+    then the USAU default is 80 seconds, rather than the usual 60.
 
 Timeout duration
     How long a timeout lasts in seconds. When called during a point, this is how long the
@@ -179,7 +183,7 @@ Timeout duration
 
 Mixed gender ratio
     What rule should be used to determine the gender ratio each point? This option is only
-    available if the division is set to Mixed. Options include:
+    available if the division is set to **Mixed**. Options include:
 
     * **ABBA:** Alternate two at a time starting after the first point. So if the ratio for the
       first point is M (i.e. 4M/3W), then the pattern will be M W W M M W W M M W W ...
