@@ -343,15 +343,30 @@ class TestSetupUi : MainActivityUiTestFixtures() {
 
         // Empty numeric rule entries should fall back to the current value.
         setIntegerSetupValue("Game to", "Game to", "Points", "")
+        setIntegerSetupValue("Time between points", "Time between points", "Seconds", "")
         setCapRuleValue("Half cap", "Half cap", "")
         setTimeoutRules(timeoutsPerHalf = "", hasFloater = false)
 
         // Focused rule dialogs can be canceled without closing the game-rules editor.
         openGameRulesSetupEditor()
-        listOf("Game to", "Halftime", "Half cap", "Soft cap", "Hard cap", "Timeouts")
+        listOf(
+            "Game to",
+            "Halftime",
+            "Half cap",
+            "Soft cap",
+            "Hard cap",
+            "Timeouts",
+            "Time between points",
+        )
             .forEach { ruleLabel ->
                 composeRule.onNodeWithText(ruleLabel).performScrollTo().performClick()
                 waitForText("Cancel")
+                if (ruleLabel == "Time between points") {
+                    waitForText(
+                        "Defense has up to 20 seconds after this time to pull.",
+                        substring = true,
+                    )
+                }
                 composeRule.onAllNodesWithText("Cancel").onLast().performClick()
                 waitForText("Game to")
             }
@@ -361,6 +376,10 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         // Numeric rule editors should accept direct values.
         setIntegerSetupValue("Game to", "Game to", "Points", "7")
         setIntegerSetupValue("Halftime", "Halftime", "Minutes", "2")
+        setIntegerSetupValue("Time between points", "Time between points", "Seconds", "50")
+        assertSetupSummaryTextVisible("Game to 7")
+        assertSetupSummaryTextVisible("Half: 2 min")
+        assertSetupSummaryTextVisible("Time between points: 50 sec")
 
         // Cap editors should support changing, disabling, and re-enabling cap values.
         setCapRuleValue("Half cap", "Half cap", "30")
@@ -390,6 +409,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("setup-usau-defaults").performScrollTo().performClick()
         waitForText("+105")
         closeSetupEditor()
+        assertSetupSummaryTextVisible("Time between points: 60 sec")
     }
 
     /**
@@ -407,6 +427,26 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onAllNodesWithText("N/A").assertCountEquals(2)
         composeRule.onNodeWithText("Level").performScrollTo().assertIsDisplayed()
         closeSetupEditor()
+
+        // Level changes follow USAU between-points defaults while the timing is still default.
+        openGameInformationSetupEditor()
+        composeRule.onNodeWithTag("setup-game-level-Youth")
+            .performScrollTo()
+            .performClick()
+        closeSetupEditor()
+        assertSetupSummaryTextVisible("Time between points: 80 sec")
+        openGameRulesSetupEditor()
+        waitForText("Reset to USAU (Youth) defaults")
+        composeRule.onNodeWithText("Reset to USAU (Youth) defaults")
+            .performScrollTo()
+            .assertIsDisplayed()
+        closeSetupEditor()
+        openGameInformationSetupEditor()
+        composeRule.onNodeWithTag("setup-game-level-College")
+            .performScrollTo()
+            .performClick()
+        closeSetupEditor()
+        assertSetupSummaryTextVisible("Time between points: 60 sec")
 
         // Optional tournament, division, level, context, and observer fields should persist.
         openGameInformationSetupEditor()
@@ -801,5 +841,11 @@ class TestSetupUi : MainActivityUiTestFixtures() {
     /// Assert that only one add-observer action is currently visible.
     private fun assertSingleSetupAddObserver() {
         composeRule.onAllNodesWithTag("setup-add-observer").assertCountEquals(1)
+    }
+
+    /// Scroll to a setup summary line and assert it is visible.
+    private fun assertSetupSummaryTextVisible(text: String) {
+        waitForText(text)
+        composeRule.onNodeWithText(text).performScrollTo().assertIsDisplayed()
     }
 }

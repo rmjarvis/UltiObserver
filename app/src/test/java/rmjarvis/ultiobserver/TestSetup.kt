@@ -180,6 +180,49 @@ class TestSetup : GameDomainTestFixtures() {
     }
 
     /**
+     * Test how USAU default between-points timing follows Youth level changes.
+     */
+    @Test
+    fun levelDefaultTimeBetweenPoints() {
+        // USAU default rules use the standard sixty-second offense-ready deadline except for
+        // Youth, which gets an extra twenty seconds.
+        assertEquals(GameRules(), usauDefaultGameRules("Club"))
+        assertEquals(60, usauDefaultGameRules("Club").timeBetweenPointsSeconds)
+        assertEquals(80, usauDefaultGameRules("Youth").timeBetweenPointsSeconds)
+        assertEquals("Reset to USAU defaults", usauDefaultsButtonLabel("Club"))
+        assertEquals("Reset to USAU (Youth) defaults", usauDefaultsButtonLabel("Youth"))
+
+        // Changing into Youth updates the timing only when it was still the non-Youth default.
+        assertEquals(
+            80,
+            GameRules()
+                .withLevelDefaultTimeBetweenPoints(previousLevel = "", newLevel = "Youth")
+                .timeBetweenPointsSeconds,
+        )
+        assertEquals(
+            50,
+            GameRules(timeBetweenPointsSeconds = 50)
+                .withLevelDefaultTimeBetweenPoints(previousLevel = "", newLevel = "Youth")
+                .timeBetweenPointsSeconds,
+        )
+
+        // Changing out of Youth similarly restores the non-Youth default only from Youth default
+        // timing, preserving any custom value.
+        assertEquals(
+            60,
+            usauDefaultGameRules("Youth")
+                .withLevelDefaultTimeBetweenPoints(previousLevel = "Youth", newLevel = "Club")
+                .timeBetweenPointsSeconds,
+        )
+        assertEquals(
+            50,
+            GameRules(timeBetweenPointsSeconds = 50)
+                .withLevelDefaultTimeBetweenPoints(previousLevel = "Youth", newLevel = "Club")
+                .timeBetweenPointsSeconds,
+        )
+    }
+
+    /**
      * Test that every setup-editable game field is recognized as a meaningful update.
      */
     @Test

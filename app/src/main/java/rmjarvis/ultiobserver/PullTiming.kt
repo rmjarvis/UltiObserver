@@ -64,18 +64,25 @@ enum class TimeViolationOutcome {
     NO_TIMEOUT,
 }
 
-private val StandardPullTiming = PullTimingSeconds(offenseReadySeconds = 60, pullSeconds = 80)
 private val OpeningPullTiming = PullTimingSeconds(offenseReadySeconds = 20, pullSeconds = 40)
 private val ReceivingTeamWarningResetTiming = PullTimingSeconds(offenseReadySeconds = 20, pullSeconds = 50)
 private val PullingTeamWarningResetTiming = PullTimingSeconds(offenseReadySeconds = 0, pullSeconds = 30)
 private val TimeViolationTimeoutResetTiming = PullTimingSeconds(offenseReadySeconds = 70, pullSeconds = 90)
 
 /// Return the default pull deadlines for one between-points countdown kind.
-internal fun defaultPullTimingSeconds(kind: CountdownKind): PullTimingSeconds {
+internal fun defaultPullTimingSeconds(kind: CountdownKind, rules: GameRules): PullTimingSeconds {
     return when (kind) {
         CountdownKind.OPENING_PULL -> OpeningPullTiming
-        else -> StandardPullTiming
+        else -> rules.standardPullTiming()
     }
+}
+
+/// Return the standard between-points pull timing configured by these game rules.
+internal fun GameRules.standardPullTiming(): PullTimingSeconds {
+    return PullTimingSeconds(
+        offenseReadySeconds = timeBetweenPointsSeconds,
+        pullSeconds = timeBetweenPointsSeconds + PULL_SECONDS_AFTER_OFFENSE_READY,
+    )
 }
 
 /**
@@ -86,17 +93,19 @@ internal fun defaultPullTimingSeconds(kind: CountdownKind): PullTimingSeconds {
  * @param sequenceStart The epoch millis when the between-points sequence starts.
  * @param kind The between-points countdown kind, used to distinguish normal, opening, and reset timing.
  * @param promptTarget Which field end or ends should receive timing prompts.
+ * @param rules The game rules that configure normal between-points timing.
  */
 internal fun buildBetweenPointsCountdown(
     pullingFromEnd: FieldEnd,
     sequenceStart: Long,
     kind: CountdownKind = CountdownKind.BETWEEN_POINTS,
     promptTarget: PullPromptTarget,
+    rules: GameRules,
 ): CountdownState {
     require(kind.usesBetweenPointsTarget()) {
         "Countdown kind $kind does not use between-points timing."
     }
-    val timing = defaultPullTimingSeconds(kind)
+    val timing = defaultPullTimingSeconds(kind, rules)
     val target = betweenPointsCountdownTarget(
         pullingFromEnd = pullingFromEnd,
         promptTarget = promptTarget,
@@ -195,6 +204,7 @@ internal fun CountdownState.withPullPromptTarget(
  * @param now The epoch millis used to compute remaining time.
  * @param kind The between-points countdown kind to display.
  * @param promptTarget Which field end or ends should receive timing prompts.
+ * @param rules The game rules that configure normal between-points timing.
  */
 fun betweenPointsDisplay(
     pullingFromEnd: FieldEnd,
@@ -202,12 +212,14 @@ fun betweenPointsDisplay(
     now: Long,
     kind: CountdownKind = CountdownKind.BETWEEN_POINTS,
     promptTarget: PullPromptTarget,
+    rules: GameRules,
 ): Pair<String, Duration> {
     val countdown = buildBetweenPointsCountdown(
         pullingFromEnd = pullingFromEnd,
         sequenceStart = sequenceStart,
         kind = kind,
         promptTarget = promptTarget,
+        rules = rules,
     )
     return countdown.label to Duration.ofMillis((countdown.targetEpoch - now).coerceAtLeast(0L))
 }
@@ -420,6 +432,7 @@ fun GameState.restartPullCountdown(now: Long): GameState {
                 CountdownKind.BETWEEN_POINTS
             },
             promptTarget = this.pullPromptTarget,
+            rules = this.rules,
         ),
         lastEvent = "Pull countdown restarted.",
     ).withUndo(this, "Undo Restart countdown")

@@ -142,7 +142,7 @@ Game Rules
 .. figure:: screen-shots/GameRules.png
    :class: phone-screenshot
    :target: _images/GameRules.png
-   :alt: Game rules section with game target, halftime, caps, timeouts, and mixed gender ratio
+   :alt: Game rules section with game target, halftime, caps, timeouts, between-points timing, and mixed gender ratio
 
 This is where you can set the rules that apply to this game in case the tournament has any
 modifications from standard USAU rules.
@@ -165,6 +165,11 @@ Hard cap
 Timeouts
     How many timeouts does each team have each half, including a possible floater
     (an extra timeout that can be taken in either half)?
+
+Time between points
+    How many seconds the offense has to signal readiness between points. The defense has
+    up to 20 seconds after this time to pull. USAU defaults are 60 seconds, or 80 seconds
+    for Youth games.
 
 Mixed gender ratio
     What rule should be used to determine the gender ratio each point? This option is only

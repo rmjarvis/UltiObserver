@@ -40,6 +40,7 @@ class TestGameRulesDialog : GameDomainTestFixtures() {
                 "Hard cap" to "11:45 AM",
                 "Halftime" to "7 min",
                 "Timeouts" to "2/half",
+                "Time between points" to "60 sec",
                 "Gender ratio" to "ABBA",
             ),
             fullMixedState.gameRulesDialogRows().testDisplayPairs(),
@@ -66,6 +67,7 @@ class TestGameRulesDialog : GameDomainTestFixtures() {
                 "Start time" to "10:00 AM",
                 "Halftime" to "7 min",
                 "Timeouts" to "1/half",
+                "Time between points" to "60 sec",
             ),
             openNoCapState.gameRulesDialogRows().testDisplayPairs(),
         )
@@ -130,6 +132,7 @@ class TestGameRulesDialog : GameDomainTestFixtures() {
                 "Soft cap" to "11:30 AM",
                 "Halftime" to "7 min",
                 "Timeouts" to "2/half + floater",
+                "Time between points" to "60 sec",
                 "Gender ratio" to "Gen Zone, no switch at half",
             ),
             capAdjustedState.gameRulesDialogRows().testDisplayPairs(),

@@ -82,6 +82,10 @@ private enum class RuleEditTarget(
         dialogTitle = "Halftime",
         fieldLabel = "Minutes",
     ),
+    BETWEEN_POINTS(
+        dialogTitle = "Time between points",
+        fieldLabel = "Seconds",
+    ),
     HALF(
         dialogTitle = "Half cap",
         fieldLabel = "Minutes",
@@ -463,7 +467,7 @@ internal fun SetupScreen(
                         gameRulesDraft = it
                     },
                     onUseUsauDefaults = {
-                        gameRulesDraft = GameRules()
+                        gameRulesDraft = usauDefaultGameRules(state.level)
                     },
                     onConfirm = {
                         onStateChange(state.copy(rules = rulesDraft))
@@ -502,6 +506,23 @@ internal fun SetupScreen(
                             onConfirm = { newValue ->
                                 gameRulesDraft = rulesDraft.copy(
                                     halftimeMinutes = newValue.coerceAtLeast(1)
+                                )
+                                editingRule = null
+                            },
+                        )
+                    }
+
+                    RuleEditTarget.BETWEEN_POINTS -> {
+                        IntegerEditDialog(
+                            title = target.dialogTitle,
+                            fieldLabel = target.fieldLabel,
+                            initialValue = rulesDraft.timeBetweenPointsSeconds,
+                            note = "This is the time until offense must signal readiness. " +
+                                "Defense has up to 20 seconds after this time to pull.",
+                            onDismiss = { editingRule = null },
+                            onConfirm = { newValue ->
+                                gameRulesDraft = rulesDraft.copy(
+                                    timeBetweenPointsSeconds = newValue.coerceAtLeast(1)
                                 )
                                 editingRule = null
                             },
@@ -959,6 +980,10 @@ private fun GameInformationSetupDialog(
                 gameContext = gameContext,
                 observerNames = observerNames.cleanedObserverNames(),
                 fieldName = fieldName,
+                rules = state.rules.withLevelDefaultTimeBetweenPoints(
+                    previousLevel = state.level,
+                    newLevel = level,
+                ),
             )
         )
         onDismiss()
@@ -1430,6 +1455,7 @@ private fun GameRulesSummary(state: GameState) {
         SetupSummaryValue("Half: ${rules.halftimeMinutes} min")
         SetupSummaryValue("Caps: ${rules.capRulesSummary()}")
         SetupSummaryValue("TO: ${rules.formatTimeoutRules()}")
+        SetupSummaryValue("Time between points: ${rules.formatTimeBetweenPoints()}")
         if (state.usesMixedDivision()) {
             SetupSummaryValue("Ratio: ${rules.genderRatioRule.displayText}")
             if (rules.genderRatioRule == GenderRatioRule.GEN_ZONE) {
@@ -1705,6 +1731,11 @@ private fun GameRulesSetupDialog(
                     value = rules.formatTimeoutRules(),
                     onClick = onEditTimeouts,
                 )
+                EditableValueRow(
+                    label = "Time between points",
+                    value = rules.formatTimeBetweenPoints(),
+                    onClick = { onEditRule(RuleEditTarget.BETWEEN_POINTS) },
+                )
                 if (state.usesMixedDivision()) {
                     Text("Mixed gender ratio", fontWeight = FontWeight.SemiBold)
                     GenderRatioRuleChoiceRow(
@@ -1729,7 +1760,7 @@ private fun GameRulesSetupDialog(
                     }
                 }
                 MenuButton(
-                    label = "Reset to USAU defaults",
+                    label = usauDefaultsButtonLabel(state.level),
                     tag = "setup-usau-defaults",
                     colors = resetButtonColors(),
                     borderColor = null,
@@ -1854,6 +1885,7 @@ private fun ExactTimeDialog(
  * @param title The dialog title.
  * @param fieldLabel The text-field label.
  * @param initialValue The current numeric value shown when the dialog opens.
+ * @param note Optional explanatory text shown above the numeric field.
  * @param onDismiss Callback closing the dialog without applying a value.
  * @param onConfirm Callback receiving the parsed non-negative value.
  */
@@ -1862,6 +1894,7 @@ private fun IntegerEditDialog(
     title: String,
     fieldLabel: String,
     initialValue: Int,
+    note: String? = null,
     onDismiss: () -> Unit,
     onConfirm: (Int) -> Unit,
 ) {
@@ -1873,6 +1906,13 @@ private fun IntegerEditDialog(
         title = { Text(title) },
         text = {
             TextEntryDialogBody(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (note != null) {
+                    Text(
+                        text = note,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 TextEntry(
                     value = valueText,
                     onValueChange = { valueText = it.filter(Char::isDigit) },

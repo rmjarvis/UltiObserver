@@ -23,6 +23,7 @@ internal fun GameState.gameRulesDialogRows(): List<GameRulesDialogRow> {
     capDialogRow(CapType.HARD)?.let { rows += it }
     rows += GameRulesDialogRow("Halftime", halftimeDialogText())
     rows += GameRulesDialogRow("Timeouts", rules.formatTimeoutRules())
+    rows += GameRulesDialogRow("Time between points", rules.formatTimeBetweenPoints())
     if (usesMixedDivision()) {
         rows += GameRulesDialogRow("Gender ratio", genderRatioDialogText())
     }

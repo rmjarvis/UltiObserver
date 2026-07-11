@@ -1325,11 +1325,13 @@ internal fun GameState.activeCountdownDisplay(now: Long): ActiveCountdownDisplay
                 sequenceStart = countdown.targetEpoch,
                 now = now,
                 promptTarget = pullPromptTarget,
+                rules = rules,
             )
             val followOnCountdown = buildBetweenPointsCountdown(
                 pullingFromEnd = pullingFromEnd,
                 sequenceStart = countdown.targetEpoch,
                 promptTarget = pullPromptTarget,
+                rules = rules,
             )
             ActiveCountdownDisplay(
                 label = followOn.first,

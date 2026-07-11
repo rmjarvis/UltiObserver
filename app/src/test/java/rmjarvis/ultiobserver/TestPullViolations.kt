@@ -108,6 +108,7 @@ class TestPullViolations : GameDomainTestFixtures() {
                 sequenceStart = 1_000L,
                 now = 1_000L,
                 promptTarget = PullPromptTarget.NEAR,
+                rules = GameRules(),
             ),
         )
         assertEquals(
@@ -117,6 +118,7 @@ class TestPullViolations : GameDomainTestFixtures() {
                 sequenceStart = 2_000L,
                 now = 2_000L,
                 promptTarget = PullPromptTarget.NEAR,
+                rules = GameRules(),
             ),
         )
 
@@ -128,6 +130,7 @@ class TestPullViolations : GameDomainTestFixtures() {
                 sequenceStart = 2_000L,
                 now = 2_000L,
                 promptTarget = PullPromptTarget.FAR,
+                rules = GameRules(),
             ),
         )
         assertEquals(
@@ -137,6 +140,7 @@ class TestPullViolations : GameDomainTestFixtures() {
                 sequenceStart = 2_000L,
                 now = 2_000L,
                 promptTarget = PullPromptTarget.FAR,
+                rules = GameRules(),
             ),
         )
 
@@ -148,6 +152,7 @@ class TestPullViolations : GameDomainTestFixtures() {
                 sequenceStart = 2_000L,
                 now = 2_000L,
                 promptTarget = PullPromptTarget.BOTH,
+                rules = GameRules(),
             ),
         )
         assertEquals(
@@ -157,6 +162,7 @@ class TestPullViolations : GameDomainTestFixtures() {
                 sequenceStart = 2_000L,
                 now = 2_000L,
                 promptTarget = PullPromptTarget.NEITHER,
+                rules = GameRules(),
             ),
         )
 
@@ -168,6 +174,7 @@ class TestPullViolations : GameDomainTestFixtures() {
                 sequenceStart = 1_000L,
                 now = 31_000L,
                 promptTarget = PullPromptTarget.NEAR,
+                rules = GameRules(),
             ),
         )
 
@@ -179,6 +186,7 @@ class TestPullViolations : GameDomainTestFixtures() {
                 sequenceStart = 1_000L,
                 now = 70_000L,
                 promptTarget = PullPromptTarget.NEAR,
+                rules = GameRules(),
             ),
         )
     }
@@ -193,10 +201,33 @@ class TestPullViolations : GameDomainTestFixtures() {
             pullingFromEnd = FieldEnd.NEAR,
             sequenceStart = 2_000L,
             promptTarget = PullPromptTarget.NEAR,
+            rules = GameRules(),
         )
         val standardPullTiming = standardPullCountdown.pullTiming!!
         assertEquals(60, standardPullTiming.offenseReadySeconds)
         assertEquals(80, standardPullTiming.pullSeconds)
+
+        // Use a custom time between points.
+        val customPullCountdown = buildBetweenPointsCountdown(
+            pullingFromEnd = FieldEnd.NEAR,
+            sequenceStart = 2_000L,
+            promptTarget = PullPromptTarget.NEAR,
+            rules = GameRules(timeBetweenPointsSeconds = 50),
+        )
+        assertEquals(50, customPullCountdown.pullTiming?.offenseReadySeconds)
+        assertEquals(70, customPullCountdown.pullTiming?.pullSeconds)
+        assertEquals(70, customPullCountdown.durationSeconds)
+
+        // Youth defaults have an extra twenty seconds before offense readiness.
+        val youthPullCountdown = buildBetweenPointsCountdown(
+            pullingFromEnd = FieldEnd.NEAR,
+            sequenceStart = 2_000L,
+            promptTarget = PullPromptTarget.NEAR,
+            rules = usauDefaultGameRules("Youth"),
+        )
+        assertEquals(80, youthPullCountdown.pullTiming?.offenseReadySeconds)
+        assertEquals(100, youthPullCountdown.pullTiming?.pullSeconds)
+        assertEquals(100, youthPullCountdown.durationSeconds)
 
         // Prompt targets choose which deadline controls the countdown duration.
         assertEquals(
@@ -244,6 +275,7 @@ class TestPullViolations : GameDomainTestFixtures() {
             pullingFromEnd = FieldEnd.FAR,
             sequenceStart = 2_000L,
             promptTarget = PullPromptTarget.BOTH,
+            rules = GameRules(),
         )
         assertEquals(BetweenPointsCountdownTarget.BOTH, bothCountdown.betweenPointsTarget)
         assertEquals(80, bothCountdown.durationSeconds)
@@ -252,6 +284,7 @@ class TestPullViolations : GameDomainTestFixtures() {
             pullingFromEnd = FieldEnd.FAR,
             sequenceStart = 2_000L,
             promptTarget = PullPromptTarget.NEITHER,
+            rules = GameRules(),
         )
         assertEquals(BetweenPointsCountdownTarget.NEITHER, neitherCountdown.betweenPointsTarget)
         assertEquals(80, neitherCountdown.durationSeconds)
@@ -294,6 +327,7 @@ class TestPullViolations : GameDomainTestFixtures() {
             pullingFromEnd = FieldEnd.FAR,
             sequenceStart = standardSequenceStart,
             promptTarget = PullPromptTarget.NEAR,
+            rules = GameRules(),
         )
         assertEquals(
             TimingCueId.RECEIVING_TWENTY_FOR_HAND,
@@ -334,6 +368,7 @@ class TestPullViolations : GameDomainTestFixtures() {
             pullingFromEnd = FieldEnd.NEAR,
             sequenceStart = standardSequenceStart,
             promptTarget = PullPromptTarget.FAR,
+            rules = GameRules(),
         )
         assertEquals(
             TimingCueId.RECEIVING_TWENTY_FOR_HAND,
@@ -350,6 +385,7 @@ class TestPullViolations : GameDomainTestFixtures() {
             pullingFromEnd = FieldEnd.NEAR,
             sequenceStart = standardSequenceStart,
             promptTarget = PullPromptTarget.NEAR,
+            rules = GameRules(),
         )
         assertEquals(
             TimingCueId.PULLING_TWENTY_TO_PULL,
@@ -377,6 +413,7 @@ class TestPullViolations : GameDomainTestFixtures() {
             pullingFromEnd = FieldEnd.FAR,
             sequenceStart = standardSequenceStart,
             promptTarget = PullPromptTarget.FAR,
+            rules = GameRules(),
         )
         assertEquals(
             TimingCueId.PULLING_TWENTY_TO_PULL,
@@ -393,6 +430,7 @@ class TestPullViolations : GameDomainTestFixtures() {
             pullingFromEnd = FieldEnd.FAR,
             sequenceStart = 2_000L,
             promptTarget = PullPromptTarget.BOTH,
+            rules = GameRules(),
         )
         assertEquals(
             TimingCueId.RECEIVING_TWENTY_FOR_HAND,
@@ -411,6 +449,7 @@ class TestPullViolations : GameDomainTestFixtures() {
             pullingFromEnd = FieldEnd.FAR,
             sequenceStart = 2_000L,
             promptTarget = PullPromptTarget.NEITHER,
+            rules = GameRules(),
         )
         assertNull(neitherCountdown.nextTimingCue(2_000L))
         assertNull(neitherCountdown.dueTimingCue(82_000L))
@@ -422,6 +461,7 @@ class TestPullViolations : GameDomainTestFixtures() {
             sequenceStart = 1_000L,
             kind = CountdownKind.OPENING_PULL,
             promptTarget = PullPromptTarget.NEAR,
+            rules = GameRules(),
         )
         assertEquals(1_000L, openingReceiveCountdown.nextTimingCue(1_000L)?.targetEpoch)
         assertEquals(
@@ -444,7 +484,10 @@ class TestPullViolations : GameDomainTestFixtures() {
             sequenceStart = 1_000L,
             kind = CountdownKind.OPENING_PULL,
             promptTarget = PullPromptTarget.NEAR,
+            rules = GameRules(),
         )
+        assertEquals(20, openingPullCountdown.pullTiming?.offenseReadySeconds)
+        assertEquals(40, openingPullCountdown.pullTiming?.pullSeconds)
         assertEquals(
             TimingCueId.PULLING_TWENTY_TO_PULL,
             openingPullCountdown.nextTimingCue(1_000L)?.id,
@@ -462,6 +505,7 @@ class TestPullViolations : GameDomainTestFixtures() {
                 sequenceStart = 1_000L,
                 kind = CountdownKind.TIME_OUT,
                 promptTarget = PullPromptTarget.NEAR,
+                rules = GameRules(),
             )
         }
         assertEquals(

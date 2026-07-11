@@ -256,6 +256,7 @@ private fun applyBetweenPointsTimeout(
                 CountdownKind.BETWEEN_POINTS
             },
             promptTarget = state.pullPromptTarget,
+            rules = state.rules,
         ).copy(targetEpoch = now)
     }
     return state.copy(

@@ -203,22 +203,7 @@ enum class TeamColorChoice(
     GRAY("Gray", 0xFF708090, 0xFFF7F8FA),
     CUSTOM("Custom", 0x00000000, 0x00000000),
 }
-/// Configurable rules that affect scoring, caps, halftime, timeouts, and mixed play.
-@Serializable
-data class GameRules(
-    val gameTo: Int = 15,
-    val halftimeMinutes: Int = 7,
-    val useHalfCap: Boolean = true,
-    val halfCapMinutes: Int = 45,
-    val useSoftCap: Boolean = true,
-    val softCapMinutes: Int = 90,
-    val useHardCap: Boolean = true,
-    val hardCapMinutes: Int = 105,
-    val timeoutsPerHalf: Int = 2,
-    val hasFloaterTimeout: Boolean = false,
-    val genderRatioRule: GenderRatioRule = GenderRatioRule.ABBA,
-    val switchGenZoneAtHalftime: Boolean = true,
-)
+
 /**
  * Gender-ratio pattern used for a mixed-division game.
  *

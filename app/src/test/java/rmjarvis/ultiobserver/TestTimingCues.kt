@@ -713,6 +713,7 @@ class TestTimingCues : GameDomainTestFixtures() {
                     pullingFromEnd = FieldEnd.NEAR,
                     sequenceStart = 2_000L,
                     promptTarget = PullPromptTarget.NEAR,
+                    rules = GameRules(),
                 ),
             ).halftimeTransitionReady(halftimeCountdown.targetEpoch)
         )

@@ -259,30 +259,3 @@ internal fun PullPromptTarget.initialTopDisplayedEnd(): FieldEnd {
         PullPromptTarget.NEITHER -> FieldEnd.FAR
     }
 }
-
-/// Return the compact half/soft/hard cap summary.
-internal fun GameRules.capRulesSummary(): String {
-    return "${capSummary(useHalfCap, halfCapMinutes)}/" +
-        "${capSummary(useSoftCap, softCapMinutes)}/" +
-        capSummary(useHardCap, hardCapMinutes)
-}
-
-/**
- * Return the compact display for one cap rule.
- *
- * @param enabled Whether the cap is enabled.
- * @param minutes The cap offset in minutes when enabled.
- */
-private fun capSummary(enabled: Boolean, minutes: Int): String {
-    return if (enabled) "+$minutes" else "-"
-}
-
-/// Format timeout rules for setup display.
-internal fun GameRules.formatTimeoutRules(): String {
-    return buildString {
-        append("$timeoutsPerHalf/half")
-        if (hasFloaterTimeout) {
-            append(" + floater")
-        }
-    }
-}

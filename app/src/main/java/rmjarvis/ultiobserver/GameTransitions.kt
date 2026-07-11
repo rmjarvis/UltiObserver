@@ -21,6 +21,7 @@ fun GameState.startGame(): GameState {
             sequenceStart = startEpoch,
             kind = CountdownKind.OPENING_PULL,
             promptTarget = pullPromptTarget,
+            rules = rules,
         ),
     )
 }
@@ -46,6 +47,7 @@ fun GameState.startPullSequence(
             CountdownKind.BETWEEN_POINTS
         },
         promptTarget = this.pullPromptTarget,
+        rules = this.rules,
     )
     return this.copy(
         phase = phase,
@@ -106,6 +108,7 @@ fun GameState.recordGoal(
                 pullingFromEnd = nextPullingFromEnd,
                 sequenceStart = now,
                 promptTarget = this.pullPromptTarget,
+                rules = this.rules,
             ),
             pullSequenceOffsidesRecorded = false,
             pullSequenceFalseStartRecorded = false,
@@ -181,6 +184,7 @@ fun GameState.recordGoal(
         pullingFromEnd = nextPullingFromEnd,
         sequenceStart = now,
         promptTarget = this.pullPromptTarget,
+        rules = this.rules,
     )
 
     return this.copy(
@@ -434,6 +438,7 @@ fun GameState.applyExpiredCountdownTransitions(
                     pullingFromEnd = this.pullingFromEnd,
                     sequenceStart = countdown.targetEpoch,
                     promptTarget = this.pullPromptTarget,
+                    rules = this.rules,
                 ),
                 pullSkippedForCurrentPoint = false,
                 pendingMisconductCountdown = false,
