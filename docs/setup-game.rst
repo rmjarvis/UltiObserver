@@ -146,7 +146,7 @@ Game Rules
 .. figure:: screen-shots/GameRules.png
    :class: phone-screenshot
    :target: _images/GameRules.png
-   :alt: Game rules section with game target, halftime, caps, timeouts, between-points timing, and mixed gender ratio
+   :alt: Game rules section with game target, halftime, caps, timeouts, time between points, and timeout duration
 
 This is where you can set the rules that apply to this game in case the tournament has any
 modifications from standard USAU rules.
