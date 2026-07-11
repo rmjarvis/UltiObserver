@@ -7,15 +7,25 @@ UltiObserver
    :alt: UltiObserver home screen with start game, archive, profile, settings, and about buttons
 
 UltiObserver is an app for Ultimate observers.
-It provides timing cues between points and during timeouts and misconduct penalties.
-It helps track the game events that need observer attention, including goals, timeouts,
-pull violations, misconduct, and caps.
-After the game, it lets you share a summary with the tournament director or head observer.
-It is intended to replace both the paper score sheet and the stopwatch observers typically use.
+It helps an observer track and manage the various events during the game that require
+the observer's attention, including goals, timeouts, pull violations, time caps,
+and misconduct -- everyting that would normally be recorded on a paper score sheet.
+It also provides timing cues for pulls, timeouts, misconduct penalties, and halftime,
+showing an active countdown with prompts for each time the observer should announce something.
+The app is intended to replace both the paper score sheet and the stopwatch observers
+typically use.
 
-The app is designed for active field use on a phone in portrait mode. The game
-screen normally keeps the observer's end of the field at the bottom of the
-display, so the field view matches what you see in front of you.
+The recommended way to use the timing cues is to use either sound (with earbuds) or vibration.
+After recording a goal or timeout, the countdown starts automatically, and you can put your
+phone away. Then just listen for the sound or notice the vibration that cues you to announce
+the next timing update. For instance, for a pull, when you are at the endzone with the
+receiving team, the default sounds are two clicks at 20 seconds left and one click at 10 seconds,
+prompting you to make the corresponding announcements. The specific sounds or vibration cues
+are all settable, so you can enable whichever ones you find most useful.
+
+After the game, the app will show a game summary page with the final score along with other
+details, including all cards that were issued. This page includes a way to share the summary,
+so you can quickly send it to the head observer and/or tournament director for the tournament.
 
 What UltiObserver Does
 ----------------------
@@ -27,22 +37,24 @@ UltiObserver tracks the following:
 * The current state of an ongoing game, including: orientation of the teams, pull direction,
   gender ratio for mixed games, current score, remaining timeouts available, and how many pull
   violations, cards and technical fouls have been assessed to each team.
-* Events that happen during a game, including: goals, timeouts called, pull and time violations,
+* Events that happen during a game, including: goals, timeouts, pull and time violations,
   misconduct on teams or individual players, halftime, and game over;
 * Current timing prompts when appropriate including: pulling or receiving a pull, timeout,
-  restart after a misconduct penalty, halftime. The app can optionally use sound or vibration
+  restart after a misconduct penalty, and halftime. The app can optionally use sound or vibration
   for individual cues, as well as for caps coming due.
 * Short summaries of the consequences for violations and misconduct with the appropriate restart
   location and whether a check is required.
 * Archives for past completed games, setup drafts, and any saved or abandoned in-progress games.
-  Event logs and shareable game summaries are available for all past games.
+  Event logs and shareable game summaries are available for all past games and the current game.
 
 Current Scope
 -------------
 
-UltiObserver currently targets Android phones and USAU-style games to points.
-Timed-game formats, an iPhone version, and additional layout options are
-planned improvements rather than current behavior.
+UltiObserver is currently only available on Android phones. An iPhone version is
+planned, but not yet implemented.
+It is so far only targeted at games to a given point total, rather than timed games.
+Most of the rules are hard coded to the current USAU rule set, but there are some things
+that are settable, including the time between points, timeouts, and halftime.
 
 Contents
 --------
