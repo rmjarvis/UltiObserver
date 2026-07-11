@@ -122,3 +122,20 @@ internal fun GameRules.formatTimeBetweenPoints(): String {
 internal fun GameRules.formatTimeoutDuration(): String {
     return "$timeoutSeconds sec"
 }
+
+/// Return the explanatory note for one mixed gender-ratio rule choice.
+internal fun GenderRatioRule.explanation(): String {
+    return when (this) {
+        GenderRatioRule.ABBA ->
+            "Alternate two at a time after the first point: ABBAABBAA..."
+        GenderRatioRule.GEN_ZONE ->
+            "The team in a particular end zone decides the ratio each point."
+        GenderRatioRule.OFFENSE_DECIDES ->
+            "The team receiving the pull decides the ratio each point."
+        GenderRatioRule.FIXED_4M_3W,
+        GenderRatioRule.FIXED_4W_3M ->
+            "Fixed gender ratio."
+        GenderRatioRule.NA ->
+            "No gender-ratio prompts will be shown."
+    }
+}

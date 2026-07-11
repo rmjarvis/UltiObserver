@@ -638,7 +638,7 @@ class TestSetup : GameDomainTestFixtures() {
             ).teamPriorCardsSummary(),
         )
 
-        // Rule summaries show enabled caps as minute offsets and disabled caps as dashes.
+        // Cap rule summaries show enabled caps as minute offsets and disabled caps as dashes.
         assertEquals(
             "+45/+90/+105",
             GameRules(
@@ -656,7 +656,7 @@ class TestSetup : GameDomainTestFixtures() {
             ).capRulesSummary(),
         )
 
-        // Timeout count summaries show per-half and floater rules.
+        // Timeout summaries show number per half and floater rules.
         assertEquals(
             "2/half + floater",
             GameRules(timeoutsPerHalf = 2, hasFloaterTimeout = true).formatTimeoutRules(),
@@ -666,7 +666,7 @@ class TestSetup : GameDomainTestFixtures() {
             GameRules(timeoutsPerHalf = 1, hasFloaterTimeout = false).formatTimeoutRules(),
         )
 
-        // Timing rule summaries show the configured seconds for time between points and timeouts.
+        // Timing summaries show the configured seconds for time between points and timeouts.
         assertEquals(
             "50 sec",
             GameRules(timeBetweenPointsSeconds = 50).formatTimeBetweenPoints(),
@@ -675,6 +675,25 @@ class TestSetup : GameDomainTestFixtures() {
             "80 sec",
             GameRules(timeoutSeconds = 80).formatTimeoutDuration(),
         )
+
+        // Gender-ratio rules provide explanatory notes for the focused rule editor.
+        val genderRatioExplanations = listOf(
+            GenderRatioRule.ABBA to
+                "Alternate two at a time after the first point: ABBAABBAA...",
+            GenderRatioRule.GEN_ZONE to
+                "The team in a particular end zone decides the ratio each point.",
+            GenderRatioRule.OFFENSE_DECIDES to
+                "The team receiving the pull decides the ratio each point.",
+            GenderRatioRule.FIXED_4M_3W to
+                "Fixed gender ratio.",
+            GenderRatioRule.FIXED_4W_3M to
+                "Fixed gender ratio.",
+            GenderRatioRule.NA to
+                "No gender-ratio prompts will be shown.",
+        )
+        genderRatioExplanations.forEach { (rule, explanation) ->
+            assertEquals(explanation, rule.explanation())
+        }
     }
 
     /**

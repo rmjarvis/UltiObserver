@@ -252,11 +252,29 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         dismissDialog(text = "Done")
         waitForText("Road / River")
 
-        // Gen Zone setup uses field-end labels and the rules say whether the zone switches.
-        openGameRulesSetupEditor()
+        // Canceling the mixed gender-ratio popup keeps the existing ABBA setup rule.
+        openMixedGenderRatioEditor()
         composeRule.onNodeWithTag("setup-gender-ratio-rule-${GenderRatioRule.GEN_ZONE.name}")
-            .performScrollTo()
             .performClick()
+        dismissDialog(text = "Cancel")
+        waitForText("Game to")
+        closeSetupEditor()
+        openStartingPullSetupEditor()
+        waitForText("First point gender ratio")
+        composeRule.onAllNodesWithText("End for gen zone in first half").assertCountEquals(0)
+        closeSetupEditor()
+
+        // Gen Zone setup uses field-end labels and the rules say whether the zone switches.
+        openMixedGenderRatioEditor()
+        waitForText("Alternate two at a time after the first point", substring = true)
+        composeRule.onNodeWithTag("setup-gender-ratio-rule-${GenderRatioRule.GEN_ZONE.name}")
+            .performClick()
+        waitForText(
+            "The team in a particular end zone decides the ratio each point.",
+            substring = true,
+        )
+        composeRule.onNodeWithTag("setup-gender-ratio-set").performClick()
+        waitForText("Game to")
         closeSetupEditor()
         openStartingPullSetupEditor()
         waitForText("End for gen zone in first half")
@@ -268,10 +286,11 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         waitForText("Gen Zone switches at halftime")
 
         // Gen Zone setup can also keep the same zone for the whole game.
-        openGameRulesSetupEditor()
+        openMixedGenderRatioEditor()
         composeRule.onNodeWithTag("setup-switch-gen-zone-at-halftime")
-            .performScrollTo()
             .performClick()
+        composeRule.onNodeWithTag("setup-gender-ratio-set").performClick()
+        waitForText("Game to")
         closeSetupEditor()
         waitForText("Gen Zone: Road")
         composeRule.onAllNodesWithText("First-half Gen Zone: Road").assertCountEquals(0)
@@ -285,10 +304,12 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         closeSetupEditor()
 
         // Fixed mixed ratios do not add a starting-pull choice to the field editor.
-        openGameRulesSetupEditor()
+        openMixedGenderRatioEditor()
         composeRule.onNodeWithTag("setup-gender-ratio-rule-${GenderRatioRule.FIXED_4W_3M.name}")
-            .performScrollTo()
             .performClick()
+        waitForText("Fixed gender ratio.")
+        composeRule.onNodeWithTag("setup-gender-ratio-set").performClick()
+        waitForText("Game to")
         closeSetupEditor()
         openStartingPullSetupEditor()
         composeRule.onAllNodesWithText("First point gender ratio").assertCountEquals(0)
@@ -400,13 +421,13 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         setCapRuleValue("Hard cap", "Hard cap", "20", enableFromNone = true)
 
         // Mixed gender-ratio controls should update the compact game-rules summary.
-        openGameRulesSetupEditor()
+        openMixedGenderRatioEditor()
         composeRule.onNodeWithTag("setup-gender-ratio-rule-${GenderRatioRule.GEN_ZONE.name}")
-            .performScrollTo()
             .performClick()
         composeRule.onNodeWithTag("setup-switch-gen-zone-at-halftime")
-            .performScrollTo()
             .performClick()
+        composeRule.onNodeWithTag("setup-gender-ratio-set").performClick()
+        waitForText("Game to")
         closeSetupEditor()
         waitForText("Ratio: Gen Zone")
         waitForText("Gen Zone stays the same all game")
@@ -858,5 +879,12 @@ class TestSetupUi : MainActivityUiTestFixtures() {
     private fun assertSetupSummaryTextVisible(text: String) {
         waitForText(text)
         composeRule.onNodeWithText(text).performScrollTo().assertIsDisplayed()
+    }
+
+    /// Open the focused mixed gender-ratio rule editor from the game-rules dialog.
+    private fun openMixedGenderRatioEditor() {
+        openGameRulesSetupEditor()
+        composeRule.onNodeWithText("Mixed gender ratio").performScrollTo().performClick()
+        waitForText("Set")
     }
 }

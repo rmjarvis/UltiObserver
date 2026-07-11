@@ -211,6 +211,7 @@ internal fun SetupScreen(
 ) {
     var editingRule by remember { mutableStateOf<RuleEditTarget?>(null) }
     var showTimeoutRulesDialog by remember { mutableStateOf(false) }
+    var showGenderRatioRuleDialog by remember { mutableStateOf(false) }
     var setupDialog by remember { mutableStateOf<SetupDialog?>(null) }
     var gameRulesDraft by remember { mutableStateOf<GameRules?>(null) }
     var teamDialog by remember { mutableStateOf<TeamDialog?>(null) }
@@ -462,14 +463,21 @@ internal fun SetupScreen(
                         showTimeoutRulesDialog = false
                     },
                 )
+            } else if (showGenderRatioRuleDialog) {
+                GenderRatioRuleDialog(
+                    rules = rulesDraft,
+                    onDismiss = { showGenderRatioRuleDialog = false },
+                    onConfirm = { updatedRules ->
+                        gameRulesDraft = updatedRules
+                        showGenderRatioRuleDialog = false
+                    },
+                )
             } else if (editingRule == null) {
                 GameRulesSetupDialog(
                     state = state.copy(rules = rulesDraft),
                     onEditRule = { editingRule = it },
                     onEditTimeouts = { showTimeoutRulesDialog = true },
-                    onRulesChange = {
-                        gameRulesDraft = it
-                    },
+                    onEditGenderRatio = { showGenderRatioRuleDialog = true },
                     onUseUsauDefaults = {
                         gameRulesDraft = usauDefaultGameRules(state.level)
                     },
@@ -1699,7 +1707,7 @@ private fun StartingPullSetupDialog(
  * @param state The current setup state to display.
  * @param onEditRule Callback opening a focused editor for one simple rule.
  * @param onEditTimeouts Callback opening the timeout-rules editor.
- * @param onRulesChange Callback receiving updated rules.
+ * @param onEditGenderRatio Callback opening the mixed gender-ratio editor.
  * @param onUseUsauDefaults Callback resetting the rule bundle to USAU defaults.
  * @param onConfirm Callback applying the rule edits and closing the dialog.
  * @param onDismiss Callback closing the dialog.
@@ -1709,7 +1717,7 @@ private fun GameRulesSetupDialog(
     state: GameState,
     onEditRule: (RuleEditTarget) -> Unit,
     onEditTimeouts: () -> Unit,
-    onRulesChange: (GameRules) -> Unit,
+    onEditGenderRatio: () -> Unit,
     onUseUsauDefaults: () -> Unit,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
@@ -1764,27 +1772,11 @@ private fun GameRulesSetupDialog(
                     onClick = { onEditRule(RuleEditTarget.TIMEOUT_DURATION) },
                 )
                 if (state.usesMixedDivision()) {
-                    Text("Mixed gender ratio", fontWeight = FontWeight.SemiBold)
-                    GenderRatioRuleChoiceRow(
-                        selected = rules.genderRatioRule,
-                        onSelected = { onRulesChange(rules.copy(genderRatioRule = it)) },
+                    EditableValueRow(
+                        label = "Mixed gender ratio",
+                        value = rules.genderRatioRule.displayText,
+                        onClick = onEditGenderRatio,
                     )
-                    if (rules.genderRatioRule == GenderRatioRule.GEN_ZONE) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Text("Switch Gen Zone at halftime")
-                            Checkbox(
-                                checked = rules.switchGenZoneAtHalftime,
-                                onCheckedChange = {
-                                    onRulesChange(rules.copy(switchGenZoneAtHalftime = it))
-                                },
-                                modifier = Modifier.testTag("setup-switch-gen-zone-at-halftime"),
-                            )
-                        }
-                    }
                 }
                 MenuButton(
                     label = usauDefaultsButtonLabel(state.level),
@@ -1797,6 +1789,69 @@ private fun GameRulesSetupDialog(
         },
         confirmButton = {
             TextActionButton(label = "Done", onClick = onConfirm)
+        },
+        dismissButton = {
+            TextActionButton(label = "Cancel", onClick = onDismiss)
+        },
+    )
+}
+
+/**
+ * Render the mixed gender-ratio rule editor.
+ *
+ * @param rules The current rules whose mixed gender-ratio fields are being edited.
+ * @param onDismiss Callback closing the dialog without applying changes.
+ * @param onConfirm Callback receiving rules updated with the selected gender-ratio rule.
+ */
+@Composable
+private fun GenderRatioRuleDialog(
+    rules: GameRules,
+    onDismiss: () -> Unit,
+    onConfirm: (GameRules) -> Unit,
+) {
+    var selectedRule by remember { mutableStateOf(rules.genderRatioRule) }
+    var switchGenZoneAtHalftime by remember { mutableStateOf(rules.switchGenZoneAtHalftime) }
+
+    AlertDialog(
+        modifier = dialogInitialFocusModifier(),
+        onDismissRequest = onDismiss,
+        title = { Text("Mixed gender ratio") },
+        text = {
+            TextEntryDialogBody(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                GenderRatioRuleChoiceRow(
+                    selected = selectedRule,
+                    onSelected = { selectedRule = it },
+                )
+                Text(selectedRule.explanation())
+                if (selectedRule == GenderRatioRule.GEN_ZONE) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text("Switch Gen Zone at halftime")
+                        Checkbox(
+                            checked = switchGenZoneAtHalftime,
+                            onCheckedChange = { switchGenZoneAtHalftime = it },
+                            modifier = Modifier.testTag("setup-switch-gen-zone-at-halftime"),
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextActionButton(
+                label = "Set",
+                tag = "setup-gender-ratio-set",
+                onClick = {
+                    onConfirm(
+                        rules.copy(
+                            genderRatioRule = selectedRule,
+                            switchGenZoneAtHalftime = switchGenZoneAtHalftime,
+                        )
+                    )
+                },
+            )
         },
         dismissButton = {
             TextActionButton(label = "Cancel", onClick = onDismiss)
