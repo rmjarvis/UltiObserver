@@ -1737,11 +1737,6 @@ private fun GameRulesSetupDialog(
                     onClick = { onEditRule(RuleEditTarget.GAME_TO) },
                 )
                 EditableValueRow(
-                    label = "Halftime",
-                    value = "${rules.halftimeMinutes} min",
-                    onClick = { onEditRule(RuleEditTarget.HALFTIME) },
-                )
-                EditableValueRow(
                     label = "Half cap",
                     value = if (rules.useHalfCap) "+${rules.halfCapMinutes}" else "None",
                     onClick = { onEditRule(RuleEditTarget.HALF) },
@@ -1755,6 +1750,11 @@ private fun GameRulesSetupDialog(
                     label = "Hard cap",
                     value = if (rules.useHardCap) "+${rules.hardCapMinutes}" else "None",
                     onClick = { onEditRule(RuleEditTarget.HARD) },
+                )
+                EditableValueRow(
+                    label = "Halftime",
+                    value = "${rules.halftimeMinutes} min",
+                    onClick = { onEditRule(RuleEditTarget.HALFTIME) },
                 )
                 EditableValueRow(
                     label = "Timeouts",

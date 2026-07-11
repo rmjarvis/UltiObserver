@@ -150,9 +150,6 @@ modifications from standard USAU rules.
 Game to
     What is the normal winning score?
 
-Half time
-    How long is halftime?
-
 Half cap
     Is there a half cap? And if so, how long after the start time?
 
@@ -161,6 +158,9 @@ Soft cap
 
 Hard cap
     Is there a hard cap? And if so, how long after the start time?
+
+Halftime
+    How long is halftime?
 
 Timeouts
     How many timeouts does each team have each half, including a possible floater
@@ -185,7 +185,7 @@ Mixed gender ratio
       first point is M (i.e. 4M/3W), then the pattern will be M W W M M W W M M W W ...
 
     * **Gen zone:** The team in a particular end zone decides the ratio each point. The official
-      rules say to switch the end zone at half time (which is definitely a good idea), but if
+      rules say to switch the end zone at halftime (which is definitely a good idea), but if
       your game is not respecting that rule, you can choose to disable that.
 
     * **Offense decides:** The team receiving the pull decides the ratio each point. This used to

@@ -373,10 +373,10 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         openGameRulesSetupEditor()
         listOf(
             "Game to",
-            "Halftime",
             "Half cap",
             "Soft cap",
             "Hard cap",
+            "Halftime",
             "Timeouts",
             "Time between points",
             "Timeout duration",
