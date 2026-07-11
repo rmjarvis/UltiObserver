@@ -237,7 +237,7 @@ private fun GameState.timeoutEligibleState(): GameState? {
 /**
  * Extend a between-points countdown after a timeout is charged before the pull.
  * If the countdown has cleared, rebuild it at zero so the same timeout extension leaves
- * 70 seconds on the visible timer.
+ * the configured timeout duration on the visible timer.
  *
  * @param state The already-charged timeout state whose countdown should be extended.
  * @param now The epoch millis used when rebuilding a cleared countdown.
@@ -259,10 +259,11 @@ private fun applyBetweenPointsTimeout(
             rules = state.rules,
         ).copy(targetEpoch = now)
     }
+    val timeoutSeconds = state.rules.timeoutSeconds
     return state.copy(
         countdown = countdown.copy(
-            durationSeconds = countdown.durationSeconds + 70,
-            targetEpoch = countdown.targetEpoch + 70_000L,
+            durationSeconds = countdown.durationSeconds + timeoutSeconds,
+            targetEpoch = countdown.targetEpoch + timeoutSeconds * 1_000L,
         ),
     )
 }
@@ -281,13 +282,14 @@ private fun applyLivePointTimeout(
     } else {
         state
     }
+    val timeoutSeconds = state.rules.timeoutSeconds
     val activeCountdown = misconductState.countdown
     if (activeCountdown != null) {
         return misconductState.copy(
             pendingMisconductCountdown = false,
             countdown = activeCountdown.copy(
-                durationSeconds = activeCountdown.durationSeconds + 70,
-                targetEpoch = activeCountdown.targetEpoch + 70_000L,
+                durationSeconds = activeCountdown.durationSeconds + timeoutSeconds,
+                targetEpoch = activeCountdown.targetEpoch + timeoutSeconds * 1_000L,
             ),
         )
     }
@@ -296,8 +298,8 @@ private fun applyLivePointTimeout(
         countdown = CountdownState(
             kind = CountdownKind.TIME_OUT,
             label = "Offense set in",
-            durationSeconds = 70,
-            targetEpoch = now + 70_000L,
+            durationSeconds = timeoutSeconds,
+            targetEpoch = now + timeoutSeconds * 1_000L,
         ),
     )
 }

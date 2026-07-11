@@ -72,8 +72,8 @@ is appropriate by clicking **Start point** in the center of the game screen.
 Timeout Timing
 --------------
 
-When a timeout is called between points, the timeout duration is added to the regular
-between-points countdown. There is not much change to the cue schedule other than
+When a timeout is called between points, the configured timeout duration is added to the
+regular between-points countdown. There is not much change to the cue schedule other than
 adding cues for 1 minute for a hand or 1 minute to pull as appropriate.
 
 Timeouts during a live point start a timeout countdown, which ends when the offense is

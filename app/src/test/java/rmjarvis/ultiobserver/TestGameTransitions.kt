@@ -529,7 +529,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
      * A third or later card creates a misconduct penalty.  While the observer is sorting
      * out the yardage and restart, the offense could technically call a timeout.  That is a
      * weird edge case, but it should implicitly start the 30-second misconduct restart and
-     * add the 70-second timeout allowance, rather than becoming a normal 70-second timeout.
+     * add the timeout allowance, rather than becoming a normal timeout.
      */
     @Test
     fun timeoutDuringMisconductPenalty() {
@@ -575,7 +575,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertEquals(1_040_000L, activeMisconductCountdownState.countdown?.targetEpoch)
 
         // Now while that countdown is going, Animal (on offense) chooses to call a timeout.
-        // This adds 70 seconds to the ongoing countdown, rather than restarting it when
+        // This adds the timeout duration to the ongoing countdown, rather than restarting it when
         // the timeout is called.
         val timeoutDuringActiveMisconduct = activeMisconductCountdownState.assessTimeout(
             ANIMAL,
@@ -590,7 +590,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
 
         // Case 2: Animal calls a timeout while the misconduct countdown was still pending.
         // This causes the misconduct countdown to be implicitly started, and then it gets
-        // an additional 70 seconds for the timeout.
+        // the additional timeout duration.
         val timeoutDuringPendingMisconduct = misconductState.assessTimeout(
             ANIMAL,
             1_011_000L,

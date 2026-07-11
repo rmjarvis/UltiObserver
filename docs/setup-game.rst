@@ -171,6 +171,12 @@ Time between points
     up to 20 seconds after this time to pull. USAU defaults are 60 seconds, or 80 seconds
     for Youth games.
 
+Timeout duration
+    How long a timeout lasts in seconds. When called during a point, this is how long the
+    offense has to be set after the timeout is called. The defense has up to 20 seconds
+    after this time to check the disc in. When called between points, this is how much
+    time is added to the between-points countdown.
+
 Mixed gender ratio
     What rule should be used to determine the gender ratio each point? This option is only
     available if the division is set to Mixed. Options include:

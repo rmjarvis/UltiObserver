@@ -67,7 +67,6 @@ enum class TimeViolationOutcome {
 private val OpeningPullTiming = PullTimingSeconds(offenseReadySeconds = 20, pullSeconds = 40)
 private val ReceivingTeamWarningResetTiming = PullTimingSeconds(offenseReadySeconds = 20, pullSeconds = 50)
 private val PullingTeamWarningResetTiming = PullTimingSeconds(offenseReadySeconds = 0, pullSeconds = 30)
-private val TimeViolationTimeoutResetTiming = PullTimingSeconds(offenseReadySeconds = 70, pullSeconds = 90)
 
 /// Return the default pull deadlines for one between-points countdown kind.
 internal fun defaultPullTimingSeconds(kind: CountdownKind, rules: GameRules): PullTimingSeconds {
@@ -440,7 +439,8 @@ fun GameState.restartPullCountdown(now: Long): GameState {
 
 /**
  * Record a later time violation that charges a timeout and starts the appropriate reset countdown.
- * Timeout resets are 70 seconds when the prompted side is offense and 90 seconds when it is defense.
+ * Timeout resets use the configured timeout duration, plus defense time when the prompted side is
+ * defense.
  *
  * @param team The team being charged a timeout.
  * @param now The epoch millis used to start the reset countdown.
@@ -463,7 +463,7 @@ private fun GameState.recordTimeViolationTimeout(team: TeamId, now: Long): GameS
             now = now,
             kind = CountdownKind.BETWEEN_POINTS,
             target = countdownTarget,
-            timing = TimeViolationTimeoutResetTiming,
+            timing = rules.timeoutPullTiming(),
         ),
         lastEvent = "Timeout charged to ${this.teamName(team)} for time violation.",
     ).withEventLogEntry(
@@ -474,6 +474,14 @@ private fun GameState.recordTimeViolationTimeout(team: TeamId, now: Long): GameS
             timeViolationOutcome = TimeViolationOutcome.TIMEOUT,
         )
     ).withUndo(this, "Undo Time violation timeout on ${this.teamName(team)}")
+}
+
+/// Return the pull timing used after a timeout-related reset.
+private fun GameRules.timeoutPullTiming(): PullTimingSeconds {
+    return PullTimingSeconds(
+        offenseReadySeconds = timeoutSeconds,
+        pullSeconds = timeoutSeconds + PULL_SECONDS_AFTER_OFFENSE_READY,
+    )
 }
 
 /**

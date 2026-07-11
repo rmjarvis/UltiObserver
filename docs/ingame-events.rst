@@ -16,8 +16,8 @@ UltiObserver tracks each team's remaining timeouts based on the configured game
 rules. The button in the team area of the game screen shows the number of timeouts
 available for each team in the current half.
 
-The normal action of the **TO** button is to start a countdown for the timeout duration
-(70 seconds for USAU).
+The normal action of the **TO** button is to start a countdown for the configured timeout
+duration, which defaults to 70 seconds for USAU.
 
 For timeouts during live play, the countdown will include cues for when to tell the sideline
 players to clear the field and when to announce 20 and 10 seconds remaining for the offense

@@ -14,6 +14,7 @@ internal const val USAU_DEFAULT_USE_HARD_CAP = true
 internal const val USAU_DEFAULT_HARD_CAP_MINUTES = 105
 internal const val USAU_DEFAULT_TIMEOUTS_PER_HALF = 2
 internal const val USAU_DEFAULT_HAS_FLOATER_TIMEOUT = false
+internal const val USAU_DEFAULT_TIMEOUT_SECONDS = 70
 internal const val USAU_DEFAULT_SWITCH_GEN_ZONE_AT_HALFTIME = true
 internal val USAU_DEFAULT_GENDER_RATIO_RULE = GenderRatioRule.ABBA
 
@@ -33,6 +34,7 @@ data class GameRules(
     val hardCapMinutes: Int = USAU_DEFAULT_HARD_CAP_MINUTES,
     val timeoutsPerHalf: Int = USAU_DEFAULT_TIMEOUTS_PER_HALF,
     val hasFloaterTimeout: Boolean = USAU_DEFAULT_HAS_FLOATER_TIMEOUT,
+    val timeoutSeconds: Int = USAU_DEFAULT_TIMEOUT_SECONDS,
     val genderRatioRule: GenderRatioRule = USAU_DEFAULT_GENDER_RATIO_RULE,
     val switchGenZoneAtHalftime: Boolean = USAU_DEFAULT_SWITCH_GEN_ZONE_AT_HALFTIME,
 )
@@ -114,4 +116,9 @@ internal fun GameRules.formatTimeoutRules(): String {
 /// Format the between-points offense-ready deadline for setup display.
 internal fun GameRules.formatTimeBetweenPoints(): String {
     return "$timeBetweenPointsSeconds sec"
+}
+
+/// Format the timeout offense-set duration for setup display.
+internal fun GameRules.formatTimeoutDuration(): String {
+    return "$timeoutSeconds sec"
 }

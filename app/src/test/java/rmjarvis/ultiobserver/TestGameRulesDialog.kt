@@ -41,6 +41,7 @@ class TestGameRulesDialog : GameDomainTestFixtures() {
                 "Halftime" to "7 min",
                 "Timeouts" to "2/half",
                 "Time between points" to "60 sec",
+                "Timeout duration" to "70 sec",
                 "Gender ratio" to "ABBA",
             ),
             fullMixedState.gameRulesDialogRows().testDisplayPairs(),
@@ -58,6 +59,8 @@ class TestGameRulesDialog : GameDomainTestFixtures() {
                 useHardCap = false,
                 timeoutsPerHalf = 1,
                 hasFloaterTimeout = false,
+                timeBetweenPointsSeconds = 50,
+                timeoutSeconds = 80,
             ),
         ).copy(division = GameDivision.OPEN)
         assertEquals(
@@ -67,7 +70,8 @@ class TestGameRulesDialog : GameDomainTestFixtures() {
                 "Start time" to "10:00 AM",
                 "Halftime" to "7 min",
                 "Timeouts" to "1/half",
-                "Time between points" to "60 sec",
+                "Time between points" to "50 sec",
+                "Timeout duration" to "80 sec",
             ),
             openNoCapState.gameRulesDialogRows().testDisplayPairs(),
         )
@@ -133,6 +137,7 @@ class TestGameRulesDialog : GameDomainTestFixtures() {
                 "Halftime" to "7 min",
                 "Timeouts" to "2/half + floater",
                 "Time between points" to "60 sec",
+                "Timeout duration" to "70 sec",
                 "Gender ratio" to "Gen Zone, no switch at half",
             ),
             capAdjustedState.gameRulesDialogRows().testDisplayPairs(),

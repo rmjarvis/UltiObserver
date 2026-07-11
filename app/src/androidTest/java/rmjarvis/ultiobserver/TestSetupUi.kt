@@ -344,6 +344,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         // Empty numeric rule entries should fall back to the current value.
         setIntegerSetupValue("Game to", "Game to", "Points", "")
         setIntegerSetupValue("Time between points", "Time between points", "Seconds", "")
+        setIntegerSetupValue("Timeout duration", "Timeout duration", "Seconds", "")
         setCapRuleValue("Half cap", "Half cap", "")
         setTimeoutRules(timeoutsPerHalf = "", hasFloater = false)
 
@@ -357,6 +358,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
             "Hard cap",
             "Timeouts",
             "Time between points",
+            "Timeout duration",
         )
             .forEach { ruleLabel ->
                 composeRule.onNodeWithText(ruleLabel).performScrollTo().performClick()
@@ -364,6 +366,12 @@ class TestSetupUi : MainActivityUiTestFixtures() {
                 if (ruleLabel == "Time between points") {
                     waitForText(
                         "Defense has up to 20 seconds after this time to pull.",
+                        substring = true,
+                    )
+                }
+                if (ruleLabel == "Timeout duration") {
+                    waitForText(
+                        "Defense has up to 20 seconds after this time to check the disc in.",
                         substring = true,
                     )
                 }
@@ -377,9 +385,11 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         setIntegerSetupValue("Game to", "Game to", "Points", "7")
         setIntegerSetupValue("Halftime", "Halftime", "Minutes", "2")
         setIntegerSetupValue("Time between points", "Time between points", "Seconds", "50")
+        setIntegerSetupValue("Timeout duration", "Timeout duration", "Seconds", "55")
         assertSetupSummaryTextVisible("Game to 7")
         assertSetupSummaryTextVisible("Half: 2 min")
         assertSetupSummaryTextVisible("Time between points: 50 sec")
+        assertSetupSummaryTextVisible("Timeout duration: 55 sec")
 
         // Cap editors should support changing, disabling, and re-enabling cap values.
         setCapRuleValue("Half cap", "Half cap", "30")
@@ -410,6 +420,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         waitForText("+105")
         closeSetupEditor()
         assertSetupSummaryTextVisible("Time between points: 60 sec")
+        assertSetupSummaryTextVisible("Timeout duration: 70 sec")
     }
 
     /**

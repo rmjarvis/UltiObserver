@@ -86,6 +86,10 @@ private enum class RuleEditTarget(
         dialogTitle = "Time between points",
         fieldLabel = "Seconds",
     ),
+    TIMEOUT_DURATION(
+        dialogTitle = "Timeout duration",
+        fieldLabel = "Seconds",
+    ),
     HALF(
         dialogTitle = "Half cap",
         fieldLabel = "Minutes",
@@ -523,6 +527,23 @@ internal fun SetupScreen(
                             onConfirm = { newValue ->
                                 gameRulesDraft = rulesDraft.copy(
                                     timeBetweenPointsSeconds = newValue.coerceAtLeast(1)
+                                )
+                                editingRule = null
+                            },
+                        )
+                    }
+
+                    RuleEditTarget.TIMEOUT_DURATION -> {
+                        IntegerEditDialog(
+                            title = target.dialogTitle,
+                            fieldLabel = target.fieldLabel,
+                            initialValue = rulesDraft.timeoutSeconds,
+                            note = "This is the time until offense must be set. " +
+                                "Defense has up to 20 seconds after this time to check the disc in.",
+                            onDismiss = { editingRule = null },
+                            onConfirm = { newValue ->
+                                gameRulesDraft = rulesDraft.copy(
+                                    timeoutSeconds = newValue.coerceAtLeast(1)
                                 )
                                 editingRule = null
                             },
@@ -1456,6 +1477,7 @@ private fun GameRulesSummary(state: GameState) {
         SetupSummaryValue("Caps: ${rules.capRulesSummary()}")
         SetupSummaryValue("TO: ${rules.formatTimeoutRules()}")
         SetupSummaryValue("Time between points: ${rules.formatTimeBetweenPoints()}")
+        SetupSummaryValue("Timeout duration: ${rules.formatTimeoutDuration()}")
         if (state.usesMixedDivision()) {
             SetupSummaryValue("Ratio: ${rules.genderRatioRule.displayText}")
             if (rules.genderRatioRule == GenderRatioRule.GEN_ZONE) {
@@ -1735,6 +1757,11 @@ private fun GameRulesSetupDialog(
                     label = "Time between points",
                     value = rules.formatTimeBetweenPoints(),
                     onClick = { onEditRule(RuleEditTarget.BETWEEN_POINTS) },
+                )
+                EditableValueRow(
+                    label = "Timeout duration",
+                    value = rules.formatTimeoutDuration(),
+                    onClick = { onEditRule(RuleEditTarget.TIMEOUT_DURATION) },
                 )
                 if (state.usesMixedDivision()) {
                     Text("Mixed gender ratio", fontWeight = FontWeight.SemiBold)

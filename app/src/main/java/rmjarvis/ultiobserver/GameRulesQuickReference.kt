@@ -24,6 +24,7 @@ internal fun GameState.gameRulesDialogRows(): List<GameRulesDialogRow> {
     rows += GameRulesDialogRow("Halftime", halftimeDialogText())
     rows += GameRulesDialogRow("Timeouts", rules.formatTimeoutRules())
     rows += GameRulesDialogRow("Time between points", rules.formatTimeBetweenPoints())
+    rows += GameRulesDialogRow("Timeout duration", rules.formatTimeoutDuration())
     if (usesMixedDivision()) {
         rows += GameRulesDialogRow("Gender ratio", genderRatioDialogText())
     }

@@ -655,6 +655,8 @@ class TestSetup : GameDomainTestFixtures() {
                 useHardCap = false,
             ).capRulesSummary(),
         )
+
+        // Timeout count summaries show per-half and floater rules.
         assertEquals(
             "2/half + floater",
             GameRules(timeoutsPerHalf = 2, hasFloaterTimeout = true).formatTimeoutRules(),
@@ -662,6 +664,16 @@ class TestSetup : GameDomainTestFixtures() {
         assertEquals(
             "1/half",
             GameRules(timeoutsPerHalf = 1, hasFloaterTimeout = false).formatTimeoutRules(),
+        )
+
+        // Timing rule summaries show the configured seconds for time between points and timeouts.
+        assertEquals(
+            "50 sec",
+            GameRules(timeBetweenPointsSeconds = 50).formatTimeBetweenPoints(),
+        )
+        assertEquals(
+            "80 sec",
+            GameRules(timeoutSeconds = 80).formatTimeoutDuration(),
         )
     }
 

@@ -41,7 +41,7 @@ class TestTimeouts : GameDomainTestFixtures() {
         // Calling a timeout between points does a few things:
         // * It reduces the number of timeouts available for that team by 1.
         // * It reports a message about how many timeouts are left for that team.
-        // * It adds 70 seconds to the pull/ready countdown.
+        // * It adds the timeout duration to the pull/ready countdown.
         // * It adds an additional cue at 1 minute until pull or ready.
         // In this case, the timeout is called by the offense.
         val originalCountdown = state.countdown!!
@@ -149,8 +149,8 @@ class TestTimeouts : GameDomainTestFixtures() {
         assertEquals(outOfTimeoutsState, outOfTimeoutsState.chargeTimeout(VC, outOfTimeoutsTime))
 
         // Before the opening pull, timeouts work the same way, but the countdowns start from the
-        // shorter opening-pull times.  So adding 70 seconds gives 90 seconds to signal or
-        // 110 seconds to pull, rather than the normal between-points 130 or 150 seconds.
+        // shorter opening-pull times.  So adding the default 70 seconds gives 90 seconds to
+        // signal or 110 seconds to pull, rather than the normal between-points 130 or 150 seconds.
         val openingSignalState = createLiveGameState(
             setupWithRules(timeoutRules(timeoutsPerHalf = 2, hasFloaterTimeout = false))
         )
@@ -179,6 +179,33 @@ class TestTimeouts : GameDomainTestFixtures() {
         ).state
         assertEquals("Pull in", openingPullTimeoutState.countdown?.label)
         assertEquals(110, openingPullTimeoutState.countdown?.durationSeconds)
+
+        // Custom timeout duration is the amount added to between-points countdowns:
+        // 60 seconds for the normal offense-ready deadline plus 80 timeout seconds.
+        val customDurationState = recordGoalFromCurrentStateAt(
+            createLiveGameState(
+                setupWithRules(
+                    timeoutRules(
+                        timeoutsPerHalf = 2,
+                        hasFloaterTimeout = false,
+                        timeoutSeconds = 80,
+                    )
+                )
+            ).beginLivePoint(),
+            ANIMAL,
+            LocalTime.of(9, 5),
+        )
+        val customOriginalCountdown = customDurationState.countdown!!
+        val customTimeoutState = customDurationState.assessTimeout(
+            VC,
+            customOriginalCountdown.targetEpoch - 1_000L,
+        ).state
+        assertEquals("Signal in", customTimeoutState.countdown?.label)
+        assertEquals(140, customTimeoutState.countdown?.durationSeconds)
+        assertEquals(
+            customOriginalCountdown.targetEpoch + 80_000L,
+            customTimeoutState.countdown?.targetEpoch,
+        )
     }
 
     /**
@@ -188,8 +215,8 @@ class TestTimeouts : GameDomainTestFixtures() {
     fun timeoutDuringPoint() {
         val VC = TeamId.TEAM_ONE
 
-        // When a timeout is called during a point, it immediately starts a 70 second countdown
-        // until the offense needs to be set.
+        // When a timeout is called during a point, it immediately starts a countdown until the
+        // offense needs to be set.
         val livePointState = createLiveGameState(
             setupWithRules(timeoutRules(timeoutsPerHalf = 1, hasFloaterTimeout = false))
         ).beginLivePoint()
@@ -206,6 +233,22 @@ class TestTimeouts : GameDomainTestFixtures() {
         assertEquals("Offense set in", timeoutCountdownState.countdown?.label)
         assertEquals(70, timeoutCountdownState.countdown?.durationSeconds)
         assertEquals(1_070_000L, timeoutCountdownState.countdown?.targetEpoch)
+
+        // Custom timeout duration controls live-point offense-set timing too.
+        val customLivePointState = createLiveGameState(
+            setupWithRules(
+                timeoutRules(
+                    timeoutsPerHalf = 1,
+                    hasFloaterTimeout = false,
+                    timeoutSeconds = 50,
+                )
+            )
+        ).beginLivePoint()
+        val customTimeoutCountdownState = customLivePointState.assessTimeout(VC, 1_000_000L).state
+        assertEquals(CountdownKind.TIME_OUT, customTimeoutCountdownState.countdown?.kind)
+        assertEquals("Offense set in", customTimeoutCountdownState.countdown?.label)
+        assertEquals(50, customTimeoutCountdownState.countdown?.durationSeconds)
+        assertEquals(1_050_000L, customTimeoutCountdownState.countdown?.targetEpoch)
 
         // If defense countdowns are not enabled, then the game automatically transitions back
         // into live play at the end of the original timeout countdown.
@@ -351,7 +394,8 @@ class TestTimeouts : GameDomainTestFixtures() {
 
         // If the UI has already switched to the expired-pull action surface, the timeout still
         // represents a call at the deadline.  The countdown keeps the normal timeout-extension
-        // duration metadata for cue selection, but only 70 seconds remain on the visible timer.
+        // duration metadata for cue selection, but only the timeout duration remains on the
+        // visible timer.
         val expiredDecisionState = expiredPullState.expiredPullDecisionState()
         assertTrue(expiredDecisionState.hasExpiredPullActions(expiredCountdownNow))
         assertTrue(expiredDecisionState.canRequestTimeout(expiredCountdownNow))
@@ -378,7 +422,7 @@ class TestTimeouts : GameDomainTestFixtures() {
         assertFalse(expiredDecisionTimeoutState.hasExpiredPullActions(expiredCountdownNow))
 
         // The same expired-pull action surface before the opening pull keeps opening-pull
-        // timing metadata while showing only the timeout's 70 seconds.
+        // timing metadata while showing only the timeout duration.
         val expiredOpeningPullState = standardLiveGameState()
         val expiredOpeningPullNow = expiredOpeningPullState.countdown!!.targetEpoch + 1L
         val expiredOpeningDecisionState = expiredOpeningPullState.expiredPullDecisionState()
@@ -742,6 +786,7 @@ class TestTimeouts : GameDomainTestFixtures() {
     private fun timeoutRules(
         timeoutsPerHalf: Int = 2,
         hasFloaterTimeout: Boolean = false,
+        timeoutSeconds: Int = 70,
     ): GameRules {
         return GameRules(
             gameTo = 5,
@@ -750,6 +795,7 @@ class TestTimeouts : GameDomainTestFixtures() {
             useHardCap = false,
             timeoutsPerHalf = timeoutsPerHalf,
             hasFloaterTimeout = hasFloaterTimeout,
+            timeoutSeconds = timeoutSeconds,
         )
     }
 

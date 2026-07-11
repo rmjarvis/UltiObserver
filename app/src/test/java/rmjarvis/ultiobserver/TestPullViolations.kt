@@ -1082,6 +1082,24 @@ class TestPullViolations : GameDomainTestFixtures() {
             timeViolationResult.message(),
         )
 
+        // Custom timeout duration is used for automatic time-violation timeout resets.
+        state = standardLiveGameState(rules = GameRules(timeoutSeconds = 50))
+        timeViolationResult = state.assessTimeViolation(ANIMAL, state.countdown!!.targetEpoch)
+        timeViolationState = timeViolationResult.state
+        val customSecondViolationMoment = timeViolationState.countdown!!.targetEpoch
+        timeViolationResult = timeViolationState.assessTimeViolation(
+            ANIMAL,
+            customSecondViolationMoment,
+        )
+        timeViolationState = timeViolationResult.state
+        assertEquals(CountdownKind.BETWEEN_POINTS, timeViolationState.countdown?.kind)
+        assertEquals("Signal in", timeViolationState.countdown?.label)
+        assertEquals(50, timeViolationState.countdown?.durationSeconds)
+        assertEquals(
+            customSecondViolationMoment + 50_000L,
+            timeViolationState.countdown?.targetEpoch,
+        )
+
         // If prompting the defense, the reset countdown has the pull in 90 seconds.
         state = standardLiveGameState(pullingFromEnd = FieldEnd.NEAR)
         timeViolationResult = state.assessTimeViolation(VC, state.countdown!!.targetEpoch)
