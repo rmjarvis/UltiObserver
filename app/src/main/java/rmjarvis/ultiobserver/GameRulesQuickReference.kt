@@ -25,6 +25,9 @@ internal fun GameState.gameRulesDialogRows(): List<GameRulesDialogRow> {
     rows += GameRulesDialogRow("Timeouts", rules.formatTimeoutRules())
     rows += GameRulesDialogRow("Time between points", rules.formatTimeBetweenPoints())
     rows += GameRulesDialogRow("Timeout duration", rules.formatTimeoutDuration())
+    rules.formatWaterBreaks()?.let { waterBreakText ->
+        rows += GameRulesDialogRow("Water breaks", waterBreakText)
+    }
     if (usesMixedDivision()) {
         rows += GameRulesDialogRow("Gender ratio", genderRatioDialogText())
     }

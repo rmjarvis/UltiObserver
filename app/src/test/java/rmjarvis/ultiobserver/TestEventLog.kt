@@ -110,7 +110,7 @@ class TestEventLog : GameDomainTestFixtures() {
             .assessTimeViolation(animal, timestampAt(state, LocalTime.of(12, 13))).state
 
         // Halftime and game-over entries close the event-log narrative.
-        state = startHalftimeNowAt(state, LocalTime.of(12, 14))
+        state = startHalftimeAt(state, LocalTime.of(12, 14))
         state = endGameNowAt(state, LocalTime.of(12, 15))
 
         // The final event log should contain the representative entries in event order.

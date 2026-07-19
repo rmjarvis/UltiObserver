@@ -27,6 +27,10 @@ The countdown has a button to pause and restart the countdown if you need to do 
 There are also **+5** and **-5** buttons, which adjust the remaining time by 5 seconds
 in either direction, if you want to do so.
 
+If water breaks are enabled in the game rules, a water-drop button appears just to the
+left of the pause button. Tapping it adds the specified water-break time to the current
+countdown.
+
 Below the countdown, the next timing cue you are responsible for as an observer is given.
 E.g. Next cue at 0:20 - 20 seconds for a hand.  This means when the timer reaches 0:20,
 you should announce to the offense (presumably at your end of the field if you are

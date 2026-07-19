@@ -2,6 +2,7 @@ package rmjarvis.ultiobserver
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onLast
@@ -103,6 +104,69 @@ class TestCapsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Apply hard cap now").performScrollTo().performClick()
         waitForText("Undo Apply hard cap now")
         assertLiveScreen()
+    }
+
+    /**
+     * Test water-break prompts caused by applying soft cap.
+     */
+    @Test
+    fun softCapWaterBreakPrompts() {
+        setAutomaticallyLockLivePoint(false)
+
+        val rules = GameRules(
+            gameTo = 15,
+            useHalfCap = false,
+            useSoftCap = true,
+            softCapMinutes = 90,
+            useHardCap = true,
+            waterBreakMode = WaterBreakMode.AUTOMATIC,
+            waterBreakMinutes = 3,
+        )
+        val testNow = System.currentTimeMillis()
+        val gameStart = testNow - 91 * 60_000L
+        val preGoalScoreTime = testNow
+        val baseSetup = newSetupGameState(now = testNow)
+        val start = localDateTimeFromEpoch(gameStart, baseSetup.timeZone)
+        val setup = baseSetup.copy(
+            startDate = start.toLocalDate(),
+            startTime = start.toLocalTime(),
+            rules = rules,
+        )
+
+        // Applying a pending soft cap before the first-quarter break score offers the water break.
+        startLivePointProgrammatically(setup)
+        updateCurrentStateProgrammatically {
+            adjustScore(teamOneScore = 2, teamTwoScore = 3, now = preGoalScoreTime)
+        }
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
+        waitForText("Apply soft cap?")
+        composeRule.onNodeWithText("Apply").performClick()
+        waitForText("Take a 3 minute water break now?")
+        composeRule.onNodeWithText("Yes").performClick()
+        waitForText("Undo Water break")
+
+        // Applying soft cap from More actions uses the same water-break prompt but can be rejected.
+        val moreActionsStart = localDateTimeFromEpoch(gameStart + 2 * 60_000L, setup.timeZone)
+        val moreActionsSetup = setup.copy(
+            startDate = moreActionsStart.toLocalDate(),
+            startTime = moreActionsStart.toLocalTime(),
+        )
+        startBetweenPointsProgrammatically(moreActionsSetup)
+        updateCurrentStateProgrammatically {
+            adjustScore(teamOneScore = 3, teamTwoScore = 3, now = preGoalScoreTime)
+        }
+        openMoreActionsDialog()
+        composeRule.onNodeWithText("Apply soft cap now").performScrollTo().performClick()
+        waitForText("Take a 3 minute water break now?")
+        composeRule.onNodeWithText("No").performClick()
+        waitForText("Undo Apply soft cap now")
+
+        // Applying hard cap after soft cap is already applied should not offer another soft-cap
+        // water break.
+        openMoreActionsDialog()
+        composeRule.onNodeWithText("Apply hard cap now").performScrollTo().performClick()
+        waitForText("Undo Apply hard cap now")
+        composeRule.onAllNodesWithText("Take a 3 minute water break now?").assertCountEquals(0)
     }
 
     /**

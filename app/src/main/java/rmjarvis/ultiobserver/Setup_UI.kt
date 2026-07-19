@@ -211,6 +211,7 @@ internal fun SetupScreen(
 ) {
     var editingRule by remember { mutableStateOf<RuleEditTarget?>(null) }
     var showTimeoutRulesDialog by remember { mutableStateOf(false) }
+    var showWaterBreaksDialog by remember { mutableStateOf(false) }
     var showGenderRatioRuleDialog by remember { mutableStateOf(false) }
     var setupDialog by remember { mutableStateOf<SetupDialog?>(null) }
     var gameRulesDraft by remember { mutableStateOf<GameRules?>(null) }
@@ -463,6 +464,15 @@ internal fun SetupScreen(
                         showTimeoutRulesDialog = false
                     },
                 )
+            } else if (showWaterBreaksDialog) {
+                WaterBreaksDialog(
+                    rules = rulesDraft,
+                    onDismiss = { showWaterBreaksDialog = false },
+                    onConfirm = { updatedRules ->
+                        gameRulesDraft = updatedRules
+                        showWaterBreaksDialog = false
+                    },
+                )
             } else if (showGenderRatioRuleDialog) {
                 GenderRatioRuleDialog(
                     rules = rulesDraft,
@@ -477,6 +487,7 @@ internal fun SetupScreen(
                     state = state.copy(rules = rulesDraft),
                     onEditRule = { editingRule = it },
                     onEditTimeouts = { showTimeoutRulesDialog = true },
+                    onEditWaterBreaks = { showWaterBreaksDialog = true },
                     onEditGenderRatio = { showGenderRatioRuleDialog = true },
                     onUseUsauDefaults = {
                         gameRulesDraft = usauDefaultGameRules(state.level)
@@ -1355,6 +1366,33 @@ private fun GenderRatioRuleChoiceRow(
 }
 
 /**
+ * Render the water-break mode chooser for game rules.
+ *
+ * @param selected The currently selected water-break mode.
+ * @param onSelected Callback receiving the selected mode.
+ */
+@Composable
+private fun WaterBreakModeChoiceRow(
+    selected: WaterBreakMode,
+    onSelected: (WaterBreakMode) -> Unit,
+) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        WaterBreakMode.entries.forEach { mode ->
+            SetupChoiceChip(
+                label = mode.displayText,
+                selected = selected == mode,
+                onClick = { onSelected(mode) },
+                tag = "setup-water-break-${mode.name}",
+            )
+        }
+    }
+}
+
+/**
  * Render the ABBA initial gender-ratio chooser.
  *
  * @param selected The currently selected first-point gender ratio.
@@ -1486,6 +1524,9 @@ private fun GameRulesSummary(state: GameState) {
         SetupSummaryValue("TO: ${rules.formatTimeoutRules()}")
         SetupSummaryValue("Time between points: ${rules.formatTimeBetweenPoints()}")
         SetupSummaryValue("Timeout duration: ${rules.formatTimeoutDuration()}")
+        rules.formatWaterBreaks()?.let { waterBreakText ->
+            SetupSummaryValue("Water breaks: $waterBreakText")
+        }
         if (state.usesMixedDivision()) {
             SetupSummaryValue("Ratio: ${rules.genderRatioRule.displayText}")
             if (rules.genderRatioRule == GenderRatioRule.GEN_ZONE) {
@@ -1707,6 +1748,7 @@ private fun StartingPullSetupDialog(
  * @param state The current setup state to display.
  * @param onEditRule Callback opening a focused editor for one simple rule.
  * @param onEditTimeouts Callback opening the timeout-rules editor.
+ * @param onEditWaterBreaks Callback opening the water-break rules editor.
  * @param onEditGenderRatio Callback opening the mixed gender-ratio editor.
  * @param onUseUsauDefaults Callback resetting the rule bundle to USAU defaults.
  * @param onConfirm Callback applying the rule edits and closing the dialog.
@@ -1717,6 +1759,7 @@ private fun GameRulesSetupDialog(
     state: GameState,
     onEditRule: (RuleEditTarget) -> Unit,
     onEditTimeouts: () -> Unit,
+    onEditWaterBreaks: () -> Unit,
     onEditGenderRatio: () -> Unit,
     onUseUsauDefaults: () -> Unit,
     onConfirm: () -> Unit,
@@ -1770,6 +1813,11 @@ private fun GameRulesSetupDialog(
                     label = "Timeout duration",
                     value = rules.formatTimeoutDuration(),
                     onClick = { onEditRule(RuleEditTarget.TIMEOUT_DURATION) },
+                )
+                EditableValueRow(
+                    label = "Water breaks",
+                    value = rules.formatWaterBreaks() ?: "None",
+                    onClick = onEditWaterBreaks,
                 )
                 if (state.usesMixedDivision()) {
                     EditableValueRow(
@@ -2139,6 +2187,73 @@ private fun TimeoutRulesDialog(
                         rules.copy(
                             timeoutsPerHalf = timeoutsText.toIntOrNull()?.coerceAtLeast(0) ?: rules.timeoutsPerHalf,
                             hasFloaterTimeout = hasFloater,
+                        )
+                    )
+                }
+            )
+        },
+        dismissButton = {
+            TextActionButton(label = "Cancel", onClick = onDismiss)
+        },
+    )
+}
+
+/**
+ * Render the water-break rules editor.
+ *
+ * @param rules The current rules whose water-break fields are being edited.
+ * @param onDismiss Callback closing the dialog without applying changes.
+ * @param onConfirm Callback receiving rules updated with the water-break values.
+ */
+@Composable
+private fun WaterBreaksDialog(
+    rules: GameRules,
+    onDismiss: () -> Unit,
+    onConfirm: (GameRules) -> Unit,
+) {
+    var selectedMode by remember { mutableStateOf(rules.waterBreakMode) }
+    var minutesText by remember { mutableStateOf(rules.waterBreakMinutes.toString()) }
+    val breakScores = rules.copy(waterBreakMode = selectedMode).waterBreakScores()
+
+    AlertDialog(
+        modifier = dialogInitialFocusModifier(),
+        onDismissRequest = onDismiss,
+        title = { Text("Water breaks") },
+        text = {
+            TextEntryDialogBody(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    "Allow extra time between points for hydration or shade. When enabled, tap " +
+                        "the water drop icon next to the timer to add the additional time."
+                )
+                WaterBreakModeChoiceRow(
+                    selected = selectedMode,
+                    onSelected = { selectedMode = it },
+                )
+                if (selectedMode == WaterBreakMode.AUTOMATIC) {
+                    Text(
+                        "Breaks will be offered when a team reaches " +
+                            "${breakScores.joinToString(" or ")} points."
+                    )
+                }
+                TextEntry(
+                    value = minutesText,
+                    onValueChange = { minutesText = it.filter(Char::isDigit).take(2) },
+                    labelText = "Minutes",
+                    keyboardType = KeyboardType.Number,
+                    enabled = selectedMode != WaterBreakMode.NONE,
+                )
+            }
+        },
+        confirmButton = {
+            TextActionButton(
+                label = "Set",
+                tag = "setup-water-breaks-set",
+                onClick = {
+                    onConfirm(
+                        rules.copy(
+                            waterBreakMode = selectedMode,
+                            waterBreakMinutes = minutesText.toIntOrNull()?.coerceAtLeast(0)
+                                ?: rules.waterBreakMinutes,
                         )
                     )
                 }
@@ -2886,7 +3001,7 @@ private fun TeamChoiceRow(
     onSelected: (TeamId) -> Unit,
 ) {
     FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         SetupChoiceChip(
@@ -2926,7 +3041,7 @@ private fun FieldEndChoiceRow(
     testTagPrefix: String = "setup-pulling-from",
 ) {
     FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         SetupChoiceChip(
@@ -2981,13 +3096,13 @@ internal fun PullPromptTargetChoiceRow(
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             ChoiceChip(PullPromptTarget.NEAR)
             ChoiceChip(PullPromptTarget.FAR)
         }
         Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             ChoiceChip(PullPromptTarget.BOTH)
             ChoiceChip(PullPromptTarget.NEITHER)

@@ -37,6 +37,7 @@ enum class EventLogType {
     MAJORITY_PULL,
     TIME_VIOLATION,
     TIMEOUT,
+    WATER_BREAK,
     HALFTIME,
     GAME_OVER,
     SCORE_ADJUSTED,
@@ -165,6 +166,7 @@ private fun GameState.formatEventLogDescription(entry: EventLogEntry): String {
         EventLogType.MAJORITY_PULL -> pullViolationDescription(entry)
         EventLogType.TIME_VIOLATION -> timeViolationDescription(entry)
         EventLogType.TIMEOUT -> timeoutDescription(entry)
+        EventLogType.WATER_BREAK -> waterBreakDescription(entry)
         EventLogType.HALFTIME -> "Halftime"
         EventLogType.GAME_OVER -> "Game over"
         EventLogType.SCORE_ADJUSTED -> scoreAdjustedDescription(entry)
@@ -223,6 +225,11 @@ private fun GameState.timeoutDescription(entry: EventLogEntry): String {
     } else {
         "Adjusted ${teamName(entry.team!!)} timeouts ${delta.formatDelta()}"
     }
+}
+
+/// Return display text for a water break.
+private fun waterBreakDescription(entry: EventLogEntry): String {
+    return "Water break (+${entry.delta} min)"
 }
 
 /// Return display text for a technical-foul event or technical-foul correction.

@@ -104,6 +104,7 @@ internal fun LiveGameScreen(
     }
     var teamInfoSheetTeam by remember { mutableStateOf<TeamId?>(null) }
     var locked by remember { mutableStateOf(false) }
+    var showWaterBreakPrompt by remember { mutableStateOf(false) }
     var actionInfoMessage by remember { mutableStateOf<String?>(null) }
     var actionInfoTitle by remember { mutableStateOf("") }
     var activeGamePrompt by remember { mutableStateOf<GamePrompt?>(null) }
@@ -271,6 +272,15 @@ internal fun LiveGameScreen(
                     countdown = activeCountdown,
                     enabled = !locked,
                     onAdjust = { seconds -> onStateChange(state.addTimeToCountdown(seconds)) },
+                    waterBreakAction = if (state.canApplyWaterBreak()) {
+                        // Show the icon and have its action be to open the water break prompt.
+                        {
+                            showWaterBreakPrompt = true
+                        }
+                    } else {
+                        // Don't show the icon.
+                        null
+                    },
                     onTogglePaused = { onStateChange(state.toggleCountdownPaused(now)) },
                     expiredPullActions = if (hasExpiredPullActions && !locked) {
                         ExpiredPullActions(
@@ -346,7 +356,13 @@ internal fun LiveGameScreen(
                         }
                     },
                     onLock = { locked = true },
-                    onGoal = { team -> onStateChange(state.recordGoalFromCurrentState(team, now)) },
+                    onGoal = { team ->
+                        val updatedState = state.recordGoalFromCurrentState(team, now)
+                        onStateChange(updatedState)
+                        if (updatedState.automaticWaterBreakReached(team)) {
+                            showWaterBreakPrompt = true
+                        }
+                    },
                     onTimeout = { team ->
                         pendingTimeoutRequest = PendingTimeoutRequest(team, System.currentTimeMillis())
                     },
@@ -386,7 +402,17 @@ internal fun LiveGameScreen(
         }
     }
 
-    pendingCardTeam?.let { team ->
+    // Only show one dialog on this screen at a time. There are lots of possible dialogs,
+    // so these are listed in priority order. Most can't overlap, but there are a few that
+    // matter:
+    // 1. pendingCapOffer should be resolved before halftime in case the cap is hard cap,
+    //    which can end the game.
+    // 2. pendingCapOffer should also be before showWaterBreakPrompt, for the same reason
+    //    and also because a soft cap can change the water break prompt.
+    // 3. showMoreActions should be last, since it can spawn other dialogs, which should
+    //    take precedence over the menu dialog.
+    if (pendingCardTeam != null) {
+        val team = pendingCardTeam!!
         TeamCardDialog(
             state = state,
             team = team,
@@ -406,66 +432,26 @@ internal fun LiveGameScreen(
             },
             onStateUpdate = onStateChange,
         )
-    }
-
-    // Dialog for less-common actions and manual corrections.
-    if (showMoreActionsDialog) {
-        AlertDialog(
-            onDismissRequest = { showMoreActionsDialog = false },
-            title = { Text("More actions") },
-            text = {
-                MoreActionsContent(
-                    state = state,
-                    now = now,
-                    onUpdateGameSetup = {
-                        showMoreActionsDialog = false
-                        onUpdateGameSetup()
-                    },
-                    onShowEventLog = {
-                        showMoreActionsDialog = false
-                        showEventLogSheet = true
-                    },
-                    onShowGameSummary = {
-                        showMoreActionsDialog = false
-                        onOpenGameSummary()
-                    },
-                    onAction = { updatedState ->
-                        onStateChange(updatedState)
-                        showMoreActionsDialog = false
-                    },
-                    onStateUpdate = onStateChange,
-                )
-            },
-            confirmButton = {
-                TextActionButton(label = "Close", onClick = { showMoreActionsDialog = false })
-            },
-        )
-    }
-
-    if (showEventLogSheet) {
+    } else if (showEventLogSheet) {
         EventLogDialog(
             state = state,
             onDismiss = { showEventLogSheet = false },
         )
-    }
-
-    teamInfoSheetTeam?.let { team ->
+    } else if (teamInfoSheetTeam != null) {
+        val team = teamInfoSheetTeam!!
         TeamNamesDialog(
             team = state.teamFor(team),
             onDismiss = { teamInfoSheetTeam = null },
         )
-    }
-
-    if (showGameRulesDialog) {
+    } else if (showGameRulesDialog) {
         GameRulesDialog(
             state = state,
             onDismiss = {
                 showGameRulesDialog = false
             },
         )
-    }
-
-    pendingTimeoutRequest?.let { request ->
+    } else if (pendingTimeoutRequest != null) {
+        val request = pendingTimeoutRequest!!
         val event = state.previewTimeout(request.team, request.requestedAt).event
         AlertDialog(
             onDismissRequest = { pendingTimeoutRequest = null },
@@ -490,9 +476,8 @@ internal fun LiveGameScreen(
                 TextActionButton(label = "Cancel", onClick = { pendingTimeoutRequest = null })
             },
         )
-    }
-
-    pendingTimeViolationTeam?.let { team ->
+    } else if (pendingTimeViolationTeam != null) {
+        val team = pendingTimeViolationTeam!!
         val event = state.previewTimeViolation(team).event
         AlertDialog(
             onDismissRequest = { pendingTimeViolationTeam = null },
@@ -517,9 +502,8 @@ internal fun LiveGameScreen(
                 TextActionButton(label = "Cancel", onClick = { pendingTimeViolationTeam = null })
             },
         )
-    }
-
-    pendingPullViolationTeam?.let { team ->
+    } else if (pendingPullViolationTeam != null) {
+        val team = pendingPullViolationTeam!!
         val event = state.previewPullViolation(team, pendingPullViolationType).event
         val canSwitchPullingViolation = pendingPullViolationType != PullViolationType.FALSE_START &&
             state.usesMixedDivision()
@@ -595,9 +579,8 @@ internal fun LiveGameScreen(
                 }
             },
         )
-    }
-
-    pendingTechnicalFoulTeam?.let { team ->
+    } else if (pendingTechnicalFoulTeam != null) {
+        val team = pendingTechnicalFoulTeam!!
         val event = state.previewTechnicalFoul(team).event
         val misconductPrompt = if (event.needsMisconductChoice()) {
             GamePrompt.LivePointMisconduct(event)
@@ -659,9 +642,8 @@ internal fun LiveGameScreen(
                 null
             },
         )
-    }
-
-    pendingTechnicalFoulResolution?.let { pending ->
+    } else if (pendingTechnicalFoulResolution != null) {
+        val pending = pendingTechnicalFoulResolution!!
         val prompt = GamePrompt.LivePointMisconduct(pending.result.event)
         AlertDialog(
             onDismissRequest = {
@@ -695,10 +677,8 @@ internal fun LiveGameScreen(
                 )
             },
         )
-    }
-
-    // General informational pop-up for terse field guidance and validation messages.
-    if (actionInfoMessage != null) {
+    } else if (actionInfoMessage != null) {
+        // General informational pop-up for terse field guidance and validation messages.
         AlertDialog(
             onDismissRequest = { dismissActionInfo() },
             title = { Text(actionInfoTitle) },
@@ -712,10 +692,8 @@ internal fun LiveGameScreen(
                 TextActionButton(label = "OK", onClick = { dismissActionInfo() })
             },
         )
-    }
-
-    // Cap prompts block until the observer decides whether to apply the newly eligible cap.
-    if (state.pendingCapOffer != null) {
+    } else if (state.pendingCapOffer != null) {
+        // Cap prompts block until the observer decides whether to apply the newly eligible cap.
         val capPrompt = GamePrompt.ApplyCap(state, state.pendingCapOffer!!)
         AlertDialog(
             onDismissRequest = {},
@@ -727,16 +705,52 @@ internal fun LiveGameScreen(
                 )
             },
             confirmButton = {
-                TextActionButton(label = "Apply", onClick = { onStateChange(state.applyPendingCap(now)) })
+                TextActionButton(
+                    label = "Apply",
+                    onClick = {
+                        val showWaterBreakAfterCap =
+                            state.pendingCapOffer == CapType.SOFT && state.softCapWaterBreakReached()
+                        onStateChange(state.applyPendingCap(now))
+                        if (showWaterBreakAfterCap) {
+                            showWaterBreakPrompt = true
+                        }
+                    },
+                )
             },
             dismissButton = {
                 TextActionButton(label = "No", onClick = { onStateChange(state.deferPendingCap()) })
             },
         )
-    }
-
-    // Prominent game prompts that are not tied to modal workflows.
-    if (activeGamePrompt != null) {
+    } else if (showWaterBreakPrompt) {
+        AlertDialog(
+            onDismissRequest = { showWaterBreakPrompt = false },
+            title = { Text("Water break") },
+            text = {
+                Text(
+                    text = "Take a ${state.rules.waterBreakMinutes} minute water break now?",
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            },
+            confirmButton = {
+                TextActionButton(
+                    label = "Yes",
+                    onClick = {
+                        onStateChange(state.applyWaterBreak(now))
+                        showWaterBreakPrompt = false
+                    },
+                )
+            },
+            dismissButton = {
+                TextActionButton(
+                    label = "No",
+                    onClick = {
+                        showWaterBreakPrompt = false
+                    },
+                )
+            },
+        )
+    } else if (activeGamePrompt != null) {
+        // Prominent game prompts that are not tied to modal workflows.
         val prompt = activeGamePrompt!!
         AlertDialog(
             onDismissRequest = { activeGamePrompt = null },
@@ -749,6 +763,45 @@ internal fun LiveGameScreen(
             },
             confirmButton = {
                 TextActionButton(label = "OK", onClick = { activeGamePrompt = null })
+            },
+        )
+    } else if (showMoreActionsDialog) {
+        // Dialog for less-common actions and manual corrections.
+        AlertDialog(
+            onDismissRequest = { showMoreActionsDialog = false },
+            title = { Text("More actions") },
+            text = {
+                MoreActionsContent(
+                    state = state,
+                    now = now,
+                    onUpdateGameSetup = {
+                        showMoreActionsDialog = false
+                        onUpdateGameSetup()
+                    },
+                    onShowEventLog = {
+                        showMoreActionsDialog = false
+                        showEventLogSheet = true
+                    },
+                    onShowGameSummary = {
+                        showMoreActionsDialog = false
+                        onOpenGameSummary()
+                    },
+                    onAction = { updatedState ->
+                        if (
+                            !state.softCapApplied &&
+                            updatedState.softCapApplied &&
+                            state.softCapWaterBreakReached()
+                        ) {
+                            showWaterBreakPrompt = true
+                        }
+                        onStateChange(updatedState)
+                        showMoreActionsDialog = false
+                    },
+                    onStateUpdate = onStateChange,
+                )
+            },
+            confirmButton = {
+                TextActionButton(label = "Close", onClick = { showMoreActionsDialog = false })
             },
         )
     }

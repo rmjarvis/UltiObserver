@@ -183,6 +183,86 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
     }
 
     /**
+     * Test manual and automatic water-break prompts on the live screen.
+     */
+    @Test
+    fun waterBreaks() {
+        val manualSetup = newSetupGameState(now = System.currentTimeMillis()).copy(
+            rules = GameRules(
+                waterBreakMode = WaterBreakMode.MANUAL,
+                waterBreakMinutes = 2,
+            ),
+        )
+
+        // The water-drop action asks before applying a manual water break, and canceling leaves
+        // the active countdown unchanged.
+        startBetweenPointsProgrammatically(manualSetup)
+        composeRule.onNodeWithTag("live-center-lock").performClick()
+        waitForText("Slide right to unlock")
+        composeRule.onNodeWithTag("live-water-break").assertIsDisplayed().assertIsNotEnabled()
+        unlockLiveScreen()
+        val beforeManualCancel = accessCurrentGameState().countdown!!
+        composeRule.onNodeWithTag("live-water-break").assertIsDisplayed().performClick()
+        waitForText("Take a 2 minute water break now?")
+        dismissDialog(text = "No")
+        composeRule.onAllNodesWithText("Take a 2 minute water break now?").assertCountEquals(0)
+        assertEquals(beforeManualCancel.targetEpoch, accessCurrentGameState().countdown?.targetEpoch)
+
+        // Accepting the manual prompt adds the configured time and exposes a normal undo action.
+        val beforeManualAccept = accessCurrentGameState().countdown!!
+        composeRule.onNodeWithTag("live-water-break").performClick()
+        waitForText("Take a 2 minute water break now?")
+        composeRule.onNodeWithText("Yes").performClick()
+        waitForText("Undo Water break")
+        assertEquals(
+            beforeManualAccept.targetEpoch + 120_000L,
+            accessCurrentGameState().countdown?.targetEpoch,
+        )
+
+        val automaticSetup = newSetupGameState(now = System.currentTimeMillis()).copy(
+            rules = GameRules(
+                gameTo = 15,
+                useHalfCap = false,
+                useSoftCap = false,
+                useHardCap = false,
+                waterBreakMode = WaterBreakMode.AUTOMATIC,
+                waterBreakMinutes = 3,
+            ),
+        )
+
+        // The automatic first-quarter prompt can be rejected after the goal that reaches the break
+        // score.
+        startBetweenPointsProgrammatically(automaticSetup)
+        updateCurrentStateProgrammatically {
+            adjustScore(teamOneScore = 3, teamTwoScore = 0, now = 0L)
+        }
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
+        waitForText("Take a 3 minute water break now?")
+        val beforeAutomaticReject = accessCurrentGameState().countdown!!
+        composeRule.onNodeWithText("No").performClick()
+        waitForText("Undo Goal by Team 1")
+        assertEquals(
+            beforeAutomaticReject.targetEpoch,
+            accessCurrentGameState().countdown?.targetEpoch,
+        )
+
+        // Accepting the automatic prompt applies the same undoable water-break action.
+        startBetweenPointsProgrammatically(automaticSetup)
+        updateCurrentStateProgrammatically {
+            adjustScore(teamOneScore = 3, teamTwoScore = 0, now = 0L)
+        }
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
+        waitForText("Take a 3 minute water break now?")
+        val beforeAutomaticAccept = accessCurrentGameState().countdown!!
+        composeRule.onNodeWithText("Yes").performClick()
+        waitForText("Undo Water break")
+        assertEquals(
+            beforeAutomaticAccept.targetEpoch + 180_000L,
+            accessCurrentGameState().countdown?.targetEpoch,
+        )
+    }
+
+    /**
      * Verify due timing-cue callbacks run for vibration, sound, and disabled configurations.
      */
     @Test

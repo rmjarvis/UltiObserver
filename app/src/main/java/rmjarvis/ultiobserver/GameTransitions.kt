@@ -186,7 +186,6 @@ fun GameState.recordGoal(
         promptTarget = this.pullPromptTarget,
         rules = this.rules,
     )
-
     return this.copy(
         teamOne = updatedTeamOne,
         teamTwo = updatedTeamTwo,

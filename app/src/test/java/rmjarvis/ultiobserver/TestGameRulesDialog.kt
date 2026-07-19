@@ -95,6 +95,25 @@ class TestGameRulesDialog : GameDomainTestFixtures() {
                 rules = genZoneState.rules.copy(switchGenZoneAtHalftime = false),
             ).gameRulesDialogRows().testDisplayPairs().last(),
         )
+
+        // Enabled water breaks appear as water-break rows, while None is omitted above.
+        assertEquals(
+            "Water breaks" to "3 min",
+            openNoCapState.copy(
+                rules = openNoCapState.rules.copy(
+                    waterBreakMode = WaterBreakMode.MANUAL,
+                ),
+            ).gameRulesDialogRows().testDisplayPairs().last(),
+        )
+        assertEquals(
+            "Water breaks" to "4/12, 3 min",
+            openNoCapState.copy(
+                rules = openNoCapState.rules.copy(
+                    gameTo = 15,
+                    waterBreakMode = WaterBreakMode.AUTOMATIC,
+                ),
+            ).gameRulesDialogRows().testDisplayPairs().last(),
+        )
     }
 
     /**

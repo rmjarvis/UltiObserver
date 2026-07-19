@@ -42,6 +42,9 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
      */
     @Test
     fun launchHomeAndStartGame() {
+        setAutomaticallyAdvanceCountdowns(true)
+        setAutomaticallyLockLivePoint(true)
+
         // Verify the app opens on the home screen with the primary navigation buttons.
         composeRule.onNodeWithText("UltiObserver").assertIsDisplayed()
         composeRule.onNodeWithTag("home-artwork").assertIsDisplayed()

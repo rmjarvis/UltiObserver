@@ -365,7 +365,7 @@ abstract class GameDomainTestFixtures {
      * @param state The live state before halftime.
      * @param time The local time assigned to the manual halftime start.
      */
-    protected fun startHalftimeNowAt(state: GameState, time: LocalTime): GameState {
+    protected fun startHalftimeAt(state: GameState, time: LocalTime): GameState {
         return state.startHalftimeNow(timestampAt(state, time))
     }
 

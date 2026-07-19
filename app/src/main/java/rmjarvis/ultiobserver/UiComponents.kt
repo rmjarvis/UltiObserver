@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonColors
@@ -121,6 +122,7 @@ internal val CardButtonColor = Color(0xFFFDD835)
 internal val TechButtonColor = Color(0xFFFFB74D)
 internal val TimeoutButtonColor = Color(0xFF90CAF9)
 internal val FieldNeutralButtonColor = Color(0xFFF7F2EA)
+private val WaterBreakIconColor = Color(0xFF1976D2)
 internal val SliderOverlayColor = Color(0x66FFFFFF)
 internal val FourMenThreeWomenBadgeColor = Color(0xFFBFE3FF)
 internal val FourMenThreeWomenBadgeBorderColor = Color(0xFF5D99C2)
@@ -1317,6 +1319,47 @@ internal fun PauseResumeButton(
         ) {
             Icon(
                 imageVector = if (isPaused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = iconColor,
+            )
+        }
+    }
+}
+
+/**
+ * Render the manual water-break control.
+ *
+ * @param enabled Whether the button can be pressed.
+ * @param onClick Callback invoked when the observer applies the water break.
+ */
+@Composable
+internal fun WaterBreakButton(
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val contentColor = MaterialTheme.colorScheme.onSurface
+    val iconColor = if (enabled) WaterBreakIconColor else WaterBreakIconColor.copy(alpha = 0.38f)
+    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+        OutlinedButton(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = Modifier
+                .defaultMinSize(minWidth = 34.dp, minHeight = 34.dp)
+                .testTag("live-water-break")
+                .semantics { contentDescription = "Water break" },
+            shape = AdjustShape,
+            colors = ButtonDefaults.outlinedButtonColors(
+                containerColor = DarkNeutralColor,
+                contentColor = contentColor,
+                disabledContainerColor = DarkNeutralColor.copy(alpha = 0.45f),
+                disabledContentColor = contentColor.copy(alpha = 0.38f),
+            ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Filled.WaterDrop,
                 contentDescription = null,
                 modifier = Modifier.size(18.dp),
                 tint = iconColor,

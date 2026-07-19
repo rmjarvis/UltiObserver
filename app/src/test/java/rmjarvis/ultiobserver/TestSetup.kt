@@ -676,6 +676,46 @@ class TestSetup : GameDomainTestFixtures() {
             GameRules(timeoutSeconds = 80).formatTimeoutDuration(),
         )
 
+        // Check the display text for each water break mode.
+        assertEquals(
+            listOf("None", "Manual", "Automatic"),
+            WaterBreakMode.entries.map { it.displayText },
+        )
+
+        // Water-break summary is absent if water breaks are not enabled.
+        assertNull(GameRules().formatWaterBreaks())
+
+        // Manual water breaks just show the time.
+        assertEquals(
+            "3 min",
+            GameRules(waterBreakMode = WaterBreakMode.MANUAL).formatWaterBreaks(),
+        )
+
+        // Automatic water break summaris show the quarter point levels and the break time.
+        listOf(
+            Triple(11, null, "3/9, 3 min"),
+            Triple(13, 2, "4/10, 2 min"),
+            Triple(15, 3, "4/12, 3 min"),
+            Triple(17, 4, "5/13, 4 min"),
+        ).forEach { (gameTo, waterBreakMinutes, expected) ->
+            val rules = if (waterBreakMinutes == null) {
+                GameRules(
+                    gameTo = gameTo,
+                    waterBreakMode = WaterBreakMode.AUTOMATIC,
+                )
+            } else {
+                GameRules(
+                    gameTo = gameTo,
+                    waterBreakMode = WaterBreakMode.AUTOMATIC,
+                    waterBreakMinutes = waterBreakMinutes,
+                )
+            }
+            assertEquals(
+                expected,
+                rules.formatWaterBreaks(),
+            )
+        }
+
         // Gender-ratio rules provide explanatory notes for the focused rule editor.
         val genderRatioExplanations = listOf(
             GenderRatioRule.ABBA to

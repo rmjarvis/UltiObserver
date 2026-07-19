@@ -147,6 +147,8 @@ class TestFieldUi : MainActivityUiTestFixtures() {
                 useHardCap = true,
                 hardCapMinutes = 105,
                 timeoutsPerHalf = 2,
+                waterBreakMode = WaterBreakMode.AUTOMATIC,
+                waterBreakMinutes = 4,
                 genderRatioRule = GenderRatioRule.ABBA,
             ),
             division = GameDivision.MIXED,
@@ -159,6 +161,8 @@ class TestFieldUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Game to").assertIsDisplayed()
         composeRule.onNodeWithText("Half cap").assertIsDisplayed()
         composeRule.onNodeWithText("10:45 AM").assertIsDisplayed()
+        composeRule.onNodeWithText("Water breaks").assertIsDisplayed()
+        composeRule.onNodeWithText("4/12, 4 min").assertIsDisplayed()
         composeRule.onNodeWithText("Gender ratio").assertIsDisplayed()
         composeRule.onNodeWithText("ABBA").assertIsDisplayed()
         dismissDialog(text = "OK")

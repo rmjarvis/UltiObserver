@@ -316,6 +316,9 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         waitForText("Team 2 #8 now has two yellow cards and has been suspended.")
         dismissDialog(text = "OK")
         composeRule.onNodeWithText("Done").performClick()
+        waitForText("Current cards:")
+        composeRule.onNodeWithText("Close").performClick()
+        assertLiveScreen()
 
         // Ending the game renders the already-recorded player cards on the summary.
         openMoreActionsDialog()

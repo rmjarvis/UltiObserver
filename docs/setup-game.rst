@@ -181,6 +181,19 @@ Timeout duration
     after this time to check the disc in. When called between points, this is how much
     time is added to the between-points countdown.
 
+Water breaks
+    Whether to allow water breaks between points. When heat precautions are in effect, this
+    option allows you to add a set amount of time (default 3 minutes) to the time between
+    points. The usual cadence in a game to 15 is to take these breaks when a team reaches
+    4 points in the first half or 12 in the second half (or at soft cap if that happens
+    earlier than this). For games to other totals than 15, the water breaks are at the first
+    point after "first quarter" and "third quarter". If your tournament has a different cadence,
+    you can choose Manual instead of Automatic for this, which lets you control when the
+    water breaks happen. There will be a small water drop icon next to the countdown timer;
+    clicking this activates the water break. Even when using the automatic water break times,
+    you are still able to override the automatic cadence by rejecting the water break when
+    offered and/or clicking the water drop yourself at other points.
+
 Mixed gender ratio
     What rule should be used to determine the gender ratio each point? This option is only
     available if the division is set to **Mixed**. Options include:

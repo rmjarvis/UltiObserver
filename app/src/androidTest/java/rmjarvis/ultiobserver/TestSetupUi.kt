@@ -380,6 +380,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
             "Timeouts",
             "Time between points",
             "Timeout duration",
+            "Water breaks",
         )
             .forEach { ruleLabel ->
                 composeRule.onNodeWithText(ruleLabel).performScrollTo().performClick()
@@ -435,6 +436,37 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         // Timeout rules should accept a floater timeout configuration.
         setTimeoutRules(timeoutsPerHalf = "3", hasFloater = true)
 
+        // Water-break rules should cover disabled, manual, and automatic choices.
+        openGameRulesSetupEditor()
+        composeRule.onNodeWithText("Water breaks").performScrollTo().performClick()
+        waitForText("Allow extra time between points for hydration or shade.", substring = true)
+        composeRule.onNodeWithTag("setup-water-break-NONE").assertIsSelected()
+        composeRule.onNodeWithText("Minutes").assertIsNotEnabled()
+        composeRule.onNodeWithTag("setup-water-break-MANUAL").performClick()
+        composeRule.onNodeWithText("Minutes").performTextReplacement("4")
+        composeRule.onNodeWithTag("setup-water-breaks-set").performClick()
+        waitForText("4 min")
+        closeSetupEditor()
+        assertSetupSummaryTextVisible("Water breaks: 4 min")
+
+        openGameRulesSetupEditor()
+        composeRule.onNodeWithText("Water breaks").performScrollTo().performClick()
+        composeRule.onNodeWithTag("setup-water-break-AUTOMATIC").performClick()
+        waitForText("Breaks will be offered when a team reaches 2 or 6 points.")
+        composeRule.onNodeWithText("Minutes").performTextReplacement("5")
+        composeRule.onNodeWithTag("setup-water-breaks-set").performClick()
+        waitForText("2/6, 5 min")
+        closeSetupEditor()
+        assertSetupSummaryTextVisible("Water breaks: 2/6, 5 min")
+
+        openGameRulesSetupEditor()
+        composeRule.onNodeWithText("Water breaks").performScrollTo().performClick()
+        composeRule.onNodeWithText("Minutes").performTextReplacement("")
+        composeRule.onNodeWithTag("setup-water-breaks-set").performClick()
+        waitForText("2/6, 5 min")
+        closeSetupEditor()
+        assertSetupSummaryTextVisible("Water breaks: 2/6, 5 min")
+
         // USAU defaults should restore the expected compact rule summary.
         openGameRulesSetupEditor()
         composeRule.onNodeWithTag("setup-usau-defaults").performScrollTo().performClick()
@@ -442,6 +474,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         closeSetupEditor()
         assertSetupSummaryTextVisible("Time between points: 60 sec")
         assertSetupSummaryTextVisible("Timeout duration: 70 sec")
+        composeRule.onAllNodesWithText("Water breaks:", substring = true).assertCountEquals(0)
     }
 
     /**

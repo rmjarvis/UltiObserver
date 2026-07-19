@@ -206,7 +206,7 @@ class TestUndo : GameDomainTestFixtures() {
 
         // Manual halftime is undo-backed.
         val beforeManualHalftime = standardLiveGameState(pullingFromEnd = FieldEnd.NEAR)
-        state = startHalftimeNowAt(beforeManualHalftime, LocalTime.of(11, 10))
+        state = startHalftimeAt(beforeManualHalftime, LocalTime.of(11, 10))
         assertUndoRestores(beforeManualHalftime, state)
 
         // Manual end game is undo-backed.

@@ -1136,6 +1136,7 @@ private fun PullDirectionLabel() {
  * @param countdown The visible countdown state, or null when no countdown is active.
  * @param enabled Whether countdown actions should be enabled.
  * @param onAdjust Callback receiving signed second adjustments from the quick buttons.
+ * @param waterBreakAction Callback for a water-break prompt, or null when disabled.
  * @param onTogglePaused Callback for pausing or resuming the countdown.
  * @param expiredPullActions Actions to show after undoing an automatic start point.
  * @param misconductCountdownAction Action to show before starting a live-point misconduct countdown.
@@ -1147,6 +1148,7 @@ internal fun CountdownLine(
     countdown: ActiveCountdownDisplay?,
     enabled: Boolean,
     onAdjust: (Int) -> Unit,
+    waterBreakAction: (() -> Unit)? = null,
     onTogglePaused: () -> Unit,
     expiredPullActions: ExpiredPullActions? = null,
     misconductCountdownAction: MisconductCountdownAction? = null,
@@ -1216,6 +1218,12 @@ internal fun CountdownLine(
                     modifier = Modifier.padding(start = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
+                    if (waterBreakAction != null) {
+                        WaterBreakButton(
+                            enabled = enabled,
+                            onClick = waterBreakAction,
+                        )
+                    }
                     PauseResumeButton(
                         isPaused = displayCountdown.isPaused,
                         enabled = enabled,

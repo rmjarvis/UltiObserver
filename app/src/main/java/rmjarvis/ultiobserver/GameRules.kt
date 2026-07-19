@@ -16,6 +16,7 @@ internal const val USAU_DEFAULT_TIMEOUTS_PER_HALF = 2
 internal const val USAU_DEFAULT_HAS_FLOATER_TIMEOUT = false
 internal const val USAU_DEFAULT_TIMEOUT_SECONDS = 70
 internal const val USAU_DEFAULT_SWITCH_GEN_ZONE_AT_HALFTIME = true
+internal const val DEFAULT_WATER_BREAK_MINUTES = 3
 internal val USAU_DEFAULT_GENDER_RATIO_RULE = GenderRatioRule.ABBA
 
 private const val YOUTH_TIME_BETWEEN_POINTS_SECONDS = 80
@@ -37,7 +38,17 @@ data class GameRules(
     val timeoutSeconds: Int = USAU_DEFAULT_TIMEOUT_SECONDS,
     val genderRatioRule: GenderRatioRule = USAU_DEFAULT_GENDER_RATIO_RULE,
     val switchGenZoneAtHalftime: Boolean = USAU_DEFAULT_SWITCH_GEN_ZONE_AT_HALFTIME,
+    val waterBreakMode: WaterBreakMode = WaterBreakMode.NONE,
+    val waterBreakMinutes: Int = DEFAULT_WATER_BREAK_MINUTES,
 )
+
+/// How water breaks should be offered during this game.
+@Serializable
+enum class WaterBreakMode(val displayText: String) {
+    NONE("None"),
+    MANUAL("Manual"),
+    AUTOMATIC("Automatic"),
+}
 
 /// Return the USAU default between-points offense-ready deadline for this level.
 internal fun usauTimeBetweenPointsSeconds(level: String): Int {
@@ -121,6 +132,29 @@ internal fun GameRules.formatTimeBetweenPoints(): String {
 /// Format the timeout offense-set duration for setup display.
 internal fun GameRules.formatTimeoutDuration(): String {
     return "$timeoutSeconds sec"
+}
+
+/// Format water-break rules for setup display, or null when breaks are disabled.
+internal fun GameRules.formatWaterBreaks(): String? {
+    return when (waterBreakMode) {
+        WaterBreakMode.NONE -> null
+        WaterBreakMode.MANUAL -> "$waterBreakMinutes min"
+        WaterBreakMode.AUTOMATIC ->
+            "${waterBreakScores().joinToString("/")}, $waterBreakMinutes min"
+    }
+}
+
+/**
+ * Return the automatic water-break trigger scores for this game target.
+ *
+ * This is 4,12 for a game to 15.  4/10 for a game to 13.
+ * In general these are the "quarter" scores rounded up.
+ */
+internal fun GameRules.waterBreakScores(): List<Int> {
+    return listOf(
+        (gameTo + 3) / 4,
+        (3 * gameTo + 3) / 4,
+    )
 }
 
 /// Return the explanatory note for one mixed gender-ratio rule choice.
