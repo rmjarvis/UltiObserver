@@ -1,0 +1,61 @@
+{
+    "versionName": "1.1.0",
+    "versionCode": 3,
+    "data": {
+        "automaticallyAdvanceCountdowns": true,
+        "automaticallyLockLivePoint": true,
+        "showDefenseCountdowns": false,
+        "timingAlertPreferences": {
+            "globalMode": "VIBRATION_ONLY",
+            "soundVolume": 0.5,
+            "vibrationDurationMillis": 360,
+            "vibrateWithSounds": false,
+            "cueModes": {
+                "RECEIVING_TWENTY_FOR_HAND": "TICK",
+                "RECEIVING_TEN_FOR_HAND": "TICK",
+                "RECEIVING_GIVE_HAND": "NONE",
+                "PULLING_TWENTY_TO_PULL": "VIBRATE",
+                "PULLING_TEN_TO_PULL": "VIBRATE",
+                "PULLING_TIME_VIOLATION": "NONE",
+                "TIMEOUT_CLEAR_FIELD": "BEEP",
+                "OFFENSE_TWENTY": "TICK",
+                "OFFENSE_TEN": "TICK",
+                "OFFENSE_COUNTDOWN_FROM_FIVE": "NONE",
+                "OFFENSE_SET_LIMIT": "NONE",
+                "DEFENSE_TWENTY": "VIBRATE",
+                "DEFENSE_TEN": "VIBRATE",
+                "DEFENSE_CHECK_LIMIT": "NONE",
+                "TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND": "BEEP",
+                "TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL": "BEEP",
+                "HALFTIME_FIVE_MINUTES": "KNOCK",
+                "HALFTIME_TWO_MINUTES": "KNOCK",
+                "HALF_CAP": "DING",
+                "SOFT_CAP": "DING",
+                "HARD_CAP": "DING"
+            },
+            "cueRepeatCounts": {
+                "RECEIVING_TWENTY_FOR_HAND": 2,
+                "RECEIVING_TEN_FOR_HAND": 1,
+                "RECEIVING_GIVE_HAND": 1,
+                "PULLING_TWENTY_TO_PULL": 1,
+                "PULLING_TEN_TO_PULL": 1,
+                "PULLING_TIME_VIOLATION": 1,
+                "TIMEOUT_CLEAR_FIELD": 1,
+                "OFFENSE_TWENTY": 2,
+                "OFFENSE_TEN": 1,
+                "OFFENSE_COUNTDOWN_FROM_FIVE": 1,
+                "OFFENSE_SET_LIMIT": 1,
+                "DEFENSE_TWENTY": 1,
+                "DEFENSE_TEN": 1,
+                "DEFENSE_CHECK_LIMIT": 1,
+                "TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND": 1,
+                "TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL": 1,
+                "HALFTIME_FIVE_MINUTES": 2,
+                "HALFTIME_TWO_MINUTES": 2,
+                "HALF_CAP": 2,
+                "SOFT_CAP": 2,
+                "HARD_CAP": 3
+            }
+        }
+    }
+}

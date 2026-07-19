@@ -30,7 +30,15 @@ persisted_scenarios = {
         "default-buckets": ScenarioSource("default-buckets", None),
         "setup-draft": ScenarioSource("setup-draft", None),
         "active-game": ScenarioSource("active-game", None),
+        "complete-current-game": ScenarioSource("complete-current-game", None),
         "completed-archive": ScenarioSource("completed-archive", None),
+    },
+    "v1.1": {
+        "default-buckets": ScenarioSource("default-buckets", "v1.1.0"),
+        "setup-draft": ScenarioSource("setup-draft", "v1.1.0"),
+        "active-game": ScenarioSource("active-game", "v1.1.0"),
+        "complete-current-game": ScenarioSource("complete-current-game", "v1.1.0"),
+        "completed-archive": ScenarioSource("completed-archive", "v1.1.0"),
     },
     "v1.0": {
         "default-buckets": ScenarioSource("default-buckets", "v1.0.1"),

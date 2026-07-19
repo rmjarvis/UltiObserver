@@ -2,6 +2,9 @@ package rmjarvis.ultiobserver
 
 import java.io.File
 import java.nio.file.Paths
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneId
 import kotlinx.serialization.json.jsonObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -352,6 +355,95 @@ class TestMigration : GameDomainTestFixtures() {
         )
     }
 
+    /**
+     * Verify every v1.1 fixture scenario loads into the current app model without startup
+     * recovery and preserves the standard persisted workflow shapes.
+     *
+     * The asserted fixture values come from
+     * `tools/persistence-fixtures/v1.1/PersistenceFixtureGeneratorTool.kt`.
+     */
+    @Test
+    fun migrateFixturesFromV1_1() {
+        // default-buckets was created with the defaults for everything.
+        val defaultBuckets = loadMigratedFixture("v1.1", "default-buckets")
+        assertNull(defaultBuckets.currentGame)
+        assertFalse(defaultBuckets.hasSetupDraft)
+        assertProfileAndSettings(defaultBuckets, Profile(), Settings())
+        assertTrue(defaultBuckets.archivedGames.isEmpty())
+
+        // setup-draft has changes made in the setup screen, but did not start a game yet.
+        val setupDraft = loadMigratedFixture("v1.1", "setup-draft")
+        assertTrue(setupDraft.hasSetupDraft)
+        assertEquals(LocalDate.of(2026, 2, 14), setupDraft.setupGame.startDate)
+        assertEquals(LocalTime.of(13, 45), setupDraft.setupGame.startTime)
+        assertEquals(ZoneId.of("America/New_York"), setupDraft.setupGame.timeZone)
+        assertEquals("Migration Invitational", setupDraft.setupGame.tournamentName)
+        assertEquals(GameDivision.OPEN, setupDraft.setupGame.division)
+        assertEquals("College", setupDraft.setupGame.level)
+        assertEquals("Pool play", setupDraft.setupGame.gameContext)
+        assertEquals(listOf("Mike Jarvis", "Casey Lee"), setupDraft.setupGame.observerNames)
+        assertEquals("Field 7", setupDraft.setupGame.fieldName)
+        assertEquals("Bees", setupDraft.setupGame.teamOne.name)
+        assertEquals("Ferns", setupDraft.setupGame.teamTwo.name)
+        assertEquals(TeamId.TEAM_TWO, setupDraft.setupGame.pullingTeam)
+        assertEquals(FieldEnd.NEAR, setupDraft.setupGame.pullingFromEnd)
+
+        // active-game is a still-active game with persisted profile, settings, and one
+        // archived completed game.
+        val activeGame = loadMigratedFixture("v1.1", "active-game")
+        val currentState = activeGame.currentGame!!
+        assertProfileAndSettings(activeGame, fixtureProfile(), fixtureSettings())
+        assertSingleDingTimingCueSettings(activeGame.timingAlertPreferences)
+        assertEquals(SetupMode.EDIT_CURRENT_GAME, activeGame.setupMode)
+        assertEquals(GamePhase.BETWEEN_POINTS, currentState.phase)
+        assertEquals(1, currentState.teamOne.score)
+        assertEquals(1, currentState.teamTwo.score)
+        assertEquals(2, currentState.teamOne.blueCards)
+        assertEquals(1, currentState.teamOne.technicalFouls)
+        assertEquals(1, currentState.teamTwo.blueCards)
+        assertEquals(2, currentState.teamTwo.technicalFouls)
+        assertEquals(1, currentState.teamOne.offsides)
+        assertEquals(1, currentState.teamOne.falseStarts)
+        assertEquals(1, currentState.teamOne.majorityPullViolations)
+        assertEquals(1, currentState.teamOne.timeoutsUsedThisHalf)
+        assertEquals(1, currentState.teamTwo.offsides)
+        assertEquals(1, currentState.teamTwo.falseStarts)
+        assertEquals(1, currentState.teamTwo.timeViolations)
+        assertEquals(1, currentState.teamTwo.timeoutsUsedThisHalf)
+        assertEquals(1, activeGame.archivedGames.size)
+        assertEquals(ArchivedGameCategory.COMPLETED, activeGame.archivedGames.single().archiveCategory)
+
+        // complete-current-game is a completed game that remains current, including the
+        // Undo End game path that returns it to between-points state.
+        val completeCurrentGame = loadMigratedFixture("v1.1", "complete-current-game")
+        val completeCurrentState = completeCurrentGame.currentGame!!
+        assertTrue(completeCurrentGame.archivedGames.isEmpty())
+        assertEquals(GamePhase.GAME_OVER, completeCurrentState.phase)
+        assertEquals("Undo End game", completeCurrentState.undoEntry?.label)
+        val restoredCompleteCurrentGame = completeCurrentState.undoLastAction()
+        assertEquals(GamePhase.BETWEEN_POINTS, restoredCompleteCurrentGame.phase)
+        assertEquals("Undo Fixture blue card/tech adjustment", restoredCompleteCurrentGame.undoEntry?.label)
+        assertNotNull(restoredCompleteCurrentGame.redoEntry)
+        assertEquals(1, restoredCompleteCurrentGame.teamOne.score)
+        assertEquals(1, restoredCompleteCurrentGame.teamTwo.score)
+
+        // completed-archive is the same rich game as active-game, but ended and archived
+        // alongside one short completed archive.
+        val completedArchive = loadMigratedFixture("v1.1", "completed-archive")
+        assertNull(completedArchive.currentGame)
+        assertEquals(2, completedArchive.archivedGames.size)
+        val richArchive = completedArchive.archivedGames.first()
+        assertEquals(ArchivedGameCategory.COMPLETED, richArchive.archiveCategory)
+        assertEquals(GamePhase.GAME_OVER, richArchive.phase)
+        assertEquals("Undo End game", richArchive.undoEntry?.label)
+        val restoredFromEndGame = richArchive.undoLastAction()
+        assertEquals(GamePhase.BETWEEN_POINTS, restoredFromEndGame.phase)
+        assertNull(restoredFromEndGame.undoEntry)
+        assertNotNull(restoredFromEndGame.redoEntry)
+        assertEquals(1, restoredFromEndGame.teamOne.score)
+        assertEquals(1, restoredFromEndGame.teamTwo.score)
+    }
+
     private fun loadMigratedFixture(version: String, scenario: String): AppViewModel {
         val storeDir = temporaryFolder.newFolder()
         fixtureDir(version, scenario).copyRecursively(storeDir, overwrite = true)
@@ -365,6 +457,53 @@ class TestMigration : GameDomainTestFixtures() {
             "persistence-fixtures/$version/$scenario"
         ) ?: error("Missing persistence fixture $version/$scenario")
         return Paths.get(resource.toURI()).toFile()
+    }
+
+    private fun assertProfileAndSettings(
+        viewModel: AppViewModel,
+        expectedProfile: Profile,
+        expectedSettings: Settings,
+    ) {
+        assertEquals(expectedProfile.profileName, viewModel.profileName)
+        assertEquals(expectedProfile.avatarPreference, viewModel.avatarPreference)
+        assertEquals(
+            expectedSettings.automaticallyAdvanceCountdowns,
+            viewModel.automaticallyAdvanceCountdowns,
+        )
+        assertEquals(expectedSettings.automaticallyLockLivePoint, viewModel.automaticallyLockLivePoint)
+        assertEquals(expectedSettings.showDefenseCountdowns, viewModel.showDefenseCountdowns)
+        assertEquals(expectedSettings.showAbbaRatioAsSequence, viewModel.showAbbaRatioAsSequence)
+        assertEquals(expectedSettings.timingAlertPreferences, viewModel.timingAlertPreferences)
+    }
+
+    private fun fixtureProfile(): Profile {
+        return Profile(
+            profileName = "Casey Observer",
+            avatarPreference = ObserverAvatarPreference.BLUE,
+        )
+    }
+
+    private fun fixtureSettings(): Settings {
+        return Settings(
+            automaticallyAdvanceCountdowns = false,
+            automaticallyLockLivePoint = false,
+            showDefenseCountdowns = true,
+            timingAlertPreferences = TimingAlertPreferences(
+                globalMode = TimingAlertGlobalMode.SOUNDS_ON,
+                soundVolume = 0.35f,
+                vibrationDurationMillis = 250L,
+                vibrateWithSounds = true,
+                cueModes = TimingCueId.entries.associateWith { TimingAlertMode.DING },
+                cueRepeatCounts = TimingCueId.entries.associateWith { 1 },
+            ),
+        )
+    }
+
+    private fun assertSingleDingTimingCueSettings(timingAlertPreferences: TimingAlertPreferences) {
+        TimingCueId.entries.forEach { cueId ->
+            assertEquals(TimingAlertMode.DING, timingAlertPreferences.cueModes[cueId])
+            assertEquals(1, timingAlertPreferences.cueRepeatCounts[cueId])
+        }
     }
 
 }

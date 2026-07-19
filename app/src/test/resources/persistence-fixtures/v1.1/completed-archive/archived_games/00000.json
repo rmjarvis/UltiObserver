@@ -1,0 +1,624 @@
+{
+    "versionName": "1.1.0",
+    "versionCode": 3,
+    "data": {
+        "startDate": "2026-02-14",
+        "startTime": "13:45",
+        "timeZone": "America/New_York",
+        "endEpoch": 1771094880000,
+        "tournamentName": "Migration Invitational",
+        "division": "MIXED",
+        "level": "College",
+        "gameContext": "Pool play",
+        "observerNames": [
+            "Mike Jarvis",
+            "Casey Lee"
+        ],
+        "fieldName": "Field 7",
+        "nearEndName": "Tent",
+        "farEndName": "Scoreboard",
+        "rules": {
+            "gameTo": 11,
+            "halftimeMinutes": 10,
+            "useHalfCap": true,
+            "halfCapMinutes": 50,
+            "useSoftCap": true,
+            "softCapMinutes": 80,
+            "useHardCap": true,
+            "hardCapMinutes": 95,
+            "timeoutsPerHalf": 1,
+            "hasFloaterTimeout": false,
+            "genderRatioRule": "ABBA",
+            "switchGenZoneAtHalftime": true
+        },
+        "teamOne": {
+            "name": "Bees",
+            "color": "YELLOW",
+            "customColorArgb": null,
+            "coaches": "Bee Coach",
+            "fieldCaptains": "Bee Captain",
+            "spiritCaptains": "Bee Spirit",
+            "score": 1,
+            "timeoutsUsedThisHalf": 1,
+            "firstHalfTimeoutsUsed": 1,
+            "offsides": 1,
+            "falseStarts": 1,
+            "majorityPullViolations": 1,
+            "timeViolations": 0,
+            "technicalFouls": 1,
+            "blueCards": 2
+        },
+        "teamTwo": {
+            "name": "Ferns",
+            "color": "GREEN",
+            "customColorArgb": null,
+            "coaches": "Fern Coach",
+            "fieldCaptains": "Fern Captain",
+            "spiritCaptains": "Fern Spirit",
+            "score": 1,
+            "timeoutsUsedThisHalf": 1,
+            "firstHalfTimeoutsUsed": 0,
+            "offsides": 1,
+            "falseStarts": 1,
+            "majorityPullViolations": 0,
+            "timeViolations": 1,
+            "technicalFouls": 2,
+            "blueCards": 1
+        },
+        "teamOnePlayers": [
+            {
+                "jerseyNumber": "7",
+                "playerName": "Bee Seven Renamed",
+                "priorYellows": 1,
+                "priorReds": 0,
+                "cards": [
+                    {
+                        "cardType": "YELLOW",
+                        "index": 0,
+                        "reason": {
+                            "preset": "Dangerous play",
+                            "otherText": "",
+                            "details": ""
+                        }
+                    }
+                ]
+            },
+            {
+                "jerseyNumber": "18",
+                "playerName": "",
+                "priorYellows": 0,
+                "priorReds": 1,
+                "cards": []
+            },
+            {
+                "jerseyNumber": "",
+                "playerName": "Name Only Yellow",
+                "priorYellows": 0,
+                "priorReds": 0,
+                "cards": [
+                    {
+                        "cardType": "YELLOW",
+                        "index": 2,
+                        "reason": {
+                            "preset": "",
+                            "otherText": "",
+                            "details": "Name-only fixture card"
+                        }
+                    }
+                ]
+            }
+        ],
+        "teamTwoPlayers": [
+            {
+                "jerseyNumber": "12",
+                "playerName": "Fern Twelve",
+                "priorYellows": 1,
+                "priorReds": 0,
+                "cards": [
+                    {
+                        "cardType": "RED",
+                        "index": 1,
+                        "reason": {
+                            "preset": "Other",
+                            "otherText": "Fixture reason",
+                            "details": ""
+                        }
+                    }
+                ]
+            },
+            {
+                "jerseyNumber": "27",
+                "playerName": "Fern Twentyseven",
+                "priorYellows": 2,
+                "priorReds": 0,
+                "cards": []
+            }
+        ],
+        "eventLog": [
+            {
+                "timestampEpoch": 1771094701000,
+                "type": "FALSE_START",
+                "team": "TEAM_ONE"
+            },
+            {
+                "timestampEpoch": 1771094702000,
+                "type": "MAJORITY_PULL",
+                "team": "TEAM_TWO"
+            },
+            {
+                "timestampEpoch": 1771094703000,
+                "type": "YELLOW_CARD",
+                "team": "TEAM_ONE",
+                "player": {
+                    "jerseyNumber": "7",
+                    "playerName": "Bee Seven"
+                }
+            },
+            {
+                "timestampEpoch": 1771094704000,
+                "type": "RED_CARD",
+                "team": "TEAM_TWO",
+                "player": {
+                    "jerseyNumber": "12",
+                    "playerName": "Fern Twelve"
+                }
+            },
+            {
+                "timestampEpoch": 1771094705000,
+                "type": "BLUE_CARD",
+                "team": "TEAM_ONE"
+            },
+            {
+                "timestampEpoch": 1771094706000,
+                "type": "TIMEOUT",
+                "team": "TEAM_TWO"
+            },
+            {
+                "timestampEpoch": 1771094760000,
+                "type": "GOAL",
+                "team": "TEAM_ONE"
+            },
+            {
+                "timestampEpoch": 1771094780000,
+                "type": "OFFSIDES",
+                "team": "TEAM_ONE"
+            },
+            {
+                "timestampEpoch": 1771094790000,
+                "type": "TECHNICAL_FOUL",
+                "team": "TEAM_TWO"
+            },
+            {
+                "timestampEpoch": 1771094820000,
+                "type": "GOAL",
+                "team": "TEAM_TWO"
+            },
+            {
+                "timestampEpoch": 1771094830000,
+                "type": "TIMEOUT",
+                "team": "TEAM_ONE"
+            },
+            {
+                "timestampEpoch": 1771094840000,
+                "type": "MAJORITY_PULL",
+                "team": "TEAM_ONE",
+                "delta": 1
+            },
+            {
+                "timestampEpoch": 1771094840000,
+                "type": "OFFSIDES",
+                "team": "TEAM_TWO",
+                "delta": 1
+            },
+            {
+                "timestampEpoch": 1771094840000,
+                "type": "FALSE_START",
+                "team": "TEAM_TWO",
+                "delta": 1
+            },
+            {
+                "timestampEpoch": 1771094840000,
+                "type": "MAJORITY_PULL",
+                "team": "TEAM_TWO",
+                "delta": -1
+            },
+            {
+                "timestampEpoch": 1771094840000,
+                "type": "TIME_VIOLATION",
+                "team": "TEAM_TWO",
+                "delta": 1
+            },
+            {
+                "timestampEpoch": 1771094860000,
+                "type": "YELLOW_CARD",
+                "team": "TEAM_ONE",
+                "player": {
+                    "jerseyNumber": "7",
+                    "playerName": "Bee Seven"
+                },
+                "delta": -1
+            },
+            {
+                "timestampEpoch": 1771094860000,
+                "type": "YELLOW_CARD",
+                "team": "TEAM_ONE",
+                "player": {
+                    "jerseyNumber": "7",
+                    "playerName": "Bee Seven Renamed"
+                },
+                "delta": 1
+            },
+            {
+                "timestampEpoch": 1771094860000,
+                "type": "YELLOW_CARD",
+                "team": "TEAM_ONE",
+                "player": {
+                    "jerseyNumber": "",
+                    "playerName": "Name Only Yellow"
+                },
+                "delta": 1
+            },
+            {
+                "timestampEpoch": 1771094870000,
+                "type": "BLUE_CARD",
+                "team": "TEAM_ONE",
+                "delta": 1
+            },
+            {
+                "timestampEpoch": 1771094870000,
+                "type": "TECHNICAL_FOUL",
+                "team": "TEAM_ONE",
+                "delta": 1
+            },
+            {
+                "timestampEpoch": 1771094870000,
+                "type": "BLUE_CARD",
+                "team": "TEAM_TWO",
+                "delta": 1
+            },
+            {
+                "timestampEpoch": 1771094870000,
+                "type": "TECHNICAL_FOUL",
+                "team": "TEAM_TWO",
+                "delta": 1
+            },
+            {
+                "timestampEpoch": 1771094880000,
+                "type": "GAME_OVER"
+            }
+        ],
+        "pullingTeam": "TEAM_TWO",
+        "pullingFromEnd": "NEAR",
+        "topDisplayedEnd": "NEAR",
+        "pullPromptTarget": "FAR",
+        "initialGenderRatio": "FOUR_MEN_THREE_WOMEN",
+        "firstHalfGenZone": "FAR",
+        "openingPullingTeam": "TEAM_TWO",
+        "openingPullingFromEnd": "NEAR",
+        "phase": "GAME_OVER",
+        "countdown": null,
+        "pullSequenceOffsidesRecorded": false,
+        "pullSequenceFalseStartRecorded": false,
+        "pullSkippedForCurrentPoint": false,
+        "pendingMisconductCountdown": false,
+        "halftimeTaken": false,
+        "halftimeTargetScore": null,
+        "winningScore": null,
+        "halfCapApplied": false,
+        "softCapApplied": false,
+        "hardCapApplied": false,
+        "pendingCapOffer": null,
+        "undoEntry": {
+            "label": "Undo End game",
+            "previous": {
+                "startDate": "2026-02-14",
+                "startTime": "13:45",
+                "timeZone": "America/New_York",
+                "endEpoch": null,
+                "tournamentName": "Migration Invitational",
+                "division": "MIXED",
+                "level": "College",
+                "gameContext": "Pool play",
+                "observerNames": [
+                    "Mike Jarvis",
+                    "Casey Lee"
+                ],
+                "fieldName": "Field 7",
+                "nearEndName": "Tent",
+                "farEndName": "Scoreboard",
+                "rules": {
+                    "gameTo": 11,
+                    "halftimeMinutes": 10,
+                    "useHalfCap": true,
+                    "halfCapMinutes": 50,
+                    "useSoftCap": true,
+                    "softCapMinutes": 80,
+                    "useHardCap": true,
+                    "hardCapMinutes": 95,
+                    "timeoutsPerHalf": 1,
+                    "hasFloaterTimeout": false,
+                    "genderRatioRule": "ABBA",
+                    "switchGenZoneAtHalftime": true
+                },
+                "teamOne": {
+                    "name": "Bees",
+                    "color": "YELLOW",
+                    "customColorArgb": null,
+                    "coaches": "Bee Coach",
+                    "fieldCaptains": "Bee Captain",
+                    "spiritCaptains": "Bee Spirit",
+                    "score": 1,
+                    "timeoutsUsedThisHalf": 1,
+                    "firstHalfTimeoutsUsed": 1,
+                    "offsides": 1,
+                    "falseStarts": 1,
+                    "majorityPullViolations": 1,
+                    "timeViolations": 0,
+                    "technicalFouls": 1,
+                    "blueCards": 2
+                },
+                "teamTwo": {
+                    "name": "Ferns",
+                    "color": "GREEN",
+                    "customColorArgb": null,
+                    "coaches": "Fern Coach",
+                    "fieldCaptains": "Fern Captain",
+                    "spiritCaptains": "Fern Spirit",
+                    "score": 1,
+                    "timeoutsUsedThisHalf": 1,
+                    "firstHalfTimeoutsUsed": 0,
+                    "offsides": 1,
+                    "falseStarts": 1,
+                    "majorityPullViolations": 0,
+                    "timeViolations": 1,
+                    "technicalFouls": 2,
+                    "blueCards": 1
+                },
+                "teamOnePlayers": [
+                    {
+                        "jerseyNumber": "7",
+                        "playerName": "Bee Seven Renamed",
+                        "priorYellows": 1,
+                        "priorReds": 0,
+                        "cards": [
+                            {
+                                "cardType": "YELLOW",
+                                "index": 0,
+                                "reason": {
+                                    "preset": "Dangerous play",
+                                    "otherText": "",
+                                    "details": ""
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "jerseyNumber": "18",
+                        "playerName": "",
+                        "priorYellows": 0,
+                        "priorReds": 1,
+                        "cards": []
+                    },
+                    {
+                        "jerseyNumber": "",
+                        "playerName": "Name Only Yellow",
+                        "priorYellows": 0,
+                        "priorReds": 0,
+                        "cards": [
+                            {
+                                "cardType": "YELLOW",
+                                "index": 2,
+                                "reason": {
+                                    "preset": "",
+                                    "otherText": "",
+                                    "details": "Name-only fixture card"
+                                }
+                            }
+                        ]
+                    }
+                ],
+                "teamTwoPlayers": [
+                    {
+                        "jerseyNumber": "12",
+                        "playerName": "Fern Twelve",
+                        "priorYellows": 1,
+                        "priorReds": 0,
+                        "cards": [
+                            {
+                                "cardType": "RED",
+                                "index": 1,
+                                "reason": {
+                                    "preset": "Other",
+                                    "otherText": "Fixture reason",
+                                    "details": ""
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "jerseyNumber": "27",
+                        "playerName": "Fern Twentyseven",
+                        "priorYellows": 2,
+                        "priorReds": 0,
+                        "cards": []
+                    }
+                ],
+                "eventLog": [
+                    {
+                        "timestampEpoch": 1771094701000,
+                        "type": "FALSE_START",
+                        "team": "TEAM_ONE"
+                    },
+                    {
+                        "timestampEpoch": 1771094702000,
+                        "type": "MAJORITY_PULL",
+                        "team": "TEAM_TWO"
+                    },
+                    {
+                        "timestampEpoch": 1771094703000,
+                        "type": "YELLOW_CARD",
+                        "team": "TEAM_ONE",
+                        "player": {
+                            "jerseyNumber": "7",
+                            "playerName": "Bee Seven"
+                        }
+                    },
+                    {
+                        "timestampEpoch": 1771094704000,
+                        "type": "RED_CARD",
+                        "team": "TEAM_TWO",
+                        "player": {
+                            "jerseyNumber": "12",
+                            "playerName": "Fern Twelve"
+                        }
+                    },
+                    {
+                        "timestampEpoch": 1771094705000,
+                        "type": "BLUE_CARD",
+                        "team": "TEAM_ONE"
+                    },
+                    {
+                        "timestampEpoch": 1771094706000,
+                        "type": "TIMEOUT",
+                        "team": "TEAM_TWO"
+                    },
+                    {
+                        "timestampEpoch": 1771094760000,
+                        "type": "GOAL",
+                        "team": "TEAM_ONE"
+                    },
+                    {
+                        "timestampEpoch": 1771094780000,
+                        "type": "OFFSIDES",
+                        "team": "TEAM_ONE"
+                    },
+                    {
+                        "timestampEpoch": 1771094790000,
+                        "type": "TECHNICAL_FOUL",
+                        "team": "TEAM_TWO"
+                    },
+                    {
+                        "timestampEpoch": 1771094820000,
+                        "type": "GOAL",
+                        "team": "TEAM_TWO"
+                    },
+                    {
+                        "timestampEpoch": 1771094830000,
+                        "type": "TIMEOUT",
+                        "team": "TEAM_ONE"
+                    },
+                    {
+                        "timestampEpoch": 1771094840000,
+                        "type": "MAJORITY_PULL",
+                        "team": "TEAM_ONE",
+                        "delta": 1
+                    },
+                    {
+                        "timestampEpoch": 1771094840000,
+                        "type": "OFFSIDES",
+                        "team": "TEAM_TWO",
+                        "delta": 1
+                    },
+                    {
+                        "timestampEpoch": 1771094840000,
+                        "type": "FALSE_START",
+                        "team": "TEAM_TWO",
+                        "delta": 1
+                    },
+                    {
+                        "timestampEpoch": 1771094840000,
+                        "type": "MAJORITY_PULL",
+                        "team": "TEAM_TWO",
+                        "delta": -1
+                    },
+                    {
+                        "timestampEpoch": 1771094840000,
+                        "type": "TIME_VIOLATION",
+                        "team": "TEAM_TWO",
+                        "delta": 1
+                    },
+                    {
+                        "timestampEpoch": 1771094860000,
+                        "type": "YELLOW_CARD",
+                        "team": "TEAM_ONE",
+                        "player": {
+                            "jerseyNumber": "7",
+                            "playerName": "Bee Seven"
+                        },
+                        "delta": -1
+                    },
+                    {
+                        "timestampEpoch": 1771094860000,
+                        "type": "YELLOW_CARD",
+                        "team": "TEAM_ONE",
+                        "player": {
+                            "jerseyNumber": "7",
+                            "playerName": "Bee Seven Renamed"
+                        },
+                        "delta": 1
+                    },
+                    {
+                        "timestampEpoch": 1771094860000,
+                        "type": "YELLOW_CARD",
+                        "team": "TEAM_ONE",
+                        "player": {
+                            "jerseyNumber": "",
+                            "playerName": "Name Only Yellow"
+                        },
+                        "delta": 1
+                    },
+                    {
+                        "timestampEpoch": 1771094870000,
+                        "type": "BLUE_CARD",
+                        "team": "TEAM_ONE",
+                        "delta": 1
+                    },
+                    {
+                        "timestampEpoch": 1771094870000,
+                        "type": "TECHNICAL_FOUL",
+                        "team": "TEAM_ONE",
+                        "delta": 1
+                    },
+                    {
+                        "timestampEpoch": 1771094870000,
+                        "type": "BLUE_CARD",
+                        "team": "TEAM_TWO",
+                        "delta": 1
+                    },
+                    {
+                        "timestampEpoch": 1771094870000,
+                        "type": "TECHNICAL_FOUL",
+                        "team": "TEAM_TWO",
+                        "delta": 1
+                    }
+                ],
+                "pullingTeam": "TEAM_TWO",
+                "pullingFromEnd": "NEAR",
+                "topDisplayedEnd": "NEAR",
+                "pullPromptTarget": "FAR",
+                "initialGenderRatio": "FOUR_MEN_THREE_WOMEN",
+                "firstHalfGenZone": "FAR",
+                "openingPullingTeam": "TEAM_TWO",
+                "openingPullingFromEnd": "NEAR",
+                "phase": "BETWEEN_POINTS",
+                "countdown": null,
+                "pullSequenceOffsidesRecorded": false,
+                "pullSequenceFalseStartRecorded": false,
+                "pullSkippedForCurrentPoint": false,
+                "pendingMisconductCountdown": false,
+                "halftimeTaken": false,
+                "halftimeTargetScore": null,
+                "winningScore": null,
+                "halfCapApplied": false,
+                "softCapApplied": false,
+                "hardCapApplied": false,
+                "pendingCapOffer": null,
+                "undoEntry": null,
+                "redoEntry": null,
+                "lastEvent": "Cards and technical fouls adjusted."
+            }
+        },
+        "redoEntry": null,
+        "lastEvent": "Game over."
+    }
+}
