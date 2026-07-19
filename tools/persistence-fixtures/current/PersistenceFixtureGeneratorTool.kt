@@ -31,7 +31,13 @@ private fun writeDefaultBuckets(dir: File) {
 
 private fun writeSetupDraft(dir: File) {
     val store = freshStore(dir)
-    store.saveCurrentGame(nonDefaultSetup())
+    val setup = nonDefaultSetup().copy(
+        level = "Youth",
+        rules = usauDefaultGameRules("Youth"),
+    )
+    check(setup.rules.timeBetweenPointsSeconds == 80)
+
+    store.saveCurrentGame(setup)
     store.saveProfile(fixtureProfile())
     store.saveSettings(fixtureSettings())
     store.saveArchivedGames(emptyList())
@@ -39,7 +45,20 @@ private fun writeSetupDraft(dir: File) {
 
 private fun writeActiveGame(dir: File) {
     val store = freshStore(dir)
-    val setup = nonDefaultSetup().copy(division = GameDivision.MIXED)
+    val base = nonDefaultSetup()
+    val setup = base.copy(
+        division = GameDivision.MIXED,
+        rules = base.rules.copy(
+            timeBetweenPointsSeconds = 75,
+            timeoutSeconds = 90,
+            waterBreakMode = WaterBreakMode.AUTOMATIC,
+            waterBreakMinutes = 4,
+        ),
+    )
+    check(setup.rules.timeBetweenPointsSeconds == 75)
+    check(setup.rules.timeoutSeconds == 90)
+    check(setup.rules.waterBreakMode == WaterBreakMode.AUTOMATIC)
+    check(setup.rules.waterBreakMinutes == 4)
     val game = activeGameWithEvents(setup)
 
     store.saveCurrentGame(game)
@@ -74,10 +93,14 @@ private fun writeCompleteCurrentGame(dir: File) {
     val setup = nonDefaultSetup().copy(division = GameDivision.MIXED)
     val game = activeGameWithEvents(setup)
         .endGameNow(setupEpoch(setup) + 180_000L)
+    val settings = fixtureSettings().copy(
+        showAbbaRatioAsSequence = false,
+    )
+    check(!settings.showAbbaRatioAsSequence)
 
     store.saveCurrentGame(game)
     store.saveProfile(fixtureProfile())
-    store.saveSettings(fixtureSettings())
+    store.saveSettings(settings)
     store.saveArchivedGames(emptyList())
 }
 
