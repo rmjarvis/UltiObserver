@@ -42,7 +42,7 @@ class TestPersistence : GameDomainTestFixtures() {
         assertEquals("Casey Observer", viewModel.profileName)
         viewModel.updateAvatarPreference(ObserverAvatarPreference.BLUE)
         assertEquals(ObserverAvatarPreference.BLUE, viewModel.avatarPreference)
-        assertEquals(ObserverAvatarPreference.BLUE, viewModel.homeAvatarPreference)
+        assertEquals(ObserverAvatarPreference.BLUE, viewModel.currentHomeAvatar)
 
         // Exercise global timing settings and cue overrides before leaving Settings.
         viewModel.openSettings()
@@ -106,7 +106,7 @@ class TestPersistence : GameDomainTestFixtures() {
         assertEquals(AppScreen.HOME, restored.screen)
         assertEquals("Casey Observer", restored.profileName)
         assertEquals(ObserverAvatarPreference.BLUE, restored.avatarPreference)
-        assertEquals(ObserverAvatarPreference.BLUE, restored.homeAvatarPreference)
+        assertEquals(ObserverAvatarPreference.BLUE, restored.currentHomeAvatar)
         assertEquals(TimingAlertGlobalMode.OFF, restored.timingAlertPreferences.globalMode)
         assertFalse(restored.automaticallyAdvanceCountdowns)
         assertFalse(restored.automaticallyLockLivePoint)

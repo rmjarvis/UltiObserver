@@ -30,7 +30,7 @@ internal enum class AppScreen {
  * @param editingSavedSetupIndex Archive index of the saved setup draft currently open for edit.
  * @param profileName The observer profile name.
  * @param avatarPreference The stored observer avatar preference.
- * @param homeAvatarPreference The concrete avatar shown on Home after resolving random choices.
+ * @param currentHomeAvatar The concrete avatar shown on Home after resolving random choices.
  * @param timingAlertPreferences The current timing cue alert settings.
  * @param automaticallyAdvanceCountdowns Whether active countdowns transition automatically at expiry.
  * @param automaticallyLockLivePoint Whether automatic live-point transitions enable lock mode.
@@ -51,7 +51,7 @@ internal data class AppUiState(
     val editingSavedSetupIndex: Int?,
     val profileName: String,
     val avatarPreference: ObserverAvatarPreference,
-    val homeAvatarPreference: ObserverAvatarPreference,
+    val currentHomeAvatar: ObserverAvatarPreference,
     val timingAlertPreferences: TimingAlertPreferences,
     val automaticallyAdvanceCountdowns: Boolean,
     val automaticallyLockLivePoint: Boolean,
@@ -135,7 +135,7 @@ internal class AppViewModel(
             editingSavedSetupIndex = null,
             profileName = persistedProfile?.profileName ?: "",
             avatarPreference = persistedProfile?.avatarPreference ?: ObserverAvatarPreference.RANDOM,
-            homeAvatarPreference = resolveHomeAvatarPreference(
+            currentHomeAvatar = resolveCurrentHomeAvatar(
                 persistedProfile?.avatarPreference ?: ObserverAvatarPreference.RANDOM
             ),
             timingAlertPreferences = persistedSettings?.timingAlertPreferences ?: TimingAlertPreferences(),
@@ -173,8 +173,8 @@ internal class AppViewModel(
         get() = state.value.profileName
     val avatarPreference: ObserverAvatarPreference
         get() = state.value.avatarPreference
-    val homeAvatarPreference: ObserverAvatarPreference
-        get() = state.value.homeAvatarPreference
+    val currentHomeAvatar: ObserverAvatarPreference
+        get() = state.value.currentHomeAvatar
     val timingAlertPreferences: TimingAlertPreferences
         get() = state.value.timingAlertPreferences
     val automaticallyAdvanceCountdowns: Boolean
@@ -346,7 +346,7 @@ internal class AppViewModel(
         _state.update {
             it.copy(
                 avatarPreference = updatedPreference,
-                homeAvatarPreference = resolveHomeAvatarPreference(updatedPreference),
+                currentHomeAvatar = resolveCurrentHomeAvatar(updatedPreference),
             )
         }
         persistProfileState()
@@ -1143,7 +1143,7 @@ internal class AppViewModel(
      *
      * @param preference The stored avatar preference; random is resolved through the injected chooser for tests.
      */
-    private fun resolveHomeAvatarPreference(preference: ObserverAvatarPreference): ObserverAvatarPreference {
+    private fun resolveCurrentHomeAvatar(preference: ObserverAvatarPreference): ObserverAvatarPreference {
         if (preference != ObserverAvatarPreference.RANDOM) {
             return preference
         }

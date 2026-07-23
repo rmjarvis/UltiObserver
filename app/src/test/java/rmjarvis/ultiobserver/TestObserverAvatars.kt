@@ -80,16 +80,16 @@ class TestObserverAvatars {
             },
         )
         assertEquals(ObserverAvatarPreference.RANDOM, viewModel.avatarPreference)
-        assertEquals(concreteObserverAvatarPreferences[2], viewModel.homeAvatarPreference)
+        assertEquals(concreteObserverAvatarPreferences[2], viewModel.currentHomeAvatar)
 
         // A concrete avatar preference should be used directly on Home.
         viewModel.updateAvatarPreference(ObserverAvatarPreference.GREY)
         assertEquals(ObserverAvatarPreference.GREY, viewModel.avatarPreference)
-        assertEquals(ObserverAvatarPreference.GREY, viewModel.homeAvatarPreference)
+        assertEquals(ObserverAvatarPreference.GREY, viewModel.currentHomeAvatar)
 
         // Returning to random should choose a concrete Home avatar again.
         viewModel.updateAvatarPreference(ObserverAvatarPreference.RANDOM)
         assertEquals(ObserverAvatarPreference.RANDOM, viewModel.avatarPreference)
-        assertEquals(concreteObserverAvatarPreferences[2], viewModel.homeAvatarPreference)
+        assertEquals(concreteObserverAvatarPreferences[2], viewModel.currentHomeAvatar)
     }
 }

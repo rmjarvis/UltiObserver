@@ -78,7 +78,7 @@ internal fun UltiObserverApp(
                 completedGamePendingArchive = null
             }
             HomeScreen(
-                avatarPreference = appState.homeAvatarPreference,
+                avatar = appState.currentHomeAvatar,
                 currentGame = currentGame,
                 currentGameSectionSubtitle = viewModel.currentGameHomeSubtitle,
                 completedGamePendingArchive = completedGamePendingArchive,

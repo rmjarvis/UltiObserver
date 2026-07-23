@@ -102,7 +102,7 @@ private fun GameState.compactStartDateTime(): String {
 // Home screen with quick entry points for current, completed, and archived games.
 @Composable
 internal fun HomeScreen(
-    avatarPreference: ObserverAvatarPreference,
+    avatar: ObserverAvatarPreference,
     currentGame: GameListEntry?,
     currentGameSectionSubtitle: String?,
     completedGamePendingArchive: GameListEntry?,
@@ -211,7 +211,7 @@ internal fun HomeScreen(
                     verticalArrangement = Arrangement.spacedBy(identitySpacing),
                 ) {
                     Image(
-                        painter = painterResource(avatarPreference.drawableRes),
+                        painter = painterResource(avatar.drawableRes),
                         contentDescription = null,
                         contentScale = ContentScale.Fit,
                         modifier = Modifier
