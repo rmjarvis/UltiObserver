@@ -355,7 +355,7 @@ private fun fixtureSettings(): Settings {
         automaticallyAdvanceCountdowns = false,
         automaticallyLockLivePoint = false,
         showDefenseCountdowns = true,
-        timingAlertPreferences = TimingAlertPreferences(
+        timingAlerts = TimingAlertPreferences(
             globalMode = TimingAlertGlobalMode.SOUNDS_ON,
             soundVolume = 0.35f,
             vibrationDurationMillis = 250L,

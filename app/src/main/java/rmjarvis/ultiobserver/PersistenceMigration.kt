@@ -88,7 +88,7 @@ private val knownVersionMigrations = listOf(
         targetVersion = "1.2",
         currentGame = null,
         profile = V1_1ToV1_2::migrateProfile,
-        settings = null,
+        settings = V1_1ToV1_2::migrateSettings,
         archivedGame = null,
     ),
 )
@@ -202,6 +202,16 @@ private object V1_1ToV1_2 {
             jsonObject.toMutableMap().apply {
                 this["name"] = getValue("profileName")
                 remove("profileName")
+            }
+        )
+    }
+
+    fun migrateSettings(jsonElement: JsonElement): JsonElement {
+        val jsonObject = jsonElement.jsonObject
+        return JsonObject(
+            jsonObject.toMutableMap().apply {
+                this["timingAlerts"] = getValue("timingAlertPreferences")
+                remove("timingAlertPreferences")
             }
         )
     }

@@ -76,7 +76,7 @@ class TestPersistence : MainActivityUiTestFixtures() {
                 Settings(
                     automaticallyAdvanceCountdowns = false,
                     automaticallyLockLivePoint = false,
-                    timingAlertPreferences = timingPreferences,
+                    timingAlerts = timingPreferences,
                 )
             )
 
@@ -111,7 +111,7 @@ class TestPersistence : MainActivityUiTestFixtures() {
             assertEquals("Casey Observer", restoredProfile.name)
             assertEquals(false, restoredSettings.automaticallyAdvanceCountdowns)
             assertEquals(false, restoredSettings.automaticallyLockLivePoint)
-            assertEquals(timingPreferences, restoredSettings.timingAlertPreferences)
+            assertEquals(timingPreferences, restoredSettings.timingAlerts)
             assertEquals(archivedSummary, restoredArchivedGame)
             assertNull(restoredArchivedGame.undoEntry)
             assertNull(restoredArchivedGame.redoEntry)

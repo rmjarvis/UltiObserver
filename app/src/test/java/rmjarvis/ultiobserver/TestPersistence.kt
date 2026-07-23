@@ -247,7 +247,7 @@ class TestPersistence : GameDomainTestFixtures() {
         viewModel.updateTimingAlertGlobalMode(TimingAlertGlobalMode.OFF)
         assertEquals(
             TimingAlertGlobalMode.OFF,
-            store.savedSettings.single().timingAlertPreferences.globalMode,
+            store.savedSettings.single().timingAlerts.globalMode,
         )
         assertTrue(store.savedCurrentGames.isEmpty())
         assertEquals(2, store.savedProfiles.size)
@@ -432,7 +432,7 @@ class TestPersistence : GameDomainTestFixtures() {
         val savedArchive = createLiveGameState(setup).copy(phase = GamePhase.GAME_OVER)
         store.saveCurrentGame(savedCurrentGame)
         store.saveProfile(Profile(name = "Casey Observer"))
-        store.saveSettings(Settings(timingAlertPreferences = timingPreferences))
+        store.saveSettings(Settings(timingAlerts = timingPreferences))
 
         // Corrupting the typed current-game payload should reset only the current-game bucket.
         val currentGameStateFile = File(storeDir, "current_game_state.json")
@@ -466,11 +466,11 @@ class TestPersistence : GameDomainTestFixtures() {
         )
         assertEquals(Profile(), store.loadProfile())
         store.saveSettings(
-            Settings(timingAlertPreferences = TimingAlertPreferences(soundVolume = 0.35f))
+            Settings(timingAlerts = TimingAlertPreferences(soundVolume = 0.35f))
         )
         File(storeDir, "settings.json").replaceText(
-            "\"timingAlertPreferences\": {",
-            "\"timingAlertPreferences\": \"broken\", \"ignoredTimingAlertPreferences\": {",
+            "\"timingAlerts\": {",
+            "\"timingAlerts\": \"broken\", \"ignoredTimingAlerts\": {",
         )
         assertEquals(Settings(), store.loadSettings())
         store.saveArchivedGames(listOf(savedArchive))
@@ -831,7 +831,7 @@ class TestPersistence : GameDomainTestFixtures() {
         // Force the atomic path to fail and verify the fallback path replaces each split file.
         store.saveCurrentGame(savedState)
         store.saveProfile(Profile(name = "Casey Observer"))
-        store.saveSettings(Settings(timingAlertPreferences = TimingAlertPreferences()))
+        store.saveSettings(Settings(timingAlerts = TimingAlertPreferences()))
         assertEquals(3, atomicMoveAttempts)
         assertFalse(File(storeDir, ".current_game_state.json.tmp").exists())
         assertFalse(File(storeDir, ".profile.json.tmp").exists())
@@ -890,7 +890,7 @@ class TestPersistence : GameDomainTestFixtures() {
             currentGame = createLiveGameState(setup),
             profile = Profile(name = "Casey Observer"),
             settings = Settings(
-                timingAlertPreferences = TimingAlertPreferences(soundVolume = 0.35f),
+                timingAlerts = TimingAlertPreferences(soundVolume = 0.35f),
             ),
             archive = createLiveGameState(setup).copy(phase = GamePhase.GAME_OVER),
         )

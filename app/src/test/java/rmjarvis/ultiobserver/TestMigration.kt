@@ -473,7 +473,7 @@ class TestMigration : GameDomainTestFixtures() {
         assertEquals(expectedSettings.automaticallyLockLivePoint, viewModel.automaticallyLockLivePoint)
         assertEquals(expectedSettings.showDefenseCountdowns, viewModel.showDefenseCountdowns)
         assertEquals(expectedSettings.showAbbaRatioAsSequence, viewModel.showAbbaRatioAsSequence)
-        assertEquals(expectedSettings.timingAlertPreferences, viewModel.timingAlertPreferences)
+        assertEquals(expectedSettings.timingAlerts, viewModel.timingAlertPreferences)
     }
 
     private fun fixtureProfile(): Profile {
@@ -488,7 +488,7 @@ class TestMigration : GameDomainTestFixtures() {
             automaticallyAdvanceCountdowns = false,
             automaticallyLockLivePoint = false,
             showDefenseCountdowns = true,
-            timingAlertPreferences = TimingAlertPreferences(
+            timingAlerts = TimingAlertPreferences(
                 globalMode = TimingAlertGlobalMode.SOUNDS_ON,
                 soundVolume = 0.35f,
                 vibrationDurationMillis = 250L,

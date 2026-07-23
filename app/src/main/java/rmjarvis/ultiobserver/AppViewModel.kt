@@ -138,7 +138,7 @@ internal class AppViewModel(
             currentHomeAvatar = resolveCurrentHomeAvatar(
                 persistedProfile?.avatarPreference ?: ObserverAvatarPreference.RANDOM
             ),
-            timingAlertPreferences = persistedSettings?.timingAlertPreferences ?: TimingAlertPreferences(),
+            timingAlertPreferences = persistedSettings?.timingAlerts ?: TimingAlertPreferences(),
             automaticallyAdvanceCountdowns = persistedSettings?.automaticallyAdvanceCountdowns ?: true,
             automaticallyLockLivePoint = persistedSettings?.automaticallyLockLivePoint ?: true,
             showDefenseCountdowns = persistedSettings?.showDefenseCountdowns ?: false,
@@ -1108,7 +1108,7 @@ internal class AppViewModel(
                 automaticallyLockLivePoint = automaticallyLockLivePoint,
                 showDefenseCountdowns = showDefenseCountdowns,
                 showAbbaRatioAsSequence = showAbbaRatioAsSequence,
-                timingAlertPreferences = timingAlertPreferences,
+                timingAlerts = timingAlertPreferences,
             )
         )
     }
