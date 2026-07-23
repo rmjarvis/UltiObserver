@@ -345,7 +345,7 @@ private fun shortCompletedGame(): GameState {
 
 private fun fixtureProfile(): Profile {
     return Profile(
-        profileName = "Casey Observer",
+        name = "Casey Observer",
         avatarPreference = ObserverAvatarPreference.BLUE,
     )
 }

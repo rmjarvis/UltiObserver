@@ -233,7 +233,7 @@ class TestPersistence : GameDomainTestFixtures() {
         val store = RecordingAppStateStorage()
         val viewModel = AppViewModel(store)
         viewModel.updateProfileName("Casey Observer")
-        assertEquals("Casey Observer", store.savedProfiles.single().profileName)
+        assertEquals("Casey Observer", store.savedProfiles.single().name)
         assertTrue(store.savedCurrentGames.isEmpty())
         assertTrue(store.savedSettings.isEmpty())
 
@@ -431,7 +431,7 @@ class TestPersistence : GameDomainTestFixtures() {
         val savedCurrentGame = liveState
         val savedArchive = createLiveGameState(setup).copy(phase = GamePhase.GAME_OVER)
         store.saveCurrentGame(savedCurrentGame)
-        store.saveProfile(Profile(profileName = "Casey Observer"))
+        store.saveProfile(Profile(name = "Casey Observer"))
         store.saveSettings(Settings(timingAlertPreferences = timingPreferences))
 
         // Corrupting the typed current-game payload should reset only the current-game bucket.
@@ -459,10 +459,10 @@ class TestPersistence : GameDomainTestFixtures() {
         assertNull(recoveredViewModel.startupRecoveryNotice)
 
         // Other split files follow the same recovery path when their typed contents are corrupt.
-        store.saveProfile(Profile(profileName = "Casey Observer"))
+        store.saveProfile(Profile(name = "Casey Observer"))
         File(storeDir, "profile.json").replaceText(
-            "\"profileName\": \"Casey Observer\"",
-            "\"profileName\": 7",
+            "\"name\": \"Casey Observer\"",
+            "\"name\": 7",
         )
         assertEquals(Profile(), store.loadProfile())
         store.saveSettings(
@@ -830,7 +830,7 @@ class TestPersistence : GameDomainTestFixtures() {
 
         // Force the atomic path to fail and verify the fallback path replaces each split file.
         store.saveCurrentGame(savedState)
-        store.saveProfile(Profile(profileName = "Casey Observer"))
+        store.saveProfile(Profile(name = "Casey Observer"))
         store.saveSettings(Settings(timingAlertPreferences = TimingAlertPreferences()))
         assertEquals(3, atomicMoveAttempts)
         assertFalse(File(storeDir, ".current_game_state.json.tmp").exists())
@@ -888,7 +888,7 @@ class TestPersistence : GameDomainTestFixtures() {
         )
         return PersistenceRecords(
             currentGame = createLiveGameState(setup),
-            profile = Profile(profileName = "Casey Observer"),
+            profile = Profile(name = "Casey Observer"),
             settings = Settings(
                 timingAlertPreferences = TimingAlertPreferences(soundVolume = 0.35f),
             ),

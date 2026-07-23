@@ -8,12 +8,12 @@ import kotlinx.serialization.json.decodeFromJsonElement
 /**
  * Observer profile information stored as one persistence bucket.
  *
- * @param profileName The observer name entered in Profile.
+ * @param name The observer name entered in Profile.
  * @param avatarPreference The preferred Home-screen observer avatar, or random.
  */
 @Serializable
 internal data class Profile(
-    val profileName: String = "",
+    val name: String = "",
     val avatarPreference: ObserverAvatarPreference = ObserverAvatarPreference.RANDOM,
 ) {
     companion object {

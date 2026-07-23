@@ -464,7 +464,7 @@ class TestMigration : GameDomainTestFixtures() {
         expectedProfile: Profile,
         expectedSettings: Settings,
     ) {
-        assertEquals(expectedProfile.profileName, viewModel.profileName)
+        assertEquals(expectedProfile.name, viewModel.profileName)
         assertEquals(expectedProfile.avatarPreference, viewModel.avatarPreference)
         assertEquals(
             expectedSettings.automaticallyAdvanceCountdowns,
@@ -478,7 +478,7 @@ class TestMigration : GameDomainTestFixtures() {
 
     private fun fixtureProfile(): Profile {
         return Profile(
-            profileName = "Casey Observer",
+            name = "Casey Observer",
             avatarPreference = ObserverAvatarPreference.BLUE,
         )
     }

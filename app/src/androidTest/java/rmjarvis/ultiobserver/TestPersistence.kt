@@ -67,7 +67,7 @@ class TestPersistence : MainActivityUiTestFixtures() {
                 now = livePointState.startEpoch + 5 * 60_000L,
             )
             storage.saveCurrentGame(scoredState)
-            storage.saveProfile(Profile(profileName = "Casey Observer"))
+            storage.saveProfile(Profile(name = "Casey Observer"))
             val timingPreferences = TimingAlertPreferences(
                 globalMode = TimingAlertGlobalMode.VIBRATION_ONLY,
                 soundVolume = 0.4f,
@@ -108,7 +108,7 @@ class TestPersistence : MainActivityUiTestFixtures() {
             val undoRestoredState = restoredCurrentGame.undoLastAction()
             assertEquals(livePointState, undoRestoredState.copy(redoEntry = null))
             assertNotNull(undoRestoredState.redoEntry)
-            assertEquals("Casey Observer", restoredProfile.profileName)
+            assertEquals("Casey Observer", restoredProfile.name)
             assertEquals(false, restoredSettings.automaticallyAdvanceCountdowns)
             assertEquals(false, restoredSettings.automaticallyLockLivePoint)
             assertEquals(timingPreferences, restoredSettings.timingAlertPreferences)

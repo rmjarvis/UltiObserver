@@ -18,7 +18,7 @@ fun main() {
 
     val samples = listOf(
         BackupSample("current_game_state.json", encodeCurrentGame(game)),
-        BackupSample("profile.json", encodeProfile(Profile(profileName = "Casey Observer"))),
+        BackupSample("profile.json", encodeProfile(Profile(name = "Casey Observer"))),
         BackupSample("settings.json", encodeSettings(Settings())),
         BackupSample("archived_games/00000.json", encodeArchivedGame(archivedGame)),
     )

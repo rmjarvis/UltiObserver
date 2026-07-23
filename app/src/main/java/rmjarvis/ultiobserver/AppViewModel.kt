@@ -133,7 +133,7 @@ internal class AppViewModel(
             currentGame = persistedCurrentGame,
             setupEditDraft = null,
             editingSavedSetupIndex = null,
-            profileName = persistedProfile?.profileName ?: "",
+            profileName = persistedProfile?.name ?: "",
             avatarPreference = persistedProfile?.avatarPreference ?: ObserverAvatarPreference.RANDOM,
             currentHomeAvatar = resolveCurrentHomeAvatar(
                 persistedProfile?.avatarPreference ?: ObserverAvatarPreference.RANDOM
@@ -1094,7 +1094,7 @@ internal class AppViewModel(
     private fun persistProfileState() {
         appStateStorage.saveProfile(
             Profile(
-                profileName = profileName,
+                name = profileName,
                 avatarPreference = avatarPreference,
             )
         )

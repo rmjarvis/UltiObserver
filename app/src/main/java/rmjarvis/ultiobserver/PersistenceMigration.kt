@@ -83,6 +83,14 @@ private val knownVersionMigrations = listOf(
         settings = V1_0ToV1_1::migrateSettings,
         archivedGame = V1_0ToV1_1::migrateArchivedGame,
     ),
+    VersionMigration(
+        sourceVersion = "1.1",
+        targetVersion = "1.2",
+        currentGame = null,
+        profile = V1_1ToV1_2::migrateProfile,
+        settings = null,
+        archivedGame = null,
+    ),
 )
 
 /**
@@ -183,6 +191,19 @@ internal fun currentPersistenceVersion(
         AppVersion(versionName, versionCode).persistenceVersion()
     ) {
         "Current app version $versionName must start with an M.m version."
+    }
+}
+
+/// Implementation details for converting version 1.1 JSON shapes to version 1.2 shapes.
+private object V1_1ToV1_2 {
+    fun migrateProfile(jsonElement: JsonElement): JsonElement {
+        val jsonObject = jsonElement.jsonObject
+        return JsonObject(
+            jsonObject.toMutableMap().apply {
+                this["name"] = getValue("profileName")
+                remove("profileName")
+            }
+        )
     }
 }
 
