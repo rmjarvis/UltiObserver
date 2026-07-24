@@ -191,25 +191,19 @@ internal fun MoreActionsContent(
                         label = "Event log",
                         onClick = onShowEventLog,
                     )
-                    if (!state.halftimeTaken && state.phase == GamePhase.BETWEEN_POINTS) {
-                        MenuButton(
-                            label = "Start halftime",
-                            onClick = {
-                                onAction(state.startHalftimeNow(now))
-                            },
-                        )
-                    }
-                    MenuButton(
-                        label = "End game",
-                        onClick = {
-                            onAction(state.endGameNow(now))
-                        },
-                    )
                     if (state.halfCapRelevant(state.teamOne.score, state.teamTwo.score)) {
                         MenuButton(
                             label = "Apply half cap now",
                             onClick = {
                                 onAction(state.makeCapNow(CapType.HALF, now))
+                            },
+                        )
+                    }
+                    if (!state.halftimeTaken && state.phase == GamePhase.BETWEEN_POINTS) {
+                        MenuButton(
+                            label = "Start halftime",
+                            onClick = {
+                                onAction(state.startHalftimeNow(now))
                             },
                         )
                     }
@@ -229,6 +223,12 @@ internal fun MoreActionsContent(
                             },
                         )
                     }
+                    MenuButton(
+                        label = "End game",
+                        onClick = {
+                            onAction(state.endGameNow(now))
+                        },
+                    )
                 }
             }
         }

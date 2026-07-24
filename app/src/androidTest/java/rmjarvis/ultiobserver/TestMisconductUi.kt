@@ -322,7 +322,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
 
         // Ending the game renders the already-recorded player cards on the summary.
         openMoreActionsDialog()
-        composeRule.onNodeWithText("End game").performClick()
+        composeRule.onNodeWithText("End game").performScrollTo().performClick()
         waitForText("Game over")
         composeRule.onNodeWithText("OK").performClick()
         waitForText("#7: Yellow card")
