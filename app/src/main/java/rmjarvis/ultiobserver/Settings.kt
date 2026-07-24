@@ -68,7 +68,7 @@ enum class TimingAlertGlobalMode(
 @Serializable
 data class TimingAlertPreferences(
     val globalMode: TimingAlertGlobalMode = TimingAlertGlobalMode.VIBRATION_ONLY,
-    val soundVolume: Float = 0.5f,
+    val soundVolume: Float = 1f,
     val vibrationDurationMillis: Long = DEFAULT_TIMING_CUE_VIBRATION_MS,
     val vibrateWithSounds: Boolean = false,
     val cueModes: Map<TimingCueId, TimingAlertMode> = defaultTimingCueModes(),

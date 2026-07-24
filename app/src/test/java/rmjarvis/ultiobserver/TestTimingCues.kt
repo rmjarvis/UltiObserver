@@ -19,9 +19,9 @@ class TestTimingCues : GameDomainTestFixtures() {
     fun timingAlertPreferenceDefaults() {
         val defaultPreferences = TimingAlertPreferences()
 
-        // Default preferences start in vibration-only mode with normal volume settings.
+        // Default preferences start in vibration-only mode with full sound volume.
         assertEquals(TimingAlertGlobalMode.VIBRATION_ONLY, defaultPreferences.globalMode)
-        assertEquals(0.5f, defaultPreferences.soundVolume, 0f)
+        assertEquals(1f, defaultPreferences.soundVolume, 0f)
         assertFalse(defaultPreferences.vibrateWithSounds)
 
         // Cap alerts are considered enabled only when relevant rules and cue settings allow them.

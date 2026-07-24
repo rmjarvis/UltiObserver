@@ -368,7 +368,11 @@ class TestMigration : GameDomainTestFixtures() {
         val defaultBuckets = loadMigratedFixture("v1.1", "default-buckets")
         assertNull(defaultBuckets.currentGame)
         assertFalse(defaultBuckets.hasSetupDraft)
-        assertProfileAndSettings(defaultBuckets, Profile(), Settings())
+        assertProfileAndSettings(
+            defaultBuckets,
+            Profile(),
+            Settings(timingAlerts = TimingAlertPreferences(soundVolume = 0.5f)),
+        )
         assertTrue(defaultBuckets.archivedGames.isEmpty())
 
         // setup-draft has changes made in the setup screen, but did not start a game yet.
