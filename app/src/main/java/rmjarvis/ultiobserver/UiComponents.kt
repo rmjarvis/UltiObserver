@@ -828,7 +828,7 @@ internal fun MenuButton(
     enabled: Boolean = true,
     colors: ButtonColors = neutralOutlinedButtonColors(),
     borderColor: Color? = MaterialTheme.colorScheme.outline,
-    contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
+    contentPadding: PaddingValues = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
     maxLines: Int = 3,
     trailingLabel: String? = null,
     tag: String? = null,
