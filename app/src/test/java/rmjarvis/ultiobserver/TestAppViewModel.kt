@@ -376,13 +376,13 @@ class TestAppViewModel : GameDomainTestFixtures() {
         // New game setup should start with the profile name as the first observer, since the
         // observer using the phone will usually work their own game.
         val viewModel = AppViewModel(NoOpAppStateStorage)
-        viewModel.updateProfileName(" Casey Observer ")
+        viewModel.updateProfile(viewModel.profile.withName(" Casey Observer "))
         viewModel.startNewGame(now = 123_000L)
         assertEquals(listOf("Casey Observer"), viewModel.setupGame.observerNames)
 
         // Blank or whitespace profile names should not create an empty observer entry.
         val blankProfileViewModel = AppViewModel(NoOpAppStateStorage)
-        blankProfileViewModel.updateProfileName("   ")
+        blankProfileViewModel.updateProfile(blankProfileViewModel.profile.withName("   "))
         blankProfileViewModel.startNewGame(now = 123_000L)
         assertEquals(emptyList<String>(), blankProfileViewModel.setupGame.observerNames)
     }
@@ -395,32 +395,40 @@ class TestAppViewModel : GameDomainTestFixtures() {
     fun timingCueDefaults() {
         // Reset cue-level timing settings while preserving global sound/vibration preferences.
         val viewModel = AppViewModel(NoOpAppStateStorage)
-        viewModel.updateTimingAlertGlobalMode(TimingAlertGlobalMode.SOUNDS_ON)
-        viewModel.updateTimingAlertSoundVolume(0.4f)
-        viewModel.updateTimingAlertVibrationDuration(420L)
-        viewModel.updateTimingAlertVibrateWithSounds(true)
-        viewModel.updateTimingCueMode(TimingCueId.RECEIVING_TWENTY_FOR_HAND, TimingAlertMode.NONE)
-        viewModel.updateTimingCueRepeatCount(TimingCueId.RECEIVING_TWENTY_FOR_HAND, 3)
-        viewModel.updateTimingCueMode(TimingCueId.HARD_CAP, TimingAlertMode.BEEP)
-        viewModel.updateTimingCueRepeatCount(TimingCueId.HARD_CAP, 1)
-        viewModel.resetTimingCueSettingsToDefaults()
-        assertEquals(TimingAlertGlobalMode.SOUNDS_ON, viewModel.timingAlertPreferences.globalMode)
-        assertEquals(0.4f, viewModel.timingAlertPreferences.soundVolume, 0f)
-        assertEquals(420L, viewModel.timingAlertPreferences.vibrationDurationMillis)
-        assertTrue(viewModel.timingAlertPreferences.vibrateWithSounds)
+        fun updateSettings(transform: (Settings) -> Settings) {
+            viewModel.updateSettings(transform(viewModel.settings))
+        }
+        fun updateTimingAlerts(transform: (TimingAlertPreferences) -> TimingAlertPreferences) {
+            updateSettings { it.withTimingAlerts(transform(it.timingAlerts)) }
+        }
+        updateTimingAlerts { it.withGlobalMode(TimingAlertGlobalMode.SOUNDS_ON) }
+        updateTimingAlerts { it.withSoundVolume(0.4f) }
+        updateTimingAlerts { it.withVibrationDuration(420L) }
+        updateTimingAlerts { it.withVibrateWithSounds(true) }
+        updateTimingAlerts {
+            it.withCueMode(TimingCueId.RECEIVING_TWENTY_FOR_HAND, TimingAlertMode.NONE)
+        }
+        updateTimingAlerts { it.withCueRepeatCount(TimingCueId.RECEIVING_TWENTY_FOR_HAND, 3) }
+        updateTimingAlerts { it.withCueMode(TimingCueId.HARD_CAP, TimingAlertMode.BEEP) }
+        updateTimingAlerts { it.withCueRepeatCount(TimingCueId.HARD_CAP, 1) }
+        updateTimingAlerts { it.withDefaultCueSettings() }
+        assertEquals(TimingAlertGlobalMode.SOUNDS_ON, viewModel.settings.timingAlerts.globalMode)
+        assertEquals(0.4f, viewModel.settings.timingAlerts.soundVolume, 0f)
+        assertEquals(420L, viewModel.settings.timingAlerts.vibrationDurationMillis)
+        assertTrue(viewModel.settings.timingAlerts.vibrateWithSounds)
         assertEquals(
             TimingAlertMode.TICK,
-            viewModel.timingAlertPreferences.settingsModeFor(TimingCueId.RECEIVING_TWENTY_FOR_HAND),
+            viewModel.settings.timingAlerts.settingsModeFor(TimingCueId.RECEIVING_TWENTY_FOR_HAND),
         )
         assertEquals(
             2,
-            viewModel.timingAlertPreferences.repeatCountFor(TimingCueId.RECEIVING_TWENTY_FOR_HAND),
+            viewModel.settings.timingAlerts.repeatCountFor(TimingCueId.RECEIVING_TWENTY_FOR_HAND),
         )
         assertEquals(
             TimingAlertMode.DING,
-            viewModel.timingAlertPreferences.settingsModeFor(TimingCueId.HARD_CAP),
+            viewModel.settings.timingAlerts.settingsModeFor(TimingCueId.HARD_CAP),
         )
-        assertEquals(3, viewModel.timingAlertPreferences.repeatCountFor(TimingCueId.HARD_CAP))
+        assertEquals(3, viewModel.settings.timingAlerts.repeatCountFor(TimingCueId.HARD_CAP))
     }
 
     /**

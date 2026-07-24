@@ -33,19 +33,8 @@ import kotlin.math.roundToLong
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun SettingsScreen(
-    automaticallyAdvanceCountdowns: Boolean,
-    automaticallyLockLivePoint: Boolean,
-    showDefenseCountdowns: Boolean,
-    showAbbaRatioAsSequence: Boolean,
-    timingAlertPreferences: TimingAlertPreferences,
-    onAutomaticallyAdvanceCountdownsChange: (Boolean) -> Unit,
-    onAutomaticallyLockLivePointChange: (Boolean) -> Unit,
-    onShowDefenseCountdownsChange: (Boolean) -> Unit,
-    onShowAbbaRatioAsSequenceChange: (Boolean) -> Unit,
-    onGlobalModeChange: (TimingAlertGlobalMode) -> Unit,
-    onSoundVolumeChange: (Float) -> Unit,
-    onVibrationDurationChange: (Long) -> Unit,
-    onVibrateWithSoundsChange: (Boolean) -> Unit,
+    settings: Settings,
+    onSettingsChange: (Settings) -> Unit,
     onOpenTimingCueSettings: () -> Unit,
     onBackHome: () -> Unit,
     onHome: () -> Unit,
@@ -86,15 +75,19 @@ internal fun SettingsScreen(
         ) {
             SettingsSwitchRow(
                 label = "Automatically start live play when a countdown expires?",
-                checked = automaticallyAdvanceCountdowns,
-                onCheckedChange = onAutomaticallyAdvanceCountdownsChange,
+                checked = settings.automaticallyAdvanceCountdowns,
+                onCheckedChange = {
+                    onSettingsChange(settings.withAutomaticallyAdvanceCountdowns(it))
+                },
                 testTag = "settings-auto-advance-countdowns",
             )
 
             SettingsSwitchRow(
                 label = "Automatically lock screen when play becomes live?",
-                checked = automaticallyLockLivePoint,
-                onCheckedChange = onAutomaticallyLockLivePointChange,
+                checked = settings.automaticallyLockLivePoint,
+                onCheckedChange = {
+                    onSettingsChange(settings.withAutomaticallyLockLivePoint(it))
+                },
                 testTag = "settings-auto-lock-live-point",
             )
 
@@ -102,35 +95,55 @@ internal fun SettingsScreen(
                 label = "Show countdown for the defensive check after the offense is set for timeouts and misconduct penalties?",
                 note = "We expect that most observers will count this off themselves with arm chops. " +
                     "Turn this on if you want UltiObserver to display the 20-second defense countdown for you.",
-                checked = showDefenseCountdowns,
-                onCheckedChange = onShowDefenseCountdownsChange,
+                checked = settings.showDefenseCountdowns,
+                onCheckedChange = {
+                    onSettingsChange(settings.withShowDefenseCountdowns(it))
+                },
                 testTag = "settings-show-defense-countdowns",
             )
 
             SettingsSwitchWithNote(
                 label = "Show ABBA gender ratio as M1/M2/W1/W2?",
-                note = if (showAbbaRatioAsSequence) {
+                note = if (settings.showAbbaRatioAsSequence) {
                     "Ratio will display as W2, M1, M2, W1, W2... or M2, W1, W2, M1, M2..."
                 } else {
                     "Ratio will display as either 4W/3M or 4M/3W."
                 },
-                checked = showAbbaRatioAsSequence,
-                onCheckedChange = onShowAbbaRatioAsSequenceChange,
+                checked = settings.showAbbaRatioAsSequence,
+                onCheckedChange = {
+                    onSettingsChange(settings.withShowAbbaRatioAsSequence(it))
+                },
                 testTag = "settings-show-abba-ratio-as-sequence",
             )
 
             HorizontalDivider()
 
             TimingAlertGlobalModeSelector(
-                selectedMode = timingAlertPreferences.globalMode,
-                onModeChange = onGlobalModeChange,
+                selectedMode = settings.timingAlerts.globalMode,
+                onModeChange = {
+                    onSettingsChange(
+                        settings.withTimingAlerts(settings.timingAlerts.withGlobalMode(it))
+                    )
+                },
             )
 
             TimingAlertSoundControls(
-                timingAlertPreferences = timingAlertPreferences,
-                onSoundVolumeChange = onSoundVolumeChange,
-                onVibrationDurationChange = onVibrationDurationChange,
-                onVibrateWithSoundsChange = onVibrateWithSoundsChange,
+                timingAlertPreferences = settings.timingAlerts,
+                onSoundVolumeChange = {
+                    onSettingsChange(
+                        settings.withTimingAlerts(settings.timingAlerts.withSoundVolume(it))
+                    )
+                },
+                onVibrationDurationChange = {
+                    onSettingsChange(
+                        settings.withTimingAlerts(settings.timingAlerts.withVibrationDuration(it))
+                    )
+                },
+                onVibrateWithSoundsChange = {
+                    onSettingsChange(
+                        settings.withTimingAlerts(settings.timingAlerts.withVibrateWithSounds(it))
+                    )
+                },
                 onOpenTimingCueSettings = onOpenTimingCueSettings,
                 hasTimingCueHaptics = hasTimingCueHaptics,
                 onTestVibration = { durationMillis ->
@@ -218,22 +231,16 @@ private fun SettingsSwitchRow(
 /**
  * Render the per-cue timing alert settings screen.
  *
- * @param timingAlertPreferences The current alert preferences to display.
- * @param showDefenseCountdowns Whether defense-check countdowns are enabled on the main settings page.
- * @param onTimingCueModeChange Callback receiving cue-specific mode changes.
- * @param onTimingCueRepeatCountChange Callback receiving cue-specific repeat-count changes.
- * @param onResetTimingCueSettings Callback restoring all cue settings to defaults.
+ * @param settings The current settings to display.
+ * @param onSettingsChange Callback receiving updated settings.
  * @param onBackSettings Callback returning to the main Settings screen.
  * @param onHome Callback returning directly to Home.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun TimingCueSettingsScreen(
-    timingAlertPreferences: TimingAlertPreferences,
-    showDefenseCountdowns: Boolean,
-    onTimingCueModeChange: (TimingCueId, TimingAlertMode) -> Unit,
-    onTimingCueRepeatCountChange: (TimingCueId, Int) -> Unit,
-    onResetTimingCueSettings: () -> Unit,
+    settings: Settings,
+    onSettingsChange: (Settings) -> Unit,
     onBackSettings: () -> Unit,
     onHome: () -> Unit,
 ) {
@@ -282,9 +289,9 @@ internal fun TimingCueSettingsScreen(
             SoundPreviewRow(
                 title = "Sound previews",
                 sounds = TimingAlertSound.entries,
-                note = timingAlertPreferences.soundPreviewNote(hasTimingCueHaptics),
+                note = settings.timingAlerts.soundPreviewNote(hasTimingCueHaptics),
                 onPreview = { sound ->
-                    timingAlertPlayer.play(sound, timingAlertPreferences.soundVolume)
+                    timingAlertPlayer.play(sound, settings.timingAlerts.soundVolume)
                 },
             )
 
@@ -296,14 +303,18 @@ internal fun TimingCueSettingsScreen(
                         tag = "settings-reset-timing-cue-defaults",
                         colors = resetButtonColors(),
                         borderColor = null,
-                        onClick = onResetTimingCueSettings,
+                        onClick = {
+                            onSettingsChange(
+                                settings.withTimingAlerts(settings.timingAlerts.withDefaultCueSettings())
+                            )
+                        },
                     )
                 }
                 Text(
                     text = section.title,
                     style = MaterialTheme.typography.titleMedium,
                 )
-                if (section.isDefenseCheckCountdownSection() && !showDefenseCountdowns) {
+                if (section.isDefenseCheckCountdownSection() && !settings.showDefenseCountdowns) {
                     Text(
                         text = "Note — defensive check countdowns are not currently enabled. " +
                             "If you want these cues, enable defensive check countdowns " +
@@ -314,10 +325,20 @@ internal fun TimingCueSettingsScreen(
                 section.cues.forEach { cueId ->
                     TimingCueSettingRow(
                         cueId = cueId,
-                        mode = timingAlertPreferences.settingsModeFor(cueId),
-                        repeatCount = timingAlertPreferences.repeatCountFor(cueId),
-                        onModeChange = { mode -> onTimingCueModeChange(cueId, mode) },
-                        onRepeatCountChange = { repeatCount -> onTimingCueRepeatCountChange(cueId, repeatCount) },
+                        mode = settings.timingAlerts.settingsModeFor(cueId),
+                        repeatCount = settings.timingAlerts.repeatCountFor(cueId),
+                        onModeChange = { mode ->
+                            onSettingsChange(
+                                settings.withTimingAlerts(settings.timingAlerts.withCueMode(cueId, mode))
+                            )
+                        },
+                        onRepeatCountChange = { repeatCount ->
+                            onSettingsChange(
+                                settings.withTimingAlerts(
+                                    settings.timingAlerts.withCueRepeatCount(cueId, repeatCount)
+                                )
+                            )
+                        },
                     )
                 }
             }
@@ -354,7 +375,9 @@ private fun TimingAlertGlobalModeSelector(
                     label = mode.label,
                     selected = mode == selectedMode,
                     tag = "settings-global-alert-${mode.name}",
-                    onClick = { onModeChange(mode) },
+                    onClick = {
+                        onModeChange(mode)
+                    },
                 )
             }
         }
@@ -525,7 +548,9 @@ private fun SoundPreviewRow(
                         contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     ),
                     contentPadding = DefaultButtonContentPadding,
-                    onClick = { onPreview(sound) },
+                    onClick = {
+                        onPreview(sound)
+                    },
                 )
             }
         }
@@ -583,7 +608,9 @@ private fun TimingCueSettingRow(
                 timingAlertOptions.forEach { option ->
                     CompactTimingAlertOption(
                         selected = option == mode,
-                        onClick = { onModeChange(option) },
+                        onClick = {
+                            onModeChange(option)
+                        },
                         label = option.settingsLabel(),
                         horizontalPadding = 6,
                         tag = "settings-${cueId.name}-${option.name}",

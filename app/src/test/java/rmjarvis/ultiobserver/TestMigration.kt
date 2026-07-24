@@ -35,7 +35,7 @@ class TestMigration : GameDomainTestFixtures() {
         val defaultBuckets = loadMigratedFixture("v1.0", "default-buckets")
         assertNull(defaultBuckets.currentGame)
         assertFalse(defaultBuckets.hasSetupDraft)
-        assertEquals("", defaultBuckets.profileName)
+        assertEquals("", defaultBuckets.profile.name)
         assertTrue(defaultBuckets.archivedGames.isEmpty())
 
         // setup-draft has changes made in the setup screen, but didn't start a game yet.
@@ -75,14 +75,14 @@ class TestMigration : GameDomainTestFixtures() {
         // N/A (1), N/A (2), etc. in the name field.  Or just N/A if there is only one.
         val activeGame = loadMigratedFixture("v1.0", "active-game")
         val currentState = activeGame.currentGame!!
-        assertEquals("Casey Observer", activeGame.profileName)
-        assertEquals(ObserverAvatarPreference.BLUE, activeGame.avatarPreference)
-        assertFalse(activeGame.automaticallyAdvanceCountdowns)
-        assertFalse(activeGame.automaticallyLockLivePoint)
-        assertEquals(TimingAlertGlobalMode.SOUNDS_ON, activeGame.timingAlertPreferences.globalMode)
-        assertEquals(0.35f, activeGame.timingAlertPreferences.soundVolume, 0.0001f)
-        assertEquals(250L, activeGame.timingAlertPreferences.vibrationDurationMillis)
-        assertTrue(activeGame.timingAlertPreferences.vibrateWithSounds)
+        assertEquals("Casey Observer", activeGame.profile.name)
+        assertEquals(ObserverAvatarPreference.BLUE, activeGame.profile.avatarPreference)
+        assertFalse(activeGame.settings.automaticallyAdvanceCountdowns)
+        assertFalse(activeGame.settings.automaticallyLockLivePoint)
+        assertEquals(TimingAlertGlobalMode.SOUNDS_ON, activeGame.settings.timingAlerts.globalMode)
+        assertEquals(0.35f, activeGame.settings.timingAlerts.soundVolume, 0.0001f)
+        assertEquals(250L, activeGame.settings.timingAlerts.vibrationDurationMillis)
+        assertTrue(activeGame.settings.timingAlerts.vibrateWithSounds)
         assertEquals(SetupMode.EDIT_CURRENT_GAME, activeGame.setupMode)
         assertNull(currentState.undoEntry)
         assertNull(currentState.redoEntry)
@@ -393,7 +393,7 @@ class TestMigration : GameDomainTestFixtures() {
         val activeGame = loadMigratedFixture("v1.1", "active-game")
         val currentState = activeGame.currentGame!!
         assertProfileAndSettings(activeGame, fixtureProfile(), fixtureSettings())
-        assertSingleDingTimingCueSettings(activeGame.timingAlertPreferences)
+        assertSingleDingTimingCueSettings(activeGame.settings.timingAlerts)
         assertEquals(SetupMode.EDIT_CURRENT_GAME, activeGame.setupMode)
         assertEquals(GamePhase.BETWEEN_POINTS, currentState.phase)
         assertEquals(1, currentState.teamOne.score)
@@ -464,16 +464,22 @@ class TestMigration : GameDomainTestFixtures() {
         expectedProfile: Profile,
         expectedSettings: Settings,
     ) {
-        assertEquals(expectedProfile.name, viewModel.profileName)
-        assertEquals(expectedProfile.avatarPreference, viewModel.avatarPreference)
+        assertEquals(expectedProfile.name, viewModel.profile.name)
+        assertEquals(expectedProfile.avatarPreference, viewModel.profile.avatarPreference)
         assertEquals(
             expectedSettings.automaticallyAdvanceCountdowns,
-            viewModel.automaticallyAdvanceCountdowns,
+            viewModel.settings.automaticallyAdvanceCountdowns,
         )
-        assertEquals(expectedSettings.automaticallyLockLivePoint, viewModel.automaticallyLockLivePoint)
-        assertEquals(expectedSettings.showDefenseCountdowns, viewModel.showDefenseCountdowns)
-        assertEquals(expectedSettings.showAbbaRatioAsSequence, viewModel.showAbbaRatioAsSequence)
-        assertEquals(expectedSettings.timingAlerts, viewModel.timingAlertPreferences)
+        assertEquals(
+            expectedSettings.automaticallyLockLivePoint,
+            viewModel.settings.automaticallyLockLivePoint,
+        )
+        assertEquals(expectedSettings.showDefenseCountdowns, viewModel.settings.showDefenseCountdowns)
+        assertEquals(
+            expectedSettings.showAbbaRatioAsSequence,
+            viewModel.settings.showAbbaRatioAsSequence,
+        )
+        assertEquals(expectedSettings.timingAlerts, viewModel.settings.timingAlerts)
     }
 
     private fun fixtureProfile(): Profile {

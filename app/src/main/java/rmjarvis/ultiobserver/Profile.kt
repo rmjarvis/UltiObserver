@@ -16,6 +16,24 @@ internal data class Profile(
     val name: String = "",
     val avatarPreference: ObserverAvatarPreference = ObserverAvatarPreference.RANDOM,
 ) {
+    /**
+     * Return this profile with the observer name replaced.
+     *
+     * @param updatedName The profile name entered by the user.
+     */
+    fun withName(updatedName: String): Profile {
+        return copy(name = updatedName)
+    }
+
+    /**
+     * Return this profile with the preferred observer avatar replaced.
+     *
+     * @param updatedPreference The newly selected avatar preference.
+     */
+    fun withAvatarPreference(updatedPreference: ObserverAvatarPreference): Profile {
+        return copy(avatarPreference = updatedPreference)
+    }
+
     companion object {
         /**
          * Decode persisted profile state for a known storage version.

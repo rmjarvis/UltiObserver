@@ -727,7 +727,9 @@ abstract class MainActivityUiTestFixtures {
      */
     protected fun setAutomaticallyAdvanceCountdowns(automaticallyAdvance: Boolean) {
         composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.updateAutomaticallyAdvanceCountdowns(automaticallyAdvance)
+            activity.appViewModel.updateSettings(
+                activity.appViewModel.settings.withAutomaticallyAdvanceCountdowns(automaticallyAdvance)
+            )
         }
         composeRule.waitForIdle()
     }
@@ -742,7 +744,9 @@ abstract class MainActivityUiTestFixtures {
      */
     protected fun setAutomaticallyLockLivePoint(automaticallyLock: Boolean) {
         composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.updateAutomaticallyLockLivePoint(automaticallyLock)
+            activity.appViewModel.updateSettings(
+                activity.appViewModel.settings.withAutomaticallyLockLivePoint(automaticallyLock)
+            )
         }
         composeRule.waitForIdle()
     }
@@ -757,7 +761,9 @@ abstract class MainActivityUiTestFixtures {
      */
     protected fun setShowAbbaRatioAsSequence(showAsSequence: Boolean) {
         composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.updateShowAbbaRatioAsSequence(showAsSequence)
+            activity.appViewModel.updateSettings(
+                activity.appViewModel.settings.withShowAbbaRatioAsSequence(showAsSequence)
+            )
         }
         composeRule.waitForIdle()
     }
@@ -770,14 +776,7 @@ abstract class MainActivityUiTestFixtures {
     protected fun setTimingAlertPreferences(preferences: TimingAlertPreferences) {
         composeRule.activityRule.scenario.onActivity { activity ->
             val viewModel = activity.appViewModel
-            viewModel.updateTimingAlertGlobalMode(preferences.globalMode)
-            viewModel.updateTimingAlertSoundVolume(preferences.soundVolume)
-            viewModel.updateTimingAlertVibrationDuration(preferences.vibrationDurationMillis)
-            viewModel.updateTimingAlertVibrateWithSounds(preferences.vibrateWithSounds)
-            TimingCueId.entries.forEach { cueId ->
-                viewModel.updateTimingCueMode(cueId, preferences.settingsModeFor(cueId))
-                viewModel.updateTimingCueRepeatCount(cueId, preferences.repeatCountFor(cueId))
-            }
+            viewModel.updateSettings(viewModel.settings.withTimingAlerts(preferences))
         }
         composeRule.waitForIdle()
     }

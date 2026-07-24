@@ -33,10 +33,8 @@ import androidx.compose.ui.unit.dp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ProfileScreen(
-    name: String,
-    avatarPreference: ObserverAvatarPreference,
-    onNameChange: (String) -> Unit,
-    onAvatarPreferenceChange: (ObserverAvatarPreference) -> Unit,
+    profile: Profile,
+    onProfileChange: (Profile) -> Unit,
     onBackHome: () -> Unit,
     onHome: () -> Unit,
 ) {
@@ -73,8 +71,8 @@ internal fun ProfileScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             TextEntry(
-                value = name,
-                onValueChange = onNameChange,
+                value = profile.name,
+                onValueChange = { onProfileChange(profile.withName(it)) },
                 labelText = "Name",
                 colors = pageOutlinedTextFieldColors(),
                 tag = "profile-name-field",
@@ -85,8 +83,8 @@ internal fun ProfileScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             AvatarPreferenceSelector(
-                avatarPreference = avatarPreference,
-                onAvatarPreferenceChange = onAvatarPreferenceChange,
+                avatarPreference = profile.avatarPreference,
+                onAvatarPreferenceChange = { onProfileChange(profile.withAvatarPreference(it)) },
             )
         }
     }

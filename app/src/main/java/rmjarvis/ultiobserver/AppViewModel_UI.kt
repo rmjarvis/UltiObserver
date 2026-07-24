@@ -58,7 +58,7 @@ internal fun UltiObserverApp(
         liveState = appState.currentGame?.takeUnless { state ->
             state.phase == GamePhase.SETUP || state.phase == GamePhase.GAME_OVER
         },
-        timingAlertPreferences = appState.timingAlertPreferences,
+        timingAlertPreferences = appState.settings.timingAlerts,
     )
 
     // No else branch: every AppScreen value is handled.
@@ -121,13 +121,9 @@ internal fun UltiObserverApp(
 
         AppScreen.PROFILE -> {
             ProfileScreen(
-                name = appState.profileName,
-                avatarPreference = appState.avatarPreference,
-                onNameChange = { name ->
-                    viewModel.updateProfileName(name)
-                },
-                onAvatarPreferenceChange = { preference ->
-                    viewModel.updateAvatarPreference(preference)
+                profile = appState.profile,
+                onProfileChange = { updatedProfile ->
+                    viewModel.updateProfile(updatedProfile)
                 },
                 onBackHome = {
                     viewModel.goHome()
@@ -140,34 +136,9 @@ internal fun UltiObserverApp(
 
         AppScreen.SETTINGS -> {
             SettingsScreen(
-                automaticallyAdvanceCountdowns = appState.automaticallyAdvanceCountdowns,
-                automaticallyLockLivePoint = appState.automaticallyLockLivePoint,
-                showDefenseCountdowns = appState.showDefenseCountdowns,
-                showAbbaRatioAsSequence = appState.showAbbaRatioAsSequence,
-                timingAlertPreferences = appState.timingAlertPreferences,
-                onAutomaticallyAdvanceCountdownsChange = { enabled ->
-                    viewModel.updateAutomaticallyAdvanceCountdowns(enabled)
-                },
-                onAutomaticallyLockLivePointChange = { enabled ->
-                    viewModel.updateAutomaticallyLockLivePoint(enabled)
-                },
-                onShowDefenseCountdownsChange = { enabled ->
-                    viewModel.updateShowDefenseCountdowns(enabled)
-                },
-                onShowAbbaRatioAsSequenceChange = { enabled ->
-                    viewModel.updateShowAbbaRatioAsSequence(enabled)
-                },
-                onGlobalModeChange = { mode ->
-                    viewModel.updateTimingAlertGlobalMode(mode)
-                },
-                onSoundVolumeChange = { volume ->
-                    viewModel.updateTimingAlertSoundVolume(volume)
-                },
-                onVibrationDurationChange = { duration ->
-                    viewModel.updateTimingAlertVibrationDuration(duration)
-                },
-                onVibrateWithSoundsChange = { enabled ->
-                    viewModel.updateTimingAlertVibrateWithSounds(enabled)
+                settings = appState.settings,
+                onSettingsChange = { updatedSettings ->
+                    viewModel.updateSettings(updatedSettings)
                 },
                 onOpenTimingCueSettings = {
                     viewModel.openTimingCueSettings()
@@ -183,16 +154,9 @@ internal fun UltiObserverApp(
 
         AppScreen.TIMING_CUE_SETTINGS -> {
             TimingCueSettingsScreen(
-                timingAlertPreferences = appState.timingAlertPreferences,
-                showDefenseCountdowns = appState.showDefenseCountdowns,
-                onTimingCueModeChange = { cueType, mode ->
-                    viewModel.updateTimingCueMode(cueType, mode)
-                },
-                onTimingCueRepeatCountChange = { cueType, count ->
-                    viewModel.updateTimingCueRepeatCount(cueType, count)
-                },
-                onResetTimingCueSettings = {
-                    viewModel.resetTimingCueSettingsToDefaults()
+                settings = appState.settings,
+                onSettingsChange = { updatedSettings ->
+                    viewModel.updateSettings(updatedSettings)
                 },
                 onBackSettings = {
                     viewModel.openSettings()
@@ -337,7 +301,7 @@ internal fun UltiObserverApp(
                 if (
                     setupMode == SetupMode.NEW_GAME &&
                     setupGame.rules.hasEnabledCapTimingAlerts(
-                        appState.timingAlertPreferences,
+                        appState.settings.timingAlerts,
                     ) &&
                     !context.hasExactTimingAlertAlarmAccess()
                 ) {
@@ -475,10 +439,7 @@ internal fun UltiObserverApp(
                 val currentGame = appState.currentGame!!
                 LiveGameScreen(
                     state = currentGame,
-                    automaticallyAdvanceCountdowns = appState.automaticallyAdvanceCountdowns,
-                    automaticallyLockLivePoint = appState.automaticallyLockLivePoint,
-                    showDefenseCountdowns = appState.showDefenseCountdowns,
-                    showAbbaRatioAsSequence = appState.showAbbaRatioAsSequence,
+                    settings = appState.settings,
                     onStateChange = { updatedState ->
                         viewModel.updateCurrentGame(updatedState)
                     },

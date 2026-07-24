@@ -28,14 +28,9 @@ internal enum class AppScreen {
  * @param currentGame The mutable current game, including setup drafts and completed games.
  * @param setupEditDraft Uncommitted setup edits for an existing current game.
  * @param editingSavedSetupIndex Archive index of the saved setup draft currently open for edit.
- * @param profileName The observer profile name.
- * @param avatarPreference The stored observer avatar preference.
+ * @param profile Observer profile data edited on the Profile screen.
  * @param currentHomeAvatar The concrete avatar shown on Home after resolving random choices.
- * @param timingAlertPreferences The current timing cue alert settings.
- * @param automaticallyAdvanceCountdowns Whether active countdowns transition automatically at expiry.
- * @param automaticallyLockLivePoint Whether automatic live-point transitions enable lock mode.
- * @param showDefenseCountdowns Whether timeout offense-set expirations wait for defense.
- * @param showAbbaRatioAsSequence Whether ABBA field badges show sequence shorthand.
+ * @param settings User settings edited on the Settings screens.
  * @param archivedGames The archived game summaries loaded into the app session.
  * @param selectedArchiveCategory The archive category currently open from the category landing page.
  * @param viewingArchivedGame The archived game currently open as a summary.
@@ -49,14 +44,9 @@ internal data class AppUiState(
     val currentGame: GameState?,
     val setupEditDraft: GameState?,
     val editingSavedSetupIndex: Int?,
-    val profileName: String,
-    val avatarPreference: ObserverAvatarPreference,
+    val profile: Profile,
     val currentHomeAvatar: ObserverAvatarPreference,
-    val timingAlertPreferences: TimingAlertPreferences,
-    val automaticallyAdvanceCountdowns: Boolean,
-    val automaticallyLockLivePoint: Boolean,
-    val showDefenseCountdowns: Boolean,
-    val showAbbaRatioAsSequence: Boolean,
+    val settings: Settings,
     val archivedGames: List<GameState>,
     val selectedArchiveCategory: ArchivedGameCategory?,
     val viewingArchivedGame: GameState?,
@@ -123,8 +113,8 @@ internal class AppViewModel(
     private val chooseAvatarIndex: (Int) -> Int = { size -> Random.nextInt(size) },
 ) : ViewModel() {
     private val persistedCurrentGame = appStateStorage.loadCurrentGame()
-    private val persistedProfile = appStateStorage.loadProfile()
-    private val persistedSettings = appStateStorage.loadSettings()
+    private val persistedProfile = appStateStorage.loadProfile() ?: Profile()
+    private val persistedSettings = appStateStorage.loadSettings() ?: Settings()
     private val restoredArchivedGames = appStateStorage.loadArchivedGames()
     private val recoveredPersistedDataAreas = appStateStorage.resetPersistedDataAreas
 
@@ -133,16 +123,9 @@ internal class AppViewModel(
             currentGame = persistedCurrentGame,
             setupEditDraft = null,
             editingSavedSetupIndex = null,
-            profileName = persistedProfile?.name ?: "",
-            avatarPreference = persistedProfile?.avatarPreference ?: ObserverAvatarPreference.RANDOM,
-            currentHomeAvatar = resolveCurrentHomeAvatar(
-                persistedProfile?.avatarPreference ?: ObserverAvatarPreference.RANDOM
-            ),
-            timingAlertPreferences = persistedSettings?.timingAlerts ?: TimingAlertPreferences(),
-            automaticallyAdvanceCountdowns = persistedSettings?.automaticallyAdvanceCountdowns ?: true,
-            automaticallyLockLivePoint = persistedSettings?.automaticallyLockLivePoint ?: true,
-            showDefenseCountdowns = persistedSettings?.showDefenseCountdowns ?: false,
-            showAbbaRatioAsSequence = persistedSettings?.showAbbaRatioAsSequence ?: true,
+            profile = persistedProfile,
+            currentHomeAvatar = resolveCurrentHomeAvatar(persistedProfile.avatarPreference),
+            settings = persistedSettings,
             archivedGames = restoredArchivedGames,
             selectedArchiveCategory = null,
             viewingArchivedGame = null,
@@ -169,22 +152,12 @@ internal class AppViewModel(
         get() = state.value.setupGame
     val setupMode: SetupMode
         get() = state.value.setupMode
-    val profileName: String
-        get() = state.value.profileName
-    val avatarPreference: ObserverAvatarPreference
-        get() = state.value.avatarPreference
+    val profile: Profile
+        get() = state.value.profile
     val currentHomeAvatar: ObserverAvatarPreference
         get() = state.value.currentHomeAvatar
-    val timingAlertPreferences: TimingAlertPreferences
-        get() = state.value.timingAlertPreferences
-    val automaticallyAdvanceCountdowns: Boolean
-        get() = state.value.automaticallyAdvanceCountdowns
-    val automaticallyLockLivePoint: Boolean
-        get() = state.value.automaticallyLockLivePoint
-    val showDefenseCountdowns: Boolean
-        get() = state.value.showDefenseCountdowns
-    val showAbbaRatioAsSequence: Boolean
-        get() = state.value.showAbbaRatioAsSequence
+    val settings: Settings
+        get() = state.value.settings
     val archivedGames: List<GameState>
         get() = state.value.archivedGames
     val selectedArchiveCategory: ArchivedGameCategory?
@@ -327,177 +300,24 @@ internal class AppViewModel(
         persistCurrentGame()
     }
 
-    /**
-     * Update the observer profile name.
-     *
-     * @param updatedName The profile name entered by the user.
-     */
-    fun updateProfileName(updatedName: String) {
-        _state.update { it.copy(profileName = updatedName) }
-        persistProfileState()
-    }
-
-    /**
-     * Update the preferred observer avatar and resolve a home-screen avatar if random is selected.
-     *
-     * @param updatedPreference The newly selected avatar preference.
-     */
-    fun updateAvatarPreference(updatedPreference: ObserverAvatarPreference) {
+    /// Replace the profile bucket and refresh derived profile state.
+    fun updateProfile(updatedProfile: Profile) {
         _state.update {
             it.copy(
-                avatarPreference = updatedPreference,
-                currentHomeAvatar = resolveCurrentHomeAvatar(updatedPreference),
+                profile = updatedProfile,
+                currentHomeAvatar = if (updatedProfile.avatarPreference == it.profile.avatarPreference) {
+                    it.currentHomeAvatar
+                } else {
+                    resolveCurrentHomeAvatar(updatedProfile.avatarPreference)
+                },
             )
         }
         persistProfileState()
     }
 
-    /**
-     * Update the global timing-alert mode.
-     *
-     * @param mode The global mode controlling whether cues are off, vibration-only, or sound-enabled.
-     */
-    fun updateTimingAlertGlobalMode(mode: TimingAlertGlobalMode) {
-        _state.update { it.copy(timingAlertPreferences = it.timingAlertPreferences.copy(globalMode = mode)) }
-        persistSettingsState()
-    }
-
-    /**
-     * Update timing-alert playback volume.
-     *
-     * @param volume The new sound volume value from settings.
-     */
-    fun updateTimingAlertSoundVolume(volume: Float) {
-        _state.update { it.copy(timingAlertPreferences = it.timingAlertPreferences.copy(soundVolume = volume)) }
-        persistSettingsState()
-    }
-
-    /**
-     * Update timing-alert vibration length.
-     *
-     * @param durationMillis The requested vibration duration in milliseconds.
-     */
-    fun updateTimingAlertVibrationDuration(durationMillis: Long) {
-        _state.update {
-            it.copy(
-                timingAlertPreferences = it.timingAlertPreferences.copy(
-                    vibrationDurationMillis = durationMillis,
-                ),
-            )
-        }
-        persistSettingsState()
-    }
-
-    /**
-     * Update whether sound cues should also vibrate.
-     *
-     * @param vibrateWithSounds Whether vibration should accompany sound alerts.
-     */
-    fun updateTimingAlertVibrateWithSounds(vibrateWithSounds: Boolean) {
-        _state.update {
-            it.copy(
-                timingAlertPreferences = it.timingAlertPreferences.copy(
-                    vibrateWithSounds = vibrateWithSounds,
-                ),
-            )
-        }
-        persistSettingsState()
-    }
-
-    /**
-     * Update whether countdowns advance automatically when their timers expire.
-     *
-     * @param automaticallyAdvance Whether timer expiry should drive model transitions.
-     */
-    fun updateAutomaticallyAdvanceCountdowns(automaticallyAdvance: Boolean) {
-        _state.update { it.copy(automaticallyAdvanceCountdowns = automaticallyAdvance) }
-        persistSettingsState()
-    }
-
-    /**
-     * Update whether automatic transitions into live play should lock the live screen.
-     *
-     * @param automaticallyLock Whether automatic live-point entry should enable lock mode.
-     */
-    fun updateAutomaticallyLockLivePoint(automaticallyLock: Boolean) {
-        _state.update { it.copy(automaticallyLockLivePoint = automaticallyLock) }
-        persistSettingsState()
-    }
-
-    /**
-     * Update whether live-point timeout defense checks use an explicit countdown.
-     *
-     * @param showDefenseCountdowns Whether to require the observer to start the defense countdown.
-     */
-    fun updateShowDefenseCountdowns(showDefenseCountdowns: Boolean) {
-        _state.update { it.copy(showDefenseCountdowns = showDefenseCountdowns) }
-        persistSettingsState()
-    }
-
-    /**
-     * Update whether ABBA field badges use sequence shorthand.
-     *
-     * @param showAsSequence Whether ABBA badges should display M1/M2/W1/W2 shorthand.
-     */
-    fun updateShowAbbaRatioAsSequence(showAsSequence: Boolean) {
-        _state.update { it.copy(showAbbaRatioAsSequence = showAsSequence) }
-        persistSettingsState()
-    }
-
-    /**
-     * Update the alert mode for one timing cue.
-     *
-     * @param cueId The cue whose alert mode should change.
-     * @param mode The cue-specific alert mode selected in settings.
-     */
-    fun updateTimingCueMode(cueId: TimingCueId, mode: TimingAlertMode) {
-        _state.update {
-            val currentPreferences = it.timingAlertPreferences
-            it.copy(
-                timingAlertPreferences = currentPreferences.copy(
-                    cueModes = currentPreferences.cueModes + (cueId to mode),
-                    cueRepeatCounts = if (mode == TimingAlertMode.NONE) {
-                        currentPreferences.cueRepeatCounts + (cueId to 1)
-                    } else {
-                        currentPreferences.cueRepeatCounts
-                    },
-                ),
-            )
-        }
-        persistSettingsState()
-    }
-
-    /**
-     * Update the repeat count for one timing cue.
-     *
-     * @param cueId The cue whose repeat count should change.
-     * @param repeatCount The requested repeat count, required to be within the supported range.
-     */
-    fun updateTimingCueRepeatCount(cueId: TimingCueId, repeatCount: Int) {
-        require(repeatCount in MIN_TIMING_ALERT_REPEAT_COUNT..MAX_TIMING_ALERT_REPEAT_COUNT) {
-            "Timing alert repeat count must be between $MIN_TIMING_ALERT_REPEAT_COUNT and " +
-                "$MAX_TIMING_ALERT_REPEAT_COUNT."
-        }
-        _state.update {
-            it.copy(
-                timingAlertPreferences = it.timingAlertPreferences.copy(
-                    cueRepeatCounts = it.timingAlertPreferences.cueRepeatCounts + (cueId to repeatCount),
-                ),
-            )
-        }
-        persistSettingsState()
-    }
-
-    /// Restore all per-cue timing alert modes and repeat counts to defaults.
-    fun resetTimingCueSettingsToDefaults() {
-        _state.update {
-            it.copy(
-                timingAlertPreferences = it.timingAlertPreferences.copy(
-                    cueModes = defaultTimingCueModes(),
-                    cueRepeatCounts = defaultTimingCueRepeatCounts(),
-                ),
-            )
-        }
+    /// Replace the settings bucket.
+    fun updateSettings(updatedSettings: Settings) {
+        _state.update { it.copy(settings = updatedSettings) }
         persistSettingsState()
     }
 
@@ -922,7 +742,7 @@ internal class AppViewModel(
                 currentGame = newSetupGameState(
                     now = now,
                     defaultsFrom = previousSetupDefaults,
-                    defaultObserverName = profileName,
+                    defaultObserverName = profile.name,
                 ),
                 setupEditDraft = null,
                 editingSavedSetupIndex = null,
@@ -1092,25 +912,12 @@ internal class AppViewModel(
 
     /// Persist the profile bucket.
     private fun persistProfileState() {
-        appStateStorage.saveProfile(
-            Profile(
-                name = profileName,
-                avatarPreference = avatarPreference,
-            )
-        )
+        appStateStorage.saveProfile(profile)
     }
 
     /// Persist the settings bucket.
     private fun persistSettingsState() {
-        appStateStorage.saveSettings(
-            Settings(
-                automaticallyAdvanceCountdowns = automaticallyAdvanceCountdowns,
-                automaticallyLockLivePoint = automaticallyLockLivePoint,
-                showDefenseCountdowns = showDefenseCountdowns,
-                showAbbaRatioAsSequence = showAbbaRatioAsSequence,
-                timingAlerts = timingAlertPreferences,
-            )
-        )
+        appStateStorage.saveSettings(settings)
     }
 
     /// Persist the archived-games bucket.

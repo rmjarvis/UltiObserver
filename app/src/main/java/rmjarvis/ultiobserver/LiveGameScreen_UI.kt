@@ -64,10 +64,7 @@ private data class PendingFieldTechnicalFoulResolution(
  * Render the main live-game screen, including the field view, modal flows, and popup cues.
  *
  * @param state The live game state to render.
- * @param automaticallyAdvanceCountdowns Whether expired countdowns should advance model state automatically.
- * @param automaticallyLockLivePoint Whether automatic live-point transitions should lock the screen.
- * @param showDefenseCountdowns Whether timeout offense-set expirations wait for defense.
- * @param showAbbaRatioAsSequence Whether ABBA field badges should show sequence shorthand.
+ * @param settings User settings that affect live-game behavior and display.
  * @param onStateChange Callback receiving updated live state from user actions and timer transitions.
  * @param onUpdateGameSetup Callback reopening setup for the current game.
  * @param onOpenGameSummary Callback opening the current game summary.
@@ -79,10 +76,7 @@ private data class PendingFieldTechnicalFoulResolution(
 @Composable
 internal fun LiveGameScreen(
     state: GameState,
-    automaticallyAdvanceCountdowns: Boolean,
-    automaticallyLockLivePoint: Boolean,
-    showDefenseCountdowns: Boolean,
-    showAbbaRatioAsSequence: Boolean,
+    settings: Settings,
     onStateChange: (GameState) -> Unit,
     onUpdateGameSetup: () -> Unit,
     onOpenGameSummary: () -> Unit,
@@ -167,25 +161,25 @@ internal fun LiveGameScreen(
     val hasExpiredPullActions = remember(state, now) {
         state.hasExpiredPullActions(now)
     }
-    val canReportOffenseSet = remember(state, showDefenseCountdowns) {
-        state.canReportOffenseSet(showDefenseCountdowns)
+    val canReportOffenseSet = remember(state, settings.showDefenseCountdowns) {
+        state.canReportOffenseSet(settings.showDefenseCountdowns)
     }
 
     // Let countdown expiration move the model forward without requiring an observer tap.
     LaunchedEffect(
         state,
         now,
-        automaticallyAdvanceCountdowns,
-        automaticallyLockLivePoint,
-        showDefenseCountdowns,
+        settings.automaticallyAdvanceCountdowns,
+        settings.automaticallyLockLivePoint,
+        settings.showDefenseCountdowns,
     ) {
-        if (automaticallyAdvanceCountdowns) {
+        if (settings.automaticallyAdvanceCountdowns) {
             val transitionedState = state.applyExpiredCountdownTransitions(
                 now = now,
-                showDefenseCountdowns = showDefenseCountdowns,
+                showDefenseCountdowns = settings.showDefenseCountdowns,
             )
             if (transitionedState != state) {
-                if (automaticallyLockLivePoint && transitionedState.phase == GamePhase.LIVE_POINT) {
+                if (settings.automaticallyLockLivePoint && transitionedState.phase == GamePhase.LIVE_POINT) {
                     locked = true
                 }
                 onStateChange(transitionedState)
@@ -307,7 +301,7 @@ internal fun LiveGameScreen(
                 // Sketch the field with two teams and the grass strip between them.
                 FieldSketchCard(
                     state = state,
-                    showAbbaRatioAsSequence = showAbbaRatioAsSequence,
+                    showAbbaRatioAsSequence = settings.showAbbaRatioAsSequence,
                     interactionsEnabled = !locked,
                     timeoutEnabled = state.canRequestTimeout(now),
                     showPullIndicator = !locked,
@@ -330,7 +324,7 @@ internal fun LiveGameScreen(
                                 label = "Start point",
                                 onClick = {
                                     onStateChange(state.beginLivePoint(now))
-                                    if (automaticallyLockLivePoint) {
+                                    if (settings.automaticallyLockLivePoint) {
                                         locked = true
                                     }
                                 },
@@ -344,7 +338,7 @@ internal fun LiveGameScreen(
                                 label = "Continue point",
                                 onClick = {
                                     onStateChange(state.continueLivePoint())
-                                    if (automaticallyLockLivePoint) {
+                                    if (settings.automaticallyLockLivePoint) {
                                         locked = true
                                     }
                                 },

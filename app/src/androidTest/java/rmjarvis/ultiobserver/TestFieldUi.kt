@@ -79,7 +79,9 @@ class TestFieldUi : MainActivityUiTestFixtures() {
 
         // The settings option can return the same badge to full-ratio text.
         composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.updateShowAbbaRatioAsSequence(false)
+            activity.appViewModel.updateSettings(
+                activity.appViewModel.settings.withShowAbbaRatioAsSequence(false)
+            )
         }
         waitForText("4W/3M")
     }

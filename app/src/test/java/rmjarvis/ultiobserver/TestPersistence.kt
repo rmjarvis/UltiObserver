@@ -36,63 +36,71 @@ class TestPersistence : GameDomainTestFixtures() {
         // Write profile values through the same ViewModel actions the UI uses.
         val storeDir = temporaryFolder.newFolder()
         val viewModel = AppViewModel(FileAppStateStorage(storeDir))
+        fun updateSettings(transform: (Settings) -> Settings) {
+            viewModel.updateSettings(transform(viewModel.settings))
+        }
+        fun updateTimingAlerts(transform: (TimingAlertPreferences) -> TimingAlertPreferences) {
+            updateSettings { it.withTimingAlerts(transform(it.timingAlerts)) }
+        }
         viewModel.openProfile()
         assertEquals(AppScreen.PROFILE, viewModel.screen)
-        viewModel.updateProfileName("Casey Observer")
-        assertEquals("Casey Observer", viewModel.profileName)
-        viewModel.updateAvatarPreference(ObserverAvatarPreference.BLUE)
-        assertEquals(ObserverAvatarPreference.BLUE, viewModel.avatarPreference)
+        viewModel.updateProfile(viewModel.profile.withName("Casey Observer"))
+        assertEquals("Casey Observer", viewModel.profile.name)
+        viewModel.updateProfile(viewModel.profile.withAvatarPreference(ObserverAvatarPreference.BLUE))
+        assertEquals(ObserverAvatarPreference.BLUE, viewModel.profile.avatarPreference)
         assertEquals(ObserverAvatarPreference.BLUE, viewModel.currentHomeAvatar)
 
         // Exercise global timing settings and cue overrides before leaving Settings.
         viewModel.openSettings()
         assertEquals(AppScreen.SETTINGS, viewModel.screen)
-        viewModel.updateTimingAlertGlobalMode(TimingAlertGlobalMode.VIBRATION_ONLY)
-        viewModel.updateTimingAlertSoundVolume(0.4f)
-        viewModel.updateTimingAlertVibrationDuration(420L)
-        viewModel.updateTimingAlertVibrateWithSounds(true)
-        viewModel.updateAutomaticallyAdvanceCountdowns(false)
-        viewModel.updateAutomaticallyLockLivePoint(false)
-        viewModel.updateShowDefenseCountdowns(true)
-        viewModel.updateShowAbbaRatioAsSequence(false)
-        viewModel.updateTimingCueMode(TimingCueId.PULLING_TIME_VIOLATION, TimingAlertMode.DING)
-        viewModel.updateTimingCueRepeatCount(TimingCueId.PULLING_TIME_VIOLATION, 3)
+        updateTimingAlerts { it.withGlobalMode(TimingAlertGlobalMode.VIBRATION_ONLY) }
+        updateTimingAlerts { it.withSoundVolume(0.4f) }
+        updateTimingAlerts { it.withVibrationDuration(420L) }
+        updateTimingAlerts { it.withVibrateWithSounds(true) }
+        updateSettings { it.withAutomaticallyAdvanceCountdowns(false) }
+        updateSettings { it.withAutomaticallyLockLivePoint(false) }
+        updateSettings { it.withShowDefenseCountdowns(true) }
+        updateSettings { it.withShowAbbaRatioAsSequence(false) }
+        updateTimingAlerts { it.withCueMode(TimingCueId.PULLING_TIME_VIOLATION, TimingAlertMode.DING) }
+        updateTimingAlerts { it.withCueRepeatCount(TimingCueId.PULLING_TIME_VIOLATION, 3) }
         assertEquals(
             TimingAlertMode.VIBRATE,
-            viewModel.timingAlertPreferences.alertModeFor(TimingCueId.PULLING_TIME_VIOLATION),
+            viewModel.settings.timingAlerts.alertModeFor(TimingCueId.PULLING_TIME_VIOLATION),
         )
         assertEquals(
             3,
-            viewModel.timingAlertPreferences.repeatCountFor(TimingCueId.PULLING_TIME_VIOLATION),
+            viewModel.settings.timingAlerts.repeatCountFor(TimingCueId.PULLING_TIME_VIOLATION),
         )
         assertThrows(IllegalArgumentException::class.java) {
-            viewModel.updateTimingCueRepeatCount(TimingCueId.PULLING_TIME_VIOLATION, 0)
+            updateTimingAlerts { it.withCueRepeatCount(TimingCueId.PULLING_TIME_VIOLATION, 0) }
         }
         assertThrows(IllegalArgumentException::class.java) {
-            viewModel.updateTimingCueRepeatCount(
-                TimingCueId.PULLING_TIME_VIOLATION,
-                MAX_TIMING_ALERT_REPEAT_COUNT + 1,
-            )
+            updateTimingAlerts {
+                it.withCueRepeatCount(
+                    TimingCueId.PULLING_TIME_VIOLATION,
+                    MAX_TIMING_ALERT_REPEAT_COUNT + 1,
+                )
+            }
         }
-        viewModel.updateTimingCueMode(TimingCueId.PULLING_TIME_VIOLATION, TimingAlertMode.NONE)
+        updateTimingAlerts { it.withCueMode(TimingCueId.PULLING_TIME_VIOLATION, TimingAlertMode.NONE) }
         assertEquals(
             1,
-            viewModel.timingAlertPreferences.repeatCountFor(TimingCueId.PULLING_TIME_VIOLATION),
+            viewModel.settings.timingAlerts.repeatCountFor(TimingCueId.PULLING_TIME_VIOLATION),
         )
-        viewModel.updateTimingCueMode(TimingCueId.PULLING_TIME_VIOLATION, TimingAlertMode.DING)
-        viewModel.updateTimingCueMode(TimingCueId.OFFENSE_TEN, TimingAlertMode.VIBRATE)
+        updateTimingAlerts { it.withCueMode(TimingCueId.PULLING_TIME_VIOLATION, TimingAlertMode.DING) }
+        updateTimingAlerts { it.withCueMode(TimingCueId.OFFENSE_TEN, TimingAlertMode.VIBRATE) }
         viewModel.openTimingCueSettings()
         assertEquals(AppScreen.TIMING_CUE_SETTINGS, viewModel.screen)
         viewModel.goBackFromCurrentScreen()
         assertEquals(AppScreen.SETTINGS, viewModel.screen)
-        viewModel.updateTimingAlertGlobalMode(TimingAlertGlobalMode.OFF)
+        updateTimingAlerts { it.withGlobalMode(TimingAlertGlobalMode.OFF) }
         assertEquals(
             TimingAlertMode.NONE,
-            viewModel.timingAlertPreferences.alertModeFor(TimingCueId.PULLING_TIME_VIOLATION),
+            viewModel.settings.timingAlerts.alertModeFor(TimingCueId.PULLING_TIME_VIOLATION),
         )
         assertEquals(
             TimingAlertMode.NONE,
-            viewModel.timingAlertPreferences.alertModeFor(TimingCueId.OFFENSE_TEN),
+            viewModel.settings.timingAlerts.alertModeFor(TimingCueId.OFFENSE_TEN),
         )
         viewModel.openArchivedGames()
         assertEquals(AppScreen.ARCHIVED_GAMES, viewModel.screen)
@@ -104,36 +112,36 @@ class TestPersistence : GameDomainTestFixtures() {
         // Recreate the ViewModel and verify persisted values restore while startup opens at Home.
         val restored = AppViewModel(FileAppStateStorage(storeDir))
         assertEquals(AppScreen.HOME, restored.screen)
-        assertEquals("Casey Observer", restored.profileName)
-        assertEquals(ObserverAvatarPreference.BLUE, restored.avatarPreference)
+        assertEquals("Casey Observer", restored.profile.name)
+        assertEquals(ObserverAvatarPreference.BLUE, restored.profile.avatarPreference)
         assertEquals(ObserverAvatarPreference.BLUE, restored.currentHomeAvatar)
-        assertEquals(TimingAlertGlobalMode.OFF, restored.timingAlertPreferences.globalMode)
-        assertFalse(restored.automaticallyAdvanceCountdowns)
-        assertFalse(restored.automaticallyLockLivePoint)
-        assertTrue(restored.showDefenseCountdowns)
-        assertFalse(restored.showAbbaRatioAsSequence)
-        assertEquals(0.4f, restored.timingAlertPreferences.soundVolume, 0f)
-        assertEquals(420L, restored.timingAlertPreferences.vibrationDurationMillis)
-        assertTrue(restored.timingAlertPreferences.vibrateWithSounds)
+        assertEquals(TimingAlertGlobalMode.OFF, restored.settings.timingAlerts.globalMode)
+        assertFalse(restored.settings.automaticallyAdvanceCountdowns)
+        assertFalse(restored.settings.automaticallyLockLivePoint)
+        assertTrue(restored.settings.showDefenseCountdowns)
+        assertFalse(restored.settings.showAbbaRatioAsSequence)
+        assertEquals(0.4f, restored.settings.timingAlerts.soundVolume, 0f)
+        assertEquals(420L, restored.settings.timingAlerts.vibrationDurationMillis)
+        assertTrue(restored.settings.timingAlerts.vibrateWithSounds)
         assertEquals(
             TimingAlertMode.DING,
-            restored.timingAlertPreferences.cueModes[TimingCueId.PULLING_TIME_VIOLATION],
+            restored.settings.timingAlerts.cueModes[TimingCueId.PULLING_TIME_VIOLATION],
         )
         assertEquals(
             1,
-            restored.timingAlertPreferences.repeatCountFor(TimingCueId.PULLING_TIME_VIOLATION),
+            restored.settings.timingAlerts.repeatCountFor(TimingCueId.PULLING_TIME_VIOLATION),
         )
         assertEquals(
             TimingAlertMode.VIBRATE,
-            restored.timingAlertPreferences.cueModes[TimingCueId.OFFENSE_TEN],
+            restored.settings.timingAlerts.cueModes[TimingCueId.OFFENSE_TEN],
         )
         assertEquals(
             TimingAlertMode.NONE,
-            restored.timingAlertPreferences.alertModeFor(TimingCueId.PULLING_TIME_VIOLATION),
+            restored.settings.timingAlerts.alertModeFor(TimingCueId.PULLING_TIME_VIOLATION),
         )
         assertEquals(
             TimingAlertMode.NONE,
-            restored.timingAlertPreferences.alertModeFor(TimingCueId.OFFENSE_TEN),
+            restored.settings.timingAlerts.alertModeFor(TimingCueId.OFFENSE_TEN),
         )
     }
 
@@ -232,19 +240,23 @@ class TestPersistence : GameDomainTestFixtures() {
         // Profile writes should not touch current-game or settings storage buckets.
         val store = RecordingAppStateStorage()
         val viewModel = AppViewModel(store)
-        viewModel.updateProfileName("Casey Observer")
+        viewModel.updateProfile(viewModel.profile.withName("Casey Observer"))
         assertEquals("Casey Observer", store.savedProfiles.single().name)
         assertTrue(store.savedCurrentGames.isEmpty())
         assertTrue(store.savedSettings.isEmpty())
 
         // Settings and current-game writes likewise stay in their own buckets.
-        viewModel.updateAvatarPreference(ObserverAvatarPreference.BLUE)
+        viewModel.updateProfile(viewModel.profile.withAvatarPreference(ObserverAvatarPreference.BLUE))
         assertEquals(ObserverAvatarPreference.BLUE, store.savedProfiles.last().avatarPreference)
         assertTrue(store.savedCurrentGames.isEmpty())
         assertTrue(store.savedSettings.isEmpty())
 
         // Settings writes should not touch current-game or profile storage buckets.
-        viewModel.updateTimingAlertGlobalMode(TimingAlertGlobalMode.OFF)
+        viewModel.updateSettings(
+            viewModel.settings.withTimingAlerts(
+                viewModel.settings.timingAlerts.withGlobalMode(TimingAlertGlobalMode.OFF)
+            )
+        )
         assertEquals(
             TimingAlertGlobalMode.OFF,
             store.savedSettings.single().timingAlerts.globalMode,
@@ -448,8 +460,8 @@ class TestPersistence : GameDomainTestFixtures() {
         // App startup should preserve readable buckets and report the current-game reset.
         val recoveredViewModel = AppViewModel(FileAppStateStorage(storeDir))
         assertNull(recoveredViewModel.currentGame)
-        assertEquals("Casey Observer", recoveredViewModel.profileName)
-        assertEquals(timingPreferences, recoveredViewModel.timingAlertPreferences)
+        assertEquals("Casey Observer", recoveredViewModel.profile.name)
+        assertEquals(timingPreferences, recoveredViewModel.settings.timingAlerts)
         assertEquals(
             "Sorry, some phone data was corrupt, so UltiObserver had to revert to default " +
                 "values for Current game.",
@@ -641,8 +653,8 @@ class TestPersistence : GameDomainTestFixtures() {
         val viewModel = AppViewModel(FileAppStateStorage(storeDir))
         assertEquals(AppScreen.HOME, viewModel.screen)
         assertNull(viewModel.currentGame)
-        assertEquals("", viewModel.profileName)
-        assertEquals(TimingAlertPreferences(), viewModel.timingAlertPreferences)
+        assertEquals("", viewModel.profile.name)
+        assertEquals(TimingAlertPreferences(), viewModel.settings.timingAlerts)
         assertEquals(
             setOf(
                 PersistedData.GAME_STATE,

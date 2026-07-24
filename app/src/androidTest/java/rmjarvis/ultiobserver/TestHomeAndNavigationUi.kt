@@ -963,11 +963,11 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
                     click(percentOffset(0.95f, 0.5f))
                 }
             composeRule.waitUntil(timeoutMillis = 5_000) {
-                composeRule.activity.appViewModel.timingAlertPreferences.vibrationDurationMillis >
+                composeRule.activity.appViewModel.settings.timingAlerts.vibrationDurationMillis >
                     DEFAULT_TIMING_CUE_VIBRATION_MS
             }
             assertTrue(
-                composeRule.activity.appViewModel.timingAlertPreferences.vibrationDurationMillis >
+                composeRule.activity.appViewModel.settings.timingAlerts.vibrationDurationMillis >
                     DEFAULT_TIMING_CUE_VIBRATION_MS
             )
             composeRule.onNodeWithTag("settings-test-vibration")
@@ -1019,7 +1019,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             .performScrollTo()
             .performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            composeRule.activity.appViewModel.timingAlertPreferences.globalMode ==
+            composeRule.activity.appViewModel.settings.timingAlerts.globalMode ==
                 TimingAlertGlobalMode.SOUNDS_ON
         }
         composeRule.onNodeWithTag("settings-sound-volume").performScrollTo()
@@ -1043,7 +1043,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
                 click(percentOffset(x = 0.75f, y = 0.5f))
             }
         assertTrue(
-            composeRule.activity.appViewModel.timingAlertPreferences.soundVolume > 0.5f
+            composeRule.activity.appViewModel.settings.timingAlerts.soundVolume > 0.5f
         )
 
         // Re-enabled sound settings should expose vibration, preview, and repeat-count controls.
@@ -1059,7 +1059,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         }
         composeRule.onNodeWithTag("settings-global-alert-OFF").performScrollTo().performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            composeRule.activity.appViewModel.timingAlertPreferences.globalMode ==
+            composeRule.activity.appViewModel.settings.timingAlerts.globalMode ==
                 TimingAlertGlobalMode.OFF
         }
         waitForText("No sound or vibration will be used for any timing cues.")

@@ -109,6 +109,81 @@ data class TimingAlertPreferences(
             TimingAlertGlobalMode.SOUNDS_ON -> configuredMode
         }
     }
+
+    /**
+     * Return this timing-alert configuration with the global alert mode replaced.
+     *
+     * @param mode The global mode controlling whether cues are off, vibration-only, or sound-enabled.
+     */
+    fun withGlobalMode(mode: TimingAlertGlobalMode): TimingAlertPreferences {
+        return copy(globalMode = mode)
+    }
+
+    /**
+     * Return this timing-alert configuration with playback volume replaced.
+     *
+     * @param volume The new sound volume value from settings.
+     */
+    fun withSoundVolume(volume: Float): TimingAlertPreferences {
+        return copy(soundVolume = volume)
+    }
+
+    /**
+     * Return this timing-alert configuration with vibration length replaced.
+     *
+     * @param durationMillis The requested vibration duration in milliseconds.
+     */
+    fun withVibrationDuration(durationMillis: Long): TimingAlertPreferences {
+        return copy(vibrationDurationMillis = durationMillis)
+    }
+
+    /**
+     * Return this timing-alert configuration with the sound-plus-vibration toggle replaced.
+     *
+     * @param vibrateWithSounds Whether vibration should accompany sound alerts.
+     */
+    fun withVibrateWithSounds(vibrateWithSounds: Boolean): TimingAlertPreferences {
+        return copy(vibrateWithSounds = vibrateWithSounds)
+    }
+
+    /**
+     * Return this timing-alert configuration with one cue's alert mode replaced.
+     *
+     * @param cueId The cue whose alert mode should change.
+     * @param mode The cue-specific alert mode selected in settings.
+     */
+    fun withCueMode(cueId: TimingCueId, mode: TimingAlertMode): TimingAlertPreferences {
+        return copy(
+            cueModes = cueModes + (cueId to mode),
+            cueRepeatCounts = if (mode == TimingAlertMode.NONE) {
+                cueRepeatCounts + (cueId to 1)
+            } else {
+                cueRepeatCounts
+            },
+        )
+    }
+
+    /**
+     * Return this timing-alert configuration with one cue's repeat count replaced.
+     *
+     * @param cueId The cue whose repeat count should change.
+     * @param repeatCount The requested repeat count, required to be within the supported range.
+     */
+    fun withCueRepeatCount(cueId: TimingCueId, repeatCount: Int): TimingAlertPreferences {
+        require(repeatCount in MIN_TIMING_ALERT_REPEAT_COUNT..MAX_TIMING_ALERT_REPEAT_COUNT) {
+            "Timing alert repeat count must be between $MIN_TIMING_ALERT_REPEAT_COUNT and " +
+                "$MAX_TIMING_ALERT_REPEAT_COUNT."
+        }
+        return copy(cueRepeatCounts = cueRepeatCounts + (cueId to repeatCount))
+    }
+
+    /// Return this timing-alert configuration with all per-cue settings restored to defaults.
+    fun withDefaultCueSettings(): TimingAlertPreferences {
+        return copy(
+            cueModes = defaultTimingCueModes(),
+            cueRepeatCounts = defaultTimingCueRepeatCounts(),
+        )
+    }
 }
 
 /// Build the default timing-alert mode map for every cue.
@@ -187,6 +262,51 @@ internal data class Settings(
     val showAbbaRatioAsSequence: Boolean = true,
     val timingAlerts: TimingAlertPreferences = TimingAlertPreferences(),
 ) {
+    /**
+     * Return these settings with automatic countdown advancement replaced.
+     *
+     * @param automaticallyAdvance Whether timer expiry should drive model transitions.
+     */
+    fun withAutomaticallyAdvanceCountdowns(automaticallyAdvance: Boolean): Settings {
+        return copy(automaticallyAdvanceCountdowns = automaticallyAdvance)
+    }
+
+    /**
+     * Return these settings with automatic live-point locking replaced.
+     *
+     * @param automaticallyLock Whether automatic live-point entry should enable lock mode.
+     */
+    fun withAutomaticallyLockLivePoint(automaticallyLock: Boolean): Settings {
+        return copy(automaticallyLockLivePoint = automaticallyLock)
+    }
+
+    /**
+     * Return these settings with the defense-check countdown setting replaced.
+     *
+     * @param showDefenseCountdowns Whether to require the observer to start the defense countdown.
+     */
+    fun withShowDefenseCountdowns(showDefenseCountdowns: Boolean): Settings {
+        return copy(showDefenseCountdowns = showDefenseCountdowns)
+    }
+
+    /**
+     * Return these settings with ABBA field-badge display style replaced.
+     *
+     * @param showAsSequence Whether ABBA badges should display M1/M2/W1/W2 shorthand.
+     */
+    fun withShowAbbaRatioAsSequence(showAsSequence: Boolean): Settings {
+        return copy(showAbbaRatioAsSequence = showAsSequence)
+    }
+
+    /**
+     * Return these settings with timing-alert preferences replaced.
+     *
+     * @param timingAlerts The timing-alert preferences to use.
+     */
+    fun withTimingAlerts(timingAlerts: TimingAlertPreferences): Settings {
+        return copy(timingAlerts = timingAlerts)
+    }
+
     companion object {
         /**
          * Decode persisted settings state for a known storage version.
