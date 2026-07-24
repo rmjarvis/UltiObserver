@@ -252,6 +252,8 @@ const val MAX_TIMING_ALERT_REPEAT_COUNT = 3
  * @param automaticallyLockLivePoint Whether automatic live-point entry should lock the live screen.
  * @param showDefenseCountdowns Whether timeout offense-set expirations wait for defense.
  * @param showAbbaRatioAsSequence Whether ABBA field badges should show sequence shorthand.
+ * @param fourMenThreeWomenBadgeColorArgb Background color for 4M/3W field badges.
+ * @param fourWomenThreeMenBadgeColorArgb Background color for 4W/3M field badges.
  * @param timingAlerts User-configurable timing cue alert behavior.
  */
 @Serializable
@@ -260,6 +262,8 @@ internal data class Settings(
     val automaticallyLockLivePoint: Boolean = true,
     val showDefenseCountdowns: Boolean = false,
     val showAbbaRatioAsSequence: Boolean = true,
+    val fourMenThreeWomenBadgeColorArgb: Long = TeamColorChoice.BLUE.accentArgb,
+    val fourWomenThreeMenBadgeColorArgb: Long = TeamColorChoice.RED.accentArgb,
     val timingAlerts: TimingAlertPreferences = TimingAlertPreferences(),
 ) {
     /**
@@ -296,6 +300,31 @@ internal data class Settings(
      */
     fun withShowAbbaRatioAsSequence(showAsSequence: Boolean): Settings {
         return copy(showAbbaRatioAsSequence = showAsSequence)
+    }
+
+    /**
+     * Return these settings with one gender-ratio field-badge color replaced.
+     *
+     * @param ratio The ratio whose badge color should change.
+     * @param colorArgb The new opaque ARGB background color.
+     */
+    fun withGenderRatioBadgeColor(ratio: GenderRatio, colorArgb: Long): Settings {
+        return when (ratio) {
+            GenderRatio.FOUR_MEN_THREE_WOMEN -> copy(
+                fourMenThreeWomenBadgeColorArgb = colorArgb,
+            )
+            GenderRatio.FOUR_WOMEN_THREE_MEN -> copy(
+                fourWomenThreeMenBadgeColorArgb = colorArgb,
+            )
+        }
+    }
+
+    /// Return the configured field-badge color for one gender ratio.
+    fun genderRatioBadgeColorArgb(ratio: GenderRatio): Long {
+        return when (ratio) {
+            GenderRatio.FOUR_MEN_THREE_WOMEN -> fourMenThreeWomenBadgeColorArgb
+            GenderRatio.FOUR_WOMEN_THREE_MEN -> fourWomenThreeMenBadgeColorArgb
+        }
     }
 
     /**

@@ -61,6 +61,18 @@ class TestPersistence : GameDomainTestFixtures() {
         updateSettings { it.withAutomaticallyLockLivePoint(false) }
         updateSettings { it.withShowDefenseCountdowns(true) }
         updateSettings { it.withShowAbbaRatioAsSequence(false) }
+        updateSettings {
+            it.withGenderRatioBadgeColor(
+                GenderRatio.FOUR_MEN_THREE_WOMEN,
+                TeamColorChoice.BLACK.accentArgb,
+            )
+        }
+        updateSettings {
+            it.withGenderRatioBadgeColor(
+                GenderRatio.FOUR_WOMEN_THREE_MEN,
+                0xFF7A3DB8,
+            )
+        }
         updateTimingAlerts { it.withCueMode(TimingCueId.PULLING_TIME_VIOLATION, TimingAlertMode.DING) }
         updateTimingAlerts { it.withCueRepeatCount(TimingCueId.PULLING_TIME_VIOLATION, 3) }
         assertEquals(
@@ -120,6 +132,11 @@ class TestPersistence : GameDomainTestFixtures() {
         assertFalse(restored.settings.automaticallyLockLivePoint)
         assertTrue(restored.settings.showDefenseCountdowns)
         assertFalse(restored.settings.showAbbaRatioAsSequence)
+        assertEquals(
+            TeamColorChoice.BLACK.accentArgb,
+            restored.settings.fourMenThreeWomenBadgeColorArgb,
+        )
+        assertEquals(0xFF7A3DB8, restored.settings.fourWomenThreeMenBadgeColorArgb)
         assertEquals(0.4f, restored.settings.timingAlerts.soundVolume, 0f)
         assertEquals(420L, restored.settings.timingAlerts.vibrationDurationMillis)
         assertTrue(restored.settings.timingAlerts.vibrateWithSounds)

@@ -302,6 +302,7 @@ internal fun LiveGameScreen(
                 FieldSketchCard(
                     state = state,
                     showAbbaRatioAsSequence = settings.showAbbaRatioAsSequence,
+                    genderRatioBadgeColorArgb = settings::genderRatioBadgeColorArgb,
                     interactionsEnabled = !locked,
                     timeoutEnabled = state.canRequestTimeout(now),
                     showPullIndicator = !locked,

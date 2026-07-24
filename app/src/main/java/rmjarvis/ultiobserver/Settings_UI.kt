@@ -22,13 +22,34 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToLong
+
+private enum class GenderRatioBadgeColorTarget(
+    val ratio: GenderRatio,
+    val label: String,
+    val testTagPrefix: String,
+) {
+    FOUR_MEN(
+        ratio = GenderRatio.FOUR_MEN_THREE_WOMEN,
+        label = "Set 4M/3W indicator color",
+        testTagPrefix = "settings-4m-3w-badge-color",
+    ),
+    FOUR_WOMEN(
+        ratio = GenderRatio.FOUR_WOMEN_THREE_MEN,
+        label = "Set 4W/3M indicator color",
+        testTagPrefix = "settings-4w-3m-badge-color",
+    ),
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,6 +62,8 @@ internal fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val hasTimingCueHaptics = context.hasTimingCueHaptics()
+    var colorTarget by remember { mutableStateOf<GenderRatioBadgeColorTarget?>(null) }
+    var customColorTarget by remember { mutableStateOf<GenderRatioBadgeColorTarget?>(null) }
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -102,6 +125,8 @@ internal fun SettingsScreen(
                 testTag = "settings-show-defense-countdowns",
             )
 
+            HorizontalDivider()
+
             SettingsSwitchWithNote(
                 label = "Show ABBA gender ratio as M1/M2/W1/W2?",
                 note = if (settings.showAbbaRatioAsSequence) {
@@ -115,6 +140,16 @@ internal fun SettingsScreen(
                 },
                 testTag = "settings-show-abba-ratio-as-sequence",
             )
+
+            GenderRatioBadgeColorTarget.entries.forEach { target ->
+                GenderRatioBadgeColorRow(
+                    target = target,
+                    colorArgb = settings.genderRatioBadgeColorArgb(target.ratio),
+                    onClick = {
+                        colorTarget = target
+                    },
+                )
+            }
 
             HorizontalDivider()
 
@@ -152,6 +187,91 @@ internal fun SettingsScreen(
             )
         }
     }
+
+    colorTarget?.let { target ->
+        val colorArgb = settings.genderRatioBadgeColorArgb(target.ratio)
+        val selectedPreset = presetColorForArgb(colorArgb)
+        ColorChoiceDialog(
+            title = target.label,
+            selectedPreset = selectedPreset,
+            customColorArgb = colorArgb.takeIf { selectedPreset == null },
+            customColorSelected = selectedPreset == null,
+            testTagPrefix = target.testTagPrefix,
+            onPresetColorSelected = { color ->
+                onSettingsChange(
+                    settings.withGenderRatioBadgeColor(target.ratio, color.accentArgb)
+                )
+                colorTarget = null
+            },
+            onCustomColorSelected = { customColorArgb ->
+                onSettingsChange(
+                    settings.withGenderRatioBadgeColor(target.ratio, customColorArgb)
+                )
+                colorTarget = null
+            },
+            onMoreColors = {
+                colorTarget = null
+                customColorTarget = target
+            },
+            onDismiss = {
+                colorTarget = null
+            },
+        )
+    }
+
+    customColorTarget?.let { target ->
+        CustomColorChoiceDialog(
+            title = target.label,
+            initialColorArgb = settings.genderRatioBadgeColorArgb(target.ratio),
+            testTagPrefix = target.testTagPrefix,
+            onColorSelected = { colorArgb ->
+                onSettingsChange(settings.withGenderRatioBadgeColor(target.ratio, colorArgb))
+                customColorTarget = null
+            },
+            onDismiss = {
+                customColorTarget = null
+            },
+        )
+    }
+}
+
+@Composable
+private fun GenderRatioBadgeColorRow(
+    target: GenderRatioBadgeColorTarget,
+    colorArgb: Long,
+    onClick: () -> Unit,
+) {
+    val background = Color(colorArgb)
+    val content = readableContentColor(background)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = target.label,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.weight(1f),
+        )
+        BigActionButton(
+            label = colorLabel(colorArgb),
+            containerColor = background,
+            contentColor = content,
+            borderColor = content.copy(alpha = 0.7f),
+            tag = target.testTagPrefix,
+            onClick = onClick,
+        )
+    }
+}
+
+private fun presetColorForArgb(colorArgb: Long): TeamColorChoice? {
+    return TeamColorChoice.entries.firstOrNull {
+        it != TeamColorChoice.CUSTOM && it.accentArgb == colorArgb
+    }
+}
+
+private fun colorLabel(colorArgb: Long): String {
+    return presetColorForArgb(colorArgb)?.label ?: "Custom"
 }
 
 /**

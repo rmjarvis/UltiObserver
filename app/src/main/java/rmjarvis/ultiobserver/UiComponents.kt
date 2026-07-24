@@ -2,6 +2,8 @@ package rmjarvis.ultiobserver
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.rememberScrollState
@@ -34,6 +36,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.Button
@@ -58,6 +61,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -71,6 +75,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.changedToDown
@@ -95,6 +100,8 @@ import androidx.compose.ui.unit.dp
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
+import com.github.skydoves.colorpicker.compose.HsvColorPicker
+import com.github.skydoves.colorpicker.compose.rememberColorPickerController
 
 private const val KEYBOARD_DIALOG_HEIGHT_FRACTION = 0.60f
 
@@ -124,12 +131,6 @@ internal val TimeoutButtonColor = Color(0xFF90CAF9)
 internal val FieldNeutralButtonColor = Color(0xFFF7F2EA)
 private val WaterBreakIconColor = Color(0xFF1976D2)
 internal val SliderOverlayColor = Color(0x66FFFFFF)
-internal val FourMenThreeWomenBadgeColor = Color(0xFFBFE3FF)
-internal val FourMenThreeWomenBadgeBorderColor = Color(0xFF5D99C2)
-internal val FourWomenThreeMenBadgeColor = Color(0xFFFFD1DC)
-internal val FourWomenThreeMenBadgeBorderColor = Color(0xFFD07B8F)
-internal val GenderRatioBadgeTextColor = Color(0xFF1D2024)
-
 private val OptionBorderLightColor = Color(0xFFD8CBA7)
 private val OptionDarkModeColor = Color(0xFF3B3522)
 private val OptionBorderDarkColor = Color(0xFF9A8432)
@@ -303,6 +304,294 @@ internal fun readableContentColor(background: Color): Color {
         Color(0xFF1F1A17)
     } else {
         Color.White
+    }
+}
+
+/**
+ * Render the shared preset palette used for team and gender-ratio badge colors.
+ *
+ * @param selected The currently selected preset, or null for a custom color.
+ * @param testTagPrefix Prefix used to build test tags for each color swatch.
+ * @param onSelected Callback receiving the selected preset color.
+ */
+@Composable
+internal fun ColorChoiceRow(
+    selected: TeamColorChoice?,
+    testTagPrefix: String,
+    onSelected: (TeamColorChoice) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        TeamColorChoice.entries.filter { it != TeamColorChoice.CUSTOM }.forEach { colorChoice ->
+            ColorSwatch(
+                color = colorChoice.accent,
+                selected = selected == colorChoice,
+                testTag = "$testTagPrefix-${colorChoice.name}",
+                modifier = Modifier
+                    .weight(1f)
+                    .height(28.dp),
+                onClick = {
+                    onSelected(colorChoice)
+                },
+            )
+        }
+    }
+}
+
+/**
+ * Render a saved custom color as a second-row swatch.
+ *
+ * @param color The saved custom color.
+ * @param selected Whether the custom color is currently selected.
+ * @param testTag Test tag attached to the swatch.
+ * @param onClick Callback invoked when the swatch is tapped.
+ */
+@Composable
+internal fun CustomColorChoiceRow(
+    color: Color,
+    selected: Boolean,
+    testTag: String,
+    onClick: () -> Unit,
+) {
+    Row(modifier = Modifier.fillMaxWidth()) {
+        ColorSwatch(
+            color = color,
+            selected = selected,
+            testTag = testTag,
+            modifier = Modifier.size(32.dp),
+            onClick = onClick,
+        )
+    }
+}
+
+/**
+ * Render the shared compact color-selection dialog.
+ *
+ * @param title Dialog title.
+ * @param selectedPreset The currently selected preset, or null for a custom color.
+ * @param customColorArgb Saved custom color to show below the presets, when one exists.
+ * @param customColorSelected Whether the saved custom color is currently selected.
+ * @param testTagPrefix Prefix used for palette, custom-swatch, and action test tags.
+ * @param onPresetColorSelected Callback receiving the selected preset color.
+ * @param onCustomColorSelected Callback receiving the selected saved custom color.
+ * @param onMoreColors Callback opening the full custom color picker.
+ * @param onDismiss Callback closing the dialog.
+ */
+@Composable
+internal fun ColorChoiceDialog(
+    title: String,
+    selectedPreset: TeamColorChoice?,
+    customColorArgb: Long?,
+    customColorSelected: Boolean,
+    testTagPrefix: String,
+    onPresetColorSelected: (TeamColorChoice) -> Unit,
+    onCustomColorSelected: (Long) -> Unit,
+    onMoreColors: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                ColorChoiceRow(
+                    selected = selectedPreset,
+                    testTagPrefix = testTagPrefix,
+                    onSelected = onPresetColorSelected,
+                )
+                customColorArgb?.let { colorArgb ->
+                    CustomColorChoiceRow(
+                        color = Color(colorArgb),
+                        selected = customColorSelected,
+                        testTag = "$testTagPrefix-custom",
+                        onClick = {
+                            onCustomColorSelected(colorArgb)
+                        },
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            ColorDialogActions(
+                confirmText = "More colors",
+                confirmTestTag = "$testTagPrefix-more",
+                onCancel = onDismiss,
+                onConfirm = onMoreColors,
+            )
+        },
+    )
+}
+
+/**
+ * Render the shared expanded custom-color picker dialog.
+ *
+ * @param title Dialog title.
+ * @param initialColorArgb Opaque ARGB color used to initialize the picker.
+ * @param testTagPrefix Prefix used for custom-picker test tags.
+ * @param onColorSelected Callback receiving the applied opaque ARGB color.
+ * @param onDismiss Callback closing the dialog without applying a new color.
+ */
+@Composable
+internal fun CustomColorChoiceDialog(
+    title: String,
+    initialColorArgb: Long,
+    testTagPrefix: String,
+    onColorSelected: (Long) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var customColor by remember(initialColorArgb) {
+        mutableStateOf(Color(initialColorArgb))
+    }
+
+    fun useColorAndDismiss() {
+        onColorSelected(customColor.toOpaqueArgbLong())
+    }
+
+    AlertDialog(
+        onDismissRequest = {
+            useColorAndDismiss()
+        },
+        title = { Text(title) },
+        text = {
+            CustomColorPicker(
+                initialColor = customColor,
+                testTagPrefix = testTagPrefix,
+                onColorChange = {
+                    customColor = it
+                },
+            )
+        },
+        confirmButton = {
+            ColorDialogActions(
+                confirmText = "Use this color",
+                confirmTestTag = null,
+                onCancel = onDismiss,
+                onConfirm = ::useColorAndDismiss,
+            )
+        },
+    )
+}
+
+@Composable
+private fun ColorSwatch(
+    color: Color,
+    selected: Boolean,
+    testTag: String,
+    modifier: Modifier,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = modifier
+            .testTag(testTag)
+            .background(
+                color = if (selected) Color.Black else Color.Transparent,
+                shape = RoundedCornerShape(6.dp),
+            )
+            .padding(if (selected) 1.dp else 0.dp)
+            .background(
+                color = if (selected) AvatarSelectedColor else Color.Transparent,
+                shape = RoundedCornerShape(6.dp),
+            )
+            .padding(if (selected) 3.dp else 0.dp)
+            .background(
+                color = if (selected) Color.Black else Color.Transparent,
+                shape = RoundedCornerShape(5.dp),
+            )
+            .padding(if (selected) 1.dp else 0.dp)
+            .border(
+                width = if (selected) 0.dp else 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant,
+                shape = RoundedCornerShape(4.dp),
+            )
+            .background(color, RoundedCornerShape(4.dp))
+            .clickable(onClick = onClick),
+    )
+}
+
+/**
+ * Render the shared HSV picker for a custom team or gender-ratio badge color.
+ *
+ * @param initialColor Color used to initialize the picker and preview.
+ * @param testTagPrefix Prefix used to build custom picker test tags.
+ * @param onColorChange Callback receiving the currently selected custom color.
+ */
+@Composable
+internal fun CustomColorPicker(
+    initialColor: Color,
+    testTagPrefix: String,
+    onColorChange: (Color) -> Unit,
+) {
+    val controller = rememberColorPickerController()
+    var previewColor by remember(initialColor) {
+        mutableStateOf(initialColor)
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        HsvColorPicker(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(220.dp)
+                .testTag("$testTagPrefix-custom-picker"),
+            controller = controller,
+            initialColor = initialColor,
+            onColorChanged = { colorEnvelope ->
+                previewColor = colorEnvelope.color.copy(alpha = 1f)
+                onColorChange(previewColor)
+            },
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(36.dp)
+                .testTag("$testTagPrefix-custom-preview")
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(6.dp))
+                .background(previewColor, RoundedCornerShape(6.dp))
+                .clickable {
+                    onColorChange(previewColor)
+                },
+        )
+    }
+}
+
+/// Return an opaque ARGB long for a Compose color.
+internal fun Color.toOpaqueArgbLong(): Long {
+    return copy(alpha = 1f).toArgb().toLong() and 0xFFFFFFFFL
+}
+
+/**
+ * Render the shared action row for preset and custom color dialogs.
+ *
+ * @param confirmText Text for the right-side action.
+ * @param confirmTestTag Optional test tag for the right-side action.
+ * @param onCancel Callback closing the dialog without applying a new color.
+ * @param onConfirm Callback running the right-side color action.
+ */
+@Composable
+internal fun ColorDialogActions(
+    confirmText: String,
+    confirmTestTag: String?,
+    onCancel: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TextActionButton(
+            label = "Cancel",
+            compact = true,
+            contentPadding = PaddingValues(horizontal = 0.dp, vertical = 8.dp),
+            onClick = onCancel,
+        )
+        TextActionButton(
+            label = confirmText,
+            compact = true,
+            tag = confirmTestTag,
+            contentPadding = PaddingValues(horizontal = 0.dp, vertical = 8.dp),
+            onClick = onConfirm,
+        )
     }
 }
 

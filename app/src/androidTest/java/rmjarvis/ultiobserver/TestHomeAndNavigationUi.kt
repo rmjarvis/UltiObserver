@@ -929,6 +929,60 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             .performScrollTo()
             .performClick()
         waitForText("Ratio will display as W2, M1, M2, W1, W2", substring = true)
+
+        // Gender-ratio badges default to blue and red. Each can independently use any
+        // standard palette color, including black for a display without color coding.
+        composeRule.onNodeWithTag("settings-4m-3w-badge-color")
+            .performScrollTo()
+            .assertTextEquals("Blue")
+        composeRule.onNodeWithText("Set 4M/3W indicator color").assertIsDisplayed()
+        composeRule.onNodeWithTag("settings-4m-3w-badge-color").performClick()
+        dismissDialog(text = "Cancel")
+        composeRule.onNodeWithTag("settings-4m-3w-badge-color")
+            .assertTextEquals("Blue")
+            .performClick()
+        composeRule.onNodeWithTag("settings-4m-3w-badge-color-BLACK").performClick()
+        composeRule.onNodeWithTag("settings-4m-3w-badge-color")
+            .assertTextEquals("Black")
+        composeRule.onNodeWithTag("settings-4w-3m-badge-color")
+            .performScrollTo()
+            .assertTextEquals("Red")
+        composeRule.onNodeWithText("Set 4W/3M indicator color").assertIsDisplayed()
+        composeRule.onNodeWithTag("settings-4w-3m-badge-color").performClick()
+        composeRule.onNodeWithTag("settings-4w-3m-badge-color-BLACK").performClick()
+        composeRule.onNodeWithTag("settings-4w-3m-badge-color")
+            .assertTextEquals("Black")
+
+        // Indicator colors also use the shared custom-color flow. Visible Cancel leaves the
+        // current color in place, while platform Back applies the picker like Use this color.
+        // Applying a custom color exposes it as a selectable custom swatch.
+        composeRule.onNodeWithTag("settings-4m-3w-badge-color").performClick()
+        composeRule.onNodeWithTag("settings-4m-3w-badge-color-more").performClick()
+        waitForText("Use this color")
+        dismissDialog(text = "Cancel")
+        val colorAfterDismiss = if (shouldUsePlatformBackDismissalCoverage()) {
+            "Custom"
+        } else {
+            "Black"
+        }
+        composeRule.onNodeWithTag("settings-4m-3w-badge-color")
+            .assertTextEquals(colorAfterDismiss)
+            .performClick()
+        composeRule.onNodeWithTag("settings-4m-3w-badge-color-more").performClick()
+        composeRule.onNodeWithTag("settings-4m-3w-badge-color-custom-picker")
+            .performTouchInput {
+                click(percentOffset(0.75f, 0.35f))
+            }
+        composeRule.onNodeWithTag("settings-4m-3w-badge-color-custom-preview").performClick()
+        composeRule.onNodeWithText("Use this color").performClick()
+        composeRule.onNodeWithTag("settings-4m-3w-badge-color")
+            .assertTextEquals("Custom")
+            .performClick()
+        composeRule.onNodeWithTag("settings-4m-3w-badge-color-custom")
+            .assertIsDisplayed()
+            .performClick()
+        composeRule.onNodeWithTag("settings-4m-3w-badge-color")
+            .assertTextEquals("Custom")
     }
 
     /**

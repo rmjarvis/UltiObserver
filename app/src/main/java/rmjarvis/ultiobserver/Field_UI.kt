@@ -369,6 +369,7 @@ internal data class FieldLayoutMetrics(
  *
  * @param state The live game state to render.
  * @param showAbbaRatioAsSequence Whether ABBA field badges should show sequence shorthand.
+ * @param genderRatioBadgeColorArgb Color lookup for each concrete gender ratio.
  * @param interactionsEnabled Whether team action controls should be enabled.
  * @param timeoutEnabled Whether timeout handling is available in the current state.
  * @param showPullIndicator Whether the center strip should show pull direction.
@@ -387,6 +388,7 @@ internal data class FieldLayoutMetrics(
 internal fun FieldSketchCard(
     state: GameState,
     showAbbaRatioAsSequence: Boolean,
+    genderRatioBadgeColorArgb: (GenderRatio) -> Long,
     interactionsEnabled: Boolean,
     timeoutEnabled: Boolean,
     showPullIndicator: Boolean,
@@ -483,7 +485,7 @@ internal fun FieldSketchCard(
                         )
                         currentGenderRatio?.let { ratio ->
                             GenderRatioStatusBadge(
-                                ratio = ratio,
+                                background = Color(genderRatioBadgeColorArgb(ratio)),
                                 label = state.currentGenderRatioBadgeText(showAbbaRatioAsSequence),
                                 horizontalPadding = metrics.genderRatioBadgeHorizontalPadding,
                                 verticalPadding = metrics.genderRatioBadgeVerticalPadding,
@@ -767,7 +769,7 @@ private fun TeamHeaderIdentity(
 /**
  * Render a compact non-interactive status badge for the current mixed gender ratio.
  *
- * @param ratio The ratio applying to this point.
+ * @param background The observer-selected badge background color.
  * @param label The text shown inside the badge.
  * @param horizontalPadding Horizontal badge padding.
  * @param verticalPadding Vertical badge padding.
@@ -775,25 +777,18 @@ private fun TeamHeaderIdentity(
  */
 @Composable
 private fun GenderRatioStatusBadge(
-    ratio: GenderRatio,
+    background: Color,
     label: String,
     horizontalPadding: Dp,
     verticalPadding: Dp,
     fontSize: TextUnit,
 ) {
-    val background = when (ratio) {
-        GenderRatio.FOUR_MEN_THREE_WOMEN -> FourMenThreeWomenBadgeColor
-        GenderRatio.FOUR_WOMEN_THREE_MEN -> FourWomenThreeMenBadgeColor
-    }
-    val border = when (ratio) {
-        GenderRatio.FOUR_MEN_THREE_WOMEN -> FourMenThreeWomenBadgeBorderColor
-        GenderRatio.FOUR_WOMEN_THREE_MEN -> FourWomenThreeMenBadgeBorderColor
-    }
+    val contentColor = readableContentColor(background)
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(4.dp))
             .background(background)
-            .border(BorderStroke(1.dp, border), RoundedCornerShape(4.dp))
+            .border(BorderStroke(1.dp, contentColor.copy(alpha = 0.7f)), RoundedCornerShape(4.dp))
             .padding(
                 horizontal = horizontalPadding,
                 vertical = verticalPadding,
@@ -802,7 +797,7 @@ private fun GenderRatioStatusBadge(
     ) {
         Text(
             text = label,
-            color = GenderRatioBadgeTextColor,
+            color = contentColor,
             style = MaterialTheme.typography.titleMedium.copy(
                 fontSize = fontSize,
                 lineHeight = fontSize,

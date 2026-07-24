@@ -59,6 +59,12 @@ Show ABBA gender ratio as M1/M2/W1/W2?
     4W/3M ratio (``W1`` and ``W2``).  Set this to **No** if you prefer the
     badge to show the full point ratio as either ``4W/3M`` or ``4M/3W``.
 
+Set 4M/3W and 4W/3M indicator colors
+    When there is a specific gender ratio for a point, the app will show a small badge indicating
+    the prescribed gender ratio. These default to blue and red for 4M/3W and 4W/3M, respectively.
+    This setting lets you change these to different colors if you prefer, or set them both to
+    black or white if you don't want the color coding.
+
 Use sounds and vibration for timing cues?
     There are three options here:
 

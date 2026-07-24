@@ -49,7 +49,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -61,8 +60,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import java.time.LocalDate
 import java.time.LocalTime
-import com.github.skydoves.colorpicker.compose.HsvColorPicker
-import com.github.skydoves.colorpicker.compose.rememberColorPickerController
 
 /**
  * Numeric game-rule editor dialog target.
@@ -652,10 +649,15 @@ internal fun SetupScreen(
         // No else branch: every TeamSetupDialog value is handled.
         when (target.dialog) {
             TeamSetupDialog.COLOR -> {
-                TeamColorSetupDialog(
-                    teamLabel = targetLabel,
-                    teamFieldLabel = target.teamId.defaultName(),
-                    team = targetTeam,
+                val testTagPrefix = "setup-${target.teamId.defaultName()}-color"
+                ColorChoiceDialog(
+                    title = "$targetLabel Color",
+                    selectedPreset = targetTeam.color.takeUnless {
+                        it == TeamColorChoice.CUSTOM
+                    },
+                    customColorArgb = targetTeam.customColorArgb,
+                    customColorSelected = targetTeam.color == TeamColorChoice.CUSTOM,
+                    testTagPrefix = testTagPrefix,
                     onPresetColorSelected = { color ->
                         changeTargetTeam(targetTeam.copy(color = color))
                         teamDialog = null
@@ -677,11 +679,12 @@ internal fun SetupScreen(
             }
 
             TeamSetupDialog.CUSTOM_COLOR -> {
-                CustomTeamColorSetupDialog(
-                    teamLabel = targetLabel,
-                    teamFieldLabel = target.teamId.defaultName(),
-                    team = targetTeam,
-                    onCustomColorSelected = { colorArgb ->
+                CustomColorChoiceDialog(
+                    title = "$targetLabel Color",
+                    initialColorArgb = targetTeam.customColorArgb
+                        ?: targetTeam.accent.toOpaqueArgbLong(),
+                    testTagPrefix = "setup-${target.teamId.defaultName()}-color",
+                    onColorSelected = { colorArgb ->
                         changeTargetTeam(
                             targetTeam.copy(
                                 color = TeamColorChoice.CUSTOM,
@@ -2534,148 +2537,6 @@ private fun TeamNamesInlineSummary(
 }
 
 /**
- * Render the team-color setup dialog.
- *
- * @param teamLabel The display name for the team being edited.
- * @param teamFieldLabel The stable setup field label used for test tags.
- * @param team The team setup values being edited.
- * @param onPresetColorSelected Callback receiving the selected preset team color.
- * @param onCustomColorSelected Callback receiving the selected custom team color as opaque ARGB.
- * @param onMoreColors Callback opening the full custom color picker.
- * @param onDismiss Callback closing the dialog.
- */
-@Composable
-private fun TeamColorSetupDialog(
-    teamLabel: String,
-    teamFieldLabel: String,
-    team: TeamState,
-    onPresetColorSelected: (TeamColorChoice) -> Unit,
-    onCustomColorSelected: (Long) -> Unit,
-    onMoreColors: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("$teamLabel Color") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                ColorChoiceRow(
-                    selected = team.color.takeUnless { it == TeamColorChoice.CUSTOM },
-                    testTagPrefix = "setup-$teamFieldLabel-color",
-                    onSelected = {
-                        onPresetColorSelected(it)
-                    },
-                )
-                if (team.customColorArgb != null) {
-                    CustomColorChoiceRow(
-                        color = Color(team.customColorArgb),
-                        selected = team.color == TeamColorChoice.CUSTOM,
-                        testTag = "setup-$teamFieldLabel-color-custom",
-                        onClick = {
-                            onCustomColorSelected(team.customColorArgb)
-                        },
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            TeamColorDialogActions(
-                confirmText = "More colors",
-                confirmTestTag = "setup-$teamFieldLabel-color-more",
-                onCancel = onDismiss,
-                onConfirm = onMoreColors,
-            )
-        },
-    )
-}
-
-/**
- * Render the full custom team-color picker dialog.
- *
- * @param teamLabel The display name for the team being edited.
- * @param teamFieldLabel The stable setup field label used for test tags.
- * @param team The team setup values being edited.
- * @param onCustomColorSelected Callback receiving the selected custom team color as opaque ARGB.
- * @param onDismiss Callback closing the dialog.
- */
-@Composable
-private fun CustomTeamColorSetupDialog(
-    teamLabel: String,
-    teamFieldLabel: String,
-    team: TeamState,
-    onCustomColorSelected: (Long) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    var customColor by remember(team.customColorArgb, team.color) {
-        mutableStateOf(team.customColorArgb?.let(::Color) ?: team.accent)
-    }
-
-    fun useColorAndDismiss() {
-        onCustomColorSelected(customColor.toOpaqueArgbLong())
-    }
-
-    AlertDialog(
-        onDismissRequest = {
-            useColorAndDismiss()
-        },
-        title = { Text("$teamLabel Color") },
-        text = {
-            CustomColorPicker(
-                initialColor = customColor,
-                testTagPrefix = "setup-$teamFieldLabel-color",
-                onColorChange = {
-                    customColor = it
-                },
-            )
-        },
-        confirmButton = {
-            TeamColorDialogActions(
-                confirmText = "Use this color",
-                confirmTestTag = null,
-                onCancel = onDismiss,
-                onConfirm = ::useColorAndDismiss,
-            )
-        },
-    )
-}
-
-/**
- * Render the color dialog action row with cancel on the left and the next action on the right.
- *
- * @param confirmText Text for the right-side action.
- * @param confirmTestTag Optional test tag for the right-side action.
- * @param onCancel Callback closing the dialog without applying a new color.
- * @param onConfirm Callback running the right-side color action.
- */
-@Composable
-private fun TeamColorDialogActions(
-    confirmText: String,
-    confirmTestTag: String?,
-    onCancel: () -> Unit,
-    onConfirm: () -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        TextActionButton(
-            label = "Cancel",
-            compact = true,
-            contentPadding = PaddingValues(horizontal = 0.dp, vertical = 8.dp),
-            onClick = onCancel,
-        )
-        TextActionButton(
-            label = confirmText,
-            compact = true,
-            tag = confirmTestTag,
-            contentPadding = PaddingValues(horizontal = 0.dp, vertical = 8.dp),
-            onClick = onConfirm,
-        )
-    }
-}
-
-/**
  * Render the free-form coach and captain names dialog for one team.
  *
  * @param teamLabel The display name for the team being edited.
@@ -2805,182 +2666,6 @@ private fun EditableValueRow(
         colors = neutralOutlinedButtonColors(),
         onClick = onClick,
     )
-}
-
-/**
- * Render a single-row palette for choosing the team color.
- *
- * @param selected The currently selected color.
- * @param testTagPrefix Prefix used to build test tags for each color swatch.
- * @param onSelected Callback receiving the newly selected color.
- */
-@Composable
-private fun ColorChoiceRow(
-    selected: TeamColorChoice?,
-    testTagPrefix: String,
-    onSelected: (TeamColorChoice) -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        presetTeamColorChoices.forEach { colorChoice ->
-            ColorSwatch(
-                color = colorChoice.accent,
-                selected = selected == colorChoice,
-                testTag = "$testTagPrefix-${colorChoice.name}",
-                modifier = Modifier
-                    .weight(1f)
-                    .height(28.dp),
-                onClick = {
-                    onSelected(colorChoice)
-                },
-            )
-        }
-    }
-}
-
-private val presetTeamColorChoices: List<TeamColorChoice>
-    get() = TeamColorChoice.entries.filter { it != TeamColorChoice.CUSTOM }
-
-/**
- * Render the saved custom color as a second-row swatch.
- *
- * @param color The saved custom jersey color.
- * @param selected Whether the saved custom color is currently selected.
- * @param testTag Test tag attached to the swatch.
- * @param onClick Callback invoked when the swatch is tapped.
- */
-@Composable
-private fun CustomColorChoiceRow(
-    color: Color,
-    selected: Boolean,
-    testTag: String,
-    onClick: () -> Unit,
-) {
-    Row(modifier = Modifier.fillMaxWidth()) {
-        ColorSwatch(
-            color = color,
-            selected = selected,
-            testTag = testTag,
-            modifier = Modifier.size(32.dp),
-            onClick = onClick,
-        )
-    }
-}
-
-/**
- * Render one selectable color swatch using the setup palette selection highlight.
- *
- * @param color Color shown inside the swatch.
- * @param selected Whether the swatch is currently selected.
- * @param testTag Test tag attached to the swatch.
- * @param modifier Modifier controlling swatch size and placement.
- * @param onClick Callback invoked when the swatch is tapped.
- */
-@Composable
-private fun ColorSwatch(
-    color: Color,
-    selected: Boolean,
-    testTag: String,
-    modifier: Modifier,
-    onClick: () -> Unit,
-) {
-    Box(
-        modifier = modifier
-            .testTag(testTag)
-            .background(
-                color = if (selected) Color.Black else Color.Transparent,
-                shape = RoundedCornerShape(6.dp),
-            )
-            .padding(if (selected) 1.dp else 0.dp)
-            .background(
-                color = if (selected) AvatarSelectedColor else Color.Transparent,
-                shape = RoundedCornerShape(6.dp),
-            )
-            .padding(if (selected) 3.dp else 0.dp)
-            .background(
-                color = if (selected) Color.Black else Color.Transparent,
-                shape = RoundedCornerShape(5.dp),
-            )
-            .padding(if (selected) 1.dp else 0.dp)
-            .border(
-                width = if (selected) 0.dp else 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant,
-                shape = RoundedCornerShape(4.dp),
-            )
-            .background(color, RoundedCornerShape(4.dp))
-            .clickable(onClick = onClick),
-    )
-}
-
-/**
- * Render a simple HSV color picker for custom jersey colors.
- *
- * @param initialColor Color used to initialize the picker and preview.
- * @param testTagPrefix Prefix used to build custom picker test tags.
- * @param onColorChange Callback receiving the currently selected custom color.
- */
-@Composable
-private fun CustomColorPicker(
-    initialColor: Color,
-    testTagPrefix: String,
-    onColorChange: (Color) -> Unit,
-) {
-    val controller = rememberColorPickerController()
-    var previewColor by remember(initialColor) {
-        mutableStateOf(initialColor)
-    }
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        HsvColorPicker(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(220.dp)
-                .testTag("$testTagPrefix-custom-picker"),
-            controller = controller,
-            initialColor = initialColor,
-            onColorChanged = { colorEnvelope ->
-                previewColor = colorEnvelope.color.copy(alpha = 1f)
-                onColorChange(previewColor)
-            },
-        )
-        CustomColorPreview(
-            color = previewColor,
-            testTag = "$testTagPrefix-custom-preview",
-            onClick = {
-                onColorChange(previewColor)
-            },
-        )
-    }
-}
-
-/**
- * Render the selected custom color as a preview bar.
- *
- * @param color The custom jersey color to display.
- * @param testTag Test tag attached to the preview.
- * @param onClick Callback invoked when the preview is tapped.
- */
-@Composable
-private fun CustomColorPreview(
-    color: Color,
-    testTag: String,
-    onClick: () -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(36.dp)
-            .testTag(testTag)
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(6.dp))
-            .background(color, RoundedCornerShape(6.dp))
-            .clickable(onClick = onClick),
-    )
-}
-
-/// Return an opaque ARGB long for a Compose color.
-private fun Color.toOpaqueArgbLong(): Long {
-    return copy(alpha = 1f).toArgb().toLong() and 0xFFFFFFFFL
 }
 
 /**

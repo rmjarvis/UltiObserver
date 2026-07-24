@@ -11,6 +11,42 @@ import org.junit.Test
 /// Tests for mixed-division gender-ratio and majority-pull rules.
 class TestMixed : GameDomainTestFixtures() {
     /**
+     * Test default and observer-selected field-badge colors.
+     */
+    @Test
+    fun genderRatioBadgeColors() {
+        // New settings use the standard team blue and red for the two point ratios.
+        val defaults = Settings()
+        assertEquals(
+            TeamColorChoice.BLUE.accentArgb,
+            defaults.genderRatioBadgeColorArgb(GenderRatio.FOUR_MEN_THREE_WOMEN),
+        )
+        assertEquals(
+            TeamColorChoice.RED.accentArgb,
+            defaults.genderRatioBadgeColorArgb(GenderRatio.FOUR_WOMEN_THREE_MEN),
+        )
+
+        // Each ratio can independently use the same neutral black option.
+        val blackBadges = defaults
+            .withGenderRatioBadgeColor(
+                GenderRatio.FOUR_MEN_THREE_WOMEN,
+                TeamColorChoice.BLACK.accentArgb,
+            )
+            .withGenderRatioBadgeColor(
+                GenderRatio.FOUR_WOMEN_THREE_MEN,
+                TeamColorChoice.BLACK.accentArgb,
+            )
+        assertEquals(
+            TeamColorChoice.BLACK.accentArgb,
+            blackBadges.genderRatioBadgeColorArgb(GenderRatio.FOUR_MEN_THREE_WOMEN),
+        )
+        assertEquals(
+            TeamColorChoice.BLACK.accentArgb,
+            blackBadges.genderRatioBadgeColorArgb(GenderRatio.FOUR_WOMEN_THREE_MEN),
+        )
+    }
+
+    /**
      * Test basic display details of the various gender ratio rules.
      */
     @Test
