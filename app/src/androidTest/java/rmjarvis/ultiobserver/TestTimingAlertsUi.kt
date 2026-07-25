@@ -8,6 +8,7 @@ import androidx.compose.ui.test.performClick
 import androidx.test.espresso.Espresso.pressBackUnconditionally
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -17,8 +18,8 @@ class TestTimingAlertsUi : MainActivityUiTestFixtures() {
     /**
      * Test the cap-alert permission dialog actions when Android requires exact-alarm access.
      *
-     * In our test matrix, we explicitly set the Pixel 7 API 33 device to have
-     * SCHEDULE_EXACT_ALARM deny, so it will trigger the permission dialog.
+     * In our test matrix, we explicitly assign one modern device the
+     * SCHEDULE_EXACT_ALARM deny role, so it will trigger the permission dialog.
      * Starting a new game with cap alerts enabled shows a warning before the game starts.
      * This test clicks the settings link, returns to UltiObserver, then starts again and
      * uses the Ignore path so the app still reaches the live game screen.
@@ -34,6 +35,15 @@ class TestTimingAlertsUi : MainActivityUiTestFixtures() {
         // * at least one cap needs to have a sound/vibrate action and be enabled in the rules.
         // Here we turn on all three and use vibration.
         val hasExactAlarmAccess = enableCapTimingAlertsProgrammatically()
+        val expectedExactAlarmMode = InstrumentationRegistry.getArguments()
+            .getString("expectedExactAlarmMode")
+        if (expectedExactAlarmMode != null) {
+            assertEquals(
+                "Matrix role $expectedExactAlarmMode did not match canScheduleExactAlarms()",
+                expectedExactAlarmMode == "allow",
+                hasExactAlarmAccess,
+            )
+        }
 
         // Starting setup either shows the exact-alarm warning or goes directly to the live screen,
         // according to the Android permission state captured after the test seeded alert settings.

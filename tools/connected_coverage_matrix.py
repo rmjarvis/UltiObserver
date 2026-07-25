@@ -214,15 +214,19 @@ def run_for_device(args: argparse.Namespace, device: MatrixDevice, root: Path) -
     # Set the app-op after both APKs are installed.  Gradle's connected test task may reinstall
     # the app after external setup, so the script invokes instrumentation directly below.
     run([args.gradle, "app:installDebug", "app:installDebugAndroidTest"], cwd=root, env=env)
+    clear_app_data(args.adb, device, root)
     set_exact_alarm_appop(args.adb, device, root)
 
     start_time = time.monotonic()
     coverage_file = None if args.no_coverage else f"/sdcard/Download/ultiobserver-{device.label}.ec"
+    if coverage_file is not None:
+        clear_device_coverage_file(args.adb, device, root, coverage_file)
     run_instrumentation(args.adb, device, root, args.test_class, coverage_file)
     elapsed = time.monotonic() - start_time
     print(f"{device.label}: instrumentation finished in {elapsed:.1f}s", flush=True)
 
     if coverage_file is not None:
+        require_device_coverage_file(args.adb, device, root, coverage_file)
         preserve_device_coverage(
             adb=args.adb,
             preserved_coverage_dir=root / args.preserved_coverage_dir,
@@ -270,7 +274,7 @@ def run_gradle_connected_coverage(
 
 
 def set_exact_alarm_appop(adb: Path, device: MatrixDevice, root: Path) -> None:
-    """Set exact-alarm app-op for one device when requested."""
+    """Set and verify the exact-alarm app-op for one device when requested."""
 
     if device.exact_alarm_mode == "skip":
         print(f"{device.label}: leaving exact-alarm app-op unchanged", flush=True)
@@ -289,6 +293,99 @@ def set_exact_alarm_appop(adb: Path, device: MatrixDevice, root: Path) -> None:
         device.exact_alarm_mode,
     ]
     run(command, cwd=root)
+    run(
+        [
+            str(adb),
+            "-s",
+            device.serial,
+            "shell",
+            "am",
+            "force-stop",
+            PACKAGE_NAME,
+        ],
+        cwd=root,
+    )
+    output = run_captured(
+        [
+            str(adb),
+            "-s",
+            device.serial,
+            "shell",
+            "cmd",
+            "appops",
+            "get",
+            PACKAGE_NAME,
+            "SCHEDULE_EXACT_ALARM",
+        ],
+        cwd=root,
+    )
+    expected = f"SCHEDULE_EXACT_ALARM: {device.exact_alarm_mode}"
+    if expected not in output:
+        raise RuntimeError(
+            f"{device.label}: expected exact-alarm app-op {device.exact_alarm_mode!r}, "
+            f"but Android reported:\n{output}"
+        )
+
+
+def clear_app_data(adb: Path, device: MatrixDevice, root: Path) -> None:
+    """Reset persisted app state before one direct-instrumentation device run."""
+
+    run(
+        [
+            str(adb),
+            "-s",
+            device.serial,
+            "shell",
+            "pm",
+            "clear",
+            PACKAGE_NAME,
+        ],
+        cwd=root,
+    )
+
+
+def clear_device_coverage_file(
+    adb: Path,
+    device: MatrixDevice,
+    root: Path,
+    coverage_file: str,
+) -> None:
+    """Delete the prior device-side coverage file so stale data cannot be preserved."""
+
+    run(
+        [
+            str(adb),
+            "-s",
+            device.serial,
+            "shell",
+            "rm",
+            "-f",
+            coverage_file,
+        ],
+        cwd=root,
+    )
+
+
+def require_device_coverage_file(
+    adb: Path,
+    device: MatrixDevice,
+    root: Path,
+    coverage_file: str,
+) -> None:
+    """Require instrumentation to have created a new nonempty coverage file."""
+
+    run(
+        [
+            str(adb),
+            "-s",
+            device.serial,
+            "shell",
+            "test",
+            "-s",
+            coverage_file,
+        ],
+        cwd=root,
+    )
 
 
 def run_instrumentation(
@@ -318,6 +415,14 @@ def run_instrumentation(
                 "-e",
                 "coverageFile",
                 coverage_file,
+            ]
+        )
+    if device.exact_alarm_mode != "skip":
+        command.extend(
+            [
+                "-e",
+                "expectedExactAlarmMode",
+                device.exact_alarm_mode,
             ]
         )
     if test_classes:
