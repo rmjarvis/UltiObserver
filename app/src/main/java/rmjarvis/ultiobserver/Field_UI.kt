@@ -196,14 +196,14 @@ internal fun SlideToConfirmControl(
  * @param currentTime The local clock time to display.
  * @param capStatus The next cap status, or null when all caps are passed or irrelevant.
  * @param height The reserved status-line height used for responsive live layout.
- * @param onGameRules Callback opening the game-rules quick reference.
+ * @param onRulesReference Callback opening the rules reference.
  */
 @Composable
 internal fun StatusLine(
     currentTime: LocalTime,
     capStatus: CapStatus?,
     height: Dp,
-    onGameRules: () -> Unit,
+    onRulesReference: () -> Unit,
 ) {
     val clockFontSize = (height.value * 0.68f).coerceIn(28f, 36f).sp
     val capFontSize = (height.value * 0.42f).coerceIn(18f, 22f).sp
@@ -232,7 +232,7 @@ internal fun StatusLine(
                 preferredFontSize = capFontSize,
             )
             GameRulesIcon(
-                onClick = onGameRules,
+                onClick = onRulesReference,
                 size = 28.dp,
                 padding = 4.dp,
                 tag = "live-game-rules",

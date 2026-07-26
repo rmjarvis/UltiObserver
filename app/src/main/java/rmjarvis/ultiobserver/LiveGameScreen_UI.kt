@@ -86,7 +86,7 @@ internal fun LiveGameScreen(
 ) {
     var pendingCardTeam by remember { mutableStateOf<TeamId?>(null) }
     var showMoreActionsDialog by remember { mutableStateOf(false) }
-    var showGameRulesDialog by remember { mutableStateOf(false) }
+    var showRulesReference by remember { mutableStateOf(false) }
     var showEventLogSheet by remember { mutableStateOf(false) }
     var pendingTimeoutRequest by remember { mutableStateOf<PendingTimeoutRequest?>(null) }
     var pendingTimeViolationTeam by remember { mutableStateOf<TeamId?>(null) }
@@ -264,8 +264,8 @@ internal fun LiveGameScreen(
                     currentTime = currentClockTime,
                     capStatus = capStatus,
                     height = layoutMetrics.statusHeight,
-                    onGameRules = {
-                        showGameRulesDialog = true
+                    onRulesReference = {
+                        showRulesReference = true
                     },
                 )
 
@@ -443,11 +443,11 @@ internal fun LiveGameScreen(
             team = state.teamFor(team),
             onDismiss = { teamInfoSheetTeam = null },
         )
-    } else if (showGameRulesDialog) {
-        GameRulesDialog(
+    } else if (showRulesReference) {
+        RulesReferenceDialog(
             state = state,
             onDismiss = {
-                showGameRulesDialog = false
+                showRulesReference = false
             },
         )
     } else if (pendingTimeoutRequest != null) {
@@ -808,13 +808,13 @@ internal fun LiveGameScreen(
 }
 
 /**
- * Render a compact quick reference for the active game's rules.
+ * Render the active game's rules reference.
  *
  * @param state Current game state used to combine setup rules with live cap state.
  * @param onDismiss Callback closing the dialog.
  */
 @Composable
-internal fun GameRulesDialog(
+internal fun RulesReferenceDialog(
     state: GameState,
     onDismiss: () -> Unit,
 ) {
@@ -823,8 +823,8 @@ internal fun GameRulesDialog(
         title = { Text("Game rules") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                state.gameRulesDialogRows().forEach { row ->
-                    GameRulesRow(row)
+                state.rulesReferenceItems().forEach { item ->
+                    RulesReferenceRow(item)
                 }
             }
         },
@@ -834,26 +834,26 @@ internal fun GameRulesDialog(
     )
 }
 
-/// Render one compact game-rules row.
+/// Render one row in the rules reference.
 @Composable
-private fun GameRulesRow(row: GameRulesDialogRow) {
+private fun RulesReferenceRow(item: RulesReferenceItem) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = row.label,
+            text = item.label,
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.SemiBold,
             maxLines = 1,
         )
         Text(
-            text = row.value,
+            text = item.value,
             modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.bodyLarge,
-            color = if (row.heatAdjusted) ResetColor else Color.Unspecified,
-            fontWeight = if (row.heatAdjusted) FontWeight.Bold else null,
+            color = if (item.heatAdjusted) ResetColor else Color.Unspecified,
+            fontWeight = if (item.heatAdjusted) FontWeight.Bold else null,
             textAlign = TextAlign.End,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

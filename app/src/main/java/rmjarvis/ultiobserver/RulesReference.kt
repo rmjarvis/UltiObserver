@@ -1,55 +1,59 @@
 package rmjarvis.ultiobserver
 
 /**
- * One labeled row in the game-rules quick reference.
+ * One labeled item in the live rules reference.
  *
  * @param label Short rule name.
  * @param value Compact display value.
  * @param heatAdjusted Whether heat guidance changes this displayed value.
  */
-internal class GameRulesDialogRow(
+internal class RulesReferenceItem(
     val label: String,
     val value: String,
     val heatAdjusted: Boolean,
 )
 
-/// Return compact rows for the game-rules quick reference.
-internal fun GameState.gameRulesDialogRows(): List<GameRulesDialogRow> {
-    val rows = mutableListOf(
-        GameRulesDialogRow("Game to", gameToDialogText(), heatAdjusted = false),
-        GameRulesDialogRow("Half at", halfAtDialogText(), heatAdjusted = false),
-        GameRulesDialogRow("Start time", formatClockTime(startTime), heatAdjusted = false),
+/// Return the items shown in the live rules reference.
+internal fun GameState.rulesReferenceItems(): List<RulesReferenceItem> {
+    val items = mutableListOf(
+        RulesReferenceItem("Game to", gameToReferenceText(), heatAdjusted = false),
+        RulesReferenceItem("Half at", halfAtReferenceText(), heatAdjusted = false),
+        RulesReferenceItem("Start time", formatClockTime(startTime), heatAdjusted = false),
     )
-    capDialogRow(CapType.HALF)?.let { rows += it }
-    capDialogRow(CapType.SOFT)?.let { rows += it }
-    capDialogRow(CapType.HARD)?.let { rows += it }
-    rows += GameRulesDialogRow("Timeouts", rules.formatTimeoutRules(), heatAdjusted = false)
+    capReferenceItem(CapType.HALF)?.let { items += it }
+    capReferenceItem(CapType.SOFT)?.let { items += it }
+    capReferenceItem(CapType.HARD)?.let { items += it }
+    items += RulesReferenceItem("Timeouts", rules.formatTimeoutRules(), heatAdjusted = false)
     if (usesMixedDivision()) {
-        rows += GameRulesDialogRow("Gender ratio", genderRatioDialogText(), heatAdjusted = false)
+        items += RulesReferenceItem(
+            "Gender ratio",
+            genderRatioReferenceText(),
+            heatAdjusted = false,
+        )
     }
     if (rules.heatLevel != HeatLevel.NONE) {
-        rows += GameRulesDialogRow(
+        items += RulesReferenceItem(
             "Heat level",
             rules.formatHeatLevel(compact = true),
             heatAdjusted = rules.heatLevel == HeatLevel.LEVEL_2,
         )
     }
-    rows += GameRulesDialogRow(
+    items += RulesReferenceItem(
         "Time between points",
         rules.formatTimeBetweenPoints(compact = true),
         heatAdjusted = rules.heatLevel == HeatLevel.LEVEL_2,
     )
-    rows += GameRulesDialogRow(
+    items += RulesReferenceItem(
         "Timeout duration",
         rules.formatTimeoutDuration(),
         heatAdjusted = false,
     )
-    rows += GameRulesDialogRow("Halftime", halftimeDialogText(), heatAdjusted = false)
-    return rows
+    items += RulesReferenceItem("Halftime", halftimeReferenceText(), heatAdjusted = false)
+    return items
 }
 
 /// Return the game target currently in effect, mentioning the original target after a cap change.
-private fun GameState.gameToDialogText(): String {
+private fun GameState.gameToReferenceText(): String {
     val currentTarget = winningScore ?: rules.gameTo
     return if (currentTarget == rules.gameTo) {
         rules.gameTo.toString()
@@ -59,7 +63,7 @@ private fun GameState.gameToDialogText(): String {
 }
 
 /// Return the active halftime score target.
-private fun GameState.halfAtDialogText(): String {
+private fun GameState.halfAtReferenceText(): String {
     val originalTarget = halftimeScore(rules)
     val currentTarget = halftimeTargetScore ?: originalTarget
     return if (currentTarget == originalTarget) {
@@ -70,18 +74,18 @@ private fun GameState.halfAtDialogText(): String {
 }
 
 /// Return the halftime duration.
-private fun GameState.halftimeDialogText(): String {
+private fun GameState.halftimeReferenceText(): String {
     return "${rules.halftimeMinutes} min"
 }
 
-/// Return the row for one enabled cap, or null when that cap is disabled.
-private fun GameState.capDialogRow(
+/// Return the reference item for one enabled cap, or null when that cap is disabled.
+private fun GameState.capReferenceItem(
     capType: CapType,
-): GameRulesDialogRow? {
+): RulesReferenceItem? {
     if (!rules.capEnabled(capType)) {
         return null
     }
-    return GameRulesDialogRow(
+    return RulesReferenceItem(
         capType.label,
         formatClockTime(localTimeFromEpoch(capEpoch(capType), timeZone)),
         heatAdjusted = !rules.nominalCapEnabled(capType) ||
@@ -90,7 +94,7 @@ private fun GameState.capDialogRow(
 }
 
 /// Return compact mixed gender-ratio rule text.
-private fun GameState.genderRatioDialogText(): String {
+private fun GameState.genderRatioReferenceText(): String {
     return if (rules.genderRatioRule == GenderRatioRule.GEN_ZONE) {
         if (rules.switchGenZoneAtHalftime) {
             "Gen Zone"

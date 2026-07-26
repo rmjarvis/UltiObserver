@@ -131,10 +131,10 @@ class TestFieldUi : MainActivityUiTestFixtures() {
     }
 
     /**
-     * Test the live field's game-rules quick reference dialog.
+     * Test the live field's rules reference.
      */
     @Test
-    fun gameRulesDialog() {
+    fun rulesReference() {
         // Seed representative rules through setup so the live field exposes the rules quick
         // reference and renders the JVM-computed row values.
         val setup = newSetupGameState(now = 123_000L).copy(
@@ -157,7 +157,7 @@ class TestFieldUi : MainActivityUiTestFixtures() {
         )
         startLiveGameProgrammatically(setup)
 
-        // Opening the rules affordance shows the compact game-rules reference in the field view.
+        // Opening the rules affordance shows the rules reference in the field view.
         composeRule.onNodeWithTag("live-game-rules").performClick()
         waitForText("Game rules")
         composeRule.onNodeWithText("Game to").assertIsDisplayed()

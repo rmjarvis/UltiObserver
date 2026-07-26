@@ -5,11 +5,11 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * Tests for the live field's compact game-rules quick reference.
+ * Tests for the live field's rules reference.
  */
-class TestGameRulesQuickReference : GameDomainTestFixtures() {
+class TestRulesReference : GameDomainTestFixtures() {
     /**
-     * Test how the game-rules quick reference summarizes setup-time rule choices.
+     * Test how the rules reference summarizes setup-time rule choices.
      */
     @Test
     fun setupRuleRows() {
@@ -44,7 +44,7 @@ class TestGameRulesQuickReference : GameDomainTestFixtures() {
                 "Timeout duration" to "70 sec",
                 "Halftime" to "7 min",
             ),
-            fullMixedState.gameRulesDialogRows().testDisplayPairs(),
+            fullMixedState.rulesReferenceItems().testDisplayPairs(),
         )
 
         // Disabled caps and non-mixed gender rules are omitted rather than shown as empty or
@@ -73,7 +73,7 @@ class TestGameRulesQuickReference : GameDomainTestFixtures() {
                 "Timeout duration" to "80 sec",
                 "Halftime" to "7 min",
             ),
-            openNoCapState.gameRulesDialogRows().testDisplayPairs(),
+            openNoCapState.rulesReferenceItems().testDisplayPairs(),
         )
 
         // Normal Gen Zone setup switches at half and can use the compact rule name alone.
@@ -85,7 +85,7 @@ class TestGameRulesQuickReference : GameDomainTestFixtures() {
         )
         assertEquals(
             "Gen Zone",
-            genZoneState.gameRulesDialogRows().testDisplayMap().getValue("Gender ratio"),
+            genZoneState.rulesReferenceItems().testDisplayMap().getValue("Gender ratio"),
         )
 
         // The unusual Gen Zone setup that does not switch at half calls that out explicitly.
@@ -93,7 +93,7 @@ class TestGameRulesQuickReference : GameDomainTestFixtures() {
             "Gen Zone, no switch at half",
             genZoneState.copy(
                 rules = genZoneState.rules.copy(switchGenZoneAtHalftime = false),
-            ).gameRulesDialogRows().testDisplayMap().getValue("Gender ratio"),
+            ).rulesReferenceItems().testDisplayMap().getValue("Gender ratio"),
         )
 
         // Enabled heat/water behavior is shown, including custom configurations.
@@ -103,7 +103,7 @@ class TestGameRulesQuickReference : GameDomainTestFixtures() {
                 rules = openNoCapState.rules.copy(
                     heatLevel = HeatLevel.LEVEL_0,
                 ),
-            ).gameRulesDialogRows().testDisplayMap().getValue("Heat level"),
+            ).rulesReferenceItems().testDisplayMap().getValue("Heat level"),
         )
         assertEquals(
             "Level 1",
@@ -112,13 +112,13 @@ class TestGameRulesQuickReference : GameDomainTestFixtures() {
                     gameTo = 15,
                     heatLevel = HeatLevel.LEVEL_1,
                 ),
-            ).gameRulesDialogRows().testDisplayMap().getValue("Heat level"),
+            ).rulesReferenceItems().testDisplayMap().getValue("Heat level"),
         )
 
         // Level 2 shows only effective cap times and connects affected values through color.
         val levelTwoRows = fullMixedState.copy(
             rules = fullMixedState.rules.withHeatLevel(HeatLevel.LEVEL_2),
-        ).gameRulesDialogRows()
+        ).rulesReferenceItems()
         assertEquals(
             listOf(
                 "Soft cap" to "11:10 AM",
@@ -127,7 +127,7 @@ class TestGameRulesQuickReference : GameDomainTestFixtures() {
                 "Time between points" to "120 sec",
             ),
             levelTwoRows
-                .filter(GameRulesDialogRow::heatAdjusted)
+                .filter(RulesReferenceItem::heatAdjusted)
                 .testDisplayPairs(),
         )
 
@@ -136,28 +136,28 @@ class TestGameRulesQuickReference : GameDomainTestFixtures() {
             rules = fullMixedState.rules.copy(
                 nominalHardCapMinutes = 80,
             ).withHeatLevel(HeatLevel.LEVEL_2),
-        ).gameRulesDialogRows()
+        ).rulesReferenceItems()
         assertEquals(
             listOf("Soft cap", "Heat level", "Time between points"),
             shorterHardCapRows
-                .filter(GameRulesDialogRow::heatAdjusted)
-                .map(GameRulesDialogRow::label),
+                .filter(RulesReferenceItem::heatAdjusted)
+                .map(RulesReferenceItem::label),
         )
 
         // If caps were disabled, level 2 enables them and marks them as heat-adjusted.
         val heatEnabledCapRows = openNoCapState.copy(
             rules = openNoCapState.rules.withHeatLevel(HeatLevel.LEVEL_2),
-        ).gameRulesDialogRows()
+        ).rulesReferenceItems()
         assertEquals(
             listOf("Soft cap", "Hard cap", "Heat level", "Time between points"),
             heatEnabledCapRows
-                .filter(GameRulesDialogRow::heatAdjusted)
-                .map(GameRulesDialogRow::label),
+                .filter(RulesReferenceItem::heatAdjusted)
+                .map(RulesReferenceItem::label),
         )
     }
 
     /**
-     * Test how the game-rules quick reference displays live targets changed by caps.
+     * Test how the rules reference displays live targets changed by caps.
      */
     @Test
     fun liveTargetRows() {
@@ -199,7 +199,7 @@ class TestGameRulesQuickReference : GameDomainTestFixtures() {
                 "Timeout duration" to "70 sec",
                 "Halftime" to "7 min",
             ),
-            capAdjustedState.gameRulesDialogRows().testDisplayPairs(),
+            capAdjustedState.rulesReferenceItems().testDisplayPairs(),
         )
 
         // Explicit live targets that still equal the setup targets do not get noisy "was" text.
@@ -215,17 +215,17 @@ class TestGameRulesQuickReference : GameDomainTestFixtures() {
                 "Game to" to "15",
                 "Half at" to "8",
             ),
-            unchangedExplicitState.gameRulesDialogRows().testDisplayPairs().take(2),
+            unchangedExplicitState.rulesReferenceItems().testDisplayPairs().take(2),
         )
     }
 }
 
-/// Return the visible label/value pairs for game-rules row assertions.
-private fun List<GameRulesDialogRow>.testDisplayPairs(): List<Pair<String, String>> {
-    return map { row -> row.label to row.value }
+/// Return the visible label/value pairs for rules-reference assertions.
+private fun List<RulesReferenceItem>.testDisplayPairs(): List<Pair<String, String>> {
+    return map { item -> item.label to item.value }
 }
 
-/// Return the visible values keyed by label for individual game-rules row assertions.
-private fun List<GameRulesDialogRow>.testDisplayMap(): Map<String, String> {
-    return associate { row -> row.label to row.value }
+/// Return the visible rules-reference values keyed by label.
+private fun List<RulesReferenceItem>.testDisplayMap(): Map<String, String> {
+    return associate { item -> item.label to item.value }
 }
