@@ -244,7 +244,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("setup-far-end-name")
             .performTextReplacement("River")
         composeRule.onNodeWithTag("setup-far-end-name").performImeAction()
-        dismissDialog(text = "Done", clearKeyboard = true)
+        dismissDialog(text = "Done")
         waitForText("Road / River")
 
         // Dismissal also follows Done when no text field has focus.
@@ -673,7 +673,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         openGameInformationSetupEditor()
         composeRule.onNodeWithTag("setup-tournament-name")
             .performTextReplacement("Dismissed Tournament")
-        dismissDialog(text = "Done", clearKeyboard = true)
+        dismissDialog(text = "Done")
         waitForText("Dismissed Tournament")
 
         // Dismissal also follows Done when no text field has focus.

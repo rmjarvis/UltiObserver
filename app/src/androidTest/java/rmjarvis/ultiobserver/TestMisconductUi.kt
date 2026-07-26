@@ -612,7 +612,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("card-player-name").performTextReplacement("Different Handler")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Same number, different names")
-        dismissDialog(tag = "same-number-warning-cancel", clearKeyboard = true)
+        dismissDialog(tag = "same-number-warning-cancel")
         waitForText("Add red card")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Same number, different names")

@@ -35,6 +35,9 @@ private val explicitControlDismissalCoverageAvds = setOf(
     "Pixel_10",
 )
 
+private const val ROOT_VIEW_WITHOUT_FOCUS_EXCEPTION_NAME =
+    "androidx.test.espresso.base.RootViewPicker\$RootViewWithoutFocusException"
+
 /// Shared Compose UI navigation and state-seeding helpers for instrumentation tests.
 abstract class MainActivityUiTestFixtures {
     @get:Rule
@@ -436,44 +439,38 @@ abstract class MainActivityUiTestFixtures {
      *
      * @param text Visible dialog button text for devices that cover explicit controls.
      * @param tag Visible dialog control tag for devices that cover explicit controls.
-     * @param clearKeyboard Whether platform Back may need one press to exit focused text entry
-     * before the dialog receives Back.
      */
     protected fun dismissDialog(
         text: String? = null,
         tag: String? = null,
-        clearKeyboard: Boolean = false,
     ) {
         require((text == null) != (tag == null)) {
             "dismissDialog requires exactly one fallback text or tag."
         }
-        if (shouldUsePlatformBackDismissalCoverage()) {
+        var useExplicitControl = !shouldUsePlatformBackDismissalCoverage()
+        if (!useExplicitControl) {
             if (tag != null) {
                 waitForTag(tag)
             } else {
                 waitForText(text!!)
             }
-            pressDialogBack()
-            if (clearKeyboard) {
-                // On some API levels, Back first exits focused text entry.  If the dialog's
-                // fallback control is still present, press Back again to exercise dismiss.
-                if (
-                    tag != null &&
-                    composeRule.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()
-                ) {
-                    pressDialogBack()
+            try {
+                pressDialogBack()
+            } catch (failure: RuntimeException) {
+                // Espresso can occasionally select an app root that has lost window focus before
+                // sending Back. Use this dialog's explicit control rather than retrying that root.
+                if (failure.javaClass.name != ROOT_VIEW_WITHOUT_FOCUS_EXCEPTION_NAME) {
+                    throw failure
                 }
-                if (
-                    text != null &&
-                    composeRule.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
-                ) {
-                    pressDialogBack()
-                }
+                useExplicitControl = true
             }
-        } else if (tag != null) {
-            composeRule.onNodeWithTag(tag).performClick()
-        } else {
-            composeRule.onNodeWithText(text!!).performClick()
+        }
+        if (useExplicitControl) {
+            if (tag != null) {
+                composeRule.onNodeWithTag(tag).performClick()
+            } else {
+                composeRule.onNodeWithText(text!!).performClick()
+            }
         }
     }
 
