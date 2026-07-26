@@ -251,7 +251,7 @@ class TestMixed : GameDomainTestFixtures() {
         // A majority-pull preview uses the majority-pull title without mutating the current state.
         var state = mixedLiveGameState()
         val preview = state.previewPullViolation(VC, PullViolationType.MAJORITY_PULL).event
-        assertEquals("Majority pull rule violation", preview.formatPopupTitle())
+        assertEquals("Majority pull violation", preview.formatPopupTitle())
 
         // Recording a majority-pull violation uses its own event labels and the shared
         // pull-violation ladder.
@@ -278,6 +278,11 @@ class TestMixed : GameDomainTestFixtures() {
                 "Animal starts at the brick mark.\n\n" +
                 "The disc is live -- no defensive check is required.",
             majorityPullResult.message(),
+        )
+        assertEquals(
+            "Animal starts at the brick mark.",
+            (majorityPullResult.event as GameEvent.PullViolationRecorded)
+                .formatBriefMessage().plainText,
         )
 
         // Further pulling-team violations in the same sequence are ignored.

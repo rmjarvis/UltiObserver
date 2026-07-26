@@ -673,12 +673,9 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         openGameInformationSetupEditor()
         composeRule.onNodeWithTag("setup-tournament-name")
             .performTextReplacement("Dismissed Tournament")
+        composeRule.onNodeWithTag("setup-tournament-name").performImeAction()
         dismissDialog(text = "Done")
-        waitForText("Dismissed Tournament")
-
-        // Dismissal also follows Done when no text field has focus.
-        openGameInformationSetupEditor()
-        dismissDialog(text = "Done")
+        composeRule.onAllNodesWithTag("setup-tournament-name").assertCountEquals(0)
         waitForText("Dismissed Tournament")
     }
 

@@ -308,22 +308,45 @@ internal fun GameEvent.TimeoutUnavailable.formatPopupTitle(): String = "Timeout 
 internal fun GameEvent.TeamOutOfTimeouts.formatPopupTitle(): String = "Invalid timeout"
 
 /// Format a timeout-charged event message with the remaining timeout count.
-internal fun GameEvent.TimeoutCharged.formatMessage(): String {
+internal fun GameEvent.TimeoutCharged.formatMessage(): RuleGuidanceMessage {
     val timeoutCount = state.timeoutsRemaining(team)
-    return "Timeout charged to ${state.teamName(team)}. " +
-        "They have ${countedNounPhrase(timeoutCount, "timeout")} remaining in this half."
+    return RuleGuidanceMessage(
+        listOf(
+            RuleGuidanceLine(
+                "Timeout charged to ${state.teamName(team)}. " +
+                    "They have ${countedNounPhrase(timeoutCount, "timeout")} remaining in this half."
+            )
+        )
+    )
+}
+
+/// Format a concise timeout confirmation.
+internal fun GameEvent.TimeoutCharged.formatBriefMessage(): RuleGuidanceMessage {
+    return RuleGuidanceMessage(
+        listOf(
+            RuleGuidanceLine("Timeout charged to ${state.teamName(team)}.")
+        )
+    )
 }
 
 /// Format a timeout-unavailable event message.
-internal fun GameEvent.TimeoutUnavailable.formatMessage(): String {
-    return "Timeouts are not available now."
+internal fun GameEvent.TimeoutUnavailable.formatMessage(): RuleGuidanceMessage {
+    return RuleGuidanceMessage(
+        listOf(RuleGuidanceLine("Timeouts are not available now."))
+    )
 }
 
 /// Format an out-of-timeouts event message.
-internal fun GameEvent.TeamOutOfTimeouts.formatMessage(): String {
-    val message = "${this.state.teamName(this.team)} is out of timeouts."
+internal fun GameEvent.TeamOutOfTimeouts.formatMessage(): RuleGuidanceMessage {
+    val lines = mutableListOf(
+        RuleGuidanceLine("${state.teamName(team)} is out of timeouts.")
+    )
     if (state.phase != GamePhase.LIVE_POINT) {
-        return message
+        return RuleGuidanceMessage(lines)
     }
-    return "$message\n\nAdd three to the stall count. It is a turnover if that is 10 or more."
+    lines += RuleGuidanceLine("")
+    lines += RuleGuidanceLine(
+        "Add three to the stall count. It is a turnover if that is 10 or more."
+    )
+    return RuleGuidanceMessage(lines)
 }

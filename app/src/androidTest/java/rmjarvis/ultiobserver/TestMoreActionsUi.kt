@@ -21,6 +21,8 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
      */
     @Test
     fun heatLevelThreeSuspendsGame() {
+        setRuleGuidanceMode(RuleGuidanceMode.FULL)
+
         startLiveGameProgrammatically()
         openMoreActionsDialog()
         composeRule.onNodeWithText("Set heat level").performClick()
@@ -41,6 +43,8 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
      */
     @Test
     fun moreActionsPathways() {
+        setRuleGuidanceMode(RuleGuidanceMode.FULL)
+
         // Start from a live game so More actions exposes the observer-facing correction tools.
         startLiveGameProgrammatically()
 

@@ -226,7 +226,7 @@ abstract class GameDomainTestFixtures {
      * @param team The team receiving the technical foul.
      */
     protected fun GameState.assessTechnicalFoul(team: TeamId): CardAssessmentResult {
-        return assessTechnicalFoul(team, 0L)
+        return assessTechnicalFoul(team, 0L, RuleGuidanceMode.FULL)
     }
 
     /**
@@ -391,22 +391,22 @@ abstract class GameDomainTestFixtures {
 
     /// Return the formatted popup message for a card assessment.
     protected fun CardAssessmentResult.message(): String? {
-        return event.formatMessage()
+        return event.formatMessage().plainText
     }
 
     /// Return the formatted popup message for a timeout assessment.
     protected fun TimeoutAssessmentResult.message(): String {
-        return event.formatMessage()
+        return event.formatMessage().plainText
     }
 
     /// Return the formatted popup message for a pull-violation assessment.
     protected fun PullViolationAssessmentResult.message(): String? {
-        return event?.formatMessage()
+        return event?.formatMessage()?.plainText
     }
 
     /// Return the formatted popup message for a time-violation assessment.
     protected fun TimeViolationAssessmentResult.message(): String? {
-        return event?.formatMessage()
+        return event?.formatMessage()?.plainText
     }
 
     /**

@@ -52,7 +52,7 @@ Clicking the button for the pull violation opens a popup message telling you the
 of the violations -- where the offense should put the disc into play and whether there is a check.
 
 For mixed games, you can record a majority pull violation by clicking **Offsides** and then
-clicking **This was a Majority pull rule violation** on the popup page. The consequences are the
+clicking **This was a Majority pull violation** on the popup page. The consequences are the
 same in either case, but this will record the violation event with the correct name.
 
 .. _time-violations:

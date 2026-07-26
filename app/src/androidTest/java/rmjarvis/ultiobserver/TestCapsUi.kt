@@ -28,53 +28,57 @@ class TestCapsUi : MainActivityUiTestFixtures() {
      */
     @Test
     fun capPromptPathways() {
+        setRuleGuidanceMode(RuleGuidanceMode.FULL)
+
         // Half cap can be applied from its confirmation prompt.
         startLiveGameWithDueCap("Half cap", "Half cap")
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
-        waitForText("Apply half cap?")
-        composeRule.onNodeWithText("Apply").performClick()
+        waitForText("Half cap")
+        composeRule.onNodeWithText("OK").performClick()
         waitForText("Undo Apply half cap")
 
         // Half cap can also be deferred from its confirmation prompt.
         startLiveGameWithDueCap("Half cap", "Half cap")
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
-        waitForText("Apply half cap?")
-        composeRule.onNodeWithText("No").performClick()
+        waitForText("Half cap")
+        composeRule.onNodeWithText("Not yet").performClick()
         assertLiveScreen()
 
         // Soft cap can be applied from its confirmation prompt.
         startLiveGameWithDueCap("Soft cap", "Soft cap")
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
-        waitForText("Apply soft cap?")
-        composeRule.onNodeWithText("Apply").performClick()
+        waitForText("Soft cap")
+        composeRule.onNodeWithText("OK").performClick()
         waitForText("Undo Apply soft cap")
 
         // Soft cap can also be deferred.
         startLiveGameWithDueCap("Soft cap", "Soft cap")
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
-        waitForText("Apply soft cap?")
-        composeRule.onNodeWithText("No").performClick()
+        waitForText("Soft cap")
+        composeRule.onNodeWithText("Not yet").performClick()
         assertLiveScreen()
 
-        // A soft cap scheduled during halftime should say it is scheduled, not already past.
+        // A future soft cap during halftime should say when it is scheduled and why it applies.
         startLiveGameWithCapDuringHalftime("Soft cap", "Soft cap")
         openMoreActionsDialog()
         composeRule.onNodeWithText("Start halftime").performClick()
-        waitForText("Apply soft cap?")
+        waitForText("Soft cap")
         waitForText("is scheduled for", substring = true)
-        composeRule.onNodeWithText("No").performClick()
+        waitForText("which is during halftime, so we can apply it now", substring = true)
+        waitForText("The new winning score is 2.", substring = true)
+        composeRule.onNodeWithText("Not yet").performClick()
         waitForText("Halftime")
         composeRule.onAllNodesWithText("OK").onLast().performClick()
 
         // Hard cap can be deferred, then applied on a tied score to keep the game live.
         startLiveGameWithDueCap("Hard cap", "Hard cap")
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
-        waitForText("Apply hard cap?")
-        composeRule.onNodeWithText("No").performClick()
+        waitForText("Hard cap")
+        composeRule.onNodeWithText("Not yet").performClick()
         assertLiveScreen()
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "goal")).performClick()
-        waitForText("Apply hard cap?")
-        composeRule.onNodeWithText("Apply").performClick()
+        waitForText("Hard cap")
+        composeRule.onNodeWithText("OK").performClick()
         waitForText("Undo Apply hard cap")
         assertLiveScreen()
     }
@@ -111,6 +115,7 @@ class TestCapsUi : MainActivityUiTestFixtures() {
      */
     @Test
     fun softCapWaterBreakPrompts() {
+        setRuleGuidanceMode(RuleGuidanceMode.FULL)
         setAutomaticallyLockLivePoint(false)
 
         val rules = GameRules(
@@ -139,10 +144,13 @@ class TestCapsUi : MainActivityUiTestFixtures() {
             adjustScore(teamOneScore = 2, teamTwoScore = 3, now = preGoalScoreTime)
         }
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
-        waitForText("Apply soft cap?")
-        composeRule.onNodeWithText("Apply").performClick()
-        waitForText("Take a 3-minute water break now?")
-        composeRule.onNodeWithText("Yes").performClick()
+        waitForText("Soft cap")
+        composeRule.onNodeWithText("OK").performClick()
+        waitForText(
+            "Soft cap triggers the first-quarter water break.\n" +
+                "Take a 3-minute water break now."
+        )
+        composeRule.onNodeWithText("OK").performClick()
         waitForText("Undo Water break")
 
         // Applying soft cap from More actions uses the same water-break prompt but can be rejected.
@@ -157,8 +165,11 @@ class TestCapsUi : MainActivityUiTestFixtures() {
         }
         openMoreActionsDialog()
         composeRule.onNodeWithText("Apply soft cap now").performScrollTo().performClick()
-        waitForText("Take a 3-minute water break now?")
-        composeRule.onNodeWithText("No").performClick()
+        waitForText(
+            "Soft cap triggers the first-quarter water break.\n" +
+                "Take a 3-minute water break now."
+        )
+        composeRule.onNodeWithText("Not yet").performClick()
         waitForText("Undo Apply soft cap now")
 
         // Applying hard cap after soft cap is already applied should not offer another soft-cap
@@ -166,7 +177,7 @@ class TestCapsUi : MainActivityUiTestFixtures() {
         openMoreActionsDialog()
         composeRule.onNodeWithText("Apply hard cap now").performScrollTo().performClick()
         waitForText("Undo Apply hard cap now")
-        composeRule.onAllNodesWithText("Take a 3-minute water break now?").assertCountEquals(0)
+        composeRule.onAllNodesWithText("Take a 3-minute water break").assertCountEquals(0)
     }
 
     /**

@@ -870,26 +870,47 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
     @Test
     fun mainSettings() {
         // Seed settings directly so this UI-focused test can start at a meaningful cue state.
+        setRuleGuidanceMode(RuleGuidanceMode.FULL)
         setAutomaticallyAdvanceCountdowns(true)
         setAutomaticallyLockLivePoint(true)
         setShowAbbaRatioAsSequence(true)
 
+        // Rule guidance defaults to Full. Clicking each shows a description of what it does.
+        composeRule.onNodeWithText("Settings").performClick()
+        composeRule.onNodeWithTag("settings-rule-guidance-FULL").assertIsSelected()
+        composeRule.onNodeWithTag("settings-rule-guidance-BRIEF").performClick()
+        composeRule.onNodeWithTag("settings-rule-guidance-BRIEF").assertIsSelected()
+        composeRule.onNodeWithTag("settings-rule-guidance-TIMED").performClick()
+        composeRule.onNodeWithTag("settings-rule-guidance-TIMED").assertIsSelected()
+        composeRule.onNodeWithTag("settings-rule-guidance-description").assertTextEquals(
+            "Show a brief reminder and automatically accept or close after 5 seconds."
+        )
+        composeRule.onNodeWithTag("settings-rule-guidance-NONE").performClick()
+        composeRule.onNodeWithTag("settings-rule-guidance-NONE").assertIsSelected()
+        composeRule.onNodeWithTag("settings-rule-guidance-FULL").performClick()
+        composeRule.onNodeWithTag("settings-rule-guidance-FULL").assertIsSelected()
+
         // Settings should expose automatic live-play options.  The default is to
         // automatically advance to live play when countdowns expire and then lock
         // the screen.  Both aspects of this are settable.
-        composeRule.onNodeWithText("Settings").performClick()
+        composeRule.onNodeWithTag("settings-auto-advance-countdowns").performScrollTo()
         waitForText("Automatically start live play when a countdown expires?")
         composeRule.onNodeWithTag("settings-auto-advance-countdowns-value").assertTextEquals("Yes")
         composeRule.onNodeWithTag("settings-auto-lock-live-point-value").assertTextEquals("Yes")
         composeRule.onNodeWithTag("settings-auto-advance-countdowns").performClick()
-        composeRule.onNodeWithTag("settings-auto-lock-live-point").performClick()
+        composeRule.onNodeWithTag("settings-auto-lock-live-point")
+            .performScrollTo()
+            .performClick()
         composeRule.onNodeWithTag("settings-auto-advance-countdowns-value").assertTextEquals("No")
         composeRule.onNodeWithTag("settings-auto-lock-live-point-value").assertTextEquals("No")
-        composeRule.onNodeWithTag("settings-auto-advance-countdowns").performClick()
+        composeRule.onNodeWithTag("settings-auto-advance-countdowns")
+            .performScrollTo()
+            .performClick()
         composeRule.onNodeWithTag("settings-auto-lock-live-point").performClick()
 
         // By default we don't show countdowns for the defensive check on timeouts and
         // misconduct. The next setting can enable those.
+        composeRule.onNodeWithTag("settings-show-defense-countdowns").performScrollTo()
         composeRule.onNodeWithTag("settings-show-defense-countdowns-value")
             .assertTextEquals("No")
         composeRule.onNodeWithTag("settings-show-defense-countdowns").performClick()
@@ -908,7 +929,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         )
             .assertCountEquals(0)
         dismissDialog(tag = "top-bar-back")
-        waitForText("Automatically start live play when a countdown expires?")
+        composeRule.onNodeWithTag("settings-show-defense-countdowns").performScrollTo()
         composeRule.onNodeWithTag("settings-show-defense-countdowns").performClick()
         waitForText(
             "most observers will count this off themselves with arm chops",

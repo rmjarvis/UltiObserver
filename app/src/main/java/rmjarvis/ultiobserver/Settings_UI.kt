@@ -96,6 +96,50 @@ internal fun SettingsScreen(
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            RuleGuidanceModeSelector(
+                selectedMode = settings.ruleGuidanceMode,
+                onModeChange = {
+                    onSettingsChange(settings.withRuleGuidanceMode(it))
+                },
+            )
+
+            HorizontalDivider()
+
+            TimingAlertGlobalModeSelector(
+                selectedMode = settings.timingAlerts.globalMode,
+                onModeChange = {
+                    onSettingsChange(
+                        settings.withTimingAlerts(settings.timingAlerts.withGlobalMode(it))
+                    )
+                },
+            )
+
+            TimingAlertSoundControls(
+                timingAlertPreferences = settings.timingAlerts,
+                onSoundVolumeChange = {
+                    onSettingsChange(
+                        settings.withTimingAlerts(settings.timingAlerts.withSoundVolume(it))
+                    )
+                },
+                onVibrationDurationChange = {
+                    onSettingsChange(
+                        settings.withTimingAlerts(settings.timingAlerts.withVibrationDuration(it))
+                    )
+                },
+                onVibrateWithSoundsChange = {
+                    onSettingsChange(
+                        settings.withTimingAlerts(settings.timingAlerts.withVibrateWithSounds(it))
+                    )
+                },
+                onOpenTimingCueSettings = onOpenTimingCueSettings,
+                hasTimingCueHaptics = hasTimingCueHaptics,
+                onTestVibration = { durationMillis ->
+                    context.performTimingCueHaptic(durationMillis)
+                },
+            )
+
+            HorizontalDivider()
+
             SettingsSwitchRow(
                 label = "Automatically start live play when a countdown expires?",
                 checked = settings.automaticallyAdvanceCountdowns,
@@ -150,41 +194,6 @@ internal fun SettingsScreen(
                     },
                 )
             }
-
-            HorizontalDivider()
-
-            TimingAlertGlobalModeSelector(
-                selectedMode = settings.timingAlerts.globalMode,
-                onModeChange = {
-                    onSettingsChange(
-                        settings.withTimingAlerts(settings.timingAlerts.withGlobalMode(it))
-                    )
-                },
-            )
-
-            TimingAlertSoundControls(
-                timingAlertPreferences = settings.timingAlerts,
-                onSoundVolumeChange = {
-                    onSettingsChange(
-                        settings.withTimingAlerts(settings.timingAlerts.withSoundVolume(it))
-                    )
-                },
-                onVibrationDurationChange = {
-                    onSettingsChange(
-                        settings.withTimingAlerts(settings.timingAlerts.withVibrationDuration(it))
-                    )
-                },
-                onVibrateWithSoundsChange = {
-                    onSettingsChange(
-                        settings.withTimingAlerts(settings.timingAlerts.withVibrateWithSounds(it))
-                    )
-                },
-                onOpenTimingCueSettings = onOpenTimingCueSettings,
-                hasTimingCueHaptics = hasTimingCueHaptics,
-                onTestVibration = { durationMillis ->
-                    context.performTimingCueHaptic(durationMillis)
-                },
-            )
         }
     }
 
@@ -231,6 +240,49 @@ internal fun SettingsScreen(
             onDismiss = {
                 customColorTarget = null
             },
+        )
+    }
+}
+
+/**
+ * Render the live-game rule-guidance selector and describe the selected behavior.
+ *
+ * @param selectedMode The currently selected guidance mode.
+ * @param onModeChange Callback receiving the newly selected mode.
+ */
+@Composable
+private fun RuleGuidanceModeSelector(
+    selectedMode: RuleGuidanceMode,
+    onModeChange: (RuleGuidanceMode) -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = "How much rule guidance should appear during games?",
+            style = MaterialTheme.typography.titleMedium,
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            RuleGuidanceMode.entries.forEach { mode ->
+                ChoiceChipButton(
+                    label = mode.label,
+                    selected = mode == selectedMode,
+                    tag = "settings-rule-guidance-${mode.name}",
+                    onClick = {
+                        onModeChange(mode)
+                    },
+                )
+            }
+        }
+        Text(
+            text = selectedMode.description,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.testTag("settings-rule-guidance-description"),
         )
     }
 }

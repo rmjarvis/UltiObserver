@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -24,6 +25,8 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
      */
     @Test
     fun pullViolations() {
+        setRuleGuidanceMode(RuleGuidanceMode.FULL)
+
         // Standard games allow one False start and one Offsides per pull sequence.
         startLiveGameProgrammatically()
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "pull-violation")).performClick()
@@ -51,14 +54,14 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         // The initial dialog is Offsides, then the switch action toggles to majority pull and back.
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-violation")).performClick()
         waitForText("Offsides")
-        waitForText("This was a Majority pull rule violation")
-        composeRule.onNodeWithText("This was a Majority pull rule violation").performClick()
-        waitForText("Majority pull rule violation")
+        waitForText("This was a Majority pull violation")
+        composeRule.onNodeWithText("This was a Majority pull violation").performClick()
+        waitForText("Majority pull violation")
         waitForText("This was an Offsides")
         composeRule.onNodeWithText("This was an Offsides").performClick()
         waitForText("Offsides")
-        composeRule.onNodeWithText("This was a Majority pull rule violation").performClick()
-        waitForText("Majority pull rule violation")
+        composeRule.onNodeWithText("This was a Majority pull violation").performClick()
+        waitForText("Majority pull violation")
         composeRule.onNodeWithText("OK").performClick()
         waitForText("Undo Majority pull violation on Team 1")
     }
@@ -68,6 +71,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
      */
     @Test
     fun timeouts() {
+        setRuleGuidanceMode(RuleGuidanceMode.FULL)
         setAutomaticallyAdvanceCountdowns(true)
         setAutomaticallyLockLivePoint(true)
 
@@ -147,10 +151,90 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
     }
 
     /**
+     * Test automatic acceptance and immediate actions for streamlined rule-guidance modes.
+     */
+    @Test
+    fun streamlinedRuleGuidance() {
+        // Timed guidance shows the brief timeout confirmation, then performs its OK action.
+        setRuleGuidanceTimeoutForTest(1_000L)
+        setRuleGuidanceMode(RuleGuidanceMode.TIMED)
+        startLivePointProgrammatically()
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "timeout")).performClick()
+        waitForText("Timeout charged to Team 1.", substring = true)
+        waitForText("Continue point")
+        assertEquals(1, accessCurrentGameState().teamOne.timeoutsUsedThisHalf)
+
+        // None applies an ordinary timeout immediately without presenting guidance.
+        setRuleGuidanceMode(RuleGuidanceMode.NONE)
+        startLivePointProgrammatically()
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "timeout")).performClick()
+        waitForText("Continue point")
+        composeRule.onAllNodesWithText(
+            "Timeout charged to Team 1.",
+            substring = true,
+        ).assertCountEquals(0)
+        assertEquals(1, accessCurrentGameState().teamOne.timeoutsUsedThisHalf)
+
+        // None retains the mixed offsides/majority choice briefly, defaulting to offsides.
+        val mixedSetup = newSetupGameState(now = System.currentTimeMillis()).copy(
+            division = GameDivision.MIXED,
+        )
+        startBetweenPointsProgrammatically(mixedSetup, scoringTeam = TeamId.TEAM_ONE)
+        composeRule.onNodeWithTag(
+            teamActionTag(TeamId.TEAM_ONE, "pull-violation")
+        ).performClick()
+        waitForText("This was a Majority pull violation")
+        waitForText("Undo Offsides on Team 1")
+        assertEquals(1, accessCurrentGameState().teamOne.offsides)
+
+        // None also preserves a five-second opportunity to defer a due cap.
+        showPendingCapOfferProgrammatically(CapType.SOFT)
+        waitForText("Soft cap")
+        waitForText("Undo Apply soft cap")
+
+        // A required event notice still appears in Timed mode, then closes automatically.
+        setRuleGuidanceMode(RuleGuidanceMode.TIMED)
+        startLivePointProgrammatically(
+            newSetupGameState(now = System.currentTimeMillis()).copy(
+                rules = GameRules(
+                    gameTo = 5,
+                    timeoutsPerHalf = 1,
+                    useHalfCap = false,
+                    useSoftCap = false,
+                    useHardCap = false,
+                ),
+            )
+        )
+        updateCurrentStateProgrammatically {
+            copy(
+                teamOne = teamOne.copy(
+                    score = 2,
+                    timeoutsUsedThisHalf = 1,
+                )
+            )
+        }
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "timeout")).performClick()
+        waitForText("Team 1 is out of timeouts.", substring = true)
+        waitForNoText("Team 1 is out of timeouts.", substring = true)
+
+        // The same game reaches halftime on the next goal, and its prompt closes automatically.
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
+        waitForText("Announce halftime.")
+        waitForNoText("Announce halftime.")
+
+        // Ending that game from halftime exercises the game-over form of the same prompt gate.
+        endCurrentGameProgrammatically()
+        waitForText("OK")
+        waitForNoText("OK")
+    }
+
+    /**
      * Test the ability to undo a goal, including one that prompts halftime.
      */
     @Test
     fun undoGoal() {
+        setRuleGuidanceMode(RuleGuidanceMode.FULL)
+
         // A between-points goal implicitly starts the point and exposes a useful undo.
         startLiveGameProgrammatically()
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
@@ -187,6 +271,8 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
      */
     @Test
     fun waterBreaks() {
+        setRuleGuidanceMode(RuleGuidanceMode.FULL)
+
         val manualSetup = newSetupGameState(now = System.currentTimeMillis()).copy(
             rules = GameRules(
                 heatLevel = HeatLevel.LEVEL_0,
@@ -203,16 +289,16 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         unlockLiveScreen()
         val beforeManualCancel = accessCurrentGameState().countdown!!
         composeRule.onNodeWithTag("live-water-break").assertIsDisplayed().performClick()
-        waitForText("Take a 2-minute water break now?")
-        dismissDialog(text = "No")
-        composeRule.onAllNodesWithText("Take a 2-minute water break now?").assertCountEquals(0)
+        waitForText("Take a 2-minute water break now.")
+        dismissDialog(text = "Cancel")
+        composeRule.onAllNodesWithText("Take a 2-minute water break now.").assertCountEquals(0)
         assertEquals(beforeManualCancel.targetEpoch, accessCurrentGameState().countdown?.targetEpoch)
 
         // Accepting the manual prompt adds the configured time and exposes a normal undo action.
         val beforeManualAccept = accessCurrentGameState().countdown!!
         composeRule.onNodeWithTag("live-water-break").performClick()
-        waitForText("Take a 2-minute water break now?")
-        composeRule.onNodeWithText("Yes").performClick()
+        waitForText("Take a 2-minute water break now.")
+        composeRule.onNodeWithText("OK").performClick()
         waitForText("Undo Water break")
         assertEquals(
             beforeManualAccept.targetEpoch + 120_000L,
@@ -237,9 +323,9 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             adjustScore(teamOneScore = 3, teamTwoScore = 0, now = 0L)
         }
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
-        waitForText("Take a 3-minute water break now?")
+        waitForText("First quarter score reached.\nTake a 3-minute water break now.")
         val beforeAutomaticReject = accessCurrentGameState().countdown!!
-        composeRule.onNodeWithText("No").performClick()
+        composeRule.onNodeWithText("Not yet").performClick()
         waitForText("Undo Goal by Team 1")
         assertEquals(
             beforeAutomaticReject.targetEpoch,
@@ -252,9 +338,9 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             adjustScore(teamOneScore = 3, teamTwoScore = 0, now = 0L)
         }
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
-        waitForText("Take a 3-minute water break now?")
+        waitForText("First quarter score reached.\nTake a 3-minute water break now.")
         val beforeAutomaticAccept = accessCurrentGameState().countdown!!
-        composeRule.onNodeWithText("Yes").performClick()
+        composeRule.onNodeWithText("OK").performClick()
         waitForText("Undo Water break")
         assertEquals(
             beforeAutomaticAccept.targetEpoch + 180_000L,
@@ -279,9 +365,10 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         ).assertCountEquals(0)
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
         waitForText(
-            "Level 1 is now in effect, and no water break has been taken this half. Take one now?"
+            "Level 1 is now in effect, and no water break has been taken this half.\n" +
+                "Take a 3-minute water break now."
         )
-        dismissDialog(text = "No")
+        dismissDialog(text = "Not yet")
         waitForText("Undo Goal by Team 1")
     }
 
@@ -334,28 +421,30 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
      */
     @Test
     fun capPromptsDuringExpiredPull() {
+        setRuleGuidanceMode(RuleGuidanceMode.FULL)
+
         startLiveGameProgrammatically()
         showExpiredPullSurface()
 
         // Half cap stays modal over the expired-pull surface until the observer answers it.
         showPendingCapOfferProgrammatically(CapType.HALF)
-        waitForText("Apply half cap?")
+        waitForText("Half cap")
         if (shouldUsePlatformBackDismissalCoverage()) {
             pressDialogBack()
-            waitForText("Apply half cap?")
+            waitForText("Half cap")
         }
-        composeRule.onNodeWithText("No").performClick()
+        composeRule.onNodeWithText("Not yet").performClick()
 
         // Soft cap can be applied from the same expired-pull surface.
         showPendingCapOfferProgrammatically(CapType.SOFT)
-        waitForText("Apply soft cap?")
-        composeRule.onNodeWithText("Apply").performClick()
+        waitForText("Soft cap")
+        composeRule.onNodeWithText("OK").performClick()
         waitForText("Undo Apply soft cap")
 
         // Hard cap uses the same prompt surface but has distinct application logic.
         showPendingCapOfferProgrammatically(CapType.HARD)
-        waitForText("Apply hard cap?")
-        composeRule.onNodeWithText("Apply").performClick()
+        waitForText("Hard cap")
+        composeRule.onNodeWithText("OK").performClick()
         waitForText("Undo Apply hard cap")
     }
 
@@ -391,6 +480,8 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
      */
     @Test
     fun expiredPull() {
+        setRuleGuidanceMode(RuleGuidanceMode.FULL)
+
         startLiveGameProgrammatically()
         showExpiredPullSurface()
 
@@ -452,6 +543,8 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
      */
     @Test
     fun automaticLockScreen() {
+        setRuleGuidanceMode(RuleGuidanceMode.FULL)
+
         // Enable automatic advancement and lock, then expire the opening pull countdown.
         startLiveGameProgrammatically()
         setAutomaticallyAdvanceCountdowns(true)
@@ -579,7 +672,9 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         waitForText("Automatically lock screen when play becomes live?")
         composeRule.onNodeWithTag("settings-auto-advance-countdowns-value").assertTextEquals("Yes")
         composeRule.onNodeWithTag("settings-auto-lock-live-point-value").assertTextEquals("Yes")
-        composeRule.onNodeWithTag("settings-auto-lock-live-point").performClick()
+        composeRule.onNodeWithTag("settings-auto-lock-live-point")
+            .performScrollTo()
+            .performClick()
         composeRule.onNodeWithTag("settings-auto-lock-live-point-value").assertTextEquals("No")
         tapTopBarBack()
         waitForText("Current game")

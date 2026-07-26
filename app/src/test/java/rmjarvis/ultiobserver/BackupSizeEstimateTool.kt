@@ -142,7 +142,11 @@ private fun addTechnicalFoulPressure(
     var state = initialState
     repeat(10) { index ->
         val team = if (index % 2 == 0) TeamId.TEAM_ONE else TeamId.TEAM_TWO
-        state = state.assessTechnicalFoul(team, clock.next()).state
+        state = state.assessTechnicalFoul(
+            team,
+            clock.next(),
+            RuleGuidanceMode.FULL,
+        ).state
     }
     return state
 }

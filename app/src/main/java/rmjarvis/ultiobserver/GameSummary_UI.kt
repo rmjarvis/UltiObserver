@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -42,8 +41,6 @@ import androidx.compose.ui.unit.dp
  * @param onSecondarySummaryAction Optional callback invoked by the second fixed-bottom action.
  * @param onBack Callback returning to the previous screen.
  * @param onHome Callback returning directly to Home.
- * @param gameOverPrompt Optional prompt shown when a live game has just ended.
- * @param onDismissGameOverPrompt Callback dismissing the optional game-over prompt.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,8 +53,6 @@ internal fun GameOverSummaryScreen(
     onSecondarySummaryAction: (() -> Unit)? = null,
     onBack: () -> Unit,
     onHome: () -> Unit,
-    gameOverPrompt: GamePrompt?,
-    onDismissGameOverPrompt: () -> Unit,
 ) {
     var showEventLogSheet by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -101,21 +96,6 @@ internal fun GameOverSummaryScreen(
         )
     }
 
-    if (gameOverPrompt != null) {
-        AlertDialog(
-            onDismissRequest = onDismissGameOverPrompt,
-            title = { Text(gameOverPrompt.formatTitle()) },
-            text = {
-                Text(
-                    text = gameOverPrompt.formatMessage(),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-            },
-            confirmButton = {
-                TextActionButton(label = "OK", onClick = onDismissGameOverPrompt)
-            },
-        )
-    }
 }
 
 /**

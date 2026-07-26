@@ -95,7 +95,11 @@ class TestEventLog : GameDomainTestFixtures() {
             timestampAt(state, LocalTime.of(12, 4)),
             playerName = "Jarvis",
         ).state
-        state = state.assessTechnicalFoul(vc, timestampAt(state, LocalTime.of(12, 5))).state
+        state = state.assessTechnicalFoul(
+            vc,
+            timestampAt(state, LocalTime.of(12, 5)),
+            RuleGuidanceMode.FULL,
+        ).state
 
         // Point, pull-violation, and time-violation entries use their specific outcomes.
         state = recordGoalAt(state, animal, LocalTime.of(12, 7))
@@ -285,7 +289,11 @@ class TestEventLog : GameDomainTestFixtures() {
         var state = standardLiveGameState(startTime = LocalTime.of(12, 0))
         state = state.assessYellowCard(animal, "17", timestampAt(state, LocalTime.of(12, 1)))
             .state
-        state = state.assessTechnicalFoul(vc, timestampAt(state, LocalTime.of(12, 1))).state
+        state = state.assessTechnicalFoul(
+            vc,
+            timestampAt(state, LocalTime.of(12, 1)),
+            RuleGuidanceMode.FULL,
+        ).state
 
         // Manual pull-violation corrections log one entry for each changed count.
         state = state.adjustPullViolations(

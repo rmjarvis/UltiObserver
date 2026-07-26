@@ -30,7 +30,8 @@ private enum class MoreActionsChildDialog {
  * Render the menu content for manual corrections and less-common game actions.
  *
  * @param state The current live game state.
- * @param now The current epoch millis for actions that depend on clock time.
+ * @param now The current epoch millis for event-log timestamps.
+ * @param guidanceMode Amount and duration of rule guidance shown during games.
  * @param onUpdateGameSetup Callback reopening setup for the current game.
  * @param onShowEventLog Callback opening the current game's event log.
  * @param onShowGameSummary Callback opening the current game summary.
@@ -42,6 +43,7 @@ private enum class MoreActionsChildDialog {
 internal fun MoreActionsContent(
     state: GameState,
     now: Long,
+    guidanceMode: RuleGuidanceMode,
     onUpdateGameSetup: () -> Unit,
     onShowEventLog: () -> Unit,
     onShowGameSummary: () -> Unit,
@@ -81,6 +83,7 @@ internal fun MoreActionsContent(
         AdjustCardsDialog(
             state = state,
             now = now,
+            guidanceMode = guidanceMode,
             onDismiss = { childDialog = null },
             onConfirm = { updatedState ->
                 onAction(updatedState)
@@ -213,7 +216,9 @@ internal fun MoreActionsContent(
                         MenuButton(
                             label = "Apply half cap now",
                             onClick = {
-                                onAction(state.makeCapNow(CapType.HALF, now))
+                                onAction(
+                                    state.makeCapNow(CapType.HALF, System.currentTimeMillis())
+                                )
                             },
                         )
                     }
@@ -221,7 +226,7 @@ internal fun MoreActionsContent(
                         MenuButton(
                             label = "Start halftime",
                             onClick = {
-                                onAction(state.startHalftimeNow(now))
+                                onAction(state.startHalftimeNow(System.currentTimeMillis()))
                             },
                         )
                     }
@@ -229,7 +234,9 @@ internal fun MoreActionsContent(
                         MenuButton(
                             label = "Apply soft cap now",
                             onClick = {
-                                onAction(state.makeCapNow(CapType.SOFT, now))
+                                onAction(
+                                    state.makeCapNow(CapType.SOFT, System.currentTimeMillis())
+                                )
                             },
                         )
                     }
@@ -237,14 +244,16 @@ internal fun MoreActionsContent(
                         MenuButton(
                             label = "Apply hard cap now",
                             onClick = {
-                                onAction(state.makeCapNow(CapType.HARD, now))
+                                onAction(
+                                    state.makeCapNow(CapType.HARD, System.currentTimeMillis())
+                                )
                             },
                         )
                     }
                     MenuButton(
                         label = "End game",
                         onClick = {
-                            onAction(state.endGameNow(now))
+                            onAction(state.endGameNow(System.currentTimeMillis()))
                         },
                     )
                 }

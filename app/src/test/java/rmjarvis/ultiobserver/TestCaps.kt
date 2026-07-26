@@ -177,16 +177,16 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(1, state.teamOne.score)
         assertEquals(1, state.teamTwo.score)
         assertEquals(CapType.HALF, state.pendingCapOffer)
-        assertEquals("Apply half cap?", state.capPrompt().formatTitle())
+        assertEquals("Half cap", state.capPrompt().formatTitle())
         val capPrompt: GamePrompt = state.capPrompt()
-        assertEquals("Apply half cap?", capPrompt.formatTitle())
+        assertEquals("Half cap", capPrompt.formatTitle())
         assertEquals(
-            "Half cap was at 10:10 AM. Halftime target would become 2. Apply now?",
-            state.capPrompt().formatMessage(),
+            "Half cap was at 10:10 AM, so it applies now. The new halftime target is 2.",
+            state.capPrompt().formatMessage().plainText,
         )
         assertEquals(
-            "Half cap was at 10:10 AM. Halftime target would become 2. Apply now?",
-            capPrompt.formatMessage(),
+            "Half cap was at 10:10 AM, so it applies now. The new halftime target is 2.",
+            capPrompt.formatMessage().plainText,
         )
 
         // Applying half cap sets the target, clears the offer, and keeps an undo path.
@@ -209,7 +209,7 @@ class TestCaps : GameDomainTestFixtures() {
         assertNull(state.pendingCapOffer)
         val halftimePrompt: GamePrompt = GamePrompt.HalftimeStarted(state)
         assertEquals("Halftime", halftimePrompt.formatTitle())
-        assertEquals("Announce halftime.", halftimePrompt.formatMessage())
+        assertEquals("Announce halftime.", halftimePrompt.formatMessage().plainText)
         assertEquals(state, (halftimePrompt as GamePrompt.HalftimeStarted).state)
 
         // If the observer defers a pending half cap, the offer clears but the cap is not applied.
@@ -273,10 +273,10 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(1, state.teamOne.score)
         assertEquals(1, state.teamTwo.score)
         assertEquals(CapType.SOFT, state.pendingCapOffer)
-        assertEquals("Apply soft cap?", state.capPrompt().formatTitle())
+        assertEquals("Soft cap", state.capPrompt().formatTitle())
         assertEquals(
-            "Soft cap was at 10:20 AM. Winning score would become 2. Apply now?",
-            state.capPrompt().formatMessage(),
+            "Soft cap was at 10:20 AM, so it applies now. The new winning score is 2.",
+            state.capPrompt().formatMessage().plainText,
         )
         state = applyPendingCapAt(state, LocalTime.of(10, 21))
         assertTrue(state.softCapApplied)
@@ -297,10 +297,11 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(2, state.teamOne.score)
         assertEquals(1, state.teamTwo.score)
         assertEquals(CapType.HARD, state.pendingCapOffer)
-        assertEquals("Apply hard cap?", state.capPrompt().formatTitle())
+        assertEquals("Hard cap", state.capPrompt().formatTitle())
         assertEquals(
-            "Hard cap was at 10:30 AM. Score is not tied, so the game would end now. Apply now?",
-            state.capPrompt().formatMessage(),
+            "Hard cap was at 10:30 AM, so it applies now. " +
+                "Score is not tied, so the game is over.",
+            state.capPrompt().formatMessage().plainText,
         )
         state = applyPendingCapAt(state, LocalTime.of(10, 31))
         assertTrue(state.hardCapApplied)
@@ -321,9 +322,9 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(2, state.teamTwo.score)
         assertEquals(CapType.HARD, state.pendingCapOffer)
         assertEquals(
-            "Hard cap was at 10:30 AM. " +
-                "Score is tied, so one more point would be played. Apply now?",
-            state.capPrompt().formatMessage(),
+            "Hard cap was at 10:30 AM, so it applies now. " +
+                "Score is tied, so play one more point.",
+            state.capPrompt().formatMessage().plainText,
         )
         state = applyPendingCapAt(state, LocalTime.of(10, 31))
         assertTrue(state.hardCapApplied)
@@ -394,9 +395,9 @@ class TestCaps : GameDomainTestFixtures() {
         assertTrue(state.halftimeTaken)
         assertEquals(CapType.HARD, state.pendingCapOffer)
         assertEquals(
-            "Hard cap is scheduled for 10:10 AM. " +
-                "Score is not tied, so the game would end during halftime. Apply now?",
-            state.capPrompt().formatMessage(),
+            "Hard cap was at 10:10 AM, so it applies now. " +
+                "Score is not tied, so the game is over.",
+            state.capPrompt().formatMessage().plainText,
         )
         state = applyPendingCapAt(state, LocalTime.of(10, 10))
         assertEquals(GamePhase.GAME_OVER, state.phase)
@@ -420,8 +421,8 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(GamePhase.HALFTIME, state.phase)
         assertEquals(CapType.SOFT, state.pendingCapOffer)
         assertEquals(
-            "Soft cap is scheduled for 10:09 AM. Winning score would become 2. Apply now?",
-            state.capPrompt().formatMessage(),
+            "Soft cap was at 10:09 AM, so it applies now. The new winning score is 2.",
+            state.capPrompt().formatMessage().plainText,
         )
         state = applyPendingCapAt(state, LocalTime.of(10, 10))
         assertTrue(state.softCapApplied)
@@ -444,9 +445,9 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(GamePhase.HALFTIME, state.phase)
         assertEquals(CapType.HARD, state.pendingCapOffer)
         assertEquals(
-            "Hard cap is scheduled for 10:09 AM. " +
-                "Score is not tied, so the game would end during halftime. Apply now?",
-            state.capPrompt().formatMessage(),
+            "Hard cap was at 10:09 AM, so it applies now. " +
+                "Score is not tied, so the game is over.",
+            state.capPrompt().formatMessage().plainText,
         )
 
         // With hard cap disabled, manual halftime can catch soft cap during halftime proper.
@@ -463,8 +464,9 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(GamePhase.HALFTIME, state.phase)
         assertEquals(CapType.SOFT, state.pendingCapOffer)
         assertEquals(
-            "Soft cap is scheduled for 10:12 AM. Winning score would become 2. Apply now?",
-            state.capPrompt().formatMessage(),
+            "Soft cap is scheduled for 10:12 AM, which is during halftime, " +
+                "so we can apply it now. The new winning score is 2.",
+            state.capPrompt().formatMessage().plainText,
         )
 
         // Caps scheduled after halftime ends should wait for the next point.
@@ -510,9 +512,9 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(GamePhase.HALFTIME, state.phase)
         assertEquals(CapType.HARD, state.pendingCapOffer)
         assertEquals(
-            "Hard cap is scheduled for 10:12 AM. " +
-                "Score is not tied, so the game would end during halftime. Apply now?",
-            state.capPrompt().formatMessage(),
+            "Hard cap is scheduled for 10:12 AM, which is during halftime, " +
+                "so we can apply it now. Score is not tied, so the game is over.",
+            state.capPrompt().formatMessage().plainText,
         )
 
         // Soft cap during halftime proper is applied immediately, before the next point starts.
@@ -531,8 +533,9 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(GamePhase.HALFTIME, state.phase)
         assertEquals(CapType.SOFT, state.pendingCapOffer)
         assertEquals(
-            "Soft cap is scheduled for 10:12 AM. Winning score would become 4. Apply now?",
-            state.capPrompt().formatMessage(),
+            "Soft cap is scheduled for 10:12 AM, which is during halftime, " +
+                "so we can apply it now. The new winning score is 4.",
+            state.capPrompt().formatMessage().plainText,
         )
         val halftimeCountdown = state.countdown!!
         state = applyPendingCapAt(state, LocalTime.of(10, 12))
@@ -565,9 +568,9 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(GamePhase.HALFTIME, state.phase)
         assertEquals(CapType.HARD, state.pendingCapOffer)
         assertEquals(
-            "Hard cap is scheduled for 10:20 AM. " +
-                "Score is not tied, so the game would end during halftime. Apply now?",
-            state.capPrompt().formatMessage(),
+            "Hard cap is scheduled for 10:20 AM, which is during halftime, " +
+                "so we can apply it now. Score is not tied, so the game is over.",
+            state.capPrompt().formatMessage().plainText,
         )
         state = applyPendingCapAt(state, LocalTime.of(10, 14))
         assertEquals(GamePhase.GAME_OVER, state.phase)
@@ -598,9 +601,9 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(GamePhase.HALFTIME, state.phase)
         assertEquals(CapType.HARD, state.pendingCapOffer)
         assertEquals(
-            "Hard cap is scheduled for 10:12 AM. " +
-                "Score is tied, so one more point would be played. Apply now?",
-            state.capPrompt().formatMessage(),
+            "Hard cap is scheduled for 10:12 AM, which is during halftime, " +
+                "so we can apply it now. Score is tied, so play one more point.",
+            state.capPrompt().formatMessage().plainText,
         )
         val tiedHardCapHalftimeCountdown = state.countdown
         state = applyPendingCapAt(state, LocalTime.of(10, 12))

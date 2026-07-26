@@ -599,7 +599,7 @@ internal fun TeamState.timeViolationFieldActionLabel(): String {
 internal fun GameEvent.TimeViolationRecorded.formatPopupTitle(): String = "Time violation"
 
 /// Format a time-violation event message with warning, timeout, or no-timeout consequences.
-internal fun GameEvent.TimeViolationRecorded.formatMessage(): String {
+internal fun GameEvent.TimeViolationRecorded.formatMessage(): RuleGuidanceMessage {
     val teamName = state.teamName(team)
     val violationLine = "This is $teamName's ${state.teamFor(team).timeViolations.ordinalWordText()} time violation."
     val consequence = when (outcome) {
@@ -629,5 +629,32 @@ internal fun GameEvent.TimeViolationRecorded.formatMessage(): String {
             "$teamName has no time outs remaining for this half, so a yardage penalty is assessed. $penalty"
         }
     }
-    return "$violationLine\n\n$consequence"
+    return RuleGuidanceMessage(
+        listOf(
+            RuleGuidanceLine(violationLine),
+            RuleGuidanceLine(""),
+            RuleGuidanceLine(consequence),
+        )
+    )
+}
+
+/// Format only the operational consequence of a pull time violation.
+internal fun GameEvent.TimeViolationRecorded.formatBriefMessage(): RuleGuidanceMessage {
+    val teamName = state.teamName(team)
+    val line = when (outcome) {
+        TimeViolationOutcome.WARNING -> if (team == state.pullingTeam) {
+            "Warning only. $teamName has 30 seconds to pull."
+        } else {
+            "Warning only. $teamName has 20 seconds to signal readiness."
+        }
+        TimeViolationOutcome.TIMEOUT -> {
+            "Timeout charged to $teamName. Pull timing restarted."
+        }
+        TimeViolationOutcome.NO_TIMEOUT -> if (team == state.pullingTeam.flip()) {
+            "No pull. $teamName starts at reverse brick."
+        } else {
+            "No pull. ${state.teamName(state.pullingTeam.flip())} starts at midfield."
+        }
+    }
+    return RuleGuidanceMessage(listOf(RuleGuidanceLine(line)))
 }

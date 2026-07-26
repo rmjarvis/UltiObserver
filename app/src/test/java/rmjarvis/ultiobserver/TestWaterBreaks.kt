@@ -167,8 +167,16 @@ class TestWaterBreaks : GameDomainTestFixtures() {
             )
         assertTrue(scheduledOffer.pendingWaterBreakOffer)
         assertEquals(
-            "Take a 3-minute water break now?",
-            scheduledOffer.waterBreakPromptText(),
+            "First quarter score reached.\nTake a 3-minute water break now.",
+            scheduledOffer.waterBreakPromptMessage().plainText,
+        )
+
+        // If soft cap is also active at the scheduled score, the score still triggered this
+        // already-pending break.
+        assertEquals(
+            "First quarter score reached.\nTake a 3-minute water break now.",
+            scheduledOffer.copy(softCapApplied = true)
+                .waterBreakPromptMessage().plainText,
         )
         val firstBreakCountdown = scheduledOffer.countdown!!
         state = scheduledOffer.applyWaterBreak(timestampAt(scheduledOffer, LocalTime.of(10, 8)))
@@ -181,14 +189,29 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         assertFalse(manualModeState.goalTriggersAutomaticWaterBreak(TeamId.TEAM_ONE))
 
         // The second-half break is prompted when a team reaches the third quarter score.
-        state = initialState.adjustScore(teamOneScore = 11, teamTwoScore = 0).copy(
+        val beforeThirdQuarterBreak = initialState.adjustScore(
+            teamOneScore = 11,
+            teamTwoScore = 0,
+        ).copy(
             halftimeTaken = true,
         )
-        assertTrue(state.goalTriggersAutomaticWaterBreak(TeamId.TEAM_ONE))
-        assertFalse(state.goalTriggersAutomaticWaterBreak(TeamId.TEAM_TWO))
-        state = state.adjustScore(teamOneScore = 12, teamTwoScore = 0)
-        val secondBreakCountdown = state.countdown!!
-        state = state.applyWaterBreak(timestampAt(state, LocalTime.of(10, 28)))
+        assertTrue(beforeThirdQuarterBreak.goalTriggersAutomaticWaterBreak(TeamId.TEAM_ONE))
+        assertFalse(beforeThirdQuarterBreak.goalTriggersAutomaticWaterBreak(TeamId.TEAM_TWO))
+        val thirdQuarterOffer = beforeThirdQuarterBreak
+            .beginLivePoint()
+            .recordGoal(
+                TeamId.TEAM_ONE,
+                timestampAt(beforeThirdQuarterBreak, LocalTime.of(10, 27)),
+            )
+        assertTrue(thirdQuarterOffer.pendingWaterBreakOffer)
+        assertEquals(
+            "Third quarter score reached.\nTake a 3-minute water break now.",
+            thirdQuarterOffer.waterBreakPromptMessage().plainText,
+        )
+        val secondBreakCountdown = thirdQuarterOffer.countdown!!
+        state = thirdQuarterOffer.applyWaterBreak(
+            timestampAt(thirdQuarterOffer, LocalTime.of(10, 28))
+        )
         assertEquals(secondBreakCountdown.durationSeconds + 180, state.countdown?.durationSeconds)
 
         // A manual break before the first- or third-quarter score does not suppress the automatic
@@ -251,8 +274,9 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         )
         assertTrue(softCapOffer.pendingWaterBreakOffer)
         assertEquals(
-            "Take a 3-minute water break now?",
-            softCapOffer.waterBreakPromptText(),
+            "Soft cap triggers the third-quarter water break.\n" +
+                "Take a 3-minute water break now.",
+            softCapOffer.waterBreakPromptMessage().plainText,
         )
 
         // Applying soft cap preserves a water-break offer that was already pending.
@@ -269,6 +293,14 @@ class TestWaterBreaks : GameDomainTestFixtures() {
             pendingCapOffer = CapType.SOFT,
         )
         assertTrue(earlySoftCap.softCapWaterBreakReached())
+        val firstHalfSoftCapOffer = earlySoftCap.applyPendingCap(
+            timestampAt(earlySoftCap, LocalTime.of(10, 42)),
+        )
+        assertEquals(
+            "Soft cap triggers the first-quarter water break.\n" +
+                "Take a 3-minute water break now.",
+            firstHalfSoftCapOffer.waterBreakPromptMessage().plainText,
+        )
 
         // A first-half soft cap after the first-quarter break score does not prompt another
         // first-half water break.
@@ -711,8 +743,8 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         val disabled = levelZero.setHeatLevel(HeatLevel.NONE, now + 4_000L)
         assertFalse(disabled.canApplyWaterBreak())
         assertEquals(
-            "Take a 3-minute water break now?",
-            levelZero.waterBreakPromptText(),
+            "Take a 3-minute water break now.",
+            levelZero.waterBreakPromptMessage().plainText,
         )
 
         // Activating level 1 after the quarter score offers a break at that point.
@@ -722,8 +754,8 @@ class TestWaterBreaks : GameDomainTestFixtures() {
             .setHeatLevel(HeatLevel.LEVEL_1, now + 4_100L)
         assertTrue(atScheduledScore.pendingWaterBreakOffer)
         assertEquals(
-            "Take a 3-minute water break now?",
-            atScheduledScore.waterBreakPromptText(),
+            "First quarter score reached.\nTake a 3-minute water break now.",
+            atScheduledScore.waterBreakPromptMessage().plainText,
         )
 
         // ... But not if there was already a water break taken earlier in the half.
@@ -761,9 +793,9 @@ class TestWaterBreaks : GameDomainTestFixtures() {
             .setHeatLevel(HeatLevel.LEVEL_1, now + 4_500L)
         assertTrue(changedDuringPoint.pendingWaterBreakOffer)
         assertEquals(
-            "Level 1 is now in effect, and no water break has been taken this half. " +
-                "Take one now?",
-            changedDuringPoint.waterBreakPromptText(),
+            "Level 1 is now in effect, and no water break has been taken this half.\n" +
+                "Take a 3-minute water break now.",
+            changedDuringPoint.waterBreakPromptMessage().plainText,
         )
         val afterPoint = changedDuringPoint.recordGoal(TeamId.TEAM_ONE, now + 4_600L)
         assertTrue(afterPoint.pendingWaterBreakOffer)

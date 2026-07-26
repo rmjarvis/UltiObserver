@@ -1,5 +1,29 @@
 package rmjarvis.ultiobserver
 
+/**
+ * One line of observer guidance with its semantic emphasis explicitly specified.
+ *
+ * @param text Text rendered on this line.
+ * @param bold Whether this line should be rendered in bold by the UI.
+ */
+internal data class RuleGuidanceLine(
+    val text: String,
+    val bold: Boolean = false,
+)
+
+/**
+ * Structured observer guidance whose emphasis does not need to be inferred from finished prose.
+ *
+ * @param lines Lines in display order, including empty lines used between paragraphs.
+ */
+internal data class RuleGuidanceMessage(
+    val lines: List<RuleGuidanceLine>,
+) {
+    /// Return the same message without presentation metadata.
+    val plainText: String
+        get() = lines.joinToString("\n") { it.text }
+}
+
 /// Model events that report user-visible results from game actions.
 sealed interface GameEvent {
     /**
@@ -98,10 +122,26 @@ sealed interface GameEvent {
     ) : GameEvent
 }
 
+/// Report whether None mode must still surface this event briefly.
+internal fun GameEvent.requiresGuidanceInNone(): Boolean {
+    return when (this) {
+        is GameEvent.TimeoutUnavailable,
+        is GameEvent.TeamOutOfTimeouts -> true
+        is GameEvent.TeamCardsChanged -> hasSuspensionNotice()
+        is GameEvent.PullViolationRecorded -> pullViolationAlternative() != null
+        else -> false
+    }
+}
+
+/// Return the structured full or concise guidance selected for a game event.
+internal fun GameEvent.guidanceMessage(mode: RuleGuidanceMode): RuleGuidanceMessage {
+    return if (mode.usesBriefGuidance()) formatBriefMessage() else formatMessage()
+}
+
 // Keep these as extensions instead of GameEvent members. If they become members, Kotlin
 // resolves same-named subtype extension helpers to the member and recursively calls this dispatcher.
-/// Format UI-facing text for this model event in the current Android app.
-fun GameEvent.formatMessage(): String {
+/// Format full UI-facing guidance for this model event.
+internal fun GameEvent.formatMessage(): RuleGuidanceMessage {
     // This when block does runtime resolution to call the correct subtype's extension function.
     return when (this) {
         is GameEvent.TimeoutCharged -> this.formatMessage()
@@ -111,6 +151,19 @@ fun GameEvent.formatMessage(): String {
         is GameEvent.TechnicalFoulsChanged -> this.formatMessage()
         is GameEvent.PullViolationRecorded -> this.formatMessage()
         is GameEvent.TimeViolationRecorded -> this.formatMessage()
+    }
+}
+
+/// Format concise operational guidance for a live-game popup.
+internal fun GameEvent.formatBriefMessage(): RuleGuidanceMessage {
+    return when (this) {
+        is GameEvent.TimeoutCharged -> this.formatBriefMessage()
+        is GameEvent.TimeoutUnavailable -> this.formatMessage()
+        is GameEvent.TeamOutOfTimeouts -> this.formatMessage()
+        is GameEvent.TeamCardsChanged -> this.formatBriefMessage()
+        is GameEvent.TechnicalFoulsChanged -> this.formatBriefMessage()
+        is GameEvent.PullViolationRecorded -> this.formatBriefMessage()
+        is GameEvent.TimeViolationRecorded -> this.formatBriefMessage()
     }
 }
 
@@ -169,6 +222,11 @@ sealed interface GamePrompt {
     ) : GamePrompt
 }
 
+/// Report whether None mode must still surface this prompt briefly.
+internal fun GamePrompt.requiresGuidanceInNone(): Boolean {
+    return this is GamePrompt.ApplyCap
+}
+
 /// Format title text for prompts that need a dialog title in the current Android app.
 fun GamePrompt.formatTitle(): String {
     return when (this) {
@@ -180,17 +238,24 @@ fun GamePrompt.formatTitle(): String {
 }
 
 /// Format the main text shown to the observer for a prompt.
-fun GamePrompt.formatMessage(): String {
+internal fun GamePrompt.formatMessage(): RuleGuidanceMessage {
     return when (this) {
         is GamePrompt.ApplyCap -> this.formatMessage()
         is GamePrompt.LivePointMisconduct -> this.formatMessage()
-        is GamePrompt.HalftimeStarted -> "Announce halftime."
+        is GamePrompt.HalftimeStarted -> this.formatMessage()
         is GamePrompt.GameOver -> this.formatMessage()
     }
 }
 
 /// Format the title for a halftime-started prompt.
 private fun GamePrompt.HalftimeStarted.formatTitle(): String = "Halftime"
+
+/// Format the halftime-started prompt body.
+private fun GamePrompt.HalftimeStarted.formatMessage(): RuleGuidanceMessage {
+    return RuleGuidanceMessage(
+        listOf(RuleGuidanceLine("Announce halftime."))
+    )
+}
 
 /// Format the title for a game-over prompt.
 private fun GamePrompt.GameOver.formatTitle(): String {
@@ -202,10 +267,12 @@ private fun GamePrompt.GameOver.formatTitle(): String {
 }
 
 /// Format the game-over prompt body with the winner first.
-private fun GamePrompt.GameOver.formatMessage(): String {
+private fun GamePrompt.GameOver.formatMessage(): RuleGuidanceMessage {
     val orderedTeams = state.winnerFirstTeams()
-    return buildString {
-        appendLine("${orderedTeams[0].name} ${orderedTeams[0].score}")
-        append("${orderedTeams[1].name} ${orderedTeams[1].score}")
-    }
+    return RuleGuidanceMessage(
+        listOf(
+            RuleGuidanceLine("${orderedTeams[0].name} ${orderedTeams[0].score}"),
+            RuleGuidanceLine("${orderedTeams[1].name} ${orderedTeams[1].score}"),
+        )
+    )
 }

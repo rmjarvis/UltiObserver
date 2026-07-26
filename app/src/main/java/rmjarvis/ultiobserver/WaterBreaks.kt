@@ -9,16 +9,31 @@ fun GameState.canApplyWaterBreak(): Boolean {
         phase.isBeforeLivePoint
 }
 
-/// Return the text for an ordinary or pending late-activation water-break prompt.
-internal fun GameState.waterBreakPromptText(): String {
+/// Format an ordinary or pending late-activation water-break prompt.
+internal fun GameState.waterBreakPromptMessage(): RuleGuidanceMessage {
     val lateHeatLevelChange = pendingWaterBreakOffer &&
         maxOf(teamOne.score, teamTwo.score) > waterBreakScore()
-    return if (lateHeatLevelChange) {
-        "${rules.heatLevel.displayText} is now in effect, and no water break has been taken " +
-            "this half. Take one now?"
-    } else {
-        "Take a ${rules.waterBreakMinutes}-minute water break now?"
+    val lines = mutableListOf<RuleGuidanceLine>()
+    if (lateHeatLevelChange) {
+        lines += RuleGuidanceLine(
+            "${rules.heatLevel.displayText} is now in effect, and no water break has been taken " +
+                "this half."
+        )
+    } else if (
+        pendingWaterBreakOffer &&
+        softCapApplied &&
+        maxOf(teamOne.score, teamTwo.score) < waterBreakScore()
+    ) {
+        val quarter = if (halftimeTaken) "third" else "first"
+        lines += RuleGuidanceLine("Soft cap triggers the $quarter-quarter water break.")
+    } else if (pendingWaterBreakOffer) {
+        val quarter = if (halftimeTaken) "Third" else "First"
+        lines += RuleGuidanceLine("$quarter quarter score reached.")
     }
+    lines += RuleGuidanceLine(
+        "Take a ${rules.waterBreakMinutes}-minute water break now."
+    )
+    return RuleGuidanceMessage(lines)
 }
 
 /**

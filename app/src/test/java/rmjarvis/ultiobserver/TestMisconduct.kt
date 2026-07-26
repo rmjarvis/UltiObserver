@@ -283,7 +283,7 @@ class TestMisconduct : GameDomainTestFixtures() {
                 playerCardType = PlayerCardEventType.YELLOW,
                 playerCardJerseyNumber = "4",
                 playerCardName = null,
-            ).formatMessage(),
+            ).formatMessage().plainText,
         )
         assertEquals(
             "Team card total: 1",
@@ -351,6 +351,32 @@ class TestMisconduct : GameDomainTestFixtures() {
             "now has three yellow cards in the tournament and has been suspended.",
             PlayerSuspensionStatus.THREE_TOURNAMENT_YELLOWS.noticeText,
         )
+
+        // Adjustment workflows receive a bold notice only when the edited records establish a
+        // suspension for that player.
+        val ordinaryCardState = standardLiveGameState()
+            .assessYellowCard(TeamId.TEAM_ONE, "4")
+            .state
+        assertNull(
+            ordinaryCardState.playerSuspensionNotice(
+                TeamId.TEAM_ONE,
+                ordinaryCardState.playerCards(TeamId.TEAM_ONE),
+                PlayerIdentity("4"),
+            )
+        )
+        val suspendedPlayerState = standardLiveGameState()
+            .assessRedCard(TeamId.TEAM_ONE, "4")
+            .state
+        val suspensionNotice = suspendedPlayerState.playerSuspensionNotice(
+            TeamId.TEAM_ONE,
+            suspendedPlayerState.playerCards(TeamId.TEAM_ONE),
+            PlayerIdentity("4"),
+        )!!
+        assertEquals(
+            "Viscous Coupling #4 now has a red card and has been suspended.",
+            suspensionNotice.plainText,
+        )
+        assertEquals(listOf(true), suspensionNotice.lines.map { it.bold })
 
         // Team card events require player-card details when they represent a player card.
         val invalidCardEventException = assertThrows(IllegalArgumentException::class.java) {
@@ -583,7 +609,7 @@ class TestMisconduct : GameDomainTestFixtures() {
         var state = standardLiveGameState()
         var cardResult = state.assessYellowCard(VC, "17")
         state = cardResult.state
-        assertFalse(cardResult.needsMisconductChoice)
+        assertFalse(cardResult.triggersMisconductPenalty)
         assertEquals(
             "Yellow card on player 17.\nViscous Coupling has 1 card total.",
             cardResult.message(),
@@ -600,7 +626,7 @@ class TestMisconduct : GameDomainTestFixtures() {
         // team card point.
         cardResult = state.assessYellowCard(VC, "17")
         state = cardResult.state
-        assertFalse(cardResult.needsMisconductChoice)
+        assertFalse(cardResult.triggersMisconductPenalty)
         assertEquals(
             "Second yellow on player 17.\n" +
                 "Player 17 receives a game suspension.\n" +
@@ -619,7 +645,7 @@ class TestMisconduct : GameDomainTestFixtures() {
         // field-position cue.
         cardResult = state.assessBlueCard(VC)
         state = cardResult.state
-        assertFalse(cardResult.needsMisconductChoice)
+        assertFalse(cardResult.triggersMisconductPenalty)
         assertEquals(1, state.teamOne.blueCards)
         assertEquals(3, state.teamCardTotal(VC))
         assertEquals(1, state.playerCards(VC).size)
@@ -724,7 +750,7 @@ class TestMisconduct : GameDomainTestFixtures() {
         state = standardLiveGameState()
         state = state.copy(teamOne = state.teamOne.copy(blueCards = 2))
         cardResult = state.assessYellowCard(VC, "14")
-        assertFalse(cardResult.needsMisconductChoice)
+        assertFalse(cardResult.triggersMisconductPenalty)
         assertEquals(
             "Yellow card on player 14.\nViscous Coupling has 3 cards total.\n\n" +
                 "Penalty against Viscous Coupling. No pull. Animal starts at attacking brick.",
@@ -739,7 +765,7 @@ class TestMisconduct : GameDomainTestFixtures() {
         state = state.assessBlueCard(VC).state
         cardResult = state.assessYellowCard(VC, "14")
         state = cardResult.state
-        assertTrue(cardResult.needsMisconductChoice)
+        assertTrue(cardResult.triggersMisconductPenalty)
         assertEquals(
             "Yellow card on player 14.\nViscous Coupling has 3 cards total.",
             cardResult.message(),
@@ -750,7 +776,7 @@ class TestMisconduct : GameDomainTestFixtures() {
         state = standardLiveGameState()
         cardResult = state.assessRedCard(ANIMAL, "23")
         state = cardResult.state
-        assertFalse(cardResult.needsMisconductChoice)
+        assertFalse(cardResult.triggersMisconductPenalty)
         assertEquals(
             "Red card on player 23.\n" +
                 "Player 23 receives a game suspension.\n" +
@@ -770,13 +796,18 @@ class TestMisconduct : GameDomainTestFixtures() {
         state = state.assessYellowCard(ANIMAL, "8").state
         cardResult = state.assessRedCard(ANIMAL, "23")
         state = cardResult.state
-        assertTrue(cardResult.needsMisconductChoice)
+        assertTrue(cardResult.triggersMisconductPenalty)
         assertEquals(
             "Red card on player 23.\n" +
                 "Player 23 receives a game suspension.\n" +
                 "Animal has 3 cards total (red cards count as 2).",
             cardResult.message(),
         )
+        assertEquals(
+            "Player 23 receives a game suspension.",
+            cardResult.event.formatBriefMessage().plainText,
+        )
+        assertTrue((cardResult.event as GameEvent.TeamCardsChanged).hasSuspensionNotice())
         val misconductPrompt = cardResult.misconductPrompt()
         assertEquals("Misconduct penalty", misconductPrompt.formatTitle())
         val misconductGamePrompt: GamePrompt = misconductPrompt
@@ -785,13 +816,19 @@ class TestMisconduct : GameDomainTestFixtures() {
             "Red card on player 23.\n" +
                 "Player 23 receives a game suspension.\n" +
                 "Animal has 3 cards total (red cards count as 2).\n\nWas this against the offense or defense?",
-            misconductPrompt.formatMessage(),
+            misconductPrompt.formatMessage().plainText,
         )
         assertEquals(
             "Red card on player 23.\n" +
                 "Player 23 receives a game suspension.\n" +
                 "Animal has 3 cards total (red cards count as 2).\n\nWas this against the offense or defense?",
-            misconductGamePrompt.formatMessage(),
+            misconductGamePrompt.formatMessage().plainText,
+        )
+        assertEquals(
+            "If offense: reverse brick\n" +
+                "If defense: attacking brick or middle\n" +
+                "Offense has 30 seconds to set.",
+            misconductPrompt.formatBriefMessage().plainText,
         )
         assertEquals(
             "Red card on player 23.\n" +
@@ -801,10 +838,11 @@ class TestMisconduct : GameDomainTestFixtures() {
                 "Viscous Coupling may instead choose to leave the disc where it is " +
                 "(keeping the current stall count +1, max 9).\n\n" +
                 "Offense has 30 seconds to set. Then defense has 20 seconds to check the disc in.",
-            misconductPrompt.resolutionMessage(againstOffense = true),
+            misconductPrompt.resolutionMessage(againstOffense = true).plainText,
         )
         assertTrue(
             misconductPrompt.resolutionMessage(againstOffense = false)
+                .plainText
                 .contains(
                     "Viscous Coupling may move the disc to the brick mark nearest " +
                         "the end zone they are attacking.",
@@ -818,7 +856,7 @@ class TestMisconduct : GameDomainTestFixtures() {
         state = state.assessYellowCard(ANIMAL, "8").state
         cardResult = state.assessRedCard(ANIMAL, "8")
         state = cardResult.state
-        assertFalse(cardResult.needsMisconductChoice)
+        assertFalse(cardResult.triggersMisconductPenalty)
         assertEquals(1, state.teamYellowCards(ANIMAL))
         assertEquals(1, state.teamRedCards(ANIMAL))
         assertEquals(3, state.teamCardTotal(ANIMAL))
@@ -843,7 +881,7 @@ class TestMisconduct : GameDomainTestFixtures() {
         state = state.assessYellowCard(ANIMAL, "8").state
         cardResult = state.assessSecondYellowCard(ANIMAL, "8")
         state = cardResult.state
-        assertFalse(cardResult.needsMisconductChoice)
+        assertFalse(cardResult.triggersMisconductPenalty)
         assertEquals(2, state.teamYellowCards(ANIMAL))
         assertEquals(0, state.teamRedCards(ANIMAL))
         assertEquals(2, state.teamCardTotal(ANIMAL))
@@ -963,11 +1001,14 @@ class TestMisconduct : GameDomainTestFixtures() {
         // Blue cards count as one team card point each and do not create player records.
         state = standardLiveGameState()
         val bluePreview = state.previewBlueCard(ANIMAL)
-        assertEquals("Blue card on Animal.\nAnimal has 1 card total.", bluePreview.event.formatMessage())
+        assertEquals(
+            "Blue card on Animal.\nAnimal has 1 card total.",
+            bluePreview.event.formatMessage().plainText,
+        )
         assertEquals(0, state.teamTwo.blueCards)
         cardResult = state.assessBlueCard(ANIMAL)
         state = cardResult.state
-        assertFalse(cardResult.needsMisconductChoice)
+        assertFalse(cardResult.triggersMisconductPenalty)
         assertEquals("Blue card on Animal.\nAnimal has 1 card total.", cardResult.message())
         assertEquals(1, state.teamTwo.blueCards)
         assertEquals(1, state.teamCardTotal(ANIMAL))
@@ -975,14 +1016,14 @@ class TestMisconduct : GameDomainTestFixtures() {
 
         cardResult = state.assessBlueCard(ANIMAL)
         state = cardResult.state
-        assertFalse(cardResult.needsMisconductChoice)
+        assertFalse(cardResult.triggersMisconductPenalty)
         assertEquals("Blue card on Animal.\nAnimal has 2 cards total.", cardResult.message())
         assertEquals(2, state.teamTwo.blueCards)
         assertEquals(2, state.teamCardTotal(ANIMAL))
 
         cardResult = state.assessBlueCard(ANIMAL)
         state = cardResult.state
-        assertFalse(cardResult.needsMisconductChoice)
+        assertFalse(cardResult.triggersMisconductPenalty)
         assertEquals(3, state.teamTwo.blueCards)
         assertEquals(3, state.teamCardTotal(ANIMAL))
         assertEquals(
@@ -994,7 +1035,7 @@ class TestMisconduct : GameDomainTestFixtures() {
 
         cardResult = state.assessBlueCard(ANIMAL)
         state = cardResult.state
-        assertFalse(cardResult.needsMisconductChoice)
+        assertFalse(cardResult.triggersMisconductPenalty)
         assertEquals(4, state.teamTwo.blueCards)
         assertEquals(4, state.teamCardTotal(ANIMAL))
         assertEquals(
@@ -1021,12 +1062,12 @@ class TestMisconduct : GameDomainTestFixtures() {
         val technicalFoulPreview = state.previewTechnicalFoul(ANIMAL)
         assertEquals(
             "This is Animal's first technical foul.",
-            technicalFoulPreview.event.formatMessage(),
+            technicalFoulPreview.event.formatMessage().plainText,
         )
         assertEquals(0, state.teamTwo.technicalFouls)
         var technicalFoulResult = state.assessTechnicalFoul(ANIMAL)
         state = technicalFoulResult.state
-        assertFalse(technicalFoulResult.needsMisconductChoice)
+        assertFalse(technicalFoulResult.triggersMisconductPenalty)
         assertEquals("This is Animal's first technical foul.", technicalFoulResult.message())
         assertEquals("Technical Foul", technicalFoulResult.event.formatPopupTitle())
         assertEquals(1, state.teamTwo.technicalFouls)
@@ -1034,13 +1075,13 @@ class TestMisconduct : GameDomainTestFixtures() {
 
         technicalFoulResult = state.assessTechnicalFoul(ANIMAL)
         state = technicalFoulResult.state
-        assertFalse(technicalFoulResult.needsMisconductChoice)
+        assertFalse(technicalFoulResult.triggersMisconductPenalty)
         assertEquals("This is Animal's second technical foul.", technicalFoulResult.message())
         assertEquals(2, state.teamTwo.technicalFouls)
 
         technicalFoulResult = state.assessTechnicalFoul(ANIMAL)
         state = technicalFoulResult.state
-        assertFalse(technicalFoulResult.needsMisconductChoice)
+        assertFalse(technicalFoulResult.triggersMisconductPenalty)
         assertEquals(3, state.teamTwo.technicalFouls)
         assertEquals(
             "This is Animal's third technical foul.\n\n" +
@@ -1056,7 +1097,7 @@ class TestMisconduct : GameDomainTestFixtures() {
 
         technicalFoulResult = state.assessTechnicalFoul(ANIMAL)
         state = technicalFoulResult.state
-        assertFalse(technicalFoulResult.needsMisconductChoice)
+        assertFalse(technicalFoulResult.triggersMisconductPenalty)
         assertEquals(4, state.teamTwo.technicalFouls)
         assertEquals(
             "This is Animal's 4th technical foul.\n\n" +
@@ -1072,16 +1113,17 @@ class TestMisconduct : GameDomainTestFixtures() {
         cardResult = state.assessBlueCard(VC)
         state = cardResult.state
         assertEquals(GamePhase.LIVE_POINT, state.phase)
-        assertTrue(cardResult.needsMisconductChoice)
+        assertTrue(cardResult.triggersMisconductPenalty)
         assertEquals(
             "Blue card on Viscous Coupling.\nViscous Coupling has 3 cards total.",
             cardResult.message(),
         )
 
-        val prompt = cardResult.misconductPrompt().formatMessage()
+        val prompt = cardResult.misconductPrompt().formatMessage().plainText
         assertTrue(prompt.contains("Was this against the offense or defense?"))
         assertTrue(
             cardResult.misconductPrompt().resolutionMessage(againstOffense = true)
+                .plainText
                 .contains(
                     "Viscous Coupling moves the disc to the reverse brick in the end zone " +
                         "they are defending.",
@@ -1089,6 +1131,7 @@ class TestMisconduct : GameDomainTestFixtures() {
         )
         assertTrue(
             cardResult.misconductPrompt().resolutionMessage(againstOffense = false)
+                .plainText
                 .contains(
                     "Animal may move the disc to the brick mark nearest the end zone " +
                         "they are attacking.",
@@ -1103,13 +1146,14 @@ class TestMisconduct : GameDomainTestFixtures() {
         technicalFoulResult = state.assessTechnicalFoul(VC)
         state = technicalFoulResult.state
         assertEquals(GamePhase.LIVE_POINT, state.phase)
-        assertTrue(technicalFoulResult.needsMisconductChoice)
+        assertTrue(technicalFoulResult.triggersMisconductPenalty)
         assertEquals(
             "This is Viscous Coupling's third technical foul.",
             technicalFoulResult.message(),
         )
         assertTrue(
             technicalFoulResult.misconductPrompt().resolutionMessage(againstOffense = true)
+                .plainText
                 .contains(
                     "Viscous Coupling moves the disc to the reverse brick in the end zone " +
                         "they are defending.",

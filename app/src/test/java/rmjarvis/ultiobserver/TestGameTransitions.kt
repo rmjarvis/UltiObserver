@@ -88,7 +88,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         // Viscous Coupling gets a yellow on #17, then a blue card.  No yardage penalty yet.
         var cardResult = state.assessYellowCard(VC, "17")
         state = cardResult.state
-        assertFalse(cardResult.needsMisconductChoice)
+        assertFalse(cardResult.triggersMisconductPenalty)
         assertEquals(
             "Yellow card on player 17.\nViscous Coupling has 1 card total.",
             cardResult.message(),
@@ -100,7 +100,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         )
         cardResult = state.assessBlueCard(VC)
         state = cardResult.state
-        assertFalse(cardResult.needsMisconductChoice)
+        assertFalse(cardResult.triggersMisconductPenalty)
         assertEquals(
             "Blue card on Viscous Coupling.\nViscous Coupling has 2 cards total.",
             cardResult.message(),
@@ -112,7 +112,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         // needed.
         cardResult = state.assessYellowCard(VC, "8")
         state = cardResult.state
-        assertTrue(cardResult.needsMisconductChoice)
+        assertTrue(cardResult.triggersMisconductPenalty)
         assertEquals(
             "Yellow card on player 8.\nViscous Coupling has 3 cards total.",
             cardResult.message(),
@@ -128,6 +128,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         )
         assertTrue(
             cardResult.misconductPrompt().resolutionMessage(againstOffense = true)
+                .plainText
                 .contains(
                     "Viscous Coupling moves the disc to the reverse brick in the end zone " +
                         "they are defending."
@@ -135,6 +136,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         )
         assertTrue(
             cardResult.misconductPrompt().resolutionMessage(againstOffense = true)
+                .plainText
                 .contains(
                     "Offense has 30 seconds to set. Then defense has 20 seconds to check " +
                         "the disc in."
@@ -200,11 +202,11 @@ class TestGameTransitions : GameDomainTestFixtures() {
         // Animal picks up two technical fouls during the live point.
         var technicalFoulResult = state.assessTechnicalFoul(ANIMAL)
         state = technicalFoulResult.state
-        assertFalse(technicalFoulResult.needsMisconductChoice)
+        assertFalse(technicalFoulResult.triggersMisconductPenalty)
         assertEquals("This is Animal's first technical foul.", technicalFoulResult.message())
         technicalFoulResult = state.assessTechnicalFoul(ANIMAL)
         state = technicalFoulResult.state
-        assertFalse(technicalFoulResult.needsMisconductChoice)
+        assertFalse(technicalFoulResult.triggersMisconductPenalty)
         assertEquals("This is Animal's second technical foul.", technicalFoulResult.message())
 
         // Viscous Coupling calls a timeout, starting a countdown.
@@ -238,7 +240,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         // penalty for the restart.  No pull.
         technicalFoulResult = state.assessTechnicalFoul(ANIMAL)
         state = technicalFoulResult.state
-        assertFalse(technicalFoulResult.needsMisconductChoice)
+        assertFalse(technicalFoulResult.triggersMisconductPenalty)
         assertEquals(3, state.teamTwo.technicalFouls)
         assertTrue(
             technicalFoulResult.message()!!.contains("This is Animal's third technical foul.")
@@ -542,12 +544,13 @@ class TestGameTransitions : GameDomainTestFixtures() {
         state = state.assessBlueCard(VC).state
         state = state.assessBlueCard(VC).state
         val misconductResult = state.assessYellowCard(VC, "8")
-        assertTrue(misconductResult.needsMisconductChoice)
+        assertTrue(misconductResult.triggersMisconductPenalty)
 
         // The observer resolves the misconduct prompt as a penalty against the defense.  Pressing
         // OK on that resolved dialog is what exposes the "Start misconduct countdown" button.
         val misconductMessage = misconductResult.misconductPrompt()
             .resolutionMessage(againstOffense = false)
+            .plainText
         assertTrue(
             misconductMessage.contains(
                 "Animal may move the disc to the brick mark nearest the end zone they are " +
@@ -764,7 +767,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         val state = standardLiveGameState().beginLivePoint()
         val halftimePrompt = GamePrompt.HalftimeStarted(state)
         assertEquals("Halftime", halftimePrompt.formatTitle())
-        assertEquals("Announce halftime.", halftimePrompt.formatMessage())
+        assertEquals("Announce halftime.", halftimePrompt.formatMessage().plainText)
 
         // Game-over prompt exposes a stable title and score summary text.
         val gameOverState = state.copy(
@@ -774,7 +777,10 @@ class TestGameTransitions : GameDomainTestFixtures() {
         )
         val gameOverPrompt = GamePrompt.GameOver(gameOverState)
         assertEquals("Game over", gameOverPrompt.formatTitle())
-        assertEquals("Animal 5\nViscous Coupling 3", gameOverPrompt.formatMessage())
+        assertEquals(
+            "Animal 5\nViscous Coupling 3",
+            gameOverPrompt.formatMessage().plainText,
+        )
 
         // Game-over summaries show the winner first, or Team 1 first when tied.
         assertEquals(
@@ -784,7 +790,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
                     teamOne = gameOverState.teamOne.copy(score = 5),
                     teamTwo = gameOverState.teamTwo.copy(score = 3),
                 )
-            ).formatMessage(),
+            ).formatMessage().plainText,
         )
         assertEquals(
             "Alpha 4\nBeta 4",
@@ -795,7 +801,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
                     teamTwo = gameOverState.teamTwo
                         .copy(name = "Beta", score = 4),
                 )
-            ).formatMessage(),
+            ).formatMessage().plainText,
         )
         assertEquals(
             "Alpha 4\nBeta 4",
@@ -806,7 +812,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
                     teamTwo = gameOverState.teamTwo
                         .copy(name = "Alpha", score = 4),
                 )
-            ).formatMessage(),
+            ).formatMessage().plainText,
         )
     }
 

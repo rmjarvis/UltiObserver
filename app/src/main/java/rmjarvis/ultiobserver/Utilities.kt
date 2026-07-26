@@ -104,6 +104,11 @@ internal fun countedActionLabel(baseLabel: String, count: Int): String {
     return if (count > 0) "$baseLabel ($count)" else baseLabel
 }
 
+/// Return this string with its first character converted to uppercase.
+internal fun String.capitalized(): String {
+    return replaceFirstChar { it.uppercase() }
+}
+
 /**
  * Return a font size that fits text measured at the preferred size into the available width.
  *

@@ -60,7 +60,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.time.Duration
-import java.time.LocalTime
+import java.time.ZoneId
 
 private val TopEndZoneShape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
 private val BottomEndZoneShape = RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp)
@@ -193,14 +193,14 @@ internal fun SlideToConfirmControl(
 /**
  * Render the top status line showing the real clock and next relevant cap.
  *
- * @param currentTime The local clock time to display.
+ * @param now Current epoch millis for the local clock time to display.
  * @param capStatus The next cap status, or null when all caps are passed or irrelevant.
  * @param height The reserved status-line height used for responsive live layout.
  * @param onRulesReference Callback opening the rules reference.
  */
 @Composable
 internal fun StatusLine(
-    currentTime: LocalTime,
+    now: Long,
     capStatus: CapStatus?,
     height: Dp,
     onRulesReference: () -> Unit,
@@ -214,7 +214,9 @@ internal fun StatusLine(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = formatClockTime(currentTime),
+            text = formatClockTime(
+                localTimeFromEpoch(now, ZoneId.systemDefault()),
+            ),
             style = MaterialTheme.typography.headlineMedium.copy(fontSize = clockFontSize),
             fontWeight = FontWeight.Bold,
             maxLines = 1,

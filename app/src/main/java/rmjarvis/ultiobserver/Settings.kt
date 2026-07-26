@@ -246,8 +246,68 @@ const val MIN_TIMING_ALERT_REPEAT_COUNT = 1
 const val MAX_TIMING_ALERT_REPEAT_COUNT = 3
 
 /**
+ * Amount of rule guidance shown by live-game confirmations and notices.
+ *
+ * @param label Short name shown by the Settings selector.
+ * @param description Explanation shown for the selected mode.
+ */
+@Serializable
+internal enum class RuleGuidanceMode(
+    val label: String,
+    val description: String,
+) {
+    FULL(
+        "Full",
+        "Show a short, but fairly complete, summary of the restart location, timings, and " +
+        "other relevant rules and wait for confirmation.",
+    ),
+    BRIEF(
+        "Brief",
+        "Show only a brief rule reminder and wait for confirmation.",
+    ),
+    TIMED(
+        "Timed",
+        "Show a brief reminder and automatically accept or close after 5 seconds.",
+    ),
+    NONE(
+        "None",
+        "Skip optional reminders. Some required notices still appear, but close after 5 seconds.",
+    ),
+    ;
+
+    /// Report whether popup copy should use the concise presentation.
+    fun usesBriefGuidance(): Boolean = this != FULL
+
+    /**
+     * Choose how one live-game guidance popup should be presented.
+     *
+     * @param requiredInNone Whether None mode must retain the popup long enough for the observer
+     * to see it or choose an alternative action.
+     */
+    fun presentation(requiredInNone: Boolean): RuleGuidancePresentation {
+        return when (this) {
+            FULL, BRIEF -> RuleGuidancePresentation.VISIBLE
+            TIMED -> RuleGuidancePresentation.VISIBLE_TIMED
+            NONE -> if (requiredInNone) {
+                RuleGuidancePresentation.VISIBLE_TIMED
+            } else {
+                RuleGuidancePresentation.HIDDEN_AUTO_ACCEPT
+            }
+        }
+    }
+}
+
+/// Presentation selected for one live-game rule-guidance popup.
+internal enum class RuleGuidancePresentation {
+    VISIBLE,
+    VISIBLE_TIMED,
+    HIDDEN_AUTO_ACCEPT,
+}
+
+/**
  * User settings stored as one persistence bucket.
  *
+ * @param ruleGuidanceMode Amount and duration of rule guidance shown during games.
  * @param automaticallyAdvanceCountdowns Whether expired countdowns should drive model transitions.
  * @param automaticallyLockLivePoint Whether automatic live-point entry should lock the live screen.
  * @param showDefenseCountdowns Whether timeout offense-set expirations wait for defense.
@@ -258,6 +318,7 @@ const val MAX_TIMING_ALERT_REPEAT_COUNT = 3
  */
 @Serializable
 internal data class Settings(
+    val ruleGuidanceMode: RuleGuidanceMode = RuleGuidanceMode.FULL,
     val automaticallyAdvanceCountdowns: Boolean = true,
     val automaticallyLockLivePoint: Boolean = true,
     val showDefenseCountdowns: Boolean = false,
@@ -266,6 +327,11 @@ internal data class Settings(
     val fourWomenThreeMenBadgeColorArgb: Long = TeamColorChoice.RED.accentArgb,
     val timingAlerts: TimingAlertPreferences = TimingAlertPreferences(),
 ) {
+    /// Return these settings with the live-game rule-guidance mode replaced.
+    fun withRuleGuidanceMode(mode: RuleGuidanceMode): Settings {
+        return copy(ruleGuidanceMode = mode)
+    }
+
     /**
      * Return these settings with automatic countdown advancement replaced.
      *

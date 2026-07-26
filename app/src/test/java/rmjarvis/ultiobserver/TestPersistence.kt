@@ -53,6 +53,7 @@ class TestPersistence : GameDomainTestFixtures() {
         // Exercise global timing settings and cue overrides before leaving Settings.
         viewModel.openSettings()
         assertEquals(AppScreen.SETTINGS, viewModel.screen)
+        updateSettings { it.withRuleGuidanceMode(RuleGuidanceMode.TIMED) }
         updateTimingAlerts { it.withGlobalMode(TimingAlertGlobalMode.VIBRATION_ONLY) }
         updateTimingAlerts { it.withSoundVolume(0.4f) }
         updateTimingAlerts { it.withVibrationDuration(420L) }
@@ -127,6 +128,7 @@ class TestPersistence : GameDomainTestFixtures() {
         assertEquals("Casey Observer", restored.profile.name)
         assertEquals(ObserverAvatarPreference.BLUE, restored.profile.avatarPreference)
         assertEquals(ObserverAvatarPreference.BLUE, restored.currentHomeAvatar)
+        assertEquals(RuleGuidanceMode.TIMED, restored.settings.ruleGuidanceMode)
         assertEquals(TimingAlertGlobalMode.OFF, restored.settings.timingAlerts.globalMode)
         assertFalse(restored.settings.automaticallyAdvanceCountdowns)
         assertFalse(restored.settings.automaticallyLockLivePoint)

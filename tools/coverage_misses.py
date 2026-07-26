@@ -26,6 +26,9 @@ CALLBACK_LAMBDA_OPENER = re.compile(
 LOCAL_UI_CALLBACK_LAMBDA_OPENER = re.compile(
     r"^val\s+[A-Za-z_]\w*Action\s*:\s*\(\)\s*->\s*Unit\s*=\s*\{\s*$"
 )
+COMPOSE_APPLY_LAMBDA_OPENER = re.compile(
+    r"^val\s+apply[A-Z]\w*\s*=\s*\{$"
+)
 NO_OP_CALLBACK_LAMBDA = re.compile(
     rf"^{CALLBACK_NAME_PATTERN}\s*=\s*\{{\}},?$"
 )
@@ -150,6 +153,11 @@ def line_allowed_reason(
         line_number,
         counters,
     ) or callback_lambda_scaffold_reason(
+        source_lines,
+        line_number,
+        coverage_by_line,
+        counters,
+    ) or compose_apply_lambda_cache_scaffold_reason(
         source_lines,
         line_number,
         coverage_by_line,
@@ -642,6 +650,53 @@ def callback_lambda_scaffold_reason(
         return None
 
     return "UI callback lambda scaffold"
+
+
+def compose_apply_lambda_cache_scaffold_reason(
+    source_lines: list[str],
+    line_number: int,
+    coverage_by_line: dict[int, LineCounters],
+    counters: LineCounters,
+) -> str | None:
+    """
+    Return a reason for Compose cache branches on a covered local apply callback.
+
+    Compose automatically remembers local callbacks declared inside a Composable:
+
+        val applyTimeout = {
+            val result = state.assessTimeout(...)
+            onStateChange(result.state)
+        }
+
+    The generated invalidation expression compares every captured value, checks the
+    remembered slot, and either reuses or recreates the callback.  JaCoCo maps those
+    cache branches to the `val applyTimeout = {` opener.  Their exact instruction and
+    branch counts vary with the callback's captured values.
+
+    Keep this recognizer narrower than the general callback rule:
+
+    - the local variable must use camel-case `applyX` naming;
+    - the opening brace must be the last character on the stripped line;
+    - the opener must have both missed and covered instructions and branches; and
+    - every executable callback-body line must be fully covered.
+
+    An unexecuted callback body, or a partially covered branch inside it, therefore
+    remains actionable.
+    """
+
+    if counters.missed_instructions == 0 or counters.covered_instructions == 0:
+        return None
+    if counters.missed_branches == 0 or counters.covered_branches == 0:
+        return None
+
+    line_index = line_number - 1
+    source = source_lines[line_index].strip()
+    if COMPOSE_APPLY_LAMBDA_OPENER.fullmatch(source) is None:
+        return None
+    if not lambda_body_is_covered(source_lines, line_index, coverage_by_line):
+        return None
+
+    return "Compose apply lambda cache scaffold"
 
 
 def semantics_lambda_cache_scaffold_reason(

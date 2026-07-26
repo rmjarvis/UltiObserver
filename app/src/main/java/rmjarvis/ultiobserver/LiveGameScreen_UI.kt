@@ -34,7 +34,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import java.time.LocalTime
 
 /**
  * Timeout request waiting for observer confirmation.
@@ -99,26 +98,14 @@ internal fun LiveGameScreen(
     var teamInfoSheetTeam by remember { mutableStateOf<TeamId?>(null) }
     var locked by remember { mutableStateOf(false) }
     var showWaterBreakPrompt by remember { mutableStateOf(false) }
-    var actionInfoMessage by remember { mutableStateOf<String?>(null) }
-    var actionInfoTitle by remember { mutableStateOf("") }
+    var actionInfoEvent by remember { mutableStateOf<GameEvent?>(null) }
     var activeGamePrompt by remember { mutableStateOf<GamePrompt?>(null) }
     var previouslyObservedPhase by remember { mutableStateOf(state.phase) }
     var suppressNextPhasePrompt by remember { mutableStateOf(false) }
 
-    /**
-     * Show a transient action-info popup.
-     *
-     * @param message The popup body text.
-     * @param title The popup title.
-     */
-    fun showActionInfo(message: String, title: String) {
-        actionInfoMessage = message
-        actionInfoTitle = title
-    }
-
     /// Dismiss the transient action-info popup.
     fun dismissActionInfo() {
-        actionInfoMessage = null
+        actionInfoEvent = null
     }
 
     /**
@@ -132,13 +119,8 @@ internal fun LiveGameScreen(
         onStateChange(updatedState)
     }
 
-    // Update the display clock once per second so time and cap text stay fresh.
-    val currentClockTime by produceState(initialValue = LocalTime.now()) {
-        while (true) {
-            value = LocalTime.now()
-            kotlinx.coroutines.delay(1000)
-        }
-    }
+    // Keep live-game display, transitions, and event timestamps current to the nearest second.
+    // Actions that establish or alter time-sensitive state capture a fresh time when invoked.
     val now by produceState(initialValue = System.currentTimeMillis()) {
         while (true) {
             value = System.currentTimeMillis()
@@ -226,11 +208,25 @@ internal fun LiveGameScreen(
             onSecondarySummaryAction = onArchiveCompletedGame,
             onBack = onBackHome,
             onHome = onHome,
-            gameOverPrompt = activeGamePrompt,
-            onDismissGameOverPrompt = {
-                activeGamePrompt = null
-            },
         )
+        if (activeGamePrompt != null) {
+            val prompt = activeGamePrompt!!
+            RuleGuidanceGate(
+                key = prompt,
+                mode = settings.ruleGuidanceMode,
+                requiredInNone = prompt.requiresGuidanceInNone(),
+                onAutoAccept = {
+                    activeGamePrompt = null
+                },
+            ) {
+                GamePromptNoticeDialog(
+                    prompt = prompt,
+                    onDismiss = {
+                        activeGamePrompt = null
+                    },
+                )
+            }
+        }
         return
     }
 
@@ -262,7 +258,7 @@ internal fun LiveGameScreen(
             ) {
                 // Show the current clock and next relevant cap.
                 StatusLine(
-                    currentTime = currentClockTime,
+                    now = now,
                     capStatus = capStatus,
                     height = layoutMetrics.statusHeight,
                     onRulesReference = {
@@ -284,11 +280,15 @@ internal fun LiveGameScreen(
                         // Don't show the icon.
                         null
                     },
-                    onTogglePaused = { onStateChange(state.toggleCountdownPaused(now)) },
+                    onTogglePaused = {
+                        onStateChange(state.toggleCountdownPaused(System.currentTimeMillis()))
+                    },
                     expiredPullActions = if (hasExpiredPullActions && !locked) {
                         ExpiredPullActions(
                             onRestartPullCountdown = {
-                                onStateChange(state.restartPullCountdown(now))
+                                onStateChange(
+                                    state.restartPullCountdown(System.currentTimeMillis())
+                                )
                             },
                         )
                     } else {
@@ -297,7 +297,9 @@ internal fun LiveGameScreen(
                     misconductCountdownAction = if (state.pendingMisconductCountdown && !locked) {
                         MisconductCountdownAction(
                             onStart = {
-                                onStateChange(state.startMisconductCountdown(now))
+                                onStateChange(
+                                    state.startMisconductCountdown(System.currentTimeMillis())
+                                )
                             },
                         )
                     } else {
@@ -322,7 +324,9 @@ internal fun LiveGameScreen(
                         } else if (canReportOffenseSet) {
                             BigActionButton(
                                 label = "Offense is set",
-                                onClick = { onStateChange(state.reportOffenseSet(now)) },
+                                onClick = {
+                                    onStateChange(state.reportOffenseSet(System.currentTimeMillis()))
+                                },
                                 containerColor = FieldNeutralButtonColor,
                                 contentColor = Color.Black,
                                 height = layoutMetrics.centerButtonHeight,
@@ -333,7 +337,7 @@ internal fun LiveGameScreen(
                             BigActionButton(
                                 label = "Start point",
                                 onClick = {
-                                    onStateChange(state.beginLivePoint(now))
+                                    onStateChange(state.beginLivePoint(System.currentTimeMillis()))
                                     if (settings.automaticallyLockLivePoint) {
                                         locked = true
                                     }
@@ -359,25 +363,38 @@ internal fun LiveGameScreen(
                             )
                         }
                     },
-                    onLock = { locked = true },
+                    onLock = {
+                        locked = true
+                    },
                     onGoal = { team ->
-                        val updatedState = state.recordGoalFromCurrentState(team, now)
+                        val updatedState = state.recordGoalFromCurrentState(
+                            team,
+                            System.currentTimeMillis(),
+                        )
                         onStateChange(updatedState)
                     },
                     onTimeout = { team ->
-                        pendingTimeoutRequest = PendingTimeoutRequest(team, System.currentTimeMillis())
+                        pendingTimeoutRequest = PendingTimeoutRequest(
+                            team,
+                            System.currentTimeMillis(),
+                        )
                     },
                     onTimeViolation = { team ->
                         pendingTimeViolationTeam = team
                     },
                     onPullViolation = { team ->
-                        val violation = state.pullViolationTypeFor(team)
                         pendingPullViolationTeam = team
-                        pendingPullViolationType = violation
+                        pendingPullViolationType = state.pullViolationTypeFor(team)
                     },
-                    onCards = { team -> pendingCardTeam = team },
-                    onTechnicalFoul = { team -> pendingTechnicalFoulTeam = team },
-                    onTeamInfo = { team -> teamInfoSheetTeam = team },
+                    onCards = { team ->
+                        pendingCardTeam = team
+                    },
+                    onTechnicalFoul = { team ->
+                        pendingTechnicalFoulTeam = team
+                    },
+                    onTeamInfo = { team ->
+                        teamInfoSheetTeam = team
+                    },
                 )
 
                 // More actions keeps less-common game actions out of the field action grid.
@@ -418,13 +435,11 @@ internal fun LiveGameScreen(
             state = state,
             team = team,
             now = now,
+            guidanceMode = settings.ruleGuidanceMode,
             onDismiss = { pendingCardTeam = null },
-            onAssessment = { updatedState, message, title ->
+            onAssessment = { updatedState, event ->
                 onStateChange(updatedState)
-                showActionInfo(
-                    message = message,
-                    title = title,
-                )
+                actionInfoEvent = event
                 pendingCardTeam = null
             },
             onStateOnly = { updatedState ->
@@ -454,195 +469,226 @@ internal fun LiveGameScreen(
     } else if (pendingTimeoutRequest != null) {
         val request = pendingTimeoutRequest!!
         val event = state.previewTimeout(request.team, request.requestedAt).event
-        AlertDialog(
-            onDismissRequest = { pendingTimeoutRequest = null },
-            title = { Text(event.formatPopupTitle()) },
-            text = {
-                Text(
-                    text = event.formatMessage(),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-            },
-            confirmButton = {
-                TextActionButton(
-                    label = "OK",
-                    onClick = {
-                        val result = state.assessTimeout(request.team, request.requestedAt)
-                        onStateChange(result.state)
-                        pendingTimeoutRequest = null
-                    },
-                )
-            },
-            dismissButton = {
-                TextActionButton(label = "Cancel", onClick = { pendingTimeoutRequest = null })
-            },
-        )
+        val applyTimeout = {
+            val result = state.assessTimeout(request.team, request.requestedAt)
+            onStateChange(result.state)
+            pendingTimeoutRequest = null
+        }
+        RuleGuidanceGate(
+            key = request,
+            mode = settings.ruleGuidanceMode,
+            requiredInNone = event.requiresGuidanceInNone(),
+            onAutoAccept = applyTimeout,
+        ) {
+            AlertDialog(
+                onDismissRequest = { pendingTimeoutRequest = null },
+                title = { Text(event.formatPopupTitle()) },
+                text = {
+                    RuleGuidanceText(event.guidanceMessage(settings.ruleGuidanceMode))
+                },
+                confirmButton = {
+                    TextActionButton(
+                        label = "OK",
+                        onClick = applyTimeout,
+                    )
+                },
+                dismissButton = {
+                    TextActionButton(label = "Cancel", onClick = { pendingTimeoutRequest = null })
+                },
+            )
+        }
     } else if (pendingTimeViolationTeam != null) {
         val team = pendingTimeViolationTeam!!
         val event = state.previewTimeViolation(team).event
-        AlertDialog(
-            onDismissRequest = { pendingTimeViolationTeam = null },
-            title = { Text(event.formatPopupTitle()) },
-            text = {
-                Text(
-                    text = event.formatMessage(),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-            },
-            confirmButton = {
-                TextActionButton(
-                    label = "OK",
-                    onClick = {
-                        val result = state.assessTimeViolation(team, System.currentTimeMillis())
-                        onStateChange(result.state)
-                        pendingTimeViolationTeam = null
-                    },
-                )
-            },
-            dismissButton = {
-                TextActionButton(label = "Cancel", onClick = { pendingTimeViolationTeam = null })
-            },
-        )
+        val applyTimeViolation = {
+            val result = state.assessTimeViolation(team, System.currentTimeMillis())
+            onStateChange(result.state)
+            pendingTimeViolationTeam = null
+        }
+        RuleGuidanceGate(
+            key = team,
+            mode = settings.ruleGuidanceMode,
+            requiredInNone = event.requiresGuidanceInNone(),
+            onAutoAccept = applyTimeViolation,
+        ) {
+            AlertDialog(
+                onDismissRequest = { pendingTimeViolationTeam = null },
+                title = { Text(event.formatPopupTitle()) },
+                text = {
+                    RuleGuidanceText(event.guidanceMessage(settings.ruleGuidanceMode))
+                },
+                confirmButton = {
+                    TextActionButton(
+                        label = "OK",
+                        onClick = applyTimeViolation,
+                    )
+                },
+                dismissButton = {
+                    TextActionButton(label = "Cancel", onClick = { pendingTimeViolationTeam = null })
+                },
+            )
+        }
     } else if (pendingPullViolationTeam != null) {
         val team = pendingPullViolationTeam!!
         val event = state.previewPullViolation(team, pendingPullViolationType).event
-        val canSwitchPullingViolation = pendingPullViolationType != PullViolationType.FALSE_START &&
-            state.usesMixedDivision()
-        AlertDialog(
-            onDismissRequest = {
-                pendingPullViolationTeam = null
-                pendingPullViolationType = PullViolationType.OFFSIDES
-            },
-            title = { Text(event.formatPopupTitle()) },
-            text = {
-                Text(
-                    text = event.formatMessage(),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-            },
-            confirmButton = {
-                CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.End,
-                    ) {
-                        if (canSwitchPullingViolation) {
-                            MenuButton(
-                                label = if (
-                                    pendingPullViolationType == PullViolationType.MAJORITY_PULL
-                                ) {
-                                    "This was an Offsides"
-                                } else {
-                                    "This was a Majority pull rule violation"
-                                },
-                                onClick = {
-                                    pendingPullViolationType = if (
-                                        pendingPullViolationType == PullViolationType.MAJORITY_PULL
-                                    ) {
-                                        PullViolationType.OFFSIDES
-                                    } else {
-                                        PullViolationType.MAJORITY_PULL
-                                    }
-                                },
-                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                        }
-                        Row(horizontalArrangement = Arrangement.End) {
-                            TextActionButton(
-                                label = "Cancel",
-                                onClick = {
-                                    pendingPullViolationTeam = null
-                                    pendingPullViolationType = PullViolationType.OFFSIDES
-                                },
-                                height = 32.dp,
-                                compact = true,
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                            )
-                            TextActionButton(
-                                label = "OK",
-                                onClick = {
-                                    val result = state.assessPullViolation(
-                                        team = team,
-                                        now = System.currentTimeMillis(),
-                                        violation = pendingPullViolationType,
-                                    )
-                                    onStateChange(result.state)
-                                    pendingPullViolationTeam = null
-                                    pendingPullViolationType = PullViolationType.OFFSIDES
-                                },
-                                height = 32.dp,
-                                compact = true,
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                            )
+        val pullViolationAlternative = event.pullViolationAlternative()
+        val applyPullViolation = {
+            val result = state.assessPullViolation(
+                team = team,
+                now = now,
+                violation = pendingPullViolationType,
+            )
+            onStateChange(result.state)
+            pendingPullViolationTeam = null
+            pendingPullViolationType = PullViolationType.OFFSIDES
+        }
+        RuleGuidanceGate(
+            key = team,
+            mode = settings.ruleGuidanceMode,
+            requiredInNone = event.requiresGuidanceInNone(),
+            onAutoAccept = applyPullViolation,
+        ) {
+            AlertDialog(
+                onDismissRequest = {
+                    pendingPullViolationTeam = null
+                    pendingPullViolationType = PullViolationType.OFFSIDES
+                },
+                title = { Text(event.formatPopupTitle()) },
+                text = {
+                    RuleGuidanceText(event.guidanceMessage(settings.ruleGuidanceMode))
+                },
+                confirmButton = {
+                    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.End,
+                        ) {
+                            if (pullViolationAlternative != null) {
+                                MenuButton(
+                                    label = pullViolationAlternative.actionLabel,
+                                    onClick = {
+                                        pendingPullViolationType =
+                                            pullViolationAlternative.violation
+                                    },
+                                    contentPadding = PaddingValues(
+                                        horizontal = 16.dp,
+                                        vertical = 8.dp,
+                                    ),
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+                            Row(horizontalArrangement = Arrangement.End) {
+                                TextActionButton(
+                                    label = "Cancel",
+                                    onClick = {
+                                        pendingPullViolationTeam = null
+                                        pendingPullViolationType = PullViolationType.OFFSIDES
+                                    },
+                                    height = 32.dp,
+                                    compact = true,
+                                    contentPadding = PaddingValues(
+                                        horizontal = 8.dp,
+                                        vertical = 0.dp,
+                                    ),
+                                )
+                                TextActionButton(
+                                    label = "OK",
+                                    onClick = applyPullViolation,
+                                    height = 32.dp,
+                                    compact = true,
+                                    contentPadding = PaddingValues(
+                                        horizontal = 8.dp,
+                                        vertical = 0.dp,
+                                    ),
+                                )
+                            }
                         }
                     }
-                }
-            },
-        )
+                },
+            )
+        }
     } else if (pendingTechnicalFoulTeam != null) {
         val team = pendingTechnicalFoulTeam!!
         val event = state.previewTechnicalFoul(team).event
-        val misconductPrompt = if (event.needsMisconductChoice()) {
+        val misconductPrompt = if (
+            event.needsMisconductChoice(settings.ruleGuidanceMode)
+        ) {
             GamePrompt.LivePointMisconduct(event)
         } else {
             null
         }
-        AlertDialog(
-            onDismissRequest = { pendingTechnicalFoulTeam = null },
-            title = { Text(event.formatPopupTitle()) },
-            text = {
-                Text(
-                    text = misconductPrompt?.formatMessage() ?: event.formatMessage(),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-            },
-            confirmButton = {
-                if (misconductPrompt == null) {
-                    TextActionButton(
-                        label = "OK",
-                        onClick = {
-                            val result = state.assessTechnicalFoul(team, System.currentTimeMillis())
-                            onStateChange(result.state)
-                            pendingTechnicalFoulTeam = null
-                        },
-                    )
+        val applyTechnicalFoul = {
+            val result = state.assessTechnicalFoul(
+                team,
+                now,
+                settings.ruleGuidanceMode,
+            )
+            onStateChange(result.state)
+            pendingTechnicalFoulTeam = null
+        }
+        RuleGuidanceGate(
+            key = team,
+            mode = settings.ruleGuidanceMode,
+            requiredInNone = event.requiresGuidanceInNone(),
+            onAutoAccept = applyTechnicalFoul,
+        ) {
+            AlertDialog(
+                onDismissRequest = { pendingTechnicalFoulTeam = null },
+                title = { Text(event.formatPopupTitle()) },
+                text = {
+                    RuleGuidanceText(event.misconductConfirmationMessage(settings.ruleGuidanceMode))
+                },
+                confirmButton = {
+                    if (misconductPrompt == null) {
+                        TextActionButton(
+                            label = "OK",
+                            onClick = applyTechnicalFoul,
+                        )
+                    } else {
+                        MisconductChoiceButtons(
+                            firstLabel = "Cancel",
+                            onFirst = { pendingTechnicalFoulTeam = null },
+                            onOffense = {
+                                val result = state.assessTechnicalFoul(
+                                    team,
+                                    now,
+                                    settings.ruleGuidanceMode,
+                                )
+                                pendingTechnicalFoulResolution = PendingFieldTechnicalFoulResolution(
+                                    team = team,
+                                    result = result,
+                                    againstOffense = true,
+                                )
+                                pendingTechnicalFoulTeam = null
+                            },
+                            onDefense = {
+                                val result = state.assessTechnicalFoul(
+                                    team,
+                                    now,
+                                    settings.ruleGuidanceMode,
+                                )
+                                pendingTechnicalFoulResolution = PendingFieldTechnicalFoulResolution(
+                                    team = team,
+                                    result = result,
+                                    againstOffense = false,
+                                )
+                                pendingTechnicalFoulTeam = null
+                            },
+                        )
+                    }
+                },
+                dismissButton = if (misconductPrompt == null) {
+                    {
+                        TextActionButton(
+                            label = "Cancel",
+                            onClick = { pendingTechnicalFoulTeam = null },
+                        )
+                    }
                 } else {
-                    MisconductChoiceButtons(
-                        firstLabel = "Cancel",
-                        onFirst = { pendingTechnicalFoulTeam = null },
-                        onOffense = {
-                            val result = state.assessTechnicalFoul(team, System.currentTimeMillis())
-                            pendingTechnicalFoulResolution = PendingFieldTechnicalFoulResolution(
-                                team = team,
-                                result = result,
-                                againstOffense = true,
-                            )
-                            pendingTechnicalFoulTeam = null
-                        },
-                        onDefense = {
-                            val result = state.assessTechnicalFoul(team, System.currentTimeMillis())
-                            pendingTechnicalFoulResolution = PendingFieldTechnicalFoulResolution(
-                                team = team,
-                                result = result,
-                                againstOffense = false,
-                            )
-                            pendingTechnicalFoulTeam = null
-                        },
-                    )
-                }
-            },
-            dismissButton = if (misconductPrompt == null) {
-                {
-                    TextActionButton(
-                        label = "Cancel",
-                        onClick = { pendingTechnicalFoulTeam = null },
-                    )
-                }
-            } else {
-                null
-            },
-        )
+                    null
+                },
+            )
+        }
     } else if (pendingTechnicalFoulResolution != null) {
         val pending = pendingTechnicalFoulResolution!!
         val prompt = GamePrompt.LivePointMisconduct(pending.result.event)
@@ -653,16 +699,13 @@ internal fun LiveGameScreen(
             },
             title = { Text(prompt.formatTitle()) },
             text = {
-                Text(
-                    text = prompt.resolutionMessage(pending.againstOffense),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
+                RuleGuidanceText(prompt.resolutionMessage(pending.againstOffense))
             },
             confirmButton = {
                 TextActionButton(
                     label = "OK",
                     onClick = {
-                        onStateChange(pending.result.state.withPendingMisconductCountdown())
+                        onStateChange(pending.result.withResolvedMisconductPenalty().state)
                         pendingTechnicalFoulResolution = null
                     },
                 )
@@ -678,97 +721,121 @@ internal fun LiveGameScreen(
                 )
             },
         )
-    } else if (actionInfoMessage != null) {
+    } else if (actionInfoEvent != null) {
         // General informational pop-up for terse field guidance and validation messages.
-        AlertDialog(
-            onDismissRequest = { dismissActionInfo() },
-            title = { Text(actionInfoTitle) },
-            text = {
-                Text(
-                    text = actionInfoMessage!!,
-                    style = MaterialTheme.typography.bodyLarge,
-                )
+        val event = actionInfoEvent!!
+        RuleGuidanceGate(
+            key = event,
+            mode = settings.ruleGuidanceMode,
+            requiredInNone = event.requiresGuidanceInNone(),
+            onAutoAccept = {
+                dismissActionInfo()
             },
-            confirmButton = {
-                TextActionButton(label = "OK", onClick = { dismissActionInfo() })
-            },
-        )
+        ) {
+            AlertDialog(
+                onDismissRequest = { dismissActionInfo() },
+                title = { Text(event.formatPopupTitle()) },
+                text = {
+                    RuleGuidanceText(event.resultGuidanceMessage(settings.ruleGuidanceMode))
+                },
+                confirmButton = {
+                    TextActionButton(label = "OK", onClick = { dismissActionInfo() })
+                },
+            )
+        }
     } else if (state.pendingCapOffer != null) {
         // Cap prompts block until the observer decides whether to apply the newly eligible cap.
         val capPrompt = GamePrompt.ApplyCap(state, state.pendingCapOffer!!)
-        AlertDialog(
-            onDismissRequest = {},
-            title = { Text(capPrompt.formatTitle()) },
-            text = {
-                Text(
-                    text = capPrompt.formatMessage(),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-            },
-            confirmButton = {
-                TextActionButton(
-                    label = "Apply",
-                    onClick = {
-                        onStateChange(state.applyPendingCap(now))
-                    },
-                )
-            },
-            dismissButton = {
-                TextActionButton(label = "No", onClick = { onStateChange(state.deferPendingCap()) })
-            },
-        )
+        val applyCap = {
+            onStateChange(state.applyPendingCap(System.currentTimeMillis()))
+        }
+        RuleGuidanceGate(
+            key = state.pendingCapOffer,
+            mode = settings.ruleGuidanceMode,
+            requiredInNone = capPrompt.requiresGuidanceInNone(),
+            onAutoAccept = applyCap,
+        ) {
+            AlertDialog(
+                onDismissRequest = {},
+                title = { Text(capPrompt.formatTitle()) },
+                text = {
+                    RuleGuidanceText(capPrompt.formatMessage())
+                },
+                confirmButton = {
+                    TextActionButton(
+                        label = "OK",
+                        onClick = applyCap,
+                    )
+                },
+                dismissButton = {
+                    TextActionButton(
+                        label = "Not yet",
+                        onClick = {
+                            onStateChange(state.deferPendingCap())
+                        },
+                    )
+                },
+            )
+        }
     } else if (showWaterBreakPrompt) {
-        AlertDialog(
-            onDismissRequest = {
-                if (state.pendingWaterBreakOffer) {
-                    onStateChange(state.declinePendingWaterBreak())
-                }
-                showWaterBreakPrompt = false
-            },
-            title = { Text("Water break") },
-            text = {
-                Text(
-                    text = state.waterBreakPromptText(),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-            },
-            confirmButton = {
-                TextActionButton(
-                    label = "Yes",
-                    onClick = {
-                        onStateChange(state.applyWaterBreak(now))
-                        showWaterBreakPrompt = false
-                    },
-                )
-            },
-            dismissButton = {
-                TextActionButton(
-                    label = "No",
-                    onClick = {
-                        if (state.pendingWaterBreakOffer) {
-                            onStateChange(state.declinePendingWaterBreak())
-                        }
-                        showWaterBreakPrompt = false
-                    },
-                )
-            },
-        )
+        val applyWaterBreak = {
+            onStateChange(state.applyWaterBreak(now))
+            showWaterBreakPrompt = false
+        }
+        RuleGuidanceGate(
+            key = state.pendingWaterBreakOffer to showWaterBreakPrompt,
+            mode = settings.ruleGuidanceMode,
+            requiredInNone = true,
+            onAutoAccept = applyWaterBreak,
+        ) {
+            AlertDialog(
+                onDismissRequest = {
+                    if (state.pendingWaterBreakOffer) {
+                        onStateChange(state.declinePendingWaterBreak())
+                    }
+                    showWaterBreakPrompt = false
+                },
+                title = { Text("Water break") },
+                text = {
+                    RuleGuidanceText(state.waterBreakPromptMessage())
+                },
+                confirmButton = {
+                    TextActionButton(
+                        label = "OK",
+                        onClick = applyWaterBreak,
+                    )
+                },
+                dismissButton = {
+                    TextActionButton(
+                        label = if (state.pendingWaterBreakOffer) "Not yet" else "Cancel",
+                        onClick = {
+                            if (state.pendingWaterBreakOffer) {
+                                onStateChange(state.declinePendingWaterBreak())
+                            }
+                            showWaterBreakPrompt = false
+                        },
+                    )
+                },
+            )
+        }
     } else if (activeGamePrompt != null) {
         // Prominent game prompts that are not tied to modal workflows.
         val prompt = activeGamePrompt!!
-        AlertDialog(
-            onDismissRequest = { activeGamePrompt = null },
-            title = { Text(prompt.formatTitle()) },
-            text = {
-                Text(
-                    text = prompt.formatMessage(),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
+        RuleGuidanceGate(
+            key = prompt,
+            mode = settings.ruleGuidanceMode,
+            requiredInNone = prompt.requiresGuidanceInNone(),
+            onAutoAccept = {
+                activeGamePrompt = null
             },
-            confirmButton = {
-                TextActionButton(label = "OK", onClick = { activeGamePrompt = null })
-            },
-        )
+        ) {
+            GamePromptNoticeDialog(
+                prompt = prompt,
+                onDismiss = {
+                    activeGamePrompt = null
+                },
+            )
+        }
     } else if (showMoreActionsDialog) {
         // Dialog for less-common actions and manual corrections.
         AlertDialog(
@@ -778,6 +845,7 @@ internal fun LiveGameScreen(
                 MoreActionsContent(
                     state = state,
                     now = now,
+                    guidanceMode = settings.ruleGuidanceMode,
                     onUpdateGameSetup = {
                         showMoreActionsDialog = false
                         onUpdateGameSetup()
@@ -791,7 +859,7 @@ internal fun LiveGameScreen(
                         onOpenGameSummary()
                     },
                     onHeatLevelChange = { heatLevel ->
-                        onStateChange(state.setHeatLevel(heatLevel, now))
+                        onStateChange(state.setHeatLevel(heatLevel, System.currentTimeMillis()))
                         showMoreActionsDialog = false
                     },
                     onAction = { updatedState ->
@@ -806,6 +874,21 @@ internal fun LiveGameScreen(
             },
         )
     }
+}
+
+/// Render an acknowledgement-only game prompt.
+@Composable
+private fun GamePromptNoticeDialog(prompt: GamePrompt, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(prompt.formatTitle()) },
+        text = {
+            RuleGuidanceText(prompt.formatMessage())
+        },
+        confirmButton = {
+            TextActionButton(label = "OK", onClick = onDismiss)
+        },
+    )
 }
 
 /**

@@ -23,6 +23,7 @@ import java.io.FileInputStream
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import org.junit.After
 import org.junit.Rule
 
 private val explicitControlDismissalCoverageAvds = setOf(
@@ -42,6 +43,12 @@ private const val ROOT_VIEW_WITHOUT_FOCUS_EXCEPTION_NAME =
 abstract class MainActivityUiTestFixtures {
     @get:Rule
     val composeRule = createAndroidComposeRule<MainActivity>()
+
+    /// Restore the production guidance timeout so shortened tests cannot affect later narratives.
+    @After
+    fun resetRuleGuidanceTimeout() {
+        ruleGuidanceTimeoutMillis = 5_000L
+    }
 
     /// Remove any current game and wait for the UI to observe the empty current-game state.
     protected fun clearCurrentGameProgrammatically() {
@@ -732,6 +739,34 @@ abstract class MainActivityUiTestFixtures {
     }
 
     /**
+     * Establish the live-game rule-guidance mode.
+     *
+     * Tests that depend on dialog duration or automatic acceptance should set this explicitly.
+     *
+     * @param mode Amount and duration of rule guidance shown during games.
+     */
+    internal fun setRuleGuidanceMode(mode: RuleGuidanceMode) {
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appViewModel.updateSettings(
+                activity.appViewModel.settings.withRuleGuidanceMode(mode)
+            )
+        }
+        composeRule.waitForIdle()
+    }
+
+    /**
+     * Shorten automatic guidance delays for tests that must exercise timeout behavior.
+     *
+     * The shared teardown restores the production five-second value after each test.
+     *
+     * @param timeoutMillis Delay the current test should use.
+     */
+    protected fun setRuleGuidanceTimeoutForTest(timeoutMillis: Long) {
+        require(timeoutMillis > 0L)
+        ruleGuidanceTimeoutMillis = timeoutMillis
+    }
+
+    /**
      * Establish whether automatic live-point transitions should lock the live screen.
      *
      * Tests that depend on this persisted setting should set it explicitly rather than relying on
@@ -1025,6 +1060,18 @@ abstract class MainActivityUiTestFixtures {
     protected fun waitForText(text: String, substring: Boolean = false) {
         composeRule.waitUntil(timeoutMillis = 10_000) {
             composeRule.onAllNodesWithText(text, substring = substring).fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    /**
+     * Wait until text leaves the Compose semantics tree.
+     *
+     * @param text The text to wait for removal of.
+     * @param substring Whether substring matching should be used.
+     */
+    protected fun waitForNoText(text: String, substring: Boolean = false) {
+        composeRule.waitUntil(timeoutMillis = 10_000) {
+            composeRule.onAllNodesWithText(text, substring = substring).fetchSemanticsNodes().isEmpty()
         }
     }
 

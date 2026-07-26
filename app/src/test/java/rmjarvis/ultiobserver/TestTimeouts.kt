@@ -55,6 +55,10 @@ class TestTimeouts : GameDomainTestFixtures() {
             "Timeout charged to Viscous Coupling. They have 1 timeout remaining in this half.",
             timeoutResult.message(),
         )
+        assertEquals(
+            "Timeout charged to Viscous Coupling.",
+            timeoutResult.event!!.formatBriefMessage().plainText,
+        )
         assertEquals("Timeout", timeoutResult.event?.formatPopupTitle())
         state = timeoutResult.state
         assertEquals(1, state.teamOne.timeoutsUsedThisHalf)

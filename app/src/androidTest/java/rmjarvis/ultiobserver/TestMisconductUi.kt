@@ -30,6 +30,8 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
      */
     @Test
     fun cardsAndTechDialogPath() {
+        setRuleGuidanceMode(RuleGuidanceMode.FULL)
+
         // This long narrative is about card dialogs, not countdown transitions. Keep countdowns
         // from auto-advancing and locking the field if a slow emulator reaches zero mid-test.
         setAutomaticallyAdvanceCountdowns(false)
@@ -320,7 +322,50 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Close").performClick()
         assertLiveScreen()
 
+        // Repeat the same live Card edit with Timed guidance. The suspension notice should
+        // automatically return to the editable-card list.
+        setRuleGuidanceTimeoutForTest(1_000L)
+        setRuleGuidanceMode(RuleGuidanceMode.TIMED)
+        seedInGamePlayerCardsProgrammatically(
+            teamOneCards = emptyList(),
+            teamTwoCards = listOf(
+                playerRecordWithCards("14", yellows = 1, playerName = "Timed Cutter"),
+                playerRecordWithCards("", yellows = 1, playerName = "Timed Name Only Cutter"),
+            ),
+        )
+        openCardsDialog(TeamId.TEAM_TWO)
+        composeRule.onNodeWithText("Edit existing cards").performClick()
+        composeRule.onAllNodes(
+            hasContentDescription("Edit Timed Name Only Cutter", substring = true)
+        ).onFirst().performClick()
+        waitForText("Edit yellow card")
+        enterCardPlayerNumber("14")
+        composeRule.onNodeWithTag("card-player-name").performTextReplacement("Timed Cutter")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Team 2 #14 now has two yellow cards and has been suspended.")
+        waitForText("Edit existing cards")
+        composeRule.onNodeWithText("Done").performClick()
+        waitForText("Current cards:")
+        composeRule.onNodeWithText("Close").performClick()
+        assertLiveScreen()
+
+        // A new player red uses the general action-info dialog, which also accepts itself in
+        // Timed mode.
+        openCardsDialog(TeamId.TEAM_ONE)
+        tapCardDialogAction(TeamId.TEAM_ONE, "Red")
+        enterCardPlayerNumber("16")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Player 16 receives a game suspension.", substring = true)
+        waitForNoText("Player 16 receives a game suspension.", substring = true)
+        setRuleGuidanceMode(RuleGuidanceMode.FULL)
+
         // Ending the game renders the already-recorded player cards on the summary.
+        seedInGamePlayerCardsProgrammatically(
+            teamTwoCards = listOf(
+                playerRecordWithCards("7", yellows = 2),
+                playerRecordWithCards("8", yellows = 2, playerName = "Alex Cutter"),
+            ),
+        )
         openMoreActionsDialog()
         composeRule.onNodeWithText("End game").performScrollTo().performClick()
         waitForText("Game over")
@@ -334,6 +379,8 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
      */
     @Test
     fun sameNumberDifferentNameWarning() {
+        setRuleGuidanceMode(RuleGuidanceMode.FULL)
+
         // Start with a player with number 6, who has a yellow card.
         startLiveGameProgrammatically()
         seedInGamePlayerCardsProgrammatically(
@@ -372,6 +419,8 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
      */
     @Test
     fun cardDialogShowsPullRolesDuringHalftime() {
+        setRuleGuidanceMode(RuleGuidanceMode.FULL)
+
         // Start between points with Team 1 pulling next.
         startBetweenPointsProgrammatically()
         assertEquals(TeamId.TEAM_ONE, accessCurrentGameState().pullingTeam)
@@ -398,6 +447,8 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
      */
     @Test
     fun cardCorrectionCountsAndBasicActions() {
+        setRuleGuidanceMode(RuleGuidanceMode.FULL)
+
         // With no player cards yet, both teams expose disabled existing-card actions.
         startLiveGameProgrammatically()
         openAdjustCardsDialog()
@@ -435,7 +486,10 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Record").performClick()
         composeRule.onAllNodesWithText("Card suspension").assertCountEquals(0)
 
-        // The correction dialog can add a player red and show the suspension notice.
+        // The correction dialog can add a player red, then Timed guidance automatically returns
+        // from its suspension notice to the correction dialog.
+        setRuleGuidanceTimeoutForTest(1_000L)
+        setRuleGuidanceMode(RuleGuidanceMode.TIMED)
         composeRule.onNodeWithTag("cards-adjust-team-one-add-red")
             .performScrollTo()
             .performClick()
@@ -443,7 +497,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         enterCardPlayerNumber("9")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Team 1 #9 now has a red card and has been suspended.")
-        dismissDialog(text = "OK")
+        waitForNoText("Team 1 #9 now has a red card and has been suspended.")
         composeRule.onNodeWithText("Done").performClick()
         waitForText("Undo Adjust blue card/tech counts")
     }
@@ -453,6 +507,8 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
      */
     @Test
     fun cardCorrectionEditAndRemoveDialogs() {
+        setRuleGuidanceMode(RuleGuidanceMode.FULL)
+
         // Seed precise card history so the test can focus on edit/remove dialog behavior.
         startLiveGameProgrammatically()
         seedInGamePlayerCardsProgrammatically(
@@ -579,6 +635,8 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
      */
     @Test
     fun cardCorrectionValidationDialogs() {
+        setRuleGuidanceMode(RuleGuidanceMode.FULL)
+
         // Seed players needed for same-number and suspended-player validation branches.
         startLiveGameProgrammatically()
         seedInGamePlayerCardsProgrammatically(
@@ -647,6 +705,8 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
      */
     @Test
     fun repeatedPlayerCardChoiceDialogs() {
+        setRuleGuidanceMode(RuleGuidanceMode.FULL)
+
         // Seed a live point with already-carded players who need choice and rejection dialogs.
         startLivePointProgrammatically()
         seedInGamePlayerCardsProgrammatically(

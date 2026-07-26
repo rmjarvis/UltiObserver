@@ -31,6 +31,43 @@ data class PullViolationAssessmentPreview(
 )
 
 /**
+ * Alternative violation offered from a mixed-division offsides action.
+ *
+ * Clicking offsides opens a dialog confirmation that includes the option to switch the
+ * violation to a majority pull violation instead. And then that lets you switch back.
+ * This helper class keeps track of the alternative violation being offered in each case.
+ *
+ * @param violation The alternative violation to record.
+ * @param actionLabel The correction action shown in the confirmation.
+ */
+internal data class PullViolationAlternative(
+    val violation: PullViolationType,
+    val actionLabel: String,
+)
+
+/**
+ * Return the other pulling-team violation available from a mixed-division confirmation.
+ *
+ * False start has no alternative because it belongs to the receiving team.
+ */
+internal fun GameEvent.PullViolationRecorded.pullViolationAlternative(): PullViolationAlternative? {
+    if (violation == PullViolationType.FALSE_START || !state.usesMixedDivision()) {
+        return null
+    }
+    return if (violation == PullViolationType.MAJORITY_PULL) {
+        PullViolationAlternative(
+            violation = PullViolationType.OFFSIDES,
+            actionLabel = "This was an Offsides",
+        )
+    } else {
+        PullViolationAlternative(
+            violation = PullViolationType.MAJORITY_PULL,
+            actionLabel = "This was a Majority pull violation",
+        )
+    }
+}
+
+/**
  * Replace each team's cumulative pull-related counts as a manual correction.
  *
  * @param teamOneOffsides The corrected offsides count for team one.
@@ -433,28 +470,61 @@ internal fun GameEvent.PullViolationRecorded.formatPopupTitle(): String {
     return when (violation) {
         PullViolationType.OFFSIDES -> "Offsides"
         PullViolationType.FALSE_START -> "False start"
-        PullViolationType.MAJORITY_PULL -> "Majority pull rule violation"
+        PullViolationType.MAJORITY_PULL -> "Majority pull violation"
     }
 }
 
 /// Format a pull-violation event message with the field-position consequence.
-internal fun GameEvent.PullViolationRecorded.formatMessage(): String {
+internal fun GameEvent.PullViolationRecorded.formatMessage(): RuleGuidanceMessage {
     val teamName = state.teamName(team)
     val violationLine = "This is $teamName's ${totalPullViolations.ordinalWordText()} pull violation."
-    val consequence = when (violation) {
+    val consequenceLines = when (violation) {
         PullViolationType.OFFSIDES,
-        PullViolationType.MAJORITY_PULL -> if (totalPullViolations <= 1) {
-            "${state.teamName(state.pullingTeam.flip())} starts at the brick mark."
-        } else {
-            "${state.teamName(state.pullingTeam.flip())} starts at midfield."
-        }.let { fieldPosition ->
-            if (state.pullSequenceFalseStartRecorded) {
-                fieldPosition
+        PullViolationType.MAJORITY_PULL -> {
+            val fieldPosition = if (totalPullViolations <= 1) {
+                "${state.teamName(state.pullingTeam.flip())} starts at the brick mark."
             } else {
-                "$fieldPosition\n\nThe disc is live -- no defensive check is required."
+                "${state.teamName(state.pullingTeam.flip())} starts at midfield."
+            }
+            if (state.pullSequenceFalseStartRecorded) {
+                listOf(RuleGuidanceLine(fieldPosition))
+            } else {
+                listOf(
+                    RuleGuidanceLine(fieldPosition),
+                    RuleGuidanceLine(""),
+                    RuleGuidanceLine("The disc is live -- no defensive check is required."),
+                )
             }
         }
-        PullViolationType.FALSE_START -> "${state.teamName(state.pullingTeam)} gets to set up on defense."
+        PullViolationType.FALSE_START -> {
+            listOf(
+                RuleGuidanceLine(
+                    "${state.teamName(state.pullingTeam)} gets to set up on defense. " +
+                    "Defensive check is required."
+                )
+            )
+        }
     }
-    return "$violationLine\n\n$consequence"
+    return RuleGuidanceMessage(
+        listOf(RuleGuidanceLine(violationLine), RuleGuidanceLine("")) + consequenceLines
+    )
+}
+
+/// Format only the operational consequence of a pull violation.
+internal fun GameEvent.PullViolationRecorded.formatBriefMessage(): RuleGuidanceMessage {
+    val line = when (violation) {
+        PullViolationType.OFFSIDES,
+        PullViolationType.MAJORITY_PULL -> {
+            val receivingTeam = state.teamName(state.pullingTeam.flip())
+            if (totalPullViolations <= 1) {
+                "$receivingTeam starts at the brick mark."
+            } else {
+                "$receivingTeam starts at midfield."
+            }
+        }
+        PullViolationType.FALSE_START -> {
+            "${state.teamName(state.pullingTeam)} gets to set up. Check required."
+        }
+    }
+    return RuleGuidanceMessage(listOf(RuleGuidanceLine(line)))
 }

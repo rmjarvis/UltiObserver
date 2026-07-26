@@ -484,14 +484,38 @@ fun List<PlayerRecord>.sameNumberPlayerIdentityConflict(
  *
  * @param state The live state after the assessment.
  * @param event The observer-facing event to show.
- * @param needsMisconductChoice Whether the UI must ask offense/defense before resolving live-point misconduct.
+ * @param triggersMisconductPenalty Whether this assessment crossed the live-point misconduct
+ * threshold.
  */
 data class CardAssessmentResult(
     val state: GameState,
     val event: GameEvent,
-    val needsMisconductChoice: Boolean =
-        event.needsMisconductChoice(),
+    val triggersMisconductPenalty: Boolean =
+        event.triggersMisconductPenalty(),
 )
+
+/**
+ * Apply the live-point misconduct countdown after its offense/defense guidance is resolved.
+ */
+internal fun CardAssessmentResult.withResolvedMisconductPenalty(): CardAssessmentResult {
+    require(triggersMisconductPenalty) {
+        "A misconduct countdown requires an assessment that triggered the penalty."
+    }
+    return copy(state = state.withPendingMisconductCountdown())
+}
+
+/**
+ * Resolve the misconduct consequence automatically when the selected guidance skips its choice.
+ */
+internal fun CardAssessmentResult.finalizedForGuidanceMode(
+    guidanceMode: RuleGuidanceMode,
+): CardAssessmentResult {
+    return if (triggersMisconductPenalty && guidanceMode.usesBriefGuidance()) {
+        withResolvedMisconductPenalty()
+    } else {
+        this
+    }
+}
 
 /**
  * State and popup needs from previewing a blue card before recording it.
@@ -883,6 +907,30 @@ fun playerSuspensionStatus(
     }
 }
 
+/**
+ * Build an emphasized notice when the given player records establish a suspension.
+ *
+ * @param team The suspended player's team.
+ * @param records Current player records after the card change.
+ * @param identity The player whose suspension status should be reported.
+ */
+internal fun GameState.playerSuspensionNotice(
+    team: TeamId,
+    records: List<PlayerRecord>,
+    identity: PlayerIdentity,
+): RuleGuidanceMessage? {
+    val status = playerSuspensionStatus(records, identity) ?: return null
+    return RuleGuidanceMessage(
+        listOf(
+            RuleGuidanceLine(
+                "${teamFor(team).name} ${identity.displayText(compact = true)} " +
+                    status.noticeText,
+                bold = true,
+            )
+        )
+    )
+}
+
 /// Return editable in-game yellow/red card rows for one team's player records.
 fun editablePlayerCards(players: List<PlayerRecord>): List<EditablePlayerCard> {
     return buildList {
@@ -1075,8 +1123,14 @@ private fun GameState.withAddedBlueCard(team: TeamId): GameState {
  * Record a technical foul and determine whether it triggers misconduct handling.
  *
  * @param team The team receiving the technical foul.
+ * @param now Current epoch millis for the event log.
+ * @param guidanceMode Rule-guidance mode controlling whether misconduct needs a later choice.
  */
-fun GameState.assessTechnicalFoul(team: TeamId, now: Long): CardAssessmentResult {
+internal fun GameState.assessTechnicalFoul(
+    team: TeamId,
+    now: Long,
+    guidanceMode: RuleGuidanceMode,
+): CardAssessmentResult {
     var updatedState = this.withAddedTechnicalFoul(team).copy(
         lastEvent = "Technical foul on ${this.teamName(team)}.",
     ).withEventLogEntry(
@@ -1088,14 +1142,15 @@ fun GameState.assessTechnicalFoul(team: TeamId, now: Long): CardAssessmentResult
     ).withUndo(this, "Undo Technical foul on ${this.teamName(team)}")
     val technicalFouls = updatedState.technicalFoulsFor(team)
     updatedState = updatedState.withSkippedPullForMisconductThreshold(technicalFouls)
+    val event = GameEvent.TechnicalFoulsChanged(
+        state = updatedState,
+        team = team,
+        technicalFoulTotal = technicalFouls,
+    )
     return CardAssessmentResult(
         state = updatedState,
-        event = GameEvent.TechnicalFoulsChanged(
-            state = updatedState,
-            team = team,
-            technicalFoulTotal = technicalFouls,
-        ),
-    )
+        event = event,
+    ).finalizedForGuidanceMode(guidanceMode)
 }
 
 /**
@@ -1654,8 +1709,8 @@ internal fun GameEvent.TechnicalFoulsChanged.formatPopupTitle(): String {
     return "Technical Foul"
 }
 
-/// Report whether this event needs an offense/defense choice before showing the penalty cue.
-fun GameEvent.needsMisconductChoice(): Boolean {
+/// Report whether this event crossed the live-point misconduct-penalty threshold.
+fun GameEvent.triggersMisconductPenalty(): Boolean {
     return when (this) {
         is GameEvent.TeamCardsChanged -> teamCardTotal >= 3 && state.phase == GamePhase.LIVE_POINT
         is GameEvent.TechnicalFoulsChanged -> technicalFoulTotal >= 3 && state.phase == GamePhase.LIVE_POINT
@@ -1663,54 +1718,125 @@ fun GameEvent.needsMisconductChoice(): Boolean {
     }
 }
 
-/// Format a team-card event message, including player-card and misconduct cue details.
-internal fun GameEvent.TeamCardsChanged.formatMessage(): String {
-    val totalMessage = this.teamCardTotalMessage()
-    val baseMessage = if (playerCardType == null) {
-        "Blue card on ${state.teamName(team)}.\n$totalMessage"
-    } else {
-        val jerseyNumber = playerCardJerseyNumber as String
-        (playerCardEventLines(playerCardType, jerseyNumber, playerCardName.orEmpty()) + totalMessage).joinToString("\n")
-    }
-    return baseMessage.withMisconductCue(
-        state = state,
-        team = team,
-        thresholdCount = teamCardTotal,
-    )
+/// Report whether the selected guidance mode requires asking offense or defense.
+internal fun GameEvent.needsMisconductChoice(guidanceMode: RuleGuidanceMode): Boolean {
+    return triggersMisconductPenalty() && !guidanceMode.usesBriefGuidance()
 }
 
-/// Format the team-card total, explaining red-card weighting when it affects the count.
-private fun GameEvent.TeamCardsChanged.teamCardTotalMessage(): String {
-    return "${state.teamName(team)} has " +
-        "${countedNounPhrase(teamCardTotal, "card")} total" +
-        "${state.teamCardTotalExplanation(team)}."
+/// Format the guidance shown before confirming a card or technical-foul assessment.
+internal fun GameEvent.misconductConfirmationMessage(
+    guidanceMode: RuleGuidanceMode,
+): RuleGuidanceMessage {
+    return if (triggersMisconductPenalty()) {
+        if (!guidanceMode.usesBriefGuidance()) {
+            GamePrompt.LivePointMisconduct(this).formatMessage()
+        } else {
+            GamePrompt.LivePointMisconduct(this).formatBriefMessage()
+        }
+    } else {
+        guidanceMessage(guidanceMode)
+    }
+}
+
+/// Format an assessed event result, including the concise misconduct reminder when needed.
+internal fun GameEvent.resultGuidanceMessage(
+    guidanceMode: RuleGuidanceMode,
+): RuleGuidanceMessage {
+    val baseMessage = guidanceMessage(guidanceMode)
+    return if (guidanceMode.usesBriefGuidance() && triggersMisconductPenalty()) {
+        val reminderLines = GamePrompt.LivePointMisconduct(this).formatBriefMessage().lines
+        RuleGuidanceMessage(
+            baseMessage.lines + RuleGuidanceLine("") + reminderLines
+        )
+    } else {
+        baseMessage
+    }
+}
+
+/// Format a team-card event message, including player-card and misconduct cue details.
+internal fun GameEvent.TeamCardsChanged.formatMessage(): RuleGuidanceMessage {
+    val lines = buildList {
+        if (playerCardType == null) {
+            add(RuleGuidanceLine("Blue card on ${state.teamName(team)}."))
+        } else {
+            addAll(playerCardEventLines())
+        }
+        add(
+            RuleGuidanceLine(
+                "${state.teamName(team)} has " +
+                    "${countedNounPhrase(teamCardTotal, "card")} total" +
+                    "${state.teamCardTotalExplanation(team)}."
+            )
+        )
+        if (teamCardTotal >= 3 && state.phase != GamePhase.LIVE_POINT) {
+            add(RuleGuidanceLine(""))
+            addAll(
+                state.betweenPointsMisconductCue(team)
+                    .lines()
+                    .map { RuleGuidanceLine(it) }
+            )
+        }
+    }
+    return RuleGuidanceMessage(lines)
+}
+
+/// Format a concise card result, retaining only critical suspension consequences when present.
+internal fun GameEvent.TeamCardsChanged.formatBriefMessage(): RuleGuidanceMessage {
+    val playerLines = playerCardEventLines()
+    val suspensionLines = playerLines.filter { it.bold }
+    if (suspensionLines.isNotEmpty()) {
+        return RuleGuidanceMessage(suspensionLines)
+    }
+    val briefLine = if (playerCardType == null) {
+        RuleGuidanceLine("Blue card on ${state.teamName(team)}.")
+    } else {
+        playerLines.first()
+    }
+    return RuleGuidanceMessage(listOf(briefLine))
 }
 
 /**
- * Build the player-specific message lines for a yellow, red, or second-yellow event.
+ * Report whether this card result contains a critical game or tournament suspension notice.
  *
- * @param playerCardType The player-card event type to describe.
- * @param jerseyNumber The player number.
+ * This is used to determine whether None mode needs to display the message.
  */
-private fun GameEvent.TeamCardsChanged.playerCardEventLines(
-    playerCardType: PlayerCardEventType,
-    jerseyNumber: String,
-    playerName: String,
-): List<String> {
+internal fun GameEvent.TeamCardsChanged.hasSuspensionNotice(): Boolean {
+    return playerCardEventLines().any { it.bold }
+}
+
+/// Build the player-specific lines for this card event.
+private fun GameEvent.TeamCardsChanged.playerCardEventLines(): List<RuleGuidanceLine> {
+    if (playerCardType == null) {
+        return emptyList()
+    }
+    val jerseyNumber = playerCardJerseyNumber as String
+    val playerName = playerCardName.orEmpty()
     return buildList {
         val hasTournamentSuspension = state.playerHasTournamentSuspension(team, jerseyNumber, playerName)
         when (playerCardType) {
-            PlayerCardEventType.YELLOW -> add("Yellow card on ${playerReference(jerseyNumber, playerName)}.")
+            PlayerCardEventType.YELLOW -> {
+                add(RuleGuidanceLine("Yellow card on ${playerReference(jerseyNumber, playerName)}."))
+            }
             PlayerCardEventType.RED -> {
-                add("Red card on ${playerReference(jerseyNumber, playerName)}.")
+                add(RuleGuidanceLine("Red card on ${playerReference(jerseyNumber, playerName)}."))
                 if (!hasTournamentSuspension) {
-                    add("${playerSentenceSubject(jerseyNumber, playerName)} receives a game suspension.")
+                    add(
+                        RuleGuidanceLine(
+                            "${playerSentenceSubject(jerseyNumber, playerName)} receives a game suspension.",
+                            bold = true,
+                        )
+                    )
                 }
             }
             PlayerCardEventType.SECOND_YELLOW -> {
-                add("Second yellow on ${playerReference(jerseyNumber, playerName)}.")
+                add(RuleGuidanceLine("Second yellow on ${playerReference(jerseyNumber, playerName)}."))
                 if (!hasTournamentSuspension) {
-                    add("${playerSentenceSubject(jerseyNumber, playerName)} receives a game suspension.")
+                    add(
+                        RuleGuidanceLine(
+                            "${playerSentenceSubject(jerseyNumber, playerName)} receives a game suspension.",
+                            bold = true,
+                        )
+                    )
                 }
             }
         }
@@ -1718,10 +1844,20 @@ private fun GameEvent.TeamCardsChanged.playerCardEventLines(
             state.gameSuspensionStartedInSecondHalf() &&
             !hasTournamentSuspension
         ) {
-            add("${playerSentenceSubject(jerseyNumber, playerName)} must also sit out the first half of the next game, if there is one.")
+            add(
+                RuleGuidanceLine(
+                    "${playerSentenceSubject(jerseyNumber, playerName)} must also sit out the first half of the next game, if there is one.",
+                    bold = true,
+                )
+            )
         }
         if (hasTournamentSuspension) {
-            add("${playerSentenceSubject(jerseyNumber, playerName)} is suspended for the rest of the tournament.")
+            add(
+                RuleGuidanceLine(
+                    "${playerSentenceSubject(jerseyNumber, playerName)} is suspended for the rest of the tournament.",
+                    bold = true,
+                )
+            )
         }
     }
 }
@@ -1776,32 +1912,30 @@ private fun GameState.playerHasTournamentSuspension(
 }
 
 /// Format a technical-foul event message, including misconduct cue details when needed.
-internal fun GameEvent.TechnicalFoulsChanged.formatMessage(): String {
-    val baseMessage = "This is ${state.teamName(team)}'s ${technicalFoulTotal.ordinalWordText()} technical foul."
-    return baseMessage.withMisconductCue(
-        state = state,
-        team = team,
-        thresholdCount = technicalFoulTotal,
+internal fun GameEvent.TechnicalFoulsChanged.formatMessage(): RuleGuidanceMessage {
+    val lines = mutableListOf(
+        RuleGuidanceLine(
+            "This is ${state.teamName(team)}'s " +
+                "${technicalFoulTotal.ordinalWordText()} technical foul."
+        )
     )
+    if (technicalFoulTotal >= 3 && state.phase != GamePhase.LIVE_POINT) {
+        lines += RuleGuidanceLine("")
+        lines += RuleGuidanceLine(state.betweenPointsMisconductCue(team))
+    }
+    return RuleGuidanceMessage(lines)
 }
 
-/**
- * Append a between-points misconduct cue when a threshold event has an immediate no-pull consequence.
- *
- * @param state The live state after the threshold event.
- * @param team The team that reached the threshold.
- * @param thresholdCount The team-card or technical-foul count after the event.
- */
-private fun String.withMisconductCue(
-    state: GameState,
-    team: TeamId,
-    thresholdCount: Int,
-): String {
-    return if (thresholdCount < 3 || state.phase == GamePhase.LIVE_POINT) {
-        this
-    } else {
-        "$this\n\n${state.betweenPointsMisconductCue(team)}"
-    }
+/// Format a concise technical-foul result.
+internal fun GameEvent.TechnicalFoulsChanged.formatBriefMessage(): RuleGuidanceMessage {
+    return RuleGuidanceMessage(
+        listOf(
+            RuleGuidanceLine(
+                "${technicalFoulTotal.ordinalWordText().capitalized()} " +
+                    "technical foul on ${state.teamName(team)}."
+            )
+        )
+    )
 }
 
 /**
@@ -1824,9 +1958,13 @@ private fun GameState.betweenPointsMisconductCue(team: TeamId): String {
 internal fun GamePrompt.LivePointMisconduct.formatTitle(): String = "Misconduct penalty"
 
 /// Format the prompt body that asks which side committed live-point misconduct.
-internal fun GamePrompt.LivePointMisconduct.formatMessage(): String {
-    val baseMessage = event.formatMessage()
-    return "$baseMessage\n\nWas this against the offense or defense?"
+internal fun GamePrompt.LivePointMisconduct.formatMessage(): RuleGuidanceMessage {
+    return RuleGuidanceMessage(
+        event.formatMessage().lines + listOf(
+            RuleGuidanceLine(""),
+            RuleGuidanceLine("Was this against the offense or defense?"),
+        )
+    )
 }
 
 /**
@@ -1834,9 +1972,25 @@ internal fun GamePrompt.LivePointMisconduct.formatMessage(): String {
  *
  * @param againstOffense Whether the penalty is against the offense rather than the defense.
  */
-fun GamePrompt.LivePointMisconduct.resolutionMessage(againstOffense: Boolean): String {
-    val baseMessage = this.event.formatMessage()
-    return "$baseMessage\n\n${misconductResolution(againstOffense)}"
+internal fun GamePrompt.LivePointMisconduct.resolutionMessage(
+    againstOffense: Boolean,
+): RuleGuidanceMessage {
+    return RuleGuidanceMessage(
+        event.formatMessage().lines +
+            RuleGuidanceLine("") +
+            misconductResolutionLines(againstOffense)
+    )
+}
+
+/// Brief reminder that avoids asking which team was on offense.
+internal fun GamePrompt.LivePointMisconduct.formatBriefMessage(): RuleGuidanceMessage {
+    return RuleGuidanceMessage(
+        listOf(
+            RuleGuidanceLine("If offense: reverse brick"),
+            RuleGuidanceLine("If defense: attacking brick or middle"),
+            RuleGuidanceLine("Offense has 30 seconds to set."),
+        )
+    )
 }
 
 /**
@@ -1844,7 +1998,9 @@ fun GamePrompt.LivePointMisconduct.resolutionMessage(againstOffense: Boolean): S
  *
  * @param againstOffense Whether the penalty is against the offense rather than the defense.
  */
-private fun GamePrompt.LivePointMisconduct.misconductResolution(againstOffense: Boolean): String {
+private fun GamePrompt.LivePointMisconduct.misconductResolutionLines(
+    againstOffense: Boolean,
+): List<RuleGuidanceLine> {
     val (misconductTeam, state) = event.misconductContext()
     val offenseTeam = if (againstOffense) misconductTeam else misconductTeam.flip()
     val defenseTeam = offenseTeam.flip()
@@ -1858,8 +2014,14 @@ private fun GamePrompt.LivePointMisconduct.misconductResolution(againstOffense: 
         "$offenseName may move the disc to the brick mark nearest the end zone they are attacking. " +
             "They may also choose to leave the disc where it is or center it."
     }
-    return "$fieldPosition\n\nOffense has 30 seconds to set. " +
-        "Then defense has 20 seconds to check the disc in."
+    return listOf(
+        RuleGuidanceLine(fieldPosition),
+        RuleGuidanceLine(""),
+        RuleGuidanceLine(
+            "Offense has 30 seconds to set. " +
+                "Then defense has 20 seconds to check the disc in."
+        ),
+    )
 }
 
 /// Return the team and state that triggered the live-point misconduct prompt.

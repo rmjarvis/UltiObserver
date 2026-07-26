@@ -202,8 +202,6 @@ internal fun UltiObserverApp(
                     onHome = {
                         viewModel.goHome()
                     },
-                    gameOverPrompt = null,
-                    onDismissGameOverPrompt = {},
                 )
             } else {
                 val currentInProgressGame = appState.currentGame
@@ -432,8 +430,6 @@ internal fun UltiObserverApp(
                     onHome = {
                         viewModel.goHome()
                     },
-                    gameOverPrompt = null,
-                    onDismissGameOverPrompt = {},
                 )
             } else {
                 val currentGame = appState.currentGame!!

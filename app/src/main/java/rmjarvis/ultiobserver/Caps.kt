@@ -382,35 +382,47 @@ internal fun GameState.capEpoch(capType: CapType): Long {
     return startEpoch + rules.capMinutes(capType) * 60_000L
 }
 
-/// Return the lower-case cap label used in an apply-cap prompt title.
-private fun GamePrompt.ApplyCap.label(): String {
-    return capType.label.lowercase()
-}
-
-/// Format the title for an apply-cap prompt.
-internal fun GamePrompt.ApplyCap.formatTitle(): String = "Apply ${this.label()}?"
+/// Format the declarative title for a due-cap prompt.
+internal fun GamePrompt.ApplyCap.formatTitle(): String = capType.label
 
 /// Format the prompt body for an offered cap.
-internal fun GamePrompt.ApplyCap.formatMessage(): String {
-    val wasAt = if (state.phase == GamePhase.HALFTIME) "is scheduled for" else "was at"
-    val endWhen = if (state.phase == GamePhase.HALFTIME) "during halftime" else "now"
-    return when (capType) {
+internal fun GamePrompt.ApplyCap.formatMessage(): RuleGuidanceMessage {
+    val capTime = capClockTime()
+    val scheduledDuringHalftime = isScheduledDuringHalftime()
+    val timingSentence = if (scheduledDuringHalftime) {
+        "${capType.label} is scheduled for $capTime, which is during halftime, " +
+            "so we can apply it now."
+    } else {
+        "${capType.label} was at $capTime, so it applies now."
+    }
+    val text = when (capType) {
         CapType.HALF -> {
             val target = max(state.teamOne.score, state.teamTwo.score) + 1
-            "Half cap was at ${capClockTime()}. Halftime target would become $target. Apply now?"
+            "$timingSentence The new halftime target is $target."
         }
         CapType.SOFT -> {
             val target = max(state.teamOne.score, state.teamTwo.score) + 1
-            "Soft cap $wasAt ${capClockTime()}. Winning score would become $target. Apply now?"
+            "$timingSentence The new winning score is $target."
         }
         CapType.HARD -> {
             if (state.teamOne.score == state.teamTwo.score) {
-                "Hard cap $wasAt ${capClockTime()}. Score is tied, so one more point would be played. Apply now?"
+                "$timingSentence Score is tied, so play one more point."
             } else {
-                "Hard cap $wasAt ${capClockTime()}. Score is not tied, so the game would end $endWhen. Apply now?"
+                "$timingSentence Score is not tied, so the game is over."
             }
         }
     }
+    return RuleGuidanceMessage(listOf(RuleGuidanceLine(text)))
+}
+
+/// Report whether this cap falls after halftime began but before its countdown ends.
+private fun GamePrompt.ApplyCap.isScheduledDuringHalftime(): Boolean {
+    if (state.phase != GamePhase.HALFTIME) {
+        return false
+    }
+    val halftimeStart = state.countdown!!.targetEpoch -
+        state.rules.halftimeMinutes * 60_000L
+    return state.capEpoch(capType) > halftimeStart
 }
 
 /// Format the scheduled clock time for an offered cap.

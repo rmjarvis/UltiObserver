@@ -533,14 +533,42 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertFalse(state.pullSequenceOffsidesRecorded)
         assertFalse(state.pullSequenceFalseStartRecorded)
 
-        // Before recording a pull violation, it gets previewed, so the user can
-        // apply it or cancel it still.  The preview does not change any state yet.
+        // Before recording offsides, it gets previewed so the observer can still apply or cancel
+        // it. The preview changes only its returned state.
         var previewEvent = state.previewPullViolation(VC, PullViolationType.OFFSIDES).event
         assertEquals(1, previewEvent.state.teamOne.offsides)
         assertEquals(0, state.teamOne.offsides)
+        assertNull(previewEvent.pullViolationAlternative())
+        assertFalse(previewEvent.requiresGuidanceInNone())
+
+        // In mixed division, an offsides preview offers majority pull as an alternative. None
+        // mode must show this choice briefly rather than accepting offsides immediately.
+        val mixedPreviewEvent = state.copy(division = GameDivision.MIXED)
+            .previewPullViolation(VC, PullViolationType.OFFSIDES)
+            .event
+        assertEquals(
+            PullViolationAlternative(
+                violation = PullViolationType.MAJORITY_PULL,
+                actionLabel = "This was a Majority pull violation",
+            ),
+            mixedPreviewEvent.pullViolationAlternative(),
+        )
+        assertTrue(mixedPreviewEvent.requiresGuidanceInNone())
+
+        // A false-start preview increments only its returned state and has no alternate violation.
         previewEvent = state.previewPullViolation(ANIMAL, PullViolationType.FALSE_START).event
         assertEquals(1, previewEvent.state.teamTwo.falseStarts)
         assertEquals(0, state.teamTwo.falseStarts)
+        assertNull(previewEvent.pullViolationAlternative())
+        assertFalse(previewEvent.requiresGuidanceInNone())
+
+        // A majority-pull preview offers the reverse correction back to offsides.
+        val majorityPullPreviewEvent = state.copy(division = GameDivision.MIXED)
+            .previewPullViolation(VC, PullViolationType.MAJORITY_PULL)
+            .event
+        val offsidesAlternative = majorityPullPreviewEvent.pullViolationAlternative()!!
+        assertEquals(PullViolationType.OFFSIDES, offsidesAlternative.violation)
+        assertEquals("This was an Offsides", offsidesAlternative.actionLabel)
 
         // Record offsides and verify only the pulling team's offsides count increments.
         var pullViolationResult = state.assessPullViolation(VC)
@@ -565,9 +593,13 @@ class TestPullViolations : GameDomainTestFixtures() {
         )
         assertEquals("Offsides", pullViolationResult.event!!.formatPopupTitle())
         val pullViolationEvent = pullViolationResult.event as GameEvent.PullViolationRecorded
+        assertEquals(
+            "Animal starts at the brick mark.",
+            pullViolationEvent.formatBriefMessage().plainText,
+        )
         assertEquals(state, pullViolationEvent.state)
         assertEquals(VC, pullViolationEvent.team)
-        assertFalse(pullViolationResult.event!!.needsMisconductChoice())
+        assertFalse(pullViolationResult.event!!.triggersMisconductPenalty())
 
         // The same pull sequence cannot record a second offsides for the same team.
         pullViolationResult = state.assessPullViolation(VC)
@@ -622,8 +654,13 @@ class TestPullViolations : GameDomainTestFixtures() {
         // For a false start, the defense gets to set up.
         assertEquals(
             "This is Animal's first pull violation.\n\n" +
-                "Viscous Coupling gets to set up on defense.",
+                "Viscous Coupling gets to set up on defense. Defensive check is required.",
             pullViolationResult.message(),
+        )
+        assertEquals(
+            "Viscous Coupling gets to set up. Check required.",
+            (pullViolationResult.event as GameEvent.PullViolationRecorded)
+                .formatBriefMessage().plainText,
         )
         assertEquals("False start", pullViolationResult.event!!.formatPopupTitle())
         assertEquals(
@@ -667,7 +704,7 @@ class TestPullViolations : GameDomainTestFixtures() {
         )
         assertEquals(
             "This is Animal's first pull violation.\n\n" +
-                "Viscous Coupling gets to set up on defense.",
+                "Viscous Coupling gets to set up on defense. Defensive check is required.",
             falseStartResult.message(),
         )
 
@@ -693,6 +730,11 @@ class TestPullViolations : GameDomainTestFixtures() {
                 "Animal starts at midfield.\n\n" +
                 "The disc is live -- no defensive check is required.",
             pullViolationResult.message(),
+        )
+        assertEquals(
+            "Animal starts at midfield.",
+            (pullViolationResult.event as GameEvent.PullViolationRecorded)
+                .formatBriefMessage().plainText,
         )
 
         // A previous false start by Viscous Coupling also stacks with a later Viscous Coupling
@@ -727,7 +769,7 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertEquals(2, state.teamOne.falseStarts)
         assertEquals(
             "This is Viscous Coupling's second pull violation.\n\n" +
-                "Animal gets to set up on defense.",
+                "Animal gets to set up on defense. Defensive check is required.",
             pullViolationResult.message(),
         )
     }
@@ -872,6 +914,10 @@ class TestPullViolations : GameDomainTestFixtures() {
                 "signal readiness.",
             timeViolationResult.message(),
         )
+        assertEquals(
+            "Warning only. Animal has 20 seconds to signal readiness.",
+            warningEvent.formatBriefMessage().plainText,
+        )
         assertUndoRestores(state, timeViolationState)
 
         // If the opening pull has already started the first live point, the reset still belongs
@@ -1009,6 +1055,10 @@ class TestPullViolations : GameDomainTestFixtures() {
                 "30 seconds to pull.",
             timeViolationResult.message(),
         )
+        assertEquals(
+            "Warning only. Viscous Coupling has 30 seconds to pull.",
+            defenseWarningEvent.formatBriefMessage().plainText,
+        )
 
         // The same pulling-team reset applies to far-end and both-end prompt settings when they
         // include the pulling end.
@@ -1080,6 +1130,10 @@ class TestPullViolations : GameDomainTestFixtures() {
                 "this half. " +
                 "Reset pull timing to the usual timeout duration.",
             timeViolationResult.message(),
+        )
+        assertEquals(
+            "Timeout charged to Animal. Pull timing restarted.",
+            timeoutEvent.formatBriefMessage().plainText,
         )
 
         // Custom timeout duration is used for automatic time-violation timeout resets.
@@ -1219,6 +1273,10 @@ class TestPullViolations : GameDomainTestFixtures() {
                 "No pull. Animal starts at midpoint of their defending end zone.",
             timeViolationResult.message(),
         )
+        assertEquals(
+            "No pull. Animal starts at reverse brick.",
+            receivingNoTimeoutEvent.formatBriefMessage().plainText,
+        )
 
         // A pulling-team time violation with no timeout left sends the receiving team to midfield.
         state = standardLiveGameState(
@@ -1240,6 +1298,10 @@ class TestPullViolations : GameDomainTestFixtures() {
                 "penalty is assessed. " +
                 "No pull. Animal starts at midfield.",
             timeViolationResult.message(),
+        )
+        assertEquals(
+            "No pull. Animal starts at midfield.",
+            pullingNoTimeoutEvent.formatBriefMessage().plainText,
         )
     }
 

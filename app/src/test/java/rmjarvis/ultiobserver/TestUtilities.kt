@@ -45,6 +45,21 @@ class TestUtilities {
     }
 
     /**
+     * Test first-character capitalization for empty, ordinary, and expanding characters.
+     */
+    @Test
+    fun capitalization() {
+        // Empty text remains empty, while lowercase and already-uppercase ASCII behave normally.
+        assertEquals("", "".capitalized())
+        assertEquals("First", "first".capitalized())
+        assertEquals("First", "First".capitalized())
+
+        // Numeric ordinals remain unchanged, and Unicode uppercase expansions are preserved.
+        assertEquals("4th", "4th".capitalized())
+        assertEquals("SSeta", "ßeta".capitalized())
+    }
+
+    /**
      * Test compact status-line cap text fitting.
      */
     @Test
