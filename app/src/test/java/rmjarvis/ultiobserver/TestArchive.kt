@@ -1319,9 +1319,9 @@ class TestArchive : GameDomainTestFixtures() {
             useHalfCap = true,
             halfCapMinutes = 35,
             useSoftCap = false,
-            softCapMinutes = 75,
+            nominalSoftCapMinutes = 75,
             useHardCap = true,
-            hardCapMinutes = 95,
+            nominalHardCapMinutes = 95,
             timeoutsPerHalf = 1,
             hasFloaterTimeout = true,
         )
@@ -1344,7 +1344,7 @@ class TestArchive : GameDomainTestFixtures() {
         // Starting over from an active current game carries its rules into the next setup draft.
         val viewModel = AppViewModel(NoOpAppStateStorage)
         viewModel.startNewGame(now = 123_000L)
-        val currentRules = GameRules(gameTo = 11, hardCapMinutes = 80, hasFloaterTimeout = true)
+        val currentRules = GameRules(gameTo = 11, nominalHardCapMinutes = 80, hasFloaterTimeout = true)
         viewModel.updateSetup(viewModel.setupGame.copy(rules = currentRules))
         viewModel.finishSetup(now = 123_000L)
         viewModel.updateCurrentGame(viewModel.currentGame!!.beginLivePoint())

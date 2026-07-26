@@ -145,11 +145,11 @@ class TestFieldUi : MainActivityUiTestFixtures() {
                 useHalfCap = true,
                 halfCapMinutes = 45,
                 useSoftCap = true,
-                softCapMinutes = 90,
+                nominalSoftCapMinutes = 90,
                 useHardCap = true,
-                hardCapMinutes = 105,
+                nominalHardCapMinutes = 105,
                 timeoutsPerHalf = 2,
-                waterBreakMode = WaterBreakMode.AUTOMATIC,
+                heatLevel = HeatLevel.LEVEL_1,
                 waterBreakMinutes = 4,
                 genderRatioRule = GenderRatioRule.ABBA,
             ),
@@ -163,10 +163,26 @@ class TestFieldUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Game to").assertIsDisplayed()
         composeRule.onNodeWithText("Half cap").assertIsDisplayed()
         composeRule.onNodeWithText("10:45 AM").assertIsDisplayed()
-        composeRule.onNodeWithText("Water breaks").assertIsDisplayed()
-        composeRule.onNodeWithText("4/12, 4 min").assertIsDisplayed()
+        composeRule.onNodeWithText("11:30 AM").assertIsDisplayed()
+        composeRule.onNodeWithText("11:45 AM").assertIsDisplayed()
+        composeRule.onNodeWithText("Heat level").assertIsDisplayed()
+        composeRule.onNodeWithText("Level 1").assertIsDisplayed()
+        composeRule.onNodeWithText("60 sec").assertIsDisplayed()
         composeRule.onNodeWithText("Gender ratio").assertIsDisplayed()
         composeRule.onNodeWithText("ABBA").assertIsDisplayed()
+        dismissDialog(text = "OK")
+        composeRule.onAllNodesWithText("Game rules").assertCountEquals(0)
+
+        // Level 2 visibly connects the adjusted caps, between-points time, and heat level.
+        updateCurrentStateProgrammatically {
+            copy(rules = rules.withHeatLevel(HeatLevel.LEVEL_2))
+        }
+        composeRule.onNodeWithTag("live-game-rules").performClick()
+        waitForText("Game rules")
+        composeRule.onNodeWithText("11:10 AM").assertIsDisplayed()
+        composeRule.onNodeWithText("11:30 AM").assertIsDisplayed()
+        composeRule.onNodeWithText("Level 2").assertIsDisplayed()
+        composeRule.onNodeWithText("120 sec").assertIsDisplayed()
         dismissDialog(text = "OK")
         composeRule.onAllNodesWithText("Game rules").assertCountEquals(0)
     }

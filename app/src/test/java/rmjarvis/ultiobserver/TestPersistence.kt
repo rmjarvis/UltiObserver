@@ -175,7 +175,7 @@ class TestPersistence : GameDomainTestFixtures() {
 
         // A fresh ViewModel should keep a setup draft but open at Home.
         viewModel.startNewGame(now = 123_000L)
-        val persistedRules = GameRules(gameTo = 13, hardCapMinutes = 95, hasFloaterTimeout = true)
+        val persistedRules = GameRules(gameTo = 13, nominalHardCapMinutes = 95, hasFloaterTimeout = true)
         val draftedSetup = viewModel.setupGame.copy(
             rules = persistedRules,
             teamOne = TeamState("Viscous Coupling", TeamColorChoice.BLUE),
@@ -222,6 +222,28 @@ class TestPersistence : GameDomainTestFixtures() {
         val redoRestored = AppViewModel(FileAppStateStorage(storeDir))
         assertEquals(undoRestoredState, redoRestored.currentGame)
         assertEquals(scoredState, redoRestored.currentGame!!.redoLastAction())
+    }
+
+    /**
+     * Verify heat rules and the actual halftime score survive current-game persistence.
+     */
+    @Test
+    fun heatLevelPersistence() {
+        val store = FileAppStateStorage(temporaryFolder.newFolder())
+        val savedState = standardLiveGameState(
+            rules = GameRules(
+                gameTo = 13,
+                nominalTimeBetweenPointsSeconds = 50,
+                nominalSoftCapMinutes = 85,
+                nominalHardCapMinutes = 100,
+            ).withHeatLevel(HeatLevel.LEVEL_2),
+        ).copy(
+            halftimeTaken = true,
+            halftimeHighScore = 5,
+            pendingWaterBreakOffer = true,
+        )
+        store.saveCurrentGame(savedState)
+        assertEquals(savedState, store.loadCurrentGame())
     }
 
     /**

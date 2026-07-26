@@ -19,8 +19,8 @@ class TestCaps : GameDomainTestFixtures() {
     private val capRules = GameRules(
         gameTo = 15,
         halfCapMinutes = 10,
-        softCapMinutes = 20,
-        hardCapMinutes = 30,
+        nominalSoftCapMinutes = 20,
+        nominalHardCapMinutes = 30,
     )
 
     /**
@@ -34,8 +34,8 @@ class TestCaps : GameDomainTestFixtures() {
             rules = GameRules(
                 gameTo = 15,
                 halfCapMinutes = 45,
-                softCapMinutes = 90,
-                hardCapMinutes = 100,
+                nominalSoftCapMinutes = 90,
+                nominalHardCapMinutes = 100,
             ),
         )
         val halfCapStatus = state.computeNextCapStatus(timestampAfterStart(state, 15))!!
@@ -246,7 +246,7 @@ class TestCaps : GameDomainTestFixtures() {
                 gameTo = 15,
                 useHalfCap = false,
                 useSoftCap = false,
-                hardCapMinutes = 100,
+                nominalHardCapMinutes = 100,
             ),
         )
         state = state.recordGoalFromCurrentState(
@@ -343,7 +343,7 @@ class TestCaps : GameDomainTestFixtures() {
             capRules.copy(
                 gameTo = 5,
                 halfCapMinutes = 10,
-                softCapMinutes = 10,
+                nominalSoftCapMinutes = 10,
                 useHardCap = false,
             )
         )
@@ -382,7 +382,7 @@ class TestCaps : GameDomainTestFixtures() {
                 gameTo = 5,
                 useHalfCap = false,
                 useSoftCap = false,
-                hardCapMinutes = 10,
+                nominalHardCapMinutes = 10,
             )
         )
         state = scoreAt(state, vc, 1)
@@ -409,7 +409,7 @@ class TestCaps : GameDomainTestFixtures() {
             capRules.copy(
                 gameTo = 7,
                 useHalfCap = false,
-                softCapMinutes = 9,
+                nominalSoftCapMinutes = 9,
                 useHardCap = false,
             )
         )
@@ -434,7 +434,7 @@ class TestCaps : GameDomainTestFixtures() {
                 gameTo = 7,
                 useHalfCap = false,
                 useSoftCap = false,
-                hardCapMinutes = 9,
+                nominalHardCapMinutes = 9,
             )
         )
         state = scoreAt(state, vc, 8)
@@ -454,7 +454,7 @@ class TestCaps : GameDomainTestFixtures() {
             capRules.copy(
                 gameTo = 7,
                 useHalfCap = false,
-                softCapMinutes = 12,
+                nominalSoftCapMinutes = 12,
                 useHardCap = false,
             )
         )
@@ -474,7 +474,7 @@ class TestCaps : GameDomainTestFixtures() {
                 halftimeMinutes = 7,
                 useHalfCap = false,
                 useSoftCap = false,
-                hardCapMinutes = 20,
+                nominalHardCapMinutes = 20,
             )
         )
         state = scoreAt(state, vc, 8)
@@ -486,7 +486,7 @@ class TestCaps : GameDomainTestFixtures() {
                 gameTo = 7,
                 halftimeMinutes = 7,
                 useHalfCap = false,
-                softCapMinutes = 20,
+                nominalSoftCapMinutes = 20,
                 useHardCap = false,
             )
         )
@@ -500,8 +500,8 @@ class TestCaps : GameDomainTestFixtures() {
             capRules.copy(
                 gameTo = 7,
                 useHalfCap = false,
-                softCapMinutes = 9,
-                hardCapMinutes = 12,
+                nominalSoftCapMinutes = 9,
+                nominalHardCapMinutes = 12,
             )
         )
         state = scoreAt(state, vc, 8)
@@ -521,7 +521,7 @@ class TestCaps : GameDomainTestFixtures() {
                 gameTo = 5,
                 halftimeMinutes = 7,
                 useHalfCap = false,
-                softCapMinutes = 12,
+                nominalSoftCapMinutes = 12,
                 useHardCap = false,
             )
         )
@@ -555,8 +555,8 @@ class TestCaps : GameDomainTestFixtures() {
                 gameTo = 5,
                 halftimeMinutes = 7,
                 useHalfCap = false,
-                softCapMinutes = 15,
-                hardCapMinutes = 20,
+                nominalSoftCapMinutes = 15,
+                nominalHardCapMinutes = 20,
             )
         )
         state = scoreAt(state, vc, 1)
@@ -584,7 +584,7 @@ class TestCaps : GameDomainTestFixtures() {
                 halftimeMinutes = 7,
                 useHalfCap = false,
                 useSoftCap = false,
-                hardCapMinutes = 12,
+                nominalHardCapMinutes = 12,
             )
         )
         state = scoreAt(state, vc, 1)
@@ -617,7 +617,7 @@ class TestCaps : GameDomainTestFixtures() {
                 gameTo = 5,
                 halftimeMinutes = 7,
                 useHalfCap = false,
-                softCapMinutes = 18,
+                nominalSoftCapMinutes = 18,
                 useHardCap = false,
             )
         )

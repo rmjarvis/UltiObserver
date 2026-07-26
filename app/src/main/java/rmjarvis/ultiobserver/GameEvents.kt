@@ -193,7 +193,13 @@ fun GamePrompt.formatMessage(): String {
 private fun GamePrompt.HalftimeStarted.formatTitle(): String = "Halftime"
 
 /// Format the title for a game-over prompt.
-private fun GamePrompt.GameOver.formatTitle(): String = "Game over"
+private fun GamePrompt.GameOver.formatTitle(): String {
+    return if (state.rules.heatLevel == HeatLevel.LEVEL_3) {
+        "Game suspended"
+    } else {
+        "Game over"
+    }
+}
 
 /// Format the game-over prompt body with the winner first.
 private fun GamePrompt.GameOver.formatMessage(): String {

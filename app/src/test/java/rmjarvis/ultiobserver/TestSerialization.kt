@@ -132,6 +132,8 @@ class TestSerialization : GameDomainTestFixtures() {
         assertEquals(previous.pendingMisconductCountdown, patch.pendingMisconductCountdown)
         assertEquals(previous.halftimeTaken, patch.halftimeTaken)
         assertEquals(previous.halftimeTargetScore, patch.halftimeTargetScore!!.value)
+        assertEquals(previous.halftimeHighScore, patch.halftimeHighScore!!.value)
+        assertEquals(previous.pendingWaterBreakOffer, patch.pendingWaterBreakOffer)
         assertEquals(previous.winningScore, patch.winningScore!!.value)
         assertEquals(previous.halfCapApplied, patch.halfCapApplied)
         assertEquals(previous.softCapApplied, patch.softCapApplied)
@@ -214,8 +216,8 @@ class TestSerialization : GameDomainTestFixtures() {
             rules = GameRules(
                 gameTo = 17,
                 halfCapMinutes = 50,
-                softCapMinutes = 80,
-                hardCapMinutes = 95,
+                nominalSoftCapMinutes = 80,
+                nominalHardCapMinutes = 95,
                 switchGenZoneAtHalftime = false,
             ),
             pullingTeam = TeamId.TEAM_TWO,
@@ -297,6 +299,8 @@ class TestSerialization : GameDomainTestFixtures() {
             pendingMisconductCountdown = true,
             halftimeTaken = true,
             halftimeTargetScore = 9,
+            halftimeHighScore = 8,
+            pendingWaterBreakOffer = true,
             winningScore = 18,
             halfCapApplied = true,
             softCapApplied = true,
@@ -317,8 +321,8 @@ class TestSerialization : GameDomainTestFixtures() {
             rules = GameRules(
                 gameTo = 15,
                 halfCapMinutes = 45,
-                softCapMinutes = 90,
-                hardCapMinutes = 105,
+                nominalSoftCapMinutes = 90,
+                nominalHardCapMinutes = 105,
                 switchGenZoneAtHalftime = true,
             ),
             pullingTeam = TeamId.TEAM_ONE,
@@ -388,6 +392,8 @@ class TestSerialization : GameDomainTestFixtures() {
             pendingMisconductCountdown = false,
             halftimeTaken = false,
             halftimeTargetScore = null,
+            halftimeHighScore = null,
+            pendingWaterBreakOffer = false,
             winningScore = null,
             halfCapApplied = false,
             softCapApplied = false,

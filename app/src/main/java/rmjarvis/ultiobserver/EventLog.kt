@@ -38,6 +38,7 @@ enum class EventLogType {
     TIME_VIOLATION,
     TIMEOUT,
     WATER_BREAK,
+    HEAT_LEVEL,
     HALFTIME,
     GAME_OVER,
     SCORE_ADJUSTED,
@@ -68,6 +69,8 @@ data class EventLogEntry(
     val previousPlayer: PlayerIdentity? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val timeViolationOutcome: TimeViolationOutcome? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val heatLevel: HeatLevel? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val teamOneScore: Int? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
@@ -167,6 +170,7 @@ private fun GameState.formatEventLogDescription(entry: EventLogEntry): String {
         EventLogType.TIME_VIOLATION -> timeViolationDescription(entry)
         EventLogType.TIMEOUT -> timeoutDescription(entry)
         EventLogType.WATER_BREAK -> waterBreakDescription(entry)
+        EventLogType.HEAT_LEVEL -> heatLevelDescription(entry)
         EventLogType.HALFTIME -> "Halftime"
         EventLogType.GAME_OVER -> "Game over"
         EventLogType.SCORE_ADJUSTED -> scoreAdjustedDescription(entry)
@@ -230,6 +234,15 @@ private fun GameState.timeoutDescription(entry: EventLogEntry): String {
 /// Return display text for a water break.
 private fun waterBreakDescription(entry: EventLogEntry): String {
     return "Water break (+${entry.delta} min)"
+}
+
+/// Return display text for a live heat-level change.
+private fun heatLevelDescription(entry: EventLogEntry): String {
+    return when (entry.heatLevel!!) {
+        HeatLevel.NONE -> "Heat/water breaks disabled"
+        HeatLevel.LEVEL_3 -> "Heat level 3 — game suspended"
+        else -> "Heat level changed to ${entry.heatLevel.displayText.removePrefix("Level ")}"
+    }
 }
 
 /// Return display text for a technical-foul event or technical-foul correction.

@@ -35,7 +35,7 @@ private fun writeSetupDraft(dir: File) {
         level = "Youth",
         rules = usauDefaultGameRules("Youth"),
     )
-    check(setup.rules.timeBetweenPointsSeconds == 80)
+    check(setup.rules.nominalTimeBetweenPointsSeconds == 80)
 
     store.saveCurrentGame(setup)
     store.saveProfile(fixtureProfile())
@@ -49,13 +49,13 @@ private fun writeActiveGame(dir: File) {
     val setup = base.copy(
         division = GameDivision.MIXED,
         rules = base.rules.copy(
-            timeBetweenPointsSeconds = 75,
+            nominalTimeBetweenPointsSeconds = 75,
             timeoutSeconds = 90,
-            waterBreakMode = WaterBreakMode.AUTOMATIC,
+            heatLevel = HeatLevel.LEVEL_1,
             waterBreakMinutes = 4,
         ),
     )
-    check(setup.rules.timeBetweenPointsSeconds == 75)
+    check(setup.rules.nominalTimeBetweenPointsSeconds == 75)
     check(setup.rules.timeoutSeconds == 90)
     check(setup.rules.waterBreakMode == WaterBreakMode.AUTOMATIC)
     check(setup.rules.waterBreakMinutes == 4)
@@ -190,9 +190,9 @@ private fun nonDefaultSetup(): GameState {
             useHalfCap = true,
             halfCapMinutes = 50,
             useSoftCap = true,
-            softCapMinutes = 80,
+            nominalSoftCapMinutes = 80,
             useHardCap = true,
-            hardCapMinutes = 95,
+            nominalHardCapMinutes = 95,
             timeoutsPerHalf = 1,
             hasFloaterTimeout = false,
             genderRatioRule = GenderRatioRule.ABBA,

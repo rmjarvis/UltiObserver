@@ -187,8 +187,8 @@ class TestSetup : GameDomainTestFixtures() {
         // USAU default rules use the standard sixty-second offense-ready deadline except for
         // Youth, which gets an extra twenty seconds.
         assertEquals(GameRules(), usauDefaultGameRules("Club"))
-        assertEquals(60, usauDefaultGameRules("Club").timeBetweenPointsSeconds)
-        assertEquals(80, usauDefaultGameRules("Youth").timeBetweenPointsSeconds)
+        assertEquals(60, usauDefaultGameRules("Club").nominalTimeBetweenPointsSeconds)
+        assertEquals(80, usauDefaultGameRules("Youth").nominalTimeBetweenPointsSeconds)
         assertEquals("Reset to USAU defaults", usauDefaultsButtonLabel("Club"))
         assertEquals("Reset to USAU (Youth) defaults", usauDefaultsButtonLabel("Youth"))
 
@@ -197,13 +197,13 @@ class TestSetup : GameDomainTestFixtures() {
             80,
             GameRules()
                 .withLevelDefaultTimeBetweenPoints(previousLevel = "", newLevel = "Youth")
-                .timeBetweenPointsSeconds,
+                .nominalTimeBetweenPointsSeconds,
         )
         assertEquals(
             50,
-            GameRules(timeBetweenPointsSeconds = 50)
+            GameRules(nominalTimeBetweenPointsSeconds = 50)
                 .withLevelDefaultTimeBetweenPoints(previousLevel = "", newLevel = "Youth")
-                .timeBetweenPointsSeconds,
+                .nominalTimeBetweenPointsSeconds,
         )
 
         // Changing out of Youth similarly restores the non-Youth default only from Youth default
@@ -212,13 +212,13 @@ class TestSetup : GameDomainTestFixtures() {
             60,
             usauDefaultGameRules("Youth")
                 .withLevelDefaultTimeBetweenPoints(previousLevel = "Youth", newLevel = "Club")
-                .timeBetweenPointsSeconds,
+                .nominalTimeBetweenPointsSeconds,
         )
         assertEquals(
             50,
-            GameRules(timeBetweenPointsSeconds = 50)
+            GameRules(nominalTimeBetweenPointsSeconds = 50)
                 .withLevelDefaultTimeBetweenPoints(previousLevel = "Youth", newLevel = "Club")
-                .timeBetweenPointsSeconds,
+                .nominalTimeBetweenPointsSeconds,
         )
     }
 
@@ -643,9 +643,9 @@ class TestSetup : GameDomainTestFixtures() {
             "+45/+90/+105",
             GameRules(
                 halfCapMinutes = 45,
-                softCapMinutes = 90,
-                hardCapMinutes = 105,
-            ).capRulesSummary(),
+                nominalSoftCapMinutes = 90,
+                nominalHardCapMinutes = 105,
+            ).formatCaps(),
         )
         assertEquals(
             "-/-/-",
@@ -653,8 +653,21 @@ class TestSetup : GameDomainTestFixtures() {
                 useHalfCap = false,
                 useSoftCap = false,
                 useHardCap = false,
-            ).capRulesSummary(),
+            ).formatCaps(),
         )
+
+        // Heat-level summaries have compact and full forms for every available level.
+        listOf(
+            Triple(HeatLevel.NONE, "None", "None"),
+            Triple(HeatLevel.LEVEL_0, "Level 0", "Level 0 (3 min)"),
+            Triple(HeatLevel.LEVEL_1, "Level 1", "Level 1 (3 min)"),
+            Triple(HeatLevel.LEVEL_2, "Level 2", "Level 2 (4 min)"),
+            Triple(HeatLevel.LEVEL_3, "Level 3", "Level 3"),
+        ).forEach { (heatLevel, compactText, fullText) ->
+            val rules = GameRules().withHeatLevel(heatLevel)
+            assertEquals(compactText, rules.formatHeatLevel(compact = true))
+            assertEquals(fullText, rules.formatHeatLevel(compact = false))
+        }
 
         // Timeout summaries show number per half and floater rules.
         assertEquals(
@@ -669,52 +682,13 @@ class TestSetup : GameDomainTestFixtures() {
         // Timing summaries show the configured seconds for time between points and timeouts.
         assertEquals(
             "50 sec",
-            GameRules(timeBetweenPointsSeconds = 50).formatTimeBetweenPoints(),
+            GameRules(nominalTimeBetweenPointsSeconds = 50)
+                .formatTimeBetweenPoints(compact = true),
         )
         assertEquals(
             "80 sec",
             GameRules(timeoutSeconds = 80).formatTimeoutDuration(),
         )
-
-        // Check the display text for each water break mode.
-        assertEquals(
-            listOf("None", "Manual", "Automatic"),
-            WaterBreakMode.entries.map { it.displayText },
-        )
-
-        // Water-break summary is absent if water breaks are not enabled.
-        assertNull(GameRules().formatWaterBreaks())
-
-        // Manual water breaks just show the time.
-        assertEquals(
-            "3 min",
-            GameRules(waterBreakMode = WaterBreakMode.MANUAL).formatWaterBreaks(),
-        )
-
-        // Automatic water break summaris show the quarter point levels and the break time.
-        listOf(
-            Triple(11, null, "3/9, 3 min"),
-            Triple(13, 2, "4/10, 2 min"),
-            Triple(15, 3, "4/12, 3 min"),
-            Triple(17, 4, "5/13, 4 min"),
-        ).forEach { (gameTo, waterBreakMinutes, expected) ->
-            val rules = if (waterBreakMinutes == null) {
-                GameRules(
-                    gameTo = gameTo,
-                    waterBreakMode = WaterBreakMode.AUTOMATIC,
-                )
-            } else {
-                GameRules(
-                    gameTo = gameTo,
-                    waterBreakMode = WaterBreakMode.AUTOMATIC,
-                    waterBreakMinutes = waterBreakMinutes,
-                )
-            }
-            assertEquals(
-                expected,
-                rules.formatWaterBreaks(),
-            )
-        }
 
         // Gender-ratio rules provide explanatory notes for the focused rule editor.
         val genderRatioExplanations = listOf(
@@ -954,6 +928,54 @@ class TestSetup : GameDomainTestFixtures() {
         assertNull(state.countdown?.nextTimingCue(state.countdown!!.targetEpoch - 20_000L))
         assertEquals(19, state.rules.gameTo)
         assertEquals("Undo Update game setup", state.undoEntry?.label)
+
+        // Editing the normal between-points time shifts the running countdown without restarting
+        // it or discarding any separate extension.
+        val extendedCountdownState = fieldStateAfterGoal.copy(
+            countdown = fieldStateAfterGoal.countdown!!.extendBy(120),
+        )
+        val timingEditedState = applySetupToLiveGame(
+            extendedCountdownState,
+            extendedCountdownState.copy(
+                rules = extendedCountdownState.rules.copy(
+                    nominalTimeBetweenPointsSeconds = 90,
+                ),
+            ),
+            300_000L,
+        )
+        assertEquals(
+            extendedCountdownState.countdown!!.durationSeconds + 30,
+            timingEditedState.countdown?.durationSeconds,
+        )
+        assertEquals(
+            extendedCountdownState.countdown!!.targetEpoch + 30_000L,
+            timingEditedState.countdown?.targetEpoch,
+        )
+        assertEquals(90, timingEditedState.countdown?.pullTiming?.offenseReadySeconds)
+
+        // Setup edits preserve a skipped pull rather than creating a replacement countdown.
+        val skippedPullState = fieldStateAfterGoal.copy(countdown = null)
+        val skippedPullEdit = applySetupToLiveGame(
+            skippedPullState,
+            setupEdit2,
+            300_000L,
+        )
+        assertNull(skippedPullEdit.countdown)
+
+        // Setup edits leave a misconduct countdown untouched because it is not normal pull timing.
+        val misconductCountdownState = fieldStateAfterGoal.copy(
+            teamOne = fieldStateAfterGoal.teamOne.copy(blueCards = 2),
+        ).assessBlueCard(TeamId.TEAM_ONE).state
+        assertEquals(
+            CountdownKind.MISCONDUCT_BETWEEN_POINTS,
+            misconductCountdownState.countdown?.kind,
+        )
+        val misconductCountdownEdit = applySetupToLiveGame(
+            misconductCountdownState,
+            setupEdit2,
+            300_000L,
+        )
+        assertEquals(misconductCountdownState.countdown, misconductCountdownEdit.countdown)
     }
 
     /**
@@ -1015,8 +1037,8 @@ class TestSetup : GameDomainTestFixtures() {
                 gameTo = 13,
                 halftimeMinutes = 8,
                 halfCapMinutes = 40,
-                softCapMinutes = 80,
-                hardCapMinutes = 95,
+                nominalSoftCapMinutes = 80,
+                nominalHardCapMinutes = 95,
                 timeoutsPerHalf = 1,
                 hasFloaterTimeout = true,
             ),

@@ -152,6 +152,10 @@ internal data class GameStatePatch(
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val halftimeTargetScore: NullablePatchValue<Int>? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val halftimeHighScore: NullablePatchValue<Int>? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val pendingWaterBreakOffer: Boolean? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val winningScore: NullablePatchValue<Int>? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val halfCapApplied: Boolean? = null,
@@ -205,6 +209,8 @@ internal data class GameStatePatch(
             pendingMisconductCountdown = pendingMisconductCountdown ?: later.pendingMisconductCountdown,
             halftimeTaken = halftimeTaken ?: later.halftimeTaken,
             halftimeTargetScore = if (halftimeTargetScore != null) halftimeTargetScore.value else later.halftimeTargetScore,
+            halftimeHighScore = if (halftimeHighScore != null) halftimeHighScore.value else later.halftimeHighScore,
+            pendingWaterBreakOffer = pendingWaterBreakOffer ?: later.pendingWaterBreakOffer,
             winningScore = if (winningScore != null) winningScore.value else later.winningScore,
             halfCapApplied = halfCapApplied ?: later.halfCapApplied,
             softCapApplied = softCapApplied ?: later.softCapApplied,
@@ -276,6 +282,9 @@ internal data class GameStatePatch(
                 ),
                 halftimeTaken = previous.halftimeTaken.takeIfChangedFrom(later.halftimeTaken),
                 halftimeTargetScore = nullablePatch(later.halftimeTargetScore, previous.halftimeTargetScore),
+                halftimeHighScore = nullablePatch(later.halftimeHighScore, previous.halftimeHighScore),
+                pendingWaterBreakOffer = previous.pendingWaterBreakOffer
+                    .takeIfChangedFrom(later.pendingWaterBreakOffer),
                 winningScore = nullablePatch(later.winningScore, previous.winningScore),
                 halfCapApplied = previous.halfCapApplied.takeIfChangedFrom(later.halfCapApplied),
                 softCapApplied = previous.softCapApplied.takeIfChangedFrom(later.softCapApplied),

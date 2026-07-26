@@ -7,7 +7,7 @@ import org.junit.Test
 /**
  * Tests for the live field's compact game-rules quick reference.
  */
-class TestGameRulesDialog : GameDomainTestFixtures() {
+class TestGameRulesQuickReference : GameDomainTestFixtures() {
     /**
      * Test how the game-rules quick reference summarizes setup-time rule choices.
      */
@@ -23,9 +23,9 @@ class TestGameRulesDialog : GameDomainTestFixtures() {
                 useHalfCap = true,
                 halfCapMinutes = 45,
                 useSoftCap = true,
-                softCapMinutes = 90,
+                nominalSoftCapMinutes = 90,
                 useHardCap = true,
-                hardCapMinutes = 105,
+                nominalHardCapMinutes = 105,
                 timeoutsPerHalf = 2,
                 genderRatioRule = GenderRatioRule.ABBA,
             ),
@@ -38,11 +38,11 @@ class TestGameRulesDialog : GameDomainTestFixtures() {
                 "Half cap" to "10:45 AM",
                 "Soft cap" to "11:30 AM",
                 "Hard cap" to "11:45 AM",
-                "Halftime" to "7 min",
                 "Timeouts" to "2/half",
+                "Gender ratio" to "ABBA",
                 "Time between points" to "60 sec",
                 "Timeout duration" to "70 sec",
-                "Gender ratio" to "ABBA",
+                "Halftime" to "7 min",
             ),
             fullMixedState.gameRulesDialogRows().testDisplayPairs(),
         )
@@ -59,7 +59,7 @@ class TestGameRulesDialog : GameDomainTestFixtures() {
                 useHardCap = false,
                 timeoutsPerHalf = 1,
                 hasFloaterTimeout = false,
-                timeBetweenPointsSeconds = 50,
+                nominalTimeBetweenPointsSeconds = 50,
                 timeoutSeconds = 80,
             ),
         ).copy(division = GameDivision.OPEN)
@@ -68,10 +68,10 @@ class TestGameRulesDialog : GameDomainTestFixtures() {
                 "Game to" to "15",
                 "Half at" to "8",
                 "Start time" to "10:00 AM",
-                "Halftime" to "7 min",
                 "Timeouts" to "1/half",
                 "Time between points" to "50 sec",
                 "Timeout duration" to "80 sec",
+                "Halftime" to "7 min",
             ),
             openNoCapState.gameRulesDialogRows().testDisplayPairs(),
         )
@@ -84,35 +84,75 @@ class TestGameRulesDialog : GameDomainTestFixtures() {
             ),
         )
         assertEquals(
-            "Gender ratio" to "Gen Zone",
-            genZoneState.gameRulesDialogRows().testDisplayPairs().last(),
+            "Gen Zone",
+            genZoneState.gameRulesDialogRows().testDisplayMap().getValue("Gender ratio"),
         )
 
         // The unusual Gen Zone setup that does not switch at half calls that out explicitly.
         assertEquals(
-            "Gender ratio" to "Gen Zone, no switch at half",
+            "Gen Zone, no switch at half",
             genZoneState.copy(
                 rules = genZoneState.rules.copy(switchGenZoneAtHalftime = false),
-            ).gameRulesDialogRows().testDisplayPairs().last(),
+            ).gameRulesDialogRows().testDisplayMap().getValue("Gender ratio"),
         )
 
-        // Enabled water breaks appear as water-break rows, while None is omitted above.
+        // Enabled heat/water behavior is shown, including custom configurations.
         assertEquals(
-            "Water breaks" to "3 min",
+            "Level 0",
             openNoCapState.copy(
                 rules = openNoCapState.rules.copy(
-                    waterBreakMode = WaterBreakMode.MANUAL,
+                    heatLevel = HeatLevel.LEVEL_0,
                 ),
-            ).gameRulesDialogRows().testDisplayPairs().last(),
+            ).gameRulesDialogRows().testDisplayMap().getValue("Heat level"),
         )
         assertEquals(
-            "Water breaks" to "4/12, 3 min",
+            "Level 1",
             openNoCapState.copy(
                 rules = openNoCapState.rules.copy(
                     gameTo = 15,
-                    waterBreakMode = WaterBreakMode.AUTOMATIC,
+                    heatLevel = HeatLevel.LEVEL_1,
                 ),
-            ).gameRulesDialogRows().testDisplayPairs().last(),
+            ).gameRulesDialogRows().testDisplayMap().getValue("Heat level"),
+        )
+
+        // Level 2 shows only effective cap times and connects affected values through color.
+        val levelTwoRows = fullMixedState.copy(
+            rules = fullMixedState.rules.withHeatLevel(HeatLevel.LEVEL_2),
+        ).gameRulesDialogRows()
+        assertEquals(
+            listOf(
+                "Soft cap" to "11:10 AM",
+                "Hard cap" to "11:30 AM",
+                "Heat level" to "Level 2",
+                "Time between points" to "120 sec",
+            ),
+            levelTwoRows
+                .filter(GameRulesDialogRow::heatAdjusted)
+                .testDisplayPairs(),
+        )
+
+        // A cap already shorter than the Level 2 maximum is not marked as heat-adjusted.
+        val shorterHardCapRows = fullMixedState.copy(
+            rules = fullMixedState.rules.copy(
+                nominalHardCapMinutes = 80,
+            ).withHeatLevel(HeatLevel.LEVEL_2),
+        ).gameRulesDialogRows()
+        assertEquals(
+            listOf("Soft cap", "Heat level", "Time between points"),
+            shorterHardCapRows
+                .filter(GameRulesDialogRow::heatAdjusted)
+                .map(GameRulesDialogRow::label),
+        )
+
+        // If caps were disabled, level 2 enables them and marks them as heat-adjusted.
+        val heatEnabledCapRows = openNoCapState.copy(
+            rules = openNoCapState.rules.withHeatLevel(HeatLevel.LEVEL_2),
+        ).gameRulesDialogRows()
+        assertEquals(
+            listOf("Soft cap", "Hard cap", "Heat level", "Time between points"),
+            heatEnabledCapRows
+                .filter(GameRulesDialogRow::heatAdjusted)
+                .map(GameRulesDialogRow::label),
         )
     }
 
@@ -131,7 +171,7 @@ class TestGameRulesDialog : GameDomainTestFixtures() {
                 useHalfCap = true,
                 halfCapMinutes = 45,
                 useSoftCap = true,
-                softCapMinutes = 90,
+                nominalSoftCapMinutes = 90,
                 useHardCap = false,
                 timeoutsPerHalf = 2,
                 hasFloaterTimeout = true,
@@ -153,11 +193,11 @@ class TestGameRulesDialog : GameDomainTestFixtures() {
                 "Start time" to "10:00 AM",
                 "Half cap" to "10:45 AM",
                 "Soft cap" to "11:30 AM",
-                "Halftime" to "7 min",
                 "Timeouts" to "2/half + floater",
+                "Gender ratio" to "Gen Zone, no switch at half",
                 "Time between points" to "60 sec",
                 "Timeout duration" to "70 sec",
-                "Gender ratio" to "Gen Zone, no switch at half",
+                "Halftime" to "7 min",
             ),
             capAdjustedState.gameRulesDialogRows().testDisplayPairs(),
         )
@@ -183,4 +223,9 @@ class TestGameRulesDialog : GameDomainTestFixtures() {
 /// Return the visible label/value pairs for game-rules row assertions.
 private fun List<GameRulesDialogRow>.testDisplayPairs(): List<Pair<String, String>> {
     return map { row -> row.label to row.value }
+}
+
+/// Return the visible values keyed by label for individual game-rules row assertions.
+private fun List<GameRulesDialogRow>.testDisplayMap(): Map<String, String> {
+    return associate { row -> row.label to row.value }
 }

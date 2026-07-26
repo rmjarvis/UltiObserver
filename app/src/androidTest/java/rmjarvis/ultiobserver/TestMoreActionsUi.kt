@@ -17,6 +17,25 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class TestMoreActionsUi : MainActivityUiTestFixtures() {
     /**
+     * Test the live-only Level 3 action and its suspension record.
+     */
+    @Test
+    fun heatLevelThreeSuspendsGame() {
+        startLiveGameProgrammatically()
+        openMoreActionsDialog()
+        composeRule.onNodeWithText("Set heat level").performClick()
+        composeRule.onNodeWithTag("heat-level-LEVEL_3").performClick()
+        composeRule.onNodeWithTag("set-heat-level-confirm").performClick()
+
+        waitForText("Game suspended")
+        dismissDialog(text = "OK")
+        waitForText("Game summary")
+        composeRule.onNodeWithText("Undo Heat level 3 — game suspended").assertExists()
+        composeRule.onNodeWithText("Event log").performClick()
+        waitForText("Heat level 3 — game suspended", substring = true)
+    }
+
+    /**
      * Test the less-common live-game actions behind More actions.
      * The goal is to catch broken dialogs, buttons, and return paths for observer-accessible tools.
      */
@@ -106,6 +125,20 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("more-actions-pull-prompts-BOTH").performClick()
         composeRule.onNodeWithText("Set").performClick()
         waitForText("Undo Change pull prompts")
+        assertLiveScreen()
+
+        // Heat level changes are directly available without reopening full setup.
+        openMoreActionsDialog()
+        openMoreActionsDialogAndCancel("Set heat level")
+        openMoreActionsDialog()
+        composeRule.onNodeWithText("Set heat level").performClick()
+        composeRule.onNodeWithTag("heat-level-LEVEL_2").performClick()
+        waitForText(
+            "One 4-minute water break per half. Add 60 seconds between points. " +
+                "Adjust soft/hard caps."
+        )
+        composeRule.onNodeWithTag("set-heat-level-confirm").performClick()
+        waitForText("Undo Heat level 2")
         assertLiveScreen()
 
         openMoreActionsDialog()

@@ -283,7 +283,6 @@ class TestSetupUi : MainActivityUiTestFixtures() {
             .performClick()
         closeSetupEditor()
         waitForText("First-half Gen Zone: Road")
-        waitForText("Gen Zone switches at halftime")
 
         // Gen Zone setup can also keep the same zone for the whole game.
         openMixedGenderRatioEditor()
@@ -294,7 +293,6 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         closeSetupEditor()
         waitForText("Gen Zone: Road")
         composeRule.onAllNodesWithText("First-half Gen Zone: Road").assertCountEquals(0)
-        waitForText("Gen Zone stays the same all game")
         openStartingPullSetupEditor()
         composeRule.onNodeWithText("End for gen zone")
             .performScrollTo()
@@ -376,11 +374,11 @@ class TestSetupUi : MainActivityUiTestFixtures() {
             "Half cap",
             "Soft cap",
             "Hard cap",
-            "Halftime",
             "Timeouts",
+            "Heat level",
             "Time between points",
             "Timeout duration",
-            "Water breaks",
+            "Halftime",
         )
             .forEach { ruleLabel ->
                 composeRule.onNodeWithText(ruleLabel).performScrollTo().performClick()
@@ -409,17 +407,15 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         setIntegerSetupValue("Time between points", "Time between points", "Seconds", "50")
         setIntegerSetupValue("Timeout duration", "Timeout duration", "Seconds", "55")
         assertSetupSummaryTextVisible("Game to 7")
-        assertSetupSummaryTextVisible("Half: 2 min")
-        assertSetupSummaryTextVisible("Time between points: 50 sec")
-        assertSetupSummaryTextVisible("Timeout duration: 55 sec")
+        assertSetupSummaryTextVisible("Times: 50 sec/55 sec/2 min")
 
         // Cap editors should support changing, disabling, and re-enabling cap values.
         setCapRuleValue("Half cap", "Half cap", "30")
         setCapRuleToNone("Half cap", "Half cap")
-        setCapRuleValue("Soft cap", "Soft cap", "12")
+        setCapRuleValue("Soft cap", "Soft cap", "55")
         setCapRuleToNone("Soft cap", "Soft cap")
         setCapRuleToNone("Hard cap", "Hard cap")
-        setCapRuleValue("Hard cap", "Hard cap", "20", enableFromNone = true)
+        setCapRuleValue("Hard cap", "Hard cap", "70", enableFromNone = true)
 
         // Mixed gender-ratio controls should update the compact game-rules summary.
         openMixedGenderRatioEditor()
@@ -431,50 +427,118 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         waitForText("Game to")
         closeSetupEditor()
         waitForText("Ratio: Gen Zone")
-        waitForText("Gen Zone stays the same all game")
 
         // Timeout rules should accept a floater timeout configuration.
         setTimeoutRules(timeoutsPerHalf = "3", hasFloater = true)
 
-        // Water-break rules should cover disabled, manual, and automatic choices.
+        // Heat level defaults to None
         openGameRulesSetupEditor()
-        composeRule.onNodeWithText("Water breaks").performScrollTo().performClick()
-        waitForText("Allow extra time between points for hydration or shade.", substring = true)
-        composeRule.onNodeWithTag("setup-water-break-NONE").assertIsSelected()
-        composeRule.onNodeWithText("Minutes").assertIsNotEnabled()
-        composeRule.onNodeWithTag("setup-water-break-MANUAL").performClick()
-        composeRule.onNodeWithText("Minutes").performTextReplacement("4")
-        composeRule.onNodeWithTag("setup-water-breaks-set").performClick()
-        waitForText("4 min")
-        closeSetupEditor()
-        assertSetupSummaryTextVisible("Water breaks: 4 min")
+        composeRule.onNodeWithText("Heat level").performScrollTo().performClick()
+        waitForText("Heat level")
+        waitForText(
+            "If your tournament uses USAU heat guidelines",
+            substring = true,
+        )
+        composeRule.onNodeWithTag("heat-level-NONE").assertIsSelected()
+        waitForText("Standard time between points.")
+        composeRule.onAllNodesWithText("Water break minutes").assertCountEquals(0)
 
-        openGameRulesSetupEditor()
-        composeRule.onNodeWithText("Water breaks").performScrollTo().performClick()
-        composeRule.onNodeWithTag("setup-water-break-AUTOMATIC").performClick()
-        waitForText("Breaks will be offered when a team reaches 2 or 6 points.")
-        composeRule.onNodeWithText("Minutes").performTextReplacement("5")
+        // Setting heat level to 0 allows for manual water breaks with a settable time (default
+        // 3 min).
+        composeRule.onNodeWithTag("heat-level-LEVEL_0").performClick()
         composeRule.onNodeWithTag("setup-water-breaks-set").performClick()
-        waitForText("2/6, 5 min")
+        waitForText("Level 0 (3 min)")
+        composeRule.onNodeWithText("Heat level").performScrollTo().performClick()
+        composeRule.onNodeWithTag("heat-level-LEVEL_0").performClick()
+        composeRule.onNodeWithText("Water break minutes").performTextReplacement("4")
+        composeRule.onNodeWithTag("setup-water-breaks-set").performClick()
+        waitForText("Level 0 (4 min)")
         closeSetupEditor()
-        assertSetupSummaryTextVisible("Water breaks: 2/6, 5 min")
+        assertSetupSummaryTextVisible("Heat level: Level 0")
 
+        // Setting heat level to 1 uses automatic breaks with a settable time (default 3 min).
         openGameRulesSetupEditor()
-        composeRule.onNodeWithText("Water breaks").performScrollTo().performClick()
-        composeRule.onNodeWithText("Minutes").performTextReplacement("")
+        composeRule.onNodeWithText("Heat level").performScrollTo().performClick()
+        composeRule.onNodeWithTag("heat-level-LEVEL_1").performClick()
+        waitForText("normally when a team gets to 2 or 6 points", substring = true)
         composeRule.onNodeWithTag("setup-water-breaks-set").performClick()
-        waitForText("2/6, 5 min")
+        waitForText("Level 1 (3 min)")
+        composeRule.onNodeWithText("Heat level").performScrollTo().performClick()
+        composeRule.onNodeWithText("Water break minutes").performTextReplacement("5")
+        composeRule.onNodeWithTag("setup-water-breaks-set").performClick()
+        waitForText("Level 1 (5 min)")
         closeSetupEditor()
-        assertSetupSummaryTextVisible("Water breaks: 2/6, 5 min")
+        assertSetupSummaryTextVisible("Heat level: Level 1")
+
+        // Invalid water break minutes keeps the previous value.
+        openGameRulesSetupEditor()
+        composeRule.onNodeWithText("Heat level").performScrollTo().performClick()
+        composeRule.onNodeWithText("Water break minutes").performTextReplacement("")
+        composeRule.onNodeWithTag("setup-water-breaks-set").performClick()
+        waitForText("Level 1 (5 min)")
+        closeSetupEditor()
+        assertSetupSummaryTextVisible("Heat level: Level 1")
+
+        // Setting heat level to 2 defaults to 4 minute water breaks and visibly derives
+        // timing and caps while preserving their nominal settings.
+        openGameRulesSetupEditor()
+        composeRule.onNodeWithText("Heat level").performScrollTo().performClick()
+        composeRule.onNodeWithTag("heat-level-LEVEL_2").performClick()
+        waitForText("add 60 seconds to the time between points", substring = true)
+        waitForText(
+            "The soft/hard caps are set to 50/70 minutes.",
+            substring = true,
+        )
+        composeRule.onNodeWithTag("setup-water-breaks-set").performClick()
+        waitForText("+50 (was none)")
+        waitForText("+70")
+        waitForText("50 +60 sec")
+
+        // The soft cap and time between points screens highlight their Level 2 adjustments.
+        composeRule.onNodeWithText("Time between points").performScrollTo().performClick()
+        waitForText("Heat level 2 adds an additional 60 seconds.")
+        composeRule.onNodeWithText("Cancel").performClick()
+        composeRule.onNodeWithText("Soft cap").performScrollTo().performClick()
+        waitForText("Heat level 2 is overriding this to 50 minutes.")
+        composeRule.onNodeWithText("Cancel").performClick()
+        closeSetupEditor()
+        assertSetupSummaryTextVisible("Heat level: Level 2")
+        assertSetupSummaryTextVisible("Caps: -/+50/+70")
+        assertSetupSummaryTextVisible("Times: 110 sec/55 sec/2 min")
+
+        // Level 2 should omit cap-adjustment guidance when both enabled caps are already short
+        // enough.
+        setCapRuleValue("Soft cap", "Soft cap", "45", enableFromNone = true)
+        openGameRulesSetupEditor()
+        composeRule.onNodeWithText("Heat level").performScrollTo().performClick()
+        waitForText("add 60 seconds to the time between points", substring = true)
+        composeRule.onAllNodesWithText("shortened to", substring = true).assertCountEquals(0)
+        composeRule.onAllNodesWithText("caps are set to", substring = true).assertCountEquals(0)
+        composeRule.onNodeWithText("Cancel").performClick()
+        closeSetupEditor()
 
         // USAU defaults should restore the expected compact rule summary.
         openGameRulesSetupEditor()
         composeRule.onNodeWithTag("setup-usau-defaults").performScrollTo().performClick()
         waitForText("+105")
         closeSetupEditor()
-        assertSetupSummaryTextVisible("Time between points: 60 sec")
-        assertSetupSummaryTextVisible("Timeout duration: 70 sec")
-        composeRule.onAllNodesWithText("Water breaks:", substring = true).assertCountEquals(0)
+        assertSetupSummaryTextVisible("Times: 60 sec/70 sec/7 min")
+        composeRule.onAllNodesWithText("Heat level:", substring = true).assertCountEquals(0)
+
+        // Heat level 2 applies the standard adjustments to USAU defaults.
+        openGameRulesSetupEditor()
+        composeRule.onNodeWithText("Heat level").performScrollTo().performClick()
+        composeRule.onNodeWithTag("heat-level-LEVEL_2").performClick()
+        waitForText("normally when a team gets to 4 or 12 points", substring = true)
+        composeRule.onNodeWithTag("setup-water-breaks-set").performClick()
+        waitForText("Level 2 (4 min)")
+        composeRule.onNodeWithText("Hard cap").performScrollTo().performClick()
+        waitForText("Heat level 2 is shortening this to 90 minutes.")
+        composeRule.onNodeWithText("Cancel").performClick()
+        closeSetupEditor()
+        assertSetupSummaryTextVisible("Times: 120 sec/70 sec/7 min")
+        assertSetupSummaryTextVisible("Caps: +45/+70/+90")
+        assertSetupSummaryTextVisible("Heat level: Level 2")
     }
 
     /**
@@ -499,7 +563,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
             .performScrollTo()
             .performClick()
         closeSetupEditor()
-        assertSetupSummaryTextVisible("Time between points: 80 sec")
+        assertSetupSummaryTextVisible("Times: 80 sec/70 sec/7 min")
         openGameRulesSetupEditor()
         waitForText("Reset to USAU (Youth) defaults")
         composeRule.onNodeWithText("Reset to USAU (Youth) defaults")
@@ -511,7 +575,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
             .performScrollTo()
             .performClick()
         closeSetupEditor()
-        assertSetupSummaryTextVisible("Time between points: 60 sec")
+        assertSetupSummaryTextVisible("Times: 60 sec/70 sec/7 min")
 
         // Optional tournament, division, level, context, and observer fields should persist.
         openGameInformationSetupEditor()

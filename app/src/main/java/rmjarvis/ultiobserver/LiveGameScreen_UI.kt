@@ -206,10 +206,18 @@ internal fun LiveGameScreen(
         previouslyObservedPhase = state.phase
     }
 
+    // A heat level can change during a live point. Offer the resulting late water break as
+    // soon as the game next reaches an eligible between-points countdown.
+    LaunchedEffect(state.pendingWaterBreakOffer, state.phase) {
+        if (state.pendingWaterBreakOffer && state.canApplyWaterBreak()) {
+            showWaterBreakPrompt = true
+        }
+    }
+
     if (state.phase == GamePhase.GAME_OVER) {
         GameOverSummaryScreen(
             state = state,
-            summaryActionText = "Undo End game",
+            summaryActionText = state.undoEntry!!.label,
             onSummaryAction = {
                 undoWithoutPhasePrompt(state.undoLastAction())
             },
@@ -354,9 +362,6 @@ internal fun LiveGameScreen(
                     onGoal = { team ->
                         val updatedState = state.recordGoalFromCurrentState(team, now)
                         onStateChange(updatedState)
-                        if (updatedState.automaticWaterBreakReached(team)) {
-                            showWaterBreakPrompt = true
-                        }
                     },
                     onTimeout = { team ->
                         pendingTimeoutRequest = PendingTimeoutRequest(team, System.currentTimeMillis())
@@ -703,12 +708,7 @@ internal fun LiveGameScreen(
                 TextActionButton(
                     label = "Apply",
                     onClick = {
-                        val showWaterBreakAfterCap =
-                            state.pendingCapOffer == CapType.SOFT && state.softCapWaterBreakReached()
                         onStateChange(state.applyPendingCap(now))
-                        if (showWaterBreakAfterCap) {
-                            showWaterBreakPrompt = true
-                        }
                     },
                 )
             },
@@ -718,11 +718,16 @@ internal fun LiveGameScreen(
         )
     } else if (showWaterBreakPrompt) {
         AlertDialog(
-            onDismissRequest = { showWaterBreakPrompt = false },
+            onDismissRequest = {
+                if (state.pendingWaterBreakOffer) {
+                    onStateChange(state.declinePendingWaterBreak())
+                }
+                showWaterBreakPrompt = false
+            },
             title = { Text("Water break") },
             text = {
                 Text(
-                    text = "Take a ${state.rules.waterBreakMinutes} minute water break now?",
+                    text = state.waterBreakPromptText(),
                     style = MaterialTheme.typography.bodyLarge,
                 )
             },
@@ -739,6 +744,9 @@ internal fun LiveGameScreen(
                 TextActionButton(
                     label = "No",
                     onClick = {
+                        if (state.pendingWaterBreakOffer) {
+                            onStateChange(state.declinePendingWaterBreak())
+                        }
                         showWaterBreakPrompt = false
                     },
                 )
@@ -781,14 +789,11 @@ internal fun LiveGameScreen(
                         showMoreActionsDialog = false
                         onOpenGameSummary()
                     },
+                    onHeatLevelChange = { heatLevel ->
+                        onStateChange(state.setHeatLevel(heatLevel, now))
+                        showMoreActionsDialog = false
+                    },
                     onAction = { updatedState ->
-                        if (
-                            !state.softCapApplied &&
-                            updatedState.softCapApplied &&
-                            state.softCapWaterBreakReached()
-                        ) {
-                            showWaterBreakPrompt = true
-                        }
                         onStateChange(updatedState)
                         showMoreActionsDialog = false
                     },
@@ -847,6 +852,8 @@ private fun GameRulesRow(row: GameRulesDialogRow) {
             text = row.value,
             modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.bodyLarge,
+            color = if (row.heatAdjusted) ResetColor else Color.Unspecified,
+            fontWeight = if (row.heatAdjusted) FontWeight.Bold else null,
             textAlign = TextAlign.End,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

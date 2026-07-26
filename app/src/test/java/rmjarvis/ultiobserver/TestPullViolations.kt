@@ -212,7 +212,7 @@ class TestPullViolations : GameDomainTestFixtures() {
             pullingFromEnd = FieldEnd.NEAR,
             sequenceStart = 2_000L,
             promptTarget = PullPromptTarget.NEAR,
-            rules = GameRules(timeBetweenPointsSeconds = 50),
+            rules = GameRules(nominalTimeBetweenPointsSeconds = 50),
         )
         assertEquals(50, customPullCountdown.pullTiming?.offenseReadySeconds)
         assertEquals(70, customPullCountdown.pullTiming?.pullSeconds)

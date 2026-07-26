@@ -31,19 +31,6 @@ enum class CapType {
         }
 
     /**
-     * Return this cap's configured offset from game start.
-     *
-     * @param rules The rules that contain the cap offsets.
-     */
-    fun offsetMinutes(rules: GameRules): Int {
-        return when (this) {
-            HALF -> rules.halfCapMinutes
-            SOFT -> rules.softCapMinutes
-            HARD -> rules.hardCapMinutes
-        }
-    }
-
-    /**
      * Return rules with this cap enabled while preserving the other rule values.
      *
      * @param rules The rule set to update.
@@ -69,9 +56,9 @@ enum class CapType {
 /// Return whether any enabled cap has an audible or haptic timing alert.
 internal fun GameRules.hasEnabledCapTimingAlerts(timingAlertPreferences: TimingAlertPreferences): Boolean {
     return listOfNotNull(
-        CapType.HALF.takeIf { useHalfCap },
-        CapType.SOFT.takeIf { useSoftCap },
-        CapType.HARD.takeIf { useHardCap },
+        CapType.HALF.takeIf { capEnabled(CapType.HALF) },
+        CapType.SOFT.takeIf { capEnabled(CapType.SOFT) },
+        CapType.HARD.takeIf { capEnabled(CapType.HARD) },
     ).any { capType ->
         timingAlertPreferences.alertModeFor(capType.timingCueId()) != TimingAlertMode.NONE
     }
@@ -145,6 +132,7 @@ private fun GameState.applyCap(
             winningScore = currentHigherScore + 1,
             softCapApplied = true,
             pendingCapOffer = null,
+            pendingWaterBreakOffer = pendingWaterBreakOffer || softCapWaterBreakReached(),
             lastEvent = "Soft cap applied.",
         ).withUndo(undoPrevious, undoLabel)
 
@@ -317,18 +305,18 @@ private fun GameState.relevantCapTypes(): List<CapType> {
  * @param teamTwoScore The score to evaluate for team two, often the post-goal score being considered.
  */
 internal fun GameState.halfCapRelevant(teamOneScore: Int, teamTwoScore: Int): Boolean {
-    return rules.useHalfCap &&
+    return rules.capEnabled(CapType.HALF) &&
         !halftimeTaken &&
         !halfCapApplied &&
         halfCapCanChangeHalftime(rules, teamOneScore, teamTwoScore)
 }
 /// Report whether soft cap is enabled and has not already been applied.
 internal fun GameState.softCapRelevant(): Boolean {
-    return rules.useSoftCap && !softCapApplied
+    return rules.capEnabled(CapType.SOFT) && !softCapApplied
 }
 /// Report whether hard cap is enabled and has not already been applied.
 internal fun GameState.hardCapRelevant(): Boolean {
-    return rules.useHardCap && !hardCapApplied
+    return rules.capEnabled(CapType.HARD) && !hardCapApplied
 }
 /**
  * Report whether half cap is both relevant and due at the supplied time.
@@ -391,7 +379,7 @@ private fun halfCapCanChangeHalftime(rules: GameRules, teamOneScore: Int, teamTw
  * @param capType The cap whose configured offset should be used.
  */
 internal fun GameState.capEpoch(capType: CapType): Long {
-    return startEpoch + capType.offsetMinutes(rules) * 60_000L
+    return startEpoch + rules.capMinutes(capType) * 60_000L
 }
 
 /// Return the lower-case cap label used in an apply-cap prompt title.

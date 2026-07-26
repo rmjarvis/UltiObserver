@@ -199,6 +199,9 @@ fun GameState.recordGoal(
         pendingMisconductCountdown = false,
         halftimeTaken = this.halftimeTaken,
         halftimeTargetScore = this.halftimeTargetScore,
+        halftimeHighScore = this.halftimeHighScore,
+        pendingWaterBreakOffer = this.pendingWaterBreakOffer ||
+            this.goalTriggersAutomaticWaterBreak(scoringTeam),
         winningScore = this.winningScore,
         halfCapApplied = this.halfCapApplied,
         softCapApplied = this.softCapApplied,
@@ -290,6 +293,8 @@ private fun startHalftime(
         pullSkippedForCurrentPoint = false,
         pendingMisconductCountdown = false,
         halftimeTaken = true,
+        halftimeHighScore = max(teamOne.score, teamTwo.score),
+        pendingWaterBreakOffer = false,
         pendingCapOffer = pendingCapOffer,
         lastEvent = "Halftime.",
     ).withEventLogEntry(

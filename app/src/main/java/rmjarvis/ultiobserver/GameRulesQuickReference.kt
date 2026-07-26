@@ -5,32 +5,46 @@ package rmjarvis.ultiobserver
  *
  * @param label Short rule name.
  * @param value Compact display value.
+ * @param heatAdjusted Whether heat guidance changes this displayed value.
  */
 internal class GameRulesDialogRow(
     val label: String,
     val value: String,
+    val heatAdjusted: Boolean,
 )
 
 /// Return compact rows for the game-rules quick reference.
 internal fun GameState.gameRulesDialogRows(): List<GameRulesDialogRow> {
     val rows = mutableListOf(
-        GameRulesDialogRow("Game to", gameToDialogText()),
-        GameRulesDialogRow("Half at", halfAtDialogText()),
-        GameRulesDialogRow("Start time", formatClockTime(startTime)),
+        GameRulesDialogRow("Game to", gameToDialogText(), heatAdjusted = false),
+        GameRulesDialogRow("Half at", halfAtDialogText(), heatAdjusted = false),
+        GameRulesDialogRow("Start time", formatClockTime(startTime), heatAdjusted = false),
     )
     capDialogRow(CapType.HALF)?.let { rows += it }
     capDialogRow(CapType.SOFT)?.let { rows += it }
     capDialogRow(CapType.HARD)?.let { rows += it }
-    rows += GameRulesDialogRow("Halftime", halftimeDialogText())
-    rows += GameRulesDialogRow("Timeouts", rules.formatTimeoutRules())
-    rows += GameRulesDialogRow("Time between points", rules.formatTimeBetweenPoints())
-    rows += GameRulesDialogRow("Timeout duration", rules.formatTimeoutDuration())
-    rules.formatWaterBreaks()?.let { waterBreakText ->
-        rows += GameRulesDialogRow("Water breaks", waterBreakText)
-    }
+    rows += GameRulesDialogRow("Timeouts", rules.formatTimeoutRules(), heatAdjusted = false)
     if (usesMixedDivision()) {
-        rows += GameRulesDialogRow("Gender ratio", genderRatioDialogText())
+        rows += GameRulesDialogRow("Gender ratio", genderRatioDialogText(), heatAdjusted = false)
     }
+    if (rules.heatLevel != HeatLevel.NONE) {
+        rows += GameRulesDialogRow(
+            "Heat level",
+            rules.formatHeatLevel(compact = true),
+            heatAdjusted = rules.heatLevel == HeatLevel.LEVEL_2,
+        )
+    }
+    rows += GameRulesDialogRow(
+        "Time between points",
+        rules.formatTimeBetweenPoints(compact = true),
+        heatAdjusted = rules.heatLevel == HeatLevel.LEVEL_2,
+    )
+    rows += GameRulesDialogRow(
+        "Timeout duration",
+        rules.formatTimeoutDuration(),
+        heatAdjusted = false,
+    )
+    rows += GameRulesDialogRow("Halftime", halftimeDialogText(), heatAdjusted = false)
     return rows
 }
 
@@ -64,17 +78,14 @@ private fun GameState.halftimeDialogText(): String {
 private fun GameState.capDialogRow(
     capType: CapType,
 ): GameRulesDialogRow? {
-    val capEnabled = when (capType) {
-        CapType.HALF -> rules.useHalfCap
-        CapType.SOFT -> rules.useSoftCap
-        CapType.HARD -> rules.useHardCap
-    }
-    if (!capEnabled) {
+    if (!rules.capEnabled(capType)) {
         return null
     }
     return GameRulesDialogRow(
         capType.label,
         formatClockTime(localTimeFromEpoch(capEpoch(capType), timeZone)),
+        heatAdjusted = !rules.nominalCapEnabled(capType) ||
+            rules.nominalCapMinutes(capType) != rules.capMinutes(capType),
     )
 }
 

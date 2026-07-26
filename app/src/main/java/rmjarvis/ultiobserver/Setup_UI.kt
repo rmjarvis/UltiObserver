@@ -52,11 +52,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import java.time.LocalDate
 import java.time.LocalTime
@@ -536,13 +539,18 @@ internal fun SetupScreen(
                         IntegerEditDialog(
                             title = target.dialogTitle,
                             fieldLabel = target.fieldLabel,
-                            initialValue = rulesDraft.timeBetweenPointsSeconds,
+                            initialValue = rulesDraft.nominalTimeBetweenPointsSeconds,
                             note = "This is the time until offense must signal readiness. " +
                                 "Defense has up to 20 seconds after this time to pull.",
+                            effectNote = if (rulesDraft.heatLevel == HeatLevel.LEVEL_2) {
+                                "Heat level 2 adds an additional 60 seconds."
+                            } else {
+                                null
+                            },
                             onDismiss = { editingRule = null },
                             onConfirm = { newValue ->
                                 gameRulesDraft = rulesDraft.copy(
-                                    timeBetweenPointsSeconds = newValue.coerceAtLeast(1)
+                                    nominalTimeBetweenPointsSeconds = newValue.coerceAtLeast(1)
                                 )
                                 editingRule = null
                             },
@@ -591,13 +599,14 @@ internal fun SetupScreen(
                             fieldLabel = target.fieldLabel,
                             prefixText = "Soft cap at:",
                             suffixText = "minutes after start time.",
-                            initialValue = rulesDraft.softCapMinutes,
+                            initialValue = rulesDraft.nominalSoftCapMinutes,
                             initiallyEnabled = rulesDraft.useSoftCap,
+                            note = rulesDraft.heatLevelTwoCapEffectNote(CapType.SOFT),
                             onDismiss = { editingRule = null },
                             onConfirm = { enabled, newValue ->
                                 gameRulesDraft = rulesDraft.copy(
                                     useSoftCap = enabled,
-                                    softCapMinutes = newValue,
+                                    nominalSoftCapMinutes = newValue,
                                 )
                                 editingRule = null
                             },
@@ -610,13 +619,14 @@ internal fun SetupScreen(
                             fieldLabel = target.fieldLabel,
                             prefixText = "Hard cap at:",
                             suffixText = "minutes after start time.",
-                            initialValue = rulesDraft.hardCapMinutes,
+                            initialValue = rulesDraft.nominalHardCapMinutes,
                             initiallyEnabled = rulesDraft.useHardCap,
+                            note = rulesDraft.heatLevelTwoCapEffectNote(CapType.HARD),
                             onDismiss = { editingRule = null },
                             onConfirm = { enabled, newValue ->
                                 gameRulesDraft = rulesDraft.copy(
                                     useHardCap = enabled,
-                                    hardCapMinutes = newValue,
+                                    nominalHardCapMinutes = newValue,
                                 )
                                 editingRule = null
                             },
@@ -1369,33 +1379,6 @@ private fun GenderRatioRuleChoiceRow(
 }
 
 /**
- * Render the water-break mode chooser for game rules.
- *
- * @param selected The currently selected water-break mode.
- * @param onSelected Callback receiving the selected mode.
- */
-@Composable
-private fun WaterBreakModeChoiceRow(
-    selected: WaterBreakMode,
-    onSelected: (WaterBreakMode) -> Unit,
-) {
-    FlowRow(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        WaterBreakMode.entries.forEach { mode ->
-            SetupChoiceChip(
-                label = mode.displayText,
-                selected = selected == mode,
-                onClick = { onSelected(mode) },
-                tag = "setup-water-break-${mode.name}",
-            )
-        }
-    }
-}
-
-/**
  * Render the ABBA initial gender-ratio chooser.
  *
  * @param selected The currently selected first-point gender ratio.
@@ -1522,26 +1505,19 @@ private fun GameRulesSummary(state: GameState) {
     val rules = state.rules
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         SetupSummaryValue("Game to ${rules.gameTo}")
-        SetupSummaryValue("Half: ${rules.halftimeMinutes} min")
-        SetupSummaryValue("Caps: ${rules.capRulesSummary()}")
+        SetupSummaryValue("Caps: ${rules.formatCaps()}")
         SetupSummaryValue("TO: ${rules.formatTimeoutRules()}")
-        SetupSummaryValue("Time between points: ${rules.formatTimeBetweenPoints()}")
-        SetupSummaryValue("Timeout duration: ${rules.formatTimeoutDuration()}")
-        rules.formatWaterBreaks()?.let { waterBreakText ->
-            SetupSummaryValue("Water breaks: $waterBreakText")
-        }
         if (state.usesMixedDivision()) {
             SetupSummaryValue("Ratio: ${rules.genderRatioRule.displayText}")
-            if (rules.genderRatioRule == GenderRatioRule.GEN_ZONE) {
-                SetupSummaryValue(
-                    if (rules.switchGenZoneAtHalftime) {
-                        "Gen Zone switches at halftime"
-                    } else {
-                        "Gen Zone stays the same all game"
-                    }
-                )
-            }
         }
+        if (rules.heatLevel != HeatLevel.NONE) {
+            SetupSummaryValue("Heat level: ${rules.formatHeatLevel(compact = true)}")
+        }
+        SetupSummaryValue(
+            "Times: ${rules.formatTimeBetweenPoints(compact = true)}/" +
+                "${rules.formatTimeoutDuration()}/" +
+                "${rules.halftimeMinutes} min"
+        )
     }
 }
 
@@ -1789,38 +1765,18 @@ private fun GameRulesSetupDialog(
                 )
                 EditableValueRow(
                     label = "Soft cap",
-                    value = if (rules.useSoftCap) "+${rules.softCapMinutes}" else "None",
+                    value = rules.formatCap(CapType.SOFT),
                     onClick = { onEditRule(RuleEditTarget.SOFT) },
                 )
                 EditableValueRow(
                     label = "Hard cap",
-                    value = if (rules.useHardCap) "+${rules.hardCapMinutes}" else "None",
+                    value = rules.formatCap(CapType.HARD),
                     onClick = { onEditRule(RuleEditTarget.HARD) },
-                )
-                EditableValueRow(
-                    label = "Halftime",
-                    value = "${rules.halftimeMinutes} min",
-                    onClick = { onEditRule(RuleEditTarget.HALFTIME) },
                 )
                 EditableValueRow(
                     label = "Timeouts",
                     value = rules.formatTimeoutRules(),
                     onClick = onEditTimeouts,
-                )
-                EditableValueRow(
-                    label = "Time between points",
-                    value = rules.formatTimeBetweenPoints(),
-                    onClick = { onEditRule(RuleEditTarget.BETWEEN_POINTS) },
-                )
-                EditableValueRow(
-                    label = "Timeout duration",
-                    value = rules.formatTimeoutDuration(),
-                    onClick = { onEditRule(RuleEditTarget.TIMEOUT_DURATION) },
-                )
-                EditableValueRow(
-                    label = "Water breaks",
-                    value = rules.formatWaterBreaks() ?: "None",
-                    onClick = onEditWaterBreaks,
                 )
                 if (state.usesMixedDivision()) {
                     EditableValueRow(
@@ -1829,6 +1785,26 @@ private fun GameRulesSetupDialog(
                         onClick = onEditGenderRatio,
                     )
                 }
+                EditableValueRow(
+                    label = "Heat level",
+                    value = rules.formatHeatLevel(compact = false),
+                    onClick = onEditWaterBreaks,
+                )
+                EditableValueRow(
+                    label = "Time between points",
+                    value = rules.formatTimeBetweenPoints(compact = false),
+                    onClick = { onEditRule(RuleEditTarget.BETWEEN_POINTS) },
+                )
+                EditableValueRow(
+                    label = "Timeout duration",
+                    value = rules.formatTimeoutDuration(),
+                    onClick = { onEditRule(RuleEditTarget.TIMEOUT_DURATION) },
+                )
+                EditableValueRow(
+                    label = "Halftime",
+                    value = "${rules.halftimeMinutes} min",
+                    onClick = { onEditRule(RuleEditTarget.HALFTIME) },
+                )
                 MenuButton(
                     label = usauDefaultsButtonLabel(state.level),
                     tag = "setup-usau-defaults",
@@ -2019,6 +1995,7 @@ private fun ExactTimeDialog(
  * @param fieldLabel The text-field label.
  * @param initialValue The current numeric value shown when the dialog opens.
  * @param note Optional explanatory text shown above the numeric field.
+ * @param effectNote Optional emphasized rule effect shown below the numeric field.
  * @param onDismiss Callback closing the dialog without applying a value.
  * @param onConfirm Callback receiving the parsed non-negative value.
  */
@@ -2028,6 +2005,7 @@ private fun IntegerEditDialog(
     fieldLabel: String,
     initialValue: Int,
     note: String? = null,
+    effectNote: String? = null,
     onDismiss: () -> Unit,
     onConfirm: (Int) -> Unit,
 ) {
@@ -2052,6 +2030,14 @@ private fun IntegerEditDialog(
                     labelText = fieldLabel,
                     keyboardType = KeyboardType.Number,
                 )
+                if (effectNote != null) {
+                    Text(
+                        text = effectNote,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = ResetColor,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
             }
         },
         confirmButton = {
@@ -2089,6 +2075,7 @@ private fun CapRuleEditDialog(
     suffixText: String,
     initialValue: Int,
     initiallyEnabled: Boolean,
+    note: String? = null,
     onDismiss: () -> Unit,
     onConfirm: (Boolean, Int) -> Unit,
 ) {
@@ -2122,6 +2109,14 @@ private fun CapRuleEditDialog(
                     enabled = enabled,
                 )
                 Text(suffixText)
+                if (note != null) {
+                    Text(
+                        text = note,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = ResetColor,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
             }
         },
         confirmButton = {
@@ -2202,6 +2197,38 @@ private fun TimeoutRulesDialog(
 }
 
 /**
+ * Render the heat-level chooser shared by setup and live More actions.
+ *
+ * @param includeLevelThree Whether the live-only suspension level should be available.
+ */
+@Composable
+internal fun HeatLevelChoiceRow(
+    selected: HeatLevel,
+    includeLevelThree: Boolean,
+    onSelected: (HeatLevel) -> Unit,
+) {
+    val choices = if (includeLevelThree) {
+        HeatLevel.entries
+    } else {
+        HeatLevel.entries.filter { level -> level != HeatLevel.LEVEL_3 }
+    }
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        choices.forEach { level ->
+            ChoiceChipButton(
+                label = level.displayText,
+                selected = selected == level,
+                onClick = { onSelected(level) },
+                tag = "heat-level-${level.name}",
+            )
+        }
+    }
+}
+
+/**
  * Render the water-break rules editor.
  *
  * @param rules The current rules whose water-break fields are being edited.
@@ -2214,37 +2241,47 @@ private fun WaterBreaksDialog(
     onDismiss: () -> Unit,
     onConfirm: (GameRules) -> Unit,
 ) {
-    var selectedMode by remember { mutableStateOf(rules.waterBreakMode) }
+    var selectedHeatLevel by remember { mutableStateOf(rules.heatLevel) }
     var minutesText by remember { mutableStateOf(rules.waterBreakMinutes.toString()) }
-    val breakScores = rules.copy(waterBreakMode = selectedMode).waterBreakScores()
+    val waterBreakScores = rules.waterBreakScores()
+    val firstBreakScore = waterBreakScores[0]
+    val secondBreakScore = waterBreakScores[1]
+    val displayedMinutes = minutesText.toIntOrNull() ?: rules.waterBreakMinutes
 
     AlertDialog(
         modifier = dialogInitialFocusModifier(),
         onDismissRequest = onDismiss,
-        title = { Text("Water breaks") },
+        title = { Text("Heat level") },
         text = {
-            TextEntryDialogBody(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            ScrollableDialogRegion(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    "Allow extra time between points for hydration or shade. When enabled, tap " +
-                        "the water drop icon next to the timer to add the additional time."
+                    "If your tournament uses USAU heat guidelines, select the current heat level " +
+                    "for automatic water-break timing. Choose Level 0 for manual water breaks."
                 )
-                WaterBreakModeChoiceRow(
-                    selected = selectedMode,
-                    onSelected = { selectedMode = it },
+                HeatLevelChoiceRow(
+                    selected = selectedHeatLevel,
+                    includeLevelThree = false,
+                    onSelected = { newLevel ->
+                        val standardRules = rules.withHeatLevel(newLevel)
+                        selectedHeatLevel = newLevel
+                        minutesText = standardRules.waterBreakMinutes.toString()
+                    },
                 )
-                if (selectedMode == WaterBreakMode.AUTOMATIC) {
-                    Text(
-                        "Breaks will be offered when a team reaches " +
-                            "${breakScores.joinToString(" or ")} points."
+                HeatLevelGuidance(
+                    heatLevel = selectedHeatLevel,
+                    minutes = displayedMinutes,
+                    firstBreakScore = firstBreakScore,
+                    secondBreakScore = secondBreakScore,
+                    levelTwoCapGuidance = rules.heatLevelTwoCapGuidance(),
+                )
+                if (selectedHeatLevel != HeatLevel.NONE) {
+                    TextEntry(
+                        value = minutesText,
+                        onValueChange = { minutesText = it.filter(Char::isDigit).take(2) },
+                        labelText = "Water break minutes",
+                        keyboardType = KeyboardType.Number,
                     )
                 }
-                TextEntry(
-                    value = minutesText,
-                    onValueChange = { minutesText = it.filter(Char::isDigit).take(2) },
-                    labelText = "Minutes",
-                    keyboardType = KeyboardType.Number,
-                    enabled = selectedMode != WaterBreakMode.NONE,
-                )
             }
         },
         confirmButton = {
@@ -2254,7 +2291,7 @@ private fun WaterBreaksDialog(
                 onClick = {
                     onConfirm(
                         rules.copy(
-                            waterBreakMode = selectedMode,
+                            heatLevel = selectedHeatLevel,
                             waterBreakMinutes = minutesText.toIntOrNull()?.coerceAtLeast(0)
                                 ?: rules.waterBreakMinutes,
                         )
@@ -2266,6 +2303,51 @@ private fun WaterBreaksDialog(
             TextActionButton(label = "Cancel", onClick = onDismiss)
         },
     )
+}
+
+/// Render the concise setup explanation for one primary heat-level selection.
+@Composable
+private fun HeatLevelGuidance(
+    heatLevel: HeatLevel,
+    minutes: Int,
+    firstBreakScore: Int,
+    secondBreakScore: Int,
+    levelTwoCapGuidance: String?,
+) {
+    when (heatLevel) {
+        HeatLevel.NONE -> Text("Standard time between points.")
+        HeatLevel.LEVEL_0 -> Text(
+            "No automatic water breaks. Use the water drop icon to trigger a $minutes-minute " +
+            "water break if desired."
+        )
+        HeatLevel.LEVEL_1 -> Text(
+            "One $minutes-minute water break per half, normally when a team gets to " +
+            "$firstBreakScore or $secondBreakScore points (but may change due to caps). " +
+            "You may also manually trigger a water break at another time using the water " +
+            "drop icon."
+        )
+        HeatLevel.LEVEL_2 -> Text(
+            buildAnnotatedString {
+                append(
+                    "One $minutes-minute water break per half, normally when a team gets to " +
+                    "$firstBreakScore or $secondBreakScore points (but may change due to caps). " +
+                    "Additionally, "
+                )
+                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                    append("add 60 seconds to the time between points")
+                }
+                append(".")
+                if (levelTwoCapGuidance != null) {
+                    append(" $levelTwoCapGuidance")
+                }
+                append(
+                    " You may also manually trigger a water break at another time using the water " +
+                    "drop icon."
+                )
+            }
+        )
+        HeatLevel.LEVEL_3 -> Text("Play is suspended.")
+    }
 }
 
 /**

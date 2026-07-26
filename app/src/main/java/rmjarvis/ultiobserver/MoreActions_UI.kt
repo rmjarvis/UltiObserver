@@ -23,6 +23,7 @@ private enum class MoreActionsChildDialog {
     ADJUST_CARDS,
     ADJUST_PULL_VIOLATIONS,
     CHANGE_PULL_PROMPTS,
+    SET_HEAT_LEVEL,
 }
 
 /**
@@ -33,6 +34,7 @@ private enum class MoreActionsChildDialog {
  * @param onUpdateGameSetup Callback reopening setup for the current game.
  * @param onShowEventLog Callback opening the current game's event log.
  * @param onShowGameSummary Callback opening the current game summary.
+ * @param onHeatLevelChange Callback applying a live heat-level selection.
  * @param onAction Callback receiving an updated live game state after a model action.
  * @param onStateUpdate Callback receiving an updated live game state without closing More actions.
  */
@@ -43,6 +45,7 @@ internal fun MoreActionsContent(
     onUpdateGameSetup: () -> Unit,
     onShowEventLog: () -> Unit,
     onShowGameSummary: () -> Unit,
+    onHeatLevelChange: (HeatLevel) -> Unit,
     onAction: (GameState) -> Unit,
     onStateUpdate: (GameState) -> Unit,
 ) {
@@ -123,6 +126,15 @@ internal fun MoreActionsContent(
                 childDialog = null
             },
         )
+    } else if (childDialog == MoreActionsChildDialog.SET_HEAT_LEVEL) {
+        SetHeatLevelDialog(
+            rules = state.rules,
+            onDismiss = { childDialog = null },
+            onConfirm = { heatLevel ->
+                onHeatLevelChange(heatLevel)
+                childDialog = null
+            },
+        )
     } else {
         ScrollableDialogRegion(
             modifier = Modifier
@@ -184,6 +196,12 @@ internal fun MoreActionsContent(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     MenuButton(
+                        label = "Set heat level",
+                        onClick = {
+                            childDialog = MoreActionsChildDialog.SET_HEAT_LEVEL
+                        },
+                    )
+                    MenuButton(
                         label = "Game summary",
                         onClick = onShowGameSummary,
                     )
@@ -233,6 +251,42 @@ internal fun MoreActionsContent(
             }
         }
     }
+}
+
+/// Render the live heat-level selector, including the Level 3 suspension action.
+@Composable
+private fun SetHeatLevelDialog(
+    rules: GameRules,
+    onDismiss: () -> Unit,
+    onConfirm: (HeatLevel) -> Unit,
+) {
+    var selectedHeatLevel by remember { mutableStateOf(rules.heatLevel) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Set heat level") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                HeatLevelChoiceRow(
+                    selected = selectedHeatLevel,
+                    includeLevelThree = true,
+                    onSelected = { selectedHeatLevel = it },
+                )
+                Text(
+                    rules.heatLevelSelectionDescription(selectedHeatLevel)
+                )
+            }
+        },
+        confirmButton = {
+            TextActionButton(
+                label = "Set",
+                tag = "set-heat-level-confirm",
+                onClick = { onConfirm(selectedHeatLevel) },
+            )
+        },
+        dismissButton = {
+            TextActionButton(label = "Cancel", onClick = onDismiss)
+        },
+    )
 }
 
 /**

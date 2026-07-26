@@ -903,8 +903,8 @@ class TestTimingCues : GameDomainTestFixtures() {
             rules = GameRules(
                 gameTo = 15,
                 halfCapMinutes = 45,
-                softCapMinutes = 90,
-                hardCapMinutes = 105,
+                nominalSoftCapMinutes = 90,
+                nominalHardCapMinutes = 105,
             )
         )
     }

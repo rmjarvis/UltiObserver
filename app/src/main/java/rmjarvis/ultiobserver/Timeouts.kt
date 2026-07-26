@@ -261,10 +261,7 @@ private fun applyBetweenPointsTimeout(
     }
     val timeoutSeconds = state.rules.timeoutSeconds
     return state.copy(
-        countdown = countdown.copy(
-            durationSeconds = countdown.durationSeconds + timeoutSeconds,
-            targetEpoch = countdown.targetEpoch + timeoutSeconds * 1_000L,
-        ),
+        countdown = countdown.extendBy(timeoutSeconds),
     )
 }
 /**
@@ -287,10 +284,7 @@ private fun applyLivePointTimeout(
     if (activeCountdown != null) {
         return misconductState.copy(
             pendingMisconductCountdown = false,
-            countdown = activeCountdown.copy(
-                durationSeconds = activeCountdown.durationSeconds + timeoutSeconds,
-                targetEpoch = activeCountdown.targetEpoch + timeoutSeconds * 1_000L,
-            ),
+            countdown = activeCountdown.extendBy(timeoutSeconds),
         )
     }
     return state.copy(

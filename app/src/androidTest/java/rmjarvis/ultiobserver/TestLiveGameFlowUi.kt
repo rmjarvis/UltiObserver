@@ -189,7 +189,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
     fun waterBreaks() {
         val manualSetup = newSetupGameState(now = System.currentTimeMillis()).copy(
             rules = GameRules(
-                waterBreakMode = WaterBreakMode.MANUAL,
+                heatLevel = HeatLevel.LEVEL_0,
                 waterBreakMinutes = 2,
             ),
         )
@@ -203,15 +203,15 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         unlockLiveScreen()
         val beforeManualCancel = accessCurrentGameState().countdown!!
         composeRule.onNodeWithTag("live-water-break").assertIsDisplayed().performClick()
-        waitForText("Take a 2 minute water break now?")
+        waitForText("Take a 2-minute water break now?")
         dismissDialog(text = "No")
-        composeRule.onAllNodesWithText("Take a 2 minute water break now?").assertCountEquals(0)
+        composeRule.onAllNodesWithText("Take a 2-minute water break now?").assertCountEquals(0)
         assertEquals(beforeManualCancel.targetEpoch, accessCurrentGameState().countdown?.targetEpoch)
 
         // Accepting the manual prompt adds the configured time and exposes a normal undo action.
         val beforeManualAccept = accessCurrentGameState().countdown!!
         composeRule.onNodeWithTag("live-water-break").performClick()
-        waitForText("Take a 2 minute water break now?")
+        waitForText("Take a 2-minute water break now?")
         composeRule.onNodeWithText("Yes").performClick()
         waitForText("Undo Water break")
         assertEquals(
@@ -225,7 +225,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
                 useHalfCap = false,
                 useSoftCap = false,
                 useHardCap = false,
-                waterBreakMode = WaterBreakMode.AUTOMATIC,
+                heatLevel = HeatLevel.LEVEL_1,
                 waterBreakMinutes = 3,
             ),
         )
@@ -237,7 +237,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             adjustScore(teamOneScore = 3, teamTwoScore = 0, now = 0L)
         }
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
-        waitForText("Take a 3 minute water break now?")
+        waitForText("Take a 3-minute water break now?")
         val beforeAutomaticReject = accessCurrentGameState().countdown!!
         composeRule.onNodeWithText("No").performClick()
         waitForText("Undo Goal by Team 1")
@@ -252,7 +252,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             adjustScore(teamOneScore = 3, teamTwoScore = 0, now = 0L)
         }
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
-        waitForText("Take a 3 minute water break now?")
+        waitForText("Take a 3-minute water break now?")
         val beforeAutomaticAccept = accessCurrentGameState().countdown!!
         composeRule.onNodeWithText("Yes").performClick()
         waitForText("Undo Water break")
@@ -260,6 +260,29 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             beforeAutomaticAccept.targetEpoch + 180_000L,
             accessCurrentGameState().countdown?.targetEpoch,
         )
+
+        // Enabling automatic breaks after the scheduled quarter during a live point defers the
+        // special offer until the point ends.
+        val lateSetup = newSetupGameState(now = System.currentTimeMillis())
+        startLivePointProgrammatically(lateSetup)
+        updateCurrentStateProgrammatically {
+            adjustScore(teamOneScore = 5, teamTwoScore = 0, now = 0L)
+        }
+        openMoreActionsDialog()
+        composeRule.onNodeWithText("Set heat level").performClick()
+        composeRule.onNodeWithTag("heat-level-LEVEL_1").performClick()
+        composeRule.onNodeWithTag("set-heat-level-confirm").performClick()
+        waitForText("Undo Heat level 1")
+        composeRule.onAllNodesWithText(
+            "Level 1 is now in effect, and no water break has been taken this half.",
+            substring = true,
+        ).assertCountEquals(0)
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
+        waitForText(
+            "Level 1 is now in effect, and no water break has been taken this half. Take one now?"
+        )
+        dismissDialog(text = "No")
+        waitForText("Undo Goal by Team 1")
     }
 
     /**

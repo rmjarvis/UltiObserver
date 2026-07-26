@@ -364,6 +364,27 @@ data class CountdownState(
     val pullTiming: PullTimingSeconds? = null,
     val pausedAtEpoch: Long? = null,
 ) {
+    /// Extend the active countdown, optionally replacing its normal pull timing.
+    fun extendBy(
+        seconds: Int,
+        newPullTiming: PullTimingSeconds? = null,
+    ): CountdownState {
+        return copy(
+            durationSeconds = durationSeconds + seconds,
+            targetEpoch = targetEpoch + seconds * 1000L,
+            pullTiming = newPullTiming ?: pullTiming,
+        )
+    }
+
+    /// Replace the normal pull timing while preserving any separate countdown extension.
+    fun withPullTiming(newPullTiming: PullTimingSeconds): CountdownState {
+        val target = betweenPointsTarget!!
+        val oldTiming = pullTiming!!
+        val deltaSeconds = newPullTiming.durationSecondsFor(target) -
+            oldTiming.durationSecondsFor(target)
+        return extendBy(deltaSeconds, newPullTiming = newPullTiming)
+    }
+
     /// Swap the countdown's offensive/defensive between-points target when the field responsibility flips.
     fun swapOD(): CountdownState {
         if (!kind.usesBetweenPointsTarget()) {
@@ -467,6 +488,8 @@ enum class CountdownKind {
  * @param teamOnePlayers Team 1 known player records, including prior-card details and in-game cards.
  * @param teamTwoPlayers Team 2 known player records, including prior-card details and in-game cards.
  * @param eventLog Persisted log of significant game events and manual corrections.
+ * @param halftimeHighScore Higher score when halftime began, used for the second water break.
+ * @param pendingWaterBreakOffer Whether an automatic water-break offer is pending.
  * @param pendingCapOffer The cap currently being offered to the observer for yes/no application.
  */
 @Serializable
@@ -508,6 +531,8 @@ data class GameState(
     val pendingMisconductCountdown: Boolean = false,
     val halftimeTaken: Boolean = false,
     val halftimeTargetScore: Int? = null,
+    val halftimeHighScore: Int? = null,
+    val pendingWaterBreakOffer: Boolean = false,
     val winningScore: Int? = null,
     val halfCapApplied: Boolean = false,
     val softCapApplied: Boolean = false,
@@ -534,7 +559,7 @@ data class GameState(
      */
     fun pruneUndoHistory(clearCountdown: Boolean = true): GameState {
         val prunedUndoEntry = undoEntry
-            ?.takeIf { it.label == "Undo End game" }
+            ?.takeIf { it.label == "Undo End game" || it.label == HEAT_LEVEL_THREE_UNDO_LABEL }
             ?.let { entry ->
                 UndoEntry(
                     label = entry.label,
@@ -720,6 +745,10 @@ private fun GameState.setupDraftFieldText(): String? {
  * Apply edited setup fields to an existing current game.
  * This is the model-side return path from the update-game setup editor.
  *
+ * Not all edits should be applied to the existing state.
+ * We need to be especially careful with an existing countdown to keep that running as it
+ * was, but apply the appropriate changes to the duration if necessary.
+ *
  * @param existing The current-game state being edited.
  * @param edited The setup-edited game state returned by the update-game form.
  * @param now The epoch millis for rebuilding the opening-pull countdown when its orientation
@@ -734,9 +763,8 @@ fun applySetupEditToLiveGame(
         return existing
     }
 
-    val shouldResyncOpeningPullState = existing.phase == GamePhase.PRE_GAME
-
-    val base = edited.copy(
+    // First make sure the names are normalized properly.
+    var updatedState = edited.copy(
         teamOne = edited.teamOne.copy(
             name = edited.teamOne.normalizedName(TeamId.TEAM_ONE),
         ),
@@ -744,21 +772,32 @@ fun applySetupEditToLiveGame(
             name = edited.teamTwo.normalizedName(TeamId.TEAM_TWO),
         ),
     )
-    val promptAdjustedBase = base.copy(
-        countdown = base.countdown?.withPullPromptTarget(
-            pullingFromEnd = base.pullingFromEnd,
-            promptTarget = edited.pullPromptTarget,
-        ),
-    )
 
-    val updatedState = if (shouldResyncOpeningPullState) {
-        promptAdjustedBase.copy(
+    // Only change the current pulling team and end if we are still in the pre-game phase.
+    if (existing.phase == GamePhase.PRE_GAME) {
+        updatedState = updatedState.copy(
             pullingTeam = edited.openingPullingTeam,
             pullingFromEnd = edited.openingPullingFromEnd,
         ).startPullSequence(now, phase = GamePhase.PRE_GAME)
-    } else {
-        promptAdjustedBase
     }
+
+    // For an already started game, be careful about any countdown we might already have.
+    // We don't want to change the existing pulling team or end like we did for pre-game.
+    // But we do want to update the prompt target and possibly the duration.
+    if (existing.phase == GamePhase.BETWEEN_POINTS) {
+        // Change the prompt target if necessary
+        var countdown = existing.countdown?.withPullPromptTarget(
+            pullingFromEnd = existing.pullingFromEnd,
+            promptTarget = edited.pullPromptTarget,
+        )
+        // Adjust the pull timing if necessary
+        if (countdown?.kind == CountdownKind.BETWEEN_POINTS) {
+            countdown = countdown.withPullTiming(edited.rules.standardPullTiming())
+        }
+        updatedState = updatedState.copy(countdown = countdown)
+    }
+
+    // This entire update is undoable as a single item.
     return updatedState.withUndo(existing, "Undo Update game setup")
 }
 

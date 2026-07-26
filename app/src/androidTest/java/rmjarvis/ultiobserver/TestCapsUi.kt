@@ -117,9 +117,9 @@ class TestCapsUi : MainActivityUiTestFixtures() {
             gameTo = 15,
             useHalfCap = false,
             useSoftCap = true,
-            softCapMinutes = 90,
+            nominalSoftCapMinutes = 90,
             useHardCap = true,
-            waterBreakMode = WaterBreakMode.AUTOMATIC,
+            heatLevel = HeatLevel.LEVEL_1,
             waterBreakMinutes = 3,
         )
         val testNow = System.currentTimeMillis()
@@ -141,7 +141,7 @@ class TestCapsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
         waitForText("Apply soft cap?")
         composeRule.onNodeWithText("Apply").performClick()
-        waitForText("Take a 3 minute water break now?")
+        waitForText("Take a 3-minute water break now?")
         composeRule.onNodeWithText("Yes").performClick()
         waitForText("Undo Water break")
 
@@ -157,7 +157,7 @@ class TestCapsUi : MainActivityUiTestFixtures() {
         }
         openMoreActionsDialog()
         composeRule.onNodeWithText("Apply soft cap now").performScrollTo().performClick()
-        waitForText("Take a 3 minute water break now?")
+        waitForText("Take a 3-minute water break now?")
         composeRule.onNodeWithText("No").performClick()
         waitForText("Undo Apply soft cap now")
 
@@ -166,7 +166,7 @@ class TestCapsUi : MainActivityUiTestFixtures() {
         openMoreActionsDialog()
         composeRule.onNodeWithText("Apply hard cap now").performScrollTo().performClick()
         waitForText("Undo Apply hard cap now")
-        composeRule.onAllNodesWithText("Take a 3 minute water break now?").assertCountEquals(0)
+        composeRule.onAllNodesWithText("Take a 3-minute water break now?").assertCountEquals(0)
     }
 
     /**

@@ -1,5 +1,6 @@
 package rmjarvis.ultiobserver
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 internal const val USAU_DEFAULT_GAME_TO = 15
@@ -17,6 +18,10 @@ internal const val USAU_DEFAULT_HAS_FLOATER_TIMEOUT = false
 internal const val USAU_DEFAULT_TIMEOUT_SECONDS = 70
 internal const val USAU_DEFAULT_SWITCH_GEN_ZONE_AT_HALFTIME = true
 internal const val DEFAULT_WATER_BREAK_MINUTES = 3
+internal const val LEVEL_TWO_WATER_BREAK_MINUTES = 4
+internal const val LEVEL_TWO_EXTRA_BETWEEN_POINTS_SECONDS = 60
+internal const val LEVEL_TWO_MAX_HARD_CAP_MINUTES = 90
+internal const val LEVEL_TWO_SOFT_CAP_LEAD_MINUTES = 20
 internal val USAU_DEFAULT_GENDER_RATIO_RULE = GenderRatioRule.ABBA
 
 private const val YOUTH_TIME_BETWEEN_POINTS_SECONDS = 80
@@ -26,28 +31,105 @@ private const val YOUTH_TIME_BETWEEN_POINTS_SECONDS = 80
 data class GameRules(
     val gameTo: Int = USAU_DEFAULT_GAME_TO,
     val halftimeMinutes: Int = USAU_DEFAULT_HALFTIME_MINUTES,
-    val timeBetweenPointsSeconds: Int = USAU_DEFAULT_TIME_BETWEEN_POINTS_SECONDS,
+    @SerialName("timeBetweenPointsSeconds")
+    val nominalTimeBetweenPointsSeconds: Int = USAU_DEFAULT_TIME_BETWEEN_POINTS_SECONDS,
     val useHalfCap: Boolean = USAU_DEFAULT_USE_HALF_CAP,
     val halfCapMinutes: Int = USAU_DEFAULT_HALF_CAP_MINUTES,
     val useSoftCap: Boolean = USAU_DEFAULT_USE_SOFT_CAP,
-    val softCapMinutes: Int = USAU_DEFAULT_SOFT_CAP_MINUTES,
+    @SerialName("softCapMinutes")
+    val nominalSoftCapMinutes: Int = USAU_DEFAULT_SOFT_CAP_MINUTES,
     val useHardCap: Boolean = USAU_DEFAULT_USE_HARD_CAP,
-    val hardCapMinutes: Int = USAU_DEFAULT_HARD_CAP_MINUTES,
+    @SerialName("hardCapMinutes")
+    val nominalHardCapMinutes: Int = USAU_DEFAULT_HARD_CAP_MINUTES,
     val timeoutsPerHalf: Int = USAU_DEFAULT_TIMEOUTS_PER_HALF,
     val hasFloaterTimeout: Boolean = USAU_DEFAULT_HAS_FLOATER_TIMEOUT,
     val timeoutSeconds: Int = USAU_DEFAULT_TIMEOUT_SECONDS,
     val genderRatioRule: GenderRatioRule = USAU_DEFAULT_GENDER_RATIO_RULE,
     val switchGenZoneAtHalftime: Boolean = USAU_DEFAULT_SWITCH_GEN_ZONE_AT_HALFTIME,
-    val waterBreakMode: WaterBreakMode = WaterBreakMode.NONE,
+    val heatLevel: HeatLevel = HeatLevel.NONE,
     val waterBreakMinutes: Int = DEFAULT_WATER_BREAK_MINUTES,
-)
+) {
+    /// Soft-cap offset after applying all active rules.
+    val softCapMinutes: Int
+        get() {
+            if (heatLevel != HeatLevel.LEVEL_2) {
+                return nominalSoftCapMinutes
+            }
+            val heatSoftCap = (hardCapMinutes - LEVEL_TWO_SOFT_CAP_LEAD_MINUTES).coerceAtLeast(0)
+            return if (useSoftCap) minOf(nominalSoftCapMinutes, heatSoftCap) else heatSoftCap
+        }
+
+    /// Hard-cap offset after applying all active rules.
+    val hardCapMinutes: Int
+        get() = if (heatLevel == HeatLevel.LEVEL_2) {
+            if (useHardCap) {
+                minOf(nominalHardCapMinutes, LEVEL_TWO_MAX_HARD_CAP_MINUTES)
+            } else {
+                LEVEL_TWO_MAX_HARD_CAP_MINUTES
+            }
+        } else {
+            nominalHardCapMinutes
+        }
+
+    /// Time between points after applying all active rules.
+    val timeBetweenPointsSeconds: Int
+        get() = nominalTimeBetweenPointsSeconds + heatExtraBetweenPointsSeconds()
+
+    /// How water breaks should be offered for the active heat level.
+    val waterBreakMode: WaterBreakMode
+        get() = when (heatLevel) {
+            HeatLevel.NONE,
+            HeatLevel.LEVEL_3 -> WaterBreakMode.NONE
+            HeatLevel.LEVEL_0 -> WaterBreakMode.MANUAL
+            HeatLevel.LEVEL_1,
+            HeatLevel.LEVEL_2 -> WaterBreakMode.AUTOMATIC
+        }
+}
+
+/// USA Ultimate heat precaution level, plus an app-level disabled state.
+@Serializable
+enum class HeatLevel(val displayText: String) {
+    NONE("None"),
+    LEVEL_0("Level 0"),
+    LEVEL_1("Level 1"),
+    LEVEL_2("Level 2"),
+    LEVEL_3("Level 3"),
+}
 
 /// How water breaks should be offered during this game.
-@Serializable
-enum class WaterBreakMode(val displayText: String) {
-    NONE("None"),
-    MANUAL("Manual"),
-    AUTOMATIC("Automatic"),
+enum class WaterBreakMode {
+    NONE,
+    MANUAL,
+    AUTOMATIC,
+}
+
+/// Return rules configured for the standard behavior of one heat-level selection.
+internal fun GameRules.withHeatLevel(newHeatLevel: HeatLevel): GameRules {
+    return when (newHeatLevel) {
+        HeatLevel.NONE,
+        HeatLevel.LEVEL_3 -> copy(heatLevel = newHeatLevel)
+        HeatLevel.LEVEL_0 -> copy(
+            heatLevel = newHeatLevel,
+            waterBreakMinutes = DEFAULT_WATER_BREAK_MINUTES,
+        )
+        HeatLevel.LEVEL_1 -> copy(
+            heatLevel = newHeatLevel,
+            waterBreakMinutes = DEFAULT_WATER_BREAK_MINUTES,
+        )
+        HeatLevel.LEVEL_2 -> copy(
+            heatLevel = newHeatLevel,
+            waterBreakMinutes = LEVEL_TWO_WATER_BREAK_MINUTES,
+        )
+    }
+}
+
+/// Return the extra ordinary between-points time imposed by the active heat level.
+internal fun GameRules.heatExtraBetweenPointsSeconds(): Int {
+    return if (heatLevel == HeatLevel.LEVEL_2) {
+        LEVEL_TWO_EXTRA_BETWEEN_POINTS_SECONDS
+    } else {
+        0
+    }
 }
 
 /// Return the USAU default between-points offense-ready deadline for this level.
@@ -62,7 +144,7 @@ internal fun usauTimeBetweenPointsSeconds(level: String): Int {
 /// Return USAU default rules for this game level.
 internal fun usauDefaultGameRules(level: String): GameRules {
     return GameRules().copy(
-        timeBetweenPointsSeconds = usauTimeBetweenPointsSeconds(level),
+        nominalTimeBetweenPointsSeconds = usauTimeBetweenPointsSeconds(level),
     )
 }
 
@@ -90,28 +172,70 @@ internal fun GameRules.withLevelDefaultTimeBetweenPoints(
 ): GameRules {
     val previousDefault = usauTimeBetweenPointsSeconds(previousLevel)
     val newDefault = usauTimeBetweenPointsSeconds(newLevel)
-    return if (timeBetweenPointsSeconds == previousDefault) {
-        copy(timeBetweenPointsSeconds = newDefault)
+    return if (nominalTimeBetweenPointsSeconds == previousDefault) {
+        copy(nominalTimeBetweenPointsSeconds = newDefault)
     } else {
         this
     }
 }
 
 /// Return the compact half/soft/hard cap summary.
-internal fun GameRules.capRulesSummary(): String {
-    return "${capSummary(useHalfCap, halfCapMinutes)}/" +
-        "${capSummary(useSoftCap, softCapMinutes)}/" +
-        capSummary(useHardCap, hardCapMinutes)
+internal fun GameRules.formatCaps(): String {
+    return CapType.entries.joinToString("/") { capType ->
+        if (capEnabled(capType)) {
+            "+${capMinutes(capType)}"
+        } else {
+            "-"
+        }
+    }
 }
 
-/**
- * Return the compact display for one cap rule.
- *
- * @param enabled Whether the cap is enabled.
- * @param minutes The cap offset in minutes when enabled.
- */
-private fun capSummary(enabled: Boolean, minutes: Int): String {
-    return if (enabled) "+$minutes" else "-"
+/// Return one cap value for the editable setup-rules list.
+internal fun GameRules.formatCap(capType: CapType): String {
+    if (!capEnabled(capType)) {
+        return "None"
+    }
+    val nominalEnabled = nominalCapEnabled(capType)
+    val nominalText = if (nominalEnabled) "+${nominalCapMinutes(capType)}" else "none"
+    val capText = "+${capMinutes(capType)}"
+    return if (nominalEnabled && capText == nominalText) {
+        capText
+    } else {
+        "$capText (was $nominalText)"
+    }
+}
+
+/// Return whether one cap is enabled in the persisted nominal rules.
+internal fun GameRules.nominalCapEnabled(capType: CapType): Boolean {
+    return when (capType) {
+        CapType.HALF -> useHalfCap
+        CapType.SOFT -> useSoftCap
+        CapType.HARD -> useHardCap
+    }
+}
+
+/// Return the persisted nominal offset for one cap.
+internal fun GameRules.nominalCapMinutes(capType: CapType): Int {
+    return when (capType) {
+        CapType.HALF -> halfCapMinutes
+        CapType.SOFT -> nominalSoftCapMinutes
+        CapType.HARD -> nominalHardCapMinutes
+    }
+}
+
+/// Return whether one cap is active after applying heat-level overrides.
+internal fun GameRules.capEnabled(capType: CapType): Boolean {
+    return nominalCapEnabled(capType) ||
+        heatLevel == HeatLevel.LEVEL_2 && capType != CapType.HALF
+}
+
+/// Return the cap offset after applying all active rules.
+internal fun GameRules.capMinutes(capType: CapType): Int {
+    return when (capType) {
+        CapType.HALF -> halfCapMinutes
+        CapType.SOFT -> softCapMinutes
+        CapType.HARD -> hardCapMinutes
+    }
 }
 
 /// Format timeout rules for setup display.
@@ -124,9 +248,18 @@ internal fun GameRules.formatTimeoutRules(): String {
     }
 }
 
-/// Format the between-points offense-ready deadline for setup display.
-internal fun GameRules.formatTimeBetweenPoints(): String {
-    return "$timeBetweenPointsSeconds sec"
+/**
+ * Format the time between points.
+ *
+ * @param compact Whether to combine all active rules into one total.
+ */
+internal fun GameRules.formatTimeBetweenPoints(compact: Boolean): String {
+    val extraSeconds = heatExtraBetweenPointsSeconds()
+    return if (compact || extraSeconds == 0) {
+        "$timeBetweenPointsSeconds sec"
+    } else {
+        "$nominalTimeBetweenPointsSeconds +$extraSeconds sec"
+    }
 }
 
 /// Format the timeout offense-set duration for setup display.
@@ -134,13 +267,89 @@ internal fun GameRules.formatTimeoutDuration(): String {
     return "$timeoutSeconds sec"
 }
 
-/// Format water-break rules for setup display, or null when breaks are disabled.
-internal fun GameRules.formatWaterBreaks(): String? {
-    return when (waterBreakMode) {
-        WaterBreakMode.NONE -> null
-        WaterBreakMode.MANUAL -> "$waterBreakMinutes min"
-        WaterBreakMode.AUTOMATIC ->
-            "${waterBreakScores().joinToString("/")}, $waterBreakMinutes min"
+/**
+ * Format the active heat level.
+ *
+ * @param compact Whether to omit the configured water-break duration.
+ */
+internal fun GameRules.formatHeatLevel(compact: Boolean): String {
+    if (compact) {
+        return heatLevel.displayText
+    }
+    return when (heatLevel) {
+        HeatLevel.NONE,
+        HeatLevel.LEVEL_3 -> heatLevel.displayText
+        HeatLevel.LEVEL_0,
+        HeatLevel.LEVEL_1,
+        HeatLevel.LEVEL_2 -> "${heatLevel.displayText} ($waterBreakMinutes min)"
+    }
+}
+
+/// Explain a Level 2 cap change while editing its nominal value.
+internal fun GameRules.heatLevelTwoCapEffectNote(capType: CapType): String? {
+    if (
+        heatLevel != HeatLevel.LEVEL_2 ||
+        capType == CapType.HALF ||
+        nominalCapEnabled(capType) &&
+        nominalCapMinutes(capType) == capMinutes(capType)
+    ) {
+        return null
+    }
+    val action = if (nominalCapEnabled(capType)) "shortening" else "overriding"
+    return "Heat level 2 is $action this to ${capMinutes(capType)} minutes."
+}
+
+/// Describe exactly how Level 2 changes the configured caps, or null when neither changes.
+internal fun GameRules.heatLevelTwoCapGuidance(): String? {
+    val levelTwoRules = this.withHeatLevel(HeatLevel.LEVEL_2)
+    val softCapMinutes = levelTwoRules.softCapMinutes
+    val hardCapMinutes = levelTwoRules.hardCapMinutes
+    if (!useSoftCap || !useHardCap) {
+        return "The soft/hard caps are set to $softCapMinutes/$hardCapMinutes minutes."
+    }
+    val softShortened = softCapMinutes < nominalSoftCapMinutes
+    val hardShortened = hardCapMinutes < nominalHardCapMinutes
+    return when {
+        softShortened && hardShortened ->
+            "The soft/hard caps are shortened to $softCapMinutes/$hardCapMinutes minutes."
+        softShortened -> "The soft cap is shortened to $softCapMinutes minutes."
+        hardShortened -> "The hard cap is shortened to $hardCapMinutes minutes."
+        else -> null
+    }
+}
+
+/// Describe the live-game effect of selecting one heat level.
+internal fun GameRules.heatLevelSelectionDescription(newHeatLevel: HeatLevel): String {
+    val selectedRules = if (heatLevel == newHeatLevel) {
+        this
+    } else {
+        withHeatLevel(newHeatLevel)
+    }
+    return when (newHeatLevel) {
+        HeatLevel.NONE -> "Disable water breaks."
+        HeatLevel.LEVEL_0 ->
+            "Use normal timing with ${selectedRules.waterBreakMinutes}-minute manual water " +
+                "breaks available."
+        HeatLevel.LEVEL_1 ->
+            "One ${selectedRules.waterBreakMinutes}-minute water break per half."
+        HeatLevel.LEVEL_2 -> buildString {
+            append(
+                "One ${selectedRules.waterBreakMinutes}-minute water break per " +
+                    "half. Add $LEVEL_TWO_EXTRA_BETWEEN_POINTS_SECONDS seconds between points."
+            )
+            val levelTwoRules =
+                this@heatLevelSelectionDescription.withHeatLevel(HeatLevel.LEVEL_2)
+            val softCapAffected = !useSoftCap ||
+                nominalSoftCapMinutes != levelTwoRules.softCapMinutes
+            val hardCapAffected = !useHardCap ||
+                nominalHardCapMinutes != levelTwoRules.hardCapMinutes
+            when {
+                softCapAffected && hardCapAffected -> append(" Adjust soft/hard caps.")
+                softCapAffected -> append(" Adjust soft cap.")
+                hardCapAffected -> append(" Adjust hard cap.")
+            }
+        }
+        HeatLevel.LEVEL_3 -> "Suspend this game because play should not continue."
     }
 }
 

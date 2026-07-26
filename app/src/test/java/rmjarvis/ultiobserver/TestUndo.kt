@@ -175,7 +175,7 @@ class TestUndo : GameDomainTestFixtures() {
             rules = GameRules(
                 gameTo = 15,
                 useHalfCap = false,
-                softCapMinutes = 10,
+                nominalSoftCapMinutes = 10,
                 useHardCap = false,
             ),
         )
@@ -191,7 +191,7 @@ class TestUndo : GameDomainTestFixtures() {
                 gameTo = 15,
                 useHalfCap = false,
                 useSoftCap = false,
-                hardCapMinutes = 10,
+                nominalHardCapMinutes = 10,
             ),
         )
         state = state.recordGoalFromCurrentState(VC, timestampAfterStart(state, 11))

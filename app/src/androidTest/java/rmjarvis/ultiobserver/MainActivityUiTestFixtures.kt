@@ -1079,9 +1079,9 @@ abstract class MainActivityUiTestFixtures {
             useHalfCap = capType == CapType.HALF,
             halfCapMinutes = capMinutes,
             useSoftCap = capType == CapType.SOFT,
-            softCapMinutes = capMinutes,
+            nominalSoftCapMinutes = capMinutes,
             useHardCap = capType == CapType.HARD,
-            hardCapMinutes = capMinutes,
+            nominalHardCapMinutes = capMinutes,
         )
     }
 }
