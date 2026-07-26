@@ -2346,7 +2346,8 @@ private fun HeatLevelGuidance(
                 )
             }
         )
-        HeatLevel.LEVEL_3 -> Text("Play is suspended.")
+        // Unreachable else: Level 3 is only available after a game has started.
+        else -> error("Unsupported setup heat level: $heatLevel")
     }
 }
 

@@ -16,6 +16,8 @@ DEFAULT_SOURCE_ROOT = Path("app/src/main/java")
 ALLOWED_COMMENT_LOOKBACK_LINES = 5
 DEFENSIVE_GUARD_COMMENT = re.compile(r"\bdefensive\b.*\bguard\b", re.IGNORECASE)
 EXHAUSTIVE_WHEN_COMMENT = re.compile(r"\bno else branch\b", re.IGNORECASE)
+UNREACHABLE_ELSE_COMMENT = re.compile(r"\bunreachable else\b", re.IGNORECASE)
+UNREACHABLE_ELSE_ERROR = re.compile(r"^else\s*->\s*error\(.*\)$")
 CALLBACK_NAME_PATTERN = r"(?:on[A-Za-z]\w*|performHaptic)"
 CALLBACK_LAMBDA_OPENER = re.compile(
     rf"^{CALLBACK_NAME_PATTERN}\s*=\s*\{{\s*"
@@ -136,6 +138,10 @@ def line_allowed_reason(
         source_lines,
         line_number,
     ) or exhaustive_when_without_else_reason(
+        source_lines,
+        line_number,
+        counters,
+    ) or unreachable_else_error_reason(
         source_lines,
         line_number,
         counters,
@@ -401,6 +407,51 @@ def documented_exhaustive_when_index_for_case_line(
             return None
         return index
     return None
+
+
+def unreachable_else_error_reason(
+    source_lines: list[str],
+    line_number: int,
+    counters: LineCounters,
+) -> str | None:
+    """
+    Return a reason for a documented impossible `else -> error(...)` arm.
+
+    Internal UI helpers sometimes accept a shared enum while their caller permits only a
+    deliberate subset of its values. Keep those strict by failing loudly for any unsupported
+    value rather than rendering fallback UI. The impossible arm is allowed only when an
+    immediately preceding comment contains the explicit marker "Unreachable else".
+    """
+
+    line_index = line_number - 1
+    source = source_lines[line_index].strip()
+    if not UNREACHABLE_ELSE_ERROR.fullmatch(source):
+        return None
+    if counters.missed_instructions == 0:
+        return None
+    if documented_unreachable_else_index(source_lines, line_index) != line_index:
+        return None
+    return "documented unreachable else error"
+
+
+def documented_unreachable_else_index(
+    source_lines: list[str],
+    line_index: int,
+) -> int | None:
+    """Return the index when this line is a marked single-line `else -> error(...)` arm."""
+
+    if not UNREACHABLE_ELSE_ERROR.fullmatch(source_lines[line_index].strip()):
+        return None
+    comment_index = nearby_comment_index_before(
+        source_lines,
+        line_index,
+        UNREACHABLE_ELSE_COMMENT,
+    )
+    if comment_index is None:
+        return None
+    if next_code_line_after(source_lines, comment_index) != line_index:
+        return None
+    return line_index
 
 
 def version_migration_bucket_constructor_reason(
