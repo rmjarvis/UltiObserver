@@ -166,6 +166,7 @@ internal fun LiveGameScreen(
     }
 
     // Let countdown expiration move the model forward without requiring an observer tap.
+    // Coverage: 2 parameter roots (`state`, `settings`) generate Compose effect guards.
     LaunchedEffect(
         state,
         now,

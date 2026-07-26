@@ -415,23 +415,36 @@ def unreachable_else_error_reason(
     counters: LineCounters,
 ) -> str | None:
     """
-    Return a reason for a documented impossible `else -> error(...)` arm.
+    Return a reason for a documented impossible `else -> error(...)` arm or dispatch.
 
     Internal UI helpers sometimes accept a shared enum while their caller permits only a
     deliberate subset of its values. Keep those strict by failing loudly for any unsupported
     value rather than rendering fallback UI. The impossible arm is allowed only when an
     immediately preceding comment contains the explicit marker "Unreachable else".
+
+    JaCoCo also assigns the missed switch branch leading to that arm to the enclosing `when`
+    line. Allow that line only when it has exactly one missed branch, no missed instructions,
+    and the marked single-line error arm is a direct member of its block.
     """
 
     line_index = line_number - 1
     source = source_lines[line_index].strip()
-    if not UNREACHABLE_ELSE_ERROR.fullmatch(source):
+    if UNREACHABLE_ELSE_ERROR.fullmatch(source):
+        if counters.missed_instructions == 0:
+            return None
+        if documented_unreachable_else_index(source_lines, line_index) != line_index:
+            return None
+        return "documented unreachable else error"
+
+    if not source.startswith("when (") or not source.endswith("{"):
         return None
-    if counters.missed_instructions == 0:
+    if counters.missed_instructions != 0 or counters.covered_instructions == 0:
         return None
-    if documented_unreachable_else_index(source_lines, line_index) != line_index:
+    if counters.missed_branches != 1 or counters.covered_branches == 0:
         return None
-    return "documented unreachable else error"
+    if documented_unreachable_else_index_for_when(source_lines, line_index) is None:
+        return None
+    return "documented unreachable else dispatch"
 
 
 def documented_unreachable_else_index(
@@ -452,6 +465,23 @@ def documented_unreachable_else_index(
     if next_code_line_after(source_lines, comment_index) != line_index:
         return None
     return line_index
+
+
+def documented_unreachable_else_index_for_when(
+    source_lines: list[str],
+    when_index: int,
+) -> int | None:
+    """Return a marked single-line error arm directly inside one `when` block."""
+
+    end_index = block_end_index(source_lines, when_index)
+    depth = 0
+    matches: list[int] = []
+    for index in range(when_index, end_index + 1):
+        code = source_lines[index].split("//", 1)[0]
+        if depth == 1 and documented_unreachable_else_index(source_lines, index) == index:
+            matches.append(index)
+        depth += code.count("{") - code.count("}")
+    return matches[0] if len(matches) == 1 else None
 
 
 def version_migration_bucket_constructor_reason(
@@ -983,9 +1013,10 @@ def launched_effect_scaffold_reason(
 
     The app cannot reach that generated error path through user behavior; the useful
     coverage is on the effect body lines.  The Kotlin/Compose generated scaffolding
-    around a `LaunchedEffect` opener has shown two counter profiles in this codebase:
-    sometimes JaCoCo reports missed guard instructions and branches, and sometimes
-    those guard instructions are covered while only generated branches remain missed.
+    around a `LaunchedEffect` opener usually has one `(mi=4, mb=3)` dirty-state guard.
+    An immediately preceding coverage marker may document multiple Composable parameter
+    roots, requiring that profile multiplied by the stated count.  Sometimes the guard
+    instructions are covered while only two generated branches remain missed.
 
     This recognizer is intentionally narrower than "anything named LaunchedEffect":
     it only accepts the line that opens the lambda body, verifies that line belongs to
@@ -998,16 +1029,20 @@ def launched_effect_scaffold_reason(
     line_index = line_number - 1
     if not line_opens_launched_effect_body(source_lines, line_index):
         return None
-    observed_launched_effect_scaffold_profiles = {
-        # Generated coroutine guard branches mapped to the effect opener.
-        (4, 3),
-        # Same generated scaffolding when the guard instructions are covered but branch counters remain.
-        (0, 2),
-    }
-    if (
+    generated_guard_count = launched_effect_generated_guard_count(source_lines, line_index)
+    generated_guard_profile = (
+        4 * generated_guard_count,
+        3 * generated_guard_count,
+    )
+    observed_profile = (
         counters.missed_instructions,
         counters.missed_branches,
-    ) not in observed_launched_effect_scaffold_profiles:
+    )
+    if observed_profile not in {
+        generated_guard_profile,
+        # Same generated scaffolding when the guard instructions are covered but branch counters remain.
+        (0, 2),
+    }:
         return None
     if counters.covered_instructions == 0 or counters.covered_branches == 0:
         return None
@@ -1097,6 +1132,36 @@ def line_opens_launched_effect_body(source_lines: list[str], line_index: int) ->
         if stripped.endswith("{") or stripped == "}":
             return False
     return False
+
+
+def launched_effect_generated_guard_count(
+    source_lines: list[str],
+    opening_index: int,
+) -> int:
+    """
+    Return the documented number of generated dirty-state guard groups.
+
+    One guard is the established default. Effects with multiple guard groups must
+    explicitly document their compiler-generated count immediately before the call.
+    """
+
+    start_index = next(
+        (
+            index
+            for index in range(opening_index, max(-1, opening_index - 20), -1)
+            if source_lines[index].strip().startswith("LaunchedEffect(")
+        ),
+        None,
+    )
+    if start_index is None or start_index == 0:
+        return 1
+
+    marker = re.fullmatch(
+        r"\s*// Coverage: ([1-9]\d*) parameter roots "
+        r"\(.+\) generate Compose effect guards\.\s*",
+        source_lines[start_index - 1],
+    )
+    return int(marker.group(1)) if marker is not None else 1
 
 
 def nearest_enclosing_pointer_input_index(source_lines: list[str], line_index: int) -> int | None:
