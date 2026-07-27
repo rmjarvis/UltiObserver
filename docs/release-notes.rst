@@ -61,11 +61,11 @@ Version 1.0 was the first public testing release of UltiObserver.
 Features included:
 
 - It keeps track of which team is pulling and from which end. The live game screen shows
-  the field orientation as seen from one end of the field. This would normally be the endzone
+  the field orientation as seen from one end of the field. This would normally be the end zone
   where you have primary responsibility as an observer.
 - It keeps track of the time remaining for observing cues you are responsible for. E.g. if the
-  team at your endzone is receiving, it will give cues for 20 and 10 seconds until they need
-  to signal readiness. Similar for the pull time if the team at your endzone is pulling.
+  team at your end zone is receiving, it will give cues for 20 and 10 seconds until they need
+  to signal readiness. Similar for the pull time if the team at your end zone is pulling.
 - For timeouts, it will similarly keep track of the time and tell you when to announce sideline
   clear, 20 to set, etc.
 - You can customize which (if any) timing cues you want to have associated sounds and/or haptic

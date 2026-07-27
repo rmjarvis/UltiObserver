@@ -14,11 +14,18 @@ Update game setup
     setup with the current game information already filled in and lets you adjust whatever
     you need.
 
-Typical reasons include:
+    Typical reasons include:
 
-* changing the display colors for one or both teams;
-* updating coach, field captain, or spirit captain names;
-* changing any rules that you set incorrectly before the game;
+    * changing the display colors for one or both teams;
+    * updating coach, field captain, or spirit captain names;
+    * changing any rules that you set incorrectly before the game;
+
+Set heat level
+    Lets you change the current heat level in effect for the game. This automatically makes
+    the appropriate adjustments to the rules, including water break duration, time between
+    points, and caps.
+
+    Setting the heat level to Level 3 suspends the game immediately.
 
 Field And Pull Controls
 -----------------------

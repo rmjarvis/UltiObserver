@@ -129,7 +129,7 @@ First point gender ratio
     ABBA for the gender ratio.
 
 End for gen zone in first half
-    The "gen zone" is the common term for the endzone that decides the gender ratio when playing
+    The "gen zone" is the common term for the end zone that decides the gender ratio when playing
     under that rule. This option is only available if the division is set to Mixed and the rules
     are set to use Gen zone for the gender ratio. Note that official rules say to switch the gen
     zone in the second half, but you can switch that in the Rules section.
@@ -163,12 +163,64 @@ Soft cap
 Hard cap
     Is there a hard cap? And if so, how long after the start time?
 
-Halftime
-    How long is halftime?
-
 Timeouts
     How many timeouts does each team have each half, including a possible floater
     (an extra timeout that can be taken in either half)?
+
+Mixed gender ratio
+    What rule should be used to determine the gender ratio each point? This option is only
+    available if the division is set to **Mixed**. Options include:
+
+    * **ABBA**: Alternate two at a time starting after the first point. So if the ratio for the
+      first point is M (i.e. 4M/3W), then the pattern will be M W W M M W W M M W W ...
+
+    * **Gen zone**: The team in a particular end zone decides the ratio each point. The official
+      rules say to switch the end zone at halftime (which is definitely a good idea), but if
+      your game is not respecting that rule, you can choose to disable that.
+
+    * **Offense decides**: The team receiving the pull decides the ratio each point. This used to
+      be the standard way to choose, but is rarely used these days. Still, it's an option.
+
+    * **4M/3W**: Just use 4 man-matching, 3 woman-matching for the whole game.
+
+    * **4W/3M**: Just use 4 woman-matching, 3 man-matching for the whole game.
+
+    * **N/A**: Don't have the app handle anything related to the gender ratio.
+
+Heat level
+    When heat precautions are in effect, this option lets you set the Heat Precaution Level
+    in effect for the game. The app follows USAU's `Heat and Air Quality Guidelines`_
+    for the appropriate adjustments to the rules for different levels. If your tournament is
+    using water breaks, but has a different cadence for them, you can use Level 0 to handle the
+    water breaks manually.
+
+    * **None**: No adjustments to the standard rules. No water drop icon on the active game screen.
+
+    * **Level 0**: Adds a water drop icon to the active game screen, which can be used to
+      start a water break between points. There will be no prompts for any automatic water breaks.
+      The default break time for this is 3 minutes, but you can change it.
+
+    * **Level 1**: One 3-minute water break per half. The usual cadence in a game to 15 is
+      to take these breaks when a team reaches 4 points in the first half or 12 in the second
+      half. If half is taken early (due to the half cap), then the break is taken 4 points after
+      the halftime higher score. Also, if soft cap occurs before the scheduled water break,
+      then that triggers an immediate water break.
+      For games to other totals than 15, the water breaks are at the first point after
+      "first quarter" and "third quarter".
+
+    * **Level 2**: One 4-minute water break per half with the same cadence as **Level 1**.
+      In addition, this level adds 60 seconds to the time between points and shortens the
+      game. Hard cap is set to 90 minutes after the start time, and the soft cap is 20 minutes
+      prior to that. (Already shorter caps are not affected.) These adjustments are shown on
+      the other rule pages, and they apply automatically.
+
+    All levels 0-2 allow you to change the length of the water break if your tournament is using
+    a different break time than the official guidance. Also, they all show a water drop icon
+    next to the countdown, so you can take an off-schedule water break if needed.
+
+    During the game, you can change the heat level from the **More actions** menu when
+    necessary. Also, all water breaks open a confirmation dialog, which lets you decline a
+    scheduled water break if you need to reject it for some reason.
 
 Time between points
     How many seconds the offense has to signal readiness between points. The defense has
@@ -181,38 +233,10 @@ Timeout duration
     after this time to check the disc in. When called between points, this is how much
     time is added to the between-points countdown.
 
-Water breaks
-    Whether to allow water breaks between points. When heat precautions are in effect, this
-    option allows you to add a set amount of time (default 3 minutes) to the time between
-    points. The usual cadence in a game to 15 is to take these breaks when a team reaches
-    4 points in the first half or 12 in the second half (or at soft cap if that happens
-    earlier than this). For games to other totals than 15, the water breaks are at the first
-    point after "first quarter" and "third quarter". If your tournament has a different cadence,
-    you can choose Manual instead of Automatic for this, which lets you control when the
-    water breaks happen. There will be a small water drop icon next to the countdown timer;
-    clicking this activates the water break. Even when using the automatic water break times,
-    you are still able to override the automatic cadence by rejecting the water break when
-    offered and/or clicking the water drop yourself at other points.
-
-Mixed gender ratio
-    What rule should be used to determine the gender ratio each point? This option is only
-    available if the division is set to **Mixed**. Options include:
-
-    * **ABBA:** Alternate two at a time starting after the first point. So if the ratio for the
-      first point is M (i.e. 4M/3W), then the pattern will be M W W M M W W M M W W ...
-
-    * **Gen zone:** The team in a particular end zone decides the ratio each point. The official
-      rules say to switch the end zone at halftime (which is definitely a good idea), but if
-      your game is not respecting that rule, you can choose to disable that.
-
-    * **Offense decides:** The team receiving the pull decides the ratio each point. This used to
-      be the standard way to choose, but is rarely used these days. Still, it's an option.
-
-    * **4M/3W:** Just use 4 man-matching, 3 woman-matching for the whole game.
-
-    * **4W/3M:** Just use 4 woman-matching, 3 man-matching for the whole game.
-
-    * **N/A:** Don't have the app handle anything related to the gender ratio.
+Halftime
+    How long is halftime?
 
 At the bottom, there is a button to **Reset to USAU defaults**, which sets all rules back to
 the normal USAU standard rules.
+
+.. _Heat and Air Quality Guidelines: https://usaultimate.org/wp-content/uploads/2023/06/Heat-and-Air-Quality-Guidelines.pdf
