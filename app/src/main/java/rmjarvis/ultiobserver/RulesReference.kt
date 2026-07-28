@@ -33,7 +33,7 @@ internal fun GameState.rulesReferenceItems(): List<RulesReferenceItem> {
     }
     if (rules.heatLevel != HeatLevel.NONE) {
         items += RulesReferenceItem(
-            "Heat level",
+            rules.heatLevelLabel(),
             rules.formatHeatLevel(compact = true),
             heatAdjusted = rules.heatLevel == HeatLevel.LEVEL_2,
         )

@@ -1,6 +1,7 @@
 package rmjarvis.ultiobserver
 
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
@@ -9,7 +10,10 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -25,7 +29,8 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
 
         startLiveGameProgrammatically()
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Set heat level").performClick()
+        composeRule.onNodeWithText("Set heat/AQI level").performClick()
+        waitForText("Set heat level")
         composeRule.onNodeWithTag("heat-level-LEVEL_3").performClick()
         composeRule.onNodeWithTag("set-heat-level-confirm").performClick()
 
@@ -133,16 +138,39 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
 
         // Heat level changes are directly available without reopening full setup.
         openMoreActionsDialog()
-        openMoreActionsDialogAndCancel("Set heat level")
+        openMoreActionsDialogAndCancel("Set heat/AQI level")
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Set heat level").performClick()
+        composeRule.onNodeWithText("Set heat/AQI level").performClick()
+        waitForText("Set heat level")
+        composeRule.onNodeWithTag("air-quality-guidelines").performScrollTo().performClick()
+        waitForText("Set AQI level")
         composeRule.onNodeWithTag("heat-level-LEVEL_2").performClick()
+        composeRule.onNodeWithText("Water break minutes").performTextReplacement("6")
         waitForText(
-            "One 4-minute water break per half. Add 60 seconds between points. " +
-                "Adjust soft/hard caps."
+            "One 6-minute water break per half",
+            substring = true,
         )
         composeRule.onNodeWithTag("set-heat-level-confirm").performClick()
-        waitForText("Undo Heat level 2")
+        waitForText("Undo AQI level 2")
+        assertTrue(accessCurrentGameState().rules.useAirQualityGuidelines)
+        assertEquals(6, accessCurrentGameState().rules.waterBreakMinutes)
+        assertLiveScreen()
+
+        // Reselecting the active level preserves its customized duration. If the minutes field is
+        // then left blank, the visible guidance and confirmed rules keep that existing duration.
+        openMoreActionsDialog()
+        composeRule.onNodeWithText("Set heat/AQI level").performClick()
+        waitForText("Set AQI level")
+        composeRule.onNodeWithTag("heat-level-LEVEL_2").performClick()
+        composeRule.onNodeWithText("Water break minutes").assertTextContains("6")
+        composeRule.onNodeWithText("Water break minutes").performTextReplacement("")
+        waitForText(
+            "One 6-minute water break per half",
+            substring = true,
+        )
+        composeRule.onNodeWithTag("set-heat-level-confirm").performClick()
+        assertTrue(accessCurrentGameState().rules.useAirQualityGuidelines)
+        assertEquals(6, accessCurrentGameState().rules.waterBreakMinutes)
         assertLiveScreen()
 
         openMoreActionsDialog()

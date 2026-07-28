@@ -115,6 +115,18 @@ class TestRulesReference : GameDomainTestFixtures() {
             ).rulesReferenceItems().testDisplayMap().getValue("Heat level"),
         )
 
+        // When using AQI guidelines, it displays as AQI level rather than Heat level.
+        assertEquals(
+            "Level 1",
+            openNoCapState.copy(
+                rules = openNoCapState.rules.copy(
+                    useAirQualityGuidelines = true,
+                    heatLevel = HeatLevel.LEVEL_1,
+                    waterBreakMinutes = 4,
+                ),
+            ).rulesReferenceItems().testDisplayMap().getValue("AQI level"),
+        )
+
         // Level 2 shows only effective cap times and connects affected values through color.
         val levelTwoRows = fullMixedState.copy(
             rules = fullMixedState.rules.withHeatLevel(HeatLevel.LEVEL_2),

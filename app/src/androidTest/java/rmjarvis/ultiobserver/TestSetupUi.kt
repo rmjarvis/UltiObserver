@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
@@ -375,7 +376,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
             "Soft cap",
             "Hard cap",
             "Timeouts",
-            "Heat level",
+            "Heat/AQI level",
             "Time between points",
             "Timeout duration",
             "Halftime",
@@ -431,15 +432,17 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         // Timeout rules should accept a floater timeout configuration.
         setTimeoutRules(timeoutsPerHalf = "3", hasFloater = true)
 
-        // Heat level defaults to None
+        // Heat/AQI guidance defaults to heat with no heat level selected.
         openGameRulesSetupEditor()
-        composeRule.onNodeWithText("Heat level").performScrollTo().performClick()
+        composeRule.onNodeWithText("Heat/AQI level").performScrollTo().performClick()
         waitForText("Heat level")
         waitForText(
-            "If your tournament uses USAU heat guidelines",
+            "Select the current heat level",
             substring = true,
         )
+        composeRule.onNodeWithTag("air-quality-guidelines-value").assertTextEquals("No")
         composeRule.onNodeWithTag("heat-level-NONE").assertIsSelected()
+        composeRule.onAllNodesWithTag("heat-level-LEVEL_3").assertCountEquals(0)
         waitForText("Standard time between points.")
         composeRule.onAllNodesWithText("Water break minutes").assertCountEquals(0)
 
@@ -476,6 +479,31 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Water break minutes").performTextReplacement("")
         composeRule.onNodeWithTag("setup-water-breaks-set").performClick()
         waitForText("Level 1 (5 min)")
+        closeSetupEditor()
+        assertSetupSummaryTextVisible("Heat level: Level 1")
+
+        // Switching guidance resets a customized Level 1 duration to the new standard. The
+        // saved setup summary uses the selected AQI name, and switching back restores heat's
+        // three-minute default.
+        openGameRulesSetupEditor()
+        composeRule.onNodeWithText("Heat level").performScrollTo().performClick()
+        composeRule.onNodeWithTag("air-quality-guidelines").performScrollTo().performClick()
+        waitForText("AQI level")
+        waitForText("Select the current AQI level", substring = true)
+        composeRule.onNodeWithText("Water break minutes").assertTextContains("4")
+        composeRule.onNodeWithTag("air-quality-guidelines").performScrollTo().performClick()
+        composeRule.onNodeWithText("Water break minutes").assertTextContains("3")
+        composeRule.onNodeWithTag("air-quality-guidelines").performScrollTo().performClick()
+        composeRule.onNodeWithText("Water break minutes").performTextReplacement("5")
+        composeRule.onNodeWithTag("setup-water-breaks-set").performClick()
+        waitForText("Level 1 (5 min)")
+        closeSetupEditor()
+        assertSetupSummaryTextVisible("AQI level: Level 1")
+        openGameRulesSetupEditor()
+        composeRule.onNodeWithText("AQI level").performScrollTo().performClick()
+        composeRule.onNodeWithTag("air-quality-guidelines").performScrollTo().performClick()
+        composeRule.onNodeWithTag("setup-water-breaks-set").performClick()
+        waitForText("Level 1 (3 min)")
         closeSetupEditor()
         assertSetupSummaryTextVisible("Heat level: Level 1")
 
@@ -527,7 +555,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
 
         // Heat level 2 applies the standard adjustments to USAU defaults.
         openGameRulesSetupEditor()
-        composeRule.onNodeWithText("Heat level").performScrollTo().performClick()
+        composeRule.onNodeWithText("Heat/AQI level").performScrollTo().performClick()
         composeRule.onNodeWithTag("heat-level-LEVEL_2").performClick()
         waitForText("normally when a team gets to 4 or 12 points", substring = true)
         composeRule.onNodeWithTag("setup-water-breaks-set").performClick()

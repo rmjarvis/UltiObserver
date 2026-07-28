@@ -8,6 +8,17 @@ import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+/// Apply one level's standard heat-guidance values in live-game tests.
+private fun GameState.setHeatLevel(newHeatLevel: HeatLevel, now: Long): GameState {
+    val selectedRules = rules.withHeatLevel(newHeatLevel)
+    return setHeatGuidance(
+        newHeatLevel,
+        selectedRules.useAirQualityGuidelines,
+        selectedRules.waterBreakMinutes,
+        now,
+    )
+}
+
 /// Tests for manual and automatic water-break timing and heat-level rules.
 class TestWaterBreaks : GameDomainTestFixtures() {
     /**
@@ -351,7 +362,7 @@ class TestWaterBreaks : GameDomainTestFixtures() {
             },
         )
 
-        // Default water break for level 0, 1 is 3 minutes
+        // Heat Levels 0 and 1 default to three-minute water breaks.
         assertEquals(3, DEFAULT_WATER_BREAK_MINUTES)
         assertEquals(
             GameRules().copy(
@@ -365,6 +376,59 @@ class TestWaterBreaks : GameDomainTestFixtures() {
             GameRules().withHeatLevel(HeatLevel.LEVEL_2)
                 .withHeatLevel(HeatLevel.LEVEL_0)
                 .waterBreakMinutes,
+        )
+
+        // AQI levels 0 and 1 default to four minutes.
+        assertEquals(
+            GameRules(
+                useAirQualityGuidelines = true,
+                heatLevel = HeatLevel.LEVEL_1,
+                waterBreakMinutes = AQI_DEFAULT_WATER_BREAK_MINUTES,
+            ),
+            GameRules(waterBreakMinutes = 7)
+                .withHeatLevel(HeatLevel.LEVEL_1)
+                .copy(waterBreakMinutes = 7)
+                .withAirQualityGuidelines(true),
+        )
+        assertEquals(
+            DEFAULT_WATER_BREAK_MINUTES,
+            GameRules(
+                useAirQualityGuidelines = true,
+                heatLevel = HeatLevel.LEVEL_1,
+                waterBreakMinutes = 7,
+            ).withAirQualityGuidelines(false).waterBreakMinutes,
+        )
+
+        // Changing guidance restores the standard duration for the active level even
+        // when the prior duration was customized.
+        val customAqiLevelOne = GameRules(
+            useAirQualityGuidelines = true,
+            heatLevel = HeatLevel.LEVEL_1,
+            waterBreakMinutes = 7,
+        )
+        assertSame(
+            customAqiLevelOne,
+            customAqiLevelOne.withAirQualityGuidelines(true),
+        )
+        assertEquals(
+            AQI_DEFAULT_WATER_BREAK_MINUTES,
+            GameRules(
+                heatLevel = HeatLevel.LEVEL_0,
+                waterBreakMinutes = 7,
+            ).withAirQualityGuidelines(true).waterBreakMinutes,
+        )
+        assertEquals(
+            AQI_DEFAULT_WATER_BREAK_MINUTES,
+            GameRules(useAirQualityGuidelines = true)
+                .withHeatLevel(HeatLevel.LEVEL_0)
+                .waterBreakMinutes,
+        )
+        assertEquals(
+            LEVEL_TWO_WATER_BREAK_MINUTES,
+            GameRules(
+                heatLevel = HeatLevel.LEVEL_2,
+                waterBreakMinutes = 7,
+            ).withAirQualityGuidelines(true).waterBreakMinutes,
         )
 
         // Suspending the game for level 3 leaves the configured water-break duration untouched.
@@ -510,8 +574,8 @@ class TestWaterBreaks : GameDomainTestFixtures() {
     }
 
     /**
-     * Test heat-level descriptions from the More actions Set heat level dialog
-     * Especially, the level 2 descriptions depend on the cap times.
+     * Test the concise heat-level descriptions used by the More Actions Set heat/AQI level
+     * dialog. Especially check the level 2 descriptions, which depend on the cap times.
      */
     @Test
     fun heatLevelDescriptions() {
@@ -592,6 +656,33 @@ class TestWaterBreaks : GameDomainTestFixtures() {
             "One 4-minute water break per half. Add 60 seconds between points. " +
                 "Adjust soft/hard caps.",
             levelOne.heatLevelSelectionDescription(HeatLevel.LEVEL_2),
+        )
+
+        // AQI levels 0 and 1 use their four-minute default when switching from another level.
+        val aqiLevelOne = GameRules(
+            useAirQualityGuidelines = true,
+            heatLevel = HeatLevel.LEVEL_1,
+            waterBreakMinutes = 6,
+        )
+        assertEquals(
+            "Use normal timing with 4-minute manual water breaks available.",
+            aqiLevelOne.heatLevelSelectionDescription(HeatLevel.LEVEL_0),
+        )
+        val aqiLevelZero = GameRules(
+            useAirQualityGuidelines = true,
+            heatLevel = HeatLevel.LEVEL_0,
+            waterBreakMinutes = 6,
+        )
+        assertEquals(
+            "One 4-minute water break per half.",
+            aqiLevelZero.heatLevelSelectionDescription(HeatLevel.LEVEL_1),
+        )
+
+        // AQI level 2 uses the same description as heat.
+        assertEquals(
+            "One 4-minute water break per half. Add 60 seconds between points. " +
+                "Adjust soft/hard caps.",
+            aqiLevelOne.heatLevelSelectionDescription(HeatLevel.LEVEL_2),
         )
 
         // When only soft cap is affected, the Level 2 option names only soft cap.
@@ -720,10 +811,33 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         )
         assertEquals(120, state.rules.timeBetweenPointsSeconds)
         assertEquals("Undo Heat level 2", state.undoEntry?.label)
-        assertTrue(state.formatEventLogLines().last().endsWith("Heat level changed to 2"))
+        assertTrue(state.formatEventLogLines().last().endsWith("Heat level set to 2"))
 
         // Reselecting the active heat level returns the current state unchanged.
         assertSame(state, state.setHeatLevel(HeatLevel.LEVEL_2, now + 1_500L))
+
+        // Changing the selected guidance or custom duration applies even at the same level.
+        val aqiState = state.setHeatGuidance(
+            HeatLevel.LEVEL_2,
+            useAirQualityGuidelines = true,
+            waterBreakMinutes = 6,
+            now = now + 1_500L,
+        )
+        assertTrue(aqiState.rules.useAirQualityGuidelines)
+        assertEquals(6, aqiState.rules.waterBreakMinutes)
+        assertEquals("AQI level 2 in effect.", aqiState.lastEvent)
+        assertEquals("Undo AQI level 2", aqiState.undoEntry?.label)
+        assertTrue(aqiState.eventLog.last().useAirQualityGuidelines)
+        assertTrue(aqiState.formatEventLogLines().last().endsWith("AQI level set to 2"))
+
+        // Changing only the custom duration also applies at the same level and guidance mode.
+        val customDurationState = aqiState.setHeatGuidance(
+            HeatLevel.LEVEL_2,
+            useAirQualityGuidelines = true,
+            waterBreakMinutes = 7,
+            now = now + 1_600L,
+        )
+        assertEquals(7, customDurationState.rules.waterBreakMinutes)
 
         // An existing water-break offer survives another automatic heat-level selection.
         val alreadyPendingOffer = state.copy(pendingWaterBreakOffer = true)
@@ -793,7 +907,7 @@ class TestWaterBreaks : GameDomainTestFixtures() {
             .setHeatLevel(HeatLevel.LEVEL_1, now + 4_500L)
         assertTrue(changedDuringPoint.pendingWaterBreakOffer)
         assertEquals(
-            "Level 1 is now in effect, and no water break has been taken this half.\n" +
+            "Heat level 1 is now in effect, and no water break has been taken this half.\n" +
                 "Take a 3-minute water break now.",
             changedDuringPoint.waterBreakPromptMessage().plainText,
         )
@@ -817,6 +931,24 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         assertTrue(
             suspended.formatEventLogLines().last()
                 .endsWith("Heat level 3 — game suspended")
+        )
+
+        // AQI level 3 uses the selected name through suspension and game-over undo handling.
+        val aqiSuspended = disabled.setHeatGuidance(
+            HeatLevel.LEVEL_3,
+            useAirQualityGuidelines = true,
+            waterBreakMinutes = 4,
+            now = now + 6_000L,
+        )
+        assertEquals("AQI level 3 — game suspended.", aqiSuspended.lastEvent)
+        assertEquals(AQI_LEVEL_THREE_UNDO_LABEL, aqiSuspended.undoEntry?.label)
+        assertEquals(
+            AQI_LEVEL_THREE_UNDO_LABEL,
+            aqiSuspended.pruneUndoHistory().undoEntry?.label,
+        )
+        assertTrue(
+            aqiSuspended.formatEventLogLines().last()
+                .endsWith("AQI level 3 — game suspended")
         )
     }
 }

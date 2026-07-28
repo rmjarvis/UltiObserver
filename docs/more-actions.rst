@@ -20,12 +20,13 @@ Update game setup
     * updating coach, field captain, or spirit captain names;
     * changing any rules that you set incorrectly before the game;
 
-Set heat level
-    Lets you change the current heat level in effect for the game. This automatically makes
-    the appropriate adjustments to the rules, including water break duration, time between
-    points, and caps.
+Set heat/AQI level
+    Lets you change the current heat or AQI level in effect for the game. This automatically
+    makes the appropriate adjustments to the rules, including water break duration, time between
+    points and caps. You can also customize the water break time here and switch between
+    heat and AQI guidelines if necessary.
 
-    Setting the heat level to Level 3 suspends the game immediately.
+    Setting the heat/AQI level to Level 3 suspends the game immediately.
 
 Field And Pull Controls
 -----------------------

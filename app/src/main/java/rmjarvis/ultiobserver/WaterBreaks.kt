@@ -1,6 +1,7 @@
 package rmjarvis.ultiobserver
 
 internal const val HEAT_LEVEL_THREE_UNDO_LABEL = "Undo Heat level 3 — game suspended"
+internal const val AQI_LEVEL_THREE_UNDO_LABEL = "Undo AQI level 3 — game suspended"
 
 /// Return whether a water break can add time to the current countdown.
 fun GameState.canApplyWaterBreak(): Boolean {
@@ -16,8 +17,9 @@ internal fun GameState.waterBreakPromptMessage(): RuleGuidanceMessage {
     val lines = mutableListOf<RuleGuidanceLine>()
     if (lateHeatLevelChange) {
         lines += RuleGuidanceLine(
-            "${rules.heatLevel.displayText} is now in effect, and no water break has been taken " +
-                "this half."
+            "${rules.heatLevelLabel()} " +
+                "${rules.heatLevel.displayText.removePrefix("Level ")} is now in effect, " +
+                "and no water break has been taken this half."
         )
     } else if (
         pendingWaterBreakOffer &&
@@ -144,16 +146,29 @@ fun GameState.declinePendingWaterBreak(): GameState {
 /**
  * Apply a live heat-level change, including an immediate increase to an ordinary countdown.
  *
- * Decreasing the heat level deliberately leaves the active countdown unchanged. Level 3 ends the
- * current game as a heat suspension.
+ * Decreasing the heat level deliberately leaves the active countdown unchanged. Level 3
+ * ends the current game as a heat or AQI suspension.
  */
-fun GameState.setHeatLevel(newHeatLevel: HeatLevel, now: Long): GameState {
-    if (rules.heatLevel == newHeatLevel) {
+fun GameState.setHeatGuidance(
+    newHeatLevel: HeatLevel,
+    useAirQualityGuidelines: Boolean,
+    waterBreakMinutes: Int,
+    now: Long,
+): GameState {
+    if (
+        rules.heatLevel == newHeatLevel &&
+        rules.useAirQualityGuidelines == useAirQualityGuidelines &&
+        rules.waterBreakMinutes == waterBreakMinutes
+    ) {
         return this
     }
     val previousExtraSeconds = rules.heatExtraBetweenPointsSeconds()
     val offerLateWaterBreak = shouldOfferLateWaterBreak(newHeatLevel)
-    val updatedRules = rules.withHeatLevel(newHeatLevel)
+    val updatedRules = rules.copy(
+        heatLevel = newHeatLevel,
+        useAirQualityGuidelines = useAirQualityGuidelines,
+        waterBreakMinutes = waterBreakMinutes,
+    )
     val addedSeconds = (
         updatedRules.heatExtraBetweenPointsSeconds() - previousExtraSeconds
         ).coerceAtLeast(0)
@@ -181,22 +196,31 @@ fun GameState.setHeatLevel(newHeatLevel: HeatLevel, now: Long): GameState {
             HeatLevel.LEVEL_2 -> pendingWaterBreakOffer || offerLateWaterBreak
             else -> false
         },
-        lastEvent = if (newHeatLevel == HeatLevel.LEVEL_3) {
-            "Heat level 3 — game suspended."
-        } else {
-            "${newHeatLevel.displayText} in effect."
+        lastEvent = when (newHeatLevel) {
+            HeatLevel.NONE -> "${updatedRules.heatLevelLabel()} disabled."
+            HeatLevel.LEVEL_3 ->
+                "${updatedRules.heatLevelLabel()} 3 — game suspended."
+            else ->
+                "${updatedRules.heatLevelLabel()} " +
+                    "${newHeatLevel.displayText.removePrefix("Level ")} in effect."
         },
     ).withEventLogEntry(
         EventLogEntry(
             timestampEpoch = now,
             type = EventLogType.HEAT_LEVEL,
             heatLevel = newHeatLevel,
+            useAirQualityGuidelines = useAirQualityGuidelines,
         )
     )
     val undoLabel = if (newHeatLevel == HeatLevel.LEVEL_3) {
-        HEAT_LEVEL_THREE_UNDO_LABEL
+        if (useAirQualityGuidelines) {
+            AQI_LEVEL_THREE_UNDO_LABEL
+        } else {
+            HEAT_LEVEL_THREE_UNDO_LABEL
+        }
     } else {
-        "Undo Heat level ${newHeatLevel.displayText.removePrefix("Level ")}"
+        "Undo ${updatedRules.heatLevelLabel()} " +
+            newHeatLevel.displayText.removePrefix("Level ")
     }
     return updatedState.withUndo(this, undoLabel)
 }

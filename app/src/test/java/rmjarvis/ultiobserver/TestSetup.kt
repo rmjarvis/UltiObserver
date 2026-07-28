@@ -669,6 +669,20 @@ class TestSetup : GameDomainTestFixtures() {
             assertEquals(fullText, rules.formatHeatLevel(compact = false))
         }
 
+        // The name of the rule menu item depends on both the level and AQI setting.
+        // When level is None, it shows both, otherwise, just Heat or AQI.
+        assertEquals("Heat/AQI level", GameRules().heatLevelEditorLabel())
+        assertEquals(
+            "Heat level",
+            GameRules().withHeatLevel(HeatLevel.LEVEL_1).heatLevelEditorLabel(),
+        )
+        assertEquals(
+            "AQI level",
+            GameRules(useAirQualityGuidelines = true)
+                .withHeatLevel(HeatLevel.LEVEL_1)
+                .heatLevelEditorLabel(),
+        )
+
         // Timeout summaries show number per half and floater rules.
         assertEquals(
             "2/half + floater",

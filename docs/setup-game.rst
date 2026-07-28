@@ -146,7 +146,7 @@ Game Rules
 .. figure:: screen-shots/GameRules.png
    :class: phone-screenshot
    :target: _images/GameRules.png
-   :alt: Game rules section with game target, halftime, caps, timeouts, time between points, and timeout duration
+   :alt: Game rules section with game target, caps, timeouts, mixed gender ratio, Heat/AQI level, and time between points
 
 This is where you can set the rules that apply to this game in case the tournament has any
 modifications from standard USAU rules.
@@ -187,20 +187,22 @@ Mixed gender ratio
 
     * **N/A**: Don't have the app handle anything related to the gender ratio.
 
-Heat level
-    When heat precautions are in effect, this option lets you set the Heat Precaution Level
-    in effect for the game. The app follows USAU's `Heat and Air Quality Guidelines`_
-    for the appropriate adjustments to the rules for different levels. If your tournament is
-    using water breaks, but has a different cadence for them, you can use Level 0 to handle the
-    water breaks manually.
+Heat/AQI level
+    When heat or air-quality precautions are in effect, this option lets you set the
+    Heat or Air Precaution Level in effect for the game. The app follows USAU's
+    `Heat and Air Quality Guidelines`_ for the appropriate adjustments to the rules for
+    different levels. If your tournament is using water breaks, but has a different cadence
+    for them, you can use Level 0 to handle the water breaks manually.
 
     * **None**: No adjustments to the standard rules. No water drop icon on the active game screen.
 
     * **Level 0**: Adds a water drop icon to the active game screen, which can be used to
       start a water break between points. There will be no prompts for any automatic water breaks.
-      The default break time for this is 3 minutes, but you can change it.
+      The default break time is 3 minutes under heat guidelines or 4 minutes under air-quality
+      guidelines, but you can change it.
 
-    * **Level 1**: One 3-minute water break per half. The usual cadence in a game to 15 is
+    * **Level 1**: One water break per half: 3 minutes under heat guidelines or 4 minutes
+      under air-quality guidelines. The usual cadence in a game to 15 is
       to take these breaks when a team reaches 4 points in the first half or 12 in the second
       half. If half is taken early (due to the half cap), then the break is taken 4 points after
       the halftime higher score. Also, if soft cap occurs before the scheduled water break,
@@ -215,12 +217,14 @@ Heat level
       the other rule pages, and they apply automatically.
 
     All levels 0-2 allow you to change the length of the water break if your tournament is using
-    a different break time than the official guidance. Also, they all show a water drop icon
-    next to the countdown, so you can take an off-schedule water break if needed.
+    a different break time than the official guidance. You can also switch between the heat
+    guidelines and AQI guidelines at the bottom of the screen.
 
-    During the game, you can change the heat level from the **More actions** menu when
-    necessary. Also, all water breaks open a confirmation dialog, which lets you decline a
-    scheduled water break if you need to reject it for some reason.
+    During the game, Level 0-2 all show a water drop icon next to the countdown, so you can
+    take an off-schedule water break if needed. You can change the level, water-break duration
+    and heat/AQI selection from the **More actions** menu when necessary. Also, all water breaks
+    open a confirmation dialog, which lets you decline a scheduled water break if you need to
+    reject it for some reason.
 
 Time between points
     How many seconds the offense has to signal readiness between points. The defense has
@@ -239,4 +243,4 @@ Halftime
 At the bottom, there is a button to **Reset to USAU defaults**, which sets all rules back to
 the normal USAU standard rules.
 
-.. _Heat and Air Quality Guidelines: https://usaultimate.org/wp-content/uploads/2023/06/Heat-and-Air-Quality-Guidelines.pdf
+.. _Heat and Air Quality Guidelines: https://usaultimate.org/resources/heat-and-air-quality-guidelines/

@@ -858,8 +858,15 @@ internal fun LiveGameScreen(
                         showMoreActionsDialog = false
                         onOpenGameSummary()
                     },
-                    onHeatLevelChange = { heatLevel ->
-                        onStateChange(state.setHeatLevel(heatLevel, System.currentTimeMillis()))
+                    onHeatRulesChange = { rules ->
+                        onStateChange(
+                            state.setHeatGuidance(
+                                rules.heatLevel,
+                                rules.useAirQualityGuidelines,
+                                rules.waterBreakMinutes,
+                                System.currentTimeMillis(),
+                            )
+                        )
                         showMoreActionsDialog = false
                     },
                     onAction = { updatedState ->

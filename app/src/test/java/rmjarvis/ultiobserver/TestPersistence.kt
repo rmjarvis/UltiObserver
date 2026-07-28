@@ -238,7 +238,8 @@ class TestPersistence : GameDomainTestFixtures() {
                 nominalTimeBetweenPointsSeconds = 50,
                 nominalSoftCapMinutes = 85,
                 nominalHardCapMinutes = 100,
-            ).withHeatLevel(HeatLevel.LEVEL_2),
+                useAirQualityGuidelines = true,
+            ).withHeatLevel(HeatLevel.LEVEL_1),
         ).copy(
             halftimeTaken = true,
             halftimeHighScore = 5,

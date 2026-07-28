@@ -355,17 +355,17 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             adjustScore(teamOneScore = 5, teamTwoScore = 0, now = 0L)
         }
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Set heat level").performClick()
+        composeRule.onNodeWithText("Set heat/AQI level").performClick()
         composeRule.onNodeWithTag("heat-level-LEVEL_1").performClick()
         composeRule.onNodeWithTag("set-heat-level-confirm").performClick()
         waitForText("Undo Heat level 1")
         composeRule.onAllNodesWithText(
-            "Level 1 is now in effect, and no water break has been taken this half.",
+            "Heat level 1 is now in effect, and no water break has been taken this half.",
             substring = true,
         ).assertCountEquals(0)
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
         waitForText(
-            "Level 1 is now in effect, and no water break has been taken this half.\n" +
+            "Heat level 1 is now in effect, and no water break has been taken this half.\n" +
                 "Take a 3-minute water break now."
         )
         dismissDialog(text = "Not yet")

@@ -18,6 +18,7 @@ internal const val USAU_DEFAULT_HAS_FLOATER_TIMEOUT = false
 internal const val USAU_DEFAULT_TIMEOUT_SECONDS = 70
 internal const val USAU_DEFAULT_SWITCH_GEN_ZONE_AT_HALFTIME = true
 internal const val DEFAULT_WATER_BREAK_MINUTES = 3
+internal const val AQI_DEFAULT_WATER_BREAK_MINUTES = 4
 internal const val LEVEL_TWO_WATER_BREAK_MINUTES = 4
 internal const val LEVEL_TWO_EXTRA_BETWEEN_POINTS_SECONDS = 60
 internal const val LEVEL_TWO_MAX_HARD_CAP_MINUTES = 90
@@ -46,6 +47,7 @@ data class GameRules(
     val timeoutSeconds: Int = USAU_DEFAULT_TIMEOUT_SECONDS,
     val genderRatioRule: GenderRatioRule = USAU_DEFAULT_GENDER_RATIO_RULE,
     val switchGenZoneAtHalftime: Boolean = USAU_DEFAULT_SWITCH_GEN_ZONE_AT_HALFTIME,
+    val useAirQualityGuidelines: Boolean = false,
     val heatLevel: HeatLevel = HeatLevel.NONE,
     val waterBreakMinutes: Int = DEFAULT_WATER_BREAK_MINUTES,
 ) {
@@ -86,7 +88,7 @@ data class GameRules(
         }
 }
 
-/// USA Ultimate heat precaution level, plus an app-level disabled state.
+/// USA Ultimate heat level, plus an app-level disabled state.
 @Serializable
 enum class HeatLevel(val displayText: String) {
     NONE("None"),
@@ -108,19 +110,42 @@ internal fun GameRules.withHeatLevel(newHeatLevel: HeatLevel): GameRules {
     return when (newHeatLevel) {
         HeatLevel.NONE,
         HeatLevel.LEVEL_3 -> copy(heatLevel = newHeatLevel)
-        HeatLevel.LEVEL_0 -> copy(
-            heatLevel = newHeatLevel,
-            waterBreakMinutes = DEFAULT_WATER_BREAK_MINUTES,
-        )
+        HeatLevel.LEVEL_0,
         HeatLevel.LEVEL_1 -> copy(
             heatLevel = newHeatLevel,
-            waterBreakMinutes = DEFAULT_WATER_BREAK_MINUTES,
+            waterBreakMinutes = if (useAirQualityGuidelines) {
+                AQI_DEFAULT_WATER_BREAK_MINUTES
+            } else {
+                DEFAULT_WATER_BREAK_MINUTES
+            },
         )
         HeatLevel.LEVEL_2 -> copy(
             heatLevel = newHeatLevel,
             waterBreakMinutes = LEVEL_TWO_WATER_BREAK_MINUTES,
         )
     }
+}
+
+/// Switch guidance type and restore the active level's standard water-break duration.
+internal fun GameRules.withAirQualityGuidelines(useAirQualityGuidelines: Boolean): GameRules {
+    if (this.useAirQualityGuidelines == useAirQualityGuidelines) {
+        return this
+    }
+    return copy(useAirQualityGuidelines = useAirQualityGuidelines)
+        .withHeatLevel(heatLevel)
+}
+
+/// Return the selected heat-level name for display-only rule summaries.
+internal fun GameRules.heatLevelLabel(): String {
+    return if (useAirQualityGuidelines) "AQI level" else "Heat level"
+}
+
+/// Return the setup-editor label, retaining both choices until a level is selected.
+internal fun GameRules.heatLevelEditorLabel(): String {
+    if (heatLevel == HeatLevel.NONE) {
+        return "Heat/AQI level"
+    }
+    return if (useAirQualityGuidelines) "AQI level" else "Heat level"
 }
 
 /// Return the extra ordinary between-points time imposed by the active heat level.
@@ -296,7 +321,7 @@ internal fun GameRules.heatLevelTwoCapEffectNote(capType: CapType): String? {
         return null
     }
     val action = if (nominalCapEnabled(capType)) "shortening" else "overriding"
-    return "Heat level 2 is $action this to ${capMinutes(capType)} minutes."
+    return "${heatLevelLabel()} 2 is $action this to ${capMinutes(capType)} minutes."
 }
 
 /// Describe exactly how Level 2 changes the configured caps, or null when neither changes.

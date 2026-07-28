@@ -35,6 +35,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TimeInput
 import androidx.compose.material3.TimePickerDialog
@@ -465,7 +466,7 @@ internal fun SetupScreen(
                     },
                 )
             } else if (showWaterBreaksDialog) {
-                WaterBreaksDialog(
+                HeatLevelSetupDialog(
                     rules = rulesDraft,
                     onDismiss = { showWaterBreaksDialog = false },
                     onConfirm = { updatedRules ->
@@ -543,7 +544,8 @@ internal fun SetupScreen(
                             note = "This is the time until offense must signal readiness. " +
                                 "Defense has up to 20 seconds after this time to pull.",
                             effectNote = if (rulesDraft.heatLevel == HeatLevel.LEVEL_2) {
-                                "Heat level 2 adds an additional 60 seconds."
+                                "${rulesDraft.heatLevelLabel()} 2 adds an additional " +
+                                    "60 seconds."
                             } else {
                                 null
                             },
@@ -1511,7 +1513,9 @@ private fun GameRulesSummary(state: GameState) {
             SetupSummaryValue("Ratio: ${rules.genderRatioRule.displayText}")
         }
         if (rules.heatLevel != HeatLevel.NONE) {
-            SetupSummaryValue("Heat level: ${rules.formatHeatLevel(compact = true)}")
+            SetupSummaryValue(
+                "${rules.heatLevelLabel()}: ${rules.formatHeatLevel(compact = true)}"
+            )
         }
         SetupSummaryValue(
             "Times: ${rules.formatTimeBetweenPoints(compact = true)}/" +
@@ -1786,7 +1790,7 @@ private fun GameRulesSetupDialog(
                     )
                 }
                 EditableValueRow(
-                    label = "Heat level",
+                    label = rules.heatLevelEditorLabel(),
                     value = rules.formatHeatLevel(compact = false),
                     onClick = onEditWaterBreaks,
                 )
@@ -2229,50 +2233,62 @@ internal fun HeatLevelChoiceRow(
 }
 
 /**
- * Render the water-break rules editor.
+ * Render the detailed setup editor for heat/AQI-level and water-break rules.
  *
  * @param rules The current rules whose water-break fields are being edited.
  * @param onDismiss Callback closing the dialog without applying changes.
- * @param onConfirm Callback receiving rules updated with the water-break values.
+ * @param onConfirm Callback receiving rules updated with the heat-level values.
  */
 @Composable
-private fun WaterBreaksDialog(
+private fun HeatLevelSetupDialog(
     rules: GameRules,
     onDismiss: () -> Unit,
     onConfirm: (GameRules) -> Unit,
 ) {
+    var useAirQualityGuidelines by remember {
+        mutableStateOf(rules.useAirQualityGuidelines)
+    }
     var selectedHeatLevel by remember { mutableStateOf(rules.heatLevel) }
     var minutesText by remember { mutableStateOf(rules.waterBreakMinutes.toString()) }
+    val displayedRules = rules.copy(
+        useAirQualityGuidelines = useAirQualityGuidelines,
+        heatLevel = selectedHeatLevel,
+        waterBreakMinutes = minutesText.toIntOrNull() ?: rules.waterBreakMinutes,
+    )
     val waterBreakScores = rules.waterBreakScores()
     val firstBreakScore = waterBreakScores[0]
     val secondBreakScore = waterBreakScores[1]
-    val displayedMinutes = minutesText.toIntOrNull() ?: rules.waterBreakMinutes
 
     AlertDialog(
         modifier = dialogInitialFocusModifier(),
         onDismissRequest = onDismiss,
-        title = { Text("Heat level") },
+        title = {
+            Text(if (useAirQualityGuidelines) "AQI level" else "Heat level")
+        },
         text = {
             ScrollableDialogRegion(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    "If your tournament uses USAU heat guidelines, select the current heat level " +
-                    "for automatic water-break timing. Choose Level 0 for manual water breaks."
+                    "Select the current " +
+                        "${if (useAirQualityGuidelines) "AQI" else "heat"} level for automatic " +
+                        "water-break timing. Choose Level 0 for manual water breaks."
                 )
                 HeatLevelChoiceRow(
                     selected = selectedHeatLevel,
                     includeLevelThree = false,
                     onSelected = { newLevel ->
-                        val standardRules = rules.withHeatLevel(newLevel)
+                        val standardRules = rules
+                            .copy(useAirQualityGuidelines = useAirQualityGuidelines)
+                            .withHeatLevel(newLevel)
                         selectedHeatLevel = newLevel
                         minutesText = standardRules.waterBreakMinutes.toString()
                     },
                 )
                 HeatLevelGuidance(
                     heatLevel = selectedHeatLevel,
-                    minutes = displayedMinutes,
+                    minutes = displayedRules.waterBreakMinutes,
                     firstBreakScore = firstBreakScore,
                     secondBreakScore = secondBreakScore,
-                    levelTwoCapGuidance = rules.heatLevelTwoCapGuidance(),
+                    levelTwoCapGuidance = displayedRules.heatLevelTwoCapGuidance(),
                 )
                 if (selectedHeatLevel != HeatLevel.NONE) {
                     TextEntry(
@@ -2281,6 +2297,36 @@ private fun WaterBreaksDialog(
                         labelText = "Water break minutes",
                         keyboardType = KeyboardType.Number,
                     )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Use guidelines for air quality rather than heat?",
+                        modifier = Modifier.weight(1f),
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = if (useAirQualityGuidelines) "Yes" else "No",
+                            modifier = Modifier.testTag("air-quality-guidelines-value"),
+                        )
+                        Switch(
+                            checked = useAirQualityGuidelines,
+                            onCheckedChange = { useAirQuality ->
+                                useAirQualityGuidelines = useAirQuality
+                                minutesText = displayedRules
+                                    .withAirQualityGuidelines(useAirQuality)
+                                    .waterBreakMinutes
+                                    .toString()
+                            },
+                            modifier = Modifier.testTag("air-quality-guidelines"),
+                        )
+                    }
                 }
             }
         },
@@ -2291,6 +2337,7 @@ private fun WaterBreaksDialog(
                 onClick = {
                     onConfirm(
                         rules.copy(
+                            useAirQualityGuidelines = useAirQualityGuidelines,
                             heatLevel = selectedHeatLevel,
                             waterBreakMinutes = minutesText.toIntOrNull()?.coerceAtLeast(0)
                                 ?: rules.waterBreakMinutes,

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -14,7 +15,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 
 private enum class MoreActionsChildDialog {
@@ -35,7 +38,7 @@ private enum class MoreActionsChildDialog {
  * @param onUpdateGameSetup Callback reopening setup for the current game.
  * @param onShowEventLog Callback opening the current game's event log.
  * @param onShowGameSummary Callback opening the current game summary.
- * @param onHeatLevelChange Callback applying a live heat-level selection.
+ * @param onHeatRulesChange Callback applying edited live heat/AQI rules.
  * @param onAction Callback receiving an updated live game state after a model action.
  * @param onStateUpdate Callback receiving an updated live game state without closing More actions.
  */
@@ -47,7 +50,7 @@ internal fun MoreActionsContent(
     onUpdateGameSetup: () -> Unit,
     onShowEventLog: () -> Unit,
     onShowGameSummary: () -> Unit,
-    onHeatLevelChange: (HeatLevel) -> Unit,
+    onHeatRulesChange: (GameRules) -> Unit,
     onAction: (GameState) -> Unit,
     onStateUpdate: (GameState) -> Unit,
 ) {
@@ -133,8 +136,8 @@ internal fun MoreActionsContent(
         SetHeatLevelDialog(
             rules = state.rules,
             onDismiss = { childDialog = null },
-            onConfirm = { heatLevel ->
-                onHeatLevelChange(heatLevel)
+            onConfirm = { rules ->
+                onHeatRulesChange(rules)
                 childDialog = null
             },
         )
@@ -199,7 +202,7 @@ internal fun MoreActionsContent(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     MenuButton(
-                        label = "Set heat level",
+                        label = "Set heat/AQI level",
                         onClick = {
                             childDialog = MoreActionsChildDialog.SET_HEAT_LEVEL
                         },
@@ -262,34 +265,109 @@ internal fun MoreActionsContent(
     }
 }
 
-/// Render the live heat-level selector, including the Level 3 suspension action.
+/**
+ * Render the concise live heat-level editor, including the Level 3 suspension action
+ * and the ability to switch to/from AQI.
+ */
 @Composable
 private fun SetHeatLevelDialog(
     rules: GameRules,
     onDismiss: () -> Unit,
-    onConfirm: (HeatLevel) -> Unit,
+    onConfirm: (GameRules) -> Unit,
 ) {
+    var useAirQualityGuidelines by remember {
+        mutableStateOf(rules.useAirQualityGuidelines)
+    }
     var selectedHeatLevel by remember { mutableStateOf(rules.heatLevel) }
+    var minutesText by remember { mutableStateOf(rules.waterBreakMinutes.toString()) }
+    val displayedRules = rules.copy(
+        useAirQualityGuidelines = useAirQualityGuidelines,
+        heatLevel = selectedHeatLevel,
+        waterBreakMinutes = minutesText.toIntOrNull() ?: rules.waterBreakMinutes,
+    )
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Set heat level") },
+        title = {
+            Text(
+                if (useAirQualityGuidelines) {
+                    "Set AQI level"
+                } else {
+                    "Set heat level"
+                }
+            )
+        },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            ScrollableDialogRegion(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 HeatLevelChoiceRow(
                     selected = selectedHeatLevel,
                     includeLevelThree = true,
-                    onSelected = { selectedHeatLevel = it },
+                    onSelected = { newLevel ->
+                        if (newLevel != selectedHeatLevel) {
+                            val standardRules = displayedRules.withHeatLevel(newLevel)
+                            selectedHeatLevel = newLevel
+                            minutesText = standardRules.waterBreakMinutes.toString()
+                        }
+                    },
                 )
-                Text(
-                    rules.heatLevelSelectionDescription(selectedHeatLevel)
-                )
+                Text(displayedRules.heatLevelSelectionDescription(selectedHeatLevel))
+                if (
+                    selectedHeatLevel != HeatLevel.NONE &&
+                    selectedHeatLevel != HeatLevel.LEVEL_3
+                ) {
+                    TextEntry(
+                        value = minutesText,
+                        onValueChange = { minutesText = it.filter(Char::isDigit).take(2) },
+                        labelText = "Water break minutes",
+                        keyboardType = KeyboardType.Number,
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Use guidelines for air quality rather than heat?",
+                        modifier = Modifier.weight(1f),
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = if (useAirQualityGuidelines) "Yes" else "No",
+                            modifier = Modifier.testTag("air-quality-guidelines-value"),
+                        )
+                        Switch(
+                            checked = useAirQualityGuidelines,
+                            onCheckedChange = { useAirQuality ->
+                                useAirQualityGuidelines = useAirQuality
+                                minutesText = displayedRules
+                                    .withAirQualityGuidelines(useAirQuality)
+                                    .waterBreakMinutes
+                                    .toString()
+                            },
+                            modifier = Modifier.testTag("air-quality-guidelines"),
+                        )
+                    }
+                }
             }
         },
         confirmButton = {
             TextActionButton(
                 label = "Set",
                 tag = "set-heat-level-confirm",
-                onClick = { onConfirm(selectedHeatLevel) },
+                onClick = {
+                    onConfirm(
+                        rules.copy(
+                            useAirQualityGuidelines = useAirQualityGuidelines,
+                            heatLevel = selectedHeatLevel,
+                            waterBreakMinutes = minutesText.toIntOrNull()?.coerceAtLeast(0)
+                                ?: rules.waterBreakMinutes,
+                        )
+                    )
+                },
             )
         },
         dismissButton = {

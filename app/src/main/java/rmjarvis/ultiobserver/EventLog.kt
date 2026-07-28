@@ -53,6 +53,7 @@ enum class EventLogType {
  * @param player The player identity for player-card entries.
  * @param previousPlayer The previous player identity for edited player-card entries.
  * @param timeViolationOutcome The warning, timeout, or no-timeout result for time violations.
+ * @param useAirQualityGuidelines Whether the recorded heat level represents an AQI level.
  * @param teamOneScore The team-one score after a score correction.
  * @param teamTwoScore The team-two score after a score correction.
  * @param delta The signed count change for correction entries.
@@ -71,6 +72,8 @@ data class EventLogEntry(
     val timeViolationOutcome: TimeViolationOutcome? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val heatLevel: HeatLevel? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val useAirQualityGuidelines: Boolean = false,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val teamOneScore: Int? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
@@ -238,10 +241,11 @@ private fun waterBreakDescription(entry: EventLogEntry): String {
 
 /// Return display text for a live heat-level change.
 private fun heatLevelDescription(entry: EventLogEntry): String {
+    val levelLabel = if (entry.useAirQualityGuidelines) "AQI level" else "Heat level"
     return when (entry.heatLevel!!) {
-        HeatLevel.NONE -> "Heat/water breaks disabled"
-        HeatLevel.LEVEL_3 -> "Heat level 3 — game suspended"
-        else -> "Heat level changed to ${entry.heatLevel.displayText.removePrefix("Level ")}"
+        HeatLevel.NONE -> "$levelLabel disabled"
+        HeatLevel.LEVEL_3 -> "$levelLabel 3 — game suspended"
+        else -> "$levelLabel set to ${entry.heatLevel.displayText.removePrefix("Level ")}"
     }
 }
 
