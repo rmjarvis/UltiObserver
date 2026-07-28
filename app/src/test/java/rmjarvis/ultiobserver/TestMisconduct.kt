@@ -1776,6 +1776,27 @@ class TestMisconduct : GameDomainTestFixtures() {
         )
         assertEquals(EventLogType.YELLOW_CARD, yellowIdentityEditAfter.eventLog.last().type)
 
+        // Changing a player card's color removes the old color and adds the new color in the
+        // event log.
+        val cardColorEditAfter = playerCardEditBefore.adjustCardsAndTf(
+            teamOneBlues = playerCardEditBefore.teamOne.blueCards,
+            teamOneTechnicalFouls = playerCardEditBefore.teamOne.technicalFouls,
+            teamTwoBlues = playerCardEditBefore.teamTwo.blueCards,
+            teamTwoTechnicalFouls = playerCardEditBefore.teamTwo.technicalFouls,
+            teamOnePlayers = listOf(
+                PlayerRecord(
+                    jerseyNumber = "71",
+                    cards = listOf(InGamePlayerCardEvent(CardType.RED, index = 0)),
+                )
+            ),
+            teamTwoPlayers = playerCardEditBefore.teamTwoPlayers,
+        )
+        val (yellowRemoval, redAddition) = cardColorEditAfter.eventLog.takeLast(2)
+        assertEquals(EventLogType.YELLOW_CARD, yellowRemoval.type)
+        assertEquals(-1, yellowRemoval.delta)
+        assertEquals(EventLogType.RED_CARD, redAddition.type)
+        assertEquals(1, redAddition.delta)
+
         // Adding or removing multiple player cards from one player records one event-log entry per
         // card.
         val twoYellowAdditionAfter = standardLiveGameState().adjustCardsAndTf(

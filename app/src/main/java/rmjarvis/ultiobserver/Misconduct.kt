@@ -698,7 +698,7 @@ private fun MutableList<EventLogEntry>.addPlayerCardDeltas(
     afterRecords: List<PlayerRecord>,
 ) {
     val cardChange = getSingleChangedPlayerCard(beforeRecords, afterRecords)
-    if (cardChange != null) {
+    if (cardChange != null && cardChange.before.cardType == cardChange.after.cardType) {
         val newIdentity = cardChange.after.identity()
         if (!newIdentity.matches(cardChange.before.identity())) {
             add(
