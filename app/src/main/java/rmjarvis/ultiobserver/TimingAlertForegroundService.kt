@@ -115,7 +115,7 @@ class TimingAlertForegroundService : Service() {
         return START_NOT_STICKY
     }
 
-    /// Release playback, alarm, wake-lock, and coroutine resources when Android stops the service.
+    /// Release alarm, wake-lock, and coroutine resources when Android stops the service.
     override fun onDestroy() {
         controller.release()
         super.onDestroy()
@@ -128,8 +128,8 @@ class TimingAlertForegroundService : Service() {
                 startTimingAlertForeground()
             }
 
-            override fun createPlayer(): TimingAlertPlayer {
-                return TimingAlertPlayer(context = this@TimingAlertForegroundService)
+            override fun timingAlertPlayer(): TimingAlertPlayer {
+                return (application as UltiObserverApplication).timingAlertPlayer
             }
 
             override fun currentTimeMillis(): Long {
@@ -322,8 +322,8 @@ internal interface TimingAlertServicePlatform {
     /// Put the Android service into foreground mode with its notification.
     fun startForeground()
 
-    /// Build the sound player used by this service instance.
-    fun createPlayer(): TimingAlertPlayer
+    /// Return the process-wide sound player shared by Android app components.
+    fun timingAlertPlayer(): TimingAlertPlayer
 
     /// Return the current epoch millis for scheduling decisions.
     fun currentTimeMillis(): Long
@@ -404,7 +404,7 @@ internal class TimingAlertForegroundServiceController(
         refreshTimingAlertServiceLifetime()
         timingAlertSnapshot = updatedSnapshot
         if (timingAlertPlayer == null) {
-            timingAlertPlayer = platform.createPlayer()
+            timingAlertPlayer = platform.timingAlertPlayer()
         }
         updateTimingAlertWakeLock(now = platform.currentTimeMillis())
         updateCapTimingAlertAlarm(now = platform.currentTimeMillis())
@@ -437,7 +437,7 @@ internal class TimingAlertForegroundServiceController(
 
         refreshTimingAlertServiceLifetime()
         timingAlertSnapshot = alarmSnapshot
-        val player = timingAlertPlayer ?: platform.createPlayer()
+        val player = timingAlertPlayer ?: platform.timingAlertPlayer()
             .also { timingAlertPlayer = it }
         serviceScope.launch {
             platform.acquireWakeLock()
@@ -447,11 +447,10 @@ internal class TimingAlertForegroundServiceController(
         }
     }
 
-    /// Release playback, alarm, wake-lock, and coroutine resources.
+    /// Release alarm, wake-lock, and coroutine resources owned by this service instance.
     fun release() {
         scheduleJob?.cancel()
         lifetimeJob?.cancel()
-        timingAlertPlayer?.release()
         platform.cancelCapAlarm()
         platform.releaseWakeLock()
         serviceScope.cancel()
@@ -535,9 +534,10 @@ internal class TimingAlertForegroundServiceController(
                 }
             } else {
                 player.play(
-                    cue.alertMode.toTimingAlertSound(),
-                    cue.repeatCount,
-                    snapshot.soundVolume,
+                    sound = cue.alertMode.toTimingAlertSound(),
+                    repeatCount = cue.repeatCount,
+                    volume = snapshot.soundVolume,
+                    priority = TIMING_ALERT_CUE_PRIORITY,
                 )
                 if (snapshot.vibrateWithSounds) {
                     platform.performHaptic(snapshot.vibrationDurationMillis)

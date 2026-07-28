@@ -280,9 +280,9 @@ class TestTimingCues : GameDomainTestFixtures() {
         )
 
         // Sounds requested before loading are queued until their load completes.
-        timingAlertPlayer.play(TimingAlertSound.TICK, 1.5f)
-        timingAlertPlayer.play(TimingAlertSound.TICK, 0.5f)
-        timingAlertPlayer.play(TimingAlertSound.TICK, 3, 0.75f)
+        timingAlertPlayer.play(TimingAlertSound.TICK, 1, 1.5f, TIMING_ALERT_CUE_PRIORITY)
+        timingAlertPlayer.play(TimingAlertSound.TICK, 1, 0.5f, TIMING_ALERT_CUE_PRIORITY)
+        timingAlertPlayer.play(TimingAlertSound.TICK, 3, 0.75f, TIMING_ALERT_CUE_PRIORITY)
         assertTrue(soundPlayer.playedSounds.isEmpty())
         soundPlayer.completeLoad(soundIds.getValue(tickClip))
         assertEquals(
@@ -303,7 +303,7 @@ class TestTimingCues : GameDomainTestFixtures() {
         )
 
         // Volumes are clamped to the SoundPool-supported range.
-        timingAlertPlayer.play(TimingAlertSound.TICK, -0.5f)
+        timingAlertPlayer.play(TimingAlertSound.TICK, 1, -0.5f, TIMING_ALERT_CUE_PRIORITY)
         assertEquals(
             listOf(
                 PlayedTimingAlertSound(soundIds.getValue(tickClip), 1f),
@@ -314,12 +314,34 @@ class TestTimingCues : GameDomainTestFixtures() {
             soundPlayer.playedSounds,
         )
 
+        // Real timing cues have higher SoundPool priority than settings-screen previews, including
+        // when the request was queued while its sound was still loading.
+        timingAlertPlayer.play(
+            TimingAlertSound.BEEP,
+            1,
+            0.4f,
+            TIMING_ALERT_PREVIEW_PRIORITY,
+        )
+        timingAlertPlayer.play(TimingAlertSound.BEEP, 1, 0.6f, TIMING_ALERT_CUE_PRIORITY)
+        soundPlayer.completeLoad(soundIds.getValue(beepClip))
+        assertEquals(listOf(0, 1), soundPlayer.playedPriorities.takeLast(2))
+
         // Repeat counts outside the available clip range fail loudly.
         val invalidRepeatCountException = assertThrows(IllegalArgumentException::class.java) {
-            timingAlertPlayer.play(TimingAlertSound.TICK, 4, 0.5f)
+            timingAlertPlayer.play(
+                TimingAlertSound.TICK,
+                4,
+                0.5f,
+                TIMING_ALERT_CUE_PRIORITY,
+            )
         }
         assertThrows(IllegalArgumentException::class.java) {
-            timingAlertPlayer.play(TimingAlertSound.TICK, 0, 0.5f)
+            timingAlertPlayer.play(
+                TimingAlertSound.TICK,
+                0,
+                0.5f,
+                TIMING_ALERT_CUE_PRIORITY,
+            )
         }
         assertEquals(
             "Timing alert repeat count must be between 1 and 3.",
@@ -328,9 +350,9 @@ class TestTimingCues : GameDomainTestFixtures() {
 
         // Release suppresses pending sounds.
         val playedBeforeRelease = soundPlayer.playedSounds.toList()
-        timingAlertPlayer.play(TimingAlertSound.BEEP, 0.25f)
+        timingAlertPlayer.play(TimingAlertSound.DING, 1, 0.25f, TIMING_ALERT_CUE_PRIORITY)
         timingAlertPlayer.release()
-        soundPlayer.completeLoad(soundIds.getValue(beepClip))
+        soundPlayer.completeLoad(soundIds.getValue(dingClip))
         assertEquals(playedBeforeRelease, soundPlayer.playedSounds)
         assertTrue(soundPlayer.released)
 
@@ -357,7 +379,12 @@ class TestTimingCues : GameDomainTestFixtures() {
                 }
             },
         )
-        failedTimingAlertPlayer.play(TimingAlertSound.DING, 0.5f)
+        failedTimingAlertPlayer.play(
+            TimingAlertSound.DING,
+            1,
+            0.5f,
+            TIMING_ALERT_CUE_PRIORITY,
+        )
         failedSoundPlayer.completeLoad(dingSoundIds[0], status = 1)
         failedSoundPlayer.completeLoad(999)
         assertTrue(failedSoundPlayer.playedSounds.isEmpty())
@@ -366,7 +393,12 @@ class TestTimingCues : GameDomainTestFixtures() {
         // queues only the new play.
         // This time, we let the player complete the Load for the second Ding sound id,
         // and the sound shows up as having played.
-        failedTimingAlertPlayer.play(TimingAlertSound.DING, 0.8f)
+        failedTimingAlertPlayer.play(
+            TimingAlertSound.DING,
+            1,
+            0.8f,
+            TIMING_ALERT_CUE_PRIORITY,
+        )
         failedSoundPlayer.completeLoad(dingSoundIds[1])
         assertEquals(
             listOf(PlayedTimingAlertSound(dingSoundIds[1], 0.8f)),
@@ -943,6 +975,7 @@ private class FakeTimingAlertSoundPlayer : TimingAlertSoundPlayer {
     private lateinit var listener: (sampleId: Int, status: Int) -> Unit
 
     val playedSounds = mutableListOf<PlayedTimingAlertSound>()
+    val playedPriorities = mutableListOf<Int>()
     var released = false
 
     /**
@@ -971,7 +1004,7 @@ private class FakeTimingAlertSoundPlayer : TimingAlertSoundPlayer {
      * @param soundId The loaded sound id requested by the player.
      * @param leftVolume The left-channel volume, mirrored by production code to the right channel.
      * @param rightVolume The right-channel volume from the interface.
-     * @param priority The unused playback priority from the interface.
+     * @param priority SoundPool stream priority requested by production code.
      * @param loop The unused loop setting from the interface.
      * @param rate The unused playback rate from the interface.
      */
@@ -984,6 +1017,7 @@ private class FakeTimingAlertSoundPlayer : TimingAlertSoundPlayer {
         rate: Float,
     ) {
         playedSounds += PlayedTimingAlertSound(soundId, leftVolume)
+        playedPriorities += priority
     }
 
     /// Record that the fake timing-alert sound-player was released.

@@ -21,7 +21,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -437,13 +436,8 @@ internal fun TimingCueSettingsScreen(
 ) {
     val context = LocalContext.current
     val hasTimingCueHaptics = context.hasTimingCueHaptics()
-    val timingAlertPlayer = remember(context) {
-        TimingAlertPlayer(context)
-    }
-
-    DisposableEffect(timingAlertPlayer) {
-        onDispose { timingAlertPlayer.release() }
-    }
+    val timingAlertPlayer =
+        (context.applicationContext as UltiObserverApplication).timingAlertPlayer
 
     Scaffold(
         topBar = {
@@ -482,7 +476,12 @@ internal fun TimingCueSettingsScreen(
                 sounds = TimingAlertSound.entries,
                 note = settings.timingAlerts.soundPreviewNote(hasTimingCueHaptics),
                 onPreview = { sound ->
-                    timingAlertPlayer.play(sound, settings.timingAlerts.soundVolume)
+                    timingAlertPlayer.play(
+                        sound = sound,
+                        repeatCount = 1,
+                        volume = settings.timingAlerts.soundVolume,
+                        priority = TIMING_ALERT_PREVIEW_PRIORITY,
+                    )
                 },
             )
 

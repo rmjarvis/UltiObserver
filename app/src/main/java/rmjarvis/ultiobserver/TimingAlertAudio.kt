@@ -31,8 +31,13 @@ internal class TimingAlertPlayer internal constructor(
         FAILED,
     }
 
+    private data class PlaySettings(
+        val volume: Float,
+        val priority: Int,
+    )
+
     private val soundLoadStates = mutableMapOf<TimingAlertSoundClip, SoundLoadState>()
-    private val pendingPlays = mutableMapOf<TimingAlertSoundClip, MutableList<Float>>()
+    private val pendingPlays = mutableMapOf<TimingAlertSoundClip, MutableList<PlaySettings>>()
     private val soundsById = mutableMapOf<Int, TimingAlertSoundClip>()
     private val soundIds = mutableMapOf<TimingAlertSoundClip, Int>()
 
@@ -41,8 +46,8 @@ internal class TimingAlertPlayer internal constructor(
             val clip = soundsById[sampleId] ?: return@setOnLoadCompleteListener
             if (status == 0) {
                 soundLoadStates[clip] = SoundLoadState.LOADED
-                pendingPlays.remove(clip)?.forEach { volume ->
-                    playLoaded(clip, volume)
+                pendingPlays.remove(clip)?.forEach { playSettings ->
+                    playLoaded(clip, playSettings)
                 }
             } else {
                 soundLoadStates[clip] = SoundLoadState.FAILED
@@ -55,34 +60,33 @@ internal class TimingAlertPlayer internal constructor(
     }
 
     /**
-     * Play a timing alert sound once.
-     *
-     * @param sound The sound family to play.
-     * @param volume The requested playback volume, clamped to the SoundPool range.
-     */
-    fun play(sound: TimingAlertSound, volume: Float) {
-        play(sound, 1, volume)
-    }
-
-    /**
-     * Play a timing alert sound with a repeated clip.
+     * Play a timing alert sound at the requested SoundPool priority.
      *
      * @param sound The sound family to play.
      * @param repeatCount The number of repeats encoded in the clip to play.
      * @param volume The requested playback volume, clamped to the SoundPool range.
+     * @param priority SoundPool stream priority for this play.
      */
-    fun play(sound: TimingAlertSound, repeatCount: Int, volume: Float) {
+    fun play(
+        sound: TimingAlertSound,
+        repeatCount: Int,
+        volume: Float,
+        priority: Int,
+    ) {
         val clip = TimingAlertSoundClip(sound, repeatCount)
-        val playVolume = volume.coerceIn(0f, 1f)
+        val playSettings = PlaySettings(
+            volume = volume.coerceIn(0f, 1f),
+            priority = priority,
+        )
         when (soundLoadStates[clip]) {
-            SoundLoadState.LOADED -> playLoaded(clip, playVolume)
+            SoundLoadState.LOADED -> playLoaded(clip, playSettings)
             SoundLoadState.FAILED -> {
                 pendingPlays.remove(clip)
                 loadClip(clip)
-                pendingPlays[clip] = mutableListOf(playVolume)
+                pendingPlays[clip] = mutableListOf(playSettings)
             }
             SoundLoadState.LOADING, null -> {
-                pendingPlays.getOrPut(clip) { mutableListOf() } += playVolume
+                pendingPlays.getOrPut(clip) { mutableListOf() } += playSettings
             }
         }
     }
@@ -97,11 +101,18 @@ internal class TimingAlertPlayer internal constructor(
      * Play a sound clip that has already finished loading.
      *
      * @param clip The loaded sound clip to play.
-     * @param volume The clamped playback volume.
+     * @param playSettings The clamped playback volume and SoundPool stream priority.
      */
-    private fun playLoaded(clip: TimingAlertSoundClip, volume: Float) {
+    private fun playLoaded(clip: TimingAlertSoundClip, playSettings: PlaySettings) {
         val soundId = soundIds[clip]!!
-        soundPlayer.play(soundId, volume, volume, 1, 0, 1f)
+        soundPlayer.play(
+            soundId = soundId,
+            leftVolume = playSettings.volume,
+            rightVolume = playSettings.volume,
+            priority = playSettings.priority,
+            loop = 0,
+            rate = 1f,
+        )
     }
 
     /// Start or retry loading a sound clip.
@@ -112,6 +123,9 @@ internal class TimingAlertPlayer internal constructor(
         soundLoadStates[clip] = SoundLoadState.LOADING
     }
 }
+
+internal const val TIMING_ALERT_PREVIEW_PRIORITY = 0
+internal const val TIMING_ALERT_CUE_PRIORITY = 1
 
 /**
  * Pre-rendered timing alert sound clip.
@@ -346,7 +360,12 @@ private suspend fun playTimingSound(
     timingAlertPlayer: TimingAlertPlayer,
     performHaptic: suspend (Long) -> Unit,
 ) {
-    timingAlertPlayer.play(sound, repeatCount, timingAlertPreferences.soundVolume)
+    timingAlertPlayer.play(
+        sound = sound,
+        repeatCount = repeatCount,
+        volume = timingAlertPreferences.soundVolume,
+        priority = TIMING_ALERT_CUE_PRIORITY,
+    )
     if (timingAlertPreferences.vibrateWithSounds) {
         performHaptic(timingAlertPreferences.vibrationDurationMillis)
     }

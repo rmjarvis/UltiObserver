@@ -198,7 +198,7 @@ class TestTimingAlerts {
             controller.handleTimingAlertUpdate(updateSnapshot)
             assertSame(updateSnapshot, controller.timingAlertSnapshot)
             assertEquals(2, platform.foregroundStarts)
-            assertEquals(1, platform.createdPlayers.size)
+            assertEquals(1, platform.playerRequests)
             assertEquals(futureCapCue, platform.scheduledCapAlarms.single().cue)
 
             // If Android will not let the app schedule exact alarms, the service cancels any stale
@@ -225,9 +225,9 @@ class TestTimingAlerts {
 
             // Repeated update messages are normal while the UI recomposes.  They should refresh
             // state without starting duplicate countdown delivery loops.
-            val playerCountBeforeDuplicateStart = platform.createdPlayers.size
+            val playerRequestsBeforeDuplicateStart = platform.playerRequests
             controller.startScheduleLoop()
-            assertEquals(playerCountBeforeDuplicateStart, platform.createdPlayers.size)
+            assertEquals(playerRequestsBeforeDuplicateStart, platform.playerRequests)
 
             // When all cap cues are in the past, the service cancels any pending cap alarm.
             controller.handleTimingAlertUpdate(
@@ -237,10 +237,11 @@ class TestTimingAlerts {
             )
             assertTrue(platform.cancelCapAlarmCalls >= 4)
 
-            // Releasing a service after a real update also releases the sound player it created.
+            // Releasing a service leaves the process-wide sound player alive for later app
+            // components.
             controller.release()
             controllerReleased = true
-            assertTrue(platform.soundPlayer.released)
+            assertFalse(platform.soundPlayer.released)
         } finally {
             if (!controllerReleased) {
                 controller.release()
@@ -448,7 +449,7 @@ class TestTimingAlerts {
                     )
                 ),
                 snapshot = serviceSnapshot(),
-                player = platform.createdPlayers.first(),
+                player = platform.sharedPlayer,
             )
         } finally {
             controller.release()
@@ -499,13 +500,13 @@ class TestTimingAlerts {
 
             // A later alarm reuses the existing sound player rather than rebuilding audio
             // resources for every cap wakeup.
-            val playerCountBeforeSecondAlarm = platform.createdPlayers.size
+            val playerRequestsBeforeSecondAlarm = platform.playerRequests
             controller.handleCapAlarm(
                 alarmSnapshot = serviceSnapshot(capCues = listOf(nextCapCue)),
                 alarmCue = nextCapCue,
             )
             waitFor { controller.timingAlertSnapshot?.capCues?.isEmpty() == true }
-            assertEquals(playerCountBeforeSecondAlarm, platform.createdPlayers.size)
+            assertEquals(playerRequestsBeforeSecondAlarm, platform.playerRequests)
         } finally {
             controller.release()
         }
@@ -521,9 +522,10 @@ class TestTimingAlerts {
      */
     @Test
     fun androidAudioWrappers() {
-        // The public context constructor wires TimingAlertPlayer to the real Android audio layer.
-        val timingAlertPlayer = TimingAlertPlayer(context)
-        timingAlertPlayer.release()
+        // The Application lazily creates one player that every Android component can reuse for the
+        // lifetime of this process.
+        val application = context.applicationContext as UltiObserverApplication
+        assertSame(application.timingAlertPlayer, application.timingAlertPlayer)
 
         // The real SoundPool adapter can load one bundled timing-alert clip, report that it loaded,
         // accept a play request, and release without blocking the test thread.
@@ -861,7 +863,10 @@ private class FakeTimingAlertServicePlatform(
     var now: Long,
 ) : TimingAlertServicePlatform {
     val soundPlayer = FakeTimingAlertSoundPlayer()
-    val createdPlayers = mutableListOf<TimingAlertPlayer>()
+    val sharedPlayer = TimingAlertPlayer(
+        soundPlayer = soundPlayer,
+        loadSound = { _, clip -> timingAlertSoundIds().getValue(clip) },
+    )
     val scheduledCapAlarms = mutableListOf<ScheduledCapAlarm>()
     val performedHaptics = mutableListOf<Long>()
     var exactAlarmAccess = true
@@ -870,18 +875,15 @@ private class FakeTimingAlertServicePlatform(
     var cancelCapAlarmCalls = 0
     var acquireWakeLockCalls = 0
     var releaseWakeLockCalls = 0
+    var playerRequests = 0
 
     override fun startForeground() {
         foregroundStarts += 1
     }
 
-    override fun createPlayer(): TimingAlertPlayer {
-        val player = TimingAlertPlayer(
-            soundPlayer = soundPlayer,
-            loadSound = { _, clip -> timingAlertSoundIds().getValue(clip) },
-        )
-        createdPlayers += player
-        return player
+    override fun timingAlertPlayer(): TimingAlertPlayer {
+        playerRequests += 1
+        return sharedPlayer
     }
 
     override fun currentTimeMillis(): Long {
