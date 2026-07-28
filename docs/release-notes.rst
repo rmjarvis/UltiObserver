@@ -1,13 +1,32 @@
 Release History
 ===============
 
+Version 1.2
+-----------
+
+The main additions in this version are the youth time between points and following the
+USAU Heat and Air Quality Guidelines.
+
+- Added the ability to change both the time between points and the timeout duration. In both cases,
+  this refers to the time until the offense needs to be ready. The defense then has 20 seconds
+  more to pull or check the disc in.
+- Changed the USAU default time between points to be 80 seconds for Youth games.
+- Added support for USAU heat and air quality precautions, including water breaks and
+  (for level 2) additional time between points and shortened caps.
+- Changed the gender ratio indicator for ABBA (by default) to use the common M1, M2, W1, W2
+  shorthand, indicating where in the sequence the current point is. You can switch to just
+  show the current ratio if you prefer.
+- Made the color of the gender ratio indicator settable in Settings.
+- Added an option to show less verbose rule guidance for the popup messages during the game.
+  Options are: Full, Brief, Timed, and None. See the Settings documentation for details.
+- Improved the reliability of sound cues on some devices.
+- Made minor adjustments to the user interface in various places to be hopefully a little clearer.
+
 Version 1.1
 -----------
 
 Version 1.1 responded to good feedback from initial testers and includes many usability
-improvements.
-
-Highlights include:
+improvements. Highlights include:
 
 - Added customizable field-end names, so observers can label ends with site-specific names like
   ``Road``, ``Trees``, or ``Scoreboard`` instead of only ``Near end`` / ``Far end``.
@@ -56,9 +75,7 @@ Highlights include:
 Version 1.0
 -----------
 
-Version 1.0 was the first public testing release of UltiObserver.
-
-Features included:
+Version 1.0 was the first public testing release of UltiObserver with the following features:
 
 - It keeps track of which team is pulling and from which end. The live game screen shows
   the field orientation as seen from one end of the field. This would normally be the end zone
