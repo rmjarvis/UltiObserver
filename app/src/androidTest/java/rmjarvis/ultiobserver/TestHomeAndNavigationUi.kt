@@ -894,15 +894,28 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         // automatically advance to live play when countdowns expire and then lock
         // the screen.  Both aspects of this are settable.
         composeRule.onNodeWithTag("settings-auto-advance-countdowns").performScrollTo()
-        waitForText("Automatically start live play when a countdown expires?")
+        waitForText("Automatically start live play?")
+        waitForText(
+            "When a pull or timeout countdown expires, UltiObserver will automatically start " +
+                "or resume live play."
+        )
         composeRule.onNodeWithTag("settings-auto-advance-countdowns-value").assertTextEquals("Yes")
         composeRule.onNodeWithTag("settings-auto-lock-live-point-value").assertTextEquals("Yes")
+        waitForText("The screen will automatically lock whenever play becomes live.")
         composeRule.onNodeWithTag("settings-auto-advance-countdowns").performClick()
+        composeRule.onNodeWithTag("settings-auto-advance-countdowns-value").assertTextEquals("No")
+        waitForText(
+            "When a countdown expires, UltiObserver will wait for you to tap Start point or " +
+                "Continue point."
+        )
         composeRule.onNodeWithTag("settings-auto-lock-live-point")
             .performScrollTo()
             .performClick()
-        composeRule.onNodeWithTag("settings-auto-advance-countdowns-value").assertTextEquals("No")
         composeRule.onNodeWithTag("settings-auto-lock-live-point-value").assertTextEquals("No")
+        waitForText(
+            "The screen will remain unlocked when play becomes live. You can still lock it " +
+                "manually by clicking the lock icon in the central region of the screen."
+        )
         composeRule.onNodeWithTag("settings-auto-advance-countdowns")
             .performScrollTo()
             .performClick()
@@ -913,9 +926,18 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("settings-show-defense-countdowns").performScrollTo()
         composeRule.onNodeWithTag("settings-show-defense-countdowns-value")
             .assertTextEquals("No")
+        waitForText(
+            "UltiObserver will not display the defense countdown for timeouts or misconduct " +
+                "penalties. You should count the time for the defensive check yourself with arm " +
+                "chops."
+        )
         composeRule.onNodeWithTag("settings-show-defense-countdowns").performClick()
         composeRule.onNodeWithTag("settings-show-defense-countdowns-value")
             .assertTextEquals("Yes")
+        waitForText(
+            "After you mark the offense set during a timeout or misconduct penalty, " +
+                "UltiObserver will display the 20-second defense countdown."
+        )
 
         // When defense countdowns are enabled, their cue section is shown without the disabled
         // warning.
@@ -932,7 +954,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("settings-show-defense-countdowns").performScrollTo()
         composeRule.onNodeWithTag("settings-show-defense-countdowns").performClick()
         waitForText(
-            "most observers will count this off themselves with arm chops",
+            "You should count the time for the defensive check yourself with arm chops.",
             substring = true,
         )
 

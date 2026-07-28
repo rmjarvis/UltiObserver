@@ -71,12 +71,12 @@ Vibration length
 Countdown and Lock Behavior
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Automatically start live play when a countdown expires?
+Automatically start live play?
     The default behavior when a pull or timeout countdown expires is to automatically advance
     to live play. If you prefer to do this manually (using either the **Start point** or
     **Continue point** button) then switch this to **No**.
 
-Automatically lock screen when play becomes live?
+Automatically lock screen?
     The default behavior is to automatically lock the screen when switching to live action,
     either after a pull or at the end of an in-point timeout. That way, while you are moving
     with play, you won’t accidentally press buttons in the app. Unlocking is a simple drag
@@ -84,7 +84,7 @@ Automatically lock screen when play becomes live?
     switch this to **No**. Note that there is always a lock icon on the live game screen so you
     can lock the screen manually whenever you need.
 
-Show defense-check countdown after the offense is set?
+Show defense countdowns?
     We expect that most observers will not need an explicit countdown for the defensive check
     after the offense is ready on timeouts or misconduct penalties. This is commonly handled
     using visible arm chops, rather than a stopwatch. However, if you would prefer to have the

@@ -140,8 +140,15 @@ internal fun SettingsScreen(
 
             HorizontalDivider()
 
-            SettingsSwitchRow(
-                label = "Automatically start live play when a countdown expires?",
+            SettingsSwitchWithNote(
+                label = "Automatically start live play?",
+                note = if (settings.automaticallyAdvanceCountdowns) {
+                    "When a pull or timeout countdown expires, UltiObserver will automatically " +
+                        "start or resume live play."
+                } else {
+                    "When a countdown expires, UltiObserver will wait for you to tap Start point " +
+                        "or Continue point."
+                },
                 checked = settings.automaticallyAdvanceCountdowns,
                 onCheckedChange = {
                     onSettingsChange(settings.withAutomaticallyAdvanceCountdowns(it))
@@ -149,8 +156,14 @@ internal fun SettingsScreen(
                 testTag = "settings-auto-advance-countdowns",
             )
 
-            SettingsSwitchRow(
-                label = "Automatically lock screen when play becomes live?",
+            SettingsSwitchWithNote(
+                label = "Automatically lock screen?",
+                note = if (settings.automaticallyLockLivePoint) {
+                    "The screen will automatically lock whenever play becomes live."
+                } else {
+                    "The screen will remain unlocked when play becomes live. You can still lock " +
+                        "it manually by clicking the lock icon in the central region of the screen."
+                },
                 checked = settings.automaticallyLockLivePoint,
                 onCheckedChange = {
                     onSettingsChange(settings.withAutomaticallyLockLivePoint(it))
@@ -159,9 +172,15 @@ internal fun SettingsScreen(
             )
 
             SettingsSwitchWithNote(
-                label = "Show countdown for the defensive check after the offense is set for timeouts and misconduct penalties?",
-                note = "We expect that most observers will count this off themselves with arm chops. " +
-                    "Turn this on if you want UltiObserver to display the 20-second defense countdown for you.",
+                label = "Show defense countdowns?",
+                note = if (settings.showDefenseCountdowns) {
+                    "After you mark the offense set during a timeout or misconduct penalty, " +
+                        "UltiObserver will display the 20-second defense countdown."
+                } else {
+                    "UltiObserver will not display the defense countdown for timeouts or " +
+                        "misconduct penalties. You should count the time for the defensive check " +
+                        "yourself with arm chops."
+                },
                 checked = settings.showDefenseCountdowns,
                 onCheckedChange = {
                     onSettingsChange(settings.withShowDefenseCountdowns(it))

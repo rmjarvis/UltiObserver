@@ -669,7 +669,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         tapTopBarHome()
         waitForText("Current game")
         composeRule.onNodeWithText("Settings").performClick()
-        waitForText("Automatically lock screen when play becomes live?")
+        waitForText("Automatically lock screen?")
         composeRule.onNodeWithTag("settings-auto-advance-countdowns-value").assertTextEquals("Yes")
         composeRule.onNodeWithTag("settings-auto-lock-live-point-value").assertTextEquals("Yes")
         composeRule.onNodeWithTag("settings-auto-lock-live-point")
