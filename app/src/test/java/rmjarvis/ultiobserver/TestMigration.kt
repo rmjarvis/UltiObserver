@@ -448,6 +448,82 @@ class TestMigration : GameDomainTestFixtures() {
         assertEquals(1, restoredFromEndGame.teamTwo.score)
     }
 
+    /**
+     * Verify every v1.2 fixture scenario loads into the current app model without startup
+     * recovery and preserves the new 1.2 rules and settings.
+     *
+     * The asserted fixture values come from
+     * `tools/persistence-fixtures/v1.2/PersistenceFixtureGeneratorTool.kt`.
+     */
+    @Test
+    fun loadFixturesFromV1_2() {
+        // default-buckets preserves the defaults for every independently stored bucket.
+        val defaultBuckets = loadMigratedFixture("v1.2", "default-buckets")
+        assertNull(defaultBuckets.currentGame)
+        assertFalse(defaultBuckets.hasSetupDraft)
+        assertProfileAndSettings(defaultBuckets, Profile(), Settings())
+        assertTrue(defaultBuckets.archivedGames.isEmpty())
+
+        // setup-draft preserves the USAU Youth default of 80 seconds between points.
+        val setupDraft = loadMigratedFixture("v1.2", "setup-draft")
+        assertTrue(setupDraft.hasSetupDraft)
+        assertEquals("Youth", setupDraft.setupGame.level)
+        assertEquals(80, setupDraft.setupGame.rules.nominalTimeBetweenPointsSeconds)
+        assertEquals(HeatLevel.NONE, setupDraft.setupGame.rules.heatLevel)
+        assertFalse(setupDraft.setupGame.rules.useAirQualityGuidelines)
+        assertProfileAndSettings(setupDraft, fixtureProfile(), v1_2FixtureSettings())
+
+        // active-game preserves custom pull timing, custom heat precautions, and Timed rule
+        // guidance.
+        val activeGame = loadMigratedFixture("v1.2", "active-game")
+        val activeState = activeGame.currentGame!!
+        assertEquals(75, activeState.rules.nominalTimeBetweenPointsSeconds)
+        assertEquals(90, activeState.rules.timeoutSeconds)
+        assertEquals(HeatLevel.LEVEL_1, activeState.rules.heatLevel)
+        assertFalse(activeState.rules.useAirQualityGuidelines)
+        assertEquals(4, activeState.rules.waterBreakMinutes)
+        assertProfileAndSettings(
+            activeGame,
+            fixtureProfile(),
+            v1_2FixtureSettings().copy(ruleGuidanceMode = RuleGuidanceMode.TIMED),
+        )
+        assertSingleDingTimingCueSettings(activeGame.settings.timingAlerts)
+
+        // complete-current-game preserves None rule guidance and the non-sequence ABBA display
+        // choice while retaining the completed current game's Undo End game path.
+        val completeCurrentGame = loadMigratedFixture("v1.2", "complete-current-game")
+        val completeCurrentState = completeCurrentGame.currentGame!!
+        assertEquals(GamePhase.GAME_OVER, completeCurrentState.phase)
+        assertEquals("Undo End game", completeCurrentState.undoEntry?.label)
+        assertProfileAndSettings(
+            completeCurrentGame,
+            fixtureProfile(),
+            v1_2FixtureSettings().copy(
+                ruleGuidanceMode = RuleGuidanceMode.NONE,
+                showAbbaRatioAsSequence = false,
+            ),
+        )
+
+        // completed-archive preserves AQI Level 2, including its water-break duration,
+        // additional between-points time, and shortened caps.
+        val completedArchive = loadMigratedFixture("v1.2", "completed-archive")
+        assertNull(completedArchive.currentGame)
+        assertEquals(2, completedArchive.archivedGames.size)
+        val richArchive = completedArchive.archivedGames.first()
+        assertEquals(GamePhase.GAME_OVER, richArchive.phase)
+        assertTrue(richArchive.rules.useAirQualityGuidelines)
+        assertEquals(HeatLevel.LEVEL_2, richArchive.rules.heatLevel)
+        assertEquals(4, richArchive.rules.waterBreakMinutes)
+        assertEquals(120, richArchive.rules.timeBetweenPointsSeconds)
+        assertEquals(70, richArchive.rules.softCapMinutes)
+        assertEquals(90, richArchive.rules.hardCapMinutes)
+        assertProfileAndSettings(
+            completedArchive,
+            fixtureProfile(),
+            v1_2FixtureSettings(),
+        )
+    }
+
     private fun loadMigratedFixture(version: String, scenario: String): AppViewModel {
         val storeDir = temporaryFolder.newFolder()
         fixtureDir(version, scenario).copyRecursively(storeDir, overwrite = true)
@@ -470,6 +546,7 @@ class TestMigration : GameDomainTestFixtures() {
     ) {
         assertEquals(expectedProfile.name, viewModel.profile.name)
         assertEquals(expectedProfile.avatarPreference, viewModel.profile.avatarPreference)
+        assertEquals(expectedSettings.ruleGuidanceMode, viewModel.settings.ruleGuidanceMode)
         assertEquals(
             expectedSettings.automaticallyAdvanceCountdowns,
             viewModel.settings.automaticallyAdvanceCountdowns,
@@ -482,6 +559,14 @@ class TestMigration : GameDomainTestFixtures() {
         assertEquals(
             expectedSettings.showAbbaRatioAsSequence,
             viewModel.settings.showAbbaRatioAsSequence,
+        )
+        assertEquals(
+            expectedSettings.fourMenThreeWomenBadgeColorArgb,
+            viewModel.settings.fourMenThreeWomenBadgeColorArgb,
+        )
+        assertEquals(
+            expectedSettings.fourWomenThreeMenBadgeColorArgb,
+            viewModel.settings.fourWomenThreeMenBadgeColorArgb,
         )
         assertEquals(expectedSettings.timingAlerts, viewModel.settings.timingAlerts)
     }
@@ -506,6 +591,13 @@ class TestMigration : GameDomainTestFixtures() {
                 cueModes = TimingCueId.entries.associateWith { TimingAlertMode.DING },
                 cueRepeatCounts = TimingCueId.entries.associateWith { 1 },
             ),
+        )
+    }
+
+    private fun v1_2FixtureSettings(): Settings {
+        return fixtureSettings().copy(
+            fourMenThreeWomenBadgeColorArgb = 0xFF7B1FA2,
+            fourWomenThreeMenBadgeColorArgb = 0xFF00897B,
         )
     }
 

@@ -33,6 +33,15 @@ persisted_scenarios = {
         "complete-current-game": ScenarioSource("complete-current-game", None),
         "completed-archive": ScenarioSource("completed-archive", None),
     },
+    # Generate from the release-preparation tree until the v1.2.0 tag exists. After tagging,
+    # point these scenarios at v1.2.0 before bumping the current tree to the next version.
+    "v1.2": {
+        "default-buckets": ScenarioSource("default-buckets", None),
+        "setup-draft": ScenarioSource("setup-draft", None),
+        "active-game": ScenarioSource("active-game", None),
+        "complete-current-game": ScenarioSource("complete-current-game", None),
+        "completed-archive": ScenarioSource("completed-archive", None),
+    },
     "v1.1": {
         "default-buckets": ScenarioSource("default-buckets", "v1.1.0"),
         "setup-draft": ScenarioSource("setup-draft", "v1.1.0"),

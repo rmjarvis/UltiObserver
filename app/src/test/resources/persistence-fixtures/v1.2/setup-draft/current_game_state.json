@@ -1,0 +1,136 @@
+{
+    "versionName": "1.2.0",
+    "versionCode": 4,
+    "data": {
+        "state": {
+            "startDate": "2026-02-14",
+            "startTime": "13:45",
+            "timeZone": "America/New_York",
+            "endEpoch": null,
+            "tournamentName": "Migration Invitational",
+            "division": "OPEN",
+            "level": "Youth",
+            "gameContext": "Pool play",
+            "observerNames": [
+                "Mike Jarvis",
+                "Casey Lee"
+            ],
+            "fieldName": "Field 7",
+            "nearEndName": "Tent",
+            "farEndName": "Scoreboard",
+            "rules": {
+                "gameTo": 15,
+                "halftimeMinutes": 7,
+                "timeBetweenPointsSeconds": 80,
+                "useHalfCap": true,
+                "halfCapMinutes": 45,
+                "useSoftCap": true,
+                "softCapMinutes": 90,
+                "useHardCap": true,
+                "hardCapMinutes": 105,
+                "timeoutsPerHalf": 2,
+                "hasFloaterTimeout": false,
+                "timeoutSeconds": 70,
+                "genderRatioRule": "ABBA",
+                "switchGenZoneAtHalftime": true,
+                "useAirQualityGuidelines": false,
+                "heatLevel": "NONE",
+                "waterBreakMinutes": 3
+            },
+            "teamOne": {
+                "name": "Bees",
+                "color": "YELLOW",
+                "customColorArgb": null,
+                "coaches": "Bee Coach",
+                "fieldCaptains": "Bee Captain",
+                "spiritCaptains": "Bee Spirit",
+                "score": 0,
+                "timeoutsUsedThisHalf": 0,
+                "firstHalfTimeoutsUsed": 0,
+                "offsides": 0,
+                "falseStarts": 0,
+                "majorityPullViolations": 0,
+                "timeViolations": 0,
+                "technicalFouls": 0,
+                "blueCards": 0
+            },
+            "teamTwo": {
+                "name": "Ferns",
+                "color": "GREEN",
+                "customColorArgb": null,
+                "coaches": "Fern Coach",
+                "fieldCaptains": "Fern Captain",
+                "spiritCaptains": "Fern Spirit",
+                "score": 0,
+                "timeoutsUsedThisHalf": 0,
+                "firstHalfTimeoutsUsed": 0,
+                "offsides": 0,
+                "falseStarts": 0,
+                "majorityPullViolations": 0,
+                "timeViolations": 0,
+                "technicalFouls": 0,
+                "blueCards": 0
+            },
+            "teamOnePlayers": [
+                {
+                    "jerseyNumber": "7",
+                    "playerName": "Bee Seven",
+                    "priorYellows": 1,
+                    "priorReds": 0,
+                    "cards": []
+                },
+                {
+                    "jerseyNumber": "18",
+                    "playerName": "",
+                    "priorYellows": 0,
+                    "priorReds": 1,
+                    "cards": []
+                }
+            ],
+            "teamTwoPlayers": [
+                {
+                    "jerseyNumber": "12",
+                    "playerName": "Fern Twelve",
+                    "priorYellows": 1,
+                    "priorReds": 0,
+                    "cards": []
+                },
+                {
+                    "jerseyNumber": "27",
+                    "playerName": "Fern Twentyseven",
+                    "priorYellows": 2,
+                    "priorReds": 0,
+                    "cards": []
+                }
+            ],
+            "eventLog": [],
+            "pullingTeam": "TEAM_TWO",
+            "pullingFromEnd": "NEAR",
+            "topDisplayedEnd": "FAR",
+            "pullPromptTarget": "FAR",
+            "initialGenderRatio": "FOUR_MEN_THREE_WOMEN",
+            "firstHalfGenZone": "FAR",
+            "openingPullingTeam": "TEAM_TWO",
+            "openingPullingFromEnd": "NEAR",
+            "phase": "SETUP",
+            "countdown": null,
+            "pullSequenceOffsidesRecorded": false,
+            "pullSequenceFalseStartRecorded": false,
+            "pullSkippedForCurrentPoint": false,
+            "pendingMisconductCountdown": false,
+            "halftimeTaken": false,
+            "halftimeTargetScore": null,
+            "halftimeHighScore": null,
+            "pendingWaterBreakOffer": false,
+            "winningScore": null,
+            "halfCapApplied": false,
+            "softCapApplied": false,
+            "hardCapApplied": false,
+            "pendingCapOffer": null,
+            "undoEntry": null,
+            "redoEntry": null
+        },
+        "undoEntry": null,
+        "redoEntry": null
+    }
+}
