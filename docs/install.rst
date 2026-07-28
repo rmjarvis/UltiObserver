@@ -34,8 +34,8 @@ release to become available.
 .. note::
 
    If it is convenient, you can reach these instructions on your phone by
-   opening UltiObserver's **About** page, tapping **Documentation**, and
-   opening **Installation**.
+   opening UltiObserver's **About** page (the small circled i at the upper left
+   of the home page), tapping **Documentation**, and opening **Installation**.
 
 .. _Open UltiObserver in Google Play: https://play.google.com/store/apps/details?id=rmjarvis.ultiobserver
 
