@@ -269,7 +269,6 @@ class TestTimeouts : GameDomainTestFixtures() {
         )
         assertEquals(GamePhase.LIVE_POINT, continuedState.phase)
         assertNull(continuedState.countdown)
-        assertEquals("Point continued.", continuedState.lastEvent)
         assertEquals("Undo Timeout by Viscous Coupling", continuedState.undoEntry?.label)
 
         // If the user has enabled defense countdowns, then the UI will have a button to report
@@ -292,7 +291,6 @@ class TestTimeouts : GameDomainTestFixtures() {
         assertEquals("Defense check in", earlyOffenseSetState.countdown?.label)
         assertEquals(30, earlyOffenseSetState.countdown?.durationSeconds)
         assertEquals(1_090_000L, earlyOffenseSetState.countdown?.targetEpoch)
-        assertEquals("Offense set; defense check started.", earlyOffenseSetState.lastEvent)
 
         // If the offense is a little late getting set, the defense has 20 seconds from
         // when the offense is set.
@@ -316,7 +314,6 @@ class TestTimeouts : GameDomainTestFixtures() {
         )
         assertEquals(GamePhase.LIVE_POINT, expiredDefenseCountdownState.phase)
         assertNull(expiredDefenseCountdownState.countdown)
-        assertEquals("Point continued.", expiredDefenseCountdownState.lastEvent)
         assertEquals(1, expiredDefenseCountdownState.teamOne.timeoutsUsedThisHalf)
         assertEquals(0, expiredDefenseCountdownState.timeoutsRemaining(VC))
         assertEquals(
@@ -742,7 +739,6 @@ class TestTimeouts : GameDomainTestFixtures() {
         assertEquals(1, state.teamTwo.timeoutsUsedThisHalf)
         assertEquals(3, state.timeoutsAllowedThisHalf(ANIMAL))
         assertEquals(2, state.timeoutsRemaining(ANIMAL))
-        assertEquals("Timeouts adjusted.", state.lastEvent)
         assertEquals("Undo Timeout adjustment", state.undoEntry?.label)
         assertEquals(beforeTimeoutAdjustment, state.undoEntry?.previous)
 

@@ -20,7 +20,6 @@ class TestMoreActions : GameDomainTestFixtures() {
         state = state.adjustScore(teamOneScore = -2, teamTwoScore = 4)
         assertEquals(0, state.teamOne.score)
         assertEquals(4, state.teamTwo.score)
-        assertEquals("Score adjusted.", state.lastEvent)
         assertEquals("Undo Score adjustment", state.undoEntry?.label)
         assertEquals(beforeScoreAdjustment, state.undoEntry?.previous)
 
@@ -54,7 +53,6 @@ class TestMoreActions : GameDomainTestFixtures() {
         assertEquals(FieldEnd.FAR, state.pullingFromEnd)
         assertEquals(PullPromptTarget.NEAR, state.pullPromptTarget)
         assertEquals(countdownBeforeFlip, state.countdown)
-        assertEquals("Field display flipped.", state.lastEvent)
         assertEquals("Undo Flip field display", state.undoEntry?.label)
         assertUndoRestores(state.undoEntry!!.previous, state)
 
@@ -117,7 +115,6 @@ class TestMoreActions : GameDomainTestFixtures() {
         assertEquals(PullPromptTarget.BOTH, state.pullPromptTarget)
         assertEquals("Pull in", state.countdown?.label)
         assertEquals(40, state.countdown?.durationSeconds)
-        assertEquals("Pull prompts changed.", state.lastEvent)
         assertEquals("Undo Change pull prompts", state.undoEntry?.label)
         assertUndoRestores(flippedDisplayState, state)
 
@@ -167,7 +164,6 @@ class TestMoreActions : GameDomainTestFixtures() {
         assertEquals(ANIMAL, state.pullingTeam)
         assertEquals(FieldEnd.NEAR, state.pullingFromEnd)
         assertEquals("Pull in", state.countdown?.label)
-        assertEquals("Pulling team swapped.", state.lastEvent)
         assertEquals("Undo Swap pulling team", state.undoEntry?.label)
         assertUndoRestores(state.undoEntry!!.previous, state)
 
@@ -282,7 +278,6 @@ class TestMoreActions : GameDomainTestFixtures() {
         assertEquals(timestampAt(state, LocalTime.of(11, 40)), state.endEpoch)
         assertNull(state.countdown)
         assertNull(state.pendingCapOffer)
-        assertEquals("Game over.", state.lastEvent)
         assertEquals("Undo End game", state.undoEntry?.label)
         assertEquals(beforeManualEnd, state.undoEntry?.previous)
 

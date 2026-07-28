@@ -825,7 +825,6 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         )
         assertTrue(aqiState.rules.useAirQualityGuidelines)
         assertEquals(6, aqiState.rules.waterBreakMinutes)
-        assertEquals("AQI level 2 in effect.", aqiState.lastEvent)
         assertEquals("Undo AQI level 2", aqiState.undoEntry?.label)
         assertTrue(aqiState.eventLog.last().useAirQualityGuidelines)
         assertTrue(aqiState.formatEventLogLines().last().endsWith("AQI level set to 2"))
@@ -940,7 +939,6 @@ class TestWaterBreaks : GameDomainTestFixtures() {
             waterBreakMinutes = 4,
             now = now + 6_000L,
         )
-        assertEquals("AQI level 3 — game suspended.", aqiSuspended.lastEvent)
         assertEquals(AQI_LEVEL_THREE_UNDO_LABEL, aqiSuspended.undoEntry?.label)
         assertEquals(
             AQI_LEVEL_THREE_UNDO_LABEL,

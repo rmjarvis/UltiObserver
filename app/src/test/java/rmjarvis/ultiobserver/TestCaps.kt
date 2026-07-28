@@ -195,7 +195,6 @@ class TestCaps : GameDomainTestFixtures() {
         assertTrue(state.halfCapApplied)
         assertEquals(2, state.halftimeTargetScore)
         assertNull(state.pendingCapOffer)
-        assertEquals("Half cap applied.", state.lastEvent)
         assertEquals("Undo Apply half cap", state.undoEntry?.label)
         assertEquals(beforeHalfCap, state.undoEntry?.previous)
 
@@ -220,7 +219,6 @@ class TestCaps : GameDomainTestFixtures() {
         assertNull(state.pendingCapOffer)
         assertFalse(state.halfCapApplied)
         assertNull(state.halftimeTargetScore)
-        assertEquals("Cap offer deferred.", state.lastEvent)
 
         // Disabled caps do not show up in the countdown helper and do not create pending offers.
         state = newCapState(
@@ -368,7 +366,6 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(animal, state.pullingTeam)
         assertEquals(FieldEnd.FAR, state.pullingFromEnd)
         assertEquals(animal, state.teamDefendingEnd(FieldEnd.FAR))
-        assertEquals("Halftime.", state.lastEvent)
         assertEquals("Undo Goal by Viscous Coupling", state.undoEntry?.label)
         assertEquals(beforeSoftCapHalftimeGoal, state.undoEntry?.previous)
         state = applyPendingCapAt(state, LocalTime.of(10, 10))
@@ -543,7 +540,6 @@ class TestCaps : GameDomainTestFixtures() {
         assertTrue(state.softCapApplied)
         assertEquals(4, state.winningScore)
         assertNull(state.pendingCapOffer)
-        assertEquals("Soft cap applied.", state.lastEvent)
         state = state.applyExpiredCountdownTransitions(
             halftimeCountdown.targetEpoch,
             showDefenseCountdowns = false,
@@ -661,7 +657,6 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(state.startDate, halfNow.startDate)
         assertEquals(state.startTime, halfNow.startTime)
         assertEquals(state.startEpoch, halfNow.startEpoch)
-        assertEquals("Half cap applied.", halfNow.lastEvent)
         assertEquals("Undo Apply half cap now", halfNow.undoEntry?.label)
         val softNow = state.makeCapNow(CapType.SOFT, timestampAfterStart(state, 42))
         assertTrue(softNow.rules.useSoftCap)
@@ -670,7 +665,6 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(state.startDate, softNow.startDate)
         assertEquals(state.startTime, softNow.startTime)
         assertEquals(state.startEpoch, softNow.startEpoch)
-        assertEquals("Soft cap applied.", softNow.lastEvent)
         assertEquals("Undo Apply soft cap now", softNow.undoEntry?.label)
         val hardNow = state.makeCapNow(CapType.HARD, timestampAfterStart(state, 42))
         assertTrue(hardNow.rules.useHardCap)
@@ -679,7 +673,6 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(state.startDate, hardNow.startDate)
         assertEquals(state.startTime, hardNow.startTime)
         assertEquals(state.startEpoch, hardNow.startEpoch)
-        assertEquals("Hard cap applied.", hardNow.lastEvent)
         assertEquals("Undo Apply hard cap now", hardNow.undoEntry?.label)
     }
 

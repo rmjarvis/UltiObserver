@@ -76,7 +76,6 @@ fun GameState.adjustTimeouts(
             timeoutsUsedThisHalf = adjustedTeamTwoTimeouts,
             firstHalfTimeoutsUsed = adjustedTeamTwoFirstHalfTimeouts,
         ),
-        lastEvent = "Timeouts adjusted.",
     ).withEventLogEntries(entries).withUndo(this, "Undo Timeout adjustment")
 }
 /**
@@ -161,7 +160,6 @@ fun GameState.chargeTimeout(
         } else {
             timeoutState.teamTwo
         },
-        lastEvent = "Timeout charged to ${timeoutState.teamName(team)}."
     )
 
     if (timeoutState.phase.isBeforeLivePoint) {
@@ -275,7 +273,7 @@ private fun applyLivePointTimeout(
     now: Long,
 ): GameState {
     val misconductState = if (state.pendingMisconductCountdown) {
-        state.startMisconductCountdown(now).copy(lastEvent = state.lastEvent)
+        state.startMisconductCountdown(now)
     } else {
         state
     }

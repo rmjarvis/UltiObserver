@@ -139,7 +139,6 @@ class TestSerialization : GameDomainTestFixtures() {
         assertEquals(previous.softCapApplied, patch.softCapApplied)
         assertEquals(previous.hardCapApplied, patch.hardCapApplied)
         assertEquals(previous.pendingCapOffer, patch.pendingCapOffer!!.value)
-        assertEquals(previous.lastEvent, patch.lastEvent)
     }
 
     /**
@@ -306,7 +305,6 @@ class TestSerialization : GameDomainTestFixtures() {
             softCapApplied = true,
             hardCapApplied = true,
             pendingCapOffer = CapType.HARD,
-            lastEvent = "Later event",
         )
     }
 
@@ -399,7 +397,6 @@ class TestSerialization : GameDomainTestFixtures() {
             softCapApplied = false,
             hardCapApplied = false,
             pendingCapOffer = null,
-            lastEvent = "Previous event",
         )
     }
 }

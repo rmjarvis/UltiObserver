@@ -165,8 +165,6 @@ internal data class GameStatePatch(
     val hardCapApplied: Boolean? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val pendingCapOffer: NullablePatchValue<CapType>? = null,
-    @EncodeDefault(EncodeDefault.Mode.NEVER)
-    val lastEvent: String? = null,
 ) {
     /**
      * Apply this patch to a later state, returning the previous state without undo/redo links.
@@ -218,7 +216,6 @@ internal data class GameStatePatch(
             pendingCapOffer = if (pendingCapOffer != null) pendingCapOffer.value else later.pendingCapOffer,
             undoEntry = null,
             redoEntry = null,
-            lastEvent = lastEvent ?: later.lastEvent,
         )
     }
 
@@ -290,7 +287,6 @@ internal data class GameStatePatch(
                 softCapApplied = previous.softCapApplied.takeIfChangedFrom(later.softCapApplied),
                 hardCapApplied = previous.hardCapApplied.takeIfChangedFrom(later.hardCapApplied),
                 pendingCapOffer = nullablePatch(later.pendingCapOffer, previous.pendingCapOffer),
-                lastEvent = previous.lastEvent.takeIfChangedFrom(later.lastEvent),
             )
         }
     }

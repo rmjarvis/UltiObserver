@@ -589,7 +589,6 @@ fun GameState.adjustBlueCardsAndTechs(
             blueCards = adjustedTeamTwoBlues,
             technicalFouls = adjustedTeamTwoTechnicalFouls,
         ),
-        lastEvent = "Adjust blue card/tech counts.",
     ).withEventLogEntries(entries).withUndo(this, "Undo Adjust blue card/tech counts")
 }
 
@@ -651,7 +650,6 @@ fun GameState.adjustCardsAndTf(
         ),
         teamOnePlayers = teamOnePlayers,
         teamTwoPlayers = teamTwoPlayers,
-        lastEvent = "Cards and technical fouls adjusted.",
     ).withEventLogEntries(entries).withUndo(this, undoLabel)
 }
 
@@ -1061,9 +1059,7 @@ fun GameState.getNextAssessmentIndex(): Int {
  * @param team The team receiving the blue card.
  */
 fun GameState.assessBlueCard(team: TeamId, now: Long): CardAssessmentResult {
-    var updatedState = this.withAddedBlueCard(team).copy(
-        lastEvent = "Blue card assessed to ${this.teamName(team)}.",
-    ).withEventLogEntry(
+    var updatedState = this.withAddedBlueCard(team).withEventLogEntry(
         EventLogEntry(
             timestampEpoch = now,
             type = EventLogType.BLUE_CARD,
@@ -1131,9 +1127,7 @@ internal fun GameState.assessTechnicalFoul(
     now: Long,
     guidanceMode: RuleGuidanceMode,
 ): CardAssessmentResult {
-    var updatedState = this.withAddedTechnicalFoul(team).copy(
-        lastEvent = "Technical foul on ${this.teamName(team)}.",
-    ).withEventLogEntry(
+    var updatedState = this.withAddedTechnicalFoul(team).withEventLogEntry(
         EventLogEntry(
             timestampEpoch = now,
             type = EventLogType.TECHNICAL_FOUL,
@@ -1486,7 +1480,6 @@ private fun GameState.addInGameYellowCard(
         ) { record ->
             record.withAddedCard(CardType.YELLOW, getNextAssessmentIndex(), reason)
         },
-        lastEvent = "Yellow card for ${teamName(team)} ${PlayerIdentity(jerseyNumber, playerName).displayText(compact = true)}.",
     )
 }
 /**
@@ -1510,7 +1503,6 @@ private fun GameState.addInGameSecondYellow(
         ) { record ->
             record.withAddedCard(CardType.YELLOW, getNextAssessmentIndex(), reason)
         },
-        lastEvent = "Second yellow for ${teamName(team)} ${PlayerIdentity(jerseyNumber, playerName).displayText(compact = true)}.",
     )
 }
 /**
@@ -1534,7 +1526,6 @@ private fun GameState.addInGameRedCard(
         ) { record ->
             record.withAddedCard(CardType.RED, getNextAssessmentIndex(), reason)
         },
-        lastEvent = "Red card for ${teamName(team)} ${PlayerIdentity(jerseyNumber, playerName).displayText(compact = true)}.",
     )
 }
 /**
@@ -1662,25 +1653,21 @@ private fun GameState.playerCardsFor(team: TeamId): List<PlayerRecord> {
     return if (team == TeamId.TEAM_ONE) teamOnePlayers else teamTwoPlayers
 }
 /**
- * Replace one team's player records and stores the related event text.
+ * Replace one team's player records.
  *
  * @param team The team whose player records should be replaced.
  * @param records The validated player records to store.
- * @param lastEvent The short event text for the live state.
  */
 private fun GameState.withPlayerCards(
     team: TeamId,
     records: List<PlayerRecord>,
-    lastEvent: String,
 ): GameState {
     return when (team) {
         TeamId.TEAM_ONE -> copy(
             teamOnePlayers = records,
-            lastEvent = lastEvent,
         )
         TeamId.TEAM_TWO -> copy(
             teamTwoPlayers = records,
-            lastEvent = lastEvent,
         )
     }
 }
@@ -2070,7 +2057,6 @@ fun GameState.startMisconductCountdown(now: Long): GameState {
             targetEpoch = now + 30_000L,
         ),
         pendingMisconductCountdown = false,
-        lastEvent = "Misconduct countdown started.",
     )
 }
 
@@ -2118,6 +2104,5 @@ fun GameState.reportOffenseSet(now: Long): GameState {
             durationSeconds = ((targetEpoch - now) / 1000L).toInt(),
             targetEpoch = targetEpoch,
         ),
-        lastEvent = "Offense set; defense check started.",
     )
 }

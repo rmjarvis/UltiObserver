@@ -56,7 +56,6 @@ fun GameState.startPullSequence(
         pullSequenceFalseStartRecorded = false,
         pullSkippedForCurrentPoint = false,
         pendingMisconductCountdown = false,
-        lastEvent = "Pull sequence started.",
     )
 }
 
@@ -116,7 +115,6 @@ fun GameState.recordGoal(
             pendingMisconductCountdown = false,
             winningScore = this.winningScore,
             pendingCapOffer = null,
-            lastEvent = "${this.teamName(scoringTeam)} scored.",
         ).withEventLogEntry(
             EventLogEntry(
                 timestampEpoch = now,
@@ -129,7 +127,6 @@ fun GameState.recordGoal(
             phase = GamePhase.GAME_OVER,
             countdown = null,
             winningScore = gameWinningScore,
-            lastEvent = "Game over.",
         ).withEventLogEntry(
             EventLogEntry(
                 timestampEpoch = now,
@@ -160,7 +157,6 @@ fun GameState.recordGoal(
         val goalState = this.copy(
             teamOne = updatedTeamOne,
             teamTwo = updatedTeamTwo,
-            lastEvent = "${this.teamName(scoringTeam)} scored.",
         ).withEventLogEntry(
             EventLogEntry(
                 timestampEpoch = now,
@@ -207,7 +203,6 @@ fun GameState.recordGoal(
         softCapApplied = this.softCapApplied,
         hardCapApplied = this.hardCapApplied,
         pendingCapOffer = pendingCapOffer,
-        lastEvent = "${this.teamName(scoringTeam)} scored.",
     ).withEventLogEntry(
         EventLogEntry(
             timestampEpoch = now,
@@ -296,7 +291,6 @@ private fun startHalftime(
         halftimeHighScore = max(teamOne.score, teamTwo.score),
         pendingWaterBreakOffer = false,
         pendingCapOffer = pendingCapOffer,
-        lastEvent = "Halftime.",
     ).withEventLogEntry(
         EventLogEntry(
             timestampEpoch = now,
@@ -321,7 +315,6 @@ fun GameState.endGameNow(
         countdown = null,
         pendingMisconductCountdown = false,
         pendingCapOffer = null,
-        lastEvent = "Game over.",
     ).withEventLogEntry(
         EventLogEntry(
             timestampEpoch = now,
@@ -350,7 +343,6 @@ fun GameState.beginLivePoint(now: Long): GameState {
         pullSequenceFalseStartRecorded = false,
         pullSkippedForCurrentPoint = false,
         pendingMisconductCountdown = false,
-        lastEvent = "Point is live.",
     ).withEventLogEntries(firstPullEntry).withUndo(this, "Undo Start point")
 }
 /**
@@ -377,7 +369,6 @@ fun GameState.continueLivePoint(): GameState {
         phase = GamePhase.LIVE_POINT,
         countdown = null,
         pendingMisconductCountdown = false,
-        lastEvent = "Point continued.",
     )
 }
 /**
@@ -488,7 +479,6 @@ private fun GameState.automaticLivePointState(now: Long): GameState {
         pullSequenceFalseStartRecorded = false,
         pullSkippedForCurrentPoint = false,
         pendingMisconductCountdown = false,
-        lastEvent = "Point is live.",
     ).withEventLogEntries(firstPullEntry).withUndo(previous, "Undo Start point")
 }
 /// Clear an expired in-point countdown without replacing the undo entry for the action that started it.
@@ -497,7 +487,6 @@ private fun GameState.automaticContinueLivePointState(): GameState {
         phase = GamePhase.LIVE_POINT,
         countdown = null,
         pendingMisconductCountdown = false,
-        lastEvent = "Point continued.",
     )
 }
 /**

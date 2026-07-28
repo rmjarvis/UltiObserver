@@ -125,7 +125,6 @@ private fun GameState.applyCap(
             halftimeTargetScore = currentHigherScore + 1,
             halfCapApplied = true,
             pendingCapOffer = null,
-            lastEvent = "Half cap applied.",
         ).withUndo(undoPrevious, undoLabel)
 
         CapType.SOFT -> this.copy(
@@ -133,7 +132,6 @@ private fun GameState.applyCap(
             softCapApplied = true,
             pendingCapOffer = null,
             pendingWaterBreakOffer = pendingWaterBreakOffer || softCapWaterBreakReached(),
-            lastEvent = "Soft cap applied.",
         ).withUndo(undoPrevious, undoLabel)
 
         CapType.HARD -> {
@@ -144,14 +142,12 @@ private fun GameState.applyCap(
                     countdown = null,
                     hardCapApplied = true,
                     pendingCapOffer = null,
-                    lastEvent = "Game over.",
                 ).withUndo(undoPrevious, undoLabel)
             } else {
                 this.copy(
                     winningScore = currentHigherScore + 1,
                     hardCapApplied = true,
                     pendingCapOffer = null,
-                    lastEvent = "Hard cap applied.",
                 ).withUndo(undoPrevious, undoLabel)
             }
         }
@@ -165,7 +161,6 @@ private fun GameState.applyCap(
 fun GameState.deferPendingCap(): GameState {
     return this.copy(
         pendingCapOffer = null,
-        lastEvent = "Cap offer deferred.",
     )
 }
 /**

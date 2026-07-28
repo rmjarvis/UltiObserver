@@ -330,7 +330,6 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertEquals(5, state.winningScore)
         assertNull(state.countdown)
         assertNull(state.pendingCapOffer)
-        assertEquals("Game over.", state.lastEvent)
         assertNotNull(state.undoEntry)
         assertEquals("Undo End game", state.undoEntry?.label)
         assertEquals(GamePhase.BETWEEN_POINTS, state.undoEntry?.previous?.phase)
@@ -382,7 +381,6 @@ class TestGameTransitions : GameDomainTestFixtures() {
         state = state.addTimeToCountdown(5)
         assertEquals(originalCountdown.targetEpoch + 5_000L, state.countdown?.targetEpoch)
         assertEquals(originalCountdown.durationSeconds, state.countdown?.durationSeconds)
-        assertEquals("Adjusted timer by 0:05.", state.lastEvent)
 
         // Cicking -5 goes the other way.
         state = state.addTimeToCountdown(-5)
@@ -392,7 +390,6 @@ class TestGameTransitions : GameDomainTestFixtures() {
             Duration.ofMillis(state.countdown!!.targetEpoch - 10_000L),
             state.countdown!!.remainingDuration(10_000L),
         )
-        assertEquals("Adjusted timer by -0:05.", state.lastEvent)
 
         // Countdown actions are no-ops when there is no active countdown to adjust.
         val livePointWithoutCountdown = state.beginLivePoint()
@@ -447,7 +444,6 @@ class TestGameTransitions : GameDomainTestFixtures() {
 
         // Duplicate resume calls are also possible from callback races, and are no-ops.
         assertEquals(state.countdown, state.countdown?.resume(30_000L))
-        assertEquals("Timer resumed.", state.lastEvent)
     }
 
     /**
@@ -612,7 +608,6 @@ class TestGameTransitions : GameDomainTestFixtures() {
         )
         assertEquals(GamePhase.LIVE_POINT, continuedState.phase)
         assertNull(continuedState.countdown)
-        assertEquals("Point continued.", continuedState.lastEvent)
     }
 
     /**
@@ -638,7 +633,6 @@ class TestGameTransitions : GameDomainTestFixtures() {
         )
         assertEquals(GamePhase.LIVE_POINT, automaticStartState.phase)
         assertNull(automaticStartState.countdown)
-        assertEquals("Point is live.", automaticStartState.lastEvent)
         assertEquals("Undo Start point", automaticStartState.undoEntry?.label)
         val expiredPullDecisionState = state.copy(
             countdown = null,

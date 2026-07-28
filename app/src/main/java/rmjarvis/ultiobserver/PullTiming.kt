@@ -401,7 +401,6 @@ private fun GameState.recordTimeViolationWarning(team: TeamId, now: Long): GameS
             target = countdownTarget,
             timing = timing,
         ),
-        lastEvent = "Time violation warning on ${this.teamName(team)}.",
     ).withEventLogEntry(
         EventLogEntry(
             timestampEpoch = now,
@@ -433,7 +432,6 @@ fun GameState.restartPullCountdown(now: Long): GameState {
             promptTarget = this.pullPromptTarget,
             rules = this.rules,
         ),
-        lastEvent = "Pull countdown restarted.",
     ).withUndo(this, "Undo Restart countdown")
 }
 
@@ -465,7 +463,6 @@ private fun GameState.recordTimeViolationTimeout(team: TeamId, now: Long): GameS
             target = countdownTarget,
             timing = rules.timeoutPullTiming(),
         ),
-        lastEvent = "Timeout charged to ${this.teamName(team)} for time violation.",
     ).withEventLogEntry(
         EventLogEntry(
             timestampEpoch = now,
@@ -565,7 +562,6 @@ private fun GameState.recordTimeViolationWithoutTimeout(team: TeamId, now: Long)
         phase = this.pullResetPhase(),
         countdown = null,
         pullSkippedForCurrentPoint = true,
-        lastEvent = "Time violation on ${this.teamName(team)}.",
     ).withEventLogEntry(
         EventLogEntry(
             timestampEpoch = now,

@@ -770,7 +770,6 @@ class TestSetup : GameDomainTestFixtures() {
         assertEquals(VC, state.teamDefendingEnd(FieldEnd.FAR))
 
         // The updated opening-pull state is undo-backed.
-        assertEquals("Pull sequence started.", state.lastEvent)
         assertEquals(CountdownKind.OPENING_PULL, state.countdown?.kind)
         assertEquals("Pull in", state.countdown?.label)
         assertEquals(40, state.countdown?.durationSeconds)

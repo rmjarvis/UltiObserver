@@ -581,7 +581,6 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertEquals(0, state.teamTwo.falseStarts)
         assertTrue(state.pullSequenceOffsidesRecorded)
         assertFalse(state.pullSequenceFalseStartRecorded)
-        assertEquals("Offsides on Viscous Coupling.", state.lastEvent)
         assertEquals("Undo Offsides on Viscous Coupling", state.undoEntry?.label)
 
         // The first offsides message sends play to the brick mark.
@@ -614,7 +613,6 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertEquals(GamePhase.LIVE_POINT, state.phase)
         assertEquals(0, state.teamOne.offsides)
         assertEquals(1, state.teamTwo.offsides)
-        assertEquals("Offsides on Animal.", state.lastEvent)
         assertEquals(
             "This is Animal's first pull violation.\n\n" +
                 "Viscous Coupling starts at the brick mark.\n\n" +
@@ -648,7 +646,6 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertEquals(1, state.teamTwo.falseStarts)
         assertFalse(state.pullSequenceOffsidesRecorded)
         assertTrue(state.pullSequenceFalseStartRecorded)
-        assertEquals("False start on Animal.", state.lastEvent)
         assertEquals("Undo False start on Animal", state.undoEntry?.label)
 
         // For a false start, the defense gets to set up.
@@ -795,7 +792,6 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertEquals(2, state.teamOne.falseStarts)
         assertEquals(3, state.teamTwo.offsides)
         assertEquals(0, state.teamTwo.falseStarts)
-        assertEquals("Pull violations adjusted.", state.lastEvent)
         assertEquals("Undo Pull violation adjustment", state.undoEntry?.label)
 
         // The More actions correction also adjusts time violations alongside the strict pull
@@ -822,7 +818,6 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertEquals(3, pullAndTimeState.teamTwo.offsides)
         assertEquals(0, pullAndTimeState.teamTwo.falseStarts)
         assertEquals(0, pullAndTimeState.teamTwo.timeViolations)
-        assertEquals("Pull violations adjusted.", pullAndTimeState.lastEvent)
         assertEquals("Undo Pull violation adjustment", pullAndTimeState.undoEntry?.label)
         assertTrue(
             pullAndTimeState.formatEventLogLines().contains(
@@ -965,7 +960,6 @@ class TestPullViolations : GameDomainTestFixtures() {
         )
         assertEquals(GamePhase.LIVE_POINT, liveAfterWarningReset.phase)
         assertNull(liveAfterWarningReset.countdown)
-        assertEquals("Point is live.", liveAfterWarningReset.lastEvent)
 
         // If this phone is prompting the pulling team, the same receiving-team warning shows the
         // full warning countdown to the pull instead of only the 20-second readiness window.

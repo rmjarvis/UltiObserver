@@ -267,7 +267,6 @@ class TestPersistence : GameDomainTestFixtures() {
         // Record an ordinary user-visible event through the same callback used by live UI actions.
         val livePointState = viewModel.currentGame!!.beginLivePoint()
         viewModel.updateCurrentGame(livePointState)
-        assertEquals("Point is live.", store.savedCurrentGames.single()!!.lastEvent)
         assertEquals(livePointState, store.savedCurrentGames.single())
         assertTrue(store.savedProfiles.isEmpty())
         assertTrue(store.savedSettings.isEmpty())

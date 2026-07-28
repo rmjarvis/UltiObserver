@@ -266,7 +266,6 @@ class TestMixed : GameDomainTestFixtures() {
         assertEquals(1, state.teamOne.majorityPullViolations)
         assertEquals(1, state.teamOne.pullViolationCount())
         assertTrue(state.pullSequenceOffsidesRecorded)
-        assertEquals("Majority pull violation on Viscous Coupling.", state.lastEvent)
         assertEquals("Undo Majority pull violation on Viscous Coupling", state.undoEntry?.label)
         assertEquals(EventLogType.MAJORITY_PULL, state.eventLog.last().type)
         assertEquals(
@@ -318,7 +317,6 @@ class TestMixed : GameDomainTestFixtures() {
             PullViolationType.MAJORITY_PULL,
         )
         assertEquals(1, animalMajorityPullResult.state.teamTwo.majorityPullViolations)
-        assertEquals("Majority pull violation on Animal.", animalMajorityPullResult.state.lastEvent)
 
         // Direct helper calls can arrive after stale UI or test setup states; normal UI disables
         // these paths.
@@ -360,7 +358,6 @@ class TestMixed : GameDomainTestFixtures() {
         assertEquals(3, state.teamTwo.offsides)
         assertEquals(0, state.teamTwo.falseStarts)
         assertEquals(0, state.teamTwo.majorityPullViolations)
-        assertEquals("Pull violations adjusted.", state.lastEvent)
         assertEquals("Undo Pull violation adjustment", state.undoEntry?.label)
 
         // The event log includes the specific majority pull adjustment.

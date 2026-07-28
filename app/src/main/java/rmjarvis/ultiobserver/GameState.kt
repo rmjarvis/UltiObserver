@@ -6,7 +6,6 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
-import kotlin.math.abs
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -540,7 +539,6 @@ data class GameState(
     val pendingCapOffer: CapType? = null,  // Set when asking whether to apply the next cap
     val undoEntry: UndoEntry? = null,
     val redoEntry: GameState? = null,
-    val lastEvent: String = "Pregame setup complete.",
 ) {
     /// Epoch millis for the scheduled game start.
     val startEpoch: Long
@@ -633,7 +631,6 @@ data class GameState(
     fun flipFieldDisplay(): GameState {
         return this.copy(
             topDisplayedEnd = this.topDisplayedEnd.flip(),
-            lastEvent = "Field display flipped.",
         ).withUndo(this, "Undo Flip field display")
     }
 
@@ -653,7 +650,6 @@ data class GameState(
             copy(
                 pullPromptTarget = target,
                 countdown = updatedCountdown,
-                lastEvent = "Pull prompts changed.",
             ).withUndo(this, "Undo Change pull prompts")
         }
     }
@@ -668,7 +664,6 @@ data class GameState(
             countdown = this.countdown?.swapOD(),
             pullSequenceOffsidesRecorded = false,
             pullSequenceFalseStartRecorded = false,
-            lastEvent = "Pulling team swapped.",
         ).withUndo(this, "Undo Swap pulling team")
     }
 
@@ -679,12 +674,8 @@ data class GameState(
      */
     fun addTimeToCountdown(seconds: Int): GameState {
         val countdown = this.countdown ?: return this
-        val sign = if (seconds < 0) "-" else ""
-        val absoluteSeconds = abs(seconds)
         return this.copy(
             countdown = countdown.copy(targetEpoch = countdown.targetEpoch + seconds * 1000L),
-            lastEvent = "Adjusted timer by $sign${absoluteSeconds / 60}:" +
-                "${(absoluteSeconds % 60).toString().padStart(2, '0')}.",
         )
     }
 
@@ -702,7 +693,6 @@ data class GameState(
         }
         return copy(
             countdown = updatedCountdown,
-            lastEvent = if (updatedCountdown.isPaused()) "Timer paused." else "Timer resumed.",
         )
     }
 
@@ -732,7 +722,6 @@ data class GameState(
         return this.copy(
             teamOne = this.teamOne.copy(score = adjustedTeamOneScore),
             teamTwo = this.teamTwo.copy(score = adjustedTeamTwoScore),
-            lastEvent = "Score adjusted.",
         ).withEventLogEntries(entries).withUndo(this, "Undo Score adjustment")
     }
 }

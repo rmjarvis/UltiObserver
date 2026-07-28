@@ -49,7 +49,6 @@ fun GameState.applyWaterBreak(now: Long): GameState {
     return copy(
         countdown = activeCountdown.extendBy(extraSeconds),
         pendingWaterBreakOffer = false,
-        lastEvent = "Water break.",
     ).withEventLogEntry(
         EventLogEntry(
             timestampEpoch = now,
@@ -195,14 +194,6 @@ fun GameState.setHeatGuidance(
             HeatLevel.LEVEL_1,
             HeatLevel.LEVEL_2 -> pendingWaterBreakOffer || offerLateWaterBreak
             else -> false
-        },
-        lastEvent = when (newHeatLevel) {
-            HeatLevel.NONE -> "${updatedRules.heatLevelLabel()} disabled."
-            HeatLevel.LEVEL_3 ->
-                "${updatedRules.heatLevelLabel()} 3 — game suspended."
-            else ->
-                "${updatedRules.heatLevelLabel()} " +
-                    "${newHeatLevel.displayText.removePrefix("Level ")} in effect."
         },
     ).withEventLogEntry(
         EventLogEntry(

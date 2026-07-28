@@ -165,7 +165,6 @@ fun GameState.adjustPullViolations(
             majorityPullViolations = adjustedTeamTwoMajorityPulls,
             timeViolations = adjustedTeamTwoTimeViolations,
         ),
-        lastEvent = "Pull violations adjusted.",
     ).withEventLogEntries(entries).withUndo(this, "Undo Pull violation adjustment")
 }
 
@@ -324,7 +323,6 @@ fun GameState.recordOffsides(now: Long): GameState {
         phase = GamePhase.LIVE_POINT,
         countdown = null,
         pullSequenceOffsidesRecorded = true,
-        lastEvent = "Offsides on ${this.teamName(team)}.",
     ).withEventLogEntry(
         EventLogEntry(
             timestampEpoch = now,
@@ -358,7 +356,6 @@ fun GameState.recordMajorityPullViolation(now: Long): GameState {
         phase = GamePhase.LIVE_POINT,
         countdown = null,
         pullSequenceOffsidesRecorded = true,
-        lastEvent = "Majority pull violation on ${this.teamName(team)}.",
     ).withEventLogEntry(
         EventLogEntry(
             timestampEpoch = now,
@@ -386,7 +383,6 @@ fun GameState.recordFalseStart(now: Long): GameState {
             this.teamTwo
         },
         pullSequenceFalseStartRecorded = true,
-        lastEvent = "False start on ${this.teamName(team)}.",
     ).withEventLogEntry(
         EventLogEntry(
             timestampEpoch = now,

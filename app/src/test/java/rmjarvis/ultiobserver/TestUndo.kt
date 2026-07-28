@@ -239,7 +239,6 @@ class TestUndo : GameDomainTestFixtures() {
         assertEquals(1, scoreEndedUndo.teamOne.score)
         assertEquals(0, scoreEndedUndo.teamTwo.score)
         assertNull(scoreEndedUndo.endEpoch)
-        assertEquals("Viscous Coupling scored.", scoreEndedUndo.lastEvent)
         assertEquals(GamePhase.LIVE_POINT, scoreEndedUndo.undoLastAction().phase)
 
         // Unavailable game-over commands are idempotent no-ops; the UI normally hides these
@@ -259,7 +258,6 @@ class TestUndo : GameDomainTestFixtures() {
         )
         assertEquals(gameOverByScore.countdown, reappliedGameOver.countdown)
         assertEquals(gameOverByScore.pendingCapOffer, reappliedGameOver.pendingCapOffer)
-        assertEquals(gameOverByScore.lastEvent, reappliedGameOver.lastEvent)
         assertEquals(scoreEndedUndo.copy(redoEntry = null), reappliedGameOver.undoEntry?.previous)
     }
 }

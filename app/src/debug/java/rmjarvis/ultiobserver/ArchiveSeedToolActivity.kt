@@ -209,7 +209,6 @@ private fun fakeCompletedGame(
         countdown = null,
         halftimeTaken = gameIndex % 2 == 0,
         winningScore = maxOf(teamOneScore, teamTwoScore),
-        lastEvent = "Game over.",
     ).pruneUndoHistory()
 }
 

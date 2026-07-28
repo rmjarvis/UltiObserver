@@ -678,7 +678,6 @@ class TestMisconduct : GameDomainTestFixtures() {
             showDefenseCountdowns = false,
         )
         assertEquals(GamePhase.LIVE_POINT, livePointAfterDefenseCheck.phase)
-        assertEquals("Point is live.", livePointAfterDefenseCheck.lastEvent)
         val laterSetState = state.reportOffenseSet(state.startEpoch + 85_000L)
         assertEquals(CountdownKind.DEFENSE_CHECK, laterSetState.countdown?.kind)
         assertEquals(20, laterSetState.countdown?.durationSeconds)
@@ -713,7 +712,6 @@ class TestMisconduct : GameDomainTestFixtures() {
         assertEquals(GamePhase.LIVE_POINT, state.phase)
         assertFalse(state.pullSkippedForCurrentPoint)
         assertNull(state.countdown)
-        assertEquals("Point is live.", state.lastEvent)
         assertFalse(state.canReportOffenseSet(true))
         assertEquals(state, state.reportOffenseSet(state.startEpoch + 91_000L))
 
@@ -1641,7 +1639,6 @@ class TestMisconduct : GameDomainTestFixtures() {
             teamTwoPlayers = correctionBefore.teamTwoPlayers,
         )
         assertEquals(correctionBefore.eventLog.size + 1, blueCorrectionAfter.eventLog.size)
-        assertEquals("Cards and technical fouls adjusted.", blueCorrectionAfter.lastEvent)
 
         // Blue-card count corrections for team 2 should use the same one-entry event-log shape.
         val teamTwoBlueCorrectionAfter = correctionBefore.adjustCardsAndTf(
@@ -1653,7 +1650,6 @@ class TestMisconduct : GameDomainTestFixtures() {
             teamTwoPlayers = correctionBefore.teamTwoPlayers,
         )
         assertEquals(correctionBefore.eventLog.size + 1, teamTwoBlueCorrectionAfter.eventLog.size)
-        assertEquals("Cards and technical fouls adjusted.", teamTwoBlueCorrectionAfter.lastEvent)
 
         // Technical-foul count corrections should log one specific count-delta entry for either
         // team.
@@ -1669,10 +1665,6 @@ class TestMisconduct : GameDomainTestFixtures() {
             correctionBefore.eventLog.size + 1,
             teamOneTechnicalFoulCorrectionAfter.eventLog.size,
         )
-        assertEquals(
-            "Cards and technical fouls adjusted.",
-            teamOneTechnicalFoulCorrectionAfter.lastEvent,
-        )
         val teamTwoTechnicalFoulCorrectionAfter = correctionBefore.adjustCardsAndTf(
             teamOneBlues = correctionBefore.teamOne.blueCards,
             teamOneTechnicalFouls = correctionBefore.teamOne.technicalFouls,
@@ -1684,10 +1676,6 @@ class TestMisconduct : GameDomainTestFixtures() {
         assertEquals(
             correctionBefore.eventLog.size + 1,
             teamTwoTechnicalFoulCorrectionAfter.eventLog.size,
-        )
-        assertEquals(
-            "Cards and technical fouls adjusted.",
-            teamTwoTechnicalFoulCorrectionAfter.lastEvent,
         )
     }
 
@@ -1730,7 +1718,6 @@ class TestMisconduct : GameDomainTestFixtures() {
         assertEquals(6, state.teamCardTotal(ANIMAL))
         assertEquals(correctedTeamOnePlayerCards, state.playerCards(VC))
         assertEquals(correctedTeamTwoPlayerCards, state.playerCards(ANIMAL))
-        assertEquals("Cards and technical fouls adjusted.", state.lastEvent)
         assertEquals("Undo Adjust blue card/tech counts", state.undoEntry?.label)
         assertEquals(beforeCardsAdjustment, state.undoEntry?.previous)
 
@@ -1788,23 +1775,6 @@ class TestMisconduct : GameDomainTestFixtures() {
             teamTwoPlayers = playerCardEditBefore.teamTwoPlayers,
         )
         assertEquals(EventLogType.YELLOW_CARD, yellowIdentityEditAfter.eventLog.last().type)
-
-        // Changing the underlying card type is a broader manual correction with a generic
-        // last-event label.
-        val cardTypeEditAfter = playerCardEditBefore.adjustCardsAndTf(
-            teamOneBlues = playerCardEditBefore.teamOne.blueCards,
-            teamOneTechnicalFouls = playerCardEditBefore.teamOne.technicalFouls,
-            teamTwoBlues = playerCardEditBefore.teamTwo.blueCards,
-            teamTwoTechnicalFouls = playerCardEditBefore.teamTwo.technicalFouls,
-            teamOnePlayers = listOf(
-                PlayerRecord(
-                    jerseyNumber = "71",
-                    cards = listOf(InGamePlayerCardEvent(CardType.RED, index = 0)),
-                )
-            ),
-            teamTwoPlayers = playerCardEditBefore.teamTwoPlayers,
-        )
-        assertEquals("Cards and technical fouls adjusted.", cardTypeEditAfter.lastEvent)
 
         // Adding or removing multiple player cards from one player records one event-log entry per
         // card.

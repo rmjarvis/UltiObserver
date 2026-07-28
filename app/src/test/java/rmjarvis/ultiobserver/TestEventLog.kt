@@ -265,7 +265,6 @@ class TestEventLog : GameDomainTestFixtures() {
         )
 
         // The undo label stays broad, while the event log lists each changed count.
-        assertEquals("Adjust blue card/tech counts.", adjusted.lastEvent)
         assertEquals("Undo Adjust blue card/tech counts", adjusted.undoEntry?.label)
         assertEquals(
             listOf(
