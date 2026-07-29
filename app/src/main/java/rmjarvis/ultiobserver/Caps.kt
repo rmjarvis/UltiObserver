@@ -144,10 +144,14 @@ private fun GameState.applyCap(
                     pendingCapOffer = null,
                 ).withUndo(undoPrevious, undoLabel)
             } else {
+                val softCapTriggersWaterBreak =
+                    softCapReached(now) && softCapWaterBreakReached()
                 this.copy(
                     winningScore = currentHigherScore + 1,
                     hardCapApplied = true,
                     pendingCapOffer = null,
+                    pendingWaterBreakOffer =
+                        pendingWaterBreakOffer || softCapTriggersWaterBreak,
                 ).withUndo(undoPrevious, undoLabel)
             }
         }

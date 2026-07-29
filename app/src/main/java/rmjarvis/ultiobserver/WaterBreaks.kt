@@ -23,7 +23,7 @@ internal fun GameState.waterBreakPromptMessage(): RuleGuidanceMessage {
         )
     } else if (
         pendingWaterBreakOffer &&
-        softCapApplied &&
+        (softCapApplied || hardCapApplied) &&
         maxOf(teamOne.score, teamTwo.score) < waterBreakScore()
     ) {
         val quarter = if (halftimeTaken) "third" else "first"

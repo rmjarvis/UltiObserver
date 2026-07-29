@@ -313,6 +313,84 @@ class TestWaterBreaks : GameDomainTestFixtures() {
             firstHalfSoftCapOffer.waterBreakPromptMessage().plainText,
         )
 
+        // When soft and hard cap both pass during a point, accepting tied hard cap still offers
+        // the soft-cap water break before the deciding point.
+        val beforeBothCaps = standardLiveGameState(
+            startTime = LocalTime.of(10, 0),
+            rules = rules.copy(
+                nominalSoftCapMinutes = 40,
+                useHardCap = true,
+                nominalHardCapMinutes = 41,
+            ),
+        ).adjustScore(teamOneScore = 10, teamTwoScore = 11).copy(
+            halftimeTaken = true,
+        ).beginLivePoint()
+        val tiedAtBothCaps = beforeBothCaps.recordGoal(
+            TeamId.TEAM_ONE,
+            timestampAt(beforeBothCaps, LocalTime.of(10, 42)),
+        )
+        assertEquals(CapType.HARD, tiedAtBothCaps.pendingCapOffer)
+        assertFalse(tiedAtBothCaps.pendingWaterBreakOffer)
+        assertFalse(tiedAtBothCaps.deferPendingCap().pendingWaterBreakOffer)
+        val bothCapsOffer = tiedAtBothCaps.applyPendingCap(
+            timestampAt(tiedAtBothCaps, LocalTime.of(10, 42)),
+        )
+        assertTrue(bothCapsOffer.hardCapApplied)
+        assertFalse(bothCapsOffer.softCapApplied)
+        assertEquals(12, bothCapsOffer.winningScore)
+        assertTrue(bothCapsOffer.pendingWaterBreakOffer)
+        assertEquals(
+            "Soft cap triggers the third-quarter water break.\n" +
+                "Take a 3-minute water break now.",
+            bothCapsOffer.waterBreakPromptMessage().plainText,
+        )
+
+        // Applying tied hard cap after the scheduled water-break score does not create another
+        // offer merely because soft cap was also due.
+        val afterScheduledBreakScore = standardLiveGameState(
+            startTime = LocalTime.of(10, 0),
+            rules = rules.copy(
+                nominalSoftCapMinutes = 40,
+                useHardCap = true,
+                nominalHardCapMinutes = 41,
+            ),
+        ).adjustScore(teamOneScore = 12, teamTwoScore = 11).copy(
+            halftimeTaken = true,
+        ).beginLivePoint().recordGoal(
+            TeamId.TEAM_TWO,
+            timestampAt(beforeBothCaps, LocalTime.of(10, 42)),
+        ).applyPendingCap(
+            timestampAt(beforeBothCaps, LocalTime.of(10, 42)),
+        )
+        assertTrue(afterScheduledBreakScore.hardCapApplied)
+        assertFalse(afterScheduledBreakScore.pendingWaterBreakOffer)
+
+        // A late-activation water-break offer that is already pending survives the same tied
+        // hard-cap path.
+        val withPendingLateOffer = standardLiveGameState(
+            startTime = LocalTime.of(10, 0),
+            rules = rules.copy(
+                nominalSoftCapMinutes = 40,
+                useHardCap = true,
+                nominalHardCapMinutes = 41,
+                heatLevel = HeatLevel.LEVEL_0,
+            ),
+        ).adjustScore(teamOneScore = 12, teamTwoScore = 11).copy(
+            halftimeTaken = true,
+        ).beginLivePoint().setHeatLevel(
+            HeatLevel.LEVEL_1,
+            timestampAt(beforeBothCaps, LocalTime.of(10, 41)),
+        )
+        assertTrue(withPendingLateOffer.pendingWaterBreakOffer)
+        val preservedLateOffer = withPendingLateOffer.recordGoal(
+            TeamId.TEAM_TWO,
+            timestampAt(withPendingLateOffer, LocalTime.of(10, 42)),
+        ).applyPendingCap(
+            timestampAt(withPendingLateOffer, LocalTime.of(10, 42)),
+        )
+        assertTrue(preservedLateOffer.hardCapApplied)
+        assertTrue(preservedLateOffer.pendingWaterBreakOffer)
+
         // A first-half soft cap after the first-quarter break score does not prompt another
         // first-half water break.
         val beforeHalftimeSoftCap = initialState.adjustScore(teamOneScore = 6, teamTwoScore = 0).copy(
