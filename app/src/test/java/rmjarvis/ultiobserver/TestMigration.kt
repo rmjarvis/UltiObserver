@@ -396,7 +396,7 @@ class TestMigration : GameDomainTestFixtures() {
         // archived completed game.
         val activeGame = loadMigratedFixture("v1.1", "active-game")
         val currentState = activeGame.currentGame!!
-        assertProfileAndSettings(activeGame, fixtureProfile(), fixtureSettings())
+        assertProfileAndSettings(activeGame, v1_1FixtureProfile(), v1_1FixtureSettings())
         assertSingleDingTimingCueSettings(activeGame.settings.timingAlerts)
         assertEquals(SetupMode.EDIT_CURRENT_GAME, activeGame.setupMode)
         assertEquals(GamePhase.BETWEEN_POINTS, currentState.phase)
@@ -461,7 +461,11 @@ class TestMigration : GameDomainTestFixtures() {
         val defaultBuckets = loadMigratedFixture("v1.2", "default-buckets")
         assertNull(defaultBuckets.currentGame)
         assertFalse(defaultBuckets.hasSetupDraft)
-        assertProfileAndSettings(defaultBuckets, Profile(), Settings())
+        assertProfileAndSettings(
+            defaultBuckets,
+            Profile(),
+            v1_2FixtureSettings("default-buckets"),
+        )
         assertTrue(defaultBuckets.archivedGames.isEmpty())
 
         // setup-draft preserves the USAU Youth default of 80 seconds between points.
@@ -471,7 +475,11 @@ class TestMigration : GameDomainTestFixtures() {
         assertEquals(80, setupDraft.setupGame.rules.nominalTimeBetweenPointsSeconds)
         assertEquals(HeatLevel.NONE, setupDraft.setupGame.rules.heatLevel)
         assertFalse(setupDraft.setupGame.rules.useAirQualityGuidelines)
-        assertProfileAndSettings(setupDraft, fixtureProfile(), v1_2FixtureSettings())
+        assertProfileAndSettings(
+            setupDraft,
+            v1_1FixtureProfile(),
+            v1_2FixtureSettings("setup-draft"),
+        )
 
         // active-game preserves custom pull timing, custom heat precautions, and Timed rule
         // guidance.
@@ -484,8 +492,8 @@ class TestMigration : GameDomainTestFixtures() {
         assertEquals(4, activeState.rules.waterBreakMinutes)
         assertProfileAndSettings(
             activeGame,
-            fixtureProfile(),
-            v1_2FixtureSettings().copy(ruleGuidanceMode = RuleGuidanceMode.TIMED),
+            v1_1FixtureProfile(),
+            v1_2FixtureSettings("active-game"),
         )
         assertSingleDingTimingCueSettings(activeGame.settings.timingAlerts)
 
@@ -497,11 +505,8 @@ class TestMigration : GameDomainTestFixtures() {
         assertEquals("Undo End game", completeCurrentState.undoEntry?.label)
         assertProfileAndSettings(
             completeCurrentGame,
-            fixtureProfile(),
-            v1_2FixtureSettings().copy(
-                ruleGuidanceMode = RuleGuidanceMode.NONE,
-                showAbbaRatioAsSequence = false,
-            ),
+            v1_1FixtureProfile(),
+            v1_2FixtureSettings("complete-current-game"),
         )
 
         // completed-archive preserves AQI Level 2, including its water-break duration,
@@ -519,8 +524,8 @@ class TestMigration : GameDomainTestFixtures() {
         assertEquals(90, richArchive.rules.hardCapMinutes)
         assertProfileAndSettings(
             completedArchive,
-            fixtureProfile(),
-            v1_2FixtureSettings(),
+            v1_1FixtureProfile(),
+            v1_2FixtureSettings("completed-archive"),
         )
     }
 
@@ -571,14 +576,16 @@ class TestMigration : GameDomainTestFixtures() {
         assertEquals(expectedSettings.timingAlerts, viewModel.settings.timingAlerts)
     }
 
-    private fun fixtureProfile(): Profile {
+    /// Expected profile shared by the customized v1.1 and v1.2 fixtures.
+    private fun v1_1FixtureProfile(): Profile {
         return Profile(
             name = "Casey Observer",
             avatarPreference = ObserverAvatarPreference.BLUE,
         )
     }
 
-    private fun fixtureSettings(): Settings {
+    /// Expected settings from the customized v1.1 fixtures.
+    private fun v1_1FixtureSettings(): Settings {
         return Settings(
             automaticallyAdvanceCountdowns = false,
             automaticallyLockLivePoint = false,
@@ -588,22 +595,46 @@ class TestMigration : GameDomainTestFixtures() {
                 soundVolume = 0.35f,
                 vibrationDurationMillis = 250L,
                 vibrateWithSounds = true,
-                cueModes = TimingCueId.entries.associateWith { TimingAlertMode.DING },
+                // The fixture predates HALFTIME_OVER, so migration adds its Beep default.
+                cueModes = TimingCueId.entries.associateWith { TimingAlertMode.DING } +
+                    (TimingCueId.HALFTIME_OVER to TimingAlertMode.BEEP),
                 cueRepeatCounts = TimingCueId.entries.associateWith { 1 },
             ),
         )
     }
 
-    private fun v1_2FixtureSettings(): Settings {
-        return fixtureSettings().copy(
+    /// Return the expected settings for one v1.2 fixture.
+    private fun v1_2FixtureSettings(fixtureName: String): Settings {
+        val customizedSettings = v1_1FixtureSettings().copy(
             fourMenThreeWomenBadgeColorArgb = 0xFF7B1FA2,
             fourWomenThreeMenBadgeColorArgb = 0xFF00897B,
         )
+        return when (fixtureName) {
+            "default-buckets" -> Settings()
+            "setup-draft",
+            "completed-archive" -> customizedSettings
+            "active-game" -> customizedSettings.copy(
+                ruleGuidanceMode = RuleGuidanceMode.TIMED,
+            )
+            "complete-current-game" -> customizedSettings.copy(
+                ruleGuidanceMode = RuleGuidanceMode.NONE,
+                showAbbaRatioAsSequence = false,
+            )
+            else -> error("Unknown v1.2 fixture: $fixtureName")
+        }
     }
 
-    private fun assertSingleDingTimingCueSettings(timingAlertPreferences: TimingAlertPreferences) {
+    private fun assertSingleDingTimingCueSettings(
+        timingAlertPreferences: TimingAlertPreferences,
+    ) {
         TimingCueId.entries.forEach { cueId ->
-            assertEquals(TimingAlertMode.DING, timingAlertPreferences.cueModes[cueId])
+            // The fixtures predate HALFTIME_OVER, so migration adds its Beep default.
+            val expectedMode = if (cueId == TimingCueId.HALFTIME_OVER) {
+                TimingAlertMode.BEEP
+            } else {
+                TimingAlertMode.DING
+            }
+            assertEquals(expectedMode, timingAlertPreferences.cueModes[cueId])
             assertEquals(1, timingAlertPreferences.cueRepeatCounts[cueId])
         }
     }

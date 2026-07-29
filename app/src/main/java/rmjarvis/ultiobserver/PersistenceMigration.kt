@@ -96,7 +96,7 @@ private val knownVersionMigrations = listOf(
         targetVersion = "1.3",
         currentGame = null,
         profile = null,
-        settings = null,
+        settings = V1_2ToV1_3::migrateSettings,
         archivedGame = null,
     ),
 )
@@ -199,6 +199,33 @@ internal fun currentPersistenceVersion(
         AppVersion(versionName, versionCode).persistenceVersion()
     ) {
         "Current app version $versionName must start with an M.m version."
+    }
+}
+
+/// Implementation details for converting version 1.2 JSON shapes to version 1.3 shapes.
+private object V1_2ToV1_3 {
+    fun migrateSettings(jsonElement: JsonElement): JsonElement {
+        val jsonObject = jsonElement.jsonObject
+        val timingAlerts = jsonObject.getValue("timingAlerts").jsonObject
+        return JsonObject(
+            jsonObject.toMutableMap().apply {
+                this["timingAlerts"] = JsonObject(
+                    timingAlerts.toMutableMap().apply {
+                        this["cueModes"] = JsonObject(
+                            getValue("cueModes").jsonObject.toMutableMap().apply {
+                                this[TimingCueId.HALFTIME_OVER.name] =
+                                    JsonPrimitive(TimingAlertMode.BEEP.name)
+                            }
+                        )
+                        this["cueRepeatCounts"] = JsonObject(
+                            getValue("cueRepeatCounts").jsonObject.toMutableMap().apply {
+                                this[TimingCueId.HALFTIME_OVER.name] = JsonPrimitive(1)
+                            }
+                        )
+                    }
+                )
+            }
+        )
     }
 }
 

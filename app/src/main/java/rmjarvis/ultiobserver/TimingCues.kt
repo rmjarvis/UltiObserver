@@ -49,6 +49,7 @@ enum class TimingCueId(
     TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL("1 minute to pull"),
     HALFTIME_FIVE_MINUTES("5 minutes"),
     HALFTIME_TWO_MINUTES("2 minutes"),
+    HALFTIME_OVER("Halftime is over"),
     HALF_CAP("Half cap"),
     SOFT_CAP("Soft cap"),
     HARD_CAP("Hard cap"),
@@ -278,5 +279,6 @@ private fun CountdownState.halftimeTimingCues(): List<TimingCue> {
     return listOf(
         TimingCue(TimingCueId.HALFTIME_FIVE_MINUTES, 5 * 60),
         TimingCue(TimingCueId.HALFTIME_TWO_MINUTES, 2 * 60),
+        TimingCue(TimingCueId.HALFTIME_OVER, 0),
     ).filter { cue -> cue.remainingSeconds <= durationSeconds }
 }

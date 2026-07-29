@@ -207,6 +207,7 @@ internal fun TimingCueId.defaultAlertMode(): TimingAlertMode {
         TimingCueId.TIMEOUT_CLEAR_FIELD,
         TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND,
         TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL,
+        TimingCueId.HALFTIME_OVER,
         -> TimingAlertMode.BEEP
         TimingCueId.HALFTIME_FIVE_MINUTES,
         TimingCueId.HALFTIME_TWO_MINUTES,

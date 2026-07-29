@@ -972,6 +972,7 @@ private val timingCueSections = listOf(
         cues = listOf(
             TimingCueId.HALFTIME_FIVE_MINUTES,
             TimingCueId.HALFTIME_TWO_MINUTES,
+            TimingCueId.HALFTIME_OVER,
         ),
     ),
     TimingCueSection(

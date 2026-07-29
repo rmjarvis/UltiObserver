@@ -64,6 +64,7 @@ class TestTimingCues : GameDomainTestFixtures() {
             TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL to TimingAlertMode.BEEP,
             TimingCueId.HALFTIME_FIVE_MINUTES to TimingAlertMode.KNOCK,
             TimingCueId.HALFTIME_TWO_MINUTES to TimingAlertMode.KNOCK,
+            TimingCueId.HALFTIME_OVER to TimingAlertMode.BEEP,
             TimingCueId.HALF_CAP to TimingAlertMode.DING,
             TimingCueId.SOFT_CAP to TimingAlertMode.DING,
             TimingCueId.HARD_CAP to TimingAlertMode.DING,
@@ -730,6 +731,10 @@ class TestTimingCues : GameDomainTestFixtures() {
         assertEquals(
             TimingCueId.HALFTIME_TWO_MINUTES,
             halftimeCountdown.dueTimingCue(301_000L)?.id,
+        )
+        assertEquals(
+            TimingCueId.HALFTIME_OVER,
+            halftimeCountdown.dueTimingCue(halftimeCountdown.targetEpoch)?.id,
         )
 
         // Halftime transition readiness only applies to an active halftime countdown.
