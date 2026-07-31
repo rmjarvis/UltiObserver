@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,7 +21,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 internal fun EventLogDialog(state: GameState, onDismiss: () -> Unit) {
     val context = LocalContext.current
-    AlertDialog(
+    ResponsiveAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Event log") },
         text = {
@@ -40,6 +39,7 @@ internal fun EventLogDialog(state: GameState, onDismiss: () -> Unit) {
         confirmButton = {
             TextActionButton(label = "OK", onClick = onDismiss)
         },
+        widthProfile = DialogWidthProfile.MODERATE,
     )
 }
 

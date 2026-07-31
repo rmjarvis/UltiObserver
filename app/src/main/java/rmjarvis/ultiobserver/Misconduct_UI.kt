@@ -2,19 +2,19 @@ package rmjarvis.ultiobserver
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -26,12 +26,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 
 /**
@@ -173,6 +177,7 @@ internal fun AdjustCardsDialog(
     state: GameState,
     now: Long,
     guidanceMode: RuleGuidanceMode,
+    isLandscape: Boolean,
     onDismiss: () -> Unit,
     onConfirm: (GameState) -> Unit,
     onStateUpdate: (GameState) -> Unit,
@@ -387,114 +392,150 @@ internal fun AdjustCardsDialog(
     // No else branch: every AdjustCardsDialogStep value is handled.
     when (val activeStep = step) {
         AdjustCardsDialogStep.CardCounts -> {
-            AlertDialog(
+            val teamSectionGap = 16.dp
+            val addCardLabels = listOf(
+                "Add yellow (${workingTeamOnePlayerCards.inGameCardCount(CardType.YELLOW)})",
+                "Add red (${workingTeamOnePlayerCards.inGameCardCount(CardType.RED)})",
+                "Add yellow (${workingTeamTwoPlayerCards.inGameCardCount(CardType.YELLOW)})",
+                "Add red (${workingTeamTwoPlayerCards.inGameCardCount(CardType.RED)})",
+            )
+            val teamOneContent: @Composable ColumnScope.(TextUnit) -> Unit = { addCardFontSize ->
+                TeamCorrectionSection(
+                    title = state.teamOne.name,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    CardCountRow(
+                        label = "Blue",
+                        value = teamOneB,
+                        testTagPrefix = "cards-adjust-team-one-blue",
+                        onIncrement = { teamOneB += 1 },
+                        onDecrement = { teamOneB = maxOf(0, teamOneB - 1) },
+                    )
+                    CardCountRow(
+                        label = "Tech",
+                        value = teamOneTf,
+                        testTagPrefix = "cards-adjust-team-one-tech",
+                        onIncrement = { teamOneTf += 1 },
+                        onDecrement = { teamOneTf = maxOf(0, teamOneTf - 1) },
+                    )
+                    PlayerCardAdjustmentActions(
+                        hasEditableCards = editablePlayerCards(
+                            workingTeamOnePlayerCards
+                        ).isNotEmpty(),
+                        yellowCount = workingTeamOnePlayerCards.inGameCardCount(CardType.YELLOW),
+                        redCount = workingTeamOnePlayerCards.inGameCardCount(CardType.RED),
+                        onEditExisting = {
+                            step = AdjustCardsDialogStep.ExistingCards(TeamId.TEAM_ONE)
+                        },
+                        onAddYellow = {
+                            step = AdjustCardsDialogStep.CardAdd(
+                                PendingManualCardAdd(
+                                    TeamId.TEAM_ONE,
+                                    CardType.YELLOW,
+                                    PlayerCardEntry(""),
+                                )
+                            )
+                        },
+                        onAddRed = {
+                            step = AdjustCardsDialogStep.CardAdd(
+                                PendingManualCardAdd(
+                                    TeamId.TEAM_ONE,
+                                    CardType.RED,
+                                    PlayerCardEntry(""),
+                                )
+                            )
+                        },
+                        addYellowTestTag = "cards-adjust-team-one-add-yellow",
+                        addRedTestTag = "cards-adjust-team-one-add-red",
+                        editExistingTestTag = "cards-adjust-team-one-edit-existing",
+                        addCardFontSize = addCardFontSize,
+                    )
+                }
+            }
+            val teamTwoContent: @Composable ColumnScope.(TextUnit) -> Unit = { addCardFontSize ->
+                TeamCorrectionSection(
+                    title = state.teamTwo.name,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    CardCountRow(
+                        label = "Blue",
+                        value = teamTwoB,
+                        testTagPrefix = "cards-adjust-team-two-blue",
+                        onIncrement = { teamTwoB += 1 },
+                        onDecrement = { teamTwoB = maxOf(0, teamTwoB - 1) },
+                    )
+                    CardCountRow(
+                        label = "Tech",
+                        value = teamTwoTf,
+                        testTagPrefix = "cards-adjust-team-two-tech",
+                        onIncrement = { teamTwoTf += 1 },
+                        onDecrement = { teamTwoTf = maxOf(0, teamTwoTf - 1) },
+                    )
+                    PlayerCardAdjustmentActions(
+                        hasEditableCards = editablePlayerCards(
+                            workingTeamTwoPlayerCards
+                        ).isNotEmpty(),
+                        yellowCount = workingTeamTwoPlayerCards.inGameCardCount(CardType.YELLOW),
+                        redCount = workingTeamTwoPlayerCards.inGameCardCount(CardType.RED),
+                        onEditExisting = {
+                            step = AdjustCardsDialogStep.ExistingCards(TeamId.TEAM_TWO)
+                        },
+                        onAddYellow = {
+                            step = AdjustCardsDialogStep.CardAdd(
+                                PendingManualCardAdd(
+                                    TeamId.TEAM_TWO,
+                                    CardType.YELLOW,
+                                    PlayerCardEntry(""),
+                                )
+                            )
+                        },
+                        onAddRed = {
+                            step = AdjustCardsDialogStep.CardAdd(
+                                PendingManualCardAdd(
+                                    TeamId.TEAM_TWO,
+                                    CardType.RED,
+                                    PlayerCardEntry(""),
+                                )
+                            )
+                        },
+                        addYellowTestTag = "cards-adjust-team-two-add-yellow",
+                        addRedTestTag = "cards-adjust-team-two-add-red",
+                        editExistingTestTag = "cards-adjust-team-two-edit-existing",
+                        addCardFontSize = addCardFontSize,
+                    )
+                }
+            }
+            ResponsiveAlertDialog(
                 onDismissRequest = onDismiss,
                 title = { Text("Adjust cards / techs") },
                 text = {
-                    ScrollableDialogRegion(
-                        verticalArrangement = Arrangement.spacedBy(14.dp),
-                    ) {
-                        TeamCorrectionSection(state.teamOne.name) {
-                            CardCountRow(
-                                label = "Blue",
-                                value = teamOneB,
-                                testTagPrefix = "cards-adjust-team-one-blue",
-                                onIncrement = { teamOneB += 1 },
-                                onDecrement = { teamOneB = maxOf(0, teamOneB - 1) },
-                            )
-                            CardCountRow(
-                                label = "Tech",
-                                value = teamOneTf,
-                                testTagPrefix = "cards-adjust-team-one-tech",
-                                onIncrement = { teamOneTf += 1 },
-                                onDecrement = { teamOneTf = maxOf(0, teamOneTf - 1) },
-                            )
-                            PlayerCardAdjustmentActions(
-                                hasEditableCards = editablePlayerCards(
-                                    workingTeamOnePlayerCards
-                                ).isNotEmpty(),
-                                yellowCount = workingTeamOnePlayerCards.inGameCardCount(
-                                    CardType.YELLOW
-                                ),
-                                redCount = workingTeamOnePlayerCards.inGameCardCount(
-                                    CardType.RED
-                                ),
-                                onEditExisting = {
-                                    step = AdjustCardsDialogStep.ExistingCards(TeamId.TEAM_ONE)
-                                },
-                                onAddYellow = {
-                                    step = AdjustCardsDialogStep.CardAdd(
-                                        PendingManualCardAdd(
-                                            TeamId.TEAM_ONE,
-                                            CardType.YELLOW,
-                                            PlayerCardEntry(""),
-                                        )
-                                    )
-                                },
-                                onAddRed = {
-                                    step = AdjustCardsDialogStep.CardAdd(
-                                        PendingManualCardAdd(
-                                            TeamId.TEAM_ONE,
-                                            CardType.RED,
-                                            PlayerCardEntry(""),
-                                        )
-                                    )
-                                },
-                                addYellowTestTag = "cards-adjust-team-one-add-yellow",
-                                addRedTestTag = "cards-adjust-team-one-add-red",
-                                editExistingTestTag = "cards-adjust-team-one-edit-existing",
-                            )
+                    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                        val teamSectionWidth = if (isLandscape) {
+                            (maxWidth - teamSectionGap) / 2f
+                        } else {
+                            maxWidth
                         }
-                        TeamCorrectionSection(state.teamTwo.name) {
-                            CardCountRow(
-                                label = "Blue",
-                                value = teamTwoB,
-                                testTagPrefix = "cards-adjust-team-two-blue",
-                                onIncrement = { teamTwoB += 1 },
-                                onDecrement = { teamTwoB = maxOf(0, teamTwoB - 1) },
+                        val addCardFontSize = addCardButtonFontSize(
+                            teamWidth = teamSectionWidth,
+                            labels = addCardLabels,
+                        )
+                        if (isLandscape) {
+                            TwoColumnDialogRegion(
+                                maxHeight = dialogBodyMaxHeight(),
+                                horizontalArrangement = Arrangement.spacedBy(teamSectionGap),
+                                showDivider = true,
+                                leftContent = { teamOneContent(addCardFontSize) },
+                                rightContent = { teamTwoContent(addCardFontSize) },
+                                footer = null,
                             )
-                            CardCountRow(
-                                label = "Tech",
-                                value = teamTwoTf,
-                                testTagPrefix = "cards-adjust-team-two-tech",
-                                onIncrement = { teamTwoTf += 1 },
-                                onDecrement = { teamTwoTf = maxOf(0, teamTwoTf - 1) },
-                            )
-                            PlayerCardAdjustmentActions(
-                                hasEditableCards = editablePlayerCards(
-                                    workingTeamTwoPlayerCards
-                                ).isNotEmpty(),
-                                yellowCount = workingTeamTwoPlayerCards.inGameCardCount(
-                                    CardType.YELLOW
-                                ),
-                                redCount = workingTeamTwoPlayerCards.inGameCardCount(
-                                    CardType.RED
-                                ),
-                                onEditExisting = {
-                                    step = AdjustCardsDialogStep.ExistingCards(TeamId.TEAM_TWO)
-                                },
-                                onAddYellow = {
-                                    step = AdjustCardsDialogStep.CardAdd(
-                                        PendingManualCardAdd(
-                                            TeamId.TEAM_TWO,
-                                            CardType.YELLOW,
-                                            PlayerCardEntry(""),
-                                        )
-                                    )
-                                },
-                                onAddRed = {
-                                    step = AdjustCardsDialogStep.CardAdd(
-                                        PendingManualCardAdd(
-                                            TeamId.TEAM_TWO,
-                                            CardType.RED,
-                                            PlayerCardEntry(""),
-                                        )
-                                    )
-                                },
-                                addYellowTestTag = "cards-adjust-team-two-add-yellow",
-                                addRedTestTag = "cards-adjust-team-two-add-red",
-                                editExistingTestTag = "cards-adjust-team-two-edit-existing",
-                            )
+                        } else {
+                            ScrollableDialogRegion(
+                                maxHeight = dialogBodyMaxHeight(),
+                                verticalArrangement = Arrangement.spacedBy(14.dp),
+                            ) {
+                                teamOneContent(addCardFontSize)
+                                teamTwoContent(addCardFontSize)
+                            }
                         }
                     }
                 },
@@ -504,6 +545,7 @@ internal fun AdjustCardsDialog(
                 dismissButton = {
                     TextActionButton(label = "Cancel", onClick = onDismiss)
                 },
+                widthProfile = DialogWidthProfile.WIDE,
             )
         }
 
@@ -538,6 +580,7 @@ internal fun AdjustCardsDialog(
                 initialEntry = pending.initialEntry,
                 candidates = recordsFor(pending.team).playerCardCandidates(),
                 cardType = pending.cardType,
+                isLandscape = isLandscape,
                 onDismiss = { step = AdjustCardsDialogStep.CardCounts },
                 onConfirm = { entry ->
                     applyManualCardAdd(pending, entry)
@@ -553,6 +596,7 @@ internal fun AdjustCardsDialog(
                 initialEntry = activeStep.initialEntry,
                 candidates = emptyList(),
                 cardType = pending.card.cardType,
+                isLandscape = isLandscape,
                 onDismiss = { step = AdjustCardsDialogStep.ExistingCards(pending.team) },
                 onConfirm = { entry ->
                     applyManualCardEdit(pending, entry)
@@ -600,21 +644,23 @@ internal fun AdjustCardsDialog(
                 )
             }
 
-            AlertDialog(
+            ResponsiveAlertDialog(
                 onDismissRequest = {
                     restoreManualCardAdd()
                 },
                 title = { Text("Same number, different names") },
                 text = {
-                    Text(
-                        "${PlayerIdentity(
-                            confirmation.conflict.existingJerseyNumber,
-                            confirmation.conflict.existingPlayerName,
-                        ).displayText(compact = false)} is already listed. Record ${PlayerIdentity(
-                            confirmation.conflict.proposedJerseyNumber,
-                            confirmation.conflict.proposedPlayerName,
-                        ).displayText(compact = false)} as a different player with the same number?"
-                    )
+                    ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
+                        Text(
+                            "${PlayerIdentity(
+                                confirmation.conflict.existingJerseyNumber,
+                                confirmation.conflict.existingPlayerName,
+                            ).displayText(compact = false)} is already listed. Record ${PlayerIdentity(
+                                confirmation.conflict.proposedJerseyNumber,
+                                confirmation.conflict.proposedPlayerName,
+                            ).displayText(compact = false)} as a different player with the same number?"
+                        )
+                    }
                 },
                 confirmButton = {
                     TextActionButton(
@@ -645,10 +691,14 @@ internal fun AdjustCardsDialog(
         }
 
         is AdjustCardsDialogStep.InvalidAssignment -> {
-            AlertDialog(
+            ResponsiveAlertDialog(
                 onDismissRequest = { step = activeStep.returnTo },
                 title = { Text("Invalid card assignment") },
-                text = { Text(activeStep.message) },
+                text = {
+                    ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
+                        Text(activeStep.message)
+                    }
+                },
                 confirmButton = {
                     TextActionButton(
                         label = "OK",
@@ -667,16 +717,21 @@ internal fun AdjustCardsDialog(
                     step = activeStep.returnTo
                 },
             ) {
-                AlertDialog(
+                ResponsiveAlertDialog(
                     onDismissRequest = { step = activeStep.returnTo },
                     title = { Text("Card suspension") },
-                    text = { RuleGuidanceText(activeStep.message) },
+                    text = {
+                        ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
+                            RuleGuidanceText(activeStep.message)
+                        }
+                    },
                     confirmButton = {
                         TextActionButton(
                             label = "OK",
                             onClick = { step = activeStep.returnTo },
                         )
                     },
+                    widthProfile = DialogWidthProfile.MODERATE,
                 )
             }
         }
@@ -721,10 +776,11 @@ private sealed interface TeamCardDialogStep {
 /**
  * Render the dialog flow for recording a card for one team.
  *
- * @param state The current live game state used for team names, card summaries, and assessments.
+ * @param state The current game state used for team names, card summaries, and assessments.
  * @param team The team receiving the card.
  * @param now The current epoch millis for event logging.
  * @param guidanceMode Amount and duration of rule guidance shown during the workflow.
+ * @param isLandscape Whether to arrange orientation-specific dialog content for landscape.
  * @param onDismiss Callback closing the card dialog without recording.
  * @param onAssessment Callback receiving the completed state and popup event after a card.
  * @param onStateOnly Callback receiving the completed state when the confirmation dialog already showed the result.
@@ -736,6 +792,7 @@ internal fun TeamCardDialog(
     team: TeamId,
     now: Long,
     guidanceMode: RuleGuidanceMode,
+    isLandscape: Boolean,
     onDismiss: () -> Unit,
     onAssessment: (GameState, GameEvent) -> Unit,
     onStateOnly: (GameState) -> Unit,
@@ -1031,6 +1088,7 @@ internal fun TeamCardDialog(
                 initialEntry = activeStep.initialEntry,
                 candidates = emptyList(),
                 cardType = pending.card.cardType,
+                isLandscape = isLandscape,
                 onDismiss = { step = TeamCardDialogStep.ExistingCards(pending.team) },
                 onConfirm = { entry ->
                     applyExistingCardEdit(pending, entry)
@@ -1044,6 +1102,7 @@ internal fun TeamCardDialog(
                 initialEntry = activeStep.initialEntry,
                 candidates = state.cardedPlayerCandidates(activeStep.team),
                 cardType = activeStep.cardType,
+                isLandscape = isLandscape,
                 onDismiss = { step = TeamCardDialogStep.InitialCardChoice },
                 onConfirm = { entry ->
                     assessPlayerCardEntry(
@@ -1056,7 +1115,7 @@ internal fun TeamCardDialog(
         }
         is TeamCardDialogStep.SameNumberConfirmation -> {
             val confirmation = activeStep.confirmation
-            AlertDialog(
+            ResponsiveAlertDialog(
                 onDismissRequest = {
                     step = cardedPlayerEntryStep(
                         confirmation.team,
@@ -1066,15 +1125,17 @@ internal fun TeamCardDialog(
                 },
                 title = { Text("Same number, different names") },
                 text = {
-                    Text(
-                        "${PlayerIdentity(
-                            confirmation.conflict.existingJerseyNumber,
-                            confirmation.conflict.existingPlayerName,
-                        ).displayText(compact = false)} is already listed. Record ${PlayerIdentity(
-                            confirmation.conflict.proposedJerseyNumber,
-                            confirmation.conflict.proposedPlayerName,
-                        ).displayText(compact = false)} as a different player with the same number?"
-                    )
+                    ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
+                        Text(
+                            "${PlayerIdentity(
+                                confirmation.conflict.existingJerseyNumber,
+                                confirmation.conflict.existingPlayerName,
+                            ).displayText(compact = false)} is already listed. Record ${PlayerIdentity(
+                                confirmation.conflict.proposedJerseyNumber,
+                                confirmation.conflict.proposedPlayerName,
+                            ).displayText(compact = false)} as a different player with the same number?"
+                        )
+                    }
                 },
                 confirmButton = {
                     TextActionButton(
@@ -1105,10 +1166,14 @@ internal fun TeamCardDialog(
             )
         }
         is TeamCardDialogStep.InvalidAssignment -> {
-            AlertDialog(
+            ResponsiveAlertDialog(
                 onDismissRequest = { step = activeStep.returnTo },
                 title = { Text("Invalid card assignment") },
-                text = { Text(activeStep.message) },
+                text = {
+                    ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
+                        Text(activeStep.message)
+                    }
+                },
                 confirmButton = {
                     TextActionButton(label = "OK", onClick = { step = activeStep.returnTo })
                 },
@@ -1123,13 +1188,18 @@ internal fun TeamCardDialog(
                     step = activeStep.returnTo
                 },
             ) {
-                AlertDialog(
+                ResponsiveAlertDialog(
                     onDismissRequest = { step = activeStep.returnTo },
                     title = { Text("Card suspension") },
-                    text = { RuleGuidanceText(activeStep.message) },
+                    text = {
+                        ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
+                            RuleGuidanceText(activeStep.message)
+                        }
+                    },
                     confirmButton = {
                         TextActionButton(label = "OK", onClick = { step = activeStep.returnTo })
                     },
+                    widthProfile = DialogWidthProfile.MODERATE,
                 )
             }
         }
@@ -1152,13 +1222,15 @@ internal fun TeamCardDialog(
                 requiredInNone = event.requiresGuidanceInNone(),
                 onAutoAccept = applyBlueCard,
             ) {
-                AlertDialog(
+                ResponsiveAlertDialog(
                     onDismissRequest = { step = TeamCardDialogStep.InitialCardChoice },
                     title = { Text("Blue Card") },
                     text = {
-                        RuleGuidanceText(
-                            message = event.misconductConfirmationMessage(guidanceMode),
-                        )
+                        ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
+                            RuleGuidanceText(
+                                message = event.misconductConfirmationMessage(guidanceMode),
+                            )
+                        }
                     },
                     confirmButton = {
                         if (misconductPrompt == null) {
@@ -1207,19 +1279,22 @@ internal fun TeamCardDialog(
                     } else {
                         null
                     },
+                    widthProfile = DialogWidthProfile.MODERATE,
                 )
             }
         }
         is TeamCardDialogStep.OffenseDefenseChoice -> {
             val pending = activeStep.pending
             val prompt = GamePrompt.LivePointMisconduct(pending.result.event)
-            AlertDialog(
+            ResponsiveAlertDialog(
                 onDismissRequest = {
                     step = stepForPendingMisconductReturn(pending.returnTo)
                 },
                 title = { Text(prompt.formatTitle()) },
                 text = {
-                    RuleGuidanceText(prompt.formatMessage())
+                    ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
+                        RuleGuidanceText(prompt.formatMessage())
+                    }
                 },
                 confirmButton = {
                     MisconductChoiceButtons(
@@ -1244,20 +1319,23 @@ internal fun TeamCardDialog(
                         },
                     )
                 },
+                widthProfile = DialogWidthProfile.MODERATE,
             )
         }
         is TeamCardDialogStep.MisconductResolution -> {
             val pending = activeStep.pending
             val prompt = GamePrompt.LivePointMisconduct(pending.choice.result.event)
-            AlertDialog(
+            ResponsiveAlertDialog(
                 onDismissRequest = {
                     step = stepForMisconductResolutionDismissal(pending.choice)
                 },
                 title = { Text(prompt.formatTitle()) },
                 text = {
-                    RuleGuidanceText(
-                        prompt.resolutionMessage(pending.againstOffense)
-                    )
+                    ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
+                        RuleGuidanceText(
+                            prompt.resolutionMessage(pending.againstOffense)
+                        )
+                    }
                 },
                 confirmButton = {
                     TextActionButton(
@@ -1278,6 +1356,7 @@ internal fun TeamCardDialog(
                         },
                     )
                 },
+                widthProfile = DialogWidthProfile.MODERATE,
             )
         }
     }
@@ -1286,7 +1365,7 @@ internal fun TeamCardDialog(
 /**
  * Render the first card dialog, where the observer chooses the assessed card color.
  *
- * @param state The current live game state used for team names and counts.
+ * @param state The current game state used for team names and counts.
  * @param team The team receiving the card.
  * @param onYellow Callback starting the yellow-card workflow.
  * @param onRed Callback starting the red-card workflow.
@@ -1310,11 +1389,14 @@ private fun CardChoiceDialog(
     val redCount = state.teamRedCards(team)
     val blueCount = teamState.blueCards
     val hasEditableCards = editablePlayerCards(state.playerCards(team)).isNotEmpty()
-    AlertDialog(
+    ResponsiveAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Assess a card") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            ScrollableDialogRegion(
+                maxHeight = dialogBodyMaxHeight(),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 Text("${teamState.name}$roleSuffix", fontWeight = FontWeight.SemiBold)
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1350,14 +1432,11 @@ private fun CardChoiceDialog(
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text("Current cards:", style = MaterialTheme.typography.bodyMedium)
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(0.dp),
+                    Text(
+                        "$yellowCount yellow / $redCount red / $blueCount blue",
                         modifier = Modifier.padding(start = 18.dp),
-                    ) {
-                        Text("$yellowCount yellow", style = MaterialTheme.typography.bodyMedium)
-                        Text("$redCount red", style = MaterialTheme.typography.bodyMedium)
-                        Text("$blueCount blue", style = MaterialTheme.typography.bodyMedium)
-                    }
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                     Text(
                         state.teamCardTotalDetailLine(team),
                         style = MaterialTheme.typography.bodyMedium
@@ -1425,6 +1504,7 @@ private fun CardCountRow(
  * @param addYellowTestTag Test tag for the add-yellow action.
  * @param addRedTestTag Test tag for the add-red action.
  * @param editExistingTestTag Test tag for the existing-card editor action.
+ * @param addCardFontSize Font size fitted to the available Add-card button width.
  */
 @Composable
 private fun PlayerCardAdjustmentActions(
@@ -1437,9 +1517,13 @@ private fun PlayerCardAdjustmentActions(
     addYellowTestTag: String,
     addRedTestTag: String,
     editExistingTestTag: String,
+    addCardFontSize: TextUnit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
             BigActionButton(
                 label = "Add yellow ($yellowCount)",
                 containerColor = YellowCardButtonColor,
@@ -1447,6 +1531,8 @@ private fun PlayerCardAdjustmentActions(
                 borderColor = null,
                 onClick = onAddYellow,
                 modifier = Modifier.weight(1f),
+                fontSize = addCardFontSize,
+                textOverflow = TextOverflow.Clip,
                 tag = addYellowTestTag,
             )
             BigActionButton(
@@ -1456,6 +1542,8 @@ private fun PlayerCardAdjustmentActions(
                 borderColor = null,
                 onClick = onAddRed,
                 modifier = Modifier.weight(1f),
+                fontSize = addCardFontSize,
+                textOverflow = TextOverflow.Clip,
                 tag = addRedTestTag,
             )
         }
@@ -1467,6 +1555,40 @@ private fun PlayerCardAdjustmentActions(
             onClick = onEditExisting,
         )
     }
+}
+
+/**
+ * Return one font size for all Add-card buttons in the card-adjustment dialog.
+ *
+ * These labels shrink uniformly when necessary so both team columns can remain side by side in
+ * landscape without truncating the card labels.
+ */
+@Composable
+private fun addCardButtonFontSize(
+    teamWidth: Dp,
+    labels: List<String>,
+): TextUnit {
+    val preferredStyle = MaterialTheme.typography.labelLarge
+    val textMeasurer = rememberTextMeasurer()
+    val measuredLabelWidth = labels.maxOf { label ->
+        textMeasurer.measure(
+            text = AnnotatedString(label),
+            style = preferredStyle,
+            maxLines = 1,
+            softWrap = false,
+        ).size.width
+    }
+    val density = LocalDensity.current
+    val availableLabelWidth = with(density) {
+        ((teamWidth - 8.dp) / 2f - 16.dp).coerceAtLeast(1.dp).toPx()
+    }
+    val widthScale = if (measuredLabelWidth > 0) {
+        val measuredScale = availableLabelWidth / measuredLabelWidth
+        if (measuredScale < 1f) measuredScale * 0.96f else 1f
+    } else {
+        1f
+    }
+    return preferredStyle.fontSize * widthScale
 }
 
 /**
@@ -1545,7 +1667,7 @@ private fun EditablePlayerCardsDialog(
     onEdit: (EditablePlayerCard) -> Unit,
     onRemove: ((EditablePlayerCard) -> Unit)? = null,
 ) {
-    AlertDialog(
+    ResponsiveAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Edit existing cards") },
         text = {
@@ -1588,11 +1710,16 @@ private fun RemoveEditablePlayerCardDialog(
     val playerIdentity = PlayerIdentity(card.jerseyNumber, card.playerName)
         .displayText(compact = false)
 
-    AlertDialog(
+    ResponsiveAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Remove card?") },
         text = {
-            Text("Remove this ${card.cardType.label.lowercase()} card assessed to $playerIdentity?")
+            ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
+                Text(
+                    "Remove this ${card.cardType.label.lowercase()} card assessed to " +
+                        "$playerIdentity?"
+                )
+            }
         },
         confirmButton = {
             TextActionButton(label = "Remove", onClick = onConfirm)
@@ -1616,6 +1743,7 @@ private fun editablePlayerCardIdentityText(card: EditablePlayerCard): String {
  * @param initialEntry Card details to restore when returning from a later dialog step.
  * @param candidates Known carded players for this team.
  * @param cardType The card being assessed.
+ * @param isLandscape Whether to arrange orientation-specific dialog content for landscape.
  * @param onDismiss Callback closing the dialog without recording.
  * @param onConfirm Callback receiving the entered card details.
  */
@@ -1626,6 +1754,7 @@ private fun PlayerCardEntryDialog(
     initialEntry: PlayerCardEntry,
     candidates: List<PlayerCardCandidate>,
     cardType: CardType,
+    isLandscape: Boolean,
     onDismiss: () -> Unit,
     onConfirm: (PlayerCardEntry) -> Unit,
 ) {
@@ -1645,6 +1774,7 @@ private fun PlayerCardEntryDialog(
         CardReasonDialog(
             cardType = cardType,
             initialReason = reason,
+            isLandscape = isLandscape,
             onDismiss = { showingReasonDialog = false },
             onConfirm = { selectedReason ->
                 reason = selectedReason
@@ -1652,7 +1782,7 @@ private fun PlayerCardEntryDialog(
             },
         )
     } else {
-        AlertDialog(
+        ResponsiveAlertDialog(
             modifier = dialogInitialFocusModifier(),
             onDismissRequest = onDismiss,
             title = { Text(title) },
@@ -1753,6 +1883,7 @@ private fun PlayerCardCandidateRow(candidate: PlayerCardCandidate, onCopy: () ->
  *
  * @param cardType The card being assessed.
  * @param initialReason Existing reason fields to restore.
+ * @param isLandscape Whether to arrange the reason choices in landscape columns.
  * @param onDismiss Callback closing the reason dialog without changing the reason.
  * @param onConfirm Callback receiving the selected reason.
  */
@@ -1760,6 +1891,7 @@ private fun PlayerCardCandidateRow(candidate: PlayerCardCandidate, onCopy: () ->
 private fun CardReasonDialog(
     cardType: CardType,
     initialReason: CardReason,
+    isLandscape: Boolean,
     onDismiss: () -> Unit,
     onConfirm: (CardReason) -> Unit,
 ) {
@@ -1774,53 +1906,75 @@ private fun CardReasonDialog(
         mutableStateOf(initialReason.details)
     }
     val focusManager = LocalFocusManager.current
-
-    AlertDialog(
+    val choices = presets + "Other"
+    val selectChoice: (String) -> Unit = { choice ->
+        focusManager.clearFocus(force = true)
+        selectedPreset = choice
+    }
+    val reasonFields: @Composable ColumnScope.() -> Unit = {
+        if (selectedPreset == "Other") {
+            TextEntry(
+                value = otherReason,
+                onValueChange = { otherReason = it },
+                labelText = "Other reason",
+                tag = "card-other-reason",
+            )
+        }
+        TextEntry(
+            value = details,
+            onValueChange = { details = it },
+            labelText = "More details",
+            singleLine = false,
+            tag = "card-reason-details",
+        )
+    }
+    ResponsiveAlertDialog(
         modifier = dialogInitialFocusModifier(),
         onDismissRequest = onDismiss,
         title = { Text("${cardType.label} card reason") },
         text = {
-            ScrollableDialogRegion(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                    modifier = Modifier.width(IntrinsicSize.Max),
+            if (isLandscape) {
+                val leftChoices = choices.filterIndexed { index, _ -> index % 2 == 0 }
+                val rightChoices = choices.filterIndexed { index, _ -> index % 2 == 1 }
+                TwoColumnDialogRegion(
+                    maxHeight = dialogBodyMaxHeight(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    columnArrangement = Arrangement.spacedBy(4.dp),
+                    showDivider = false,
+                    leftContent = {
+                        leftChoices.forEach { choice ->
+                            ReasonChoiceButton(
+                                label = choice,
+                                selected = selectedPreset == choice,
+                                onClick = { selectChoice(choice) },
+                            )
+                        }
+                    },
+                    rightContent = {
+                        rightChoices.forEach { choice ->
+                            ReasonChoiceButton(
+                                label = choice,
+                                selected = selectedPreset == choice,
+                                onClick = { selectChoice(choice) },
+                            )
+                        }
+                    },
+                    footer = reasonFields,
+                )
+            } else {
+                ScrollableDialogRegion(
+                    maxHeight = dialogBodyMaxHeight(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    presets.forEach { preset ->
+                    choices.forEach { choice ->
                         ReasonChoiceButton(
-                            label = preset,
-                            selected = selectedPreset == preset,
-                            onClick = {
-                                focusManager.clearFocus(force = true)
-                                selectedPreset = preset
-                            },
+                            label = choice,
+                            selected = selectedPreset == choice,
+                            onClick = { selectChoice(choice) },
                         )
                     }
-                    ReasonChoiceButton(
-                        label = "Other",
-                        selected = selectedPreset == "Other",
-                        onClick = {
-                            focusManager.clearFocus(force = true)
-                            selectedPreset = "Other"
-                        },
-                    )
+                    reasonFields()
                 }
-                if (selectedPreset == "Other") {
-                    TextEntry(
-                        value = otherReason,
-                        onValueChange = { otherReason = it },
-                        labelText = "Other reason",
-                        tag = "card-other-reason",
-                    )
-                }
-                TextEntry(
-                    value = details,
-                    onValueChange = { details = it },
-                    labelText = "More details",
-                    singleLine = false,
-                    tag = "card-reason-details",
-                )
             }
         },
         confirmButton = {
@@ -1851,10 +2005,19 @@ private fun CardReasonDialog(
  * @param onClick Callback selecting this preset.
  */
 @Composable
-private fun ReasonChoiceButton(label: String, selected: Boolean, onClick: () -> Unit) {
+private fun ReasonChoiceButton(
+    label: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
     ChoiceChipButton(
         label = label,
         selected = selected,
+        modifier = modifier,
+        maxLines = 2,
+        softWrap = true,
+        textOverflow = TextOverflow.Clip,
         onClick = onClick,
     )
 }

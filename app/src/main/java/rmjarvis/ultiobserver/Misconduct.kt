@@ -374,8 +374,8 @@ internal fun cardReasonPresets(cardType: CardType): List<String> {
             "Verbal abuse",
         )
         CardType.RED -> listOf(
-            "Battery/fighting",
             "Egregious dangerous play",
+            "Battery/fighting",
             "Physical aggression",
             "Egregious verbal abuse",
         )

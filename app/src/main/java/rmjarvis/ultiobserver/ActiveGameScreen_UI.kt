@@ -369,6 +369,7 @@ internal fun ActiveGameScreen(
             team = team,
             now = now,
             guidanceMode = settings.ruleGuidanceMode,
+            isLandscape = usesLandscapeLayout,
             onDismiss = { pendingCardTeam = null },
             onAssessment = { updatedState, event ->
                 onStateChange(updatedState)

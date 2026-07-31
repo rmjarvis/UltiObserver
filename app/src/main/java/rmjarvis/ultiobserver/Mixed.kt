@@ -1,6 +1,6 @@
 package rmjarvis.ultiobserver
 
-/// Return whether this live game uses mixed-division gender-ratio rules.
+/// Return whether this game uses mixed-division gender-ratio rules.
 fun GameState.usesMixedDivision(): Boolean {
     return division == GameDivision.MIXED
 }

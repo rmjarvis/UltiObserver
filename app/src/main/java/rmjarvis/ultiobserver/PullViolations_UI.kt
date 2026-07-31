@@ -1,7 +1,6 @@
 package rmjarvis.ultiobserver
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -36,7 +35,7 @@ internal fun AdjustPullViolationsDialog(
     var teamTwoTimeViolations by remember { mutableStateOf(state.teamTwo.timeViolations) }
     val showMajorityPullRows = state.usesMixedDivision()
 
-    AlertDialog(
+    ResponsiveAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Adjust pull violations") },
         text = {
@@ -131,5 +130,6 @@ internal fun AdjustPullViolationsDialog(
         dismissButton = {
             TextActionButton(label = "Cancel", onClick = onDismiss)
         },
+        widthProfile = DialogWidthProfile.COMPACT,
     )
 }

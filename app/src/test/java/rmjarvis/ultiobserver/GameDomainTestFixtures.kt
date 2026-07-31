@@ -103,7 +103,7 @@ abstract class GameDomainTestFixtures {
         setup: GameState,
         now: Long,
     ): GameState {
-        return applySetupEditToLiveGame(existing, setup, now)
+        return applySetupEditToActiveGame(existing, setup, now)
     }
 
     /**

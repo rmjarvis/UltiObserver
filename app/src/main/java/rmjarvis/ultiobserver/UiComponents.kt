@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
@@ -38,6 +40,8 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AlertDialogDefaults
+import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.Button
@@ -49,19 +53,23 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -81,6 +89,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.changedToDown
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -98,6 +107,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -105,6 +115,13 @@ import com.github.skydoves.colorpicker.compose.HsvColorPicker
 import com.github.skydoves.colorpicker.compose.rememberColorPickerController
 
 private const val KEYBOARD_DIALOG_HEIGHT_FRACTION = 0.60f
+
+/// Width profiles for responsive dialogs.
+internal enum class DialogWidthProfile {
+    COMPACT,
+    MODERATE,
+    WIDE,
+}
 
 internal val NavigationButtonShape: Shape
     @Composable get() = ButtonDefaults.shape
@@ -139,6 +156,120 @@ private val OptionBorderDarkColor = Color(0xFF9A8432)
 @Composable
 internal fun keyboardDialogBodyMaxHeight(): Dp {
     return screenHeightFraction(KEYBOARD_DIALOG_HEIGHT_FRACTION)
+}
+
+@Composable
+internal fun dialogBodyMaxHeight(): Dp {
+    val configuration = LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp.toFloat()
+    val screenHeight = configuration.screenHeightDp.toFloat()
+    val landscapeSurplus = (screenWidth - screenHeight).coerceAtLeast(0f)
+    val aspectPressure = (
+        screenWidth / screenHeight.coerceAtLeast(1f) - 1f
+        ).coerceIn(0f, 1f)
+    val heightFraction = if (landscapeSurplus > 0f) {
+        0.68f - aspectPressure * 0.04f
+    } else {
+        KEYBOARD_DIALOG_HEIGHT_FRACTION
+    }
+    return screenHeightFraction(heightFraction)
+}
+
+/**
+ * Render an alert dialog with responsive landscape width and fixed title and action regions.
+ *
+ * Portrait retains the platform dialog width. In landscape, compact dialogs stay near their
+ * natural width, ordinary action dialogs receive moderate extra width, and prose-heavy or
+ * multi-column dialogs can use more of the available horizontal space. Callers explicitly choose
+ * the appropriate scrollable body region.
+ */
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+internal fun ResponsiveAlertDialog(
+    onDismissRequest: () -> Unit,
+    title: @Composable () -> Unit,
+    text: @Composable () -> Unit,
+    confirmButton: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    dismissButton: (@Composable () -> Unit)? = null,
+    widthProfile: DialogWidthProfile = DialogWidthProfile.MODERATE,
+) {
+    val configuration = LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp.toFloat()
+    val screenHeight = configuration.screenHeightDp.toFloat()
+    val landscapeSurplus = (screenWidth - screenHeight).coerceAtLeast(0f)
+    val usesResponsiveLandscapeWidth = landscapeSurplus > 0f
+    val availableWidth = (screenWidth - 48f).coerceAtLeast(280f)
+    val preferredWidth = when (widthProfile) {
+        DialogWidthProfile.COMPACT -> 340f + landscapeSurplus * 0.05f
+        DialogWidthProfile.MODERATE -> 420f + landscapeSurplus * 0.20f
+        DialogWidthProfile.WIDE -> 520f + landscapeSurplus * 0.50f
+    }
+    val dialogModifier = if (usesResponsiveLandscapeWidth) {
+        modifier.widthIn(
+            min = minOf(availableWidth, preferredWidth).dp,
+            max = minOf(availableWidth, preferredWidth).dp,
+        )
+    } else {
+        modifier
+    }
+    BasicAlertDialog(
+        onDismissRequest = onDismissRequest,
+        modifier = dialogModifier,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = !usesResponsiveLandscapeWidth,
+        ),
+    ) {
+        Surface(
+            shape = AlertDialogDefaults.shape,
+            color = AlertDialogDefaults.containerColor,
+            tonalElevation = AlertDialogDefaults.TonalElevation,
+        ) {
+            Column(
+                modifier = Modifier.padding(
+                    start = 24.dp,
+                    top = 24.dp,
+                    end = 24.dp,
+                    bottom = 4.dp,
+                ),
+            ) {
+                CompositionLocalProvider(
+                    LocalContentColor provides AlertDialogDefaults.titleContentColor,
+                ) {
+                    ProvideTextStyle(MaterialTheme.typography.headlineSmall) {
+                        Box(modifier = Modifier.padding(bottom = 16.dp)) {
+                            title()
+                        }
+                    }
+                }
+                CompositionLocalProvider(
+                    LocalContentColor provides AlertDialogDefaults.textContentColor,
+                ) {
+                    ProvideTextStyle(MaterialTheme.typography.bodyMedium) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f, fill = false)
+                                .padding(bottom = 4.dp),
+                        ) {
+                            text()
+                        }
+                    }
+                }
+                CompositionLocalProvider(
+                    LocalMinimumInteractiveComponentSize provides 40.dp,
+                ) {
+                    FlowRow(
+                        modifier = Modifier.align(Alignment.End),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        dismissButton?.invoke()
+                        confirmButton()
+                    }
+                }
+            }
+        }
+    }
 }
 
 /// Return a modifier that parks initial dialog focus on a non-keyboard surface.
@@ -184,8 +315,7 @@ internal fun ScrollableDialogRegion(
             .heightIn(max = maxHeight),
     ) {
         Column(
-            modifier = Modifier
-                .verticalScroll(scrollState),
+            modifier = Modifier.verticalScroll(scrollState),
             verticalArrangement = verticalArrangement,
             content = content,
         )
@@ -206,6 +336,72 @@ internal fun ScrollableDialogRegion(
                 )
             }
         }
+    }
+}
+
+/**
+ * Render two dialog columns that scroll together with shared overflow indicators.
+ *
+ * @param modifier Optional modifier for the outer scroll region.
+ * @param maxHeight Maximum height before the body scrolls.
+ * @param horizontalArrangement Horizontal spacing for the two-column row.
+ * @param verticalArrangement Vertical spacing between the columns and optional footer.
+ * @param columnArrangement Vertical spacing within each column.
+ * @param showDivider Whether to draw a vertical divider between the columns.
+ * @param showBottomChevron Whether to show a down-chevron below the bottom fade.
+ * @param leftContent Content for the left column.
+ * @param rightContent Content for the right column.
+ * @param footer Optional full-width content below the columns.
+ */
+@Composable
+internal fun TwoColumnDialogRegion(
+    modifier: Modifier = Modifier,
+    maxHeight: Dp = keyboardDialogBodyMaxHeight(),
+    horizontalArrangement: Arrangement.Horizontal = Arrangement.spacedBy(12.dp),
+    verticalArrangement: Arrangement.Vertical = Arrangement.spacedBy(12.dp),
+    columnArrangement: Arrangement.Vertical = Arrangement.spacedBy(8.dp),
+    showDivider: Boolean,
+    showBottomChevron: Boolean = true,
+    leftContent: @Composable ColumnScope.() -> Unit,
+    rightContent: @Composable ColumnScope.() -> Unit,
+    footer: (@Composable ColumnScope.() -> Unit)?,
+) {
+    val density = LocalDensity.current
+    var columnsHeightPx by remember { mutableIntStateOf(0) }
+    ScrollableDialogRegion(
+        modifier = modifier,
+        maxHeight = maxHeight,
+        verticalArrangement = verticalArrangement,
+        showBottomChevron = showBottomChevron,
+    ) {
+        Box {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onSizeChanged { columnsHeightPx = it.height },
+                horizontalArrangement = horizontalArrangement,
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = columnArrangement,
+                    content = leftContent,
+                )
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = columnArrangement,
+                    content = rightContent,
+                )
+            }
+            if (showDivider) {
+                VerticalDivider(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .height(with(density) { columnsHeightPx.toDp() }),
+                    color = MaterialTheme.colorScheme.outline,
+                )
+            }
+        }
+        footer?.invoke(this)
     }
 }
 
@@ -766,9 +962,13 @@ internal fun choiceBorderColor(selected: Boolean): Color {
 internal fun ChoiceChipButton(
     label: String,
     selected: Boolean,
+    modifier: Modifier = Modifier,
     tag: String? = null,
     horizontalPadding: Dp = 10.dp,
     verticalPadding: Dp = 7.dp,
+    maxLines: Int = 1,
+    softWrap: Boolean = false,
+    textOverflow: TextOverflow = TextOverflow.Ellipsis,
     onClick: () -> Unit,
 ) {
     val clearFocusAndHideKeyboard = rememberClearFocusAndHideKeyboard()
@@ -777,7 +977,7 @@ internal fun ChoiceChipButton(
             clearFocusAndHideKeyboard()
             onClick()
         },
-        modifier = Modifier
+        modifier = modifier
             .withTag(tag)
             .semantics {
                 this.selected = selected
@@ -791,8 +991,9 @@ internal fun ChoiceChipButton(
             text = label,
             modifier = Modifier.padding(horizontal = horizontalPadding, vertical = verticalPadding),
             style = MaterialTheme.typography.labelLarge,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            maxLines = maxLines,
+            softWrap = softWrap,
+            overflow = textOverflow,
             textAlign = TextAlign.Center,
         )
     }
@@ -1850,9 +2051,13 @@ internal fun SectionCard(
 @Composable
 internal fun TeamCorrectionSection(
     title: String,
+    modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium,

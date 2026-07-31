@@ -558,7 +558,7 @@ internal data class LandscapeFieldLayoutMetrics(
 /**
  * Draw the field as top/bottom end zones plus a center strip for pull direction and controls.
  *
- * @param state The live game state to render.
+ * @param state The active game state to render.
  * @param showAbbaRatioAsSequence Whether ABBA field badges should show sequence shorthand.
  * @param genderRatioBadgeColorArgb Color lookup for each concrete gender ratio.
  * @param interactionsEnabled Whether team action controls should be enabled.

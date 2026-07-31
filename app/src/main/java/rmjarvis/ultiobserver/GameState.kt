@@ -750,7 +750,7 @@ private fun GameState.setupDraftFieldText(): String? {
  * @param now The epoch millis for rebuilding the opening-pull countdown when its orientation
  * changes.
  */
-fun applySetupEditToLiveGame(
+fun applySetupEditToActiveGame(
     existing: GameState,
     edited: GameState,
     now: Long,

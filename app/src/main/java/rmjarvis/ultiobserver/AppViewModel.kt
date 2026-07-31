@@ -769,7 +769,7 @@ internal class AppViewModel(
         val updatedCurrentGame = if (setupEdit == null) {
             current.startGame(settings.activeGameOrientation)
         } else {
-            applySetupEditToLiveGame(current, setupEdit, now)
+            applySetupEditToActiveGame(current, setupEdit, now)
         }
         _state.update {
             it.copy(

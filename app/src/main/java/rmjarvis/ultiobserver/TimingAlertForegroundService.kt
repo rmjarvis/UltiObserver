@@ -32,7 +32,7 @@ import kotlinx.serialization.encodeToString
 /**
  * Foreground Android service for timing alerts while the screen may be asleep.
  *
- * This service is the Android-owned runtime used after Compose has created or updated a live game.
+ * This service is the Android-owned runtime used after Compose has created or updated a game.
  * Compose does not call service methods directly. Instead it sends an Intent, which is Android's
  * message envelope for components such as services, activities, and broadcast receivers. Intent
  * extras are primitive values, so this file serializes a compact alert snapshot to JSON before

@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,7 +31,7 @@ private enum class MoreActionsChildDialog {
 /**
  * Render the menu content for manual corrections and less-common game actions.
  *
- * @param state The current live game state.
+ * @param state The current game state.
  * @param now The current epoch millis for event-log timestamps.
  * @param activeGameOrientation Orientation whose field-end language should be used.
  * @param guidanceMode Amount and duration of rule guidance shown during games.
@@ -40,8 +39,8 @@ private enum class MoreActionsChildDialog {
  * @param onShowEventLog Callback opening the current game's event log.
  * @param onShowGameSummary Callback opening the current game summary.
  * @param onHeatRulesChange Callback applying edited live heat/AQI rules.
- * @param onAction Callback receiving an updated live game state after a model action.
- * @param onStateUpdate Callback receiving an updated live game state without closing More actions.
+ * @param onAction Callback receiving an updated game state after a model action.
+ * @param onStateUpdate Callback receiving an updated game state without closing More actions.
  */
 @Composable
 internal fun MoreActionsContent(
@@ -89,6 +88,7 @@ internal fun MoreActionsContent(
             state = state,
             now = now,
             guidanceMode = guidanceMode,
+            isLandscape = activeGameOrientation == ActiveGameOrientation.LANDSCAPE,
             onDismiss = { childDialog = null },
             onConfirm = { updatedState ->
                 onAction(updatedState)
@@ -289,7 +289,7 @@ private fun SetHeatLevelDialog(
         waterBreakMinutes = minutesText.toIntOrNull() ?: rules.waterBreakMinutes,
     )
 
-    AlertDialog(
+    ResponsiveAlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
@@ -380,9 +380,9 @@ private fun SetHeatLevelDialog(
 }
 
 /**
- * Render the pull-prompt target editor reachable during a live game.
+ * Render the pull-prompt target editor reachable during an active game.
  *
- * @param state The live game whose pull-prompt target is being edited.
+ * @param state The game whose pull-prompt target is being edited.
  * @param orientation Orientation whose field-end language should be used.
  * @param onDismiss Callback closing the dialog without changing prompts.
  * @param onConfirm Callback receiving the selected pull-prompt target.
@@ -396,11 +396,12 @@ private fun ChangePullPromptsDialog(
 ) {
     var selected by remember { mutableStateOf(state.pullPromptTarget) }
 
-    AlertDialog(
+    ResponsiveAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Change pull prompts") },
         text = {
-            Column(
+            ScrollableDialogRegion(
+                maxHeight = dialogBodyMaxHeight(),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
@@ -428,7 +429,7 @@ private fun ChangePullPromptsDialog(
 /**
  * Render the manual score correction dialog from More actions.
  *
- * @param state The current live game state whose score is being edited.
+ * @param state The current game state whose score is being edited.
  * @param onDismiss Callback closing the dialog without changing the score.
  * @param onConfirm Callback receiving the corrected team-one and team-two scores.
  */
@@ -441,11 +442,14 @@ private fun AdjustScoreDialog(
     var teamOneScore by remember { mutableStateOf(state.teamOne.score) }
     var teamTwoScore by remember { mutableStateOf(state.teamTwo.score) }
 
-    AlertDialog(
+    ResponsiveAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Adjust score") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            ScrollableDialogRegion(
+                maxHeight = dialogBodyMaxHeight(),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 CorrectionCountRow(
                     label = state.teamOne.name,
                     value = teamOneScore,
@@ -468,5 +472,6 @@ private fun AdjustScoreDialog(
         dismissButton = {
             TextActionButton(label = "Cancel", onClick = onDismiss)
         },
+        widthProfile = DialogWidthProfile.COMPACT,
     )
 }

@@ -1,8 +1,6 @@
 package rmjarvis.ultiobserver
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -43,11 +41,14 @@ internal fun AdjustTimeoutsDialog(
         firstHalfTimeoutsUsed = teamTwoFirstHalfTimeoutsUsed,
     )
 
-    AlertDialog(
+    ResponsiveAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Adjust timeouts") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            ScrollableDialogRegion(
+                maxHeight = dialogBodyMaxHeight(),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 Text("Adjust the number of timeouts used by each team this half.")
                 Text(
                     "${state.teamOne.name} is allowed to use ${teamOneAllowed.timeoutCountText()}",
