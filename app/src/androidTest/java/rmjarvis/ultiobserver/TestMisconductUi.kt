@@ -21,7 +21,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/// Tests for card and technical-foul UI flows from the live game screen.
+/// Tests for card and technical-foul UI flows from the active-game screen.
 @RunWith(AndroidJUnit4::class)
 class TestMisconductUi : MainActivityUiTestFixtures() {
     /**

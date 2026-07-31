@@ -42,7 +42,7 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         // (Both before the first point and between points.)
         val disabledState = openingState.copy(
             rules = openingState.rules.copy(heatLevel = HeatLevel.NONE),
-        ).startGame()
+        ).startGame(ActiveGameOrientation.PORTRAIT)
         assertFalse(disabledState.canApplyWaterBreak())
         val disabledBetweenPointsState = disabledState.beginLivePoint()
             .recordGoal(TeamId.TEAM_ONE, timestampAfterStart(disabledState, 1))
@@ -104,7 +104,7 @@ class TestWaterBreaks : GameDomainTestFixtures() {
 
         // Water breaks are also available before the first point for visual consistency with
         // other pre-point countdowns, even though it would be weird to use it then.
-        val preGameState = openingState.startGame()
+        val preGameState = openingState.startGame(ActiveGameOrientation.PORTRAIT)
         assertTrue(preGameState.canApplyWaterBreak())
         val preGameCountdown = preGameState.countdown!!
         val preGameBreakState = preGameState.applyWaterBreak(

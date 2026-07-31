@@ -67,7 +67,9 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
         // Instead we have the onShareSummary action be just to change the `shared`
         // variable to true.
         var shared = false
-        val state = newSetupGameState(now = 123_000L).startGame().copy(
+        val state = newSetupGameState(now = 123_000L)
+            .startGame(ActiveGameOrientation.PORTRAIT)
+            .copy(
             phase = GamePhase.GAME_OVER,
             observerNames = listOf("Mike", "Gary"),
             fieldName = "Field 7",

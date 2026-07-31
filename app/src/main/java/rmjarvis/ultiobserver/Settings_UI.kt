@@ -139,6 +139,13 @@ internal fun SettingsScreen(
 
             HorizontalDivider()
 
+            ActiveGameOrientationSelector(
+                selectedOrientation = settings.activeGameOrientation,
+                onOrientationChange = {
+                    onSettingsChange(settings.withActiveGameOrientation(it))
+                },
+            )
+
             SettingsSwitchWithNote(
                 label = "Automatically start live play?",
                 note = if (settings.automaticallyAdvanceCountdowns) {
@@ -258,6 +265,48 @@ internal fun SettingsScreen(
             onDismiss = {
                 customColorTarget = null
             },
+        )
+    }
+}
+
+/**
+ * Render the active-game orientation selector and describe the selected field arrangement.
+ *
+ * @param selectedOrientation The fixed orientation currently used for active games.
+ * @param onOrientationChange Callback receiving the newly selected orientation.
+ */
+@Composable
+private fun ActiveGameOrientationSelector(
+    selectedOrientation: ActiveGameOrientation,
+    onOrientationChange: (ActiveGameOrientation) -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = "How should the active game screen be oriented?",
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            ActiveGameOrientation.entries.forEach { orientation ->
+                ChoiceChipButton(
+                    label = orientation.label,
+                    selected = orientation == selectedOrientation,
+                    tag = "settings-active-game-orientation-${orientation.name}",
+                    onClick = {
+                        onOrientationChange(orientation)
+                    },
+                )
+            }
+        }
+        Text(
+            text = selectedOrientation.description,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.testTag("settings-active-game-orientation-description"),
         )
     }
 }

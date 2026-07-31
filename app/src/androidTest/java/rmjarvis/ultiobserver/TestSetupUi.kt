@@ -21,12 +21,78 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import java.time.LocalTime
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
 /// Tests for setup screen editors and setup-specific navigation.
 @RunWith(AndroidJUnit4::class)
 class TestSetupUi : MainActivityUiTestFixtures() {
+    /**
+     * Test landscape field-end language while the setup screen itself remains portrait.
+     */
+    @Test
+    fun landscapeFieldEndSetup() {
+        val leftEndName = "River end"
+        val rightEndName = "Road end"
+
+        setLandscapeActiveGameOrientation()
+        openNewGameSetup()
+        openStartingPullSetupEditor()
+
+        // Landscape setup maps the persisted far end to Left and near end to Right everywhere
+        // the observer names or selects an end.
+        composeRule.onNodeWithText("Left end name").assertIsDisplayed()
+        composeRule.onNodeWithText("Right end name").assertIsDisplayed()
+        composeRule.onNodeWithTag("setup-pulling-from-${FieldEnd.FAR.name}")
+            .assertTextContains("Left end", substring = true)
+        composeRule.onNodeWithTag("setup-pulling-from-${FieldEnd.NEAR.name}")
+            .assertTextContains("Right end", substring = true)
+        composeRule.onNodeWithTag("setup-pull-prompts-${PullPromptTarget.FAR.name}")
+            .performScrollTo()
+            .assertTextContains("Left end", substring = true)
+        composeRule.onNodeWithTag("setup-pull-prompts-${PullPromptTarget.NEAR.name}")
+            .assertTextContains("Right end", substring = true)
+
+        // Name the ends, then establish that Team 2 starts from the left end.
+        composeRule.onNodeWithTag("setup-far-end-name")
+            .performScrollTo()
+            .performTextReplacement(leftEndName)
+        composeRule.onNodeWithTag("setup-near-end-name")
+            .performScrollTo()
+            .performTextReplacement(rightEndName)
+        composeRule.onNodeWithTag("setup-pulling-team-${TeamId.TEAM_TWO.name}")
+            .performScrollTo()
+            .performClick()
+        composeRule.onNodeWithTag("setup-pulling-from-${FieldEnd.FAR.name}")
+            .performScrollTo()
+            .performClick()
+        closeSetupEditor()
+
+        // The setup summary uses the landscape names and selected opening-pull assignment.
+        waitForText("$leftEndName / $rightEndName")
+        waitForText("Team 2 pulls from $leftEndName")
+
+        // Starting the game keeps those ends on their named sides and puts the pulling team
+        // in the selected left end.
+        startGameFromSetup()
+        val leftEndBounds = composeRule.onNodeWithText(leftEndName)
+            .fetchSemanticsNode()
+            .boundsInRoot
+        val rightEndBounds = composeRule.onNodeWithText(rightEndName)
+            .fetchSemanticsNode()
+            .boundsInRoot
+        val teamTwoBounds = composeRule.onNodeWithText("Team 2")
+            .fetchSemanticsNode()
+            .boundsInRoot
+        val teamOneBounds = composeRule.onNodeWithText("Team 1")
+            .fetchSemanticsNode()
+            .boundsInRoot
+
+        assertTrue(leftEndBounds.center.x < rightEndBounds.center.x)
+        assertTrue(teamTwoBounds.center.x < teamOneBounds.center.x)
+    }
+
     /**
      * Test start-date and start-time editing from the setup screen.
      */

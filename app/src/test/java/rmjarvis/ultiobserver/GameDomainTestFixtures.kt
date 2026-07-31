@@ -83,12 +83,12 @@ abstract class GameDomainTestFixtures {
             rules = rules,
             pullingTeam = pullingTeam,
             pullingFromEnd = pullingFromEnd,
-        ).startGame()
+        ).startGame(ActiveGameOrientation.PORTRAIT)
     }
 
     /// Build an initial live-game state from a setup-phase game state.
     protected fun createLiveGameState(setup: GameState): GameState {
-        return setup.startGame()
+        return setup.startGame(ActiveGameOrientation.PORTRAIT)
     }
 
     /**

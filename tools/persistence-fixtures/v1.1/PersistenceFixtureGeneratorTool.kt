@@ -208,7 +208,7 @@ private fun nonDefaultSetup(): GameState {
 
 private fun activeGameWithEvents(setup: GameState): GameState {
     val start = setupEpoch(setup)
-    var game = setup.startGame()
+    var game = setup.startGame(ActiveGameOrientation.PORTRAIT)
     game = game.recordFalseStart(start + 1_000L)
     game = game.recordMajorityPullViolation(start + 2_000L)
     game = game.assessYellowCard(
@@ -315,7 +315,7 @@ private fun activeGameWithEvents(setup: GameState): GameState {
 private fun shortCompletedGame(): GameState {
     val setup = baseSetup()
     val start = setupEpoch(setup)
-    var game = setup.startGame().beginLivePoint(start + 1_000L)
+    var game = setup.startGame(ActiveGameOrientation.PORTRAIT).beginLivePoint(start + 1_000L)
     game = game.recordGoal(TeamId.TEAM_ONE, start + 60_000L)
     return game.endGameNow(start + 70_000L)
 }

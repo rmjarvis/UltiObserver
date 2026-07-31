@@ -713,7 +713,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         waitForText("Restart countdown")
     }
 
-    /// Put a cap prompt over the current live-game surface without reaching it through the clock.
+    /// Put a cap prompt over the active-game surface without reaching it through the clock.
     private fun showPendingCapOfferProgrammatically(capType: CapType) {
         updateCurrentStateProgrammatically {
             copy(pendingCapOffer = capType)

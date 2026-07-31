@@ -167,22 +167,26 @@ internal fun List<String>.observersDisplayText(): String? {
 }
 
 /// Return the compact setup summary for the starting pull.
-internal fun GameState.startingPullSummary(): String {
-    return "${openingPullingTeam.setupName(this)} pulls from ${fieldEndName(openingPullingFromEnd)}"
+internal fun GameState.startingPullSummary(orientation: ActiveGameOrientation): String {
+    return "${openingPullingTeam.setupName(this)} pulls from " +
+        fieldEndName(openingPullingFromEnd, orientation)
 }
 
 /// Return the setup summary line for the current pull-prompt preference.
-internal fun GameState.pullPromptSummary(): String {
-    return "Pull prompts for ${pullPromptTarget.displayText(this)}"
+internal fun GameState.pullPromptSummary(orientation: ActiveGameOrientation): String {
+    return "Pull prompts for ${pullPromptTarget.displayText(this, orientation)}"
 }
 
 /// Return the display label for one field end, falling back when no custom name is set.
-internal fun GameState.fieldEndName(end: FieldEnd): String {
+internal fun GameState.fieldEndName(
+    end: FieldEnd,
+    orientation: ActiveGameOrientation,
+): String {
     val customName = when (end) {
         FieldEnd.NEAR -> nearEndName
         FieldEnd.FAR -> farEndName
     }.trim()
-    return customName.ifEmpty { end.defaultDisplayText() }
+    return customName.ifEmpty { end.defaultDisplayText(orientation) }
 }
 
 /**
@@ -218,18 +222,27 @@ internal fun GameState.withPlayersFor(
 }
 
 /// Return the default user-facing text for a field end.
-internal fun FieldEnd.defaultDisplayText(): String {
-    return when (this) {
-        FieldEnd.FAR -> "Far end"
-        FieldEnd.NEAR -> "Near end"
+internal fun FieldEnd.defaultDisplayText(orientation: ActiveGameOrientation): String {
+    return when (orientation) {
+        ActiveGameOrientation.PORTRAIT -> when (this) {
+            FieldEnd.FAR -> "Far end"
+            FieldEnd.NEAR -> "Near end"
+        }
+        ActiveGameOrientation.LANDSCAPE -> when (this) {
+            FieldEnd.FAR -> "Left end"
+            FieldEnd.NEAR -> "Right end"
+        }
     }
 }
 
 /// Return the setup-display text for a pull-prompt target.
-internal fun PullPromptTarget.displayText(state: GameState): String {
+internal fun PullPromptTarget.displayText(
+    state: GameState,
+    orientation: ActiveGameOrientation,
+): String {
     return when (this) {
-        PullPromptTarget.NEAR -> state.fieldEndName(FieldEnd.NEAR)
-        PullPromptTarget.FAR -> state.fieldEndName(FieldEnd.FAR)
+        PullPromptTarget.NEAR -> state.fieldEndName(FieldEnd.NEAR, orientation)
+        PullPromptTarget.FAR -> state.fieldEndName(FieldEnd.FAR, orientation)
         PullPromptTarget.BOTH -> "both ends"
         PullPromptTarget.NEITHER -> "neither end"
     }

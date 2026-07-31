@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -130,7 +131,7 @@ internal val TechButtonColor = Color(0xFFFFB74D)
 internal val TimeoutButtonColor = Color(0xFF90CAF9)
 internal val FieldNeutralButtonColor = Color(0xFFF7F2EA)
 private val WaterBreakIconColor = Color(0xFF1976D2)
-internal val SliderOverlayColor = Color(0x66FFFFFF)
+internal val UnlockSliderColor = Color(0xFFCBE6C6)
 private val OptionBorderLightColor = Color(0xFFD8CBA7)
 private val OptionDarkModeColor = Color(0xFF3B3522)
 private val OptionBorderDarkColor = Color(0xFF9A8432)
@@ -1053,6 +1054,9 @@ internal fun NavigationButton(
  * @param borderColor Optional button border color.
  * @param minHeight Minimum visual button height.
  * @param fontSize Optional button label font size.
+ * @param textMaxLines Maximum button-label line count.
+ * @param softWrap Whether the button label may wrap.
+ * @param textOverflow Overflow behavior for the button label.
  * @param tag Optional test tag.
  * @param onClick Callback invoked when the button is tapped.
  */
@@ -1068,6 +1072,9 @@ internal fun BigActionButton(
     borderColor: Color? = MaterialTheme.colorScheme.outline,
     minHeight: Dp = 34.dp,
     fontSize: TextUnit? = null,
+    textMaxLines: Int = 1,
+    softWrap: Boolean = false,
+    textOverflow: TextOverflow = TextOverflow.Ellipsis,
     tag: String? = null,
     onClick: () -> Unit,
 ) {
@@ -1092,6 +1099,9 @@ internal fun BigActionButton(
         tag = tag,
         contentPadding = null,
         fontSize = fontSize,
+        textMaxLines = textMaxLines,
+        softWrap = softWrap,
+        textOverflow = textOverflow,
         onClick = onClick,
     )
 }
@@ -1314,6 +1324,7 @@ internal fun TopBarHomeButton(onClick: () -> Unit) {
  * @param fontSize Optional button label font size.
  * @param textMaxLines Maximum button-label line count.
  * @param softWrap Whether the button label may wrap.
+ * @param textOverflow Overflow behavior for the button label.
  * @param trailingLabel Optional value shown on the right side of the button row.
  * @param onClick Callback invoked when the button is tapped.
  */
@@ -1331,6 +1342,7 @@ private fun StandardRoleButton(
     fontSize: TextUnit? = null,
     textMaxLines: Int = 1,
     softWrap: Boolean = false,
+    textOverflow: TextOverflow = TextOverflow.Ellipsis,
     trailingLabel: String? = null,
     onClick: () -> Unit,
 ) {
@@ -1359,7 +1371,7 @@ private fun StandardRoleButton(
                 style = textStyle,
                 maxLines = textMaxLines,
                 softWrap = softWrap,
-                overflow = TextOverflow.Ellipsis,
+                overflow = textOverflow,
             )
         } else {
             Row(
@@ -1372,7 +1384,7 @@ private fun StandardRoleButton(
                     style = textStyle,
                     maxLines = textMaxLines,
                     softWrap = softWrap,
-                    overflow = TextOverflow.Ellipsis,
+                    overflow = textOverflow,
                 )
                 Text(
                     trailingLabel,
@@ -1380,7 +1392,7 @@ private fun StandardRoleButton(
                     fontWeight = FontWeight.Bold,
                     maxLines = textMaxLines,
                     softWrap = softWrap,
-                    overflow = TextOverflow.Ellipsis,
+                    overflow = textOverflow,
                 )
             }
         }
@@ -1435,6 +1447,7 @@ private fun StandardRoleButton(
  * @param contentColor Button text color.
  * @param borderColor Button border color.
  * @param tag Optional test tag.
+ * @param height Minimum button height.
  * @param onClick Callback invoked when the button is tapped.
  */
 @Composable
@@ -1445,10 +1458,11 @@ internal fun AdjustButton(
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
     borderColor: Color = MaterialTheme.colorScheme.outline,
     tag: String? = null,
+    height: Dp = 34.dp,
     onClick: () -> Unit,
 ) {
     val clearFocusAndHideKeyboard = rememberClearFocusAndHideKeyboard()
-    val buttonWidth = 38.dp
+    val buttonWidth = height + 4.dp
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
         OutlinedButton(
             onClick = {
@@ -1456,9 +1470,8 @@ internal fun AdjustButton(
                 onClick()
             },
             enabled = enabled,
-            modifier = buttonLayoutModifier(width = buttonWidth)
-                .withTag(tag)
-                .defaultMinSize(minHeight = 34.dp),
+            modifier = buttonLayoutModifier(width = buttonWidth, height = height)
+                .withTag(tag),
             shape = AdjustShape,
             colors = ButtonDefaults.outlinedButtonColors(
                 containerColor = containerColor,
@@ -1485,6 +1498,8 @@ internal fun AdjustButton(
  * @param fullWidth Whether the button should fill the available width.
  * @param width Optional fixed button width.
  * @param height Button height.
+ * @param fontSize Button-label font size resolved for the complete action grid.
+ * @param modifier Optional layout modifier, reserved for row weight when needed.
  * @param enabled Whether the button can be pressed.
  * @param containerColor Button background color.
  * @param contentColor Button text color.
@@ -1498,6 +1513,8 @@ internal fun FieldControlButton(
     fullWidth: Boolean = false,
     width: Dp? = null,
     height: Dp,
+    fontSize: TextUnit,
+    modifier: Modifier = Modifier,
     enabled: Boolean,
     containerColor: Color = Color.White,
     contentColor: Color = Color.Black,
@@ -1513,7 +1530,12 @@ internal fun FieldControlButton(
                 onClick()
             },
             enabled = enabled,
-            modifier = buttonLayoutModifier(fullWidth = fullWidth, width = width, height = height)
+            modifier = buttonLayoutModifier(
+                modifier = modifier,
+                fullWidth = fullWidth,
+                width = width,
+                height = height,
+            )
                 .withTag(tag)
                 .defaultMinSize(minWidth = 0.dp, minHeight = 0.dp),
             shape = PanelShape,
@@ -1526,10 +1548,14 @@ internal fun FieldControlButton(
         ) {
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontSize = fontSize,
+                    lineHeight = fontSize,
+                ),
                 textAlign = TextAlign.Center,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                softWrap = false,
+                overflow = TextOverflow.Clip,
             )
         }
     }
@@ -1577,23 +1603,27 @@ internal fun FieldInfoButton(
  *
  * @param isPaused Whether the button is currently paused.
  * @param enabled Whether the button can be pressed.
+ * @param height Minimum button height.
  * @param onClick Callback invoked when the observer toggles pause state.
  */
 @Composable
 internal fun PauseResumeButton(
     isPaused: Boolean,
     enabled: Boolean,
+    height: Dp = 34.dp,
     onClick: () -> Unit,
 ) {
     val contentColor = MaterialTheme.colorScheme.onSurface
     val iconColor = if (enabled) contentColor else contentColor.copy(alpha = 0.38f)
     val description = if (isPaused) "Resume countdown" else "Pause countdown"
+    val iconSize = height * (18f / 34f)
+    val horizontalPadding = height * (8f / 34f)
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
         OutlinedButton(
             onClick = onClick,
             enabled = enabled,
             modifier = Modifier
-                .defaultMinSize(minWidth = 34.dp, minHeight = 34.dp)
+                .size(height)
                 .testTag(if (isPaused) "live-resume-countdown" else "live-pause-countdown")
                 .semantics { contentDescription = description },
             shape = AdjustShape,
@@ -1604,12 +1634,12 @@ internal fun PauseResumeButton(
                 disabledContentColor = contentColor.copy(alpha = 0.38f),
             ),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
+            contentPadding = PaddingValues(horizontal = horizontalPadding, vertical = 3.dp),
         ) {
             Icon(
                 imageVector = if (isPaused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
                 contentDescription = null,
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier.size(iconSize),
                 tint = iconColor,
             )
         }
@@ -1620,21 +1650,25 @@ internal fun PauseResumeButton(
  * Render the manual water-break control.
  *
  * @param enabled Whether the button can be pressed.
+ * @param height Minimum button height.
  * @param onClick Callback invoked when the observer applies the water break.
  */
 @Composable
 internal fun WaterBreakButton(
     enabled: Boolean,
+    height: Dp = 34.dp,
     onClick: () -> Unit,
 ) {
     val contentColor = MaterialTheme.colorScheme.onSurface
     val iconColor = if (enabled) WaterBreakIconColor else WaterBreakIconColor.copy(alpha = 0.38f)
+    val iconSize = height * (18f / 34f)
+    val horizontalPadding = height * (8f / 34f)
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
         OutlinedButton(
             onClick = onClick,
             enabled = enabled,
             modifier = Modifier
-                .defaultMinSize(minWidth = 34.dp, minHeight = 34.dp)
+                .size(height)
                 .testTag("live-water-break")
                 .semantics { contentDescription = "Water break" },
             shape = AdjustShape,
@@ -1645,12 +1679,12 @@ internal fun WaterBreakButton(
                 disabledContentColor = contentColor.copy(alpha = 0.38f),
             ),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 3.dp),
+            contentPadding = PaddingValues(horizontal = horizontalPadding, vertical = 3.dp),
         ) {
             Icon(
                 imageVector = Icons.Filled.WaterDrop,
                 contentDescription = null,
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier.size(iconSize),
                 tint = iconColor,
             )
         }

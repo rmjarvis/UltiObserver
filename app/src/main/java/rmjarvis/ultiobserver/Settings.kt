@@ -306,8 +306,30 @@ internal enum class RuleGuidancePresentation {
 }
 
 /**
+ * Fixed orientation used by the active-game screen.
+ *
+ * @param label Short name shown by the Settings selector.
+ * @param description Explanation shown for the selected orientation.
+ */
+@Serializable
+internal enum class ActiveGameOrientation(
+    val label: String,
+    val description: String,
+) {
+    PORTRAIT(
+        "Portrait",
+        "Show teams at the top and bottom of the active game screen.",
+    ),
+    LANDSCAPE(
+        "Landscape",
+        "Show teams on the left and right of the active game screen.",
+    ),
+}
+
+/**
  * User settings stored as one persistence bucket.
  *
+ * @param activeGameOrientation Fixed orientation used by the active-game screen.
  * @param ruleGuidanceMode Amount and duration of rule guidance shown during games.
  * @param automaticallyAdvanceCountdowns Whether expired countdowns should drive model transitions.
  * @param automaticallyLockLivePoint Whether automatic live-point entry should lock the live screen.
@@ -319,6 +341,7 @@ internal enum class RuleGuidancePresentation {
  */
 @Serializable
 internal data class Settings(
+    val activeGameOrientation: ActiveGameOrientation = ActiveGameOrientation.PORTRAIT,
     val ruleGuidanceMode: RuleGuidanceMode = RuleGuidanceMode.FULL,
     val automaticallyAdvanceCountdowns: Boolean = true,
     val automaticallyLockLivePoint: Boolean = true,
@@ -328,6 +351,11 @@ internal data class Settings(
     val fourWomenThreeMenBadgeColorArgb: Long = TeamColorChoice.RED.accentArgb,
     val timingAlerts: TimingAlertPreferences = TimingAlertPreferences(),
 ) {
+    /// Return these settings with the active-game orientation replaced.
+    fun withActiveGameOrientation(orientation: ActiveGameOrientation): Settings {
+        return copy(activeGameOrientation = orientation)
+    }
+
     /// Return these settings with the live-game rule-guidance mode replaced.
     fun withRuleGuidanceMode(mode: RuleGuidanceMode): Settings {
         return copy(ruleGuidanceMode = mode)

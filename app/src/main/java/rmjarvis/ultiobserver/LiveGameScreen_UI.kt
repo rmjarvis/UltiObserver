@@ -1,15 +1,23 @@
 package rmjarvis.ultiobserver
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -28,6 +36,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -60,7 +70,7 @@ private data class PendingFieldTechnicalFoulResolution(
 )
 
 /**
- * Render the main live-game screen, including the field view, modal flows, and popup cues.
+ * Render the active-game screen, including the field view, modal flows, and popup cues.
  *
  * @param state The live game state to render.
  * @param settings User settings that affect live-game behavior and display.
@@ -73,7 +83,7 @@ private data class PendingFieldTechnicalFoulResolution(
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun LiveGameScreen(
+internal fun ActiveGameScreen(
     state: GameState,
     settings: Settings,
     onStateChange: (GameState) -> Unit,
@@ -102,6 +112,8 @@ internal fun LiveGameScreen(
     var activeGamePrompt by remember { mutableStateOf<GamePrompt?>(null) }
     var previouslyObservedPhase by remember { mutableStateOf(state.phase) }
     var suppressNextPhasePrompt by remember { mutableStateOf(false) }
+    val usesLandscapeLayout =
+        settings.activeGameOrientation == ActiveGameOrientation.LANDSCAPE
 
     /// Dismiss the transient action-info popup.
     fun dismissActionInfo() {
@@ -230,18 +242,53 @@ internal fun LiveGameScreen(
         return
     }
 
-    // Compose the major elements of the live game screen.
+    val onLockedChange: (Boolean) -> Unit = { locked = it }
+    val onRulesReference = { showRulesReference = true }
+    val onWaterBreak = { showWaterBreakPrompt = true }
+    val onMoreActions = { showMoreActionsDialog = true }
+    val onTimeout: (TeamId) -> Unit = { team ->
+        pendingTimeoutRequest = PendingTimeoutRequest(
+            team,
+            System.currentTimeMillis(),
+        )
+    }
+    val onTimeViolation: (TeamId) -> Unit = { team ->
+        pendingTimeViolationTeam = team
+    }
+    val onPullViolation: (TeamId) -> Unit = { team ->
+        pendingPullViolationTeam = team
+        pendingPullViolationType = state.pullViolationTypeFor(team)
+    }
+    val onCards: (TeamId) -> Unit = { team ->
+        pendingCardTeam = team
+    }
+    val onTechnicalFoul: (TeamId) -> Unit = { team ->
+        pendingTechnicalFoulTeam = team
+    }
+    val onTeamInfo: (TeamId) -> Unit = { team ->
+        teamInfoSheetTeam = team
+    }
+    val onUndo: (GameState) -> Unit = { undoWithoutPhasePrompt(it) }
+
+    // Compose the major elements of the active-game screen.
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("UltiObserver") },
-                navigationIcon = {
-                    TopBarBackButton(onClick = onBackHome)
-                },
-                actions = {
-                    TopBarHomeButton(onClick = onHome)
-                },
-            )
+            if (usesLandscapeLayout) {
+                LandscapeNavigationBar(
+                    onBackHome = onBackHome,
+                    onHome = onHome,
+                )
+            } else {
+                CenterAlignedTopAppBar(
+                    title = { Text("UltiObserver") },
+                    navigationIcon = {
+                        TopBarBackButton(onClick = onBackHome)
+                    },
+                    actions = {
+                        TopBarHomeButton(onClick = onHome)
+                    },
+                )
+            }
         }
     ) { innerPadding ->
         BoxWithConstraints(
@@ -249,172 +296,58 @@ internal fun LiveGameScreen(
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
-            val layoutMetrics = liveLayoutMetrics(maxHeight)
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(layoutMetrics.pagePadding),
-                verticalArrangement = Arrangement.spacedBy(layoutMetrics.sectionSpacing),
-            ) {
-                // Show the current clock and next relevant cap.
-                StatusLine(
+            if (usesLandscapeLayout) {
+                LandscapeActiveGameContent(
+                    state = state,
+                    settings = settings,
                     now = now,
                     capStatus = capStatus,
-                    height = layoutMetrics.statusHeight,
-                    onRulesReference = {
-                        showRulesReference = true
-                    },
+                    activeCountdown = activeCountdown,
+                    passedCapPointEndMessage = passedCapPointEndMessage,
+                    canStartPoint = canStartPoint,
+                    hasExpiredPullActions = hasExpiredPullActions,
+                    canReportOffenseSet = canReportOffenseSet,
+                    locked = locked,
+                    maxWidth = maxWidth,
+                    maxHeight = maxHeight,
+                    onStateChange = onStateChange,
+                    onLockedChange = onLockedChange,
+                    onRulesReference = onRulesReference,
+                    onWaterBreak = onWaterBreak,
+                    onMoreActions = onMoreActions,
+                    onTimeout = onTimeout,
+                    onTimeViolation = onTimeViolation,
+                    onPullViolation = onPullViolation,
+                    onCards = onCards,
+                    onTechnicalFoul = onTechnicalFoul,
+                    onTeamInfo = onTeamInfo,
+                    onUndo = onUndo,
                 )
-
-                // Reserve the countdown row even when no timer is active so the field stays put.
-                CountdownLine(
-                    countdown = activeCountdown,
-                    enabled = !locked,
-                    onAdjust = { seconds -> onStateChange(state.addTimeToCountdown(seconds)) },
-                    waterBreakAction = if (state.canApplyWaterBreak()) {
-                        // Show the icon and have its action be to open the water break prompt.
-                        {
-                            showWaterBreakPrompt = true
-                        }
-                    } else {
-                        // Don't show the icon.
-                        null
-                    },
-                    onTogglePaused = {
-                        onStateChange(state.toggleCountdownPaused(System.currentTimeMillis()))
-                    },
-                    expiredPullActions = if (hasExpiredPullActions && !locked) {
-                        ExpiredPullActions(
-                            onRestartPullCountdown = {
-                                onStateChange(
-                                    state.restartPullCountdown(System.currentTimeMillis())
-                                )
-                            },
-                        )
-                    } else {
-                        null
-                    },
-                    misconductCountdownAction = if (state.pendingMisconductCountdown && !locked) {
-                        MisconductCountdownAction(
-                            onStart = {
-                                onStateChange(
-                                    state.startMisconductCountdown(System.currentTimeMillis())
-                                )
-                            },
-                        )
-                    } else {
-                        null
-                    },
-                    statusMessage = passedCapPointEndMessage,
-                    height = layoutMetrics.countdownHeight,
-                )
-
-                // Sketch the field with two teams and the grass strip between them.
-                FieldSketchCard(
+            } else {
+                PortraitActiveGameContent(
                     state = state,
-                    showAbbaRatioAsSequence = settings.showAbbaRatioAsSequence,
-                    genderRatioBadgeColorArgb = settings::genderRatioBadgeColorArgb,
-                    interactionsEnabled = !locked,
-                    timeoutEnabled = state.canRequestTimeout(now),
-                    showPullIndicator = !locked,
-                    metrics = layoutMetrics.field,
-                    centerContent = {
-                        if (locked) {
-                            FieldUnlockControl(onUnlock = { locked = false })
-                        } else if (canReportOffenseSet) {
-                            BigActionButton(
-                                label = "Offense is set",
-                                onClick = {
-                                    onStateChange(state.reportOffenseSet(System.currentTimeMillis()))
-                                },
-                                containerColor = FieldNeutralButtonColor,
-                                contentColor = Color.Black,
-                                height = layoutMetrics.centerButtonHeight,
-                                fontSize = layoutMetrics.centerButtonFontSize,
-                                tag = "live-offense-set",
-                            )
-                        } else if (canStartPoint) {
-                            BigActionButton(
-                                label = "Start point",
-                                onClick = {
-                                    onStateChange(state.beginLivePoint(System.currentTimeMillis()))
-                                    if (settings.automaticallyLockLivePoint) {
-                                        locked = true
-                                    }
-                                },
-                                containerColor = FieldNeutralButtonColor,
-                                contentColor = Color.Black,
-                                height = layoutMetrics.centerButtonHeight,
-                                fontSize = layoutMetrics.centerButtonFontSize,
-                            )
-                        } else if (state.phase == GamePhase.LIVE_POINT && state.countdown != null) {
-                            BigActionButton(
-                                label = "Continue point",
-                                onClick = {
-                                    onStateChange(state.continueLivePoint())
-                                    if (settings.automaticallyLockLivePoint) {
-                                        locked = true
-                                    }
-                                },
-                                containerColor = FieldNeutralButtonColor,
-                                contentColor = Color.Black,
-                                height = layoutMetrics.centerButtonHeight,
-                                fontSize = layoutMetrics.centerButtonFontSize,
-                            )
-                        }
-                    },
-                    onLock = {
-                        locked = true
-                    },
-                    onGoal = { team ->
-                        val updatedState = state.recordGoalFromCurrentState(
-                            team,
-                            System.currentTimeMillis(),
-                        )
-                        onStateChange(updatedState)
-                    },
-                    onTimeout = { team ->
-                        pendingTimeoutRequest = PendingTimeoutRequest(
-                            team,
-                            System.currentTimeMillis(),
-                        )
-                    },
-                    onTimeViolation = { team ->
-                        pendingTimeViolationTeam = team
-                    },
-                    onPullViolation = { team ->
-                        pendingPullViolationTeam = team
-                        pendingPullViolationType = state.pullViolationTypeFor(team)
-                    },
-                    onCards = { team ->
-                        pendingCardTeam = team
-                    },
-                    onTechnicalFoul = { team ->
-                        pendingTechnicalFoulTeam = team
-                    },
-                    onTeamInfo = { team ->
-                        teamInfoSheetTeam = team
-                    },
-                )
-
-                // More actions keeps less-common game actions out of the field action grid.
-                NavigationButton(
-                    label = "More actions",
-                    fullWidth = true,
-                    height = layoutMetrics.bottomActionHeight,
-                    enabled = !locked,
-                    colors = neutralOutlinedButtonColors(DarkNeutralColor),
-                    borderColor = MaterialTheme.colorScheme.outline,
-                    compact = true,
-                    onClick = { showMoreActionsDialog = true },
-                )
-
-                UndoRedoBar(
-                    state = state,
-                    enabled = !locked,
-                    height = layoutMetrics.undoHeight,
-                    onUndo = { undoWithoutPhasePrompt(it) },
-                    onRedo = onStateChange,
+                    settings = settings,
+                    now = now,
+                    capStatus = capStatus,
+                    activeCountdown = activeCountdown,
+                    passedCapPointEndMessage = passedCapPointEndMessage,
+                    canStartPoint = canStartPoint,
+                    hasExpiredPullActions = hasExpiredPullActions,
+                    canReportOffenseSet = canReportOffenseSet,
+                    locked = locked,
+                    maxHeight = maxHeight,
+                    onStateChange = onStateChange,
+                    onLockedChange = onLockedChange,
+                    onRulesReference = onRulesReference,
+                    onWaterBreak = onWaterBreak,
+                    onMoreActions = onMoreActions,
+                    onTimeout = onTimeout,
+                    onTimeViolation = onTimeViolation,
+                    onPullViolation = onPullViolation,
+                    onCards = onCards,
+                    onTechnicalFoul = onTechnicalFoul,
+                    onTeamInfo = onTeamInfo,
+                    onUndo = onUndo,
                 )
             }
         }
@@ -845,6 +778,7 @@ internal fun LiveGameScreen(
                 MoreActionsContent(
                     state = state,
                     now = now,
+                    activeGameOrientation = settings.activeGameOrientation,
                     guidanceMode = settings.ruleGuidanceMode,
                     onUpdateGameSetup = {
                         showMoreActionsDialog = false
@@ -1017,32 +951,554 @@ private fun String.nonblankLineCount(): Int {
     return lineSequence().count { it.isNotBlank() }
 }
 
+/// Render the standard app title bar in landscape.
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LandscapeNavigationBar(
+    onBackHome: () -> Unit,
+    onHome: () -> Unit,
+) {
+    // When the screen is under height pressure due to small screen or large fonts, shrink
+    // the top bar somewhat to provide more space for the main part of the screen.
+    val configuration = LocalConfiguration.current
+    val density = LocalDensity.current
+    val pressureScale = (
+        configuration.screenHeightDp / 360f /
+            density.fontScale.coerceAtLeast(1f)
+        ).coerceIn(0.7f, 1f)
+    val barHeight = 40.dp * pressureScale
+    val titleFontSize = MaterialTheme.typography.titleLarge.fontSize * pressureScale
+    // This wrapper shrinks the home and back hit boxes so they don't keep the bar so tall.
+    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides barHeight) {
+        CenterAlignedTopAppBar(
+            modifier = Modifier.windowInsetsPadding(
+                WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal),
+            ),
+            title = {
+                Text(
+                    text = "UltiObserver",
+                    fontSize = titleFontSize,
+                )
+            },
+            navigationIcon = {
+                TopBarBackButton(onClick = onBackHome)
+            },
+            actions = {
+                TopBarHomeButton(onClick = onHome)
+            },
+            expandedHeight = barHeight,
+        )
+    }
+}
+
+/** Render the portrait status, field, and bottom actions for the active-game screen. */
+@Composable
+private fun PortraitActiveGameContent(
+    state: GameState,
+    settings: Settings,
+    now: Long,
+    capStatus: CapStatus?,
+    activeCountdown: ActiveCountdownDisplay?,
+    passedCapPointEndMessage: String?,
+    canStartPoint: Boolean,
+    hasExpiredPullActions: Boolean,
+    canReportOffenseSet: Boolean,
+    locked: Boolean,
+    maxHeight: Dp,
+    onStateChange: (GameState) -> Unit,
+    onLockedChange: (Boolean) -> Unit,
+    onRulesReference: () -> Unit,
+    onWaterBreak: () -> Unit,
+    onMoreActions: () -> Unit,
+    onTimeout: (TeamId) -> Unit,
+    onTimeViolation: (TeamId) -> Unit,
+    onPullViolation: (TeamId) -> Unit,
+    onCards: (TeamId) -> Unit,
+    onTechnicalFoul: (TeamId) -> Unit,
+    onTeamInfo: (TeamId) -> Unit,
+    onUndo: (GameState) -> Unit,
+) {
+    val metrics = portraitActiveGameLayoutMetrics(maxHeight)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(metrics.pagePadding),
+        verticalArrangement = Arrangement.spacedBy(metrics.sectionSpacing),
+    ) {
+        StatusLine(
+            now = now,
+            capStatus = capStatus,
+            allocatedHeight = metrics.statusLineHeight,
+            modifier = Modifier.fillMaxWidth(),
+            pushCapToEnd = true,
+            onRulesReference = onRulesReference,
+        )
+
+        CountdownLine(
+            countdown = activeCountdown,
+            enabled = !locked,
+            onAdjust = { seconds ->
+                onStateChange(state.addTimeToCountdown(seconds))
+            },
+            waterBreakAction = if (state.canApplyWaterBreak()) {
+                onWaterBreak
+            } else {
+                null
+            },
+            onTogglePaused = {
+                onStateChange(
+                    state.toggleCountdownPaused(System.currentTimeMillis())
+                )
+            },
+            expiredPullActions = if (hasExpiredPullActions && !locked) {
+                ExpiredPullActions(
+                    onRestartPullCountdown = {
+                        onStateChange(
+                            state.restartPullCountdown(System.currentTimeMillis())
+                        )
+                    },
+                )
+            } else {
+                null
+            },
+            misconductCountdownAction = if (state.pendingMisconductCountdown && !locked) {
+                MisconductCountdownAction(
+                    onStart = {
+                        onStateChange(
+                            state.startMisconductCountdown(System.currentTimeMillis())
+                        )
+                    },
+                )
+            } else {
+                null
+            },
+            statusMessage = passedCapPointEndMessage,
+            height = metrics.countdownHeight,
+        )
+
+        PortraitFieldSketchCard(
+            state = state,
+            showAbbaRatioAsSequence = settings.showAbbaRatioAsSequence,
+            genderRatioBadgeColorArgb = settings::genderRatioBadgeColorArgb,
+            interactionsEnabled = !locked,
+            timeoutEnabled = state.canRequestTimeout(now),
+            metrics = metrics.field,
+            centerContent = {
+                if (!locked && canReportOffenseSet) {
+                    CenterActionButton(
+                        label = "Offense is set",
+                        minHeight = metrics.centerButtonMinHeight,
+                        fontSize = metrics.centerButtonFontSize,
+                        tag = "live-offense-set",
+                        onClick = {
+                            onStateChange(
+                                state.reportOffenseSet(System.currentTimeMillis())
+                            )
+                        },
+                    )
+                } else if (!locked && canStartPoint) {
+                    CenterActionButton(
+                        label = "Start point",
+                        minHeight = metrics.centerButtonMinHeight,
+                        fontSize = metrics.centerButtonFontSize,
+                        onClick = {
+                            onStateChange(
+                                state.beginLivePoint(System.currentTimeMillis())
+                            )
+                            if (settings.automaticallyLockLivePoint) {
+                                onLockedChange(true)
+                            }
+                        },
+                    )
+                } else if (
+                    !locked &&
+                    state.phase == GamePhase.LIVE_POINT &&
+                    state.countdown != null
+                ) {
+                    CenterActionButton(
+                        label = "Continue point",
+                        minHeight = metrics.centerButtonMinHeight,
+                        fontSize = metrics.centerButtonFontSize,
+                        onClick = {
+                            onStateChange(state.continueLivePoint())
+                            if (settings.automaticallyLockLivePoint) {
+                                onLockedChange(true)
+                            }
+                        },
+                    )
+                }
+            },
+            centerOverlayContent = {
+                if (locked) {
+                    FieldUnlockControl(
+                        onUnlock = { onLockedChange(false) },
+                        modifier = Modifier,
+                    )
+                }
+            },
+            onLock = { onLockedChange(true) },
+            onGoal = { team ->
+                onStateChange(
+                    state.recordGoalFromCurrentState(
+                        team,
+                        System.currentTimeMillis(),
+                    )
+                )
+            },
+            onTimeout = onTimeout,
+            onTimeViolation = onTimeViolation,
+            onPullViolation = onPullViolation,
+            onCards = onCards,
+            onTechnicalFoul = onTechnicalFoul,
+            onTeamInfo = onTeamInfo,
+        )
+
+        NavigationButton(
+            label = "More actions",
+            fullWidth = true,
+            height = metrics.bottomActionHeight,
+            enabled = !locked,
+            colors = neutralOutlinedButtonColors(DarkNeutralColor),
+            borderColor = MaterialTheme.colorScheme.outline,
+            compact = true,
+            onClick = onMoreActions,
+        )
+
+        UndoRedoBar(
+            state = state,
+            enabled = !locked,
+            height = metrics.undoHeight,
+            onUndo = onUndo,
+            onRedo = onStateChange,
+        )
+    }
+}
+
 /**
- * Responsive live-screen measurements derived from the available height.
- *
- * @param field The nested field-specific layout metrics.
+ * Render the landscape status band and left/center/right field.
  */
-private data class LiveLayoutMetrics(
-    val pagePadding: Dp,
+@Composable
+private fun LandscapeActiveGameContent(
+    state: GameState,
+    settings: Settings,
+    now: Long,
+    capStatus: CapStatus?,
+    activeCountdown: ActiveCountdownDisplay?,
+    passedCapPointEndMessage: String?,
+    canStartPoint: Boolean,
+    hasExpiredPullActions: Boolean,
+    canReportOffenseSet: Boolean,
+    locked: Boolean,
+    maxWidth: Dp,
+    maxHeight: Dp,
+    onStateChange: (GameState) -> Unit,
+    onLockedChange: (Boolean) -> Unit,
+    onRulesReference: () -> Unit,
+    onWaterBreak: () -> Unit,
+    onMoreActions: () -> Unit,
+    onTimeout: (TeamId) -> Unit,
+    onTimeViolation: (TeamId) -> Unit,
+    onPullViolation: (TeamId) -> Unit,
+    onCards: (TeamId) -> Unit,
+    onTechnicalFoul: (TeamId) -> Unit,
+    onTeamInfo: (TeamId) -> Unit,
+    onUndo: (GameState) -> Unit,
+) {
+    val fontScale = LocalDensity.current.fontScale
+    val metrics = landscapeActiveGameLayoutMetrics(
+        contentWidth = maxWidth,
+        contentHeight = maxHeight,
+        fontScale = fontScale,
+    )
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(
+                horizontal = metrics.horizontalPadding,
+                vertical = metrics.verticalPadding,
+            ),
+        verticalArrangement = Arrangement.spacedBy(metrics.sectionSpacing),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(metrics.topRowHeight),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            StatusLine(
+                now = now,
+                capStatus = capStatus,
+                allocatedHeight = metrics.topRowHeight,
+                modifier = Modifier.weight(1f),
+                pushCapToEnd = false,
+                onRulesReference = onRulesReference,
+            )
+            CountdownLine(
+                countdown = activeCountdown,
+                enabled = !locked,
+                onAdjust = { seconds ->
+                    onStateChange(state.addTimeToCountdown(seconds))
+                },
+                waterBreakAction = if (state.canApplyWaterBreak()) {
+                    onWaterBreak
+                } else {
+                    null
+                },
+                onTogglePaused = {
+                    onStateChange(
+                        state.toggleCountdownPaused(System.currentTimeMillis())
+                    )
+                },
+                expiredPullActions = if (hasExpiredPullActions && !locked) {
+                    ExpiredPullActions(
+                        onRestartPullCountdown = {
+                            onStateChange(
+                                state.restartPullCountdown(System.currentTimeMillis())
+                            )
+                        },
+                    )
+                } else {
+                    null
+                },
+                misconductCountdownAction = if (
+                    state.pendingMisconductCountdown && !locked
+                ) {
+                    MisconductCountdownAction(
+                        onStart = {
+                            onStateChange(
+                                state.startMisconductCountdown(System.currentTimeMillis())
+                            )
+                        },
+                    )
+                } else {
+                    null
+                },
+                statusMessage = passedCapPointEndMessage,
+                height = metrics.topRowHeight,
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        LandscapeFieldSketchCard(
+            state = state,
+            showAbbaRatioAsSequence = settings.showAbbaRatioAsSequence,
+            genderRatioBadgeColorArgb = settings::genderRatioBadgeColorArgb,
+            interactionsEnabled = !locked,
+            timeoutEnabled = state.canRequestTimeout(now),
+            metrics = metrics.field,
+            centerButtonFontSize = metrics.centerButtonFontSize,
+            centerContent = {
+                if (!locked && canReportOffenseSet) {
+                    CenterActionButton(
+                        label = "Offense is set",
+                        minHeight = metrics.centerButtonMinHeight,
+                        fontSize = metrics.centerButtonFontSize,
+                        tag = "live-offense-set",
+                        onClick = {
+                            onStateChange(
+                                state.reportOffenseSet(System.currentTimeMillis())
+                            )
+                        },
+                    )
+                } else if (!locked && canStartPoint) {
+                    CenterActionButton(
+                        label = "Start point",
+                        minHeight = metrics.centerButtonMinHeight,
+                        fontSize = metrics.centerButtonFontSize,
+                        onClick = {
+                            onStateChange(
+                                state.beginLivePoint(System.currentTimeMillis())
+                            )
+                            if (settings.automaticallyLockLivePoint) {
+                                onLockedChange(true)
+                            }
+                        },
+                    )
+                } else if (
+                    !locked &&
+                    state.phase == GamePhase.LIVE_POINT &&
+                    state.countdown != null
+                ) {
+                    CenterActionButton(
+                        label = "Continue point",
+                        minHeight = metrics.centerButtonMinHeight,
+                        fontSize = metrics.centerButtonFontSize,
+                        onClick = {
+                            onStateChange(state.continueLivePoint())
+                            if (settings.automaticallyLockLivePoint) {
+                                onLockedChange(true)
+                            }
+                        },
+                    )
+                }
+            },
+            centerOverlayContent = {
+                if (locked) {
+                    FieldUnlockControl(
+                        onUnlock = {
+                            onLockedChange(false)
+                        },
+                        modifier = Modifier.widthIn(max = 320.dp),
+                    )
+                }
+            },
+            onLock = {
+                onLockedChange(true)
+            },
+            onGoal = { team ->
+                onStateChange(
+                    state.recordGoalFromCurrentState(
+                        team,
+                        System.currentTimeMillis(),
+                    )
+                )
+            },
+            onTimeout = onTimeout,
+            onTimeViolation = onTimeViolation,
+            onPullViolation = onPullViolation,
+            onCards = onCards,
+            onTechnicalFoul = onTechnicalFoul,
+            onTeamInfo = onTeamInfo,
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(metrics.bottomBarHeight),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                NavigationButton(
+                    label = "More actions",
+                    fullWidth = true,
+                    height = metrics.bottomBarHeight,
+                    enabled = !locked,
+                    colors = neutralOutlinedButtonColors(DarkNeutralColor),
+                    borderColor = MaterialTheme.colorScheme.outline,
+                    compact = true,
+                    onClick = onMoreActions,
+                )
+            }
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                UndoRedoBar(
+                    state = state,
+                    enabled = !locked,
+                    height = metrics.bottomBarHeight,
+                    onUndo = onUndo,
+                    onRedo = onStateChange,
+                )
+            }
+        }
+    }
+}
+
+/// Render the primary center-field action with wrapping when its available width is narrow.
+@Composable
+private fun CenterActionButton(
+    label: String,
+    minHeight: Dp,
+    fontSize: androidx.compose.ui.unit.TextUnit,
+    tag: String? = null,
+    onClick: () -> Unit,
+) {
+    BigActionButton(
+        label = label,
+        minHeight = minHeight,
+        containerColor = FieldNeutralButtonColor,
+        contentColor = Color.Black,
+        fontSize = fontSize,
+        textMaxLines = 2,
+        softWrap = true,
+        tag = tag,
+        onClick = onClick,
+    )
+}
+
+/// Responsive measurements for the complete landscape active-game surface.
+private data class LandscapeActiveGameLayoutMetrics(
+    val horizontalPadding: Dp,
+    val verticalPadding: Dp,
     val sectionSpacing: Dp,
-    val statusHeight: Dp,
-    val countdownHeight: Dp,
-    val bottomActionHeight: Dp,
-    val undoHeight: Dp,
-    val centerButtonHeight: Dp,
+    val topRowHeight: Dp,
+    val bottomBarHeight: Dp,
+    val centerButtonMinHeight: Dp,
     val centerButtonFontSize: androidx.compose.ui.unit.TextUnit,
-    val field: FieldLayoutMetrics,
+    val field: LandscapeFieldLayoutMetrics,
 )
 
 /**
- * Derive the live screen's responsive layout metrics from available content height.
+ * Derive landscape active-game measurements from the current app window.
+ */
+private fun landscapeActiveGameLayoutMetrics(
+    contentWidth: Dp,
+    contentHeight: Dp,
+    fontScale: Float,
+): LandscapeActiveGameLayoutMetrics {
+    val horizontalPadding = (contentWidth.value * 0.012f).dp.coerceIn(6.dp, 12.dp)
+    val verticalPadding = (contentHeight.value * 0.014f).dp.coerceIn(4.dp, 8.dp)
+    val sectionSpacing = 4.dp
+    val topRowHeight = (
+        contentHeight.value * 0.16f +
+            (fontScale - 1f).coerceAtLeast(0f) * 80f
+        )
+        .dp
+        .coerceIn(44.dp, 60.dp)
+    val bottomBarHeight = 34.dp
+    val fieldHeight = (
+        contentHeight.value -
+            verticalPadding.value * 2f -
+            sectionSpacing.value * 2f -
+            topRowHeight.value -
+            bottomBarHeight.value
+        )
+        .coerceAtLeast(0f)
+        .dp
+    return LandscapeActiveGameLayoutMetrics(
+        horizontalPadding = horizontalPadding,
+        verticalPadding = verticalPadding,
+        sectionSpacing = sectionSpacing,
+        topRowHeight = topRowHeight,
+        bottomBarHeight = bottomBarHeight,
+        centerButtonMinHeight = 48.dp,
+        centerButtonFontSize = (fieldHeight.value * 0.065f).coerceIn(14f, 17f).sp,
+        field = LandscapeFieldLayoutMetrics.fromFieldHeight(fieldHeight),
+    )
+}
+
+/**
+ * Responsive portrait active-game measurements derived from the available height.
+ *
+ * @param field The nested field-specific layout metrics.
+ */
+private data class PortraitActiveGameLayoutMetrics(
+    val pagePadding: Dp,
+    val sectionSpacing: Dp,
+    val statusLineHeight: Dp,
+    val countdownHeight: Dp,
+    val bottomActionHeight: Dp,
+    val undoHeight: Dp,
+    val centerButtonMinHeight: Dp,
+    val centerButtonFontSize: androidx.compose.ui.unit.TextUnit,
+    val field: PortraitFieldLayoutMetrics,
+)
+
+/**
+ * Derive the portrait active-game screen's responsive layout metrics from available height.
  *
  * @param contentHeight The height inside the scaffold content area.
  */
-private fun liveLayoutMetrics(contentHeight: Dp): LiveLayoutMetrics {
+private fun portraitActiveGameLayoutMetrics(contentHeight: Dp): PortraitActiveGameLayoutMetrics {
     val pagePadding = (contentHeight.value * 0.014f).dp.coerceIn(8.dp, 16.dp)
     val sectionSpacing = (contentHeight.value * 0.011f).dp.coerceIn(6.dp, 12.dp)
-    val statusHeight = (contentHeight.value * 0.075f).dp.coerceIn(42.dp, 52.dp)
+    val statusLineHeight = (contentHeight.value * 0.075f).dp.coerceIn(42.dp, 52.dp)
     val countdownHeight = (contentHeight.value * 0.095f).dp.coerceIn(52.dp, 64.dp)
     val bottomActionHeight = 34.dp
     val undoHeight = 34.dp
@@ -1050,23 +1506,23 @@ private fun liveLayoutMetrics(contentHeight: Dp): LiveLayoutMetrics {
         contentHeight.value -
             pagePadding.value * 2f -
             sectionSpacing.value * 4f -
-            statusHeight.value -
+            statusLineHeight.value -
             countdownHeight.value -
             bottomActionHeight.value -
             undoHeight.value
         )
         .coerceAtLeast(0f)
         .dp
-    return LiveLayoutMetrics(
+    return PortraitActiveGameLayoutMetrics(
         pagePadding = pagePadding,
         sectionSpacing = sectionSpacing,
-        statusHeight = statusHeight,
+        statusLineHeight = statusLineHeight,
         countdownHeight = countdownHeight,
         bottomActionHeight = bottomActionHeight,
         undoHeight = undoHeight,
-        centerButtonHeight = (fieldHeight.value * 0.11f).dp.coerceIn(38.dp, 48.dp),
+        centerButtonMinHeight = (fieldHeight.value * 0.11f).dp.coerceIn(38.dp, 48.dp),
         centerButtonFontSize = (fieldHeight.value * 0.04f).coerceIn(14f, 16f).sp,
-        field = FieldLayoutMetrics.fromFieldHeight(fieldHeight),
+        field = PortraitFieldLayoutMetrics.fromFieldHeight(fieldHeight),
     )
 }
 
@@ -1090,44 +1546,42 @@ private fun UndoRedoBar(
     val undoEntry = state.undoEntry
     val redoEntry = state.redoEntry
 
-    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(height),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (undoEntry != null) {
-                NavigationButton(
-                    label = undoEntry.label,
-                    enabled = enabled,
-                    modifier = Modifier.weight(3f),
-                    height = height,
-                    colors = resetOutlinedButtonColors(),
-                    borderColor = ResetColor,
-                    compact = true,
-                    onClick = {
-                        onUndo(state.undoLastAction())
-                    },
-                )
-            } else {
-                Spacer(modifier = Modifier.weight(3f))
-            }
-            if (redoEntry != null) {
-                NavigationButton(
-                    label = "Redo",
-                    enabled = enabled,
-                    modifier = Modifier.weight(1f),
-                    height = height,
-                    colors = redoOutlinedButtonColors(),
-                    borderColor = RedoColor,
-                    compact = true,
-                    onClick = {
-                        onRedo(state.redoLastAction())
-                    },
-                )
-            }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(height),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (undoEntry != null) {
+            NavigationButton(
+                label = undoEntry.label,
+                enabled = enabled,
+                modifier = Modifier.weight(3f),
+                height = height,
+                colors = resetOutlinedButtonColors(),
+                borderColor = ResetColor,
+                compact = true,
+                onClick = {
+                    onUndo(state.undoLastAction())
+                },
+            )
+        } else {
+            Spacer(modifier = Modifier.weight(3f))
+        }
+        if (redoEntry != null) {
+            NavigationButton(
+                label = "Redo",
+                enabled = enabled,
+                modifier = Modifier.weight(1f),
+                height = height,
+                colors = redoOutlinedButtonColors(),
+                borderColor = RedoColor,
+                compact = true,
+                onClick = {
+                    onRedo(state.redoLastAction())
+                },
+            )
         }
     }
 }

@@ -22,7 +22,7 @@ class TestTimingAlertsUi : MainActivityUiTestFixtures() {
      * SCHEDULE_EXACT_ALARM deny role, so it will trigger the permission dialog.
      * Starting a new game with cap alerts enabled shows a warning before the game starts.
      * This test clicks the settings link, returns to UltiObserver, then starts again and
-     * uses the Ignore path so the app still reaches the live game screen.
+     * uses the Ignore path so the app still reaches the active-game screen.
      * Devices that already allow exact alarms skip the dialog-specific checks and simply
      * prove that setup can start normally.
      */

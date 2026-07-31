@@ -24,7 +24,10 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import org.junit.After
+import org.junit.Before
 import org.junit.Rule
+
+private const val LANDSCAPE_COVERAGE_AVD = "Pixel_5"
 
 private val explicitControlDismissalCoverageAvds = setOf(
     // These devices cover explicit dialog controls such as OK and Cancel, while the rest of the
@@ -48,6 +51,18 @@ abstract class MainActivityUiTestFixtures {
     @After
     fun resetRuleGuidanceTimeout() {
         ruleGuidanceTimeoutMillis = 5_000L
+    }
+
+    /// Use Landscape on Pixel 5 and Portrait elsewhere for each UI-test narrative.
+    @Before
+    fun setActiveGameOrientation() {
+        updateActiveGameOrientation(
+            if (currentAvdName() == LANDSCAPE_COVERAGE_AVD) {
+                ActiveGameOrientation.LANDSCAPE
+            } else {
+                ActiveGameOrientation.PORTRAIT
+            }
+        )
     }
 
     /// Remove any current game and wait for the UI to observe the empty current-game state.
@@ -585,7 +600,7 @@ abstract class MainActivityUiTestFixtures {
                 teamOne = TeamState(name = teamOneName, color = TeamColorChoice.WHITE),
                 teamTwo = TeamState(name = teamTwoName, color = TeamColorChoice.BLUE),
             )
-            val completed = setup.startGame().copy(
+            val completed = setup.startGameInTestOrientation(activity).copy(
                 phase = GamePhase.GAME_OVER,
                 endEpoch = System.currentTimeMillis(),
                 countdown = null,
@@ -733,6 +748,31 @@ abstract class MainActivityUiTestFixtures {
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.appViewModel.updateSettings(
                 activity.appViewModel.settings.withAutomaticallyAdvanceCountdowns(automaticallyAdvance)
+            )
+        }
+        composeRule.waitForIdle()
+    }
+
+    /// Establish Portrait for a narrative that specifically depends on the Portrait setting.
+    internal fun setPortraitActiveGameOrientation() {
+        updateActiveGameOrientation(ActiveGameOrientation.PORTRAIT)
+    }
+
+    /// Establish Landscape for a narrative that specifically depends on the Landscape setting.
+    internal fun setLandscapeActiveGameOrientation() {
+        updateActiveGameOrientation(ActiveGameOrientation.LANDSCAPE)
+    }
+
+    /// Start this setup using the active-game orientation configured for the current UI test.
+    protected fun GameState.startGameInTestOrientation(activity: MainActivity): GameState {
+        return startGame(activity.appViewModel.settings.activeGameOrientation)
+    }
+
+    /// Set the active-game orientation and wait for the UI to observe it.
+    private fun updateActiveGameOrientation(orientation: ActiveGameOrientation) {
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appViewModel.updateSettings(
+                activity.appViewModel.settings.withActiveGameOrientation(orientation)
             )
         }
         composeRule.waitForIdle()

@@ -321,6 +321,7 @@ internal fun UltiObserverApp(
 
             SetupScreen(
                 state = setupGame,
+                activeGameOrientation = appState.settings.activeGameOrientation,
                 onStateChange = { updatedState ->
                     viewModel.updateSetup(updatedState)
                 },
@@ -433,7 +434,7 @@ internal fun UltiObserverApp(
                 )
             } else {
                 val currentGame = appState.currentGame!!
-                LiveGameScreen(
+                ActiveGameScreen(
                     state = currentGame,
                     settings = appState.settings,
                     onStateChange = { updatedState ->

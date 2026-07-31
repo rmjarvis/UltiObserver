@@ -93,6 +93,32 @@ class TestAppViewModel : GameDomainTestFixtures() {
     }
 
     /**
+     * Verify a new landscape game starts with the persisted Far end fixed on the left.
+     */
+    @Test
+    fun landscapeGameStart() {
+        val viewModel = AppViewModel(NoOpAppStateStorage)
+        viewModel.updateSettings(
+            viewModel.settings.withActiveGameOrientation(ActiveGameOrientation.LANDSCAPE)
+        )
+        viewModel.startNewGame(now = 123_000L)
+        viewModel.updateSetup(
+            viewModel.setupGame.copy(
+                // Portrait would put Near at the top for this prompt target. Landscape should
+                // still keep Far on the left, independent of timing-prompt responsibility.
+                pullPromptTarget = PullPromptTarget.FAR,
+            )
+        )
+        viewModel.finishSetup(now = 123_000L)
+
+        assertEquals(
+            ActiveGameOrientation.LANDSCAPE,
+            viewModel.settings.activeGameOrientation
+        )
+        assertEquals(FieldEnd.FAR, viewModel.currentGame!!.topDisplayedEnd)
+    }
+
+    /**
      * Verify setup drafts remain editable until the first live point starts, including
      * Home resume, Back from the pre-pull preview, setup editing, and starting over.
      */

@@ -34,6 +34,7 @@ private enum class MoreActionsChildDialog {
  *
  * @param state The current live game state.
  * @param now The current epoch millis for event-log timestamps.
+ * @param activeGameOrientation Orientation whose field-end language should be used.
  * @param guidanceMode Amount and duration of rule guidance shown during games.
  * @param onUpdateGameSetup Callback reopening setup for the current game.
  * @param onShowEventLog Callback opening the current game's event log.
@@ -46,6 +47,7 @@ private enum class MoreActionsChildDialog {
 internal fun MoreActionsContent(
     state: GameState,
     now: Long,
+    activeGameOrientation: ActiveGameOrientation,
     guidanceMode: RuleGuidanceMode,
     onUpdateGameSetup: () -> Unit,
     onShowEventLog: () -> Unit,
@@ -126,6 +128,7 @@ internal fun MoreActionsContent(
     } else if (childDialog == MoreActionsChildDialog.CHANGE_PULL_PROMPTS) {
         ChangePullPromptsDialog(
             state = state,
+            orientation = activeGameOrientation,
             onDismiss = { childDialog = null },
             onConfirm = { target ->
                 onAction(state.withPullPromptTarget(target))
@@ -380,12 +383,14 @@ private fun SetHeatLevelDialog(
  * Render the pull-prompt target editor reachable during a live game.
  *
  * @param state The live game whose pull-prompt target is being edited.
+ * @param orientation Orientation whose field-end language should be used.
  * @param onDismiss Callback closing the dialog without changing prompts.
  * @param onConfirm Callback receiving the selected pull-prompt target.
  */
 @Composable
 private fun ChangePullPromptsDialog(
     state: GameState,
+    orientation: ActiveGameOrientation,
     onDismiss: () -> Unit,
     onConfirm: (PullPromptTarget) -> Unit,
 ) {
@@ -404,8 +409,8 @@ private fun ChangePullPromptsDialog(
                 )
                 PullPromptTargetChoiceRow(
                     selected = selected,
-                    nearLabel = state.fieldEndDisplayName(FieldEnd.NEAR),
-                    farLabel = state.fieldEndDisplayName(FieldEnd.FAR),
+                    nearLabel = state.fieldEndDisplayName(FieldEnd.NEAR, orientation),
+                    farLabel = state.fieldEndDisplayName(FieldEnd.FAR, orientation),
                     testTagPrefix = "more-actions-pull-prompts",
                     onSelected = { selected = it },
                 )

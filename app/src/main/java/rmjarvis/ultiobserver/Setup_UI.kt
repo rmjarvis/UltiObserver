@@ -182,6 +182,7 @@ private data class PossiblePlayerMatchConfirmation(
  * Render the pregame/edit-game setup form for start time, teams, pull, rules, and prior cards.
  *
  * @param state The setup state currently being edited.
+ * @param activeGameOrientation Orientation whose field-end language should be used in setup.
  * @param onStateChange Callback receiving setup changes from fields and dialogs.
  * @param title Title shown in the setup screen app bar.
  * @param primaryButtonLabel Label for the fixed bottom action.
@@ -198,6 +199,7 @@ private data class PossiblePlayerMatchConfirmation(
 @Composable
 internal fun SetupScreen(
     state: GameState,
+    activeGameOrientation: ActiveGameOrientation,
     onStateChange: (GameState) -> Unit,
     title: String,
     primaryButtonLabel: String,
@@ -420,7 +422,10 @@ internal fun SetupScreen(
                 editTag = "setup-edit-starting-pull",
                 onEdit = { setupDialog = SetupDialog.STARTING_PULL },
             ) {
-                FieldStartingPullSummary(state)
+                FieldStartingPullSummary(
+                    state = state,
+                    orientation = activeGameOrientation,
+                )
             }
             SetupSummaryRow(
                 title = "Game rules",
@@ -449,6 +454,7 @@ internal fun SetupScreen(
         SetupDialog.STARTING_PULL -> {
             StartingPullSetupDialog(
                 state = state,
+                orientation = activeGameOrientation,
                 onStateChange = onStateChange,
                 onDismiss = { setupDialog = null },
             )
@@ -1452,9 +1458,19 @@ private fun GameInformationSummary(state: GameState) {
  * Render the compact field-end and starting-pull summary used on the setup overview.
  *
  * @param state The current setup state to summarize.
+ * @param orientation Orientation whose field-end language should be used.
  */
 @Composable
-private fun FieldStartingPullSummary(state: GameState) {
+private fun FieldStartingPullSummary(
+    state: GameState,
+    orientation: ActiveGameOrientation,
+) {
+    val firstEnd = if (orientation == ActiveGameOrientation.LANDSCAPE) {
+        FieldEnd.FAR
+    } else {
+        FieldEnd.NEAR
+    }
+    val secondEnd = firstEnd.flip()
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(
             text = "Field ends are called:",
@@ -1462,18 +1478,19 @@ private fun FieldStartingPullSummary(state: GameState) {
             fontWeight = FontWeight.SemiBold,
         )
         Text(
-            text = "${state.fieldEndName(FieldEnd.NEAR)} / ${state.fieldEndName(FieldEnd.FAR)}",
+            text = "${state.fieldEndName(firstEnd, orientation)} / " +
+                state.fieldEndName(secondEnd, orientation),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.padding(start = 16.dp),
         )
         Text(
-            text = state.startingPullSummary(),
+            text = state.startingPullSummary(orientation),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
         )
         Text(
-            text = state.pullPromptSummary(),
+            text = state.pullPromptSummary(orientation),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
         )
@@ -1483,9 +1500,14 @@ private fun FieldStartingPullSummary(state: GameState) {
                 GenderRatioRule.ABBA -> SetupSummaryValue("First point ratio: ${state.initialGenderRatio.displayText}")
                 GenderRatioRule.GEN_ZONE -> {
                     if (state.rules.switchGenZoneAtHalftime) {
-                        SetupSummaryValue("First-half Gen Zone: ${state.fieldEndName(state.firstHalfGenZone)}")
+                        SetupSummaryValue(
+                            "First-half Gen Zone: " +
+                                state.fieldEndName(state.firstHalfGenZone, orientation)
+                        )
                     } else {
-                        SetupSummaryValue("Gen Zone: ${state.fieldEndName(state.firstHalfGenZone)}")
+                        SetupSummaryValue(
+                            "Gen Zone: ${state.fieldEndName(state.firstHalfGenZone, orientation)}"
+                        )
                     }
                 }
                 GenderRatioRule.OFFENSE_DECIDES,
@@ -1568,12 +1590,14 @@ private fun SetupEditButton(
  * Render the field-end and opening-pull editor dialog.
  *
  * @param state The setup state whose field-end labels, pull team, and prompt target are being edited.
+ * @param orientation Orientation whose field-end language should be used.
  * @param onStateChange Callback receiving updated setup state.
  * @param onDismiss Callback closing the dialog.
  */
 @Composable
 private fun StartingPullSetupDialog(
     state: GameState,
+    orientation: ActiveGameOrientation,
     onStateChange: (GameState) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -1601,7 +1625,7 @@ private fun StartingPullSetupDialog(
             FieldEnd.NEAR -> committedNearEndName
             FieldEnd.FAR -> committedFarEndName
         }.trim()
-        return customName.ifEmpty { end.defaultDisplayText() }
+        return customName.ifEmpty { end.defaultDisplayText(orientation) }
     }
 
     fun saveAndDismiss() {
@@ -1631,12 +1655,24 @@ private fun StartingPullSetupDialog(
                 maxHeight = dialogBodyMaxHeight,
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text("Give whatever names you want for the two ends of the field. E.g. Road, Parking Lot, Trees, etc. (default is Near end and Far end).")
+                Text(
+                    "Give whatever names you want for the two ends of the field. " +
+                        "E.g. Road, Parking Lot, Trees, etc. " +
+                        if (orientation == ActiveGameOrientation.LANDSCAPE) {
+                            "(default is Left end and Right end)."
+                        } else {
+                            "(default is Near end and Far end)."
+                        }
+                )
                 TextEntry(
                     value = farEndName,
                     onValueChange = { farEndName = it },
-                    labelText = "Far/top end name",
-                    promptText = FieldEnd.FAR.defaultDisplayText(),
+                    labelText = if (orientation == ActiveGameOrientation.LANDSCAPE) {
+                        "Left end name"
+                    } else {
+                        "Far/top end name"
+                    },
+                    promptText = FieldEnd.FAR.defaultDisplayText(orientation),
                     capitalization = KeyboardCapitalization.Sentences,
                     tag = "setup-far-end-name",
                     onDone = { commitFarEndLabel() },
@@ -1645,8 +1681,12 @@ private fun StartingPullSetupDialog(
                 TextEntry(
                     value = nearEndName,
                     onValueChange = { nearEndName = it },
-                    labelText = "Near/bottom end name",
-                    promptText = FieldEnd.NEAR.defaultDisplayText(),
+                    labelText = if (orientation == ActiveGameOrientation.LANDSCAPE) {
+                        "Right end name"
+                    } else {
+                        "Near/bottom end name"
+                    },
+                    promptText = FieldEnd.NEAR.defaultDisplayText(orientation),
                     capitalization = KeyboardCapitalization.Sentences,
                     tag = "setup-near-end-name",
                     onDone = { commitNearEndLabel() },

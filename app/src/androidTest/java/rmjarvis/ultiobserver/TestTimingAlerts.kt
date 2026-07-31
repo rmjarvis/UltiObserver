@@ -38,7 +38,7 @@ class TestTimingAlerts {
     /**
      * Test the compact alert information sent from the app screen to the background service.
      *
-     * The live-game screen sends only the timing-alert details the background service needs:
+     * The active-game screen sends only the timing-alert details the background service needs:
      * current sound/vibration preferences, countdown cues, and cap cues that still have audible or
      * haptic alerts enabled. This test checks that the handoff keeps those user choices and drops
      * cues the user has silenced.
@@ -61,7 +61,7 @@ class TestTimingAlerts {
                 LocalTime.of(10, 0),
                 ZoneId.systemDefault(),
             ),
-        ).startGame()
+        ).startGame(ActiveGameOrientation.PORTRAIT)
 
         // Starting or updating the background service carries the current user playback settings.
         val updateIntent = TimingAlertForegroundService.updateIntent(
@@ -641,7 +641,7 @@ class TestTimingAlerts {
                     ZoneId.systemDefault(),
                 ),
             )
-                .startGame()
+                .startGame(ActiveGameOrientation.PORTRAIT)
                 .beginLivePoint(serviceUpdateNow)
                 .assessTimeout(TeamId.TEAM_ONE, serviceUpdateNow)
                 .state

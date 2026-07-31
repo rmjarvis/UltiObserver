@@ -61,7 +61,9 @@ class TestPersistence : MainActivityUiTestFixtures() {
                     spiritCaptains = "Riley Spirit",
                 ),
             )
-            val livePointState = setup.startGame().beginLivePoint(0L)
+            val livePointState = setup
+                .startGame(ActiveGameOrientation.PORTRAIT)
+                .beginLivePoint(0L)
             val scoredState = livePointState.recordGoal(
                 scoringTeam = TeamId.TEAM_ONE,
                 now = livePointState.startEpoch + 5 * 60_000L,

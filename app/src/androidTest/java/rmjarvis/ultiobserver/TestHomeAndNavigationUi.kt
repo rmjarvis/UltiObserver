@@ -874,9 +874,19 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         setAutomaticallyAdvanceCountdowns(true)
         setAutomaticallyLockLivePoint(true)
         setShowAbbaRatioAsSequence(true)
+        setPortraitActiveGameOrientation()
+
+        // Active games default to Portrait, while Landscape describes the left/right field.
+        composeRule.onNodeWithText("Settings").performClick()
+        composeRule.onNodeWithTag("settings-active-game-orientation-PORTRAIT").assertIsSelected()
+        composeRule.onNodeWithTag("settings-active-game-orientation-LANDSCAPE").performClick()
+        composeRule.onNodeWithTag("settings-active-game-orientation-LANDSCAPE").assertIsSelected()
+        composeRule.onNodeWithTag("settings-active-game-orientation-description").assertTextEquals(
+            "Show teams on the left and right of the active game screen."
+        )
+        composeRule.onNodeWithTag("settings-active-game-orientation-PORTRAIT").performClick()
 
         // Rule guidance defaults to Full. Clicking each shows a description of what it does.
-        composeRule.onNodeWithText("Settings").performClick()
         composeRule.onNodeWithTag("settings-rule-guidance-FULL").assertIsSelected()
         composeRule.onNodeWithTag("settings-rule-guidance-BRIEF").performClick()
         composeRule.onNodeWithTag("settings-rule-guidance-BRIEF").assertIsSelected()
@@ -1366,7 +1376,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
                 teamTwo = TeamState(name = teamTwo, color = TeamColorChoice.BLUE),
             )
             activity.appViewModel.updateCurrentGame(
-                setup.startGame().copy(
+                setup.startGameInTestOrientation(activity).copy(
                     phase = GamePhase.GAME_OVER,
                     endEpoch = System.currentTimeMillis(),
                     countdown = null,

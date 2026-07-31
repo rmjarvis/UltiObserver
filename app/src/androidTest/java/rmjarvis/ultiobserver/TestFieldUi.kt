@@ -17,7 +17,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/// Tests for the live field diagram layout and orientation-dependent labels.
+/// Tests for the active-game field diagram and orientation-dependent labels.
 @RunWith(AndroidJUnit4::class)
 class TestFieldUi : MainActivityUiTestFixtures() {
     /**
