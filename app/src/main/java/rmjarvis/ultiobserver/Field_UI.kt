@@ -81,8 +81,7 @@ internal fun FieldUnlockControl(
     modifier: Modifier,
 ) {
     SlideToConfirmControl(
-        instructionText = "Slide right to unlock",
-        trackText = "Unlock",
+        trackText = "Slide right to unlock",
         testTag = "live-unlock-slider",
         onConfirmed = onUnlock,
         modifier = modifier,
@@ -96,7 +95,6 @@ internal fun FieldUnlockControl(
 /**
  * Render a full-width confirmation slider that only activates when the drag starts on the left side.
  *
- * @param instructionText Instruction text shown above the slider.
  * @param trackText Text shown inside the slider track.
  * @param testTag Test tag attached to the draggable track.
  * @param onConfirmed Callback invoked after a successful slide.
@@ -108,7 +106,6 @@ internal fun FieldUnlockControl(
  */
 @Composable
 internal fun SlideToConfirmControl(
-    instructionText: String,
     trackText: String,
     testTag: String,
     onConfirmed: () -> Unit,
@@ -125,75 +122,62 @@ internal fun SlideToConfirmControl(
     val thumbDiameter = 40.dp
     val thumbDiameterPx = with(density) { thumbDiameter.toPx() }
 
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag(testTag)
+            .height(52.dp)
+            .onSizeChanged { trackWidthPx = it.width.toFloat() }
+            .background(trackColor, RoundedCornerShape(26.dp))
+            .border(1.dp, borderColor, RoundedCornerShape(26.dp))
+            .pointerInput(trackWidthPx) {
+                detectDragGestures(
+                    onDragStart = { offset ->
+                        dragEnabled = offset.x <= trackWidthPx * 0.25f
+                        if (dragEnabled) {
+                            thumbOffsetPx = 0f
+                        }
+                    },
+                    onDragEnd = {
+                        val unlockThreshold = trackWidthPx * 0.75f
+                        val thumbCenter = thumbOffsetPx + thumbDiameterPx / 2f
+                        if (dragEnabled && thumbCenter >= unlockThreshold) {
+                            thumbOffsetPx = 0f
+                            dragEnabled = false
+                            onConfirmed()
+                        } else {
+                            thumbOffsetPx = 0f
+                            dragEnabled = false
+                        }
+                    },
+                    onDragCancel = {
+                        thumbOffsetPx = 0f
+                        dragEnabled = false
+                    },
+                ) { _, dragAmount ->
+                    if (dragEnabled) {
+                        val maxOffset = (trackWidthPx - thumbDiameterPx - with(density) { 12.dp.toPx() }).coerceAtLeast(0f)
+                        thumbOffsetPx = (thumbOffsetPx + dragAmount.x).coerceIn(0f, maxOffset)
+                    }
+                }
+            },
     ) {
         Text(
-            instructionText,
-            style = MaterialTheme.typography.bodyMedium,
-            color = textColor,
-            textAlign = TextAlign.Center,
-            fontWeight = FontWeight.SemiBold,
+            trackText,
+            modifier = Modifier.align(Alignment.Center),
+            color = textColor.copy(alpha = 0.7f),
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Medium,
         )
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .testTag(testTag)
-                .height(52.dp)
-                .onSizeChanged { trackWidthPx = it.width.toFloat() }
-                .background(trackColor, RoundedCornerShape(26.dp))
-                .border(1.dp, borderColor, RoundedCornerShape(26.dp))
-                .pointerInput(trackWidthPx) {
-                    detectDragGestures(
-                        onDragStart = { offset ->
-                            dragEnabled = offset.x <= trackWidthPx * 0.25f
-                            if (dragEnabled) {
-                                thumbOffsetPx = 0f
-                            }
-                        },
-                        onDragEnd = {
-                            val unlockThreshold = trackWidthPx * 0.75f
-                            val thumbCenter = thumbOffsetPx + thumbDiameterPx / 2f
-                            if (dragEnabled && thumbCenter >= unlockThreshold) {
-                                thumbOffsetPx = 0f
-                                dragEnabled = false
-                                onConfirmed()
-                            } else {
-                                thumbOffsetPx = 0f
-                                dragEnabled = false
-                            }
-                        },
-                        onDragCancel = {
-                            thumbOffsetPx = 0f
-                            dragEnabled = false
-                        },
-                    ) { _, dragAmount ->
-                        if (dragEnabled) {
-                            val maxOffset = (trackWidthPx - thumbDiameterPx - with(density) { 12.dp.toPx() }).coerceAtLeast(0f)
-                            thumbOffsetPx = (thumbOffsetPx + dragAmount.x).coerceIn(0f, maxOffset)
-                        }
-                    }
-                },
-        ) {
-            Text(
-                trackText,
-                modifier = Modifier.align(Alignment.Center),
-                color = textColor.copy(alpha = 0.7f),
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-            )
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .offset { IntOffset(thumbOffsetPx.toInt(), 0) }
-                    .padding(6.dp)
-                    .size(thumbDiameter)
-                    .background(thumbColor, RoundedCornerShape(20.dp))
-                    .border(1.dp, borderColor, RoundedCornerShape(20.dp)),
-            )
-        }
+                .align(Alignment.CenterStart)
+                .offset { IntOffset(thumbOffsetPx.toInt(), 0) }
+                .padding(6.dp)
+                .size(thumbDiameter)
+                .background(thumbColor, RoundedCornerShape(20.dp))
+                .border(1.dp, borderColor, RoundedCornerShape(20.dp)),
+        )
     }
 }
 

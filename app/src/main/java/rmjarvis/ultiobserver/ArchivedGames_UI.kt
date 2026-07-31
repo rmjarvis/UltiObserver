@@ -1053,8 +1053,7 @@ internal fun DeleteGameDialog(
                     style = MaterialTheme.typography.bodyLarge,
                 )
                 SlideToConfirmControl(
-                    instructionText = "Slide right to confirm delete",
-                    trackText = "Confirm delete",
+                    trackText = "Slide right to confirm",
                     testTag = "confirm-delete-slider",
                     onConfirmed = onConfirmDelete,
                     modifier = Modifier.padding(top = 20.dp),
