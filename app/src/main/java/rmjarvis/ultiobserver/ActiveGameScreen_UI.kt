@@ -772,7 +772,7 @@ internal fun ActiveGameScreen(
         }
     } else if (showMoreActionsDialog) {
         // Dialog for less-common actions and manual corrections.
-        AlertDialog(
+        ResponsiveAlertDialog(
             onDismissRequest = { showMoreActionsDialog = false },
             title = { Text("More actions") },
             text = {
@@ -814,6 +814,7 @@ internal fun ActiveGameScreen(
             confirmButton = {
                 TextActionButton(label = "Close", onClick = { showMoreActionsDialog = false })
             },
+            widthProfile = DialogWidthProfile.WIDE,
         )
     }
 }

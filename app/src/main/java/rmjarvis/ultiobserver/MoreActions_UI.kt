@@ -1,10 +1,29 @@
 package rmjarvis.ultiobserver
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -14,9 +33,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 private enum class MoreActionsChildDialog {
@@ -26,6 +49,275 @@ private enum class MoreActionsChildDialog {
     ADJUST_PULL_VIOLATIONS,
     CHANGE_PULL_PROMPTS,
     SET_HEAT_LEVEL,
+}
+
+private enum class MoreActionsCategory(val title: String) {
+    SETUP_CHANGES("Setup changes"),
+    GAME_DETAILS("Game details"),
+    FIELD_AND_PULL("Field and pull controls"),
+    CORRECTIONS("Corrections"),
+    MANUAL_TRANSITIONS("Manual game transitions"),
+}
+
+/// One action displayed within a grouped More actions category.
+private data class MoreActionsItem(
+    val label: String,
+    val tag: String?,
+    val onClick: () -> Unit,
+)
+
+/// Render a More actions category header using the supplied disclosure indicator and sizing.
+@Composable
+private fun MoreActionsCardHeader(
+    modifier: Modifier,
+    title: String,
+    textStyle: TextStyle,
+    indicator: ImageVector?,
+    indicatorDescription: String?,
+    indicatorSize: Dp,
+    contentPadding: PaddingValues,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = modifier
+            .background(SecondaryColor)
+            .clickable(onClick = onClick)
+            .padding(contentPadding),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = title,
+            modifier = Modifier.weight(1f),
+            style = textStyle,
+            fontWeight = FontWeight.SemiBold,
+            color = OnSecondaryColor,
+        )
+        if (indicator != null) {
+            Icon(
+                imageVector = indicator,
+                contentDescription = indicatorDescription,
+                modifier = Modifier.size(indicatorSize),
+                tint = OnSecondaryColor,
+            )
+        }
+    }
+}
+
+/// Render the actions belonging to a More actions category.
+@Composable
+private fun MoreActionsCardContents(
+    actions: List<MoreActionsItem>,
+    rowSizeModifier: Modifier,
+    textStyle: TextStyle,
+    contentPadding: PaddingValues,
+) {
+    actions.forEach { action ->
+        var actionModifier = Modifier
+            .fillMaxWidth()
+            .then(rowSizeModifier)
+            .clickable(onClick = action.onClick)
+            .padding(contentPadding)
+        if (action.tag != null) {
+            actionModifier = actionModifier.testTag(action.tag)
+        }
+        Box(
+            modifier = actionModifier,
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            Text(
+                text = action.label,
+                style = textStyle,
+            )
+        }
+    }
+}
+
+/**
+ * Render landscape categories on the left and the selected category's actions on the right.
+ * Gaps between category tabs shrink before their labels and indicators scale down.
+ */
+@Composable
+private fun LandscapeMoreActionsRegion(
+    modifier: Modifier,
+    actionsByCategory: Map<MoreActionsCategory, List<MoreActionsItem>>,
+    selectedCategory: MoreActionsCategory,
+    onCategorySelected: (MoreActionsCategory) -> Unit,
+) {
+    val density = LocalDensity.current
+    val headerStyle = MaterialTheme.typography.labelMedium
+    val actionStyle = MaterialTheme.typography.bodyLarge
+    val preferredHeaderHeight = maxOf(
+        40.dp,
+        with(density) { headerStyle.lineHeight.toDp() } + 16.dp,
+    )
+    val preferredActionRowHeight = maxOf(
+        44.dp,
+        with(density) { actionStyle.lineHeight.toDp() } + 20.dp,
+    )
+    val categories = MoreActionsCategory.entries
+    val maximumActionCount = actionsByCategory.values.maxOf { it.size }
+    val naturalHeight = maxOf(
+        preferredHeaderHeight * categories.size + 8.dp * (categories.size - 1),
+        preferredActionRowHeight * maximumActionCount,
+    )
+    val requestedMaxHeight = dialogBodyMaxHeight()
+
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        val regionHeight = minOf(maxHeight, requestedMaxHeight, naturalHeight)
+        val gap = (
+            (regionHeight - preferredHeaderHeight * categories.size) /
+                (categories.size - 1)
+            ).coerceIn(2.dp, 8.dp)
+        val headerHeight =
+            (regionHeight - gap * (categories.size - 1)) / categories.size
+        val headerScale = (
+            headerHeight.value / preferredHeaderHeight.value
+            ).coerceAtMost(1f)
+        val headerFontSize = headerStyle.fontSize * headerScale
+        val indicatorSize = 24.dp * headerScale
+        val selectedIndex = categories.indexOf(selectedCategory)
+        val selectedActions = actionsByCategory.getValue(selectedCategory)
+        val actionRowHeight = minOf(
+            preferredActionRowHeight,
+            regionHeight / selectedActions.size,
+        )
+        val actionScale = (
+            actionRowHeight.value / preferredActionRowHeight.value
+            ).coerceAtMost(1f)
+        val actionFontSize = actionStyle.fontSize * actionScale
+        val actionCardHeight = actionRowHeight * selectedActions.size
+        val selectedHeaderCenter =
+            (headerHeight + gap) * selectedIndex + headerHeight / 2
+        val actionCardTop = (selectedHeaderCenter - actionCardHeight / 2).coerceIn(
+            0.dp,
+            regionHeight - actionCardHeight,
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(regionHeight),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+                verticalArrangement = Arrangement.spacedBy(gap),
+            ) {
+                categories.forEach { category ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        border = BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.outlineVariant,
+                        ),
+                    ) {
+                        MoreActionsCardHeader(
+                            modifier = Modifier
+                                .fillMaxSize(),
+                            title = category.title,
+                            textStyle = headerStyle.copy(
+                                fontSize = headerFontSize,
+                                lineHeight = headerFontSize,
+                            ),
+                            indicator = if (category == selectedCategory) {
+                                Icons.AutoMirrored.Filled.KeyboardArrowRight
+                            } else {
+                                null
+                            },
+                            indicatorDescription = if (category == selectedCategory) {
+                                "Selected"
+                            } else {
+                                null
+                            },
+                            indicatorSize = indicatorSize,
+                            contentPadding = PaddingValues(horizontal = 14.dp),
+                            onClick = { onCategorySelected(category) },
+                        )
+                    }
+                }
+            }
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+            ) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(actionCardHeight)
+                        .offset(y = actionCardTop),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                ) {
+                    MoreActionsCardContents(
+                        actions = selectedActions,
+                        rowSizeModifier = Modifier.height(actionRowHeight),
+                        textStyle = actionStyle.copy(
+                            fontSize = actionFontSize,
+                            lineHeight = actionFontSize,
+                        ),
+                        contentPadding = PaddingValues(horizontal = 14.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/// Render the portrait More actions accordion.
+@Composable
+private fun PortraitMoreActionsRegion(
+    modifier: Modifier,
+    actionsByCategory: Map<MoreActionsCategory, List<MoreActionsItem>>,
+    selectedCategory: MoreActionsCategory,
+    onCategorySelected: (MoreActionsCategory) -> Unit,
+) {
+    ScrollableDialogRegion(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        MoreActionsCategory.entries.forEach { category ->
+            val expanded = selectedCategory == category
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            ) {
+                MoreActionsCardHeader(
+                    modifier = Modifier.fillMaxWidth(),
+                    title = category.title,
+                    textStyle = MaterialTheme.typography.labelMedium,
+                    indicator = if (expanded) {
+                        Icons.Filled.KeyboardArrowDown
+                    } else {
+                        Icons.AutoMirrored.Filled.KeyboardArrowRight
+                    },
+                    indicatorDescription = if (expanded) "Expanded" else "Collapsed",
+                    indicatorSize = 24.dp,
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                    onClick = { onCategorySelected(category) },
+                )
+                if (expanded) {
+                    MoreActionsCardContents(
+                        actions = actionsByCategory.getValue(category),
+                        rowSizeModifier = Modifier.defaultMinSize(minHeight = 44.dp),
+                        textStyle = MaterialTheme.typography.bodyLarge,
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+                    )
+                }
+            }
+        }
+    }
 }
 
 /**
@@ -56,6 +348,7 @@ internal fun MoreActionsContent(
     onStateUpdate: (GameState) -> Unit,
 ) {
     var childDialog by remember { mutableStateOf<MoreActionsChildDialog?>(null) }
+    var selectedCategory by remember { mutableStateOf(MoreActionsCategory.SETUP_CHANGES) }
 
     if (childDialog == MoreActionsChildDialog.ADJUST_SCORE) {
         AdjustScoreDialog(
@@ -145,125 +438,177 @@ internal fun MoreActionsContent(
             },
         )
     } else {
-        ScrollableDialogRegion(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.Top,
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    MenuButton(
-                        label = "Update game setup",
-                        onClick = onUpdateGameSetup,
-                    )
-                    MenuButton(
-                        label = "Change pull prompts",
+        val setupActions = listOf(
+            MoreActionsItem(
+                label = "Set heat/AQI level",
+                tag = null,
+                onClick = {
+                    childDialog = MoreActionsChildDialog.SET_HEAT_LEVEL
+                },
+            ),
+            MoreActionsItem(
+                label = "Update game setup",
+                tag = null,
+                onClick = {
+                    onUpdateGameSetup()
+                },
+            ),
+        )
+        val detailActions = listOf(
+            MoreActionsItem(
+                label = "Event log",
+                tag = null,
+                onClick = {
+                    onShowEventLog()
+                },
+            ),
+            MoreActionsItem(
+                label = "Game summary",
+                tag = null,
+                onClick = {
+                    onShowGameSummary()
+                },
+            ),
+        )
+        val fieldActions = listOf(
+            MoreActionsItem(
+                label = "Flip field display",
+                tag = null,
+                onClick = {
+                    onAction(state.flipFieldDisplay())
+                },
+            ),
+            MoreActionsItem(
+                label = "Change pull prompts",
+                tag = null,
+                onClick = {
+                    childDialog = MoreActionsChildDialog.CHANGE_PULL_PROMPTS
+                },
+            ),
+            MoreActionsItem(
+                label = "Swap pulling team",
+                tag = null,
+                onClick = {
+                    onAction(state.swapPullingTeam())
+                },
+            ),
+        )
+        val correctionActions = listOf(
+            MoreActionsItem(
+                label = "Adjust cards / techs",
+                tag = null,
+                onClick = {
+                    childDialog = MoreActionsChildDialog.ADJUST_CARDS
+                },
+            ),
+            MoreActionsItem(
+                label = "Adjust pull violations",
+                tag = null,
+                onClick = {
+                    childDialog = MoreActionsChildDialog.ADJUST_PULL_VIOLATIONS
+                },
+            ),
+            MoreActionsItem(
+                label = "Adjust timeouts",
+                tag = "more-actions-adjust-timeouts",
+                onClick = {
+                    childDialog = MoreActionsChildDialog.ADJUST_TIMEOUTS
+                },
+            ),
+            MoreActionsItem(
+                label = "Adjust score",
+                tag = null,
+                onClick = {
+                    childDialog = MoreActionsChildDialog.ADJUST_SCORE
+                },
+            ),
+        )
+        val transitionActions = buildList {
+            if (state.halfCapRelevant(state.teamOne.score, state.teamTwo.score)) {
+                add(
+                    MoreActionsItem(
+                        label = "Apply half cap now",
+                        tag = null,
                         onClick = {
-                            childDialog = MoreActionsChildDialog.CHANGE_PULL_PROMPTS
+                            onAction(
+                                state.makeCapNow(CapType.HALF, System.currentTimeMillis())
+                            )
                         },
                     )
-                    MenuButton(
-                        label = "Flip field display",
-                        onClick = {
-                            onAction(state.flipFieldDisplay())
-                        },
-                    )
-                    MenuButton(
-                        label = "Swap pulling team",
-                        onClick = {
-                            onAction(state.swapPullingTeam())
-                        },
-                    )
-                    MenuButton(
-                        label = "Adjust score",
-                        onClick = { childDialog = MoreActionsChildDialog.ADJUST_SCORE },
-                    )
-                    MenuButton(
-                        label = "Adjust timeouts",
-                        tag = "more-actions-adjust-timeouts",
-                        onClick = { childDialog = MoreActionsChildDialog.ADJUST_TIMEOUTS },
-                    )
-                    MenuButton(
-                        label = "Adjust pull violations",
-                        onClick = { childDialog = MoreActionsChildDialog.ADJUST_PULL_VIOLATIONS },
-                    )
-                    MenuButton(
-                        label = "Adjust cards / techs",
-                        onClick = { childDialog = MoreActionsChildDialog.ADJUST_CARDS },
-                    )
-                }
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    MenuButton(
-                        label = "Set heat/AQI level",
-                        onClick = {
-                            childDialog = MoreActionsChildDialog.SET_HEAT_LEVEL
-                        },
-                    )
-                    MenuButton(
-                        label = "Game summary",
-                        onClick = onShowGameSummary,
-                    )
-                    MenuButton(
-                        label = "Event log",
-                        onClick = onShowEventLog,
-                    )
-                    if (state.halfCapRelevant(state.teamOne.score, state.teamTwo.score)) {
-                        MenuButton(
-                            label = "Apply half cap now",
-                            onClick = {
-                                onAction(
-                                    state.makeCapNow(CapType.HALF, System.currentTimeMillis())
-                                )
-                            },
-                        )
-                    }
-                    if (!state.halftimeTaken && state.phase == GamePhase.BETWEEN_POINTS) {
-                        MenuButton(
-                            label = "Start halftime",
-                            onClick = {
-                                onAction(state.startHalftimeNow(System.currentTimeMillis()))
-                            },
-                        )
-                    }
-                    if (state.softCapRelevant()) {
-                        MenuButton(
-                            label = "Apply soft cap now",
-                            onClick = {
-                                onAction(
-                                    state.makeCapNow(CapType.SOFT, System.currentTimeMillis())
-                                )
-                            },
-                        )
-                    }
-                    if (state.hardCapRelevant()) {
-                        MenuButton(
-                            label = "Apply hard cap now",
-                            onClick = {
-                                onAction(
-                                    state.makeCapNow(CapType.HARD, System.currentTimeMillis())
-                                )
-                            },
-                        )
-                    }
-                    MenuButton(
-                        label = "End game",
-                        onClick = {
-                            onAction(state.endGameNow(System.currentTimeMillis()))
-                        },
-                    )
-                }
+                )
             }
+            if (!state.halftimeTaken && state.phase == GamePhase.BETWEEN_POINTS) {
+                add(
+                    MoreActionsItem(
+                        label = "Start halftime",
+                        tag = null,
+                        onClick = {
+                            onAction(state.startHalftimeNow(System.currentTimeMillis()))
+                        },
+                    )
+                )
+            }
+            if (state.softCapRelevant()) {
+                add(
+                    MoreActionsItem(
+                        label = "Apply soft cap now",
+                        tag = null,
+                        onClick = {
+                            onAction(
+                                state.makeCapNow(CapType.SOFT, System.currentTimeMillis())
+                            )
+                        },
+                    )
+                )
+            }
+            if (state.hardCapRelevant()) {
+                add(
+                    MoreActionsItem(
+                        label = "Apply hard cap now",
+                        tag = null,
+                        onClick = {
+                            onAction(
+                                state.makeCapNow(CapType.HARD, System.currentTimeMillis())
+                            )
+                        },
+                    )
+                )
+            }
+            add(
+                MoreActionsItem(
+                    label = "End game",
+                    tag = null,
+                    onClick = {
+                        onAction(state.endGameNow(System.currentTimeMillis()))
+                    },
+                )
+            )
+        }
+        val actionsByCategory = mapOf(
+            MoreActionsCategory.SETUP_CHANGES to setupActions,
+            MoreActionsCategory.GAME_DETAILS to detailActions,
+            MoreActionsCategory.FIELD_AND_PULL to fieldActions,
+            MoreActionsCategory.CORRECTIONS to correctionActions,
+            MoreActionsCategory.MANUAL_TRANSITIONS to transitionActions,
+        )
+        if (activeGameOrientation == ActiveGameOrientation.LANDSCAPE) {
+            LandscapeMoreActionsRegion(
+                actionsByCategory = actionsByCategory,
+                selectedCategory = selectedCategory,
+                onCategorySelected = { selectedCategory = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+            )
+        } else {
+            PortraitMoreActionsRegion(
+                actionsByCategory = actionsByCategory,
+                selectedCategory = selectedCategory,
+                onCategorySelected = { selectedCategory = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+            )
         }
     }
 }
