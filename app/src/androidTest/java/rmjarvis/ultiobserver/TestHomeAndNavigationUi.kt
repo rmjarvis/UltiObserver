@@ -874,15 +874,21 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         setAutomaticallyAdvanceCountdowns(true)
         setAutomaticallyLockLivePoint(true)
         setShowAbbaRatioAsSequence(true)
-        setPortraitActiveGameOrientation()
+        setPortraitOrientationPreference()
 
-        // Active games default to Portrait, while Landscape describes the left/right field.
+        // Active games default to Portrait; exercise both alternate orientation behaviors.
         composeRule.onNodeWithText("Settings").performClick()
         composeRule.onNodeWithTag("settings-active-game-orientation-PORTRAIT").assertIsSelected()
         composeRule.onNodeWithTag("settings-active-game-orientation-LANDSCAPE").performClick()
         composeRule.onNodeWithTag("settings-active-game-orientation-LANDSCAPE").assertIsSelected()
         composeRule.onNodeWithTag("settings-active-game-orientation-description").assertTextEquals(
             "Show teams on the left and right of the active game screen."
+        )
+        composeRule.onNodeWithTag("settings-active-game-orientation-AUTO_ROTATE").performClick()
+        composeRule.onNodeWithTag("settings-active-game-orientation-AUTO_ROTATE").assertIsSelected()
+        composeRule.onNodeWithTag("settings-active-game-orientation-description").assertTextEquals(
+            "Follow the phone's orientation when Android auto-rotate is on, or use how it is " +
+                "held when the active game screen opens."
         )
         composeRule.onNodeWithTag("settings-active-game-orientation-PORTRAIT").performClick()
 

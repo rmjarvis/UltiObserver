@@ -41,27 +41,20 @@ signaling readiness.
 Field Display
 -------------
 
-The field area is oriented so that whichever end you chose for pull prompts is at the
-bottom. If you chose both or neither, the bottom is the end that was initially named Near end.
+The active game screen may be displayed in either portrait or landscape mode depending on your
+`Settings`.
+
+In portrait mode, the field area is oriented with the two end zones at the top and bottom
+of the screen. Whichever end you chose for pull prompts is at the bottom. If you chose both or
+neither, the bottom is the end that was initially named Near end.
 The names of each end are given on the screen at the upper right and bottom right
-of the field area.  The top and bottom team areas show which team starts the point in the
-corresponding end zone.
+of the field area.
 
-In the central green area, the pull direction is shown on the left side, and a lock
-icon is shown on the right side. Pressing the lock button will lock the screen so you can
-put it in your pocket without worrying about misclicks during the point.
+In landscape mode, the two end zones are on the left and right sides of the screen, with the
+names given at the lower left and lower right corners of the field area.
 
-For mixed division games, if the gender ratio is specified for a given point, a badge
-with the requisite gender ratio will also be shown on the right, below the lock. Fixed
-gender-ratio rules show this as ``4M/3W`` or ``4W/3M``. ABBA may show the ratio using one
-of these or using the sequence shorthand: ``M1``, ``M2``, ``W1``, or ``W2``.
-You can choose between these options in the :ref:`Settings`.
-If one team is choosing the gender ratio, then that will be indicated in the team areas
-on the right side, next to the central area.
-
-The center of the field sometimes shows a button to either **Start point** to indicate
-that the pull happened, presumably before the countdown finished, or to **Continue point**
-to go back to live play before the timeout countdown finished.
+In either case, each end zone shows which team starts the point in that end zone.
+See `Team Areas` below.
 
 If you want to flip the display orientation, use **More actions** and **Flip
 field display**. See :ref:`more-actions-menu` for the full menu. This changes only
@@ -100,7 +93,7 @@ Tech
 TO
     Lets you record a timeout called by a team. See :ref:`timeouts` for details.
 
-The four central buttons for violations and misconduct show the current count for that
+The four buttons for violations and misconduct show the current count for that
 event so far in the game. For cards, the count is the total that is relevant for
 assessing misconduct penalties, i.e. red cards count as 2. If a team has not accrued any
 instances of the given violation or misconduct, the number is omitted for brevity.
@@ -108,18 +101,38 @@ instances of the given violation or misconduct, the number is omitted for brevit
 The timeout button always shows the number of timeouts available for the team in the current
 half.
 
-Locking And Unlocking
----------------------
+Central Section
+---------------
 
 .. figure:: screen-shots/LockedScreen.png
    :class: phone-screenshot
    :target: _images/LockedScreen.png
    :alt: Locked active game screen with an unlock slider
 
-The screen automatically locks during live points by default. This keeps the layout in
-place but disables normal buttons. Drag the unlock slider to the right to unlock the screen.
-You can manually lock the screen at any time by clicking the lock icon on the right side
-of the central green area.
+The central green section shows the pull direction with an arrow indicating which team is
+pulling to the other.
+
+There is also a lock icon either on the right side (in portrait mode) or the bottom
+(in landscape) of the central section.
+Pressing the lock button will lock the screen so you can
+put it in your pocket without worrying about misclicks during the point.
+It keeps the layout in place but disables normal buttons.
+Drag the unlock slider to the right to unlock the screen.
+The screen also automatically locks during live points by default.
+You can disable this feature in the `Settings` if you want.
+
+For mixed division games, if the gender ratio is specified for a given point, a badge with the
+requisite gender ratio will also be shown in the central section next to the lock icon.
+Fixed gender-ratio rules show this as ``4M/3W`` or ``4W/3M``. ABBA may show the ratio using one
+of these or using the sequence shorthand: ``M1``, ``M2``, ``W1``, or ``W2``.
+You can choose between these options in the `Settings`.
+If one team is choosing the gender ratio, then that will be indicated in their team area.
+
+The center of the field sometimes shows a button to transition the game to the next phase.
+**Start point** indicates that the pull happened, presumably before the countdown finished.
+**Continue point** will end a timeout and go back to live play before its countdown finishes.
+When defensive countdowns are enabled, **Offense is set** indicates that the offense is set,
+which may start the defensive countdown.
 
 Caps
 ----

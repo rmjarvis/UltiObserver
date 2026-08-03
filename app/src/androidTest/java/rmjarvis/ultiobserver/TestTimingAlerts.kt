@@ -61,7 +61,7 @@ class TestTimingAlerts {
                 LocalTime.of(10, 0),
                 ZoneId.systemDefault(),
             ),
-        ).startGame(ActiveGameOrientation.PORTRAIT)
+        ).startGame(OrientationPreference.PORTRAIT)
 
         // Starting or updating the background service carries the current user playback settings.
         val updateIntent = TimingAlertForegroundService.updateIntent(
@@ -641,7 +641,7 @@ class TestTimingAlerts {
                     ZoneId.systemDefault(),
                 ),
             )
-                .startGame(ActiveGameOrientation.PORTRAIT)
+                .startGame(OrientationPreference.PORTRAIT)
                 .beginLivePoint(serviceUpdateNow)
                 .assessTimeout(TeamId.TEAM_ONE, serviceUpdateNow)
                 .state

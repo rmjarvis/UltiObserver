@@ -189,7 +189,7 @@ private fun fakeCompletedGame(
         openingPullingTeam = if (gameIndex % 2 == 0) TeamId.TEAM_ONE else TeamId.TEAM_TWO,
         openingPullingFromEnd = if (gameIndex % 2 == 0) FieldEnd.FAR else FieldEnd.NEAR,
     )
-    return setup.startGame(ActiveGameOrientation.PORTRAIT).copy(
+    return setup.startGame(OrientationPreference.PORTRAIT).copy(
         endEpoch = startEpoch + Duration.ofMinutes((85 + gameIndex).toLong()).toMillis(),
         teamOne = setup.teamOne.copy(
             score = teamOneScore,

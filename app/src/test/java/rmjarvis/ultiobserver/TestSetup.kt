@@ -147,7 +147,7 @@ class TestSetup : GameDomainTestFixtures() {
         assertEquals(blankNameSetup, setupGame)
         assertEquals("", setupGame.teamOne.name)
         assertEquals("", setupGame.teamTwo.name)
-        val startedSetupGame = setupGame.startGame(ActiveGameOrientation.PORTRAIT)
+        val startedSetupGame = setupGame.startGame(OrientationPreference.PORTRAIT)
         assertEquals(GamePhase.PRE_GAME, startedSetupGame.phase)
         assertTrue(startedSetupGame.phase.isBeforeLivePoint)
         assertEquals("Team 1", startedSetupGame.teamOne.name)
@@ -441,16 +441,20 @@ class TestSetup : GameDomainTestFixtures() {
             pullPromptTarget = PullPromptTarget.BOTH,
         )
         val state = createLiveGameState(setup)
-        val portrait = ActiveGameOrientation.PORTRAIT
+        val portraitPreference = OrientationPreference.PORTRAIT
+        val portraitLayout = ActiveGameOrientation.PORTRAIT
 
         // Configured field-end names flow into setup summaries and live-state display helpers.
-        assertEquals("Road", setup.fieldEndName(FieldEnd.NEAR, portrait))
-        assertEquals("Trees", setup.fieldEndName(FieldEnd.FAR, portrait))
-        assertEquals("Viscous Coupling pulls from Road", setup.startingPullSummary(portrait))
-        assertEquals("Pull prompts for both ends", setup.pullPromptSummary(portrait))
+        assertEquals("Road", setup.fieldEndName(FieldEnd.NEAR, portraitPreference))
+        assertEquals("Trees", setup.fieldEndName(FieldEnd.FAR, portraitPreference))
+        assertEquals(
+            "Viscous Coupling pulls from Road",
+            setup.startingPullSummary(portraitPreference),
+        )
+        assertEquals("Pull prompts for both ends", setup.pullPromptSummary(portraitPreference))
         assertTrue(setup.usesMixedDivision())
-        assertEquals("Road", state.fieldEndDisplayName(FieldEnd.NEAR, portrait))
-        assertEquals("Trees", state.fieldEndDisplayName(FieldEnd.FAR, portrait))
+        assertEquals("Road", state.fieldEndName(FieldEnd.NEAR, portraitLayout))
+        assertEquals("Trees", state.fieldEndName(FieldEnd.FAR, portraitLayout))
 
         // Blank field-end names fall back to default labels while prompt targets use configured
         // names.
@@ -460,25 +464,76 @@ class TestSetup : GameDomainTestFixtures() {
             pullPromptTarget = PullPromptTarget.NEAR,
         )
         val defaultEndsState = state.copy(nearEndName = "", farEndName = "")
-        assertEquals("Near end", defaultEndsSetup.fieldEndName(FieldEnd.NEAR, portrait))
-        assertEquals("Far end", defaultEndsSetup.fieldEndName(FieldEnd.FAR, portrait))
-        assertEquals("Near end", defaultEndsState.fieldEndDisplayName(FieldEnd.NEAR, portrait))
-        assertEquals("Far end", defaultEndsState.fieldEndDisplayName(FieldEnd.FAR, portrait))
-        assertEquals("Pull prompts for Near end", defaultEndsSetup.pullPromptSummary(portrait))
+        assertEquals(
+            "Near end",
+            defaultEndsSetup.fieldEndName(FieldEnd.NEAR, portraitPreference),
+        )
+        assertEquals(
+            "Far end",
+            defaultEndsSetup.fieldEndName(FieldEnd.FAR, portraitPreference),
+        )
+        assertEquals(
+            "Near end",
+            defaultEndsState.fieldEndName(FieldEnd.NEAR, portraitLayout),
+        )
+        assertEquals(
+            "Far end",
+            defaultEndsState.fieldEndName(FieldEnd.FAR, portraitLayout),
+        )
+        assertEquals(
+            "Near end",
+            FieldEnd.NEAR.defaultDisplayText(OrientationPreference.PORTRAIT),
+        )
+        assertEquals(
+            "Far end",
+            FieldEnd.FAR.defaultDisplayText(OrientationPreference.PORTRAIT),
+        )
+        assertEquals(
+            "Near end",
+            FieldEnd.NEAR.defaultDisplayText(OrientationPreference.AUTO_ROTATE),
+        )
+        assertEquals(
+            "Far end",
+            FieldEnd.FAR.defaultDisplayText(OrientationPreference.AUTO_ROTATE),
+        )
+        assertEquals(
+            "Left end",
+            FieldEnd.FAR.defaultDisplayText(OrientationPreference.LANDSCAPE),
+        )
+        assertEquals(
+            "Right end",
+            FieldEnd.NEAR.defaultDisplayText(OrientationPreference.LANDSCAPE),
+        )
+        assertEquals(
+            "Pull prompts for Near end",
+            defaultEndsSetup.pullPromptSummary(portraitPreference),
+        )
 
         // Pull-prompt choices use configured field-end names when they refer to one end.
-        assertEquals("Road", PullPromptTarget.NEAR.displayText(setup, portrait))
-        assertEquals("Trees", PullPromptTarget.FAR.displayText(setup, portrait))
-        assertEquals("both ends", PullPromptTarget.BOTH.displayText(setup, portrait))
-        assertEquals("neither end", PullPromptTarget.NEITHER.displayText(setup, portrait))
+        assertEquals("Road", PullPromptTarget.NEAR.displayText(setup, portraitPreference))
+        assertEquals("Trees", PullPromptTarget.FAR.displayText(setup, portraitPreference))
+        assertEquals("both ends", PullPromptTarget.BOTH.displayText(setup, portraitPreference))
+        assertEquals("neither end", PullPromptTarget.NEITHER.displayText(setup, portraitPreference))
 
         // Landscape uses Left for the persisted far end and Right for the persisted near end.
-        val landscape = ActiveGameOrientation.LANDSCAPE
-        assertEquals("Left end", defaultEndsSetup.fieldEndName(FieldEnd.FAR, landscape))
-        assertEquals("Right end", defaultEndsSetup.fieldEndName(FieldEnd.NEAR, landscape))
+        val landscapePreference = OrientationPreference.LANDSCAPE
+        assertEquals(
+            "Left end",
+            defaultEndsSetup.fieldEndName(FieldEnd.FAR, landscapePreference),
+        )
+        assertEquals(
+            "Right end",
+            defaultEndsSetup.fieldEndName(FieldEnd.NEAR, landscapePreference),
+        )
         assertEquals(
             "Pull prompts for Right end",
-            defaultEndsSetup.pullPromptSummary(landscape),
+            defaultEndsSetup.pullPromptSummary(landscapePreference),
+        )
+
+        // Auto-rotate uses the Portrait field-end language during setup.
+        assertEquals(
+            "Near end",
+            defaultEndsSetup.fieldEndName(FieldEnd.NEAR, OrientationPreference.AUTO_ROTATE),
         )
 
         // Pull-prompt choice labels are title-cased for the setup dialog option list.
@@ -491,25 +546,25 @@ class TestSetup : GameDomainTestFixtures() {
         assertEquals(
             FieldEnd.FAR,
             setup.copy(pullPromptTarget = PullPromptTarget.NEAR)
-                .startGame(ActiveGameOrientation.PORTRAIT)
+                .startGame(OrientationPreference.PORTRAIT)
                 .topDisplayedEnd,
         )
         assertEquals(
             FieldEnd.NEAR,
             setup.copy(pullPromptTarget = PullPromptTarget.FAR)
-                .startGame(ActiveGameOrientation.PORTRAIT)
+                .startGame(OrientationPreference.PORTRAIT)
                 .topDisplayedEnd,
         )
         assertEquals(
             FieldEnd.FAR,
             setup.copy(pullPromptTarget = PullPromptTarget.BOTH)
-                .startGame(ActiveGameOrientation.PORTRAIT)
+                .startGame(OrientationPreference.PORTRAIT)
                 .topDisplayedEnd,
         )
         assertEquals(
             FieldEnd.FAR,
             setup.copy(pullPromptTarget = PullPromptTarget.NEITHER)
-                .startGame(ActiveGameOrientation.PORTRAIT)
+                .startGame(OrientationPreference.PORTRAIT)
                 .topDisplayedEnd,
         )
 
@@ -518,7 +573,7 @@ class TestSetup : GameDomainTestFixtures() {
             assertEquals(
                 FieldEnd.FAR,
                 setup.copy(pullPromptTarget = target)
-                    .startGame(ActiveGameOrientation.LANDSCAPE)
+                    .startGame(OrientationPreference.LANDSCAPE)
                     .topDisplayedEnd,
             )
         }
@@ -583,7 +638,7 @@ class TestSetup : GameDomainTestFixtures() {
         assertEquals("Team 1", VC.setupName(blankTeamSetup))
         assertEquals(
             "Team 2 pulls from Far end",
-            blankTeamSetup.startingPullSummary(portrait),
+            blankTeamSetup.startingPullSummary(portraitPreference),
         )
     }
 

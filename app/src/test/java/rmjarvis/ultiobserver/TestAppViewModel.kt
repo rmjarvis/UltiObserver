@@ -92,30 +92,45 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertEquals("Tap to resume", viewModel.currentGameHomeSubtitle)
     }
 
-    /**
-     * Verify a new landscape game starts with the persisted Far end fixed on the left.
-     */
+    /** Verify game start uses the field-end arrangement for each orientation preference. */
     @Test
-    fun landscapeGameStart() {
-        val viewModel = AppViewModel(NoOpAppStateStorage)
-        viewModel.updateSettings(
-            viewModel.settings.withActiveGameOrientation(ActiveGameOrientation.LANDSCAPE)
+    fun gameStartOrientation() {
+        val landscapeViewModel = AppViewModel(NoOpAppStateStorage)
+        landscapeViewModel.updateSettings(
+            landscapeViewModel.settings.withOrientationPreference(
+                OrientationPreference.LANDSCAPE
+            )
         )
-        viewModel.startNewGame(now = 123_000L)
-        viewModel.updateSetup(
-            viewModel.setupGame.copy(
+        landscapeViewModel.startNewGame(now = 123_000L)
+        landscapeViewModel.updateSetup(
+            landscapeViewModel.setupGame.copy(
                 // Portrait would put Near at the top for this prompt target. Landscape should
                 // still keep Far on the left, independent of timing-prompt responsibility.
                 pullPromptTarget = PullPromptTarget.FAR,
             )
         )
-        viewModel.finishSetup(now = 123_000L)
+        landscapeViewModel.finishSetup(now = 123_000L)
 
         assertEquals(
-            ActiveGameOrientation.LANDSCAPE,
-            viewModel.settings.activeGameOrientation
+            OrientationPreference.LANDSCAPE,
+            landscapeViewModel.settings.orientationPreference
         )
-        assertEquals(FieldEnd.FAR, viewModel.currentGame!!.topDisplayedEnd)
+        assertEquals(FieldEnd.FAR, landscapeViewModel.currentGame!!.topDisplayedEnd)
+
+        // Auto-rotate uses the normal Portrait field-end arrangement when starting the game.
+        val autoRotateViewModel = AppViewModel(NoOpAppStateStorage)
+        autoRotateViewModel.updateSettings(
+            autoRotateViewModel.settings.withOrientationPreference(
+                OrientationPreference.AUTO_ROTATE
+            )
+        )
+        autoRotateViewModel.startNewGame(now = 123_000L)
+        autoRotateViewModel.updateSetup(
+            autoRotateViewModel.setupGame.copy(pullPromptTarget = PullPromptTarget.FAR)
+        )
+        autoRotateViewModel.finishSetup(now = 123_000L)
+
+        assertEquals(FieldEnd.NEAR, autoRotateViewModel.currentGame!!.topDisplayedEnd)
     }
 
     /**

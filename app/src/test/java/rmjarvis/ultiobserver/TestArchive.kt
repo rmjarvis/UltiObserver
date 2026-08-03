@@ -681,11 +681,14 @@ class TestArchive : GameDomainTestFixtures() {
         viewModel.finishSetup(now = 123_000L)
         val currentGame = viewModel.currentGame!!.beginLivePoint(123_000L)
         viewModel.updateCurrentGame(currentGame)
+        assertTrue(viewModel.state.value.viewingActiveGameScreen)
         viewModel.openArchivedGames()
+        assertFalse(viewModel.state.value.viewingActiveGameScreen)
         viewModel.openArchivedGameCategory(ArchivedGameCategory.IN_PROGRESS)
         viewModel.openCurrentGameSummary()
         assertEquals(AppScreen.LIVE, viewModel.screen)
         assertTrue(viewModel.viewingCurrentGameSummary)
+        assertFalse(viewModel.state.value.viewingActiveGameScreen)
         assertTrue(viewModel.archivedGames.isEmpty())
         assertEquals(currentGame, viewModel.displayedGame)
 
@@ -698,6 +701,7 @@ class TestArchive : GameDomainTestFixtures() {
         viewModel.resumeCurrentGame()
         assertEquals(AppScreen.LIVE, viewModel.screen)
         assertFalse(viewModel.viewingCurrentGameSummary)
+        assertTrue(viewModel.state.value.viewingActiveGameScreen)
 
         // When the same summary opens from live-game navigation, Back returns to live play.
         viewModel.openCurrentGameSummary()
@@ -714,6 +718,7 @@ class TestArchive : GameDomainTestFixtures() {
         assertEquals(AppScreen.LIVE, viewModel.screen)
         assertFalse(viewModel.viewingCurrentGameSummary)
         assertEquals(GamePhase.GAME_OVER, viewModel.currentGame!!.phase)
+        assertFalse(viewModel.state.value.viewingActiveGameScreen)
         assertEquals(completedCurrentGame, viewModel.displayedGame)
 
         // A stale UI callback should not leave archive navigation when no current game exists.

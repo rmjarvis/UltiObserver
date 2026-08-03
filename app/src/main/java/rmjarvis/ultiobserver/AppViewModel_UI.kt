@@ -38,11 +38,13 @@ internal fun appViewModelFactory(filesDir: File): ViewModelProvider.Factory {
  *
  * @param viewModel The app-level ViewModel owning navigation and persisted state.
  * @param previousRunCrashed Whether Crashlytics recorded a fatal crash in the previous app run.
+ * @param displayOrientation Readable orientation currently shown by Android.
  */
 @Composable
 internal fun UltiObserverApp(
     viewModel: AppViewModel,
     previousRunCrashed: Boolean,
+    displayOrientation: ActiveGameFullOrientation,
 ) {
     val appState by viewModel.state.collectAsState()
     val context = LocalContext.current
@@ -321,7 +323,7 @@ internal fun UltiObserverApp(
 
             SetupScreen(
                 state = setupGame,
-                activeGameOrientation = appState.settings.activeGameOrientation,
+                orientationPreference = appState.settings.orientationPreference,
                 onStateChange = { updatedState ->
                     viewModel.updateSetup(updatedState)
                 },
@@ -437,6 +439,7 @@ internal fun UltiObserverApp(
                 ActiveGameScreen(
                     state = currentGame,
                     settings = appState.settings,
+                    displayOrientation = displayOrientation,
                     onStateChange = { updatedState ->
                         viewModel.updateCurrentGame(updatedState)
                     },

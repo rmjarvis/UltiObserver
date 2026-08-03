@@ -72,6 +72,12 @@ internal data class AppUiState(
             }
         }
 
+    /// Return whether the regular interactive active-game screen is currently visible.
+    val viewingActiveGameScreen: Boolean
+        get() = screen == AppScreen.LIVE &&
+            !viewingCurrentGameSummary &&
+            currentGame!!.phase != GamePhase.GAME_OVER
+
     /**
      * Build the archive rows and filter choices for archive navigation.
      *
@@ -767,7 +773,7 @@ internal class AppViewModel(
         val setupEdit = setupEditDraft
         val current = currentGame!!
         val updatedCurrentGame = if (setupEdit == null) {
-            current.startGame(settings.activeGameOrientation)
+            current.startGame(settings.orientationPreference)
         } else {
             applySetupEditToActiveGame(current, setupEdit, now)
         }

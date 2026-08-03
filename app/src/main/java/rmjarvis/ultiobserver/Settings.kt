@@ -306,13 +306,13 @@ internal enum class RuleGuidancePresentation {
 }
 
 /**
- * Fixed orientation used by the active-game screen.
+ * Orientation behavior selected for the active-game screen.
  *
  * @param label Short name shown by the Settings selector.
- * @param description Explanation shown for the selected orientation.
+ * @param description Explanation shown for the selected behavior.
  */
 @Serializable
-internal enum class ActiveGameOrientation(
+internal enum class OrientationPreference(
     val label: String,
     val description: String,
 ) {
@@ -324,12 +324,88 @@ internal enum class ActiveGameOrientation(
         "Landscape",
         "Show teams on the left and right of the active game screen.",
     ),
+    AUTO_ROTATE(
+        "Auto-rotate",
+        "Follow the phone's orientation if Android's auto-rotate is enabled. " +
+            "Otherwise, it will use the current phone orientation when the active " +
+            "game screen opens each time.",
+    ),
+}
+
+/// Portrait or landscape orientation currently used to display the active-game screen.
+internal enum class ActiveGameOrientation {
+    PORTRAIT,
+    LANDSCAPE,
+}
+
+/**
+ * Readable orientation currently shown by Android.
+ *
+ * The landscape names describe where the physical top of a naturally portrait phone appears on
+ * the rendered screen.
+ */
+internal enum class ActiveGameFullOrientation(val orientation: ActiveGameOrientation) {
+    PORTRAIT(ActiveGameOrientation.PORTRAIT),
+    LANDSCAPE_PHONE_TOP_AT_LEFT(ActiveGameOrientation.LANDSCAPE),
+    REVERSE_PORTRAIT(ActiveGameOrientation.PORTRAIT),
+    LANDSCAPE_PHONE_TOP_AT_RIGHT(ActiveGameOrientation.LANDSCAPE),
+}
+
+/**
+ * Concrete active-game display choices derived from the setting and current phone orientation.
+ *
+ * @param orientation Current Portrait or Landscape geometry used to render the screen.
+ * @param layout Field-end arrangement used for Near/Far or Left/Right labels. This remains
+ * Portrait for Auto-rotate even when the current screen orientation is Landscape.
+ * @param topOrLeftDisplayedEnd Field end shown at the top in Portrait or left in Landscape.
+ */
+internal data class ActiveGameDisplay(
+    val orientation: ActiveGameOrientation,
+    val layout: ActiveGameOrientation,
+    val topOrLeftDisplayedEnd: FieldEnd,
+)
+
+/**
+ * Resolve this orientation behavior for the phone's current readable orientation.
+ *
+ * @param displayOrientation Readable orientation currently shown by Android.
+ * @param phoneTopEnd Field end attached to the physical top of the phone.
+ */
+internal fun OrientationPreference.displayFor(
+    displayOrientation: ActiveGameFullOrientation,
+    phoneTopEnd: FieldEnd,
+): ActiveGameDisplay {
+    val orientation = when (this) {
+        OrientationPreference.PORTRAIT -> ActiveGameOrientation.PORTRAIT
+        OrientationPreference.LANDSCAPE -> ActiveGameOrientation.LANDSCAPE
+        OrientationPreference.AUTO_ROTATE -> displayOrientation.orientation
+    }
+    val layout = if (this == OrientationPreference.LANDSCAPE) {
+        ActiveGameOrientation.LANDSCAPE
+    } else {
+        ActiveGameOrientation.PORTRAIT
+    }
+    val topOrLeftDisplayedEnd = if (this != OrientationPreference.AUTO_ROTATE) {
+        phoneTopEnd
+    } else {
+        when (displayOrientation) {
+            ActiveGameFullOrientation.PORTRAIT,
+            ActiveGameFullOrientation.LANDSCAPE_PHONE_TOP_AT_LEFT -> phoneTopEnd
+            ActiveGameFullOrientation.REVERSE_PORTRAIT,
+            ActiveGameFullOrientation.LANDSCAPE_PHONE_TOP_AT_RIGHT -> phoneTopEnd.flip()
+        }
+    }
+    return ActiveGameDisplay(
+        orientation = orientation,
+        layout = layout,
+        topOrLeftDisplayedEnd = topOrLeftDisplayedEnd,
+    )
 }
 
 /**
  * User settings stored as one persistence bucket.
  *
- * @param activeGameOrientation Fixed orientation used by the active-game screen.
+ * @param orientationPreference Orientation behavior used by the active-game screen.
  * @param ruleGuidanceMode Amount and duration of rule guidance shown during games.
  * @param automaticallyAdvanceCountdowns Whether expired countdowns should drive model transitions.
  * @param automaticallyLockLivePoint Whether automatic live-point entry should lock the live screen.
@@ -341,7 +417,7 @@ internal enum class ActiveGameOrientation(
  */
 @Serializable
 internal data class Settings(
-    val activeGameOrientation: ActiveGameOrientation = ActiveGameOrientation.PORTRAIT,
+    val orientationPreference: OrientationPreference = OrientationPreference.PORTRAIT,
     val ruleGuidanceMode: RuleGuidanceMode = RuleGuidanceMode.FULL,
     val automaticallyAdvanceCountdowns: Boolean = true,
     val automaticallyLockLivePoint: Boolean = true,
@@ -351,9 +427,9 @@ internal data class Settings(
     val fourWomenThreeMenBadgeColorArgb: Long = TeamColorChoice.RED.accentArgb,
     val timingAlerts: TimingAlertPreferences = TimingAlertPreferences(),
 ) {
-    /// Return these settings with the active-game orientation replaced.
-    fun withActiveGameOrientation(orientation: ActiveGameOrientation): Settings {
-        return copy(activeGameOrientation = orientation)
+    /// Return these settings with the active-game orientation preference replaced.
+    fun withOrientationPreference(preference: OrientationPreference): Settings {
+        return copy(orientationPreference = preference)
     }
 
     /// Return these settings with the live-game rule-guidance mode replaced.

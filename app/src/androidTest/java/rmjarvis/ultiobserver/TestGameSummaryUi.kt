@@ -68,7 +68,7 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
         // variable to true.
         var shared = false
         val state = newSetupGameState(now = 123_000L)
-            .startGame(ActiveGameOrientation.PORTRAIT)
+            .startGame(OrientationPreference.PORTRAIT)
             .copy(
             phase = GamePhase.GAME_OVER,
             observerNames = listOf("Mike", "Gary"),

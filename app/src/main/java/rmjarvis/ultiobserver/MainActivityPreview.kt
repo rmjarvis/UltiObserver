@@ -15,6 +15,7 @@ private fun MainActivityPreview() {
                 FileAppStateStorage(File(System.getProperty("java.io.tmpdir"), "ultiobserver-preview"))
             ),
             previousRunCrashed = false,
+            displayOrientation = ActiveGameFullOrientation.PORTRAIT,
         )
     }
 }

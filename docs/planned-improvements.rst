@@ -22,13 +22,6 @@ useful for non-USAU games, including professional games such as PUL, WUL, and UF
 WFDF variants would be nice to include as well to encode the places where those rules
 differ from USAU rules.
 
-Landscape mode
---------------
-
-Portrait mode is currently the only layout enabled. A future landscape mode could orient the
-two field ends on the left and right of the screen instead of top and bottom, which might
-be more intuitive for some users, such as a side observer in a 3 or 4 person system.
-
 Multi-Observer communication
 ----------------------------
 

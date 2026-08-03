@@ -53,7 +53,7 @@ class TestPersistence : GameDomainTestFixtures() {
         // Exercise global timing settings and cue overrides before leaving Settings.
         viewModel.openSettings()
         assertEquals(AppScreen.SETTINGS, viewModel.screen)
-        updateSettings { it.withActiveGameOrientation(ActiveGameOrientation.LANDSCAPE) }
+        updateSettings { it.withOrientationPreference(OrientationPreference.AUTO_ROTATE) }
         updateSettings { it.withRuleGuidanceMode(RuleGuidanceMode.TIMED) }
         updateTimingAlerts { it.withGlobalMode(TimingAlertGlobalMode.VIBRATION_ONLY) }
         updateTimingAlerts { it.withSoundVolume(0.4f) }
@@ -130,8 +130,8 @@ class TestPersistence : GameDomainTestFixtures() {
         assertEquals(ObserverAvatarPreference.BLUE, restored.profile.avatarPreference)
         assertEquals(ObserverAvatarPreference.BLUE, restored.currentHomeAvatar)
         assertEquals(
-            ActiveGameOrientation.LANDSCAPE,
-            restored.settings.activeGameOrientation
+            OrientationPreference.AUTO_ROTATE,
+            restored.settings.orientationPreference
         )
         assertEquals(RuleGuidanceMode.TIMED, restored.settings.ruleGuidanceMode)
         assertEquals(TimingAlertGlobalMode.OFF, restored.settings.timingAlerts.globalMode)

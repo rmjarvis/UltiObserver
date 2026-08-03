@@ -55,12 +55,12 @@ abstract class MainActivityUiTestFixtures {
 
     /// Use Landscape on Pixel 5 and Portrait elsewhere for each UI-test narrative.
     @Before
-    fun setActiveGameOrientation() {
-        updateActiveGameOrientation(
+    fun setOrientationPreference() {
+        updateOrientationPreference(
             if (currentAvdName() == LANDSCAPE_COVERAGE_AVD) {
-                ActiveGameOrientation.LANDSCAPE
+                OrientationPreference.LANDSCAPE
             } else {
-                ActiveGameOrientation.PORTRAIT
+                OrientationPreference.PORTRAIT
             }
         )
     }
@@ -754,25 +754,25 @@ abstract class MainActivityUiTestFixtures {
     }
 
     /// Establish Portrait for a narrative that specifically depends on the Portrait setting.
-    internal fun setPortraitActiveGameOrientation() {
-        updateActiveGameOrientation(ActiveGameOrientation.PORTRAIT)
+    internal fun setPortraitOrientationPreference() {
+        updateOrientationPreference(OrientationPreference.PORTRAIT)
     }
 
     /// Establish Landscape for a narrative that specifically depends on the Landscape setting.
-    internal fun setLandscapeActiveGameOrientation() {
-        updateActiveGameOrientation(ActiveGameOrientation.LANDSCAPE)
+    internal fun setLandscapeOrientationPreference() {
+        updateOrientationPreference(OrientationPreference.LANDSCAPE)
     }
 
     /// Start this setup using the active-game orientation configured for the current UI test.
     protected fun GameState.startGameInTestOrientation(activity: MainActivity): GameState {
-        return startGame(activity.appViewModel.settings.activeGameOrientation)
+        return startGame(activity.appViewModel.settings.orientationPreference)
     }
 
     /// Set the active-game orientation and wait for the UI to observe it.
-    private fun updateActiveGameOrientation(orientation: ActiveGameOrientation) {
+    private fun updateOrientationPreference(preference: OrientationPreference) {
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.appViewModel.updateSettings(
-                activity.appViewModel.settings.withActiveGameOrientation(orientation)
+                activity.appViewModel.settings.withOrientationPreference(preference)
             )
         }
         composeRule.waitForIdle()

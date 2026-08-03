@@ -68,8 +68,31 @@ Vibration length
     This changes how long the vibration action lasts. There is a **Test** button so you can
     see what the currently set length will feel like.
 
-Countdown and Lock Behavior
+Active Game Screen Behavior
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+How should the active game screen be oriented?
+    This controls how the active game screen displays on your phone. As described in
+    :ref:`Active Game Screen`, it can display either in portrait mode, with the two teams
+    on the top and bottom, or in landscape mode, with the two teams on the left and right.
+    There are three options for how this is decided.
+
+    * **Portrait** Use the portrait display pattern, regardless of the phone's physical
+      orientation.
+    * **Landscape** Use the landscape display pattern, regardless of the phone's physical
+      orientation.
+    * **Auto-rotate** Follow the phone's physical orientation if possible. If your phone's
+      Android settings have auto-rotate enabled, then this will keep the two ends of the field
+      in the same physical part of your phone as the phone rotates through all 4 possible
+      orientations, including upside down portrait. Open dialogs will automatically re-render
+      with the appropriate width based on the orientation.
+
+      If Android auto-rotate is disabled, then each time the active game screen opens,
+      it will start in whatever orientation you are holding the phone and keep it
+      oriented that way as the phone moves around.
+
+    Other screens besides the active game screen (e.g. setup, game summaries, archives, etc.)
+    are always in portrait mode.
 
 Automatically start live play?
     The default behavior when a pull or timeout countdown expires is to automatically advance

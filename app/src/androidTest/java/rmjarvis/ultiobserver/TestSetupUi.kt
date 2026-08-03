@@ -36,7 +36,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         val leftEndName = "River end"
         val rightEndName = "Road end"
 
-        setLandscapeActiveGameOrientation()
+        setLandscapeOrientationPreference()
         openNewGameSetup()
         openStartingPullSetupEditor()
 

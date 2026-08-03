@@ -562,6 +562,7 @@ internal data class LandscapeFieldLayoutMetrics(
 @Composable
 internal fun PortraitFieldSketchCard(
     state: GameState,
+    topDisplayedEnd: FieldEnd,
     showAbbaRatioAsSequence: Boolean,
     genderRatioBadgeColorArgb: (GenderRatio) -> Long,
     interactionsEnabled: Boolean,
@@ -579,7 +580,7 @@ internal fun PortraitFieldSketchCard(
     onTeamInfo: (TeamId) -> Unit,
 ) {
     // Translate the game's pulling orientation into the currently displayed top/bottom slots.
-    val topEnd = state.topDisplayedEnd
+    val topEnd = topDisplayedEnd
     val bottomEnd = topEnd.flip()
     val topSlot = if (state.pullingFromEnd == topEnd) {
         state.pullingTeam
@@ -620,7 +621,7 @@ internal fun PortraitFieldSketchCard(
                     timeViolationEnabled = state.canAssessTimeViolation(),
                     pullViolationEnabled = state.canRecordPullViolation(topSlot),
                     pullViolationType = state.pullViolationTypeFor(topSlot),
-                    fieldEndName = state.fieldEndDisplayName(
+                    fieldEndName = state.fieldEndName(
                         topEnd,
                         ActiveGameOrientation.PORTRAIT,
                     ),
@@ -696,7 +697,7 @@ internal fun PortraitFieldSketchCard(
                     timeViolationEnabled = state.canAssessTimeViolation(),
                     pullViolationEnabled = state.canRecordPullViolation(bottomSlot),
                     pullViolationType = state.pullViolationTypeFor(bottomSlot),
-                    fieldEndName = state.fieldEndDisplayName(
+                    fieldEndName = state.fieldEndName(
                         bottomEnd,
                         ActiveGameOrientation.PORTRAIT,
                     ),
@@ -732,14 +733,15 @@ internal fun PortraitFieldSketchCard(
 /**
  * Draw the field as left/right end zones plus a center region for pull direction and controls.
  *
- * The persisted far end is the initial left end, while the persisted near end is the initial
- * right end. `topDisplayedEnd` remains the stored display-flip value and is interpreted here as
- * the currently displayed left end. The ordinary live action stays in the center region, while
- * locked-state content is overlaid across the complete field.
+ * The leftDisplayedEnd parameter identifies the field end currently shown on the left. The
+ * ordinary active action stays in the center region, while locked-state content is overlaid
+ * across the complete field.
  */
 @Composable
 internal fun LandscapeFieldSketchCard(
     state: GameState,
+    leftDisplayedEnd: FieldEnd,
+    activeGameLayout: ActiveGameOrientation,
     showAbbaRatioAsSequence: Boolean,
     genderRatioBadgeColorArgb: (GenderRatio) -> Long,
     interactionsEnabled: Boolean,
@@ -757,7 +759,7 @@ internal fun LandscapeFieldSketchCard(
     onTechnicalFoul: (TeamId) -> Unit,
     onTeamInfo: (TeamId) -> Unit,
 ) {
-    val leftEnd = state.topDisplayedEnd
+    val leftEnd = leftDisplayedEnd
     val rightEnd = leftEnd.flip()
     val leftSlot = if (state.pullingFromEnd == leftEnd) {
         state.pullingTeam
@@ -877,9 +879,9 @@ internal fun LandscapeFieldSketchCard(
                     pullViolationType = leftPullViolationType,
                     actionGridWidths = leftActionGridWidths,
                     actionGridLayout = actionGridLayout,
-                    fieldEndName = state.fieldEndDisplayName(
+                    fieldEndName = state.fieldEndName(
                         leftEnd,
-                        ActiveGameOrientation.LANDSCAPE,
+                        activeGameLayout,
                     ),
                     metrics = metrics,
                     modifier = Modifier.width(teamWidth),
@@ -953,9 +955,9 @@ internal fun LandscapeFieldSketchCard(
                     pullViolationType = rightPullViolationType,
                     actionGridWidths = rightActionGridWidths,
                     actionGridLayout = actionGridLayout,
-                    fieldEndName = state.fieldEndDisplayName(
+                    fieldEndName = state.fieldEndName(
                         rightEnd,
-                        ActiveGameOrientation.LANDSCAPE,
+                        activeGameLayout,
                     ),
                     metrics = metrics,
                     modifier = Modifier.width(teamWidth),

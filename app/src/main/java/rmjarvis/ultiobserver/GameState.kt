@@ -617,17 +617,17 @@ data class GameState(
     /**
      * Return a field-end name from game state, falling back to the default label.
      *
-     * @param end The end whose display name should be returned.
+     * @param end The end whose name should be returned.
      */
-    internal fun fieldEndDisplayName(
+    internal fun fieldEndName(
         end: FieldEnd,
-        orientation: ActiveGameOrientation,
+        layout: ActiveGameOrientation,
     ): String {
         val customName = when (end) {
             FieldEnd.NEAR -> nearEndName
             FieldEnd.FAR -> farEndName
         }.trim()
-        return customName.ifEmpty { end.defaultDisplayText(orientation) }
+        return customName.ifEmpty { end.defaultDisplayText(layout) }
     }
 
     /// Flip only which field end appears at the top of the live field display.

@@ -325,7 +325,8 @@ private fun PortraitMoreActionsRegion(
  *
  * @param state The current game state.
  * @param now The current epoch millis for event-log timestamps.
- * @param activeGameOrientation Orientation whose field-end language should be used.
+ * @param activeGameOrientation Orientation used to arrange the More actions region.
+ * @param activeGameLayout Layout used to arrange and label the field ends.
  * @param guidanceMode Amount and duration of rule guidance shown during games.
  * @param onUpdateGameSetup Callback reopening setup for the current game.
  * @param onShowEventLog Callback opening the current game's event log.
@@ -339,6 +340,7 @@ internal fun MoreActionsContent(
     state: GameState,
     now: Long,
     activeGameOrientation: ActiveGameOrientation,
+    activeGameLayout: ActiveGameOrientation,
     guidanceMode: RuleGuidanceMode,
     onUpdateGameSetup: () -> Unit,
     onShowEventLog: () -> Unit,
@@ -421,7 +423,7 @@ internal fun MoreActionsContent(
     } else if (childDialog == MoreActionsChildDialog.CHANGE_PULL_PROMPTS) {
         ChangePullPromptsDialog(
             state = state,
-            orientation = activeGameOrientation,
+            layout = activeGameLayout,
             onDismiss = { childDialog = null },
             onConfirm = { target ->
                 onAction(state.withPullPromptTarget(target))
@@ -728,14 +730,14 @@ private fun SetHeatLevelDialog(
  * Render the pull-prompt target editor reachable during an active game.
  *
  * @param state The game whose pull-prompt target is being edited.
- * @param orientation Orientation whose field-end language should be used.
+ * @param layout Layout whose field-end language should be used.
  * @param onDismiss Callback closing the dialog without changing prompts.
  * @param onConfirm Callback receiving the selected pull-prompt target.
  */
 @Composable
 private fun ChangePullPromptsDialog(
     state: GameState,
-    orientation: ActiveGameOrientation,
+    layout: ActiveGameOrientation,
     onDismiss: () -> Unit,
     onConfirm: (PullPromptTarget) -> Unit,
 ) {
@@ -755,8 +757,8 @@ private fun ChangePullPromptsDialog(
                 )
                 PullPromptTargetChoiceRow(
                     selected = selected,
-                    nearLabel = state.fieldEndDisplayName(FieldEnd.NEAR, orientation),
-                    farLabel = state.fieldEndDisplayName(FieldEnd.FAR, orientation),
+                    nearLabel = state.fieldEndName(FieldEnd.NEAR, layout),
+                    farLabel = state.fieldEndName(FieldEnd.FAR, layout),
                     testTagPrefix = "more-actions-pull-prompts",
                     onSelected = { selected = it },
                 )

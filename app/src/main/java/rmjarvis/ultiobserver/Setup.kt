@@ -167,26 +167,27 @@ internal fun List<String>.observersDisplayText(): String? {
 }
 
 /// Return the compact setup summary for the starting pull.
-internal fun GameState.startingPullSummary(orientation: ActiveGameOrientation): String {
+internal fun GameState.startingPullSummary(preference: OrientationPreference): String {
     return "${openingPullingTeam.setupName(this)} pulls from " +
-        fieldEndName(openingPullingFromEnd, orientation)
+        fieldEndName(openingPullingFromEnd, preference)
 }
 
 /// Return the setup summary line for the current pull-prompt preference.
-internal fun GameState.pullPromptSummary(orientation: ActiveGameOrientation): String {
-    return "Pull prompts for ${pullPromptTarget.displayText(this, orientation)}"
+internal fun GameState.pullPromptSummary(preference: OrientationPreference): String {
+    return "Pull prompts for ${pullPromptTarget.displayText(this, preference)}"
 }
 
 /// Return the display label for one field end, falling back when no custom name is set.
 internal fun GameState.fieldEndName(
     end: FieldEnd,
-    orientation: ActiveGameOrientation,
+    preference: OrientationPreference,
 ): String {
-    val customName = when (end) {
-        FieldEnd.NEAR -> nearEndName
-        FieldEnd.FAR -> farEndName
-    }.trim()
-    return customName.ifEmpty { end.defaultDisplayText(orientation) }
+    val layout = when (preference) {
+        OrientationPreference.PORTRAIT,
+        OrientationPreference.AUTO_ROTATE -> ActiveGameOrientation.PORTRAIT
+        OrientationPreference.LANDSCAPE -> ActiveGameOrientation.LANDSCAPE
+    }
+    return fieldEndName(end, layout)
 }
 
 /**
@@ -222,8 +223,17 @@ internal fun GameState.withPlayersFor(
 }
 
 /// Return the default user-facing text for a field end.
-internal fun FieldEnd.defaultDisplayText(orientation: ActiveGameOrientation): String {
-    return when (orientation) {
+internal fun FieldEnd.defaultDisplayText(preference: OrientationPreference): String {
+    return when (preference) {
+        OrientationPreference.PORTRAIT,
+        OrientationPreference.AUTO_ROTATE -> defaultDisplayText(ActiveGameOrientation.PORTRAIT)
+        OrientationPreference.LANDSCAPE -> defaultDisplayText(ActiveGameOrientation.LANDSCAPE)
+    }
+}
+
+/// Return the default user-facing text for a field end in a concrete display layout.
+internal fun FieldEnd.defaultDisplayText(layout: ActiveGameOrientation): String {
+    return when (layout) {
         ActiveGameOrientation.PORTRAIT -> when (this) {
             FieldEnd.FAR -> "Far end"
             FieldEnd.NEAR -> "Near end"
@@ -238,11 +248,11 @@ internal fun FieldEnd.defaultDisplayText(orientation: ActiveGameOrientation): St
 /// Return the setup-display text for a pull-prompt target.
 internal fun PullPromptTarget.displayText(
     state: GameState,
-    orientation: ActiveGameOrientation,
+    preference: OrientationPreference,
 ): String {
     return when (this) {
-        PullPromptTarget.NEAR -> state.fieldEndName(FieldEnd.NEAR, orientation)
-        PullPromptTarget.FAR -> state.fieldEndName(FieldEnd.FAR, orientation)
+        PullPromptTarget.NEAR -> state.fieldEndName(FieldEnd.NEAR, preference)
+        PullPromptTarget.FAR -> state.fieldEndName(FieldEnd.FAR, preference)
         PullPromptTarget.BOTH -> "both ends"
         PullPromptTarget.NEITHER -> "neither end"
     }

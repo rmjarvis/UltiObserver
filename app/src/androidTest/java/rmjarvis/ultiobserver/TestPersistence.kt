@@ -62,7 +62,7 @@ class TestPersistence : MainActivityUiTestFixtures() {
                 ),
             )
             val livePointState = setup
-                .startGame(ActiveGameOrientation.PORTRAIT)
+                .startGame(OrientationPreference.PORTRAIT)
                 .beginLivePoint(0L)
             val scoredState = livePointState.recordGoal(
                 scoringTeam = TeamId.TEAM_ONE,
@@ -203,6 +203,7 @@ class TestPersistence : MainActivityUiTestFixtures() {
                         UltiObserverApp(
                             viewModel = viewModel,
                             previousRunCrashed = previousRunCrashed,
+                            displayOrientation = ActiveGameFullOrientation.PORTRAIT,
                         )
                     }
                 }

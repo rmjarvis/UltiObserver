@@ -84,7 +84,7 @@ private fun backupEstimateSetup(): GameState {
 
 private fun buildHighActivityFullGame(setup: GameState): GameState {
     val clock = EstimateClock(epochTimestamp(setup.startDate, setup.startTime, setup.timeZone))
-    var state = setup.startGame(ActiveGameOrientation.PORTRAIT).beginLivePoint(clock.next())
+    var state = setup.startGame(OrientationPreference.PORTRAIT).beginLivePoint(clock.next())
 
     state = addCardPressure(state, clock)
     state = addTechnicalFoulPressure(state, clock)

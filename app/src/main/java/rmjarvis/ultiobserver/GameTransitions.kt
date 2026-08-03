@@ -6,18 +6,19 @@ import kotlin.math.max
  * Start a setup-stage game and prepare the opening-pull pre-game state.
  *
  * @receiver The setup-stage state to start.
- * @param orientation Orientation used to initialize which field end appears first.
+ * @param preference Orientation preference used to initialize which field end appears first.
  */
-internal fun GameState.startGame(orientation: ActiveGameOrientation): GameState {
+internal fun GameState.startGame(preference: OrientationPreference): GameState {
     // This is only called from a state with phase == SETUP.
     return copy(
         teamOne = teamOne.copy(name = teamOne.normalizedName(TeamId.TEAM_ONE)),
         teamTwo = teamTwo.copy(name = teamTwo.normalizedName(TeamId.TEAM_TWO)),
         pullingTeam = openingPullingTeam,
         pullingFromEnd = openingPullingFromEnd,
-        topDisplayedEnd = when (orientation) {
-            ActiveGameOrientation.PORTRAIT -> pullPromptTarget.initialTopDisplayedEnd()
-            ActiveGameOrientation.LANDSCAPE -> FieldEnd.FAR
+        topDisplayedEnd = when (preference) {
+            OrientationPreference.PORTRAIT,
+            OrientationPreference.AUTO_ROTATE -> pullPromptTarget.initialTopDisplayedEnd()
+            OrientationPreference.LANDSCAPE -> FieldEnd.FAR
         },
         phase = GamePhase.PRE_GAME,
         countdown = buildBetweenPointsCountdown(

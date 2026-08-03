@@ -74,6 +74,7 @@ private data class PendingFieldTechnicalFoulResolution(
  *
  * @param state The live game state to render.
  * @param settings User settings that affect live-game behavior and display.
+ * @param displayOrientation Readable orientation currently shown by Android.
  * @param onStateChange Callback receiving updated live state from user actions and timer transitions.
  * @param onUpdateGameSetup Callback reopening setup for the current game.
  * @param onOpenGameSummary Callback opening the current game summary.
@@ -86,6 +87,7 @@ private data class PendingFieldTechnicalFoulResolution(
 internal fun ActiveGameScreen(
     state: GameState,
     settings: Settings,
+    displayOrientation: ActiveGameFullOrientation,
     onStateChange: (GameState) -> Unit,
     onUpdateGameSetup: () -> Unit,
     onOpenGameSummary: () -> Unit,
@@ -112,8 +114,12 @@ internal fun ActiveGameScreen(
     var activeGamePrompt by remember { mutableStateOf<GamePrompt?>(null) }
     var previouslyObservedPhase by remember { mutableStateOf(state.phase) }
     var suppressNextPhasePrompt by remember { mutableStateOf(false) }
-    val usesLandscapeLayout =
-        settings.activeGameOrientation == ActiveGameOrientation.LANDSCAPE
+    val activeGameDisplay = settings.orientationPreference.displayFor(
+        displayOrientation = displayOrientation,
+        phoneTopEnd = state.topDisplayedEnd,
+    )
+    val usesLandscapeOrientation =
+        activeGameDisplay.orientation == ActiveGameOrientation.LANDSCAPE
 
     /// Dismiss the transient action-info popup.
     fun dismissActionInfo() {
@@ -273,7 +279,7 @@ internal fun ActiveGameScreen(
     // Compose the major elements of the active-game screen.
     Scaffold(
         topBar = {
-            if (usesLandscapeLayout) {
+            if (usesLandscapeOrientation) {
                 LandscapeNavigationBar(
                     onBackHome = onBackHome,
                     onHome = onHome,
@@ -296,10 +302,12 @@ internal fun ActiveGameScreen(
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
-            if (usesLandscapeLayout) {
+            if (usesLandscapeOrientation) {
                 LandscapeActiveGameContent(
                     state = state,
                     settings = settings,
+                    leftDisplayedEnd = activeGameDisplay.topOrLeftDisplayedEnd,
+                    activeGameLayout = activeGameDisplay.layout,
                     now = now,
                     capStatus = capStatus,
                     activeCountdown = activeCountdown,
@@ -327,6 +335,7 @@ internal fun ActiveGameScreen(
                 PortraitActiveGameContent(
                     state = state,
                     settings = settings,
+                    topDisplayedEnd = activeGameDisplay.topOrLeftDisplayedEnd,
                     now = now,
                     capStatus = capStatus,
                     activeCountdown = activeCountdown,
@@ -369,7 +378,7 @@ internal fun ActiveGameScreen(
             team = team,
             now = now,
             guidanceMode = settings.ruleGuidanceMode,
-            isLandscape = usesLandscapeLayout,
+            isLandscape = usesLandscapeOrientation,
             onDismiss = { pendingCardTeam = null },
             onAssessment = { updatedState, event ->
                 onStateChange(updatedState)
@@ -780,7 +789,8 @@ internal fun ActiveGameScreen(
                 MoreActionsContent(
                     state = state,
                     now = now,
-                    activeGameOrientation = settings.activeGameOrientation,
+                    activeGameOrientation = activeGameDisplay.orientation,
+                    activeGameLayout = activeGameDisplay.layout,
                     guidanceMode = settings.ruleGuidanceMode,
                     onUpdateGameSetup = {
                         showMoreActionsDialog = false
@@ -1025,6 +1035,7 @@ private fun LandscapeNavigationBar(
 private fun PortraitActiveGameContent(
     state: GameState,
     settings: Settings,
+    topDisplayedEnd: FieldEnd,
     now: Long,
     capStatus: CapStatus?,
     activeCountdown: ActiveCountdownDisplay?,
@@ -1107,6 +1118,7 @@ private fun PortraitActiveGameContent(
 
         PortraitFieldSketchCard(
             state = state,
+            topDisplayedEnd = topDisplayedEnd,
             showAbbaRatioAsSequence = settings.showAbbaRatioAsSequence,
             genderRatioBadgeColorArgb = settings::genderRatioBadgeColorArgb,
             interactionsEnabled = !locked,
@@ -1210,6 +1222,8 @@ private fun PortraitActiveGameContent(
 private fun LandscapeActiveGameContent(
     state: GameState,
     settings: Settings,
+    leftDisplayedEnd: FieldEnd,
+    activeGameLayout: ActiveGameOrientation,
     now: Long,
     capStatus: CapStatus?,
     activeCountdown: ActiveCountdownDisplay?,
@@ -1311,6 +1325,8 @@ private fun LandscapeActiveGameContent(
 
         LandscapeFieldSketchCard(
             state = state,
+            leftDisplayedEnd = leftDisplayedEnd,
+            activeGameLayout = activeGameLayout,
             showAbbaRatioAsSequence = settings.showAbbaRatioAsSequence,
             genderRatioBadgeColorArgb = settings::genderRatioBadgeColorArgb,
             interactionsEnabled = !locked,

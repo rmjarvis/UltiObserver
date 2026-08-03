@@ -139,10 +139,10 @@ internal fun SettingsScreen(
 
             HorizontalDivider()
 
-            ActiveGameOrientationSelector(
-                selectedOrientation = settings.activeGameOrientation,
-                onOrientationChange = {
-                    onSettingsChange(settings.withActiveGameOrientation(it))
+            OrientationPreferenceSelector(
+                selectedPreference = settings.orientationPreference,
+                onPreferenceChange = {
+                    onSettingsChange(settings.withOrientationPreference(it))
                 },
             )
 
@@ -272,13 +272,13 @@ internal fun SettingsScreen(
 /**
  * Render the active-game orientation selector and describe the selected field arrangement.
  *
- * @param selectedOrientation The fixed orientation currently used for active games.
- * @param onOrientationChange Callback receiving the newly selected orientation.
+ * @param selectedPreference The orientation preference currently used for active games.
+ * @param onPreferenceChange Callback receiving the newly selected preference.
  */
 @Composable
-private fun ActiveGameOrientationSelector(
-    selectedOrientation: ActiveGameOrientation,
-    onOrientationChange: (ActiveGameOrientation) -> Unit,
+private fun OrientationPreferenceSelector(
+    selectedPreference: OrientationPreference,
+    onPreferenceChange: (OrientationPreference) -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -288,23 +288,24 @@ private fun ActiveGameOrientationSelector(
             text = "How should the active game screen be oriented?",
             style = MaterialTheme.typography.titleMedium,
         )
-        Row(
+        FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            ActiveGameOrientation.entries.forEach { orientation ->
+            OrientationPreference.entries.forEach { preference ->
                 ChoiceChipButton(
-                    label = orientation.label,
-                    selected = orientation == selectedOrientation,
-                    tag = "settings-active-game-orientation-${orientation.name}",
+                    label = preference.label,
+                    selected = preference == selectedPreference,
+                    tag = "settings-active-game-orientation-${preference.name}",
                     onClick = {
-                        onOrientationChange(orientation)
+                        onPreferenceChange(preference)
                     },
                 )
             }
         }
         Text(
-            text = selectedOrientation.description,
+            text = selectedPreference.description,
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.testTag("settings-active-game-orientation-description"),
         )
