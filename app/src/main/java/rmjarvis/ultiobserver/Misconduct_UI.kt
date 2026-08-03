@@ -686,7 +686,8 @@ internal fun AdjustCardsDialog(
                             restoreManualCardAdd()
                         },
                     )
-                }
+                },
+                widthProfile = DialogWidthProfile.COMPACT,
             )
         }
 
@@ -705,6 +706,7 @@ internal fun AdjustCardsDialog(
                         onClick = { step = activeStep.returnTo },
                     )
                 },
+                widthProfile = DialogWidthProfile.COMPACT,
             )
         }
 
@@ -731,7 +733,7 @@ internal fun AdjustCardsDialog(
                             onClick = { step = activeStep.returnTo },
                         )
                     },
-                    widthProfile = DialogWidthProfile.MODERATE,
+                    widthProfile = DialogWidthProfile.COMPACT,
                 )
             }
         }
@@ -1163,6 +1165,7 @@ internal fun TeamCardDialog(
                         }
                     )
                 },
+                widthProfile = DialogWidthProfile.COMPACT,
             )
         }
         is TeamCardDialogStep.InvalidAssignment -> {
@@ -1177,6 +1180,7 @@ internal fun TeamCardDialog(
                 confirmButton = {
                     TextActionButton(label = "OK", onClick = { step = activeStep.returnTo })
                 },
+                widthProfile = DialogWidthProfile.COMPACT,
             )
         }
         is TeamCardDialogStep.SuspensionNotice -> {
@@ -1199,7 +1203,7 @@ internal fun TeamCardDialog(
                     confirmButton = {
                         TextActionButton(label = "OK", onClick = { step = activeStep.returnTo })
                     },
-                    widthProfile = DialogWidthProfile.MODERATE,
+                    widthProfile = DialogWidthProfile.COMPACT,
                 )
             }
         }
@@ -1727,6 +1731,7 @@ private fun RemoveEditablePlayerCardDialog(
         dismissButton = {
             TextActionButton(label = "Cancel", onClick = onDismiss)
         },
+        widthProfile = DialogWidthProfile.COMPACT,
     )
 }
 
