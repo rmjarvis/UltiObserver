@@ -97,6 +97,10 @@ internal fun ActiveGameScreen(
 ) {
     var pendingCardTeam by remember { mutableStateOf<TeamId?>(null) }
     var showMoreActionsDialog by remember { mutableStateOf(false) }
+    var moreActionsChild by remember { mutableStateOf<MoreActionsChild?>(null) }
+    var moreActionsCategory by remember {
+        mutableStateOf(MoreActionsCategory.SETUP_CHANGES)
+    }
     var showRulesReference by remember { mutableStateOf(false) }
     var showEventLogSheet by remember { mutableStateOf(false) }
     var pendingTimeoutRequest by remember { mutableStateOf<PendingTimeoutRequest?>(null) }
@@ -251,7 +255,10 @@ internal fun ActiveGameScreen(
     val onLockedChange: (Boolean) -> Unit = { locked = it }
     val onRulesReference = { showRulesReference = true }
     val onWaterBreak = { showWaterBreakPrompt = true }
-    val onMoreActions = { showMoreActionsDialog = true }
+    val onMoreActions = {
+        moreActionsCategory = MoreActionsCategory.SETUP_CHANGES
+        showMoreActionsDialog = true
+    }
     val onTimeout: (TeamId) -> Unit = { team ->
         pendingTimeoutRequest = PendingTimeoutRequest(
             team,
@@ -780,6 +787,34 @@ internal fun ActiveGameScreen(
                 },
             )
         }
+    } else if (moreActionsChild != null) {
+        MoreActionsChildDialog(
+            child = moreActionsChild!!,
+            state = state,
+            now = now,
+            activeGameOrientation = activeGameDisplay.orientation,
+            activeGameLayout = activeGameDisplay.layout,
+            guidanceMode = settings.ruleGuidanceMode,
+            onDismiss = { moreActionsChild = null },
+            onHeatRulesChange = { rules ->
+                onStateChange(
+                    state.setHeatGuidance(
+                        rules.heatLevel,
+                        rules.useAirQualityGuidelines,
+                        rules.waterBreakMinutes,
+                        System.currentTimeMillis(),
+                    )
+                )
+                moreActionsChild = null
+                showMoreActionsDialog = false
+            },
+            onAction = { updatedState ->
+                onStateChange(updatedState)
+                moreActionsChild = null
+                showMoreActionsDialog = false
+            },
+            onStateUpdate = onStateChange,
+        )
     } else if (showMoreActionsDialog) {
         // Dialog for less-common actions and manual corrections.
         ResponsiveAlertDialog(
@@ -788,10 +823,7 @@ internal fun ActiveGameScreen(
             text = {
                 MoreActionsContent(
                     state = state,
-                    now = now,
                     activeGameOrientation = activeGameDisplay.orientation,
-                    activeGameLayout = activeGameDisplay.layout,
-                    guidanceMode = settings.ruleGuidanceMode,
                     onUpdateGameSetup = {
                         showMoreActionsDialog = false
                         onUpdateGameSetup()
@@ -804,22 +836,13 @@ internal fun ActiveGameScreen(
                         showMoreActionsDialog = false
                         onOpenGameSummary()
                     },
-                    onHeatRulesChange = { rules ->
-                        onStateChange(
-                            state.setHeatGuidance(
-                                rules.heatLevel,
-                                rules.useAirQualityGuidelines,
-                                rules.waterBreakMinutes,
-                                System.currentTimeMillis(),
-                            )
-                        )
-                        showMoreActionsDialog = false
-                    },
+                    onOpenChild = { moreActionsChild = it },
                     onAction = { updatedState ->
                         onStateChange(updatedState)
                         showMoreActionsDialog = false
                     },
-                    onStateUpdate = onStateChange,
+                    selectedCategory = moreActionsCategory,
+                    onCategorySelected = { moreActionsCategory = it },
                 )
             },
             confirmButton = {

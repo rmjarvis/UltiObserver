@@ -42,7 +42,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-private enum class MoreActionsChildDialog {
+internal enum class MoreActionsChild {
     ADJUST_SCORE,
     ADJUST_TIMEOUTS,
     ADJUST_CARDS,
@@ -51,7 +51,7 @@ private enum class MoreActionsChildDialog {
     SET_HEAT_LEVEL,
 }
 
-private enum class MoreActionsCategory(val title: String) {
+internal enum class MoreActionsCategory(val title: String) {
     SETUP_CHANGES("Setup changes"),
     GAME_DETAILS("Game details"),
     FIELD_AND_PULL("Field and pull controls"),
@@ -321,50 +321,43 @@ private fun PortraitMoreActionsRegion(
 }
 
 /**
- * Render the menu content for manual corrections and less-common game actions.
+ * Render the dialog selected from More actions.
  *
+ * @param child The selected dialog.
  * @param state The current game state.
- * @param now The current epoch millis for event-log timestamps.
- * @param activeGameOrientation Orientation used to arrange the More actions region.
- * @param activeGameLayout Layout used to arrange and label the field ends.
+ * @param now The current epoch millis for correction events.
+ * @param activeGameOrientation Orientation used to arrange the dialog.
+ * @param activeGameLayout Layout used to label the field ends.
  * @param guidanceMode Amount and duration of rule guidance shown during games.
- * @param onUpdateGameSetup Callback reopening setup for the current game.
- * @param onShowEventLog Callback opening the current game's event log.
- * @param onShowGameSummary Callback opening the current game summary.
- * @param onHeatRulesChange Callback applying edited live heat/AQI rules.
- * @param onAction Callback receiving an updated game state after a model action.
- * @param onStateUpdate Callback receiving an updated game state without closing More actions.
+ * @param onDismiss Callback returning to More actions without applying a change.
+ * @param onHeatRulesChange Callback applying edited heat/AQI rules.
+ * @param onAction Callback applying a completed action and closing More actions.
+ * @param onStateUpdate Callback applying an intermediate state change without closing the dialog.
  */
 @Composable
-internal fun MoreActionsContent(
+internal fun MoreActionsChildDialog(
+    child: MoreActionsChild,
     state: GameState,
     now: Long,
     activeGameOrientation: ActiveGameOrientation,
     activeGameLayout: ActiveGameOrientation,
     guidanceMode: RuleGuidanceMode,
-    onUpdateGameSetup: () -> Unit,
-    onShowEventLog: () -> Unit,
-    onShowGameSummary: () -> Unit,
+    onDismiss: () -> Unit,
     onHeatRulesChange: (GameRules) -> Unit,
     onAction: (GameState) -> Unit,
     onStateUpdate: (GameState) -> Unit,
 ) {
-    var childDialog by remember { mutableStateOf<MoreActionsChildDialog?>(null) }
-    var selectedCategory by remember { mutableStateOf(MoreActionsCategory.SETUP_CHANGES) }
-
-    if (childDialog == MoreActionsChildDialog.ADJUST_SCORE) {
-        AdjustScoreDialog(
+    when (child) {
+        MoreActionsChild.ADJUST_SCORE -> AdjustScoreDialog(
             state = state,
-            onDismiss = { childDialog = null },
+            onDismiss = onDismiss,
             onConfirm = { teamOneScore, teamTwoScore ->
                 onAction(state.adjustScore(teamOneScore, teamTwoScore, now))
-                childDialog = null
             },
         )
-    } else if (childDialog == MoreActionsChildDialog.ADJUST_TIMEOUTS) {
-        AdjustTimeoutsDialog(
+        MoreActionsChild.ADJUST_TIMEOUTS -> AdjustTimeoutsDialog(
             state = state,
-            onDismiss = { childDialog = null },
+            onDismiss = onDismiss,
             onConfirm = { teamOneCurrent, teamTwoCurrent, teamOneFirstHalf, teamTwoFirstHalf ->
                 onAction(
                     state.adjustTimeouts(
@@ -375,26 +368,20 @@ internal fun MoreActionsContent(
                         now,
                     )
                 )
-                childDialog = null
             },
         )
-    } else if (childDialog == MoreActionsChildDialog.ADJUST_CARDS) {
-        AdjustCardsDialog(
+        MoreActionsChild.ADJUST_CARDS -> AdjustCardsDialog(
             state = state,
             now = now,
             guidanceMode = guidanceMode,
             isLandscape = activeGameOrientation == ActiveGameOrientation.LANDSCAPE,
-            onDismiss = { childDialog = null },
-            onConfirm = { updatedState ->
-                onAction(updatedState)
-                childDialog = null
-            },
+            onDismiss = onDismiss,
+            onConfirm = onAction,
             onStateUpdate = onStateUpdate,
         )
-    } else if (childDialog == MoreActionsChildDialog.ADJUST_PULL_VIOLATIONS) {
-        AdjustPullViolationsDialog(
+        MoreActionsChild.ADJUST_PULL_VIOLATIONS -> AdjustPullViolationsDialog(
             state = state,
-            onDismiss = { childDialog = null },
+            onDismiss = onDismiss,
             onConfirm = {
                 teamOneOffsides,
                 teamOneFalseStarts,
@@ -417,201 +404,218 @@ internal fun MoreActionsContent(
                         now,
                     )
                 )
-                childDialog = null
             },
         )
-    } else if (childDialog == MoreActionsChildDialog.CHANGE_PULL_PROMPTS) {
-        ChangePullPromptsDialog(
+        MoreActionsChild.CHANGE_PULL_PROMPTS -> ChangePullPromptsDialog(
             state = state,
             layout = activeGameLayout,
-            onDismiss = { childDialog = null },
-            onConfirm = { target ->
-                onAction(state.withPullPromptTarget(target))
-                childDialog = null
-            },
+            onDismiss = onDismiss,
+            onConfirm = { target -> onAction(state.withPullPromptTarget(target)) },
         )
-    } else if (childDialog == MoreActionsChildDialog.SET_HEAT_LEVEL) {
-        SetHeatLevelDialog(
+        MoreActionsChild.SET_HEAT_LEVEL -> SetHeatLevelDialog(
             rules = state.rules,
-            onDismiss = { childDialog = null },
-            onConfirm = { rules ->
-                onHeatRulesChange(rules)
-                childDialog = null
+            onDismiss = onDismiss,
+            onConfirm = onHeatRulesChange,
+        )
+    }
+}
+
+/**
+ * Render the menu content for manual corrections and less-common game actions.
+ *
+ * @param state The current game state.
+ * @param activeGameOrientation Orientation used to arrange the More actions region.
+ * @param onUpdateGameSetup Callback reopening setup for the current game.
+ * @param onShowEventLog Callback opening the current game's event log.
+ * @param onShowGameSummary Callback opening the current game summary.
+ * @param onOpenChild Callback opening a dialog launched from More actions.
+ * @param onAction Callback receiving an updated game state after a model action.
+ * @param selectedCategory The category whose items are currently shown.
+ * @param onCategorySelected Callback selecting a category.
+ */
+@Composable
+internal fun MoreActionsContent(
+    state: GameState,
+    activeGameOrientation: ActiveGameOrientation,
+    onUpdateGameSetup: () -> Unit,
+    onShowEventLog: () -> Unit,
+    onShowGameSummary: () -> Unit,
+    onOpenChild: (MoreActionsChild) -> Unit,
+    onAction: (GameState) -> Unit,
+    selectedCategory: MoreActionsCategory,
+    onCategorySelected: (MoreActionsCategory) -> Unit,
+) {
+    val setupActions = listOf(
+        MoreActionsItem(
+            label = "Set heat/AQI level",
+            tag = null,
+            onClick = {
+                onOpenChild(MoreActionsChild.SET_HEAT_LEVEL)
             },
-        )
-    } else {
-        val setupActions = listOf(
-            MoreActionsItem(
-                label = "Set heat/AQI level",
-                tag = null,
-                onClick = {
-                    childDialog = MoreActionsChildDialog.SET_HEAT_LEVEL
-                },
-            ),
-            MoreActionsItem(
-                label = "Update game setup",
-                tag = null,
-                onClick = {
-                    onUpdateGameSetup()
-                },
-            ),
-        )
-        val detailActions = listOf(
-            MoreActionsItem(
-                label = "Event log",
-                tag = null,
-                onClick = {
-                    onShowEventLog()
-                },
-            ),
-            MoreActionsItem(
-                label = "Game summary",
-                tag = null,
-                onClick = {
-                    onShowGameSummary()
-                },
-            ),
-        )
-        val fieldActions = listOf(
-            MoreActionsItem(
-                label = "Flip field display",
-                tag = null,
-                onClick = {
-                    onAction(state.flipFieldDisplay())
-                },
-            ),
-            MoreActionsItem(
-                label = "Change pull prompts",
-                tag = null,
-                onClick = {
-                    childDialog = MoreActionsChildDialog.CHANGE_PULL_PROMPTS
-                },
-            ),
-            MoreActionsItem(
-                label = "Swap pulling team",
-                tag = null,
-                onClick = {
-                    onAction(state.swapPullingTeam())
-                },
-            ),
-        )
-        val correctionActions = listOf(
-            MoreActionsItem(
-                label = "Adjust cards / techs",
-                tag = null,
-                onClick = {
-                    childDialog = MoreActionsChildDialog.ADJUST_CARDS
-                },
-            ),
-            MoreActionsItem(
-                label = "Adjust pull violations",
-                tag = null,
-                onClick = {
-                    childDialog = MoreActionsChildDialog.ADJUST_PULL_VIOLATIONS
-                },
-            ),
-            MoreActionsItem(
-                label = "Adjust timeouts",
-                tag = "more-actions-adjust-timeouts",
-                onClick = {
-                    childDialog = MoreActionsChildDialog.ADJUST_TIMEOUTS
-                },
-            ),
-            MoreActionsItem(
-                label = "Adjust score",
-                tag = null,
-                onClick = {
-                    childDialog = MoreActionsChildDialog.ADJUST_SCORE
-                },
-            ),
-        )
-        val transitionActions = buildList {
-            if (state.halfCapRelevant(state.teamOne.score, state.teamTwo.score)) {
-                add(
-                    MoreActionsItem(
-                        label = "Apply half cap now",
-                        tag = null,
-                        onClick = {
-                            onAction(
-                                state.makeCapNow(CapType.HALF, System.currentTimeMillis())
-                            )
-                        },
-                    )
-                )
-            }
-            if (!state.halftimeTaken && state.phase == GamePhase.BETWEEN_POINTS) {
-                add(
-                    MoreActionsItem(
-                        label = "Start halftime",
-                        tag = null,
-                        onClick = {
-                            onAction(state.startHalftimeNow(System.currentTimeMillis()))
-                        },
-                    )
-                )
-            }
-            if (state.softCapRelevant()) {
-                add(
-                    MoreActionsItem(
-                        label = "Apply soft cap now",
-                        tag = null,
-                        onClick = {
-                            onAction(
-                                state.makeCapNow(CapType.SOFT, System.currentTimeMillis())
-                            )
-                        },
-                    )
-                )
-            }
-            if (state.hardCapRelevant()) {
-                add(
-                    MoreActionsItem(
-                        label = "Apply hard cap now",
-                        tag = null,
-                        onClick = {
-                            onAction(
-                                state.makeCapNow(CapType.HARD, System.currentTimeMillis())
-                            )
-                        },
-                    )
-                )
-            }
+        ),
+        MoreActionsItem(
+            label = "Update game setup",
+            tag = null,
+            onClick = {
+                onUpdateGameSetup()
+            },
+        ),
+    )
+    val detailActions = listOf(
+        MoreActionsItem(
+            label = "Event log",
+            tag = null,
+            onClick = {
+                onShowEventLog()
+            },
+        ),
+        MoreActionsItem(
+            label = "Game summary",
+            tag = null,
+            onClick = {
+                onShowGameSummary()
+            },
+        ),
+    )
+    val fieldActions = listOf(
+        MoreActionsItem(
+            label = "Flip field display",
+            tag = null,
+            onClick = {
+                onAction(state.flipFieldDisplay())
+            },
+        ),
+        MoreActionsItem(
+            label = "Change pull prompts",
+            tag = null,
+            onClick = {
+                onOpenChild(MoreActionsChild.CHANGE_PULL_PROMPTS)
+            },
+        ),
+        MoreActionsItem(
+            label = "Swap pulling team",
+            tag = null,
+            onClick = {
+                onAction(state.swapPullingTeam())
+            },
+        ),
+    )
+    val correctionActions = listOf(
+        MoreActionsItem(
+            label = "Adjust cards / techs",
+            tag = null,
+            onClick = {
+                onOpenChild(MoreActionsChild.ADJUST_CARDS)
+            },
+        ),
+        MoreActionsItem(
+            label = "Adjust pull violations",
+            tag = null,
+            onClick = {
+                onOpenChild(MoreActionsChild.ADJUST_PULL_VIOLATIONS)
+            },
+        ),
+        MoreActionsItem(
+            label = "Adjust timeouts",
+            tag = "more-actions-adjust-timeouts",
+            onClick = {
+                onOpenChild(MoreActionsChild.ADJUST_TIMEOUTS)
+            },
+        ),
+        MoreActionsItem(
+            label = "Adjust score",
+            tag = null,
+            onClick = {
+                onOpenChild(MoreActionsChild.ADJUST_SCORE)
+            },
+        ),
+    )
+    val transitionActions = buildList {
+        if (state.halfCapRelevant(state.teamOne.score, state.teamTwo.score)) {
             add(
                 MoreActionsItem(
-                    label = "End game",
+                    label = "Apply half cap now",
                     tag = null,
                     onClick = {
-                        onAction(state.endGameNow(System.currentTimeMillis()))
+                        onAction(
+                            state.makeCapNow(CapType.HALF, System.currentTimeMillis())
+                        )
                     },
                 )
             )
         }
-        val actionsByCategory = mapOf(
-            MoreActionsCategory.SETUP_CHANGES to setupActions,
-            MoreActionsCategory.GAME_DETAILS to detailActions,
-            MoreActionsCategory.FIELD_AND_PULL to fieldActions,
-            MoreActionsCategory.CORRECTIONS to correctionActions,
-            MoreActionsCategory.MANUAL_TRANSITIONS to transitionActions,
-        )
-        if (activeGameOrientation == ActiveGameOrientation.LANDSCAPE) {
-            LandscapeMoreActionsRegion(
-                actionsByCategory = actionsByCategory,
-                selectedCategory = selectedCategory,
-                onCategorySelected = { selectedCategory = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp),
-            )
-        } else {
-            PortraitMoreActionsRegion(
-                actionsByCategory = actionsByCategory,
-                selectedCategory = selectedCategory,
-                onCategorySelected = { selectedCategory = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp),
+        if (!state.halftimeTaken && state.phase == GamePhase.BETWEEN_POINTS) {
+            add(
+                MoreActionsItem(
+                    label = "Start halftime",
+                    tag = null,
+                    onClick = {
+                        onAction(state.startHalftimeNow(System.currentTimeMillis()))
+                    },
+                )
             )
         }
+        if (state.softCapRelevant()) {
+            add(
+                MoreActionsItem(
+                    label = "Apply soft cap now",
+                    tag = null,
+                    onClick = {
+                        onAction(
+                            state.makeCapNow(CapType.SOFT, System.currentTimeMillis())
+                        )
+                    },
+                )
+            )
+        }
+        if (state.hardCapRelevant()) {
+            add(
+                MoreActionsItem(
+                    label = "Apply hard cap now",
+                    tag = null,
+                    onClick = {
+                        onAction(
+                            state.makeCapNow(CapType.HARD, System.currentTimeMillis())
+                        )
+                    },
+                )
+            )
+        }
+        add(
+            MoreActionsItem(
+                label = "End game",
+                tag = null,
+                onClick = {
+                    onAction(state.endGameNow(System.currentTimeMillis()))
+                },
+            )
+        )
+    }
+    val actionsByCategory = mapOf(
+        MoreActionsCategory.SETUP_CHANGES to setupActions,
+        MoreActionsCategory.GAME_DETAILS to detailActions,
+        MoreActionsCategory.FIELD_AND_PULL to fieldActions,
+        MoreActionsCategory.CORRECTIONS to correctionActions,
+        MoreActionsCategory.MANUAL_TRANSITIONS to transitionActions,
+    )
+    if (activeGameOrientation == ActiveGameOrientation.LANDSCAPE) {
+        LandscapeMoreActionsRegion(
+            actionsByCategory = actionsByCategory,
+            selectedCategory = selectedCategory,
+            onCategorySelected = onCategorySelected,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp),
+        )
+    } else {
+        PortraitMoreActionsRegion(
+            actionsByCategory = actionsByCategory,
+            selectedCategory = selectedCategory,
+            onCategorySelected = onCategorySelected,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp),
+        )
     }
 }
 
