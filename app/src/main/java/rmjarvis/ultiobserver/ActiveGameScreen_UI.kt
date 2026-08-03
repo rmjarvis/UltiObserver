@@ -396,6 +396,7 @@ internal fun ActiveGameScreen(
     } else if (showRulesReference) {
         RulesReferenceDialog(
             state = state,
+            activeGameOrientation = activeGameDisplay.orientation,
             onDismiss = {
                 showRulesReference = false
             },
@@ -838,26 +839,52 @@ private fun GamePromptNoticeDialog(prompt: GamePrompt, onDismiss: () -> Unit) {
  * Render the active game's rules reference.
  *
  * @param state Current game state used to combine setup rules with live cap state.
+ * @param activeGameOrientation Orientation used to arrange the rules reference.
  * @param onDismiss Callback closing the dialog.
  */
 @Composable
 internal fun RulesReferenceDialog(
     state: GameState,
+    activeGameOrientation: ActiveGameOrientation,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
+    val items = state.rulesReferenceItems()
+    ResponsiveAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Game rules") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                state.rulesReferenceItems().forEach { item ->
-                    RulesReferenceRow(item)
+            if (activeGameOrientation == ActiveGameOrientation.LANDSCAPE) {
+                val splitIndex = minOf(items.size, maxOf(6, (items.size + 1) / 2))
+                TwoColumnDialogRegion(
+                    maxHeight = dialogBodyMaxHeight(),
+                    showDivider = false,
+                    leftContent = {
+                        items.take(splitIndex).forEach { item ->
+                            RulesReferenceRow(item)
+                        }
+                    },
+                    rightContent = {
+                        items.drop(splitIndex).forEach { item ->
+                            RulesReferenceRow(item)
+                        }
+                    },
+                    footer = null,
+                )
+            } else {
+                ScrollableDialogRegion(
+                    maxHeight = dialogBodyMaxHeight(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items.forEach { item ->
+                        RulesReferenceRow(item)
+                    }
                 }
             }
         },
         confirmButton = {
             TextActionButton(label = "OK", onClick = onDismiss)
         },
+        widthProfile = DialogWidthProfile.WIDE,
     )
 }
 
@@ -871,19 +898,19 @@ private fun RulesReferenceRow(item: RulesReferenceItem) {
     ) {
         Text(
             text = item.label,
+            modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.SemiBold,
             maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
         Text(
             text = item.value,
-            modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.bodyLarge,
             color = if (item.heatAdjusted) ResetColor else Color.Unspecified,
             fontWeight = if (item.heatAdjusted) FontWeight.Bold else null,
             textAlign = TextAlign.End,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
         )
     }
 }
