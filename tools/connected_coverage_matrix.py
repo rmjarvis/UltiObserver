@@ -170,22 +170,28 @@ def run(command: list[str], cwd: Path, env: dict[str, str] | None = None) -> Non
 
 
 def run_captured(command: list[str], cwd: Path, env: dict[str, str] | None = None) -> str:
-    """Run one command, echoing and returning combined stdout/stderr."""
+    """Run one command while streaming and retaining combined stdout/stderr."""
 
     print(f"+ {' '.join(command)}", flush=True)
-    result = subprocess.run(
+    process = subprocess.Popen(
         command,
         cwd=cwd,
         env=env,
-        check=False,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
+        bufsize=1,
     )
-    print(result.stdout, end="", flush=True)
-    if result.returncode != 0:
-        raise subprocess.CalledProcessError(result.returncode, command, output=result.stdout)
-    return result.stdout
+    output_parts = []
+    assert process.stdout is not None
+    for line in process.stdout:
+        print(line, end="", flush=True)
+        output_parts.append(line)
+    returncode = process.wait()
+    output = "".join(output_parts)
+    if returncode != 0:
+        raise subprocess.CalledProcessError(returncode, command, output=output)
+    return output
 
 
 def prepare_coverage_build(args: argparse.Namespace, root: Path) -> None:
@@ -428,18 +434,9 @@ def run_instrumentation(
     if test_classes:
         command.extend(["-e", "class", ",".join(test_classes)])
     command.append(TEST_RUNNER)
-    print(f"+ {' '.join(command)}", flush=True)
-    result = subprocess.run(
-        command,
-        cwd=root,
-        check=False,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-    )
-    print(result.stdout, end="", flush=True)
-    if result.returncode != 0 or "FAILURES!!!" in result.stdout or "Error in " in result.stdout:
-        raise subprocess.CalledProcessError(result.returncode, command, output=result.stdout)
+    output = run_captured(command, cwd=root)
+    if "FAILURES!!!" in output or "Error in " in output:
+        raise subprocess.CalledProcessError(0, command, output=output)
 
 
 def preserve_device_coverage(
