@@ -2,7 +2,7 @@ package rmjarvis.ultiobserver
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 /// Tests for resolving the active-game orientation preference and physical field-end anchor.
@@ -29,7 +29,7 @@ class TestOrientationPreference {
         )
     }
 
-    /** Auto-rotate enters in each held orientation with the appropriate Android setting behavior. */
+    /** Auto-rotate enters and responds to Android setting changes in each orientation. */
     @Test
     fun autoRotateEntryOrientation() {
         val phoneTopEnd = FieldEnd.FAR
@@ -64,11 +64,7 @@ class TestOrientationPreference {
             // With Android auto-rotate enabled, entry does not establish an app-level lock and
             // the currently displayed orientation determines the active-game geometry.
             val unlockedOrientation = AutoRotateOrientationLock()
-            unlockedOrientation.recordHeldOrientation(
-                heldOrientation = displayOrientation,
-                autoRotateScreenActive = false,
-                systemAutoRotateEnabled = true,
-            )
+            unlockedOrientation.recordHeldOrientation(displayOrientation)
             unlockedOrientation.enterActiveGame(systemAutoRotateEnabled = true)
             assertNull(unlockedOrientation.lockedOrientation)
             assertEquals(
@@ -79,11 +75,7 @@ class TestOrientationPreference {
             // With Android auto-rotate disabled, entry locks the orientation in which the phone
             // is already being held and later rendering resolves from that fixed orientation.
             val lockedOrientation = AutoRotateOrientationLock()
-            lockedOrientation.recordHeldOrientation(
-                heldOrientation = displayOrientation,
-                autoRotateScreenActive = false,
-                systemAutoRotateEnabled = false,
-            )
+            lockedOrientation.recordHeldOrientation(displayOrientation)
             lockedOrientation.enterActiveGame(systemAutoRotateEnabled = false)
             assertEquals(displayOrientation, lockedOrientation.lockedOrientation)
             assertEquals(
@@ -94,6 +86,70 @@ class TestOrientationPreference {
                 ),
             )
         }
+
+        // Later sensor samples do not change an existing session lock. Enabling Android
+        // auto-rotate releases it; disabling auto-rotate fixes the currently rendered
+        // orientation; and leaving the active game clears it.
+        val orientationLock = AutoRotateOrientationLock()
+        orientationLock.recordHeldOrientation(ActiveGameFullOrientation.PORTRAIT)
+        orientationLock.enterActiveGame(systemAutoRotateEnabled = false)
+        orientationLock.recordHeldOrientation(
+            ActiveGameFullOrientation.LANDSCAPE_PHONE_TOP_AT_RIGHT
+        )
+        assertEquals(
+            ActiveGameFullOrientation.PORTRAIT,
+            orientationLock.lockedOrientation,
+        )
+        assertEquals(
+            ActiveGameFullOrientation.LANDSCAPE_PHONE_TOP_AT_RIGHT,
+            orientationLock.latestHeldOrientation,
+        )
+
+        orientationLock.systemAutoRotateChanged(
+            enabled = true,
+            currentDisplayOrientation = ActiveGameFullOrientation.PORTRAIT,
+        )
+        assertNull(orientationLock.lockedOrientation)
+        orientationLock.systemAutoRotateChanged(
+            enabled = false,
+            currentDisplayOrientation = ActiveGameFullOrientation.REVERSE_PORTRAIT,
+        )
+        assertEquals(
+            ActiveGameFullOrientation.REVERSE_PORTRAIT,
+            orientationLock.lockedOrientation,
+        )
+        orientationLock.leaveActiveGame()
+        assertNull(orientationLock.lockedOrientation)
+
+        // An unknown sensor value should not replace the last usable held orientation.
+        orientationLock.recordHeldOrientation(sensorDegrees = 90)
+        assertEquals(
+            ActiveGameFullOrientation.LANDSCAPE_PHONE_TOP_AT_RIGHT,
+            orientationLock.latestHeldOrientation,
+        )
+        orientationLock.recordHeldOrientation(
+            sensorDegrees = android.view.OrientationEventListener.ORIENTATION_UNKNOWN
+        )
+        assertEquals(
+            ActiveGameFullOrientation.LANDSCAPE_PHONE_TOP_AT_RIGHT,
+            orientationLock.latestHeldOrientation,
+        )
+
+        // A disabled Auto-rotate session normally resolves from its established lock. If Android
+        // has not supplied a usable sensor sample, it falls back to the rendered display instead.
+        orientationLock.enterActiveGame(systemAutoRotateEnabled = false)
+        assertEquals(
+            ActiveGameFullOrientation.LANDSCAPE_PHONE_TOP_AT_RIGHT,
+            orientationLock.resolvedOrientation(
+                currentDisplayOrientation = ActiveGameFullOrientation.PORTRAIT,
+            ),
+        )
+        assertEquals(
+            ActiveGameFullOrientation.REVERSE_PORTRAIT,
+            AutoRotateOrientationLock().resolvedOrientation(
+                currentDisplayOrientation = ActiveGameFullOrientation.REVERSE_PORTRAIT,
+            ),
+        )
     }
 
     /** Fixed orientation choices ignore the phone's current readable orientation. */
@@ -117,37 +173,79 @@ class TestOrientationPreference {
         assertEquals(FieldEnd.FAR, landscapeDisplay.topOrLeftDisplayedEnd)
     }
 
-    /** A delayed first sensor sample completes the fixed orientation chosen on entry. */
+    /** Android display and sensor values map to each readable active-game orientation. */
     @Test
-    fun delayedSensorReadingLocksOrientation() {
-        val orientationLock = AutoRotateOrientationLock()
-
-        // Returning from Home to an active game can be collected before Android supplies the
-        // listener's first sensor sample, so entry initially has no orientation to lock.
-        orientationLock.enterActiveGame(systemAutoRotateEnabled = false)
-        assertNull(orientationLock.lockedOrientation)
-
-        // The first usable sample completes that pending lock.
-        val establishedLock = orientationLock.recordHeldOrientation(
-            heldOrientation = ActiveGameFullOrientation.LANDSCAPE_PHONE_TOP_AT_RIGHT,
-            autoRotateScreenActive = true,
-            systemAutoRotateEnabled = false,
-        )
-        assertTrue(establishedLock)
+    fun androidOrientationValues() {
         assertEquals(
-            ActiveGameFullOrientation.LANDSCAPE_PHONE_TOP_AT_RIGHT,
-            orientationLock.lockedOrientation,
+            ActiveGameFullOrientation.PORTRAIT,
+            displayOrientation(android.view.Surface.ROTATION_0),
         )
-
-        // Later motion updates the latest held orientation without changing the session lock.
-        orientationLock.recordHeldOrientation(
-            heldOrientation = ActiveGameFullOrientation.PORTRAIT,
-            autoRotateScreenActive = true,
-            systemAutoRotateEnabled = false,
+        assertEquals(
+            ActiveGameFullOrientation.LANDSCAPE_PHONE_TOP_AT_LEFT,
+            displayOrientation(android.view.Surface.ROTATION_90),
+        )
+        assertEquals(
+            ActiveGameFullOrientation.REVERSE_PORTRAIT,
+            displayOrientation(android.view.Surface.ROTATION_180),
         )
         assertEquals(
             ActiveGameFullOrientation.LANDSCAPE_PHONE_TOP_AT_RIGHT,
-            orientationLock.lockedOrientation,
+            displayOrientation(android.view.Surface.ROTATION_270),
         )
+        assertThrows(IllegalStateException::class.java) {
+            displayOrientation(-1)
+        }
+
+        assertNull(heldOrientation(android.view.OrientationEventListener.ORIENTATION_UNKNOWN))
+        assertEquals(ActiveGameFullOrientation.PORTRAIT, heldOrientation(0))
+        assertEquals(ActiveGameFullOrientation.PORTRAIT, heldOrientation(44))
+        assertEquals(
+            ActiveGameFullOrientation.LANDSCAPE_PHONE_TOP_AT_RIGHT,
+            heldOrientation(45),
+        )
+        assertEquals(ActiveGameFullOrientation.REVERSE_PORTRAIT, heldOrientation(135))
+        assertEquals(
+            ActiveGameFullOrientation.LANDSCAPE_PHONE_TOP_AT_LEFT,
+            heldOrientation(225),
+        )
+        assertEquals(ActiveGameFullOrientation.PORTRAIT, heldOrientation(315))
+
+        assertEquals(
+            android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
+            ActiveGameFullOrientation.PORTRAIT.requestedActivityOrientation,
+        )
+        assertEquals(
+            android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
+            ActiveGameFullOrientation.LANDSCAPE_PHONE_TOP_AT_LEFT.requestedActivityOrientation,
+        )
+        assertEquals(
+            android.content.pm.ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT,
+            ActiveGameFullOrientation.REVERSE_PORTRAIT.requestedActivityOrientation,
+        )
+        assertEquals(
+            android.content.pm.ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE,
+            ActiveGameFullOrientation.LANDSCAPE_PHONE_TOP_AT_RIGHT.requestedActivityOrientation,
+        )
+    }
+
+    /** Display callbacks update the activity only when Android reports its own display. */
+    @Test
+    fun displayChangeTarget() {
+        var updateCount = 0
+        val updateActivityDisplay = { updateCount += 1 }
+
+        handleDisplayChange(
+            changedDisplayId = 4,
+            activityDisplayId = 4,
+            onActivityDisplayChanged = updateActivityDisplay,
+        )
+        assertEquals(1, updateCount)
+
+        handleDisplayChange(
+            changedDisplayId = 7,
+            activityDisplayId = 4,
+            onActivityDisplayChanged = updateActivityDisplay,
+        )
+        assertEquals(1, updateCount)
     }
 }

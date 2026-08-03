@@ -1811,7 +1811,7 @@ internal fun FieldInfoButton(
 internal fun PauseResumeButton(
     isPaused: Boolean,
     enabled: Boolean,
-    height: Dp = 34.dp,
+    height: Dp,
     onClick: () -> Unit,
 ) {
     val contentColor = MaterialTheme.colorScheme.onSurface
@@ -1857,7 +1857,7 @@ internal fun PauseResumeButton(
 @Composable
 internal fun WaterBreakButton(
     enabled: Boolean,
-    height: Dp = 34.dp,
+    height: Dp,
     onClick: () -> Unit,
 ) {
     val contentColor = MaterialTheme.colorScheme.onSurface

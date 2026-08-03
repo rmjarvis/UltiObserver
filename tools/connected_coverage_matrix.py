@@ -23,6 +23,11 @@ DEFAULT_PRESERVED_COVERAGE_DIR = Path(
 )
 PACKAGE_NAME = "rmjarvis.ultiobserver"
 TEST_RUNNER = "rmjarvis.ultiobserver.test/androidx.test.runner.AndroidJUnitRunner"
+DIRECT_INSTRUMENTATION_EXCLUSIONS = (
+    # Espresso Device receives its emulator-control gRPC connection from Gradle. The Gradle
+    # SmallPhone and Pixel 5 legs run this method; direct exact-alarm legs run every other test.
+    "rmjarvis.ultiobserver.TestFieldUi#autoRotateSystemSettingBehavior",
+)
 EXACT_ALARM_MODES = {"allow", "deny", "skip"}
 COVERAGE_MODES = {"direct", "gradle"}
 JACOCO_CLASS_MISMATCH_TEXT = "Classes in bundle 'app' do not match with execution data"
@@ -431,6 +436,13 @@ def run_instrumentation(
                 device.exact_alarm_mode,
             ]
         )
+    command.extend(
+        [
+            "-e",
+            "notClass",
+            ",".join(DIRECT_INSTRUMENTATION_EXCLUSIONS),
+        ]
+    )
     if test_classes:
         command.extend(["-e", "class", ",".join(test_classes)])
     command.append(TEST_RUNNER)

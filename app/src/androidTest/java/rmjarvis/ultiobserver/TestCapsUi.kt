@@ -9,7 +9,6 @@ import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.swipeRight
@@ -61,6 +60,7 @@ class TestCapsUi : MainActivityUiTestFixtures() {
         // A future soft cap during halftime should say when it is scheduled and why it applies.
         startLiveGameWithCapDuringHalftime("Soft cap", "Soft cap")
         openMoreActionsDialog()
+        selectMoreActionsCategory("Manual game transitions")
         composeRule.onNodeWithText("Start halftime").performClick()
         waitForText("Soft cap")
         waitForText("is scheduled for", substring = true)
@@ -91,21 +91,24 @@ class TestCapsUi : MainActivityUiTestFixtures() {
         // Half cap can be applied manually from More actions.
         startLiveGameProgrammatically()
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Apply half cap now").performScrollTo().performClick()
+        selectMoreActionsCategory("Manual game transitions")
+        clickMoreActionsItem("Apply half cap now")
         waitForText("Undo Apply half cap now")
         assertLiveScreen()
 
         // Soft cap can be applied manually from More actions.
         startLiveGameProgrammatically()
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Apply soft cap now").performScrollTo().performClick()
+        selectMoreActionsCategory("Manual game transitions")
+        clickMoreActionsItem("Apply soft cap now")
         waitForText("Undo Apply soft cap now")
         assertLiveScreen()
 
         // Hard cap can be applied manually from More actions.
         startLiveGameProgrammatically()
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Apply hard cap now").performScrollTo().performClick()
+        selectMoreActionsCategory("Manual game transitions")
+        clickMoreActionsItem("Apply hard cap now")
         waitForText("Undo Apply hard cap now")
         assertLiveScreen()
     }
@@ -164,7 +167,8 @@ class TestCapsUi : MainActivityUiTestFixtures() {
             adjustScore(teamOneScore = 3, teamTwoScore = 3, now = preGoalScoreTime)
         }
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Apply soft cap now").performScrollTo().performClick()
+        selectMoreActionsCategory("Manual game transitions")
+        clickMoreActionsItem("Apply soft cap now")
         waitForText(
             "Soft cap triggers the first-quarter water break.\n" +
                 "Take a 3-minute water break now."
@@ -175,7 +179,8 @@ class TestCapsUi : MainActivityUiTestFixtures() {
         // Applying hard cap after soft cap is already applied should not offer another soft-cap
         // water break.
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Apply hard cap now").performScrollTo().performClick()
+        selectMoreActionsCategory("Manual game transitions")
+        clickMoreActionsItem("Apply hard cap now")
         waitForText("Undo Apply hard cap now")
         composeRule.onAllNodesWithText("Take a 3-minute water break").assertCountEquals(0)
     }
@@ -198,6 +203,7 @@ class TestCapsUi : MainActivityUiTestFixtures() {
             )
         }
         openMoreActionsDialog()
+        selectMoreActionsCategory("Manual game transitions")
         assertTrue(
             composeRule.onAllNodesWithText("Apply half cap now")
                 .fetchSemanticsNodes()

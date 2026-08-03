@@ -15,9 +15,14 @@ DEFAULT_REPORT = Path("app/build/reports/jacoco/filtered/filteredCoverageReport.
 DEFAULT_SOURCE_ROOT = Path("app/src/main/java")
 ALLOWED_COMMENT_LOOKBACK_LINES = 5
 DEFENSIVE_GUARD_COMMENT = re.compile(r"\bdefensive\b.*\bguard\b", re.IGNORECASE)
+UNUSED_REQUIRED_COMMENT = re.compile(r"\bunused but required\b", re.IGNORECASE)
+NONEMPTY_COLLECTION_COMMENT = re.compile(r"\bnonempty collection\b", re.IGNORECASE)
 EXHAUSTIVE_WHEN_COMMENT = re.compile(r"\bno else branch\b", re.IGNORECASE)
 UNREACHABLE_ELSE_COMMENT = re.compile(r"\bunreachable else\b", re.IGNORECASE)
 UNREACHABLE_ELSE_ERROR = re.compile(r"^else\s*->\s*error\(.*\)$")
+REQUIRED_NO_OP_CALLBACK = re.compile(
+    r"^override fun [A-Za-z_]\w*\([^)]*\) = Unit$"
+)
 CALLBACK_NAME_PATTERN = r"(?:on[A-Za-z]\w*|performHaptic)"
 CALLBACK_LAMBDA_OPENER = re.compile(
     rf"^{CALLBACK_NAME_PATTERN}\s*=\s*\{{\s*"
@@ -120,6 +125,7 @@ def is_ui_source_file(path: Path) -> bool:
             "TimingAlertAudio.kt",
             "TimingAlertForegroundService.kt",
             "UiComponents.kt",
+            "UltiObserverApplication.kt",
         }
         or "/ui/theme/" in path.as_posix()
     )
@@ -140,6 +146,13 @@ def line_allowed_reason(
     ) or defensive_guard_reason(
         source_lines,
         line_number,
+    ) or required_no_op_callback_reason(
+        source_lines,
+        line_number,
+    ) or nonempty_max_of_collection_reason(
+        source_lines,
+        line_number,
+        counters,
     ) or exhaustive_when_without_else_reason(
         source_lines,
         line_number,
@@ -197,6 +210,11 @@ def line_allowed_reason(
         coverage_by_line,
         counters,
     ) or launched_effect_closing_epilogue_reason(
+        source_lines,
+        line_number,
+        coverage_by_line,
+        counters,
+    ) or long_lived_activity_state_collect_scaffold_reason(
         source_lines,
         line_number,
         coverage_by_line,
@@ -327,6 +345,56 @@ def defensive_guard_reason(source_lines: list[str], line_number: int) -> str | N
         return None
 
     return "documented defensive guard"
+
+
+def required_no_op_callback_reason(source_lines: list[str], line_number: int) -> str | None:
+    """Return a reason for a required no-op override documented as unused."""
+
+    line_index = line_number - 1
+    if REQUIRED_NO_OP_CALLBACK.fullmatch(source_lines[line_index].strip()) is None:
+        return None
+
+    comment_index = nearby_comment_index_before(
+        source_lines,
+        line_index,
+        UNUSED_REQUIRED_COMMENT,
+    )
+    if comment_index is None:
+        return None
+    if next_code_line_after(source_lines, comment_index) != line_index:
+        return None
+
+    return "documented unused but required callback"
+
+
+def nonempty_max_of_collection_reason(
+    source_lines: list[str],
+    line_number: int,
+    counters: LineCounters,
+) -> str | None:
+    """Return a reason for generated `maxOf` paths on a documented nonempty collection."""
+
+    if counters.missed_instructions == 0 or counters.covered_instructions == 0:
+        return None
+    if counters.missed_branches == 0 or counters.covered_branches == 0:
+        return None
+
+    line_index = line_number - 1
+    source = source_lines[line_index].strip()
+    if not source.startswith("val ") or ".maxOf {" not in source:
+        return None
+
+    comment_index = nearby_comment_index_before(
+        source_lines,
+        line_index,
+        NONEMPTY_COLLECTION_COMMENT,
+    )
+    if comment_index is None:
+        return None
+    if next_code_line_after(source_lines, comment_index) != line_index:
+        return None
+
+    return "documented nonempty collection maxOf scaffold"
 
 
 def exhaustive_when_without_else_reason(
@@ -807,22 +875,20 @@ def composable_restart_epilogue_reason(
             ...
         }
 
-    JaCoCo sometimes maps a tiny piece of that generated restart epilogue to the final
-    `}` of the function.  A user cannot deliberately exercise this close-brace bytecode
-    through app behavior; the meaningful coverage is whether the body of the Composable
-    rendered and its callbacks ran.  This rule is narrow: it only allows a lone `}` that
-    closes a real `@Composable` function and has the characteristic tiny miss profile
-    we have seen from the generated restart-scope epilogue.  A composable with explicit
-    early `return` statements may have one generated restart epilogue per exit path
-    mapped to the same closing brace, but some exit-path epilogues may be covered in
-    a given run.  The remaining miss count should be no more than one plus the number
-    of unlabeled returns in the function body.
-    """
+    JaCoCo sometimes maps generated restart bookkeeping to the final `}` of the function.
+    One compiler shape reports a tiny miss for each uncovered restart exit. Another reports
+    one missed and one covered branch plus eight covered instructions, while the missed
+    instruction count varies with the values captured by the generated restart callback.
+    A user cannot deliberately exercise this close-brace bytecode through app behavior; the
+    meaningful coverage is whether the body of the Composable rendered and its callbacks ran.
 
-    if counters.missed_instructions != counters.missed_branches:
-        return None
-    if counters.covered_instructions == 0 or counters.covered_branches == 0:
-        return None
+    This rule is narrow: it only allows a lone `}` that closes a real `@Composable` function
+    and has one of those characteristic restart-scope profiles. A composable with explicit
+    early `return` statements may have one tiny generated restart epilogue per exit path mapped
+    to the same closing brace, but some exit-path epilogues may be covered in a given run. The
+    remaining tiny-profile miss count should be no more than one plus the number of unlabeled
+    returns in the function body.
+    """
 
     line_index = line_number - 1
     if source_lines[line_index].strip() != "}":
@@ -832,6 +898,20 @@ def composable_restart_epilogue_reason(
     if opening_index is None:
         return None
     if not opens_composable_function(source_lines, opening_index):
+        return None
+
+    captured_restart_callback_profile = (
+        counters.missed_instructions > 0
+        and counters.covered_instructions == 8
+        and counters.missed_branches == 1
+        and counters.covered_branches == 1
+    )
+    if captured_restart_callback_profile:
+        return "Compose restart-scope epilogue"
+
+    if counters.missed_instructions != counters.missed_branches:
+        return None
+    if counters.covered_instructions == 0 or counters.covered_branches == 0:
         return None
 
     maximum_expected_misses = 1 + unlabeled_return_count(source_lines, opening_index, line_index)
@@ -1095,8 +1175,8 @@ def launched_effect_scaffold_reason(
     )
     if observed_profile not in {
         generated_guard_profile,
-        # Same generated scaffolding when the guard instructions are covered but branch counters remain.
-        (0, 2),
+        # Same generated scaffolding when guard instructions are covered but branches remain.
+        (0, 2 * generated_guard_count),
     }:
         return None
     if counters.covered_instructions == 0 or counters.covered_branches == 0:
@@ -1167,6 +1247,46 @@ def launched_effect_body_contains_collect(source_lines: list[str], opening_index
         if ".collect" in source or source.startswith("collect"):
             return True
     return False
+
+
+def long_lived_activity_state_collect_scaffold_reason(
+    source_lines: list[str],
+    line_number: int,
+    coverage_by_line: dict[int, LineCounters],
+    counters: LineCounters,
+) -> str | None:
+    """
+    Return a reason for the impossible normal-completion path after Activity state collection.
+
+    `StateFlow.collect` runs until its surrounding lifecycle coroutine is cancelled. Kotlin still
+    emits a resume path that handles a theoretical normal return and throws
+    `KotlinNothingValueException`. JaCoCo maps that generated path to the `collect` opener even
+    when every executable line in the collector body has run.
+
+    This recognizer is intentionally limited to MainActivity's `appViewModel.state` collection
+    directly inside `repeatOnLifecycle`, the observed instruction counters, and a fully covered
+    collector body.
+    """
+
+    index = line_number - 1
+    if index < 2 or index >= len(source_lines):
+        return None
+    if source_lines[index].strip() != ".collect { state ->":
+        return None
+    if source_lines[index - 1].strip() != "appViewModel.state":
+        return None
+    if source_lines[index - 2].strip() != "repeatOnLifecycle(Lifecycle.State.STARTED) {":
+        return None
+    if counters != LineCounters(
+        missed_instructions=5,
+        covered_instructions=12,
+        missed_branches=0,
+        covered_branches=0,
+    ):
+        return None
+    if not lambda_body_is_covered(source_lines, index, coverage_by_line):
+        return None
+    return "long-lived Activity StateFlow.collect completion scaffold"
 
 
 def line_opens_launched_effect_body(source_lines: list[str], line_index: int) -> bool:

@@ -60,6 +60,8 @@ internal fun AdjustTimeoutsDialog(
                     label = state.teamOne.name,
                     value = teamOneTimeoutsUsed,
                     emphasizedLabel = true,
+                    incrementTag = "timeout-current-team-one-increment",
+                    decrementTag = "timeout-current-team-one-decrement",
                     onIncrement = { teamOneTimeoutsUsed += 1 },
                     onDecrement = { teamOneTimeoutsUsed = maxOf(0, teamOneTimeoutsUsed - 1) },
                 )
@@ -67,6 +69,8 @@ internal fun AdjustTimeoutsDialog(
                     label = state.teamTwo.name,
                     value = teamTwoTimeoutsUsed,
                     emphasizedLabel = true,
+                    incrementTag = "timeout-current-team-two-increment",
+                    decrementTag = "timeout-current-team-two-decrement",
                     onIncrement = { teamTwoTimeoutsUsed += 1 },
                     onDecrement = { teamTwoTimeoutsUsed = maxOf(0, teamTwoTimeoutsUsed - 1) },
                 )
@@ -76,6 +80,8 @@ internal fun AdjustTimeoutsDialog(
                         label = state.teamOne.name,
                         value = teamOneFirstHalfTimeoutsUsed,
                         emphasizedLabel = true,
+                        incrementTag = "timeout-first-half-team-one-increment",
+                        decrementTag = "timeout-first-half-team-one-decrement",
                         onIncrement = { teamOneFirstHalfTimeoutsUsed += 1 },
                         onDecrement = {
                             teamOneFirstHalfTimeoutsUsed =
@@ -86,6 +92,8 @@ internal fun AdjustTimeoutsDialog(
                         label = state.teamTwo.name,
                         value = teamTwoFirstHalfTimeoutsUsed,
                         emphasizedLabel = true,
+                        incrementTag = "timeout-first-half-team-two-increment",
+                        decrementTag = "timeout-first-half-team-two-decrement",
                         onIncrement = { teamTwoFirstHalfTimeoutsUsed += 1 },
                         onDecrement = {
                             teamTwoFirstHalfTimeoutsUsed =

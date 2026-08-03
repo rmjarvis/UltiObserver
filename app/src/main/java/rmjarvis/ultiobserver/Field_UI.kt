@@ -344,7 +344,7 @@ private fun StatusCapText(
     countdown: String?,
     preferredFontSize: TextUnit,
     modifier: Modifier,
-    textAlign: TextAlign = TextAlign.End,
+    textAlign: TextAlign,
 ) {
     Box(
         modifier = modifier,
@@ -544,7 +544,7 @@ internal data class LandscapeFieldLayoutMetrics(
  *
  * @param state The active game state to render.
  * @param showAbbaRatioAsSequence Whether ABBA field badges should show sequence shorthand.
- * @param genderRatioBadgeColorArgb Color lookup for each concrete gender ratio.
+ * @param genderRatioBadgeColor Background for the current gender-ratio badge, or null without one.
  * @param interactionsEnabled Whether team action controls should be enabled.
  * @param timeoutEnabled Whether timeout handling is available in the current state.
  * @param metrics The precomputed field layout metrics.
@@ -564,7 +564,7 @@ internal fun PortraitFieldSketchCard(
     state: GameState,
     topDisplayedEnd: FieldEnd,
     showAbbaRatioAsSequence: Boolean,
-    genderRatioBadgeColorArgb: (GenderRatio) -> Long,
+    genderRatioBadgeColor: Color?,
     interactionsEnabled: Boolean,
     timeoutEnabled: Boolean,
     metrics: PortraitFieldLayoutMetrics,
@@ -591,7 +591,6 @@ internal fun PortraitFieldSketchCard(
     val topTeam = state.teamFor(topSlot)
     val bottomTeam = state.teamFor(bottomSlot)
     val pullFrom = state.pullingFromEnd
-    val currentGenderRatio = state.currentGenderRatio()
     val ratioChoosingTeam = state.ratioChoosingTeam()
 
     // Draw the top team row, center field area, and bottom team row in that order.
@@ -659,9 +658,9 @@ internal fun PortraitFieldSketchCard(
                             metrics.centerAccessoryGap
                         ),
                     ) {
-                        currentGenderRatio?.let { ratio ->
+                        genderRatioBadgeColor?.let { background ->
                             GenderRatioStatusBadge(
-                                background = Color(genderRatioBadgeColorArgb(ratio)),
+                                background = background,
                                 label = state.currentGenderRatioBadgeText(
                                     showAbbaRatioAsSequence
                                 ),
@@ -743,7 +742,7 @@ internal fun LandscapeFieldSketchCard(
     leftDisplayedEnd: FieldEnd,
     activeGameLayout: ActiveGameOrientation,
     showAbbaRatioAsSequence: Boolean,
-    genderRatioBadgeColorArgb: (GenderRatio) -> Long,
+    genderRatioBadgeColor: Color?,
     interactionsEnabled: Boolean,
     timeoutEnabled: Boolean,
     metrics: LandscapeFieldLayoutMetrics,
@@ -769,7 +768,6 @@ internal fun LandscapeFieldSketchCard(
     val rightSlot = leftSlot.flip()
     val leftTeam = state.teamFor(leftSlot)
     val rightTeam = state.teamFor(rightSlot)
-    val currentGenderRatio = state.currentGenderRatio()
     val ratioChoosingTeam = state.ratioChoosingTeam()
     val leftCardPoints = state.teamCardTotal(leftSlot)
     val rightCardPoints = state.teamCardTotal(rightSlot)
@@ -840,12 +838,9 @@ internal fun LandscapeFieldSketchCard(
             val maximumActionGridWidth = (
                 (maxWidth - minimumCenterWidth) / 2f - metrics.teamPanelPadding * 2f
                 ).coerceAtLeast(0.dp)
-            val actionGridScale = if (naturalActionGridWidth.value > 0f) {
+            val actionGridScale =
                 (maximumActionGridWidth.value / naturalActionGridWidth.value)
                     .coerceIn(0.85f, 1f)
-            } else {
-                1f
-            }
             val leftActionGridWidths = naturalLeftActionGridWidths.scaled(
                 actionGridScale,
                 metrics.actionGap,
@@ -912,11 +907,9 @@ internal fun LandscapeFieldSketchCard(
                         horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        currentGenderRatio?.let { ratio ->
+                        genderRatioBadgeColor?.let { background ->
                             GenderRatioStatusBadge(
-                                background = Color(
-                                    genderRatioBadgeColorArgb(ratio)
-                                ),
+                                background = background,
                                 label = state.currentGenderRatioBadgeText(
                                     showAbbaRatioAsSequence
                                 ),
@@ -1500,11 +1493,7 @@ private fun teamActionGridWidths(
     val availableTextHeight = with(density) {
         (actionButtonHeight - 4.dp).coerceAtLeast(0.dp).toPx()
     }
-    val heightScale = if (preferredTextHeight > 0) {
-        (availableTextHeight / preferredTextHeight).coerceIn(0f, 1f)
-    } else {
-        1f
-    }
+    val heightScale = (availableTextHeight / preferredTextHeight).coerceIn(0f, 1f)
     val fontSize = preferredTextStyle.fontSize * heightScale
     val buttonTextStyle = preferredTextStyle.copy(
         fontSize = fontSize,
@@ -1603,6 +1592,8 @@ private fun TeamActionGrid(
         .clip(PanelShape)
         .background(FieldActionPanelColor)
         .padding(4.dp)
+    val timeoutButtonEnabled = interactionsEnabled && timeoutEnabled
+
     if (layout == TeamActionGridLayout.TIMEOUT_ROW) {
         Column(
             modifier = panelModifier,
@@ -1630,7 +1621,7 @@ private fun TeamActionGrid(
                 fullWidth = true,
                 height = actionButtonHeight,
                 fontSize = widths.fontSize,
-                enabled = interactionsEnabled && timeoutEnabled,
+                enabled = timeoutButtonEnabled,
                 containerColor = TimeoutButtonColor,
                 contentColor = Color.Black,
                 tag = "live-${teamId.name}-timeout",
@@ -1664,7 +1655,7 @@ private fun TeamActionGrid(
                 width = widths.timeout,
                 height = actionButtonHeight * 2f + gap,
                 fontSize = widths.fontSize,
-                enabled = interactionsEnabled && timeoutEnabled,
+                enabled = timeoutButtonEnabled,
                 containerColor = TimeoutButtonColor,
                 contentColor = Color.Black,
                 tag = "live-${teamId.name}-timeout",

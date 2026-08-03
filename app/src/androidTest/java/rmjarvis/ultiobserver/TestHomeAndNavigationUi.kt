@@ -146,27 +146,11 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         // the first.
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.appViewModel.deleteCurrentGame()
+            activity.appViewModel.seedCurrentInProgressGame(teamOneName, teamTwoName)
             activity.appViewModel.startNewGame(now = 123_000L)
-            activity.appViewModel.updateSetup(
-                newSetupGameState(now = 123_000L).copy(
-                    teamOne = TeamState(name = teamOneName, color = TeamColorChoice.WHITE),
-                    teamTwo = TeamState(name = teamTwoName, color = TeamColorChoice.BLUE),
-                )
-            )
-            activity.appViewModel.finishSetup(now = 123_000L)
-            activity.appViewModel.updateCurrentGame(
-                activity.appViewModel.currentGame!!.beginLivePoint(0L)
-            )
-            activity.appViewModel.startNewGame(now = 123_000L)
-            activity.appViewModel.updateSetup(
-                newSetupGameState(now = 123_000L).copy(
-                    teamOne = TeamState(name = currentTeamOneName, color = TeamColorChoice.WHITE),
-                    teamTwo = TeamState(name = currentTeamTwoName, color = TeamColorChoice.BLUE),
-                )
-            )
-            activity.appViewModel.finishSetup(now = 123_000L)
-            activity.appViewModel.updateCurrentGame(
-                activity.appViewModel.currentGame!!.beginLivePoint(0L)
+            activity.appViewModel.seedCurrentInProgressGame(
+                currentTeamOneName,
+                currentTeamTwoName,
             )
             activity.appViewModel.goHome()
         }
@@ -879,31 +863,48 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         // Active games default to Portrait; exercise both alternate orientation behaviors.
         composeRule.onNodeWithText("Settings").performClick()
         composeRule.onNodeWithTag("settings-active-game-orientation-PORTRAIT").assertIsSelected()
-        composeRule.onNodeWithTag("settings-active-game-orientation-LANDSCAPE").performClick()
+        composeRule.onNodeWithTag("settings-active-game-orientation-LANDSCAPE")
+            .performScrollTo()
+            .performClick()
         composeRule.onNodeWithTag("settings-active-game-orientation-LANDSCAPE").assertIsSelected()
         composeRule.onNodeWithTag("settings-active-game-orientation-description").assertTextEquals(
             "Show teams on the left and right of the active game screen."
         )
-        composeRule.onNodeWithTag("settings-active-game-orientation-AUTO_ROTATE").performClick()
+        composeRule.onNodeWithTag("settings-active-game-orientation-AUTO_ROTATE")
+            .performScrollTo()
+            .performClick()
         composeRule.onNodeWithTag("settings-active-game-orientation-AUTO_ROTATE").assertIsSelected()
         composeRule.onNodeWithTag("settings-active-game-orientation-description").assertTextEquals(
-            "Follow the phone's orientation when Android auto-rotate is on, or use how it is " +
-                "held when the active game screen opens."
+            "Follow the phone's orientation if Android's auto-rotate is enabled. Otherwise, " +
+                "it will use the current phone orientation when the active game screen opens " +
+                "each time."
         )
-        composeRule.onNodeWithTag("settings-active-game-orientation-PORTRAIT").performClick()
+        composeRule.onNodeWithTag("settings-active-game-orientation-PORTRAIT")
+            .performScrollTo()
+            .performClick()
 
         // Rule guidance defaults to Full. Clicking each shows a description of what it does.
-        composeRule.onNodeWithTag("settings-rule-guidance-FULL").assertIsSelected()
-        composeRule.onNodeWithTag("settings-rule-guidance-BRIEF").performClick()
+        composeRule.onNodeWithTag("settings-rule-guidance-FULL")
+            .performScrollTo()
+            .assertIsSelected()
+        composeRule.onNodeWithTag("settings-rule-guidance-BRIEF")
+            .performScrollTo()
+            .performClick()
         composeRule.onNodeWithTag("settings-rule-guidance-BRIEF").assertIsSelected()
-        composeRule.onNodeWithTag("settings-rule-guidance-TIMED").performClick()
+        composeRule.onNodeWithTag("settings-rule-guidance-TIMED")
+            .performScrollTo()
+            .performClick()
         composeRule.onNodeWithTag("settings-rule-guidance-TIMED").assertIsSelected()
         composeRule.onNodeWithTag("settings-rule-guidance-description").assertTextEquals(
             "Show a brief reminder and automatically accept or close after 5 seconds."
         )
-        composeRule.onNodeWithTag("settings-rule-guidance-NONE").performClick()
+        composeRule.onNodeWithTag("settings-rule-guidance-NONE")
+            .performScrollTo()
+            .performClick()
         composeRule.onNodeWithTag("settings-rule-guidance-NONE").assertIsSelected()
-        composeRule.onNodeWithTag("settings-rule-guidance-FULL").performClick()
+        composeRule.onNodeWithTag("settings-rule-guidance-FULL")
+            .performScrollTo()
+            .performClick()
         composeRule.onNodeWithTag("settings-rule-guidance-FULL").assertIsSelected()
 
         // Settings should expose automatic live-play options.  The default is to
@@ -1427,17 +1428,14 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.waitForIdle()
     }
 
-    /// Set up the current game as an active live-point game.
+    /// Install an active live-point game without making the active-game screen visible.
     private fun AppViewModel.seedCurrentInProgressGame(teamOne: String, teamTwo: String) {
-        startNewGame(now = 123_000L)
-        updateSetup(
+        updateCurrentGame(
             newSetupGameState(now = 123_000L).copy(
                 teamOne = TeamState(teamOne, TeamColorChoice.WHITE),
                 teamTwo = TeamState(teamTwo, TeamColorChoice.BLUE),
-            )
+            ).startGame(settings.orientationPreference).beginLivePoint(0L)
         )
-        finishSetup(now = 123_000L)
-        updateCurrentGame(currentGame!!.beginLivePoint(0L))
     }
 
     /**

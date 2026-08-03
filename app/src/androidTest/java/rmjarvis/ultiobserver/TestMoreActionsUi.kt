@@ -31,6 +31,7 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
         openMoreActionsDialog()
         composeRule.onNodeWithText("Set heat/AQI level").performClick()
         waitForText("Set heat level")
+        composeRule.onAllNodesWithText("Close").assertCountEquals(0)
         composeRule.onNodeWithTag("heat-level-LEVEL_3").performClick()
         composeRule.onNodeWithTag("set-heat-level-confirm").performClick()
 
@@ -49,6 +50,7 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
     @Test
     fun moreActionsPathways() {
         setRuleGuidanceMode(RuleGuidanceMode.FULL)
+        setAutomaticallyLockLivePoint(true)
 
         // Start from a live game so More actions exposes the observer-facing correction tools.
         startLiveGameProgrammatically()
@@ -58,16 +60,19 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
         dismissDialog(text = "Close")
         composeRule.onAllNodesWithText("Update game setup").assertCountEquals(0)
         openMoreActionsDialog()
+        selectMoreActionsCategory("Game details")
         composeRule.onNodeWithText("Event log").performClick()
         waitForText("Event log")
         waitForText("No events logged yet.")
         dismissDialog(text = "OK")
         openMoreActionsDialog()
+        selectMoreActionsCategory("Game details")
         composeRule.onNodeWithText("Game summary").performClick()
         waitForText("Game summary")
         tapTopBarBack()
         assertLiveScreen()
         openMoreActionsDialog()
+        selectMoreActionsCategory("Game details")
         composeRule.onNodeWithText("Game summary").performClick()
         waitForText("Game summary")
         tapTopBarHome()
@@ -106,10 +111,12 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
 
         // Run through all the adjust pathways, but just cancel them for now.
         openMoreActionsDialog()
-        openMoreActionsDialogAndCancel("Adjust score")
-        openMoreActionsDialogAndCancel("Adjust timeouts")
-        openMoreActionsDialogAndCancel("Adjust cards / techs")
-        openMoreActionsDialogAndCancel("Adjust pull violations")
+        openMoreActionsDialogAndCancel("Corrections", "Adjust score")
+        openMoreActionsDialogAndCancel("Corrections", "Adjust timeouts")
+        openMoreActionsDialogAndCancel("Corrections", "Adjust cards / techs")
+        openMoreActionsDialogAndCancel("Corrections", "Adjust pull violations")
+        dismissDialog(text = "Close")
+        assertLiveScreen()
 
         // Manual correction dialogs should also apply their visible values.
         applyScoreAdjustment()
@@ -119,27 +126,27 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
 
         // Orientation controls should update state without breaking the live screen.
         openMoreActionsDialog()
+        selectMoreActionsCategory("Field and pull controls")
         composeRule.onNodeWithText("Flip field display").performClick()
         waitForText("Undo Flip field display")
         assertLiveScreen()
 
         // Changing pull prompts can be canceled before applying a new prompt target.
         openMoreActionsDialog()
-        openMoreActionsDialogAndCancel("Change pull prompts")
+        openMoreActionsDialogAndCancel("Field and pull controls", "Change pull prompts")
 
         // Changing pull prompts can also apply a new target immediately.
-        openMoreActionsDialog()
         composeRule.onNodeWithText("Change pull prompts").performClick()
         waitForText("Change pull prompts")
         composeRule.onNodeWithTag("more-actions-pull-prompts-BOTH").performClick()
         composeRule.onNodeWithText("Set").performClick()
         waitForText("Undo Change pull prompts")
+        assertEquals(PullPromptTarget.BOTH, accessCurrentGameState().pullPromptTarget)
         assertLiveScreen()
 
         // Heat level changes are directly available without reopening full setup.
         openMoreActionsDialog()
-        openMoreActionsDialogAndCancel("Set heat/AQI level")
-        openMoreActionsDialog()
+        openMoreActionsDialogAndCancel("Setup changes", "Set heat/AQI level")
         composeRule.onNodeWithText("Set heat/AQI level").performClick()
         waitForText("Set heat level")
         composeRule.onNodeWithTag("air-quality-guidelines").performScrollTo().performClick()
@@ -174,6 +181,7 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
         assertLiveScreen()
 
         openMoreActionsDialog()
+        selectMoreActionsCategory("Field and pull controls")
         composeRule.onNodeWithText("Swap pulling team").performClick()
         assertLiveScreen()
 
@@ -184,7 +192,8 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
 
         // Manual halftime should be reachable and leave a visible result.
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Start halftime").performScrollTo().performClick()
+        selectMoreActionsCategory("Manual game transitions")
+        clickMoreActionsItem("Start halftime")
         waitForText("Halftime")
         waitForText("Announce halftime.")
         // Back dismissal and OK are equivalent acknowledgements for this prompt.
@@ -192,14 +201,33 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
         assertLiveScreen()
 
         // Once halftime has been taken, timeout adjustment includes first-half rows too.
+        val teamOneName = accessCurrentGameState().teamOne.name
+        val teamTwoName = accessCurrentGameState().teamTwo.name
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust timeouts").performScrollTo().performClick()
+        selectMoreActionsCategory("Corrections")
+        clickMoreActionsItem("Adjust timeouts")
         waitForText("Adjust the number of timeouts used by each team in the first half.")
-        composeRule.onAllNodesWithText("+1")[2].performClick()
-        composeRule.onAllNodesWithText("+1")[3].performClick()
-        composeRule.onAllNodesWithText("-1")[2].performClick()
-        composeRule.onAllNodesWithText("-1")[3].performClick()
-        composeRule.onAllNodesWithText("+1")[2].performClick()
+        listOf(
+            "timeout-current-team-one-increment",
+            "timeout-current-team-two-increment",
+            "timeout-first-half-team-one-increment",
+            "timeout-first-half-team-two-increment",
+        ).forEach { tag ->
+            composeRule.onNodeWithTag(tag).performScrollTo().performClick()
+        }
+        composeRule.onAllNodesWithText("$teamOneName: 1").assertCountEquals(2)
+        composeRule.onAllNodesWithText("$teamTwoName: 1").assertCountEquals(2)
+        listOf(
+            "timeout-current-team-one-decrement",
+            "timeout-current-team-two-decrement",
+            "timeout-first-half-team-one-decrement",
+            "timeout-first-half-team-two-decrement",
+        ).forEach { tag ->
+            composeRule.onNodeWithTag(tag).performScrollTo().performClick()
+        }
+        composeRule.onAllNodesWithText("$teamOneName: 0").assertCountEquals(2)
+        composeRule.onAllNodesWithText("$teamTwoName: 0").assertCountEquals(2)
+        composeRule.onNodeWithTag("timeout-first-half-team-one-increment").performClick()
         composeRule.onNodeWithText("Set").performClick()
         waitForText("Undo Timeout adjustment")
 
@@ -210,7 +238,8 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
             )
         )
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust timeouts").performScrollTo().performClick()
+        selectMoreActionsCategory("Corrections")
+        clickMoreActionsItem("Adjust timeouts")
         waitForText("Team 1 is allowed to use 1 timeout")
         dismissDialog(text = "Cancel")
     }
@@ -223,13 +252,16 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
         // Standard non-mixed games show the common rows for both teams, but not majority pull.
         startLiveGameProgrammatically()
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust pull violations").performScrollTo().performClick()
+        selectMoreActionsCategory("Corrections")
+        clickMoreActionsItem("Adjust pull violations")
         waitForTag("adjust-pull-violations-confirm")
         assertPullViolationDialogFieldCount("Offsides", 2)
         assertPullViolationDialogFieldCount("False starts", 2)
         assertPullViolationDialogFieldCount("Time violations", 2)
         assertPullViolationDialogFieldCount("Majority pull", 0)
         dismissDialog(text = "Cancel")
+        dismissDialog(text = "Close")
+        assertLiveScreen()
 
         // Mixed games show one majority-pull row per team.
         startLiveGameProgrammatically(
@@ -238,17 +270,38 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
             )
         )
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust pull violations").performScrollTo().performClick()
+        selectMoreActionsCategory("Corrections")
+        clickMoreActionsItem("Adjust pull violations")
         waitForTag("adjust-pull-violations-confirm")
         assertPullViolationDialogFieldCount("Offsides", 2)
         assertPullViolationDialogFieldCount("False starts", 2)
         assertPullViolationDialogFieldCount("Time violations", 2)
         assertPullViolationDialogFieldCount("Majority pull", 2)
-        repeat(8) { index ->
-            composeRule.onAllNodesWithText("+1")[index].performClick()
+        val rowTags = listOf(
+            "team-one-offsides",
+            "team-one-false-starts",
+            "team-one-majority-pull",
+            "team-one-time-violations",
+            "team-two-offsides",
+            "team-two-false-starts",
+            "team-two-majority-pull",
+            "team-two-time-violations",
+        )
+        rowTags.forEach { rowTag ->
+            composeRule.onNodeWithTag("pull-violation-$rowTag-increment")
+                .performScrollTo()
+                .performClick()
         }
-        repeat(8) { index ->
-            composeRule.onAllNodesWithText("-1")[index].performClick()
+        listOf("Offsides", "False starts", "Majority pull", "Time violations").forEach { label ->
+            composeRule.onAllNodesWithText("$label: 1").assertCountEquals(2)
+        }
+        rowTags.forEach { rowTag ->
+            composeRule.onNodeWithTag("pull-violation-$rowTag-decrement")
+                .performScrollTo()
+                .performClick()
+        }
+        listOf("Offsides", "False starts", "Majority pull", "Time violations").forEach { label ->
+            composeRule.onAllNodesWithText("$label: 0").assertCountEquals(2)
         }
         dismissDialog(text = "Cancel")
     }

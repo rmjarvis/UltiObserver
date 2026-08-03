@@ -1,5 +1,7 @@
 package rmjarvis.ultiobserver
 
+import android.content.res.Configuration
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasContentDescription
@@ -56,13 +58,16 @@ abstract class MainActivityUiTestFixtures {
     /// Use Landscape on Pixel 5 and Portrait elsewhere for each UI-test narrative.
     @Before
     fun setOrientationPreference() {
-        updateOrientationPreference(
-            if (currentAvdName() == LANDSCAPE_COVERAGE_AVD) {
-                OrientationPreference.LANDSCAPE
-            } else {
-                OrientationPreference.PORTRAIT
-            }
-        )
+        updateOrientationPreference(testOrientationPreference())
+    }
+
+    /// Return the active-game orientation preference assigned to the current matrix device.
+    internal fun testOrientationPreference(): OrientationPreference {
+        return if (currentAvdName() == LANDSCAPE_COVERAGE_AVD) {
+            OrientationPreference.LANDSCAPE
+        } else {
+            OrientationPreference.PORTRAIT
+        }
     }
 
     /// Remove any current game and wait for the UI to observe the empty current-game state.
@@ -72,6 +77,7 @@ abstract class MainActivityUiTestFixtures {
             activity.appViewModel.goHome()
         }
         composeRule.waitForIdle()
+        waitForConfigurationOrientation(Configuration.ORIENTATION_PORTRAIT)
     }
 
     /// Open the new-game setup screen from Home.
@@ -99,7 +105,15 @@ abstract class MainActivityUiTestFixtures {
     protected fun startLiveGameProgrammatically(
         setup: GameState = newSetupGameState(now = System.currentTimeMillis())
     ) {
-        clearCurrentGameProgrammatically()
+        var activeGameAlreadyVisible = false
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activeGameAlreadyVisible = activity.appViewModel.state.value.viewingActiveGameScreen
+        }
+        if (!activeGameAlreadyVisible) {
+            clearCurrentGameProgrammatically()
+        }
+        // When reseeding an active narrative, keep the active-game screen visible. Going through
+        // Home would briefly request Portrait before the replacement game requests Landscape.
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.appViewModel.updateSetup(setup)
             activity.appViewModel.finishSetup(now = 123_000L)
@@ -522,11 +536,6 @@ abstract class MainActivityUiTestFixtures {
         }
     }
 
-    /// Tap Back from a misconduct offense/defense choice to the card step that opened it.
-    protected fun tapBackFromMisconductODChoice() {
-        dismissDialog(tag = "misconduct-choice-back")
-    }
-
     /**
      * Tap a team's goal button and wait for the expected undo label.
      *
@@ -763,6 +772,11 @@ abstract class MainActivityUiTestFixtures {
         updateOrientationPreference(OrientationPreference.LANDSCAPE)
     }
 
+    /// Select Auto-rotate and wait for the activity orientation controller to observe it.
+    internal fun setAutoRotateOrientationPreference() {
+        updateOrientationPreference(OrientationPreference.AUTO_ROTATE)
+    }
+
     /// Start this setup using the active-game orientation configured for the current UI test.
     protected fun GameState.startGameInTestOrientation(activity: MainActivity): GameState {
         return startGame(activity.appViewModel.settings.orientationPreference)
@@ -889,6 +903,7 @@ abstract class MainActivityUiTestFixtures {
     /// Exercise the score adjustment dialog with a small nonzero correction.
     protected fun applyScoreAdjustment() {
         openMoreActionsDialog()
+        selectMoreActionsCategory("Corrections")
         composeRule.onNodeWithText("Adjust score").performClick()
         waitForText("Adjust score")
         composeRule.onAllNodesWithText("+1")[0].performClick()
@@ -900,18 +915,22 @@ abstract class MainActivityUiTestFixtures {
         waitForText("Undo Score adjustment")
     }
 
-    /// Exercise the timeout adjustment dialog with a small nonzero correction.
+    /// Exercise both timeout adjustment controls and restore their initial values.
     protected fun applyTimeoutAdjustment() {
+        val teamOneName = accessCurrentGameState().teamOne.name
+        val teamTwoName = accessCurrentGameState().teamTwo.name
         openMoreActionsDialog()
-        composeRule.onNodeWithTag("more-actions-adjust-timeouts")
-            .performScrollTo()
-            .performTouchInput { click() }
+        selectMoreActionsCategory("Corrections")
+        clickMoreActionsItem("Adjust timeouts")
         waitForText("Adjust the number of timeouts used by each team this half.")
         composeRule.onAllNodesWithText("+1")[0].performClick()
         composeRule.onAllNodesWithText("+1")[1].performClick()
+        composeRule.onAllNodesWithText("$teamOneName: 1").assertCountEquals(1)
+        composeRule.onAllNodesWithText("$teamTwoName: 1").assertCountEquals(1)
         composeRule.onAllNodesWithText("-1")[0].performClick()
         composeRule.onAllNodesWithText("-1")[1].performClick()
-        composeRule.onAllNodesWithText("+1")[0].performClick()
+        composeRule.onAllNodesWithText("$teamOneName: 0").assertCountEquals(1)
+        composeRule.onAllNodesWithText("$teamTwoName: 0").assertCountEquals(1)
         composeRule.onNodeWithText("Set").performClick()
         waitForText("Undo Timeout adjustment")
     }
@@ -919,7 +938,8 @@ abstract class MainActivityUiTestFixtures {
     /// Exercise the pull-violation adjustment dialog with a small nonzero correction.
     protected fun applyPullViolationAdjustment() {
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust pull violations").performScrollTo().performClick()
+        selectMoreActionsCategory("Corrections")
+        clickMoreActionsItem("Adjust pull violations")
         waitForTag("adjust-pull-violations-confirm")
         repeat(6) { index ->
             composeRule.onAllNodesWithText("+1")[index].performClick()
@@ -937,7 +957,8 @@ abstract class MainActivityUiTestFixtures {
     /// Exercise the Cards / techs adjustment dialog by changing a visible count.
     protected fun applyCardTechAdjustment() {
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust cards / techs").performScrollTo().performClick()
+        selectMoreActionsCategory("Corrections")
+        clickMoreActionsItem("Adjust cards / techs")
         waitForTag("cards-adjust-team-one-blue-increment")
         composeRule.onNodeWithTag("cards-adjust-team-one-blue-increment").performClick()
         composeRule.onNodeWithText("Done").performClick()
@@ -997,10 +1018,27 @@ abstract class MainActivityUiTestFixtures {
 
     /// Assert that the live screen's main controls are visible.
     protected fun assertLiveScreen() {
+        val fixedOrientation = when (
+            composeRule.activity.appViewModel.settings.orientationPreference
+        ) {
+            OrientationPreference.PORTRAIT -> Configuration.ORIENTATION_PORTRAIT
+            OrientationPreference.LANDSCAPE -> Configuration.ORIENTATION_LANDSCAPE
+            OrientationPreference.AUTO_ROTATE -> null
+        }
+        if (fixedOrientation != null) {
+            waitForConfigurationOrientation(fixedOrientation)
+        }
         waitForText("More actions")
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "card")).assertIsDisplayed()
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "tech")).assertIsDisplayed()
         composeRule.onNodeWithText("More actions").assertIsDisplayed()
+    }
+
+    /// Wait until Android has applied a requested portrait or landscape configuration.
+    private fun waitForConfigurationOrientation(orientation: Int) {
+        composeRule.waitUntil(timeoutMillis = 10_000) {
+            composeRule.activity.resources.configuration.orientation == orientation
+        }
     }
 
     /**
@@ -1072,15 +1110,33 @@ abstract class MainActivityUiTestFixtures {
         waitForText("Update game setup")
     }
 
+    /// Select a category in the open More actions dialog.
+    protected fun selectMoreActionsCategory(title: String) {
+        composeRule.onNodeWithText(title).performClick()
+    }
+
+    /** Click an item in the open More actions category for the matrix device's menu geometry. */
+    protected fun clickMoreActionsItem(label: String) {
+        val item = composeRule.onNodeWithText(label)
+        if (testOrientationPreference() == OrientationPreference.LANDSCAPE) {
+            item.performClick()
+        } else {
+            item.performScrollTo().performClick()
+        }
+    }
+
     /**
      * Open a dialog from More actions and cancel it.
      *
+     * @param category The More actions category containing the item.
      * @param label The More actions item label that opens the dialog.
      */
-    protected fun openMoreActionsDialogAndCancel(label: String) {
-        composeRule.onNodeWithText(label).performScrollTo().performClick()
+    protected fun openMoreActionsDialogAndCancel(category: String, label: String) {
+        selectMoreActionsCategory(category)
+        clickMoreActionsItem(label)
+        composeRule.onAllNodesWithText("Close").assertCountEquals(0)
         dismissDialog(text = "Cancel")
-        waitForText("Update game setup")
+        waitForText(label)
     }
 
     /// Trigger app-level Android back handling from the activity.

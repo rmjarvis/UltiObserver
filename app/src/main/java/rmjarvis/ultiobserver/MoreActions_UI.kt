@@ -155,6 +155,7 @@ private fun LandscapeMoreActionsRegion(
         with(density) { actionStyle.lineHeight.toDp() } + 20.dp,
     )
     val categories = MoreActionsCategory.entries
+    // Nonempty collection: every More actions category has a map entry.
     val maximumActionCount = actionsByCategory.values.maxOf { it.size }
     val naturalHeight = maxOf(
         preferredHeaderHeight * categories.size + 8.dp * (categories.size - 1),
@@ -172,7 +173,7 @@ private fun LandscapeMoreActionsRegion(
             (regionHeight - gap * (categories.size - 1)) / categories.size
         val headerScale = (
             headerHeight.value / preferredHeaderHeight.value
-            ).coerceAtMost(1f)
+            ).coerceIn(0f, 1f)
         val headerFontSize = headerStyle.fontSize * headerScale
         val indicatorSize = 24.dp * headerScale
         val selectedIndex = categories.indexOf(selectedCategory)
@@ -347,6 +348,7 @@ internal fun MoreActionsChildDialog(
     onAction: (GameState) -> Unit,
     onStateUpdate: (GameState) -> Unit,
 ) {
+    // No else branch: every MoreActionsChild value is handled.
     when (child) {
         MoreActionsChild.ADJUST_SCORE -> AdjustScoreDialog(
             state = state,
@@ -410,7 +412,9 @@ internal fun MoreActionsChildDialog(
             state = state,
             layout = activeGameLayout,
             onDismiss = onDismiss,
-            onConfirm = { target -> onAction(state.withPullPromptTarget(target)) },
+            onConfirm = { target ->
+                onAction(state.withPullPromptTarget(target))
+            },
         )
         MoreActionsChild.SET_HEAT_LEVEL -> SetHeatLevelDialog(
             rules = state.rules,

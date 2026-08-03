@@ -39,19 +39,7 @@ class MainActivity : ComponentActivity() {
     private val orientationEventListener by lazy {
         object : OrientationEventListener(this, SensorManager.SENSOR_DELAY_NORMAL) {
             override fun onOrientationChanged(orientation: Int) {
-                heldOrientation(orientation)?.let { heldOrientation ->
-                    // Returning to an active game can beat the listener's first sensor sample.
-                    // In that case entry leaves the orientation unlocked, and this first usable
-                    // sample completes the lock rather than allowing later motion to rotate it.
-                    if (autoRotateOrientationLock.recordHeldOrientation(
-                            heldOrientation = heldOrientation,
-                            autoRotateScreenActive = autoRotateScreenActive,
-                            systemAutoRotateEnabled = systemAutoRotateEnabled,
-                        )
-                    ) {
-                        applyRequestedActivityOrientation(appViewModel.state.value)
-                    }
-                }
+                autoRotateOrientationLock.recordHeldOrientation(orientation)
             }
         }
     }
@@ -59,12 +47,14 @@ class MainActivity : ComponentActivity() {
     private val displayManager by lazy { getSystemService(DisplayManager::class.java) }
 
     private val displayListener = object : DisplayManager.DisplayListener {
+        // Unused but required DisplayListener callback.
         override fun onDisplayAdded(displayId: Int) = Unit
 
+        // Unused but required DisplayListener callback.
         override fun onDisplayRemoved(displayId: Int) = Unit
 
         override fun onDisplayChanged(displayId: Int) {
-            if (displayId == display?.displayId) {
+            handleDisplayChange(displayId, display!!.displayId) {
                 displayOrientation = currentDisplayOrientation()
                 applyRequestedActivityOrientation(appViewModel.state.value)
             }
@@ -181,10 +171,9 @@ class MainActivity : ComponentActivity() {
                 OrientationPreference.AUTO_ROTATE -> if (systemAutoRotateEnabled) {
                     ActivityInfo.SCREEN_ORIENTATION_FULL_USER
                 } else {
-                    val lockedOrientation = autoRotateOrientationLock.lockedOrientation
-                        ?: autoRotateOrientationLock.latestHeldOrientation
-                        ?: currentDisplayOrientation()
-                    lockedOrientation.requestedActivityOrientation
+                    autoRotateOrientationLock.resolvedOrientation(
+                        currentDisplayOrientation = currentDisplayOrientation(),
+                    ).requestedActivityOrientation
                 }
             }
         }
@@ -223,6 +212,17 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/// Run an activity display update only when Android reports that display as changed.
+internal fun handleDisplayChange(
+    changedDisplayId: Int,
+    activityDisplayId: Int,
+    onActivityDisplayChanged: () -> Unit,
+) {
+    if (changedDisplayId == activityDisplayId) {
+        onActivityDisplayChanged()
+    }
+}
+
 /** Track the held and fixed orientations used while Android auto-rotate is disabled. */
 internal class AutoRotateOrientationLock {
     var latestHeldOrientation: ActiveGameFullOrientation? = null
@@ -240,25 +240,23 @@ internal class AutoRotateOrientationLock {
         lockedOrientation = null
     }
 
-    /**
-     * Record a usable sensor sample and complete a pending entry lock when necessary.
-     *
-     * @return Whether this sample established the fixed display orientation.
-     */
-    fun recordHeldOrientation(
-        heldOrientation: ActiveGameFullOrientation,
-        autoRotateScreenActive: Boolean,
-        systemAutoRotateEnabled: Boolean,
-    ): Boolean {
+    /// Record the latest usable physical-orientation sensor sample.
+    fun recordHeldOrientation(heldOrientation: ActiveGameFullOrientation) {
         latestHeldOrientation = heldOrientation
-        if (autoRotateScreenActive &&
-            !systemAutoRotateEnabled &&
-            lockedOrientation == null
-        ) {
-            lockedOrientation = heldOrientation
-            return true
+    }
+
+    /// Record raw sensor degrees when Android reports a usable physical orientation.
+    fun recordHeldOrientation(sensorDegrees: Int) {
+        heldOrientation(sensorDegrees)?.let { heldOrientation ->
+            recordHeldOrientation(heldOrientation)
         }
-        return false
+    }
+
+    /// Return the fixed orientation, falling back to the display before any usable sensor sample.
+    fun resolvedOrientation(
+        currentDisplayOrientation: ActiveGameFullOrientation,
+    ): ActiveGameFullOrientation {
+        return lockedOrientation ?: currentDisplayOrientation
     }
 
     /// Follow Android when enabled, or freeze the currently rendered orientation when disabled.
@@ -271,7 +269,7 @@ internal class AutoRotateOrientationLock {
 }
 
 /// Convert Android's rendered-display rotation into the corresponding readable orientation.
-private fun displayOrientation(rotation: Int): ActiveGameFullOrientation {
+internal fun displayOrientation(rotation: Int): ActiveGameFullOrientation {
     return when (rotation) {
         Surface.ROTATION_0 -> ActiveGameFullOrientation.PORTRAIT
         Surface.ROTATION_90 -> {
@@ -293,7 +291,7 @@ private val heldOrientationsByQuadrant = arrayOf(
 )
 
 /// Convert sensor degrees into the readable orientation required when rotation is locked.
-private fun heldOrientation(degrees: Int): ActiveGameFullOrientation? {
+internal fun heldOrientation(degrees: Int): ActiveGameFullOrientation? {
     if (degrees == OrientationEventListener.ORIENTATION_UNKNOWN) {
         return null
     }
@@ -301,7 +299,7 @@ private fun heldOrientation(degrees: Int): ActiveGameFullOrientation? {
 }
 
 /// Return the fixed Android request matching this readable orientation.
-private val ActiveGameFullOrientation.requestedActivityOrientation: Int
+internal val ActiveGameFullOrientation.requestedActivityOrientation: Int
     get() = when (this) {
         ActiveGameFullOrientation.PORTRAIT -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         ActiveGameFullOrientation.LANDSCAPE_PHONE_TOP_AT_LEFT -> {

@@ -156,7 +156,8 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         waitForText("Edit red card")
         composeRule.onNodeWithText("Reason").performClick()
         waitForText("Red card reason")
-        composeRule.onNodeWithText("Egregious dangerous play").performClick()
+        // Battery/fighting is in the right column of the landscape reason picker.
+        composeRule.onNodeWithText("Battery/fighting").performClick()
         composeRule.onNodeWithText("Set").performClick()
         composeRule.onNodeWithText("Record").performClick()
         composeRule.onAllNodesWithText(
@@ -248,6 +249,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         waitForText("Edit existing cards")
         composeRule.onAllNodes(hasContentDescription("Edit #11", substring = true))
             .onFirst()
+            .performScrollTo()
             .performClick()
         waitForText("Edit yellow card")
         composeRule.onNodeWithTag("card-player-number").performTextReplacement("")
@@ -308,6 +310,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         waitForText("Edit existing cards")
         composeRule.onAllNodes(hasContentDescription("Edit Name Only Cutter", substring = true))
             .onFirst()
+            .performScrollTo()
             .performClick()
         waitForText("Edit yellow card")
         enterCardPlayerNumber("8")
@@ -365,7 +368,8 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
             ),
         )
         openMoreActionsDialog()
-        composeRule.onNodeWithText("End game").performScrollTo().performClick()
+        selectMoreActionsCategory("Manual game transitions")
+        clickMoreActionsItem("End game")
         waitForText("Game over")
         composeRule.onNodeWithText("OK").performClick()
         waitForText("#7: Yellow card")
@@ -531,7 +535,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         waitForText("Edit yellow card")
 
         // Canceling an existing-card edit returns to the editable-card list.
-        composeRule.onAllNodesWithText("Cancel").onLast().performClick()
+        composeRule.onNodeWithTag("card-entry-cancel").performClick()
         waitForText("Edit existing cards")
         composeRule.onAllNodes(
             hasContentDescription("Edit #12", substring = true)
@@ -540,6 +544,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
 
         // Editing an existing card to no player identity is rejected and leaves the editor open.
         composeRule.onNodeWithTag("card-player-number").performTextReplacement("")
+        composeRule.onNodeWithTag("card-player-number").performImeAction()
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Enter a player number or name before recording this card.")
         dismissDialog(text = "OK")
@@ -564,7 +569,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         waitForText("Edit yellow card")
         composeRule.onNodeWithTag("card-player-number").performTextReplacement("")
         composeRule.onNodeWithText("Record").performClick()
-        composeRule.onAllNodesWithText("Done").onLast().performClick()
+        composeRule.onNodeWithTag("editable-player-cards-done").performClick()
 
         // The correction dialog can remove an existing player yellow.
         composeRule.onNodeWithTag("cards-adjust-team-two-edit-existing")
@@ -575,9 +580,9 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
             hasContentDescription("Remove", substring = true)
         ).onFirst().performClick()
         waitForText("Remove card?")
-        composeRule.onAllNodesWithText("Remove").onLast().performClick()
+        composeRule.onNodeWithText("Remove").performClick()
         waitForText("Undo Remove yellow on #23", substring = true)
-        composeRule.onAllNodesWithText("Done").onLast().performClick()
+        composeRule.onNodeWithTag("editable-player-cards-done").performClick()
         composeRule.onNodeWithText("Done").performClick()
         assertLiveScreen()
 
@@ -603,7 +608,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         waitForText("Team 1 #13 now has two yellow cards and has been suspended.")
         dismissDialog(text = "OK")
         waitForText("Edit existing cards")
-        composeRule.onAllNodesWithText("Done").onLast().performClick()
+        composeRule.onNodeWithTag("editable-player-cards-done").performClick()
         composeRule.onNodeWithText("Done").performClick()
         assertLiveScreen()
 
@@ -622,10 +627,12 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
             hasContentDescription("Remove", substring = true)
         ).onFirst().performClick()
         waitForText("Remove card?")
-        composeRule.onAllNodesWithText("Cancel").onLast().performClick()
-        composeRule.onAllNodesWithText("Done").onLast().performClick()
         composeRule.onNodeWithText("Cancel").performClick()
-        waitForText("Update game setup")
+        composeRule.onNodeWithTag("editable-player-cards-done").performClick()
+        composeRule.onNodeWithText("Cancel").performClick()
+        waitForText("Adjust cards / techs")
+        dismissDialog(text = "Close")
+        assertLiveScreen()
     }
 
     /**
@@ -656,7 +663,9 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         waitForText("Add yellow card")
         composeRule.onAllNodesWithText("Cancel").onLast().performClick()
         composeRule.onNodeWithText("Cancel").performClick()
-        waitForText("Update game setup")
+        waitForText("Adjust cards / techs")
+        dismissDialog(text = "Close")
+        assertLiveScreen()
 
         // Same-number corrections ask before creating a distinct player with the same number.
         openAdjustCardsDialog()
@@ -695,7 +704,9 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         waitForText("Add yellow card")
         composeRule.onAllNodesWithText("Cancel").onLast().performClick()
         composeRule.onNodeWithText("Cancel").performClick()
-        waitForText("Update game setup")
+        waitForText("Adjust cards / techs")
+        dismissDialog(text = "Close")
+        assertLiveScreen()
     }
 
     /**
@@ -721,7 +732,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         tapCardDialogAction(TeamId.TEAM_ONE, "Red")
         waitForText("Red card")
         waitForText("#11 Practice Player")
-        composeRule.onAllNodesWithText("Copy").onFirst().performClick()
+        composeRule.onNodeWithTag("card-candidate-copy-11-Practice Player").performClick()
         assertEquals(
             "11",
             composeRule.onNodeWithTag("card-player-number")
@@ -737,7 +748,9 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
                 .text,
         )
         waitForText("#10 Existing Cutter (Y 1)")
-        composeRule.onAllNodesWithText("Copy")[2].performClick()
+        composeRule.onNodeWithTag("card-candidate-copy-10-Existing Cutter")
+            .performScrollTo()
+            .performClick()
         assertEquals(
             "10",
             composeRule.onNodeWithTag("card-player-number")
@@ -781,7 +794,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         enterCardPlayerNumber("9")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Misconduct penalty")
-        tapBackFromMisconductODChoice()
+        dismissDialog(tag = "misconduct-choice-back")
         waitForText("Yellow card")
         assertEquals(
             "9",
@@ -907,7 +920,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         enterCardPlayerNumber("11")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Misconduct penalty")
-        tapBackFromMisconductODChoice()
+        dismissDialog(tag = "misconduct-choice-back")
         waitForText("Red card")
         assertEquals(
             "11",
@@ -948,6 +961,9 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Team 2 #6 already has a red card and has been suspended.")
         composeRule.onNodeWithText("OK").performClick()
+        dismissDialog(text = "Cancel")
+        dismissDialog(text = "Close")
+        assertLiveScreen()
 
         // A threshold technical foul between points gives no-pull yardage guidance.
         startBetweenPointsProgrammatically()
@@ -966,7 +982,8 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
     /// Open the More actions card/tech correction dialog.
     private fun openAdjustCardsDialog() {
         openMoreActionsDialog()
-        composeRule.onNodeWithText("Adjust cards / techs").performScrollTo().performClick()
+        selectMoreActionsCategory("Corrections")
+        clickMoreActionsItem("Adjust cards / techs")
         waitForTag("cards-adjust-team-one-blue-increment")
     }
 }

@@ -47,12 +47,16 @@ internal fun AdjustPullViolationsDialog(
                     CorrectionCountRow(
                         label = "Offsides",
                         value = teamOneOffsides,
+                        incrementTag = "pull-violation-team-one-offsides-increment",
+                        decrementTag = "pull-violation-team-one-offsides-decrement",
                         onIncrement = { teamOneOffsides += 1 },
                         onDecrement = { teamOneOffsides = maxOf(0, teamOneOffsides - 1) },
                     )
                     CorrectionCountRow(
                         label = "False starts",
                         value = teamOneFalseStarts,
+                        incrementTag = "pull-violation-team-one-false-starts-increment",
+                        decrementTag = "pull-violation-team-one-false-starts-decrement",
                         onIncrement = { teamOneFalseStarts += 1 },
                         onDecrement = { teamOneFalseStarts = maxOf(0, teamOneFalseStarts - 1) },
                     )
@@ -60,6 +64,8 @@ internal fun AdjustPullViolationsDialog(
                         CorrectionCountRow(
                             label = "Majority pull",
                             value = teamOneMajorityPulls,
+                            incrementTag = "pull-violation-team-one-majority-pull-increment",
+                            decrementTag = "pull-violation-team-one-majority-pull-decrement",
                             onIncrement = { teamOneMajorityPulls += 1 },
                             onDecrement = {
                                 teamOneMajorityPulls = maxOf(0, teamOneMajorityPulls - 1)
@@ -69,6 +75,8 @@ internal fun AdjustPullViolationsDialog(
                     CorrectionCountRow(
                         label = "Time violations",
                         value = teamOneTimeViolations,
+                        incrementTag = "pull-violation-team-one-time-violations-increment",
+                        decrementTag = "pull-violation-team-one-time-violations-decrement",
                         onIncrement = { teamOneTimeViolations += 1 },
                         onDecrement = {
                             teamOneTimeViolations = maxOf(0, teamOneTimeViolations - 1)
@@ -79,12 +87,16 @@ internal fun AdjustPullViolationsDialog(
                     CorrectionCountRow(
                         label = "Offsides",
                         value = teamTwoOffsides,
+                        incrementTag = "pull-violation-team-two-offsides-increment",
+                        decrementTag = "pull-violation-team-two-offsides-decrement",
                         onIncrement = { teamTwoOffsides += 1 },
                         onDecrement = { teamTwoOffsides = maxOf(0, teamTwoOffsides - 1) },
                     )
                     CorrectionCountRow(
                         label = "False starts",
                         value = teamTwoFalseStarts,
+                        incrementTag = "pull-violation-team-two-false-starts-increment",
+                        decrementTag = "pull-violation-team-two-false-starts-decrement",
                         onIncrement = { teamTwoFalseStarts += 1 },
                         onDecrement = { teamTwoFalseStarts = maxOf(0, teamTwoFalseStarts - 1) },
                     )
@@ -92,6 +104,8 @@ internal fun AdjustPullViolationsDialog(
                         CorrectionCountRow(
                             label = "Majority pull",
                             value = teamTwoMajorityPulls,
+                            incrementTag = "pull-violation-team-two-majority-pull-increment",
+                            decrementTag = "pull-violation-team-two-majority-pull-decrement",
                             onIncrement = { teamTwoMajorityPulls += 1 },
                             onDecrement = {
                                 teamTwoMajorityPulls = maxOf(0, teamTwoMajorityPulls - 1)
@@ -101,6 +115,8 @@ internal fun AdjustPullViolationsDialog(
                     CorrectionCountRow(
                         label = "Time violations",
                         value = teamTwoTimeViolations,
+                        incrementTag = "pull-violation-team-two-time-violations-increment",
+                        decrementTag = "pull-violation-team-two-time-violations-decrement",
                         onIncrement = { teamTwoTimeViolations += 1 },
                         onDecrement = {
                             teamTwoTimeViolations = maxOf(0, teamTwoTimeViolations - 1)

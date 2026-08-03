@@ -226,6 +226,9 @@ class TestSetupUi : MainActivityUiTestFixtures() {
     fun setupFieldLayout() {
         val aardvarks = "Aardvarks"
         val beagles = "Beagles"
+        val landscape = testOrientationPreference() == OrientationPreference.LANDSCAPE
+        val initialEndSummary = if (landscape) "Trees / Road" else "Road / Trees"
+        val riverEndSummary = if (landscape) "River / Road" else "Road / River"
 
         openNewGameSetup()
 
@@ -292,7 +295,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
 
         // The compact summary should describe the chosen field labels, pulling team, and prompts.
         waitForText("Field ends are called:")
-        waitForText("Road / Trees")
+        waitForText(initialEndSummary)
         waitForText("$aardvarks pulls from Road")
         waitForText("Pull prompts for both ends")
         waitForText("First point ratio: 4W/3M")
@@ -304,7 +307,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("setup-near-end-name").performImeAction()
         composeRule.onNodeWithText("Cancel").performClick()
         composeRule.onAllNodesWithText("Canceled end").assertCountEquals(0)
-        waitForText("Road / Trees")
+        waitForText(initialEndSummary)
 
         // Dismissal follows Done so accidental outside taps keep entered setup edits.
         openStartingPullSetupEditor()
@@ -312,12 +315,12 @@ class TestSetupUi : MainActivityUiTestFixtures() {
             .performTextReplacement("River")
         composeRule.onNodeWithTag("setup-far-end-name").performImeAction()
         dismissDialog(text = "Done")
-        waitForText("Road / River")
+        waitForText(riverEndSummary)
 
         // Dismissal also follows Done when no text field has focus.
         openStartingPullSetupEditor()
         dismissDialog(text = "Done")
-        waitForText("Road / River")
+        waitForText(riverEndSummary)
 
         // Canceling the mixed gender-ratio popup keeps the existing ABBA setup rule.
         openMixedGenderRatioEditor()
@@ -983,13 +986,22 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         // Blank team names are allowed in setup and should display as Team 1 / Team 2 in live use.
         replaceSetupTeamName("Team 1", " ")
         replaceSetupTeamName("Team 2", " ")
-        composeRule.onNodeWithText("Team 1 pulls from Far end")
+        val pullingEndName = if (
+            testOrientationPreference() == OrientationPreference.LANDSCAPE
+        ) {
+            "Left end"
+        } else {
+            "Far end"
+        }
+        composeRule.onNodeWithText("Team 1 pulls from $pullingEndName")
             .performScrollTo()
             .assertIsDisplayed()
         openStartingPullSetupEditor()
-        composeRule.onNodeWithTag("setup-pulling-team-${TeamId.TEAM_TWO.name}").performClick()
+        composeRule.onNodeWithTag("setup-pulling-team-${TeamId.TEAM_TWO.name}")
+            .performScrollTo()
+            .performClick()
         closeSetupEditor()
-        composeRule.onNodeWithText("Team 2 pulls from Far end")
+        composeRule.onNodeWithText("Team 2 pulls from $pullingEndName")
             .performScrollTo()
             .assertIsDisplayed()
 

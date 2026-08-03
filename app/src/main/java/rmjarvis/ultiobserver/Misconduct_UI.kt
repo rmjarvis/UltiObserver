@@ -1574,6 +1574,7 @@ private fun addCardButtonFontSize(
 ): TextUnit {
     val preferredStyle = MaterialTheme.typography.labelLarge
     val textMeasurer = rememberTextMeasurer()
+    // Nonempty collection: the only call site supplies all four Add-card labels.
     val measuredLabelWidth = labels.maxOf { label ->
         textMeasurer.measure(
             text = AnnotatedString(label),
@@ -1586,12 +1587,8 @@ private fun addCardButtonFontSize(
     val availableLabelWidth = with(density) {
         ((teamWidth - 8.dp) / 2f - 16.dp).coerceAtLeast(1.dp).toPx()
     }
-    val widthScale = if (measuredLabelWidth > 0) {
-        val measuredScale = availableLabelWidth / measuredLabelWidth
-        if (measuredScale < 1f) measuredScale * 0.96f else 1f
-    } else {
-        1f
-    }
+    val measuredScale = availableLabelWidth / measuredLabelWidth
+    val widthScale = if (measuredScale < 1f) measuredScale * 0.96f else 1f
     return preferredStyle.fontSize * widthScale
 }
 
@@ -1877,6 +1874,7 @@ private fun PlayerCardCandidateRow(candidate: PlayerCardCandidate, onCopy: () ->
         )
         TextActionButton(
             label = "Copy",
+            tag = "card-candidate-copy-${candidate.jerseyNumber}-${candidate.playerName}",
             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
             onClick = onCopy,
         )

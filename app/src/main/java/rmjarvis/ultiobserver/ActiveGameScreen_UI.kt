@@ -268,7 +268,8 @@ internal fun ActiveGameScreen(
     val onTimeViolation: (TeamId) -> Unit = { team ->
         pendingTimeViolationTeam = team
     }
-    val onPullViolation: (TeamId) -> Unit = { team ->
+    val onPullViolation: (TeamId) -> Unit
+    onPullViolation = { team ->
         pendingPullViolationTeam = team
         pendingPullViolationType = state.pullViolationTypeFor(team)
     }
@@ -281,7 +282,10 @@ internal fun ActiveGameScreen(
     val onTeamInfo: (TeamId) -> Unit = { team ->
         teamInfoSheetTeam = team
     }
-    val onUndo: (GameState) -> Unit = { undoWithoutPhasePrompt(it) }
+    val onUndo: (GameState) -> Unit
+    onUndo = { previousState ->
+        undoWithoutPhasePrompt(previousState)
+    }
 
     // Compose the major elements of the active-game screen.
     Scaffold(
@@ -1081,6 +1085,12 @@ private fun PortraitActiveGameContent(
     onTeamInfo: (TeamId) -> Unit,
     onUndo: (GameState) -> Unit,
 ) {
+    val currentGenderRatio = state.currentGenderRatio()
+    val genderRatioBadgeColor = if (currentGenderRatio == null) {
+        null
+    } else {
+        Color(settings.genderRatioBadgeColorArgb(currentGenderRatio))
+    }
     val metrics = portraitActiveGameLayoutMetrics(maxHeight)
     Column(
         modifier = Modifier
@@ -1143,7 +1153,7 @@ private fun PortraitActiveGameContent(
             state = state,
             topDisplayedEnd = topDisplayedEnd,
             showAbbaRatioAsSequence = settings.showAbbaRatioAsSequence,
-            genderRatioBadgeColorArgb = settings::genderRatioBadgeColorArgb,
+            genderRatioBadgeColor = genderRatioBadgeColor,
             interactionsEnabled = !locked,
             timeoutEnabled = state.canRequestTimeout(now),
             metrics = metrics.field,
@@ -1166,12 +1176,12 @@ private fun PortraitActiveGameContent(
                         minHeight = metrics.centerButtonMinHeight,
                         fontSize = metrics.centerButtonFontSize,
                         onClick = {
-                            onStateChange(
-                                state.beginLivePoint(System.currentTimeMillis())
-                            )
                             if (settings.automaticallyLockLivePoint) {
                                 onLockedChange(true)
                             }
+                            onStateChange(
+                                state.beginLivePoint(System.currentTimeMillis())
+                            )
                         },
                     )
                 } else if (
@@ -1184,10 +1194,10 @@ private fun PortraitActiveGameContent(
                         minHeight = metrics.centerButtonMinHeight,
                         fontSize = metrics.centerButtonFontSize,
                         onClick = {
-                            onStateChange(state.continueLivePoint())
                             if (settings.automaticallyLockLivePoint) {
                                 onLockedChange(true)
                             }
+                            onStateChange(state.continueLivePoint())
                         },
                     )
                 }
@@ -1200,7 +1210,9 @@ private fun PortraitActiveGameContent(
                     )
                 }
             },
-            onLock = { onLockedChange(true) },
+            onLock = {
+                onLockedChange(true)
+            },
             onGoal = { team ->
                 onStateChange(
                     state.recordGoalFromCurrentState(
@@ -1271,6 +1283,12 @@ private fun LandscapeActiveGameContent(
     onUndo: (GameState) -> Unit,
 ) {
     val fontScale = LocalDensity.current.fontScale
+    val currentGenderRatio = state.currentGenderRatio()
+    val genderRatioBadgeColor = if (currentGenderRatio == null) {
+        null
+    } else {
+        Color(settings.genderRatioBadgeColorArgb(currentGenderRatio))
+    }
     val metrics = landscapeActiveGameLayoutMetrics(
         contentWidth = maxWidth,
         contentHeight = maxHeight,
@@ -1351,7 +1369,7 @@ private fun LandscapeActiveGameContent(
             leftDisplayedEnd = leftDisplayedEnd,
             activeGameLayout = activeGameLayout,
             showAbbaRatioAsSequence = settings.showAbbaRatioAsSequence,
-            genderRatioBadgeColorArgb = settings::genderRatioBadgeColorArgb,
+            genderRatioBadgeColor = genderRatioBadgeColor,
             interactionsEnabled = !locked,
             timeoutEnabled = state.canRequestTimeout(now),
             metrics = metrics.field,
@@ -1375,12 +1393,12 @@ private fun LandscapeActiveGameContent(
                         minHeight = metrics.centerButtonMinHeight,
                         fontSize = metrics.centerButtonFontSize,
                         onClick = {
-                            onStateChange(
-                                state.beginLivePoint(System.currentTimeMillis())
-                            )
                             if (settings.automaticallyLockLivePoint) {
                                 onLockedChange(true)
                             }
+                            onStateChange(
+                                state.beginLivePoint(System.currentTimeMillis())
+                            )
                         },
                     )
                 } else if (
@@ -1393,10 +1411,10 @@ private fun LandscapeActiveGameContent(
                         minHeight = metrics.centerButtonMinHeight,
                         fontSize = metrics.centerButtonFontSize,
                         onClick = {
-                            onStateChange(state.continueLivePoint())
                             if (settings.automaticallyLockLivePoint) {
                                 onLockedChange(true)
                             }
+                            onStateChange(state.continueLivePoint())
                         },
                     )
                 }
