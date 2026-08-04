@@ -201,29 +201,31 @@ internal fun TimingCueId.defaultAlertMode(): TimingAlertMode {
     return when (this) {
         TimingCueId.RECEIVING_TWENTY_FOR_HAND,
         TimingCueId.RECEIVING_TEN_FOR_HAND,
+        TimingCueId.PULLING_TWENTY_TO_PULL,
+        TimingCueId.PULLING_TEN_TO_PULL,
         TimingCueId.OFFENSE_TWENTY,
         TimingCueId.OFFENSE_TEN,
+        TimingCueId.DEFENSE_TWENTY,
+        TimingCueId.DEFENSE_TEN,
         -> TimingAlertMode.TICK
+        TimingCueId.RECEIVING_GIVE_HAND,
+        TimingCueId.PULLING_TIME_VIOLATION,
+        TimingCueId.OFFENSE_SET_LIMIT,
+        TimingCueId.DEFENSE_CHECK_LIMIT,
         TimingCueId.TIMEOUT_CLEAR_FIELD,
         TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND,
         TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL,
+        TimingCueId.PRE_GAME_ONE_MINUTE,
         TimingCueId.HALFTIME_OVER,
         -> TimingAlertMode.BEEP
-        TimingCueId.HALFTIME_FIVE_MINUTES,
         TimingCueId.HALFTIME_TWO_MINUTES,
         TimingCueId.PRE_GAME_FIVE_MINUTES,
         TimingCueId.PRE_GAME_THREE_MINUTES,
-        TimingCueId.PRE_GAME_ONE_MINUTE,
         -> TimingAlertMode.KNOCK
         TimingCueId.HALF_CAP,
         TimingCueId.SOFT_CAP,
         TimingCueId.HARD_CAP,
         -> TimingAlertMode.DING
-        TimingCueId.PULLING_TWENTY_TO_PULL,
-        TimingCueId.PULLING_TEN_TO_PULL,
-        TimingCueId.DEFENSE_TWENTY,
-        TimingCueId.DEFENSE_TEN,
-        -> TimingAlertMode.VIBRATE
         else -> TimingAlertMode.NONE
     }
 }
@@ -232,14 +234,15 @@ internal fun TimingCueId.defaultAlertMode(): TimingAlertMode {
 internal fun TimingCueId.defaultRepeatCount(): Int {
     return when (this) {
         TimingCueId.RECEIVING_TWENTY_FOR_HAND,
+        TimingCueId.PULLING_TWENTY_TO_PULL,
         TimingCueId.OFFENSE_TWENTY,
-        TimingCueId.HALFTIME_FIVE_MINUTES,
+        TimingCueId.DEFENSE_TWENTY,
+        TimingCueId.PRE_GAME_FIVE_MINUTES,
         TimingCueId.HALFTIME_TWO_MINUTES,
         TimingCueId.HALF_CAP,
         TimingCueId.SOFT_CAP,
         -> 2
-        TimingCueId.PRE_GAME_THREE_MINUTES -> 2
-        TimingCueId.PRE_GAME_ONE_MINUTE -> 3
+        TimingCueId.PRE_GAME_THREE_MINUTES,
         TimingCueId.HARD_CAP -> 3
         else -> 1
     }

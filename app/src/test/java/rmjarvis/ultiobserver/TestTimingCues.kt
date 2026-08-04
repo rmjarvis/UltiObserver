@@ -53,19 +53,22 @@ class TestTimingCues : GameDomainTestFixtures() {
         val expectedDefaultModes = mapOf(
             TimingCueId.RECEIVING_TWENTY_FOR_HAND to TimingAlertMode.TICK,
             TimingCueId.RECEIVING_TEN_FOR_HAND to TimingAlertMode.TICK,
-            TimingCueId.PULLING_TWENTY_TO_PULL to TimingAlertMode.VIBRATE,
-            TimingCueId.PULLING_TEN_TO_PULL to TimingAlertMode.VIBRATE,
+            TimingCueId.RECEIVING_GIVE_HAND to TimingAlertMode.BEEP,
+            TimingCueId.PULLING_TWENTY_TO_PULL to TimingAlertMode.TICK,
+            TimingCueId.PULLING_TEN_TO_PULL to TimingAlertMode.TICK,
+            TimingCueId.PULLING_TIME_VIOLATION to TimingAlertMode.BEEP,
             TimingCueId.TIMEOUT_CLEAR_FIELD to TimingAlertMode.BEEP,
             TimingCueId.OFFENSE_TWENTY to TimingAlertMode.TICK,
             TimingCueId.OFFENSE_TEN to TimingAlertMode.TICK,
-            TimingCueId.DEFENSE_TWENTY to TimingAlertMode.VIBRATE,
-            TimingCueId.DEFENSE_TEN to TimingAlertMode.VIBRATE,
+            TimingCueId.OFFENSE_SET_LIMIT to TimingAlertMode.BEEP,
+            TimingCueId.DEFENSE_TWENTY to TimingAlertMode.TICK,
+            TimingCueId.DEFENSE_TEN to TimingAlertMode.TICK,
+            TimingCueId.DEFENSE_CHECK_LIMIT to TimingAlertMode.BEEP,
             TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND to TimingAlertMode.BEEP,
             TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL to TimingAlertMode.BEEP,
             TimingCueId.PRE_GAME_FIVE_MINUTES to TimingAlertMode.KNOCK,
             TimingCueId.PRE_GAME_THREE_MINUTES to TimingAlertMode.KNOCK,
-            TimingCueId.PRE_GAME_ONE_MINUTE to TimingAlertMode.KNOCK,
-            TimingCueId.HALFTIME_FIVE_MINUTES to TimingAlertMode.KNOCK,
+            TimingCueId.PRE_GAME_ONE_MINUTE to TimingAlertMode.BEEP,
             TimingCueId.HALFTIME_TWO_MINUTES to TimingAlertMode.KNOCK,
             TimingCueId.HALFTIME_OVER to TimingAlertMode.BEEP,
             TimingCueId.HALF_CAP to TimingAlertMode.DING,
@@ -83,11 +86,12 @@ class TestTimingCues : GameDomainTestFixtures() {
         // Default repeat counts are one unless a cue explicitly asks for repeated alerts.
         val expectedDefaultRepeatCounts = mapOf(
             TimingCueId.RECEIVING_TWENTY_FOR_HAND to 2,
+            TimingCueId.PULLING_TWENTY_TO_PULL to 2,
             TimingCueId.OFFENSE_TWENTY to 2,
-            TimingCueId.HALFTIME_FIVE_MINUTES to 2,
+            TimingCueId.DEFENSE_TWENTY to 2,
+            TimingCueId.PRE_GAME_FIVE_MINUTES to 2,
             TimingCueId.HALFTIME_TWO_MINUTES to 2,
-            TimingCueId.PRE_GAME_THREE_MINUTES to 2,
-            TimingCueId.PRE_GAME_ONE_MINUTE to 3,
+            TimingCueId.PRE_GAME_THREE_MINUTES to 3,
             TimingCueId.HALF_CAP to 2,
             TimingCueId.SOFT_CAP to 2,
             TimingCueId.HARD_CAP to 3,
@@ -121,12 +125,7 @@ class TestTimingCues : GameDomainTestFixtures() {
 
         // The settings mode remains the cue-specific setting even in vibration-only mode.
         assertEquals(
-            listOf(
-                TimingCueId.PULLING_TWENTY_TO_PULL,
-                TimingCueId.PULLING_TEN_TO_PULL,
-                TimingCueId.DEFENSE_TWENTY,
-                TimingCueId.DEFENSE_TEN,
-            ),
+            emptyList<TimingCueId>(),
             TimingCueId.entries.filter { cueId ->
                 defaultPreferences.settingsModeFor(cueId) == TimingAlertMode.VIBRATE
             },
@@ -143,7 +142,7 @@ class TestTimingCues : GameDomainTestFixtures() {
 
         // Missing cue-mode overrides fall back to default settings.
         assertEquals(
-            TimingAlertMode.VIBRATE,
+            TimingAlertMode.TICK,
             defaultPreferences.copy(cueModes = emptyMap())
                 .settingsModeFor(TimingCueId.PULLING_TWENTY_TO_PULL),
         )
@@ -170,7 +169,7 @@ class TestTimingCues : GameDomainTestFixtures() {
 
         // Repeat-count overrides are clamped to the supported sound resources.
         // I.e. values can only end up between 1 and 3, inclusive.
-        assertEquals(1, defaultPreferences.repeatCountFor(TimingCueId.PULLING_TWENTY_TO_PULL))
+        assertEquals(2, defaultPreferences.repeatCountFor(TimingCueId.PULLING_TWENTY_TO_PULL))
         assertEquals(
             3,
             defaultPreferences.copy(
@@ -193,7 +192,7 @@ class TestTimingCues : GameDomainTestFixtures() {
                 .repeatCountFor(TimingCueId.PULLING_TWENTY_TO_PULL),
         )
         assertEquals(
-            1,
+            2,
             defaultPreferences.copy(cueRepeatCounts = emptyMap())
                 .repeatCountFor(TimingCueId.PULLING_TWENTY_TO_PULL),
         )

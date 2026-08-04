@@ -56,10 +56,14 @@ Also vibrate on cues that use sound?
 
 Sound/vibration settings for individual cues
     This opens a sub-page where you can set a sound or vibration to use for each specific
-    kind of cue that we have in the game. The defaults are what I think would be a reasonable
-    set to use, but you can adjust each cue's sounds or vibration setting to your preference.
-    The **x2** and **x3** buttons for each set a repetition for the sound or vibration.
-    So you can have a cue use 1, 2 or 3 beeps for instance.
+    kind of cue that we have in the game. The defaults are my personal preferences for the
+    various cue sounds when I'm observing. But you can adjust each cue's sounds or vibration
+    setting to your preference. The **x2** and **x3** buttons for each set a repetition for the
+    sound or vibration. So you can have a cue use 1, 2 or 3 beeps for instance. Click a
+    selected **x2** or **x3** button to deselect it (indicating that only 1 of that sound
+    or vibration should be used).
+
+    The top of this page also has test buttons so you can hear each of the sounds.
 
 Sound volume
     This sets the sound volume as a fraction of your phone's overall media volume.

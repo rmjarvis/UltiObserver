@@ -371,7 +371,7 @@ class TestMigration : GameDomainTestFixtures() {
         assertProfileAndSettings(
             defaultBuckets,
             Profile(),
-            Settings(timingAlerts = TimingAlertPreferences(soundVolume = 0.5f)),
+            Settings(timingAlerts = v1_1DefaultTimingAlerts(soundVolume = 0.5f)),
         )
         assertTrue(defaultBuckets.archivedGames.isEmpty())
 
@@ -615,10 +615,10 @@ class TestMigration : GameDomainTestFixtures() {
                     (TimingCueId.HALFTIME_OVER to TimingAlertMode.BEEP) +
                     (TimingCueId.PRE_GAME_FIVE_MINUTES to TimingAlertMode.KNOCK) +
                     (TimingCueId.PRE_GAME_THREE_MINUTES to TimingAlertMode.KNOCK) +
-                    (TimingCueId.PRE_GAME_ONE_MINUTE to TimingAlertMode.KNOCK),
+                    (TimingCueId.PRE_GAME_ONE_MINUTE to TimingAlertMode.BEEP),
                 cueRepeatCounts = TimingCueId.entries.associateWith { 1 } +
-                    (TimingCueId.PRE_GAME_THREE_MINUTES to 2) +
-                    (TimingCueId.PRE_GAME_ONE_MINUTE to 3),
+                    (TimingCueId.PRE_GAME_FIVE_MINUTES to 2) +
+                    (TimingCueId.PRE_GAME_THREE_MINUTES to 3),
             ),
         )
     }
@@ -630,7 +630,9 @@ class TestMigration : GameDomainTestFixtures() {
             fourWomenThreeMenBadgeColorArgb = 0xFF00897B,
         )
         return when (fixtureName) {
-            "default-buckets" -> Settings()
+            "default-buckets" -> Settings(
+                timingAlerts = v1_1DefaultTimingAlerts(soundVolume = 1f),
+            )
             "setup-draft",
             "completed-archive" -> customizedSettings
             "active-game" -> customizedSettings.copy(
@@ -644,23 +646,69 @@ class TestMigration : GameDomainTestFixtures() {
         }
     }
 
+    /// Expected timing-alert defaults persisted by the v1.1 and v1.2 fixtures.
+    private fun v1_1DefaultTimingAlerts(soundVolume: Float): TimingAlertPreferences {
+        val nonNoneModes = mapOf(
+            TimingCueId.RECEIVING_TWENTY_FOR_HAND to TimingAlertMode.TICK,
+            TimingCueId.RECEIVING_TEN_FOR_HAND to TimingAlertMode.TICK,
+            TimingCueId.PULLING_TWENTY_TO_PULL to TimingAlertMode.VIBRATE,
+            TimingCueId.PULLING_TEN_TO_PULL to TimingAlertMode.VIBRATE,
+            TimingCueId.TIMEOUT_CLEAR_FIELD to TimingAlertMode.BEEP,
+            TimingCueId.OFFENSE_TWENTY to TimingAlertMode.TICK,
+            TimingCueId.OFFENSE_TEN to TimingAlertMode.TICK,
+            TimingCueId.DEFENSE_TWENTY to TimingAlertMode.VIBRATE,
+            TimingCueId.DEFENSE_TEN to TimingAlertMode.VIBRATE,
+            TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_FOR_HAND to TimingAlertMode.BEEP,
+            TimingCueId.TIMEOUT_BETWEEN_POINTS_ONE_MINUTE_TO_PULL to TimingAlertMode.BEEP,
+            TimingCueId.HALFTIME_FIVE_MINUTES to TimingAlertMode.KNOCK,
+            TimingCueId.HALFTIME_TWO_MINUTES to TimingAlertMode.KNOCK,
+            TimingCueId.HALFTIME_OVER to TimingAlertMode.BEEP,
+            TimingCueId.PRE_GAME_FIVE_MINUTES to TimingAlertMode.KNOCK,
+            TimingCueId.PRE_GAME_THREE_MINUTES to TimingAlertMode.KNOCK,
+            TimingCueId.PRE_GAME_ONE_MINUTE to TimingAlertMode.BEEP,
+            TimingCueId.HALF_CAP to TimingAlertMode.DING,
+            TimingCueId.SOFT_CAP to TimingAlertMode.DING,
+            TimingCueId.HARD_CAP to TimingAlertMode.DING,
+        )
+        val repeatedCues = mapOf(
+            TimingCueId.RECEIVING_TWENTY_FOR_HAND to 2,
+            TimingCueId.OFFENSE_TWENTY to 2,
+            TimingCueId.HALFTIME_FIVE_MINUTES to 2,
+            TimingCueId.HALFTIME_TWO_MINUTES to 2,
+            TimingCueId.PRE_GAME_FIVE_MINUTES to 2,
+            TimingCueId.PRE_GAME_THREE_MINUTES to 3,
+            TimingCueId.HALF_CAP to 2,
+            TimingCueId.SOFT_CAP to 2,
+            TimingCueId.HARD_CAP to 3,
+        )
+        return TimingAlertPreferences(
+            soundVolume = soundVolume,
+            cueModes = TimingCueId.entries.associateWith { cueId ->
+                nonNoneModes[cueId] ?: TimingAlertMode.NONE
+            },
+            cueRepeatCounts = TimingCueId.entries.associateWith { cueId ->
+                repeatedCues[cueId] ?: 1
+            },
+        )
+    }
+
     private fun assertSingleDingTimingCueSettings(
         timingAlertPreferences: TimingAlertPreferences,
     ) {
         TimingCueId.entries.forEach { cueId ->
             // The fixtures predate halftime-over and pre-game cues, so migration adds defaults.
             val expectedMode = when (cueId) {
+                TimingCueId.PRE_GAME_ONE_MINUTE,
                 TimingCueId.HALFTIME_OVER -> TimingAlertMode.BEEP
                 TimingCueId.PRE_GAME_FIVE_MINUTES,
                 TimingCueId.PRE_GAME_THREE_MINUTES,
-                TimingCueId.PRE_GAME_ONE_MINUTE,
                 -> TimingAlertMode.KNOCK
                 else -> TimingAlertMode.DING
             }
             assertEquals(expectedMode, timingAlertPreferences.cueModes[cueId])
             val expectedRepeatCount = when (cueId) {
-                TimingCueId.PRE_GAME_THREE_MINUTES -> 2
-                TimingCueId.PRE_GAME_ONE_MINUTE -> 3
+                TimingCueId.PRE_GAME_FIVE_MINUTES -> 2
+                TimingCueId.PRE_GAME_THREE_MINUTES -> 3
                 else -> 1
             }
             assertEquals(expectedRepeatCount, timingAlertPreferences.cueRepeatCounts[cueId])
