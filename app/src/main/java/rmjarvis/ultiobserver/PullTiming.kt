@@ -328,10 +328,11 @@ fun GameState.assessTimeViolation(team: TeamId, now: Long): TimeViolationAssessm
  * Build confirmation details for a pull time violation without changing game state.
  *
  * @param team The team that would receive the time violation.
+ * @return The confirmation preview, or null when the action is no longer available.
  */
-fun GameState.previewTimeViolation(team: TeamId): TimeViolationAssessmentPreview {
-    require(this.canAssessTimeViolation()) {
-        "Time violation cannot be previewed when the button is disabled."
+fun GameState.previewTimeViolation(team: TeamId): TimeViolationAssessmentPreview? {
+    if (!this.canAssessTimeViolation()) {
+        return null
     }
     val outcome = timeViolationOutcome(team)
     val previewState = this.withPreviewTimeViolation(team, outcome)

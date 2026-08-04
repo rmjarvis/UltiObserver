@@ -78,16 +78,13 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertNull(state.previewPullViolation(ANIMAL, PullViolationType.OFFSIDES))
         assertNull(state.previewPullViolation(VC, PullViolationType.MAJORITY_PULL))
 
-        // Direct previews still fail loudly after the button has already been disabled.
-        val disabledPreview = assertThrows(IllegalArgumentException::class.java) {
+        // A second same-frame action can also retain the selection after the first action disables
+        // that team's button. It likewise has no confirmation.
+        assertNull(
             state.assessPullViolation(VC).state.previewPullViolation(
                 VC,
                 PullViolationType.OFFSIDES,
             )
-        }
-        assertEquals(
-            "Pull violation cannot be previewed after the button is disabled for TEAM_ONE.",
-            disabledPreview.message,
         )
     }
 
@@ -854,21 +851,19 @@ class TestPullViolations : GameDomainTestFixtures() {
             wrongPhaseState,
             wrongPhaseState.assessTimeViolation(VC, firstViolationMoment).state,
         )
-        val wrongPhasePreviewException = assertThrows(IllegalArgumentException::class.java) {
-            wrongPhaseState.previewTimeViolation(VC)
-        }
-        assertEquals(
-            "Time violation cannot be previewed when the button is disabled.",
-            wrongPhasePreviewException.message,
-        )
+        // As with pull violations, a same-frame action can retain a pending preview after another
+        // action disables the button. That stale time-violation preview is ignored.
+        assertNull(wrongPhaseState.previewTimeViolation(VC))
 
         // When clicking Time Violation, we start with a preview so the user can still choose
         // whether to apply the violation or cancel.  The state doesn't change yet.
-        var warningPreview = state.previewTimeViolation(VC).event as GameEvent.TimeViolationRecorded
+        var warningPreview =
+            state.previewTimeViolation(VC)!!.event as GameEvent.TimeViolationRecorded
         assertEquals(TimeViolationOutcome.WARNING, warningPreview.outcome)
         assertEquals(1, warningPreview.state.teamOne.timeViolations)
         assertEquals(0, warningPreview.state.teamOne.timeoutsUsedThisHalf)
-        warningPreview = state.previewTimeViolation(ANIMAL).event as GameEvent.TimeViolationRecorded
+        warningPreview =
+            state.previewTimeViolation(ANIMAL)!!.event as GameEvent.TimeViolationRecorded
         assertEquals(TimeViolationOutcome.WARNING, warningPreview.outcome)
         assertEquals(1, warningPreview.state.teamTwo.timeViolations)
         assertEquals(0, warningPreview.state.teamTwo.timeoutsUsedThisHalf)
@@ -1184,13 +1179,13 @@ class TestPullViolations : GameDomainTestFixtures() {
         // Timeout previews charge the team that would receive the violation without mutating the
         // current state.
         val teamOneTimeoutPreview =
-            state.previewTimeViolation(VC).event as GameEvent.TimeViolationRecorded
+            state.previewTimeViolation(VC)!!.event as GameEvent.TimeViolationRecorded
         assertEquals(TimeViolationOutcome.TIMEOUT, teamOneTimeoutPreview.outcome)
         assertEquals(2, teamOneTimeoutPreview.state.teamOne.timeViolations)
         assertEquals(1, teamOneTimeoutPreview.state.teamOne.timeoutsUsedThisHalf)
         val teamTwoTimeoutPreviewState = standardLiveGameState()
             .copy(teamTwo = standardLiveGameState().teamTwo.copy(timeViolations = 1))
-        val teamTwoTimeoutPreview = teamTwoTimeoutPreviewState.previewTimeViolation(ANIMAL)
+        val teamTwoTimeoutPreview = teamTwoTimeoutPreviewState.previewTimeViolation(ANIMAL)!!
             .event as GameEvent.TimeViolationRecorded
         assertEquals(TimeViolationOutcome.TIMEOUT, teamTwoTimeoutPreview.outcome)
         assertEquals(2, teamTwoTimeoutPreview.state.teamTwo.timeViolations)
@@ -1244,13 +1239,7 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertNull(
             timeViolationState.assessTimeViolation(ANIMAL, state.countdown!!.targetEpoch).event
         )
-        val unavailablePreviewException = assertThrows(IllegalArgumentException::class.java) {
-            timeViolationState.previewTimeViolation(ANIMAL)
-        }
-        assertEquals(
-            "Time violation cannot be previewed when the button is disabled.",
-            unavailablePreviewException.message,
-        )
+        assertNull(timeViolationState.previewTimeViolation(ANIMAL))
         assertEquals(timeViolationState, timeViolationState.recordFalseStart())
         assertEquals(timeViolationState, timeViolationState.recordOffsides())
         assertEquals(

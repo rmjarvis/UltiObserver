@@ -213,11 +213,11 @@ fun GameState.previewPullViolation(
     team: TeamId,
     violation: PullViolationType,
 ): PullViolationAssessmentPreview? {
-    if (!this.isPullViolationSelectionForTeam(team, violation)) {
+    if (
+        !this.isPullViolationSelectionForTeam(team, violation) ||
+        !this.canRecordPullViolation(team)
+    ) {
         return null
-    }
-    require(this.canRecordPullViolation(team)) {
-        "Pull violation cannot be previewed after the button is disabled for $team."
     }
     val previewState = this.withPreviewPullViolation(team, violation)
     return PullViolationAssessmentPreview(

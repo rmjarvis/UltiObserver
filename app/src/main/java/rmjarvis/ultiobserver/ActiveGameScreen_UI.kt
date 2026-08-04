@@ -135,6 +135,11 @@ internal fun ActiveGameScreen(
         pendingPullViolationTeam = null
     }
 
+    /// Dismiss the pending time-violation confirmation.
+    fun dismissTimeViolation() {
+        pendingTimeViolationTeam = null
+    }
+
     /**
      * Apply undo while suppressing phase-change prompts caused by restored state.
      *
@@ -459,11 +464,15 @@ internal fun ActiveGameScreen(
         }
     } else if (pendingTimeViolationTeam != null) {
         val team = pendingTimeViolationTeam!!
-        val event = state.previewTimeViolation(team).event
+        val preview = state.previewTimeViolation(team)
+        if (preview == null) {
+            dismissTimeViolation()
+        }
+        val event = preview?.event ?: return
         val applyTimeViolation = {
             val result = state.assessTimeViolation(team, System.currentTimeMillis())
             onStateChange(result.state)
-            pendingTimeViolationTeam = null
+            dismissTimeViolation()
         }
         RuleGuidanceGate(
             key = team,
@@ -472,7 +481,7 @@ internal fun ActiveGameScreen(
             onAutoAccept = applyTimeViolation,
         ) {
             AlertDialog(
-                onDismissRequest = { pendingTimeViolationTeam = null },
+                onDismissRequest = { dismissTimeViolation() },
                 title = { Text(event.formatPopupTitle()) },
                 text = {
                     RuleGuidanceText(event.guidanceMessage(settings.ruleGuidanceMode))
@@ -484,7 +493,7 @@ internal fun ActiveGameScreen(
                     )
                 },
                 dismissButton = {
-                    TextActionButton(label = "Cancel", onClick = { pendingTimeViolationTeam = null })
+                    TextActionButton(label = "Cancel", onClick = { dismissTimeViolation() })
                 },
             )
         }
