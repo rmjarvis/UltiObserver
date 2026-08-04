@@ -609,17 +609,26 @@ class TestTimingCues : GameDomainTestFixtures() {
         )
         assertEquals(
             TimingCueId.TIMEOUT_CLEAR_FIELD,
-            timeoutCountdown.nextTimingCue(40_000L)?.id
+            timeoutCountdown.nextTimingCue(39_000L)?.id
         )
         assertEquals(
             TimingCueId.OFFENSE_COUNTDOWN_FROM_FIVE,
-            timeoutCountdown.nextTimingCue(65_000L)?.id,
+            timeoutCountdown.nextTimingCue(64_000L)?.id,
         )
-        assertEquals(Duration.ofSeconds(5), timeoutCountdown.nextTimingCue(65_000L)?.countdownTime)
+        assertEquals(Duration.ofSeconds(5), timeoutCountdown.nextTimingCue(64_000L)?.countdownTime)
         assertEquals(
             TimingCueId.OFFENSE_SET_LIMIT,
-            timeoutCountdown.dueTimingCue(70_000L)?.id
+            timeoutCountdown.dueTimingCue(69_000L)?.id
         )
+        assertEquals(
+            TimingCueId.OFFENSE_SET_LIMIT,
+            timeoutCountdown.dueTimingCue(70_000L)?.id,
+        )
+        assertEquals(
+            TimingCueId.OFFENSE_SET_LIMIT,
+            timeoutCountdown.dueTimingCue(71_100L)?.id,
+        )
+        assertNull(timeoutCountdown.dueTimingCue(71_101L))
 
         // When the user enables defense-check countdowns and reports offense set, the timeout
         // flow continues with defense reminders before play restarts.
@@ -662,15 +671,15 @@ class TestTimingCues : GameDomainTestFixtures() {
         )
         assertEquals(
             TimingCueId.OFFENSE_TEN,
-            livePointMisconductCountdown.nextTimingCue(20_000L)?.id,
+            livePointMisconductCountdown.nextTimingCue(19_000L)?.id,
         )
         assertEquals(
             TimingCueId.OFFENSE_COUNTDOWN_FROM_FIVE,
-            livePointMisconductCountdown.nextTimingCue(25_000L)?.id,
+            livePointMisconductCountdown.nextTimingCue(24_000L)?.id,
         )
         assertEquals(
             TimingCueId.OFFENSE_SET_LIMIT,
-            livePointMisconductCountdown.dueTimingCue(30_000L)?.id,
+            livePointMisconductCountdown.dueTimingCue(29_000L)?.id,
         )
 
         // Between-points misconduct countdowns use offense reminders before offense is set.
@@ -686,15 +695,15 @@ class TestTimingCues : GameDomainTestFixtures() {
         )
         assertEquals(
             TimingCueId.OFFENSE_TEN,
-            betweenPointsMisconductCountdown.nextTimingCue(80_000L)?.id,
+            betweenPointsMisconductCountdown.nextTimingCue(79_000L)?.id,
         )
         assertEquals(
             TimingCueId.OFFENSE_COUNTDOWN_FROM_FIVE,
-            betweenPointsMisconductCountdown.nextTimingCue(85_000L)?.id,
+            betweenPointsMisconductCountdown.nextTimingCue(84_000L)?.id,
         )
         assertEquals(
             TimingCueId.OFFENSE_SET_LIMIT,
-            betweenPointsMisconductCountdown.dueTimingCue(90_000L)?.id,
+            betweenPointsMisconductCountdown.dueTimingCue(89_000L)?.id,
         )
 
         // When the observer reports offense set after a between-points misconduct penalty, the
@@ -838,7 +847,7 @@ class TestTimingCues : GameDomainTestFixtures() {
         // records that key after delivery so a still-due cue is not played again on the next pass.
         val dueCountdownCue = stateWithDueCountdown.countdown!!.dueTimingCue(halfCapTime)!!
         assertEquals(TimingCueId.OFFENSE_SET_LIMIT.label, dueCountdownCue.message)
-        assertEquals("OFFENSE_SET_LIMIT:$halfCapTime", dueCountdownCue.alertKey())
+        assertEquals("OFFENSE_SET_LIMIT:${halfCapTime - 1_000L}", dueCountdownCue.alertKey())
 
         // If the relevant cap is already handled and there is no countdown cue due at this time,
         // the merged due-alert list is empty.
@@ -892,7 +901,7 @@ class TestTimingCues : GameDomainTestFixtures() {
                 kind = CountdownKind.TIME_OUT,
                 label = "Offense set in",
                 durationSeconds = 70,
-                targetEpoch = halfCapTime + 20_500L,
+                targetEpoch = halfCapTime + 21_500L,
             )
         ).dueTimingAlerts(halfCapTime + 500L).map { cue -> cue.id }
         assertEquals(

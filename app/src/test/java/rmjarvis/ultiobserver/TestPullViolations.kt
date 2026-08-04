@@ -309,11 +309,11 @@ class TestPullViolations : GameDomainTestFixtures() {
     fun timingCues() {
         val standardSequenceStart = 2_000L
         val standardReadyTarget = 62_000L
-        val standardReadyTwentyCue = standardReadyTarget - 20_000L
-        val standardReadyTenCue = standardReadyTarget - 10_000L
+        val standardReadyTwentyCue = standardReadyTarget - 21_000L
+        val standardReadyTenCue = standardReadyTarget - 11_000L
         val standardPullTarget = 82_000L
-        val standardPullTwentyCue = standardPullTarget - 20_000L
-        val standardPullTenCue = standardPullTarget - 10_000L
+        val standardPullTwentyCue = standardPullTarget - 21_000L
+        val standardPullTenCue = standardPullTarget - 11_000L
 
         // Standard one-end offense-ready countdowns cue the prompted receiving side at
         // twenty seconds, ten seconds, and readiness.
@@ -333,11 +333,11 @@ class TestPullViolations : GameDomainTestFixtures() {
         )
         assertEquals(
             TimingCueId.RECEIVING_TEN_FOR_HAND,
-            nearReceivingCountdown.nextTimingCue(standardReadyTwentyCue + 1_000L)?.id,
+            nearReceivingCountdown.nextTimingCue(standardReadyTwentyCue + 1L)?.id,
         )
         assertEquals(
             TimingCueId.RECEIVING_GIVE_HAND,
-            nearReceivingCountdown.nextTimingCue(standardReadyTenCue + 1_000L)?.id,
+            nearReceivingCountdown.nextTimingCue(standardReadyTenCue + 1L)?.id,
         )
 
         // A cue becomes due at its cue epoch and remains due through the alert delivery window.
@@ -354,7 +354,7 @@ class TestPullViolations : GameDomainTestFixtures() {
         )
         assertEquals(
             TimingCueId.RECEIVING_GIVE_HAND,
-            nearReceivingCountdown.dueTimingCue(standardReadyTarget)?.id,
+            nearReceivingCountdown.dueTimingCue(standardReadyTarget - 1_000L)?.id,
         )
 
         // Same thing for the opposite field orientation.
@@ -387,11 +387,11 @@ class TestPullViolations : GameDomainTestFixtures() {
         )
         assertEquals(
             TimingCueId.PULLING_TEN_TO_PULL,
-            nearPullingCountdown.nextTimingCue(standardPullTwentyCue + 1_000L)?.id,
+            nearPullingCountdown.nextTimingCue(standardPullTwentyCue + 1L)?.id,
         )
         assertEquals(
             TimingCueId.PULLING_TIME_VIOLATION,
-            nearPullingCountdown.nextTimingCue(standardPullTenCue + 1_000L)?.id,
+            nearPullingCountdown.nextTimingCue(standardPullTenCue + 1L)?.id,
         )
         assertEquals(
             TimingCueId.PULLING_TWENTY_TO_PULL,
@@ -399,7 +399,7 @@ class TestPullViolations : GameDomainTestFixtures() {
         )
         assertEquals(
             TimingCueId.PULLING_TIME_VIOLATION,
-            nearPullingCountdown.dueTimingCue(standardPullTarget)?.id,
+            nearPullingCountdown.dueTimingCue(standardPullTarget - 1_000L)?.id,
         )
 
         // Same thing for the opposite field orientation.
@@ -430,12 +430,13 @@ class TestPullViolations : GameDomainTestFixtures() {
             TimingCueId.RECEIVING_TWENTY_FOR_HAND,
             bothCountdown.nextTimingCue(2_000L)?.id,
         )
+        assertEquals(Duration.ofSeconds(39), bothCountdown.nextTimingCue(2_000L)?.remaining)
         assertEquals(Duration.ofSeconds(40), bothCountdown.nextTimingCue(2_000L)?.countdownTime)
         assertEquals(TimingCueId.RECEIVING_TEN_FOR_HAND, bothCountdown.nextTimingCue(43_000L)?.id)
-        assertEquals(TimingCueId.PULLING_TWENTY_TO_PULL, bothCountdown.nextTimingCue(62_000L)?.id)
+        assertEquals(TimingCueId.PULLING_TWENTY_TO_PULL, bothCountdown.nextTimingCue(61_000L)?.id)
         assertEquals(
             "Give hand. 20 seconds to pull",
-            bothCountdown.nextTimingCue(62_000L)?.message,
+            bothCountdown.nextTimingCue(61_000L)?.message,
         )
 
         // Neither-end prompts keep countdown timing but suppress timing cues.
@@ -449,7 +450,8 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertNull(neitherCountdown.dueTimingCue(82_000L))
 
         // Opening-pull countdowns add five-, three-, and one-minute warnings before the nominal
-        // game start. Their displayed countdown values include the final readiness/pull window.
+        // game start. Their displayed countdown values include the final readiness/pull window,
+        // while delivery leads each nominal warning by one second.
         val scheduledStart = 361_000L
         val preGameReceiveCountdown = buildBetweenPointsCountdown(
             pullingFromEnd = FieldEnd.FAR,
@@ -464,11 +466,11 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertEquals(Duration.ofSeconds(5 * 60 + 20L), fiveMinuteWarning?.countdownTime)
         assertEquals(
             TimingCueId.PRE_GAME_THREE_MINUTES,
-            preGameReceiveCountdown.nextTimingCue(60_000L)?.id,
+            preGameReceiveCountdown.nextTimingCue(60_001L)?.id,
         )
         assertEquals(
             TimingCueId.PRE_GAME_ONE_MINUTE,
-            preGameReceiveCountdown.nextTimingCue(180_000L)?.id,
+            preGameReceiveCountdown.nextTimingCue(180_001L)?.id,
         )
 
         // Pull-side and both-side opening countdowns show the warnings relative to the later pull
@@ -532,7 +534,7 @@ class TestPullViolations : GameDomainTestFixtures() {
             TimingCueId.PULLING_TWENTY_TO_PULL,
             openingPullCountdown.nextTimingCue(1_000L)?.id,
         )
-        assertEquals(Duration.ofSeconds(20), openingPullCountdown.nextTimingCue(1_000L)?.remaining)
+        assertEquals(Duration.ofSeconds(19), openingPullCountdown.nextTimingCue(1_000L)?.remaining)
         assertEquals(
             Duration.ofSeconds(20),
             openingPullCountdown.nextTimingCue(1_000L)?.countdownTime,
@@ -935,7 +937,7 @@ class TestPullViolations : GameDomainTestFixtures() {
         )
         assertEquals(
             TimingCueId.RECEIVING_GIVE_HAND,
-            timeViolationState.countdown?.nextTimingCue(firstViolationMoment + 20_000L)?.id,
+            timeViolationState.countdown?.dueTimingCue(firstViolationMoment + 20_000L)?.id,
         )
         assertEquals(
             "This is Animal's first time violation.\n\n" +
@@ -1032,11 +1034,11 @@ class TestPullViolations : GameDomainTestFixtures() {
         )
         assertEquals(
             TimingCueId.RECEIVING_GIVE_HAND,
-            timeViolationState.countdown?.nextTimingCue(bothEndWarningMoment + 20_000L)?.id,
+            timeViolationState.countdown?.nextTimingCue(bothEndWarningMoment + 19_000L)?.id,
         )
         assertEquals(
             TimingCueId.PULLING_TWENTY_TO_PULL,
-            timeViolationState.countdown?.nextTimingCue(bothEndWarningMoment + 30_000L)?.id,
+            timeViolationState.countdown?.nextTimingCue(bothEndWarningMoment + 29_000L)?.id,
         )
 
         // If this phone is prompting the receiving end, a pulling-team warning still shows the

@@ -145,7 +145,7 @@ class TestTimingAlerts {
             timingAlertServiceCue(TimingCueId.HARD_CAP, 2_000L),
             serviceCues.nextTimingAlertServiceCue(1_500L),
         )
-        assertTrue(serviceCues.dueTimingAlertServiceCues(3_200L).isEmpty())
+        assertTrue(serviceCues.dueTimingAlertServiceCues(4_200L).isEmpty())
     }
 
     /**

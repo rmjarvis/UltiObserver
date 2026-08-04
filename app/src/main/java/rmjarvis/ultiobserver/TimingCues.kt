@@ -62,7 +62,8 @@ enum class TimingCueId(
  * Cue offset within a countdown.
  *
  * @param id The timing cue to deliver.
- * @param remainingSeconds The countdown time remaining when this cue fires.
+ * @param remainingSeconds The nominal countdown value announced by this cue. Delivery normally
+ * leads that value by [TIMING_CUE_DELIVERY_LEAD_MS].
  * @param message The display message for the cue, defaulting to the cue id's label.
  */
 internal data class TimingCue(
@@ -70,6 +71,20 @@ internal data class TimingCue(
     val remainingSeconds: Int,
     val message: String = id.label,
 )
+
+internal const val TIMING_CUE_DELIVERY_LEAD_MS = 1_000L
+
+/// Return the delivery epoch for this cue, including the standard countdown-cue lead.
+private fun CountdownState.timingCueEpoch(cue: TimingCue): Long {
+    val sequenceStart = targetEpoch - durationSeconds * 1000L
+    val advancedCueEpoch = targetEpoch - cue.remainingSeconds * 1000L -
+        TIMING_CUE_DELIVERY_LEAD_MS
+    return if (cue.remainingSeconds > durationSeconds) {
+        advancedCueEpoch
+    } else {
+        maxOf(sequenceStart, advancedCueEpoch)
+    }
+}
 
 /**
  * Timing cue prepared for display or alert delivery.
@@ -152,7 +167,7 @@ internal fun CountdownState.upcomingTimingCues(now: Long): List<TimingCueDisplay
     }
     return timingCues()
         .mapNotNull { cue ->
-            val cueEpoch = targetEpoch - cue.remainingSeconds * 1000L
+            val cueEpoch = timingCueEpoch(cue)
             if (cueEpoch >= now) {
                 TimingCueDisplay(
                     id = cue.id,
@@ -178,7 +193,7 @@ internal fun CountdownState.dueTimingCue(now: Long): TimingCueDisplay? {
     }
     return timingCues()
         .firstNotNullOfOrNull { cue ->
-            val cueEpoch = targetEpoch - cue.remainingSeconds * 1000L
+            val cueEpoch = timingCueEpoch(cue)
             val elapsedSinceCue = now - cueEpoch
             if (elapsedSinceCue in 0L..TIMING_ALERT_DUE_WINDOW_MS) {
                 TimingCueDisplay(
@@ -194,7 +209,8 @@ internal fun CountdownState.dueTimingCue(now: Long): TimingCueDisplay? {
         }
 }
 
-internal const val TIMING_ALERT_DUE_WINDOW_MS = 1_100L
+internal const val TIMING_ALERT_DUE_WINDOW_MS =
+    1_100L + TIMING_CUE_DELIVERY_LEAD_MS
 
 /**
  * List timing alerts due at the current moment for the active countdown and relevant caps.
