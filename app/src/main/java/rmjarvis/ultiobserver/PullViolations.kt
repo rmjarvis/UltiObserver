@@ -173,14 +173,15 @@ fun GameState.adjustPullViolations(
  *
  * @param team The team that committed the pull violation.
  * @param violation The pull-violation type to record.
+ * @return The assessment result, or the unchanged state when the selection is stale.
  */
 fun GameState.assessPullViolation(
     team: TeamId,
     now: Long,
     violation: PullViolationType,
 ): PullViolationAssessmentResult {
-    require(this.isPullViolationSelectionForTeam(team, violation)) {
-        "Pull violation $violation cannot be recorded for $team on this pull."
+    if (!this.isPullViolationSelectionForTeam(team, violation)) {
+        return PullViolationAssessmentResult(this)
     }
     if (!this.canRecordPullViolation(team)) {
         return PullViolationAssessmentResult(this)
@@ -206,13 +207,14 @@ fun GameState.assessPullViolation(
  *
  * @param team The team that would receive the pull violation.
  * @param violation The pull-violation type to preview.
+ * @return The confirmation preview, or null when the selection is stale.
  */
 fun GameState.previewPullViolation(
     team: TeamId,
     violation: PullViolationType,
-): PullViolationAssessmentPreview {
-    require(this.isPullViolationSelectionForTeam(team, violation)) {
-        "Pull violation $violation cannot be previewed for $team on this pull."
+): PullViolationAssessmentPreview? {
+    if (!this.isPullViolationSelectionForTeam(team, violation)) {
+        return null
     }
     require(this.canRecordPullViolation(team)) {
         "Pull violation cannot be previewed after the button is disabled for $team."

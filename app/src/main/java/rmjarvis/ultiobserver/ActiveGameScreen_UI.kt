@@ -130,6 +130,11 @@ internal fun ActiveGameScreen(
         actionInfoEvent = null
     }
 
+    /// Dismiss the pending pull-violation confirmation.
+    fun dismissPullViolation() {
+        pendingPullViolationTeam = null
+    }
+
     /**
      * Apply undo while suppressing phase-change prompts caused by restored state.
      *
@@ -485,7 +490,11 @@ internal fun ActiveGameScreen(
         }
     } else if (pendingPullViolationTeam != null) {
         val team = pendingPullViolationTeam!!
-        val event = state.previewPullViolation(team, pendingPullViolationType).event
+        val preview = state.previewPullViolation(team, pendingPullViolationType)
+        if (preview == null) {
+            dismissPullViolation()
+        }
+        val event = preview?.event ?: return
         val pullViolationAlternative = event.pullViolationAlternative()
         val applyPullViolation = {
             val result = state.assessPullViolation(
@@ -494,8 +503,7 @@ internal fun ActiveGameScreen(
                 violation = pendingPullViolationType,
             )
             onStateChange(result.state)
-            pendingPullViolationTeam = null
-            pendingPullViolationType = PullViolationType.OFFSIDES
+            dismissPullViolation()
         }
         RuleGuidanceGate(
             key = team,
@@ -505,8 +513,7 @@ internal fun ActiveGameScreen(
         ) {
             AlertDialog(
                 onDismissRequest = {
-                    pendingPullViolationTeam = null
-                    pendingPullViolationType = PullViolationType.OFFSIDES
+                    dismissPullViolation()
                 },
                 title = { Text(event.formatPopupTitle()) },
                 text = {
@@ -536,8 +543,7 @@ internal fun ActiveGameScreen(
                                 TextActionButton(
                                     label = "Cancel",
                                     onClick = {
-                                        pendingPullViolationTeam = null
-                                        pendingPullViolationType = PullViolationType.OFFSIDES
+                                        dismissPullViolation()
                                     },
                                     height = 32.dp,
                                     compact = true,

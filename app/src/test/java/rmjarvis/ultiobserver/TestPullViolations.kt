@@ -49,7 +49,14 @@ class TestPullViolations : GameDomainTestFixtures() {
     }
 
     /**
-     * Test direct invalid pull-violation calls fail loudly instead of returning empty previews.
+     * Test stale pull-violation selections are ignored.
+     *
+     * These can occur when two UI actions arrive before Compose recomposes. In the v1.2.0 crash
+     * that motivated this test, a goal and the receiving team's still-visible false-start action
+     * were triggered during the same composition. The goal made it the pulling team while the
+     * false-start action retained its meaning from the previous state, leaving that selection
+     * invalid.  We now let the goal stand and ignore the pull violation when this happens
+     * rather than crashing.
      */
     @Test
     fun invalidSelections() {
@@ -57,23 +64,21 @@ class TestPullViolations : GameDomainTestFixtures() {
         val ANIMAL = TeamId.TEAM_TWO
         val state = standardLiveGameState()
 
-        // Direct model calls fail loudly when a team/type pairing is illegal for the current pull.
-        val invalidAssess = assertThrows(IllegalArgumentException::class.java) {
-            state.assessPullViolation(VC, 0L, PullViolationType.FALSE_START)
-        }
-        assertEquals(
-            "Pull violation FALSE_START cannot be recorded for TEAM_ONE on this pull.",
-            invalidAssess.message,
+        // A stale false-start click for the pulling team changes nothing and has no confirmation.
+        val invalidFalseStart = state.assessPullViolation(
+            VC,
+            0L,
+            PullViolationType.FALSE_START,
         )
+        assertEquals(state, invalidFalseStart.state)
+        assertNull(invalidFalseStart.event)
+        assertNull(state.previewPullViolation(VC, PullViolationType.FALSE_START))
 
-        val invalidPreview = assertThrows(IllegalArgumentException::class.java) {
-            state.previewPullViolation(ANIMAL, PullViolationType.OFFSIDES)
-        }
-        assertEquals(
-            "Pull violation OFFSIDES cannot be previewed for TEAM_TWO on this pull.",
-            invalidPreview.message,
-        )
+        // Other stale team/type selections likewise have no confirmation.
+        assertNull(state.previewPullViolation(ANIMAL, PullViolationType.OFFSIDES))
+        assertNull(state.previewPullViolation(VC, PullViolationType.MAJORITY_PULL))
 
+        // Direct previews still fail loudly after the button has already been disabled.
         val disabledPreview = assertThrows(IllegalArgumentException::class.java) {
             state.assessPullViolation(VC).state.previewPullViolation(
                 VC,
@@ -83,14 +88,6 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertEquals(
             "Pull violation cannot be previewed after the button is disabled for TEAM_ONE.",
             disabledPreview.message,
-        )
-
-        val disabledMajorityPullPreview = assertThrows(IllegalArgumentException::class.java) {
-            state.previewPullViolation(VC, PullViolationType.MAJORITY_PULL)
-        }
-        assertEquals(
-            "Pull violation MAJORITY_PULL cannot be previewed for TEAM_ONE on this pull.",
-            disabledMajorityPullPreview.message,
         )
     }
 
@@ -535,7 +532,7 @@ class TestPullViolations : GameDomainTestFixtures() {
 
         // Before recording offsides, it gets previewed so the observer can still apply or cancel
         // it. The preview changes only its returned state.
-        var previewEvent = state.previewPullViolation(VC, PullViolationType.OFFSIDES).event
+        var previewEvent = state.previewPullViolation(VC, PullViolationType.OFFSIDES)!!.event
         assertEquals(1, previewEvent.state.teamOne.offsides)
         assertEquals(0, state.teamOne.offsides)
         assertNull(previewEvent.pullViolationAlternative())
@@ -544,8 +541,7 @@ class TestPullViolations : GameDomainTestFixtures() {
         // In mixed division, an offsides preview offers majority pull as an alternative. None
         // mode must show this choice briefly rather than accepting offsides immediately.
         val mixedPreviewEvent = state.copy(division = GameDivision.MIXED)
-            .previewPullViolation(VC, PullViolationType.OFFSIDES)
-            .event
+            .previewPullViolation(VC, PullViolationType.OFFSIDES)!!.event
         assertEquals(
             PullViolationAlternative(
                 violation = PullViolationType.MAJORITY_PULL,
@@ -556,7 +552,7 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertTrue(mixedPreviewEvent.requiresGuidanceInNone())
 
         // A false-start preview increments only its returned state and has no alternate violation.
-        previewEvent = state.previewPullViolation(ANIMAL, PullViolationType.FALSE_START).event
+        previewEvent = state.previewPullViolation(ANIMAL, PullViolationType.FALSE_START)!!.event
         assertEquals(1, previewEvent.state.teamTwo.falseStarts)
         assertEquals(0, state.teamTwo.falseStarts)
         assertNull(previewEvent.pullViolationAlternative())
@@ -564,8 +560,7 @@ class TestPullViolations : GameDomainTestFixtures() {
 
         // A majority-pull preview offers the reverse correction back to offsides.
         val majorityPullPreviewEvent = state.copy(division = GameDivision.MIXED)
-            .previewPullViolation(VC, PullViolationType.MAJORITY_PULL)
-            .event
+            .previewPullViolation(VC, PullViolationType.MAJORITY_PULL)!!.event
         val offsidesAlternative = majorityPullPreviewEvent.pullViolationAlternative()!!
         assertEquals(PullViolationType.OFFSIDES, offsidesAlternative.violation)
         assertEquals("This was an Offsides", offsidesAlternative.actionLabel)
@@ -627,14 +622,12 @@ class TestPullViolations : GameDomainTestFixtures() {
         previewEvent = animalPullingPreviewState.previewPullViolation(
             ANIMAL,
             PullViolationType.OFFSIDES,
-        )
-            .event
+        )!!.event
         assertEquals(1, previewEvent.state.teamTwo.offsides)
         previewEvent = animalPullingPreviewState.previewPullViolation(
             VC,
             PullViolationType.FALSE_START,
-        )
-            .event
+        )!!.event
         assertEquals(1, previewEvent.state.teamOne.falseStarts)
         pullViolationResult = state.assessPullViolation(ANIMAL)
         state = pullViolationResult.state

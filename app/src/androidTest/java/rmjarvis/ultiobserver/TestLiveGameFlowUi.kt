@@ -4,14 +4,18 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTouchInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -64,6 +68,112 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         waitForText("Majority pull violation")
         composeRule.onNodeWithText("OK").performClick()
         waitForText("Undo Majority pull violation on Team 1")
+    }
+
+    /**
+     * Test actions that reach the app during the same Compose frame.
+     *
+     * This caused a crash in version 1.2 when a goal and a false start registered in the
+     * same compose cycle. The goal registered, which made the false start invalid.
+     * Now the code ignores the false start in this case, rather than crashing.
+     * The same thing can happen for offsides and time violation, so we check those too.
+     */
+    @Test
+    fun multipleButtonsAtOnce() {
+        startLiveGameProgrammatically()
+
+        // A goal and the scoring team's old False start action can both arrive before Compose
+        // updates that team to the pulling side. The goal stands, while the now-invalid False
+        // start selection is ignored rather than crashing when its confirmation is prepared.
+        val goalCenter = composeRule
+            .onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "goal"))
+            .fetchSemanticsNode()
+            .boundsInRoot
+            .center
+        val falseStartCenter = composeRule
+            .onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "pull-violation"))
+            .fetchSemanticsNode()
+            .boundsInRoot
+            .center
+        composeRule.onRoot().performTouchInput {
+            click(falseStartCenter)
+            click(goalCenter)
+        }
+        val state = accessCurrentGameState()
+        assertEquals(1, state.teamTwo.score)
+        assertEquals(0, state.teamTwo.falseStarts)
+        assertFalse(state.pullSequenceFalseStartRecorded)
+        assertEquals("Undo Goal by Team 2", state.undoEntry?.label)
+        composeRule.onAllNodesWithText(
+            "Team 1 gets to set up on defense.",
+            substring = true,
+        ).assertCountEquals(0)
+
+        // A goal also reverses the pulling side, invalidating an Offsides action selected for the
+        // old pulling team during the same frame.
+        startLiveGameProgrammatically()
+        val offsidesGoalCenter = composeRule
+            .onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "goal"))
+            .fetchSemanticsNode()
+            .boundsInRoot
+            .center
+        val offsidesCenter = composeRule
+            .onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "pull-violation"))
+            .fetchSemanticsNode()
+            .boundsInRoot
+            .center
+        composeRule.onRoot().performTouchInput {
+            click(offsidesCenter)
+            click(offsidesGoalCenter)
+        }
+        val offsidesState = accessCurrentGameState()
+        assertEquals(1, offsidesState.teamTwo.score)
+        assertEquals(0, offsidesState.teamOne.offsides)
+        assertFalse(offsidesState.pullSequenceOffsidesRecorded)
+        assertEquals("Undo Goal by Team 2", offsidesState.undoEntry?.label)
+        composeRule.onAllNodesWithText(
+            "Team 2 starts at the brick mark.",
+            substring = true,
+        ).assertCountEquals(0)
+
+        // A goal that reaches halftime invalidates a time violation selected during the same
+        // frame because halftime is no longer part of the pull sequence.
+        startLiveGameProgrammatically(
+            newSetupGameState(now = System.currentTimeMillis()).copy(
+                rules = GameRules(
+                    gameTo = 5,
+                    useHalfCap = false,
+                    useSoftCap = false,
+                    useHardCap = false,
+                ),
+            )
+        )
+        updateCurrentStateProgrammatically {
+            copy(teamTwo = teamTwo.copy(score = 2))
+        }
+        val halftimeGoalCenter = composeRule
+            .onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "goal"))
+            .fetchSemanticsNode()
+            .boundsInRoot
+            .center
+        val timeViolationCenter = composeRule
+            .onNodeWithTag(teamActionTag(TeamId.TEAM_TWO, "time-violation"))
+            .fetchSemanticsNode()
+            .boundsInRoot
+            .center
+        composeRule.onRoot().performTouchInput {
+            click(timeViolationCenter)
+            click(halftimeGoalCenter)
+        }
+        val halftimeState = accessCurrentGameState()
+        assertEquals(GamePhase.HALFTIME, halftimeState.phase)
+        assertEquals(3, halftimeState.teamTwo.score)
+        assertEquals(0, halftimeState.teamTwo.timeViolations)
+        assertEquals("Undo Goal by Team 2", halftimeState.undoEntry?.label)
+        composeRule.onAllNodesWithText(
+            "now has 20 seconds to signal readiness.",
+            substring = true,
+        ).assertCountEquals(0)
     }
 
     /**

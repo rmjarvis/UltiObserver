@@ -117,7 +117,7 @@ class TestRuleGuidance : GameDomainTestFixtures() {
             technicalFoulEvent.formatBriefMessage().plainText,
         )
         val pullViolationEvent: GameEvent =
-            state.previewPullViolation(TeamId.TEAM_ONE, PullViolationType.OFFSIDES).event
+            state.previewPullViolation(TeamId.TEAM_ONE, PullViolationType.OFFSIDES)!!.event
         assertEquals(
             "Animal starts at the brick mark.",
             pullViolationEvent.formatBriefMessage().plainText,
@@ -166,12 +166,10 @@ class TestRuleGuidance : GameDomainTestFixtures() {
         // A pull violation remains visible only when the majority-pull alternative must be
         // offered. Ordinary pull-violation confirmations can be accepted immediately.
         val ordinaryPullEvent = state
-            .previewPullViolation(TeamId.TEAM_ONE, PullViolationType.OFFSIDES)
-            .event
+            .previewPullViolation(TeamId.TEAM_ONE, PullViolationType.OFFSIDES)!!.event
         assertEquals(false, ordinaryPullEvent.requiresGuidanceInNone())
         val majorityPullAlternativeEvent = state.copy(division = GameDivision.MIXED)
-            .previewPullViolation(TeamId.TEAM_ONE, PullViolationType.OFFSIDES)
-            .event
+            .previewPullViolation(TeamId.TEAM_ONE, PullViolationType.OFFSIDES)!!.event
         assertEquals(true, majorityPullAlternativeEvent.requiresGuidanceInNone())
 
         // Technical-foul and time-violation results have no independently required notice.
