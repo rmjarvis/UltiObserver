@@ -242,7 +242,7 @@ private fun fakeArchiveTeamColor(index: Int): TeamColorChoice {
         TeamColorChoice.GREEN,
         TeamColorChoice.YELLOW,
         TeamColorChoice.PINK,
-        TeamColorChoice.GRAY,
+        TeamColorChoice.PURPLE,
     )
     return colors[index % colors.size]
 }

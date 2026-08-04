@@ -94,10 +94,10 @@ private val knownVersionMigrations = listOf(
     VersionMigration(
         sourceVersion = "1.2",
         targetVersion = "1.3",
-        currentGame = null,
+        currentGame = V1_2ToV1_3::migrateGame,
         profile = null,
         settings = V1_2ToV1_3::migrateSettings,
-        archivedGame = null,
+        archivedGame = V1_2ToV1_3::migrateGame,
     ),
 )
 
@@ -204,6 +204,34 @@ internal fun currentPersistenceVersion(
 
 /// Implementation details for converting version 1.2 JSON shapes to version 1.3 shapes.
 private object V1_2ToV1_3 {
+    private const val OLD_GRAY_ARGB = 0xFF708090L
+
+    fun migrateGame(jsonElement: JsonElement): JsonElement {
+        return migrateGrayTeamColors(jsonElement)
+    }
+
+    private fun migrateGrayTeamColors(jsonElement: JsonElement): JsonElement {
+        return when (jsonElement) {
+            is JsonArray -> JsonArray(jsonElement.map(::migrateGrayTeamColors))
+            is JsonObject -> {
+                val migratedValues = jsonElement.mapValues { (_, value) ->
+                    migrateGrayTeamColors(value)
+                }.toMutableMap()
+                if (jsonElement["color"]?.jsonPrimitive?.contentOrNull == "GRAY") {
+                    migratedValues["color"] = JsonPrimitive(TeamColorChoice.CUSTOM.name)
+                    migratedValues["customColorArgb"] =
+                        if (jsonElement["customColorArgb"] is JsonNull) {
+                            JsonPrimitive(OLD_GRAY_ARGB)
+                        } else {
+                            appStateJson.encodeToJsonElement(NullablePatchValue(OLD_GRAY_ARGB))
+                        }
+                }
+                JsonObject(migratedValues)
+            }
+            else -> jsonElement
+        }
+    }
+
     fun migrateSettings(jsonElement: JsonElement): JsonElement {
         val jsonObject = jsonElement.jsonObject
         val timingAlerts = jsonObject.getValue("timingAlerts").jsonObject

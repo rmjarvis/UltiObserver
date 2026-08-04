@@ -199,7 +199,7 @@ enum class TeamColorChoice(
     GREEN("Green", 0xFF2E7D32, 0xFFF4FFF4),
     YELLOW("Yellow", 0xFFE7A51E, 0xFF2E2400),
     PINK("Pink", 0xFFFF4FA3, 0xFF2F1022),
-    GRAY("Gray", 0xFF708090, 0xFFF7F8FA),
+    PURPLE("Purple", 0xFF7E57C2, 0xFFF9F6FF),
     CUSTOM("Custom", 0x00000000, 0x00000000),
 }
 

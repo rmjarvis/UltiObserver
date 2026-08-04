@@ -60,7 +60,14 @@ private fun writeActiveGame(dir: File) {
     check(setup.rules.waterBreakMode == WaterBreakMode.AUTOMATIC)
     check(setup.rules.waterBreakMinutes == 4)
     val guidanceMode = RuleGuidanceMode.TIMED
-    val game = activeGameWithEvents(setup, guidanceMode)
+    val activeGame = activeGameWithEvents(setup, guidanceMode)
+    val game = applySetupEditToLiveGame(
+        existing = activeGame,
+        edited = activeGame.copy(
+            teamTwo = activeGame.teamTwo.copy(color = TeamColorChoice.BLUE),
+        ),
+        now = setupEpoch(setup) + 180_000L,
+    )
 
     store.saveCurrentGame(game)
     store.saveProfile(fixtureProfile())
@@ -226,7 +233,7 @@ private fun nonDefaultSetup(): GameState {
         ),
         teamTwo = TeamState(
             name = "Ferns",
-            color = TeamColorChoice.GREEN,
+            color = TeamColorChoice.GRAY,
             coaches = "Fern Coach",
             fieldCaptains = "Fern Captain",
             spiritCaptains = "Fern Spirit",
@@ -254,7 +261,7 @@ private fun activeGameWithEvents(
     guidanceMode: RuleGuidanceMode,
 ): GameState {
     val start = setupEpoch(setup)
-    var game = setup.startGame(ActiveGameOrientation.PORTRAIT)
+    var game = setup.startGame()
     game = game.recordFalseStart(start + 1_000L)
     game = game.recordMajorityPullViolation(start + 2_000L)
     game = game.assessYellowCard(
@@ -365,7 +372,7 @@ private fun activeGameWithEvents(
 private fun shortCompletedGame(): GameState {
     val setup = baseSetup()
     val start = setupEpoch(setup)
-    var game = setup.startGame(ActiveGameOrientation.PORTRAIT).beginLivePoint(start + 1_000L)
+    var game = setup.startGame().beginLivePoint(start + 1_000L)
     game = game.recordGoal(TeamId.TEAM_ONE, start + 60_000L)
     return game.endGameNow(start + 70_000L)
 }

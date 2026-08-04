@@ -55,7 +55,7 @@
         },
         "teamTwo": {
             "name": "Ferns",
-            "color": "GREEN",
+            "color": "GRAY",
             "customColorArgb": null,
             "coaches": "Fern Coach",
             "fieldCaptains": "Fern Captain",
@@ -371,7 +371,7 @@
                 },
                 "teamTwo": {
                     "name": "Ferns",
-                    "color": "GREEN",
+                    "color": "GRAY",
                     "customColorArgb": null,
                     "coaches": "Fern Coach",
                     "fieldCaptains": "Fern Captain",

@@ -56,7 +56,7 @@
             },
             "teamTwo": {
                 "name": "Ferns",
-                "color": "GREEN",
+                "color": "BLUE",
                 "customColorArgb": null,
                 "coaches": "Fern Coach",
                 "fieldCaptains": "Fern Captain",
@@ -327,290 +327,298 @@
             "redoEntry": null
         },
         "undoEntry": {
-            "label": "Undo Fixture blue card/tech adjustment",
+            "label": "Undo Update game setup",
             "patchToPrevious": {
-                "teamOne": {
-                    "technicalFouls": 0,
-                    "blueCards": 1
-                },
                 "teamTwo": {
-                    "technicalFouls": 1,
-                    "blueCards": 0
-                },
-                "eventLog": {
-                    "previousSize": 19
+                    "color": "GRAY"
                 }
             },
             "previousUndoEntry": {
-                "label": "Undo Fixture card adjustment",
+                "label": "Undo Fixture blue card/tech adjustment",
                 "patchToPrevious": {
-                    "teamOnePlayers": {
-                        "replacement": [
-                            {
-                                "jerseyNumber": "7",
-                                "playerName": "Bee Seven",
-                                "priorYellows": 1,
-                                "priorReds": 0,
-                                "cards": [
-                                    {
-                                        "cardType": "YELLOW",
-                                        "index": 0,
-                                        "reason": {
-                                            "preset": "Dangerous play",
-                                            "otherText": "",
-                                            "details": ""
-                                        }
-                                    }
-                                ]
-                            },
-                            {
-                                "jerseyNumber": "18",
-                                "playerName": "",
-                                "priorYellows": 0,
-                                "priorReds": 1,
-                                "cards": []
-                            }
-                        ]
+                    "teamOne": {
+                        "technicalFouls": 0,
+                        "blueCards": 1
+                    },
+                    "teamTwo": {
+                        "technicalFouls": 1,
+                        "blueCards": 0
                     },
                     "eventLog": {
-                        "previousSize": 16
+                        "previousSize": 19
                     }
                 },
                 "previousUndoEntry": {
-                    "label": "Undo Timeout adjustment",
+                    "label": "Undo Fixture card adjustment",
                     "patchToPrevious": {
-                        "teamOne": {
-                            "firstHalfTimeoutsUsed": 0
+                        "teamOnePlayers": {
+                            "replacement": [
+                                {
+                                    "jerseyNumber": "7",
+                                    "playerName": "Bee Seven",
+                                    "priorYellows": 1,
+                                    "priorReds": 0,
+                                    "cards": [
+                                        {
+                                            "cardType": "YELLOW",
+                                            "index": 0,
+                                            "reason": {
+                                                "preset": "Dangerous play",
+                                                "otherText": "",
+                                                "details": ""
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "jerseyNumber": "18",
+                                    "playerName": "",
+                                    "priorYellows": 0,
+                                    "priorReds": 1,
+                                    "cards": []
+                                }
+                            ]
+                        },
+                        "eventLog": {
+                            "previousSize": 16
                         }
                     },
                     "previousUndoEntry": {
-                        "label": "Undo Pull violation adjustment",
+                        "label": "Undo Timeout adjustment",
                         "patchToPrevious": {
                             "teamOne": {
-                                "majorityPullViolations": 0
-                            },
-                            "teamTwo": {
-                                "offsides": 0,
-                                "falseStarts": 0,
-                                "majorityPullViolations": 1,
-                                "timeViolations": 0
-                            },
-                            "eventLog": {
-                                "previousSize": 11
+                                "firstHalfTimeoutsUsed": 0
                             }
                         },
                         "previousUndoEntry": {
-                            "label": "Undo Timeout by Bees",
+                            "label": "Undo Pull violation adjustment",
                             "patchToPrevious": {
                                 "teamOne": {
-                                    "timeoutsUsedThisHalf": 0
+                                    "majorityPullViolations": 0
+                                },
+                                "teamTwo": {
+                                    "offsides": 0,
+                                    "falseStarts": 0,
+                                    "majorityPullViolations": 1,
+                                    "timeViolations": 0
                                 },
                                 "eventLog": {
-                                    "previousSize": 10
-                                },
-                                "countdown": {
-                                    "value": {
-                                        "kind": "BETWEEN_POINTS",
-                                        "label": "Signal in",
-                                        "durationSeconds": 75,
-                                        "targetEpoch": 1771094895000,
-                                        "betweenPointsTarget": "OFFENSE_READY",
-                                        "pullTiming": {
-                                            "offenseReadySeconds": 75,
-                                            "pullSeconds": 95
-                                        },
-                                        "pausedAtEpoch": null
-                                    }
+                                    "previousSize": 11
                                 }
                             },
                             "previousUndoEntry": {
-                                "label": "Undo Goal by Ferns",
+                                "label": "Undo Timeout by Bees",
                                 "patchToPrevious": {
-                                    "teamTwo": {
-                                        "score": 0
+                                    "teamOne": {
+                                        "timeoutsUsedThisHalf": 0
                                     },
                                     "eventLog": {
-                                        "previousSize": 9
+                                        "previousSize": 10
                                     },
-                                    "pullingTeam": "TEAM_ONE",
-                                    "phase": "LIVE_POINT",
                                     "countdown": {
-                                        "value": null
-                                    },
-                                    "pullSequenceOffsidesRecorded": true
+                                        "value": {
+                                            "kind": "BETWEEN_POINTS",
+                                            "label": "Signal in",
+                                            "durationSeconds": 75,
+                                            "targetEpoch": 1771094895000,
+                                            "betweenPointsTarget": "OFFENSE_READY",
+                                            "pullTiming": {
+                                                "offenseReadySeconds": 75,
+                                                "pullSeconds": 95
+                                            },
+                                            "pausedAtEpoch": null
+                                        }
+                                    }
                                 },
                                 "previousUndoEntry": {
-                                    "label": "Undo Technical foul on Ferns",
+                                    "label": "Undo Goal by Ferns",
                                     "patchToPrevious": {
                                         "teamTwo": {
-                                            "technicalFouls": 0
+                                            "score": 0
                                         },
                                         "eventLog": {
-                                            "previousSize": 8
-                                        }
+                                            "previousSize": 9
+                                        },
+                                        "pullingTeam": "TEAM_ONE",
+                                        "phase": "LIVE_POINT",
+                                        "countdown": {
+                                            "value": null
+                                        },
+                                        "pullSequenceOffsidesRecorded": true
                                     },
                                     "previousUndoEntry": {
-                                        "label": "Undo Offsides on Bees",
+                                        "label": "Undo Technical foul on Ferns",
                                         "patchToPrevious": {
-                                            "teamOne": {
-                                                "offsides": 0
+                                            "teamTwo": {
+                                                "technicalFouls": 0
                                             },
                                             "eventLog": {
-                                                "previousSize": 7
-                                            },
-                                            "phase": "BETWEEN_POINTS",
-                                            "countdown": {
-                                                "value": {
-                                                    "kind": "BETWEEN_POINTS",
-                                                    "label": "Signal in",
-                                                    "durationSeconds": 75,
-                                                    "targetEpoch": 1771094835000,
-                                                    "betweenPointsTarget": "OFFENSE_READY",
-                                                    "pullTiming": {
-                                                        "offenseReadySeconds": 75,
-                                                        "pullSeconds": 95
-                                                    },
-                                                    "pausedAtEpoch": null
-                                                }
-                                            },
-                                            "pullSequenceOffsidesRecorded": false
+                                                "previousSize": 8
+                                            }
                                         },
                                         "previousUndoEntry": {
-                                            "label": "Undo Goal by Bees",
+                                            "label": "Undo Offsides on Bees",
                                             "patchToPrevious": {
                                                 "teamOne": {
-                                                    "score": 0
+                                                    "offsides": 0
                                                 },
                                                 "eventLog": {
-                                                    "previousSize": 6
+                                                    "previousSize": 7
                                                 },
-                                                "pullingTeam": "TEAM_TWO",
-                                                "phase": "LIVE_POINT",
+                                                "phase": "BETWEEN_POINTS",
                                                 "countdown": {
                                                     "value": {
-                                                        "kind": "TIME_OUT",
-                                                        "label": "Offense set in",
-                                                        "durationSeconds": 90,
-                                                        "targetEpoch": 1771094796000,
-                                                        "betweenPointsTarget": null,
-                                                        "pullTiming": null,
+                                                        "kind": "BETWEEN_POINTS",
+                                                        "label": "Signal in",
+                                                        "durationSeconds": 75,
+                                                        "targetEpoch": 1771094835000,
+                                                        "betweenPointsTarget": "OFFENSE_READY",
+                                                        "pullTiming": {
+                                                            "offenseReadySeconds": 75,
+                                                            "pullSeconds": 95
+                                                        },
                                                         "pausedAtEpoch": null
                                                     }
                                                 },
-                                                "pullSequenceOffsidesRecorded": true,
-                                                "pullSequenceFalseStartRecorded": true
+                                                "pullSequenceOffsidesRecorded": false
                                             },
                                             "previousUndoEntry": {
-                                                "label": "Undo Timeout by Ferns",
+                                                "label": "Undo Goal by Bees",
                                                 "patchToPrevious": {
-                                                    "teamTwo": {
-                                                        "timeoutsUsedThisHalf": 0
+                                                    "teamOne": {
+                                                        "score": 0
                                                     },
                                                     "eventLog": {
-                                                        "previousSize": 5
+                                                        "previousSize": 6
                                                     },
+                                                    "pullingTeam": "TEAM_TWO",
+                                                    "phase": "LIVE_POINT",
                                                     "countdown": {
-                                                        "value": null
-                                                    }
+                                                        "value": {
+                                                            "kind": "TIME_OUT",
+                                                            "label": "Offense set in",
+                                                            "durationSeconds": 90,
+                                                            "targetEpoch": 1771094796000,
+                                                            "betweenPointsTarget": null,
+                                                            "pullTiming": null,
+                                                            "pausedAtEpoch": null
+                                                        }
+                                                    },
+                                                    "pullSequenceOffsidesRecorded": true,
+                                                    "pullSequenceFalseStartRecorded": true
                                                 },
                                                 "previousUndoEntry": {
-                                                    "label": "Undo Blue card on Bees",
+                                                    "label": "Undo Timeout by Ferns",
                                                     "patchToPrevious": {
-                                                        "teamOne": {
-                                                            "blueCards": 0
+                                                        "teamTwo": {
+                                                            "timeoutsUsedThisHalf": 0
                                                         },
                                                         "eventLog": {
-                                                            "previousSize": 4
+                                                            "previousSize": 5
+                                                        },
+                                                        "countdown": {
+                                                            "value": null
                                                         }
                                                     },
                                                     "previousUndoEntry": {
-                                                        "label": "Undo Red on #12 of Ferns",
+                                                        "label": "Undo Blue card on Bees",
                                                         "patchToPrevious": {
-                                                            "teamTwoPlayers": {
-                                                                "replacement": [
-                                                                    {
-                                                                        "jerseyNumber": "12",
-                                                                        "playerName": "Fern Twelve",
-                                                                        "priorYellows": 1,
-                                                                        "priorReds": 0,
-                                                                        "cards": []
-                                                                    },
-                                                                    {
-                                                                        "jerseyNumber": "27",
-                                                                        "playerName": "Fern Twentyseven",
-                                                                        "priorYellows": 2,
-                                                                        "priorReds": 0,
-                                                                        "cards": []
-                                                                    }
-                                                                ]
+                                                            "teamOne": {
+                                                                "blueCards": 0
                                                             },
                                                             "eventLog": {
-                                                                "previousSize": 3
+                                                                "previousSize": 4
                                                             }
                                                         },
                                                         "previousUndoEntry": {
-                                                            "label": "Undo Yellow on #7 of Bees",
+                                                            "label": "Undo Red on #12 of Ferns",
                                                             "patchToPrevious": {
-                                                                "teamOnePlayers": {
+                                                                "teamTwoPlayers": {
                                                                     "replacement": [
                                                                         {
-                                                                            "jerseyNumber": "7",
-                                                                            "playerName": "Bee Seven",
+                                                                            "jerseyNumber": "12",
+                                                                            "playerName": "Fern Twelve",
                                                                             "priorYellows": 1,
                                                                             "priorReds": 0,
                                                                             "cards": []
                                                                         },
                                                                         {
-                                                                            "jerseyNumber": "18",
-                                                                            "playerName": "",
-                                                                            "priorYellows": 0,
-                                                                            "priorReds": 1,
+                                                                            "jerseyNumber": "27",
+                                                                            "playerName": "Fern Twentyseven",
+                                                                            "priorYellows": 2,
+                                                                            "priorReds": 0,
                                                                             "cards": []
                                                                         }
                                                                     ]
                                                                 },
                                                                 "eventLog": {
-                                                                    "previousSize": 2
+                                                                    "previousSize": 3
                                                                 }
                                                             },
                                                             "previousUndoEntry": {
-                                                                "label": "Undo Majority pull violation on Ferns",
+                                                                "label": "Undo Yellow on #7 of Bees",
                                                                 "patchToPrevious": {
-                                                                    "teamTwo": {
-                                                                        "majorityPullViolations": 0
+                                                                    "teamOnePlayers": {
+                                                                        "replacement": [
+                                                                            {
+                                                                                "jerseyNumber": "7",
+                                                                                "playerName": "Bee Seven",
+                                                                                "priorYellows": 1,
+                                                                                "priorReds": 0,
+                                                                                "cards": []
+                                                                            },
+                                                                            {
+                                                                                "jerseyNumber": "18",
+                                                                                "playerName": "",
+                                                                                "priorYellows": 0,
+                                                                                "priorReds": 1,
+                                                                                "cards": []
+                                                                            }
+                                                                        ]
                                                                     },
                                                                     "eventLog": {
-                                                                        "previousSize": 1
-                                                                    },
-                                                                    "phase": "PRE_GAME",
-                                                                    "countdown": {
-                                                                        "value": {
-                                                                            "kind": "OPENING_PULL",
-                                                                            "label": "Signal in",
-                                                                            "durationSeconds": 20,
-                                                                            "targetEpoch": 1771094720000,
-                                                                            "betweenPointsTarget": "OFFENSE_READY",
-                                                                            "pullTiming": {
-                                                                                "offenseReadySeconds": 20,
-                                                                                "pullSeconds": 40
-                                                                            },
-                                                                            "pausedAtEpoch": null
-                                                                        }
-                                                                    },
-                                                                    "pullSequenceOffsidesRecorded": false
+                                                                        "previousSize": 2
+                                                                    }
                                                                 },
                                                                 "previousUndoEntry": {
-                                                                    "label": "Undo False start on Bees",
+                                                                    "label": "Undo Majority pull violation on Ferns",
                                                                     "patchToPrevious": {
-                                                                        "teamOne": {
-                                                                            "falseStarts": 0
+                                                                        "teamTwo": {
+                                                                            "majorityPullViolations": 0
                                                                         },
                                                                         "eventLog": {
-                                                                            "previousSize": 0
+                                                                            "previousSize": 1
                                                                         },
-                                                                        "pullSequenceFalseStartRecorded": false
+                                                                        "phase": "PRE_GAME",
+                                                                        "countdown": {
+                                                                            "value": {
+                                                                                "kind": "OPENING_PULL",
+                                                                                "label": "Signal in",
+                                                                                "durationSeconds": 20,
+                                                                                "targetEpoch": 1771094720000,
+                                                                                "betweenPointsTarget": "OFFENSE_READY",
+                                                                                "pullTiming": {
+                                                                                    "offenseReadySeconds": 20,
+                                                                                    "pullSeconds": 40
+                                                                                },
+                                                                                "pausedAtEpoch": null
+                                                                            }
+                                                                        },
+                                                                        "pullSequenceOffsidesRecorded": false
                                                                     },
-                                                                    "previousUndoEntry": null
+                                                                    "previousUndoEntry": {
+                                                                        "label": "Undo False start on Bees",
+                                                                        "patchToPrevious": {
+                                                                            "teamOne": {
+                                                                                "falseStarts": 0
+                                                                            },
+                                                                            "eventLog": {
+                                                                                "previousSize": 0
+                                                                            },
+                                                                            "pullSequenceFalseStartRecorded": false
+                                                                        },
+                                                                        "previousUndoEntry": null
+                                                                    }
                                                                 }
                                                             }
                                                         }

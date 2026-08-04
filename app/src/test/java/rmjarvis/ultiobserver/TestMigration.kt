@@ -475,6 +475,8 @@ class TestMigration : GameDomainTestFixtures() {
         assertEquals(80, setupDraft.setupGame.rules.nominalTimeBetweenPointsSeconds)
         assertEquals(HeatLevel.NONE, setupDraft.setupGame.rules.heatLevel)
         assertFalse(setupDraft.setupGame.rules.useAirQualityGuidelines)
+        assertEquals(TeamColorChoice.CUSTOM, setupDraft.setupGame.teamTwo.color)
+        assertEquals(0xFF708090L, setupDraft.setupGame.teamTwo.customColorArgb)
         assertProfileAndSettings(
             setupDraft,
             v1_1FixtureProfile(),
@@ -496,6 +498,13 @@ class TestMigration : GameDomainTestFixtures() {
             v1_2FixtureSettings("active-game"),
         )
         assertSingleDingTimingCueSettings(activeGame.settings.timingAlerts)
+
+        // The current blue team was gray before an undoable setup edit. Migrating the patch must
+        // preserve the old gray as the equivalent custom color when that edit is undone.
+        assertEquals(TeamColorChoice.BLUE, activeState.teamTwo.color)
+        val beforeColorEdit = activeState.undoLastAction()
+        assertEquals(TeamColorChoice.CUSTOM, beforeColorEdit.teamTwo.color)
+        assertEquals(0xFF708090L, beforeColorEdit.teamTwo.customColorArgb)
 
         // complete-current-game preserves None rule guidance and the non-sequence ABBA display
         // choice while retaining the completed current game's Undo End game path.
@@ -522,6 +531,11 @@ class TestMigration : GameDomainTestFixtures() {
         assertEquals(120, richArchive.rules.timeBetweenPointsSeconds)
         assertEquals(70, richArchive.rules.softCapMinutes)
         assertEquals(90, richArchive.rules.hardCapMinutes)
+        assertEquals(TeamColorChoice.CUSTOM, richArchive.teamTwo.color)
+        assertEquals(0xFF708090L, richArchive.teamTwo.customColorArgb)
+        val restoredBeforeEndGame = richArchive.undoLastAction()
+        assertEquals(TeamColorChoice.CUSTOM, restoredBeforeEndGame.teamTwo.color)
+        assertEquals(0xFF708090L, restoredBeforeEndGame.teamTwo.customColorArgb)
         assertProfileAndSettings(
             completedArchive,
             v1_1FixtureProfile(),
