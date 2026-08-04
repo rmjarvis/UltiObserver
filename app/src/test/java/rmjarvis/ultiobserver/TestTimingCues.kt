@@ -812,6 +812,24 @@ class TestTimingCues : GameDomainTestFixtures() {
             state.nextCapTimingCue(state.startEpoch + 60 * 60_000L)?.id,
         )
         assertNull(state.nextCapTimingCue(state.startEpoch + 106 * 60_000L))
+
+        // Cap alert scheduling skips soft and hard caps once the current score makes those future
+        // cap applications irrelevant.
+        val softIrrelevant = state.copy(
+            halftimeTaken = true,
+            teamOne = state.teamOne.copy(score = 13),
+            teamTwo = state.teamTwo.copy(score = 13),
+        )
+        assertEquals(
+            TimingCueId.HARD_CAP,
+            softIrrelevant.nextCapTimingCue(state.startEpoch + 60 * 60_000L)?.id,
+        )
+        assertNull(softIrrelevant.dueCapTimingCue(softCapTime(softIrrelevant)))
+        val hardIrrelevant = softIrrelevant.copy(
+            teamOne = softIrrelevant.teamOne.copy(score = 14),
+        )
+        assertNull(hardIrrelevant.nextCapTimingCue(state.startEpoch + 60 * 60_000L))
+        assertNull(hardIrrelevant.dueCapTimingCue(hardCapTime(hardIrrelevant)))
     }
 
     /**

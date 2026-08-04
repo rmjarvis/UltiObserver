@@ -142,13 +142,9 @@ fun GameState.recordGoal(
 
     // Caps are checked before halftime so hard cap takes precedence over soft, and soft over half.
     val pendingCapOffer = when {
-        this.hardCapReached(now) -> CapType.HARD
-        this.softCapReached(now) -> CapType.SOFT
-        this.halfCapReached(
-            teamOneScore = updatedTeamOne.score,
-            teamTwoScore = updatedTeamTwo.score,
-            now = now,
-        ) -> CapType.HALF
+        this.hardCapReached(updatedTeamOne.score, updatedTeamTwo.score, now) -> CapType.HARD
+        this.softCapReached(updatedTeamOne.score, updatedTeamTwo.score, now) -> CapType.SOFT
+        this.halfCapReached(updatedTeamOne.score, updatedTeamTwo.score, now) -> CapType.HALF
         else -> null
     }
 

@@ -65,6 +65,23 @@ class TestCaps : GameDomainTestFixtures() {
             ).computeNextCapStatus(timestampAfterStart(state, 95))
         )
 
+        // Soft cap is skipped at 13-13, while hard cap is also skipped once the score reaches
+        // 14-13 or 14-14.
+        val afterHalftime = state.copy(halftimeTaken = true)
+        val softIrrelevant = afterHalftime.copy(
+            teamOne = afterHalftime.teamOne.copy(score = 13),
+            teamTwo = afterHalftime.teamTwo.copy(score = 13),
+        )
+        assertEquals(
+            CapStatus("Hard cap", Duration.ofMinutes(85)),
+            softIrrelevant.computeNextCapStatus(timestampAfterStart(softIrrelevant, 15)),
+        )
+        val hardIrrelevant = softIrrelevant.copy(
+            teamOne = softIrrelevant.teamOne.copy(score = 14),
+            teamTwo = softIrrelevant.teamTwo.copy(score = 13),
+        )
+        assertNull(hardIrrelevant.computeNextCapStatus(timestampAfterStart(hardIrrelevant, 15)))
+
         // Cap countdowns can wrap across midnight when a late-night game crosses dates.
         state = standardLiveGameState(
             startDate = LocalDate.of(2026, 1, 1),
@@ -97,10 +114,10 @@ class TestCaps : GameDomainTestFixtures() {
     }
 
     /**
-     * Verify live-point cap messages only appear after a relevant point-end cap has passed.
+     * Verify live-point cap messages report passed relevant caps and future irrelevant caps.
      */
     @Test
-    fun passedCapPointEndMessages() {
+    fun capStatusMessages() {
         // Soft cap produces a live-point message after its scheduled time, until it is applied.
         val softOnly = newCapState(
             capRules.copy(
@@ -108,14 +125,14 @@ class TestCaps : GameDomainTestFixtures() {
                 useHardCap = false,
             )
         ).beginLivePoint()
-        assertNull(softOnly.passedCapPointEndMessage(timestampAfterStart(softOnly, 19)))
+        assertNull(softOnly.capStatusMessage(timestampAfterStart(softOnly, 19)))
         assertEquals(
             "Soft cap passed. It will apply at the end of this point.",
-            softOnly.passedCapPointEndMessage(timestampAfterStart(softOnly, 21)),
+            softOnly.capStatusMessage(timestampAfterStart(softOnly, 21)),
         )
         assertNull(
             softOnly.copy(softCapApplied = true)
-                .passedCapPointEndMessage(timestampAfterStart(softOnly, 21))
+                .capStatusMessage(timestampAfterStart(softOnly, 21))
         )
 
         // Hard cap uses the same priority as the point-end prompt when multiple caps have passed.
@@ -126,8 +143,11 @@ class TestCaps : GameDomainTestFixtures() {
         ).beginLivePoint()
         assertEquals(
             "Hard cap passed. It will apply at the end of this point.",
-            hardAndSoft.passedCapPointEndMessage(timestampAfterStart(hardAndSoft, 31)),
+            hardAndSoft.capStatusMessage(timestampAfterStart(hardAndSoft, 31)),
         )
+
+        // A relevant future hard cap does not produce a status message before its time.
+        assertNull(hardAndSoft.capStatusMessage(timestampAfterStart(hardAndSoft, 19)))
 
         // Half cap messages only appear while half cap can still change halftime.
         val halfOnly = newCapState(
@@ -136,23 +156,169 @@ class TestCaps : GameDomainTestFixtures() {
                 useHardCap = false,
             )
         ).beginLivePoint()
+
+        // A relevant future half cap does not produce a status message before its time.
+        assertNull(halfOnly.capStatusMessage(timestampAfterStart(halfOnly, 9)))
         assertEquals(
             "Half cap passed. It will apply at the end of this point.",
-            halfOnly.passedCapPointEndMessage(timestampAfterStart(halfOnly, 11)),
+            halfOnly.capStatusMessage(timestampAfterStart(halfOnly, 11)),
         )
         val irrelevantHalf = halfOnly.copy(
             teamOne = halfOnly.teamOne.copy(score = 6),
             teamTwo = halfOnly.teamTwo.copy(score = 6),
         )
+        assertEquals(
+            "Half cap is no longer relevant.",
+            irrelevantHalf.capStatusMessage(timestampAfterStart(irrelevantHalf, 9)),
+        )
         assertNull(
-            irrelevantHalf.passedCapPointEndMessage(timestampAfterStart(irrelevantHalf, 11))
+            irrelevantHalf.capStatusMessage(timestampAfterStart(irrelevantHalf, 11))
         )
 
-        // Point-end messages do not appear outside a live point.
+        // A half cap already handled by application or halftime is not reported as irrelevant.
+        assertNull(
+            halfOnly.copy(halfCapApplied = true)
+                .capStatusMessage(timestampAfterStart(halfOnly, 9))
+        )
+        assertNull(
+            halfOnly.copy(halftimeTaken = true)
+                .capStatusMessage(timestampAfterStart(halfOnly, 9))
+        )
+
+        // If soft and hard cap are both irrelevant before their scheduled times, report the
+        // later hard-cap consequence rather than repeating the earlier soft-cap consequence.
+        val irrelevantSoftAndHard = hardAndSoft.copy(
+            teamOne = hardAndSoft.teamOne.copy(score = 14),
+            teamTwo = hardAndSoft.teamTwo.copy(score = 13),
+        )
+        assertEquals(
+            "Hard cap is no longer relevant.",
+            irrelevantSoftAndHard.capStatusMessage(
+                timestampAfterStart(irrelevantSoftAndHard, 19)
+            ),
+        )
+        assertNull(
+            irrelevantSoftAndHard.capStatusMessage(
+                timestampAfterStart(irrelevantSoftAndHard, 31)
+            )
+        )
+
+        // Cap status messages do not appear outside a live point.
         assertNull(
             halfOnly.copy(phase = GamePhase.BETWEEN_POINTS)
-                .passedCapPointEndMessage(timestampAfterStart(halfOnly, 11))
+                .capStatusMessage(timestampAfterStart(halfOnly, 11))
         )
+        assertNull(
+            irrelevantSoftAndHard.copy(phase = GamePhase.BETWEEN_POINTS)
+                .capStatusMessage(timestampAfterStart(irrelevantSoftAndHard, 19))
+        )
+    }
+
+    /**
+     * Verify future soft and hard caps are skipped only when the current score makes them
+     * irrelevant, without suppressing a cap that already became due during the completed point.
+     */
+    @Test
+    fun irrelevantSoftAndHardCaps() {
+        val afterHalftime = newCapState(
+            capRules.copy(useHalfCap = false)
+        ).copy(halftimeTaken = true)
+
+        // At 13-13, soft cap can no longer lower the target after another point, so the next
+        // relevant cap is hard cap.
+        val tiedAtThirteen = afterHalftime.copy(
+            teamOne = afterHalftime.teamOne.copy(score = 13),
+            teamTwo = afterHalftime.teamTwo.copy(score = 13),
+        )
+        assertFalse(tiedAtThirteen.softCapRelevant())
+        assertTrue(tiedAtThirteen.hardCapRelevant())
+
+        // At 14-13 and 14-14, neither cap can change what happens after the next point.
+        val fourteenThirteen = tiedAtThirteen.copy(
+            teamOne = tiedAtThirteen.teamOne.copy(score = 14),
+        )
+        assertFalse(fourteenThirteen.softCapRelevant())
+        assertFalse(fourteenThirteen.hardCapRelevant())
+        assertFalse(
+            fourteenThirteen.copy(
+                teamTwo = fourteenThirteen.teamTwo.copy(score = 14),
+            ).hardCapRelevant()
+        )
+        assertTrue(
+            fourteenThirteen.copy(
+                teamTwo = fourteenThirteen.teamTwo.copy(score = 12),
+            ).hardCapRelevant()
+        )
+
+        // If soft cap already lowered the winning score, hard-cap relevance uses that target.
+        val softCappedState = fourteenThirteen.copy(
+            teamOne = fourteenThirteen.teamOne.copy(score = 9),
+            teamTwo = fourteenThirteen.teamTwo.copy(score = 8),
+            softCapApplied = true,
+            winningScore = 10,
+        )
+        assertFalse(softCappedState.hardCapRelevant())
+        assertFalse(
+            softCappedState.copy(
+                teamTwo = softCappedState.teamTwo.copy(score = 9),
+            ).hardCapRelevant()
+        )
+        assertTrue(
+            softCappedState.copy(
+                teamTwo = softCappedState.teamTwo.copy(score = 7),
+            ).hardCapRelevant()
+        )
+
+        // Hard cap is enabled and due when the next goal produces 9-9. Because soft cap already
+        // lowered the winning score to 10, that is universe point and needs no hard-cap offer.
+        val afterHardCapTime = timestampAfterStart(softCappedState, 31)
+        assertTrue(afterHardCapTime >= softCappedState.capEpoch(CapType.HARD))
+        val softCappedUniversePoint = softCappedState.beginLivePoint()
+            .recordGoalFromCurrentState(
+                scoringTeam = animal,
+                now = afterHardCapTime,
+            )
+        assertEquals(9, softCappedUniversePoint.teamOne.score)
+        assertEquals(9, softCappedUniversePoint.teamTwo.score)
+        assertNull(softCappedUniversePoint.pendingCapOffer)
+
+        // A soft cap that already passed can still matter when the completed point produces
+        // 13-13, even though a future soft cap would not matter from that score onward.
+        var pointState = afterHalftime.copy(
+            teamOne = afterHalftime.teamOne.copy(score = 12),
+            teamTwo = afterHalftime.teamTwo.copy(score = 13),
+        ).beginLivePoint()
+        pointState = pointState.recordGoalFromCurrentState(
+            scoringTeam = vc,
+            now = timestampAfterStart(pointState, 21),
+        )
+        assertEquals(13, pointState.teamOne.score)
+        assertEquals(13, pointState.teamTwo.score)
+        assertEquals(CapType.SOFT, pointState.pendingCapOffer)
+
+        // The same distinction lets an already-passed hard cap apply to a completed 14-13 score,
+        // while a completed universe-point score needs no hard-cap offer.
+        pointState = afterHalftime.copy(
+            teamOne = afterHalftime.teamOne.copy(score = 14),
+            teamTwo = afterHalftime.teamTwo.copy(score = 12),
+        ).beginLivePoint()
+        pointState = pointState.recordGoalFromCurrentState(
+            scoringTeam = animal,
+            now = timestampAfterStart(pointState, 31),
+        )
+        assertEquals(CapType.HARD, pointState.pendingCapOffer)
+
+        pointState = afterHalftime.copy(
+            teamOne = afterHalftime.teamOne.copy(score = 14),
+            teamTwo = afterHalftime.teamTwo.copy(score = 13),
+        ).beginLivePoint()
+        pointState = pointState.recordGoalFromCurrentState(
+            scoringTeam = animal,
+            now = timestampAfterStart(pointState, 31),
+        )
+        assertEquals(14, pointState.teamOne.score)
+        assertEquals(14, pointState.teamTwo.score)
+        assertNull(pointState.pendingCapOffer)
     }
 
     /**
@@ -287,6 +453,27 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(1, state.teamTwo.score)
         assertEquals(2, state.winningScore)
 
+        // Once soft cap has applied, a later non-winning point does not offer it again.
+        state = newCapState(
+            capRules.copy(
+                useHalfCap = false,
+                useHardCap = false,
+            )
+        ).let { freshState ->
+            freshState.copy(
+                teamOne = freshState.teamOne.copy(score = 9),
+                halftimeTaken = true,
+            )
+        }
+        state = scoreAt(state, animal, 21)
+        assertEquals(CapType.SOFT, state.pendingCapOffer)
+        state = applyPendingCapAt(state, LocalTime.of(10, 21))
+        assertEquals(10, state.winningScore)
+        state = scoreAt(state, animal, 22)
+        assertEquals(9, state.teamOne.score)
+        assertEquals(2, state.teamTwo.score)
+        assertNull(state.pendingCapOffer)
+
         // Hard cap while the score is not tied ends the game immediately when applied.
         state = newCapState(capRules.copy(useHalfCap = false, useSoftCap = false))
         state = scoreAt(state, vc, 5)
@@ -311,7 +498,7 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals("Game over", GamePrompt.GameOver(state).formatTitle())
 
         // Hard cap while tied triggers universe point, rather than ending.
-        state = newCapState(capRules.copy(useHalfCap = false, useSoftCap = false))
+        state = newCapState(capRules.copy(useHalfCap = false))
         state = scoreAt(state, vc, 5)
         state = scoreAt(state, vc, 6)
         state = scoreAt(state, animal, 7)
@@ -329,6 +516,12 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(GamePhase.BETWEEN_POINTS, state.phase)
         assertEquals(3, state.winningScore)
         assertNull(state.pendingCapOffer)
+
+        // The applied hard cap is now the final target: the earlier soft cap is no longer relevant,
+        // and the deciding point does not show another cap status message.
+        assertFalse(state.softCapRelevant())
+        val decidingPoint = state.beginLivePoint()
+        assertNull(decidingPoint.capStatusMessage(timestampAfterStart(decidingPoint, 31)))
     }
 
     /**
@@ -696,6 +889,7 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(6, state.teamOne.score)
         assertEquals(6, state.teamTwo.score)
         assertNull(state.pendingCapOffer)
+        assertFalse(state.halfCapRelevant())
         assertEquals(
             CapStatus("Soft cap", Duration.ofMinutes(19)),
             state.computeNextCapStatus(timestampAfterStart(state, 1)),
@@ -705,6 +899,23 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(6, state.teamTwo.score)
         assertNull(state.pendingCapOffer)
         assertFalse(state.halfCapApplied)
+
+        // A half cap that already passed can still matter when the completed point produces 6-6,
+        // even though a future half cap would not matter from that score onward.
+        state = newCapState(
+            capRules.copy(
+                useSoftCap = false,
+                useHardCap = false,
+            )
+        )
+        state = state.copy(
+            teamOne = state.teamOne.copy(score = 5),
+            teamTwo = state.teamTwo.copy(score = 6),
+        )
+        state = scoreAt(state, vc, 11)
+        assertEquals(6, state.teamOne.score)
+        assertEquals(6, state.teamTwo.score)
+        assertEquals(CapType.HALF, state.pendingCapOffer)
 
         // The same rule applies when one team has already reached the normal halftime target.
         state = newCapState(
@@ -730,6 +941,24 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(4, state.teamTwo.score)
         assertNull(state.pendingCapOffer)
         assertFalse(state.halfCapApplied)
+
+        // Once halftime has already occurred, an enabled half cap is not offered after its time.
+        state = newCapState(
+            capRules.copy(
+                useSoftCap = false,
+                useHardCap = false,
+            )
+        ).let { freshState ->
+            freshState.copy(
+                teamOne = freshState.teamOne.copy(score = 8),
+                teamTwo = freshState.teamTwo.copy(score = 7),
+                halftimeTaken = true,
+            )
+        }
+        state = scoreAt(state, vc, 11)
+        assertEquals(9, state.teamOne.score)
+        assertEquals(7, state.teamTwo.score)
+        assertNull(state.pendingCapOffer)
     }
 
     /**

@@ -166,8 +166,8 @@ internal fun ActiveGameScreen(
     val activeCountdown = remember(state, now) {
         state.activeCountdownDisplay(now)
     }
-    val passedCapPointEndMessage = remember(state, now) {
-        state.passedCapPointEndMessage(now)
+    val capStatusMessage = remember(state, now) {
+        state.capStatusMessage(now)
     }
     val canStartPoint = remember(state, now) {
         state.phase.isBeforeLivePoint || state.halftimeTransitionReady(now)
@@ -332,7 +332,7 @@ internal fun ActiveGameScreen(
                     now = now,
                     capStatus = capStatus,
                     activeCountdown = activeCountdown,
-                    passedCapPointEndMessage = passedCapPointEndMessage,
+                    capStatusMessage = capStatusMessage,
                     canStartPoint = canStartPoint,
                     hasExpiredPullActions = hasExpiredPullActions,
                     canReportOffenseSet = canReportOffenseSet,
@@ -360,7 +360,7 @@ internal fun ActiveGameScreen(
                     now = now,
                     capStatus = capStatus,
                     activeCountdown = activeCountdown,
-                    passedCapPointEndMessage = passedCapPointEndMessage,
+                    capStatusMessage = capStatusMessage,
                     canStartPoint = canStartPoint,
                     hasExpiredPullActions = hasExpiredPullActions,
                     canReportOffenseSet = canReportOffenseSet,
@@ -1081,7 +1081,7 @@ private fun PortraitActiveGameContent(
     now: Long,
     capStatus: CapStatus?,
     activeCountdown: ActiveCountdownDisplay?,
-    passedCapPointEndMessage: String?,
+    capStatusMessage: String?,
     canStartPoint: Boolean,
     hasExpiredPullActions: Boolean,
     canReportOffenseSet: Boolean,
@@ -1160,7 +1160,7 @@ private fun PortraitActiveGameContent(
             } else {
                 null
             },
-            statusMessage = passedCapPointEndMessage,
+            statusMessage = capStatusMessage,
             height = metrics.countdownHeight,
         )
 
@@ -1277,7 +1277,7 @@ private fun LandscapeActiveGameContent(
     now: Long,
     capStatus: CapStatus?,
     activeCountdown: ActiveCountdownDisplay?,
-    passedCapPointEndMessage: String?,
+    capStatusMessage: String?,
     canStartPoint: Boolean,
     hasExpiredPullActions: Boolean,
     canReportOffenseSet: Boolean,
@@ -1373,7 +1373,7 @@ private fun LandscapeActiveGameContent(
                 } else {
                     null
                 },
-                statusMessage = passedCapPointEndMessage,
+                statusMessage = capStatusMessage,
                 height = metrics.topRowHeight,
                 modifier = Modifier.weight(1f),
             )

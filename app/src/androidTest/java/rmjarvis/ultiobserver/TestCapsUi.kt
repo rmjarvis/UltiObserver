@@ -175,14 +175,6 @@ class TestCapsUi : MainActivityUiTestFixtures() {
         )
         composeRule.onNodeWithText("Not yet").performClick()
         waitForText("Undo Apply soft cap now")
-
-        // Applying hard cap after soft cap is already applied should not offer another soft-cap
-        // water break.
-        openMoreActionsDialog()
-        selectMoreActionsCategory("Manual game transitions")
-        clickMoreActionsItem("Apply hard cap now")
-        waitForText("Undo Apply hard cap now")
-        composeRule.onAllNodesWithText("Take a 3-minute water break").assertCountEquals(0)
     }
 
     /**

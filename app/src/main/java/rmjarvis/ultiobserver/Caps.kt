@@ -145,7 +145,8 @@ private fun GameState.applyCap(
                 ).withUndo(undoPrevious, undoLabel)
             } else {
                 val softCapTriggersWaterBreak =
-                    softCapReached(now) && softCapWaterBreakReached()
+                    softCapReached(teamOne.score, teamTwo.score, now) &&
+                        softCapWaterBreakReached()
                 this.copy(
                     winningScore = currentHigherScore + 1,
                     hardCapApplied = true,
@@ -177,7 +178,7 @@ fun GameState.computeNextCapStatus(now: Long): CapStatus? {
     // Here we make pairs with second being another pair:
     // (isCapRelevant, (capName, capTime))
     val caps = listOf(
-        this.halfCapRelevant(this.teamOne.score, this.teamTwo.score) to
+        this.halfCapRelevant() to
             (CapType.HALF.label to this.capEpoch(CapType.HALF)),
         this.softCapRelevant() to
             (CapType.SOFT.label to this.capEpoch(CapType.SOFT)),
@@ -199,16 +200,42 @@ fun GameState.computeNextCapStatus(now: Long): CapStatus? {
 }
 
 /**
- * Return the message to show during a live point after a cap time has passed.
+ * Return the cap status message to show during a live point.
  *
- * The actual cap offer is still made at point end, after the scoring team is known. This helper
- * only reports caps that could still affect the game when the current point finishes.
+ * A relevant passed cap reports that it will apply at point end. Before its scheduled time, the
+ * latest cap made irrelevant by the current score reports that it no longer matters.
  *
  * @param now The current epoch millis used to compare against scheduled cap times.
  */
-internal fun GameState.passedCapPointEndMessage(now: Long): String? {
-    val capType = passedCapForPointEnd(now) ?: return null
-    return "${capType.label} passed. It will apply at the end of this point."
+internal fun GameState.capStatusMessage(now: Long): String? {
+    if (phase != GamePhase.LIVE_POINT) {
+        return null
+    }
+    val passedCap = passedCapForPointEnd(now)
+    if (passedCap != null) {
+        return "${passedCap.label} passed. It will apply at the end of this point."
+    }
+    val irrelevantCap = CapType.entries
+        .filter { capType -> capNoLongerRelevant(capType) && now < capEpoch(capType) }
+        .maxByOrNull { capType -> capEpoch(capType) }
+        ?: return null
+    return "${irrelevantCap.label} is no longer relevant."
+}
+
+/// Report whether an enabled, unapplied cap can no longer affect the game.
+private fun GameState.capNoLongerRelevant(capType: CapType): Boolean {
+    return when (capType) {
+        CapType.HALF -> rules.capEnabled(capType) &&
+            !halftimeTaken &&
+            !halfCapApplied &&
+            !halfCapRelevant()
+        CapType.SOFT -> rules.capEnabled(capType) &&
+            !softCapApplied &&
+            !softCapRelevant()
+        CapType.HARD -> rules.capEnabled(capType) &&
+            !hardCapApplied &&
+            !hardCapRelevant()
+    }
 }
 
 /**
@@ -220,13 +247,12 @@ internal fun GameState.passedCapPointEndMessage(now: Long): String? {
  * @param now The current epoch millis used to compare against scheduled cap times.
  */
 private fun GameState.passedCapForPointEnd(now: Long): CapType? {
-    if (phase != GamePhase.LIVE_POINT) {
-        return null
-    }
     return when {
-        hardCapReached(now) -> CapType.HARD
-        softCapReached(now) -> CapType.SOFT
-        halfCapReached(teamOne.score, teamTwo.score, now) -> CapType.HALF
+        hardCapRelevant() &&
+            now >= capEpoch(CapType.HARD) -> CapType.HARD
+        softCapRelevant() &&
+            now >= capEpoch(CapType.SOFT) -> CapType.SOFT
+        halfCapRelevant() && now >= capEpoch(CapType.HALF) -> CapType.HALF
         else -> null
     }
 }
@@ -292,7 +318,7 @@ internal fun GameState.upcomingCapTimingCues(now: Long): List<TimingCueDisplay> 
 /// List cap types that still affect the current game.
 private fun GameState.relevantCapTypes(): List<CapType> {
     return listOfNotNull(
-        CapType.HALF.takeIf { halfCapRelevant(teamOne.score, teamTwo.score) },
+        CapType.HALF.takeIf { halfCapRelevant() },
         CapType.SOFT.takeIf { softCapRelevant() },
         CapType.HARD.takeIf { hardCapRelevant() },
     )
@@ -300,22 +326,24 @@ private fun GameState.relevantCapTypes(): List<CapType> {
 /**
  * Report whether half cap can still affect the halftime target.
  *
- * @param teamOneScore The score to evaluate for team one, often the post-goal score being considered.
- * @param teamTwoScore The score to evaluate for team two, often the post-goal score being considered.
  */
-internal fun GameState.halfCapRelevant(teamOneScore: Int, teamTwoScore: Int): Boolean {
+internal fun GameState.halfCapRelevant(): Boolean {
     return rules.capEnabled(CapType.HALF) &&
         !halftimeTaken &&
         !halfCapApplied &&
-        halfCapCanChangeHalftime(rules, teamOneScore, teamTwoScore)
+        halfCapCanChangeHalftime(rules, teamOne.score, teamTwo.score)
 }
-/// Report whether soft cap is enabled and has not already been applied.
+/** Report whether soft cap can still lower the winning score after the current point. */
 internal fun GameState.softCapRelevant(): Boolean {
-    return rules.capEnabled(CapType.SOFT) && !softCapApplied
+    return rules.capEnabled(CapType.SOFT) &&
+        !softCapApplied &&
+        softCapCanChangeWinningScore(teamOne.score, teamTwo.score)
 }
-/// Report whether hard cap is enabled and has not already been applied.
+/** Report whether hard cap can still change play after the current point. */
 internal fun GameState.hardCapRelevant(): Boolean {
-    return rules.capEnabled(CapType.HARD) && !hardCapApplied
+    return rules.capEnabled(CapType.HARD) &&
+        !hardCapApplied &&
+        hardCapCanChangeGameOutcome(teamOne.score, teamTwo.score)
 }
 /**
  * Report whether half cap is both relevant and due at the supplied time.
@@ -329,26 +357,74 @@ internal fun GameState.halfCapReached(
     teamTwoScore: Int,
     now: Long,
 ): Boolean {
-    return halfCapRelevant(teamOneScore, teamTwoScore) &&
+    return rules.capEnabled(CapType.HALF) &&
+        !halftimeTaken &&
+        !halfCapApplied &&
+        halfCapCanChangeHalftimeNow(rules, teamOneScore, teamTwoScore) &&
         now >= capEpoch(CapType.HALF)
 }
 /**
- * Report whether soft cap is both relevant and due at the supplied time.
+ * Report whether applying soft cap to the supplied completed-point score would matter and is due.
  *
  * @param now The epoch millis to compare with the scheduled soft-cap time.
  */
-internal fun GameState.softCapReached(now: Long): Boolean {
-    return softCapRelevant() &&
+internal fun GameState.softCapReached(
+    teamOneScore: Int,
+    teamTwoScore: Int,
+    now: Long,
+): Boolean {
+    return rules.capEnabled(CapType.SOFT) &&
+        !softCapApplied &&
+        softCapCanChangeWinningScoreNow(teamOneScore, teamTwoScore) &&
         now >= capEpoch(CapType.SOFT)
 }
 /**
- * Report whether hard cap is both relevant and due at the supplied time.
+ * Report whether applying hard cap to the supplied completed-point score would matter and is due.
  *
  * @param now The epoch millis to compare with the scheduled hard-cap time.
  */
-internal fun GameState.hardCapReached(now: Long): Boolean {
-    return hardCapRelevant() &&
+internal fun GameState.hardCapReached(
+    teamOneScore: Int,
+    teamTwoScore: Int,
+    now: Long,
+): Boolean {
+    return rules.capEnabled(CapType.HARD) &&
+        !isUniversePoint(teamOneScore, teamTwoScore) &&
         now >= capEpoch(CapType.HARD)
+}
+
+/// Report whether soft cap could lower the current winning score after the next point.
+private fun GameState.softCapCanChangeWinningScore(
+    teamOneScore: Int,
+    teamTwoScore: Int,
+): Boolean {
+    val currentWinningScore = winningScore ?: rules.gameTo
+    return max(teamOneScore, teamTwoScore) != currentWinningScore - 1 &&
+        !(teamOneScore == teamTwoScore && teamOneScore == currentWinningScore - 2)
+}
+
+/// Report whether applying soft cap to this completed-point score would lower the winning score.
+private fun GameState.softCapCanChangeWinningScoreNow(
+    teamOneScore: Int,
+    teamTwoScore: Int,
+): Boolean {
+    return max(teamOneScore, teamTwoScore) < rules.gameTo - 1
+}
+
+/// Report whether hard cap could change the game outcome after the next point.
+private fun GameState.hardCapCanChangeGameOutcome(
+    teamOneScore: Int,
+    teamTwoScore: Int,
+): Boolean {
+    val currentWinningScore = winningScore ?: rules.gameTo
+    return max(teamOneScore, teamTwoScore) != currentWinningScore - 1 ||
+        min(teamOneScore, teamTwoScore) < currentWinningScore - 2
+}
+
+/// Report whether this score is already universe point under the current winning score.
+private fun GameState.isUniversePoint(teamOneScore: Int, teamTwoScore: Int): Boolean {
+    return teamOneScore == teamTwoScore &&
+        teamOneScore == (winningScore ?: rules.gameTo) - 1
 }
 /**
  * Calculate the normal halftime target as the next count above half the game target.
@@ -371,6 +447,15 @@ private fun halfCapCanChangeHalftime(rules: GameRules, teamOneScore: Int, teamTw
     val normalHalftimeScore = halftimeScore(rules)
     return max(teamOneScore, teamTwoScore) < normalHalftimeScore - 1 &&
         min(teamOneScore, teamTwoScore) < normalHalftimeScore - 2
+}
+
+/// Report whether applying half cap to this completed-point score would lower halftime.
+private fun halfCapCanChangeHalftimeNow(
+    rules: GameRules,
+    teamOneScore: Int,
+    teamTwoScore: Int,
+): Boolean {
+    return max(teamOneScore, teamTwoScore) < halftimeScore(rules) - 1
 }
 /**
  * Compute the scheduled epoch millis for a cap from the game start and rule offset.

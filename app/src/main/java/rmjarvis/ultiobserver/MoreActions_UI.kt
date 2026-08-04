@@ -535,7 +535,7 @@ internal fun MoreActionsContent(
         ),
     )
     val transitionActions = buildList {
-        if (state.halfCapRelevant(state.teamOne.score, state.teamTwo.score)) {
+        if (state.halfCapRelevant()) {
             add(
                 MoreActionsItem(
                     label = "Apply half cap now",

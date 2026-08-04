@@ -201,7 +201,7 @@ internal fun StatusLine(
     onRulesReference: () -> Unit,
 ) {
     val clockText = formatClockTime(localTimeFromEpoch(now, ZoneId.systemDefault()))
-    val capLabel = capStatus?.label ?: "Caps passed"
+    val capLabel = capStatus?.label ?: ""
     val capCountdown = capStatus?.let { formatDuration(it.remaining) }
     val capText = listOfNotNull(capLabel, capCountdown).joinToString(" ")
     val preferredClockFontSize = (allocatedHeight.value * 0.68f).coerceIn(28f, 36f).sp
