@@ -448,6 +448,52 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertNull(neitherCountdown.nextTimingCue(2_000L))
         assertNull(neitherCountdown.dueTimingCue(82_000L))
 
+        // Opening-pull countdowns add five-, three-, and one-minute warnings before the nominal
+        // game start. Their displayed countdown values include the final readiness/pull window.
+        val scheduledStart = 361_000L
+        val preGameReceiveCountdown = buildBetweenPointsCountdown(
+            pullingFromEnd = FieldEnd.FAR,
+            sequenceStart = scheduledStart,
+            kind = CountdownKind.OPENING_PULL,
+            promptTarget = PullPromptTarget.NEAR,
+            rules = GameRules(),
+        )
+        val fiveMinuteWarning = preGameReceiveCountdown.nextTimingCue(0L)
+        assertEquals(TimingCueId.PRE_GAME_FIVE_MINUTES, fiveMinuteWarning?.id)
+        assertEquals(60_000L, fiveMinuteWarning?.targetEpoch)
+        assertEquals(Duration.ofSeconds(5 * 60 + 20L), fiveMinuteWarning?.countdownTime)
+        assertEquals(
+            TimingCueId.PRE_GAME_THREE_MINUTES,
+            preGameReceiveCountdown.nextTimingCue(60_000L)?.id,
+        )
+        assertEquals(
+            TimingCueId.PRE_GAME_ONE_MINUTE,
+            preGameReceiveCountdown.nextTimingCue(180_000L)?.id,
+        )
+
+        // Pull-side and both-side opening countdowns show the warnings relative to the later pull
+        // target. Selecting neither pull-prompt end still retains these general pre-game warnings.
+        listOf(
+            PullPromptTarget.NEAR,
+            PullPromptTarget.BOTH,
+            PullPromptTarget.NEITHER,
+        ).forEach { promptTarget ->
+            val preGamePullCountdown = buildBetweenPointsCountdown(
+                pullingFromEnd = FieldEnd.NEAR,
+                sequenceStart = scheduledStart,
+                kind = CountdownKind.OPENING_PULL,
+                promptTarget = promptTarget,
+                rules = GameRules(),
+            )
+            val pullFiveMinuteWarning = preGamePullCountdown.nextTimingCue(0L)
+            assertEquals(TimingCueId.PRE_GAME_FIVE_MINUTES, pullFiveMinuteWarning?.id)
+            assertEquals(60_000L, pullFiveMinuteWarning?.targetEpoch)
+            assertEquals(
+                Duration.ofSeconds(5 * 60 + 40L),
+                pullFiveMinuteWarning?.countdownTime,
+            )
+        }
+
         // Opening-pull receiving cues use the abbreviated twenty-second readiness window, so the
         // first cue is due immediately.
         val openingReceiveCountdown = buildBetweenPointsCountdown(

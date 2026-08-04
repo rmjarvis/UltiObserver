@@ -243,11 +243,20 @@ private object V1_2ToV1_3 {
                             getValue("cueModes").jsonObject.toMutableMap().apply {
                                 this[TimingCueId.HALFTIME_OVER.name] =
                                     JsonPrimitive(TimingAlertMode.BEEP.name)
+                                this[TimingCueId.PRE_GAME_FIVE_MINUTES.name] =
+                                    JsonPrimitive(TimingAlertMode.KNOCK.name)
+                                this[TimingCueId.PRE_GAME_THREE_MINUTES.name] =
+                                    JsonPrimitive(TimingAlertMode.KNOCK.name)
+                                this[TimingCueId.PRE_GAME_ONE_MINUTE.name] =
+                                    JsonPrimitive(TimingAlertMode.KNOCK.name)
                             }
                         )
                         this["cueRepeatCounts"] = JsonObject(
                             getValue("cueRepeatCounts").jsonObject.toMutableMap().apply {
                                 this[TimingCueId.HALFTIME_OVER.name] = JsonPrimitive(1)
+                                this[TimingCueId.PRE_GAME_FIVE_MINUTES.name] = JsonPrimitive(1)
+                                this[TimingCueId.PRE_GAME_THREE_MINUTES.name] = JsonPrimitive(2)
+                                this[TimingCueId.PRE_GAME_ONE_MINUTE.name] = JsonPrimitive(3)
                             }
                         )
                     }

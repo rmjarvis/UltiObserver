@@ -977,6 +977,14 @@ private fun TimingCueSection.isDefenseCheckCountdownSection(): Boolean {
 
 private val timingCueSections = listOf(
     TimingCueSection(
+        title = "Before game",
+        cues = listOf(
+            TimingCueId.PRE_GAME_FIVE_MINUTES,
+            TimingCueId.PRE_GAME_THREE_MINUTES,
+            TimingCueId.PRE_GAME_ONE_MINUTE,
+        ),
+    ),
+    TimingCueSection(
         title = "Before pull - offense",
         cues = listOf(
             TimingCueId.RECEIVING_TWENTY_FOR_HAND,

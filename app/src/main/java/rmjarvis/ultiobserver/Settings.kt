@@ -211,6 +211,9 @@ internal fun TimingCueId.defaultAlertMode(): TimingAlertMode {
         -> TimingAlertMode.BEEP
         TimingCueId.HALFTIME_FIVE_MINUTES,
         TimingCueId.HALFTIME_TWO_MINUTES,
+        TimingCueId.PRE_GAME_FIVE_MINUTES,
+        TimingCueId.PRE_GAME_THREE_MINUTES,
+        TimingCueId.PRE_GAME_ONE_MINUTE,
         -> TimingAlertMode.KNOCK
         TimingCueId.HALF_CAP,
         TimingCueId.SOFT_CAP,
@@ -235,6 +238,8 @@ internal fun TimingCueId.defaultRepeatCount(): Int {
         TimingCueId.HALF_CAP,
         TimingCueId.SOFT_CAP,
         -> 2
+        TimingCueId.PRE_GAME_THREE_MINUTES -> 2
+        TimingCueId.PRE_GAME_ONE_MINUTE -> 3
         TimingCueId.HARD_CAP -> 3
         else -> 1
     }

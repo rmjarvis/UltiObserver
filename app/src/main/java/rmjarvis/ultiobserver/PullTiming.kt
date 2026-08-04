@@ -227,12 +227,21 @@ fun betweenPointsDisplay(
 internal fun CountdownState.betweenPointsTimingCues(): List<TimingCue> {
     val target = betweenPointsTarget!!
     val timing = pullTiming!!
+    val preGameCues = if (kind == CountdownKind.OPENING_PULL) {
+        listOf(
+            TimingCue(TimingCueId.PRE_GAME_FIVE_MINUTES, durationSeconds + 5 * 60),
+            TimingCue(TimingCueId.PRE_GAME_THREE_MINUTES, durationSeconds + 3 * 60),
+            TimingCue(TimingCueId.PRE_GAME_ONE_MINUTE, durationSeconds + 60),
+        )
+    } else {
+        emptyList()
+    }
     val timeoutCues = if (kind != CountdownKind.PULL_RESET && durationSeconds > timing.durationSecondsFor(target)) {
         target.timeoutCueIds().map { cueId -> TimingCue(cueId, 60) }
     } else {
         emptyList()
     }
-    return timeoutCues + when (target) {
+    return preGameCues + timeoutCues + when (target) {
         BetweenPointsCountdownTarget.OFFENSE_READY -> listOf(
             TimingCue(TimingCueId.RECEIVING_TWENTY_FOR_HAND, timing.remainingSecondsBeforeOffenseReady(20, target)),
             TimingCue(TimingCueId.RECEIVING_TEN_FOR_HAND, timing.remainingSecondsBeforeOffenseReady(10, target)),

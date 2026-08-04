@@ -609,10 +609,16 @@ class TestMigration : GameDomainTestFixtures() {
                 soundVolume = 0.35f,
                 vibrationDurationMillis = 250L,
                 vibrateWithSounds = true,
-                // The fixture predates HALFTIME_OVER, so migration adds its Beep default.
+                // The fixture predates halftime-over and pre-game cues, so migration adds their
+                // defaults.
                 cueModes = TimingCueId.entries.associateWith { TimingAlertMode.DING } +
-                    (TimingCueId.HALFTIME_OVER to TimingAlertMode.BEEP),
-                cueRepeatCounts = TimingCueId.entries.associateWith { 1 },
+                    (TimingCueId.HALFTIME_OVER to TimingAlertMode.BEEP) +
+                    (TimingCueId.PRE_GAME_FIVE_MINUTES to TimingAlertMode.KNOCK) +
+                    (TimingCueId.PRE_GAME_THREE_MINUTES to TimingAlertMode.KNOCK) +
+                    (TimingCueId.PRE_GAME_ONE_MINUTE to TimingAlertMode.KNOCK),
+                cueRepeatCounts = TimingCueId.entries.associateWith { 1 } +
+                    (TimingCueId.PRE_GAME_THREE_MINUTES to 2) +
+                    (TimingCueId.PRE_GAME_ONE_MINUTE to 3),
             ),
         )
     }
@@ -642,14 +648,22 @@ class TestMigration : GameDomainTestFixtures() {
         timingAlertPreferences: TimingAlertPreferences,
     ) {
         TimingCueId.entries.forEach { cueId ->
-            // The fixtures predate HALFTIME_OVER, so migration adds its Beep default.
-            val expectedMode = if (cueId == TimingCueId.HALFTIME_OVER) {
-                TimingAlertMode.BEEP
-            } else {
-                TimingAlertMode.DING
+            // The fixtures predate halftime-over and pre-game cues, so migration adds defaults.
+            val expectedMode = when (cueId) {
+                TimingCueId.HALFTIME_OVER -> TimingAlertMode.BEEP
+                TimingCueId.PRE_GAME_FIVE_MINUTES,
+                TimingCueId.PRE_GAME_THREE_MINUTES,
+                TimingCueId.PRE_GAME_ONE_MINUTE,
+                -> TimingAlertMode.KNOCK
+                else -> TimingAlertMode.DING
             }
             assertEquals(expectedMode, timingAlertPreferences.cueModes[cueId])
-            assertEquals(1, timingAlertPreferences.cueRepeatCounts[cueId])
+            val expectedRepeatCount = when (cueId) {
+                TimingCueId.PRE_GAME_THREE_MINUTES -> 2
+                TimingCueId.PRE_GAME_ONE_MINUTE -> 3
+                else -> 1
+            }
+            assertEquals(expectedRepeatCount, timingAlertPreferences.cueRepeatCounts[cueId])
         }
     }
 
