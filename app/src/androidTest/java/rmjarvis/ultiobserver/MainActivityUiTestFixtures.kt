@@ -1,6 +1,7 @@
 package rmjarvis.ultiobserver
 
 import android.content.res.Configuration
+import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.click
@@ -475,16 +476,35 @@ abstract class MainActivityUiTestFixtures {
      *
      * @param text Visible dialog button text for devices that cover explicit controls.
      * @param tag Visible dialog control tag for devices that cover explicit controls.
+     * @param waitForText Exact text that should appear after the dialog closes, when applicable.
      */
     protected fun dismissDialog(
         text: String? = null,
         tag: String? = null,
+        waitForText: String? = null,
     ) {
         require((text == null) != (tag == null)) {
             "dismissDialog requires exactly one fallback text or tag."
         }
-        var useExplicitControl = !shouldUsePlatformBackDismissalCoverage()
-        if (!useExplicitControl) {
+
+        fun explicitControlIsPresent(): Boolean {
+            return if (tag != null) {
+                composeRule.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()
+            } else {
+                composeRule.onAllNodesWithText(text!!).fetchSemanticsNodes().isNotEmpty()
+            }
+        }
+
+        fun clickExplicitControl() {
+            if (tag != null) {
+                composeRule.onNodeWithTag(tag).performClick()
+            } else {
+                composeRule.onNodeWithText(text!!).performClick()
+            }
+        }
+
+        var shouldUseExplicitControl = !shouldUsePlatformBackDismissalCoverage()
+        if (!shouldUseExplicitControl) {
             if (tag != null) {
                 waitForTag(tag)
             } else {
@@ -498,14 +518,27 @@ abstract class MainActivityUiTestFixtures {
                 if (failure.javaClass.name != ROOT_VIEW_WITHOUT_FOCUS_EXCEPTION_NAME) {
                     throw failure
                 }
-                useExplicitControl = true
+                shouldUseExplicitControl = true
             }
         }
-        if (useExplicitControl) {
-            if (tag != null) {
-                composeRule.onNodeWithTag(tag).performClick()
-            } else {
-                composeRule.onNodeWithText(text!!).performClick()
+        if (shouldUseExplicitControl) {
+            clickExplicitControl()
+        }
+        if (waitForText != null) {
+            try {
+                // Occasionally pressDialogBack doesn't seem to find the right thing.
+                // E.g. a keyboard might not be fully closed, and the back acts on that
+                // instead of the intended dialog.
+                // If this times out and the explicit control is still present, then
+                // assume something like this happened, and just click that now to
+                // move on with the tests.
+                this.waitForText(waitForText)
+            } catch (failure: ComposeTimeoutException) {
+                if (shouldUseExplicitControl || !explicitControlIsPresent()) {
+                    throw failure
+                }
+                clickExplicitControl()
+                this.waitForText(waitForText)
             }
         }
     }
@@ -1052,8 +1085,7 @@ abstract class MainActivityUiTestFixtures {
         composeRule.onNodeWithText(buttonText).performScrollTo().performClick()
         waitForText(dialogTitle)
         composeRule.onNodeWithText("Cancel").assertIsDisplayed()
-        dismissDialog(text = "Cancel")
-        waitForText("Game to")
+        dismissDialog(text = "Cancel", waitForText = "Game to")
         closeSetupEditor()
     }
 
@@ -1135,8 +1167,7 @@ abstract class MainActivityUiTestFixtures {
         selectMoreActionsCategory(category)
         clickMoreActionsItem(label)
         composeRule.onAllNodesWithText("Close").assertCountEquals(0)
-        dismissDialog(text = "Cancel")
-        waitForText(label)
+        dismissDialog(text = "Cancel", waitForText = label)
     }
 
     /// Trigger app-level Android back handling from the activity.

@@ -148,8 +148,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("setup-Team 1-color-button").performScrollTo().performClick()
         waitForText("$aardvarks Color")
         composeRule.onNodeWithText("Cancel").assertIsDisplayed()
-        dismissDialog(text = "Cancel")
-        waitForText("Start game")
+        dismissDialog(text = "Cancel", waitForText = "Start game")
         composeRule.onNodeWithTag("setup-Team 1-color-button").performScrollTo().performClick()
         waitForText("$aardvarks Color")
         composeRule.onNodeWithTag("setup-Team 1-color-${TeamColorChoice.BLUE.name}").performClick()
@@ -161,8 +160,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         waitForText("$aardvarks Color")
         composeRule.onNodeWithTag("setup-Team 1-color-more").performClick()
         waitForText("Use this color")
-        dismissDialog(text = "Cancel")
-        waitForText("Start game")
+        dismissDialog(text = "Cancel", waitForText = "Start game")
         composeRule.onNodeWithTag("setup-Team 1-color-button").performScrollTo().performClick()
         waitForText("$aardvarks Color")
         composeRule.onNodeWithTag("setup-Team 1-color-more").performClick()
@@ -191,8 +189,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("setup-Team 1-color-custom").assertIsDisplayed()
         composeRule.onNodeWithTag("setup-Team 1-color-more").performClick()
         waitForText("Use this color")
-        dismissDialog(text = "Use this color")
-        waitForText("Start game")
+        dismissDialog(text = "Use this color", waitForText = "Start game")
 
         // Team-contact fields should accept multi-line coaches plus captain names.
         composeRule.onNodeWithTag("setup-Team 1-names-button").performScrollTo().performClick()
@@ -314,20 +311,17 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("setup-far-end-name")
             .performTextReplacement("River")
         composeRule.onNodeWithTag("setup-far-end-name").performImeAction()
-        dismissDialog(text = "Done")
-        waitForText(riverEndSummary)
+        dismissDialog(text = "Done", waitForText = riverEndSummary)
 
         // Dismissal also follows Done when no text field has focus.
         openStartingPullSetupEditor()
-        dismissDialog(text = "Done")
-        waitForText(riverEndSummary)
+        dismissDialog(text = "Done", waitForText = riverEndSummary)
 
         // Canceling the mixed gender-ratio popup keeps the existing ABBA setup rule.
         openMixedGenderRatioEditor()
         composeRule.onNodeWithTag("setup-gender-ratio-rule-${GenderRatioRule.GEN_ZONE.name}")
             .performClick()
-        dismissDialog(text = "Cancel")
-        waitForText("Game to")
+        dismissDialog(text = "Cancel", waitForText = "Game to")
         closeSetupEditor()
         openStartingPullSetupEditor()
         waitForText("First point gender ratio")
@@ -427,8 +421,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Points").performTextReplacement("19")
         composeRule.onNodeWithTag("setup-integer-set").performClick()
         waitForText("Game to")
-        dismissDialog(text = "Done")
-        waitForText("Game to 19")
+        dismissDialog(text = "Done", waitForText = "Game to 19")
 
         // Empty numeric rule entries should fall back to the current value.
         setIntegerSetupValue("Game to", "Game to", "Points", "")
@@ -788,8 +781,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Add card holder").performClick()
         waitForText("Add previous game card holder")
         composeRule.onNodeWithText("Add").assertIsNotEnabled()
-        dismissDialog(text = "Cancel")
-        waitForText("Add card holder")
+        dismissDialog(text = "Cancel", waitForText = "Add card holder")
         closeSetupEditor()
         waitForText("Start game")
 
@@ -814,8 +806,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         openPriorCardsSetupEditor(TeamId.TEAM_ONE)
         composeRule.onNodeWithTag("setup-prior-card-edit-0").performScrollTo().performClick()
         waitForText("Edit previous game card holder")
-        dismissDialog(text = "Cancel")
-        waitForText("Add card holder")
+        dismissDialog(text = "Cancel", waitForText = "Add card holder")
 
         // Editing should allow changing both jersey and name on an existing prior-card holder.
         composeRule.onNodeWithTag("setup-prior-card-edit-0").performScrollTo().performClick()
@@ -898,8 +889,10 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Add").performClick()
         waitForText("Card holder already listed")
         waitForText("with 1 yellow card.", substring = true)
-        dismissDialog(tag = "setup-existing-card-holder-back")
-        waitForText("Add previous game card holder")
+        dismissDialog(
+            tag = "setup-existing-card-holder-back",
+            waitForText = "Add previous game card holder",
+        )
         composeRule.onNodeWithText("Add").performClick()
         waitForText("Card holder already listed")
         composeRule.onNodeWithText("OK").performClick()
@@ -946,8 +939,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         enterPriorCardName("Other Player")
         composeRule.onNodeWithText("Add").performClick()
         waitForText("Possible player match")
-        dismissDialog(text = "Cancel")
-        waitForText("Add previous game card holder")
+        dismissDialog(text = "Cancel", waitForText = "Add previous game card holder")
         composeRule.onNodeWithText("Add").performClick()
         waitForText("Possible player match")
         composeRule.onNodeWithText("Add").performClick()

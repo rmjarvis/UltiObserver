@@ -368,8 +368,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             "Heat level 1 is now in effect, and no water break has been taken this half.\n" +
                 "Take a 3-minute water break now."
         )
-        dismissDialog(text = "Not yet")
-        waitForText("Undo Goal by Team 1")
+        dismissDialog(text = "Not yet", waitForText = "Undo Goal by Team 1")
     }
 
     /**

@@ -255,13 +255,11 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("card-player-number").performTextReplacement("")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Enter a player number or name before recording this card.")
-        dismissDialog(text = "OK")
-        waitForText("Edit yellow card")
+        dismissDialog(text = "OK", waitForText = "Edit yellow card")
         enterCardPlayerNumber("7")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Team 2 #7 already has two yellow cards and has been suspended.")
-        dismissDialog(text = "OK")
-        waitForText("Edit yellow card")
+        dismissDialog(text = "OK", waitForText = "Edit yellow card")
 
         // Reassigning an existing card to a new unsuspended player saves without a suspension
         // notice.
@@ -289,10 +287,8 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
             .onFirst()
             .performClick()
         waitForText("Edit yellow card")
-        dismissDialog(tag = "card-entry-cancel")
-        waitForText("Edit existing cards")
-        dismissDialog(text = "Done")
-        waitForText("Current cards:")
+        dismissDialog(tag = "card-entry-cancel", waitForText = "Edit existing cards")
+        dismissDialog(text = "Done", waitForText = "Current cards:")
         composeRule.onNodeWithText("Close").performClick()
         assertLiveScreen()
         composeRule.onAllNodesWithText("Edit existing cards").assertCountEquals(0)
@@ -404,8 +400,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
             "#6 Alex Cutter is already listed. Record #6 Bob Cutter as a different player " +
                 "with the same number?"
         )
-        dismissDialog(tag = "same-number-warning-cancel")
-        waitForText("Yellow card")
+        dismissDialog(tag = "same-number-warning-cancel", waitForText = "Yellow card")
 
         // If the user is sure that this is correct, they can make two number 6 players,
         // each with a yellow card and different names.
@@ -547,15 +542,13 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("card-player-number").performImeAction()
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Enter a player number or name before recording this card.")
-        dismissDialog(text = "OK")
-        waitForText("Edit yellow card")
+        dismissDialog(text = "OK", waitForText = "Edit yellow card")
 
         // Reassigning an existing card to a suspended player is rejected.
         enterCardPlayerNumber("9")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Team 1 #9 already has a red card and has been suspended.")
-        dismissDialog(text = "OK")
-        waitForText("Edit yellow card")
+        dismissDialog(text = "OK", waitForText = "Edit yellow card")
 
         // Filling the name for the same player should save without treating it as a reassignment.
         composeRule.onNodeWithTag("card-player-number").performTextReplacement("12")
@@ -606,8 +599,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("card-player-number").performTextReplacement("13")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Team 1 #13 now has two yellow cards and has been suspended.")
-        dismissDialog(text = "OK")
-        waitForText("Edit existing cards")
+        dismissDialog(text = "OK", waitForText = "Edit existing cards")
         composeRule.onNodeWithTag("editable-player-cards-done").performClick()
         composeRule.onNodeWithText("Done").performClick()
         assertLiveScreen()
@@ -659,8 +651,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         waitForText("Add yellow card")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Enter a player number or name before recording this card.")
-        dismissDialog(text = "OK")
-        waitForText("Add yellow card")
+        dismissDialog(text = "OK", waitForText = "Add yellow card")
         composeRule.onAllNodesWithText("Cancel").onLast().performClick()
         composeRule.onNodeWithText("Cancel").performClick()
         waitForText("Adjust cards / techs")
@@ -677,8 +668,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("card-player-name").performTextReplacement("Different Handler")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Same number, different names")
-        dismissDialog(tag = "same-number-warning-cancel")
-        waitForText("Add red card")
+        dismissDialog(tag = "same-number-warning-cancel", waitForText = "Add red card")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Same number, different names")
         composeRule.onNodeWithText("Record").performClick()
@@ -696,8 +686,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         enterCardPlayerNumber("22")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Invalid card assignment")
-        dismissDialog(text = "OK")
-        waitForText("Add yellow card")
+        dismissDialog(text = "OK", waitForText = "Add yellow card")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Invalid card assignment")
         composeRule.onNodeWithText("OK").performClick()
@@ -769,8 +758,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("card-player-name").performImeAction()
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Same number, different names")
-        dismissDialog(tag = "same-number-warning-cancel")
-        waitForText("Red card")
+        dismissDialog(tag = "same-number-warning-cancel", waitForText = "Red card")
         assertEquals(
             "10",
             composeRule.onNodeWithTag("card-player-number")
@@ -794,8 +782,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         enterCardPlayerNumber("9")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Misconduct penalty")
-        dismissDialog(tag = "misconduct-choice-back")
-        waitForText("Yellow card")
+        dismissDialog(tag = "misconduct-choice-back", waitForText = "Yellow card")
         assertEquals(
             "9",
             composeRule.onNodeWithTag("card-player-number")
@@ -810,8 +797,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
             "Team 1 moves the disc to the reverse brick in the end zone they are defending.",
             substring = true,
         )
-        dismissDialog(tag = "misconduct-resolution-back")
-        waitForText("Misconduct penalty")
+        dismissDialog(tag = "misconduct-resolution-back", waitForText = "Misconduct penalty")
         waitForText("Was this against the offense or defense?", substring = true)
         composeRule.onNodeWithText("Offense").performClick()
         waitForText(
@@ -864,16 +850,14 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
             "Team 1 moves the disc to the reverse brick in the end zone they are defending.",
             substring = true,
         )
-        dismissDialog(tag = "misconduct-resolution-back")
-        waitForText("Blue Card")
+        dismissDialog(tag = "misconduct-resolution-back", waitForText = "Blue Card")
         waitForText("Was this against the offense or defense?", substring = true)
         composeRule.onNodeWithText("Defense").performClick()
         waitForText(
             "Team 2 may move the disc to the brick mark nearest the end zone they are attacking.",
             substring = true,
         )
-        dismissDialog(tag = "misconduct-resolution-back")
-        waitForText("Blue Card")
+        dismissDialog(tag = "misconduct-resolution-back", waitForText = "Blue Card")
         waitForText("Was this against the offense or defense?", substring = true)
         composeRule.onNodeWithText("Defense").performClick()
         waitForText(
@@ -920,8 +904,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         enterCardPlayerNumber("11")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Misconduct penalty")
-        dismissDialog(tag = "misconduct-choice-back")
-        waitForText("Red card")
+        dismissDialog(tag = "misconduct-choice-back", waitForText = "Red card")
         assertEquals(
             "11",
             composeRule.onNodeWithTag("card-player-number")

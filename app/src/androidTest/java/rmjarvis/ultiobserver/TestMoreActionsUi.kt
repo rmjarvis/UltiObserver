@@ -36,8 +36,7 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("set-heat-level-confirm").performClick()
 
         waitForText("Game suspended")
-        dismissDialog(text = "OK")
-        waitForText("Game summary")
+        dismissDialog(text = "OK", waitForText = "Game summary")
         composeRule.onNodeWithText("Undo Heat level 3 — game suspended").assertExists()
         composeRule.onNodeWithText("Event log").performClick()
         waitForText("Heat level 3 — game suspended", substring = true)

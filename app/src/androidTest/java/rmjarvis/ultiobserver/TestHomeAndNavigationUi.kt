@@ -772,8 +772,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("In-progress games (1)").performClick()
         waitForText(deleteProgressTitle)
         composeRule.onNodeWithTag("delete-saved-in-progress-game-0").performClick()
-        dismissDialog(text = "Cancel")
-        waitForText(deleteProgressTitle)
+        dismissDialog(text = "Cancel", waitForText = deleteProgressTitle)
         composeRule.onNodeWithTag("delete-saved-in-progress-game-0").performClick()
         confirmDeleteWithSlider()
         waitForText("No in-progress games.")
@@ -838,8 +837,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         assertOpensUrl(privacyPolicyUrl)
 
         // Back returns from About to Home.
-        dismissDialog(tag = "top-bar-back")
-        waitForText("Start new game")
+        dismissDialog(tag = "top-bar-back", waitForText = "Start new game")
 
         // The About top-bar Home button also returns directly to Home.
         composeRule.onNodeWithTag("home-about").performClick()
@@ -1127,8 +1125,10 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("settings-OFFENSE_TWENTY-NONE").performScrollTo().performClick()
 
         // Back returns from cue settings to the main Settings screen.
-        dismissDialog(tag = "top-bar-back")
-        waitForText("Use sounds and vibration for timing cues?")
+        dismissDialog(
+            tag = "top-bar-back",
+            waitForText = "Use sounds and vibration for timing cues?",
+        )
         composeRule.onNodeWithTag("settings-global-alert-SOUNDS_ON")
             .performScrollTo()
             .performClick()
@@ -1187,8 +1187,10 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             "Note — sounds are currently not enabled. If you want sounds",
             substring = true,
         )
-        dismissDialog(tag = "top-bar-back")
-        waitForText("Use sounds and vibration for timing cues?")
+        dismissDialog(
+            tag = "top-bar-back",
+            waitForText = "Use sounds and vibration for timing cues?",
+        )
         composeRule.onNodeWithTag("settings-global-alert-SOUNDS_ON").performScrollTo().performClick()
         waitForText("Sound/vibration settings for individual cues")
         composeRule.onNodeWithTag("settings-open-timing-cue-settings")
@@ -1212,12 +1214,13 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText("Half cap")
         waitForText("Soft cap")
         waitForText("Hard cap")
-        dismissDialog(tag = "top-bar-back")
-        waitForText("Use sounds and vibration for timing cues?")
+        dismissDialog(
+            tag = "top-bar-back",
+            waitForText = "Use sounds and vibration for timing cues?",
+        )
 
         // Back returns from Settings to Home.
-        dismissDialog(tag = "top-bar-back")
-        waitForText("Start new game")
+        dismissDialog(tag = "top-bar-back", waitForText = "Start new game")
 
         // Save and return returns from Settings to Home.
         composeRule.onNodeWithText("Settings").performClick()
