@@ -145,7 +145,10 @@ class TestGameTransitions : GameDomainTestFixtures() {
 
         // Viscous Coupling scores the first point, so they pull the next point from the far end.
         val firstGoalTime = timestampAt(state, LocalTime.of(10, 5))
-        state = state.recordGoal(VC, firstGoalTime)
+        val countdownSettings = Settings()
+            .withAutomaticallyAdvanceNewCountdowns(true)
+        val adjustedFirstGoalTime = countdownSettings.adjustedCountdownStartEpoch(firstGoalTime)
+        state = state.recordGoal(VC, adjustedFirstGoalTime)
         assertEquals(GamePhase.BETWEEN_POINTS, state.phase)
         assertEquals(1, state.teamOne.score)
         assertEquals(0, state.teamTwo.score)
@@ -154,7 +157,11 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertEquals(VC, state.teamDefendingEnd(FieldEnd.FAR))
         assertEquals("Signal in", state.countdown?.label)
         assertEquals(60, state.countdown?.durationSeconds)
-        assertEquals(firstGoalTime + 60_000L, state.countdown?.targetEpoch)
+        assertEquals(firstGoalTime + 57_000L, state.countdown?.targetEpoch)
+        assertEquals(
+            firstGoalTime - 3_000L,
+            state.eventLog.last { it.type == EventLogType.GOAL }.timestampEpoch,
+        )
         assertNull(state.pendingCapOffer)
 
         // During the next pull sequence, Viscous Coupling records an offsides as the pulling team.
@@ -262,7 +269,9 @@ class TestGameTransitions : GameDomainTestFixtures() {
         // Viscous Coupling scores again, reaching halftime in this game-to-5 setup.
         // Halftime resets the current-half timeout counts.
         val halftimeGoalTime = timestampAt(state, LocalTime.of(10, 20))
-        state = state.recordGoalFromCurrentState(VC, halftimeGoalTime)
+        val adjustedHalftimeGoalTime =
+            countdownSettings.adjustedCountdownStartEpoch(halftimeGoalTime)
+        state = state.recordGoalFromCurrentState(VC, adjustedHalftimeGoalTime)
         assertEquals(GamePhase.HALFTIME, state.phase)
         assertEquals(3, state.teamOne.score)
         assertEquals(1, state.teamTwo.score)
@@ -270,7 +279,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertEquals(CountdownKind.HALFTIME, state.countdown?.kind)
         assertEquals("Halftime", state.countdown?.label)
         assertEquals(420, state.countdown?.durationSeconds)
-        assertEquals(halftimeGoalTime + 420_000L, state.countdown?.targetEpoch)
+        assertEquals(halftimeGoalTime + 417_000L, state.countdown?.targetEpoch)
         assertEquals(0, state.teamOne.timeoutsUsedThisHalf)
         assertEquals(2, state.timeoutsAllowedThisHalf(VC))
         assertEquals(2, state.timeoutsRemaining(VC))
@@ -278,8 +287,8 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertEquals(2, state.timeoutsAllowedThisHalf(ANIMAL))
         assertEquals(2, state.timeoutsRemaining(ANIMAL))
         assertEquals("Undo Goal by Viscous Coupling", state.undoEntry?.label)
-        assertFalse(state.halftimeTransitionReady(halftimeGoalTime + 419_999L))
-        assertTrue(state.halftimeTransitionReady(halftimeGoalTime + 420_000L))
+        assertFalse(state.halftimeTransitionReady(halftimeGoalTime + 416_999L))
+        assertTrue(state.halftimeTransitionReady(halftimeGoalTime + 417_000L))
 
         // After halftime, Animal is pulling, since they received for the start of the game.
         assertEquals(ANIMAL, state.pullingTeam)

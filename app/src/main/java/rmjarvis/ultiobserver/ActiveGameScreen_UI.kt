@@ -269,10 +269,16 @@ internal fun ActiveGameScreen(
         moreActionsCategory = MoreActionsCategory.SETUP_CHANGES
         showMoreActionsDialog = true
     }
-    val onTimeout: (TeamId) -> Unit = { team ->
+    val onTimeout: (TeamId) -> Unit
+    onTimeout = { team ->
+        val requestedAt = System.currentTimeMillis()
         pendingTimeoutRequest = PendingTimeoutRequest(
             team,
-            System.currentTimeMillis(),
+            if (state.phase == GamePhase.LIVE_POINT) {
+                settings.adjustedCountdownStartEpoch(requestedAt)
+            } else {
+                requestedAt
+            },
         )
     }
     val onTimeViolation: (TeamId) -> Unit = { team ->
@@ -1232,7 +1238,7 @@ private fun PortraitActiveGameContent(
                 onStateChange(
                     state.recordGoalFromCurrentState(
                         team,
-                        System.currentTimeMillis(),
+                        settings.adjustedCountdownStartEpoch(System.currentTimeMillis()),
                     )
                 )
             },
@@ -1451,7 +1457,7 @@ private fun LandscapeActiveGameContent(
                 onStateChange(
                     state.recordGoalFromCurrentState(
                         team,
-                        System.currentTimeMillis(),
+                        settings.adjustedCountdownStartEpoch(System.currentTimeMillis()),
                     )
                 )
             },

@@ -184,6 +184,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         setRuleGuidanceMode(RuleGuidanceMode.FULL)
         setAutomaticallyAdvanceCountdowns(true)
         setAutomaticallyLockLivePoint(true)
+        setNewCountdownAdvanceSettings(enabled = false, seconds = 3)
 
         // Timeout during a live point starts a timeout countdown.
         // Note -- the clock starts when the timeout button is pressed, not when the dialog

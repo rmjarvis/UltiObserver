@@ -576,6 +576,14 @@ class TestMigration : GameDomainTestFixtures() {
         )
         assertEquals(expectedSettings.showDefenseCountdowns, viewModel.settings.showDefenseCountdowns)
         assertEquals(
+            expectedSettings.automaticallyAdvanceNewCountdowns,
+            viewModel.settings.automaticallyAdvanceNewCountdowns,
+        )
+        assertEquals(
+            expectedSettings.newCountdownAdvanceSeconds,
+            viewModel.settings.newCountdownAdvanceSeconds,
+        )
+        assertEquals(
             expectedSettings.showAbbaRatioAsSequence,
             viewModel.settings.showAbbaRatioAsSequence,
         )

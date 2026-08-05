@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
 private enum class GenderRatioBadgeColorTarget(
@@ -193,6 +194,58 @@ internal fun SettingsScreen(
                 },
                 testTag = "settings-show-defense-countdowns",
             )
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                val secondsLabel = if (settings.newCountdownAdvanceSeconds == 1) {
+                    "second"
+                } else {
+                    "seconds"
+                }
+                SettingsSwitchWithNote(
+                    label = "Automatically advance countdowns by a few seconds?",
+                    note = if (settings.automaticallyAdvanceNewCountdowns) {
+                        "Countdowns after a goal or in-point timeout will automatically begin " +
+                        "with ${settings.newCountdownAdvanceSeconds} $secondsLabel already " +
+                        "elapsed to account for the time it takes to open your phone and " +
+                        "press the button."
+                    } else {
+                        "Countdowns start when you press the relevant button, and they take the " +
+                        "full time."
+                    },
+                    checked = settings.automaticallyAdvanceNewCountdowns,
+                    onCheckedChange = {
+                        onSettingsChange(settings.withAutomaticallyAdvanceNewCountdowns(it))
+                    },
+                    testTag = "settings-advance-new-countdowns",
+                )
+                if (settings.automaticallyAdvanceNewCountdowns) {
+                    Text(
+                        text = "Seconds already elapsed: " +
+                            settings.newCountdownAdvanceSeconds,
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Slider(
+                        value = settings.newCountdownAdvanceSeconds.toFloat(),
+                        onValueChange = { value ->
+                            onSettingsChange(
+                                settings.withNewCountdownAdvanceSeconds(value.roundToInt())
+                            )
+                        },
+                        valueRange = 1f..MAX_NEW_COUNTDOWN_ADVANCE_SECONDS.toFloat(),
+                        steps = MAX_NEW_COUNTDOWN_ADVANCE_SECONDS - 2,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("settings-new-countdown-advance-seconds"),
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text("1")
+                        Text(MAX_NEW_COUNTDOWN_ADVANCE_SECONDS.toString())
+                    }
+                }
+            }
 
             HorizontalDivider()
 

@@ -117,6 +117,17 @@ Show defense countdowns?
     using visible arm chops, rather than a stopwatch. However, if you would prefer to have the
     defense countdown handled by the app, set this option to **Yes**.
 
+Automatically advance countdowns by a few seconds?
+    During a live point, you would normally keep your phone in a pocket, so when it's time to
+    press Goal or Timeout, it takes a few seconds to get the phone out, unlock it, and then
+    press the button.
+    If you want to account for this time, you can estimate how long it normally takes you to
+    do this, and provide that value here to be already elapsed on the countdown when you start it.
+    The default is to not advance the countdown at all -- the time starts at the moment you
+    press the button, and it takes the full amount of time.
+    If you enable this feature, the countdown will start with the given number of seconds
+    already elapsed. You may choose any amount from 1 to 10 seconds.
+
 Gender Ratio Indicator
 ^^^^^^^^^^^^^^^^^^^^^^
 

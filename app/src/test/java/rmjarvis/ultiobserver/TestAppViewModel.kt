@@ -428,6 +428,42 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertEquals(emptyList<String>(), blankProfileViewModel.setupGame.observerNames)
     }
 
+    /** Verify the countdown-advancement setting defaults, updates, and allowed values. */
+    @Test
+    fun countdownAdvancementSetting() {
+        // The setting defaults off while retaining three seconds for when it is enabled.
+        val viewModel = AppViewModel(NoOpAppStateStorage)
+        assertFalse(viewModel.settings.automaticallyAdvanceNewCountdowns)
+        assertEquals(3, viewModel.settings.newCountdownAdvanceSeconds)
+        assertEquals(
+            1_000_000L,
+            viewModel.settings.adjustedCountdownStartEpoch(1_000_000L),
+        )
+
+        // Both parts of the setting can be updated through the ViewModel.
+        viewModel.updateSettings(
+            viewModel.settings.withAutomaticallyAdvanceNewCountdowns(true)
+        )
+        viewModel.updateSettings(viewModel.settings.withNewCountdownAdvanceSeconds(10))
+        assertTrue(viewModel.settings.automaticallyAdvanceNewCountdowns)
+        assertEquals(10, viewModel.settings.newCountdownAdvanceSeconds)
+
+        // The upshot of the 10 second advancement is that goal and timeout presses
+        // are taken to have been pressed 10 seconds previous to the actual press time.
+        assertEquals(
+            990_000L,
+            viewModel.settings.adjustedCountdownStartEpoch(1_000_000L),
+        )
+
+        // Values outside the range exposed by Settings are rejected.
+        assertThrows(IllegalArgumentException::class.java) {
+            viewModel.settings.withNewCountdownAdvanceSeconds(0)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            viewModel.settings.withNewCountdownAdvanceSeconds(11)
+        }
+    }
+
     /**
      * Verify restoring timing cue defaults resets cue-level preferences while preserving
      * global sound and vibration settings.

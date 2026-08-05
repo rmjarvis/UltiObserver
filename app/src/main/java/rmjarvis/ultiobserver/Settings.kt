@@ -5,6 +5,9 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 
+internal const val DEFAULT_NEW_COUNTDOWN_ADVANCE_SECONDS = 3
+internal const val MAX_NEW_COUNTDOWN_ADVANCE_SECONDS = 10
+
 /// Per-cue alert choice before the global alert mode is applied.
 @Serializable
 enum class TimingAlertMode {
@@ -418,6 +421,10 @@ internal fun OrientationPreference.displayFor(
  * @param automaticallyAdvanceCountdowns Whether expired countdowns should drive model transitions.
  * @param automaticallyLockLivePoint Whether automatic live-point entry should lock the live screen.
  * @param showDefenseCountdowns Whether timeout offense-set expirations wait for defense.
+ * @param automaticallyAdvanceNewCountdowns Whether newly started countdowns should compensate for
+ * the delay before the observer presses the relevant button.
+ * @param newCountdownAdvanceSeconds How many seconds should already be elapsed when an adjusted
+ * countdown begins.
  * @param showAbbaRatioAsSequence Whether ABBA field badges should show sequence shorthand.
  * @param fourMenThreeWomenBadgeColorArgb Background color for 4M/3W field badges.
  * @param fourWomenThreeMenBadgeColorArgb Background color for 4W/3M field badges.
@@ -430,6 +437,8 @@ internal data class Settings(
     val automaticallyAdvanceCountdowns: Boolean = true,
     val automaticallyLockLivePoint: Boolean = true,
     val showDefenseCountdowns: Boolean = false,
+    val automaticallyAdvanceNewCountdowns: Boolean = false,
+    val newCountdownAdvanceSeconds: Int = DEFAULT_NEW_COUNTDOWN_ADVANCE_SECONDS,
     val showAbbaRatioAsSequence: Boolean = true,
     val fourMenThreeWomenBadgeColorArgb: Long = TeamColorChoice.BLUE.accentArgb,
     val fourWomenThreeMenBadgeColorArgb: Long = TeamColorChoice.RED.accentArgb,
@@ -470,6 +479,34 @@ internal data class Settings(
      */
     fun withShowDefenseCountdowns(showDefenseCountdowns: Boolean): Settings {
         return copy(showDefenseCountdowns = showDefenseCountdowns)
+    }
+
+    /**
+     * Return these settings with automatic advancement of newly started countdowns replaced.
+     *
+     * @param automaticallyAdvance Whether supported countdowns should begin partly elapsed.
+     */
+    fun withAutomaticallyAdvanceNewCountdowns(automaticallyAdvance: Boolean): Settings {
+        return copy(automaticallyAdvanceNewCountdowns = automaticallyAdvance)
+    }
+
+    /**
+     * Return these settings with the advancement for newly started countdowns replaced.
+     *
+     * @param seconds The number of seconds already elapsed, from one through ten.
+     */
+    fun withNewCountdownAdvanceSeconds(seconds: Int): Settings {
+        require(seconds in 1..MAX_NEW_COUNTDOWN_ADVANCE_SECONDS)
+        return copy(newCountdownAdvanceSeconds = seconds)
+    }
+
+    /// Adjust a button-press epoch as though the observer pressed it the configured time earlier.
+    fun adjustedCountdownStartEpoch(now: Long): Long {
+        return if (automaticallyAdvanceNewCountdowns) {
+            now - newCountdownAdvanceSeconds * 1_000L
+        } else {
+            now
+        }
     }
 
     /**

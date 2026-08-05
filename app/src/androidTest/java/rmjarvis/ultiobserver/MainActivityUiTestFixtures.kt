@@ -870,6 +870,17 @@ abstract class MainActivityUiTestFixtures {
         composeRule.waitForIdle()
     }
 
+    /** Establish the automatic advancement used for newly started countdowns. */
+    protected fun setNewCountdownAdvanceSettings(enabled: Boolean, seconds: Int) {
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val settings = activity.appViewModel.settings
+                .withAutomaticallyAdvanceNewCountdowns(enabled)
+                .withNewCountdownAdvanceSeconds(seconds)
+            activity.appViewModel.updateSettings(settings)
+        }
+        composeRule.waitForIdle()
+    }
+
     /**
      * Establish whether ABBA field badges should use sequence shorthand.
      *

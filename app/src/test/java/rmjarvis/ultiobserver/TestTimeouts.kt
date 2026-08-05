@@ -224,7 +224,11 @@ class TestTimeouts : GameDomainTestFixtures() {
         val livePointState = createLiveGameState(
             setupWithRules(timeoutRules(timeoutsPerHalf = 1, hasFloaterTimeout = false))
         ).beginLivePoint()
-        val timeoutResult = livePointState.assessTimeout(VC, 1_000_000L)
+        val countdownSettings = Settings()
+            .withAutomaticallyAdvanceNewCountdowns(true)
+        val timeoutButtonTime = 1_000_000L
+        val adjustedTimeoutTime = countdownSettings.adjustedCountdownStartEpoch(timeoutButtonTime)
+        val timeoutResult = livePointState.assessTimeout(VC, adjustedTimeoutTime)
         assertEquals(
             "Timeout charged to Viscous Coupling. They have 0 timeouts remaining in this half.",
             timeoutResult.message(),
@@ -236,7 +240,12 @@ class TestTimeouts : GameDomainTestFixtures() {
         assertEquals(CountdownKind.TIME_OUT, timeoutCountdownState.countdown?.kind)
         assertEquals("Offense set in", timeoutCountdownState.countdown?.label)
         assertEquals(70, timeoutCountdownState.countdown?.durationSeconds)
-        assertEquals(1_070_000L, timeoutCountdownState.countdown?.targetEpoch)
+        assertEquals(1_067_000L, timeoutCountdownState.countdown?.targetEpoch)
+        assertEquals(
+            timeoutButtonTime - 3_000L,
+            timeoutCountdownState.eventLog.last { it.type == EventLogType.TIMEOUT }.timestampEpoch,
+        )
+        val timeoutEnd = timeoutCountdownState.countdown!!.targetEpoch
 
         // Custom timeout duration controls live-point offense-set timing too.
         val customLivePointState = createLiveGameState(
@@ -259,12 +268,12 @@ class TestTimeouts : GameDomainTestFixtures() {
         assertEquals(
             timeoutCountdownState,
             timeoutCountdownState.applyExpiredCountdownTransitions(
-                1_070_000L - 1L,
+                timeoutEnd - 1L,
                 showDefenseCountdowns = false,
             ),
         )
         val continuedState = timeoutCountdownState.applyExpiredCountdownTransitions(
-            1_070_000L,
+            timeoutEnd,
             showDefenseCountdowns = false,
         )
         assertEquals(GamePhase.LIVE_POINT, continuedState.phase)
@@ -279,37 +288,41 @@ class TestTimeouts : GameDomainTestFixtures() {
         assertEquals(
             explicitTimeoutDefenseState,
             explicitTimeoutDefenseState.applyExpiredCountdownTransitions(
-                now = 1_070_000L,
+                now = timeoutEnd,
                 showDefenseCountdowns = true,
             ),
         )
 
         // If the user presses Offense is set before the full time, the defense still has a
         // full 90 seconds from the start of the timeout until they need to be set.
-        val earlyOffenseSetState = explicitTimeoutDefenseState.reportOffenseSet(1_060_000L)
+        val earlyOffenseSetState = explicitTimeoutDefenseState.reportOffenseSet(
+            timeoutEnd - 10_000L
+        )
         assertEquals(CountdownKind.DEFENSE_CHECK, earlyOffenseSetState.countdown?.kind)
         assertEquals("Defense check in", earlyOffenseSetState.countdown?.label)
         assertEquals(30, earlyOffenseSetState.countdown?.durationSeconds)
-        assertEquals(1_090_000L, earlyOffenseSetState.countdown?.targetEpoch)
+        assertEquals(timeoutEnd + 20_000L, earlyOffenseSetState.countdown?.targetEpoch)
 
         // If the offense is a little late getting set, the defense has 20 seconds from
         // when the offense is set.
-        val lateOffenseSetState = explicitTimeoutDefenseState.reportOffenseSet(1_075_000L)
+        val lateOffenseSetState = explicitTimeoutDefenseState.reportOffenseSet(
+            timeoutEnd + 5_000L
+        )
         assertEquals(CountdownKind.DEFENSE_CHECK, lateOffenseSetState.countdown?.kind)
         assertEquals(20, lateOffenseSetState.countdown?.durationSeconds)
-        assertEquals(1_095_000L, lateOffenseSetState.countdown?.targetEpoch)
+        assertEquals(timeoutEnd + 25_000L, lateOffenseSetState.countdown?.targetEpoch)
 
         // At the end of the defense countdown, the state transitions to live play
         // with no countdown.
         assertEquals(
             lateOffenseSetState,
             lateOffenseSetState.applyExpiredCountdownTransitions(
-                now = 1_095_000L - 1L,
+                now = timeoutEnd + 25_000L - 1L,
                 showDefenseCountdowns = true,
             ),
         )
         val expiredDefenseCountdownState = lateOffenseSetState.applyExpiredCountdownTransitions(
-            now = 1_095_000L,
+            now = timeoutEnd + 25_000L,
             showDefenseCountdowns = true,
         )
         assertEquals(GamePhase.LIVE_POINT, expiredDefenseCountdownState.phase)

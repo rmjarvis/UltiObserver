@@ -3,6 +3,7 @@ package rmjarvis.ultiobserver
 import android.app.Activity
 import android.app.Instrumentation
 import android.content.Intent
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -22,6 +23,7 @@ import androidx.compose.ui.test.percentOffset
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -855,6 +857,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         setRuleGuidanceMode(RuleGuidanceMode.FULL)
         setAutomaticallyAdvanceCountdowns(true)
         setAutomaticallyLockLivePoint(true)
+        setNewCountdownAdvanceSettings(enabled = false, seconds = 3)
         setShowAbbaRatioAsSequence(true)
         setPortraitOrientationPreference()
 
@@ -972,6 +975,47 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             "You should count the time for the defensive check yourself with arm chops.",
             substring = true,
         )
+
+        // New countdowns take their full time by default. Enabling the adjustment reveals its
+        // discrete one-to-ten-second slider, whose value is retained when the setting is toggled.
+        composeRule.onNodeWithTag("settings-advance-new-countdowns").performScrollTo()
+        composeRule.onNodeWithTag("settings-advance-new-countdowns-value")
+            .assertTextEquals("No")
+        waitForText(
+            "Countdowns start when you press the relevant button, and they take the full time."
+        )
+        composeRule.onAllNodesWithTag("settings-new-countdown-advance-seconds")
+            .assertCountEquals(0)
+        composeRule.onNodeWithTag("settings-advance-new-countdowns").performClick()
+        composeRule.onNodeWithTag("settings-advance-new-countdowns-value")
+            .assertTextEquals("Yes")
+        composeRule.onNodeWithTag("settings-new-countdown-advance-seconds")
+            .performSemanticsAction(SemanticsActions.SetProgress) { setProgress ->
+                setProgress(1f)
+            }
+        waitForText(
+            "Countdowns after a goal or in-point timeout will automatically begin with 1 " +
+                "second already elapsed to account for the time it takes to open your phone " +
+                "and press the button."
+        )
+        composeRule.onNodeWithTag("settings-new-countdown-advance-seconds")
+            .performSemanticsAction(SemanticsActions.SetProgress) { setProgress ->
+                setProgress(10f)
+            }
+        waitForText(
+            "Countdowns after a goal or in-point timeout will automatically begin with 10 " +
+                "seconds already elapsed to account for the time it takes to open your phone " +
+                "and press the button."
+        )
+        composeRule.onNodeWithTag("settings-new-countdown-advance-seconds")
+            .performSemanticsAction(SemanticsActions.SetProgress) { setProgress ->
+                setProgress(3f)
+            }
+        composeRule.onNodeWithTag("settings-advance-new-countdowns").performClick()
+        composeRule.onAllNodesWithTag("settings-new-countdown-advance-seconds")
+            .assertCountEquals(0)
+        composeRule.onNodeWithTag("settings-advance-new-countdowns").performClick()
+        waitForText("Seconds already elapsed: 3")
 
         // The default gender ratio badge for ABBA is to show the sequence M2, W1, W2, M1, M2...
         // or vice versa. The next setting can switch this to just the current ratio.

@@ -62,6 +62,8 @@ class TestPersistence : GameDomainTestFixtures() {
         updateSettings { it.withAutomaticallyAdvanceCountdowns(false) }
         updateSettings { it.withAutomaticallyLockLivePoint(false) }
         updateSettings { it.withShowDefenseCountdowns(true) }
+        updateSettings { it.withAutomaticallyAdvanceNewCountdowns(true) }
+        updateSettings { it.withNewCountdownAdvanceSeconds(4) }
         updateSettings { it.withShowAbbaRatioAsSequence(false) }
         updateSettings {
             it.withGenderRatioBadgeColor(
@@ -138,6 +140,8 @@ class TestPersistence : GameDomainTestFixtures() {
         assertFalse(restored.settings.automaticallyAdvanceCountdowns)
         assertFalse(restored.settings.automaticallyLockLivePoint)
         assertTrue(restored.settings.showDefenseCountdowns)
+        assertTrue(restored.settings.automaticallyAdvanceNewCountdowns)
+        assertEquals(4, restored.settings.newCountdownAdvanceSeconds)
         assertFalse(restored.settings.showAbbaRatioAsSequence)
         assertEquals(
             TeamColorChoice.BLACK.accentArgb,
