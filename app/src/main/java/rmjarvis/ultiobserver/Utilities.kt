@@ -6,7 +6,7 @@ import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.max
 
-private val CLOCK_TIME_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("h:mm a")
+internal val CLOCK_TIME_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("h:mm a")
 private val START_DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("MMMM d, yyyy")
 private val COMPACT_START_DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("M/d/yy")
 

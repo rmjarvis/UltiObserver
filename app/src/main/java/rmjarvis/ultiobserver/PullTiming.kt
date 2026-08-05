@@ -311,7 +311,7 @@ internal fun GameState.expiredPullDecisionState(): GameState {
  * violations skip the pull and show field-position guidance.
  *
  * @param team The team that violated the pull-readiness or pull-timing requirement.
- * @param now The epoch millis used to start any resulting countdown.
+ * @param now The current phone epoch millis.
  */
 fun GameState.assessTimeViolation(team: TeamId, now: Long): TimeViolationAssessmentResult {
     if (!this.canAssessTimeViolation()) {
@@ -413,7 +413,7 @@ private fun GameState.recordTimeViolationWarning(team: TeamId, now: Long): GameS
         ),
     ).withEventLogEntry(
         EventLogEntry(
-            timestampEpoch = now,
+            timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
             type = EventLogType.TIME_VIOLATION,
             team = team,
             timeViolationOutcome = TimeViolationOutcome.WARNING,
@@ -475,7 +475,7 @@ private fun GameState.recordTimeViolationTimeout(team: TeamId, now: Long): GameS
         ),
     ).withEventLogEntry(
         EventLogEntry(
-            timestampEpoch = now,
+            timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
             type = EventLogType.TIME_VIOLATION,
             team = team,
             timeViolationOutcome = TimeViolationOutcome.TIMEOUT,
@@ -574,7 +574,7 @@ private fun GameState.recordTimeViolationWithoutTimeout(team: TeamId, now: Long)
         pullSkippedForCurrentPoint = true,
     ).withEventLogEntry(
         EventLogEntry(
-            timestampEpoch = now,
+            timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
             type = EventLogType.TIME_VIOLATION,
             team = team,
             timeViolationOutcome = TimeViolationOutcome.NO_TIMEOUT,

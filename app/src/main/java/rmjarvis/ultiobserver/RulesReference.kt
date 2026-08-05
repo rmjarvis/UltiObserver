@@ -87,7 +87,7 @@ private fun GameState.capReferenceItem(
     }
     return RulesReferenceItem(
         capType.label,
-        formatClockTime(localTimeFromEpoch(capEpoch(capType), timeZone)),
+        formatOfficialGameTime(capEpoch(capType)),
         heatAdjusted = !rules.nominalCapEnabled(capType) ||
             rules.nominalCapMinutes(capType) != rules.capMinutes(capType),
     )

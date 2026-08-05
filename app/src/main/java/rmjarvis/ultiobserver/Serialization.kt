@@ -14,6 +14,10 @@ import kotlinx.serialization.Serializable
  * This stores the current state directly and represents history with the patch-chain
  * serialization described in `SerializedUndoEntry`.
  *
+ * The root state's official-clock offset applies to the entire serialized history. Historical
+ * states are normalized to that offset before serialization because clock synchronization is not
+ * an undoable game action.
+ *
  * @param state The current state without undo or redo links.
  * @param undoEntry Patch chain that reconstructs the previous states from `state`.
  * @param redoEntry Optional redo state, also stored as serialized state.
@@ -451,10 +455,19 @@ internal data class TeamStatePatch(
 
 /// Convert a game state and its history to serialized state.
 internal fun GameState.toSerializedGameState(): SerializedGameState {
+    return toSerializedGameState(officialClockOffsetMillis)
+}
+
+/** Convert this state and its history using one clock mapping throughout the serialized graph. */
+private fun GameState.toSerializedGameState(currentOffsetMillis: Long): SerializedGameState {
+    val normalized = withOfficialClockOffset(currentOffsetMillis)
     return SerializedGameState(
-        state = withoutUndoRedo(),
-        undoEntry = undoEntry?.toSerializedUndoEntry(later = this),
-        redoEntry = redoEntry?.toSerializedGameState(),
+        state = normalized.withoutUndoRedo(),
+        undoEntry = normalized.undoEntry?.toSerializedUndoEntry(
+            later = normalized,
+            currentOffsetMillis = currentOffsetMillis,
+        ),
+        redoEntry = normalized.redoEntry?.toSerializedGameState(currentOffsetMillis),
     )
 }
 
@@ -462,15 +475,23 @@ internal fun GameState.toSerializedGameState(): SerializedGameState {
  * Convert an undo entry to serialized state.
  *
  * @param later The later state that owns this undo entry.
+ * @param currentOffsetMillis The root state's clock offset to apply throughout its history.
  */
-private fun UndoEntry.toSerializedUndoEntry(later: GameState): SerializedUndoEntry {
+private fun UndoEntry.toSerializedUndoEntry(
+    later: GameState,
+    currentOffsetMillis: Long,
+): SerializedUndoEntry {
+    val normalizedPrevious = previous.withOfficialClockOffset(currentOffsetMillis)
     return SerializedUndoEntry(
         label = label,
         patchToPrevious = GameStatePatch.fromLaterAndPrevious(
             later = later.withoutUndoRedo(),
-            previous = previous.withoutUndoRedo(),
+            previous = normalizedPrevious.withoutUndoRedo(),
         ),
-        previousUndoEntry = previous.undoEntry?.toSerializedUndoEntry(later = previous),
+        previousUndoEntry = normalizedPrevious.undoEntry?.toSerializedUndoEntry(
+            later = normalizedPrevious,
+            currentOffsetMillis = currentOffsetMillis,
+        ),
     )
 }
 

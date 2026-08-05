@@ -14,6 +14,7 @@ internal enum class AppScreen {
     HOME,
     ABOUT,
     PROFILE,
+    OFFICIAL_CLOCK,
     SETTINGS,
     TIMING_CUE_SETTINGS,
     ARCHIVED_GAMES,
@@ -327,6 +328,25 @@ internal class AppViewModel(
         persistSettingsState()
     }
 
+    /// Update the persisted official-clock offset and the current game's clock mapping.
+    fun updateOfficialClockOffset(updatedOffsetMillis: Long) {
+        if (updatedOffsetMillis == settings.officialClockOffsetMillis) {
+            return
+        }
+        _state.update {
+            it.copy(
+                settings = it.settings.copy(
+                    officialClockOffsetMillis = updatedOffsetMillis,
+                ),
+                currentGame = it.currentGame?.withOfficialClockOffset(updatedOffsetMillis),
+            )
+        }
+        persistSettingsState()
+        if (currentGame != null) {
+            persistCurrentGame()
+        }
+    }
+
     /// Clear the startup recovery notice after the user dismisses it.
     fun dismissStartupRecoveryNotice() {
         _state.update { it.copy(startupRecoveryNotice = null) }
@@ -340,6 +360,11 @@ internal class AppViewModel(
     /// Open the About screen.
     fun openAbout() {
         openScreen(AppScreen.ABOUT)
+    }
+
+    /// Open the official tournament clock screen.
+    fun openOfficialClock() {
+        openScreen(AppScreen.OFFICIAL_CLOCK)
     }
 
     /// Open the settings screen.
@@ -555,7 +580,9 @@ internal class AppViewModel(
         _state.update {
             it.copy(
                 archivedGames = updatedArchivedGames,
-                currentGame = archived,
+                currentGame = archived.withOfficialClockOffset(
+                    settings.officialClockOffsetMillis,
+                ),
                 setupEditDraft = null,
                 editingSavedSetupIndex = null,
                 viewingArchivedGame = null,
@@ -633,7 +660,9 @@ internal class AppViewModel(
         _state.update {
             it.copy(
                 archivedGames = updatedArchivedGames,
-                currentGame = savedSetup,
+                currentGame = savedSetup.withOfficialClockOffset(
+                    settings.officialClockOffsetMillis,
+                ),
                 setupEditDraft = null,
                 editingSavedSetupIndex = null,
                 viewingArchivedGame = null,
@@ -747,6 +776,7 @@ internal class AppViewModel(
                 archivedGames = updatedArchivedGames,
                 currentGame = newSetupGameState(
                     now = now,
+                    officialClockOffsetMillis = settings.officialClockOffsetMillis,
                     defaultsFrom = previousSetupDefaults,
                     defaultObserverName = profile.name,
                 ),

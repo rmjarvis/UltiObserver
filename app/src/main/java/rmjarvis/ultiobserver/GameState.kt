@@ -468,6 +468,7 @@ enum class CountdownKind {
  * Complete mutable state of one setup/live/completed game.
  *
  * @param endEpoch Epoch millis when the game ended, or null while active.
+ * @param officialClockOffsetMillis Offset added to phone time for official tournament display.
  * @param tournamentName Optional tournament name used in completed-game summaries.
  * @param division Optional division context for the game.
  * @param level Optional competition level for the game.
@@ -500,6 +501,7 @@ data class GameState(
     @Serializable(with = ZoneIdAsStringSerializer::class)
     val timeZone: ZoneId,
     val endEpoch: Long? = null,
+    val officialClockOffsetMillis: Long = 0L,
     val tournamentName: String,
     val division: GameDivision? = null,
     val level: String = "",
@@ -542,7 +544,7 @@ data class GameState(
 ) {
     /// Epoch millis for the scheduled game start.
     val startEpoch: Long
-        get() = epochTimestamp(startDate, startTime, timeZone)
+        get() = epochTimestamp(startDate, startTime, timeZone) - officialClockOffsetMillis
 
     /// Report whether game events have started after setup.
     fun hasStarted(): Boolean {
@@ -716,7 +718,7 @@ data class GameState(
         }
         val entries = listOf(
             EventLogEntry(
-                timestampEpoch = now,
+                timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
                 type = EventLogType.SCORE_ADJUSTED,
                 teamOneScore = adjustedTeamOneScore,
                 teamTwoScore = adjustedTeamTwoScore,

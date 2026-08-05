@@ -511,5 +511,5 @@ private fun GamePrompt.ApplyCap.isScheduledDuringHalftime(): Boolean {
 
 /// Format the scheduled clock time for an offered cap.
 private fun GamePrompt.ApplyCap.capClockTime(): String {
-    return formatClockTime(localTimeFromEpoch(state.capEpoch(capType), state.timeZone))
+    return state.formatOfficialGameTime(state.capEpoch(capType))
 }

@@ -62,7 +62,6 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.time.Duration
-import java.time.ZoneId
 
 private val TopEndZoneShape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
 private val BottomEndZoneShape = RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp)
@@ -184,7 +183,7 @@ internal fun SlideToConfirmControl(
 /**
  * Render the top status line showing the real clock and next relevant cap.
  *
- * @param now Current epoch millis for the local clock time to display.
+ * @param clockText Formatted official tournament clock time.
  * @param capStatus The next cap status, or null when all caps are passed or irrelevant.
  * @param allocatedHeight Vertical height allocated to this status line by its parent layout.
  * @param modifier Modifier controlling the status line's share of its parent.
@@ -193,14 +192,13 @@ internal fun SlideToConfirmControl(
  */
 @Composable
 internal fun StatusLine(
-    now: Long,
+    clockText: String,
     capStatus: CapStatus?,
     allocatedHeight: Dp,
     modifier: Modifier,
     pushCapToEnd: Boolean,
     onRulesReference: () -> Unit,
 ) {
-    val clockText = formatClockTime(localTimeFromEpoch(now, ZoneId.systemDefault()))
     val capLabel = capStatus?.label ?: ""
     val capCountdown = capStatus?.let { formatDuration(it.remaining) }
     val capText = listOfNotNull(capLabel, capCountdown).joinToString(" ")

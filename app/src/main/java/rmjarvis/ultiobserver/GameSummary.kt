@@ -53,14 +53,14 @@ private data class OrderedPlayerCardLine(
  * @receiver The completed game state to summarize.
  */
 internal fun GameState.gameOverSummaryText(): GameOverSummaryText {
-    val endTime = endEpoch?.let { localTimeFromEpoch(it, timeZone) }
+    val endTime = endEpoch?.let { formatOfficialGameTime(it) }
     return GameOverSummaryText(
         title = "Game summary",
         gameInformationLine = gameInformationSummaryLine(),
         observersLine = observersSummaryLine(),
         fieldLine = fieldSummaryLine(),
         startLine = "Start ${formatStartDate(startDate)} ${formatClockTime(startTime)}",
-        endLine = endTime?.let { "End time ${formatClockTime(it)}" },
+        endLine = endTime?.let { "End time $it" },
         scoreLines = winnerFirstTeams().map { team -> "${team.name} ${team.score}" },
     )
 }

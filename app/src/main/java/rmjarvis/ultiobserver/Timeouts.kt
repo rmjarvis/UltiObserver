@@ -47,7 +47,7 @@ fun GameState.adjustTimeouts(
         if (teamOneDelta != 0) {
             add(
                 EventLogEntry(
-                    timestampEpoch = now,
+                    timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
                     type = EventLogType.TIMEOUT,
                     team = TeamId.TEAM_ONE,
                     delta = teamOneDelta,
@@ -59,7 +59,7 @@ fun GameState.adjustTimeouts(
         if (teamTwoDelta != 0) {
             add(
                 EventLogEntry(
-                    timestampEpoch = now,
+                    timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
                     type = EventLogType.TIMEOUT,
                     team = TeamId.TEAM_TWO,
                     delta = teamTwoDelta,
@@ -83,7 +83,7 @@ fun GameState.adjustTimeouts(
  * This records another used timeout and reports whether the timeout was accepted or rejected.
  *
  * @param team The team requesting the timeout.
- * @param now The current epoch millis used to advance expired countdowns and start timeout timing.
+ * @param now The current phone epoch millis.
  */
 fun GameState.assessTimeout(
     team: TeamId,
@@ -108,7 +108,7 @@ fun GameState.assessTimeout(
  * Build confirmation details for a timeout request without changing game state.
  *
  * @param team The team requesting the timeout.
- * @param now The current epoch millis used to preview timeout eligibility.
+ * @param now The current phone epoch millis.
  */
 fun GameState.previewTimeout(
     team: TeamId,
@@ -138,7 +138,7 @@ fun GameState.canRequestTimeout(now: Long): Boolean {
  * before extending it.
  *
  * @param team The team whose used-timeout count should increase.
- * @param now The epoch millis used as the start of a live-point timeout countdown.
+ * @param now The phone epoch millis used as the countdown start and event time.
  */
 fun GameState.chargeTimeout(
     team: TeamId,
@@ -166,7 +166,7 @@ fun GameState.chargeTimeout(
         return applyBetweenPointsTimeout(updatedState, now)
             .withEventLogEntry(
                 EventLogEntry(
-                    timestampEpoch = now,
+                    timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
                     type = EventLogType.TIMEOUT,
                     team = team,
                 )
@@ -176,7 +176,7 @@ fun GameState.chargeTimeout(
     return applyLivePointTimeout(updatedState, now)
         .withEventLogEntry(
             EventLogEntry(
-                timestampEpoch = now,
+                timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
                 type = EventLogType.TIMEOUT,
                 team = team,
             )

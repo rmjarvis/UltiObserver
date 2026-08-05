@@ -31,22 +31,25 @@ enum class GameDivision(val displayText: String) {
 /**
  * Build a setup-phase game state for a new game.
  *
- * @param now The reference epoch millis for choosing the next half-hour start.
+ * @param now The phone-clock epoch millis used to choose the next official half-hour start.
+ * @param officialClockOffsetMillis Offset from phone time to the official clock.
  * @param defaultsFrom Previous game values to carry forward for repeated tournament assignments.
  * @param defaultObserverName Profile observer name to use as the first observer for a new game.
  */
 internal fun newSetupGameState(
     now: Long,
+    officialClockOffsetMillis: Long = 0L,
     defaultsFrom: GameState? = null,
     defaultObserverName: String = "",
 ): GameState {
     val timeZone = ZoneId.systemDefault()
-    val localNow = localDateTimeFromEpoch(now, timeZone)
-    val startTime = nextHalfHourFrom(localNow.toLocalTime())
-    val startDate = if (startTime.isBefore(localNow.toLocalTime())) {
-        localNow.toLocalDate().plusDays(1)
+    val officialNow = now + officialClockOffsetMillis
+    val officialLocalNow = localDateTimeFromEpoch(officialNow, timeZone)
+    val startTime = nextHalfHourFrom(officialLocalNow.toLocalTime())
+    val startDate = if (startTime.isBefore(officialLocalNow.toLocalTime())) {
+        officialLocalNow.toLocalDate().plusDays(1)
     } else {
-        localNow.toLocalDate()
+        officialLocalNow.toLocalDate()
     }
     return GameState(
         startDate = startDate,
@@ -75,6 +78,7 @@ internal fun newSetupGameState(
         openingPullingFromEnd = FieldEnd.FAR,
         phase = GamePhase.SETUP,
         countdown = null,
+        officialClockOffsetMillis = officialClockOffsetMillis,
     )
 }
 

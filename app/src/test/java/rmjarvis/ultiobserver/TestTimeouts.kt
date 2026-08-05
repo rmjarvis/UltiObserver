@@ -242,8 +242,11 @@ class TestTimeouts : GameDomainTestFixtures() {
         assertEquals(70, timeoutCountdownState.countdown?.durationSeconds)
         assertEquals(1_067_000L, timeoutCountdownState.countdown?.targetEpoch)
         assertEquals(
-            timeoutButtonTime - 3_000L,
-            timeoutCountdownState.eventLog.last { it.type == EventLogType.TIMEOUT }.timestampEpoch,
+            timeoutCountdownState.formatOfficialGameTime(
+                timeoutButtonTime - 3_000L,
+                EVENT_LOG_TIME_FORMATTER,
+            ),
+            timeoutCountdownState.eventLog.last { it.type == EventLogType.TIMEOUT }.timeText,
         )
         val timeoutEnd = timeoutCountdownState.countdown!!.targetEpoch
 

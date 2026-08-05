@@ -51,7 +51,7 @@ fun GameState.applyWaterBreak(now: Long): GameState {
         pendingWaterBreakOffer = false,
     ).withEventLogEntry(
         EventLogEntry(
-            timestampEpoch = now,
+            timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
             type = EventLogType.WATER_BREAK,
             delta = rules.waterBreakMinutes,
         )
@@ -197,7 +197,7 @@ fun GameState.setHeatGuidance(
         },
     ).withEventLogEntry(
         EventLogEntry(
-            timestampEpoch = now,
+            timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
             type = EventLogType.HEAT_LEVEL,
             heatLevel = newHeatLevel,
             useAirQualityGuidelines = useAirQualityGuidelines,

@@ -1461,6 +1461,7 @@ private fun pickerTimestampToDate(timestamp: Long): LocalDate {
  * @param modifier Optional layout modifier.
  * @param size Button size.
  * @param iconSize Icon size.
+ * @param iconColor Optional explicit icon color.
  * @param tag Optional test tag.
  * @param onClick Callback invoked when the icon is tapped.
  */
@@ -1471,6 +1472,7 @@ internal fun IconActionButton(
     modifier: Modifier = Modifier,
     size: Dp = 36.dp,
     iconSize: Dp = 20.dp,
+    iconColor: Color? = null,
     tag: String? = null,
     onClick: () -> Unit,
 ) {
@@ -1484,6 +1486,7 @@ internal fun IconActionButton(
             imageVector = icon,
             contentDescription = contentDescription,
             modifier = Modifier.size(iconSize),
+            tint = iconColor ?: LocalContentColor.current,
         )
     }
 }

@@ -65,6 +65,7 @@ class TestPersistence : GameDomainTestFixtures() {
         updateSettings { it.withAutomaticallyAdvanceNewCountdowns(true) }
         updateSettings { it.withNewCountdownAdvanceSeconds(4) }
         updateSettings { it.withShowAbbaRatioAsSequence(false) }
+        updateSettings { it.copy(officialClockOffsetMillis = -44_800L) }
         updateSettings {
             it.withGenderRatioBadgeColor(
                 GenderRatio.FOUR_MEN_THREE_WOMEN,
@@ -122,6 +123,8 @@ class TestPersistence : GameDomainTestFixtures() {
         assertEquals(AppScreen.ARCHIVED_GAMES, viewModel.screen)
         viewModel.openAbout()
         assertEquals(AppScreen.ABOUT, viewModel.screen)
+        viewModel.openOfficialClock()
+        assertEquals(AppScreen.OFFICIAL_CLOCK, viewModel.screen)
         assertTrue(File(storeDir, "profile.json").exists())
         assertTrue(File(storeDir, "settings.json").exists())
 
@@ -143,6 +146,7 @@ class TestPersistence : GameDomainTestFixtures() {
         assertTrue(restored.settings.automaticallyAdvanceNewCountdowns)
         assertEquals(4, restored.settings.newCountdownAdvanceSeconds)
         assertFalse(restored.settings.showAbbaRatioAsSequence)
+        assertEquals(-44_800L, restored.settings.officialClockOffsetMillis)
         assertEquals(
             TeamColorChoice.BLACK.accentArgb,
             restored.settings.fourMenThreeWomenBadgeColorArgb,
@@ -185,6 +189,7 @@ class TestPersistence : GameDomainTestFixtures() {
         val viewModel = AppViewModel(store)
 
         // A fresh ViewModel should keep a setup draft but open at Home.
+        viewModel.updateOfficialClockOffset(45_000L)
         viewModel.startNewGame(now = 123_000L)
         val persistedRules = GameRules(gameTo = 13, nominalHardCapMinutes = 95, hasFloaterTimeout = true)
         val draftedSetup = viewModel.setupGame.copy(
@@ -199,6 +204,7 @@ class TestPersistence : GameDomainTestFixtures() {
         assertEquals(persistedRules, draftRestored.setupGame.rules)
         assertTrue(draftRestored.hasSetupDraft)
         assertEquals(GamePhase.SETUP, draftRestored.currentGame?.phase)
+        assertEquals(45_000L, draftRestored.currentGame?.officialClockOffsetMillis)
         draftRestored.resumeCurrentGame()
         assertEquals(AppScreen.SETUP, draftRestored.screen)
 
@@ -233,6 +239,50 @@ class TestPersistence : GameDomainTestFixtures() {
         val redoRestored = AppViewModel(FileAppStateStorage(storeDir))
         assertEquals(undoRestoredState, redoRestored.currentGame)
         assertEquals(scoredState, redoRestored.currentGame!!.redoLastAction())
+    }
+
+    /** Verify persisted undo history can adopt a newer current-game clock mapping. */
+    @Test
+    fun officialClockUndoPersistence() {
+        // Start the first point so undo history contains the opening state and its pre-game
+        // countdown target.
+        val storeDir = temporaryFolder.newFolder()
+        val viewModel = AppViewModel(FileAppStateStorage(storeDir))
+        viewModel.startNewGame(now = 123_000L)
+        viewModel.finishSetup(now = 123_000L)
+        val opening = viewModel.currentGame!!
+        val openingTarget = opening.countdown!!.targetEpoch
+        viewModel.updateCurrentGame(opening.beginLivePoint(123_000L))
+
+        // Move the official clock forward while the point is live. This persists the new mapping
+        // on the current state without directly rewriting its undo history.
+        viewModel.updateOfficialClockOffset(60_000L)
+
+        // Restart the ViewModel from disk, then undo the point start to reconstruct the saved
+        // opening state from the serialized undo chain.
+        val restored = AppViewModel(FileAppStateStorage(storeDir))
+        val undone = restored.currentGame!!.undoLastAction()
+
+        // The reconstructed opening state adopts the current one-minute offset, including moving
+        // its phone-time countdown target one minute earlier.
+        assertEquals(60_000L, undone.officialClockOffsetMillis)
+        assertEquals(openingTarget - 60_000L, undone.countdown!!.targetEpoch)
+    }
+
+    /** Verify setting the clock to its existing offset does not rewrite persistence. */
+    @Test
+    fun unchangedOfficialClockPersistence() {
+        // The first offset change persists the new setting while there is no current game to save.
+        val store = RecordingAppStateStorage()
+        val viewModel = AppViewModel(store)
+        viewModel.updateOfficialClockOffset(45_000L)
+        assertEquals(45_000L, store.savedSettings.single().officialClockOffsetMillis)
+        assertTrue(store.savedCurrentGames.isEmpty())
+
+        // Sending the same offset again is a no-op rather than another settings write.
+        viewModel.updateOfficialClockOffset(45_000L)
+        assertEquals(1, store.savedSettings.size)
+        assertTrue(store.savedCurrentGames.isEmpty())
     }
 
     /**
@@ -339,6 +389,9 @@ class TestPersistence : GameDomainTestFixtures() {
 
         // Complete and archive a game that still has live-only countdown and undo state.
         viewModel.startNewGame(now = 123_000L)
+        viewModel.updateCurrentGame(
+            viewModel.currentGame!!.copy(officialClockOffsetMillis = 45_000L)
+        )
         viewModel.finishSetup(now = 123_000L)
         val beforeEndGame = viewModel.currentGame!!
         val completedGame = beforeEndGame.copy(
@@ -354,12 +407,18 @@ class TestPersistence : GameDomainTestFixtures() {
         ).withEventLogEntries(
             listOf(
                 EventLogEntry(
-                    timestampEpoch = beforeEndGame.startEpoch,
+                    timeText = beforeEndGame.formatOfficialGameTime(
+                        beforeEndGame.startEpoch,
+                        EVENT_LOG_TIME_FORMATTER,
+                    ),
                     type = EventLogType.FIRST_PULL,
                     team = TeamId.TEAM_ONE,
                 ),
                 EventLogEntry(
-                    timestampEpoch = beforeEndGame.startEpoch + 60_000L,
+                    timeText = beforeEndGame.formatOfficialGameTime(
+                        beforeEndGame.startEpoch + 60_000L,
+                        EVENT_LOG_TIME_FORMATTER,
+                    ),
                     type = EventLogType.GOAL,
                     team = TeamId.TEAM_TWO,
                 ),
@@ -388,6 +447,7 @@ class TestPersistence : GameDomainTestFixtures() {
         )
         assertNull(restored.archivedGames.single().redoEntry)
         assertEquals(GamePhase.GAME_OVER, restored.archivedGames.single().phase)
+        assertEquals(45_000L, restored.archivedGames.single().officialClockOffsetMillis)
         assertEquals(completedGame.eventLog, restored.archivedGames.single().eventLog)
     }
 

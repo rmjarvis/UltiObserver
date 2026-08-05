@@ -15,6 +15,7 @@ import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.long
 
 /// Decoded persistence bucket and whether the stored JSON was migrated.
 internal data class PersistenceDecodeResult<T>(
@@ -207,7 +208,38 @@ private object V1_2ToV1_3 {
     private const val OLD_GRAY_ARGB = 0xFF708090L
 
     fun migrateGame(jsonElement: JsonElement): JsonElement {
-        return migrateGrayTeamColors(jsonElement)
+        if (jsonElement is JsonNull) {
+            return jsonElement
+        }
+        val migratedColors = migrateGrayTeamColors(jsonElement)
+        val gameObject = migratedColors.jsonObject
+        val stateObject = gameObject["state"]?.jsonObject
+        val timeZoneElement = stateObject?.getValue("timeZone")
+            ?: gameObject.getValue("timeZone")
+        val timeZone = ZoneId.of(timeZoneElement.jsonPrimitive.content)
+        return migrateEventLogTimes(migratedColors, timeZone)
+    }
+
+    private fun migrateEventLogTimes(jsonElement: JsonElement, timeZone: ZoneId): JsonElement {
+        return when (jsonElement) {
+            is JsonArray -> JsonArray(
+                jsonElement.map { value -> migrateEventLogTimes(value, timeZone) },
+            )
+            is JsonObject -> {
+                val migratedValues = jsonElement.mapValues { (_, value) ->
+                    migrateEventLogTimes(value, timeZone)
+                }.toMutableMap()
+                jsonElement["timestampEpoch"]?.let { timestampElement ->
+                    val epoch = timestampElement.jsonPrimitive.long
+                    migratedValues.remove("timestampEpoch")
+                    migratedValues["timeText"] = JsonPrimitive(
+                        localTimeFromEpoch(epoch, timeZone).format(EVENT_LOG_TIME_FORMATTER),
+                    )
+                }
+                JsonObject(migratedValues)
+            }
+            else -> jsonElement
+        }
     }
 
     private fun migrateGrayTeamColors(jsonElement: JsonElement): JsonElement {

@@ -881,6 +881,14 @@ abstract class MainActivityUiTestFixtures {
         composeRule.waitForIdle()
     }
 
+    /// Establish the official-clock offset for a test that depends on persisted clock state.
+    protected fun setOfficialClockOffset(offsetMillis: Long) {
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appViewModel.updateOfficialClockOffset(offsetMillis)
+        }
+        composeRule.waitForIdle()
+    }
+
     /**
      * Establish whether ABBA field badges should use sequence shorthand.
      *

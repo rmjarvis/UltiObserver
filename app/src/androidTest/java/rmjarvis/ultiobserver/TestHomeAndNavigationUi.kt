@@ -55,6 +55,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Settings").assertIsDisplayed()
         composeRule.onNodeWithText("See archived/saved games").assertIsDisplayed()
         composeRule.onNodeWithTag("home-about").assertIsDisplayed()
+        composeRule.onNodeWithTag("home-official-clock").assertIsDisplayed()
 
         // New game opens the setup screen.
         openNewGameSetup()
@@ -846,6 +847,51 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("about-screen").assertIsDisplayed()
         tapTopBarHome()
         waitForText("Start new game")
+    }
+
+    /**
+     * Test official-clock synchronization and its persistent Home status indicator.
+     */
+    @Test
+    fun officialClock() {
+        setOfficialClockOffset(0L)
+
+        // Home opens a full clock screen whose default state follows phone time.
+        composeRule.onNodeWithTag("home-official-clock").performClick()
+        composeRule.onNodeWithTag("official-clock-screen").assertIsDisplayed()
+        composeRule.onNodeWithTag("official-clock-time").assertIsDisplayed()
+        composeRule.onNodeWithTag("official-clock-offset").assertTextEquals("Using phone time")
+
+        // Minute buttons update in place and preserve seconds when reversed.
+        composeRule.onNodeWithTag("official-clock-plus-minute").performClick()
+        composeRule.onNodeWithTag("official-clock-offset").assertTextEquals(
+            "Official clock is 1 minute ahead of phone time"
+        )
+        composeRule.onNodeWithTag("official-clock-minus-minute").performClick()
+        composeRule.onNodeWithTag("official-clock-offset").assertTextEquals("Using phone time")
+
+        // Boundary synchronization creates an adjusted clock; returning Home exposes that state
+        // through the icon's accessibility description as well as its red color.
+        composeRule.onNodeWithTag("official-clock-nearest-minute").performClick()
+        composeRule.onNodeWithTag("official-clock-offset").assertTextContains(
+            "phone time",
+            substring = true,
+        )
+        composeRule.onNodeWithTag("official-clock-close").performClick()
+        composeRule.onNode(hasContentDescription("Official clock adjusted")).assertIsDisplayed()
+
+        // Reset returns to phone time, and top-bar Back returns to Home.
+        composeRule.onNodeWithTag("home-official-clock").performClick()
+        composeRule.onNodeWithTag("official-clock-reset").performClick()
+        composeRule.onNodeWithTag("official-clock-offset").assertTextEquals("Using phone time")
+        tapTopBarBack()
+        composeRule.onNode(hasContentDescription("Official clock")).assertIsDisplayed()
+
+        // The Official clock top-bar Home button also returns directly to Home.
+        composeRule.onNodeWithTag("home-official-clock").performClick()
+        composeRule.onNodeWithTag("official-clock-screen").assertIsDisplayed()
+        tapTopBarHome()
+        composeRule.onNode(hasContentDescription("Official clock")).assertIsDisplayed()
     }
 
     /**

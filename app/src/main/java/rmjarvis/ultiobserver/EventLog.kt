@@ -6,7 +6,7 @@ import java.time.format.DateTimeFormatter
 import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.Serializable
 
-private val EVENT_LOG_TIME_FORMATTER = DateTimeFormatter.ofPattern("h:mm")
+internal val EVENT_LOG_TIME_FORMATTER = DateTimeFormatter.ofPattern("h:mm")
 private val CARD_LABELS = mapOf(
     EventLogType.YELLOW_CARD to "Yellow card",
     EventLogType.RED_CARD to "Red card",
@@ -47,7 +47,7 @@ enum class EventLogType {
 /**
  * Persisted event-log entry for a significant game event or manual correction.
  *
- * @param timestampEpoch Epoch millis for the event.
+ * @param timeText Persisted official-clock time formatted when the event is recorded.
  * @param type The kind of event recorded.
  * @param team The team most directly associated with the event, when applicable.
  * @param player The player identity for player-card entries.
@@ -60,7 +60,7 @@ enum class EventLogType {
  */
 @Serializable
 data class EventLogEntry(
-    val timestampEpoch: Long,
+    val timeText: String,
     val type: EventLogType,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val team: TeamId? = null,
@@ -94,10 +94,14 @@ internal fun GameState.withEventLogEntry(entry: EventLogEntry): GameState {
 /**
  * Return this state with multiple event-log entries appended.
  *
- * @param entries The event-log entries to append in display order.
+ * @param entries Entries to append in display order.
  */
 internal fun GameState.withEventLogEntries(entries: List<EventLogEntry>): GameState {
-    return if (entries.isEmpty()) this else copy(eventLog = eventLog + entries)
+    return if (entries.isEmpty()) {
+        this
+    } else {
+        copy(eventLog = eventLog + entries)
+    }
 }
 
 /**
@@ -115,8 +119,7 @@ internal fun GameState.firstPullLogTimestamp(now: Long): Long {
  * @param entry The entry to format.
  */
 fun GameState.formatEventLogLine(entry: EventLogEntry): String {
-    val time = localTimeFromEpoch(entry.timestampEpoch, timeZone).format(EVENT_LOG_TIME_FORMATTER)
-    return "$time  ${formatEventLogDescription(entry)}"
+    return "${entry.timeText}  ${formatEventLogDescription(entry)}"
 }
 
 /**

@@ -492,6 +492,7 @@ class TestMigration : GameDomainTestFixtures() {
         assertEquals(HeatLevel.LEVEL_1, activeState.rules.heatLevel)
         assertFalse(activeState.rules.useAirQualityGuidelines)
         assertEquals(4, activeState.rules.waterBreakMinutes)
+        assertEquals("1:45", activeState.eventLog.first().timeText)
         assertProfileAndSettings(
             activeGame,
             v1_1FixtureProfile(),

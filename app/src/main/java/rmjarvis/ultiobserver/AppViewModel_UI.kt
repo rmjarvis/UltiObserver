@@ -97,6 +97,10 @@ internal fun UltiObserverApp(
                 onOpenAbout = {
                     viewModel.openAbout()
                 },
+                onOpenOfficialClock = {
+                    viewModel.openOfficialClock()
+                },
+                officialClockAdjusted = appState.settings.officialClockOffsetMillis != 0L,
                 onOpenProfile = {
                     viewModel.openProfile()
                 },
@@ -112,6 +116,21 @@ internal fun UltiObserverApp(
         AppScreen.ABOUT -> {
             AboutScreen(
                 versionName = BuildConfig.VERSION_NAME,
+                onBackHome = {
+                    viewModel.goHome()
+                },
+                onHome = {
+                    viewModel.goHome()
+                },
+            )
+        }
+
+        AppScreen.OFFICIAL_CLOCK -> {
+            OfficialClockScreen(
+                currentOffsetMillis = appState.settings.officialClockOffsetMillis,
+                onOffsetChange = { updatedOffsetMillis ->
+                    viewModel.updateOfficialClockOffset(updatedOffsetMillis)
+                },
                 onBackHome = {
                     viewModel.goHome()
                 },

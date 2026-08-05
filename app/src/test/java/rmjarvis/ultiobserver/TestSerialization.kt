@@ -89,6 +89,14 @@ class TestSerialization : GameDomainTestFixtures() {
             later,
             SerializedGameState(state = later, undoEntry = null, redoEntry = null).restore(),
         )
+
+        // A clock change while the game is undone applies one current mapping to the serialized
+        // redo history rather than preserving the redo state's historical offset.
+        val resynchronizedUndone = undone.withOfficialClockOffset(60_000L)
+        val restoredResynchronized = resynchronizedUndone.toSerializedGameState().restore()
+        assertEquals(60_000L, restoredResynchronized.officialClockOffsetMillis)
+        assertEquals(60_000L, restoredResynchronized.redoEntry!!.officialClockOffsetMillis)
+        assertEquals(60_000L, restoredResynchronized.redoLastAction().officialClockOffsetMillis)
     }
 
     /**
@@ -270,9 +278,9 @@ class TestSerialization : GameDomainTestFixtures() {
                 playerRecordWithCards("12", reds = 1),
             ),
             eventLog = listOf(
-                EventLogEntry(timestampEpoch = 2_000L, type = EventLogType.FIRST_PULL),
+                EventLogEntry(timeText = "12:00", type = EventLogType.FIRST_PULL),
                 EventLogEntry(
-                    timestampEpoch = 3_000L,
+                    timeText = "12:01",
                     type = EventLogType.SCORE_ADJUSTED,
                     teamOneScore = 7,
                     teamTwoScore = 8,
@@ -374,7 +382,7 @@ class TestSerialization : GameDomainTestFixtures() {
             ),
             teamTwoPlayers = listOf(playerRecordWithCards("20", yellows = 1)),
             eventLog = listOf(
-                EventLogEntry(timestampEpoch = 1_000L, type = EventLogType.FIRST_PULL),
+                EventLogEntry(timeText = "11:59", type = EventLogType.FIRST_PULL),
             ),
             topDisplayedEnd = FieldEnd.FAR,
             pullPromptTarget = PullPromptTarget.NEITHER,

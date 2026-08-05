@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.WatchLater
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -112,6 +113,8 @@ internal fun HomeScreen(
     onArchiveCompletedGame: () -> Unit,
     onStartNewGame: () -> Unit,
     onOpenAbout: () -> Unit,
+    onOpenOfficialClock: () -> Unit,
+    officialClockAdjusted: Boolean,
     onOpenProfile: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenArchivedGames: () -> Unit,
@@ -316,6 +319,20 @@ internal fun HomeScreen(
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .padding(pagePadding)
+            )
+            IconActionButton(
+                icon = Icons.Filled.WatchLater,
+                contentDescription = if (officialClockAdjusted) {
+                    "Official clock adjusted"
+                } else {
+                    "Official clock"
+                },
+                iconColor = if (officialClockAdjusted) ResetColor else null,
+                tag = "home-official-clock",
+                onClick = onOpenOfficialClock,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(pagePadding),
             )
         }
     }

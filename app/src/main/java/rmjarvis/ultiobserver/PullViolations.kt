@@ -99,54 +99,55 @@ fun GameState.adjustPullViolations(
     val adjustedTeamTwoFalseStarts = teamTwoFalseStarts.coerceAtLeast(0)
     val adjustedTeamTwoMajorityPulls = teamTwoMajorityPulls.coerceAtLeast(0)
     val adjustedTeamTwoTimeViolations = teamTwoTimeViolations.coerceAtLeast(0)
+    val timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER)
     val entries = buildList {
         // this@adjustPullViolations is the GameState receiver; plain this is the list being built.
         addPullViolationDelta(
-            now = now,
+            timeText = timeText,
             team = TeamId.TEAM_ONE,
             violation = PullViolationType.OFFSIDES,
             delta = adjustedTeamOneOffsides - this@adjustPullViolations.teamOne.offsides,
         )
         addPullViolationDelta(
-            now = now,
+            timeText = timeText,
             team = TeamId.TEAM_ONE,
             violation = PullViolationType.FALSE_START,
             delta = adjustedTeamOneFalseStarts - this@adjustPullViolations.teamOne.falseStarts,
         )
         addPullViolationDelta(
-            now = now,
+            timeText = timeText,
             team = TeamId.TEAM_ONE,
             violation = PullViolationType.MAJORITY_PULL,
             delta = adjustedTeamOneMajorityPulls -
                 this@adjustPullViolations.teamOne.majorityPullViolations,
         )
         addTimeViolationDelta(
-            now = now,
+            timeText = timeText,
             team = TeamId.TEAM_ONE,
             delta = adjustedTeamOneTimeViolations -
                 this@adjustPullViolations.teamOne.timeViolations,
         )
         addPullViolationDelta(
-            now = now,
+            timeText = timeText,
             team = TeamId.TEAM_TWO,
             violation = PullViolationType.OFFSIDES,
             delta = adjustedTeamTwoOffsides - this@adjustPullViolations.teamTwo.offsides,
         )
         addPullViolationDelta(
-            now = now,
+            timeText = timeText,
             team = TeamId.TEAM_TWO,
             violation = PullViolationType.FALSE_START,
             delta = adjustedTeamTwoFalseStarts - this@adjustPullViolations.teamTwo.falseStarts,
         )
         addPullViolationDelta(
-            now = now,
+            timeText = timeText,
             team = TeamId.TEAM_TWO,
             violation = PullViolationType.MAJORITY_PULL,
             delta = adjustedTeamTwoMajorityPulls -
                 this@adjustPullViolations.teamTwo.majorityPullViolations,
         )
         addTimeViolationDelta(
-            now = now,
+            timeText = timeText,
             team = TeamId.TEAM_TWO,
             delta = adjustedTeamTwoTimeViolations -
                 this@adjustPullViolations.teamTwo.timeViolations,
@@ -327,7 +328,7 @@ fun GameState.recordOffsides(now: Long): GameState {
         pullSequenceOffsidesRecorded = true,
     ).withEventLogEntry(
         EventLogEntry(
-            timestampEpoch = now,
+            timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
             type = EventLogType.OFFSIDES,
             team = team,
         )
@@ -360,7 +361,7 @@ fun GameState.recordMajorityPullViolation(now: Long): GameState {
         pullSequenceOffsidesRecorded = true,
     ).withEventLogEntry(
         EventLogEntry(
-            timestampEpoch = now,
+            timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
             type = EventLogType.MAJORITY_PULL,
             team = team,
         )
@@ -387,7 +388,7 @@ fun GameState.recordFalseStart(now: Long): GameState {
         pullSequenceFalseStartRecorded = true,
     ).withEventLogEntry(
         EventLogEntry(
-            timestampEpoch = now,
+            timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
             type = EventLogType.FALSE_START,
             team = team,
         )
@@ -397,13 +398,13 @@ fun GameState.recordFalseStart(now: Long): GameState {
 /**
  * Add a pull-violation correction entry when a count changed.
  *
- * @param now The correction timestamp.
+ * @param timeText The formatted official-clock correction time.
  * @param team The team whose count changed.
  * @param violation The pull-violation count that changed.
  * @param delta The signed count change.
  */
 private fun MutableList<EventLogEntry>.addPullViolationDelta(
-    now: Long,
+    timeText: String,
     team: TeamId,
     violation: PullViolationType,
     delta: Int,
@@ -411,7 +412,7 @@ private fun MutableList<EventLogEntry>.addPullViolationDelta(
     if (delta != 0) {
         add(
             EventLogEntry(
-                timestampEpoch = now,
+                timeText = timeText,
                 type = violation.eventLogType(),
                 team = team,
                 delta = delta,
@@ -423,19 +424,19 @@ private fun MutableList<EventLogEntry>.addPullViolationDelta(
 /**
  * Add a time-violation correction entry when a count changed.
  *
- * @param now The correction timestamp.
+ * @param timeText The formatted official-clock correction time.
  * @param team The team whose time-violation count changed.
  * @param delta The signed count change.
  */
 private fun MutableList<EventLogEntry>.addTimeViolationDelta(
-    now: Long,
+    timeText: String,
     team: TeamId,
     delta: Int,
 ) {
     if (delta != 0) {
         add(
             EventLogEntry(
-                timestampEpoch = now,
+                timeText = timeText,
                 type = EventLogType.TIME_VIOLATION,
                 team = team,
                 delta = delta,

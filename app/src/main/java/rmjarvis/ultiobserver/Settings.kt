@@ -428,6 +428,7 @@ internal fun OrientationPreference.displayFor(
  * @param showAbbaRatioAsSequence Whether ABBA field badges should show sequence shorthand.
  * @param fourMenThreeWomenBadgeColorArgb Background color for 4M/3W field badges.
  * @param fourWomenThreeMenBadgeColorArgb Background color for 4W/3M field badges.
+ * @param officialClockOffsetMillis Offset added to phone wall time for official tournament time.
  * @param timingAlerts User-configurable timing cue alert behavior.
  */
 @Serializable
@@ -442,6 +443,7 @@ internal data class Settings(
     val showAbbaRatioAsSequence: Boolean = true,
     val fourMenThreeWomenBadgeColorArgb: Long = TeamColorChoice.BLUE.accentArgb,
     val fourWomenThreeMenBadgeColorArgb: Long = TeamColorChoice.RED.accentArgb,
+    val officialClockOffsetMillis: Long = 0L,
     val timingAlerts: TimingAlertPreferences = TimingAlertPreferences(),
 ) {
     /// Return these settings with the active-game orientation preference replaced.

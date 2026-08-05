@@ -952,7 +952,7 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         // ... But not if there was already a water break taken earlier in the half.
         val withEarlierBreak = lateState.copy(
             eventLog = lateState.eventLog + EventLogEntry(
-                timestampEpoch = now,
+                timeText = "12:00",
                 type = EventLogType.WATER_BREAK,
                 delta = 3,
             )
@@ -970,8 +970,8 @@ class TestWaterBreaks : GameDomainTestFixtures() {
             halftimeTaken = true,
             halftimeHighScore = 8,
             eventLog = listOf(
-                EventLogEntry(now, EventLogType.WATER_BREAK, delta = 3),
-                EventLogEntry(now + 1_000L, EventLogType.HALFTIME),
+                EventLogEntry("12:00", EventLogType.WATER_BREAK, delta = 3),
+                EventLogEntry("12:01", EventLogType.HALFTIME),
             ),
         ).adjustScore(teamOneScore = 12, teamTwoScore = 8)
             .copy(phase = GamePhase.BETWEEN_POINTS)

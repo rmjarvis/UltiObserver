@@ -673,26 +673,55 @@ private fun GameState.buildCardAndTfAdjustmentEntries(
     teamTwoPlayers: List<PlayerRecord>,
     now: Long,
 ): List<EventLogEntry> {
+    val timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER)
     return buildList {
-        addCardCountDelta(now, TeamId.TEAM_ONE, EventLogType.BLUE_CARD, teamOneBlues - teamOne.blueCards)
-        addTechnicalFoulDelta(now, TeamId.TEAM_ONE, teamOneTechnicalFouls - teamOne.technicalFouls)
-        addPlayerCardDeltas(now, TeamId.TEAM_ONE, this@buildCardAndTfAdjustmentEntries.teamOnePlayers, teamOnePlayers)
-        addCardCountDelta(now, TeamId.TEAM_TWO, EventLogType.BLUE_CARD, teamTwoBlues - teamTwo.blueCards)
-        addTechnicalFoulDelta(now, TeamId.TEAM_TWO, teamTwoTechnicalFouls - teamTwo.technicalFouls)
-        addPlayerCardDeltas(now, TeamId.TEAM_TWO, this@buildCardAndTfAdjustmentEntries.teamTwoPlayers, teamTwoPlayers)
+        addCardCountDelta(
+            timeText = timeText,
+            team = TeamId.TEAM_ONE,
+            type = EventLogType.BLUE_CARD,
+            delta = teamOneBlues - teamOne.blueCards,
+        )
+        addTechnicalFoulDelta(
+            timeText = timeText,
+            team = TeamId.TEAM_ONE,
+            delta = teamOneTechnicalFouls - teamOne.technicalFouls,
+        )
+        addPlayerCardDeltas(
+            timeText = timeText,
+            team = TeamId.TEAM_ONE,
+            beforeRecords = this@buildCardAndTfAdjustmentEntries.teamOnePlayers,
+            afterRecords = teamOnePlayers,
+        )
+        addCardCountDelta(
+            timeText = timeText,
+            team = TeamId.TEAM_TWO,
+            type = EventLogType.BLUE_CARD,
+            delta = teamTwoBlues - teamTwo.blueCards,
+        )
+        addTechnicalFoulDelta(
+            timeText = timeText,
+            team = TeamId.TEAM_TWO,
+            delta = teamTwoTechnicalFouls - teamTwo.technicalFouls,
+        )
+        addPlayerCardDeltas(
+            timeText = timeText,
+            team = TeamId.TEAM_TWO,
+            beforeRecords = this@buildCardAndTfAdjustmentEntries.teamTwoPlayers,
+            afterRecords = teamTwoPlayers,
+        )
     }
 }
 
 /**
  * Add entries for player-card count differences between two record lists.
  *
- * @param now The correction timestamp.
+ * @param timeText The formatted official-clock correction time.
  * @param team The team whose records changed.
  * @param beforeRecords The records before correction.
  * @param afterRecords The records after correction.
  */
 private fun MutableList<EventLogEntry>.addPlayerCardDeltas(
-    now: Long,
+    timeText: String,
     team: TeamId,
     beforeRecords: List<PlayerRecord>,
     afterRecords: List<PlayerRecord>,
@@ -703,7 +732,7 @@ private fun MutableList<EventLogEntry>.addPlayerCardDeltas(
         if (!newIdentity.matches(cardChange.before.identity())) {
             add(
                 EventLogEntry(
-                    timestampEpoch = now,
+                    timeText = timeText,
                     type = cardChange.after.cardType.eventLogType(),
                     team = team,
                     player = newIdentity,
@@ -720,14 +749,14 @@ private fun MutableList<EventLogEntry>.addPlayerCardDeltas(
         val after = afterRecords.firstOrNull { it.identity().key() == identityKey }
         val eventPlayer = identity.identity()
         addCardCountDelta(
-            now = now,
+            timeText = timeText,
             team = team,
             type = EventLogType.YELLOW_CARD,
             delta = (after?.yellows ?: 0) - (before?.yellows ?: 0),
             player = eventPlayer,
         )
         addCardCountDelta(
-            now = now,
+            timeText = timeText,
             team = team,
             type = EventLogType.RED_CARD,
             delta = (after?.reds ?: 0) - (before?.reds ?: 0),
@@ -787,14 +816,14 @@ private fun CardType.eventLogType(): EventLogType {
 /**
  * Add one or more card-count correction entries.
  *
- * @param now The correction timestamp.
+ * @param timeText The formatted official-clock correction time.
  * @param team The team whose card count changed.
  * @param type The card event type whose count changed.
  * @param delta The signed count change.
  * @param player The player identity for player-card corrections.
  */
 private fun MutableList<EventLogEntry>.addCardCountDelta(
-    now: Long,
+    timeText: String,
     team: TeamId,
     type: EventLogType,
     delta: Int,
@@ -809,7 +838,7 @@ private fun MutableList<EventLogEntry>.addCardCountDelta(
         repeat(entryCount) {
             add(
                 EventLogEntry(
-                    timestampEpoch = now,
+                    timeText = timeText,
                     type = type,
                     team = team,
                     player = player,
@@ -823,15 +852,19 @@ private fun MutableList<EventLogEntry>.addCardCountDelta(
 /**
  * Add a technical-foul correction entry when a count changed.
  *
- * @param now The correction timestamp.
+ * @param timeText The formatted official-clock correction time.
  * @param team The team whose technical-foul count changed.
  * @param delta The signed count change.
  */
-private fun MutableList<EventLogEntry>.addTechnicalFoulDelta(now: Long, team: TeamId, delta: Int) {
+private fun MutableList<EventLogEntry>.addTechnicalFoulDelta(
+    timeText: String,
+    team: TeamId,
+    delta: Int,
+) {
     if (delta != 0) {
         add(
             EventLogEntry(
-                timestampEpoch = now,
+                timeText = timeText,
                 type = EventLogType.TECHNICAL_FOUL,
                 team = team,
                 delta = delta,
@@ -1061,7 +1094,7 @@ fun GameState.getNextAssessmentIndex(): Int {
 fun GameState.assessBlueCard(team: TeamId, now: Long): CardAssessmentResult {
     var updatedState = this.withAddedBlueCard(team).withEventLogEntry(
         EventLogEntry(
-            timestampEpoch = now,
+            timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
             type = EventLogType.BLUE_CARD,
             team = team,
         )
@@ -1129,7 +1162,7 @@ internal fun GameState.assessTechnicalFoul(
 ): CardAssessmentResult {
     var updatedState = this.withAddedTechnicalFoul(team).withEventLogEntry(
         EventLogEntry(
-            timestampEpoch = now,
+            timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
             type = EventLogType.TECHNICAL_FOUL,
             team = team,
         )
@@ -1237,7 +1270,7 @@ fun GameState.assessFirstYellowCard(
     var updatedState = this.addInGameYellowCard(team, identity.jerseyNumber, identity.playerName, reason)
         .withEventLogEntry(
             EventLogEntry(
-                timestampEpoch = now,
+                timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
                 type = EventLogType.YELLOW_CARD,
                 team = team,
                 player = identity,
@@ -1274,7 +1307,7 @@ fun GameState.assessRedCard(
     var updatedState = this.addInGameRedCard(team, identity.jerseyNumber, identity.playerName, reason)
         .withEventLogEntry(
             EventLogEntry(
-                timestampEpoch = now,
+                timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
                 type = EventLogType.RED_CARD,
                 team = team,
                 player = identity,
@@ -1312,7 +1345,7 @@ fun GameState.assessSecondYellowCard(
     var updatedState = this.addInGameSecondYellow(team, identity.jerseyNumber, identity.playerName, reason)
         .withEventLogEntry(
             EventLogEntry(
-                timestampEpoch = now,
+                timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
                 type = EventLogType.YELLOW_CARD,
                 team = team,
                 player = identity,

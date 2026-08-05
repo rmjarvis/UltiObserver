@@ -68,7 +68,7 @@ fun GameState.startPullSequence(
  * Record a scored goal and advances the game to halftime, game over, or the next pull sequence.
  *
  * @param scoringTeam The team that scored the just-finished point.
- * @param now The epoch millis of the goal, used for countdown starts, cap checks, and game end time.
+ * @param now The phone epoch millis of the goal.
  */
 fun GameState.recordGoal(
     scoringTeam: TeamId,
@@ -122,7 +122,7 @@ fun GameState.recordGoal(
             pendingCapOffer = null,
         ).withEventLogEntry(
             EventLogEntry(
-                timestampEpoch = now,
+                timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
                 type = EventLogType.GOAL,
                 team = scoringTeam,
             )
@@ -134,7 +134,7 @@ fun GameState.recordGoal(
             winningScore = gameWinningScore,
         ).withEventLogEntry(
             EventLogEntry(
-                timestampEpoch = now,
+                timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
                 type = EventLogType.GAME_OVER,
             )
         ).withUndo(afterGoalState, "Undo End game")
@@ -160,7 +160,7 @@ fun GameState.recordGoal(
             teamTwo = updatedTeamTwo,
         ).withEventLogEntry(
             EventLogEntry(
-                timestampEpoch = now,
+                timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
                 type = EventLogType.GOAL,
                 team = scoringTeam,
             )
@@ -206,7 +206,7 @@ fun GameState.recordGoal(
         pendingCapOffer = pendingCapOffer,
     ).withEventLogEntry(
         EventLogEntry(
-            timestampEpoch = now,
+            timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
             type = EventLogType.GOAL,
             team = scoringTeam,
         )
@@ -215,7 +215,7 @@ fun GameState.recordGoal(
 /**
  * Start halftime manually from a between-points state.
  *
- * @param now The epoch millis when the observer starts halftime, used for the halftime countdown and cap checks.
+ * @param now The phone epoch millis when halftime starts.
  */
 fun GameState.startHalftimeNow(
     now: Long,
@@ -240,7 +240,7 @@ fun GameState.startHalftimeNow(
  * @param teamOne Team one state after any triggering score has already been applied.
  * @param teamTwo Team two state after any triggering score has already been applied.
  * @param existingCapOffer A cap offer that was already pending before halftime started, if any.
- * @param now The epoch millis when halftime begins.
+ * @param now The phone epoch millis when halftime begins.
  * @param undoPrevious The state that undo should restore.
  * @param undoLabel The user-facing undo label for the action that started halftime.
  */
@@ -294,7 +294,7 @@ private fun startHalftime(
         pendingCapOffer = pendingCapOffer,
     ).withEventLogEntry(
         EventLogEntry(
-            timestampEpoch = now,
+            timeText = state.formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
             type = EventLogType.HALFTIME,
         )
     ).withUndo(undoPrevious, undoLabel)
@@ -318,7 +318,7 @@ fun GameState.endGameNow(
         pendingCapOffer = null,
     ).withEventLogEntry(
         EventLogEntry(
-            timestampEpoch = now,
+            timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
             type = EventLogType.GAME_OVER,
         )
     ).withUndo(this, "Undo End game")
@@ -329,7 +329,7 @@ fun GameState.beginLivePoint(now: Long): GameState {
     val firstPullEntry = if (this.teamOne.score == 0 && this.teamTwo.score == 0) {
         listOf(
             EventLogEntry(
-                timestampEpoch = firstPullTimestamp,
+                timeText = formatOfficialGameTime(firstPullTimestamp, EVENT_LOG_TIME_FORMATTER),
                 type = EventLogType.FIRST_PULL,
                 team = this.pullingTeam,
             )
@@ -351,7 +351,7 @@ fun GameState.beginLivePoint(now: Long): GameState {
  * If a goal is recorded before the point was explicitly started, first start the point, then record the goal.
  *
  * @param scoringTeam The team that scored the point.
- * @param now The epoch millis of the goal for timers, cap checks, and game-end bookkeeping.
+ * @param now The phone epoch millis of the goal.
  */
 fun GameState.recordGoalFromCurrentState(
     scoringTeam: TeamId,
@@ -393,7 +393,7 @@ internal fun GameState.halftimeTransitionReady(now: Long): Boolean {
  * user, but more importantly severs the redo chain.  So the user can't replay the path
  * back to the present anymore.
  *
- * @param now The current epoch millis so tests and background ticks can drive deterministic transitions.
+ * @param now The current phone epoch millis.
  * @param showDefenseCountdowns Whether timeout offense-set expirations wait for defense.
  */
 fun GameState.applyExpiredCountdownTransitions(
@@ -450,13 +450,13 @@ fun GameState.applyExpiredCountdownTransitions(
 /// Restore the state saved by the most recent undo-backed user action.
 fun GameState.undoLastAction(): GameState {
     val entry = this.undoEntry ?: return this
-    return entry.previous.copy(
+    return entry.previous.withOfficialClockOffset(officialClockOffsetMillis).copy(
         redoEntry = this,
     )
 }
 /// Reapply the state that was just undone, if redo is still available.
 fun GameState.redoLastAction(): GameState {
-    return this.redoEntry ?: this
+    return this.redoEntry?.withOfficialClockOffset(officialClockOffsetMillis) ?: this
 }
 /// Enter live-point play from an expired countdown while preserving undo back to the expired-pull actions.
 private fun GameState.automaticLivePointState(now: Long): GameState {
@@ -465,7 +465,7 @@ private fun GameState.automaticLivePointState(now: Long): GameState {
     val firstPullEntry = if (this.teamOne.score == 0 && this.teamTwo.score == 0) {
         listOf(
             EventLogEntry(
-                timestampEpoch = firstPullTimestamp,
+                timeText = formatOfficialGameTime(firstPullTimestamp, EVENT_LOG_TIME_FORMATTER),
                 type = EventLogType.FIRST_PULL,
                 team = this.pullingTeam,
             )

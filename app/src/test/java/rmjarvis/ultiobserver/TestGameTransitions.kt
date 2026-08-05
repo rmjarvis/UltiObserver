@@ -159,8 +159,8 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertEquals(60, state.countdown?.durationSeconds)
         assertEquals(firstGoalTime + 57_000L, state.countdown?.targetEpoch)
         assertEquals(
-            firstGoalTime - 3_000L,
-            state.eventLog.last { it.type == EventLogType.GOAL }.timestampEpoch,
+            state.formatOfficialGameTime(firstGoalTime - 3_000L, EVENT_LOG_TIME_FORMATTER),
+            state.eventLog.last { it.type == EventLogType.GOAL }.timeText,
         )
         assertNull(state.pendingCapOffer)
 
@@ -356,7 +356,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         val lateState = standardLiveGameState(startTime = LocalTime.of(12, 0))
         val lateStarted = lateState.beginLivePoint(timestampAt(lateState, LocalTime.of(12, 3)))
         assertEquals(timestampAt(lateState, LocalTime.of(12, 0)), lateStarted.startEpoch)
-        assertEquals(lateStarted.startEpoch, lateStarted.eventLog.single().timestampEpoch)
+        assertEquals("12:00", lateStarted.eventLog.single().timeText)
 
         // If the observer starts the first point before the scheduled time, the game record keeps
         // the scheduled start while the event log records the actual first-pull time.
@@ -364,7 +364,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         val earlyPull = timestampAt(earlyState, LocalTime.of(11, 58))
         val earlyStarted = earlyState.beginLivePoint(earlyPull)
         assertEquals(timestampAt(earlyState, LocalTime.of(12, 0)), earlyStarted.startEpoch)
-        assertEquals(earlyPull, earlyStarted.eventLog.single().timestampEpoch)
+        assertEquals("11:58", earlyStarted.eventLog.single().timeText)
 
         // Starting a later point after Team 2 has scored does not add another first-pull entry.
         val afterAnimalGoal = lateStarted.recordGoal(

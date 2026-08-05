@@ -84,7 +84,7 @@ class TestTimingAlerts {
         val noCountdownSnapshot = liveState.copy(countdown = null).timingAlertSnapshot(preferences)
         assertTrue(noCountdownSnapshot.countdownCues.isEmpty())
 
-        // Countdown conversion includes future cues even when none are due right now.
+        // Countdown snapshot includes future cues even when none are due right now.
         val futureCountdownCues = CountdownState(
             kind = CountdownKind.TIME_OUT,
             label = "Offense set in",
@@ -93,7 +93,7 @@ class TestTimingAlerts {
         ).timingAlertServiceCues(1_000L, preferences)
         assertEquals(TimingCueId.TIMEOUT_CLEAR_FIELD, futureCountdownCues.first().id)
 
-        // If a countdown cue is already due, the same conversion includes that cue immediately.
+        // If a countdown cue is already due, the snapshot includes that cue immediately.
         val dueCountdownCues = CountdownState(
             kind = CountdownKind.TIME_OUT,
             label = "Offense set in",
@@ -259,6 +259,64 @@ class TestTimingAlerts {
             }
         } finally {
             watchdogController.release()
+        }
+    }
+
+    /**
+     * Test that changing the official clock reschedules the cap alarm on the phone-time axis.
+     */
+    @Test
+    fun clockOffsetReschedulesCapAlarm() {
+        val phoneNow = System.currentTimeMillis()
+        val preferences = TimingAlertPreferences(
+            globalMode = TimingAlertGlobalMode.SOUNDS_ON,
+            cueModes = mapOf(
+                TimingCueId.HALF_CAP to TimingAlertMode.DING,
+                TimingCueId.SOFT_CAP to TimingAlertMode.NONE,
+                TimingCueId.HARD_CAP to TimingAlertMode.NONE,
+            ),
+        )
+        val initialGame = newSetupGameState(now = phoneNow)
+            .startGame(OrientationPreference.PORTRAIT)
+            .copy(countdown = null)
+        val platform = FakeTimingAlertServicePlatform(now = phoneNow)
+        val controller = newController(platform)
+        try {
+            // The initial game state schedules its half-cap cue at the unadjusted phone epoch.
+            val initialIntent = TimingAlertForegroundService.updateIntent(
+                context = context,
+                liveState = initialGame,
+                timingAlertPreferences = preferences,
+            )
+            val initialSnapshot = appStateJson.decodeFromString<TimingAlertServiceSnapshot>(
+                initialIntent.getStringExtra(
+                    TimingAlertForegroundService.EXTRA_TIMING_ALERT_SNAPSHOT,
+                )!!,
+            )
+            controller.handleTimingAlertUpdate(initialSnapshot)
+            val initialCue = platform.scheduledCapAlarms.single().cue
+            assertEquals(initialGame.capEpoch(CapType.HALF), initialCue.targetEpoch)
+
+            // Moving the official clock ahead moves the corresponding phone-time cap earlier. The
+            // normal game-state, service-payload, and controller path replaces the scheduled alarm.
+            val adjustedGame = initialGame.withOfficialClockOffset(60_000L)
+            platform.scheduledCapAlarms.clear()
+            val adjustedIntent = TimingAlertForegroundService.updateIntent(
+                context = context,
+                liveState = adjustedGame,
+                timingAlertPreferences = preferences,
+            )
+            val adjustedSnapshot = appStateJson.decodeFromString<TimingAlertServiceSnapshot>(
+                adjustedIntent.getStringExtra(
+                    TimingAlertForegroundService.EXTRA_TIMING_ALERT_SNAPSHOT,
+                )!!,
+            )
+            controller.handleTimingAlertUpdate(adjustedSnapshot)
+            val adjustedCue = platform.scheduledCapAlarms.single().cue
+            assertEquals(initialCue.targetEpoch - 60_000L, adjustedCue.targetEpoch)
+            assertEquals(adjustedGame.capEpoch(CapType.HALF), adjustedCue.targetEpoch)
+        } finally {
+            controller.release()
         }
     }
 
