@@ -737,7 +737,7 @@ class TestSetup : GameDomainTestFixtures() {
         // Heat-level summaries have compact and full forms for every available level.
         listOf(
             Triple(HeatLevel.NONE, "None", "None"),
-            Triple(HeatLevel.LEVEL_0, "Level 0", "Level 0 (3 min)"),
+            Triple(HeatLevel.LEVEL_0, "Manual", "Manual (3 min)"),
             Triple(HeatLevel.LEVEL_1, "Level 1", "Level 1 (3 min)"),
             Triple(HeatLevel.LEVEL_2, "Level 2", "Level 2 (4 min)"),
             Triple(HeatLevel.LEVEL_3, "Level 3", "Level 3"),

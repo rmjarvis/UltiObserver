@@ -92,7 +92,7 @@ data class GameRules(
 @Serializable
 enum class HeatLevel(val displayText: String) {
     NONE("None"),
-    LEVEL_0("Level 0"),
+    LEVEL_0("Manual"),
     LEVEL_1("Level 1"),
     LEVEL_2("Level 2"),
     LEVEL_3("Level 3"),

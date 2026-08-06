@@ -512,14 +512,14 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         // 3 min).
         composeRule.onNodeWithTag("heat-level-LEVEL_0").performClick()
         composeRule.onNodeWithTag("setup-water-breaks-set").performClick()
-        waitForText("Level 0 (3 min)")
+        waitForText("Manual (3 min)")
         composeRule.onNodeWithText("Heat level").performScrollTo().performClick()
         composeRule.onNodeWithTag("heat-level-LEVEL_0").performClick()
         composeRule.onNodeWithText("Water break minutes").performTextReplacement("4")
         composeRule.onNodeWithTag("setup-water-breaks-set").performClick()
-        waitForText("Level 0 (4 min)")
+        waitForText("Manual (4 min)")
         closeSetupEditor()
-        assertSetupSummaryTextVisible("Heat level: Level 0")
+        assertSetupSummaryTextVisible("Heat level: Manual")
 
         // Setting heat level to 1 uses automatic breaks with a settable time (default 3 min).
         openGameRulesSetupEditor()

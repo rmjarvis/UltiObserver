@@ -98,7 +98,7 @@ class TestRulesReference : GameDomainTestFixtures() {
 
         // Enabled heat/water behavior is shown, including custom configurations.
         assertEquals(
-            "Level 0",
+            "Manual",
             openNoCapState.copy(
                 rules = openNoCapState.rules.copy(
                     heatLevel = HeatLevel.LEVEL_0,

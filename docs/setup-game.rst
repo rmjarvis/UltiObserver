@@ -192,11 +192,11 @@ Heat/AQI level
     Heat or Air Precaution Level in effect for the game. The app follows USAU's
     `Heat and Air Quality Guidelines`_ for the appropriate adjustments to the rules for
     different levels. If your tournament is using water breaks, but has a different cadence
-    for them, you can use Level 0 to handle the water breaks manually.
+    for them, you can use **Manual** to handle the water breaks manually.
 
     * **None**: No adjustments to the standard rules. No water drop icon on the active game screen.
 
-    * **Level 0**: Adds a water drop icon to the active game screen, which can be used to
+    * **Manual**: Adds a water drop icon to the active game screen, which can be used to
       start a water break between points. There will be no prompts for any automatic water breaks.
       The default break time is 3 minutes under heat guidelines or 4 minutes under air-quality
       guidelines, but you can change it.
@@ -216,15 +216,15 @@ Heat/AQI level
       prior to that. (Already shorter caps are not affected.) These adjustments are shown on
       the other rule pages, and they apply automatically.
 
-    All levels 0-2 allow you to change the length of the water break if your tournament is using
-    a different break time than the official guidance. You can also switch between the heat
-    guidelines and AQI guidelines at the bottom of the screen.
+    All of them besides **None**  allow you to change the length of the water break if your
+    tournament is using a different break time than the official guidance. You can also switch
+    between the heat guidelines and AQI guidelines at the bottom of the screen.
 
-    During the game, Level 0-2 all show a water drop icon next to the countdown, so you can
-    take an off-schedule water break if needed. You can change the level, water-break duration
-    and heat/AQI selection from the **More actions** menu when necessary. Also, all water breaks
-    open a confirmation dialog, which lets you decline a scheduled water break if you need to
-    reject it for some reason.
+    During the game, Levels 1-2 also show a water drop icon next to the countdown, just like
+    **Manual**, so you can take an off-schedule water break if needed. You can change the level,
+    water-break duration and heat/AQI selection from the **More actions** menu when necessary.
+    Also, all water breaks open a confirmation dialog, which lets you decline a scheduled water
+    break if you need to reject it for some reason.
 
 Time between points
     How many seconds the offense has to signal readiness between points. The defense has

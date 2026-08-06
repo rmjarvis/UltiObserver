@@ -2310,7 +2310,7 @@ private fun HeatLevelSetupDialog(
                 Text(
                     "Select the current " +
                         "${if (useAirQualityGuidelines) "AQI" else "heat"} level for automatic " +
-                        "water-break timing. Choose Level 0 for manual water breaks."
+                        "water-break timing. Choose Manual for manual water breaks."
                 )
                 HeatLevelChoiceRow(
                     selected = selectedHeatLevel,
