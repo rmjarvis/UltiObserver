@@ -38,6 +38,13 @@ class TestMigration : GameDomainTestFixtures() {
         assertEquals("", defaultBuckets.profile.name)
         assertTrue(defaultBuckets.archivedGames.isEmpty())
 
+        // started-game-no-events is the default setup immediately after starting the game. It
+        // proves that an empty event log and undo history remain a valid pre-game current state.
+        val startedGameNoEvents = loadMigratedFixture("v1.0", "started-game-no-events")
+        assertStartedGameNoEvents(startedGameNoEvents)
+        assertEquals(defaultBuckets.profile, startedGameNoEvents.profile)
+        assertEquals(defaultBuckets.settings, startedGameNoEvents.settings)
+
         // setup-draft has changes made in the setup screen, but didn't start a game yet.
         // The main tricky thing here is the different way the prior cards were stored.
         val setupDraft = loadMigratedFixture("v1.0", "setup-draft")
@@ -390,6 +397,13 @@ class TestMigration : GameDomainTestFixtures() {
         )
         assertTrue(defaultBuckets.archivedGames.isEmpty())
 
+        // started-game-no-events is the default setup immediately after starting the game. It
+        // proves that an empty event log and undo history remain a valid pre-game current state.
+        val startedGameNoEvents = loadMigratedFixture("v1.1", "started-game-no-events")
+        assertStartedGameNoEvents(startedGameNoEvents)
+        assertEquals(defaultBuckets.profile, startedGameNoEvents.profile)
+        assertEquals(defaultBuckets.settings, startedGameNoEvents.settings)
+
         // setup-draft has changes made in the setup screen, but did not start a game yet.
         val setupDraft = loadMigratedFixture("v1.1", "setup-draft")
         assertTrue(setupDraft.hasSetupDraft)
@@ -482,6 +496,13 @@ class TestMigration : GameDomainTestFixtures() {
             v1_2FixtureSettings("default-buckets"),
         )
         assertTrue(defaultBuckets.archivedGames.isEmpty())
+
+        // started-game-no-events is the default setup immediately after starting the game. It
+        // proves that an empty event log and undo history remain a valid pre-game current state.
+        val startedGameNoEvents = loadMigratedFixture("v1.2", "started-game-no-events")
+        assertStartedGameNoEvents(startedGameNoEvents)
+        assertEquals(defaultBuckets.profile, startedGameNoEvents.profile)
+        assertEquals(defaultBuckets.settings, startedGameNoEvents.settings)
 
         // setup-draft preserves the USAU Youth default of 80 seconds between points.
         val setupDraft = loadMigratedFixture("v1.2", "setup-draft")
@@ -664,6 +685,17 @@ class TestMigration : GameDomainTestFixtures() {
             v1_2FixtureSettings(fixtureName),
         )
         return game
+    }
+
+    private fun assertStartedGameNoEvents(fixture: AppViewModel) {
+        val game = fixture.currentGame!!
+        assertEquals(GamePhase.PRE_GAME, game.phase)
+        assertTrue(game.eventLog.isEmpty())
+        assertNull(game.undoEntry)
+        assertNull(game.redoEntry)
+        assertFalse(game.hardCapApplied)
+        assertFalse(fixture.hasSetupDraft)
+        assertTrue(fixture.archivedGames.isEmpty())
     }
 
     private fun loadMigratedFixture(version: String, scenario: String): AppViewModel {

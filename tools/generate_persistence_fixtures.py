@@ -28,6 +28,7 @@ class ScenarioSource:
 persisted_scenarios = {
     "current": {
         "default-buckets": ScenarioSource("default-buckets", None),
+        "started-game-no-events": ScenarioSource("started-game-no-events", None),
         "setup-draft": ScenarioSource("setup-draft", None),
         "active-game": ScenarioSource("active-game", None),
         "complete-current-game": ScenarioSource("complete-current-game", None),
@@ -35,6 +36,7 @@ persisted_scenarios = {
     },
     "v1.2": {
         "default-buckets": ScenarioSource("default-buckets", "v1.2.0"),
+        "started-game-no-events": ScenarioSource("started-game-no-events", "v1.2.0"),
         "setup-draft": ScenarioSource("setup-draft", "v1.2.0"),
         "active-game": ScenarioSource("active-game", "v1.2.0"),
         "complete-current-game": ScenarioSource("complete-current-game", "v1.2.0"),
@@ -59,6 +61,7 @@ persisted_scenarios = {
     },
     "v1.1": {
         "default-buckets": ScenarioSource("default-buckets", "v1.1.0"),
+        "started-game-no-events": ScenarioSource("started-game-no-events", "v1.1.0"),
         "setup-draft": ScenarioSource("setup-draft", "v1.1.0"),
         "active-game": ScenarioSource("active-game", "v1.1.0"),
         "complete-current-game": ScenarioSource("complete-current-game", "v1.1.0"),
@@ -66,6 +69,7 @@ persisted_scenarios = {
     },
     "v1.0": {
         "default-buckets": ScenarioSource("default-buckets", "v1.0.1"),
+        "started-game-no-events": ScenarioSource("started-game-no-events", "v1.0.1"),
         "setup-draft": ScenarioSource("setup-draft", "v1.0.1"),
         "active-game": ScenarioSource("active-game", "v1.0.1"),
         "completed-archive": ScenarioSource("completed-archive", "v1.0.1"),

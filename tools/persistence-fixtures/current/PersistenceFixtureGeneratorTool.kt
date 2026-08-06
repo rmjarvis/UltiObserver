@@ -13,6 +13,7 @@ fun main(args: Array<String>) {
     val root = File(args[1])
     when (scenario) {
         "default-buckets" -> writeDefaultBuckets(root)
+        "started-game-no-events" -> writeStartedGameNoEvents(root)
         "setup-draft" -> writeSetupDraft(root)
         "active-game" -> writeActiveGame(root)
         "complete-current-game" -> writeCompleteCurrentGame(root)
@@ -24,6 +25,18 @@ fun main(args: Array<String>) {
 private fun writeDefaultBuckets(dir: File) {
     val store = freshStore(dir)
     store.saveCurrentGame(null)
+    store.saveProfile(Profile())
+    store.saveSettings(Settings())
+    store.saveArchivedGames(emptyList())
+}
+
+private fun writeStartedGameNoEvents(dir: File) {
+    val store = freshStore(dir)
+    val game = defaultSetup().startGame(OrientationPreference.PORTRAIT)
+    check(game.phase == GamePhase.PRE_GAME)
+    check(game.eventLog.isEmpty())
+    check(game.undoEntry == null)
+    store.saveCurrentGame(game)
     store.saveProfile(Profile())
     store.saveSettings(Settings())
     store.saveArchivedGames(emptyList())
@@ -128,6 +141,13 @@ private fun freshStore(dir: File): FileAppStateStorage {
     dir.deleteRecursively()
     dir.mkdirs()
     return FileAppStateStorage(dir)
+}
+
+private fun defaultSetup(): GameState {
+    val zone = ZoneId.of("America/New_York")
+    return newSetupGameState(
+        now = setupEpoch(LocalDate.of(2026, 6, 27), LocalTime.of(16, 1), zone),
+    ).copy(timeZone = zone)
 }
 
 private fun baseSetup(): GameState {
@@ -254,7 +274,7 @@ private fun activeGameWithEvents(
     guidanceMode: RuleGuidanceMode,
 ): GameState {
     val start = setupEpoch(setup)
-    var game = setup.startGame(ActiveGameOrientation.PORTRAIT)
+    var game = setup.startGame(OrientationPreference.PORTRAIT)
     game = game.recordFalseStart(start + 1_000L)
     game = game.recordMajorityPullViolation(start + 2_000L)
     game = game.assessYellowCard(
@@ -365,7 +385,7 @@ private fun activeGameWithEvents(
 private fun shortCompletedGame(): GameState {
     val setup = baseSetup()
     val start = setupEpoch(setup)
-    var game = setup.startGame(ActiveGameOrientation.PORTRAIT).beginLivePoint(start + 1_000L)
+    var game = setup.startGame(OrientationPreference.PORTRAIT).beginLivePoint(start + 1_000L)
     game = game.recordGoal(TeamId.TEAM_ONE, start + 60_000L)
     return game.endGameNow(start + 70_000L)
 }

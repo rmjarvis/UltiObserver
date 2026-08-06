@@ -1,0 +1,115 @@
+{
+    "versionName": "1.0.1",
+    "versionCode": 2,
+    "setupState": {
+        "startDate": "2026-06-27",
+        "startTime": "16:30",
+        "timeZone": "America/New_York",
+        "tournamentName": "",
+        "rules": {
+            "gameTo": 15,
+            "halftimeMinutes": 7,
+            "useHalfCap": true,
+            "halfCapMinutes": 45,
+            "useSoftCap": true,
+            "softCapMinutes": 90,
+            "useHardCap": true,
+            "hardCapMinutes": 105,
+            "timeoutsPerHalf": 2,
+            "hasFloaterTimeout": false
+        },
+        "teamOne": {
+            "name": "",
+            "color": "WHITE"
+        },
+        "teamTwo": {
+            "name": "",
+            "color": "BLUE"
+        },
+        "priorCards": [],
+        "pullingTeam": "TEAM_ONE",
+        "pullingFromEnd": "FAR"
+    },
+    "liveState": {
+        "state": {
+            "startDate": "2026-06-27",
+            "startTime": "16:30",
+            "timeZone": "America/New_York",
+            "startEpoch": 1782592200000,
+            "endEpoch": null,
+            "tournamentName": "",
+            "rules": {
+                "gameTo": 15,
+                "halftimeMinutes": 7,
+                "useHalfCap": true,
+                "halfCapMinutes": 45,
+                "useSoftCap": true,
+                "softCapMinutes": 90,
+                "useHardCap": true,
+                "hardCapMinutes": 105,
+                "timeoutsPerHalf": 2,
+                "hasFloaterTimeout": false
+            },
+            "teamOne": {
+                "name": "Team 1",
+                "color": "WHITE",
+                "score": 0,
+                "timeoutsUsedThisHalf": 0,
+                "firstHalfTimeoutsUsed": 0,
+                "offsides": 0,
+                "falseStarts": 0,
+                "timeViolationWarningIssued": false,
+                "technicalFouls": 0,
+                "blueCards": 0
+            },
+            "teamTwo": {
+                "name": "Team 2",
+                "color": "BLUE",
+                "score": 0,
+                "timeoutsUsedThisHalf": 0,
+                "firstHalfTimeoutsUsed": 0,
+                "offsides": 0,
+                "falseStarts": 0,
+                "timeViolationWarningIssued": false,
+                "technicalFouls": 0,
+                "blueCards": 0
+            },
+            "priorCards": [],
+            "teamOnePlayerCards": [],
+            "teamTwoPlayerCards": [],
+            "eventLog": [],
+            "nearAttackingTeam": "TEAM_ONE",
+            "pullingTeam": "TEAM_ONE",
+            "pullingFromEnd": "FAR",
+            "openingPullingTeam": "TEAM_ONE",
+            "openingPullingFromEnd": "FAR",
+            "phase": "BETWEEN_POINTS",
+            "countdown": {
+                "kind": "OPENING_PULL",
+                "label": "Signal in",
+                "durationSeconds": 20,
+                "targetEpoch": 1782592220000,
+                "betweenPointsTarget": "OFFENSE_READY"
+            },
+            "pullCountdownExpired": false,
+            "pullSequenceOffsidesRecorded": false,
+            "pullSequenceFalseStartRecorded": false,
+            "pullSkippedForCurrentPoint": false,
+            "pendingMisconductCountdown": false,
+            "halftimeTaken": false,
+            "halftimeTargetScore": null,
+            "winningScore": null,
+            "halfCapApplied": false,
+            "softCapApplied": false,
+            "hardCapApplied": false,
+            "pendingCapOffer": null,
+            "undoEntry": null,
+            "redoEntry": null,
+            "lastEvent": "Pregame setup complete."
+        },
+        "undoEntry": null,
+        "redoEntry": null
+    },
+    "setupMode": "EDIT_CURRENT_GAME",
+    "hasSetupDraft": false
+}

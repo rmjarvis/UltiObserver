@@ -14,6 +14,7 @@ fun main(args: Array<String>) {
     val root = File(args[1])
     when (scenario) {
         "default-buckets" -> writeDefaultBuckets(root)
+        "started-game-no-events" -> writeStartedGameNoEvents(root)
         "setup-draft" -> writeSetupDraft(root)
         "active-game" -> writeActiveGame(root)
         "completed-archive" -> writeCompletedArchive(root)
@@ -27,6 +28,25 @@ fun main(args: Array<String>) {
 private fun writeDefaultBuckets(dir: File) {
     val store = freshStore(dir)
     store.saveCurrentGameState(defaultCurrentGameSnapshot())
+    store.saveProfile(Profile())
+    store.saveSettings(Settings())
+    store.saveArchivedGames(emptyList())
+}
+
+private fun writeStartedGameNoEvents(dir: File) {
+    val store = freshStore(dir)
+    val setup = defaultSetup()
+    val game = createLiveGameState(setup)
+    check(game.phase == GamePhase.BETWEEN_POINTS)
+    check(game.eventLog.isEmpty())
+    check(game.undoEntry == null)
+    store.saveCurrentGameState(
+        CurrentGameSnapshot(
+            setupState = setup,
+            liveState = game,
+            setupMode = SetupMode.EDIT_CURRENT_GAME,
+        )
+    )
     store.saveProfile(Profile())
     store.saveSettings(Settings())
     store.saveArchivedGames(emptyList())
@@ -212,11 +232,15 @@ private fun freshStore(dir: File): FileAppStateStorage {
 
 private fun defaultCurrentGameSnapshot(): CurrentGameSnapshot {
     return CurrentGameSnapshot(
-        setupState = newGameSetupState(
-            now = LocalDateTime.of(2026, 6, 27, 16, 1),
-        ).copy(
-            timeZone = ZoneId.of("America/New_York"),
-        ),
+        setupState = defaultSetup(),
+    )
+}
+
+private fun defaultSetup(): GameSetupState {
+    return newGameSetupState(
+        now = LocalDateTime.of(2026, 6, 27, 16, 1),
+    ).copy(
+        timeZone = ZoneId.of("America/New_York"),
     )
 }
 
