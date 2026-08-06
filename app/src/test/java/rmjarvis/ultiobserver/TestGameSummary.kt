@@ -257,27 +257,21 @@ class TestGameSummary : GameDomainTestFixtures() {
             ),
         )
 
-        // The share text should show all the metadata and misconduct.
+        // The share text keeps only the context needed to report yellow and red cards.
         assertEquals(
             """
-            UltiObserver Game Summary
-            Philly Open Open Division Masters Final
-            Observers: Mike, Gary
-            Field: Field 7
-            May 19, 2026, 10:00 AM
             Animal 15, Viscous Coupling 12
-            Misconduct:
-              Animal:
+            May 19, 2026, 10:00 AM
+            Observers: Mike, Gary
+            Animal cards:
                 #7 Casey Handler Yellow -- Taunting
                 No Number Red -- Egregious dangerous play
                 #7 Casey Handler Yellow -- Dangerous play
-                1 Blue, 2 Techs
             """.trimIndent(),
             state.gameSummaryShareText(),
         )
 
-        // When there is no misconduct on either team, the share text just says that.
-        // It also skips any metadata that doesn't have a value (e.g. tournament, observers).
+        // When there are no yellow or red cards, the share text says so explicitly.
         state = standardLiveGameState(
             startDate = LocalDate.of(2026, 5, 19),
             startTime = LocalTime.of(10, 0),
@@ -289,15 +283,14 @@ class TestGameSummary : GameDomainTestFixtures() {
         )
         assertEquals(
             """
-            UltiObserver Game Summary
-            May 19, 2026, 10:00 AM
             Viscous Coupling 15, Animal 12
-            No misconduct assessments
+            May 19, 2026, 10:00 AM
+            No yellow or red cards issued
             """.trimIndent(),
             state.gameSummaryShareText(),
         )
 
-        // When both teams have some misconduct, the share text lists them separately.
+        // When both teams have player cards, the share text gives each team its own section.
         state = standardLiveGameState(
             startDate = LocalDate.of(2026, 5, 19),
             startTime = LocalTime.of(10, 0),
@@ -315,19 +308,18 @@ class TestGameSummary : GameDomainTestFixtures() {
                 playerRecordWithCards(jerseyNumber = "6", yellows = 1),
                 playerRecordWithCards(jerseyNumber = "9", yellows = 1, reds = 1),
             ),
+            teamTwoPlayers = listOf(playerRecordWithCards(jerseyNumber = "12", reds = 1)),
         )
         assertEquals(
             """
-            UltiObserver Game Summary
-            May 19, 2026, 10:00 AM
             Viscous Coupling 15, Animal 12
-            Misconduct:
-              Viscous Coupling:
+            May 19, 2026, 10:00 AM
+            Viscous Coupling cards:
                 #6 Yellow
                 #9 Yellow
                 #9 Red
-              Animal:
-                2 Blue, 1 Tech
+            Animal cards:
+                #12 Red
             """.trimIndent(),
             state.gameSummaryShareText(),
         )

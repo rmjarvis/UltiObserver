@@ -94,20 +94,16 @@ internal fun GameState.gameOverTeamSummaryText(teamId: TeamId): GameOverTeamSumm
  */
 internal fun GameState.gameSummaryShareText(): String {
     val orderedTeams = winnerFirstTeams()
-    val misconductLines = misconductShareLines()
+    val playerCardLines = playerCardShareLines()
 
     return buildList {
-        add("UltiObserver Game Summary")
-        gameInformationSummaryLine()?.let { add(it) }
-        observersSummaryLine()?.let { add(it) }
-        fieldSummaryLine()?.let { add(it) }
-        add("${formatStartDate(startDate)}, ${formatClockTime(startTime)}")
         add(orderedTeams.joinToString(", ") { team -> "${team.name} ${team.score}" })
-        if (misconductLines.isEmpty()) {
-            add("No misconduct assessments")
+        add("${formatStartDate(startDate)}, ${formatClockTime(startTime)}")
+        observersSummaryLine()?.let { add(it) }
+        if (playerCardLines.isEmpty()) {
+            add("No yellow or red cards issued")
         } else {
-            add("Misconduct:")
-            addAll(misconductLines)
+            addAll(playerCardLines)
         }
     }.joinToString("\n")
 }
@@ -132,43 +128,31 @@ internal fun GameState.fieldSummaryLine(): String? {
     return fieldName.trim().takeIf { it.isNotEmpty() }?.let { "Field: $it" }
 }
 
-/// Return compact per-team misconduct lines for the share summary.
-private fun GameState.misconductShareLines(): List<String> {
+/// Return compact per-team yellow/red card lines for the share summary.
+private fun GameState.playerCardShareLines(): List<String> {
     return listOfNotNull(
-        misconductShareLine(TeamId.TEAM_ONE),
-        misconductShareLine(TeamId.TEAM_TWO),
+        playerCardShareLine(TeamId.TEAM_ONE),
+        playerCardShareLine(TeamId.TEAM_TWO),
     )
 }
 
 /**
- * Return one compact misconduct line for a team, or null when the team has no in-game misconduct.
+ * Return one compact card section for a team, or null when it has no yellow or red cards.
  *
- * @param teamId The team whose misconduct should be summarized.
+ * @param teamId The team whose player cards should be summarized.
  */
-private fun GameState.misconductShareLine(teamId: TeamId): String? {
-    val team = teamFor(teamId)
+private fun GameState.playerCardShareLine(teamId: TeamId): String? {
     val playerParts = playerCards(teamId)
         .flatMap { it.shareLines() }
         .sortedBy { it.index }
         .map { it.text }
-    val teamParts = buildList {
-        if (team.blueCards > 0) {
-            add("${team.blueCards} Blue")
-        }
-        if (team.technicalFouls > 0) {
-            add(countedNounPhrase(team.technicalFouls, "Tech"))
-        }
-    }
-    if (playerParts.isEmpty() && teamParts.isEmpty()) {
+    if (playerParts.isEmpty()) {
         return null
     }
     return buildList {
-        add("  ${team.name}:")
+        add("${teamFor(teamId).name} cards:")
         playerParts.forEach { detail ->
             add("    $detail")
-        }
-        if (teamParts.isNotEmpty()) {
-            add("    ${teamParts.joinToString(", ")}")
         }
     }.joinToString("\n")
 }

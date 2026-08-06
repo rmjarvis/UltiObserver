@@ -37,17 +37,19 @@ Share
    :target: _images/ShareSummary.png
    :alt: Android share sheet for sharing a game summary
 
-After a game, you will usually need to report this information to the tournament
-director and the head observer. The **Share** button makes this easy to do if you
-have an email or phone number for them.
+After a game, you will usually need to report player card information to the
+head observer. The **Share** button makes this easy to do if you
+have an email or phone number for them. Or you can paste it into whatever
+communication app you might be using for the tournament.
 
 The **Share** action uses Android's normal share function. You choose the target,
 such as a text message, email, GroupMe, Discord, or whatever communication channel
 has been set up to pass along this information after games.
 
-Shared summaries are intentionally compact. They include just the information given
-on the summary page. They do not include things like pull violations, timeouts, or
-other events that are no longer relevant after the game is over.
+Shared summaries are intentionally compact. They include just the information needed to
+identify the game and observers and which players were issues cards.
+They do not include other meta-data or events like pull violations, timeouts, blue cards,
+or technical fouls, as these are not typically necessary to report.
 
 Event Log
 ---------

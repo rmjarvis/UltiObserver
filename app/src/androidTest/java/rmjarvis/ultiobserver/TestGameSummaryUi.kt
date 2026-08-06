@@ -263,16 +263,12 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
         // Seed a finished game with score and misconduct entries for summary and event-log sharing.
         clearArchivedGamesProgrammatically()
         val expectedShareText = """
-            UltiObserver Game Summary
-            Philly Open
-            May 19, 2026, 10:00 AM
             Animal 15, Viscous Coupling 12
-            Misconduct:
-              Animal:
+            May 19, 2026, 10:00 AM
+            Animal cards:
                 #7 Yellow
                 #7 Yellow
                 #12 Red
-                1 Blue, 2 Techs
         """.trimIndent()
         // Programmatically set up a game to match the above summary info.
         startLiveGameProgrammatically(
