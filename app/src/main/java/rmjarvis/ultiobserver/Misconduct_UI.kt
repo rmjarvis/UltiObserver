@@ -1942,7 +1942,7 @@ private fun CardReasonDialog(
                 TwoColumnDialogRegion(
                     maxHeight = dialogBodyMaxHeight(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    columnArrangement = Arrangement.spacedBy(4.dp),
+                    columnArrangement = Arrangement.spacedBy(0.dp),
                     showDivider = false,
                     leftContent = {
                         leftChoices.forEach { choice ->
@@ -1967,7 +1967,7 @@ private fun CardReasonDialog(
             } else {
                 ScrollableDialogRegion(
                     maxHeight = dialogBodyMaxHeight(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(0.dp),
                 ) {
                     choices.forEach { choice ->
                         ReasonChoiceButton(
