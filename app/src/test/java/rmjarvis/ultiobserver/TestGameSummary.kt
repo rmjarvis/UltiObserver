@@ -86,6 +86,21 @@ class TestGameSummary : GameDomainTestFixtures() {
                 endEpoch = null,
             ).gameOverSummaryText().testDisplayLines(),
         )
+
+        // A minimal completed game omits every optional metadata line.
+        assertEquals(
+            listOf(
+                "Game summary",
+                "Start May 19, 2026 10:00 AM",
+                "End time 12:42 PM",
+                "Animal 0",
+                "Viscous Coupling 0",
+            ),
+            baseState.copy(
+                phase = GamePhase.GAME_OVER,
+                endEpoch = timestampAt(baseState, LocalTime.of(12, 42)),
+            ).gameOverSummaryText().testDisplayLines(),
+        )
     }
 
     /**

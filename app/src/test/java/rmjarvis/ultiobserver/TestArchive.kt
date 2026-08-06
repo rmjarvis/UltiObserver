@@ -6,6 +6,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -768,6 +769,64 @@ class TestArchive : GameDomainTestFixtures() {
         viewModel.openArchivedGame(0, now = 123_000L)
         assertEquals(AppScreen.ARCHIVED_GAMES, viewModel.screen)
         assertEquals(archivedGame, viewModel.viewingArchivedGame!!)
+
+        // Summary edits replace the open archive row without leaving archive navigation.
+        val editedArchive = archivedGame.copy(
+            teamOnePlayers = listOf(playerRecordWithCards("7", yellows = 1)),
+        )
+        viewModel.updateViewingArchivedGame(editedArchive)
+        assertEquals(listOf(editedArchive), viewModel.archivedGames)
+        assertEquals(editedArchive, viewModel.viewingArchivedGame)
+        assertEquals(editedArchive, viewModel.displayedGame)
+
+        // Editing Team Two cards in a later completed archive leaves the earlier archive alone.
+        viewModel.goHome()
+        viewModel.startNewGame(now = 124_000L)
+        viewModel.finishSetup(now = 124_000L)
+        val teamTwoCardGame = viewModel.currentGame!!.assessYellowCard(
+            team = TeamId.TEAM_TWO,
+            jerseyNumber = "23",
+            now = 125_000L,
+        ).state
+        viewModel.updateCurrentGame(teamTwoCardGame.endGameNow(now = 126_000L))
+        viewModel.goHome()
+        viewModel.archiveCompletedGame()
+        val teamTwoArchive = viewModel.archivedGames[1]
+        viewModel.openArchivedGame(1, now = 127_000L)
+
+        // Recording the existing values makes no change at all.
+        assertSame(
+            teamTwoArchive,
+            teamTwoArchive.editExistingPlayerCards(
+                team = TeamId.TEAM_TWO,
+                records = teamTwoArchive.teamTwoPlayers,
+                now = 128_000L,
+                undoLabel = "Undo edit yellow card for #23",
+            ),
+        )
+
+        // A real edit updates only the open second archive and remains behind Undo End game.
+        val existingCard = editablePlayerCards(teamTwoArchive.teamTwoPlayers).single()
+        val editedTeamTwoRecords = replaceEditablePlayerCard(
+            records = teamTwoArchive.teamTwoPlayers,
+            editableCard = existingCard,
+            jerseyNumber = "23",
+            cardType = CardType.YELLOW,
+            playerName = "Taylor Cutter",
+            reason = CardReason(preset = "Dangerous play"),
+        )
+        val editedTeamTwoArchive = teamTwoArchive.editExistingPlayerCards(
+            team = TeamId.TEAM_TWO,
+            records = editedTeamTwoRecords,
+            now = 129_000L,
+            undoLabel = "Undo edit yellow card for #23 Taylor Cutter",
+        )
+        viewModel.updateViewingArchivedGame(editedTeamTwoArchive)
+        assertEquals(editedArchive, viewModel.archivedGames[0])
+        assertEquals(editedTeamTwoArchive, viewModel.archivedGames[1])
+        assertEquals(editedTeamTwoArchive, viewModel.viewingArchivedGame)
+        assertEquals("Undo End game", editedTeamTwoArchive.undoEntry?.label)
+        assertEquals("Taylor Cutter", editedTeamTwoArchive.teamTwoPlayers.single().playerName)
     }
 
     /**

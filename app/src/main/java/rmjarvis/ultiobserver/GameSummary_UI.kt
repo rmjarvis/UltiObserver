@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -35,6 +37,8 @@ import androidx.compose.ui.unit.dp
  *
  * @param state The game state to summarize.
  * @param completed Whether this is a completed-game summary rather than an in-progress archive.
+ * @param guidanceMode Amount and duration of rule guidance shown during card-detail editing.
+ * @param onStateChange Callback persisting a confirmed card-detail edit.
  * @param summaryActionText Fixed bottom action label, such as Undo End game or Restore game.
  * @param onSummaryAction Callback invoked by the fixed bottom action.
  * @param secondarySummaryActionText Optional second fixed-bottom action label.
@@ -47,6 +51,8 @@ import androidx.compose.ui.unit.dp
 internal fun GameOverSummaryScreen(
     state: GameState,
     completed: Boolean = true,
+    guidanceMode: RuleGuidanceMode,
+    onStateChange: (GameState) -> Unit,
     summaryActionText: String,
     onSummaryAction: () -> Unit,
     secondarySummaryActionText: String? = null,
@@ -79,6 +85,8 @@ internal fun GameOverSummaryScreen(
             GameOverSummary(
                 state = state,
                 completed = completed,
+                guidanceMode = guidanceMode,
+                onStateChange = onStateChange,
                 onShowEventLog = { showEventLogSheet = true },
                 onShareSummary = { context.shareGameSummary(state) },
                 summaryActionText = summaryActionText,
@@ -103,6 +111,8 @@ internal fun GameOverSummaryScreen(
  *
  * @param state The game state to summarize.
  * @param completed Whether this is a completed-game summary rather than an in-progress archive.
+ * @param guidanceMode Amount and duration of rule guidance shown during card-detail editing.
+ * @param onStateChange Callback persisting a confirmed card-detail edit.
  * @param onShowEventLog Callback opening the game's event log.
  * @param onShareSummary Callback opening Android's text-share sheet for this game summary.
  * @param summaryActionText Fixed bottom action label, such as Undo End game or Restore game.
@@ -114,6 +124,8 @@ internal fun GameOverSummaryScreen(
 internal fun GameOverSummary(
     state: GameState,
     completed: Boolean = true,
+    guidanceMode: RuleGuidanceMode,
+    onStateChange: (GameState) -> Unit,
     onShowEventLog: () -> Unit,
     onShareSummary: () -> Unit,
     summaryActionText: String,
@@ -125,6 +137,7 @@ internal fun GameOverSummary(
 
     val summaryText = state.gameOverSummaryText()
     var teamInfoDialogTeam by remember { mutableStateOf<TeamId?>(null) }
+    var cardEditorRequest by remember { mutableStateOf<SummaryCardEditorRequest?>(null) }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -195,12 +208,32 @@ internal fun GameOverSummary(
                 team = state.teamOne,
                 summaryText = state.gameOverTeamSummaryText(TeamId.TEAM_ONE),
                 onTeamInfo = { teamInfoDialogTeam = TeamId.TEAM_ONE },
+                onEditCards = if (editablePlayerCards(state.teamOnePlayers).isNotEmpty()) {
+                    {
+                        cardEditorRequest = SummaryCardEditorRequest(
+                            team = TeamId.TEAM_ONE,
+                            now = System.currentTimeMillis(),
+                        )
+                    }
+                } else {
+                    null
+                },
             )
             GameOverTeamSummary(
                 teamId = TeamId.TEAM_TWO,
                 team = state.teamTwo,
                 summaryText = state.gameOverTeamSummaryText(TeamId.TEAM_TWO),
                 onTeamInfo = { teamInfoDialogTeam = TeamId.TEAM_TWO },
+                onEditCards = if (editablePlayerCards(state.teamTwoPlayers).isNotEmpty()) {
+                    {
+                        cardEditorRequest = SummaryCardEditorRequest(
+                            team = TeamId.TEAM_TWO,
+                            now = System.currentTimeMillis(),
+                        )
+                    }
+                } else {
+                    null
+                },
             )
         }
 
@@ -255,7 +288,25 @@ internal fun GameOverSummary(
             onDismiss = { teamInfoDialogTeam = null },
         )
     }
+
+    cardEditorRequest?.let { request ->
+        ExistingCardsEditorDialog(
+            state = state,
+            team = request.team,
+            now = request.now,
+            guidanceMode = guidanceMode,
+            isLandscape = false,
+            onDismiss = { cardEditorRequest = null },
+            onStateUpdate = onStateChange,
+        )
+    }
 }
+
+/// One request to edit a team's existing cards from the summary.
+private data class SummaryCardEditorRequest(
+    val team: TeamId,
+    val now: Long,
+)
 
 /**
  * Open Android's standard text sharesheet for a completed-game summary.
@@ -278,6 +329,7 @@ internal fun Context.shareGameSummary(state: GameState) {
  * @param team Team metadata used for the name and optional coach/captain info button.
  * @param summaryText Text content for the team summary section.
  * @param onTeamInfo Callback opening coach/captain details for this team.
+ * @param onEditCards Optional callback opening this team's existing-card editor.
  */
 @Composable
 private fun GameOverTeamSummary(
@@ -285,6 +337,7 @@ private fun GameOverTeamSummary(
     team: TeamState,
     summaryText: GameOverTeamSummaryText,
     onTeamInfo: () -> Unit,
+    onEditCards: (() -> Unit)?,
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -302,7 +355,7 @@ private fun GameOverTeamSummary(
             ) {
                 Text(
                     summaryText.teamName,
-                    modifier = Modifier.weight(1f, fill = false),
+                    modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
@@ -314,6 +367,14 @@ private fun GameOverTeamSummary(
                         contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                         onClick = onTeamInfo,
                         tag = "summary-${teamId.name}-team-info",
+                    )
+                }
+                onEditCards?.let { editCards ->
+                    IconActionButton(
+                        icon = Icons.Filled.Edit,
+                        contentDescription = "Edit cards for ${team.name}",
+                        tag = "summary-${teamId.name}-edit-cards",
+                        onClick = editCards,
                     )
                 }
             }

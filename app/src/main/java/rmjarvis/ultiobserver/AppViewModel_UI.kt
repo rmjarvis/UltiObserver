@@ -199,6 +199,10 @@ internal fun UltiObserverApp(
                 GameOverSummaryScreen(
                     state = archivedGame,
                     completed = !isInProgressArchive,
+                    guidanceMode = appState.settings.ruleGuidanceMode,
+                    onStateChange = { updatedGame ->
+                        viewModel.updateViewingArchivedGame(updatedGame)
+                    },
                     summaryActionText = if (isInProgressArchive) {
                         "Make current"
                     } else {
@@ -442,6 +446,10 @@ internal fun UltiObserverApp(
                 GameOverSummaryScreen(
                     state = currentSummaryGame,
                     completed = false,
+                    guidanceMode = appState.settings.ruleGuidanceMode,
+                    onStateChange = { updatedGame ->
+                        viewModel.updateCurrentGame(updatedGame)
+                    },
                     summaryActionText = "Back to game",
                     onSummaryAction = {
                         viewModel.resumeCurrentGame()

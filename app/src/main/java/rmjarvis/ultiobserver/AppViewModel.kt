@@ -534,6 +534,23 @@ internal class AppViewModel(
     }
 
     /**
+     * Replace the archived game currently open as a summary and persist that archive row.
+     *
+     * @param updatedGame The edited game state returned by the summary workflow.
+     */
+    fun updateViewingArchivedGame(updatedGame: GameState) {
+        val archived = viewingArchivedGame!!
+        val index = archivedGames.indexOfFirst { it === archived }
+        _state.update {
+            it.copy(
+                archivedGames = archivedGamesWith(index, updatedGame),
+                viewingArchivedGame = updatedGame,
+            )
+        }
+        persistArchivedGames()
+    }
+
+    /**
      * Open one saved setup draft for in-place editing.
      *
      * @param index The archived-game index to edit.

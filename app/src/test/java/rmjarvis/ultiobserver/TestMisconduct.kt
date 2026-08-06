@@ -1838,6 +1838,101 @@ class TestMisconduct : GameDomainTestFixtures() {
     }
 
     /**
+     * Verify existing-card edits remain ordinary undoable actions before game end and are placed
+     * behind Undo End game when made from a completed summary.
+     */
+    @Test
+    fun existingCardEditsAfterGameEnd() {
+        val VC = TeamId.TEAM_ONE
+        val original = standardLiveGameState().copy(
+            teamOnePlayers = listOf(playerRecordWithCards("7", yellows = 1)),
+        )
+        val originalCard = editablePlayerCards(original.teamOnePlayers).single()
+        val reason = CardReason(preset = "Dangerous play")
+        val editedRecords = replaceEditablePlayerCard(
+            records = original.teamOnePlayers,
+            editableCard = originalCard,
+            jerseyNumber = "9",
+            cardType = CardType.YELLOW,
+            playerName = "Casey Handler",
+            reason = reason,
+        )
+        val undoLabel = original.playerCardEditUndoLabel(
+            VC,
+            CardType.YELLOW,
+            PlayerIdentity("9", "Casey Handler"),
+        )
+
+        // An edit made before game end is the immediate undoable action.
+        val liveEdit = original.editExistingPlayerCards(
+            team = VC,
+            records = editedRecords,
+            now = timestampAt(original, LocalTime.of(12, 5)),
+            undoLabel = undoLabel,
+        )
+        assertEquals(undoLabel, liveEdit.undoEntry?.label)
+        assertEquals("Casey Handler", playerRecord(liveEdit, VC, "9").playerName)
+        assertEquals(reason, playerRecord(liveEdit, VC, "9").cards.single().reason)
+        assertEquals("7", liveEdit.undoLastAction().playerCards(VC).single().jerseyNumber)
+
+        // The same edit from a completed summary is inserted before the existing game-over event.
+        // Undo End game therefore keeps the edit and exposes it as the next undoable action.
+        val gameOver = original.endGameNow(timestampAt(original, LocalTime.of(12, 10)))
+        val completedEdit = gameOver.editExistingPlayerCards(
+            team = VC,
+            records = editedRecords,
+            now = timestampAt(original, LocalTime.of(12, 12)),
+            undoLabel = undoLabel,
+        )
+        assertEquals("Undo End game", completedEdit.undoEntry?.label)
+        assertEquals(
+            listOf(EventLogType.YELLOW_CARD, EventLogType.GAME_OVER),
+            completedEdit.eventLog.takeLast(2).map { it.type },
+        )
+        val afterUndoEndGame = completedEdit.undoLastAction()
+        assertEquals(original.phase, afterUndoEndGame.phase)
+        assertEquals("Casey Handler", playerRecord(afterUndoEndGame, VC, "9").playerName)
+        assertEquals(reason, playerRecord(afterUndoEndGame, VC, "9").cards.single().reason)
+        assertEquals(undoLabel, afterUndoEndGame.undoEntry?.label)
+        assertEquals(
+            "7",
+            afterUndoEndGame.undoLastAction().playerCards(VC).single().jerseyNumber,
+        )
+
+        // A game-ending hard cap uses the same terminal End game invariant. Undoing it restores
+        // the pending hard-cap state while preserving the summary card edit.
+        val beforeHardCap = original.copy(
+            rules = original.rules.copy(useHardCap = true),
+            teamOne = original.teamOne.copy(score = 1),
+            pendingCapOffer = CapType.HARD,
+        )
+        val hardCapGameOver = beforeHardCap.applyPendingCap(
+            timestampAt(original, LocalTime.of(12, 14)),
+        )
+        val hardCapEdit = hardCapGameOver.editExistingPlayerCards(
+            team = VC,
+            records = editedRecords,
+            now = timestampAt(original, LocalTime.of(12, 16)),
+            undoLabel = undoLabel,
+        )
+        assertEquals("Undo End game", hardCapEdit.undoEntry?.label)
+        assertEquals(
+            listOf(
+                EventLogType.YELLOW_CARD,
+                EventLogType.HARD_CAP,
+                EventLogType.GAME_OVER,
+            ),
+            hardCapEdit.eventLog.takeLast(3).map { it.type },
+        )
+        val hardCapUndo = hardCapEdit.undoLastAction()
+        assertEquals(beforeHardCap.phase, hardCapUndo.phase)
+        assertEquals(CapType.HARD, hardCapUndo.pendingCapOffer)
+        assertEquals("Casey Handler", playerRecord(hardCapUndo, VC, "9").playerName)
+        assertEquals(reason, playerRecord(hardCapUndo, VC, "9").cards.single().reason)
+        assertEquals(undoLabel, hardCapUndo.undoEntry?.label)
+    }
+
+    /**
      * Return a single player's card record from a team after a test action.
      *
      * @param state The live game state to inspect.

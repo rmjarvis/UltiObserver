@@ -21,6 +21,12 @@ most important information about the game including:
 Any information that was not set for the game is omitted. If a team had no misconduct assessed
 against them, that is stated explicitly.
 
+If there were any yellow or red cards issued in the game, you can edit the details
+using the edit icon on the right side of the team section. This opens up a dialog where you
+can add more details that you might not have known at the time or didn't want to spend the
+time to enter during the game.  E.g. a player's name, or the reason for the card, or more
+details about the context of the card that you think are worth recording.
+
 .. _summary-share:
 
 Share

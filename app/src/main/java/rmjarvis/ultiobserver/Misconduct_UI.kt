@@ -750,10 +750,6 @@ internal fun AdjustCardsDialog(
 private sealed interface TeamCardDialogStep {
     data object InitialCardChoice : TeamCardDialogStep
     data class ExistingCards(val team: TeamId) : TeamCardDialogStep
-    data class ExistingCardEdit(
-        val pending: PendingManualCardEdit,
-        val initialEntry: PlayerCardEntry,
-    ) : TeamCardDialogStep
     data class CardedPlayerEntry(
         val team: TeamId,
         val cardType: CardType,
@@ -769,10 +765,184 @@ private sealed interface TeamCardDialogStep {
         val message: String,
         val returnTo: TeamCardDialogStep,
     ) : TeamCardDialogStep
+}
+
+/// One active step while editing existing player-card details.
+private sealed interface ExistingCardsEditorStep {
+    data object CardList : ExistingCardsEditorStep
+    data class CardEdit(
+        val pending: PendingManualCardEdit,
+        val initialEntry: PlayerCardEntry,
+    ) : ExistingCardsEditorStep
+    data class InvalidAssignment(
+        val message: String,
+        val returnTo: CardEdit,
+    ) : ExistingCardsEditorStep
     data class SuspensionNotice(
         val message: RuleGuidanceMessage,
-        val returnTo: TeamCardDialogStep,
-    ) : TeamCardDialogStep
+    ) : ExistingCardsEditorStep
+}
+
+/**
+ * Render the shared flow for listing and editing one team's existing yellow/red cards.
+ *
+ * @param state Current game state containing the editable card records.
+ * @param team Team whose cards should be shown.
+ * @param now Epoch millis used for any event-log adjustment entry.
+ * @param guidanceMode Amount and duration of suspension guidance shown after an identity edit.
+ * @param isLandscape Whether to arrange the card-entry dialog for landscape.
+ * @param onDismiss Callback closing the existing-card flow.
+ * @param onStateUpdate Callback receiving each confirmed card-detail edit.
+ */
+@Composable
+internal fun ExistingCardsEditorDialog(
+    state: GameState,
+    team: TeamId,
+    now: Long,
+    guidanceMode: RuleGuidanceMode,
+    isLandscape: Boolean,
+    onDismiss: () -> Unit,
+    onStateUpdate: (GameState) -> Unit,
+) {
+    var step by remember {
+        mutableStateOf<ExistingCardsEditorStep>(ExistingCardsEditorStep.CardList)
+    }
+
+    fun applyCardEdit(
+        pending: PendingManualCardEdit,
+        entry: PlayerCardEntry,
+    ) {
+        val returnTo = ExistingCardsEditorStep.CardEdit(pending, entry)
+        if (entry.jerseyNumber.isBlank() && entry.playerName.isBlank()) {
+            step = ExistingCardsEditorStep.InvalidAssignment(
+                "Enter a player number or name before recording this card.",
+                returnTo,
+            )
+            return
+        }
+        val identity = PlayerIdentity(entry.jerseyNumber, entry.playerName)
+        val recordsAfterRemoval = removeEditablePlayerCard(
+            state.playerCards(pending.team),
+            pending.card,
+        )
+        val status = playerSuspensionStatus(recordsAfterRemoval, identity)
+        if (status != null) {
+            step = ExistingCardsEditorStep.InvalidAssignment(
+                "${state.teamFor(pending.team).name} ${identity.displayText(compact = true)} " +
+                    status.rejectionText,
+                returnTo,
+            )
+            return
+        }
+        val updatedRecords = replaceEditablePlayerCard(
+            records = state.playerCards(pending.team),
+            editableCard = pending.card,
+            jerseyNumber = identity.jerseyNumber,
+            cardType = pending.card.cardType,
+            playerName = identity.playerName,
+            reason = entry.reason,
+        )
+        val noticeMessage = if (!identity.matches(pending.card.identity())) {
+            state.playerSuspensionNotice(pending.team, updatedRecords, identity)
+        } else {
+            null
+        }
+        onStateUpdate(
+            state.editExistingPlayerCards(
+                team = pending.team,
+                records = updatedRecords,
+                now = now,
+                undoLabel = state.playerCardEditUndoLabel(
+                    pending.team,
+                    pending.card.cardType,
+                    identity,
+                ),
+            )
+        )
+        step = if (noticeMessage != null) {
+            ExistingCardsEditorStep.SuspensionNotice(noticeMessage)
+        } else {
+            ExistingCardsEditorStep.CardList
+        }
+    }
+
+    // No else branch: every ExistingCardsEditorStep value is handled.
+    when (val activeStep = step) {
+        ExistingCardsEditorStep.CardList -> {
+            EditablePlayerCardsDialog(
+                teamName = state.teamFor(team).name,
+                cards = editablePlayerCards(state.playerCards(team)),
+                onDismiss = onDismiss,
+                onEdit = { card ->
+                    step = ExistingCardsEditorStep.CardEdit(
+                        PendingManualCardEdit(team, card),
+                        PlayerCardEntry(
+                            jerseyNumber = card.jerseyNumber,
+                            playerName = card.playerName,
+                            reason = card.reason,
+                        ),
+                    )
+                },
+            )
+        }
+        is ExistingCardsEditorStep.CardEdit -> {
+            val pending = activeStep.pending
+            PlayerCardEntryDialog(
+                title = "Edit ${pending.card.cardType.label.lowercase()} card",
+                teamName = state.teamFor(pending.team).name,
+                initialEntry = activeStep.initialEntry,
+                candidates = emptyList(),
+                cardType = pending.card.cardType,
+                isLandscape = isLandscape,
+                onDismiss = { step = ExistingCardsEditorStep.CardList },
+                onConfirm = { entry ->
+                    applyCardEdit(pending, entry)
+                },
+            )
+        }
+        is ExistingCardsEditorStep.InvalidAssignment -> {
+            ResponsiveAlertDialog(
+                onDismissRequest = { step = activeStep.returnTo },
+                title = { Text("Invalid card assignment") },
+                text = {
+                    ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
+                        Text(activeStep.message)
+                    }
+                },
+                confirmButton = {
+                    TextActionButton(label = "OK", onClick = { step = activeStep.returnTo })
+                },
+                widthProfile = DialogWidthProfile.COMPACT,
+            )
+        }
+        is ExistingCardsEditorStep.SuspensionNotice -> {
+            RuleGuidanceGate(
+                key = activeStep,
+                mode = guidanceMode,
+                requiredInNone = true,
+                onAutoAccept = {
+                    step = ExistingCardsEditorStep.CardList
+                },
+            ) {
+                ResponsiveAlertDialog(
+                    onDismissRequest = { step = ExistingCardsEditorStep.CardList },
+                    title = { Text("Card suspension") },
+                    text = {
+                        ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
+                            RuleGuidanceText(activeStep.message)
+                        }
+                    },
+                    confirmButton = {
+                        TextActionButton(
+                            label = "OK",
+                            onClick = { step = ExistingCardsEditorStep.CardList },
+                        )
+                    },
+                    widthProfile = DialogWidthProfile.COMPACT,
+                )
+            }
+        }
+    }
 }
 
 /**
@@ -846,13 +1016,6 @@ internal fun TeamCardDialog(
         return TeamCardDialogStep.InvalidAssignment(message, returnTo)
     }
 
-    fun suspensionNoticeStep(
-        message: RuleGuidanceMessage,
-        returnTo: TeamCardDialogStep,
-    ): TeamCardDialogStep.SuspensionNotice {
-        return TeamCardDialogStep.SuspensionNotice(message, returnTo)
-    }
-
     fun stepForPendingMisconductReturn(returnTo: PendingMisconductReturn): TeamCardDialogStep {
         // No else branch: every PendingMisconductReturn value is handled.
         return when (returnTo) {
@@ -882,90 +1045,6 @@ internal fun TeamCardDialog(
         } else {
             completeAssessment(result)
         }
-    }
-
-    fun stateWithPlayerCards(
-        team: TeamId,
-        records: List<PlayerRecord>,
-        undoLabel: String,
-    ): GameState {
-        return state.adjustCardsAndTf(
-            teamOneBlues = state.teamOne.blueCards,
-            teamOneTechnicalFouls = state.teamOne.technicalFouls,
-            teamTwoBlues = state.teamTwo.blueCards,
-            teamTwoTechnicalFouls = state.teamTwo.technicalFouls,
-            teamOnePlayers = if (team == TeamId.TEAM_ONE) records else state.teamOnePlayers,
-            teamTwoPlayers = if (team == TeamId.TEAM_TWO) records else state.teamTwoPlayers,
-            now = now,
-            undoLabel = undoLabel,
-        )
-    }
-
-    fun suspensionNoticeMessage(
-        team: TeamId,
-        records: List<PlayerRecord>,
-        identity: PlayerIdentity
-    ): RuleGuidanceMessage? {
-        return state.playerSuspensionNotice(team, records, identity)
-    }
-
-    fun applyExistingCardEdit(
-        pending: PendingManualCardEdit,
-        entry: PlayerCardEntry
-    ): Boolean {
-        val returnTo = TeamCardDialogStep.ExistingCardEdit(pending, entry)
-        if (entry.jerseyNumber.isBlank() && entry.playerName.isBlank()) {
-            step = invalidAssignmentStep(
-                "Enter a player number or name before recording this card.",
-                returnTo,
-            )
-            return false
-        }
-        val identity = PlayerIdentity(entry.jerseyNumber, entry.playerName)
-        val recordsAfterRemoval = removeEditablePlayerCard(
-            state.playerCards(pending.team),
-            pending.card,
-        )
-        val status = playerSuspensionStatus(recordsAfterRemoval, identity)
-        if (status != null) {
-            step = invalidAssignmentStep(
-                "${state.teamFor(pending.team).name} ${identity.displayText(compact = true)} " +
-                    status.rejectionText,
-                returnTo,
-            )
-            return false
-        }
-        val updatedRecords = replaceEditablePlayerCard(
-            records = state.playerCards(pending.team),
-            editableCard = pending.card,
-            jerseyNumber = identity.jerseyNumber,
-            cardType = pending.card.cardType,
-            playerName = identity.playerName,
-            reason = entry.reason,
-        )
-        val noticeMessage = if (!identity.matches(pending.card.identity())) {
-            suspensionNoticeMessage(pending.team, updatedRecords, identity)
-        } else {
-            null
-        }
-        onStateUpdate(
-            stateWithPlayerCards(
-                team = pending.team,
-                records = updatedRecords,
-                undoLabel = state.playerCardEditUndoLabel(
-                    pending.team,
-                    pending.card.cardType,
-                    identity,
-                ),
-            )
-        )
-        val returnToList = TeamCardDialogStep.ExistingCards(pending.team)
-        step = if (noticeMessage != null) {
-            suspensionNoticeStep(noticeMessage, returnToList)
-        } else {
-            returnToList
-        }
-        return true
     }
 
     fun assessPlayerCardEntry(
@@ -1066,35 +1145,14 @@ internal fun TeamCardDialog(
             )
         }
         is TeamCardDialogStep.ExistingCards -> {
-            EditablePlayerCardsDialog(
-                teamName = state.teamFor(activeStep.team).name,
-                cards = editablePlayerCards(state.playerCards(activeStep.team)),
-                onDismiss = { step = TeamCardDialogStep.InitialCardChoice },
-                onEdit = { card ->
-                    step = TeamCardDialogStep.ExistingCardEdit(
-                        PendingManualCardEdit(activeStep.team, card),
-                        PlayerCardEntry(
-                            jerseyNumber = card.jerseyNumber,
-                            playerName = card.playerName,
-                            reason = card.reason,
-                        ),
-                    )
-                },
-            )
-        }
-        is TeamCardDialogStep.ExistingCardEdit -> {
-            val pending = activeStep.pending
-            PlayerCardEntryDialog(
-                title = "Edit ${pending.card.cardType.label.lowercase()} card",
-                teamName = state.teamFor(pending.team).name,
-                initialEntry = activeStep.initialEntry,
-                candidates = emptyList(),
-                cardType = pending.card.cardType,
+            ExistingCardsEditorDialog(
+                state = state,
+                team = activeStep.team,
+                now = now,
+                guidanceMode = guidanceMode,
                 isLandscape = isLandscape,
-                onDismiss = { step = TeamCardDialogStep.ExistingCards(pending.team) },
-                onConfirm = { entry ->
-                    applyExistingCardEdit(pending, entry)
-                },
+                onDismiss = { step = TeamCardDialogStep.InitialCardChoice },
+                onStateUpdate = onStateUpdate,
             )
         }
         is TeamCardDialogStep.CardedPlayerEntry -> {
@@ -1182,30 +1240,6 @@ internal fun TeamCardDialog(
                 },
                 widthProfile = DialogWidthProfile.COMPACT,
             )
-        }
-        is TeamCardDialogStep.SuspensionNotice -> {
-            RuleGuidanceGate(
-                key = activeStep,
-                mode = guidanceMode,
-                requiredInNone = true,
-                onAutoAccept = {
-                    step = activeStep.returnTo
-                },
-            ) {
-                ResponsiveAlertDialog(
-                    onDismissRequest = { step = activeStep.returnTo },
-                    title = { Text("Card suspension") },
-                    text = {
-                        ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
-                            RuleGuidanceText(activeStep.message)
-                        }
-                    },
-                    confirmButton = {
-                        TextActionButton(label = "OK", onClick = { step = activeStep.returnTo })
-                    },
-                    widthProfile = DialogWidthProfile.COMPACT,
-                )
-            }
         }
         is TeamCardDialogStep.BlueCardConfirmation -> {
             val blueTeam = activeStep.team

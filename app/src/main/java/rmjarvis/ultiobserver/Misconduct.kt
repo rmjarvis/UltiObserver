@@ -654,6 +654,68 @@ fun GameState.adjustCardsAndTf(
 }
 
 /**
+ * Edit one team's existing player-card details.
+ *
+ * For a finished game, apply the edit to the state behind `Undo End game` and insert any
+ * resulting adjustment entry before the existing game-over event. Undoing game end then keeps
+ * the edited details and exposes the card edit as the next undoable action. Other game states use
+ * the ordinary card-adjustment undo path directly.
+ *
+ * @param team The team whose player-card records were edited.
+ * @param records The complete updated player records for that team.
+ * @param now Epoch millis used for any event-log adjustment entry.
+ * @param undoLabel Label for undoing the card edit.
+ */
+fun GameState.editExistingPlayerCards(
+    team: TeamId,
+    records: List<PlayerRecord>,
+    now: Long,
+    undoLabel: String,
+): GameState {
+    val updatedTeamOnePlayers = if (team == TeamId.TEAM_ONE) records else teamOnePlayers
+    val updatedTeamTwoPlayers = if (team == TeamId.TEAM_TWO) records else teamTwoPlayers
+    if (
+        updatedTeamOnePlayers == teamOnePlayers &&
+            updatedTeamTwoPlayers == teamTwoPlayers
+    ) {
+        return this
+    }
+    if (phase != GamePhase.GAME_OVER) {
+        return adjustCardsAndTf(
+            teamOneBlues = teamOne.blueCards,
+            teamOneTechnicalFouls = teamOne.technicalFouls,
+            teamTwoBlues = teamTwo.blueCards,
+            teamTwoTechnicalFouls = teamTwo.technicalFouls,
+            teamOnePlayers = updatedTeamOnePlayers,
+            teamTwoPlayers = updatedTeamTwoPlayers,
+            now = now,
+            undoLabel = undoLabel,
+        )
+    }
+
+    val endGameUndo = undoEntry!!
+    val beforeEndGame = endGameUndo.previous
+    val editedBeforeEndGame = beforeEndGame.adjustCardsAndTf(
+        teamOneBlues = beforeEndGame.teamOne.blueCards,
+        teamOneTechnicalFouls = beforeEndGame.teamOne.technicalFouls,
+        teamTwoBlues = beforeEndGame.teamTwo.blueCards,
+        teamTwoTechnicalFouls = beforeEndGame.teamTwo.technicalFouls,
+        teamOnePlayers = updatedTeamOnePlayers,
+        teamTwoPlayers = updatedTeamTwoPlayers,
+        now = now,
+        undoLabel = undoLabel,
+    )
+    val terminalEventEntries = eventLog.drop(beforeEndGame.eventLog.size)
+    return copy(
+        teamOnePlayers = editedBeforeEndGame.teamOnePlayers,
+        teamTwoPlayers = editedBeforeEndGame.teamTwoPlayers,
+        eventLog = editedBeforeEndGame.eventLog + terminalEventEntries,
+        undoEntry = UndoEntry(endGameUndo.label, editedBeforeEndGame),
+        redoEntry = null,
+    )
+}
+
+/**
  * Build event-log entries that describe each card and technical-foul correction delta.
  *
  * @param teamOneBlues The corrected blue-card count for team one.

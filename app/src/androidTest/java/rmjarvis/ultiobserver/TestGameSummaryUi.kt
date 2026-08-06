@@ -3,14 +3,17 @@ package rmjarvis.ultiobserver
 import android.app.Instrumentation
 import android.content.Intent
 import androidx.activity.compose.setContent
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextReplacement
 import androidx.test.espresso.intent.Intents.intended
 import androidx.test.espresso.intent.Intents.intending
 import androidx.test.espresso.intent.Intents.init
@@ -20,6 +23,7 @@ import java.time.LocalDate
 import java.time.LocalTime
 import org.hamcrest.Description
 import org.hamcrest.TypeSafeMatcher
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -28,6 +32,108 @@ import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 /// Tests for game-over summary UI states.
 @RunWith(AndroidJUnit4::class)
 class TestGameSummaryUi : MainActivityUiTestFixtures() {
+    /**
+     * Test existing player-card details can be edited from completed, archived, and current
+     * summaries.
+     */
+    @Test
+    fun gameSummaryCardDetailsCanBeEdited() {
+        clearArchivedGamesProgrammatically()
+        startLiveGameProgrammatically(
+            newSetupGameState(now = 123_000L).copy(
+                teamOne = TeamState("Viscous Coupling", TeamColorChoice.WHITE),
+                teamTwo = TeamState("Animal", TeamColorChoice.BLUE),
+            )
+        )
+        updateCurrentStateProgrammatically {
+            copy(
+                rules = rules.copy(useHardCap = true),
+                teamOne = teamOne.copy(score = 1),
+                teamOnePlayers = listOf(playerRecordWithCards("7", yellows = 1)),
+                teamTwoPlayers = listOf(playerRecordWithCards("23", yellows = 1)),
+                pendingCapOffer = CapType.HARD,
+            ).applyPendingCap(System.currentTimeMillis())
+        }
+        waitForText("Game over")
+        composeRule.onNodeWithText("OK").performClick()
+        waitForText("Game summary")
+
+        // Both teams with an existing yellow/red card expose the summary edit action.
+        composeRule.onAllNodesWithTag("summary-${TeamId.TEAM_TWO.name}-edit-cards")
+            .assertCountEquals(1)
+        composeRule.onNodeWithTag("summary-${TeamId.TEAM_ONE.name}-edit-cards")
+            .performScrollTo()
+            .performClick()
+        waitForText("Edit existing cards")
+        composeRule.onAllNodes(hasContentDescription("Edit #7", substring = true))
+            .onFirst()
+            .performClick()
+        waitForText("Edit yellow card")
+        composeRule.onNodeWithTag("card-player-name")
+            .performTextReplacement("Casey Handler")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Edit existing cards")
+        composeRule.onNodeWithTag("editable-player-cards-done").performClick()
+        waitForText("#7 Casey Handler: Yellow card", substring = true)
+
+        // The archived summary uses the same editor and persists the updated archive row.
+        composeRule.onNodeWithText("Archive game").performClick()
+        waitForText("See archived/saved games")
+        composeRule.onNodeWithText("See archived/saved games").performClick()
+        waitForText("Archived/saved games")
+        composeRule.onNodeWithText("Archived games", substring = true).performClick()
+        waitForText("Archived games")
+        composeRule.onNodeWithText("Viscous Coupling 1 - 0 Animal").performClick()
+        waitForText("Game summary")
+        composeRule.onNodeWithTag("summary-${TeamId.TEAM_ONE.name}-edit-cards")
+            .performScrollTo()
+            .performClick()
+        composeRule.onAllNodes(hasContentDescription("Edit #7 Casey Handler", substring = true))
+            .onFirst()
+            .performClick()
+        composeRule.onNodeWithTag("card-player-name")
+            .performTextReplacement("Archived Handler")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Edit existing cards")
+        composeRule.onNodeWithTag("editable-player-cards-done").performClick()
+        waitForText("#7 Archived Handler: Yellow card", substring = true)
+
+        // The game-ending hard cap archives and restores with the standard Undo End game action.
+        // Undoing it returns to the pending hard-cap state and keeps both summary edits.
+        composeRule.onNodeWithText("Restore game").performClick()
+        waitForText("Game summary")
+        composeRule.onNodeWithText("Undo End game").performClick()
+        assertLiveScreen()
+        val resumed = accessCurrentGameState()
+        assertEquals(CapType.HARD, resumed.pendingCapOffer)
+        assertEquals("Archived Handler", resumed.playerCards(TeamId.TEAM_ONE).single().playerName)
+        assertTrue(resumed.undoEntry!!.label.startsWith("Undo Edit yellow"))
+        waitForText("Hard cap")
+        composeRule.onNodeWithText("Not yet").performClick()
+
+        // The still-current game summary edits Team Two and persists through the ViewModel path.
+        openMoreActionsDialog()
+        selectMoreActionsCategory("Game details")
+        composeRule.onNodeWithText("Game summary").performClick()
+        waitForText("Game summary")
+        composeRule.onNodeWithTag("summary-${TeamId.TEAM_TWO.name}-edit-cards")
+            .performScrollTo()
+            .performClick()
+        composeRule.onAllNodes(hasContentDescription("Edit #23", substring = true))
+            .onFirst()
+            .performClick()
+        composeRule.onNodeWithTag("card-player-name")
+            .performTextReplacement("Team Two Handler")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Edit existing cards")
+        composeRule.onNodeWithTag("editable-player-cards-done").performClick()
+        waitForText("#23 Team Two Handler: Yellow card", substring = true)
+        assertEquals(
+            "Team Two Handler",
+            accessCurrentGameState().playerCards(TeamId.TEAM_TWO).single().playerName,
+        )
+    }
+
     /**
      * Test the game-over summary branch for teams with no player-specific cards.
      */
@@ -82,6 +188,8 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
                 UltiObserverTheme(dynamicColor = false) {
                     GameOverSummary(
                         state = state,
+                        guidanceMode = RuleGuidanceMode.FULL,
+                        onStateChange = {},
                         onShowEventLog = {},
                         onShareSummary = { shared = true },
                         summaryActionText = "Undo End game",

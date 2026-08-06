@@ -232,6 +232,8 @@ internal fun ActiveGameScreen(
     if (state.phase == GamePhase.GAME_OVER) {
         GameOverSummaryScreen(
             state = state,
+            guidanceMode = settings.ruleGuidanceMode,
+            onStateChange = onStateChange,
             summaryActionText = state.undoEntry!!.label,
             onSummaryAction = {
                 undoWithoutPhasePrompt(state.undoLastAction())
