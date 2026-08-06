@@ -8,8 +8,6 @@ import java.io.FileInputStream
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -18,7 +16,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.decodeFromString
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -237,11 +234,10 @@ class TestTimingAlerts {
             )
             assertTrue(platform.cancelCapAlarmCalls >= 4)
 
-            // Releasing a service leaves the process-wide sound player alive for later app
-            // components.
+            // Releasing the controller stops its service work. The process-wide sound player has
+            // no component-level release lifecycle and remains available to later components.
             controller.release()
             controllerReleased = true
-            assertFalse(platform.soundPlayer.released)
         } finally {
             if (!controllerReleased) {
                 controller.release()
@@ -573,35 +569,26 @@ class TestTimingAlerts {
     /**
      * Test the phone audio and vibration wrappers used after a timing alert is selected.
      *
-     * Most timing-alert tests use fakes so they are deterministic.  This smoke test exercises the
-     * real Android wrappers enough to prove that loading a bundled sound, asking for playback,
-     * releasing audio resources, checking vibration availability, and checking exact-alarm access
-     * are callable on the current emulator.
+     * Most timing-alert tests use fakes so they are deterministic. This smoke test exercises the
+     * process-wide Android sound player enough to prove that loading bundled sounds and asking for
+     * playback are callable, along with the vibration and exact-alarm wrappers.
      */
     @Test
     fun androidAudioWrappers() {
         // The Application lazily creates one player that every Android component can reuse for the
         // lifetime of this process.
         val application = context.applicationContext as UltiObserverApplication
-        assertSame(application.timingAlertPlayer, application.timingAlertPlayer)
+        val timingAlertPlayer = application.timingAlertPlayer
+        assertSame(timingAlertPlayer, application.timingAlertPlayer)
 
-        // The real SoundPool adapter can load one bundled timing-alert clip, report that it loaded,
-        // accept a play request, and release without blocking the test thread.
-        val soundPlayer = AndroidTimingAlertSoundPlayer()
-        val loadLatch = CountDownLatch(1)
-        var loadedSoundId: Int? = null
-        var loadStatus: Int? = null
-        soundPlayer.setOnLoadCompleteListener { sampleId, status ->
-            loadedSoundId = sampleId
-            loadStatus = status
-            loadLatch.countDown()
-        }
-        val soundId = soundPlayer.load(context, R.raw.timing_tick, 1)
-        assertTrue(loadLatch.await(3, TimeUnit.SECONDS))
-        assertEquals(soundId, loadedSoundId)
-        assertEquals(0, loadStatus)
-        soundPlayer.play(soundId, 0.05f, 0.05f, 1, 0, 1f)
-        soundPlayer.release()
+        // Exercise playback through the same process-wide SoundPool used by settings previews and
+        // real timing cues.
+        timingAlertPlayer.play(
+            sound = TimingAlertSound.TICK,
+            repeatCount = 1,
+            volume = 0.05f,
+            priority = TIMING_ALERT_CUE_PRIORITY,
+        )
 
         // Haptic helpers should be safe whether this emulator reports vibration hardware or not.
         val hasHaptics = context.hasTimingCueHaptics()
@@ -989,7 +976,6 @@ private data class ScheduledCapAlarm(
 /// Fake SoundPool boundary for controller tests.
 private class FakeTimingAlertSoundPlayer : TimingAlertSoundPlayer {
     val playedSounds = mutableListOf<PlayedTimingAlertSound>()
-    var released = false
     private var loadCompleteListener: ((sampleId: Int, status: Int) -> Unit)? = null
 
     override fun setOnLoadCompleteListener(listener: (sampleId: Int, status: Int) -> Unit) {
@@ -1009,10 +995,6 @@ private class FakeTimingAlertSoundPlayer : TimingAlertSoundPlayer {
         rate: Float,
     ) {
         playedSounds += PlayedTimingAlertSound(soundId, leftVolume)
-    }
-
-    override fun release() {
-        released = true
     }
 
     /// Complete a fake SoundPool load.

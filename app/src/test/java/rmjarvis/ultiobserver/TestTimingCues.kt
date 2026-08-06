@@ -353,14 +353,6 @@ class TestTimingCues : GameDomainTestFixtures() {
             invalidRepeatCountException.message,
         )
 
-        // Release suppresses pending sounds.
-        val playedBeforeRelease = soundPlayer.playedSounds.toList()
-        timingAlertPlayer.play(TimingAlertSound.DING, 1, 0.25f, TIMING_ALERT_CUE_PRIORITY)
-        timingAlertPlayer.release()
-        soundPlayer.completeLoad(soundIds.getValue(dingClip))
-        assertEquals(playedBeforeRelease, soundPlayer.playedSounds)
-        assertTrue(soundPlayer.released)
-
         // SoundPool reports failed loads with a nonzero status.  We do this manually here
         // with the FakeTimingAlertSoundPlayer by explicitly setting status=1 below.
         // A failed load should discard pending plays for that clip, and unrelated load
@@ -1012,7 +1004,6 @@ private class FakeTimingAlertSoundPlayer : TimingAlertSoundPlayer {
 
     val playedSounds = mutableListOf<PlayedTimingAlertSound>()
     val playedPriorities = mutableListOf<Int>()
-    var released = false
 
     /**
      * Capture the sound-load completion listener installed by the timing alert player.
@@ -1054,11 +1045,6 @@ private class FakeTimingAlertSoundPlayer : TimingAlertSoundPlayer {
     ) {
         playedSounds += PlayedTimingAlertSound(soundId, leftVolume)
         playedPriorities += priority
-    }
-
-    /// Record that the fake timing-alert sound-player was released.
-    override fun release() {
-        released = true
     }
 
     /**

@@ -91,12 +91,6 @@ internal class TimingAlertPlayer internal constructor(
         }
     }
 
-    /// Release sound resources and discard pending plays.
-    fun release() {
-        pendingPlays.clear()
-        soundPlayer.release()
-    }
-
     /**
      * Play a sound clip that has already finished loading.
      *
@@ -188,9 +182,6 @@ internal interface TimingAlertSoundPlayer {
         loop: Int,
         rate: Float,
     )
-
-    /// Release all underlying audio resources.
-    fun release()
 }
 
 /// Android SoundPool adapter for the TimingAlertSoundPlayer interface.
@@ -246,19 +237,6 @@ internal class AndroidTimingAlertSoundPlayer : TimingAlertSoundPlayer {
         rate: Float,
     ) {
         soundPool.play(soundId, leftVolume, rightVolume, priority, loop, rate)
-    }
-
-    /// Release the Android SoundPool without blocking Android component teardown.
-    override fun release() {
-        Thread(
-            {
-                soundPool.release()
-            },
-            "TimingAlertSoundPoolRelease",
-        ).apply {
-            isDaemon = true
-            start()
-        }
     }
 }
 
