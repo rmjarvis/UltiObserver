@@ -28,6 +28,7 @@ internal enum class ArchiveFilterField(val displayText: String) {
     DIVISION("Division"),
     LEVEL("Level"),
     TEAM("Team"),
+    CARDS("Cards"),
     DATE("Date"),
     OBSERVERS("Observers"),
 }
@@ -103,6 +104,7 @@ internal data class ArchiveDateFilter(
  * @param divisions Division labels to keep.
  * @param levels Level labels to keep.
  * @param teams Team names to keep, matched against either team.
+ * @param cards In-game card types to keep, matched against either team.
  * @param observers Observer strings to keep.
  * @param dateRange Date range to keep.
  */
@@ -111,6 +113,7 @@ internal data class ArchiveFilterSelections(
     val divisions: Set<String> = emptySet(),
     val levels: Set<String> = emptySet(),
     val teams: Set<String> = emptySet(),
+    val cards: Set<String> = emptySet(),
     val observers: Set<String> = emptySet(),
     val dateRange: ArchiveDateFilter? = null,
 ) {
@@ -183,6 +186,7 @@ private fun ArchiveFilterSelections.filterSummaryLines(): List<ArchiveFilterSumm
         addSelectedValues("Division", "Divisions", divisions)
         addSelectedValues("Level", "Levels", levels)
         addSelectedValues("Team", "Teams", teams)
+        addSelectedValues("Card", "Cards", cards)
         addSelectedValues("Observer", "Observers", observers)
         dateRange?.let { dateFilter ->
             add(
@@ -285,6 +289,12 @@ private val archiveFilterCriteria = listOf(
         selectedValues = { it.teams },
         replaceValues = { selections, values -> selections.copy(teams = values) },
         valuesForGame = { it.archiveTeamFilterValues() },
+    ),
+    ArchiveFilterCriterion(
+        field = ArchiveFilterField.CARDS,
+        selectedValues = { it.cards },
+        replaceValues = { selections, values -> selections.copy(cards = values) },
+        valuesForGame = { it.archiveCardFilterValues() },
     ),
     ArchiveFilterCriterion(
         field = ArchiveFilterField.OBSERVERS,
@@ -500,6 +510,21 @@ private fun GameState.archiveLevelFilterValue(): String {
 
 private fun GameState.archiveTeamFilterValues(): List<String> {
     return listOf(teamOne.name, teamTwo.name)
+}
+
+/// Return the in-game card types assessed to either team.
+private fun GameState.archiveCardFilterValues(): List<String> {
+    return buildList {
+        if (teamYellowCards(TeamId.TEAM_ONE) + teamYellowCards(TeamId.TEAM_TWO) > 0) {
+            add("Yellow")
+        }
+        if (teamRedCards(TeamId.TEAM_ONE) + teamRedCards(TeamId.TEAM_TWO) > 0) {
+            add("Red")
+        }
+        if (teamOne.blueCards + teamTwo.blueCards > 0) {
+            add("Blue")
+        }
+    }
 }
 
 private fun GameState.archiveObserverFilterValues(): List<String> {

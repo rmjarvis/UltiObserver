@@ -57,12 +57,16 @@ games by:
 * Division
 * Level
 * Team (either team involved in the game)
+* Cards (Yellow, Red, or Blue cards assessed during the game)
 * Date
 * Observers
 
 For all but the date, the available options for filtering are based on the data included
 in any of the games you have stored in the archive. Games without a particular bit of
 information will be listed as N/A for that criterion.
+
+Selecting more than one card color shows games containing any of the selected colors. Cards
+carried in from previous games and technical fouls are not included in the Cards filter.
 
 For the date filter, you can select any start and end date you want. There are quick entry
 options for:

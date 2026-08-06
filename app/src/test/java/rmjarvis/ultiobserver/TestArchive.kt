@@ -80,7 +80,7 @@ class TestArchive : GameDomainTestFixtures() {
             ArchivedGameCategory.entries.map { it.emptyText },
         )
         assertEquals(
-            listOf("Tournament", "Division", "Level", "Team", "Date", "Observers"),
+            listOf("Tournament", "Division", "Level", "Team", "Cards", "Date", "Observers"),
             ArchiveFilterField.entries.map { it.displayText },
         )
 
@@ -116,18 +116,21 @@ class TestArchive : GameDomainTestFixtures() {
             .withValues(ArchiveFilterField.DIVISION, setOf("Open", "Mixed"))
             .withValues(ArchiveFilterField.LEVEL, setOf("Club"))
             .withValues(ArchiveFilterField.TEAM, setOf("Ring of Fire"))
+            .withValues(ArchiveFilterField.CARDS, setOf("Yellow", "Red"))
             .withValues(ArchiveFilterField.OBSERVERS, setOf("Gary"))
         assertTrue(selections.isActive())
         assertEquals(setOf("Pro Elite Challenge"), selections.valuesFor(ArchiveFilterField.TOURNAMENT))
         assertEquals(setOf("Open", "Mixed"), selections.valuesFor(ArchiveFilterField.DIVISION))
         assertEquals(setOf("Club"), selections.valuesFor(ArchiveFilterField.LEVEL))
         assertEquals(setOf("Ring of Fire"), selections.valuesFor(ArchiveFilterField.TEAM))
+        assertEquals(setOf("Yellow", "Red"), selections.valuesFor(ArchiveFilterField.CARDS))
         assertEquals(setOf("Gary"), selections.valuesFor(ArchiveFilterField.OBSERVERS))
 
         // Clearing one checkbox-style filter leaves that field with no selected values.
         assertEquals(emptySet<String>(), selections.without(ArchiveFilterField.DIVISION).divisions)
         assertEquals(emptySet<String>(), selections.without(ArchiveFilterField.LEVEL).levels)
         assertEquals(emptySet<String>(), selections.without(ArchiveFilterField.TEAM).teams)
+        assertEquals(emptySet<String>(), selections.without(ArchiveFilterField.CARDS).cards)
         assertEquals(emptySet<String>(), selections.without(ArchiveFilterField.OBSERVERS).observers)
 
         // Available values include counts of games matching that value under other filters.
@@ -191,6 +194,7 @@ class TestArchive : GameDomainTestFixtures() {
             divisions = setOf("Open", "Mixed"),
             levels = setOf("College", "Club"),
             teams = setOf("Ring of Fire", "Truck Stop"),
+            cards = setOf("Yellow", "Red"),
             observers = setOf("Gary", "Mike"),
         )
         assertEquals(
@@ -200,6 +204,7 @@ class TestArchive : GameDomainTestFixtures() {
                 "    Divisions: Mixed, Open",
                 "    Levels: Club, College",
                 "    Teams: Ring of Fire, Truck Stop",
+                "    Cards: Red, Yellow",
                 "    Observers: Gary, Mike",
                 "Sorted by second team",
             ).joinToString("\n"),
@@ -234,6 +239,102 @@ class TestArchive : GameDomainTestFixtures() {
         assertNull(categoryLandingState.selectedGames)
         assertTrue(categoryLandingState.availableFilterValues.isEmpty())
         assertEquals("", categoryLandingState.filterAndSortSummaryText)
+    }
+
+    /**
+     * Verify card filters use only cards assessed during the archived game and combine selected
+     * colors with OR semantics.
+     */
+    @Test
+    fun archiveCardFilterSelections() {
+        val yellow = archiveForFilterTest(
+            teamOne = "Yellow One",
+            teamTwo = "Yellow Two",
+            startDate = LocalDate.of(2026, 7, 1),
+            startTime = LocalTime.of(9, 0),
+        ).copy(
+            teamOnePlayers = listOf(playerRecordWithCards("7", yellows = 1)),
+        )
+        val red = archiveForFilterTest(
+            teamOne = "Red One",
+            teamTwo = "Red Two",
+            startDate = LocalDate.of(2026, 7, 2),
+            startTime = LocalTime.of(9, 0),
+        ).copy(
+            teamTwoPlayers = listOf(playerRecordWithCards("19", reds = 1)),
+        )
+        val blue = archiveForFilterTest(
+            teamOne = "Blue One",
+            teamTwo = "Blue Two",
+            startDate = LocalDate.of(2026, 7, 3),
+            startTime = LocalTime.of(9, 0),
+        ).copy(
+            teamOne = TeamState("Blue One", TeamColorChoice.WHITE, blueCards = 1),
+        )
+        val yellowAndRed = archiveForFilterTest(
+            teamOne = "Both One",
+            teamTwo = "Both Two",
+            startDate = LocalDate.of(2026, 7, 4),
+            startTime = LocalTime.of(9, 0),
+        ).copy(
+            teamOnePlayers = listOf(playerRecordWithCards("12", yellows = 2, reds = 1)),
+        )
+        val priorCardsAndTech = archiveForFilterTest(
+            teamOne = "Prior One",
+            teamTwo = "Prior Two",
+            startDate = LocalDate.of(2026, 7, 5),
+            startTime = LocalTime.of(9, 0),
+        ).copy(
+            teamOne = TeamState("Prior One", TeamColorChoice.WHITE, technicalFouls = 1),
+            teamOnePlayers = listOf(priorPlayerRecord("22", priorYellows = 1, priorReds = 1)),
+        )
+        val archives = listOf(yellow, red, blue, yellowAndRed, priorCardsAndTech)
+
+        // Available choices count games containing each in-game card color. Prior cards and
+        // technical fouls do not create card-filter values.
+        val unfiltered = getFilteredArchiveState(
+            archivedGames = archives,
+            selectedCategory = ArchivedGameCategory.COMPLETED,
+            filterSelections = ArchiveFilterSelections(),
+            sortMode = ArchiveSortMode.DATE_OLDEST,
+        )
+        assertEquals(
+            listOf("Blue" to 1, "Red" to 2, "Yellow" to 2),
+            unfiltered.valueCounts(ArchiveFilterField.CARDS),
+        )
+
+        // Selecting Yellow and Red keeps games with either color, including a game with both.
+        val yellowOrRed = getFilteredArchiveState(
+            archivedGames = archives,
+            selectedCategory = ArchivedGameCategory.COMPLETED,
+            filterSelections = ArchiveFilterSelections(cards = setOf("Yellow", "Red")),
+            sortMode = ArchiveSortMode.DATE_OLDEST,
+        )
+        assertEquals(
+            listOf(
+                "Yellow One 0 - 0 Yellow Two",
+                "Red One 0 - 0 Red Two",
+                "Both One 0 - 0 Both Two",
+            ),
+            yellowOrRed.summaryLines(),
+        )
+        assertEquals(
+            listOf(
+                "Filters:",
+                "    Cards: Red, Yellow",
+                "Sorted by date, oldest first",
+            ).joinToString("\n"),
+            yellowOrRed.filterAndSortSummaryText,
+        )
+
+        // Blue can be selected independently from the player-card colors.
+        val blueOnly = getFilteredArchiveState(
+            archivedGames = archives,
+            selectedCategory = ArchivedGameCategory.COMPLETED,
+            filterSelections = ArchiveFilterSelections(cards = setOf("Blue")),
+            sortMode = ArchiveSortMode.DATE_NEWEST,
+        )
+        assertEquals(listOf("Blue One 0 - 0 Blue Two"), blueOnly.summaryLines())
     }
 
     /**

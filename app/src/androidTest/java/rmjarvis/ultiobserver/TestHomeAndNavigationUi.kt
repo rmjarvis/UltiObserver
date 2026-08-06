@@ -357,6 +357,9 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             teamOne = "Aone$suffix",
             teamTwo = "Zed$suffix",
             startDate = LocalDate.of(2026, 5, 1),
+            yellowCards = 1,
+            redCards = 0,
+            blueCards = 0,
         )
         seedArchiveForFilterTest(
             tournament = summerTournament,
@@ -364,6 +367,9 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             teamOne = "Bone$suffix",
             teamTwo = "Alpha$suffix",
             startDate = LocalDate.of(2026, 5, 2),
+            yellowCards = 0,
+            redCards = 1,
+            blueCards = 0,
         )
         seedArchiveForFilterTest(
             tournament = fallTournament,
@@ -371,6 +377,9 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             teamOne = "Cone$suffix",
             teamTwo = "Mid$suffix",
             startDate = today,
+            yellowCards = 0,
+            redCards = 0,
+            blueCards = 1,
         )
 
         // The date filter dialog previews each preset range.
@@ -502,6 +511,33 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("archive-clear-filters").performClick()
         composeRule.onNodeWithText("Done").performClick()
         waitForText(summerMixedTitle)
+        waitForText(fallOpenTitle)
+
+        // Card colors are separate choices within one filter. Selecting more than one keeps games
+        // containing either selected color.
+        composeRule.onNodeWithTag("archive-filter-button").performClick()
+        composeRule.onNodeWithTag("archive-filter-field-CARDS").performClick()
+        composeRule.onNodeWithTag("archive-filter-value-Yellow")
+            .assertTextContains("Yellow (1)", substring = true)
+            .performClick()
+        composeRule.onNodeWithTag("archive-filter-value-Red")
+            .assertTextContains("Red (1)", substring = true)
+            .performClick()
+        composeRule.onNodeWithTag("archive-filter-value-Blue")
+            .assertTextContains("Blue (1)", substring = true)
+            .performClick()
+            .performClick()
+        composeRule.onNodeWithText("Back").performClick()
+        composeRule.onNodeWithTag("archive-filter-field-CARDS").assertTextEquals("Cards (2)")
+        composeRule.onNodeWithText("Done").performClick()
+        waitForText(summerOpenTitle)
+        waitForText(summerMixedTitle)
+        assertTrue(composeRule.onAllNodesWithText(fallOpenTitle).fetchSemanticsNodes().isEmpty())
+        composeRule.onNodeWithTag("archive-filter-and-sort-summary")
+            .assertTextContains("Cards: Red, Yellow", substring = true)
+        composeRule.onNodeWithTag("archive-filter-button").performClick()
+        composeRule.onNodeWithTag("archive-clear-filters").performClick()
+        composeRule.onNodeWithText("Done").performClick()
         waitForText(fallOpenTitle)
 
         // Every sort choice can reorder the restored archive list.
@@ -1456,6 +1492,9 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
      * @param teamOne Team 1 name.
      * @param teamTwo Team 2 name.
      * @param startDate Start date for sorting and filtering.
+     * @param yellowCards In-game yellow cards for Team 1.
+     * @param redCards In-game red cards for Team 2.
+     * @param blueCards In-game blue cards for Team 1.
      */
     private fun seedArchiveForFilterTest(
         tournament: String,
@@ -1463,6 +1502,9 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         teamOne: String,
         teamTwo: String,
         startDate: LocalDate,
+        yellowCards: Int,
+        redCards: Int,
+        blueCards: Int,
     ) {
         composeRule.activityRule.scenario.onActivity { activity ->
             val setup = newSetupGameState(now = 123_000L).copy(
@@ -1472,8 +1514,14 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
                 observerNames = listOf("Mike"),
                 startDate = startDate,
                 startTime = LocalTime.of(9, 0),
-                teamOne = TeamState(name = teamOne, color = TeamColorChoice.WHITE),
+                teamOne = TeamState(
+                    name = teamOne,
+                    color = TeamColorChoice.WHITE,
+                    blueCards = blueCards,
+                ),
                 teamTwo = TeamState(name = teamTwo, color = TeamColorChoice.BLUE),
+                teamOnePlayers = listOf(playerRecordWithCards("7", yellows = yellowCards)),
+                teamTwoPlayers = listOf(playerRecordWithCards("19", reds = redCards)),
             )
             activity.appViewModel.updateCurrentGame(
                 setup.startGameInTestOrientation(activity).copy(
