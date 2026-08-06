@@ -327,7 +327,7 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
         waitForText("Archived/saved games")
         composeRule.onNodeWithText("Archived games", substring = true).performClick()
         waitForText("Archived games")
-        composeRule.onNodeWithText("Viscous Coupling 12 - 15 Animal").performClick()
+        composeRule.onNodeWithText("Animal 15 - 12 Viscous Coupling").performClick()
         waitForText("Game summary")
         assertNextShareText(expectedShareText)
 
@@ -338,7 +338,7 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
         waitForText("Completed game")
 
         // The completed-game card on Home reopens the same summary before it is archived.
-        composeRule.onNodeWithText("Viscous Coupling 12 - 15 Animal").performClick()
+        composeRule.onNodeWithText("Animal 15 - 12 Viscous Coupling").performClick()
         waitForText("Game summary")
         assertNextShareText(expectedShareText)
         tapTopBarHome()
@@ -351,7 +351,7 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
         waitForText("Archived/saved games")
         composeRule.onNodeWithText("Archived games", substring = true).performClick()
         waitForText("Archived games")
-        waitForText("Viscous Coupling 12 - 15 Animal")
+        waitForText("Animal 15 - 12 Viscous Coupling")
     }
 
     /// Click Share, assert the outgoing Android chooser payload, and cancel the chooser.

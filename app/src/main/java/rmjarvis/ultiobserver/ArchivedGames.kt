@@ -316,8 +316,8 @@ internal enum class ArchiveSortMode(
 ) {
     DATE_NEWEST("Date, newest first", "Sorted by date, newest first"),
     DATE_OLDEST("Date, oldest first", "Sorted by date, oldest first"),
-    TEAM_ONE("First team", "Sorted by first team"),
-    TEAM_TWO("Second team", "Sorted by second team"),
+    WINNING_TEAM("Winning team", "Sorted by winning team"),
+    LOSING_TEAM("Losing team", "Sorted by losing team"),
 }
 
 /**
@@ -542,15 +542,15 @@ private fun ArchiveSortMode.comparator(): Comparator<IndexedValue<GameState>> {
         ArchiveSortMode.DATE_OLDEST -> compareBy<IndexedValue<GameState>> {
             it.value.startEpoch
         }.thenBy { it.index }
-        ArchiveSortMode.TEAM_ONE -> compareBy<IndexedValue<GameState>, String>(
+        ArchiveSortMode.WINNING_TEAM -> compareBy<IndexedValue<GameState>, String>(
             String.CASE_INSENSITIVE_ORDER,
         ) {
-            it.value.teamOne.name
+            it.value.winnerFirstTeams().first().name
         }.thenBy { it.value.startEpoch }
-        ArchiveSortMode.TEAM_TWO -> compareBy<IndexedValue<GameState>, String>(
+        ArchiveSortMode.LOSING_TEAM -> compareBy<IndexedValue<GameState>, String>(
             String.CASE_INSENSITIVE_ORDER,
         ) {
-            it.value.teamTwo.name
+            it.value.winnerFirstTeams().last().name
         }.thenBy { it.value.startEpoch }
     }
 }

@@ -346,7 +346,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         val summerTournament = "Summer$suffix"
         val fallTournament = "Fall$suffix"
         val summerOpenTitle = "Aone$suffix 0 - 0 Zed$suffix"
-        val summerMixedTitle = "Bone$suffix 0 - 0 Alpha$suffix"
+        val summerMixedTitle = "Alpha$suffix 0 - 0 Bone$suffix"
         val fallOpenTitle = "Cone$suffix 0 - 0 Mid$suffix"
         val today = LocalDate.now()
 
@@ -545,9 +545,9 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         assertArchiveRowsInOrder(fallOpenTitle, summerMixedTitle, summerOpenTitle)
         selectArchiveSort(ArchiveSortMode.DATE_OLDEST)
         assertArchiveRowsInOrder(summerOpenTitle, summerMixedTitle, fallOpenTitle)
-        selectArchiveSort(ArchiveSortMode.TEAM_ONE)
-        assertArchiveRowsInOrder(summerOpenTitle, summerMixedTitle, fallOpenTitle)
-        selectArchiveSort(ArchiveSortMode.TEAM_TWO)
+        selectArchiveSort(ArchiveSortMode.WINNING_TEAM)
+        assertArchiveRowsInOrder(summerMixedTitle, summerOpenTitle, fallOpenTitle)
+        selectArchiveSort(ArchiveSortMode.LOSING_TEAM)
         assertArchiveRowsInOrder(summerMixedTitle, fallOpenTitle, summerOpenTitle)
 
         // Delete all in a filtered archive list deletes only the currently shown rows.

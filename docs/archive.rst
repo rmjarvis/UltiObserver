@@ -91,8 +91,8 @@ the most recent games are first, but you can change this. The options are:
 
 * Date, newest first
 * Date, oldest first
-* First team
-* Second team
+* Winning team
+* Losing team
 
 Next to each entry is a trash can, which lets you delete the game if you no longer wish
 to store it on your device. You can also **Delete all**, which deletes all the games that

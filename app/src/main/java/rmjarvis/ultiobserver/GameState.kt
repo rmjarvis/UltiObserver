@@ -608,7 +608,12 @@ data class GameState(
             val field = setupDraftFieldText()
             if (field == null) matchup else "$matchup on $field"
         } else {
-            "${teamOne.name} ${teamOne.score} - ${teamTwo.score} ${teamTwo.name}"
+            val (firstTeam, secondTeam) = if (phase == GamePhase.GAME_OVER) {
+                winnerFirstTeams()
+            } else {
+                listOf(teamOne, teamTwo)
+            }
+            "${firstTeam.name} ${firstTeam.score} - ${secondTeam.score} ${secondTeam.name}"
         }
     }
 
