@@ -201,8 +201,15 @@ private fun decodeCurrentGameJson(
 ): PersistenceDecodeResult<GameState?>? {
     return try {
         val migrated = migrateCurrentGameJson(jsonElement, version) ?: return null
+        val decoded = decodeCurrentGame(migrated.jsonElement)
         PersistenceDecodeResult(
-            value = decodeCurrentGame(migrated.jsonElement),
+            value = if (
+                migrated.wasMigrated && decoded?.phase == GamePhase.GAME_OVER
+            ) {
+                decoded.migrateTerminalGame()
+            } else {
+                decoded
+            },
             wasMigrated = migrated.wasMigrated,
         )
     } catch (_: RuntimeException) {
@@ -222,8 +229,15 @@ private fun decodeArchivedGameJson(
 ): PersistenceDecodeResult<GameState>? {
     return try {
         val migrated = migrateArchivedGameJson(jsonElement, version) ?: return null
+        val decoded = appStateJson.decodeFromJsonElement<GameState>(migrated.jsonElement)
         PersistenceDecodeResult(
-            value = appStateJson.decodeFromJsonElement<GameState>(migrated.jsonElement),
+            value = if (
+                migrated.wasMigrated && decoded.phase == GamePhase.GAME_OVER
+            ) {
+                decoded.migrateTerminalGame()
+            } else {
+                decoded
+            },
             wasMigrated = migrated.wasMigrated,
         )
     } catch (_: RuntimeException) {

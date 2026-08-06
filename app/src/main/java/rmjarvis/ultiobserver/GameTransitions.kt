@@ -307,6 +307,22 @@ private fun startHalftime(
 fun GameState.endGameNow(
     now: Long,
 ): GameState {
+    return endGameNow(now = now, undoPrevious = this)
+}
+
+/**
+ * End the game while restoring a specified pre-action state when End game is undone.
+ *
+ * This supports actions such as applying an untied hard cap, where applying the rule and ending
+ * the game form one observer action.
+ *
+ * @param now The epoch millis to store as the actual game end time.
+ * @param undoPrevious The state to restore when the completed game's End game action is undone.
+ */
+internal fun GameState.endGameNow(
+    now: Long,
+    undoPrevious: GameState,
+): GameState {
     if (this.phase == GamePhase.GAME_OVER) {
         return this
     }
@@ -321,7 +337,7 @@ fun GameState.endGameNow(
             timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
             type = EventLogType.GAME_OVER,
         )
-    ).withUndo(this, "Undo End game")
+    ).withUndo(undoPrevious, "Undo End game")
 }
 /// Mark the pull as complete and enter live-point play.
 fun GameState.beginLivePoint(now: Long): GameState {

@@ -181,9 +181,7 @@ fun GameState.setHeatGuidance(
     }
     val updatedState = copy(
         rules = updatedRules,
-        endEpoch = if (newHeatLevel == HeatLevel.LEVEL_3) now else endEpoch,
-        phase = if (newHeatLevel == HeatLevel.LEVEL_3) GamePhase.GAME_OVER else phase,
-        countdown = if (newHeatLevel == HeatLevel.LEVEL_3) null else updatedCountdown,
+        countdown = updatedCountdown,
         pendingMisconductCountdown = if (newHeatLevel == HeatLevel.LEVEL_3) {
             false
         } else {
@@ -203,15 +201,10 @@ fun GameState.setHeatGuidance(
             useAirQualityGuidelines = useAirQualityGuidelines,
         )
     )
-    val undoLabel = if (newHeatLevel == HeatLevel.LEVEL_3) {
-        if (useAirQualityGuidelines) {
-            AQI_LEVEL_THREE_UNDO_LABEL
-        } else {
-            HEAT_LEVEL_THREE_UNDO_LABEL
-        }
-    } else {
-        "Undo ${updatedRules.heatLevelLabel()} " +
-            newHeatLevel.displayText.removePrefix("Level ")
+    if (newHeatLevel == HeatLevel.LEVEL_3) {
+        return updatedState.endGameNow(now = now, undoPrevious = this)
     }
+    val undoLabel = "Undo ${updatedRules.heatLevelLabel()} " +
+        newHeatLevel.displayText.removePrefix("Level ")
     return updatedState.withUndo(this, undoLabel)
 }

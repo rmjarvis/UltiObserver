@@ -1162,6 +1162,26 @@ class TestArchive : GameDomainTestFixtures() {
         assertEquals("Undo End game", restoredGame.undoEntry?.label)
         assertEquals(prunedBeforeEndGame, restoredUndo.copy(redoEntry = null))
         assertNotNull(restoredUndo.redoEntry)
+
+        // An untied hard cap uses the same archive invariant and restores to the pending offer.
+        val hardCapViewModel = AppViewModel(NoOpAppStateStorage)
+        hardCapViewModel.startNewGame(now = 123_000L)
+        hardCapViewModel.finishSetup(now = 123_000L)
+        val beforeHardCap = hardCapViewModel.currentGame!!.copy(
+            rules = hardCapViewModel.currentGame!!.rules.copy(useHardCap = true),
+            teamOne = hardCapViewModel.currentGame!!.teamOne.copy(score = 1),
+            pendingCapOffer = CapType.HARD,
+        )
+        val hardCapGameOver = beforeHardCap.applyPendingCap(now = 124_000L)
+        hardCapViewModel.updateCurrentGame(hardCapGameOver)
+        hardCapViewModel.archiveCompletedGame()
+        assertEquals("Undo End game", hardCapViewModel.archivedGames.single().undoEntry?.label)
+        hardCapViewModel.openArchivedGame(0, now = 125_000L)
+        hardCapViewModel.restoreCompletedGame()
+        val restoredBeforeHardCap = hardCapViewModel.currentGame!!.undoLastAction()
+        assertEquals(GamePhase.PRE_GAME, restoredBeforeHardCap.phase)
+        assertEquals(CapType.HARD, restoredBeforeHardCap.pendingCapOffer)
+        assertFalse(restoredBeforeHardCap.hardCapApplied)
     }
 
     /**

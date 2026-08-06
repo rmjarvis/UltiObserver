@@ -1,0 +1,229 @@
+{
+    "versionName": "1.2.0",
+    "versionCode": 4,
+    "data": {
+        "state": {
+            "startDate": "2026-01-03",
+            "startTime": "09:30",
+            "timeZone": "America/New_York",
+            "endEpoch": 1767450661000,
+            "tournamentName": "Migration Classic",
+            "division": "MIXED",
+            "level": "Club",
+            "gameContext": "Semifinal",
+            "observerNames": [
+                "Casey",
+                "Morgan"
+            ],
+            "fieldName": "Field 3",
+            "nearEndName": "Pavilion",
+            "farEndName": "Oak",
+            "rules": {
+                "gameTo": 5,
+                "halftimeMinutes": 7,
+                "timeBetweenPointsSeconds": 60,
+                "useHalfCap": false,
+                "halfCapMinutes": 45,
+                "useSoftCap": false,
+                "softCapMinutes": 90,
+                "useHardCap": true,
+                "hardCapMinutes": 105,
+                "timeoutsPerHalf": 2,
+                "hasFloaterTimeout": true,
+                "timeoutSeconds": 70,
+                "genderRatioRule": "GEN_ZONE",
+                "switchGenZoneAtHalftime": false,
+                "useAirQualityGuidelines": false,
+                "heatLevel": "NONE",
+                "waterBreakMinutes": 3
+            },
+            "teamOne": {
+                "name": "Viscous Coupling",
+                "color": "CUSTOM",
+                "customColorArgb": 4280191205,
+                "coaches": "Pat Coach",
+                "fieldCaptains": "Alex Seven",
+                "spiritCaptains": "Sam Spirit",
+                "score": 1,
+                "timeoutsUsedThisHalf": 0,
+                "firstHalfTimeoutsUsed": 0,
+                "offsides": 0,
+                "falseStarts": 0,
+                "majorityPullViolations": 0,
+                "timeViolations": 0,
+                "technicalFouls": 0,
+                "blueCards": 0
+            },
+            "teamTwo": {
+                "name": "Animal",
+                "color": "RED",
+                "customColorArgb": null,
+                "coaches": "Jordan Coach",
+                "fieldCaptains": "Riley Twelve",
+                "spiritCaptains": "Taylor Spirit",
+                "score": 0,
+                "timeoutsUsedThisHalf": 0,
+                "firstHalfTimeoutsUsed": 0,
+                "offsides": 0,
+                "falseStarts": 0,
+                "majorityPullViolations": 0,
+                "timeViolations": 0,
+                "technicalFouls": 0,
+                "blueCards": 0
+            },
+            "teamOnePlayers": [
+                {
+                    "jerseyNumber": "7",
+                    "playerName": "Alex Seven",
+                    "priorYellows": 1,
+                    "priorReds": 0,
+                    "cards": []
+                },
+                {
+                    "jerseyNumber": "44",
+                    "playerName": "Morgan Fortyfour",
+                    "priorYellows": 0,
+                    "priorReds": 1,
+                    "cards": []
+                }
+            ],
+            "teamTwoPlayers": [
+                {
+                    "jerseyNumber": "12",
+                    "playerName": "Riley Twelve",
+                    "priorYellows": 1,
+                    "priorReds": 0,
+                    "cards": []
+                },
+                {
+                    "jerseyNumber": "",
+                    "playerName": "Name Only",
+                    "priorYellows": 0,
+                    "priorReds": 1,
+                    "cards": []
+                }
+            ],
+            "eventLog": [
+                {
+                    "timestampEpoch": 1767450600000,
+                    "type": "FIRST_PULL",
+                    "team": "TEAM_ONE"
+                },
+                {
+                    "timestampEpoch": 1767450660000,
+                    "type": "GOAL",
+                    "team": "TEAM_ONE"
+                }
+            ],
+            "pullingTeam": "TEAM_ONE",
+            "pullingFromEnd": "NEAR",
+            "topDisplayedEnd": "FAR",
+            "pullPromptTarget": "BOTH",
+            "initialGenderRatio": "FOUR_WOMEN_THREE_MEN",
+            "firstHalfGenZone": "NEAR",
+            "openingPullingTeam": "TEAM_ONE",
+            "openingPullingFromEnd": "FAR",
+            "phase": "GAME_OVER",
+            "countdown": null,
+            "pullSequenceOffsidesRecorded": false,
+            "pullSequenceFalseStartRecorded": false,
+            "pullSkippedForCurrentPoint": false,
+            "pendingMisconductCountdown": false,
+            "halftimeTaken": false,
+            "halftimeTargetScore": null,
+            "halftimeHighScore": null,
+            "pendingWaterBreakOffer": false,
+            "winningScore": null,
+            "halfCapApplied": false,
+            "softCapApplied": false,
+            "hardCapApplied": true,
+            "pendingCapOffer": null,
+            "undoEntry": null,
+            "redoEntry": null
+        },
+        "undoEntry": {
+            "label": "Undo Apply hard cap now",
+            "patchToPrevious": {
+                "endEpoch": {
+                    "value": null
+                },
+                "rules": {
+                    "gameTo": 5,
+                    "halftimeMinutes": 7,
+                    "timeBetweenPointsSeconds": 60,
+                    "useHalfCap": false,
+                    "halfCapMinutes": 45,
+                    "useSoftCap": false,
+                    "softCapMinutes": 90,
+                    "useHardCap": false,
+                    "hardCapMinutes": 105,
+                    "timeoutsPerHalf": 2,
+                    "hasFloaterTimeout": true,
+                    "timeoutSeconds": 70,
+                    "genderRatioRule": "GEN_ZONE",
+                    "switchGenZoneAtHalftime": false,
+                    "useAirQualityGuidelines": false,
+                    "heatLevel": "NONE",
+                    "waterBreakMinutes": 3
+                },
+                "phase": "BETWEEN_POINTS",
+                "countdown": {
+                    "value": {
+                        "kind": "BETWEEN_POINTS",
+                        "label": "Pull in",
+                        "durationSeconds": 80,
+                        "targetEpoch": 1767450740000,
+                        "betweenPointsTarget": "BOTH",
+                        "pullTiming": {
+                            "offenseReadySeconds": 60,
+                            "pullSeconds": 80
+                        },
+                        "pausedAtEpoch": null
+                    }
+                },
+                "hardCapApplied": false
+            },
+            "previousUndoEntry": {
+                "label": "Undo Goal by Viscous Coupling",
+                "patchToPrevious": {
+                    "teamOne": {
+                        "score": 0
+                    },
+                    "eventLog": {
+                        "previousSize": 1
+                    },
+                    "pullingFromEnd": "FAR",
+                    "phase": "LIVE_POINT",
+                    "countdown": {
+                        "value": null
+                    }
+                },
+                "previousUndoEntry": {
+                    "label": "Undo Start point",
+                    "patchToPrevious": {
+                        "eventLog": {
+                            "previousSize": 0
+                        },
+                        "phase": "PRE_GAME",
+                        "countdown": {
+                            "value": {
+                                "kind": "OPENING_PULL",
+                                "label": "Pull in",
+                                "durationSeconds": 40,
+                                "targetEpoch": 1767450640000,
+                                "betweenPointsTarget": "BOTH",
+                                "pullTiming": {
+                                    "offenseReadySeconds": 20,
+                                    "pullSeconds": 40
+                                },
+                                "pausedAtEpoch": null
+                            }
+                        }
+                    },
+                    "previousUndoEntry": null
+                }
+            }
+        },
+        "redoEntry": null
+    }
+}

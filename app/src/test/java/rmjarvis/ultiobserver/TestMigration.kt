@@ -343,16 +343,31 @@ class TestMigration : GameDomainTestFixtures() {
 
         // completed-archive-1.0.0 is the same as completed-archive, but it was generated
         // using v1.0.0 code, rather than v1.0.1.
-        // v1.0.0 did not persist the End game undo entry that v1.0.1 preserved, but
-        // the completed archive game facts should normalize the same way.
+        // v1.0.0 did not persist the End game undo entry that v1.0.1 preserved. The migration
+        // manufactures a between-points previous state so restoring the game remains safe, while
+        // the completed archive game facts still normalize the same way.
         val completedArchiveV1_0_0 = loadMigratedFixture("v1.0", "completed-archive-1.0.0")
-        assertNull(completedArchiveV1_0_0.archivedGames.first().undoEntry)
+        completedArchiveV1_0_0.archivedGames.forEach { archive ->
+            assertEquals("Undo End game", archive.undoEntry?.label)
+            val beforeEndGame = archive.undoLastAction()
+            assertEquals(GamePhase.BETWEEN_POINTS, beforeEndGame.phase)
+            assertNull(beforeEndGame.endEpoch)
+            assertFalse(beforeEndGame.eventLog.any { it.type == EventLogType.GAME_OVER })
+        }
         assertEquals(
             completedArchive.archivedGames.map { game ->
                 game.copy(undoEntry = null, redoEntry = null)
             },
-            completedArchiveV1_0_0.archivedGames,
+            completedArchiveV1_0_0.archivedGames.map { game ->
+                game.copy(undoEntry = null, redoEntry = null)
+            },
         )
+
+        completedArchiveV1_0_0.openArchivedGame(0, now = 123_000L)
+        completedArchiveV1_0_0.restoreCompletedGame()
+        val restoredV1_0_0 = completedArchiveV1_0_0.currentGame!!
+        assertEquals(GamePhase.GAME_OVER, restoredV1_0_0.phase)
+        assertEquals(GamePhase.BETWEEN_POINTS, restoredV1_0_0.undoLastAction().phase)
     }
 
     /**
@@ -523,7 +538,7 @@ class TestMigration : GameDomainTestFixtures() {
         // additional between-points time, and shortened caps.
         val completedArchive = loadMigratedFixture("v1.2", "completed-archive")
         assertNull(completedArchive.currentGame)
-        assertEquals(2, completedArchive.archivedGames.size)
+        assertEquals(6, completedArchive.archivedGames.size)
         val richArchive = completedArchive.archivedGames.first()
         assertEquals(GamePhase.GAME_OVER, richArchive.phase)
         assertTrue(richArchive.rules.useAirQualityGuidelines)
@@ -542,6 +557,113 @@ class TestMigration : GameDomainTestFixtures() {
             v1_1FixtureProfile(),
             v1_2FixtureSettings("completed-archive"),
         )
+
+        // In version 1.2, games that ended on a hard cap were given an Undo Hard cap
+        // entry for the final event, which got lost when pruning for the archive.
+        // We have two versions of this here: one normal ending, and one where the cap
+        // applied during halftime, which gets resolved slightly differently.
+        // Check that both of them migrate to the standard shape with a normal End game.
+        val hardCapArchives = completedArchive.archivedGames.filter { it.hardCapApplied }
+        assertEquals(2, hardCapArchives.size)
+        assertEquals(
+            setOf(GamePhase.BETWEEN_POINTS, GamePhase.HALFTIME),
+            hardCapArchives.map { it.undoLastAction().phase }.toSet(),
+        )
+        hardCapArchives.forEach { archive ->
+            assertEquals(1, archive.teamOne.score)
+            assertEquals(0, archive.teamTwo.score)
+            assertEquals("Undo End game", archive.undoEntry?.label)
+            assertEquals(
+                listOf(EventLogType.HARD_CAP, EventLogType.GAME_OVER),
+                archive.eventLog.takeLast(2).map { it.type },
+            )
+            val beforeHardCap = archive.undoLastAction()
+            assertEquals(CapType.HARD, beforeHardCap.pendingCapOffer)
+            assertFalse(beforeHardCap.hardCapApplied)
+        }
+
+        // Games that ended due to level 3 heat or AQI had a similar problem, although not quite
+        // as bad. They had a special end game entry that survived pruning, but its not the
+        // same as what we currently have, so the migration converts them to use the new form.
+        val levelThreeArchives = completedArchive.archivedGames.filter {
+            it.rules.heatLevel == HeatLevel.LEVEL_3
+        }
+        assertEquals(2, levelThreeArchives.size)
+        assertEquals(setOf(false, true), levelThreeArchives.map {
+            it.rules.useAirQualityGuidelines
+        }.toSet())
+        levelThreeArchives.forEach { archive ->
+            assertEquals(1, archive.teamOne.score)
+            assertEquals(0, archive.teamTwo.score)
+            assertEquals("Undo End game", archive.undoEntry?.label)
+            assertEquals(
+                listOf(EventLogType.HEAT_LEVEL, EventLogType.GAME_OVER),
+                archive.eventLog.takeLast(2).map { it.type },
+            )
+            assertEquals(GamePhase.BETWEEN_POINTS, archive.undoLastAction().phase)
+        }
+
+        // We also have versions of these four games if they are still current and haven't
+        // been archived, so the undo history hasn't been pruned. We also add a fifth game
+        // that uses a manual hard cap, since that undo entry was slightly different from a
+        // natural hard cap. Check that all five get the corrected final undo entry.
+        val hardCapCurrent = assertMigratedV1_2TerminalCurrentGame(
+            "complete-current-hard-cap",
+            expectedPreviousPhase = GamePhase.BETWEEN_POINTS,
+            expectedEventTail = listOf(EventLogType.HARD_CAP, EventLogType.GAME_OVER),
+        )
+        assertEquals(CapType.HARD, hardCapCurrent.undoLastAction().pendingCapOffer)
+
+        val hardCapNowCurrent = assertMigratedV1_2TerminalCurrentGame(
+            "complete-current-hard-cap-now",
+            expectedPreviousPhase = GamePhase.BETWEEN_POINTS,
+            expectedEventTail = listOf(EventLogType.HARD_CAP, EventLogType.GAME_OVER),
+        )
+        assertNull(hardCapNowCurrent.undoLastAction().pendingCapOffer)
+
+        val halftimeHardCapCurrent = assertMigratedV1_2TerminalCurrentGame(
+            "complete-current-hard-cap-halftime",
+            expectedPreviousPhase = GamePhase.HALFTIME,
+            expectedEventTail = listOf(EventLogType.HARD_CAP, EventLogType.GAME_OVER),
+        )
+        assertEquals(CapType.HARD, halftimeHardCapCurrent.undoLastAction().pendingCapOffer)
+
+        val heatCurrent = assertMigratedV1_2TerminalCurrentGame(
+            "complete-current-heat-level-3",
+            expectedPreviousPhase = GamePhase.BETWEEN_POINTS,
+            expectedEventTail = listOf(EventLogType.HEAT_LEVEL, EventLogType.GAME_OVER),
+        )
+        assertFalse(heatCurrent.rules.useAirQualityGuidelines)
+        assertEquals(HeatLevel.NONE, heatCurrent.undoLastAction().rules.heatLevel)
+
+        val aqiCurrent = assertMigratedV1_2TerminalCurrentGame(
+            "complete-current-aqi-level-3",
+            expectedPreviousPhase = GamePhase.BETWEEN_POINTS,
+            expectedEventTail = listOf(EventLogType.HEAT_LEVEL, EventLogType.GAME_OVER),
+        )
+        assertTrue(aqiCurrent.rules.useAirQualityGuidelines)
+        assertEquals(HeatLevel.NONE, aqiCurrent.undoLastAction().rules.heatLevel)
+    }
+
+    private fun assertMigratedV1_2TerminalCurrentGame(
+        fixtureName: String,
+        expectedPreviousPhase: GamePhase,
+        expectedEventTail: List<EventLogType>,
+    ): GameState {
+        val fixture = loadMigratedFixture("v1.2", fixtureName)
+        val game = fixture.currentGame!!
+        assertEquals(GamePhase.GAME_OVER, game.phase)
+        assertEquals(1, game.teamOne.score)
+        assertEquals(0, game.teamTwo.score)
+        assertEquals("Undo End game", game.undoEntry?.label)
+        assertEquals(expectedEventTail, game.eventLog.takeLast(2).map { it.type })
+        assertEquals(expectedPreviousPhase, game.undoLastAction().phase)
+        assertProfileAndSettings(
+            fixture,
+            v1_1FixtureProfile(),
+            v1_2FixtureSettings(fixtureName),
+        )
+        return game
     }
 
     private fun loadMigratedFixture(version: String, scenario: String): AppViewModel {
@@ -643,7 +765,12 @@ class TestMigration : GameDomainTestFixtures() {
                 timingAlerts = v1_1DefaultTimingAlerts(soundVolume = 1f),
             )
             "setup-draft",
-            "completed-archive" -> customizedSettings
+            "completed-archive",
+            "complete-current-hard-cap",
+            "complete-current-hard-cap-now",
+            "complete-current-hard-cap-halftime",
+            "complete-current-heat-level-3",
+            "complete-current-aqi-level-3" -> customizedSettings
             "active-game" -> customizedSettings.copy(
                 ruleGuidanceMode = RuleGuidanceMode.TIMED,
             )

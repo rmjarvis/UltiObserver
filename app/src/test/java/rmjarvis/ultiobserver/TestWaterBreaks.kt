@@ -994,37 +994,37 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         // Water break offers can be declined, which just clear the pending offer.
         assertFalse(afterPoint.declinePendingWaterBreak().pendingWaterBreakOffer)
 
-        // Level 3 suspends the game and preserves its distinct undo and event-log wording.
+        // Level 3 records the suspension and then uses the standard terminal End game action.
         val suspended = disabled.setHeatLevel(HeatLevel.LEVEL_3, now + 5_000L)
         assertEquals(GamePhase.GAME_OVER, suspended.phase)
         assertEquals(now + 5_000L, suspended.endEpoch)
         assertNull(suspended.countdown)
-        assertEquals("Undo Heat level 3 — game suspended", suspended.undoEntry?.label)
+        assertEquals("Undo End game", suspended.undoEntry?.label)
+        assertEquals(disabled, suspended.undoLastAction().copy(redoEntry = null))
         assertEquals("Game suspended", GamePrompt.GameOver(suspended).formatTitle())
+        assertEquals("Undo End game", suspended.pruneUndoHistory().undoEntry?.label)
         assertEquals(
-            "Undo Heat level 3 — game suspended",
-            suspended.pruneUndoHistory().undoEntry?.label,
+            listOf(EventLogType.HEAT_LEVEL, EventLogType.GAME_OVER),
+            suspended.eventLog.takeLast(2).map { it.type },
         )
-        assertTrue(
-            suspended.formatEventLogLines().last()
-                .endsWith("Heat level 3 — game suspended")
-        )
+        assertTrue(suspended.formatEventLogLines().takeLast(2).first()
+            .endsWith("Heat level 3 — game suspended"))
 
-        // AQI level 3 uses the selected name through suspension and game-over undo handling.
+        // AQI level 3 uses the selected name and the same terminal End game handling.
         val aqiSuspended = disabled.setHeatGuidance(
             HeatLevel.LEVEL_3,
             useAirQualityGuidelines = true,
             waterBreakMinutes = 4,
             now = now + 6_000L,
         )
-        assertEquals(AQI_LEVEL_THREE_UNDO_LABEL, aqiSuspended.undoEntry?.label)
+        assertEquals("Undo End game", aqiSuspended.undoEntry?.label)
+        assertEquals(disabled, aqiSuspended.undoLastAction().copy(redoEntry = null))
+        assertEquals("Undo End game", aqiSuspended.pruneUndoHistory().undoEntry?.label)
         assertEquals(
-            AQI_LEVEL_THREE_UNDO_LABEL,
-            aqiSuspended.pruneUndoHistory().undoEntry?.label,
+            listOf(EventLogType.HEAT_LEVEL, EventLogType.GAME_OVER),
+            aqiSuspended.eventLog.takeLast(2).map { it.type },
         )
-        assertTrue(
-            aqiSuspended.formatEventLogLines().last()
-                .endsWith("AQI level 3 — game suspended")
-        )
+        assertTrue(aqiSuspended.formatEventLogLines().takeLast(2).first()
+            .endsWith("AQI level 3 — game suspended"))
     }
 }

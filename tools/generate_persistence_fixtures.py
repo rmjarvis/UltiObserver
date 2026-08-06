@@ -38,6 +38,23 @@ persisted_scenarios = {
         "setup-draft": ScenarioSource("setup-draft", "v1.2.0"),
         "active-game": ScenarioSource("active-game", "v1.2.0"),
         "complete-current-game": ScenarioSource("complete-current-game", "v1.2.0"),
+        "complete-current-hard-cap": ScenarioSource("complete-current-hard-cap", "v1.2.0"),
+        "complete-current-hard-cap-now": ScenarioSource(
+            "complete-current-hard-cap-now",
+            "v1.2.0",
+        ),
+        "complete-current-hard-cap-halftime": ScenarioSource(
+            "complete-current-hard-cap-halftime",
+            "v1.2.0",
+        ),
+        "complete-current-heat-level-3": ScenarioSource(
+            "complete-current-heat-level-3",
+            "v1.2.0",
+        ),
+        "complete-current-aqi-level-3": ScenarioSource(
+            "complete-current-aqi-level-3",
+            "v1.2.0",
+        ),
         "completed-archive": ScenarioSource("completed-archive", "v1.2.0"),
     },
     "v1.1": {

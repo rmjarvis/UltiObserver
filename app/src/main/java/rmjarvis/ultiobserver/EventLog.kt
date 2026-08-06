@@ -40,6 +40,9 @@ enum class EventLogType {
     WATER_BREAK,
     HEAT_LEVEL,
     HALFTIME,
+    HALF_CAP,
+    SOFT_CAP,
+    HARD_CAP,
     GAME_OVER,
     SCORE_ADJUSTED,
 }
@@ -178,6 +181,9 @@ private fun GameState.formatEventLogDescription(entry: EventLogEntry): String {
         EventLogType.WATER_BREAK -> waterBreakDescription(entry)
         EventLogType.HEAT_LEVEL -> heatLevelDescription(entry)
         EventLogType.HALFTIME -> "Halftime"
+        EventLogType.HALF_CAP -> "Half cap applied"
+        EventLogType.SOFT_CAP -> "Soft cap applied"
+        EventLogType.HARD_CAP -> "Hard cap applied"
         EventLogType.GAME_OVER -> "Game over"
         EventLogType.SCORE_ADJUSTED -> scoreAdjustedDescription(entry)
     }

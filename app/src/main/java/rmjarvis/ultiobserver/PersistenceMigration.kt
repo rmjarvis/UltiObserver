@@ -41,6 +41,15 @@ private typealias BucketMigration = (JsonElement) -> JsonElement
 private typealias UnknownPlayerReference = Pair<TeamId, Int>
 private typealias MigratedEventLogEntry = Pair<JsonObject, UnknownPlayerReference?>
 
+private val legacyHardCapUndoLabels = setOf(
+    "Undo Apply hard cap",
+    "Undo Apply hard cap now",
+)
+private val legacyLevelThreeUndoLabels = setOf(
+    HEAT_LEVEL_THREE_UNDO_LABEL,
+    AQI_LEVEL_THREE_UNDO_LABEL,
+)
+
 /**
  * One persistence-version migration step, with optional converters for each persistence bucket.
  *
@@ -140,6 +149,55 @@ internal fun migrateSettingsJson(jsonElement: JsonElement, version: AppVersion):
  */
 internal fun migrateArchivedGameJson(jsonElement: JsonElement, version: AppVersion): MigratedJson? {
     return migrateJsonToCurrent(jsonElement, version, PersistenceBucket.ARCHIVED_GAME)
+}
+
+/**
+ * Normalize former terminal undo shapes to the standard End game invariant.
+ *
+ * Older builds completed untied hard-cap games and Level 3 heat/AQI suspensions without a terminal
+ * Game over event. Current games retained action-specific undo labels, Level 3 archives retained
+ * the same labels, and archive pruning removed the hard-cap undo entirely. Completed games now
+ * always expose `Undo End game`, restore the same pre-terminal state, and end their event log
+ * explicitly.
+ */
+internal fun GameState.migrateTerminalGame(): GameState {
+    val legacyUndoLabel = undoEntry?.label
+    val gameEndingHardCap = legacyUndoLabel == null ||
+        legacyUndoLabel in legacyHardCapUndoLabels
+    val levelThreeEnd = legacyUndoLabel in legacyLevelThreeUndoLabels
+    if (!gameEndingHardCap && !levelThreeEnd) {
+        return this
+    }
+    val eventTimeText = formatOfficialGameTime(
+        endEpoch!!,
+        EVENT_LOG_TIME_FORMATTER,
+    )
+    val migratedEventLog = eventLog +
+        (if (gameEndingHardCap) {
+            listOf(EventLogEntry(timeText = eventTimeText, type = EventLogType.HARD_CAP))
+        } else {
+            emptyList()
+        }) +
+        EventLogEntry(timeText = eventTimeText, type = EventLogType.GAME_OVER)
+    val terminalUndo = undoEntry?.copy(label = "Undo End game") ?: UndoEntry(
+        label = "Undo End game",
+        previous = copy(
+            endEpoch = null,
+            phase = if (eventLog.last().type == EventLogType.HALFTIME) {
+                GamePhase.HALFTIME
+            } else {
+                GamePhase.BETWEEN_POINTS
+            },
+            hardCapApplied = false,
+            pendingCapOffer = CapType.HARD,
+            undoEntry = null,
+            redoEntry = null,
+        ),
+    )
+    return copy(
+        eventLog = migratedEventLog,
+        undoEntry = terminalUndo,
+    )
 }
 
 private fun migrateJsonToCurrent(
@@ -515,25 +573,41 @@ private object V1_0ToV1_1 {
         }
         val phase = appStateJson.decodeFromJsonElement<GamePhase>(jsonObject.getValue("phase"))
         val migratedPhase = migrateV1_0OpeningPullPhase(jsonObject, phase)
-        return JsonObject(
-            jsonObject.toMutableMap().apply {
-                remove("priorCards")
-                remove("teamOnePlayerCards")
-                remove("teamTwoPlayerCards")
-                this["teamOnePlayers"] = teamOneBuilder.toJsonArray()
-                this["teamTwoPlayers"] = teamTwoBuilder.toJsonArray()
-                this["eventLog"] = JsonArray(migratedEventLog.map { entry ->
-                    migratedEventLogEntryToJson(entry, teamOneBuilder, teamTwoBuilder)
-                })
-                this["phase"] = JsonPrimitive(migratedPhase.name)
-                this["countdown"] = JsonNull
-                this["undoEntry"] = migrateV1_0GameStateEndGameUndoEntry(
-                    jsonObject.getValue("undoEntry"),
-                    preserveEndGameUndo,
-                )
+        val migratedEventLogJson = JsonArray(migratedEventLog.map { entry ->
+            migratedEventLogEntryToJson(entry, teamOneBuilder, teamTwoBuilder)
+        })
+        val migratedValues = jsonObject.toMutableMap().apply {
+            remove("priorCards")
+            remove("teamOnePlayerCards")
+            remove("teamTwoPlayerCards")
+            this["teamOnePlayers"] = teamOneBuilder.toJsonArray()
+            this["teamTwoPlayers"] = teamTwoBuilder.toJsonArray()
+            this["eventLog"] = migratedEventLogJson
+            this["phase"] = JsonPrimitive(migratedPhase.name)
+            this["countdown"] = JsonNull
+            this["undoEntry"] = migrateV1_0GameStateEndGameUndoEntry(
+                jsonObject.getValue("undoEntry"),
+                preserveEndGameUndo,
+            )
+            this["redoEntry"] = JsonNull
+        }
+        if (
+            preserveEndGameUndo &&
+            migratedValues.getValue("undoEntry") is JsonNull
+        ) {
+            val previous = JsonObject(migratedValues.toMutableMap().apply {
+                this["endEpoch"] = JsonNull
+                this["eventLog"] = JsonArray(migratedEventLogJson.dropLast(1))
+                this["phase"] = JsonPrimitive(GamePhase.BETWEEN_POINTS.name)
+                this["undoEntry"] = JsonNull
                 this["redoEntry"] = JsonNull
-            }
-        )
+            })
+            migratedValues["undoEntry"] = JsonObject(mapOf(
+                "label" to JsonPrimitive("Undo End game"),
+                "previous" to previous,
+            ))
+        }
+        return JsonObject(migratedValues)
     }
 
     private fun migrateV1_0OpeningPullPhase(jsonObject: JsonObject, phase: GamePhase): GamePhase {

@@ -559,11 +559,7 @@ data class GameState(
      */
     fun pruneUndoHistory(clearCountdown: Boolean = true): GameState {
         val prunedUndoEntry = undoEntry
-            ?.takeIf {
-                it.label == "Undo End game" ||
-                    it.label == HEAT_LEVEL_THREE_UNDO_LABEL ||
-                    it.label == AQI_LEVEL_THREE_UNDO_LABEL
-            }
+            ?.takeIf { it.label == "Undo End game" }
             ?.let { entry ->
                 UndoEntry(
                     label = entry.label,

@@ -363,6 +363,8 @@ class TestCaps : GameDomainTestFixtures() {
         assertNull(state.pendingCapOffer)
         assertEquals("Undo Apply half cap", state.undoEntry?.label)
         assertEquals(beforeHalfCap, state.undoEntry?.previous)
+        assertEquals(EventLogType.HALF_CAP, state.eventLog.last().type)
+        assertTrue(state.formatEventLogLines().last().endsWith("Half cap applied"))
 
         // The half-cap target becomes the live halftime target, so the next point starts halftime.
         state = scoreAt(state, vc, 12)
@@ -447,6 +449,8 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(2, state.winningScore)
         assertNull(state.pendingCapOffer)
         assertEquals("Undo Apply soft cap", state.undoEntry?.label)
+        assertEquals(EventLogType.SOFT_CAP, state.eventLog.last().type)
+        assertTrue(state.formatEventLogLines().last().endsWith("Soft cap applied"))
         state = scoreAt(state, vc, 22)
         assertEquals(GamePhase.GAME_OVER, state.phase)
         assertEquals(2, state.teamOne.score)
@@ -488,13 +492,24 @@ class TestCaps : GameDomainTestFixtures() {
                 "Score is not tied, so the game is over.",
             state.capPrompt().formatMessage().plainText,
         )
+        val beforeGameEndingHardCap = state
         state = applyPendingCapAt(state, LocalTime.of(10, 31))
         assertTrue(state.hardCapApplied)
         assertEquals(GamePhase.GAME_OVER, state.phase)
         assertEquals(timestampAt(state, LocalTime.of(10, 31)), state.endEpoch)
         assertNull(state.countdown)
         assertNull(state.pendingCapOffer)
-        assertEquals("Undo Apply hard cap", state.undoEntry?.label)
+        assertEquals(
+            listOf(EventLogType.HARD_CAP, EventLogType.GAME_OVER),
+            state.eventLog.takeLast(2).map { it.type },
+        )
+        assertTrue(state.formatEventLogLines().takeLast(2).first().endsWith("Hard cap applied"))
+        assertEquals("Undo End game", state.undoEntry?.label)
+        assertEquals(
+            beforeGameEndingHardCap,
+            state.undoLastAction().copy(redoEntry = null),
+        )
+        assertEquals("Undo End game", state.pruneUndoHistory().undoEntry?.label)
         assertEquals("Game over", GamePrompt.GameOver(state).formatTitle())
 
         // Hard cap while tied triggers universe point, rather than ending.
@@ -516,6 +531,7 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(GamePhase.BETWEEN_POINTS, state.phase)
         assertEquals(3, state.winningScore)
         assertNull(state.pendingCapOffer)
+        assertEquals(EventLogType.HARD_CAP, state.eventLog.last().type)
 
         // The applied hard cap is now the final target: the earlier soft cap is no longer relevant,
         // and the deciding point does not show another cap status message.
@@ -851,6 +867,7 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(state.startTime, halfNow.startTime)
         assertEquals(state.startEpoch, halfNow.startEpoch)
         assertEquals("Undo Apply half cap now", halfNow.undoEntry?.label)
+        assertEquals(EventLogType.HALF_CAP, halfNow.eventLog.last().type)
         val softNow = state.makeCapNow(CapType.SOFT, timestampAfterStart(state, 42))
         assertTrue(softNow.rules.useSoftCap)
         assertTrue(softNow.softCapApplied)
@@ -859,6 +876,7 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(state.startTime, softNow.startTime)
         assertEquals(state.startEpoch, softNow.startEpoch)
         assertEquals("Undo Apply soft cap now", softNow.undoEntry?.label)
+        assertEquals(EventLogType.SOFT_CAP, softNow.eventLog.last().type)
         val hardNow = state.makeCapNow(CapType.HARD, timestampAfterStart(state, 42))
         assertTrue(hardNow.rules.useHardCap)
         assertTrue(hardNow.hardCapApplied)
@@ -867,6 +885,7 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(state.startTime, hardNow.startTime)
         assertEquals(state.startEpoch, hardNow.startEpoch)
         assertEquals("Undo Apply hard cap now", hardNow.undoEntry?.label)
+        assertEquals(EventLogType.HARD_CAP, hardNow.eventLog.last().type)
     }
 
     /**

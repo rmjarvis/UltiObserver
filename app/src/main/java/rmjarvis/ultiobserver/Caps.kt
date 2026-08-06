@@ -125,24 +125,22 @@ private fun GameState.applyCap(
             halftimeTargetScore = currentHigherScore + 1,
             halfCapApplied = true,
             pendingCapOffer = null,
-        ).withUndo(undoPrevious, undoLabel)
+        ).withCapAppliedEvent(capType, now).withUndo(undoPrevious, undoLabel)
 
         CapType.SOFT -> this.copy(
             winningScore = currentHigherScore + 1,
             softCapApplied = true,
             pendingCapOffer = null,
             pendingWaterBreakOffer = pendingWaterBreakOffer || softCapWaterBreakReached(),
-        ).withUndo(undoPrevious, undoLabel)
+        ).withCapAppliedEvent(capType, now).withUndo(undoPrevious, undoLabel)
 
         CapType.HARD -> {
             if (this.teamOne.score != this.teamTwo.score) {
                 this.copy(
-                    endEpoch = now,
-                    phase = GamePhase.GAME_OVER,
-                    countdown = null,
                     hardCapApplied = true,
                     pendingCapOffer = null,
-                ).withUndo(undoPrevious, undoLabel)
+                ).withCapAppliedEvent(capType, now)
+                    .endGameNow(now = now, undoPrevious = undoPrevious)
             } else {
                 val softCapTriggersWaterBreak =
                     softCapReached(teamOne.score, teamTwo.score, now) &&
@@ -153,10 +151,25 @@ private fun GameState.applyCap(
                     pendingCapOffer = null,
                     pendingWaterBreakOffer =
                         pendingWaterBreakOffer || softCapTriggersWaterBreak,
-                ).withUndo(undoPrevious, undoLabel)
+                ).withCapAppliedEvent(capType, now).withUndo(undoPrevious, undoLabel)
             }
         }
     }
+}
+
+/** Append the event-log entry for an applied cap. */
+private fun GameState.withCapAppliedEvent(capType: CapType, now: Long): GameState {
+    val eventType = when (capType) {
+        CapType.HALF -> EventLogType.HALF_CAP
+        CapType.SOFT -> EventLogType.SOFT_CAP
+        CapType.HARD -> EventLogType.HARD_CAP
+    }
+    return withEventLogEntry(
+        EventLogEntry(
+            timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
+            type = eventType,
+        )
+    )
 }
 /**
  * Clear the current cap offer when the observer chooses not to apply it yet.
