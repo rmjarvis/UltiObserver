@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
@@ -114,7 +113,6 @@ internal fun ActiveGameScreen(
     var teamInfoSheetTeam by remember { mutableStateOf<TeamId?>(null) }
     var locked by remember { mutableStateOf(false) }
     var showWaterBreakPrompt by remember { mutableStateOf(false) }
-    var actionInfoEvent by remember { mutableStateOf<GameEvent?>(null) }
     var activeGamePrompt by remember { mutableStateOf<GamePrompt?>(null) }
     var previouslyObservedPhase by remember { mutableStateOf(state.phase) }
     var suppressNextPhasePrompt by remember { mutableStateOf(false) }
@@ -124,11 +122,6 @@ internal fun ActiveGameScreen(
     )
     val usesLandscapeOrientation =
         activeGameDisplay.orientation == ActiveGameOrientation.LANDSCAPE
-
-    /// Dismiss the transient action-info popup.
-    fun dismissActionInfo() {
-        actionInfoEvent = null
-    }
 
     /// Dismiss the pending pull-violation confirmation.
     fun dismissPullViolation() {
@@ -229,7 +222,7 @@ internal fun ActiveGameScreen(
         }
     }
 
-    if (state.phase == GamePhase.GAME_OVER) {
+    if (state.phase == GamePhase.GAME_OVER && activeGamePrompt == null) {
         GameOverSummaryScreen(
             state = state,
             guidanceMode = settings.ruleGuidanceMode,
@@ -243,24 +236,6 @@ internal fun ActiveGameScreen(
             onBack = onBackHome,
             onHome = onHome,
         )
-        if (activeGamePrompt != null) {
-            val prompt = activeGamePrompt!!
-            RuleGuidanceGate(
-                key = prompt,
-                mode = settings.ruleGuidanceMode,
-                requiredInNone = prompt.requiresGuidanceInNone(),
-                onAutoAccept = {
-                    activeGamePrompt = null
-                },
-            ) {
-                GamePromptNoticeDialog(
-                    prompt = prompt,
-                    onDismiss = {
-                        activeGamePrompt = null
-                    },
-                )
-            }
-        }
         return
     }
 
@@ -409,11 +384,6 @@ internal fun ActiveGameScreen(
             guidanceMode = settings.ruleGuidanceMode,
             isLandscape = usesLandscapeOrientation,
             onDismiss = { pendingCardTeam = null },
-            onAssessment = { updatedState, event ->
-                onStateChange(updatedState)
-                actionInfoEvent = event
-                pendingCardTeam = null
-            },
             onStateOnly = { updatedState ->
                 onStateChange(updatedState)
                 pendingCardTeam = null
@@ -453,11 +423,13 @@ internal fun ActiveGameScreen(
             requiredInNone = event.requiresGuidanceInNone(),
             onAutoAccept = applyTimeout,
         ) {
-            AlertDialog(
+            ResponsiveAlertDialog(
                 onDismissRequest = { pendingTimeoutRequest = null },
                 title = { Text(event.formatPopupTitle()) },
                 text = {
-                    RuleGuidanceText(event.guidanceMessage(settings.ruleGuidanceMode))
+                    ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
+                        RuleGuidanceText(event.guidanceMessage(settings.ruleGuidanceMode))
+                    }
                 },
                 confirmButton = {
                     TextActionButton(
@@ -468,6 +440,7 @@ internal fun ActiveGameScreen(
                 dismissButton = {
                     TextActionButton(label = "Cancel", onClick = { pendingTimeoutRequest = null })
                 },
+                widthProfile = DialogWidthProfile.COMPACT,
             )
         }
     } else if (pendingTimeViolationTeam != null) {
@@ -488,11 +461,13 @@ internal fun ActiveGameScreen(
             requiredInNone = event.requiresGuidanceInNone(),
             onAutoAccept = applyTimeViolation,
         ) {
-            AlertDialog(
+            ResponsiveAlertDialog(
                 onDismissRequest = { dismissTimeViolation() },
                 title = { Text(event.formatPopupTitle()) },
                 text = {
-                    RuleGuidanceText(event.guidanceMessage(settings.ruleGuidanceMode))
+                    ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
+                        RuleGuidanceText(event.guidanceMessage(settings.ruleGuidanceMode))
+                    }
                 },
                 confirmButton = {
                     TextActionButton(
@@ -528,13 +503,15 @@ internal fun ActiveGameScreen(
             requiredInNone = event.requiresGuidanceInNone(),
             onAutoAccept = applyPullViolation,
         ) {
-            AlertDialog(
+            ResponsiveAlertDialog(
                 onDismissRequest = {
                     dismissPullViolation()
                 },
                 title = { Text(event.formatPopupTitle()) },
                 text = {
-                    RuleGuidanceText(event.guidanceMessage(settings.ruleGuidanceMode))
+                    ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
+                        RuleGuidanceText(event.guidanceMessage(settings.ruleGuidanceMode))
+                    }
                 },
                 confirmButton = {
                     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
@@ -610,11 +587,15 @@ internal fun ActiveGameScreen(
             requiredInNone = event.requiresGuidanceInNone(),
             onAutoAccept = applyTechnicalFoul,
         ) {
-            AlertDialog(
+            ResponsiveAlertDialog(
                 onDismissRequest = { pendingTechnicalFoulTeam = null },
                 title = { Text(event.formatPopupTitle()) },
                 text = {
-                    RuleGuidanceText(event.misconductConfirmationMessage(settings.ruleGuidanceMode))
+                    ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
+                        RuleGuidanceText(
+                            event.misconductConfirmationMessage(settings.ruleGuidanceMode)
+                        )
+                    }
                 },
                 confirmButton = {
                     if (misconductPrompt == null) {
@@ -670,14 +651,16 @@ internal fun ActiveGameScreen(
     } else if (pendingTechnicalFoulResolution != null) {
         val pending = pendingTechnicalFoulResolution!!
         val prompt = GamePrompt.LivePointMisconduct(pending.result.event)
-        AlertDialog(
+        ResponsiveAlertDialog(
             onDismissRequest = {
                 pendingTechnicalFoulTeam = pending.team
                 pendingTechnicalFoulResolution = null
             },
             title = { Text(prompt.formatTitle()) },
             text = {
-                RuleGuidanceText(prompt.resolutionMessage(pending.againstOffense))
+                ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
+                    RuleGuidanceText(prompt.resolutionMessage(pending.againstOffense))
+                }
             },
             confirmButton = {
                 TextActionButton(
@@ -699,28 +682,6 @@ internal fun ActiveGameScreen(
                 )
             },
         )
-    } else if (actionInfoEvent != null) {
-        // General informational pop-up for terse field guidance and validation messages.
-        val event = actionInfoEvent!!
-        RuleGuidanceGate(
-            key = event,
-            mode = settings.ruleGuidanceMode,
-            requiredInNone = event.requiresGuidanceInNone(),
-            onAutoAccept = {
-                dismissActionInfo()
-            },
-        ) {
-            AlertDialog(
-                onDismissRequest = { dismissActionInfo() },
-                title = { Text(event.formatPopupTitle()) },
-                text = {
-                    RuleGuidanceText(event.resultGuidanceMessage(settings.ruleGuidanceMode))
-                },
-                confirmButton = {
-                    TextActionButton(label = "OK", onClick = { dismissActionInfo() })
-                },
-            )
-        }
     } else if (state.pendingCapOffer != null) {
         // Cap prompts block until the observer decides whether to apply the newly eligible cap.
         val capPrompt = GamePrompt.ApplyCap(state, state.pendingCapOffer!!)
@@ -733,11 +694,13 @@ internal fun ActiveGameScreen(
             requiredInNone = capPrompt.requiresGuidanceInNone(),
             onAutoAccept = applyCap,
         ) {
-            AlertDialog(
+            ResponsiveAlertDialog(
                 onDismissRequest = {},
                 title = { Text(capPrompt.formatTitle()) },
                 text = {
-                    RuleGuidanceText(capPrompt.formatMessage())
+                    ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
+                        RuleGuidanceText(capPrompt.formatMessage())
+                    }
                 },
                 confirmButton = {
                     TextActionButton(
@@ -753,6 +716,7 @@ internal fun ActiveGameScreen(
                         },
                     )
                 },
+                widthProfile = DialogWidthProfile.COMPACT,
             )
         }
     } else if (showWaterBreakPrompt) {
@@ -766,7 +730,7 @@ internal fun ActiveGameScreen(
             requiredInNone = true,
             onAutoAccept = applyWaterBreak,
         ) {
-            AlertDialog(
+            ResponsiveAlertDialog(
                 onDismissRequest = {
                     if (state.pendingWaterBreakOffer) {
                         onStateChange(state.declinePendingWaterBreak())
@@ -775,7 +739,9 @@ internal fun ActiveGameScreen(
                 },
                 title = { Text("Water break") },
                 text = {
-                    RuleGuidanceText(state.waterBreakPromptMessage())
+                    ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
+                        RuleGuidanceText(state.waterBreakPromptMessage())
+                    }
                 },
                 confirmButton = {
                     TextActionButton(
@@ -794,6 +760,7 @@ internal fun ActiveGameScreen(
                         },
                     )
                 },
+                widthProfile = DialogWidthProfile.COMPACT,
             )
         }
     } else if (activeGamePrompt != null) {
@@ -883,15 +850,18 @@ internal fun ActiveGameScreen(
 /// Render an acknowledgement-only game prompt.
 @Composable
 private fun GamePromptNoticeDialog(prompt: GamePrompt, onDismiss: () -> Unit) {
-    AlertDialog(
+    ResponsiveAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(prompt.formatTitle()) },
         text = {
-            RuleGuidanceText(prompt.formatMessage())
+            ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
+                RuleGuidanceText(prompt.formatMessage())
+            }
         },
         confirmButton = {
             TextActionButton(label = "OK", onClick = onDismiss)
         },
+        widthProfile = DialogWidthProfile.COMPACT,
     )
 }
 
@@ -983,11 +953,14 @@ private fun RulesReferenceRow(item: RulesReferenceItem) {
  */
 @Composable
 internal fun TeamNamesDialog(team: TeamState, onDismiss: () -> Unit) {
-    AlertDialog(
+    ResponsiveAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(team.name) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            ScrollableDialogRegion(
+                maxHeight = dialogBodyMaxHeight(),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 TeamNamesRow(singularLabel = "Coach", pluralLabel = "Coaches", value = team.coaches)
                 TeamNamesRow(
                     singularLabel = "Field captain",
@@ -1004,6 +977,7 @@ internal fun TeamNamesDialog(team: TeamState, onDismiss: () -> Unit) {
         confirmButton = {
             TextActionButton(label = "OK", onClick = onDismiss)
         },
+        widthProfile = DialogWidthProfile.COMPACT,
     )
 }
 
@@ -1030,6 +1004,7 @@ private fun TeamNamesRow(singularLabel: String, pluralLabel: String, value: Stri
         )
         Text(
             text = trimmedValue,
+            modifier = Modifier.padding(start = 16.dp),
             style = MaterialTheme.typography.bodyLarge,
         )
     }

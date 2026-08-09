@@ -761,6 +761,7 @@ private sealed interface TeamCardDialogStep {
     data class BlueCardConfirmation(val team: TeamId) : TeamCardDialogStep
     data class OffenseDefenseChoice(val pending: PendingMisconductChoice) : TeamCardDialogStep
     data class MisconductResolution(val pending: PendingMisconductResolution) : TeamCardDialogStep
+    data class AssessmentResult(val event: GameEvent) : TeamCardDialogStep
     data class InvalidAssignment(
         val message: String,
         val returnTo: TeamCardDialogStep,
@@ -954,9 +955,8 @@ internal fun ExistingCardsEditorDialog(
  * @param guidanceMode Amount and duration of rule guidance shown during the workflow.
  * @param isLandscape Whether to arrange orientation-specific dialog content for landscape.
  * @param onDismiss Callback closing the card dialog without recording.
- * @param onAssessment Callback receiving the completed state and popup event after a card.
  * @param onStateOnly Callback receiving the completed state when the confirmation dialog already showed the result.
- * @param onStateUpdate Callback receiving card-record corrections that should keep the Card dialog open.
+ * @param onStateUpdate Callback receiving state changes that should keep the Card dialog open.
  */
 @Composable
 internal fun TeamCardDialog(
@@ -966,7 +966,6 @@ internal fun TeamCardDialog(
     guidanceMode: RuleGuidanceMode,
     isLandscape: Boolean,
     onDismiss: () -> Unit,
-    onAssessment: (GameState, GameEvent) -> Unit,
     onStateOnly: (GameState) -> Unit,
     onStateUpdate: (GameState) -> Unit,
 ) {
@@ -976,7 +975,8 @@ internal fun TeamCardDialog(
 
     fun completeAssessment(result: CardAssessmentResult) {
         val finalizedResult = result.finalizedForGuidanceMode(guidanceMode)
-        onAssessment(finalizedResult.state, finalizedResult.event)
+        onStateUpdate(finalizedResult.state)
+        step = TeamCardDialogStep.AssessmentResult(finalizedResult.event)
     }
 
     fun cardedPlayerEntryStep(
@@ -1396,6 +1396,28 @@ internal fun TeamCardDialog(
                 },
                 widthProfile = DialogWidthProfile.MODERATE,
             )
+        }
+        is TeamCardDialogStep.AssessmentResult -> {
+            val event = activeStep.event
+            RuleGuidanceGate(
+                key = event,
+                mode = guidanceMode,
+                requiredInNone = event.requiresGuidanceInNone(),
+                onAutoAccept = onDismiss,
+            ) {
+                ResponsiveAlertDialog(
+                    onDismissRequest = onDismiss,
+                    title = { Text(event.formatPopupTitle()) },
+                    text = {
+                        ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
+                            RuleGuidanceText(event.resultGuidanceMessage(guidanceMode))
+                        }
+                    },
+                    confirmButton = {
+                        TextActionButton(label = "OK", onClick = onDismiss)
+                    },
+                )
+            }
         }
     }
 }

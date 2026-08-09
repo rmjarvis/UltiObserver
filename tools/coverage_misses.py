@@ -745,14 +745,14 @@ def compose_apply_lambda_cache_scaffold_reason(
 
     - the local variable must use camel-case `applyX` naming;
     - the opening brace must be the last character on the stripped line;
-    - the opener must have both missed and covered instructions and branches; and
+    - the opener must have covered instructions and both missed and covered branches; and
     - every executable callback-body line must be fully covered.
 
     An unexecuted callback body, or a partially covered branch inside it, therefore
     remains actionable.
     """
 
-    if counters.missed_instructions == 0 or counters.covered_instructions == 0:
+    if counters.covered_instructions == 0:
         return None
     if counters.missed_branches == 0 or counters.covered_branches == 0:
         return None
