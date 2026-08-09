@@ -1,9 +1,13 @@
 package rmjarvis.ultiobserver
 
+import android.Manifest
 import android.accessibilityservice.AccessibilityService
+import android.app.Notification
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.service.notification.StatusBarNotification
 import java.io.FileInputStream
 import java.time.LocalDate
 import java.time.LocalTime
@@ -36,9 +40,9 @@ class TestTimingAlerts {
      * Test the compact alert information sent from the app screen to the background service.
      *
      * The active-game screen sends only the timing-alert details the background service needs:
-     * current sound/vibration preferences, countdown cues, and cap cues that still have audible or
-     * haptic alerts enabled. This test checks that the handoff keeps those user choices and drops
-     * cues the user has silenced.
+     * current sound/vibration preferences and countdown or cap cues that still need phone or watch
+     * delivery. This test checks that the handoff keeps those user choices and drops cues the user
+     * has silenced.
      */
     @Test
     fun servicePayloads() {
@@ -64,7 +68,7 @@ class TestTimingAlerts {
         val updateIntent = TimingAlertForegroundService.updateIntent(
             context = context,
             liveState = liveState,
-            timingAlertPreferences = preferences,
+            settings = Settings(timingAlerts = preferences),
         )
         assertEquals(TimingAlertForegroundService.ACTION_UPDATE, updateIntent.action)
         val encodedSnapshot = updateIntent.getStringExtra(
@@ -78,7 +82,9 @@ class TestTimingAlerts {
 
         // A live state without an active countdown still sends cap alert information, but there
         // are no countdown cues for the service to schedule.
-        val noCountdownSnapshot = liveState.copy(countdown = null).timingAlertSnapshot(preferences)
+        val noCountdownSnapshot = liveState.copy(countdown = null).timingAlertSnapshot(
+            Settings(timingAlerts = preferences)
+        )
         assertTrue(noCountdownSnapshot.countdownCues.isEmpty())
 
         // Countdown snapshot includes future cues even when none are due right now.
@@ -117,6 +123,21 @@ class TestTimingAlerts {
             cuePayloads,
         )
         assertEquals("HALF_CAP:1000", cuePayloads.single().alertKey())
+
+        // Alerting watch mode keeps individually enabled cues even when phone alerts are globally
+        // off. SOFT_CAP is individually None, so it is excluded from the service payload.
+        val watchCuePayloads = listOf(
+            timingCueDisplay(TimingCueId.HALF_CAP, 1_000L),
+            timingCueDisplay(TimingCueId.SOFT_CAP, 2_000L),
+        ).timingAlertServiceCues(
+            preferences.copy(
+                globalMode = TimingAlertGlobalMode.OFF,
+                watchNotificationMode = WatchNotificationMode.ALERTING,
+            )
+        )
+        assertEquals(listOf(TimingCueId.HALF_CAP), watchCuePayloads.map { it.id })
+        assertEquals(TimingAlertMode.NONE, watchCuePayloads.first().alertMode)
+        assertTrue(watchCuePayloads.first().watchAlertEnabled)
 
         // The global alert mode can also silence cues.  When timing alerts are globally off, even
         // cues with a sound setting are omitted from the service payload.
@@ -259,6 +280,137 @@ class TestTimingAlerts {
     }
 
     /**
+     * Test silent and alerting updates to the ordinary notification mirrored to a watch.
+     */
+    @Test
+    fun watchNotificationDelivery() = runBlocking {
+        val scoreLine = "7-6 Animal • M2"
+
+        // The offense sequence contains cues at 10, 5, and 0 seconds. Five seconds is individually
+        // Off and should be skipped, while the Off zero cue must remain to end the countdown.
+        val watchPreferences = TimingAlertPreferences(
+            globalMode = TimingAlertGlobalMode.OFF,
+            watchNotificationMode = WatchNotificationMode.ALERTING,
+            cueModes = mapOf(
+                TimingCueId.OFFENSE_TEN to TimingAlertMode.BEEP,
+                TimingCueId.OFFENSE_COUNTDOWN_FROM_FIVE to TimingAlertMode.NONE,
+                TimingCueId.OFFENSE_SET_LIMIT to TimingAlertMode.NONE,
+            ),
+        )
+        val countdownCues = listOf(
+            timingCueDisplay(TimingCueId.OFFENSE_TEN, 10_000L).copy(
+                countdownTime = java.time.Duration.ofSeconds(10)
+            ),
+            timingCueDisplay(TimingCueId.OFFENSE_COUNTDOWN_FROM_FIVE, 15_000L).copy(
+                countdownTime = java.time.Duration.ofSeconds(5)
+            ),
+            timingCueDisplay(TimingCueId.OFFENSE_SET_LIMIT, 20_000L),
+        ).timingAlertServiceCues(watchPreferences, countdownCues = true)
+        val watchOnlyTenCue = countdownCues.first()
+        val offZeroCue = countdownCues.last()
+        val snapshot = serviceSnapshot(
+            countdownCues = countdownCues,
+            watchNotificationMode = WatchNotificationMode.ALERTING,
+            watchScoreLine = scoreLine,
+        )
+        val platform = FakeTimingAlertServicePlatform(now = 1_000L)
+        val controller = newController(platform, scheduleCheckMillis = 100_000L)
+        try {
+            // Starting a countdown posts its score and first cue silently.
+            controller.handleTimingAlertUpdate(snapshot)
+            assertEquals(
+                PostedWatchNotification(
+                    content = WatchNotificationContent(
+                        title = "Next cue: 10 seconds, offense",
+                        body = "7-6 Animal • M2",
+                    ),
+                    alert = false,
+                ),
+                platform.watchStatusNotifications.single(),
+            )
+
+            // The individually Off five-second cue was omitted from the payload, so delivery at
+            // ten seconds advances the notification directly to the zero cue, Offense freeze.
+            controller.playTimingAlerts(listOf(watchOnlyTenCue), snapshot, platform.sharedPlayer)
+            assertEquals(
+                PostedWatchNotification(
+                    content = WatchNotificationContent(
+                        title = "Next cue: Offense freeze",
+                        body = "7-6 Animal • M2",
+                    ),
+                    alert = true,
+                ),
+                platform.watchStatusNotifications.last(),
+            )
+
+            // An Off zero cue still leaves only score and ABBA ratio, without alerting.
+            controller.playTimingAlerts(listOf(offZeroCue), snapshot, platform.sharedPlayer)
+            assertEquals(
+                PostedWatchNotification(
+                    content = WatchNotificationContent(
+                        title = "7-6 Animal • M2",
+                        body = null,
+                    ),
+                    alert = false,
+                ),
+                platform.watchStatusNotifications.last(),
+            )
+            assertTrue(platform.soundPlayer.playedSounds.isEmpty())
+            assertTrue(platform.performedHaptics.isEmpty())
+        } finally {
+            controller.release()
+        }
+
+        // Silent watch mode suppresses the watch alert even when the individual cue is enabled.
+        val silentModePlatform = FakeTimingAlertServicePlatform(now = 1_000L)
+        val silentModeController = newController(silentModePlatform, scheduleCheckMillis = 100_000L)
+        try {
+            val silentModeSnapshot = serviceSnapshot(
+                watchNotificationMode = WatchNotificationMode.SILENT,
+                countdownCues = listOf(watchOnlyTenCue),
+                watchScoreLine = scoreLine,
+            )
+            silentModeController.handleTimingAlertUpdate(silentModeSnapshot)
+            silentModeController.playTimingAlerts(
+                listOf(watchOnlyTenCue),
+                silentModeSnapshot,
+                silentModePlatform.sharedPlayer,
+            )
+            assertEquals(false, silentModePlatform.watchStatusNotifications.last().alert)
+        } finally {
+            silentModeController.release()
+        }
+
+        // A Neither pull countdown posts only the score and schedules no watch updates.
+        val cueLessPlatform = FakeTimingAlertServicePlatform(now = 1_000L)
+        val cueLessController = newController(cueLessPlatform)
+        try {
+            cueLessController.handleTimingAlertUpdate(
+                serviceSnapshot(
+                    watchNotificationMode = WatchNotificationMode.ALERTING,
+                    watchScoreLine = scoreLine,
+                )
+            )
+            delay(20L)
+            assertEquals(
+                listOf(
+                    PostedWatchNotification(
+                        content = WatchNotificationContent(
+                            title = "7-6 Animal • M2",
+                            body = null,
+                        ),
+                        alert = false,
+                    ),
+                ),
+                cueLessPlatform.watchStatusNotifications,
+            )
+            assertEquals(0, cueLessPlatform.acquireWakeLockCalls)
+        } finally {
+            cueLessController.release()
+        }
+    }
+
+    /**
      * Test that changing the official clock reschedules the cap alarm on the phone-time axis.
      */
     @Test
@@ -282,7 +434,7 @@ class TestTimingAlerts {
             val initialIntent = TimingAlertForegroundService.updateIntent(
                 context = context,
                 liveState = initialGame,
-                timingAlertPreferences = preferences,
+                settings = Settings(timingAlerts = preferences),
             )
             val initialSnapshot = appStateJson.decodeFromString<TimingAlertServiceSnapshot>(
                 initialIntent.getStringExtra(
@@ -300,7 +452,7 @@ class TestTimingAlerts {
             val adjustedIntent = TimingAlertForegroundService.updateIntent(
                 context = context,
                 liveState = adjustedGame,
-                timingAlertPreferences = preferences,
+                settings = Settings(timingAlerts = preferences),
             )
             val adjustedSnapshot = appStateJson.decodeFromString<TimingAlertServiceSnapshot>(
                 adjustedIntent.getStringExtra(
@@ -644,42 +796,11 @@ class TestTimingAlerts {
             // binder back.
             assertNull(TimingAlertForegroundService().onBind(Intent()))
 
-            // Malformed service commands without an action are defensive cleanup paths.  Android
-            // should be able to deliver one without leaving a foreground timing-alert service
-            // running.
-            ContextCompat.startForegroundService(
-                context,
-                Intent(context, TimingAlertForegroundService::class.java),
-            )
-
-            // Unknown service commands take the same cleanup path.
-            ContextCompat.startForegroundService(
-                context,
-                Intent(context, TimingAlertForegroundService::class.java)
-                    .setAction("rmjarvis.ultiobserver.UNKNOWN_TIMING_ALERT_ACTION"),
-            )
-
-            // Malformed update commands still enter foreground mode, then stop because there is no
-            // game alert snapshot to deliver.
-            ContextCompat.startForegroundService(
-                context,
-                Intent(context, TimingAlertForegroundService::class.java)
-                    .setAction(TimingAlertForegroundService.ACTION_UPDATE),
-            )
-
-            // Malformed cap-alarm commands follow the same real Android entry point, but do not
-            // have enough payload to play or schedule anything.
-            ContextCompat.startForegroundService(
-                context,
-                Intent(context, TimingAlertForegroundService::class.java)
-                    .setAction(TimingAlertForegroundService.ACTION_CAP_ALARM),
-            )
-
             // A normal app update goes through Android's service command path rather than calling
             // the controller directly.  Use a live-point timeout state so the snapshot carries a
             // future countdown cue and the service needs to hold a wake lock.
             val serviceUpdateNow = System.currentTimeMillis()
-            val timeoutState = newSetupGameState(
+            val livePointState = newSetupGameState(
                 now = epochTimestamp(
                     LocalDate.of(2026, 5, 19),
                     LocalTime.of(10, 0),
@@ -688,18 +809,90 @@ class TestTimingAlerts {
             )
                 .startGame(OrientationPreference.PORTRAIT)
                 .beginLivePoint(serviceUpdateNow)
+            val timeoutState = livePointState
                 .assessTimeout(TeamId.TEAM_ONE, serviceUpdateNow)
                 .state
             val normalUpdateIntent = TimingAlertForegroundService.updateIntent(
                 context = context,
                 liveState = timeoutState,
-                timingAlertPreferences = TimingAlertPreferences(
-                    globalMode = TimingAlertGlobalMode.SOUNDS_ON,
+                settings = Settings(
+                    timingAlerts = TimingAlertPreferences(
+                        globalMode = TimingAlertGlobalMode.SOUNDS_ON,
+                        watchNotificationMode = WatchNotificationMode.SILENT,
+                    ),
                 ),
             )
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                InstrumentationRegistry.getInstrumentation().uiAutomation.grantRuntimePermission(
+                    context.packageName,
+                    Manifest.permission.POST_NOTIFICATIONS,
+                )
+            }
             ContextCompat.startForegroundService(
                 context,
                 normalUpdateIntent,
+            )
+
+            // The real wrapper posts a separate, dismissible standard notification containing
+            // the score and next-cue text that companion watches can mirror.
+            val notificationManager = context.getSystemService(NotificationManager::class.java)
+            val notificationDeadline = System.currentTimeMillis() + 1_000L
+            var watchNotification: StatusBarNotification?
+            do {
+                watchNotification = notificationManager.activeNotifications
+                    .firstOrNull { notification ->
+                        notification.notification.extras.getString(Notification.EXTRA_TITLE)
+                            ?.startsWith("Next cue:") == true
+                    }
+                if (watchNotification == null) {
+                    Thread.sleep(20L)
+                }
+            } while (
+                watchNotification == null &&
+                System.currentTimeMillis() < notificationDeadline
+            )
+            assertTrue(watchNotification != null)
+            assertEquals(
+                R.drawable.ic_watch_notification,
+                watchNotification!!.notification.smallIcon.resId,
+            )
+            assertTrue(
+                watchNotification!!.notification.extras
+                    .getCharSequence(Notification.EXTRA_TEXT)
+                    .toString()
+                    .contains("tied")
+            )
+            assertEquals(
+                0,
+                watchNotification!!.notification.flags and Notification.FLAG_LOCAL_ONLY,
+            )
+            val serviceNotificationDeadline = System.currentTimeMillis() + 5_000L
+            var serviceNotification: StatusBarNotification?
+            do {
+                serviceNotification = notificationManager.activeNotifications
+                    .firstOrNull { notification ->
+                        notification.notification.extras.getString(Notification.EXTRA_TITLE) ==
+                            "UltiObserver timing alerts"
+                    }
+                if (serviceNotification == null) {
+                    Thread.sleep(20L)
+                }
+            } while (
+                serviceNotification == null &&
+                System.currentTimeMillis() < serviceNotificationDeadline
+            )
+            assertTrue(serviceNotification != null)
+            assertEquals(
+                R.drawable.ic_watch_notification,
+                serviceNotification!!.notification.smallIcon.resId,
+            )
+            val serviceChannel = notificationManager.getNotificationChannel(
+                serviceNotification!!.notification.channelId,
+            )
+            assertEquals("Background timing status", serviceChannel.name)
+            assertEquals("Timing alert service is active.", serviceChannel.description)
+            assertTrue(
+                serviceNotification!!.notification.flags and Notification.FLAG_LOCAL_ONLY != 0
             )
 
             // Compose may resend the same live-game update while the countdown is still active.
@@ -709,9 +902,45 @@ class TestTimingAlerts {
                 normalUpdateIntent,
             )
 
+            // With no countdown active, the same watch-status notification is replaced by a
+            // score-only version whose notification body is absent.
+            ContextCompat.startForegroundService(
+                context,
+                TimingAlertForegroundService.updateIntent(
+                    context = context,
+                    liveState = livePointState,
+                    settings = Settings(
+                        timingAlerts = TimingAlertPreferences(
+                            globalMode = TimingAlertGlobalMode.OFF,
+                            watchNotificationMode = WatchNotificationMode.SILENT,
+                        ),
+                    ),
+                ),
+            )
+            val scoreOnlyNotificationDeadline = System.currentTimeMillis() + 5_000L
+            var scoreOnlyNotification: StatusBarNotification?
+            do {
+                scoreOnlyNotification = notificationManager.activeNotifications
+                    .firstOrNull { notification ->
+                        notification.notification.extras.getString(Notification.EXTRA_TITLE) ==
+                            "0-0 tied"
+                    }
+                if (scoreOnlyNotification == null) {
+                    Thread.sleep(20L)
+                }
+            } while (
+                scoreOnlyNotification == null &&
+                System.currentTimeMillis() < scoreOnlyNotificationDeadline
+            )
+            assertTrue(scoreOnlyNotification != null)
+            assertNull(
+                scoreOnlyNotification!!.notification.extras
+                    .getCharSequence(Notification.EXTRA_TEXT)
+            )
+
             // A cap alarm command can also reach the real service.  The delivered cap cue is
-            // removed, and a later cue from the same snapshot is handed to Android's alarm
-            // scheduler.
+            // shown in a separate watch notification and removed, while a later cue from the same
+            // snapshot is handed to Android's alarm scheduler.
             val now = System.currentTimeMillis()
             val capCue = timingAlertServiceCue(
                 TimingCueId.HALF_CAP,
@@ -733,6 +962,8 @@ class TestTimingAlerts {
                             serviceSnapshot(
                                 vibrationDurationMillis = 1L,
                                 capCues = listOf(capCue, laterCapCue),
+                                watchNotificationMode = WatchNotificationMode.ALERTING,
+                                watchScoreLine = "7-6 Animal",
                             )
                         ),
                     )
@@ -742,11 +973,66 @@ class TestTimingAlerts {
                     ),
             )
 
-            // Give Android's main-thread service commands time to reach onStartCommand before
-            // cleanup stops the service.
+            val capNotificationDeadline = System.currentTimeMillis() + 5_000L
+            var capNotification: StatusBarNotification?
+            do {
+                capNotification = notificationManager.activeNotifications
+                    .firstOrNull { notification ->
+                        notification.notification.extras.getString(Notification.EXTRA_TITLE) ==
+                            "7-6 Animal"
+                    }
+                if (capNotification == null) {
+                    Thread.sleep(20L)
+                }
+            } while (
+                capNotification == null &&
+                System.currentTimeMillis() < capNotificationDeadline
+            )
+            assertTrue(capNotification != null)
+            assertEquals(
+                "Half cap",
+                capNotification!!.notification.extras.getCharSequence(Notification.EXTRA_TEXT),
+            )
+            assertTrue(capNotification!!.id != scoreOnlyNotification!!.id)
+        } finally {
+            context.stopService(Intent(context, TimingAlertForegroundService::class.java))
+        }
+    }
+
+    /** Test defensive cleanup for service commands without usable timing-alert payloads. */
+    @Test
+    fun malformedForegroundServiceCommands() {
+        try {
+            // A command without an action enters foreground mode and then stops the service.
+            ContextCompat.startForegroundService(
+                context,
+                Intent(context, TimingAlertForegroundService::class.java),
+            )
+
+            // An unknown action takes the same cleanup path.
+            ContextCompat.startForegroundService(
+                context,
+                Intent(context, TimingAlertForegroundService::class.java)
+                    .setAction("rmjarvis.ultiobserver.UNKNOWN_TIMING_ALERT_ACTION"),
+            )
+
+            // Known actions without their required payloads also stop without delivering alerts.
+            ContextCompat.startForegroundService(
+                context,
+                Intent(context, TimingAlertForegroundService::class.java)
+                    .setAction(TimingAlertForegroundService.ACTION_UPDATE),
+            )
+            ContextCompat.startForegroundService(
+                context,
+                Intent(context, TimingAlertForegroundService::class.java)
+                    .setAction(TimingAlertForegroundService.ACTION_CAP_ALARM),
+            )
+
+            // Service commands are delivered asynchronously on Android's main thread.
             Thread.sleep(500L)
         } finally {
             context.stopService(Intent(context, TimingAlertForegroundService::class.java))
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync()
         }
     }
 
@@ -855,6 +1141,8 @@ class TestTimingAlerts {
         vibrateWithSounds: Boolean = false,
         countdownCues: List<TimingAlertServiceCue> = emptyList(),
         capCues: List<TimingAlertServiceCue> = emptyList(),
+        watchNotificationMode: WatchNotificationMode = WatchNotificationMode.OFF,
+        watchScoreLine: String? = null,
     ): TimingAlertServiceSnapshot {
         return TimingAlertServiceSnapshot(
             soundVolume = soundVolume,
@@ -862,6 +1150,8 @@ class TestTimingAlerts {
             vibrateWithSounds = vibrateWithSounds,
             countdownCues = countdownCues,
             capCues = capCues,
+            watchNotificationMode = watchNotificationMode,
+            watchScoreLine = watchScoreLine,
         )
     }
 
@@ -871,12 +1161,18 @@ class TestTimingAlerts {
         targetEpoch: Long,
         alertMode: TimingAlertMode = TimingAlertMode.DING,
         repeatCount: Int = 1,
+        countdownSeconds: Int? = null,
+        watchText: String = id.label,
+        watchAlertEnabled: Boolean = true,
     ): TimingAlertServiceCue {
         return TimingAlertServiceCue(
             id = id,
             targetEpoch = targetEpoch,
             alertMode = alertMode,
             repeatCount = repeatCount,
+            countdownSeconds = countdownSeconds,
+            watchText = watchText,
+            watchAlertEnabled = watchAlertEnabled,
         )
     }
 
@@ -914,6 +1210,8 @@ private class FakeTimingAlertServicePlatform(
     )
     val scheduledCapAlarms = mutableListOf<ScheduledCapAlarm>()
     val performedHaptics = mutableListOf<Long>()
+    val watchStatusNotifications = mutableListOf<PostedWatchNotification>()
+    val watchCueNotifications = mutableListOf<PostedWatchNotification>()
     var exactAlarmAccess = true
     var foregroundStarts = 0
     var stopSelfCalls = 0
@@ -921,6 +1219,7 @@ private class FakeTimingAlertServicePlatform(
     var acquireWakeLockCalls = 0
     var releaseWakeLockCalls = 0
     var playerRequests = 0
+    var cancelWatchNotificationsCalls = 0
 
     override fun startForeground() {
         foregroundStarts += 1
@@ -962,6 +1261,24 @@ private class FakeTimingAlertServicePlatform(
         performedHaptics += durationMillis
     }
 
+    override fun postWatchStatusNotification(
+        content: WatchNotificationContent,
+        alert: Boolean,
+    ) {
+        watchStatusNotifications += PostedWatchNotification(content, alert)
+    }
+
+    override fun postWatchCueNotification(
+        content: WatchNotificationContent,
+        alert: Boolean,
+    ) {
+        watchCueNotifications += PostedWatchNotification(content, alert)
+    }
+
+    override fun cancelWatchNotifications() {
+        cancelWatchNotificationsCalls += 1
+    }
+
     override fun stopSelf() {
         stopSelfCalls += 1
     }
@@ -971,6 +1288,12 @@ private class FakeTimingAlertServicePlatform(
 private data class ScheduledCapAlarm(
     val snapshot: TimingAlertServiceSnapshot,
     val cue: TimingAlertServiceCue,
+)
+
+/// Watch-facing notification recorded by the fake Android platform.
+private data class PostedWatchNotification(
+    val content: WatchNotificationContent,
+    val alert: Boolean,
 )
 
 /// Fake SoundPool boundary for controller tests.

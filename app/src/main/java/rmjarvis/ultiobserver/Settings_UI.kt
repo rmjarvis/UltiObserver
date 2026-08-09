@@ -1,5 +1,10 @@
 package rmjarvis.ultiobserver
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -30,7 +35,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
@@ -62,6 +72,22 @@ internal fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val hasTimingCueHaptics = context.hasTimingCueHaptics()
+    var requestedWatchNotificationMode by remember {
+        mutableStateOf(WatchNotificationMode.OFF)
+    }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        val requestedMode = requestedWatchNotificationMode
+        requestedWatchNotificationMode = WatchNotificationMode.OFF
+        if (granted) {
+            onSettingsChange(
+                settings.withTimingAlerts(
+                    settings.timingAlerts.withWatchNotificationMode(requestedMode)
+                )
+            )
+        }
+    }
     var colorTarget by remember { mutableStateOf<GenderRatioBadgeColorTarget?>(null) }
     var customColorTarget by remember { mutableStateOf<GenderRatioBadgeColorTarget?>(null) }
     Scaffold(
@@ -130,6 +156,26 @@ internal fun SettingsScreen(
                     onSettingsChange(
                         settings.withTimingAlerts(settings.timingAlerts.withVibrateWithSounds(it))
                     )
+                },
+                onWatchNotificationModeChange = { mode ->
+                    val notificationPermissionGranted =
+                        Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                            ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.POST_NOTIFICATIONS,
+                            ) == PackageManager.PERMISSION_GRANTED
+                    if (mode == WatchNotificationMode.OFF || notificationPermissionGranted) {
+                        onSettingsChange(
+                            settings.withTimingAlerts(
+                                settings.timingAlerts.withWatchNotificationMode(mode)
+                            )
+                        )
+                    } else {
+                        requestedWatchNotificationMode = mode
+                        notificationPermissionLauncher.launch(
+                            Manifest.permission.POST_NOTIFICATIONS
+                        )
+                    }
                 },
                 onOpenTimingCueSettings = onOpenTimingCueSettings,
                 hasTimingCueHaptics = hasTimingCueHaptics,
@@ -684,6 +730,7 @@ private fun TimingAlertGlobalModeSelector(
  * @param onSoundVolumeChange Callback receiving sound volume changes.
  * @param onVibrationDurationChange Callback receiving vibration duration changes in milliseconds.
  * @param onVibrateWithSoundsChange Callback receiving the sound-plus-vibration toggle state.
+ * @param onWatchNotificationModeChange Callback receiving the watch-notification mode.
  * @param onOpenTimingCueSettings Callback opening per-cue timing alert settings.
  * @param hasTimingCueHaptics Whether this device reports usable timing-cue haptics.
  * @param onTestVibration Callback playing a haptic test for the selected duration.
@@ -694,6 +741,7 @@ private fun TimingAlertSoundControls(
     onSoundVolumeChange: (Float) -> Unit,
     onVibrationDurationChange: (Long) -> Unit,
     onVibrateWithSoundsChange: (Boolean) -> Unit,
+    onWatchNotificationModeChange: (WatchNotificationMode) -> Unit,
     onOpenTimingCueSettings: () -> Unit,
     hasTimingCueHaptics: Boolean,
     onTestVibration: (Long) -> Unit,
@@ -803,6 +851,67 @@ private fun TimingAlertSoundControls(
                 }
             }
         }
+        WatchNotificationModeSelector(
+            selectedMode = timingAlertPreferences.watchNotificationMode,
+            onModeChange = onWatchNotificationModeChange,
+        )
+    }
+}
+
+/** Render the global mode for standard notifications mirrored to watches. */
+@Composable
+private fun WatchNotificationModeSelector(
+    selectedMode: WatchNotificationMode,
+    onModeChange: (WatchNotificationMode) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = "Watch notifications",
+            style = MaterialTheme.typography.titleMedium,
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            WatchNotificationMode.entries.forEach { mode ->
+                ChoiceChipButton(
+                    label = mode.label,
+                    selected = mode == selectedMode,
+                    tag = "settings-watch-notifications-${mode.name}",
+                    onClick = {
+                        onModeChange(mode)
+                    },
+                )
+            }
+        }
+        val modeDescription = when (selectedMode) {
+            WatchNotificationMode.OFF ->
+                "No notifications will be sent to a watch."
+            WatchNotificationMode.SILENT ->
+                "Timing cues will be sent to a paired watch, but no alerts will be triggered."
+            WatchNotificationMode.ALERTING ->
+                "Timing cues will be sent to a paired watch. Cues whose individual setting " +
+                    "is not Off will also trigger an alert, causing a vibration if enabled " +
+                    "on the watch."
+        }
+        Text(
+            text = buildAnnotatedString {
+                append(modeDescription)
+                if (selectedMode != WatchNotificationMode.OFF) {
+                    append("\n\n")
+                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                        append("Warning:")
+                    }
+                    append(
+                        " Watch notifications require a paired watch and notification sharing " +
+                            "enabled in its companion app. UltiObserver cannot verify the " +
+                            "connection."
+                    )
+                }
+            },
+            style = MaterialTheme.typography.bodySmall,
+        )
     }
 }
 

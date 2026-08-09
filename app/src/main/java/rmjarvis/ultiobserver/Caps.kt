@@ -53,14 +53,17 @@ enum class CapType {
     }
 }
 
-/// Return whether any enabled cap has an audible or haptic timing alert.
+/// Return whether any enabled cap needs phone playback or a watch-notification update.
 internal fun GameRules.hasEnabledCapTimingAlerts(timingAlertPreferences: TimingAlertPreferences): Boolean {
-    return listOfNotNull(
+    val enabledCaps = listOfNotNull(
         CapType.HALF.takeIf { capEnabled(CapType.HALF) },
         CapType.SOFT.takeIf { capEnabled(CapType.SOFT) },
         CapType.HARD.takeIf { capEnabled(CapType.HARD) },
-    ).any { capType ->
-        timingAlertPreferences.alertModeFor(capType.timingCueId()) != TimingAlertMode.NONE
+    )
+    return enabledCaps.any { capType ->
+        val cueId = capType.timingCueId()
+        timingAlertPreferences.alertModeFor(cueId) != TimingAlertMode.NONE ||
+            timingAlertPreferences.sendsCueToWatch(cueId, countdownSeconds = null)
     }
 }
 

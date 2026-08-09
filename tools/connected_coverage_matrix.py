@@ -226,6 +226,7 @@ def run_for_device(args: argparse.Namespace, device: MatrixDevice, root: Path) -
     # the app after external setup, so the script invokes instrumentation directly below.
     run([args.gradle, "app:installDebug", "app:installDebugAndroidTest"], cwd=root, env=env)
     clear_app_data(args.adb, device, root)
+    revoke_notification_permission(args.adb, device, root)
     set_exact_alarm_appop(args.adb, device, root)
 
     start_time = time.monotonic()
@@ -353,6 +354,31 @@ def clear_app_data(adb: Path, device: MatrixDevice, root: Path) -> None:
         ],
         cwd=root,
     )
+
+
+def revoke_notification_permission(adb: Path, device: MatrixDevice, root: Path) -> None:
+    """Start modern-device instrumentation with notification permission denied."""
+
+    sdk = int(
+        run_captured(
+            [str(adb), "-s", device.serial, "shell", "getprop", "ro.build.version.sdk"],
+            cwd=root,
+        ).strip()
+    )
+    if sdk >= 33:
+        run(
+            [
+                str(adb),
+                "-s",
+                device.serial,
+                "shell",
+                "pm",
+                "revoke",
+                PACKAGE_NAME,
+                "android.permission.POST_NOTIFICATIONS",
+            ],
+            cwd=root,
+        )
 
 
 def clear_device_coverage_file(

@@ -72,6 +72,29 @@ Vibration length
     This changes how long the vibration action lasts. There is a **Test** button so you can
     see what the currently set length will feel like.
 
+Watch notifications
+    The app can send notifications for the timing cues, which can be picked up by a smart
+    watch connected to your phone. The notifications show the score, the current ABBA ratio when
+    applicable, and the next cue. There are three options:
+
+    * **Off** does not send any timing cue notifications. This is the default.
+    * **Silent** keeps the information current without intentionally alerting the watch. This is
+      useful when you are getting sound cues through an earbud. It's still useful to have the
+      score and gender ratio shown on the watch, along with what the next cue is if you need it.
+    * **Alerting** sends alerting notifications to the watch, which can vibrate if you have your
+      watch set to do so. Only cues whose individual sound/vibration setting is not **Off**
+      receive an alerting notification.
+
+    Android notification permission and notification mirroring must be enabled. The watch and its
+    companion app ultimately control whether an alert vibrates the watch, and may also control
+    whether the phone alerts at the same time.
+
+    .. note::
+
+        UltiObserver has no direct way to tell if you have a watch paired with your phone.
+        From its perspective, it is just sending notifications to the phone. The watch's
+        companion app is responsible for sending them to the watch.
+
 Active Game Screen Behavior
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

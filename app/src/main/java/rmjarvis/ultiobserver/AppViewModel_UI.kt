@@ -60,7 +60,7 @@ internal fun UltiObserverApp(
         liveState = appState.currentGame?.takeUnless { state ->
             state.phase == GamePhase.SETUP || state.phase == GamePhase.GAME_OVER
         },
-        timingAlertPreferences = appState.settings.timingAlerts,
+        settings = appState.settings,
     )
 
     // No else branch: every AppScreen value is handled.

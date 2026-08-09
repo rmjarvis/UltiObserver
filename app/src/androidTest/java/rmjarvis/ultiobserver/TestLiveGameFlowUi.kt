@@ -518,7 +518,15 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             vibrateWithSounds = false,
         )
 
-        // Disabled alerts should be a no-op even when the countdown reaches a cue time.
+        // Watch-only timing keeps the foreground service active when phone alerts are Off.
+        triggerDueTimeoutTwentyCue(
+            globalMode = TimingAlertGlobalMode.OFF,
+            cueMode = TimingAlertMode.NONE,
+            vibrateWithSounds = false,
+            watchNotificationMode = WatchNotificationMode.SILENT,
+        )
+
+        // Fully disabled alerts should be a no-op even when the countdown reaches a cue time.
         triggerDueTimeoutTwentyCue(
             globalMode = TimingAlertGlobalMode.OFF,
             cueMode = TimingAlertMode.NONE,
@@ -881,6 +889,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
      * @param globalMode The global timing alert mode to apply before the cue fires.
      * @param cueMode The per-cue alert mode for the timeout twenty-second cue.
      * @param vibrateWithSounds Whether sound cues should also vibrate.
+     * @param watchNotificationMode Whether the watch should receive timing notifications.
      * @param cueAlreadyDue Whether the cue should already be due when the listener sees the
      * countdown.
      * @param cueDueInMillis How soon a scheduled cue should fire when it is not already due.
@@ -891,6 +900,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         globalMode: TimingAlertGlobalMode,
         cueMode: TimingAlertMode,
         vibrateWithSounds: Boolean,
+        watchNotificationMode: WatchNotificationMode = WatchNotificationMode.OFF,
         cueAlreadyDue: Boolean = false,
         cueDueInMillis: Long = 500L,
         waitAfterDueMillis: Long = 300L,
@@ -900,6 +910,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             defaultPreferences.copy(
                 globalMode = globalMode,
                 vibrateWithSounds = vibrateWithSounds,
+                watchNotificationMode = watchNotificationMode,
                 cueModes = defaultPreferences.cueModes + mapOf(
                     TimingCueId.OFFENSE_TWENTY to cueMode,
                 ),

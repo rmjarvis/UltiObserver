@@ -42,9 +42,10 @@ much less so than starting from scratch.
 Smart watch interface
 ---------------------
 
-I'd like to add a smart watch interface, so timing cues and the most common actions could
-be controlled from a smart watch. Then the phone interface would only be needed for setup
-and some more intensive actions like entering a name and number for a yellow card.
+UltiObserver can already mirror compact timing and score notifications through the phone's
+standard Android notifications. I'd also like to add a full smart watch interface, so the most
+common actions could be controlled from a watch. Then the phone interface would only be needed
+for setup and some more intensive actions like entering a name and number for a yellow card.
 
 More Ideas
 ----------

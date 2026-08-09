@@ -1,8 +1,12 @@
 package rmjarvis.ultiobserver
 
+import android.Manifest
+import android.os.Build
 import android.app.Activity
 import android.app.Instrumentation
+import android.content.pm.PackageManager
 import android.content.Intent
+import android.view.accessibility.AccessibilityNodeInfo
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -28,6 +32,7 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.core.content.ContextCompat
 import java.time.LocalDate
 import java.time.LocalTime
 import kotlin.math.abs
@@ -1174,6 +1179,16 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
      */
     @Test
     fun cueSettings() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            assertEquals(
+                PackageManager.PERMISSION_DENIED,
+                ContextCompat.checkSelfPermission(
+                    composeRule.activity,
+                    Manifest.permission.POST_NOTIFICATIONS,
+                ),
+            )
+        }
+
         // Seed settings directly so this UI-focused test can start at a meaningful cue state.
         val defaultPreferences = TimingAlertPreferences()
         setTimingAlertPreferences(
@@ -1223,6 +1238,48 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         }
         composeRule.onAllNodesWithTag("settings-sound-volume").assertCountEquals(0)
         composeRule.onAllNodesWithTag("settings-vibrate-with-sounds").assertCountEquals(0)
+
+        // Watch notifications default off and expose the independent silent and alerting modes.
+        composeRule.onNodeWithTag("settings-watch-notifications-OFF")
+            .performScrollTo()
+            .assertIsSelected()
+        waitForText("No notifications will be sent to a watch.")
+        composeRule.onAllNodesWithText("Warning:", substring = true).assertCountEquals(0)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // Denying the runtime notification permission leaves watch notifications Off.
+            composeRule.onNodeWithTag("settings-watch-notifications-SILENT").performClick()
+            respondToNotificationPermission(allow = false)
+            composeRule.onNodeWithTag("settings-watch-notifications-OFF").assertIsSelected()
+
+            // Granting a second request applies the watch mode that initiated the request.
+            composeRule.onNodeWithTag("settings-watch-notifications-ALERTING").performClick()
+            respondToNotificationPermission(allow = true)
+            composeRule.waitUntil(timeoutMillis = 5_000) {
+                composeRule.activity.appViewModel.settings.timingAlerts.watchNotificationMode ==
+                    WatchNotificationMode.ALERTING
+            }
+        }
+        composeRule.onNodeWithTag("settings-watch-notifications-SILENT").performClick()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.activity.appViewModel.settings.timingAlerts.watchNotificationMode ==
+                WatchNotificationMode.SILENT
+        }
+        waitForText(
+            "Timing cues will be sent to a paired watch, but no alerts will be triggered.",
+            substring = true,
+        )
+        waitForText("Warning:", substring = true)
+        waitForText("UltiObserver cannot verify the connection.", substring = true)
+        composeRule.onNodeWithTag("settings-watch-notifications-ALERTING").performClick()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.activity.appViewModel.settings.timingAlerts.watchNotificationMode ==
+                WatchNotificationMode.ALERTING
+        }
+        waitForText(
+            "Cues whose individual setting is not Off will also trigger an alert",
+            substring = true,
+        )
+        composeRule.onNodeWithTag("settings-watch-notifications-OFF").performClick()
         composeRule.onNodeWithTag("settings-open-timing-cue-settings")
             .performScrollTo()
             .performClick()
@@ -1597,5 +1654,29 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             activity.appViewModel.goHome()
         }
         composeRule.waitForIdle()
+    }
+
+    /// Respond to the Android 13+ notification permission dialog through its system UI button.
+    private fun respondToNotificationPermission(allow: Boolean) {
+        val buttonResourceName = if (allow) {
+            "permission_allow_button"
+        } else {
+            "permission_deny_button"
+        }
+        val uiAutomation = InstrumentationRegistry.getInstrumentation().uiAutomation
+        val deadlineMillis = System.currentTimeMillis() + 5_000L
+        var button: AccessibilityNodeInfo?
+        do {
+            button = uiAutomation.rootInActiveWindow
+                ?.findAccessibilityNodeInfosByViewId(
+                    "com.android.permissioncontroller:id/$buttonResourceName"
+                )
+                ?.firstOrNull()
+            if (button == null) {
+                Thread.sleep(50L)
+            }
+        } while (button == null && System.currentTimeMillis() < deadlineMillis)
+
+        assertTrue(button?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true)
     }
 }

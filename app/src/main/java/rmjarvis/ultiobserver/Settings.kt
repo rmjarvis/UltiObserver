@@ -59,12 +59,28 @@ enum class TimingAlertGlobalMode(
 }
 
 /**
+ * Whether timing status is mirrored through standard Android notifications for a watch.
+ *
+ * Silent mode keeps the watch display current without intentionally vibrating it. Alerting mode
+ * alerts only for cues whose individual sound/vibration setting is not Off.
+ */
+@Serializable
+enum class WatchNotificationMode(
+    val label: String,
+) {
+    OFF("Off"),
+    SILENT("Silent"),
+    ALERTING("Alerting"),
+}
+
+/**
  * User-configurable timing alert behavior.
  *
  * @param globalMode The app-wide mode controlling whether alerts are off, vibration-only, or sound-enabled.
  * @param soundVolume Playback volume for sound alerts.
  * @param vibrationDurationMillis Vibration length for vibration alerts.
  * @param vibrateWithSounds Whether sound alerts should also vibrate.
+ * @param watchNotificationMode Whether standard notifications should mirror timing status.
  * @param cueModes Per-cue alert mode overrides.
  * @param cueRepeatCounts Per-cue sound/vibration repeat counts.
  */
@@ -74,6 +90,7 @@ data class TimingAlertPreferences(
     val soundVolume: Float = 1f,
     val vibrationDurationMillis: Long = DEFAULT_TIMING_CUE_VIBRATION_MS,
     val vibrateWithSounds: Boolean = false,
+    val watchNotificationMode: WatchNotificationMode = WatchNotificationMode.OFF,
     val cueModes: Map<TimingCueId, TimingAlertMode> = defaultTimingCueModes(),
     val cueRepeatCounts: Map<TimingCueId, Int> = defaultTimingCueRepeatCounts(),
 ) {
@@ -114,6 +131,20 @@ data class TimingAlertPreferences(
     }
 
     /**
+     * Return whether a cue should be sent to a watch.
+     *
+     * Individually Off cues are skipped except at the end of a countdown, when a silent update
+     * must return the watch notification to the score.
+     *
+     * @param cueId The timing cue being considered for watch delivery.
+     * @param countdownSeconds Countdown value for this cue occurrence, or null for a cap cue.
+     */
+    fun sendsCueToWatch(cueId: TimingCueId, countdownSeconds: Int?): Boolean {
+        return watchNotificationMode != WatchNotificationMode.OFF &&
+            (countdownSeconds == 0 || settingsModeFor(cueId) != TimingAlertMode.NONE)
+    }
+
+    /**
      * Return this timing-alert configuration with the global alert mode replaced.
      *
      * @param mode The global mode controlling whether cues are off, vibration-only, or sound-enabled.
@@ -147,6 +178,11 @@ data class TimingAlertPreferences(
      */
     fun withVibrateWithSounds(vibrateWithSounds: Boolean): TimingAlertPreferences {
         return copy(vibrateWithSounds = vibrateWithSounds)
+    }
+
+    /** Return this configuration with the watch-notification mode replaced. */
+    fun withWatchNotificationMode(mode: WatchNotificationMode): TimingAlertPreferences {
+        return copy(watchNotificationMode = mode)
     }
 
     /**

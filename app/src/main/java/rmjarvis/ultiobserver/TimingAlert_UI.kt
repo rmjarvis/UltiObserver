@@ -13,17 +13,18 @@ import androidx.core.content.ContextCompat
  * the same effect stops the service so wake locks and cap alarms are released.
  *
  * @param liveState Active game state whose alerts should be delivered, or null to stop service.
- * @param timingAlertPreferences User alert preferences to apply.
+ * @param settings Current app settings controlling phone alerts and watch notifications.
  */
 @Composable
 internal fun TimingAlertForegroundServiceEffect(
     liveState: GameState?,
-    timingAlertPreferences: TimingAlertPreferences,
+    settings: Settings,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current.applicationContext
-    LaunchedEffect(liveState, timingAlertPreferences) {
+    LaunchedEffect(liveState, settings) {
         if (liveState == null ||
-            timingAlertPreferences.globalMode == TimingAlertGlobalMode.OFF
+            (settings.timingAlerts.globalMode == TimingAlertGlobalMode.OFF &&
+                settings.timingAlerts.watchNotificationMode == WatchNotificationMode.OFF)
         ) {
             context.stopService(Intent(context, TimingAlertForegroundService::class.java))
             return@LaunchedEffect
@@ -33,7 +34,7 @@ internal fun TimingAlertForegroundServiceEffect(
             TimingAlertForegroundService.updateIntent(
                 context = context,
                 liveState = liveState,
-                timingAlertPreferences = timingAlertPreferences,
+                settings = settings,
             ),
         )
     }

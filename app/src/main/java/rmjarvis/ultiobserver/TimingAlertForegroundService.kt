@@ -167,6 +167,26 @@ class TimingAlertForegroundService : Service() {
                 performTimingCueHaptic(durationMillis)
             }
 
+            override fun postWatchStatusNotification(
+                content: WatchNotificationContent,
+                alert: Boolean,
+            ) {
+                postWatchNotification(WATCH_STATUS_NOTIFICATION_ID, content, alert)
+            }
+
+            override fun postWatchCueNotification(
+                content: WatchNotificationContent,
+                alert: Boolean,
+            ) {
+                postWatchNotification(WATCH_CAP_NOTIFICATION_ID, content, alert)
+            }
+
+            override fun cancelWatchNotifications() {
+                val notificationManager = getSystemService(NotificationManager::class.java)
+                notificationManager.cancel(WATCH_STATUS_NOTIFICATION_ID)
+                notificationManager.cancel(WATCH_CAP_NOTIFICATION_ID)
+            }
+
             override fun stopSelf() {
                 this@TimingAlertForegroundService.stopSelf()
             }
@@ -193,12 +213,46 @@ class TimingAlertForegroundService : Service() {
         val notificationManager = getSystemService(NotificationManager::class.java)
         val channel = NotificationChannel(
             TIMING_ALERT_SERVICE_CHANNEL_ID,
-            "Timing alerts",
+            "Background timing status",
             NotificationManager.IMPORTANCE_LOW,
         ).apply {
-            description = "Keeps UltiObserver timing alerts active."
+            description = "Timing alert service is active."
         }
         notificationManager.createNotificationChannel(channel)
+        val watchChannel = NotificationChannel(
+            WATCH_NOTIFICATION_CHANNEL_ID,
+            "Watch timing cues",
+            NotificationManager.IMPORTANCE_DEFAULT,
+        ).apply {
+            description = "Shows live game timing on a paired watch."
+            setSound(null, null)
+            enableVibration(true)
+        }
+        notificationManager.createNotificationChannel(watchChannel)
+    }
+
+    /** Post one ordinary dismissible notification that companion watches can mirror. */
+    private fun postWatchNotification(
+        notificationId: Int,
+        content: WatchNotificationContent,
+        alert: Boolean,
+    ) {
+        createNotificationChannel()
+        val openAppIntent = PendingIntent.getActivity(
+            this,
+            0,
+            Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val builder = NotificationCompat.Builder(this, WATCH_NOTIFICATION_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_watch_notification)
+            .setContentTitle(content.title)
+            .setContentIntent(openAppIntent)
+            .setSilent(!alert)
+        if (content.body != null) {
+            builder.setContentText(content.body)
+        }
+        getSystemService(NotificationManager::class.java).notify(notificationId, builder.build())
     }
 
     /// Build the foreground-service notification, including a tap target back to the app.
@@ -210,10 +264,11 @@ class TimingAlertForegroundService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         return NotificationCompat.Builder(this, TIMING_ALERT_SERVICE_CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_timing_alert_notification)
+            .setSmallIcon(R.drawable.ic_watch_notification)
             .setContentTitle("UltiObserver timing alerts")
             .setContentText("Timing alerts are active.")
             .setContentIntent(openAppIntent)
+            .setLocalOnly(true)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setSilent(true)
@@ -290,20 +345,23 @@ class TimingAlertForegroundService : Service() {
         private const val TIMING_ALERT_SERVICE_CHANNEL_ID = "timing_alert_service"
         private const val TIMING_ALERT_SERVICE_NOTIFICATION_ID = 1001
         private const val TIMING_ALERT_CAP_ALARM_REQUEST_CODE = 1002
+        private const val WATCH_STATUS_NOTIFICATION_ID = 1003
+        private const val WATCH_CAP_NOTIFICATION_ID = 1004
+        private const val WATCH_NOTIFICATION_CHANNEL_ID = "watch_timing_cues"
 
         /**
          * Build the app-to-service command containing the latest active-game alert state.
          *
          * @param context Android context used to target the service.
          * @param liveState Active game state whose timing alerts should be delivered.
-         * @param timingAlertPreferences User alert preferences to apply.
+         * @param settings Current settings controlling phone alerts and watch notifications.
          */
-        fun updateIntent(
+        internal fun updateIntent(
             context: Context,
             liveState: GameState,
-            timingAlertPreferences: TimingAlertPreferences,
+            settings: Settings,
         ): Intent {
-            val snapshot = liveState.timingAlertSnapshot(timingAlertPreferences)
+            val snapshot = liveState.timingAlertSnapshot(settings)
             return Intent(context, TimingAlertForegroundService::class.java)
                 .setAction(ACTION_UPDATE)
                 .putExtra(EXTRA_TIMING_ALERT_SNAPSHOT, appStateJson.encodeToString(snapshot))
@@ -355,6 +413,15 @@ internal interface TimingAlertServicePlatform {
      */
     suspend fun performHaptic(durationMillis: Long)
 
+    /** Post or update the main game-status notification mirrored to a watch. */
+    fun postWatchStatusNotification(content: WatchNotificationContent, alert: Boolean)
+
+    /** Post or update a cap-cue notification without replacing countdown status. */
+    fun postWatchCueNotification(content: WatchNotificationContent, alert: Boolean)
+
+    /// Remove watch-facing status and cap notifications.
+    fun cancelWatchNotifications()
+
     /// Ask Android to stop this foreground service instance.
     fun stopSelf()
 }
@@ -383,6 +450,7 @@ internal class TimingAlertForegroundServiceController(
     private var lifetimeJob: Job? = null
     internal var timingAlertSnapshot: TimingAlertServiceSnapshot? = null
         private set
+    private var lastWatchStatusContent: WatchNotificationContent? = null
 
     /**
      * Apply the latest active-game state sent from Compose and start background alert delivery.
@@ -403,6 +471,7 @@ internal class TimingAlertForegroundServiceController(
 
         refreshTimingAlertServiceLifetime()
         timingAlertSnapshot = updatedSnapshot
+        updateWatchStatusFromSnapshot(updatedSnapshot)
         if (timingAlertPlayer == null) {
             timingAlertPlayer = platform.timingAlertPlayer()
         }
@@ -453,6 +522,7 @@ internal class TimingAlertForegroundServiceController(
         lifetimeJob?.cancel()
         platform.cancelCapAlarm()
         platform.releaseWakeLock()
+        platform.cancelWatchNotifications()
         serviceScope.cancel()
     }
 
@@ -460,6 +530,7 @@ internal class TimingAlertForegroundServiceController(
     fun stopTimingAlertService() {
         platform.releaseWakeLock()
         platform.cancelCapAlarm()
+        platform.cancelWatchNotifications()
         platform.stopSelf()
     }
 
@@ -492,10 +563,7 @@ internal class TimingAlertForegroundServiceController(
                 continue
             }
 
-            val nextTimingAlert = snapshot.countdownCues.nextTimingAlertServiceCue(now)
-            if (nextTimingAlert == null) {
-                return
-            }
+            val nextTimingAlert = snapshot.countdownCues.nextTimingAlertServiceCue(now) ?: return
 
             val deliveryWindow = timingAlertDeliveryWindow(
                 millisUntilNextAlert = nextTimingAlert.targetEpoch - now,
@@ -532,7 +600,7 @@ internal class TimingAlertForegroundServiceController(
                         delay(snapshot.vibrationDurationMillis + TIMING_ALERT_REPEAT_HAPTIC_GAP_MS)
                     }
                 }
-            } else {
+            } else if (cue.alertMode != TimingAlertMode.NONE) {
                 player.play(
                     sound = cue.alertMode.toTimingAlertSound(),
                     repeatCount = cue.repeatCount,
@@ -542,6 +610,51 @@ internal class TimingAlertForegroundServiceController(
                 if (snapshot.vibrateWithSounds) {
                     platform.performHaptic(snapshot.vibrationDurationMillis)
                 }
+            }
+            deliverWatchCue(cue)
+        }
+    }
+
+    /** Update watch-visible state after one scheduled countdown or cap cue fires. */
+    private fun deliverWatchCue(cue: TimingAlertServiceCue) {
+        val snapshot = timingAlertSnapshot ?: return
+        val scoreLine = snapshot.watchScoreLine ?: return
+        val alert = snapshot.watchNotificationMode == WatchNotificationMode.ALERTING &&
+            cue.watchAlertEnabled
+        val countdownSeconds = cue.countdownSeconds
+        if (countdownSeconds == null) {
+            platform.postWatchCueNotification(
+                content = WatchNotificationContent(
+                    title = scoreLine,
+                    body = cue.watchText,
+                ),
+                alert = alert,
+            )
+        } else {
+            val nextCueText = if (countdownSeconds == 0) {
+                null
+            } else {
+                snapshot.countdownCues.firstOrNull()?.watchText
+            }
+            val content = watchNotificationContent(scoreLine, nextCueText)
+            platform.postWatchStatusNotification(content, alert)
+            lastWatchStatusContent = content
+        }
+    }
+
+    /** Apply a new app snapshot to the current dismissible watch-status notification. */
+    private fun updateWatchStatusFromSnapshot(snapshot: TimingAlertServiceSnapshot) {
+        if (snapshot.watchNotificationMode == WatchNotificationMode.OFF) {
+            platform.cancelWatchNotifications()
+            lastWatchStatusContent = null
+        } else {
+            val content = watchNotificationContent(
+                snapshot.watchScoreLine!!,
+                snapshot.countdownCues.firstOrNull()?.watchText,
+            )
+            if (content != lastWatchStatusContent) {
+                platform.postWatchStatusNotification(content, alert = false)
+                lastWatchStatusContent = content
             }
         }
     }
@@ -622,6 +735,8 @@ internal class TimingAlertForegroundServiceController(
  * @param vibrateWithSounds Whether sound alerts should also vibrate.
  * @param countdownCues Upcoming countdown cues for near-term wake-lock scheduling.
  * @param capCues Relevant cap cues that may need exact alarms later in the game.
+ * @param watchNotificationMode Whether watch status is off, silent, or cue-alerting.
+ * @param watchScoreLine Current score text for the mirrored notification.
  */
 @Serializable
 internal data class TimingAlertServiceSnapshot(
@@ -630,6 +745,8 @@ internal data class TimingAlertServiceSnapshot(
     val vibrateWithSounds: Boolean,
     val countdownCues: List<TimingAlertServiceCue>,
     val capCues: List<TimingAlertServiceCue>,
+    val watchNotificationMode: WatchNotificationMode,
+    val watchScoreLine: String?,
 )
 
 /**
@@ -639,6 +756,9 @@ internal data class TimingAlertServiceSnapshot(
  * @param targetEpoch Epoch millis when this cue should fire.
  * @param alertMode Effective alert mode to play.
  * @param repeatCount Number of repeated sounds or haptic pulses to deliver.
+ * @param countdownSeconds Nominal countdown value for this cue, or null for a cap cue.
+ * @param watchText Wording shown as the next watch cue.
+ * @param watchAlertEnabled Whether the individual cue setting is not Off.
  */
 @Serializable
 internal data class TimingAlertServiceCue(
@@ -646,6 +766,9 @@ internal data class TimingAlertServiceCue(
     val targetEpoch: Long,
     val alertMode: TimingAlertMode,
     val repeatCount: Int,
+    val countdownSeconds: Int? = null,
+    val watchText: String = id.label,
+    val watchAlertEnabled: Boolean = true,
 ) {
     /// Build the same stable deduplication key as TimingCueDisplay.
     fun alertKey(): String {
@@ -655,18 +778,23 @@ internal data class TimingAlertServiceCue(
 
 /// Build the compact timing-alert snapshot sent across Android component boundaries.
 internal fun GameState.timingAlertSnapshot(
-    timingAlertPreferences: TimingAlertPreferences,
+    settings: Settings,
 ): TimingAlertServiceSnapshot {
     val now = System.currentTimeMillis()
+    val timingAlertPreferences = settings.timingAlerts
+    val countdownCues = countdown?.timingAlertServiceCues(
+        now,
+        timingAlertPreferences,
+    ) ?: emptyList()
+    val watchEnabled = timingAlertPreferences.watchNotificationMode != WatchNotificationMode.OFF
     return TimingAlertServiceSnapshot(
         soundVolume = timingAlertPreferences.soundVolume,
         vibrationDurationMillis = timingAlertPreferences.vibrationDurationMillis,
         vibrateWithSounds = timingAlertPreferences.vibrateWithSounds,
-        countdownCues = countdown?.timingAlertServiceCues(
-            now,
-            timingAlertPreferences,
-        ) ?: emptyList(),
+        countdownCues = countdownCues,
         capCues = upcomingCapTimingCues(now).timingAlertServiceCues(timingAlertPreferences),
+        watchNotificationMode = timingAlertPreferences.watchNotificationMode,
+        watchScoreLine = if (watchEnabled) watchNotificationScoreLine(settings) else null,
     )
 }
 
@@ -678,16 +806,26 @@ internal fun CountdownState.timingAlertServiceCues(
     val dueCue = dueTimingCue(now)
     return ((if (dueCue == null) emptyList() else listOf(dueCue)) + upcomingTimingCues(now))
         .distinctBy { cue -> cue.alertKey() }
-        .timingAlertServiceCues(timingAlertPreferences)
+        .timingAlertServiceCues(timingAlertPreferences, countdownCues = true)
 }
 
-/// Return compact, alert-enabled cues with effective per-cue playback settings.
+/// Return compact cues that need phone playback or watch delivery.
 internal fun List<TimingCueDisplay>.timingAlertServiceCues(
     timingAlertPreferences: TimingAlertPreferences,
+    countdownCues: Boolean = false,
 ): List<TimingAlertServiceCue> {
     return mapNotNull { cue ->
         val alertMode = timingAlertPreferences.alertModeFor(cue.id)
-        if (alertMode == TimingAlertMode.NONE) {
+        val countdownSeconds = if (countdownCues) {
+            cue.countdownTime.seconds.toInt()
+        } else {
+            null
+        }
+        val watchCueNeeded = timingAlertPreferences.sendsCueToWatch(
+            cue.id,
+            countdownSeconds,
+        )
+        if (alertMode == TimingAlertMode.NONE && !watchCueNeeded) {
             null
         } else {
             TimingAlertServiceCue(
@@ -695,6 +833,10 @@ internal fun List<TimingCueDisplay>.timingAlertServiceCues(
                 targetEpoch = cue.targetEpoch,
                 alertMode = alertMode,
                 repeatCount = timingAlertPreferences.repeatCountFor(cue.id),
+                countdownSeconds = countdownSeconds,
+                watchText = cue.message,
+                watchAlertEnabled = timingAlertPreferences.settingsModeFor(cue.id) !=
+                    TimingAlertMode.NONE,
             )
         }
     }

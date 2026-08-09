@@ -59,6 +59,7 @@ class TestPersistence : GameDomainTestFixtures() {
         updateTimingAlerts { it.withSoundVolume(0.4f) }
         updateTimingAlerts { it.withVibrationDuration(420L) }
         updateTimingAlerts { it.withVibrateWithSounds(true) }
+        updateTimingAlerts { it.withWatchNotificationMode(WatchNotificationMode.ALERTING) }
         updateSettings { it.withAutomaticallyAdvanceCountdowns(false) }
         updateSettings { it.withAutomaticallyLockLivePoint(false) }
         updateSettings { it.withShowDefenseCountdowns(true) }
@@ -155,6 +156,10 @@ class TestPersistence : GameDomainTestFixtures() {
         assertEquals(0.4f, restored.settings.timingAlerts.soundVolume, 0f)
         assertEquals(420L, restored.settings.timingAlerts.vibrationDurationMillis)
         assertTrue(restored.settings.timingAlerts.vibrateWithSounds)
+        assertEquals(
+            WatchNotificationMode.ALERTING,
+            restored.settings.timingAlerts.watchNotificationMode,
+        )
         assertEquals(
             TimingAlertMode.DING,
             restored.settings.timingAlerts.cueModes[TimingCueId.PULLING_TIME_VIOLATION],

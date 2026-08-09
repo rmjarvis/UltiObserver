@@ -21,6 +21,7 @@ class TestTimingCues : GameDomainTestFixtures() {
 
         // Default preferences start in vibration-only mode with full sound volume.
         assertEquals(TimingAlertGlobalMode.VIBRATION_ONLY, defaultPreferences.globalMode)
+        assertEquals(WatchNotificationMode.OFF, defaultPreferences.watchNotificationMode)
         assertEquals(1f, defaultPreferences.soundVolume, 0f)
         assertFalse(defaultPreferences.vibrateWithSounds)
 
@@ -36,6 +37,23 @@ class TestTimingCues : GameDomainTestFixtures() {
         assertFalse(
             GameRules().hasEnabledCapTimingAlerts(
                 defaultPreferences.copy(globalMode = TimingAlertGlobalMode.OFF)
+            )
+        )
+        assertTrue(
+            GameRules().hasEnabledCapTimingAlerts(
+                defaultPreferences.copy(
+                    globalMode = TimingAlertGlobalMode.OFF,
+                    watchNotificationMode = WatchNotificationMode.SILENT,
+                )
+            )
+        )
+        assertFalse(
+            GameRules().hasEnabledCapTimingAlerts(
+                defaultPreferences.copy(
+                    globalMode = TimingAlertGlobalMode.OFF,
+                    watchNotificationMode = WatchNotificationMode.SILENT,
+                    cueModes = TimingCueId.entries.associateWith { TimingAlertMode.NONE },
+                )
             )
         )
         assertFalse(
@@ -106,6 +124,71 @@ class TestTimingCues : GameDomainTestFixtures() {
     }
 
     /**
+     * Test compact, device-independent notification text for a live game countdown.
+     */
+    @Test
+    fun watchNotificationText() {
+        val setupState = newSetupGameState(now = 0L)
+        val mixedState = setupState.copy(
+            division = GameDivision.MIXED,
+            teamOne = setupState.teamOne.copy(name = "Animal", score = 6),
+            teamTwo = setupState.teamTwo.copy(name = "Viscous Coupling", score = 7),
+        )
+
+        // Only the leader is named, long names use one ellipsis, and ABBA follows the existing
+        // sequence-display preference. The normal cue message is used without abbreviation.
+        val scoreLine = mixedState.watchNotificationScoreLine(
+            Settings(showAbbaRatioAsSequence = true),
+        )
+        assertEquals("7-6 Viscous Co… • W1", scoreLine)
+        val cueContent = watchNotificationContent(scoreLine, "20 seconds for a hand")
+        assertEquals(
+            WatchNotificationContent(
+                title = "Next cue: 20 seconds for a hand",
+                body = "7-6 Viscous Co… • W1",
+            ),
+            cueContent,
+        )
+        assertEquals("7-6 Viscous Co… • W1", cueContent.body)
+
+        // Team One can be the named leader, a short name is unchanged, and a mixed game without
+        // the ABBA rule has no ratio suffix.
+        val teamOneLeadingScoreLine = mixedState.copy(
+            rules = mixedState.rules.copy(genderRatioRule = GenderRatioRule.GEN_ZONE),
+            teamOne = mixedState.teamOne.copy(score = 8),
+        ).watchNotificationScoreLine(Settings())
+        assertEquals("8-7 Animal", teamOneLeadingScoreLine)
+
+        // A tied non-mixed game names neither team and has no ratio suffix.
+        val tiedScoreLine = mixedState.copy(
+            division = GameDivision.OPEN,
+            teamOne = mixedState.teamOne.copy(score = 11),
+            teamTwo = mixedState.teamTwo.copy(score = 11),
+            countdown = null,
+        ).watchNotificationScoreLine(Settings())
+        assertEquals("11-11 tied", tiedScoreLine)
+        val tiedContent = watchNotificationContent(tiedScoreLine, nextCueText = null)
+        assertEquals(
+            WatchNotificationContent(title = "11-11 tied", body = null),
+            tiedContent,
+        )
+        assertNull(tiedContent.body)
+
+        // A combined cue also passes its normal message through unchanged.
+        val combinedCue = TimingCueDisplay(
+            id = TimingCueId.PULLING_TWENTY_TO_PULL,
+            message = "Give hand. 20 seconds to pull",
+            remaining = Duration.ZERO,
+            countdownTime = Duration.ofSeconds(20),
+            targetEpoch = 0L,
+        )
+        assertEquals(
+            "Next cue: Give hand. 20 seconds to pull",
+            watchNotificationContent(scoreLine, combinedCue.message).title,
+        )
+    }
+
+    /**
      * Test timing-alert preference overrides and clamping.
      */
     @Test
@@ -167,6 +250,39 @@ class TestTimingCues : GameDomainTestFixtures() {
                 .alertModeFor(TimingCueId.PULLING_TWENTY_TO_PULL),
         )
 
+        // Watch delivery requires watch notifications and an individually enabled cue, except that
+        // an Off countdown-ending cue is still sent to return the notification to the score.
+        assertTrue(
+            defaultPreferences.copy(watchNotificationMode = WatchNotificationMode.SILENT)
+                .sendsCueToWatch(
+                    TimingCueId.PULLING_TWENTY_TO_PULL,
+                    countdownSeconds = 20,
+                )
+        )
+        assertFalse(
+            defaultPreferences.sendsCueToWatch(
+                TimingCueId.PULLING_TIME_VIOLATION,
+                countdownSeconds = 0,
+            )
+        )
+        val offCuePreferences = defaultPreferences.copy(
+            watchNotificationMode = WatchNotificationMode.ALERTING,
+            cueModes = defaultPreferences.cueModes +
+                (TimingCueId.PULLING_TIME_VIOLATION to TimingAlertMode.NONE),
+        )
+        assertFalse(
+            offCuePreferences.sendsCueToWatch(
+                TimingCueId.OFFENSE_COUNTDOWN_FROM_FIVE,
+                countdownSeconds = 5,
+            )
+        )
+        assertTrue(
+            offCuePreferences.sendsCueToWatch(
+                TimingCueId.PULLING_TIME_VIOLATION,
+                countdownSeconds = 0,
+            )
+        )
+
         // Repeat-count overrides are clamped to the supported sound resources.
         // I.e. values can only end up between 1 and 3, inclusive.
         assertEquals(2, defaultPreferences.repeatCountFor(TimingCueId.PULLING_TWENTY_TO_PULL))
@@ -206,6 +322,10 @@ class TestTimingCues : GameDomainTestFixtures() {
         // Sound and global-mode labels match the settings screen.
         assertEquals("Tick", TimingAlertSound.TICK.label)
         assertEquals("Sounds on", TimingAlertGlobalMode.SOUNDS_ON.label)
+        assertEquals(
+            listOf("Off", "Silent", "Alerting"),
+            WatchNotificationMode.entries.map { mode -> mode.label },
+        )
 
         // Sound modes map to their sound choice.
         assertEquals(TimingAlertSound.TICK, TimingAlertMode.TICK.toTimingAlertSound())
