@@ -5,16 +5,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -27,13 +24,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
@@ -41,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 
 internal enum class MoreActionsChild {
     ADJUST_SCORE,
@@ -132,10 +135,7 @@ private fun MoreActionsCardContents(
     }
 }
 
-/**
- * Render landscape categories on the left and the selected category's actions on the right.
- * Gaps between category tabs shrink before their labels and indicators scale down.
- */
+/// Render independently scrollable landscape categories and selected actions.
 @Composable
 private fun LandscapeMoreActionsRegion(
     modifier: Modifier,
@@ -143,74 +143,73 @@ private fun LandscapeMoreActionsRegion(
     selectedCategory: MoreActionsCategory,
     onCategorySelected: (MoreActionsCategory) -> Unit,
 ) {
-    val density = LocalDensity.current
-    val headerStyle = MaterialTheme.typography.labelMedium
-    val actionStyle = MaterialTheme.typography.bodyLarge
-    val preferredHeaderHeight = maxOf(
-        40.dp,
-        with(density) { headerStyle.lineHeight.toDp() } + 16.dp,
-    )
-    val preferredActionRowHeight = maxOf(
-        44.dp,
-        with(density) { actionStyle.lineHeight.toDp() } + 20.dp,
-    )
     val categories = MoreActionsCategory.entries
-    // Nonempty collection: every More actions category has a map entry.
-    val maximumActionCount = actionsByCategory.values.maxOf { it.size }
-    val naturalHeight = maxOf(
-        preferredHeaderHeight * categories.size + 8.dp * (categories.size - 1),
-        preferredActionRowHeight * maximumActionCount,
-    )
-    val requestedMaxHeight = dialogBodyMaxHeight()
-
-    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
-        val regionHeight = minOf(maxHeight, requestedMaxHeight, naturalHeight)
-        val gap = (
-            (regionHeight - preferredHeaderHeight * categories.size) /
-                (categories.size - 1)
-            ).coerceIn(2.dp, 8.dp)
-        val headerHeight =
-            (regionHeight - gap * (categories.size - 1)) / categories.size
-        val headerScale = (
-            headerHeight.value / preferredHeaderHeight.value
-            ).coerceIn(0f, 1f)
-        val headerFontSize = headerStyle.fontSize * headerScale
-        val indicatorSize = 24.dp * headerScale
-        val selectedIndex = categories.indexOf(selectedCategory)
-        val selectedActions = actionsByCategory.getValue(selectedCategory)
-        val actionRowHeight = minOf(
-            preferredActionRowHeight,
-            regionHeight / selectedActions.size,
+    val density = LocalDensity.current
+    var leftViewportHeightPx by remember { mutableIntStateOf(0) }
+    var leftViewportTopPx by remember { mutableIntStateOf(0) }
+    var measuredCategory by remember { mutableStateOf<MoreActionsCategory?>(null) }
+    var selectedHeaderTopPx by remember { mutableIntStateOf(0) }
+    var selectedHeaderHeightPx by remember { mutableIntStateOf(0) }
+    var alignedCategory by remember { mutableStateOf<MoreActionsCategory?>(null) }
+    var selectedHeaderCenterPx by remember { mutableIntStateOf(0) }
+    var actionCardHeightPx by remember { mutableIntStateOf(0) }
+    LaunchedEffect(
+        selectedCategory,
+        measuredCategory,
+        selectedHeaderTopPx,
+        selectedHeaderHeightPx,
+        leftViewportTopPx,
+        leftViewportHeightPx,
+    ) {
+        if (
+            alignedCategory != selectedCategory &&
+            measuredCategory == selectedCategory
+        ) {
+            selectedHeaderCenterPx =
+                selectedHeaderTopPx - leftViewportTopPx + selectedHeaderHeightPx / 2
+            alignedCategory = selectedCategory
+        }
+    }
+    val actionCardTopPx = if (
+        alignedCategory == selectedCategory && actionCardHeightPx < leftViewportHeightPx
+    ) {
+        (selectedHeaderCenterPx - actionCardHeightPx / 2).coerceIn(
+            0,
+            leftViewportHeightPx - actionCardHeightPx,
         )
-        val actionScale = (
-            actionRowHeight.value / preferredActionRowHeight.value
-            ).coerceAtMost(1f)
-        val actionFontSize = actionStyle.fontSize * actionScale
-        val actionCardHeight = actionRowHeight * selectedActions.size
-        val selectedHeaderCenter =
-            (headerHeight + gap) * selectedIndex + headerHeight / 2
-        val actionCardTop = (selectedHeaderCenter - actionCardHeight / 2).coerceIn(
-            0.dp,
-            regionHeight - actionCardHeight,
-        )
-
-        Row(
+    } else {
+        0
+    }
+    val actionCardTop = with(density) { actionCardTopPx.toDp() }
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        ScrollableDialogRegion(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(regionHeight),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                .weight(1f)
+                .onGloballyPositioned { coordinates ->
+                    leftViewportTopPx = coordinates.positionInRoot().y.roundToInt()
+                    leftViewportHeightPx = coordinates.size.height
+                },
+            maxHeight = dialogBodyMaxHeight(),
+            verticalArrangement = Arrangement.Top,
         ) {
             Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight(),
-                verticalArrangement = Arrangement.spacedBy(gap),
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 categories.forEach { category ->
+                    var cardModifier = Modifier.fillMaxWidth()
+                    if (category == selectedCategory) {
+                        cardModifier = cardModifier.onGloballyPositioned { coordinates ->
+                            measuredCategory = category
+                            selectedHeaderTopPx = coordinates.positionInRoot().y.roundToInt()
+                            selectedHeaderHeightPx = coordinates.size.height
+                        }
+                    }
                     Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
+                        modifier = cardModifier,
                         border = BorderStroke(
                             1.dp,
                             MaterialTheme.colorScheme.outlineVariant,
@@ -218,12 +217,10 @@ private fun LandscapeMoreActionsRegion(
                     ) {
                         MoreActionsCardHeader(
                             modifier = Modifier
-                                .fillMaxSize(),
+                                .fillMaxWidth()
+                                .defaultMinSize(minHeight = 40.dp),
                             title = category.title,
-                            textStyle = headerStyle.copy(
-                                fontSize = headerFontSize,
-                                lineHeight = headerFontSize,
-                            ),
+                            textStyle = MaterialTheme.typography.labelMedium,
                             indicator = if (category == selectedCategory) {
                                 Icons.AutoMirrored.Filled.KeyboardArrowRight
                             } else {
@@ -234,39 +231,36 @@ private fun LandscapeMoreActionsRegion(
                             } else {
                                 null
                             },
-                            indicatorSize = indicatorSize,
-                            contentPadding = PaddingValues(horizontal = 14.dp),
+                            indicatorSize = 24.dp,
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                             onClick = { onCategorySelected(category) },
                         )
                     }
                 }
             }
-            Box(
+        }
+        ScrollableDialogRegion(
+            modifier = Modifier.weight(1f),
+            maxHeight = dialogBodyMaxHeight(),
+            verticalArrangement = Arrangement.Top,
+        ) {
+            Spacer(modifier = Modifier.height(actionCardTop))
+            Card(
                 modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight(),
+                    .fillMaxWidth()
+                    .onSizeChanged { actionCardHeightPx = it.height },
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             ) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(actionCardHeight)
-                        .offset(y = actionCardTop),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        contentColor = MaterialTheme.colorScheme.onSurface,
-                    ),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                ) {
-                    MoreActionsCardContents(
-                        actions = selectedActions,
-                        rowSizeModifier = Modifier.height(actionRowHeight),
-                        textStyle = actionStyle.copy(
-                            fontSize = actionFontSize,
-                            lineHeight = actionFontSize,
-                        ),
-                        contentPadding = PaddingValues(horizontal = 14.dp),
-                    )
-                }
+                MoreActionsCardContents(
+                    actions = actionsByCategory.getValue(selectedCategory),
+                    rowSizeModifier = Modifier.defaultMinSize(minHeight = 44.dp),
+                    textStyle = MaterialTheme.typography.bodyLarge,
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+                )
             }
         }
     }

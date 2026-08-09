@@ -21,28 +21,6 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class TestMoreActionsUi : MainActivityUiTestFixtures() {
     /**
-     * Test the live-only Level 3 action and its suspension record.
-     */
-    @Test
-    fun heatLevelThreeSuspendsGame() {
-        setRuleGuidanceMode(RuleGuidanceMode.FULL)
-
-        startLiveGameProgrammatically()
-        openMoreActionsDialog()
-        composeRule.onNodeWithText("Set heat/AQI level").performClick()
-        waitForText("Set heat level")
-        composeRule.onAllNodesWithText("Close").assertCountEquals(0)
-        composeRule.onNodeWithTag("heat-level-LEVEL_3").performClick()
-        composeRule.onNodeWithTag("set-heat-level-confirm").performClick()
-
-        waitForText("Game suspended")
-        dismissDialog(text = "OK", waitForText = "Game summary")
-        composeRule.onNodeWithText("Undo End game").assertExists()
-        composeRule.onNodeWithText("Event log").performClick()
-        waitForText("Heat level 3 — game suspended", substring = true)
-    }
-
-    /**
      * Test the less-common live-game actions behind More actions.
      * The goal is to catch broken dialogs, buttons, and return paths for observer-accessible tools.
      */
@@ -303,6 +281,49 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
             composeRule.onAllNodesWithText("$label: 0").assertCountEquals(2)
         }
         dismissDialog(text = "Cancel")
+    }
+
+    /** Test that every landscape More actions category remains selectable. */
+    @Test
+    fun landscapeMoreActionsCategories() {
+        setLandscapeOrientationPreference()
+        startLiveGameProgrammatically()
+
+        // A scored goal adds the fifth Manual game transitions action, making its card tall
+        // enough to exercise the scrollable alignment case on large-font devices.
+        recordGoal(TeamId.TEAM_ONE, "Undo Goal by Team 1")
+        openMoreActionsDialog()
+
+        MoreActionsCategory.entries.forEach { category ->
+            composeRule.onNodeWithText(category.title)
+                .performScrollTo()
+                .performClick()
+        }
+
+        dismissDialog(text = "Close")
+        assertLiveScreen()
+    }
+
+    /**
+     * Test the live-only Level 3 action and its suspension record.
+     */
+    @Test
+    fun heatLevelThreeSuspendsGame() {
+        setRuleGuidanceMode(RuleGuidanceMode.FULL)
+
+        startLiveGameProgrammatically()
+        openMoreActionsDialog()
+        composeRule.onNodeWithText("Set heat/AQI level").performClick()
+        waitForText("Set heat level")
+        composeRule.onAllNodesWithText("Close").assertCountEquals(0)
+        composeRule.onNodeWithTag("heat-level-LEVEL_3").performClick()
+        composeRule.onNodeWithTag("set-heat-level-confirm").performClick()
+
+        waitForText("Game suspended")
+        dismissDialog(text = "OK", waitForText = "Game summary")
+        composeRule.onNodeWithText("Undo End game").assertExists()
+        composeRule.onNodeWithText("Event log").performClick()
+        waitForText("Heat level 3 — game suspended", substring = true)
     }
 
     /// Assert how many labeled correction rows are visible inside the pull-violation dialog body.
