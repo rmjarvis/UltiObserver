@@ -33,7 +33,7 @@ class TestWaterBreaks : GameDomainTestFixtures() {
                 useHalfCap = false,
                 useSoftCap = false,
                 useHardCap = false,
-                heatLevel = HeatLevel.LEVEL_0,
+                heatLevel = HeatLevel.MANUAL,
                 waterBreakMinutes = 4,
             ),
         )
@@ -195,7 +195,7 @@ class TestWaterBreaks : GameDomainTestFixtures() {
 
         // Manual mode never offers an automatic water break, even at a break score.
         val manualModeState = initialState.adjustScore(teamOneScore = 3, teamTwoScore = 0).copy(
-            rules = initialState.rules.copy(heatLevel = HeatLevel.LEVEL_0),
+            rules = initialState.rules.copy(heatLevel = HeatLevel.MANUAL),
         )
         assertFalse(manualModeState.goalTriggersAutomaticWaterBreak(TeamId.TEAM_ONE))
 
@@ -373,7 +373,7 @@ class TestWaterBreaks : GameDomainTestFixtures() {
                 nominalSoftCapMinutes = 40,
                 useHardCap = true,
                 nominalHardCapMinutes = 41,
-                heatLevel = HeatLevel.LEVEL_0,
+                heatLevel = HeatLevel.MANUAL,
             ),
         ).adjustScore(teamOneScore = 12, teamTwoScore = 11).copy(
             halftimeTaken = true,
@@ -402,7 +402,7 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         // A soft-cap water break is not prompted when water breaks are not automatic.
         assertFalse(
             beforeSoftCap.copy(
-                rules = beforeSoftCap.rules.copy(heatLevel = HeatLevel.LEVEL_0),
+                rules = beforeSoftCap.rules.copy(heatLevel = HeatLevel.MANUAL),
             ).softCapWaterBreakReached()
         )
 
@@ -430,10 +430,10 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         assertEquals(
             listOf(
                 WaterBreakMode.NONE,
-                WaterBreakMode.MANUAL,
                 WaterBreakMode.AUTOMATIC,
                 WaterBreakMode.AUTOMATIC,
                 WaterBreakMode.NONE,
+                WaterBreakMode.MANUAL,
             ),
             HeatLevel.entries.map { heatLevel ->
                 GameRules(heatLevel = heatLevel).waterBreakMode
@@ -452,7 +452,7 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         assertEquals(
             DEFAULT_WATER_BREAK_MINUTES,
             GameRules().withHeatLevel(HeatLevel.LEVEL_2)
-                .withHeatLevel(HeatLevel.LEVEL_0)
+                .withHeatLevel(HeatLevel.MANUAL)
                 .waterBreakMinutes,
         )
 
@@ -491,14 +491,14 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         assertEquals(
             AQI_DEFAULT_WATER_BREAK_MINUTES,
             GameRules(
-                heatLevel = HeatLevel.LEVEL_0,
+                heatLevel = HeatLevel.MANUAL,
                 waterBreakMinutes = 7,
             ).withAirQualityGuidelines(true).waterBreakMinutes,
         )
         assertEquals(
             AQI_DEFAULT_WATER_BREAK_MINUTES,
             GameRules(useAirQualityGuidelines = true)
-                .withHeatLevel(HeatLevel.LEVEL_0)
+                .withHeatLevel(HeatLevel.MANUAL)
                 .waterBreakMinutes,
         )
         assertEquals(
@@ -659,12 +659,12 @@ class TestWaterBreaks : GameDomainTestFixtures() {
     fun heatLevelDescriptions() {
         // Level 0 description with a custom break time.
         val levelZero = GameRules(
-            heatLevel = HeatLevel.LEVEL_0,
+            heatLevel = HeatLevel.MANUAL,
             waterBreakMinutes = 5,
         )
         assertEquals(
             "Use normal timing with 5-minute manual water breaks available.",
-            levelZero.heatLevelSelectionDescription(HeatLevel.LEVEL_0),
+            levelZero.heatLevelSelectionDescription(HeatLevel.MANUAL),
         )
 
         // Level 1 description with a custom break time.
@@ -705,11 +705,11 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         // the default water break time.
         assertEquals(
             "Use normal timing with 3-minute manual water breaks available.",
-            levelOne.heatLevelSelectionDescription(HeatLevel.LEVEL_0),
+            levelOne.heatLevelSelectionDescription(HeatLevel.MANUAL),
         )
         assertEquals(
             "Use normal timing with 3-minute manual water breaks available.",
-            levelTwo.heatLevelSelectionDescription(HeatLevel.LEVEL_0),
+            levelTwo.heatLevelSelectionDescription(HeatLevel.MANUAL),
         )
 
         // The description for level 1 when switching from a different level always shows
@@ -744,11 +744,11 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         )
         assertEquals(
             "Use normal timing with 4-minute manual water breaks available.",
-            aqiLevelOne.heatLevelSelectionDescription(HeatLevel.LEVEL_0),
+            aqiLevelOne.heatLevelSelectionDescription(HeatLevel.MANUAL),
         )
         val aqiLevelZero = GameRules(
             useAirQualityGuidelines = true,
-            heatLevel = HeatLevel.LEVEL_0,
+            heatLevel = HeatLevel.MANUAL,
             waterBreakMinutes = 6,
         )
         assertEquals(
@@ -929,7 +929,7 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         assertEquals(60, state.rules.timeBetweenPointsSeconds)
 
         // Level 0 retains the manual action, while None removes it.
-        val levelZero = state.setHeatLevel(HeatLevel.LEVEL_0, now + 3_000L)
+        val levelZero = state.setHeatLevel(HeatLevel.MANUAL, now + 3_000L)
         assertTrue(levelZero.canApplyWaterBreak())
         val disabled = levelZero.setHeatLevel(HeatLevel.NONE, now + 4_000L)
         assertFalse(disabled.canApplyWaterBreak())

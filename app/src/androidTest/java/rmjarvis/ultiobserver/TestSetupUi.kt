@@ -509,11 +509,11 @@ class TestSetupUi : MainActivityUiTestFixtures() {
 
         // Setting heat level to 0 allows for manual water breaks with a settable time (default
         // 3 min).
-        composeRule.onNodeWithTag("heat-level-LEVEL_0").performClick()
+        composeRule.onNodeWithTag("heat-level-MANUAL").performClick()
         composeRule.onNodeWithTag("setup-water-breaks-set").performClick()
         waitForText("Manual (3 min)")
         composeRule.onNodeWithText("Heat level").performScrollTo().performClick()
-        composeRule.onNodeWithTag("heat-level-LEVEL_0").performClick()
+        composeRule.onNodeWithTag("heat-level-MANUAL").performClick()
         composeRule.onNodeWithText("Water break minutes").performTextReplacement("4")
         composeRule.onNodeWithTag("setup-water-breaks-set").performClick()
         waitForText("Manual (4 min)")

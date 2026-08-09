@@ -82,7 +82,7 @@ data class GameRules(
         get() = when (heatLevel) {
             HeatLevel.NONE,
             HeatLevel.LEVEL_3 -> WaterBreakMode.NONE
-            HeatLevel.LEVEL_0 -> WaterBreakMode.MANUAL
+            HeatLevel.MANUAL -> WaterBreakMode.MANUAL
             HeatLevel.LEVEL_1,
             HeatLevel.LEVEL_2 -> WaterBreakMode.AUTOMATIC
         }
@@ -92,10 +92,10 @@ data class GameRules(
 @Serializable
 enum class HeatLevel(val displayText: String) {
     NONE("None"),
-    LEVEL_0("Manual"),
     LEVEL_1("Level 1"),
     LEVEL_2("Level 2"),
     LEVEL_3("Level 3"),
+    MANUAL("Manual"),
 }
 
 /// How water breaks should be offered during this game.
@@ -110,7 +110,7 @@ internal fun GameRules.withHeatLevel(newHeatLevel: HeatLevel): GameRules {
     return when (newHeatLevel) {
         HeatLevel.NONE,
         HeatLevel.LEVEL_3 -> copy(heatLevel = newHeatLevel)
-        HeatLevel.LEVEL_0,
+        HeatLevel.MANUAL,
         HeatLevel.LEVEL_1 -> copy(
             heatLevel = newHeatLevel,
             waterBreakMinutes = if (useAirQualityGuidelines) {
@@ -304,7 +304,7 @@ internal fun GameRules.formatHeatLevel(compact: Boolean): String {
     return when (heatLevel) {
         HeatLevel.NONE,
         HeatLevel.LEVEL_3 -> heatLevel.displayText
-        HeatLevel.LEVEL_0,
+        HeatLevel.MANUAL,
         HeatLevel.LEVEL_1,
         HeatLevel.LEVEL_2 -> "${heatLevel.displayText} ($waterBreakMinutes min)"
     }
@@ -352,9 +352,6 @@ internal fun GameRules.heatLevelSelectionDescription(newHeatLevel: HeatLevel): S
     }
     return when (newHeatLevel) {
         HeatLevel.NONE -> "Disable water breaks."
-        HeatLevel.LEVEL_0 ->
-            "Use normal timing with ${selectedRules.waterBreakMinutes}-minute manual water " +
-                "breaks available."
         HeatLevel.LEVEL_1 ->
             "One ${selectedRules.waterBreakMinutes}-minute water break per half."
         HeatLevel.LEVEL_2 -> buildString {
@@ -374,6 +371,9 @@ internal fun GameRules.heatLevelSelectionDescription(newHeatLevel: HeatLevel): S
                 hardCapAffected -> append(" Adjust hard cap.")
             }
         }
+        HeatLevel.MANUAL ->
+            "Use normal timing with ${selectedRules.waterBreakMinutes}-minute manual water " +
+                "breaks available."
         HeatLevel.LEVEL_3 -> "Suspend this game because play should not continue."
     }
 }

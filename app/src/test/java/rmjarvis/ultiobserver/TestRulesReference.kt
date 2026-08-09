@@ -101,7 +101,7 @@ class TestRulesReference : GameDomainTestFixtures() {
             "Manual",
             openNoCapState.copy(
                 rules = openNoCapState.rules.copy(
-                    heatLevel = HeatLevel.LEVEL_0,
+                    heatLevel = HeatLevel.MANUAL,
                 ),
             ).rulesReferenceItems().testDisplayMap().getValue("Heat level"),
         )

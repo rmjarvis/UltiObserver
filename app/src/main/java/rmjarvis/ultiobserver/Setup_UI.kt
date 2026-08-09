@@ -2260,7 +2260,7 @@ private fun HeatLevelSetupDialog(
                 Text(
                     "Select the current " +
                         "${if (useAirQualityGuidelines) "AQI" else "heat"} level for automatic " +
-                        "water-break timing. Choose Manual for manual water breaks."
+                        "water-break timing or Manual for manual water breaks."
                 )
                 HeatLevelChoiceRow(
                     selected = selectedHeatLevel,
@@ -2353,10 +2353,6 @@ private fun HeatLevelGuidance(
 ) {
     when (heatLevel) {
         HeatLevel.NONE -> Text("Standard time between points.")
-        HeatLevel.LEVEL_0 -> Text(
-            "No automatic water breaks. Use the water drop icon to trigger a $minutes-minute " +
-            "water break if desired."
-        )
         HeatLevel.LEVEL_1 -> Text(
             "One $minutes-minute water break per half, normally when a team gets to " +
             "$firstBreakScore or $secondBreakScore points (but may change due to caps). " +
@@ -2382,6 +2378,10 @@ private fun HeatLevelGuidance(
                     "drop icon."
                 )
             }
+        )
+        HeatLevel.MANUAL -> Text(
+            "No automatic water breaks. Use the water drop icon to trigger a $minutes-minute " +
+            "water break if desired."
         )
         // Unreachable else: Level 3 is only available after a game has started.
         else -> error("Unsupported setup heat level: $heatLevel")

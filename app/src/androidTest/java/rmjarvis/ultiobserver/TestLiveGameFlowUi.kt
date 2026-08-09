@@ -386,7 +386,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
 
         val manualSetup = newSetupGameState(now = System.currentTimeMillis()).copy(
             rules = GameRules(
-                heatLevel = HeatLevel.LEVEL_0,
+                heatLevel = HeatLevel.MANUAL,
                 waterBreakMinutes = 2,
             ),
         )
