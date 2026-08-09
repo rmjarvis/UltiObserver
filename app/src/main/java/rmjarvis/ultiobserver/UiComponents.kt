@@ -124,6 +124,7 @@ private const val KEYBOARD_DIALOG_HEIGHT_FRACTION = 0.60f
 /// Width profiles for responsive dialogs.
 internal enum class DialogWidthProfile {
     COMPACT,
+    ADAPTIVE,
     MODERATE,
     WIDE,
 }
@@ -184,9 +185,10 @@ internal fun dialogBodyMaxHeight(): Dp {
  * Render an alert dialog with responsive landscape width and fixed title and action regions.
  *
  * Portrait retains the platform dialog width. In landscape, compact dialogs stay near their
- * natural width, ordinary action dialogs receive moderate extra width, and prose-heavy or
- * multi-column dialogs can use more of the available horizontal space. Callers explicitly choose
- * the appropriate scrollable body region.
+ * natural width, adaptive dialogs can grow from compact to moderate based on their content,
+ * ordinary action dialogs receive moderate extra width, and prose-heavy or multi-column dialogs
+ * can use more of the available horizontal space. Callers explicitly choose the appropriate
+ * scrollable body region.
  */
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -205,15 +207,21 @@ internal fun ResponsiveAlertDialog(
     val landscapeSurplus = (screenWidth - screenHeight).coerceAtLeast(0f)
     val usesResponsiveLandscapeWidth = landscapeSurplus > 0f
     val availableWidth = (screenWidth - 48f).coerceAtLeast(280f)
-    val preferredWidth = when (widthProfile) {
-        DialogWidthProfile.COMPACT -> 340f + landscapeSurplus * 0.05f
-        DialogWidthProfile.MODERATE -> 420f + landscapeSurplus * 0.20f
-        DialogWidthProfile.WIDE -> 520f + landscapeSurplus * 0.50f
+    val compactWidth = 340f + landscapeSurplus * 0.05f
+    val moderateWidth = 420f + landscapeSurplus * 0.20f
+    val (minimumPreferredWidth, maximumPreferredWidth) = when (widthProfile) {
+        DialogWidthProfile.COMPACT -> compactWidth to compactWidth
+        DialogWidthProfile.ADAPTIVE -> compactWidth to moderateWidth
+        DialogWidthProfile.MODERATE -> moderateWidth to moderateWidth
+        DialogWidthProfile.WIDE -> {
+            val wideWidth = 520f + landscapeSurplus * 0.50f
+            wideWidth to wideWidth
+        }
     }
     val dialogModifier = if (usesResponsiveLandscapeWidth) {
         modifier.widthIn(
-            min = minOf(availableWidth, preferredWidth).dp,
-            max = minOf(availableWidth, preferredWidth).dp,
+            min = minOf(availableWidth, minimumPreferredWidth).dp,
+            max = minOf(availableWidth, maximumPreferredWidth).dp,
         )
     } else {
         modifier

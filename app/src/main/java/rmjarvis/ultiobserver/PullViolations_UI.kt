@@ -1,6 +1,8 @@
 package rmjarvis.ultiobserver
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -40,10 +42,15 @@ internal fun AdjustPullViolationsDialog(
         title = { Text("Adjust pull violations") },
         text = {
             ScrollableDialogRegion(
-                modifier = Modifier.testTag("adjust-pull-violations-content"),
+                modifier = Modifier
+                    .widthIn(max = 360.dp)
+                    .testTag("adjust-pull-violations-content"),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                TeamCorrectionSection(state.teamOne.name) {
+                TeamCorrectionSection(
+                    title = state.teamOne.name,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
                     CorrectionCountRow(
                         label = "Offsides",
                         value = teamOneOffsides,
@@ -58,7 +65,9 @@ internal fun AdjustPullViolationsDialog(
                         incrementTag = "pull-violation-team-one-false-starts-increment",
                         decrementTag = "pull-violation-team-one-false-starts-decrement",
                         onIncrement = { teamOneFalseStarts += 1 },
-                        onDecrement = { teamOneFalseStarts = maxOf(0, teamOneFalseStarts - 1) },
+                        onDecrement = {
+                            teamOneFalseStarts = maxOf(0, teamOneFalseStarts - 1)
+                        },
                     )
                     if (showMajorityPullRows) {
                         CorrectionCountRow(
@@ -83,7 +92,10 @@ internal fun AdjustPullViolationsDialog(
                         },
                     )
                 }
-                TeamCorrectionSection(state.teamTwo.name) {
+                TeamCorrectionSection(
+                    title = state.teamTwo.name,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
                     CorrectionCountRow(
                         label = "Offsides",
                         value = teamTwoOffsides,
@@ -98,7 +110,9 @@ internal fun AdjustPullViolationsDialog(
                         incrementTag = "pull-violation-team-two-false-starts-increment",
                         decrementTag = "pull-violation-team-two-false-starts-decrement",
                         onIncrement = { teamTwoFalseStarts += 1 },
-                        onDecrement = { teamTwoFalseStarts = maxOf(0, teamTwoFalseStarts - 1) },
+                        onDecrement = {
+                            teamTwoFalseStarts = maxOf(0, teamTwoFalseStarts - 1)
+                        },
                     )
                     if (showMajorityPullRows) {
                         CorrectionCountRow(
@@ -146,6 +160,6 @@ internal fun AdjustPullViolationsDialog(
         dismissButton = {
             TextActionButton(label = "Cancel", onClick = onDismiss)
         },
-        widthProfile = DialogWidthProfile.COMPACT,
+        widthProfile = DialogWidthProfile.ADAPTIVE,
     )
 }
