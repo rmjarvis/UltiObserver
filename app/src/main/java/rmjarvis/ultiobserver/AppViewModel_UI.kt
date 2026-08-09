@@ -87,9 +87,6 @@ internal fun UltiObserverApp(
                 onResumeCurrentGame = {
                     viewModel.resumeCurrentGame()
                 },
-                onOpenCompletedGame = {
-                    viewModel.openCompletedGame()
-                },
                 onArchiveCompletedGame = {
                     viewModel.archiveCompletedGame()
                 },
@@ -209,7 +206,7 @@ internal fun UltiObserverApp(
                         "Restore game"
                     },
                     onSummaryAction = {
-                        viewModel.restoreCompletedGame()
+                        viewModel.makeArchivedGameCurrent()
                     },
                     secondarySummaryActionText = if (isInProgressArchive) {
                         "Archive game"
@@ -443,20 +440,48 @@ internal fun UltiObserverApp(
                 appState.viewingCurrentGameSummary
             }
             if (currentSummaryGame != null) {
+                val completed = currentSummaryGame.phase == GamePhase.GAME_OVER
+                val summaryActionText: String
+                val onSummaryAction: () -> Unit
+                val secondarySummaryActionText: String?
+                val onSecondarySummaryAction: (() -> Unit)?
+                val onBack: () -> Unit
+                if (completed) {
+                    summaryActionText = currentSummaryGame.undoEntry!!.label
+                    onSummaryAction = {
+                        viewModel.updateCurrentGame(currentSummaryGame.undoLastAction())
+                        viewModel.resumeCurrentGame()
+                    }
+                    secondarySummaryActionText = "Archive game"
+                    onSecondarySummaryAction = {
+                        viewModel.archiveCompletedGame()
+                    }
+                    onBack = {
+                        viewModel.goHome()
+                    }
+                } else {
+                    summaryActionText = "Back to game"
+                    onSummaryAction = {
+                        viewModel.resumeCurrentGame()
+                    }
+                    secondarySummaryActionText = null
+                    onSecondarySummaryAction = null
+                    onBack = {
+                        viewModel.goBackFromCurrentScreen()
+                    }
+                }
                 GameOverSummaryScreen(
                     state = currentSummaryGame,
-                    completed = false,
+                    completed = completed,
                     guidanceMode = appState.settings.ruleGuidanceMode,
                     onStateChange = { updatedGame ->
                         viewModel.updateCurrentGame(updatedGame)
                     },
-                    summaryActionText = "Back to game",
-                    onSummaryAction = {
-                        viewModel.resumeCurrentGame()
-                    },
-                    onBack = {
-                        viewModel.goBackFromCurrentScreen()
-                    },
+                    summaryActionText = summaryActionText,
+                    onSummaryAction = onSummaryAction,
+                    secondarySummaryActionText = secondarySummaryActionText,
+                    onSecondarySummaryAction = onSecondarySummaryAction,
+                    onBack = onBack,
                     onHome = {
                         viewModel.goHome()
                     },
@@ -475,9 +500,6 @@ internal fun UltiObserverApp(
                     },
                     onOpenGameSummary = {
                         viewModel.openCurrentGameSummary()
-                    },
-                    onArchiveCompletedGame = {
-                        viewModel.archiveCompletedGame()
                     },
                     onBackHome = {
                         viewModel.goBackFromCurrentScreen()

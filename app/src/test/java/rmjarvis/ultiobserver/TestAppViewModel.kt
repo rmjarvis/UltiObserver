@@ -350,9 +350,6 @@ class TestAppViewModel : GameDomainTestFixtures() {
         viewModel.resumeCurrentGame()
         assertEquals(AppScreen.HOME, viewModel.screen)
         assertNull(viewModel.currentGame)
-        viewModel.openCompletedGame()
-        assertEquals(AppScreen.HOME, viewModel.screen)
-        assertNull(viewModel.currentGame)
         assertThrows(IndexOutOfBoundsException::class.java) {
             viewModel.openArchivedGame(0, now = 123_000L)
         }
@@ -377,24 +374,14 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertEquals(AppScreen.HOME, viewModel.screen)
         assertNull(viewModel.currentGame)
 
-        // Active-game-only state should reject completed-game and archive actions.
+        // Active-game-only state should reject the completed-game archive action.
         viewModel.startNewGame(now = 123_000L)
         viewModel.finishSetup(now = 123_000L)
         val activeGame = viewModel.currentGame!!
         viewModel.goHome()
-        viewModel.openCompletedGame()
-        assertEquals(AppScreen.HOME, viewModel.screen)
-        assertEquals(activeGame, viewModel.currentGame)
         viewModel.archiveCompletedGame()
         assertTrue(viewModel.archivedGames.isEmpty())
         assertEquals(activeGame, viewModel.currentGame)
-
-        // A completed current game stays on Home until opened through the completed-game path.
-        val completedGame = activeGame.copy(phase = GamePhase.GAME_OVER)
-        viewModel.updateCurrentGame(completedGame)
-        viewModel.resumeCurrentGame()
-        assertEquals(AppScreen.HOME, viewModel.screen)
-        assertEquals(completedGame, viewModel.currentGame)
 
         // Non-game screens return Home.
         viewModel.openProfile()

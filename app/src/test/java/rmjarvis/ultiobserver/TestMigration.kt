@@ -371,7 +371,7 @@ class TestMigration : GameDomainTestFixtures() {
         )
 
         completedArchiveV1_0_0.openArchivedGame(0, now = 123_000L)
-        completedArchiveV1_0_0.restoreCompletedGame()
+        completedArchiveV1_0_0.makeArchivedGameCurrent()
         val restoredV1_0_0 = completedArchiveV1_0_0.currentGame!!
         assertEquals(GamePhase.GAME_OVER, restoredV1_0_0.phase)
         assertEquals(GamePhase.BETWEEN_POINTS, restoredV1_0_0.undoLastAction().phase)

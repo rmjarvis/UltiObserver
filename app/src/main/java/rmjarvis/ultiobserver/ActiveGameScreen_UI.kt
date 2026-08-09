@@ -77,7 +77,6 @@ private data class PendingFieldTechnicalFoulResolution(
  * @param onStateChange Callback receiving updated live state from user actions and timer transitions.
  * @param onUpdateGameSetup Callback reopening setup for the current game.
  * @param onOpenGameSummary Callback opening the current game summary.
- * @param onArchiveCompletedGame Callback archiving the current completed game.
  * @param onBackHome Callback returning to Home or setup according to ViewModel navigation rules.
  * @param onHome Callback returning directly to Home.
  */
@@ -90,7 +89,6 @@ internal fun ActiveGameScreen(
     onStateChange: (GameState) -> Unit,
     onUpdateGameSetup: () -> Unit,
     onOpenGameSummary: () -> Unit,
-    onArchiveCompletedGame: () -> Unit,
     onBackHome: () -> Unit,
     onHome: () -> Unit,
 ) {
@@ -131,6 +129,15 @@ internal fun ActiveGameScreen(
     /// Dismiss the pending time-violation confirmation.
     fun dismissTimeViolation() {
         pendingTimeViolationTeam = null
+    }
+
+    /// Dismiss a prominent game prompt and open the summary after game over.
+    fun dismissActiveGamePrompt() {
+        val dismissedPrompt = activeGamePrompt
+        activeGamePrompt = null
+        if (dismissedPrompt is GamePrompt.GameOver) {
+            onOpenGameSummary()
+        }
     }
 
     /**
@@ -220,23 +227,6 @@ internal fun ActiveGameScreen(
         if (state.pendingWaterBreakOffer && state.canApplyWaterBreak()) {
             showWaterBreakPrompt = true
         }
-    }
-
-    if (state.phase == GamePhase.GAME_OVER && activeGamePrompt == null) {
-        GameOverSummaryScreen(
-            state = state,
-            guidanceMode = settings.ruleGuidanceMode,
-            onStateChange = onStateChange,
-            summaryActionText = state.undoEntry!!.label,
-            onSummaryAction = {
-                undoWithoutPhasePrompt(state.undoLastAction())
-            },
-            secondarySummaryActionText = "Archive game",
-            onSecondarySummaryAction = onArchiveCompletedGame,
-            onBack = onBackHome,
-            onHome = onHome,
-        )
-        return
     }
 
     val onLockedChange: (Boolean) -> Unit = { locked = it }
@@ -771,13 +761,13 @@ internal fun ActiveGameScreen(
             mode = settings.ruleGuidanceMode,
             requiredInNone = prompt.requiresGuidanceInNone(),
             onAutoAccept = {
-                activeGamePrompt = null
+                dismissActiveGamePrompt()
             },
         ) {
             GamePromptNoticeDialog(
                 prompt = prompt,
                 onDismiss = {
-                    activeGamePrompt = null
+                    dismissActiveGamePrompt()
                 },
             )
         }

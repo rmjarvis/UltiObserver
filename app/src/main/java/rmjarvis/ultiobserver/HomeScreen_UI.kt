@@ -109,7 +109,6 @@ internal fun HomeScreen(
     currentGameSectionSubtitle: String?,
     completedGamePendingArchive: GameListEntry?,
     onResumeCurrentGame: () -> Unit,
-    onOpenCompletedGame: () -> Unit,
     onArchiveCompletedGame: () -> Unit,
     onStartNewGame: () -> Unit,
     onOpenAbout: () -> Unit,
@@ -293,7 +292,7 @@ internal fun HomeScreen(
                             ) {
                                 GameListRow(
                                     entry = completedGamePendingArchive,
-                                    onClick = onOpenCompletedGame
+                                    onClick = onResumeCurrentGame,
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 BigActionButton(

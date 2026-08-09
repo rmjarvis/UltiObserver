@@ -182,7 +182,7 @@ class TestOfficialClock : GameDomainTestFixtures() {
 
         // Returning the archived game to current applies the new offset.
         viewModel.openArchivedGame(index = 0, now = 200_000L)
-        viewModel.restoreCompletedGame()
+        viewModel.makeArchivedGameCurrent()
         assertEquals(15_200L, viewModel.currentGame!!.officialClockOffsetMillis)
         assertEquals(archivedGame.startEpoch + 30_000L, viewModel.currentGame!!.startEpoch)
         assertEquals(
@@ -227,7 +227,7 @@ class TestOfficialClock : GameDomainTestFixtures() {
         // Restoring the completed archive keeps it completed but applies the app's current offset,
         // rather than the different offset stored in the archived snapshot.
         viewModel.openArchivedGame(index = 0, now = 200_000L)
-        viewModel.restoreCompletedGame()
+        viewModel.makeArchivedGameCurrent()
         assertEquals(GamePhase.GAME_OVER, viewModel.currentGame!!.phase)
         assertEquals(60_000L, viewModel.currentGame!!.officialClockOffsetMillis)
 

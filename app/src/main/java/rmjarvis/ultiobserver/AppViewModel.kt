@@ -76,8 +76,7 @@ internal data class AppUiState(
     /// Return whether the regular interactive active-game screen is currently visible.
     val viewingActiveGameScreen: Boolean
         get() = screen == AppScreen.LIVE &&
-            !viewingCurrentGameSummary &&
-            currentGame!!.phase != GamePhase.GAME_OVER
+            !viewingCurrentGameSummary
 
     /**
      * Build the archive rows and filter choices for archive navigation.
@@ -459,7 +458,9 @@ internal class AppViewModel(
         _state.update { it.copy(archiveSortMode = sortMode) }
     }
 
-    /// Resume the current setup draft, pre-pull preview, or in-progress game from Home.
+    /**
+     * Resume the current game from Home or from its Game summary page.
+     */
     fun resumeCurrentGame() {
         val current = currentGame ?: return
         if (current.phase == GamePhase.SETUP) {
@@ -483,24 +484,16 @@ internal class AppViewModel(
             }
             return
         }
-        if (current.phase != GamePhase.GAME_OVER) {
-            openScreen(AppScreen.LIVE)
-        }
-    }
-
-    /// Open the current completed game summary from Home.
-    fun openCompletedGame() {
-        val current = currentGame ?: return
         if (current.phase == GamePhase.GAME_OVER) {
-            openScreen(AppScreen.LIVE)
+            openCurrentGameSummary()
+            return
         }
+        openScreen(AppScreen.LIVE)
     }
 
     /// Open the current game summary from in-progress game navigation.
     fun openCurrentGameSummary() {
-        val current = currentGame ?: return
-        if (current.phase == GamePhase.GAME_OVER) {
-            openCompletedGame()
+        if (currentGame == null) {
             return
         }
         _state.update {
@@ -589,8 +582,8 @@ internal class AppViewModel(
         persistCurrentGame()
     }
 
-    /// Restore the archived game currently open as a summary.
-    fun restoreCompletedGame() {
+    /// Make the archived game currently open as a summary the current game.
+    fun makeArchivedGameCurrent() {
         val archived = viewingArchivedGame ?: return
         val index = archivedGames.indexOfFirst { it === archived }
         val updatedArchivedGames = archivedGamesWithout(index, appendCurrent = true)
@@ -603,7 +596,7 @@ internal class AppViewModel(
                 setupEditDraft = null,
                 editingSavedSetupIndex = null,
                 viewingArchivedGame = null,
-                viewingCurrentGameSummary = false,
+                viewingCurrentGameSummary = archived.phase == GamePhase.GAME_OVER,
                 selectedArchiveCategory = null,
                 screen = AppScreen.LIVE,
             )
