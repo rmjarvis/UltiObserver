@@ -564,7 +564,7 @@ internal fun ActiveGameScreen(
         }
     } else if (pendingTechnicalFoulTeam != null) {
         val team = pendingTechnicalFoulTeam!!
-        val event = state.previewTechnicalFoul(team).event
+        val event = state.previewTechnicalFoul(team, now).event
         val misconductPrompt = if (
             event.needsMisconductChoice(settings.ruleGuidanceMode)
         ) {

@@ -720,23 +720,59 @@ class TestMisconduct : GameDomainTestFixtures() {
         assertFalse(state.pullSkippedForCurrentPoint)
         assertTrue(state.canRecordPullViolation(VC))
 
-        // Defensive countdown helpers reject impossible third-card states that bypass normal
-        // card flow.
-        val missingCountdownException = assertThrows(NullPointerException::class.java) {
-            val baseState = standardLiveGameState()
-            baseState.copy(
-                countdown = null,
-                teamOne = baseState.teamOne.copy(blueCards = 2),
-            ).assessBlueCard(VC)
-        }
-        assertNull(missingCountdownException.message)
+        // With no regular countdown left, treat its 60-second offense deadline as exactly expired.
+        // A threshold technical foul therefore previews and starts the remaining 30 seconds of the
+        // misconduct offense-set period rather than trying to convert the absent countdown.
+        val baseState = standardLiveGameState()
+        val expiredCountdownAssessmentTime = baseState.startEpoch + 75_000L
+        val expiredCountdownState = baseState.copy(
+            countdown = null,
+            teamOne = baseState.teamOne.copy(technicalFouls = 2),
+        )
+        val expiredCountdownPreview = expiredCountdownState.previewTechnicalFoul(
+            VC,
+            expiredCountdownAssessmentTime,
+        )
         assertEquals(
-            standardLiveGameState(),
-            standardLiveGameState().startMisconductCountdown(1_010_000L),
+            expiredCountdownAssessmentTime + 30_000L,
+            expiredCountdownPreview.event.state.countdown?.targetEpoch,
+        )
+        val expiredCountdownTechnicalFoulResult = expiredCountdownState.assessTechnicalFoul(
+            VC,
+            expiredCountdownAssessmentTime,
+            RuleGuidanceMode.FULL,
+        )
+        assertTrue(expiredCountdownTechnicalFoulResult.state.pullSkippedForCurrentPoint)
+        assertEquals(
+            CountdownKind.MISCONDUCT_BETWEEN_POINTS,
+            expiredCountdownTechnicalFoulResult.state.countdown?.kind,
+        )
+        assertEquals(
+            30,
+            expiredCountdownTechnicalFoulResult.state.countdown?.durationSeconds,
+        )
+        assertEquals(
+            expiredCountdownAssessmentTime + 30_000L,
+            expiredCountdownTechnicalFoulResult.state.countdown?.targetEpoch,
+        )
+
+        // The fallback countdown retains the normal early offense-set action and switches to the
+        // defense deadline measured from the assumed 60-second point in the original sequence.
+        assertTrue(expiredCountdownTechnicalFoulResult.state.canReportOffenseSet(true))
+        val expiredCountdownDefenseCheck = expiredCountdownTechnicalFoulResult.state
+            .reportOffenseSet(expiredCountdownAssessmentTime + 20_000L)
+        assertEquals(CountdownKind.DEFENSE_CHECK, expiredCountdownDefenseCheck.countdown?.kind)
+        assertEquals(
+            expiredCountdownAssessmentTime + 40_000L,
+            expiredCountdownDefenseCheck.countdown?.targetEpoch,
         )
 
         // Defensive guard for a stale Start misconduct countdown action when no misconduct
         // countdown is pending.
+        assertEquals(
+            standardLiveGameState(),
+            standardLiveGameState().startMisconductCountdown(1_010_000L),
+        )
         val liveStateWithoutPendingMisconduct = standardLiveGameState().beginLivePoint()
         assertEquals(
             liveStateWithoutPendingMisconduct,
@@ -998,7 +1034,7 @@ class TestMisconduct : GameDomainTestFixtures() {
 
         // Blue cards count as one team card point each and do not create player records.
         state = standardLiveGameState()
-        val bluePreview = state.previewBlueCard(ANIMAL)
+        val bluePreview = state.previewBlueCard(ANIMAL, state.startEpoch)
         assertEquals(
             "Blue card on Animal.\nAnimal has 1 card total.",
             bluePreview.event.formatMessage().plainText,
@@ -1057,7 +1093,7 @@ class TestMisconduct : GameDomainTestFixtures() {
 
         // Technical fouls use a separate count, with the same third-and-later misconduct handling.
         state = standardLiveGameState()
-        val technicalFoulPreview = state.previewTechnicalFoul(ANIMAL)
+        val technicalFoulPreview = state.previewTechnicalFoul(ANIMAL, state.startEpoch)
         assertEquals(
             "This is Animal's first technical foul.",
             technicalFoulPreview.event.formatMessage().plainText,

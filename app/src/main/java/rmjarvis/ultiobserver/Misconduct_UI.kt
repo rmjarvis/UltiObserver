@@ -1243,7 +1243,7 @@ internal fun TeamCardDialog(
         }
         is TeamCardDialogStep.BlueCardConfirmation -> {
             val blueTeam = activeStep.team
-            val event = state.previewBlueCard(blueTeam).event
+            val event = state.previewBlueCard(blueTeam, now).event
             val misconductPrompt = if (event.needsMisconductChoice(guidanceMode)) {
                 GamePrompt.LivePointMisconduct(event)
             } else {
