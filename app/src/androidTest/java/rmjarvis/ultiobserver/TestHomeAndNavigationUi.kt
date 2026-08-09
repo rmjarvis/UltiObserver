@@ -902,14 +902,19 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("official-clock-screen").assertIsDisplayed()
         composeRule.onNodeWithTag("official-clock-time").assertIsDisplayed()
         composeRule.onNodeWithTag("official-clock-offset").assertTextEquals("Using phone time")
+        composeRule.onAllNodesWithTag("official-clock-reset").assertCountEquals(0)
 
         // Minute buttons update in place and preserve seconds when reversed.
         composeRule.onNodeWithTag("official-clock-plus-minute").performClick()
+        composeRule.onNodeWithTag("official-clock-reset")
+            .performScrollTo()
+            .assertIsDisplayed()
         composeRule.onNodeWithTag("official-clock-offset").assertTextEquals(
             "Official clock is 1 minute ahead of phone time"
         )
         composeRule.onNodeWithTag("official-clock-minus-minute").performClick()
         composeRule.onNodeWithTag("official-clock-offset").assertTextEquals("Using phone time")
+        composeRule.onAllNodesWithTag("official-clock-reset").assertCountEquals(0)
 
         // Boundary synchronization creates an adjusted clock; returning Home exposes that state
         // through the icon's accessibility description as well as its red color.
@@ -925,6 +930,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("home-official-clock").performClick()
         composeRule.onNodeWithTag("official-clock-reset").performClick()
         composeRule.onNodeWithTag("official-clock-offset").assertTextEquals("Using phone time")
+        composeRule.onAllNodesWithTag("official-clock-reset").assertCountEquals(0)
         tapTopBarBack()
         composeRule.onNode(hasContentDescription("Official clock")).assertIsDisplayed()
 

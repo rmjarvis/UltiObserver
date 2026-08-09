@@ -134,17 +134,19 @@ internal fun OfficialClockScreen(
                     },
                 )
             }
-            BigActionButton(
-                label = "Reset to phone time",
-                fullWidth = true,
-                containerColor = ResetColor,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                borderColor = null,
-                tag = "official-clock-reset",
-                onClick = {
-                    updateOfficialClockOffset(0L)
-                },
-            )
+            if (officialClockOffsetMillis != 0L) {
+                BigActionButton(
+                    label = "Reset to phone time",
+                    fullWidth = true,
+                    containerColor = ResetColor,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    borderColor = null,
+                    tag = "official-clock-reset",
+                    onClick = {
+                        updateOfficialClockOffset(0L)
+                    },
+                )
+            }
             Text(
                 text = describeOfficialClockOffset(officialClockOffsetMillis),
                 modifier = Modifier.testTag("official-clock-offset"),
