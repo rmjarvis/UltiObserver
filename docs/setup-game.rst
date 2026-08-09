@@ -19,7 +19,7 @@ time, field number, who your co-observer(s) will be, the team names, tournament 
 division, level, and any rules that are specific to this tournament. Then click
 **Save as a draft**.
 
-When it is time for the game, go to **See archived/saved games** and access the
+When it is time for the game, go to **Archived/saved games** and access the
 :ref:`Saved setup drafts` section. All your saved drafts will be listed here. If you entered
 a field number, that will be shown in the listing for convenient reference so you know where
 to go. Click the game to bring it up for further editing. If you are ready to make this the

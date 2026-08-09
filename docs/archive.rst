@@ -11,7 +11,7 @@ UltiObserver keeps track of past games so you can reference them later, includin
 summary information after the fact. (See :ref:`Share`.)
 It also saves setup drafts and in-progress games that might have accidentally been
 bumped from the current game spot. All of these games are available from the
-home button **See archived/saved games**. That takes you to a page with three menu options.
+home button **Archived/saved games**. That takes you to a page with three menu options.
 
 Archived games
 --------------

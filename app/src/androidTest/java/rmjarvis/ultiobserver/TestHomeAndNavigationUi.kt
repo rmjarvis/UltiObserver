@@ -58,7 +58,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Start new game").assertIsDisplayed()
         composeRule.onNodeWithText("Profile").assertIsDisplayed()
         composeRule.onNodeWithText("Settings").assertIsDisplayed()
-        composeRule.onNodeWithText("See archived/saved games").assertIsDisplayed()
+        composeRule.onNodeWithText("Archived/saved games").assertIsDisplayed()
         composeRule.onNodeWithTag("home-about").assertIsDisplayed()
         composeRule.onNodeWithTag("home-official-clock").assertIsDisplayed()
 
@@ -1490,7 +1490,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
 
     /// Open Archived games from Home and wait until the page is visible.
     private fun openArchivedGamesScreen() {
-        composeRule.onNodeWithText("See archived/saved games").performClick()
+        composeRule.onNodeWithText("Archived/saved games").performClick()
         waitForText("Archived/saved games")
     }
 

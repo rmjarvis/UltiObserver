@@ -78,8 +78,8 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
 
         // The archived summary uses the same editor and persists the updated archive row.
         composeRule.onNodeWithText("Archive game").performClick()
-        waitForText("See archived/saved games")
-        composeRule.onNodeWithText("See archived/saved games").performClick()
+        waitForText("Archived/saved games")
+        composeRule.onNodeWithText("Archived/saved games").performClick()
         waitForText("Archived/saved games")
         composeRule.onNodeWithText("Archived games", substring = true).performClick()
         waitForText("Archived games")
@@ -322,8 +322,8 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
         // The completed-game summary can archive directly, and the archived summary shares
         // the same payload.
         composeRule.onNodeWithText("Archive game").performClick()
-        waitForText("See archived/saved games")
-        composeRule.onNodeWithText("See archived/saved games").performClick()
+        waitForText("Archived/saved games")
+        composeRule.onNodeWithText("Archived/saved games").performClick()
         waitForText("Archived/saved games")
         composeRule.onNodeWithText("Archived games", substring = true).performClick()
         waitForText("Archived games")
@@ -346,8 +346,8 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
 
         // Archive the game from Home and verify it returns to the archive list.
         composeRule.onNodeWithText("Archive completed game").performClick()
-        waitForText("See archived/saved games")
-        composeRule.onNodeWithText("See archived/saved games").performClick()
+        waitForText("Archived/saved games")
+        composeRule.onNodeWithText("Archived/saved games").performClick()
         waitForText("Archived/saved games")
         composeRule.onNodeWithText("Archived games", substring = true).performClick()
         waitForText("Archived games")

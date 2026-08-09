@@ -365,7 +365,7 @@ private fun HomeActions(
             onClick = onStartNewGame,
         )
         NavigationButton(
-            label = "See archived/saved games",
+            label = "Archived/saved games",
             fullWidth = true,
             colors = neutralOutlinedButtonColors(DarkNeutralColor),
             borderColor = MaterialTheme.colorScheme.outline,
