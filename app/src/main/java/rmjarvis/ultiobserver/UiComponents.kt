@@ -11,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
@@ -98,15 +99,19 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
 import java.time.Instant
 import java.time.LocalDate
@@ -403,30 +408,6 @@ internal fun TwoColumnDialogRegion(
         }
         footer?.invoke(this)
     }
-}
-
-/**
- * Render a non-scrollable dialog body that clears active text-entry focus when tapped.
- *
- * Use this for compact dialog bodies containing `TextEntry`; use `ScrollableDialogRegion` when
- * the content may need to scroll.
- *
- * @param verticalArrangement Vertical spacing for the content column.
- * @param content Dialog body content.
- */
-@Composable
-internal fun TextEntryDialogBody(
-    verticalArrangement: Arrangement.Vertical = Arrangement.spacedBy(12.dp),
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    val clearFocusAndHideKeyboard = rememberClearFocusAndHideKeyboard()
-    Column(
-        modifier = Modifier
-            .clearFocusOnPointerDown(clearFocusAndHideKeyboard)
-            .fillMaxWidth(),
-        verticalArrangement = verticalArrangement,
-        content = content,
-    )
 }
 
 /// Render one edge fade for a scrollable dialog body.
@@ -1207,7 +1188,6 @@ private fun textEntryLineLimits(singleLine: Boolean, minLines: Int): TextFieldLi
  * @param enabled Whether the button is enabled.
  * @param colors Button colors.
  * @param borderColor Button border color.
- * @param compact Whether to remove default minimum sizing for fixed-height bars.
  * @param tag Optional test tag.
  * @param onClick Callback invoked when the button is tapped.
  */
@@ -1220,10 +1200,18 @@ internal fun NavigationButton(
     enabled: Boolean = true,
     colors: ButtonColors = ButtonDefaults.buttonColors(),
     borderColor: Color? = null,
-    compact: Boolean = false,
     tag: String? = null,
     onClick: () -> Unit,
 ) {
+    val fontSize = if (height != null) {
+        val preferredFontSize = MaterialTheme.typography.labelLarge.fontSize
+        val maximumFontSize = (
+            (height.value - 8f) / LocalDensity.current.fontScale
+            ).sp
+        minOf(preferredFontSize.value, maximumFontSize.value).sp
+    } else {
+        null
+    }
     StandardRoleButton(
         label = label,
         modifier = buttonLayoutModifier(
@@ -1235,9 +1223,11 @@ internal fun NavigationButton(
         shape = NavigationButtonShape,
         colors = colors,
         borderColor = borderColor,
-        compact = compact,
+        compact = height != null,
         tag = tag,
         contentPadding = null,
+        fontSize = fontSize,
+        lineHeight = fontSize,
         onClick = onClick,
     )
 }
@@ -1526,6 +1516,7 @@ internal fun TopBarHomeButton(onClick: () -> Unit) {
  * @param tag Optional test tag.
  * @param contentPadding Optional padding inside the button.
  * @param fontSize Optional button label font size.
+ * @param lineHeight Optional button label line height.
  * @param textMaxLines Maximum button-label line count.
  * @param softWrap Whether the button label may wrap.
  * @param textOverflow Overflow behavior for the button label.
@@ -1544,6 +1535,7 @@ private fun StandardRoleButton(
     tag: String?,
     contentPadding: PaddingValues?,
     fontSize: TextUnit? = null,
+    lineHeight: TextUnit? = null,
     textMaxLines: Int = 1,
     softWrap: Boolean = false,
     textOverflow: TextOverflow = TextOverflow.Ellipsis,
@@ -1566,7 +1558,10 @@ private fun StandardRoleButton(
         val textStyle = if (fontSize == null) {
             MaterialTheme.typography.labelLarge
         } else {
-            MaterialTheme.typography.labelLarge.copy(fontSize = fontSize)
+            MaterialTheme.typography.labelLarge.copy(
+                fontSize = fontSize,
+                lineHeight = lineHeight ?: MaterialTheme.typography.labelLarge.lineHeight,
+            )
         }
         if (trailingLabel == null) {
             Text(
@@ -1578,26 +1573,71 @@ private fun StandardRoleButton(
                 overflow = textOverflow,
             )
         } else {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    label,
-                    style = textStyle,
-                    maxLines = textMaxLines,
-                    softWrap = softWrap,
-                    overflow = textOverflow,
-                )
-                Text(
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                val trailingTextStyle = textStyle.copy(fontWeight = FontWeight.Bold)
+                val textMeasurer = rememberTextMeasurer()
+                val density = LocalDensity.current
+                val availableWidthPx = with(density) { maxWidth.roundToPx() }
+                val minimumTwoLineWidthPx = remember(
                     trailingLabel,
-                    style = textStyle,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = textMaxLines,
-                    softWrap = softWrap,
-                    overflow = textOverflow,
-                )
+                    trailingTextStyle,
+                    textMeasurer,
+                ) {
+                    val text = AnnotatedString(trailingLabel)
+                    val naturalWidth = textMeasurer.measure(
+                        text = text,
+                        style = trailingTextStyle,
+                        maxLines = 1,
+                        softWrap = false,
+                    ).size.width.coerceAtLeast(1)
+                    var lowerWidth = 1
+                    var upperWidth = naturalWidth
+                    while (lowerWidth < upperWidth) {
+                        val candidateWidth = (lowerWidth + upperWidth) / 2
+                        val fitsInTwoLines = !textMeasurer.measure(
+                            text = text,
+                            style = trailingTextStyle,
+                            maxLines = 2,
+                            softWrap = true,
+                            overflow = TextOverflow.Clip,
+                            constraints = Constraints(maxWidth = candidateWidth),
+                        ).hasVisualOverflow
+                        if (fitsInTwoLines) {
+                            upperWidth = candidateWidth
+                        } else {
+                            lowerWidth = candidateWidth + 1
+                        }
+                    }
+                    lowerWidth
+                }
+                val trailingLabelMaxWidth = with(density) {
+                    maxOf(availableWidthPx * 3 / 10, minimumTwoLineWidthPx).toDp()
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        label,
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 8.dp),
+                        style = textStyle,
+                        maxLines = textMaxLines,
+                        softWrap = softWrap,
+                        overflow = textOverflow,
+                    )
+                    Text(
+                        trailingLabel,
+                        modifier = Modifier.widthIn(max = trailingLabelMaxWidth),
+                        style = trailingTextStyle,
+                        textAlign = TextAlign.End,
+                        maxLines = textMaxLines,
+                        softWrap = softWrap,
+                        overflow = textOverflow,
+                    )
+                }
             }
         }
     }
@@ -1667,6 +1707,11 @@ internal fun AdjustButton(
 ) {
     val clearFocusAndHideKeyboard = rememberClearFocusAndHideKeyboard()
     val buttonWidth = height + 4.dp
+    val preferredFontSize = MaterialTheme.typography.labelLarge.fontSize
+    val maximumFontSize = (
+        (height.value - 8f) / LocalDensity.current.fontScale
+        ).sp
+    val fontSize = minOf(preferredFontSize.value, maximumFontSize.value).sp
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
         OutlinedButton(
             onClick = {
@@ -1689,7 +1734,10 @@ internal fun AdjustButton(
             Text(
                 label,
                 textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelLarge.copy(
+                    fontSize = fontSize,
+                    lineHeight = fontSize,
+                ),
             )
         }
     }

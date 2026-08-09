@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
@@ -50,14 +51,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.text
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
@@ -414,7 +420,7 @@ internal fun SetupScreen(
                 editTag = "setup-edit-game-information",
                 onEdit = { setupDialog = SetupDialog.GAME_INFORMATION },
             ) {
-                GameInformationSummary(state)
+                SetupSummaryLines(state.gameInformationSummaryLines())
             }
 
             SetupSummaryRow(
@@ -422,9 +428,8 @@ internal fun SetupScreen(
                 editTag = "setup-edit-starting-pull",
                 onEdit = { setupDialog = SetupDialog.STARTING_PULL },
             ) {
-                FieldStartingPullSummary(
-                    state = state,
-                    preference = orientationPreference,
+                SetupSummaryLines(
+                    state.fieldStartingPullSummaryLines(orientationPreference),
                 )
             }
             SetupSummaryRow(
@@ -435,7 +440,7 @@ internal fun SetupScreen(
                     setupDialog = SetupDialog.GAME_RULES
                 },
             ) {
-                GameRulesSummary(state)
+                SetupSummaryLines(state.gameRulesSummaryLines())
             }
         }
     }
@@ -1436,114 +1441,20 @@ private fun SetupChoiceChip(
     )
 }
 
-/**
- * Render the compact game-information summary used on the setup overview.
- *
- * @param state The current setup state to summarize.
- */
+/// Render JVM-formatted lines for one setup overview section.
 @Composable
-private fun GameInformationSummary(state: GameState) {
+private fun SetupSummaryLines(lines: List<SetupSummaryLine>) {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        state.gameInformationSummaryLines().forEach { line ->
-            Text(
-                text = line,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-        }
-    }
-}
-
-/**
- * Render the compact field-end and starting-pull summary used on the setup overview.
- *
- * @param state The current setup state to summarize.
- * @param preference Orientation preference whose field-end language should be used.
- */
-@Composable
-private fun FieldStartingPullSummary(
-    state: GameState,
-    preference: OrientationPreference,
-) {
-    val firstEnd = if (preference == OrientationPreference.LANDSCAPE) {
-        FieldEnd.FAR
-    } else {
-        FieldEnd.NEAR
-    }
-    val secondEnd = firstEnd.flip()
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(
-            text = "Field ends are called:",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Text(
-            text = "${state.fieldEndName(firstEnd, preference)} / " +
-                state.fieldEndName(secondEnd, preference),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(start = 16.dp),
-        )
-        Text(
-            text = state.startingPullSummary(preference),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Text(
-            text = state.pullPromptSummary(preference),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
-        if (state.usesMixedDivision()) {
-            // No else branch: every GenderRatioRule value is handled.
-            when (state.rules.genderRatioRule) {
-                GenderRatioRule.ABBA -> SetupSummaryValue("First point ratio: ${state.initialGenderRatio.displayText}")
-                GenderRatioRule.GEN_ZONE -> {
-                    if (state.rules.switchGenZoneAtHalftime) {
-                        SetupSummaryValue(
-                            "First-half Gen Zone: " +
-                                state.fieldEndName(state.firstHalfGenZone, preference)
-                        )
-                    } else {
-                        SetupSummaryValue(
-                            "Gen Zone: ${state.fieldEndName(state.firstHalfGenZone, preference)}"
-                        )
-                    }
-                }
-                GenderRatioRule.OFFENSE_DECIDES,
-                GenderRatioRule.NA,
-                GenderRatioRule.FIXED_4M_3W,
-                GenderRatioRule.FIXED_4W_3M -> Unit
+        lines.forEach { line ->
+            if (line.label == null) {
+                SetupSummaryValue(line.value)
+            } else {
+                SetupSummaryLabeledValue(
+                    label = line.label,
+                    value = line.value,
+                )
             }
         }
-    }
-}
-
-/**
- * Render the compact game-rules summary used on the setup overview.
- *
- * @param state The current setup state whose rules should be summarized.
- */
-@Composable
-private fun GameRulesSummary(state: GameState) {
-    val rules = state.rules
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        SetupSummaryValue("Game to ${rules.gameTo}")
-        SetupSummaryValue("Caps: ${rules.formatCaps()}")
-        SetupSummaryValue("TO: ${rules.formatTimeoutRules()}")
-        if (state.usesMixedDivision()) {
-            SetupSummaryValue("Ratio: ${rules.genderRatioRule.displayText}")
-        }
-        if (rules.heatLevel != HeatLevel.NONE) {
-            SetupSummaryValue(
-                "${rules.heatLevelLabel()}: ${rules.formatHeatLevel(compact = true)}"
-            )
-        }
-        SetupSummaryValue(
-            "Times: ${rules.formatTimeBetweenPoints(compact = true)}/" +
-                "${rules.formatTimeoutDuration()}/" +
-                "${rules.halftimeMinutes} min"
-        )
     }
 }
 
@@ -1558,9 +1469,49 @@ private fun SetupSummaryValue(text: String) {
         text = text,
         style = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.SemiBold,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
     )
+}
+
+/**
+ * Render a labeled setup value on one line when it fits, or below its label when it does not.
+ *
+ * The combined label and value remain one semantics string so accessibility and UI tests read the
+ * summary the same way in either layout.
+ */
+@Composable
+private fun SetupSummaryLabeledValue(
+    label: String,
+    value: String,
+) {
+    val combinedText = "$label $value"
+    val textStyle = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+    val textMeasurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    BoxWithConstraints(
+        modifier = Modifier.clearAndSetSemantics {
+            text = AnnotatedString(combinedText)
+        },
+    ) {
+        val availableWidthPx = with(density) { maxWidth.roundToPx() }
+        val fitsOnOneLine = textMeasurer.measure(
+            text = AnnotatedString(combinedText),
+            style = textStyle,
+            maxLines = 1,
+            softWrap = false,
+        ).size.width <= availableWidthPx
+        if (fitsOnOneLine) {
+            Text(text = combinedText, style = textStyle)
+        } else {
+            Column {
+                Text(text = label, style = textStyle)
+                Text(
+                    text = value,
+                    modifier = Modifier.padding(start = 16.dp),
+                    style = textStyle,
+                )
+            }
+        }
+    }
 }
 
 /**
@@ -1708,7 +1659,6 @@ private fun StartingPullSetupDialog(
                     onSelected = { pullingFromEnd = it },
                 )
                 if (state.usesMixedDivision()) {
-                    // No else branch: every GenderRatioRule value is handled.
                     when (state.rules.genderRatioRule) {
                         GenderRatioRule.ABBA -> {
                             Text("First point gender ratio", fontWeight = FontWeight.SemiBold)
@@ -1736,10 +1686,7 @@ private fun StartingPullSetupDialog(
                                 testTagPrefix = "setup-first-half-gen-zone",
                             )
                         }
-                        GenderRatioRule.OFFENSE_DECIDES,
-                        GenderRatioRule.NA,
-                        GenderRatioRule.FIXED_4M_3W,
-                        GenderRatioRule.FIXED_4W_3M -> Unit
+                        else -> Unit
                     }
                 }
                 Text("Timing prompts for which end?", fontWeight = FontWeight.SemiBold)
@@ -1888,7 +1835,7 @@ private fun GenderRatioRuleDialog(
         onDismissRequest = onDismiss,
         title = { Text("Mixed gender ratio") },
         text = {
-            TextEntryDialogBody(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            ScrollableDialogRegion(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 GenderRatioRuleChoiceRow(
                     selected = selectedRule,
                     onSelected = { selectedRule = it },
@@ -1900,7 +1847,10 @@ private fun GenderRatioRuleDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        Text("Switch Gen Zone at halftime")
+                        Text(
+                            text = "Switch Gen Zone at halftime",
+                            modifier = Modifier.weight(1f),
+                        )
                         Checkbox(
                             checked = switchGenZoneAtHalftime,
                             onCheckedChange = { switchGenZoneAtHalftime = it },
@@ -2060,7 +2010,7 @@ private fun IntegerEditDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            TextEntryDialogBody(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            ScrollableDialogRegion(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (note != null) {
                     Text(
                         text = note,
@@ -2131,7 +2081,7 @@ private fun CapRuleEditDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            TextEntryDialogBody(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            ScrollableDialogRegion(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -2199,7 +2149,7 @@ private fun TimeoutRulesDialog(
         onDismissRequest = onDismiss,
         title = { Text("Timeout rules") },
         text = {
-            TextEntryDialogBody(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            ScrollableDialogRegion(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 TextEntry(
                     value = timeoutsText,
                     onValueChange = { timeoutsText = it.filter(Char::isDigit).take(2) },
@@ -2479,7 +2429,7 @@ private fun PriorCardPlayerDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (isEditing) "Edit previous game card holder" else "Add previous game card holder") },
         text = {
-            TextEntryDialogBody(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            ScrollableDialogRegion(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
                     text = teamName,
                     style = MaterialTheme.typography.titleMedium,
@@ -2663,8 +2613,6 @@ private fun TeamSetupDetailColumns(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth(),
-                maxLines = 4,
-                overflow = TextOverflow.Ellipsis,
             )
         }
     }

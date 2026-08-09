@@ -448,13 +448,27 @@ class TestSetup : GameDomainTestFixtures() {
         assertEquals("Road", setup.fieldEndName(FieldEnd.NEAR, portraitPreference))
         assertEquals("Trees", setup.fieldEndName(FieldEnd.FAR, portraitPreference))
         assertEquals(
-            "Viscous Coupling pulls from Road",
-            setup.startingPullSummary(portraitPreference),
+            listOf(
+                SetupSummaryLine("Field ends are called:", "Road / Trees"),
+                SetupSummaryLine("Viscous Coupling pulls from", "Road"),
+                SetupSummaryLine("Pull prompts for", "both ends"),
+                SetupSummaryLine("First point ratio:", "4M/3W"),
+            ),
+            setup.fieldStartingPullSummaryLines(portraitPreference),
         )
-        assertEquals("Pull prompts for both ends", setup.pullPromptSummary(portraitPreference))
         assertTrue(setup.usesMixedDivision())
         assertEquals("Road", state.fieldEndName(FieldEnd.NEAR, portraitLayout))
         assertEquals("Trees", state.fieldEndName(FieldEnd.FAR, portraitLayout))
+
+        // A non-mixed setup omits the mixed-only starting ratio line.
+        assertEquals(
+            listOf(
+                SetupSummaryLine("Field ends are called:", "Road / Trees"),
+                SetupSummaryLine("Viscous Coupling pulls from", "Road"),
+                SetupSummaryLine("Pull prompts for", "both ends"),
+            ),
+            setup.copy(division = null).fieldStartingPullSummaryLines(portraitPreference),
+        )
 
         // Blank field-end names fall back to default labels while prompt targets use configured
         // names.
@@ -504,9 +518,9 @@ class TestSetup : GameDomainTestFixtures() {
             "Right end",
             FieldEnd.NEAR.defaultDisplayText(OrientationPreference.LANDSCAPE),
         )
-        assertEquals(
-            "Pull prompts for Near end",
-            defaultEndsSetup.pullPromptSummary(portraitPreference),
+        assertTrue(
+            SetupSummaryLine("Pull prompts for", "Near end") in
+                defaultEndsSetup.fieldStartingPullSummaryLines(portraitPreference)
         )
 
         // Pull-prompt choices use configured field-end names when they refer to one end.
@@ -525,9 +539,9 @@ class TestSetup : GameDomainTestFixtures() {
             "Right end",
             defaultEndsSetup.fieldEndName(FieldEnd.NEAR, landscapePreference),
         )
-        assertEquals(
-            "Pull prompts for Right end",
-            defaultEndsSetup.pullPromptSummary(landscapePreference),
+        assertTrue(
+            SetupSummaryLine("Pull prompts for", "Right end") in
+                defaultEndsSetup.fieldStartingPullSummaryLines(landscapePreference)
         )
 
         // Auto-rotate uses the Portrait field-end language during setup.
@@ -636,9 +650,9 @@ class TestSetup : GameDomainTestFixtures() {
             openingPullingFromEnd = FieldEnd.FAR,
         )
         assertEquals("Team 1", VC.setupName(blankTeamSetup))
-        assertEquals(
-            "Team 2 pulls from Far end",
-            blankTeamSetup.startingPullSummary(portraitPreference),
+        assertTrue(
+            SetupSummaryLine("Team 2 pulls from", "Far end") in
+                blankTeamSetup.fieldStartingPullSummaryLines(portraitPreference)
         )
     }
 
@@ -660,21 +674,27 @@ class TestSetup : GameDomainTestFixtures() {
         )
 
         // Game-information summary lines trim optional text and omit blank fields.
+        val gameInformationSummary = setup.gameInformationSummaryLines()
         assertEquals(
             listOf(
-                "Potlatch",
-                "Mixed Division",
-                "Club",
-                "Final",
-                "Observers: Mike, Gary",
-                "January 1, 2026",
-                "Start at 10:00 AM",
-                "Field: Field 7",
+                SetupSummaryLine(value = "Potlatch"),
+                SetupSummaryLine(value = "Mixed Division"),
+                SetupSummaryLine(value = "Club"),
+                SetupSummaryLine(value = "Final"),
+                SetupSummaryLine(label = "Observers:", value = "Mike, Gary"),
+                SetupSummaryLine(value = "January 1, 2026"),
+                SetupSummaryLine(label = "Start at", value = "10:00 AM"),
+                SetupSummaryLine(label = "Field:", value = "Field 7"),
             ),
-            setup.gameInformationSummaryLines(),
+            gameInformationSummary,
         )
+        assertNull(gameInformationSummary.first().label)
+        assertEquals("Potlatch", gameInformationSummary.first().value)
         assertEquals(
-            listOf("January 1, 2026", "Start at 10:00 AM"),
+            listOf(
+                SetupSummaryLine(value = "January 1, 2026"),
+                SetupSummaryLine(label = "Start at", value = "10:00 AM"),
+            ),
             setup.copy(
                 tournamentName = " ",
                 division = null,
@@ -683,6 +703,61 @@ class TestSetup : GameDomainTestFixtures() {
                 observerNames = listOf(" ", ""),
                 fieldName = " ",
             ).gameInformationSummaryLines(),
+        )
+
+        // Game-rule summary lines decide which values need labels and omit mixed-only rows for
+        // games without a mixed division.
+        assertEquals(
+            listOf(
+                SetupSummaryLine(value = "Game to 5"),
+                SetupSummaryLine(label = "Caps:", value = "-/-/-"),
+                SetupSummaryLine(label = "TO:", value = "2/half"),
+                SetupSummaryLine(label = "Ratio:", value = "ABBA"),
+                SetupSummaryLine(label = "Times:", value = "60 sec/70 sec/7 min"),
+            ),
+            setup.gameRulesSummaryLines(),
+        )
+        assertEquals(
+            listOf(
+                SetupSummaryLine(value = "Game to 5"),
+                SetupSummaryLine(label = "Caps:", value = "-/-/-"),
+                SetupSummaryLine(label = "TO:", value = "2/half"),
+                SetupSummaryLine(label = "Times:", value = "60 sec/70 sec/7 min"),
+            ),
+            setup.copy(division = null).gameRulesSummaryLines(),
+        )
+        assertTrue(
+            SetupSummaryLine(label = "Heat level:", value = "Level 1") in
+                setup.copy(rules = setup.rules.withHeatLevel(HeatLevel.LEVEL_1))
+                    .gameRulesSummaryLines()
+        )
+
+        // Gen Zone setup summaries choose their label from the halftime-switch rule in the JVM
+        // layer rather than leaving that product decision to Compose.
+        val genZoneSetup = setup.copy(
+            rules = setup.rules.copy(
+                genderRatioRule = GenderRatioRule.GEN_ZONE,
+                switchGenZoneAtHalftime = true,
+            ),
+            firstHalfGenZone = FieldEnd.FAR,
+        )
+        assertTrue(
+            SetupSummaryLine(label = "First-half Gen Zone:", value = "Far end") in
+                genZoneSetup.fieldStartingPullSummaryLines(OrientationPreference.PORTRAIT)
+        )
+        assertTrue(
+            SetupSummaryLine(label = "Gen Zone:", value = "Far end") in
+                genZoneSetup.copy(
+                    rules = genZoneSetup.rules.copy(switchGenZoneAtHalftime = false)
+                ).fieldStartingPullSummaryLines(OrientationPreference.PORTRAIT)
+        )
+        assertEquals(
+            3,
+            genZoneSetup.copy(
+                rules = genZoneSetup.rules.copy(
+                    genderRatioRule = GenderRatioRule.OFFENSE_DECIDES,
+                )
+            ).fieldStartingPullSummaryLines(OrientationPreference.PORTRAIT).size,
         )
 
         // Coach and captain summaries trim each line and skip empty staff fields.

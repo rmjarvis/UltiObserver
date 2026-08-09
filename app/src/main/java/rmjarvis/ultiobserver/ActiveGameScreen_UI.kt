@@ -1259,7 +1259,6 @@ private fun PortraitActiveGameContent(
             enabled = !locked,
             colors = neutralOutlinedButtonColors(DarkNeutralColor),
             borderColor = MaterialTheme.colorScheme.outline,
-            compact = true,
             onClick = onMoreActions,
         )
 
@@ -1489,7 +1488,6 @@ private fun LandscapeActiveGameContent(
                     enabled = !locked,
                     colors = neutralOutlinedButtonColors(DarkNeutralColor),
                     borderColor = MaterialTheme.colorScheme.outline,
-                    compact = true,
                     onClick = onMoreActions,
                 )
             }
@@ -1670,7 +1668,6 @@ private fun UndoRedoBar(
                 height = height,
                 colors = resetOutlinedButtonColors(),
                 borderColor = ResetColor,
-                compact = true,
                 onClick = {
                     onUndo(state.undoLastAction())
                 },
@@ -1686,7 +1683,6 @@ private fun UndoRedoBar(
                 height = height,
                 colors = redoOutlinedButtonColors(),
                 borderColor = RedoColor,
-                compact = true,
                 onClick = {
                     onRedo(state.redoLastAction())
                 },

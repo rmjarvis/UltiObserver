@@ -135,12 +135,17 @@ class TestCaps : GameDomainTestFixtures() {
                 .capStatusMessage(timestampAfterStart(softOnly, 21))
         )
 
-        // Hard cap uses the same priority as the point-end prompt when multiple caps have passed.
+        // During one live point, soft cap appears after its deadline, then hard cap supersedes it
+        // after the later hard-cap deadline passes.
         val hardAndSoft = newCapState(
             capRules.copy(
                 useHalfCap = false,
             )
         ).beginLivePoint()
+        assertEquals(
+            "Soft cap passed. It will apply at the end of this point.",
+            hardAndSoft.capStatusMessage(timestampAfterStart(hardAndSoft, 21)),
+        )
         assertEquals(
             "Hard cap passed. It will apply at the end of this point.",
             hardAndSoft.capStatusMessage(timestampAfterStart(hardAndSoft, 31)),

@@ -223,7 +223,7 @@ internal fun StatusLine(
         val preferredIconWidth = with(density) { preferredRulesIconSize.roundToPx() }
         val minimumRulesIconSize = 20.dp
         val minimumIconWidth = with(density) { minimumRulesIconSize.roundToPx() }
-        val minimumClockCapGap = with(density) { 6.dp.roundToPx() }
+        val minimumClockCapGap = with(density) { 12.dp.roundToPx() }
         val minimumFontScale = (10f / preferredCapFontSize.value).coerceAtMost(1f)
         fun measuredStatusWidth(fontScale: Float): Int {
             val clockWidth = textMeasurer.measure(
@@ -590,6 +590,28 @@ internal fun PortraitFieldSketchCard(
     val bottomTeam = state.teamFor(bottomSlot)
     val pullFrom = state.pullingFromEnd
     val ratioChoosingTeam = state.ratioChoosingTeam()
+    val topCardPoints = state.teamCardTotal(topSlot)
+    val bottomCardPoints = state.teamCardTotal(bottomSlot)
+    val topTimeoutsRemaining = state.timeoutsRemaining(topSlot)
+    val bottomTimeoutsRemaining = state.timeoutsRemaining(bottomSlot)
+    val topPullViolationType = state.pullViolationTypeFor(topSlot)
+    val bottomPullViolationType = state.pullViolationTypeFor(bottomSlot)
+    val naturalTopActionGridWidths = teamActionGridWidths(
+        team = topTeam,
+        cardPoints = topCardPoints,
+        timeoutsRemaining = topTimeoutsRemaining,
+        pullViolationType = topPullViolationType,
+        actionButtonHeight = metrics.actionButtonHeight,
+        gap = metrics.actionGap,
+    )
+    val naturalBottomActionGridWidths = teamActionGridWidths(
+        team = bottomTeam,
+        cardPoints = bottomCardPoints,
+        timeoutsRemaining = bottomTimeoutsRemaining,
+        pullViolationType = bottomPullViolationType,
+        actionButtonHeight = metrics.actionButtonHeight,
+        gap = metrics.actionGap,
+    )
 
     // Draw the top team row, center field area, and bottom team row in that order.
     Card(
@@ -602,14 +624,36 @@ internal fun PortraitFieldSketchCard(
         shape = PanelShape,
         border = BorderStroke(1.dp, FieldBorderColor),
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val maximumActionGridWidth =
+                (maxWidth - metrics.teamRowPadding * 2f).coerceAtLeast(0.dp)
+            val actionGridScale = minOf(
+                naturalTopActionGridWidths.maximumScaleToFit(
+                    maximumActionGridWidth,
+                    TeamActionGridLayout.WIDE,
+                    metrics.actionGap,
+                ),
+                naturalBottomActionGridWidths.maximumScaleToFit(
+                    maximumActionGridWidth,
+                    TeamActionGridLayout.WIDE,
+                    metrics.actionGap,
+                ),
+            )
+            val topActionGridWidths = naturalTopActionGridWidths.scaled(
+                actionGridScale,
+                metrics.actionGap,
+            )
+            val bottomActionGridWidths = naturalBottomActionGridWidths.scaled(
+                actionGridScale,
+                metrics.actionGap,
+            )
             Column(modifier = Modifier.fillMaxSize()) {
                 // Top end zone/team row.
                 PortraitEndZonePanel(
                     teamId = topSlot,
                     team = topTeam,
-                    cardPoints = state.teamCardTotal(topSlot),
-                    timeoutsRemaining = state.timeoutsRemaining(topSlot),
+                    cardPoints = topCardPoints,
+                    timeoutsRemaining = topTimeoutsRemaining,
                     timeoutEnabled = timeoutEnabled,
                     background = topTeam.accent,
                     shape = TopEndZoneShape,
@@ -617,7 +661,8 @@ internal fun PortraitFieldSketchCard(
                     choosesGenderRatio = ratioChoosingTeam == topSlot,
                     timeViolationEnabled = state.canAssessTimeViolation(),
                     pullViolationEnabled = state.canRecordPullViolation(topSlot),
-                    pullViolationType = state.pullViolationTypeFor(topSlot),
+                    pullViolationType = topPullViolationType,
+                    actionGridWidths = topActionGridWidths,
                     fieldEndName = state.fieldEndName(
                         topEnd,
                         ActiveGameOrientation.PORTRAIT,
@@ -684,8 +729,8 @@ internal fun PortraitFieldSketchCard(
                 PortraitEndZonePanel(
                     teamId = bottomSlot,
                     team = bottomTeam,
-                    cardPoints = state.teamCardTotal(bottomSlot),
-                    timeoutsRemaining = state.timeoutsRemaining(bottomSlot),
+                    cardPoints = bottomCardPoints,
+                    timeoutsRemaining = bottomTimeoutsRemaining,
                     timeoutEnabled = timeoutEnabled,
                     background = bottomTeam.accent,
                     shape = BottomEndZoneShape,
@@ -693,7 +738,8 @@ internal fun PortraitFieldSketchCard(
                     choosesGenderRatio = ratioChoosingTeam == bottomSlot,
                     timeViolationEnabled = state.canAssessTimeViolation(),
                     pullViolationEnabled = state.canRecordPullViolation(bottomSlot),
-                    pullViolationType = state.pullViolationTypeFor(bottomSlot),
+                    pullViolationType = bottomPullViolationType,
+                    actionGridWidths = bottomActionGridWidths,
                     fieldEndName = state.fieldEndName(
                         bottomEnd,
                         ActiveGameOrientation.PORTRAIT,
@@ -829,16 +875,21 @@ internal fun LandscapeFieldSketchCard(
             } else {
                 TeamActionGridLayout.WIDE
             }
-            val naturalActionGridWidth = maxOf(
-                naturalLeftActionGridWidths.widthFor(actionGridLayout),
-                naturalRightActionGridWidths.widthFor(actionGridLayout),
-            )
             val maximumActionGridWidth = (
                 (maxWidth - minimumCenterWidth) / 2f - metrics.teamPanelPadding * 2f
                 ).coerceAtLeast(0.dp)
-            val actionGridScale =
-                (maximumActionGridWidth.value / naturalActionGridWidth.value)
-                    .coerceIn(0.85f, 1f)
+            val actionGridScale = minOf(
+                naturalLeftActionGridWidths.maximumScaleToFit(
+                    maximumActionGridWidth,
+                    actionGridLayout,
+                    metrics.actionGap,
+                ),
+                naturalRightActionGridWidths.maximumScaleToFit(
+                    maximumActionGridWidth,
+                    actionGridLayout,
+                    metrics.actionGap,
+                ),
+            )
             val leftActionGridWidths = naturalLeftActionGridWidths.scaled(
                 actionGridScale,
                 metrics.actionGap,
@@ -1103,19 +1154,62 @@ private fun LandscapeEndZonePanel(
                 onTechnicalFoul = onTechnicalFoul,
             )
         }
-        FieldEndCornerLabel(
-            name = fieldEndName,
-            contentColor = team.content,
-            modifier = Modifier.align(
-                if (isLeftPanel) Alignment.BottomStart else Alignment.BottomEnd
-            ),
-        )
         if (choosesGenderRatio) {
-            GenderRatioChooserText(
+            LandscapeEndZoneLabels(
+                isLeftPanel = isLeftPanel,
+                fieldEndName = fieldEndName,
+                contentColor = team.content,
+                gap = metrics.titleGap,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter),
+            )
+        } else {
+            FieldEndCornerLabel(
+                name = fieldEndName,
                 contentColor = team.content,
                 modifier = Modifier.align(
-                    if (isLeftPanel) Alignment.BottomEnd else Alignment.BottomStart
+                    if (isLeftPanel) Alignment.BottomStart else Alignment.BottomEnd
                 ),
+            )
+        }
+    }
+}
+
+/// Fit the field-end and ratio-chooser labels together along a landscape end zone's outer edge.
+@Composable
+private fun LandscapeEndZoneLabels(
+    isLeftPanel: Boolean,
+    fieldEndName: String,
+    contentColor: Color,
+    gap: Dp,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(gap),
+    ) {
+        if (isLeftPanel) {
+            FieldEndCornerLabel(
+                name = fieldEndName,
+                contentColor = contentColor,
+                textAlign = TextAlign.Start,
+                modifier = Modifier.weight(1f),
+            )
+            GenderRatioChooserText(
+                contentColor = contentColor,
+                modifier = Modifier.weight(1f),
+            )
+        } else {
+            GenderRatioChooserText(
+                contentColor = contentColor,
+                textAlign = TextAlign.Start,
+                modifier = Modifier.weight(1f),
+            )
+            FieldEndCornerLabel(
+                name = fieldEndName,
+                contentColor = contentColor,
+                modifier = Modifier.weight(1f),
             )
         }
     }
@@ -1135,6 +1229,7 @@ private fun LandscapeEndZonePanel(
  * @param timeViolationEnabled Whether this team can record a time violation for this pull.
  * @param pullViolationEnabled Whether this team can still record its pull violation for this pull.
  * @param pullViolationType The pull-violation type represented by this team's field button.
+ * @param actionGridWidths Shared-scale widths for this team's action grid.
  * @param fieldEndName Display name for the field end represented by this row.
  * @param fieldEndLabelAtTop Whether the field-end label belongs in the top-right corner.
  * @param metrics The measured layout metrics for compact or roomy phone heights.
@@ -1160,6 +1255,7 @@ private fun PortraitEndZonePanel(
     timeViolationEnabled: Boolean,
     pullViolationEnabled: Boolean,
     pullViolationType: PullViolationType,
+    actionGridWidths: TeamActionGridWidths,
     fieldEndName: String,
     fieldEndLabelAtTop: Boolean,
     metrics: PortraitFieldLayoutMetrics,
@@ -1174,14 +1270,6 @@ private fun PortraitEndZonePanel(
     val titleTextStyle = MaterialTheme.typography.titleLarge.copy(
         fontSize = metrics.titleFontSize,
         lineHeight = metrics.titleLineHeight,
-    )
-    val actionGridWidths = teamActionGridWidths(
-        team = team,
-        cardPoints = cardPoints,
-        timeoutsRemaining = timeoutsRemaining,
-        pullViolationType = pullViolationType,
-        actionButtonHeight = metrics.actionButtonHeight,
-        gap = metrics.actionGap,
     )
     val hasHeaderTrailingLabel = fieldEndLabelAtTop || choosesGenderRatio
     Box(
@@ -1384,7 +1472,7 @@ private fun GenderRatioChooserLabel(
         horizontalArrangement = Arrangement.End,
     ) {
         Text(
-            text = "Chooses gender ratio",
+            text = "Chooses ratio",
             color = contentColor,
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.SemiBold,
@@ -1404,14 +1492,15 @@ private fun GenderRatioChooserLabel(
 private fun GenderRatioChooserText(
     contentColor: Color,
     modifier: Modifier = Modifier,
+    textAlign: TextAlign = TextAlign.End,
 ) {
     Text(
-        text = "Chooses gender ratio",
+        text = "Chooses ratio",
         color = contentColor,
         modifier = modifier,
         style = MaterialTheme.typography.labelMedium,
         fontWeight = FontWeight.SemiBold,
-        textAlign = TextAlign.End,
+        textAlign = textAlign,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
     )
@@ -1429,7 +1518,7 @@ private data class TeamActionGridWidths(
     val fontSize: TextUnit,
 )
 
-/// Available arrangements for the six team actions in landscape.
+/// Available arrangements for the six team actions.
 private enum class TeamActionGridLayout {
     WIDE,
     TIMEOUT_ROW,
@@ -1438,6 +1527,29 @@ private enum class TeamActionGridLayout {
 /// Return the complete panel width for one of the landscape action-grid arrangements.
 private fun TeamActionGridWidths.widthFor(layout: TeamActionGridLayout): Dp {
     return if (layout == TeamActionGridLayout.TIMEOUT_ROW) timeoutRowPanel else panel
+}
+
+/// Return the largest column and font scale that keeps this arrangement within [maximumWidth].
+private fun TeamActionGridWidths.maximumScaleToFit(
+    maximumWidth: Dp,
+    layout: TeamActionGridLayout,
+    gap: Dp,
+): Float {
+    val panelPadding = 8.dp
+    val maximumScale = if (layout == TeamActionGridLayout.TIMEOUT_ROW) {
+        val primaryColumnsWidth = goal + middle + right
+        val primaryColumnsScale =
+            (maximumWidth - panelPadding - gap * 2f).coerceAtLeast(0.dp).value /
+                primaryColumnsWidth.value
+        val timeoutScale =
+            (maximumWidth - panelPadding).coerceAtLeast(0.dp).value / fullTimeout.value
+        minOf(primaryColumnsScale, timeoutScale)
+    } else {
+        val columnsWidth = goal + middle + right + timeout
+        (maximumWidth - panelPadding - gap * 3f).coerceAtLeast(0.dp).value /
+            columnsWidth.value
+    }
+    return maximumScale.coerceIn(0f, 1f)
 }
 
 /// Smoothly compress the action columns while preserving their relative widths.
@@ -1782,6 +1894,7 @@ private fun FieldEndCornerLabel(
     name: String,
     contentColor: Color,
     modifier: Modifier = Modifier,
+    textAlign: TextAlign = TextAlign.End,
 ) {
     Text(
         text = name,
@@ -1789,7 +1902,7 @@ private fun FieldEndCornerLabel(
         modifier = modifier,
         style = MaterialTheme.typography.labelMedium,
         fontWeight = FontWeight.SemiBold,
-        textAlign = TextAlign.End,
+        textAlign = textAlign,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
     )

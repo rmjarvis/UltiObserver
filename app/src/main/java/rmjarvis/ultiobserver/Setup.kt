@@ -141,6 +141,17 @@ private fun String.compactLabeledSummary(label: String): LabeledSetupSummary? {
     return LabeledSetupSummary(label = label, value = lines.joinToString("\n"))
 }
 
+/**
+ * One line in a setup overview section.
+ *
+ * @param label Optional label displayed before the value.
+ * @param value The summary text, or the value displayed after [label].
+ */
+internal data class SetupSummaryLine(
+    val label: String? = null,
+    val value: String,
+)
+
 /// Return compact prior-card text for one team in the setup overview.
 internal fun List<PlayerRecord>.teamPriorCardsSummary(): String {
     return joinToString("\n") { record ->
@@ -149,17 +160,29 @@ internal fun List<PlayerRecord>.teamPriorCardsSummary(): String {
 }
 
 /// Return setup summary lines for optional game and tournament context.
-internal fun GameState.gameInformationSummaryLines(): List<String> {
-    return listOfNotNull(
-        tournamentName.trim().takeIf { it.isNotEmpty() },
-        division?.setupSummaryLine(),
-        level.trim().takeIf { it.isNotEmpty() },
-        gameContext.trim().takeIf { it.isNotEmpty() },
-        observerNames.observersDisplayText()?.let { "Observers: $it" },
-        formatStartDate(startDate),
-        "Start at ${formatClockTime(startTime)}",
-        fieldName.trim().takeIf { it.isNotEmpty() }?.let { "Field: $it" },
-    )
+internal fun GameState.gameInformationSummaryLines(): List<SetupSummaryLine> {
+    return buildList {
+        tournamentName.trim().takeIf { it.isNotEmpty() }?.let { value ->
+            add(SetupSummaryLine(value = value))
+        }
+        division?.setupSummaryLine()?.let { value ->
+            add(SetupSummaryLine(value = value))
+        }
+        level.trim().takeIf { it.isNotEmpty() }?.let { value ->
+            add(SetupSummaryLine(value = value))
+        }
+        gameContext.trim().takeIf { it.isNotEmpty() }?.let { value ->
+            add(SetupSummaryLine(value = value))
+        }
+        observerNames.observersDisplayText()?.let { value ->
+            add(SetupSummaryLine(label = "Observers:", value = value))
+        }
+        add(SetupSummaryLine(value = formatStartDate(startDate)))
+        add(SetupSummaryLine(label = "Start at", value = formatClockTime(startTime)))
+        fieldName.trim().takeIf { it.isNotEmpty() }?.let { value ->
+            add(SetupSummaryLine(label = "Field:", value = value))
+        }
+    }
 }
 
 /// Return observer names trimmed and joined for display.
@@ -170,15 +193,89 @@ internal fun List<String>.observersDisplayText(): String? {
         .takeIf { it.isNotEmpty() }
 }
 
-/// Return the compact setup summary for the starting pull.
-internal fun GameState.startingPullSummary(preference: OrientationPreference): String {
-    return "${openingPullingTeam.setupName(this)} pulls from " +
-        fieldEndName(openingPullingFromEnd, preference)
+/// Return setup summary lines for the field ends and opening pull.
+internal fun GameState.fieldStartingPullSummaryLines(
+    preference: OrientationPreference,
+): List<SetupSummaryLine> {
+    val state = this
+    val firstEnd = if (preference == OrientationPreference.LANDSCAPE) {
+        FieldEnd.FAR
+    } else {
+        FieldEnd.NEAR
+    }
+    val secondEnd = firstEnd.flip()
+    return buildList {
+        add(
+            SetupSummaryLine(
+                label = "Field ends are called:",
+                value = "${fieldEndName(firstEnd, preference)} / " +
+                    fieldEndName(secondEnd, preference),
+            )
+        )
+        add(
+            SetupSummaryLine(
+                label = "${openingPullingTeam.setupName(state)} pulls from",
+                value = fieldEndName(openingPullingFromEnd, preference),
+            )
+        )
+        add(
+            SetupSummaryLine(
+                label = "Pull prompts for",
+                value = pullPromptTarget.displayText(state, preference),
+            )
+        )
+        if (usesMixedDivision()) {
+            when (rules.genderRatioRule) {
+                GenderRatioRule.ABBA -> add(
+                    SetupSummaryLine(
+                        label = "First point ratio:",
+                        value = initialGenderRatio.displayText,
+                    )
+                )
+                GenderRatioRule.GEN_ZONE -> {
+                    val label = if (rules.switchGenZoneAtHalftime) {
+                        "First-half Gen Zone:"
+                    } else {
+                        "Gen Zone:"
+                    }
+                    add(
+                        SetupSummaryLine(
+                            label = label,
+                            value = fieldEndName(firstHalfGenZone, preference),
+                        )
+                    )
+                }
+                else -> Unit
+            }
+        }
+    }
 }
 
-/// Return the setup summary line for the current pull-prompt preference.
-internal fun GameState.pullPromptSummary(preference: OrientationPreference): String {
-    return "Pull prompts for ${pullPromptTarget.displayText(this, preference)}"
+/// Return setup summary lines for game rules.
+internal fun GameState.gameRulesSummaryLines(): List<SetupSummaryLine> {
+    return buildList {
+        add(SetupSummaryLine(value = "Game to ${rules.gameTo}"))
+        add(SetupSummaryLine(label = "Caps:", value = rules.formatCaps()))
+        add(SetupSummaryLine(label = "TO:", value = rules.formatTimeoutRules()))
+        if (usesMixedDivision()) {
+            add(SetupSummaryLine(label = "Ratio:", value = rules.genderRatioRule.displayText))
+        }
+        if (rules.heatLevel != HeatLevel.NONE) {
+            add(
+                SetupSummaryLine(
+                    label = "${rules.heatLevelLabel()}:",
+                    value = rules.formatHeatLevel(compact = true),
+                )
+            )
+        }
+        add(
+            SetupSummaryLine(
+                label = "Times:",
+                value = "${rules.formatTimeBetweenPoints(compact = true)}/" +
+                    "${rules.formatTimeoutDuration()}/${rules.halftimeMinutes} min",
+            )
+        )
+    }
 }
 
 /// Return the display label for one field end, falling back when no custom name is set.

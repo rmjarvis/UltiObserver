@@ -70,7 +70,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         closeSetupEditor()
 
         // The setup summary uses the landscape names and selected opening-pull assignment.
-        waitForText("$leftEndName / $rightEndName")
+        waitForText("Field ends are called: $leftEndName / $rightEndName")
         waitForText("Team 2 pulls from $leftEndName")
 
         // Starting the game keeps those ends on their named sides and puts the pulling team
@@ -291,8 +291,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         closeSetupEditor()
 
         // The compact summary should describe the chosen field labels, pulling team, and prompts.
-        waitForText("Field ends are called:")
-        waitForText(initialEndSummary)
+        waitForText("Field ends are called: $initialEndSummary")
         waitForText("$aardvarks pulls from Road")
         waitForText("Pull prompts for both ends")
         waitForText("First point ratio: 4W/3M")
@@ -304,18 +303,18 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("setup-near-end-name").performImeAction()
         composeRule.onNodeWithText("Cancel").performClick()
         composeRule.onAllNodesWithText("Canceled end").assertCountEquals(0)
-        waitForText(initialEndSummary)
+        waitForText("Field ends are called: $initialEndSummary")
 
         // Dismissal follows Done so accidental outside taps keep entered setup edits.
         openStartingPullSetupEditor()
         composeRule.onNodeWithTag("setup-far-end-name")
             .performTextReplacement("River")
         composeRule.onNodeWithTag("setup-far-end-name").performImeAction()
-        dismissDialog(text = "Done", waitForText = riverEndSummary)
+        dismissDialog(text = "Done", waitForText = "Field ends are called: $riverEndSummary")
 
         // Dismissal also follows Done when no text field has focus.
         openStartingPullSetupEditor()
-        dismissDialog(text = "Done", waitForText = riverEndSummary)
+        dismissDialog(text = "Done", waitForText = "Field ends are called: $riverEndSummary")
 
         // Canceling the mixed gender-ratio popup keeps the existing ABBA setup rule.
         openMixedGenderRatioEditor()
