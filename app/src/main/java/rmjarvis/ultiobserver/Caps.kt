@@ -491,7 +491,7 @@ internal fun GamePrompt.ApplyCap.formatMessage(): RuleGuidanceMessage {
     val scheduledDuringHalftime = isScheduledDuringHalftime()
     val timingSentence = if (scheduledDuringHalftime) {
         "${capType.label} is scheduled for $capTime, which is during halftime, " +
-            "so we can apply it now."
+        "so we can apply it now."
     } else {
         "${capType.label} was at $capTime, so it applies now."
     }

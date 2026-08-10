@@ -274,8 +274,8 @@ class TestMixed : GameDomainTestFixtures() {
         )
         assertEquals(
             "This is Viscous Coupling's first pull violation.\n\n" +
-                "Animal starts at the brick mark.\n\n" +
-                "The disc is live -- no defensive check is required.",
+            "Animal starts at the brick mark.\n\n" +
+            "The disc is live -- no defensive check is required.",
             majorityPullResult.message(),
         )
         assertEquals(

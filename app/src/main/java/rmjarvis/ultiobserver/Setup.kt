@@ -271,7 +271,8 @@ internal fun GameState.gameRulesSummaryLines(): List<SetupSummaryLine> {
         add(
             SetupSummaryLine(
                 label = "Times:",
-                value = "${rules.formatTimeBetweenPoints(compact = true)}/" +
+                value =
+                    "${rules.formatTimeBetweenPoints(compact = true)}/" +
                     "${rules.formatTimeoutDuration()}/${rules.halftimeMinutes} min",
             )
         )

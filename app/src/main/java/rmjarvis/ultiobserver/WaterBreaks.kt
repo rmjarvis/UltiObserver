@@ -18,8 +18,8 @@ internal fun GameState.waterBreakPromptMessage(): RuleGuidanceMessage {
     if (lateHeatLevelChange) {
         lines += RuleGuidanceLine(
             "${rules.heatLevelLabel()} " +
-                "${rules.heatLevel.displayText.removePrefix("Level ")} is now in effect, " +
-                "and no water break has been taken this half."
+            "${rules.heatLevel.displayText.removePrefix("Level ")} is now in effect, " +
+            "and no water break has been taken this half."
         )
     } else if (
         pendingWaterBreakOffer &&

@@ -494,7 +494,7 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals("Hard cap", state.capPrompt().formatTitle())
         assertEquals(
             "Hard cap was at 10:30 AM, so it applies now. " +
-                "Score is not tied, so the game is over.",
+            "Score is not tied, so the game is over.",
             state.capPrompt().formatMessage().plainText,
         )
         val beforeGameEndingHardCap = state
@@ -528,7 +528,7 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(CapType.HARD, state.pendingCapOffer)
         assertEquals(
             "Hard cap was at 10:30 AM, so it applies now. " +
-                "Score is tied, so play one more point.",
+            "Score is tied, so play one more point.",
             state.capPrompt().formatMessage().plainText,
         )
         state = applyPendingCapAt(state, LocalTime.of(10, 31))
@@ -607,7 +607,7 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(CapType.HARD, state.pendingCapOffer)
         assertEquals(
             "Hard cap was at 10:10 AM, so it applies now. " +
-                "Score is not tied, so the game is over.",
+            "Score is not tied, so the game is over.",
             state.capPrompt().formatMessage().plainText,
         )
         state = applyPendingCapAt(state, LocalTime.of(10, 10))
@@ -657,7 +657,7 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(CapType.HARD, state.pendingCapOffer)
         assertEquals(
             "Hard cap was at 10:09 AM, so it applies now. " +
-                "Score is not tied, so the game is over.",
+            "Score is not tied, so the game is over.",
             state.capPrompt().formatMessage().plainText,
         )
 
@@ -676,7 +676,7 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(CapType.SOFT, state.pendingCapOffer)
         assertEquals(
             "Soft cap is scheduled for 10:12 AM, which is during halftime, " +
-                "so we can apply it now. The new winning score is 2.",
+            "so we can apply it now. The new winning score is 2.",
             state.capPrompt().formatMessage().plainText,
         )
 
@@ -724,7 +724,7 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(CapType.HARD, state.pendingCapOffer)
         assertEquals(
             "Hard cap is scheduled for 10:12 AM, which is during halftime, " +
-                "so we can apply it now. Score is not tied, so the game is over.",
+            "so we can apply it now. Score is not tied, so the game is over.",
             state.capPrompt().formatMessage().plainText,
         )
 
@@ -745,7 +745,7 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(CapType.SOFT, state.pendingCapOffer)
         assertEquals(
             "Soft cap is scheduled for 10:12 AM, which is during halftime, " +
-                "so we can apply it now. The new winning score is 4.",
+            "so we can apply it now. The new winning score is 4.",
             state.capPrompt().formatMessage().plainText,
         )
         val halftimeCountdown = state.countdown!!
@@ -779,7 +779,7 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(CapType.HARD, state.pendingCapOffer)
         assertEquals(
             "Hard cap is scheduled for 10:20 AM, which is during halftime, " +
-                "so we can apply it now. Score is not tied, so the game is over.",
+            "so we can apply it now. Score is not tied, so the game is over.",
             state.capPrompt().formatMessage().plainText,
         )
         state = applyPendingCapAt(state, LocalTime.of(10, 14))
@@ -812,7 +812,7 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(CapType.HARD, state.pendingCapOffer)
         assertEquals(
             "Hard cap is scheduled for 10:12 AM, which is during halftime, " +
-                "so we can apply it now. Score is tied, so play one more point.",
+            "so we can apply it now. Score is tied, so play one more point.",
             state.capPrompt().formatMessage().plainText,
         )
         val tiedHardCapHalftimeCountdown = state.countdown

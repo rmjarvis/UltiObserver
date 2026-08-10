@@ -357,7 +357,7 @@ internal fun GameRules.heatLevelSelectionDescription(newHeatLevel: HeatLevel): S
         HeatLevel.LEVEL_2 -> buildString {
             append(
                 "One ${selectedRules.waterBreakMinutes}-minute water break per " +
-                    "half. Add $LEVEL_TWO_EXTRA_BETWEEN_POINTS_SECONDS seconds between points."
+                "half. Add $LEVEL_TWO_EXTRA_BETWEEN_POINTS_SECONDS seconds between points."
             )
             val levelTwoRules =
                 this@heatLevelSelectionDescription.withHeatLevel(HeatLevel.LEVEL_2)
@@ -373,7 +373,7 @@ internal fun GameRules.heatLevelSelectionDescription(newHeatLevel: HeatLevel): S
         }
         HeatLevel.MANUAL ->
             "Use normal timing with ${selectedRules.waterBreakMinutes}-minute manual water " +
-                "breaks available."
+            "breaks available."
         HeatLevel.LEVEL_3 -> "Suspend this game because play should not continue."
     }
 }

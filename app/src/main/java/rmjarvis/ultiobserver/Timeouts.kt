@@ -312,7 +312,7 @@ internal fun GameEvent.TimeoutCharged.formatMessage(): RuleGuidanceMessage {
         listOf(
             RuleGuidanceLine(
                 "Timeout charged to ${state.teamName(team)}. " +
-                    "They have ${countedNounPhrase(timeoutCount, "timeout")} remaining in this half."
+                "They have ${countedNounPhrase(timeoutCount, "timeout")} remaining in this half."
             )
         )
     )

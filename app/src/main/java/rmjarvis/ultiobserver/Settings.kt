@@ -211,7 +211,7 @@ data class TimingAlertPreferences(
     fun withCueRepeatCount(cueId: TimingCueId, repeatCount: Int): TimingAlertPreferences {
         require(repeatCount in MIN_TIMING_ALERT_REPEAT_COUNT..MAX_TIMING_ALERT_REPEAT_COUNT) {
             "Timing alert repeat count must be between $MIN_TIMING_ALERT_REPEAT_COUNT and " +
-                "$MAX_TIMING_ALERT_REPEAT_COUNT."
+            "$MAX_TIMING_ALERT_REPEAT_COUNT."
         }
         return copy(cueRepeatCounts = cueRepeatCounts + (cueId to repeatCount))
     }
@@ -374,8 +374,8 @@ internal enum class OrientationPreference(
     AUTO_ROTATE(
         "Auto-rotate",
         "Follow the phone's orientation if Android's auto-rotate is enabled. " +
-            "Otherwise, it will use the current phone orientation when the active " +
-            "game screen opens each time.",
+        "Otherwise, it will use the current phone orientation when the active " +
+        "game screen opens each time.",
     ),
 }
 

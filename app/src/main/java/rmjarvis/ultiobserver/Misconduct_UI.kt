@@ -1774,7 +1774,7 @@ private fun RemoveEditablePlayerCardDialog(
             ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
                 Text(
                     "Remove this ${card.cardType.label.lowercase()} card assessed to " +
-                        "$playerIdentity?"
+                    "$playerIdentity?"
                 )
             }
         },

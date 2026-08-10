@@ -1877,8 +1877,8 @@ internal fun GameEvent.TeamCardsChanged.formatMessage(): RuleGuidanceMessage {
         add(
             RuleGuidanceLine(
                 "${state.teamName(team)} has " +
-                    "${countedNounPhrase(teamCardTotal, "card")} total" +
-                    "${state.teamCardTotalExplanation(team)}."
+                "${countedNounPhrase(teamCardTotal, "card")} total" +
+                "${state.teamCardTotalExplanation(team)}."
             )
         )
         if (teamCardTotal >= 3 && state.phase != GamePhase.LIVE_POINT) {
@@ -2029,7 +2029,7 @@ internal fun GameEvent.TechnicalFoulsChanged.formatMessage(): RuleGuidanceMessag
     val lines = mutableListOf(
         RuleGuidanceLine(
             "This is ${state.teamName(team)}'s " +
-                "${technicalFoulTotal.ordinalWordText()} technical foul."
+            "${technicalFoulTotal.ordinalWordText()} technical foul."
         )
     )
     if (technicalFoulTotal >= 3 && state.phase != GamePhase.LIVE_POINT) {
@@ -2045,7 +2045,7 @@ internal fun GameEvent.TechnicalFoulsChanged.formatBriefMessage(): RuleGuidanceM
         listOf(
             RuleGuidanceLine(
                 "${technicalFoulTotal.ordinalWordText().capitalized()} " +
-                    "technical foul on ${state.teamName(team)}."
+                "technical foul on ${state.teamName(team)}."
             )
         )
     )
@@ -2121,18 +2121,18 @@ private fun GamePrompt.LivePointMisconduct.misconductResolutionLines(
     val defenseName = state.teamName(defenseTeam)
     val fieldPosition = if (againstOffense) {
         "$offenseName moves the disc to the reverse brick in the end zone they are defending. " +
-            "$defenseName may instead choose to leave the disc where it is " +
-            "(keeping the current stall count +1, max 9)."
+        "$defenseName may instead choose to leave the disc where it is " +
+        "(keeping the current stall count +1, max 9)."
     } else {
         "$offenseName may move the disc to the brick mark nearest the end zone they are attacking. " +
-            "They may also choose to leave the disc where it is or center it."
+        "They may also choose to leave the disc where it is or center it."
     }
     return listOf(
         RuleGuidanceLine(fieldPosition),
         RuleGuidanceLine(""),
         RuleGuidanceLine(
             "Offense has 30 seconds to set. " +
-                "Then defense has 20 seconds to check the disc in."
+            "Then defense has 20 seconds to check the disc in."
         ),
     )
 }

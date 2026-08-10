@@ -318,14 +318,18 @@ class TestFieldUi : MainActivityUiTestFixtures() {
         // Make some long names that will necessarily use ellipses, even on the wide
         // Pixel Fold screen.  Note that the end name is in a smaller font, so those
         // names need to be longer to make sure they get the ellipses.
-        val longTeamOneName = "A weirdly long team name that takes up too much space, " +
+        val longTeamOneName =
+            "A weirdly long team name that takes up too much space, " +
             "even on the Pixel Fold's wide screen"
-        val longTeamTwoName = "Another oddly verbose name for an Ultimate team that no one " +
+        val longTeamTwoName =
+            "Another oddly verbose name for an Ultimate team that no one " +
             "would ever use"
-        val longFarEndName = "Along the edge of the parking lot by the old rotting tree " +
+        val longFarEndName =
+            "Along the edge of the parking lot by the old rotting tree " +
             "with all the moss and lichen and the poison ivy that is practically on the " +
             "field by the back cone"
-        val longNearEndName = "The side opposite the parking lot with all the garbage cans " +
+        val longNearEndName =
+            "The side opposite the parking lot with all the garbage cans " +
             "and recycling cans, and they even have some green compost containers there, " +
             "as though anyone is going to use those"
 

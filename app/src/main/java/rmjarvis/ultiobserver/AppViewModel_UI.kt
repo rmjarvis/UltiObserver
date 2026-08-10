@@ -410,7 +410,7 @@ internal fun UltiObserverApp(
                     text = {
                         Text(
                             "UltiObserver uses an alarm for cap notifications so they work even if your screen is asleep. " +
-                                "Please enable access in the Alarms & reminders settings for your device."
+                            "Please enable access in the Alarms & reminders settings for your device."
                         )
                     },
                     confirmButton = {
@@ -539,7 +539,7 @@ internal fun UltiObserverApp(
             text = {
                 Text(
                     "UltiObserver closed unexpectedly last time it ran. A crash report was sent " +
-                        "to the developers automatically so we can fix the problem."
+                    "to the developers automatically so we can fix the problem."
                 )
             },
             confirmButton = {

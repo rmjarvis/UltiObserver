@@ -77,7 +77,8 @@ internal fun OfficialClockScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(
-                text = "This screen lets you synchronize UltiObserver's clock to " +
+                text =
+                    "This screen lets you synchronize UltiObserver's clock to " +
                     "the tournament's official clock, so that start times and caps match the " +
                     "horns (as well as possible).",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

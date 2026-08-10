@@ -626,8 +626,8 @@ class TestPullViolations : GameDomainTestFixtures() {
         // The first offsides message sends play to the brick mark.
         assertEquals(
             "This is Viscous Coupling's first pull violation.\n\n" +
-                "Animal starts at the brick mark.\n\n" +
-                "The disc is live -- no defensive check is required.",
+            "Animal starts at the brick mark.\n\n" +
+            "The disc is live -- no defensive check is required.",
             pullViolationResult.message(),
         )
         assertEquals("Offsides", pullViolationResult.event!!.formatPopupTitle())
@@ -655,8 +655,8 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertEquals(1, state.teamTwo.offsides)
         assertEquals(
             "This is Animal's first pull violation.\n\n" +
-                "Viscous Coupling starts at the brick mark.\n\n" +
-                "The disc is live -- no defensive check is required.",
+            "Viscous Coupling starts at the brick mark.\n\n" +
+            "The disc is live -- no defensive check is required.",
             pullViolationResult.message(),
         )
 
@@ -689,7 +689,7 @@ class TestPullViolations : GameDomainTestFixtures() {
         // For a false start, the defense gets to set up.
         assertEquals(
             "This is Animal's first pull violation.\n\n" +
-                "Viscous Coupling gets to set up on defense. Defensive check is required.",
+            "Viscous Coupling gets to set up on defense. Defensive check is required.",
             pullViolationResult.message(),
         )
         assertEquals(
@@ -700,7 +700,7 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertEquals("False start", pullViolationResult.event!!.formatPopupTitle())
         assertEquals(
             "This is Viscous Coupling's first pull violation.\n\n" +
-                "Animal starts at the brick mark.",
+            "Animal starts at the brick mark.",
             state.assessPullViolation(VC).message(),
         )
 
@@ -733,13 +733,13 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertTrue(state.pullSequenceFalseStartRecorded)
         assertEquals(
             "This is Viscous Coupling's first pull violation.\n\n" +
-                "Animal starts at the brick mark.\n\n" +
-                "The disc is live -- no defensive check is required.",
+            "Animal starts at the brick mark.\n\n" +
+            "The disc is live -- no defensive check is required.",
             offsidesResult.message(),
         )
         assertEquals(
             "This is Animal's first pull violation.\n\n" +
-                "Viscous Coupling gets to set up on defense. Defensive check is required.",
+            "Viscous Coupling gets to set up on defense. Defensive check is required.",
             falseStartResult.message(),
         )
 
@@ -762,8 +762,8 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertEquals(2, state.teamOne.offsides)
         assertEquals(
             "This is Viscous Coupling's second pull violation.\n\n" +
-                "Animal starts at midfield.\n\n" +
-                "The disc is live -- no defensive check is required.",
+            "Animal starts at midfield.\n\n" +
+            "The disc is live -- no defensive check is required.",
             pullViolationResult.message(),
         )
         assertEquals(
@@ -788,8 +788,8 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertEquals(1, state.teamOne.falseStarts)
         assertEquals(
             "This is Viscous Coupling's second pull violation.\n\n" +
-                "Animal starts at midfield.\n\n" +
-                "The disc is live -- no defensive check is required.",
+            "Animal starts at midfield.\n\n" +
+            "The disc is live -- no defensive check is required.",
             pullViolationResult.message(),
         )
 
@@ -804,7 +804,7 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertEquals(2, state.teamOne.falseStarts)
         assertEquals(
             "This is Viscous Coupling's second pull violation.\n\n" +
-                "Animal gets to set up on defense. Defensive check is required.",
+            "Animal gets to set up on defense. Defensive check is required.",
             pullViolationResult.message(),
         )
     }
@@ -941,8 +941,8 @@ class TestPullViolations : GameDomainTestFixtures() {
         )
         assertEquals(
             "This is Animal's first time violation.\n\n" +
-                "The first time violation is a warning. Animal now has 20 seconds to " +
-                "signal readiness.",
+            "The first time violation is a warning. Animal now has 20 seconds to " +
+            "signal readiness.",
             timeViolationResult.message(),
         )
         assertEquals(
@@ -1081,8 +1081,8 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertEquals(30, timeViolationState.countdown?.durationSeconds)
         assertEquals(
             "This is Viscous Coupling's first time violation.\n\n" +
-                "The first time violation is a warning. Viscous Coupling now has " +
-                "30 seconds to pull.",
+            "The first time violation is a warning. Viscous Coupling now has " +
+            "30 seconds to pull.",
             timeViolationResult.message(),
         )
         assertEquals(
@@ -1156,9 +1156,9 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertEquals(secondViolationMoment + 70_000L, timeViolationState.countdown?.targetEpoch)
         assertEquals(
             "This is Animal's second time violation.\n\n" +
-                "Animal is required to use one of their 2 remaining timeouts available for " +
-                "this half. " +
-                "Reset pull timing to the usual timeout duration.",
+            "Animal is required to use one of their 2 remaining timeouts available for " +
+            "this half. " +
+            "Reset pull timing to the usual timeout duration.",
             timeViolationResult.message(),
         )
         assertEquals(
@@ -1245,8 +1245,8 @@ class TestPullViolations : GameDomainTestFixtures() {
         timeViolationResult = state.assessTimeViolation(VC, state.countdown!!.targetEpoch)
         assertEquals(
             "This is Viscous Coupling's second time violation.\n\n" +
-                "Viscous Coupling is required to use their last remaining timeout for this half. " +
-                "Reset pull timing to the usual timeout duration.",
+            "Viscous Coupling is required to use their last remaining timeout for this half. " +
+            "Reset pull timing to the usual timeout duration.",
             timeViolationResult.message(),
         )
     }
@@ -1292,9 +1292,9 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertEquals(timeViolationState, timeViolationState.recordOffsides())
         assertEquals(
             "This is Animal's second time violation.\n\n" +
-                "Animal has no time outs remaining for this half, so a yardage penalty is " +
-                "assessed. " +
-                "No pull. Animal starts at midpoint of their defending end zone.",
+            "Animal has no time outs remaining for this half, so a yardage penalty is " +
+            "assessed. " +
+            "No pull. Animal starts at midpoint of their defending end zone.",
             timeViolationResult.message(),
         )
         assertEquals(
@@ -1318,9 +1318,9 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertTrue(timeViolationState.pullSkippedForCurrentPoint)
         assertEquals(
             "This is Viscous Coupling's second time violation.\n\n" +
-                "Viscous Coupling has no time outs remaining for this half, so a yardage " +
-                "penalty is assessed. " +
-                "No pull. Animal starts at midfield.",
+            "Viscous Coupling has no time outs remaining for this half, so a yardage " +
+            "penalty is assessed. " +
+            "No pull. Animal starts at midfield.",
             timeViolationResult.message(),
         )
         assertEquals(

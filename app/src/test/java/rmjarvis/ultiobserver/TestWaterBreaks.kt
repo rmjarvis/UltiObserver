@@ -286,7 +286,7 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         assertTrue(softCapOffer.pendingWaterBreakOffer)
         assertEquals(
             "Soft cap triggers the third-quarter water break.\n" +
-                "Take a 3-minute water break now.",
+            "Take a 3-minute water break now.",
             softCapOffer.waterBreakPromptMessage().plainText,
         )
 
@@ -309,7 +309,7 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         )
         assertEquals(
             "Soft cap triggers the first-quarter water break.\n" +
-                "Take a 3-minute water break now.",
+            "Take a 3-minute water break now.",
             firstHalfSoftCapOffer.waterBreakPromptMessage().plainText,
         )
 
@@ -341,7 +341,7 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         assertTrue(bothCapsOffer.pendingWaterBreakOffer)
         assertEquals(
             "Soft cap triggers the third-quarter water break.\n" +
-                "Take a 3-minute water break now.",
+            "Take a 3-minute water break now.",
             bothCapsOffer.waterBreakPromptMessage().plainText,
         )
 
@@ -685,7 +685,7 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         )
         assertEquals(
             "One 6-minute water break per half. Add 60 seconds between points. " +
-                "Adjust soft/hard caps.",
+            "Adjust soft/hard caps.",
             levelTwo.heatLevelSelectionDescription(HeatLevel.LEVEL_2),
         )
 
@@ -727,12 +727,12 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         // the default water break time.
         assertEquals(
             "One 4-minute water break per half. Add 60 seconds between points. " +
-                "Adjust soft/hard caps.",
+            "Adjust soft/hard caps.",
             levelZero.heatLevelSelectionDescription(HeatLevel.LEVEL_2),
         )
         assertEquals(
             "One 4-minute water break per half. Add 60 seconds between points. " +
-                "Adjust soft/hard caps.",
+            "Adjust soft/hard caps.",
             levelOne.heatLevelSelectionDescription(HeatLevel.LEVEL_2),
         )
 
@@ -759,7 +759,7 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         // AQI level 2 uses the same description as heat.
         assertEquals(
             "One 4-minute water break per half. Add 60 seconds between points. " +
-                "Adjust soft/hard caps.",
+            "Adjust soft/hard caps.",
             aqiLevelOne.heatLevelSelectionDescription(HeatLevel.LEVEL_2),
         )
 
@@ -770,7 +770,7 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         )
         assertEquals(
             "One 4-minute water break per half. Add 60 seconds between points. " +
-                "Adjust soft cap.",
+            "Adjust soft cap.",
             onlySoftAffected.heatLevelSelectionDescription(HeatLevel.LEVEL_2),
         )
 
@@ -781,7 +781,7 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         )
         assertEquals(
             "One 4-minute water break per half. Add 60 seconds between points. " +
-                "Adjust hard cap.",
+            "Adjust hard cap.",
             onlyHardAffected.heatLevelSelectionDescription(HeatLevel.LEVEL_2),
         )
 
@@ -803,7 +803,7 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         )
         assertEquals(
             "One 4-minute water break per half. Add 60 seconds between points. " +
-                "Adjust soft/hard caps.",
+            "Adjust soft/hard caps.",
             capsDisabled.heatLevelSelectionDescription(HeatLevel.LEVEL_2),
         )
     }
@@ -985,7 +985,7 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         assertTrue(changedDuringPoint.pendingWaterBreakOffer)
         assertEquals(
             "Heat level 1 is now in effect, and no water break has been taken this half.\n" +
-                "Take a 3-minute water break now.",
+            "Take a 3-minute water break now.",
             changedDuringPoint.waterBreakPromptMessage().plainText,
         )
         val afterPoint = changedDuringPoint.recordGoal(TeamId.TEAM_ONE, now + 4_600L)

@@ -139,7 +139,8 @@ class TestPersistence : MainActivityUiTestFixtures() {
 
         // The notice names the repaired buckets while leaving Home visible behind the dialog.
         composeRule.onNodeWithText("Phone data reset").assertIsDisplayed()
-        val recoveryMessage = "Sorry, some phone data was corrupt, so UltiObserver had to " +
+        val recoveryMessage =
+            "Sorry, some phone data was corrupt, so UltiObserver had to " +
             "revert to default values for Profile and Settings."
         composeRule.onNodeWithText(recoveryMessage).assertIsDisplayed()
         composeRule.onNodeWithText("Start new game").assertIsDisplayed()
@@ -178,7 +179,8 @@ class TestPersistence : MainActivityUiTestFixtures() {
 
         // The crash notice explains that the app noticed the previous crash and reported it.
         composeRule.onNodeWithText("Sorry, UltiObserver crashed").assertIsDisplayed()
-        val crashMessage = "UltiObserver closed unexpectedly last time it ran. A crash report " +
+        val crashMessage =
+            "UltiObserver closed unexpectedly last time it ran. A crash report " +
             "was sent to the developers automatically so we can fix the problem."
         composeRule.onNodeWithText(crashMessage).assertIsDisplayed()
         composeRule.onNodeWithText("Start new game").assertIsDisplayed()

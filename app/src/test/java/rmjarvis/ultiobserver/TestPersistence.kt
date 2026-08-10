@@ -598,7 +598,7 @@ class TestPersistence : GameDomainTestFixtures() {
         assertEquals(timingPreferences, recoveredViewModel.settings.timingAlerts)
         assertEquals(
             "Sorry, some phone data was corrupt, so UltiObserver had to revert to default " +
-                "values for Current game.",
+            "values for Current game.",
             recoveredViewModel.startupRecoveryNotice!!.message,
         )
         recoveredViewModel.dismissStartupRecoveryNotice()
@@ -652,7 +652,7 @@ class TestPersistence : GameDomainTestFixtures() {
         assertEquals(listOf(archivedTwo), archiveViewModel.archivedGames)
         assertEquals(
             "Sorry, some phone data was corrupt, so UltiObserver had to revert to default " +
-                "values for Archived games.",
+            "values for Archived games.",
             archiveViewModel.startupRecoveryNotice!!.message,
         )
 
@@ -800,7 +800,7 @@ class TestPersistence : GameDomainTestFixtures() {
         assertEquals("Phone data reset", viewModel.startupRecoveryNotice!!.title)
         assertEquals(
             "Sorry, some phone data was corrupt, so UltiObserver had to revert to default " +
-                "values for Current game, Profile, and Settings.",
+            "values for Current game, Profile, and Settings.",
             viewModel.startupRecoveryNotice!!.message,
         )
 
@@ -810,7 +810,7 @@ class TestPersistence : GameDomainTestFixtures() {
         )
         assertEquals(
             "Sorry, some phone data was corrupt, so UltiObserver had to revert to default " +
-                "values for Profile and Settings.",
+            "values for Profile and Settings.",
             twoAreaNotice.message,
         )
         assertThrows(IllegalArgumentException::class.java) {

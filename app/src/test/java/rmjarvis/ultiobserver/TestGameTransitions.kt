@@ -131,7 +131,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
                 .plainText
                 .contains(
                     "Viscous Coupling moves the disc to the reverse brick in the end zone " +
-                        "they are defending."
+                    "they are defending."
                 ),
         )
         assertTrue(
@@ -139,7 +139,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
                 .plainText
                 .contains(
                     "Offense has 30 seconds to set. Then defense has 20 seconds to check " +
-                        "the disc in."
+                    "the disc in."
                 ),
         )
 
@@ -173,8 +173,8 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertNull(state.countdown)
         assertEquals(
             "This is Viscous Coupling's first pull violation.\n\n" +
-                "Animal starts at the brick mark.\n\n" +
-                "The disc is live -- no defensive check is required.",
+            "Animal starts at the brick mark.\n\n" +
+            "The disc is live -- no defensive check is required.",
             pullViolationResult.message(),
         )
         assertEquals("Undo Offsides on Viscous Coupling", state.undoEntry?.label)
@@ -559,7 +559,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertTrue(
             misconductMessage.contains(
                 "Animal may move the disc to the brick mark nearest the end zone they are " +
-                    "attacking."
+                "attacking."
             )
         )
         val misconductState = misconductResult.state.withPendingMisconductCountdown()

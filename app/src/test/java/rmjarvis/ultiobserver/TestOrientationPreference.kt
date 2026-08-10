@@ -23,8 +23,8 @@ class TestOrientationPreference {
         assertEquals("Auto-rotate", OrientationPreference.AUTO_ROTATE.label)
         assertEquals(
             "Follow the phone's orientation if Android's auto-rotate is enabled. " +
-                "Otherwise, it will use the current phone orientation when the active " +
-                "game screen opens each time.",
+            "Otherwise, it will use the current phone orientation when the active " +
+            "game screen opens each time.",
             OrientationPreference.AUTO_ROTATE.description,
         )
     }

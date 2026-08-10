@@ -477,7 +477,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
         waitForText(
             "Heat level 1 is now in effect, and no water break has been taken this half.\n" +
-                "Take a 3-minute water break now."
+            "Take a 3-minute water break now."
         )
         dismissDialog(text = "Not yet", waitForText = "Undo Goal by Team 1")
     }

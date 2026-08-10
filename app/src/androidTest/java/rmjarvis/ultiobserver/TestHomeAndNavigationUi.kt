@@ -978,8 +978,8 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("settings-active-game-orientation-AUTO_ROTATE").assertIsSelected()
         composeRule.onNodeWithTag("settings-active-game-orientation-description").assertTextEquals(
             "Follow the phone's orientation if Android's auto-rotate is enabled. Otherwise, " +
-                "it will use the current phone orientation when the active game screen opens " +
-                "each time."
+            "it will use the current phone orientation when the active game screen opens " +
+            "each time."
         )
         composeRule.onNodeWithTag("settings-active-game-orientation-PORTRAIT")
             .performScrollTo()
@@ -1016,7 +1016,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         waitForText("Automatically start live play?")
         waitForText(
             "When a pull or timeout countdown expires, UltiObserver will automatically start " +
-                "or resume live play."
+            "or resume live play."
         )
         composeRule.onNodeWithTag("settings-auto-advance-countdowns-value").assertTextEquals("Yes")
         composeRule.onNodeWithTag("settings-auto-lock-live-point-value").assertTextEquals("Yes")
@@ -1025,7 +1025,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("settings-auto-advance-countdowns-value").assertTextEquals("No")
         waitForText(
             "When a countdown expires, UltiObserver will wait for you to tap Start point or " +
-                "Continue point."
+            "Continue point."
         )
         composeRule.onNodeWithTag("settings-auto-lock-live-point")
             .performScrollTo()
@@ -1033,7 +1033,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("settings-auto-lock-live-point-value").assertTextEquals("No")
         waitForText(
             "The screen will remain unlocked when play becomes live. You can still lock it " +
-                "manually by clicking the lock icon in the central region of the screen."
+            "manually by clicking the lock icon in the central region of the screen."
         )
         composeRule.onNodeWithTag("settings-auto-advance-countdowns")
             .performScrollTo()
@@ -1047,15 +1047,15 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             .assertTextEquals("No")
         waitForText(
             "UltiObserver will not display the defense countdown for timeouts or misconduct " +
-                "penalties. You should count the time for the defensive check yourself with arm " +
-                "chops."
+            "penalties. You should count the time for the defensive check yourself with arm " +
+            "chops."
         )
         composeRule.onNodeWithTag("settings-show-defense-countdowns").performClick()
         composeRule.onNodeWithTag("settings-show-defense-countdowns-value")
             .assertTextEquals("Yes")
         waitForText(
             "After you mark the offense set during a timeout or misconduct penalty, " +
-                "UltiObserver will display the 20-second defense countdown."
+            "UltiObserver will display the 20-second defense countdown."
         )
 
         // When defense countdowns are enabled, their cue section is shown without the disabled
@@ -1096,8 +1096,8 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             }
         waitForText(
             "Countdowns after a goal or in-point timeout will automatically begin with 1 " +
-                "second already elapsed to account for the time it takes to open your phone " +
-                "and press the button."
+            "second already elapsed to account for the time it takes to open your phone " +
+            "and press the button."
         )
         composeRule.onNodeWithTag("settings-new-countdown-advance-seconds")
             .performSemanticsAction(SemanticsActions.SetProgress) { setProgress ->
@@ -1105,8 +1105,8 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             }
         waitForText(
             "Countdowns after a goal or in-point timeout will automatically begin with 10 " +
-                "seconds already elapsed to account for the time it takes to open your phone " +
-                "and press the button."
+            "seconds already elapsed to account for the time it takes to open your phone " +
+            "and press the button."
         )
         composeRule.onNodeWithTag("settings-new-countdown-advance-seconds")
             .performSemanticsAction(SemanticsActions.SetProgress) { setProgress ->

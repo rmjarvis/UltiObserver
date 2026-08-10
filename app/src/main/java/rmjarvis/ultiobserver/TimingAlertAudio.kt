@@ -131,7 +131,7 @@ internal data class TimingAlertSoundClip(val sound: TimingAlertSound, val repeat
     init {
         require(repeatCount in MIN_TIMING_ALERT_REPEAT_COUNT..MAX_TIMING_ALERT_REPEAT_COUNT) {
             "Timing alert repeat count must be between $MIN_TIMING_ALERT_REPEAT_COUNT and " +
-                "$MAX_TIMING_ALERT_REPEAT_COUNT."
+            "$MAX_TIMING_ALERT_REPEAT_COUNT."
         }
     }
 }

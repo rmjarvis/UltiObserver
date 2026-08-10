@@ -398,7 +398,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         waitForText("Same number, different names")
         waitForText(
             "#6 Alex Cutter is already listed. Record #6 Bob Cutter as a different player " +
-                "with the same number?"
+            "with the same number?"
         )
         dismissDialog(tag = "same-number-warning-cancel", waitForText = "Yellow card")
 

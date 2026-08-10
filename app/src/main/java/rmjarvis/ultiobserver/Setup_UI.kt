@@ -552,11 +552,12 @@ internal fun SetupScreen(
                             title = target.dialogTitle,
                             fieldLabel = target.fieldLabel,
                             initialValue = rulesDraft.nominalTimeBetweenPointsSeconds,
-                            note = "This is the time until offense must signal readiness. " +
+                            note =
+                                "This is the time until offense must signal readiness. " +
                                 "Defense has up to 20 seconds after this time to pull.",
                             effectNote = if (rulesDraft.heatLevel == HeatLevel.LEVEL_2) {
                                 "${rulesDraft.heatLevelLabel()} 2 adds an additional " +
-                                    "60 seconds."
+                                "60 seconds."
                             } else {
                                 null
                             },
@@ -575,7 +576,8 @@ internal fun SetupScreen(
                             title = target.dialogTitle,
                             fieldLabel = target.fieldLabel,
                             initialValue = rulesDraft.timeoutSeconds,
-                            note = "This is the time until offense must be set. " +
+                            note =
+                                "This is the time until offense must be set. " +
                                 "Defense has up to 20 seconds after this time to check the disc in.",
                             onDismiss = { editingRule = null },
                             onConfirm = { newValue ->
@@ -854,7 +856,7 @@ internal fun SetupScreen(
             text = {
                 Text(
                     "This player is already listed as a card holder with " +
-                        "${notice.existingCardDetail}. Edit that entry if you want to update it."
+                    "${notice.existingCardDetail}. Edit that entry if you want to update it."
                 )
             },
             confirmButton = {
@@ -886,8 +888,8 @@ internal fun SetupScreen(
                 val existingText = confirmation.existingIdentities.joinToString(" and ")
                 Text(
                     "${confirmation.proposedIdentity} partially matches " +
-                        "$existingText. Add " +
-                        "${confirmation.proposedIdentity} as a different player?"
+                    "$existingText. Add " +
+                    "${confirmation.proposedIdentity} as a different player?"
                 )
             },
             confirmButton = {
@@ -1608,7 +1610,7 @@ private fun StartingPullSetupDialog(
             ) {
                 Text(
                     "Give whatever names you want for the two ends of the field. " +
-                        "E.g. Road, Parking Lot, Trees, etc. " +
+                    "E.g. Road, Parking Lot, Trees, etc. " +
                         if (preference == OrientationPreference.LANDSCAPE) {
                             "(default is Left end and Right end)."
                         } else {
@@ -2259,8 +2261,8 @@ private fun HeatLevelSetupDialog(
             ScrollableDialogRegion(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
                     "Select the current " +
-                        "${if (useAirQualityGuidelines) "AQI" else "heat"} level for automatic " +
-                        "water-break timing or Manual for manual water breaks."
+                    "${if (useAirQualityGuidelines) "AQI" else "heat"} level for automatic " +
+                    "water-break timing or Manual for manual water breaks."
                 )
                 HeatLevelChoiceRow(
                     selected = selectedHeatLevel,

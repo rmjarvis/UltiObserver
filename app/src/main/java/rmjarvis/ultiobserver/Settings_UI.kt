@@ -179,10 +179,10 @@ internal fun SettingsScreen(
                 label = "Automatically start live play?",
                 note = if (settings.automaticallyAdvanceCountdowns) {
                     "When a pull or timeout countdown expires, UltiObserver will automatically " +
-                        "start or resume live play."
+                    "start or resume live play."
                 } else {
                     "When a countdown expires, UltiObserver will wait for you to tap Start point " +
-                        "or Continue point."
+                    "or Continue point."
                 },
                 checked = settings.automaticallyAdvanceCountdowns,
                 onCheckedChange = {
@@ -197,7 +197,7 @@ internal fun SettingsScreen(
                     "The screen will automatically lock whenever play becomes live."
                 } else {
                     "The screen will remain unlocked when play becomes live. You can still lock " +
-                        "it manually by clicking the lock icon in the central region of the screen."
+                    "it manually by clicking the lock icon in the central region of the screen."
                 },
                 checked = settings.automaticallyLockLivePoint,
                 onCheckedChange = {
@@ -210,11 +210,11 @@ internal fun SettingsScreen(
                 label = "Show defense countdowns?",
                 note = if (settings.showDefenseCountdowns) {
                     "After you mark the offense set during a timeout or misconduct penalty, " +
-                        "UltiObserver will display the 20-second defense countdown."
+                    "UltiObserver will display the 20-second defense countdown."
                 } else {
                     "UltiObserver will not display the defense countdown for timeouts or " +
-                        "misconduct penalties. You should count the time for the defensive check " +
-                        "yourself with arm chops."
+                    "misconduct penalties. You should count the time for the defensive check " +
+                    "yourself with arm chops."
                 },
                 checked = settings.showDefenseCountdowns,
                 onCheckedChange = {
@@ -637,7 +637,8 @@ internal fun TimingCueSettingsScreen(
                 )
                 if (section.isDefenseCheckCountdownSection() && !settings.showDefenseCountdowns) {
                     Text(
-                        text = "Note — defensive check countdowns are not currently enabled. " +
+                        text =
+                            "Note — defensive check countdowns are not currently enabled. " +
                             "If you want these cues, enable defensive check countdowns " +
                             "on the previous page.",
                         style = MaterialTheme.typography.bodySmall,
@@ -878,8 +879,8 @@ private fun WatchNotificationModeSelector(
                 "Timing cues will be sent to a paired watch, but no alerts will be triggered."
             WatchNotificationMode.ALERTING ->
                 "Timing cues will be sent to a paired watch. Cues whose individual setting " +
-                    "is not Off will also trigger an alert, causing a vibration if enabled " +
-                    "on the watch."
+                "is not Off will also trigger an alert, causing a vibration if enabled " +
+                "on the watch."
         }
         Text(
             text = buildAnnotatedString {
@@ -891,8 +892,8 @@ private fun WatchNotificationModeSelector(
                     }
                     append(
                         " Watch notifications require a paired watch and notification sharing " +
-                            "enabled in its companion app. UltiObserver cannot verify the " +
-                            "connection."
+                        "enabled in its companion app. UltiObserver cannot verify the " +
+                        "connection."
                     )
                 }
                 if (!notificationsEnabled) {
@@ -902,8 +903,8 @@ private fun WatchNotificationModeSelector(
                     }
                     append(
                         ": phone notifications must be enabled for watch notifications to work. " +
-                            "Selecting either Silent or Alerting will open the Android settings " +
-                            "page where you can enable notifications."
+                        "Selecting either Silent or Alerting will open the Android settings " +
+                        "page where you can enable notifications."
                     )
                 }
             },
@@ -972,8 +973,10 @@ private fun TimingAlertPreferences.soundPreviewNote(hasTimingCueHaptics: Boolean
     } else {
         ""
     }
-    return "Note — sounds are currently not enabled.$vibrateInsteadSentence " +
+    return (
+        "Note — sounds are currently not enabled.$vibrateInsteadSentence " +
         "If you want sounds, enable them on the previous page."
+    )
 }
 
 /**
@@ -1071,7 +1074,8 @@ private fun CompactTimingAlertOption(
 /// Return the settings-page messages for a global timing-alert mode and haptic capability.
 private fun TimingAlertGlobalMode.settingsMessages(hasTimingCueHaptics: Boolean): List<String> {
     if (!hasTimingCueHaptics) {
-        val noHapticsMessage = "This phone reports that vibration is unavailable. " +
+        val noHapticsMessage =
+            "This phone reports that vibration is unavailable. " +
             "Check Android Settings > Sound & vibration > Vibration & haptics, then return to UltiObserver."
         return when (this) {
             TimingAlertGlobalMode.OFF -> listOf("No sound or vibration will be used for any timing cues.")

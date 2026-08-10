@@ -342,7 +342,7 @@ class TestTimeouts : GameDomainTestFixtures() {
         val noTimeoutsResult = timeoutCountdownState.assessTimeout(VC, 1_010_000L)
         assertEquals(
             "Viscous Coupling is out of timeouts.\n\n" +
-                "Add three to the stall count. It is a turnover if that is 10 or more.",
+            "Add three to the stall count. It is a turnover if that is 10 or more.",
             noTimeoutsResult.message(),
         )
         assertEquals("Invalid timeout", noTimeoutsResult.event?.formatPopupTitle())

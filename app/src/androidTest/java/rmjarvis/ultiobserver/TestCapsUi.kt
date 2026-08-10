@@ -151,7 +151,7 @@ class TestCapsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("OK").performClick()
         waitForText(
             "Soft cap triggers the first-quarter water break.\n" +
-                "Take a 3-minute water break now."
+            "Take a 3-minute water break now."
         )
         composeRule.onNodeWithText("OK").performClick()
         waitForText("Undo Water break")
@@ -171,7 +171,7 @@ class TestCapsUi : MainActivityUiTestFixtures() {
         clickMoreActionsItem("Apply soft cap now")
         waitForText(
             "Soft cap triggers the first-quarter water break.\n" +
-                "Take a 3-minute water break now."
+            "Take a 3-minute water break now."
         )
         composeRule.onNodeWithText("Not yet").performClick()
         waitForText("Undo Apply soft cap now")

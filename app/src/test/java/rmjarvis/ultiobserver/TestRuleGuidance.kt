@@ -56,7 +56,7 @@ class TestRuleGuidance : GameDomainTestFixtures() {
         )
         assertEquals(
             "Show a short, but fairly complete, summary of the restart location, timings, and " +
-                "other relevant rules and wait for confirmation.",
+            "other relevant rules and wait for confirmation.",
             RuleGuidanceMode.FULL.description,
         )
         assertEquals(
@@ -240,7 +240,8 @@ class TestRuleGuidance : GameDomainTestFixtures() {
             GamePrompt.LivePointMisconduct(event).formatMessage().plainText,
             event.misconductConfirmationMessage(RuleGuidanceMode.FULL).plainText,
         )
-        val briefReminder = "If offense: reverse brick\n" +
+        val briefReminder =
+            "If offense: reverse brick\n" +
             "If defense: attacking brick or middle\n" +
             "Offense has 30 seconds to set."
         assertEquals(
