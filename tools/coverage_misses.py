@@ -1150,8 +1150,9 @@ def launched_effect_scaffold_reason(
     coverage is on the effect body lines.  The Kotlin/Compose generated scaffolding
     around a `LaunchedEffect` opener usually has one `(mi=4, mb=3)` dirty-state guard.
     An immediately preceding coverage marker may document multiple Composable parameter
-    roots, requiring that profile multiplied by the stated count.  Sometimes the guard
-    instructions are covered while only two generated branches remain missed.
+    roots. Each generated guard has either that fully missed profile or a `(mi=0, mb=2)`
+    profile when its instructions are covered but its generated branches remain missed.
+    Multiple guards can independently have either profile in one aggregate report.
 
     This recognizer is intentionally narrower than "anything named LaunchedEffect":
     it only accepts the line that opens the lambda body, verifies that line belongs to
@@ -1165,19 +1166,18 @@ def launched_effect_scaffold_reason(
     if not line_opens_launched_effect_body(source_lines, line_index):
         return None
     generated_guard_count = launched_effect_generated_guard_count(source_lines, line_index)
-    generated_guard_profile = (
-        4 * generated_guard_count,
-        3 * generated_guard_count,
-    )
     observed_profile = (
         counters.missed_instructions,
         counters.missed_branches,
     )
-    if observed_profile not in {
-        generated_guard_profile,
-        # Same generated scaffolding when guard instructions are covered but branches remain.
-        (0, 2 * generated_guard_count),
-    }:
+    generated_guard_profiles = {
+        (
+            4 * missed_guard_count,
+            3 * missed_guard_count + 2 * (generated_guard_count - missed_guard_count),
+        )
+        for missed_guard_count in range(generated_guard_count + 1)
+    }
+    if observed_profile not in generated_guard_profiles:
         return None
     if counters.covered_instructions == 0 or counters.covered_branches == 0:
         return None

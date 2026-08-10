@@ -763,9 +763,11 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("setup-tournament-name")
             .performTextReplacement("Dismissed Tournament")
         composeRule.onNodeWithTag("setup-tournament-name").performImeAction()
-        dismissDialog(text = "Done")
+        dismissDialog(
+            text = "Done",
+            waitForText = "Dismissed Tournament",
+        )
         composeRule.onAllNodesWithTag("setup-tournament-name").assertCountEquals(0)
-        waitForText("Dismissed Tournament")
     }
 
     /**

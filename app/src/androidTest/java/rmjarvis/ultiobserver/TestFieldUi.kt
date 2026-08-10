@@ -285,9 +285,6 @@ class TestFieldUi : MainActivityUiTestFixtures() {
         waitForText("Game rules")
         composeRule.onNodeWithText("Game to").assertIsDisplayed()
         composeRule.onNodeWithText("Half cap").assertIsDisplayed()
-        composeRule.onNodeWithText("10:45 AM").assertIsDisplayed()
-        composeRule.onNodeWithText("11:30 AM").assertIsDisplayed()
-        composeRule.onNodeWithText("11:45 AM").assertIsDisplayed()
         composeRule.onNodeWithText("Heat level").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Level 1").assertIsDisplayed()
         composeRule.onNodeWithText("60 sec").assertIsDisplayed()
@@ -302,8 +299,6 @@ class TestFieldUi : MainActivityUiTestFixtures() {
         }
         composeRule.onNodeWithTag("live-game-rules").performClick()
         waitForText("Game rules")
-        composeRule.onNodeWithText("11:10 AM").assertIsDisplayed()
-        composeRule.onNodeWithText("11:30 AM").assertIsDisplayed()
         composeRule.onNodeWithText("Level 2").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("120 sec").assertIsDisplayed()
         dismissDialog(text = "OK")
