@@ -872,7 +872,7 @@ class TestTimingAlerts {
                 serviceNotification = notificationManager.activeNotifications
                     .firstOrNull { notification ->
                         notification.notification.extras.getString(Notification.EXTRA_TITLE) ==
-                            "UltiObserver timing alerts"
+                            "UltiObserver timing alert service"
                     }
                 if (serviceNotification == null) {
                     Thread.sleep(20L)

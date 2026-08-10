@@ -19,6 +19,7 @@ import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -76,6 +77,9 @@ class MainActivity : ComponentActivity() {
      */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        appViewModel.reconcileWatchNotificationAvailability(
+            NotificationManagerCompat.from(this).areNotificationsEnabled()
+        )
         val previousRunCrashed = FirebaseCrashlytics.getInstance().didCrashOnPreviousExecution()
         enableEdgeToEdge()
         systemAutoRotateEnabled = readSystemAutoRotateSetting()

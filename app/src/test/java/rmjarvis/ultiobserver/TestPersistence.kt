@@ -160,6 +160,25 @@ class TestPersistence : GameDomainTestFixtures() {
             WatchNotificationMode.ALERTING,
             restored.settings.timingAlerts.watchNotificationMode,
         )
+
+        // Startup reconciliation preserves an enabled watch mode while Android notifications are
+        // available, but turns it Off and persists that correction when they are unavailable.
+        restored.reconcileWatchNotificationAvailability(notificationsEnabled = true)
+        assertEquals(
+            WatchNotificationMode.ALERTING,
+            restored.settings.timingAlerts.watchNotificationMode,
+        )
+        restored.reconcileWatchNotificationAvailability(notificationsEnabled = false)
+        assertEquals(
+            WatchNotificationMode.OFF,
+            restored.settings.timingAlerts.watchNotificationMode,
+        )
+        restored.reconcileWatchNotificationAvailability(notificationsEnabled = false)
+        assertEquals(
+            WatchNotificationMode.OFF,
+            AppViewModel(FileAppStateStorage(storeDir))
+                .settings.timingAlerts.watchNotificationMode,
+        )
         assertEquals(
             TimingAlertMode.DING,
             restored.settings.timingAlerts.cueModes[TimingCueId.PULLING_TIME_VIOLATION],

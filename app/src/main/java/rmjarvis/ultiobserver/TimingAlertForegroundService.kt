@@ -52,9 +52,10 @@ import kotlinx.serialization.encodeToString
  * Android requires every foreground service to show a notification object. On Android 13+ the user
  * may still hide that notification from the drawer by denying notification permission, but the
  * service must provide the notification when calling startForeground. UltiObserver does not prompt
- * for notification permission, so users may never see this notification on phones where
- * notifications default to off. If the user enables notifications manually, Android shows it as a
- * silent "Timing alerts are active." status notification.
+ * for notification permission just for this (it will if watch notifications are enabled thought),
+ * so users may never see this notification on phones where notifications default to off.
+ * If the user enables notifications, Android shows it as a silent "Timing alerts are active."
+ * status notification.
  *
  * The service is allowed to live across normal app backgrounding so one game can keep using the
  * same alert runtime. A watchdog stops it after 3 hours without a fresh update or cap alarm,
@@ -265,7 +266,7 @@ class TimingAlertForegroundService : Service() {
         )
         return NotificationCompat.Builder(this, TIMING_ALERT_SERVICE_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_watch_notification)
-            .setContentTitle("UltiObserver timing alerts")
+            .setContentTitle("UltiObserver timing alert service")
             .setContentText("Timing alerts are active.")
             .setContentIntent(openAppIntent)
             .setLocalOnly(true)

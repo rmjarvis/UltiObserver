@@ -6,7 +6,7 @@ import android.app.Activity
 import android.app.Instrumentation
 import android.content.pm.PackageManager
 import android.content.Intent
-import android.view.accessibility.AccessibilityNodeInfo
+import android.provider.Settings
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -31,6 +31,12 @@ import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.espresso.intent.Intents.init
+import androidx.test.espresso.intent.Intents.intended
+import androidx.test.espresso.intent.Intents.intending
+import androidx.test.espresso.intent.Intents.release
+import androidx.test.espresso.intent.matcher.IntentMatchers.hasAction
+import androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.core.content.ContextCompat
 import java.time.LocalDate
@@ -38,8 +44,10 @@ import java.time.LocalTime
 import kotlin.math.abs
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.hamcrest.Matchers.allOf
 
 /// Tests for Home, top-level navigation, profile, settings, and archived-game UI pathways.
 @RunWith(AndroidJUnit4::class)
@@ -1181,6 +1189,38 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
     }
 
     /**
+     * Verify Activity startup reconciles a saved watch mode with Android notification permission.
+     */
+    @Test
+    fun unavailableWatchNotificationsTurnOffAtStartup() {
+        assumeTrue(Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+        assertEquals(
+            PackageManager.PERMISSION_DENIED,
+            ContextCompat.checkSelfPermission(
+                composeRule.activity,
+                Manifest.permission.POST_NOTIFICATIONS,
+            ),
+        )
+
+        // Install the inconsistent persisted state that Android can leave when notification
+        // permission is revoked, then recreate the Activity to exercise its startup check.
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appViewModel.updateSettings(
+                activity.appViewModel.settings.withTimingAlerts(
+                    activity.appViewModel.settings.timingAlerts.withWatchNotificationMode(
+                        WatchNotificationMode.ALERTING
+                    )
+                )
+            )
+        }
+        composeRule.activityRule.scenario.recreate()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.activity.appViewModel.settings.timingAlerts.watchNotificationMode ==
+                WatchNotificationMode.OFF
+        }
+    }
+
+    /**
      * Test the timing-cue preferences on the Settings page.
      */
     @Test
@@ -1249,21 +1289,46 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("settings-watch-notifications-OFF")
             .performScrollTo()
             .assertIsSelected()
-        waitForText("No notifications will be sent to a watch.")
+        waitForText("No notifications will be sent to a watch.", substring = true)
         composeRule.onAllNodesWithText("Warning:", substring = true).assertCountEquals(0)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            // Denying the runtime notification permission leaves watch notifications Off.
-            composeRule.onNodeWithTag("settings-watch-notifications-SILENT").performClick()
-            respondToNotificationPermission(allow = false)
+            waitForText(
+                "phone notifications must be enabled for watch notifications to work.",
+                substring = true,
+            )
+
+            // Without notification permission, choosing a watch mode opens Android's notification
+            // settings and leaves the UltiObserver mode Off.
+            val expectedNotificationSettingsIntent = allOf(
+                hasAction(Settings.ACTION_APP_NOTIFICATION_SETTINGS),
+                hasExtra(Settings.EXTRA_APP_PACKAGE, composeRule.activity.packageName),
+            )
+            init()
+            try {
+                intending(expectedNotificationSettingsIntent).respondWith(
+                    Instrumentation.ActivityResult(Activity.RESULT_CANCELED, null)
+                )
+                composeRule.onNodeWithTag("settings-watch-notifications-SILENT").performClick()
+                intended(expectedNotificationSettingsIntent)
+            } finally {
+                release()
+            }
             composeRule.onNodeWithTag("settings-watch-notifications-OFF").assertIsSelected()
 
-            // Granting a second request applies the watch mode that initiated the request.
+            // After notifications are enabled, choosing a watch mode applies it normally.
+            InstrumentationRegistry.getInstrumentation().uiAutomation.grantRuntimePermission(
+                composeRule.activity.packageName,
+                Manifest.permission.POST_NOTIFICATIONS,
+            )
             composeRule.onNodeWithTag("settings-watch-notifications-ALERTING").performClick()
-            respondToNotificationPermission(allow = true)
             composeRule.waitUntil(timeoutMillis = 5_000) {
                 composeRule.activity.appViewModel.settings.timingAlerts.watchNotificationMode ==
                     WatchNotificationMode.ALERTING
             }
+            composeRule.onAllNodesWithText(
+                "phone notifications must be enabled for watch notifications to work.",
+                substring = true,
+            ).assertCountEquals(0)
         }
         composeRule.onNodeWithTag("settings-watch-notifications-SILENT").performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) {
@@ -1662,27 +1727,4 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.waitForIdle()
     }
 
-    /// Respond to the Android 13+ notification permission dialog through its system UI button.
-    private fun respondToNotificationPermission(allow: Boolean) {
-        val buttonResourceName = if (allow) {
-            "permission_allow_button"
-        } else {
-            "permission_deny_button"
-        }
-        val uiAutomation = InstrumentationRegistry.getInstrumentation().uiAutomation
-        val deadlineMillis = System.currentTimeMillis() + 5_000L
-        var button: AccessibilityNodeInfo?
-        do {
-            button = uiAutomation.rootInActiveWindow
-                ?.findAccessibilityNodeInfosByViewId(
-                    "com.android.permissioncontroller:id/$buttonResourceName"
-                )
-                ?.firstOrNull()
-            if (button == null) {
-                Thread.sleep(50L)
-            }
-        } while (button == null && System.currentTimeMillis() < deadlineMillis)
-
-        assertTrue(button?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true)
-    }
 }

@@ -327,6 +327,27 @@ internal class AppViewModel(
         persistSettingsState()
     }
 
+    /**
+     * Turn off watch notifications when Android notifications are unavailable.
+     *
+     * This reconciles persisted app settings with Android's notification state when the Activity
+     * starts. An unchanged setting is not rewritten.
+     *
+     * @param notificationsEnabled Whether Android currently allows UltiObserver notifications.
+     */
+    fun reconcileWatchNotificationAvailability(notificationsEnabled: Boolean) {
+        if (
+            !notificationsEnabled &&
+            settings.timingAlerts.watchNotificationMode != WatchNotificationMode.OFF
+        ) {
+            updateSettings(
+                settings.withTimingAlerts(
+                    settings.timingAlerts.withWatchNotificationMode(WatchNotificationMode.OFF)
+                )
+            )
+        }
+    }
+
     /// Update the persisted official-clock offset and the current game's clock mapping.
     fun updateOfficialClockOffset(updatedOffsetMillis: Long) {
         if (updatedOffsetMillis == settings.officialClockOffsetMillis) {
