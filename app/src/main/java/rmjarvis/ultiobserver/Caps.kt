@@ -103,7 +103,7 @@ fun GameState.applyPendingCap(
     return applyCap(
         capType = pendingCap,
         now = now,
-        undoPrevious = this,
+        undoPrevious = this.copy(pendingCapOffer = null),
         undoLabel = "Undo Apply ${pendingCap.label.lowercase()}",
     )
 }

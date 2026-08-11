@@ -193,6 +193,9 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         state = scheduledOffer.applyWaterBreak(timestampAt(scheduledOffer, LocalTime.of(10, 8)))
         assertEquals(firstBreakCountdown.durationSeconds + 180, state.countdown?.durationSeconds)
 
+        // Undo restores the countdown without restoring the automatic break offer.
+        assertUndoRestores(scheduledOffer.copy(pendingWaterBreakOffer = false), state)
+
         // Manual mode never offers an automatic water break, even at a break score.
         val manualModeState = initialState.adjustScore(teamOneScore = 3, teamTwoScore = 0).copy(
             rules = initialState.rules.copy(heatLevel = HeatLevel.MANUAL),

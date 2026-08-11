@@ -14,6 +14,8 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.swipeRight
 import java.time.LocalTime
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -35,6 +37,14 @@ class TestCapsUi : MainActivityUiTestFixtures() {
         waitForText("Half cap")
         composeRule.onNodeWithText("OK").performClick()
         waitForText("Undo Apply half cap")
+        assertEquals(2, accessCurrentGameState().halftimeTargetScore)
+
+        // Undo undoes the cap application without immediately prompting for the cap again.
+        composeRule.onNodeWithText("Undo Apply half cap").performClick()
+        waitForText("Redo")
+        assertNull(accessCurrentGameState().pendingCapOffer)
+        composeRule.onAllNodesWithText("Not yet").assertCountEquals(0)
+        assertNull(accessCurrentGameState().halftimeTargetScore)
 
         // Half cap can also be deferred from its confirmation prompt.
         startLiveGameWithDueCap("Half cap", "Half cap")
@@ -49,6 +59,19 @@ class TestCapsUi : MainActivityUiTestFixtures() {
         waitForText("Soft cap")
         composeRule.onNodeWithText("OK").performClick()
         waitForText("Undo Apply soft cap")
+
+        // Starting the next point after undo does not reveal the old offer. A new goal then
+        // recalculates the still-relevant cap and offers it again.
+        composeRule.onNodeWithText("Undo Apply soft cap").performClick()
+        waitForText("Redo")
+        assertNull(accessCurrentGameState().pendingCapOffer)
+        composeRule.onNodeWithText("Start point").performClick()
+        waitForText("Slide right to unlock")
+        composeRule.onAllNodesWithText("Not yet").assertCountEquals(0)
+        unlockLiveScreen()
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
+        waitForText("Soft cap")
+        composeRule.onNodeWithText("Not yet").performClick()
 
         // Soft cap can also be deferred.
         startLiveGameWithDueCap("Soft cap", "Soft cap")

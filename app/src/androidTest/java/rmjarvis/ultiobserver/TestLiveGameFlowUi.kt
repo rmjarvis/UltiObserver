@@ -517,6 +517,18 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             accessCurrentGameState().countdown?.targetEpoch,
         )
 
+        // Undo goes back to a regular between points state without prompting for the break again.
+        composeRule.onNodeWithText("Undo Water break").performClick()
+        waitForText("Redo")
+        assertFalse(accessCurrentGameState().pendingWaterBreakOffer)
+        composeRule.onAllNodesWithText(
+            "First quarter score reached.\nTake a 3-minute water break now."
+        ).assertCountEquals(0)
+        assertEquals(
+            beforeAutomaticAccept.targetEpoch,
+            accessCurrentGameState().countdown?.targetEpoch,
+        )
+
         // Enabling automatic breaks after the scheduled quarter during a live point defers the
         // special offer until the point ends.
         val lateSetup = newSetupGameState(now = System.currentTimeMillis())

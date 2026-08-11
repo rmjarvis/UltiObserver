@@ -55,7 +55,7 @@ fun GameState.applyWaterBreak(now: Long): GameState {
             type = EventLogType.WATER_BREAK,
             delta = rules.waterBreakMinutes,
         )
-    ).withUndo(this, "Undo Water break")
+    ).withUndo(this.copy(pendingWaterBreakOffer = false), "Undo Water break")
 }
 
 /**

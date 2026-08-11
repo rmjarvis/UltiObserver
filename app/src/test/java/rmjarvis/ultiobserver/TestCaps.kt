@@ -367,7 +367,7 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(2, state.halftimeTargetScore)
         assertNull(state.pendingCapOffer)
         assertEquals("Undo Apply half cap", state.undoEntry?.label)
-        assertEquals(beforeHalfCap, state.undoEntry?.previous)
+        assertEquals(beforeHalfCap.copy(pendingCapOffer = null), state.undoEntry?.previous)
         assertEquals(EventLogType.HALF_CAP, state.eventLog.last().type)
         assertTrue(state.formatEventLogLines().last().endsWith("Half cap applied"))
 
@@ -514,7 +514,7 @@ class TestCaps : GameDomainTestFixtures() {
         assertTrue(state.formatEventLogLines().last().endsWith("Hard cap applied"))
         assertEquals("Undo Apply hard cap", state.undoEntry?.label)
         assertEquals(
-            beforeGameEndingHardCap,
+            beforeGameEndingHardCap.copy(pendingCapOffer = null),
             state.undoLastAction().copy(redoEntry = null),
         )
 
@@ -545,7 +545,7 @@ class TestCaps : GameDomainTestFixtures() {
         assertNull(undoneGameOver.pendingScoreTransition)
         assertEquals("Undo Apply hard cap", undoneGameOver.undoEntry?.label)
         assertEquals(
-            beforeGameEndingHardCap,
+            beforeGameEndingHardCap.copy(pendingCapOffer = null),
             undoneGameOver.undoLastAction().copy(redoEntry = null),
         )
         assertEquals("Undo End game", state.pruneUndoHistory().undoEntry?.label)

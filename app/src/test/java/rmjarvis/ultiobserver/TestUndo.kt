@@ -154,7 +154,7 @@ class TestUndo : GameDomainTestFixtures() {
     fun capAndManualStateUndo() {
         val VC = TeamId.TEAM_ONE
 
-        // Applying half cap is undo-backed.
+        // Applying half cap is undo-backed without restoring its automatic offer.
         var state = standardLiveGameState(
             startTime = LocalTime.of(10, 0),
             rules = GameRules(
@@ -167,7 +167,7 @@ class TestUndo : GameDomainTestFixtures() {
         state = state.recordGoalFromCurrentState(VC, timestampAfterStart(state, 11))
         val beforeApplyHalfCap = state
         state = applyPendingCapAt(state, LocalTime.of(10, 11))
-        assertUndoRestores(beforeApplyHalfCap, state)
+        assertUndoRestores(beforeApplyHalfCap.copy(pendingCapOffer = null), state)
 
         // Applying soft cap is undo-backed.
         state = standardLiveGameState(
@@ -182,7 +182,7 @@ class TestUndo : GameDomainTestFixtures() {
         state = state.recordGoalFromCurrentState(VC, timestampAfterStart(state, 11))
         val beforeApplySoftCap = state
         state = applyPendingCapAt(state, LocalTime.of(10, 11))
-        assertUndoRestores(beforeApplySoftCap, state)
+        assertUndoRestores(beforeApplySoftCap.copy(pendingCapOffer = null), state)
 
         // Applying hard cap is undo-backed.
         state = standardLiveGameState(
@@ -197,7 +197,7 @@ class TestUndo : GameDomainTestFixtures() {
         state = state.recordGoalFromCurrentState(VC, timestampAfterStart(state, 11))
         val beforeApplyHardCap = state
         state = applyPendingCapAt(state, LocalTime.of(10, 11))
-        assertUndoRestores(beforeApplyHardCap, state)
+        assertUndoRestores(beforeApplyHardCap.copy(pendingCapOffer = null), state)
 
         // Force-cap-now is undo-backed.
         val beforeForceCap = standardLiveGameState()

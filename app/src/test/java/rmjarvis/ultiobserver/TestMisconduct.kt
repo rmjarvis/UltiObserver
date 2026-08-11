@@ -1971,7 +1971,7 @@ class TestMisconduct : GameDomainTestFixtures() {
         val beforeCardEdit = hardCapUndo.undoLastAction()
         assertTrue(beforeCardEdit.hardCapApplied)
         assertEquals("Undo Apply hard cap", beforeCardEdit.undoEntry?.label)
-        assertEquals(CapType.HARD, beforeCardEdit.undoLastAction().pendingCapOffer)
+        assertNull(beforeCardEdit.undoLastAction().pendingCapOffer)
     }
 
     /**
