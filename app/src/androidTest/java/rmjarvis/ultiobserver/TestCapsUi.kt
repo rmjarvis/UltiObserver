@@ -68,7 +68,6 @@ class TestCapsUi : MainActivityUiTestFixtures() {
         waitForText("The new winning score is 2.", substring = true)
         composeRule.onNodeWithText("Not yet").performClick()
         waitForText("Halftime")
-        composeRule.onAllNodesWithText("OK").onLast().performClick()
 
         // Hard cap can be deferred, then applied on a tied score to keep the game live.
         startLiveGameWithDueCap("Hard cap", "Hard cap")

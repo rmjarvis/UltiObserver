@@ -1236,7 +1236,8 @@ class TestArchive : GameDomainTestFixtures() {
         assertEquals(prunedBeforeEndGame, restoredUndo.copy(redoEntry = null))
         assertNotNull(restoredUndo.redoEntry)
 
-        // An untied hard cap uses the same archive invariant and restores to the pending offer.
+        // An untied hard cap uses the same archive invariant and restores to the applied cap
+        // state behind game over; the older Apply hard cap undo is pruned by archiving.
         val hardCapViewModel = AppViewModel(NoOpAppStateStorage)
         hardCapViewModel.startNewGame(now = 123_000L)
         hardCapViewModel.finishSetup(now = 123_000L)
@@ -1246,15 +1247,18 @@ class TestArchive : GameDomainTestFixtures() {
             pendingCapOffer = CapType.HARD,
         )
         val hardCapGameOver = beforeHardCap.applyPendingCap(now = 124_000L)
+            .acceptPendingScoreTransition()
         hardCapViewModel.updateCurrentGame(hardCapGameOver)
         hardCapViewModel.archiveCompletedGame()
         assertEquals("Undo End game", hardCapViewModel.archivedGames.single().undoEntry?.label)
         hardCapViewModel.openArchivedGame(0, now = 125_000L)
         hardCapViewModel.makeArchivedGameCurrent()
-        val restoredBeforeHardCap = hardCapViewModel.currentGame!!.undoLastAction()
-        assertEquals(GamePhase.PRE_GAME, restoredBeforeHardCap.phase)
-        assertEquals(CapType.HARD, restoredBeforeHardCap.pendingCapOffer)
-        assertFalse(restoredBeforeHardCap.hardCapApplied)
+        val restoredAppliedHardCap = hardCapViewModel.currentGame!!.undoLastAction()
+        assertEquals(GamePhase.PRE_GAME, restoredAppliedHardCap.phase)
+        assertNull(restoredAppliedHardCap.pendingCapOffer)
+        assertTrue(restoredAppliedHardCap.hardCapApplied)
+        assertEquals(1, restoredAppliedHardCap.winningScore)
+        assertNull(restoredAppliedHardCap.undoEntry)
     }
 
     /**

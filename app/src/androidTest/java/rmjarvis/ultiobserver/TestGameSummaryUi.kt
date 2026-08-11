@@ -24,6 +24,7 @@ import java.time.LocalTime
 import org.hamcrest.Description
 import org.hamcrest.TypeSafeMatcher
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -99,17 +100,18 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
         waitForText("#7 Archived Handler: Yellow card", substring = true)
 
         // The game-ending hard cap archives and restores with the standard Undo End game action.
-        // Undoing it returns to the pending hard-cap state and keeps both summary edits.
+        // Undoing it keeps hard cap applied and preserves both summary edits. Archiving pruned the
+        // older Apply hard cap undo, so the archived card edit is the next available action.
         composeRule.onNodeWithText("Restore game").performClick()
         waitForText("Game summary")
         composeRule.onNodeWithText("Undo End game").performClick()
         assertLiveScreen()
         val resumed = accessCurrentGameState()
-        assertEquals(CapType.HARD, resumed.pendingCapOffer)
+        assertNull(resumed.pendingCapOffer)
+        assertTrue(resumed.hardCapApplied)
+        assertEquals(1, resumed.winningScore)
         assertEquals("Archived Handler", resumed.playerCards(TeamId.TEAM_ONE).single().playerName)
         assertTrue(resumed.undoEntry!!.label.startsWith("Undo Edit yellow"))
-        waitForText("Hard cap")
-        composeRule.onNodeWithText("Not yet").performClick()
 
         // The still-current game summary edits Team Two and persists through the ViewModel path.
         openMoreActionsDialog()
@@ -142,7 +144,6 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
         // If a team has no yellow or red cards issued, then the game summary says that.
         startLiveGameProgrammatically()
         endCurrentGameProgrammatically()
-        composeRule.onNodeWithText("OK").performClick()
         waitForText("Game summary")
         waitForText("No yellow or red cards issued.")
         composeRule.onNodeWithText("Share").assertIsDisplayed()
@@ -229,7 +230,6 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
         )
         startLiveGameProgrammatically(setup)
         endCurrentGameProgrammatically()
-        composeRule.onNodeWithText("OK").performClick()
         waitForText("Game summary")
 
         // Team 1's summary info action opens its setup-entered coach and field-captain names.
@@ -303,7 +303,6 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
         // Now end the game to trigger the game summary screen.
         // Use a helper function (below) to check that Share does share the expected text.
         endCurrentGameProgrammatically()
-        composeRule.onNodeWithText("OK").performClick()
         waitForText("Game summary")
         val expectedEventLogShareText = accessCurrentGameState().eventLogShareText()
         assertNextShareText(expectedShareText)

@@ -61,7 +61,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import java.time.Duration
 
 private val TopEndZoneShape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
 private val BottomEndZoneShape = RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp)
@@ -2052,7 +2051,6 @@ internal fun CountdownLine(
     height: Dp,
     modifier: Modifier = Modifier,
 ) {
-    val displayCountdown = countdown ?: ActiveCountdownDisplay("Pull in", Duration.ZERO, null)
     val fontScale = LocalDensity.current.fontScale
     val titleFontSize = (
         (height.value * 0.4f).coerceIn(22f, 28f) / fontScale
@@ -2109,7 +2107,7 @@ internal fun CountdownLine(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = displayCountdown.label,
+                        text = countdown.label,
                         modifier = Modifier.weight(1f, fill = false),
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontSize = titleFontSize,
@@ -2120,7 +2118,7 @@ internal fun CountdownLine(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = formatDuration(displayCountdown.remaining),
+                        text = formatDuration(countdown.remaining),
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontSize = titleFontSize,
                             lineHeight = titleFontSize,
@@ -2141,7 +2139,7 @@ internal fun CountdownLine(
                         )
                     }
                     PauseResumeButton(
-                        isPaused = displayCountdown.isPaused,
+                        isPaused = countdown.isPaused,
                         enabled = enabled,
                         height = controlHeight,
                         onClick = onTogglePaused,
@@ -2180,10 +2178,10 @@ internal fun CountdownLine(
             }
         }
         Text(
-            text = if (countdown != null && displayCountdown.isPaused) {
+            text = if (countdown?.isPaused == true) {
                 "Paused"
-            } else if (countdown != null && displayCountdown.nextCue != null) {
-                val cue = displayCountdown.nextCue
+            } else if (countdown?.nextCue != null) {
+                val cue = countdown.nextCue
                 "Next cue at ${formatDuration(cue.countdownTime)} - ${cue.message}"
             } else {
                 ""
@@ -2216,66 +2214,3 @@ internal data class ExpiredPullActions(
 internal data class MisconductCountdownAction(
     val onStart: () -> Unit,
 )
-
-/**
- * Countdown text and next-cue details currently shown on the live screen.
- *
- * @param label The short countdown label.
- * @param remaining The clamped time remaining.
- * @param nextCue The next cue inside the active countdown, if one is available.
- * @param isPaused Whether the countdown is currently paused.
- */
-internal data class ActiveCountdownDisplay(
-    val label: String,
-    val remaining: Duration,
-    val nextCue: TimingCueDisplay?,
-    val isPaused: Boolean = false,
-)
-
-/**
- * Compute the countdown text currently visible on the live screen.
- *
- * @param now The current epoch millis used to compute remaining time and next cue.
- */
-internal fun GameState.activeCountdownDisplay(now: Long): ActiveCountdownDisplay? {
-    val countdown = countdown ?: return null
-    val remaining = countdown.remainingDuration(now)
-    return if (countdown.kind == CountdownKind.HALFTIME) {
-        if (!remaining.isZero) {
-            ActiveCountdownDisplay(
-                label = countdown.label,
-                remaining = remaining,
-                nextCue = countdown.nextTimingCue(now),
-                isPaused = countdown.isPaused(),
-            )
-        } else {
-            // Once halftime expires, show the follow-on between-points countdown immediately.
-            val followOn = betweenPointsDisplay(
-                pullingFromEnd = pullingFromEnd,
-                sequenceStart = countdown.targetEpoch,
-                now = now,
-                promptTarget = pullPromptTarget,
-                rules = rules,
-            )
-            val followOnCountdown = buildBetweenPointsCountdown(
-                pullingFromEnd = pullingFromEnd,
-                sequenceStart = countdown.targetEpoch,
-                promptTarget = pullPromptTarget,
-                rules = rules,
-            )
-            ActiveCountdownDisplay(
-                label = followOn.first,
-                remaining = followOn.second,
-                nextCue = followOnCountdown.nextTimingCue(now),
-                isPaused = countdown.isPaused(),
-            )
-        }
-    } else {
-        ActiveCountdownDisplay(
-            label = countdown.label,
-            remaining = remaining,
-            nextCue = countdown.nextTimingCue(now),
-            isPaused = countdown.isPaused(),
-        )
-    }
-}

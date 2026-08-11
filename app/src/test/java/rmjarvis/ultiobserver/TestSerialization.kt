@@ -147,6 +147,7 @@ class TestSerialization : GameDomainTestFixtures() {
         assertEquals(previous.softCapApplied, patch.softCapApplied)
         assertEquals(previous.hardCapApplied, patch.hardCapApplied)
         assertEquals(previous.pendingCapOffer, patch.pendingCapOffer!!.value)
+        assertEquals(previous.pendingScoreTransition, patch.pendingScoreTransition!!.value)
     }
 
     /**
@@ -313,6 +314,10 @@ class TestSerialization : GameDomainTestFixtures() {
             softCapApplied = true,
             hardCapApplied = true,
             pendingCapOffer = CapType.HARD,
+            pendingScoreTransition = PendingScoreTransition(
+                transition = ScoreTransition.GAME_OVER,
+                effectiveEpoch = 5_000L,
+            ),
         )
     }
 
@@ -405,6 +410,7 @@ class TestSerialization : GameDomainTestFixtures() {
             softCapApplied = false,
             hardCapApplied = false,
             pendingCapOffer = null,
+            pendingScoreTransition = null,
         )
     }
 }

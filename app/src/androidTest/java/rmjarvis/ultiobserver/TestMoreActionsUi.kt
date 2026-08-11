@@ -172,9 +172,6 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
         selectMoreActionsCategory("Manual game transitions")
         clickMoreActionsItem("Start halftime")
         waitForText("Halftime")
-        waitForText("Announce halftime.")
-        // Back dismissal and OK are equivalent acknowledgements for this prompt.
-        dismissDialog(text = "OK")
         assertLiveScreen()
 
         // Once halftime has been taken, timeout adjustment includes first-half rows too.
@@ -319,8 +316,7 @@ class TestMoreActionsUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("heat-level-LEVEL_3").performClick()
         composeRule.onNodeWithTag("set-heat-level-confirm").performClick()
 
-        waitForText("Game suspended")
-        dismissDialog(text = "OK", waitForText = "Game summary")
+        waitForText("Game summary")
         composeRule.onNodeWithText("Undo End game").assertExists()
         composeRule.onNodeWithText("Event log").performClick()
         waitForText("Heat level 3 — game suspended", substring = true)

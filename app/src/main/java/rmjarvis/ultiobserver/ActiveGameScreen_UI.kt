@@ -111,9 +111,6 @@ internal fun ActiveGameScreen(
     var teamInfoSheetTeam by remember { mutableStateOf<TeamId?>(null) }
     var locked by remember { mutableStateOf(false) }
     var showWaterBreakPrompt by remember { mutableStateOf(false) }
-    var activeGamePrompt by remember { mutableStateOf<GamePrompt?>(null) }
-    var previouslyObservedPhase by remember { mutableStateOf(state.phase) }
-    var suppressNextPhasePrompt by remember { mutableStateOf(false) }
     val activeGameDisplay = settings.orientationPreference.displayFor(
         displayOrientation = displayOrientation,
         phoneTopEnd = state.topDisplayedEnd,
@@ -131,24 +128,9 @@ internal fun ActiveGameScreen(
         pendingTimeViolationTeam = null
     }
 
-    /// Dismiss a prominent game prompt and open the summary after game over.
-    fun dismissActiveGamePrompt() {
-        val dismissedPrompt = activeGamePrompt
-        activeGamePrompt = null
-        if (dismissedPrompt is GamePrompt.GameOver) {
-            onOpenGameSummary()
-        }
-    }
-
-    /**
-     * Apply undo while suppressing phase-change prompts caused by restored state.
-     *
-     * @param updatedState The state produced by undo.
-     */
-    fun undoWithoutPhasePrompt(updatedState: GameState) {
-        suppressNextPhasePrompt = updatedState.phase != state.phase
-        activeGamePrompt = null
-        onStateChange(updatedState)
+    /// Accept a pending score transition.
+    fun acceptPendingScoreTransition() {
+        onStateChange(state.acceptPendingScoreTransition())
     }
 
     // Keep live-game display, transitions, and event timestamps current to the nearest second.
@@ -202,23 +184,11 @@ internal fun ActiveGameScreen(
         }
     }
 
-    // Only show the large halftime/game-over prompts when those states first become visible.
+    // Completed games move directly to their summary; the decision preceded the phase change.
     LaunchedEffect(state.phase) {
-        val previousPhase = previouslyObservedPhase
-        if (suppressNextPhasePrompt) {
-            previouslyObservedPhase = state.phase
-            suppressNextPhasePrompt = false
-            return@LaunchedEffect
+        if (state.phase == GamePhase.GAME_OVER) {
+            onOpenGameSummary()
         }
-        // Defensive transition guard so recomposition does not reshow the halftime prompt.
-        if (state.phase == GamePhase.HALFTIME && previousPhase != GamePhase.HALFTIME) {
-            activeGamePrompt = GamePrompt.HalftimeStarted(state)
-        }
-        // Defensive transition guard so recomposition does not reshow the game-over prompt.
-        if (state.phase == GamePhase.GAME_OVER && previousPhase != GamePhase.GAME_OVER) {
-            activeGamePrompt = GamePrompt.GameOver(state)
-        }
-        previouslyObservedPhase = state.phase
     }
 
     // A heat level can change during a live point. Offer the resulting late water break as
@@ -267,7 +237,7 @@ internal fun ActiveGameScreen(
     }
     val onUndo: (GameState) -> Unit
     onUndo = { previousState ->
-        undoWithoutPhasePrompt(previousState)
+        onStateChange(previousState)
     }
 
     // Compose the major elements of the active-game screen.
@@ -753,21 +723,27 @@ internal fun ActiveGameScreen(
                 widthProfile = DialogWidthProfile.COMPACT,
             )
         }
-    } else if (activeGamePrompt != null) {
-        // Prominent game prompts that are not tied to modal workflows.
-        val prompt = activeGamePrompt!!
+    } else if (state.pendingScoreTransition != null) {
+        val pendingTransition = state.pendingScoreTransition
+        val prompt = when (pendingTransition.transition) {
+            ScoreTransition.HALFTIME -> GamePrompt.HalftimeStarted(state)
+            ScoreTransition.GAME_OVER -> GamePrompt.GameOver(state)
+        }
         RuleGuidanceGate(
-            key = prompt,
+            key = pendingTransition,
             mode = settings.ruleGuidanceMode,
-            requiredInNone = prompt.requiresGuidanceInNone(),
+            requiredInNone = false,
             onAutoAccept = {
-                dismissActiveGamePrompt()
+                acceptPendingScoreTransition()
             },
         ) {
-            GamePromptNoticeDialog(
+            GamePromptDecisionDialog(
                 prompt = prompt,
-                onDismiss = {
-                    dismissActiveGamePrompt()
+                onAccept = {
+                    acceptPendingScoreTransition()
+                },
+                onNotYet = {
+                    onStateChange(state.deferPendingScoreTransition())
                 },
             )
         }
@@ -837,11 +813,15 @@ internal fun ActiveGameScreen(
     }
 }
 
-/// Render an acknowledgement-only game prompt.
+/// Render a pending score-transition prompt that may be accepted or deferred.
 @Composable
-private fun GamePromptNoticeDialog(prompt: GamePrompt, onDismiss: () -> Unit) {
+private fun GamePromptDecisionDialog(
+    prompt: GamePrompt,
+    onAccept: () -> Unit,
+    onNotYet: () -> Unit,
+) {
     ResponsiveAlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = onAccept,
         title = { Text(prompt.formatTitle()) },
         text = {
             ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
@@ -849,7 +829,10 @@ private fun GamePromptNoticeDialog(prompt: GamePrompt, onDismiss: () -> Unit) {
             }
         },
         confirmButton = {
-            TextActionButton(label = "OK", onClick = onDismiss)
+            TextActionButton(label = "OK", onClick = onAccept)
+        },
+        dismissButton = {
+            TextActionButton(label = "Not yet", onClick = onNotYet)
         },
         widthProfile = DialogWidthProfile.COMPACT,
     )

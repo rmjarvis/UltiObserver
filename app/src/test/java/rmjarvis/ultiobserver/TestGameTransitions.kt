@@ -272,6 +272,9 @@ class TestGameTransitions : GameDomainTestFixtures() {
         val adjustedHalftimeGoalTime =
             countdownSettings.adjustedCountdownStartEpoch(halftimeGoalTime)
         state = state.recordGoalFromCurrentState(VC, adjustedHalftimeGoalTime)
+        assertEquals(GamePhase.BETWEEN_POINTS, state.phase)
+        assertEquals(ScoreTransition.HALFTIME, state.pendingScoreTransition?.transition)
+        state = state.acceptPendingScoreTransition()
         assertEquals(GamePhase.HALFTIME, state.phase)
         assertEquals(3, state.teamOne.score)
         assertEquals(1, state.teamTwo.score)
@@ -286,7 +289,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertEquals(0, state.teamTwo.timeoutsUsedThisHalf)
         assertEquals(2, state.timeoutsAllowedThisHalf(ANIMAL))
         assertEquals(2, state.timeoutsRemaining(ANIMAL))
-        assertEquals("Undo Goal by Viscous Coupling", state.undoEntry?.label)
+        assertEquals("Undo Start halftime", state.undoEntry?.label)
         assertFalse(state.halftimeTransitionReady(halftimeGoalTime + 416_999L))
         assertTrue(state.halftimeTransitionReady(halftimeGoalTime + 417_000L))
 
@@ -332,6 +335,9 @@ class TestGameTransitions : GameDomainTestFixtures() {
 
         // Animal wins on universe, which ends the game and clears live-only timing state.
         state = recordGoalFromCurrentStateAt(state, ANIMAL, LocalTime.of(10, 50))
+        assertEquals(GamePhase.BETWEEN_POINTS, state.phase)
+        assertEquals(ScoreTransition.GAME_OVER, state.pendingScoreTransition?.transition)
+        state = state.acceptPendingScoreTransition()
         assertEquals(GamePhase.GAME_OVER, state.phase)
         assertEquals(4, state.teamOne.score)
         assertEquals(5, state.teamTwo.score)

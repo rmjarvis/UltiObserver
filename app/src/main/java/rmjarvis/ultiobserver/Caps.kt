@@ -72,7 +72,7 @@ internal fun GameRules.hasEnabledCapTimingAlerts(timingAlertPreferences: TimingA
  * This is the manual cap action from More actions, rather than the normal scheduled cap prompt.
  *
  * @param capType The cap whose rule should be enabled and applied.
- * @param now The epoch millis used as the end time if hard cap immediately ends the game.
+ * @param now The epoch millis used for the cap event and any resulting pending transition.
  */
 fun GameState.makeCapNow(
     capType: CapType,
@@ -94,7 +94,7 @@ fun GameState.makeCapNow(
  * This is run when the app has asked whether to apply the next pending cap and the
  * observer agrees to apply it.
  *
- * @param now The epoch millis used as the end time if hard cap immediately ends the game.
+ * @param now The epoch millis used for the cap event and any resulting pending transition.
  */
 fun GameState.applyPendingCap(
     now: Long,
@@ -112,7 +112,7 @@ fun GameState.applyPendingCap(
  * Apply one cap to the current game state.
  *
  * @param capType The cap to apply.
- * @param now The epoch millis used as the end time if hard cap immediately ends the game.
+ * @param now The epoch millis used for the cap event and any resulting pending transition.
  * @param undoPrevious The state that undo should restore.
  * @param undoLabel The undo label for the action that applied the cap.
  */
@@ -140,10 +140,14 @@ private fun GameState.applyCap(
         CapType.HARD -> {
             if (this.teamOne.score != this.teamTwo.score) {
                 this.copy(
+                    winningScore = currentHigherScore,
                     hardCapApplied = true,
                     pendingCapOffer = null,
-                ).withCapAppliedEvent(capType, now)
-                    .endGameNow(now = now, undoPrevious = undoPrevious)
+                    pendingScoreTransition = PendingScoreTransition(
+                        transition = ScoreTransition.GAME_OVER,
+                        effectiveEpoch = now,
+                    ),
+                ).withCapAppliedEvent(capType, now).withUndo(undoPrevious, undoLabel)
             } else {
                 val softCapTriggersWaterBreak =
                     softCapReached(teamOne.score, teamTwo.score, now) &&
@@ -517,11 +521,15 @@ internal fun GamePrompt.ApplyCap.formatMessage(): RuleGuidanceMessage {
 
 /// Report whether this cap falls after halftime began but before its countdown ends.
 private fun GamePrompt.ApplyCap.isScheduledDuringHalftime(): Boolean {
-    if (state.phase != GamePhase.HALFTIME) {
-        return false
+    val halftimeStart = when {
+        state.phase == GamePhase.HALFTIME -> {
+            state.countdown!!.targetEpoch - state.rules.halftimeMinutes * 60_000L
+        }
+        state.pendingScoreTransition?.transition == ScoreTransition.HALFTIME -> {
+            state.pendingScoreTransition.effectiveEpoch
+        }
+        else -> return false
     }
-    val halftimeStart = state.countdown!!.targetEpoch -
-        state.rules.halftimeMinutes * 60_000L
     return state.capEpoch(capType) > halftimeStart
 }
 

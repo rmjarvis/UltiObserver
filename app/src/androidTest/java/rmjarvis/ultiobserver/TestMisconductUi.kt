@@ -366,8 +366,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         openMoreActionsDialog()
         selectMoreActionsCategory("Manual game transitions")
         clickMoreActionsItem("End game")
-        waitForText("Game over")
-        composeRule.onNodeWithText("OK").performClick()
+        waitForText("Game summary")
         waitForText("#7: Yellow card")
         waitForText("#8 Alex Cutter: Yellow card", substring = true)
     }
@@ -427,7 +426,6 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
             startHalftimeNow(System.currentTimeMillis())
         }
         waitForText("Halftime")
-        composeRule.onNodeWithText("OK").performClick()
         assertEquals(TeamId.TEAM_TWO, accessCurrentGameState().pullingTeam)
 
         // Assessing a card during halftime indicates whether the team is pulling or

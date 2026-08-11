@@ -892,6 +892,39 @@ class TestTimingCues : GameDomainTestFixtures() {
     }
 
     /**
+     * Test the complete countdown display selected for the live screen.
+     */
+    @Test
+    fun activeCountdownDisplay() {
+        // A normal active countdown exposes its timing, next cue, and running state to the UI.
+        val openingPull = standardLiveGameState()
+        val openingDisplay = openingPull.activeCountdownDisplay(openingPull.startEpoch)!!
+        assertEquals("Signal in", openingDisplay.label)
+        assertEquals(Duration.ofSeconds(20), openingDisplay.remaining)
+        assertEquals(TimingCueId.RECEIVING_TWENTY_FOR_HAND, openingDisplay.nextCue?.id)
+        assertFalse(openingDisplay.isPaused)
+
+        // A live point has no countdown for the UI to display.
+        assertNull(openingPull.beginLivePoint().activeCountdownDisplay(openingPull.startEpoch))
+
+        // Once halftime expires, its display immediately becomes the between-points countdown
+        // that starts at the halftime deadline.
+        val halftimeCountdown = buildHalftimeCountdown(
+            halftimeMinutes = 7,
+            sequenceStart = 1_000L,
+        )
+        val halftimeState = openingPull.copy(
+            phase = GamePhase.HALFTIME,
+            countdown = halftimeCountdown,
+        )
+        val followOnDisplay = halftimeState.activeCountdownDisplay(halftimeCountdown.targetEpoch)!!
+        assertEquals("Signal in", followOnDisplay.label)
+        assertEquals(Duration.ofSeconds(60), followOnDisplay.remaining)
+        assertEquals(TimingCueId.RECEIVING_TWENTY_FOR_HAND, followOnDisplay.nextCue?.id)
+        assertFalse(followOnDisplay.isPaused)
+    }
+
+    /**
      * Test cap timing cues at their scheduled times.
      */
     @Test

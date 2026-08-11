@@ -495,7 +495,7 @@ class TestTimeouts : GameDomainTestFixtures() {
         ).recordGoalFromCurrentState(
             VC,
             1_150_000L,
-        )
+        ).acceptPendingScoreTransition()
         assertEquals(GamePhase.GAME_OVER, gameOverTimeoutState.phase)
         timeoutResult = gameOverTimeoutState.assessTimeout(VC, 1_160_000L)
         assertEquals("Timeouts are not available now.", timeoutResult.message())
@@ -852,6 +852,9 @@ class TestTimeouts : GameDomainTestFixtures() {
                 scoringTeam,
                 now = start + pointNumber * 10_000L,
             )
+            if (current.pendingScoreTransition?.transition == ScoreTransition.HALFTIME) {
+                current = current.acceptPendingScoreTransition()
+            }
             pointNumber += 1
         }
         return current

@@ -373,6 +373,8 @@ class TestCaps : GameDomainTestFixtures() {
 
         // The half-cap target becomes the live halftime target, so the next point starts halftime.
         state = scoreAt(state, vc, 12)
+        assertEquals(ScoreTransition.HALFTIME, state.pendingScoreTransition?.transition)
+        state = state.acceptPendingScoreTransition()
         assertEquals(2, state.teamOne.score)
         assertEquals(1, state.teamTwo.score)
         assertEquals(GamePhase.HALFTIME, state.phase)
@@ -457,6 +459,8 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(EventLogType.SOFT_CAP, state.eventLog.last().type)
         assertTrue(state.formatEventLogLines().last().endsWith("Soft cap applied"))
         state = scoreAt(state, vc, 22)
+        assertEquals(ScoreTransition.GAME_OVER, state.pendingScoreTransition?.transition)
+        state = state.acceptPendingScoreTransition()
         assertEquals(GamePhase.GAME_OVER, state.phase)
         assertEquals(2, state.teamOne.score)
         assertEquals(1, state.teamTwo.score)
@@ -483,7 +487,8 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(2, state.teamTwo.score)
         assertNull(state.pendingCapOffer)
 
-        // Hard cap while the score is not tied ends the game immediately when applied.
+        // Hard cap while the score is not tied sets the target to the current higher score and
+        // makes game over pending.
         state = newCapState(capRules.copy(useHalfCap = false, useSoftCap = false))
         state = scoreAt(state, vc, 5)
         state = scoreAt(state, animal, 6)
@@ -500,19 +505,48 @@ class TestCaps : GameDomainTestFixtures() {
         val beforeGameEndingHardCap = state
         state = applyPendingCapAt(state, LocalTime.of(10, 31))
         assertTrue(state.hardCapApplied)
+        assertEquals(2, state.winningScore)
+        assertEquals(GamePhase.BETWEEN_POINTS, state.phase)
+        assertEquals(ScoreTransition.GAME_OVER, state.pendingScoreTransition?.transition)
+        assertNull(state.endEpoch)
+        assertNull(state.pendingCapOffer)
+        assertEquals(EventLogType.HARD_CAP, state.eventLog.last().type)
+        assertTrue(state.formatEventLogLines().last().endsWith("Hard cap applied"))
+        assertEquals("Undo Apply hard cap", state.undoEntry?.label)
+        assertEquals(
+            beforeGameEndingHardCap,
+            state.undoLastAction().copy(redoEntry = null),
+        )
+
+        // Not yet leaves hard cap and its winning target applied.
+        val appliedHardCap = state
+        val deferredGameOver = state.deferPendingScoreTransition()
+        assertEquals(GamePhase.BETWEEN_POINTS, deferredGameOver.phase)
+        assertTrue(deferredGameOver.hardCapApplied)
+        assertEquals(2, deferredGameOver.winningScore)
+        assertNull(deferredGameOver.pendingScoreTransition)
+        assertEquals("Undo Apply hard cap", deferredGameOver.undoEntry?.label)
+
+        // Accepting game over adds its own undo boundary. Undoing it keeps hard cap applied, and
+        // the preceding undo then restores the original pending cap offer.
+        state = appliedHardCap.acceptPendingScoreTransition()
         assertEquals(GamePhase.GAME_OVER, state.phase)
         assertEquals(timestampAt(state, LocalTime.of(10, 31)), state.endEpoch)
         assertNull(state.countdown)
-        assertNull(state.pendingCapOffer)
         assertEquals(
             listOf(EventLogType.HARD_CAP, EventLogType.GAME_OVER),
             state.eventLog.takeLast(2).map { it.type },
         )
-        assertTrue(state.formatEventLogLines().takeLast(2).first().endsWith("Hard cap applied"))
         assertEquals("Undo End game", state.undoEntry?.label)
+        val undoneGameOver = state.undoLastAction()
+        assertEquals(GamePhase.BETWEEN_POINTS, undoneGameOver.phase)
+        assertTrue(undoneGameOver.hardCapApplied)
+        assertEquals(2, undoneGameOver.winningScore)
+        assertNull(undoneGameOver.pendingScoreTransition)
+        assertEquals("Undo Apply hard cap", undoneGameOver.undoEntry?.label)
         assertEquals(
             beforeGameEndingHardCap,
-            state.undoLastAction().copy(redoEntry = null),
+            undoneGameOver.undoLastAction().copy(redoEntry = null),
         )
         assertEquals("Undo End game", state.pruneUndoHistory().undoEntry?.label)
         assertEquals("Game over", GamePrompt.GameOver(state).formatTitle())
@@ -551,7 +585,8 @@ class TestCaps : GameDomainTestFixtures() {
      */
     @Test
     fun capsAtHalftime() {
-        // If soft cap and halftime are both due at point end, halftime starts with a cap offer.
+        // If soft cap and halftime are both due at point end, apply the cap before accepting
+        // pending halftime.
         var state = newCapState(
             capRules.copy(
                 gameTo = 5,
@@ -567,9 +602,16 @@ class TestCaps : GameDomainTestFixtures() {
         state = beforeSoftCapHalftimeGoal.recordGoal(vc, softCapHalftimeGoalTime)
         assertEquals(3, state.teamOne.score)
         assertEquals(0, state.teamTwo.score)
+        assertEquals(GamePhase.BETWEEN_POINTS, state.phase)
+        assertEquals(ScoreTransition.HALFTIME, state.pendingScoreTransition?.transition)
+        assertEquals(CapType.SOFT, state.pendingCapOffer)
+        state = applyPendingCapAt(state, LocalTime.of(10, 10))
+        assertTrue(state.softCapApplied)
+        assertEquals(4, state.winningScore)
+        assertNull(state.pendingCapOffer)
+        state = state.acceptPendingScoreTransition()
         assertEquals(GamePhase.HALFTIME, state.phase)
         assertTrue(state.halftimeTaken)
-        assertEquals(CapType.SOFT, state.pendingCapOffer)
         assertEquals(CountdownKind.HALFTIME, state.countdown?.kind)
         assertEquals(420, state.countdown?.durationSeconds)
         assertEquals(softCapHalftimeGoalTime + 420_000L, state.countdown?.targetEpoch)
@@ -580,15 +622,17 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(animal, state.pullingTeam)
         assertEquals(FieldEnd.FAR, state.pullingFromEnd)
         assertEquals(animal, state.teamDefendingEnd(FieldEnd.FAR))
-        assertEquals("Undo Goal by Viscous Coupling", state.undoEntry?.label)
-        assertEquals(beforeSoftCapHalftimeGoal, state.undoEntry?.previous)
-        state = applyPendingCapAt(state, LocalTime.of(10, 10))
-        assertEquals(GamePhase.HALFTIME, state.phase)
-        assertTrue(state.softCapApplied)
-        assertEquals(4, state.winningScore)
-        assertNull(state.pendingCapOffer)
 
-        // If hard cap and halftime are both due at point end, applying the prompt can end the game.
+        // Applying soft cap and starting halftime remain separate undoable actions.
+        assertEquals("Undo Start halftime", state.undoEntry?.label)
+        val deferredHalftime = state.undoEntry!!.previous
+        assertEquals(GamePhase.BETWEEN_POINTS, deferredHalftime.phase)
+        assertEquals(3, deferredHalftime.teamOne.score)
+        assertTrue(deferredHalftime.softCapApplied)
+        assertEquals("Undo Apply soft cap", deferredHalftime.undoEntry?.label)
+
+        // If hard cap and halftime are both due at point end, applying the cap replaces pending
+        // halftime with pending game over, which can then be accepted.
         state = newCapState(
             capRules.copy(
                 gameTo = 5,
@@ -602,8 +646,8 @@ class TestCaps : GameDomainTestFixtures() {
         state = scoreAt(state, vc, 10)
         assertEquals(3, state.teamOne.score)
         assertEquals(0, state.teamTwo.score)
-        assertEquals(GamePhase.HALFTIME, state.phase)
-        assertTrue(state.halftimeTaken)
+        assertEquals(GamePhase.BETWEEN_POINTS, state.phase)
+        assertEquals(ScoreTransition.HALFTIME, state.pendingScoreTransition?.transition)
         assertEquals(CapType.HARD, state.pendingCapOffer)
         assertEquals(
             "Hard cap was at 10:10 AM, so it applies now. " +
@@ -611,6 +655,12 @@ class TestCaps : GameDomainTestFixtures() {
             state.capPrompt().formatMessage().plainText,
         )
         state = applyPendingCapAt(state, LocalTime.of(10, 10))
+        assertEquals(GamePhase.BETWEEN_POINTS, state.phase)
+        assertEquals(3, state.winningScore)
+        assertEquals(ScoreTransition.GAME_OVER, state.pendingScoreTransition?.transition)
+        assertTrue(state.hardCapApplied)
+        assertNull(state.pendingCapOffer)
+        state = state.acceptPendingScoreTransition()
         assertEquals(GamePhase.GAME_OVER, state.phase)
         assertTrue(state.hardCapApplied)
         assertEquals(timestampAt(state, LocalTime.of(10, 10)), state.endEpoch)
@@ -741,6 +791,8 @@ class TestCaps : GameDomainTestFixtures() {
         state = scoreAt(state, vc, 1)
         state = scoreAt(state, vc, 2)
         state = scoreAt(state, vc, 10)
+        assertEquals(ScoreTransition.HALFTIME, state.pendingScoreTransition?.transition)
+        state = state.acceptPendingScoreTransition()
         assertEquals(GamePhase.HALFTIME, state.phase)
         assertEquals(CapType.SOFT, state.pendingCapOffer)
         assertEquals(
@@ -775,7 +827,8 @@ class TestCaps : GameDomainTestFixtures() {
         state = scoreAt(state, vc, 1)
         state = scoreAt(state, vc, 2)
         state = scoreAt(state, vc, 14)
-        assertEquals(GamePhase.HALFTIME, state.phase)
+        assertEquals(GamePhase.BETWEEN_POINTS, state.phase)
+        assertEquals(ScoreTransition.HALFTIME, state.pendingScoreTransition?.transition)
         assertEquals(CapType.HARD, state.pendingCapOffer)
         assertEquals(
             "Hard cap is scheduled for 10:20 AM, which is during halftime, " +
@@ -783,6 +836,10 @@ class TestCaps : GameDomainTestFixtures() {
             state.capPrompt().formatMessage().plainText,
         )
         state = applyPendingCapAt(state, LocalTime.of(10, 14))
+        assertEquals(GamePhase.BETWEEN_POINTS, state.phase)
+        assertEquals(3, state.winningScore)
+        assertEquals(ScoreTransition.GAME_OVER, state.pendingScoreTransition?.transition)
+        state = state.acceptPendingScoreTransition()
         assertEquals(GamePhase.GAME_OVER, state.phase)
         assertTrue(state.hardCapApplied)
         assertFalse(state.softCapApplied)
@@ -837,6 +894,8 @@ class TestCaps : GameDomainTestFixtures() {
         state = scoreAt(state, vc, 1)
         state = scoreAt(state, vc, 2)
         state = scoreAt(state, vc, 10)
+        assertEquals(ScoreTransition.HALFTIME, state.pendingScoreTransition?.transition)
+        state = state.acceptPendingScoreTransition()
         assertEquals(GamePhase.HALFTIME, state.phase)
         state = state.applyExpiredCountdownTransitions(
             state.countdown!!.targetEpoch + 30_000L,

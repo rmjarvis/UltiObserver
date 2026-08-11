@@ -86,6 +86,36 @@ class TestPullViolations : GameDomainTestFixtures() {
                 PullViolationType.OFFSIDES,
             )
         )
+
+        // Pull violations are unavailable outside the pre-pull or live-point phases.
+        val wrongPhaseState = state.copy(phase = GamePhase.HALFTIME)
+        assertFalse(wrongPhaseState.canRecordPullViolation(VC))
+        assertFalse(wrongPhaseState.canRecordPullViolation(ANIMAL))
+        assertNull(wrongPhaseState.previewPullViolation(VC, PullViolationType.OFFSIDES))
+        assertNull(wrongPhaseState.previewPullViolation(ANIMAL, PullViolationType.FALSE_START))
+
+        // A goal that leaves halftime pending closes the old pull sequence immediately.
+        // Deferring halftime makes pull violations available for the next pull sequence.
+        val pendingHalftimeState = state.copy(
+            teamOne = state.teamOne.copy(score = 2),
+        ).recordGoalFromCurrentState(VC, 0L)
+        assertEquals(
+            ScoreTransition.HALFTIME,
+            pendingHalftimeState.pendingScoreTransition?.transition,
+        )
+        assertFalse(pendingHalftimeState.canRecordPullViolation(VC))
+        assertFalse(pendingHalftimeState.canRecordPullViolation(ANIMAL))
+        assertNull(pendingHalftimeState.previewPullViolation(VC, PullViolationType.OFFSIDES))
+        assertNull(
+            pendingHalftimeState.previewPullViolation(ANIMAL, PullViolationType.FALSE_START)
+        )
+        val deferredHalftimeState = pendingHalftimeState.deferPendingScoreTransition()
+        assertTrue(deferredHalftimeState.canRecordPullViolation(VC))
+        assertTrue(deferredHalftimeState.canRecordPullViolation(ANIMAL))
+        assertNotNull(deferredHalftimeState.previewPullViolation(VC, PullViolationType.OFFSIDES))
+        assertNotNull(
+            deferredHalftimeState.previewPullViolation(ANIMAL, PullViolationType.FALSE_START)
+        )
     }
 
     /**
@@ -902,6 +932,21 @@ class TestPullViolations : GameDomainTestFixtures() {
         // As with pull violations, a same-frame action can retain a pending preview after another
         // action disables the button. That stale time-violation preview is ignored.
         assertNull(wrongPhaseState.previewTimeViolation(VC))
+
+        // A goal that leaves halftime pending also closes the old pull sequence immediately.
+        // Deferring halftime will make time violations available for the next pull sequence.
+        val pendingHalftimeState = state.copy(
+            teamOne = state.teamOne.copy(score = 2),
+        ).recordGoalFromCurrentState(VC, firstViolationMoment)
+        assertEquals(
+            ScoreTransition.HALFTIME,
+            pendingHalftimeState.pendingScoreTransition?.transition,
+        )
+        assertFalse(pendingHalftimeState.canAssessTimeViolation())
+        assertNull(pendingHalftimeState.previewTimeViolation(VC))
+        val deferredHalftimeState = pendingHalftimeState.deferPendingScoreTransition()
+        assertTrue(deferredHalftimeState.canAssessTimeViolation())
+        assertNotNull(deferredHalftimeState.previewTimeViolation(VC))
 
         // When clicking Time Violation, we start with a preview so the user can still choose
         // whether to apply the violation or cancel.  The state doesn't change yet.

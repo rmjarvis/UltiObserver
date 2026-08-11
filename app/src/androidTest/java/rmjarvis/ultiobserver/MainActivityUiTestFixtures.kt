@@ -700,7 +700,7 @@ abstract class MainActivityUiTestFixtures {
             val current = activity.appViewModel.currentGame!!
             activity.appViewModel.updateCurrentGame(current.endGameNow(System.currentTimeMillis()))
         }
-        waitForText("Game over")
+        waitForText("Game summary")
     }
 
     /**

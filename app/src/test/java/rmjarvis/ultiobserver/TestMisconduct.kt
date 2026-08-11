@@ -1936,7 +1936,7 @@ class TestMisconduct : GameDomainTestFixtures() {
         )
 
         // A game-ending hard cap uses the same terminal End game invariant. Undoing it restores
-        // the pending hard-cap state while preserving the summary card edit.
+        // the applied hard-cap state while preserving the summary card edit.
         val beforeHardCap = original.copy(
             rules = original.rules.copy(useHardCap = true),
             teamOne = original.teamOne.copy(score = 1),
@@ -1944,7 +1944,7 @@ class TestMisconduct : GameDomainTestFixtures() {
         )
         val hardCapGameOver = beforeHardCap.applyPendingCap(
             timestampAt(original, LocalTime.of(12, 14)),
-        )
+        ).acceptPendingScoreTransition()
         val hardCapEdit = hardCapGameOver.editExistingPlayerCards(
             team = VC,
             records = editedRecords,
@@ -1954,18 +1954,24 @@ class TestMisconduct : GameDomainTestFixtures() {
         assertEquals("Undo End game", hardCapEdit.undoEntry?.label)
         assertEquals(
             listOf(
-                EventLogType.YELLOW_CARD,
                 EventLogType.HARD_CAP,
+                EventLogType.YELLOW_CARD,
                 EventLogType.GAME_OVER,
             ),
             hardCapEdit.eventLog.takeLast(3).map { it.type },
         )
         val hardCapUndo = hardCapEdit.undoLastAction()
         assertEquals(beforeHardCap.phase, hardCapUndo.phase)
-        assertEquals(CapType.HARD, hardCapUndo.pendingCapOffer)
+        assertNull(hardCapUndo.pendingCapOffer)
+        assertTrue(hardCapUndo.hardCapApplied)
+        assertEquals(1, hardCapUndo.winningScore)
         assertEquals("Casey Handler", playerRecord(hardCapUndo, VC, "9").playerName)
         assertEquals(reason, playerRecord(hardCapUndo, VC, "9").cards.single().reason)
         assertEquals(undoLabel, hardCapUndo.undoEntry?.label)
+        val beforeCardEdit = hardCapUndo.undoLastAction()
+        assertTrue(beforeCardEdit.hardCapApplied)
+        assertEquals("Undo Apply hard cap", beforeCardEdit.undoEntry?.label)
+        assertEquals(CapType.HARD, beforeCardEdit.undoLastAction().pendingCapOffer)
     }
 
     /**

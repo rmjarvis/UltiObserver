@@ -253,7 +253,7 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         val gameOverState = beforeWinningGoal.recordGoal(
             TeamId.TEAM_ONE,
             timestampAt(beforeWinningGoal, LocalTime.of(10, 30)),
-        )
+        ).acceptPendingScoreTransition()
         assertEquals(GamePhase.GAME_OVER, gameOverState.phase)
         assertFalse(beforeWinningGoal.goalTriggersAutomaticWaterBreak(TeamId.TEAM_ONE))
         assertFalse(gameOverState.goalTriggersAutomaticWaterBreak(TeamId.TEAM_ONE))

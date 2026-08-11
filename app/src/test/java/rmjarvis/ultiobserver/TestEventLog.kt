@@ -171,8 +171,10 @@ class TestEventLog : GameDomainTestFixtures() {
         state = recordGoalAt(state, TeamId.TEAM_TWO, LocalTime.of(12, 5))
         state = recordGoalFromCurrentStateAt(state, TeamId.TEAM_ONE, LocalTime.of(12, 12))
         state = recordGoalFromCurrentStateAt(state, TeamId.TEAM_TWO, LocalTime.of(12, 20))
+        state = state.acceptPendingScoreTransition()
         val halftimeState = state
         state = recordGoalFromCurrentStateAt(state, TeamId.TEAM_TWO, LocalTime.of(12, 28))
+        state = state.acceptPendingScoreTransition()
 
         // The share text keeps the event log intact and appends final score only for game over.
         assertEquals(

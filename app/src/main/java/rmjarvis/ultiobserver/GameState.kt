@@ -464,6 +464,19 @@ enum class CountdownKind {
     }
 }
 
+@Serializable
+enum class ScoreTransition {
+    HALFTIME,
+    GAME_OVER,
+}
+
+/// Score-triggered game transition awaiting observer acceptance or deferral.
+@Serializable
+data class PendingScoreTransition(
+    val transition: ScoreTransition,
+    val effectiveEpoch: Long,
+)
+
 /**
  * Complete mutable state of one setup/live/completed game.
  *
@@ -491,6 +504,7 @@ enum class CountdownKind {
  * @param halftimeHighScore Higher score when halftime began, used for the second water break.
  * @param pendingWaterBreakOffer Whether an automatic water-break offer is pending.
  * @param pendingCapOffer The cap currently being offered to the observer for yes/no application.
+ * @param pendingScoreTransition Halftime or game over awaiting an observer decision.
  */
 @Serializable
 data class GameState(
@@ -539,6 +553,7 @@ data class GameState(
     val softCapApplied: Boolean = false,
     val hardCapApplied: Boolean = false,
     val pendingCapOffer: CapType? = null,  // Set when asking whether to apply the next cap
+    val pendingScoreTransition: PendingScoreTransition? = null,
     val undoEntry: UndoEntry? = null,
     val redoEntry: GameState? = null,
 ) {

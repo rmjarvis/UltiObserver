@@ -294,7 +294,8 @@ fun GameState.hasExpiredPullActions(now: Long): Boolean {
 
 /// Report whether a pull time violation can be recorded for the current pull sequence.
 fun GameState.canAssessTimeViolation(): Boolean {
-    return !this.pullSkippedForCurrentPoint &&
+    return this.pendingScoreTransition == null &&
+        !this.pullSkippedForCurrentPoint &&
         (this.phase.isBeforeLivePoint || this.phase == GamePhase.LIVE_POINT)
 }
 

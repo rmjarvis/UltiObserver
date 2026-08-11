@@ -165,15 +165,22 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             click(timeViolationCenter)
             click(halftimeGoalCenter)
         }
-        val halftimeState = accessCurrentGameState()
-        assertEquals(GamePhase.HALFTIME, halftimeState.phase)
-        assertEquals(3, halftimeState.teamTwo.score)
-        assertEquals(0, halftimeState.teamTwo.timeViolations)
-        assertEquals("Undo Goal by Team 2", halftimeState.undoEntry?.label)
+        waitForText("Halftime")
+        val pendingHalftimeState = accessCurrentGameState()
+        assertEquals(GamePhase.BETWEEN_POINTS, pendingHalftimeState.phase)
+        assertEquals(3, pendingHalftimeState.teamTwo.score)
+        assertEquals(0, pendingHalftimeState.teamTwo.timeViolations)
+        assertEquals("Undo Goal by Team 2", pendingHalftimeState.undoEntry?.label)
         composeRule.onAllNodesWithText(
             "now has 20 seconds to signal readiness.",
             substring = true,
         ).assertCountEquals(0)
+        dismissDialog(text = "OK")
+        val halftimeState = accessCurrentGameState()
+        assertEquals(GamePhase.HALFTIME, halftimeState.phase)
+        assertEquals(3, halftimeState.teamTwo.score)
+        assertEquals(0, halftimeState.teamTwo.timeViolations)
+        assertEquals("Undo Start halftime", halftimeState.undoEntry?.label)
     }
 
     /**
@@ -303,6 +310,25 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         waitForText("Soft cap")
         waitForText("Undo Apply soft cap")
 
+        // None accepts a score-triggered halftime immediately without rendering its decision.
+        startBetweenPointsProgrammatically(
+            newSetupGameState(now = System.currentTimeMillis()).copy(
+                rules = GameRules(
+                    gameTo = 5,
+                    useHalfCap = false,
+                    useSoftCap = false,
+                    useHardCap = false,
+                ),
+                teamOne = TeamState("Team 1", TeamColorChoice.WHITE, score = 1),
+            )
+        )
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
+        composeRule.waitUntil(10_000L) {
+            accessCurrentGameState().phase == GamePhase.HALFTIME
+        }
+        assertEquals(GamePhase.HALFTIME, accessCurrentGameState().phase)
+        composeRule.onAllNodesWithText("Announce halftime.").assertCountEquals(0)
+
         // A required event notice still appears in Timed mode, then closes automatically.
         setRuleGuidanceMode(RuleGuidanceMode.TIMED)
         startLivePointProgrammatically(
@@ -333,10 +359,16 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         waitForText("Announce halftime.")
         waitForNoText("Announce halftime.")
 
-        // Ending that game from halftime exercises the game-over form of the same prompt gate.
-        endCurrentGameProgrammatically()
-        waitForText("OK")
-        waitForNoText("OK")
+        // Continue the same game one point below game-to. The winning goal shows the Timed
+        // game-over decision, then accepts it and opens the summary automatically.
+        updateCurrentStateProgrammatically {
+            copy(
+                teamOne = teamOne.copy(score = 4),
+            ).beginLivePoint(System.currentTimeMillis())
+        }
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
+        waitForText("Game over")
+        waitForText("Game summary")
     }
 
     /**
@@ -356,8 +388,9 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Redo").performClick()
         waitForText("Undo Goal by Team 1")
 
-        // Scoring into the halftime target shows the halftime prompt; undo removes it.
-        startBetweenPointsProgrammatically(
+        // Scoring into the halftime target shows the halftime prompt. Not yet retains the goal
+        // between points, where the goal itself remains independently undoable.
+        startLivePointProgrammatically(
             newSetupGameState(now = System.currentTimeMillis()).copy(
                 rules = GameRules(
                     gameTo = 5,
@@ -372,9 +405,35 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         }
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
         waitForText("Halftime")
-        composeRule.onNodeWithText("OK").performClick()
+        composeRule.onNodeWithText("Not yet").performClick()
+        assertEquals(GamePhase.BETWEEN_POINTS, accessCurrentGameState().phase)
+        assertEquals(3, accessCurrentGameState().teamOne.score)
         composeRule.onNodeWithText("Undo Goal by Team 1").performClick()
         composeRule.onAllNodesWithText("Announce halftime.").assertCountEquals(0)
+
+        // Scoring the goal again allows the pending halftime transition to be accepted normally.
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
+        waitForText("Halftime")
+        dismissDialog(text = "OK")
+        assertEquals(GamePhase.HALFTIME, accessCurrentGameState().phase)
+
+        // Not yet on Game over likewise retains the scored goal. The following point evaluates
+        // the target again and ends the game even though the score is now beyond game-to.
+        updateCurrentStateProgrammatically {
+            copy(teamOne = teamOne.copy(score = 4))
+                .beginLivePoint(System.currentTimeMillis())
+        }
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
+        waitForText("Game over")
+        composeRule.onNodeWithText("Not yet").performClick()
+        assertEquals(GamePhase.BETWEEN_POINTS, accessCurrentGameState().phase)
+        assertEquals(5, accessCurrentGameState().teamOne.score)
+        waitForText("Undo Goal by Team 1")
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
+        waitForText("Game over")
+        assertEquals(6, accessCurrentGameState().teamOne.score)
+        dismissDialog(text = "OK")
+        waitForText("Game summary")
     }
 
     /**
@@ -694,7 +753,6 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             startHalftimeNow(System.currentTimeMillis())
         }
         waitForText("Halftime")
-        composeRule.onNodeWithText("OK").performClick()
         expireActiveCountdownProgrammatically()
         composeRule.waitUntil(timeoutMillis = 2_000) {
             accessCurrentGameState().phase == GamePhase.BETWEEN_POINTS

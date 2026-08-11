@@ -23,6 +23,80 @@ internal fun buildHalftimeCountdown(
 }
 
 /**
+ * Countdown text and next-cue details currently shown on the live screen.
+ *
+ * @param label The short countdown label.
+ * @param remaining The clamped time remaining.
+ * @param nextCue The next cue inside the active countdown, if one is available.
+ * @param isPaused Whether the countdown is currently paused.
+ */
+internal data class ActiveCountdownDisplay(
+    val label: String,
+    val remaining: Duration,
+    val nextCue: TimingCueDisplay?,
+    val isPaused: Boolean,
+)
+
+/**
+ * Compute the countdown text currently visible on the live screen.
+ *
+ * @param now The current epoch millis used to compute remaining time and next cue.
+ */
+internal fun GameState.activeCountdownDisplay(now: Long): ActiveCountdownDisplay? {
+    val pendingTransition = pendingScoreTransition
+    if (pendingTransition?.transition == ScoreTransition.GAME_OVER) {
+        return null
+    }
+    val countdown = if (pendingTransition?.transition == ScoreTransition.HALFTIME) {
+        buildHalftimeCountdown(
+            halftimeMinutes = rules.halftimeMinutes,
+            sequenceStart = pendingTransition.effectiveEpoch,
+        )
+    } else {
+        countdown ?: return null
+    }
+    val remaining = countdown.remainingDuration(now)
+    return if (countdown.kind == CountdownKind.HALFTIME) {
+        if (!remaining.isZero) {
+            ActiveCountdownDisplay(
+                label = countdown.label,
+                remaining = remaining,
+                nextCue = countdown.nextTimingCue(now),
+                isPaused = countdown.isPaused(),
+            )
+        } else {
+            // Once halftime expires, show the follow-on between-points countdown immediately.
+            val followOn = betweenPointsDisplay(
+                pullingFromEnd = pullingFromEnd,
+                sequenceStart = countdown.targetEpoch,
+                now = now,
+                promptTarget = pullPromptTarget,
+                rules = rules,
+            )
+            val followOnCountdown = buildBetweenPointsCountdown(
+                pullingFromEnd = pullingFromEnd,
+                sequenceStart = countdown.targetEpoch,
+                promptTarget = pullPromptTarget,
+                rules = rules,
+            )
+            ActiveCountdownDisplay(
+                label = followOn.first,
+                remaining = followOn.second,
+                nextCue = followOnCountdown.nextTimingCue(now),
+                isPaused = countdown.isPaused(),
+            )
+        }
+    } else {
+        ActiveCountdownDisplay(
+            label = countdown.label,
+            remaining = remaining,
+            nextCue = countdown.nextTimingCue(now),
+            isPaused = countdown.isPaused(),
+        )
+    }
+}
+
+/**
  * Configured timing cue and its user-facing cue label.
  *
  * @param label The message shown or spoken when the cue is delivered.

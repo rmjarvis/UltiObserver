@@ -216,6 +216,62 @@ class TestUndo : GameDomainTestFixtures() {
     }
 
     /**
+     * Test deferring automatic halftime while retaining its triggering goal.
+     */
+    @Test
+    fun halftimeUndo() {
+        val VC = TeamId.TEAM_ONE
+
+        // Reaching halftime leaves the transition pending behind the completed goal.
+        val halftimeSetup = standardLiveGameState(
+            rules = GameRules(
+                gameTo = 5,
+                useHalfCap = false,
+                useSoftCap = false,
+                useHardCap = false,
+            ),
+        )
+        val beforeHalftimeGoal = halftimeSetup.copy(
+            teamOne = halftimeSetup.teamOne.copy(score = 2),
+        )
+        val pendingHalftime = beforeHalftimeGoal.recordGoalFromCurrentState(VC, 800_000L)
+        assertEquals(GamePhase.BETWEEN_POINTS, pendingHalftime.phase)
+        assertEquals(ScoreTransition.HALFTIME, pendingHalftime.pendingScoreTransition?.transition)
+        assertEquals("Undo Goal by Viscous Coupling", pendingHalftime.undoEntry?.label)
+        val pendingDisplay = pendingHalftime.activeCountdownDisplay(800_000L)
+        assertEquals("Halftime", pendingDisplay?.label)
+
+        // Not yet clears only the pending transition, revealing the stored between-points
+        // countdown that was hidden behind the pending Halftime display.
+        val deferredHalftime = pendingHalftime.deferPendingScoreTransition()
+        assertEquals(GamePhase.BETWEEN_POINTS, deferredHalftime.phase)
+        assertEquals(3, deferredHalftime.teamOne.score)
+        assertEquals(0, deferredHalftime.teamTwo.score)
+        assertEquals("Undo Goal by Viscous Coupling", deferredHalftime.undoEntry?.label)
+        assertEquals(CountdownKind.BETWEEN_POINTS, deferredHalftime.countdown?.kind)
+        assertEquals(
+            deferredHalftime.countdown?.label,
+            deferredHalftime.activeCountdownDisplay(800_000L)?.label,
+        )
+        assertNull(deferredHalftime.pendingScoreTransition)
+
+        // The following point recalculates halftime with >= and offers it again past the target.
+        val recalculatedPending = deferredHalftime.recordGoalFromCurrentState(VC, 900_000L)
+        assertEquals(GamePhase.BETWEEN_POINTS, recalculatedPending.phase)
+        assertEquals(4, recalculatedPending.teamOne.score)
+        assertEquals(ScoreTransition.HALFTIME, recalculatedPending.pendingScoreTransition?.transition)
+        val recalculatedHalftime = recalculatedPending.acceptPendingScoreTransition()
+        assertEquals(GamePhase.HALFTIME, recalculatedHalftime.phase)
+        assertEquals(4, recalculatedHalftime.teamOne.score)
+        assertEquals("Undo Start halftime", recalculatedHalftime.undoEntry?.label)
+        assertEquals(
+            recalculatedPending.activeCountdownDisplay(900_000L),
+            recalculatedHalftime.activeCountdownDisplay(900_000L),
+        )
+
+    }
+
+    /**
      * Test undo and no-op behavior for score-ended games.
      */
     @Test
@@ -232,7 +288,15 @@ class TestUndo : GameDomainTestFixtures() {
                 useHardCap = false,
             ),
         )
-        val gameOverByScore = recordGoalFromCurrentStateAt(state, VC, LocalTime.of(11, 25))
+        val pendingGameOver = recordGoalFromCurrentStateAt(state, VC, LocalTime.of(11, 25))
+        assertEquals(GamePhase.BETWEEN_POINTS, pendingGameOver.phase)
+        assertEquals(ScoreTransition.GAME_OVER, pendingGameOver.pendingScoreTransition?.transition)
+        assertNull(
+            pendingGameOver.activeCountdownDisplay(
+                timestampAt(state, LocalTime.of(11, 25)),
+            )
+        )
+        val gameOverByScore = pendingGameOver.acceptPendingScoreTransition()
         assertEquals(GamePhase.GAME_OVER, gameOverByScore.phase)
         val scoreEndedUndo = gameOverByScore.undoLastAction()
         assertEquals(GamePhase.BETWEEN_POINTS, scoreEndedUndo.phase)
@@ -240,6 +304,26 @@ class TestUndo : GameDomainTestFixtures() {
         assertEquals(0, scoreEndedUndo.teamTwo.score)
         assertNull(scoreEndedUndo.endEpoch)
         assertEquals(GamePhase.LIVE_POINT, scoreEndedUndo.undoLastAction().phase)
+
+        // Not yet retains the completed goal, and the following point recalculates with >=.
+        val deferredGameOver = pendingGameOver.deferPendingScoreTransition()
+        assertEquals(GamePhase.BETWEEN_POINTS, deferredGameOver.phase)
+        assertEquals("Undo Goal by Viscous Coupling", deferredGameOver.undoEntry?.label)
+        assertEquals(
+            deferredGameOver.countdown?.label,
+            deferredGameOver.activeCountdownDisplay(
+                timestampAt(deferredGameOver, LocalTime.of(11, 25)),
+            )?.label,
+        )
+        val recalculatedPending = deferredGameOver.recordGoalFromCurrentState(
+            VC,
+            timestampAt(deferredGameOver, LocalTime.of(11, 26)),
+        )
+        assertEquals(ScoreTransition.GAME_OVER, recalculatedPending.pendingScoreTransition?.transition)
+        val recalculatedGameOver = recalculatedPending.acceptPendingScoreTransition()
+        assertEquals(GamePhase.GAME_OVER, recalculatedGameOver.phase)
+        assertEquals(2, recalculatedGameOver.teamOne.score)
+        assertEquals("Undo End game", recalculatedGameOver.undoEntry?.label)
 
         // Unavailable game-over commands are idempotent no-ops; the UI normally hides these
         // pathways.

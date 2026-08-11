@@ -293,7 +293,11 @@ private fun GameState.withPreviewPullViolation(team: TeamId, violation: PullViol
  * @param team The team whose violation button or action is being considered.
  */
 fun GameState.canRecordPullViolation(team: TeamId): Boolean {
-    if (this.pullSkippedForCurrentPoint) {
+    if (
+        this.pendingScoreTransition != null ||
+        this.pullSkippedForCurrentPoint ||
+        !(this.phase.isBeforeLivePoint || this.phase == GamePhase.LIVE_POINT)
+    ) {
         return false
     }
     return if (team == this.pullingTeam) {

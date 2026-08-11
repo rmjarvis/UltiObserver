@@ -102,42 +102,20 @@ fun GameState.recordGoal(
     val gameOver = max(updatedTeamOne.score, updatedTeamTwo.score) >= gameWinningScore
 
     if (gameOver) {
-        val afterGoalState = this.copy(
-            teamOne = updatedTeamOne,
-            teamTwo = updatedTeamTwo,
-            pullingTeam = nextPullingTeam,
-            pullingFromEnd = nextPullingFromEnd,
-            phase = GamePhase.BETWEEN_POINTS,
-            countdown = buildBetweenPointsCountdown(
-                pullingFromEnd = nextPullingFromEnd,
-                sequenceStart = now,
-                promptTarget = this.pullPromptTarget,
-                rules = this.rules,
-            ),
-            pullSequenceOffsidesRecorded = false,
-            pullSequenceFalseStartRecorded = false,
-            pullSkippedForCurrentPoint = false,
-            pendingMisconductCountdown = false,
-            winningScore = this.winningScore,
+        val afterGoalState = afterGoalBetweenPointsState(
+            scoringTeam = scoringTeam,
+            updatedTeamOne = updatedTeamOne,
+            updatedTeamTwo = updatedTeamTwo,
+            nextPullingFromEnd = nextPullingFromEnd,
             pendingCapOffer = null,
-        ).withEventLogEntry(
-            EventLogEntry(
-                timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
-                type = EventLogType.GOAL,
-                team = scoringTeam,
-            )
-        ).withUndo(this, "Undo Goal by ${this.teamName(scoringTeam)}")
+            now = now,
+        )
         return afterGoalState.copy(
-            endEpoch = now,
-            phase = GamePhase.GAME_OVER,
-            countdown = null,
-            winningScore = gameWinningScore,
-        ).withEventLogEntry(
-            EventLogEntry(
-                timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
-                type = EventLogType.GAME_OVER,
-            )
-        ).withUndo(afterGoalState, "Undo End game")
+            pendingScoreTransition = PendingScoreTransition(
+                transition = ScoreTransition.GAME_OVER,
+                effectiveEpoch = now,
+            ),
+        )
     }
 
     // Caps are checked before halftime so hard cap takes precedence over soft, and soft over half.
@@ -152,58 +130,69 @@ fun GameState.recordGoal(
     val halftimeReached = !this.halftimeTaken &&
         max(updatedTeamOne.score, updatedTeamTwo.score) >= halftimeScore
 
-    // A point-end cap offer is still only pending; the observer can apply or defer it.
-    // Start halftime and surface that offer from the halftime state.
+    // A point-end cap offer and halftime are both still pending observer decisions.
     if (halftimeReached) {
-        val goalState = this.copy(
-            teamOne = updatedTeamOne,
-            teamTwo = updatedTeamTwo,
-        ).withEventLogEntry(
-            EventLogEntry(
-                timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
-                type = EventLogType.GOAL,
-                team = scoringTeam,
-            )
-        )
-        return startHalftime(
-            state = goalState,
-            teamOne = updatedTeamOne,
-            teamTwo = updatedTeamTwo,
-            existingCapOffer = pendingCapOffer,
+        val afterGoalState = afterGoalBetweenPointsState(
+            scoringTeam = scoringTeam,
+            updatedTeamOne = updatedTeamOne,
+            updatedTeamTwo = updatedTeamTwo,
+            nextPullingFromEnd = nextPullingFromEnd,
+            pendingCapOffer = pendingCapOffer,
             now = now,
-            undoPrevious = this,
-            undoLabel = "Undo Goal by ${this.teamName(scoringTeam)}",
+        )
+        return afterGoalState.copy(
+            pendingCapOffer = capOfferForHalftime(
+                state = afterGoalState,
+                existingCapOffer = pendingCapOffer,
+                now = now,
+            ),
+            pendingScoreTransition = PendingScoreTransition(
+                transition = ScoreTransition.HALFTIME,
+                effectiveEpoch = now,
+            ),
         )
     }
 
     // Regular point -- not half, and not game over.
-    val countdown = buildBetweenPointsCountdown(
-        pullingFromEnd = nextPullingFromEnd,
-        sequenceStart = now,
-        promptTarget = this.pullPromptTarget,
-        rules = this.rules,
+    return afterGoalBetweenPointsState(
+        scoringTeam = scoringTeam,
+        updatedTeamOne = updatedTeamOne,
+        updatedTeamTwo = updatedTeamTwo,
+        nextPullingFromEnd = nextPullingFromEnd,
+        pendingCapOffer = pendingCapOffer,
+        now = now,
     )
+}
+
+/** Build the scored between-points state retained behind halftime or game over. */
+private fun GameState.afterGoalBetweenPointsState(
+    scoringTeam: TeamId,
+    updatedTeamOne: TeamState,
+    updatedTeamTwo: TeamState,
+    nextPullingFromEnd: FieldEnd,
+    pendingCapOffer: CapType?,
+    now: Long,
+): GameState {
     return this.copy(
         teamOne = updatedTeamOne,
         teamTwo = updatedTeamTwo,
-        pullingTeam = nextPullingTeam,
+        pullingTeam = scoringTeam,
         pullingFromEnd = nextPullingFromEnd,
         phase = GamePhase.BETWEEN_POINTS,
-        countdown = countdown,
+        countdown = buildBetweenPointsCountdown(
+            pullingFromEnd = nextPullingFromEnd,
+            sequenceStart = now,
+            promptTarget = pullPromptTarget,
+            rules = rules,
+        ),
         pullSequenceOffsidesRecorded = false,
         pullSequenceFalseStartRecorded = false,
         pullSkippedForCurrentPoint = false,
         pendingMisconductCountdown = false,
-        halftimeTaken = this.halftimeTaken,
-        halftimeTargetScore = this.halftimeTargetScore,
-        halftimeHighScore = this.halftimeHighScore,
-        pendingWaterBreakOffer = this.pendingWaterBreakOffer ||
-            this.goalTriggersAutomaticWaterBreak(scoringTeam),
-        winningScore = this.winningScore,
-        halfCapApplied = this.halfCapApplied,
-        softCapApplied = this.softCapApplied,
-        hardCapApplied = this.hardCapApplied,
+        pendingWaterBreakOffer = pendingWaterBreakOffer ||
+            goalTriggersAutomaticWaterBreak(scoringTeam),
         pendingCapOffer = pendingCapOffer,
+        pendingScoreTransition = null,
     ).withEventLogEntry(
         EventLogEntry(
             timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
@@ -231,7 +220,37 @@ fun GameState.startHalftimeNow(
         now = now,
         undoPrevious = this,
         undoLabel = "Undo Start halftime",
+        assessUpcomingCapOffers = true,
     )
+}
+
+/** Accept the score-triggered halftime or game-over transition awaiting a decision. */
+fun GameState.acceptPendingScoreTransition(): GameState {
+    val pending = pendingScoreTransition!!
+    val beforeTransition = copy(pendingScoreTransition = null)
+    return when (pending.transition) {
+        ScoreTransition.HALFTIME -> startHalftime(
+            state = beforeTransition,
+            teamOne = teamOne,
+            teamTwo = teamTwo,
+            existingCapOffer = pendingCapOffer,
+            now = pending.effectiveEpoch,
+            undoPrevious = beforeTransition,
+            undoLabel = "Undo Start halftime",
+            assessUpcomingCapOffers = false,
+        )
+        ScoreTransition.GAME_OVER -> beforeTransition.copy(
+            winningScore = winningScore ?: rules.gameTo,
+        ).endGameNow(
+            now = pending.effectiveEpoch,
+            undoPrevious = beforeTransition,
+        )
+    }
+}
+
+/// Defer the pending score transition without changing undo or redo history.
+fun GameState.deferPendingScoreTransition(): GameState {
+    return copy(pendingScoreTransition = null)
 }
 /**
  * Move a game into halftime while preserving timeout carryover, second-half pull orientation, and undo context.
@@ -243,6 +262,7 @@ fun GameState.startHalftimeNow(
  * @param now The phone epoch millis when halftime begins.
  * @param undoPrevious The state that undo should restore.
  * @param undoLabel The user-facing undo label for the action that started halftime.
+ * @param assessUpcomingCapOffers Whether to find additional caps scheduled during halftime.
  */
 private fun startHalftime(
     state: GameState,
@@ -252,6 +272,7 @@ private fun startHalftime(
     now: Long,
     undoPrevious: GameState,
     undoLabel: String,
+    assessUpcomingCapOffers: Boolean,
 ): GameState {
     val secondHalfPullingTeam = state.openingPullingTeam.flip()
     val secondHalfPullingFromEnd = state.openingPullingFromEnd
@@ -259,17 +280,11 @@ private fun startHalftime(
         halftimeMinutes = state.rules.halftimeMinutes,
         sequenceStart = now,
     )
-    val halftimeEnd = now + state.rules.halftimeMinutes * 60_000L
-    val hardCapTime = state.capEpoch(CapType.HARD)
-    val softCapTime = state.capEpoch(CapType.SOFT)
-    // Preserve an already-pending soft/hard cap. Otherwise, catch caps that became
-    // due just before a manual halftime start or that are scheduled during halftime.
-    val pendingCapOffer = existingCapOffer.takeIf { it == CapType.SOFT || it == CapType.HARD }
-        ?: when {
-            state.hardCapRelevant() && hardCapTime < halftimeEnd -> CapType.HARD
-            state.softCapRelevant() && softCapTime < halftimeEnd -> CapType.SOFT
-            else -> null
-        }
+    val pendingCapOffer = if (assessUpcomingCapOffers) {
+        capOfferForHalftime(state, existingCapOffer, now)
+    } else {
+        existingCapOffer
+    }
 
     return state.copy(
         teamOne = teamOne.copy(
@@ -292,12 +307,28 @@ private fun startHalftime(
         halftimeHighScore = max(teamOne.score, teamTwo.score),
         pendingWaterBreakOffer = false,
         pendingCapOffer = pendingCapOffer,
+        pendingScoreTransition = null,
     ).withEventLogEntry(
         EventLogEntry(
             timeText = state.formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
             type = EventLogType.HALFTIME,
         )
     ).withUndo(undoPrevious, undoLabel)
+}
+
+/** Find the soft or hard cap that should be offered when halftime starts. */
+private fun capOfferForHalftime(
+    state: GameState,
+    existingCapOffer: CapType?,
+    now: Long,
+): CapType? {
+    val halftimeEnd = now + state.rules.halftimeMinutes * 60_000L
+    return existingCapOffer.takeIf { it == CapType.SOFT || it == CapType.HARD }
+        ?: when {
+            state.hardCapRelevant() && state.capEpoch(CapType.HARD) < halftimeEnd -> CapType.HARD
+            state.softCapRelevant() && state.capEpoch(CapType.SOFT) < halftimeEnd -> CapType.SOFT
+            else -> null
+        }
 }
 /**
  * End the current game immediately from any non-finished state.
@@ -332,6 +363,7 @@ internal fun GameState.endGameNow(
         countdown = null,
         pendingMisconductCountdown = false,
         pendingCapOffer = null,
+        pendingScoreTransition = null,
     ).withEventLogEntry(
         EventLogEntry(
             timeText = formatOfficialGameTime(now, EVENT_LOG_TIME_FORMATTER),
