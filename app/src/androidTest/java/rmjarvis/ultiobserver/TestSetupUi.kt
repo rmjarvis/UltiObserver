@@ -21,6 +21,7 @@ import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import java.time.LocalTime
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -154,8 +155,8 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("setup-Team 1-color-${TeamColorChoice.BLUE.name}").performClick()
         waitForText("Start game")
 
-        // The expanded color picker can save a custom color, which then appears as a reusable
-        // custom swatch in the compact color dialog.
+        // The expanded color picker can save a gray custom color, which then appears as a
+        // reusable custom swatch in the compact color dialog.
         composeRule.onNodeWithTag("setup-Team 1-color-button").performScrollTo().performClick()
         waitForText("$aardvarks Color")
         composeRule.onNodeWithTag("setup-Team 1-color-more").performClick()
@@ -167,11 +168,26 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         waitForText("Use this color")
         composeRule.onNodeWithTag("setup-Team 1-color-custom-picker")
             .performTouchInput {
-                click(percentOffset(0.75f, 0.35f))
+                click(percentOffset(0.5f, 0.5f))
+            }
+        composeRule.onNodeWithTag("setup-Team 1-color-custom-brightness")
+            .performTouchInput {
+                click(percentOffset(0.5f, 0.5f))
             }
         composeRule.onNodeWithTag("setup-Team 1-color-custom-preview").performClick()
         composeRule.onNodeWithText("Use this color").performClick()
         waitForText("Start game")
+        val customColor = composeRule.activity.appViewModel.currentGame!!
+            .teamOne.customColorArgb!!.toInt()
+        assertEquals(
+            android.graphics.Color.red(customColor),
+            android.graphics.Color.green(customColor),
+        )
+        assertEquals(
+            android.graphics.Color.red(customColor),
+            android.graphics.Color.blue(customColor),
+        )
+        assertTrue(android.graphics.Color.red(customColor) in 1..254)
 
         // Saved custom colors can be reselected, and remain available after switching back to a
         // preset color.

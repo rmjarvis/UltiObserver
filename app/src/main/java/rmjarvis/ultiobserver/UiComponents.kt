@@ -116,6 +116,7 @@ import androidx.compose.ui.window.DialogProperties
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
+import com.github.skydoves.colorpicker.compose.BrightnessSlider
 import com.github.skydoves.colorpicker.compose.HsvColorPicker
 import com.github.skydoves.colorpicker.compose.rememberColorPickerController
 
@@ -725,6 +726,14 @@ internal fun CustomColorPicker(
                 previewColor = colorEnvelope.color.copy(alpha = 1f)
                 onColorChange(previewColor)
             },
+        )
+        BrightnessSlider(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(32.dp)
+                .testTag("$testTagPrefix-custom-brightness"),
+            controller = controller,
+            initialColor = initialColor,
         )
         Box(
             modifier = Modifier
