@@ -79,21 +79,23 @@ Watch notifications
 
     * **Off** does not send any timing cue notifications. This is the default.
     * **Silent** keeps the information current without intentionally alerting the watch. This is
-      useful when you are getting sound cues through an earbud. It's still useful to have the
-      score and gender ratio shown on the watch, along with what the next cue is if you need it.
+      useful when you are getting sound cues through an earbud. The score and gender ratio
+      (for ABBA) are shown on the watch, along with what the next cue is, but the watch will
+      not vibrate for the cues.
     * **Alerting** sends alerting notifications to the watch, which can vibrate if you have your
       watch set to do so. Only cues whose individual sound/vibration setting is not **Off**
-      receive an alerting notification.
+      receive an alerting notification. The score and gender ratio (for ABBA) are also shown
+      as part of the notification.
 
-    Android notification permission and notification mirroring must be enabled. The watch and its
-    companion app ultimately control whether an alert vibrates the watch, and may also control
-    whether the phone alerts at the same time.
+    Android notification permission and notification mirroring must be enabled for **Silent** and
+    **Alerting** to work. The watch and its companion app ultimately control whether an alert
+    vibrates the watch, and may also control whether the phone alerts at the same time.
 
     .. note::
 
         UltiObserver has no direct way to tell if you have a watch paired with your phone.
-        From its perspective, it is just sending notifications to the phone. The watch's
-        companion app is responsible for sending them to the watch.
+        From its perspective, **Silent** and **Alerting** modes just send notifications to
+        the phone. The watch's companion app is responsible for sending them to the watch.
 
 Active Game Screen Behavior
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -5,6 +5,7 @@ More Actions
 
 The **More actions** menu has a number of less common operations that you may need
 during a game, such as corrections and unusual game-management situations.
+The actions are organized by category as follows:
 
 Setup changes
 -------------
@@ -46,7 +47,7 @@ Game Summary
     for completed games, but if you want to share the game summary so far at halftime for some
     reason, this action lets you do that.
 
-Field And pull controls
+Field and pull controls
 -----------------------
 
 These change aspects of the field orientation and pull details.
@@ -93,6 +94,8 @@ Manual game transitions
 -----------------------
 
 If you need to apply a cap, half or game over off the normal schedule, these let you do so.
+E.g. the cap actions could be useful if the tournament horn is slightly out of sync with your
+phone clock, so the app doesn't think the cap applies quite yet, but the horn means it does.
 
 Apply half cap now
     Applies the half cap immediately.
@@ -107,8 +110,6 @@ Apply soft cap now
 
 Apply hard cap now
     Applies the hard cap immediately.
-    The cap actions could be useful if the tournament horn is slightly out of sync with your
-    phone clock, so the app doesn't think the cap applies quite yet, but the horn means it does.
 
 End game
     Manually ends the game at the current score. Normally the game ends automatically when the

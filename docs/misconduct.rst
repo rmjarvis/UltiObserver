@@ -33,7 +33,8 @@ Or if the player doesn't have a number, you can just enter a name.
 
 You can also select a reason for the card. There are buttons to choose any of the standard
 reasons given in the rules. Or you can choose **Other** to enter any reason you want.
-There is also a box to enter more details if you want.
+There is also a box to enter more details about the circumstances if you'd like to add
+additional context.
 
 Pressing **Record** will close the entry dialog and record the card for that player.
 
@@ -44,7 +45,7 @@ the game.
 .. figure:: screen-shots/ThirdCardPenalty.png
    :class: phone-screenshot desktop-only
    :target: _images/ThirdCardPenalty.png
-   :alt: Third team card penalty dialog asking whether the card was on offense or defense
+   :alt: Third team card dialog giving restart information for the misconduct penalty.
 
 If you have entered prior cards from previous games at the tournament, and this card brings them
 to 3 or more cards total in the tournament (counting reds as 2), it will let you know that
@@ -55,17 +56,15 @@ ask if you really meant to do this, giving you the option to correct the name if
 meant for them to be the same. Since sometimes teams have two players with the same number,
 it will allow you to confirm that this is a different person with the same number.
 
+Upon recording the card, a message will tell you the total number of cards assessed against
+the team.
+If there are associated yardage penalties, it will tell you the appropriate
+restart (see :ref:`team-card-totals` below).
+
 .. figure:: screen-shots/ThirdCardPenalty.png
    :class: phone-screenshot mobile-only
    :target: _images/ThirdCardPenalty.png
-   :alt: Third team card penalty dialog asking whether the card was on offense or defense
-
-Upon recording the card, a message will tell you the total number of cards assessed against
-the team (see :ref:`team-card-totals` below).
-
-If there is a yardage penalty (for the 3rd or later team card) it will tell you what the
-consequence is. For live point misconduct, it will ask you whether the card was against
-the offense or defense so it can tell you the right restart.
+   :alt: Third team card dialog giving restart information for the misconduct penalty.
 
 
 Editing existing cards
@@ -85,11 +84,9 @@ Blue cards
 
 To record a blue card assessed against a team, click the **Card** button and select Blue.
 This will directly record a blue card for that team and tell you the current total
-number of cards assessed against the team. (See :ref:`team-card-totals` below.)
-
-If there is a yardage penalty (for the 3rd or later team card) it will tell you what the
-consequence is. For live point misconduct, it will ask you whether the card was against
-the offense or defense so it can tell you the right restart.
+number of cards assessed against the team.
+If there are associated yardage penalties, it will tell you the appropriate
+restart (see :ref:`team-card-totals` below).
 
 .. _technical-fouls:
 
@@ -99,10 +96,8 @@ Technical fouls
 To record a technical foul assessed against a team, click the **Tech** button.
 This will directly record a technical foul for that team and tell you the current total
 number of technical fouls assessed against the team.
-
-If there is a yardage penalty (for the 3rd or later technical foul) it will tell you what the
-consequence is. For live point misconduct, it will ask you whether the tech was against
-the offense or defense so it can tell you the right restart.
+If there are associated yardage penalties, it will tell you the appropriate
+restart (see :ref:`team-card-totals` below).
 
 .. _team-card-totals:
 
@@ -119,8 +114,16 @@ a team, counting red cards as 2. I.e. the number of team cards is calculated as 
 yellows + 2 x reds. This feels more intuitive to me and makes the messaging less confusing.
 
 This team card total is the relevant number for determining misconduct penalties. When the
-total is 3 or greater, there are yardage penalties when the misconduct is assessed during
-a live point. The app will remind you of the appropriate penalty in these cases.
+total is 3 or greater, there are yardage penalties that apply.
+Technical fouls have the same misconduct penalties for the third and later technical foul
+as for team cards.
+
+If the 3rd or later team card or technical foul happens during a live point, it will tell
+you what the consequence is. If you have the full rules guidance enabled (see `Settings`),
+it will ask you whether the card was against the offense or defense so it can tell you the
+right restart. For brief rules guidance, it will just give a quick reminder of the restart
+for the two possible cases.
+
 Since you will probably need to have some discussion with the teams related to the misconduct,
 the app waits until you are ready to start the resulting countdown.
 Click **Start misconduct countdown** when you are ready.
@@ -128,8 +131,6 @@ Click **Start misconduct countdown** when you are ready.
 When the misconduct penalty happens between points, the pull is skipped, and the app will remind
 you of the appropriate restart.
 
-Technical fouls have the same misconduct penalties for the third and later technical foul
-as for team cards.
 
 Prior Tournament Cards
 ----------------------

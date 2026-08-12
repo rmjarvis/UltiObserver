@@ -1,10 +1,5 @@
-UltiObserver
-============
-
-.. figure:: screen-shots/HomePage.png
-   :class: phone-screenshot
-   :target: _images/HomePage.png
-   :alt: UltiObserver home screen with start game, archive, profile, settings, and about buttons
+Overview
+========
 
 UltiObserver is a game management app for Ultimate observers, which is intended to replace
 both the paper score sheet and the stopwatch observers typically use.
@@ -74,8 +69,10 @@ Contents
 .. toctree::
    :maxdepth: 2
 
+   Overview <self>
    install
    quick-start
+   home-screen
    profile
    settings
    setup-game

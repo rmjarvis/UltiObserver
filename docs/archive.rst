@@ -1,4 +1,4 @@
-Saved And Archived Games
+Archived and Saved Games
 ========================
 
 .. figure:: screen-shots/ArchiveCategories.png
@@ -11,7 +11,14 @@ UltiObserver keeps track of past games so you can reference them later, includin
 summary information after the fact. (See :ref:`Share`.)
 It also saves setup drafts and in-progress games that might have accidentally been
 bumped from the current game spot. All of these games are available from the
-home button **Archived/saved games**. That takes you to a page with three menu options.
+home button **Archived/saved games**. This takes you to a page with three menu options:
+
+* `Archived games`
+* `In-progress games`
+* `Saved setup drafts`
+
+Each of these has a number after the category name, which indicates how many games are
+in that category.
 
 Archived games
 --------------
@@ -22,7 +29,7 @@ Archived games
    :alt: Archived games list showing several saved completed games
 
 Completed games end up here. You can manually archive a completed game from the
-:ref:`Game Summary` page that shows up after a game is over. You can also archive a
+:ref:`Game Summary` page that shows up after a game is over, or you can archive a
 completed current game from the home page. It will also be automatically archived
 if you start a new game when the existing current game is completed.
 
@@ -31,13 +38,13 @@ on your device. Clicking on a game brings up a :ref:`Game Summary` page very sim
 to the one that appears for a current game when the game is over.
 
 The only difference is the button at the bottom, which says **Restore game**.
-This brings the archived game back as the current game. You would probably rarely, if ever,
-want to do that. One potential reason would be to edit the reason given for a yellow or red card
-or to give more details that you didn't have time to enter during the game.
+Tapping this brings the archived game back as the current game. You would probably rarely, if ever,
+want to do that. One potential reason would be to make a correction to some detail about the
+game that you entered incorrectly during the game.
 
 To save space on your device, archived games do not preserve the full undo history.
 If you restore an archived game, you cannot undo actions from before it was archived.
-You can perform new actions though, such as editing the misconduct as mentioned above.
+You can perform new actions though.
 
 Probably the more useful action from this page is the **Share** button, which lets you
 share the game summary with someone, just as you could from the regular Game Summary

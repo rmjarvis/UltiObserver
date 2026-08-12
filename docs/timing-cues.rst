@@ -118,7 +118,7 @@ Halftime Timing
 ---------------
 
 When halftime starts, a halftime countdown begins showing how much time is left in the half.
-There are two cues for this:
+There are three cues for this:
 
 .. list-table::
    :class: cue-table
@@ -131,9 +131,37 @@ There are two cues for this:
      - 5 minutes
    * - 2:00
      - 2 minutes
+   * - 0:00
+     - Halftime is over
 
 When this countdown hits 0:00, it automatically transitions into the regular countdown for
 the first pull of the second half.
+
+.. note::
+
+    The 5 minute cue is still in the official observer handbook, so we include it here.
+    However, it is almost certainly obsolete now that halftime is only 7 minutes rather than
+    10 minutes. This cue defaults to Off in the `Settings`, so it is typically skipped.
+
+Pre-game Timing
+---------------
+
+Before the game starts, there are a few cues to remind the team that the game is close
+to starting.
+
+.. list-table::
+   :class: cue-table
+   :header-rows: 1
+   :widths: 1 3
+
+   * - Time
+     - Cue
+   * - 5:00
+     - 5 minutes to start
+   * - 3:00
+     - 3 minutes to start
+   * - 1:00
+     - 1 minute to start
 
 Cap Alerts
 ----------
@@ -145,7 +173,7 @@ Cap Alerts
 
 Half, soft, and hard caps don't have any cues for something to shout at any time, but you
 can set them to vibrate or make a sound when they come due. These are set in the same place
-as the other cue vibrations/sounds (cf. :ref:`settings`).
+as the other cue vibrations/sounds (See :ref:`settings`).
 
 The cap alerts use the phone's alarm mechanism. On most systems, this means you will need to
 explicitly allow UltiObserver to set alarms on your device. When starting a game that has

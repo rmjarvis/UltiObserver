@@ -16,9 +16,11 @@ compatibility for professional games such as PUL, WUL, and UFA.
 Alternate rule sets
 -------------------
 
-The app currently uses USAU rules for everything. It would be nice to be able to modify
-some of these rules, including countdown timings particularly, so the app would be
-useful for non-USAU games, including professional games such as PUL, WUL, and UFA.
+The app currently uses USAU rules for everything. Some things are modifiable, including
+timeout duration and the time between points, but it would be nice to be able to set these
+with a single click for common non-USAU contexts.
+In particular, it would be nice to have buttons for professional games such as PUL, WUL, and UFA,
+which could also make any other adjustments to the rules that these games require.
 WFDF variants would be nice to include as well to encode the places where those rules
 differ from USAU rules.
 

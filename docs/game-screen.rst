@@ -38,6 +38,12 @@ receiving this cue) that they have 20 seconds until they need to signal readines
 If you are on the pulling team's end, the cues will be related to pulling rather than
 signaling readiness.
 
+When the score reaches the halftime target (either the normal one or an early one if the
+half cap was applied), UltiObserver starts the halftime countdown and shows a halftime message
+so the observer can announce it. It is deferrable (by pressing Not yet) in case the half cap
+was applied incorrectly.
+After halftime expires, normal ready/pull timing for the second half pull begins automatically.
+
 Field Display
 -------------
 
@@ -132,15 +138,12 @@ The center of the field sometimes shows a button to transition the game to the n
 **Start point** indicates that the pull happened, presumably before the countdown finished.
 **Continue point** will end a timeout and go back to live play before its countdown finishes.
 When defensive countdowns are enabled, **Offense is set** indicates that the offense is set,
-which may start the defensive countdown.
+which starts the defensive countdown.
 
 Caps
 ----
 
-The next appropriate cap is always shown at the top of the screen to the right of the clock.
-You can also click the small rules icon to the right of the cap to see the cap times
-that apply to this game.
-
+The next relevant cap is always shown at the top of the screen to the right of the clock.
 When the time for the cap is reached, UltiObserver will emit a sound or vibration (if these
 are enabled) letting you know. See :ref:`settings` for how to change the sound or
 vibration associated with the three caps.
@@ -159,14 +162,10 @@ can no longer have any effect. The next score necessarily brings one team to 7 p
 half would be at 8 regardless. In this case, the app will switch to showing the time until
 soft cap instead.
 
-Halftime
---------
-
-When the score reaches the halftime target (either the normal one or an early one if the
-half cap was applied), UltiObserver starts the halftime countdown and shows a halftime message
-so the observer can announce it immediately.
-
-After halftime expires, normal ready/pull timing for the second half pull begins automatically.
+Just to the right of the Cap timer is a small rules icon. Click this to see all the rules
+that apply to the current game. This includes all the cap times, the target score for
+halftime and ending the game (taking into account any applied caps), the current heat or AQI
+level if appropriate, and other rules that were set for this game.
 
 Bottom Buttons
 --------------

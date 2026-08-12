@@ -1,3 +1,5 @@
+.. _setup-screen:
+
 Setting Up A Game
 =================
 
@@ -39,7 +41,9 @@ The team names default to **Team 1** and **Team 2**, so you'll obviously want to
 
 You can also set the color you want to use for each team on the live game page by clicking
 **Edit colors**. Probably this should roughly match the team's jersey color, but you can use
-whatever colors you want here.
+whatever colors you want here. The preset colors try to give a range of common jersey colors,
+but if you want to be more specific, pressing **More colors** will open a color picker
+that lets you choose any color you want.
 
 The **Coach/captains** button lets you enter names for the coach and captains of each team.
 These are available for quick access in a small info icon next to each team name on the

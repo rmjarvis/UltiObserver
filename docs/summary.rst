@@ -47,7 +47,7 @@ such as a text message, email, GroupMe, Discord, or whatever communication chann
 has been set up to pass along this information after games.
 
 Shared summaries are intentionally compact. They include just the information needed to
-identify the game and observers and which players were issues cards.
+identify the game and observers and which players were issued cards.
 They do not include other meta-data or events like pull violations, timeouts, blue cards,
 or technical fouls, as these are not typically necessary to report.
 
@@ -63,7 +63,7 @@ The event log records all game events with timestamps, including first pull, goa
 cards, technical fouls, pull violations, time violations, timeouts, halftime,
 game over, and any manual adjustments that were performed.
 
-Use the event log when you need to reconstruct when something happened or explain a
-correction to a tournament director or head observer.
+Use the event log when you need to reconstruct when something happened or resolve a disagreement
+with your partner about some game event.
 
 The event log can also be shared through the same Android share function.

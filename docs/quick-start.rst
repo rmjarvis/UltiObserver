@@ -59,8 +59,4 @@ Navigation
 
 Every screen in UltiObserver, other than the home screen, has a back arrow icon at the upper
 left, which goes back to the previous page you came from, and a home icon at the upper right,
-which takes you directly to the home screen.
-
-The home screen also has a small info icon at the upper left which has some details about
-the currently installed version of the app and links to useful reference pages (including
-these docs).
+which takes you directly to the `Home Screen`.

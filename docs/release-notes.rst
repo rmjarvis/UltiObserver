@@ -1,6 +1,49 @@
 Release History
 ===============
 
+Version 1.3
+-----------
+
+The main additions in this version are landscape mode and smart watch integration.
+I don't have a full WearOS companion app yet, so you still can't record things like goals
+and timeouts from the watch, but you can at least get timing cue alerts on the watch now.
+
+- Added landscape mode for the active game screen, which shows the two field ends on the left
+  and right, rather than top and bottom.
+- Added an auto-rotate mode, which follows the phone orientation and keeps the field ends
+  assigned to the same physical end of your phone.
+- Added the ability to send notifications to a smart watch, including timing cues, the
+  current score, and the gender ratio for ABBA.
+- Fixed a bug that could crash the app if two buttons are pressed nearly simultaneously.
+- Fixed a bug that caused hard-capped, archived games to not be restorable.
+- Fixed a very minor bug in how hard cap could potentially interact with the 3rd quarter
+  water break. Now a non-game-ending hard cap triggers a water break if one hasn't been
+  taken yet in the half.
+- Fixed a bug when misconduct is assessed after a pull countdown has expired.
+- Added a cue when halftime is over and also cues at 5, 3, and 1 minute before the game starts.
+- Swapped the grey team color for purple, since that's probably significantly more common
+  for team jersey colors.
+- Added a brightness slider to the color picker.
+- Recognize when soft and hard caps become irrelevant and no longer emit cues for them.
+- Improved (IMO) the default sounds assigned to various timing cues.
+- Added an option to automatically advance Goal and Timeout countdowns a little bit to account
+  for the time it takes to open the phone and press the button.
+- Added a way to sync the app's clock with the tournament's official clock.
+- Added the ability to filter archived games by cards assessed in the game.
+- Changed the archive listing to show the winning team first.
+- Changed the manual water break option from Level 0 to Manual, since Level 0 is really the
+  same as None, so this naming was confusing.
+- Added the ability to edit card details from the game summary after the game is over.
+- Shortened the share text to have only the really useful info you would need to share.
+- Gave the More actions menu a category-based navigation, which hopefully makes it easier
+  for people to find the right menu item.
+- Improved the timing-cue accuracy of associated sounds and vibrations.
+- Improved the appearance of some dialogs, especially on phones with large fonts.
+- Made halftime undo-able like most other game events in case you accidentally applied half
+  cap incorrectly. The prompts for both halftime and game over are now deferrable if
+  necessary by pressing Not yet.
+- Stopped showing cap and water break prompts after undoing them.
+
 Version 1.2
 -----------
 
