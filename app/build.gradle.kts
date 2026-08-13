@@ -42,9 +42,7 @@ kotlin {
 android {
     namespace = "rmjarvis.ultiobserver"
     compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
+        version = release(37)
     }
 
     defaultConfig {
@@ -100,6 +98,11 @@ android {
 }
 
 dependencies {
+    constraints {
+        implementation(libs.androidx.fragment) {
+            because("Play Services otherwise packages the obsolete Fragment 1.1.0")
+        }
+    }
     implementation(platform(libs.androidx.compose.bom))
     implementation(platform(libs.firebase.bom))
     implementation(libs.androidx.activity.compose)
