@@ -42,10 +42,9 @@ release to become available.
 Android Support
 ---------------
 
-UltiObserver is Android only for now. It is designed for portrait mode and
-reasonably current Android phones. The release test matrix includes small
-phones, modern Pixel-style phones, large-font settings, dark mode, and selected
-foldable/wide-screen checks.
+UltiObserver is Android only for now. It is designed for reasonably current Android phones.
+The release test matrix includes small phones, modern Pixel-style phones,
+large-font settings, dark mode, and selected foldable/wide-screen checks.
 
 If the app looks wrong or behaves badly on your phone, please report:
 
