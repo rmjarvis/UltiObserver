@@ -25,3 +25,4 @@ docs/_build/
 tools/detekt/*.jar
 play-store-assets
 run-*
+exported_games
