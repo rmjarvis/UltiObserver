@@ -95,6 +95,11 @@ android {
             enable = true
         }
     }
+    sourceSets {
+        getByName("androidTest").kotlin.directories.add(
+            "../tools/release-screenshots/android"
+        )
+    }
 }
 
 dependencies {
