@@ -9,7 +9,7 @@ Profile
 The main thing to set on the profile screen is your name. When it is set, any new-game setup
 pre-populates the first observer row with that name. The second observer row is
 left blank for the partner assigned to work with you. You can of course change the first
-name as well, but we expect that most of the time you will be one of the two observers
+name as well, but we expect that most of the time you will be one of the observers
 doing the game.
 
 This is also where you can change the avatar picture that displays on the home screen.
