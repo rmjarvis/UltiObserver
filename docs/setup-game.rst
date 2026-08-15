@@ -8,7 +8,7 @@ Setting Up A Game
    :target: _images/SetupTop.png
    :alt: Setup screen with team names, colors, coach and captain information, and cards
 
-Clicking **Start a new game** takes you to the setup screen.
+Clicking **Start new game** takes you to the setup screen.
 This is where you enter all the details about the game before the game starts.
 Many of these details can be set well in advance of the game, leaving only the details
 decided at the pre-game flip to be entered at that time.
@@ -86,7 +86,7 @@ Field number
 
 Tournament name
     Pretty self-explanatory. Setting the tournament name will let you filter completed games
-    by tournament, which be useful.
+    by tournament, which can be useful.
 
 Division
     This is also just for reference. However, selecting **Mixed** here enables rules related
@@ -104,7 +104,8 @@ Game context
 
     When you start a new setup after a previous game or a previous setup draft, the tournament,
     division, and level will default to the value from that previous game to make it easier to
-    set up multiple games in a single tournament.
+    set up multiple games in a single tournament. The game rules are also copied from the
+    previous game.
 
 Field And Starting Pull
 -----------------------
@@ -116,11 +117,12 @@ Field And Starting Pull
 
 Before the flip, you should decide how you want to refer to the two ends of the field. The
 default names are simply **Near end** and **Far end** with the assumption that you are located at
-**Near end** for the purpose of which pull prompts you get. But you can name them something
+**Near end** for the purpose of which pull prompts you get. If you are using Landscape mode
+(see `Settings`), the defaults are **Left end** and **Right end**. But you can name them something
 more appropriate based on the layout of the field. E.g. Trees, North, Parking Lot, Camera, ...
 whatever you want.
 
-The rest of the items are the details that are decided at the pregame flip.
+The rest of the items are the details that are decided at the pre-game flip.
 
 Pulling team
     Which team starts on defense.
@@ -136,7 +138,7 @@ End for gen zone in first half
     The "gen zone" is the common term for the end zone that decides the gender ratio when playing
     under that rule. This option is only available if the division is set to Mixed and the rules
     are set to use Gen zone for the gender ratio. Note that official rules say to switch the gen
-    zone in the second half, but you can switch that in the Rules section.
+    zone in the second half, but you can change that in the Game Rules section.
 
 Timing prompts for which end?
     This would normally be whichever end of the field you are going to be located for pulls.
@@ -183,7 +185,7 @@ Mixed gender ratio
       your game is not respecting that rule, you can choose to disable that.
 
     * **Offense decides**: The team receiving the pull decides the ratio each point. This used to
-      be the standard way to choose, but is rarely used these days. Still, it's an option.
+      be the standard way to choose, but it is rarely used these days. Still, it's an option.
 
     * **4M/3W**: Just use 4 man-matching, 3 woman-matching for the whole game.
 
@@ -200,11 +202,6 @@ Heat/AQI level
 
     * **None**: No adjustments to the standard rules. No water drop icon on the active game screen.
 
-    * **Manual**: Adds a water drop icon to the active game screen, which can be used to
-      start a water break between points. There will be no prompts for any automatic water breaks.
-      The default break time is 3 minutes under heat guidelines or 4 minutes under air-quality
-      guidelines, but you can change it.
-
     * **Level 1**: One water break per half: 3 minutes under heat guidelines or 4 minutes
       under air-quality guidelines. The usual cadence in a game to 15 is
       to take these breaks when a team reaches 4 points in the first half or 12 in the second
@@ -217,8 +214,13 @@ Heat/AQI level
     * **Level 2**: One 4-minute water break per half with the same cadence as **Level 1**.
       In addition, this level adds 60 seconds to the time between points and shortens the
       game. Hard cap is set to 90 minutes after the start time, and the soft cap is 20 minutes
-      prior to that. (Already shorter caps are not affected.) These adjustments are shown on
-      the other rule pages, and they apply automatically.
+      prior to that. (Already shorter caps are not affected.) These adjustments
+      apply automatically.
+
+    * **Manual**: Adds a water drop icon to the active game screen, which can be used to
+      start a water break between points. There will be no prompts for any automatic water breaks.
+      The default break time is 3 minutes under heat guidelines or 4 minutes under air-quality
+      guidelines, but you can change it.
 
     All of them besides **None**  allow you to change the length of the water break if your
     tournament is using a different break time than the official guidance. You can also switch
@@ -226,7 +228,7 @@ Heat/AQI level
 
     During the game, Levels 1-2 also show a water drop icon next to the countdown, just like
     **Manual**, so you can take an off-schedule water break if needed. You can change the level,
-    water-break duration and heat/AQI selection from the **More actions** menu when necessary.
+    water-break duration and heat/AQI selection from the `More actions` menu when necessary.
     Also, all water breaks open a confirmation dialog, which lets you decline a scheduled water
     break if you need to reject it for some reason.
 

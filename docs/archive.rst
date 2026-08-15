@@ -48,8 +48,7 @@ You can perform new actions though.
 
 Probably the more useful action from this page is the **Share** button, which lets you
 share the game summary with someone, just as you could from the regular Game Summary
-page after the game. Similarly, **Event log** shows the same event log that was available
-from the Game Summary page.
+page after the game. Similarly, **Event log** shows the event log as usual.
 
 .. figure:: screen-shots/FilterLevel.png
    :class: phone-screenshot
@@ -109,7 +108,7 @@ In-progress games
 -----------------
 
 If you accidentally start a new game when you are in the middle of another game,
-don't worry. It will automatically be saved and stored in this section of the
+don't worry. It is automatically saved and stored in this section of the
 Saved and archived games area.
 
 This page shows the current in-progress game first, if there is one.

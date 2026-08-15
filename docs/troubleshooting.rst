@@ -5,7 +5,7 @@ Reporting Bugs
 --------------
 
 Please report bugs, rule mistakes, confusing observer workflows, crashes, or UI
-problems through `GitHub Issues`_.
+problems using `GitHub Issues`_.
 
 Good reports include:
 

@@ -62,10 +62,9 @@ names given at the lower left and lower right corners of the field area.
 In either case, each end zone shows which team starts the point in that end zone.
 See `Team Areas` below.
 
-If you want to flip the display orientation, use **More actions** and **Flip
-field display**. See :ref:`more-actions-menu` for the full menu. This changes only
-how the field is drawn. It does not change the pulling team, pull direction, or
-pull prompt target.
+If you want to flip the display orientation, use `More actions` and **Flip
+field display**. This changes only how the field is drawn. It does not change the pulling team,
+pull direction, or pull prompt target.
 
 Team Areas
 ----------
@@ -90,14 +89,19 @@ Offsides / False start
     Records the appropriate pull violation for that team according to whether they are
     the pulling or receiving team. See :ref:`pull-violations` for details.
 
+    .. note::
+
+        To record a Majority pull violation, click **Offsides**, and then tap
+        **This was a Majority pull violation** on the popup screen.
+
 Card
-    Lets you assess a yellow, red or blue card. See :ref:`misconduct` for details.
+    Records a yellow, red or blue card assessed against a team. See :ref:`misconduct` for details.
 
 Tech
-    Lets you assess a technical foul against a team. See :ref:`technical-fouls` for details.
+    Records a technical foul assessed against a team. See :ref:`technical-fouls` for details.
 
 TO
-    Lets you record a timeout called by a team. See :ref:`timeouts` for details.
+    Records a timeout called by a team. See :ref:`timeouts` for details.
 
 The four buttons for violations and misconduct show the current count for that
 event so far in the game. For cards, the count is the total that is relevant for
@@ -151,7 +155,7 @@ vibration associated with the three caps.
 The cap is not applied immediately. In all cases, the current point is finished first.
 If it is between points, the next point is played. After this, a message will pop up
 prompting you to apply the cap. You may accept or decline the offer. (E.g. if your clock
-disagrees with the tournament horn, you may decide to wait until the next point to apply it.)
+disagrees with the tournament horn, you may decide to wait until the following point to apply it.)
 
 Applying the cap will affect when the app thinks halftime should be taken or when the game
 should be over.

@@ -38,9 +38,7 @@ Share
    :alt: Android share sheet for sharing a game summary
 
 After a game, you will usually need to report player card information to the
-head observer. The **Share** button makes this easy to do if you
-have an email or phone number for them. Or you can paste it into whatever
-communication app you might be using for the tournament.
+head observer. The **Share** button makes this easy to do.
 
 The **Share** action uses Android's normal share function. You choose the target,
 such as a text message, email, GroupMe, Discord, or whatever communication channel

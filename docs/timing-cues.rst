@@ -97,7 +97,7 @@ meant to be set. The timing cues for this countdown are:
    * - 0:00
      - Offense freeze
 
-If you have defensive check countdowns enabled (see :ref:`settings`), then this will transition
+If you have defense countdowns enabled (see :ref:`settings`), then this will transition
 into a countdown for the defense to check the disc in.  The cues for this are:
 
 .. list-table::
@@ -117,8 +117,8 @@ into a countdown for the defense to check the disc in.  The cues for this are:
 Halftime Timing
 ---------------
 
-When halftime starts, a halftime countdown begins showing how much time is left in the half.
-There are three cues for this:
+When halftime starts, a halftime countdown is started showing how much time is left in the halftime
+break. There are three cues for this:
 
 .. list-table::
    :class: cue-table

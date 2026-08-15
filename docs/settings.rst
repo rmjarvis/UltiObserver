@@ -57,13 +57,15 @@ Also vibrate on cues that use sound?
 Sound/vibration settings for individual cues
     This opens a sub-page where you can set a sound or vibration to use for each specific
     kind of cue that we have in the game. The defaults are my personal preferences for the
-    various cue sounds when I'm observing. But you can adjust each cue's sounds or vibration
-    setting to your preference. The **x2** and **x3** buttons for each set a repetition for the
+    various cue sounds when I'm observing. But you can adjust each cue's sound or vibration
+    setting to your preference. The **x2** and **x3** buttons set a repetition for the
     sound or vibration. So you can have a cue use 1, 2 or 3 beeps for instance. Click a
     selected **x2** or **x3** button to deselect it (indicating that only 1 of that sound
     or vibration should be used).
 
     The top of this page also has test buttons so you can hear each of the sounds.
+
+    See `Timing Cues` for more details about the cues.
 
 Sound volume
     This sets the sound volume as a fraction of your phone's overall media volume.
@@ -133,7 +135,7 @@ Automatically lock screen?
     either after a pull or at the end of an in-point timeout. That way, while you are moving
     with play, you won’t accidentally press buttons in the app. Unlocking is a simple drag
     action, which is pretty quick, but if you prefer not to have it lock automatically, then
-    switch this to **No**. Note that there is always a lock icon on the live game screen so you
+    switch this to **No**. Note that there is always a lock icon on the active game screen so you
     can lock the screen manually whenever you need.
 
 Show defense countdowns?

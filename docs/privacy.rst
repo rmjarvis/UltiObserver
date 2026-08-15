@@ -2,8 +2,7 @@ Privacy
 =======
 
 UltiObserver does not have ads, in-app purchases, or user accounts. It does not
-intentionally send your game data to Mike Jarvis or to any server operated by
-UltiObserver.
+intentionally send your game data to any person or server associated with UltiObserver.
 
 The app stores your profile, settings, current game, and archived games locally
 on your device. Android may include this app data in normal device backup,
