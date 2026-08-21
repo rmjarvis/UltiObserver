@@ -89,6 +89,15 @@ Watch notifications
       receive an alerting notification. The score and gender ratio (for ABBA) are also shown
       as part of the notification.
 
+      .. admonition:: Important
+
+        For Android 16+ systems, the default behavior is for the system to weaken the notification
+        strength of repeated notifications. This is generally undesirable for **Alerting**
+        notifications, since the later ones can become hard to notice. Unfortunately, there is no
+        programmatic way for UltiObserver to override this behavior, so you should turn this off
+        yourself in your phone's settings. Go to Settings -- Notifications -- Notification cooldown,
+        and switch *Use notification cooldown* to Off.
+
     Android notification permission and notification mirroring must be enabled for **Silent** and
     **Alerting** to work. The watch and its companion app ultimately control whether an alert
     vibrates the watch, and may also control whether the phone alerts at the same time.

@@ -1,6 +1,7 @@
 package rmjarvis.ultiobserver
 
 import android.content.Intent
+import android.os.Build
 import android.provider.Settings as AndroidSettings
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
@@ -894,6 +895,20 @@ private fun WatchNotificationModeSelector(
                         " Watch notifications require a paired watch and notification sharing " +
                         "enabled in its companion app. UltiObserver cannot verify the " +
                         "connection."
+                    )
+                }
+                if (
+                    selectedMode == WatchNotificationMode.ALERTING &&
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA
+                ) {
+                    append("\n\n")
+                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                        append("Important:")
+                    }
+                    append(
+                        " By default Android applies a \"cooldown\" to repeated notifications, " +
+                        "which lessens the vibration strength for alerts after the first one. " +
+                        "To turn it off, go to Settings — Notifications — Notification cooldown."
                     )
                 }
                 if (!notificationsEnabled) {

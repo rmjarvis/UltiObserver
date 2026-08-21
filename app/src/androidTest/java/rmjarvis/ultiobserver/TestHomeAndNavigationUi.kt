@@ -1341,6 +1341,10 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         )
         waitForText("Warning:", substring = true)
         waitForText("UltiObserver cannot verify the connection.", substring = true)
+        composeRule.onAllNodesWithText(
+            "By default Android applies a \"cooldown\"",
+            substring = true,
+        ).assertCountEquals(0)
         composeRule.onNodeWithTag("settings-watch-notifications-ALERTING").performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) {
             composeRule.activity.appViewModel.settings.timingAlerts.watchNotificationMode ==
@@ -1350,6 +1354,18 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             "Cues whose individual setting is not Off will also trigger an alert",
             substring = true,
         )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
+            waitForText("By default Android applies a \"cooldown\"", substring = true)
+            waitForText(
+                "Settings — Notifications — Notification cooldown.",
+                substring = true,
+            )
+        } else {
+            composeRule.onAllNodesWithText(
+                "By default Android applies a \"cooldown\"",
+                substring = true,
+            ).assertCountEquals(0)
+        }
         composeRule.onNodeWithTag("settings-watch-notifications-OFF").performClick()
         composeRule.onNodeWithTag("settings-open-timing-cue-settings")
             .performScrollTo()
