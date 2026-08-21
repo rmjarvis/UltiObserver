@@ -44,6 +44,11 @@ and timeouts from the watch, but you can at least get timing cue alerts on the w
   necessary by pressing Not yet.
 - Stopped showing cap and water break prompts after undoing them.
 
+**Version 1.3.1 update:**
+
+- Added recommendation for Android 16 and later to disable Notification cooldown, which can make
+  repeated timing alerts difficult to notice on a paired smart watch.
+
 Version 1.2
 -----------
 
@@ -149,3 +154,9 @@ Version 1.0 was the first public testing release of UltiObserver with the follow
 - At the end of a game, the game summary can be easily shared using Android's share action.
 - Completed games are archived for later viewing or sharing. You can even restore a game that
   has been archived back into a live state.
+
+**Version 1.0.1 update:**
+
+- Fixed a bug in the Restore Game feature when the archived game had already ended.
+- Added the privacy policy and updated installation guidance for APK downloads.
+- Adjusted the UI in various places to work better on screens with large fonts.
