@@ -16,6 +16,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
@@ -24,6 +26,15 @@ import androidx.compose.ui.unit.dp
 private const val SOURCE_CODE_URL = "https://github.com/rmjarvis/UltiObserver"
 private const val DOCUMENTATION_URL = "https://rmjarvis.github.io/UltiObserver/"
 private const val PRIVACY_POLICY_URL = "https://github.com/rmjarvis/UltiObserver/blob/main/PRIVACY.md"
+private const val PLAY_STORE_URL =
+    "https://play.google.com/store/apps/details?id=rmjarvis.ultiobserver"
+
+private val LinkColor: Color
+    @Composable get() = if (MaterialTheme.colorScheme.surface.luminance() < 0.5f) {
+        Color(0xFF90CAF9)
+    } else {
+        Color(0xFF1565C0)
+    }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,12 +72,24 @@ internal fun AboutScreen(
                 style = MaterialTheme.typography.titleLarge,
             )
             Text(
+                text = "A game management app for Ultimate observers to take the place of physical game cards and a stopwatch.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Text(
                 text = "Version $versionName",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium,
             )
             Text(
-                text = "A game management app for Ultimate observers to take the place of physical game cards and a stopwatch.",
+                text = "Check for updates",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(
+                        onClick = {
+                            uriHandler.openUri(PLAY_STORE_URL)
+                        },
+                    ),
+                color = LinkColor,
                 style = MaterialTheme.typography.bodyMedium,
             )
             HorizontalDivider()
@@ -83,7 +106,7 @@ internal fun AboutScreen(
                             uriHandler.openUri(DOCUMENTATION_URL)
                         },
                     ),
-                color = PrimaryColor,
+                color = LinkColor,
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
@@ -102,7 +125,7 @@ internal fun AboutScreen(
                             uriHandler.openUri(PRIVACY_POLICY_URL)
                         },
                     ),
-                color = PrimaryColor,
+                color = LinkColor,
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
@@ -121,7 +144,7 @@ internal fun AboutScreen(
                             uriHandler.openUri(SOURCE_CODE_URL)
                         },
                     ),
-                color = PrimaryColor,
+                color = LinkColor,
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,

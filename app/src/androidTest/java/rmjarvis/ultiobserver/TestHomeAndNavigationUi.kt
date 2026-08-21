@@ -852,15 +852,18 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("home-about").performClick()
         composeRule.onNodeWithTag("about-screen").assertIsDisplayed()
         composeRule.onNodeWithText("Version ${BuildConfig.VERSION_NAME}").assertIsDisplayed()
+        val playStoreUrl =
+            "https://play.google.com/store/apps/details?id=rmjarvis.ultiobserver"
         val sourceCodeUrl = "https://github.com/rmjarvis/UltiObserver"
         val documentationUrl = "https://rmjarvis.github.io/UltiObserver/"
         val privacyPolicyUrl = "https://github.com/rmjarvis/UltiObserver/blob/main/PRIVACY.md"
+        composeRule.onNodeWithText("Check for updates").assertIsDisplayed()
         composeRule.onNodeWithText(sourceCodeUrl).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText(documentationUrl).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText(privacyPolicyUrl).performScrollTo().assertIsDisplayed()
 
         // A helper to check a URL link without actually executing the link.
-        fun assertOpensUrl(url: String) {
+        fun assertOpensUrl(linkText: String, url: String) {
             val instrumentation = InstrumentationRegistry.getInstrumentation()
             var openedIntent: Intent? = null
             val monitor = object : Instrumentation.ActivityMonitor() {
@@ -874,7 +877,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             }
             instrumentation.addMonitor(monitor)
             try {
-                composeRule.onNodeWithText(url).performScrollTo().performClick()
+                composeRule.onNodeWithText(linkText).performScrollTo().performClick()
                 composeRule.waitUntil(timeoutMillis = 5_000) { openedIntent != null }
             } finally {
                 instrumentation.removeMonitor(monitor)
@@ -883,10 +886,11 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             assertEquals(url, openedIntent?.dataString)
         }
 
-        // Check that the source code, documentation, and privacy policy are active links.
-        assertOpensUrl(sourceCodeUrl)
-        assertOpensUrl(documentationUrl)
-        assertOpensUrl(privacyPolicyUrl)
+        // Check that the update, source code, documentation, and privacy policy links work.
+        assertOpensUrl("Check for updates", playStoreUrl)
+        assertOpensUrl(sourceCodeUrl, sourceCodeUrl)
+        assertOpensUrl(documentationUrl, documentationUrl)
+        assertOpensUrl(privacyPolicyUrl, privacyPolicyUrl)
 
         // Back returns from About to Home.
         dismissDialog(tag = "top-bar-back", waitForText = "Start new game")
