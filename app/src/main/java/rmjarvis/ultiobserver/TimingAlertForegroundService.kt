@@ -594,6 +594,7 @@ internal class TimingAlertForegroundServiceController(
         // more than one cue if Android wakes the service after multiple scheduled instants.
         cues.forEach { cue ->
             removeTimingAlertServiceCue(cue)
+            deliverWatchCue(cue)
             if (cue.alertMode == TimingAlertMode.VIBRATE) {
                 repeat(cue.repeatCount) { pulseIndex ->
                     platform.performHaptic(snapshot.vibrationDurationMillis)
@@ -612,7 +613,6 @@ internal class TimingAlertForegroundServiceController(
                     platform.performHaptic(snapshot.vibrationDurationMillis)
                 }
             }
-            deliverWatchCue(cue)
         }
     }
 
