@@ -24,3 +24,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "UltiObserver"
 include(":app")
+include(":wear")
