@@ -1211,16 +1211,16 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.appViewModel.updateSettings(
                 activity.appViewModel.settings.withTimingAlerts(
-                    activity.appViewModel.settings.timingAlerts.withWatchNotificationMode(
-                        WatchNotificationMode.ALERTING
+                    activity.appViewModel.settings.timingAlerts.withWatchConnectionMode(
+                        WatchConnectionMode.ALERTING
                     )
                 )
             )
         }
         composeRule.activityRule.scenario.recreate()
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            composeRule.activity.appViewModel.settings.timingAlerts.watchNotificationMode ==
-                WatchNotificationMode.OFF
+            composeRule.activity.appViewModel.settings.timingAlerts.watchConnectionMode ==
+                WatchConnectionMode.OFF
         }
     }
 
@@ -1289,15 +1289,16 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onAllNodesWithTag("settings-sound-volume").assertCountEquals(0)
         composeRule.onAllNodesWithTag("settings-vibrate-with-sounds").assertCountEquals(0)
 
-        // Watch notifications default off and expose the independent silent and alerting modes.
-        composeRule.onNodeWithTag("settings-watch-notifications-OFF")
+        // Watch connection defaults off and exposes notification bridging or Wear OS.
+        waitForText("Watch connection")
+        composeRule.onNodeWithTag("settings-watch-connection-OFF")
             .performScrollTo()
             .assertIsSelected()
         waitForText("No notifications will be sent to a watch.", substring = true)
         composeRule.onAllNodesWithText("Warning:", substring = true).assertCountEquals(0)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             waitForText(
-                "phone notifications must be enabled for watch notifications to work.",
+                "Phone notifications must be enabled for watch notifications to work.",
                 substring = true,
             )
 
@@ -1312,32 +1313,42 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
                 intending(expectedNotificationSettingsIntent).respondWith(
                     Instrumentation.ActivityResult(Activity.RESULT_CANCELED, null)
                 )
-                composeRule.onNodeWithTag("settings-watch-notifications-SILENT").performClick()
+                composeRule.onNodeWithTag("settings-watch-connection-SILENT").performClick()
                 intended(expectedNotificationSettingsIntent)
             } finally {
                 release()
             }
-            composeRule.onNodeWithTag("settings-watch-notifications-OFF").assertIsSelected()
+            composeRule.onNodeWithTag("settings-watch-connection-OFF").assertIsSelected()
+
+            // Wear OS mode does not require phone notification permission because it uses the
+            // native Data Layer connection instead of standard notification bridging.
+            composeRule.onNodeWithTag("settings-watch-connection-WEAR_OS").performClick()
+            waitForText("Use UltiObserver on a paired Wear OS watch", substring = true)
+            composeRule.onAllNodesWithText(
+                "Phone notifications must be enabled for watch notifications to work.",
+                substring = true,
+            ).assertCountEquals(0)
+            composeRule.onNodeWithTag("settings-watch-connection-OFF").performClick()
 
             // After notifications are enabled, choosing a watch mode applies it normally.
             InstrumentationRegistry.getInstrumentation().uiAutomation.grantRuntimePermission(
                 composeRule.activity.packageName,
                 Manifest.permission.POST_NOTIFICATIONS,
             )
-            composeRule.onNodeWithTag("settings-watch-notifications-ALERTING").performClick()
+            composeRule.onNodeWithTag("settings-watch-connection-ALERTING").performClick()
             composeRule.waitUntil(timeoutMillis = 5_000) {
-                composeRule.activity.appViewModel.settings.timingAlerts.watchNotificationMode ==
-                    WatchNotificationMode.ALERTING
+                composeRule.activity.appViewModel.settings.timingAlerts.watchConnectionMode ==
+                    WatchConnectionMode.ALERTING
             }
             composeRule.onAllNodesWithText(
-                "phone notifications must be enabled for watch notifications to work.",
+                "Phone notifications must be enabled for watch notifications to work.",
                 substring = true,
             ).assertCountEquals(0)
         }
-        composeRule.onNodeWithTag("settings-watch-notifications-SILENT").performClick()
+        composeRule.onNodeWithTag("settings-watch-connection-SILENT").performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            composeRule.activity.appViewModel.settings.timingAlerts.watchNotificationMode ==
-                WatchNotificationMode.SILENT
+            composeRule.activity.appViewModel.settings.timingAlerts.watchConnectionMode ==
+                WatchConnectionMode.SILENT
         }
         waitForText(
             "Timing cues will be sent to a paired watch, but no alerts will be triggered.",
@@ -1349,10 +1360,10 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             "By default Android applies a \"cooldown\"",
             substring = true,
         ).assertCountEquals(0)
-        composeRule.onNodeWithTag("settings-watch-notifications-ALERTING").performClick()
+        composeRule.onNodeWithTag("settings-watch-connection-ALERTING").performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            composeRule.activity.appViewModel.settings.timingAlerts.watchNotificationMode ==
-                WatchNotificationMode.ALERTING
+            composeRule.activity.appViewModel.settings.timingAlerts.watchConnectionMode ==
+                WatchConnectionMode.ALERTING
         }
         waitForText(
             "Cues whose individual setting is not Off will also trigger an alert",
@@ -1370,7 +1381,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
                 substring = true,
             ).assertCountEquals(0)
         }
-        composeRule.onNodeWithTag("settings-watch-notifications-OFF").performClick()
+        composeRule.onNodeWithTag("settings-watch-connection-OFF").performClick()
         composeRule.onNodeWithTag("settings-open-timing-cue-settings")
             .performScrollTo()
             .performClick()

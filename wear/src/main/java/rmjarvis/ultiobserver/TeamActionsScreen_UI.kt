@@ -1,4 +1,4 @@
-package rmjarvis.ultiobserver.wear
+package rmjarvis.ultiobserver
 
 import android.content.res.Configuration
 import androidx.compose.foundation.BorderStroke
@@ -36,11 +36,11 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material3.Text
-import rmjarvis.ultiobserver.wear.ui.theme.UltiObserverWearTheme
+import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 
 /** Display values for one team's six watch actions. */
-internal data class WearTeamActionsDisplay(
-    val team: WearTeamDisplay,
+internal data class TeamActionsDisplay(
+    val team: TeamDisplay,
     val timeViolationLabel: String,
     val pullViolationLabel: String,
     val cardLabel: String,
@@ -62,8 +62,8 @@ internal data class WearTeamActionsDisplay(
  * to the watch's main game screen immediately.
  */
 @Composable
-internal fun WearTeamActionsScreen(
-    display: WearTeamActionsDisplay,
+internal fun TeamActionsScreen(
+    display: TeamActionsDisplay,
     onGoal: () -> Unit,
     onTimeViolation: () -> Unit,
     onPullViolation: () -> Unit,
@@ -72,11 +72,11 @@ internal fun WearTeamActionsScreen(
     onTimeout: () -> Unit,
     onCancel: () -> Unit,
 ) {
-    UltiObserverWearTheme {
+    UltiObserverTheme {
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
-                .clip(LocalConfiguration.current.wearScreenShape())
+                .clip(LocalConfiguration.current.screenShape())
                 .background(display.team.backgroundColor),
         ) {
             val contentWidth = maxWidth * 0.90f
@@ -120,7 +120,7 @@ internal fun WearTeamActionsScreen(
                             .height(primaryHeight),
                         horizontalArrangement = Arrangement.spacedBy(ActionGap),
                     ) {
-                        WearActionButton(
+                        ActionButton(
                             label = "Goal",
                             enabled = display.goalEnabled,
                             background = GoalButtonColor,
@@ -156,7 +156,7 @@ internal fun WearTeamActionsScreen(
                             modifier = Modifier.weight(0.9f),
                         )
                     }
-                    WearActionButton(
+                    ActionButton(
                         label = display.timeoutLabel,
                         enabled = display.timeoutEnabled,
                         background = TimeoutButtonColor,
@@ -211,7 +211,7 @@ private fun ActionPair(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(ActionGap),
     ) {
-        WearActionButton(
+        ActionButton(
             label = topLabel,
             enabled = topEnabled,
             background = topColor,
@@ -222,7 +222,7 @@ private fun ActionPair(
                 .fillMaxWidth()
                 .height(actionHeight),
         )
-        WearActionButton(
+        ActionButton(
             label = bottomLabel,
             enabled = bottomEnabled,
             background = bottomColor,
@@ -238,7 +238,7 @@ private fun ActionPair(
 
 /** Render a phone-colored compact field action with Wear click semantics. */
 @Composable
-private fun WearActionButton(
+private fun ActionButton(
     label: String,
     enabled: Boolean,
     background: Color,
@@ -275,7 +275,7 @@ private fun WearActionButton(
     }
 }
 
-private fun Configuration.wearScreenShape(): Shape {
+private fun Configuration.screenShape(): Shape {
     return if (isScreenRound) CircleShape else RectangleShape
 }
 

@@ -24,7 +24,7 @@ internal fun TimingAlertForegroundServiceEffect(
     LaunchedEffect(liveState, settings) {
         if (liveState == null ||
             (settings.timingAlerts.globalMode == TimingAlertGlobalMode.OFF &&
-                settings.timingAlerts.watchNotificationMode == WatchNotificationMode.OFF)
+                !settings.timingAlerts.watchConnectionMode.usesNotifications())
         ) {
             context.stopService(Intent(context, TimingAlertForegroundService::class.java))
             return@LaunchedEffect

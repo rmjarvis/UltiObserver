@@ -36,7 +36,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
 import kotlin.math.roundToInt
@@ -67,6 +66,7 @@ internal fun SettingsScreen(
     onOpenTimingCueSettings: () -> Unit,
     onBackHome: () -> Unit,
     onHome: () -> Unit,
+    wearWatchAvailable: Boolean?,
 ) {
     val context = LocalContext.current
     val hasTimingCueHaptics = context.hasTimingCueHaptics()
@@ -140,14 +140,15 @@ internal fun SettingsScreen(
                         settings.withTimingAlerts(settings.timingAlerts.withVibrateWithSounds(it))
                     )
                 },
-                onWatchNotificationModeChange = { mode ->
+                onWatchConnectionModeChange = { mode ->
                     if (
-                        mode == WatchNotificationMode.OFF ||
+                        mode == WatchConnectionMode.OFF ||
+                        mode == WatchConnectionMode.WEAR_OS ||
                         NotificationManagerCompat.from(context).areNotificationsEnabled()
                     ) {
                         onSettingsChange(
                             settings.withTimingAlerts(
-                                settings.timingAlerts.withWatchNotificationMode(mode)
+                                settings.timingAlerts.withWatchConnectionMode(mode)
                             )
                         )
                     } else {
@@ -162,6 +163,7 @@ internal fun SettingsScreen(
                 onOpenTimingCueSettings = onOpenTimingCueSettings,
                 hasTimingCueHaptics = hasTimingCueHaptics,
                 notificationsEnabled = notificationsEnabled,
+                wearWatchAvailable = wearWatchAvailable,
                 onTestVibration = { durationMillis ->
                     context.performTimingCueHaptic(durationMillis)
                 },
@@ -714,10 +716,11 @@ private fun TimingAlertGlobalModeSelector(
  * @param onSoundVolumeChange Callback receiving sound volume changes.
  * @param onVibrationDurationChange Callback receiving vibration duration changes in milliseconds.
  * @param onVibrateWithSoundsChange Callback receiving the sound-plus-vibration toggle state.
- * @param onWatchNotificationModeChange Callback receiving the watch-notification mode.
+ * @param onWatchConnectionModeChange Callback receiving the watch-connection mode.
  * @param onOpenTimingCueSettings Callback opening per-cue timing alert settings.
  * @param hasTimingCueHaptics Whether this device reports usable timing-cue haptics.
  * @param notificationsEnabled Whether Android currently allows UltiObserver notifications.
+ * @param wearWatchAvailable Whether a Wear OS node is reachable, or null before the check finishes.
  * @param onTestVibration Callback playing a haptic test for the selected duration.
  */
 @Composable
@@ -726,10 +729,11 @@ private fun TimingAlertSoundControls(
     onSoundVolumeChange: (Float) -> Unit,
     onVibrationDurationChange: (Long) -> Unit,
     onVibrateWithSoundsChange: (Boolean) -> Unit,
-    onWatchNotificationModeChange: (WatchNotificationMode) -> Unit,
+    onWatchConnectionModeChange: (WatchConnectionMode) -> Unit,
     onOpenTimingCueSettings: () -> Unit,
     hasTimingCueHaptics: Boolean,
     notificationsEnabled: Boolean,
+    wearWatchAvailable: Boolean?,
     onTestVibration: (Long) -> Unit,
 ) {
     Column(
@@ -837,24 +841,26 @@ private fun TimingAlertSoundControls(
                 }
             }
         }
-        WatchNotificationModeSelector(
-            selectedMode = timingAlertPreferences.watchNotificationMode,
-            onModeChange = onWatchNotificationModeChange,
+        WatchConnectionModeSelector(
+            selectedMode = timingAlertPreferences.watchConnectionMode,
+            onModeChange = onWatchConnectionModeChange,
             notificationsEnabled = notificationsEnabled,
+            wearWatchAvailable = wearWatchAvailable,
         )
     }
 }
 
 /** Render the global mode for standard notifications mirrored to watches. */
 @Composable
-private fun WatchNotificationModeSelector(
-    selectedMode: WatchNotificationMode,
-    onModeChange: (WatchNotificationMode) -> Unit,
+private fun WatchConnectionModeSelector(
+    selectedMode: WatchConnectionMode,
+    onModeChange: (WatchConnectionMode) -> Unit,
     notificationsEnabled: Boolean,
+    wearWatchAvailable: Boolean?,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
-            text = "Watch notifications",
+            text = "Watch connection",
             style = MaterialTheme.typography.titleMedium,
         )
         FlowRow(
@@ -862,67 +868,96 @@ private fun WatchNotificationModeSelector(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            WatchNotificationMode.entries.forEach { mode ->
+            WatchConnectionMode.entries.forEach { mode ->
                 ChoiceChipButton(
                     label = mode.label,
                     selected = mode == selectedMode,
-                    tag = "settings-watch-notifications-${mode.name}",
+                    tag = "settings-watch-connection-${mode.name}",
                     onClick = {
                         onModeChange(mode)
                     },
                 )
             }
         }
-        val modeDescription = when (selectedMode) {
-            WatchNotificationMode.OFF ->
-                "No notifications will be sent to a watch."
-            WatchNotificationMode.SILENT ->
-                "Timing cues will be sent to a paired watch, but no alerts will be triggered."
-            WatchNotificationMode.ALERTING ->
-                "Timing cues will be sent to a paired watch. Cues whose individual setting " +
-                "is not Off will also trigger an alert, causing a vibration if enabled " +
-                "on the watch."
-        }
-        Text(
-            text = buildAnnotatedString {
-                append(modeDescription)
-                if (selectedMode != WatchNotificationMode.OFF) {
-                    append("\n\n")
-                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                        append("Warning:")
+        val description = buildAnnotatedString {
+            when (selectedMode) {
+                WatchConnectionMode.OFF -> {
+                    append("No notifications will be sent to a watch.")
+                    if (!notificationsEnabled) {
+                        append("\n\n")
+                        pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
+                        append("Note: ")
+                        pop()
+                        append(
+                            "Phone notifications must be enabled for watch notifications to work. " +
+                            "Selecting either Silent or Alerting will open the Android settings " +
+                            "page where you can enable notifications."
+                        )
                     }
+                }
+                WatchConnectionMode.SILENT,
+                WatchConnectionMode.ALERTING,
+                -> {
+                    if (selectedMode == WatchConnectionMode.SILENT) {
+                        append(
+                            "Timing cues will be sent to a paired watch, but no alerts will be " +
+                            "triggered."
+                        )
+                    } else {
+                        append(
+                            "Timing cues will be sent to a paired watch. Cues whose individual " +
+                            "setting is not Off will also trigger an alert, causing a vibration if " +
+                            "enabled on the watch."
+                        )
+                    }
+                    append("\n\n")
+                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
+                    append("Warning: ")
+                    pop()
                     append(
-                        " Watch notifications require a paired watch and notification sharing " +
+                        "Watch notifications require a paired watch and notification sharing " +
                         "enabled in its companion app. UltiObserver cannot verify the " +
                         "connection."
                     )
-                }
-                if (
-                    selectedMode == WatchNotificationMode.ALERTING &&
-                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA
-                ) {
-                    append("\n\n")
-                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                        append("Important:")
+                    if (
+                        selectedMode == WatchConnectionMode.ALERTING &&
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA
+                    ) {
+                        append("\n\n")
+                        pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
+                        append("Important: ")
+                        pop()
+                        append(
+                            "By default Android applies a \"cooldown\" to repeated notifications, " +
+                            "which lessens the vibration strength for alerts after the first one. " +
+                            "To turn it off, go to Settings — Notifications — Notification cooldown."
+                        )
                     }
-                    append(
-                        " By default Android applies a \"cooldown\" to repeated notifications, " +
-                        "which lessens the vibration strength for alerts after the first one. " +
-                        "To turn it off, go to Settings — Notifications — Notification cooldown."
-                    )
                 }
-                if (!notificationsEnabled) {
-                    append("\n\n")
-                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                        append("Note")
+                WatchConnectionMode.WEAR_OS -> {
+                    append("Use UltiObserver on a paired Wear OS watch.")
+                    if (wearWatchAvailable == true) {
+                        append(" ")
+                        append(
+                            "This will let you receive timing cues on the watch as well as " +
+                            "record goals, timeouts and other events directly from the watch. " +
+                            "Any cues set to use vibration will happen on the watch rather than " +
+                            "on the phone."
+                        )
+                    } else if (wearWatchAvailable == false) {
+                        append("\n\n")
+                        pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
+                        append("No Wear OS watch is currently available.  ")
+                        pop()
+                        append(
+                            "Pair a Wear OS watch with this phone before using this setting."
+                        )
                     }
-                    append(
-                        ": phone notifications must be enabled for watch notifications to work. " +
-                        "Selecting either Silent or Alerting will open the Android settings " +
-                        "page where you can enable notifications."
-                    )
                 }
-            },
+            }
+        }
+        Text(
+            text = description,
             style = MaterialTheme.typography.bodySmall,
         )
     }

@@ -620,7 +620,7 @@ internal class TimingAlertForegroundServiceController(
     private fun deliverWatchCue(cue: TimingAlertServiceCue) {
         val snapshot = timingAlertSnapshot ?: return
         val scoreLine = snapshot.watchScoreLine ?: return
-        val alert = snapshot.watchNotificationMode == WatchNotificationMode.ALERTING &&
+        val alert = snapshot.watchConnectionMode == WatchConnectionMode.ALERTING &&
             cue.watchAlertEnabled
         val countdownSeconds = cue.countdownSeconds
         if (countdownSeconds == null) {
@@ -645,7 +645,7 @@ internal class TimingAlertForegroundServiceController(
 
     /** Apply a new app snapshot to the current dismissible watch-status notification. */
     private fun updateWatchStatusFromSnapshot(snapshot: TimingAlertServiceSnapshot) {
-        if (snapshot.watchNotificationMode == WatchNotificationMode.OFF) {
+        if (!snapshot.watchConnectionMode.usesNotifications()) {
             platform.cancelWatchNotifications()
             lastWatchStatusContent = null
         } else {
@@ -736,7 +736,7 @@ internal class TimingAlertForegroundServiceController(
  * @param vibrateWithSounds Whether sound alerts should also vibrate.
  * @param countdownCues Upcoming countdown cues for near-term wake-lock scheduling.
  * @param capCues Relevant cap cues that may need exact alarms later in the game.
- * @param watchNotificationMode Whether watch status is off, silent, or cue-alerting.
+ * @param watchConnectionMode Whether watch status is off, silent, or cue-alerting.
  * @param watchScoreLine Current score text for the mirrored notification.
  */
 @Serializable
@@ -746,7 +746,7 @@ internal data class TimingAlertServiceSnapshot(
     val vibrateWithSounds: Boolean,
     val countdownCues: List<TimingAlertServiceCue>,
     val capCues: List<TimingAlertServiceCue>,
-    val watchNotificationMode: WatchNotificationMode,
+    val watchConnectionMode: WatchConnectionMode,
     val watchScoreLine: String?,
 )
 
@@ -787,14 +787,14 @@ internal fun GameState.timingAlertSnapshot(
         now,
         timingAlertPreferences,
     ) ?: emptyList()
-    val watchEnabled = timingAlertPreferences.watchNotificationMode != WatchNotificationMode.OFF
+    val watchEnabled = timingAlertPreferences.watchConnectionMode.usesNotifications()
     return TimingAlertServiceSnapshot(
         soundVolume = timingAlertPreferences.soundVolume,
         vibrationDurationMillis = timingAlertPreferences.vibrationDurationMillis,
         vibrateWithSounds = timingAlertPreferences.vibrateWithSounds,
         countdownCues = countdownCues,
         capCues = upcomingCapTimingCues(now).timingAlertServiceCues(timingAlertPreferences),
-        watchNotificationMode = timingAlertPreferences.watchNotificationMode,
+        watchConnectionMode = timingAlertPreferences.watchConnectionMode,
         watchScoreLine = if (watchEnabled) watchNotificationScoreLine(settings) else null,
     )
 }

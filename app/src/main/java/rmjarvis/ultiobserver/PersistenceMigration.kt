@@ -109,6 +109,14 @@ private val knownVersionMigrations = listOf(
         settings = V1_2ToV1_3::migrateSettings,
         archivedGame = V1_2ToV1_3::migrateGame,
     ),
+    VersionMigration(
+        sourceVersion = "1.3",
+        targetVersion = "1.4",
+        currentGame = null,
+        profile = null,
+        settings = V1_3ToV1_4::migrateSettings,
+        archivedGame = null,
+    ),
 )
 
 /**
@@ -258,6 +266,26 @@ internal fun currentPersistenceVersion(
         AppVersion(versionName, versionCode).persistenceVersion()
     ) {
         "Current app version $versionName must start with an M.m version."
+    }
+}
+
+/// Implementation details for converting version 1.3 JSON shapes to version 1.4 shapes.
+private object V1_3ToV1_4 {
+    fun migrateSettings(jsonElement: JsonElement): JsonElement {
+        val jsonObject = jsonElement.jsonObject
+        val timingAlerts = jsonObject.getValue("timingAlerts").jsonObject
+        val watchConnectionMode = timingAlerts["watchNotificationMode"]
+            ?: JsonPrimitive(WatchConnectionMode.OFF.name)
+        return JsonObject(
+            jsonObject.toMutableMap().apply {
+                this["timingAlerts"] = JsonObject(
+                    timingAlerts.toMutableMap().apply {
+                        this["watchConnectionMode"] = watchConnectionMode
+                        remove("watchNotificationMode")
+                    }
+                )
+            }
+        )
     }
 }
 

@@ -49,8 +49,8 @@ android {
         applicationId = "rmjarvis.ultiobserver"
         minSdk = 26
         targetSdk = 36
-        versionCode = 6
-        versionName = "1.3.1"
+        versionCode = 7
+        versionName = "1.4.0alpha"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -103,6 +103,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":wear-protocol"))
     constraints {
         implementation(libs.androidx.fragment) {
             because("Play Services otherwise packages the obsolete Fragment 1.1.0")
@@ -122,6 +123,7 @@ dependencies {
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.crashlytics)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.play.services.wearable)
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

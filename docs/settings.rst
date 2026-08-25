@@ -74,10 +74,11 @@ Vibration length
     This changes how long the vibration action lasts. There is a **Test** button so you can
     see what the currently set length will feel like.
 
-Watch notifications
-    The app can send notifications for the timing cues, which can be picked up by a smart
-    watch connected to your phone. The notifications show the score, the current ABBA ratio when
-    applicable, and the next cue. There are three options:
+Watch connection
+    The app can either send notifications for the timing cues, which can be picked up by a smart
+    watch connected to your phone, or if you have a Wear OS watch, you can use the UltiObserver
+    companion app, which lets you perform some actions directly on the watch.
+    There are four options:
 
     * **Off** does not send any timing cue notifications. This is the default.
     * **Silent** keeps the information current without intentionally alerting the watch. This is
@@ -98,15 +99,23 @@ Watch notifications
         yourself in your phone's settings. Go to Settings -- Notifications -- Notification cooldown,
         and switch *Use notification cooldown* to Off.
 
+    * **Wear OS** synchronizes the current game with the UltiObserver app installed on a paired
+      Wear OS watch. At the top, the watch shows any existing countdown along with the next cue,
+      the next cap, if any, and the current official time. The bottom shows the score, along with
+      the current gender ratio (for ABBA), and the pull direction. Tapping either team section
+      opens a screen with the usual team action buttons. Any actions that don't require
+      additional information (such as name and number for yellow cards) can be performed
+      directly on the watch.
+
     Android notification permission and notification mirroring must be enabled for **Silent** and
     **Alerting** to work. The watch and its companion app ultimately control whether an alert
     vibrates the watch, and may also control whether the phone alerts at the same time.
 
     .. note::
 
-        UltiObserver has no direct way to tell if you have a watch paired with your phone.
-        From its perspective, **Silent** and **Alerting** modes just send notifications to
-        the phone. The watch's companion app is responsible for sending them to the watch.
+        For **Silent** and **Alerting**, UltiObserver cannot verify that a watch is paired or
+        that notification sharing is enabled. These modes only send notifications to the phone.
+        The watch's companion app is responsible for sending them to the watch.
 
 Active Game Screen Behavior
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^

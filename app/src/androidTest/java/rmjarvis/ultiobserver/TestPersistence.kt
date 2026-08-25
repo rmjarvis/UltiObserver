@@ -206,6 +206,7 @@ class TestPersistence : MainActivityUiTestFixtures() {
                             viewModel = viewModel,
                             previousRunCrashed = previousRunCrashed,
                             displayOrientation = ActiveGameFullOrientation.PORTRAIT,
+                            wearWatchAvailable = false,
                         )
                     }
                 }

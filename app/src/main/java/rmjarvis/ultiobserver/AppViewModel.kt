@@ -335,14 +335,14 @@ internal class AppViewModel(
      *
      * @param notificationsEnabled Whether Android currently allows UltiObserver notifications.
      */
-    fun reconcileWatchNotificationAvailability(notificationsEnabled: Boolean) {
+    fun disableWatchNotificationsIfUnavailable(notificationsEnabled: Boolean) {
         if (
             !notificationsEnabled &&
-            settings.timingAlerts.watchNotificationMode != WatchNotificationMode.OFF
+            settings.timingAlerts.watchConnectionMode.usesNotifications()
         ) {
             updateSettings(
                 settings.withTimingAlerts(
-                    settings.timingAlerts.withWatchNotificationMode(WatchNotificationMode.OFF)
+                    settings.timingAlerts.withWatchConnectionMode(WatchConnectionMode.OFF)
                 )
             )
         }

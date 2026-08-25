@@ -58,19 +58,21 @@ enum class TimingAlertGlobalMode(
     SOUNDS_ON("Sounds on"),
 }
 
-/**
- * Whether timing status is mirrored through standard Android notifications for a watch.
- *
- * Silent mode keeps the watch display current without intentionally vibrating it. Alerting mode
- * alerts only for cues whose individual sound/vibration setting is not Off.
- */
+/** How UltiObserver communicates timing and game state to a watch. */
 @Serializable
-enum class WatchNotificationMode(
+enum class WatchConnectionMode(
     val label: String,
 ) {
     OFF("Off"),
     SILENT("Silent"),
     ALERTING("Alerting"),
+    WEAR_OS("Wear OS"),
+    ;
+
+    /// Report whether standard Android notifications should be bridged to a watch.
+    fun usesNotifications(): Boolean {
+        return this == SILENT || this == ALERTING
+    }
 }
 
 /**
@@ -80,7 +82,7 @@ enum class WatchNotificationMode(
  * @param soundVolume Playback volume for sound alerts.
  * @param vibrationDurationMillis Vibration length for vibration alerts.
  * @param vibrateWithSounds Whether sound alerts should also vibrate.
- * @param watchNotificationMode Whether standard notifications should mirror timing status.
+ * @param watchConnectionMode How UltiObserver communicates with a watch.
  * @param cueModes Per-cue alert mode overrides.
  * @param cueRepeatCounts Per-cue sound/vibration repeat counts.
  */
@@ -90,7 +92,7 @@ data class TimingAlertPreferences(
     val soundVolume: Float = 1f,
     val vibrationDurationMillis: Long = DEFAULT_TIMING_CUE_VIBRATION_MS,
     val vibrateWithSounds: Boolean = false,
-    val watchNotificationMode: WatchNotificationMode = WatchNotificationMode.OFF,
+    val watchConnectionMode: WatchConnectionMode = WatchConnectionMode.OFF,
     val cueModes: Map<TimingCueId, TimingAlertMode> = defaultTimingCueModes(),
     val cueRepeatCounts: Map<TimingCueId, Int> = defaultTimingCueRepeatCounts(),
 ) {
@@ -140,7 +142,7 @@ data class TimingAlertPreferences(
      * @param countdownSeconds Countdown value for this cue occurrence, or null for a cap cue.
      */
     fun sendsCueToWatch(cueId: TimingCueId, countdownSeconds: Int?): Boolean {
-        return watchNotificationMode != WatchNotificationMode.OFF &&
+        return watchConnectionMode.usesNotifications() &&
             (countdownSeconds == 0 || settingsModeFor(cueId) != TimingAlertMode.NONE)
     }
 
@@ -180,9 +182,9 @@ data class TimingAlertPreferences(
         return copy(vibrateWithSounds = vibrateWithSounds)
     }
 
-    /** Return this configuration with the watch-notification mode replaced. */
-    fun withWatchNotificationMode(mode: WatchNotificationMode): TimingAlertPreferences {
-        return copy(watchNotificationMode = mode)
+    /** Return this configuration with the watch-connection mode replaced. */
+    fun withWatchConnectionMode(mode: WatchConnectionMode): TimingAlertPreferences {
+        return copy(watchConnectionMode = mode)
     }
 
     /**

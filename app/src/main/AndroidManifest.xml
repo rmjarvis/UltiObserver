@@ -36,6 +36,18 @@
             android:name=".TimingAlertForegroundService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
+        <service
+            android:name=".WearOSRequestService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.REQUEST_RECEIVED" />
+
+                <data
+                    android:host="*"
+                    android:pathPrefix="/ultiobserver/time-sync"
+                    android:scheme="wear" />
+            </intent-filter>
+        </service>
         <receiver
             android:name=".TimingAlertAlarmReceiver"
             android:exported="false" />

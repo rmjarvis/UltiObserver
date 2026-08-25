@@ -16,6 +16,7 @@ private fun MainActivityPreview() {
             ),
             previousRunCrashed = false,
             displayOrientation = ActiveGameFullOrientation.PORTRAIT,
+            wearWatchAvailable = false,
         )
     }
 }

@@ -38,16 +38,19 @@ internal data class ActiveCountdownDisplay(
 )
 
 /**
- * Compute the countdown text currently visible on the live screen.
+ * Return the countdown currently represented on the live screen.
  *
- * @param now The current epoch millis used to compute remaining time and next cue.
+ * Pending transitions may replace the stored countdown. Once halftime expires, this returns the
+ * follow-on between-points countdown that begins at the halftime deadline.
+ *
+ * @param now The current epoch millis used to determine whether halftime has expired.
  */
-internal fun GameState.activeCountdownDisplay(now: Long): ActiveCountdownDisplay? {
+internal fun GameState.activeCountdown(now: Long): CountdownState? {
     val pendingTransition = pendingScoreTransition
     if (pendingTransition?.transition == ScoreTransition.GAME_OVER) {
         return null
     }
-    val countdown = if (pendingTransition?.transition == ScoreTransition.HALFTIME) {
+    val activeCountdown = if (pendingTransition?.transition == ScoreTransition.HALFTIME) {
         buildHalftimeCountdown(
             halftimeMinutes = rules.halftimeMinutes,
             sequenceStart = pendingTransition.effectiveEpoch,
@@ -55,45 +58,33 @@ internal fun GameState.activeCountdownDisplay(now: Long): ActiveCountdownDisplay
     } else {
         countdown ?: return null
     }
-    val remaining = countdown.remainingDuration(now)
-    return if (countdown.kind == CountdownKind.HALFTIME) {
-        if (!remaining.isZero) {
-            ActiveCountdownDisplay(
-                label = countdown.label,
-                remaining = remaining,
-                nextCue = countdown.nextTimingCue(now),
-                isPaused = countdown.isPaused(),
-            )
-        } else {
-            // Once halftime expires, show the follow-on between-points countdown immediately.
-            val followOn = betweenPointsDisplay(
-                pullingFromEnd = pullingFromEnd,
-                sequenceStart = countdown.targetEpoch,
-                now = now,
-                promptTarget = pullPromptTarget,
-                rules = rules,
-            )
-            val followOnCountdown = buildBetweenPointsCountdown(
-                pullingFromEnd = pullingFromEnd,
-                sequenceStart = countdown.targetEpoch,
-                promptTarget = pullPromptTarget,
-                rules = rules,
-            )
-            ActiveCountdownDisplay(
-                label = followOn.first,
-                remaining = followOn.second,
-                nextCue = followOnCountdown.nextTimingCue(now),
-                isPaused = countdown.isPaused(),
-            )
-        }
-    } else {
-        ActiveCountdownDisplay(
-            label = countdown.label,
-            remaining = remaining,
-            nextCue = countdown.nextTimingCue(now),
-            isPaused = countdown.isPaused(),
+    if (
+        activeCountdown.kind == CountdownKind.HALFTIME &&
+        activeCountdown.remainingDuration(now).isZero
+    ) {
+        return buildBetweenPointsCountdown(
+            pullingFromEnd = pullingFromEnd,
+            sequenceStart = activeCountdown.targetEpoch,
+            promptTarget = pullPromptTarget,
+            rules = rules,
         )
     }
+    return activeCountdown
+}
+
+/**
+ * Compute the countdown text currently visible on the live screen.
+ *
+ * @param now The current epoch millis used to compute remaining time and next cue.
+ */
+internal fun GameState.activeCountdownDisplay(now: Long): ActiveCountdownDisplay? {
+    val countdown = activeCountdown(now) ?: return null
+    return ActiveCountdownDisplay(
+        label = countdown.label,
+        remaining = countdown.remainingDuration(now),
+        nextCue = countdown.nextTimingCue(now),
+        isPaused = countdown.isPaused(),
+    )
 }
 
 /**

@@ -39,12 +39,14 @@ internal fun appViewModelFactory(filesDir: File): ViewModelProvider.Factory {
  * @param viewModel The app-level ViewModel owning navigation and persisted state.
  * @param previousRunCrashed Whether Crashlytics recorded a fatal crash in the previous app run.
  * @param displayOrientation Readable orientation currently shown by Android.
+ * @param wearWatchAvailable Whether a Wear OS node is reachable, or null before the check finishes.
  */
 @Composable
 internal fun UltiObserverApp(
     viewModel: AppViewModel,
     previousRunCrashed: Boolean,
     displayOrientation: ActiveGameFullOrientation,
+    wearWatchAvailable: Boolean?,
 ) {
     val appState by viewModel.state.collectAsState()
     val context = LocalContext.current
@@ -167,6 +169,7 @@ internal fun UltiObserverApp(
                 onHome = {
                     viewModel.goHome()
                 },
+                wearWatchAvailable = wearWatchAvailable,
             )
         }
 

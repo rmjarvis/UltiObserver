@@ -1,4 +1,4 @@
-package rmjarvis.ultiobserver.wear
+package rmjarvis.ultiobserver
 
 import android.content.res.Configuration
 import androidx.compose.foundation.BorderStroke
@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -47,10 +46,10 @@ import androidx.wear.compose.material3.TimeSource
 import androidx.wear.compose.material3.TimeText
 import androidx.wear.compose.material3.TimeTextDefaults
 import androidx.wear.compose.material3.timeTextCurvedText
-import rmjarvis.ultiobserver.wear.ui.theme.UltiObserverWearTheme
+import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 
 /** One team as presented on the fixed left or right side of the watch. */
-internal data class WearTeamDisplay(
+internal data class TeamDisplay(
     val name: String,
     val score: Int,
     val backgroundColor: Color,
@@ -58,13 +57,13 @@ internal data class WearTeamDisplay(
 )
 
 /** The direction of the pull arrow across the two fixed team regions. */
-internal enum class WearPullDirection {
+internal enum class PullDirection {
     LEFT_TO_RIGHT,
     RIGHT_TO_LEFT,
 }
 
 /** Optional mixed-game ratio badge shown on the team boundary. */
-internal data class WearRatioBadge(
+internal data class RatioBadgeDisplay(
     val label: String,
     val backgroundColor: Color,
     val contentColor: Color,
@@ -77,16 +76,16 @@ internal data class WearRatioBadge(
  * composable dependent on a compact display model lets the Wear UI be built and previewed before
  * the phone/watch transport exists.
  */
-internal data class WearGameDisplay(
+internal data class GameDisplay(
     val officialTime: String,
     val capStatus: String?,
     val countdownLabel: String,
     val countdownValue: String?,
     val nextCue: String?,
-    val teamOne: WearTeamDisplay,
-    val teamTwo: WearTeamDisplay,
-    val pullDirection: WearPullDirection,
-    val ratioBadge: WearRatioBadge?,
+    val teamOne: TeamDisplay,
+    val teamTwo: TeamDisplay,
+    val pullDirection: PullDirection,
+    val ratioBadge: RatioBadgeDisplay?,
     val connected: Boolean,
     val undoDescription: String?,
 )
@@ -99,8 +98,8 @@ internal data class WearGameDisplay(
  * `Lost connection`.
  */
 @Composable
-internal fun WearGameScreen(
-    display: WearGameDisplay,
+internal fun GameScreen(
+    display: GameDisplay,
     onTeamOne: () -> Unit,
     onTeamTwo: () -> Unit,
     onUndo: () -> Unit,
@@ -114,7 +113,7 @@ internal fun WearGameScreen(
         fontSize = 11.sp,
     )
 
-    UltiObserverWearTheme {
+    UltiObserverTheme {
         AppScaffold(
             timeText = {
                 TimeText(
@@ -127,7 +126,7 @@ internal fun WearGameScreen(
             containerColor = Color.Black,
             contentColor = Color.White,
         ) {
-            WearGameContent(
+            GameContent(
                 display = display,
                 onTeamOne = onTeamOne,
                 onTeamTwo = onTeamTwo,
@@ -138,13 +137,13 @@ internal fun WearGameScreen(
 }
 
 @Composable
-private fun WearGameContent(
-    display: WearGameDisplay,
+private fun GameContent(
+    display: GameDisplay,
     onTeamOne: () -> Unit,
     onTeamTwo: () -> Unit,
     onUndo: () -> Unit,
 ) {
-    val screenShape = LocalConfiguration.current.wearScreenShape()
+    val screenShape = LocalConfiguration.current.screenShape()
 
     BoxWithConstraints(
         modifier = Modifier
@@ -171,18 +170,19 @@ private fun WearGameContent(
                 .height(fieldHeight)
                 .align(Alignment.BottomCenter),
         )
-        UndoRegion(
-            enabled = display.connected && display.undoDescription != null,
-            description = display.undoDescription ?: "Undo unavailable",
-            onUndo = onUndo,
-            modifier = Modifier.align(Alignment.BottomCenter),
-        )
+        if (display.connected && display.undoDescription != null) {
+            UndoRegion(
+                description = display.undoDescription,
+                onUndo = onUndo,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+        }
     }
 }
 
 @Composable
 private fun StatusRegion(
-    display: WearGameDisplay,
+    display: GameDisplay,
     modifier: Modifier,
 ) {
     BoxWithConstraints(modifier = modifier) {
@@ -229,7 +229,7 @@ private fun StatusRegion(
 }
 
 @Composable
-private fun CountdownStatus(display: WearGameDisplay) {
+private fun CountdownStatus(display: GameDisplay) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -253,7 +253,7 @@ private fun CountdownStatus(display: WearGameDisplay) {
 
 @Composable
 private fun TeamField(
-    display: WearGameDisplay,
+    display: GameDisplay,
     onTeamOne: () -> Unit,
     onTeamTwo: () -> Unit,
     modifier: Modifier,
@@ -291,14 +291,6 @@ private fun TeamField(
                 .background(FieldDividerColor)
                 .align(Alignment.TopCenter),
         )
-        Box(
-            modifier = Modifier
-                .width(1.dp)
-                .fillMaxHeight()
-                .padding(bottom = VisibleUndoHeight)
-                .background(FieldDividerColor)
-                .align(Alignment.TopCenter),
-        )
         PullAndRatio(
             display = display,
             topPadding = centerStackTopPadding,
@@ -309,7 +301,7 @@ private fun TeamField(
 
 @Composable
 private fun TeamRegion(
-    team: WearTeamDisplay,
+    team: TeamDisplay,
     enabled: Boolean,
     onClick: () -> Unit,
     modifier: Modifier,
@@ -348,14 +340,14 @@ private fun TeamRegion(
 
 @Composable
 private fun PullAndRatio(
-    display: WearGameDisplay,
+    display: GameDisplay,
     topPadding: androidx.compose.ui.unit.Dp,
     modifier: Modifier,
 ) {
     val directionDescription = when (display.pullDirection) {
-        WearPullDirection.LEFT_TO_RIGHT ->
+        PullDirection.LEFT_TO_RIGHT ->
             "Pull direction from ${display.teamOne.name} toward ${display.teamTwo.name}"
-        WearPullDirection.RIGHT_TO_LEFT ->
+        PullDirection.RIGHT_TO_LEFT ->
             "Pull direction from ${display.teamTwo.name} toward ${display.teamOne.name}"
     }
     Column(
@@ -375,7 +367,7 @@ private fun PullAndRatio(
 
 @Composable
 private fun PullArrow(
-    direction: WearPullDirection,
+    direction: PullDirection,
     description: String,
 ) {
     Canvas(
@@ -383,7 +375,7 @@ private fun PullArrow(
             .size(width = 31.dp, height = PullArrowHeight)
             .semantics { contentDescription = description },
     ) {
-        val travelsRight = direction == WearPullDirection.LEFT_TO_RIGHT
+        val travelsRight = direction == PullDirection.LEFT_TO_RIGHT
         val startX = if (travelsRight) 1.dp.toPx() else size.width - 1.dp.toPx()
         val endX = if (travelsRight) size.width - 1.dp.toPx() else 1.dp.toPx()
         val centerY = size.height / 2f
@@ -416,7 +408,7 @@ private fun PullArrow(
 }
 
 @Composable
-private fun RatioBadge(badge: WearRatioBadge) {
+private fun RatioBadge(badge: RatioBadgeDisplay) {
     Box(
         modifier = Modifier
             .height(RatioBadgeHeight)
@@ -442,7 +434,6 @@ private fun RatioBadge(badge: WearRatioBadge) {
 
 @Composable
 private fun UndoRegion(
-    enabled: Boolean,
     description: String,
     onUndo: () -> Unit,
     modifier: Modifier,
@@ -451,10 +442,8 @@ private fun UndoRegion(
         modifier = modifier
             .fillMaxWidth()
             .height(48.dp)
-            .alpha(if (enabled) 1f else DisabledContentAlpha)
             .semantics { contentDescription = description }
             .clickable(
-                enabled = enabled,
                 role = Role.Button,
                 onClick = onUndo,
             ),
@@ -483,7 +472,7 @@ private class DisplayTimeSource(private val time: String) : TimeSource {
     override fun currentTime(): String = time
 }
 
-private fun Configuration.wearScreenShape(): Shape {
+private fun Configuration.screenShape(): Shape {
     return if (isScreenRound) CircleShape else RectangleShape
 }
 

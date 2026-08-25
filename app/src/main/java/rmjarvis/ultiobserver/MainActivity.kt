@@ -24,6 +24,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 
@@ -36,6 +38,17 @@ class MainActivity : ComponentActivity() {
     private var lastRequestedOrientation: Int? = null
     private var lastUsesDisplayCutout: Boolean? = null
     private var displayOrientation by mutableStateOf(ActiveGameFullOrientation.PORTRAIT)
+    private var wearWatchAvailable: Boolean? by mutableStateOf(null)
+    private val wearStatePublisher by lazy {
+        WearStatePublisher(applicationContext)
+    }
+    private val wearOSAvailabilityChecker by lazy {
+        WearOSAvailabilityChecker(applicationContext) { available ->
+            runOnUiThread {
+                wearWatchAvailable = available
+            }
+        }
+    }
 
     private val orientationEventListener by lazy {
         object : OrientationEventListener(this, SensorManager.SENSOR_DELAY_NORMAL) {
@@ -77,7 +90,7 @@ class MainActivity : ComponentActivity() {
      */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        appViewModel.reconcileWatchNotificationAvailability(
+        appViewModel.disableWatchNotificationsIfUnavailable(
             NotificationManagerCompat.from(this).areNotificationsEnabled()
         )
         val previousRunCrashed = FirebaseCrashlytics.getInstance().didCrashOnPreviousExecution()
@@ -106,12 +119,39 @@ class MainActivity : ComponentActivity() {
                     }
             }
         }
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                appViewModel.state
+                    .map { state ->
+                        if (
+                            state.settings.timingAlerts.watchConnectionMode ==
+                            WatchConnectionMode.WEAR_OS
+                        ) {
+                            state.currentGame to state.settings
+                        } else {
+                            null
+                        }
+                    }
+                    .distinctUntilChanged()
+                    .collect { publication ->
+                        if (publication == null) {
+                            wearStatePublisher.publishDisabled()
+                        } else {
+                            wearStatePublisher.publish(
+                                game = publication.first,
+                                settings = publication.second,
+                            )
+                        }
+                    }
+            }
+        }
         setContent {
             UltiObserverTheme(dynamicColor = false) {
                 UltiObserverApp(
                     viewModel = appViewModel,
                     previousRunCrashed = previousRunCrashed,
                     displayOrientation = displayOrientation,
+                    wearWatchAvailable = wearWatchAvailable,
                 )
             }
         }
@@ -123,6 +163,8 @@ class MainActivity : ComponentActivity() {
         orientationEventListener.enable()
         displayOrientation = currentDisplayOrientation()
         displayManager.registerDisplayListener(displayListener, null)
+        wearWatchAvailable = null
+        wearOSAvailabilityChecker.refresh()
         contentResolver.registerContentObserver(
             Settings.System.getUriFor(Settings.System.ACCELEROMETER_ROTATION),
             false,

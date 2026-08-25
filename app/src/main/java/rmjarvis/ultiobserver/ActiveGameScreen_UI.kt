@@ -1072,6 +1072,7 @@ private fun PortraitActiveGameContent(
         StatusLine(
             clockText = state.formatOfficialGameTime(now),
             capStatus = capStatus,
+            now = now,
             allocatedHeight = metrics.statusLineHeight,
             modifier = Modifier.fillMaxWidth(),
             pushCapToEnd = true,
@@ -1283,6 +1284,7 @@ private fun LandscapeActiveGameContent(
             StatusLine(
                 clockText = state.formatOfficialGameTime(now),
                 capStatus = capStatus,
+                now = now,
                 allocatedHeight = metrics.topRowHeight,
                 modifier = Modifier.weight(1f),
                 pushCapToEnd = false,

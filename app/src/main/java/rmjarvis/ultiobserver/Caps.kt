@@ -9,12 +9,17 @@ import kotlin.math.min
  * Representation of the next relevant cap status shown on the live screen.
  *
  * @param label The user-facing cap label.
- * @param remaining The time remaining until that cap reaches its scheduled time.
+ * @param targetEpoch The phone epoch millis when that cap reaches its scheduled time.
  */
 data class CapStatus(
     val label: String,
-    val remaining: Duration,
-)
+    val targetEpoch: Long,
+) {
+    /** Return the time remaining until this cap reaches its scheduled time. */
+    fun remaining(now: Long): Duration {
+        return Duration.ofMillis(targetEpoch - now)
+    }
+}
 
 /// Identity of the game cap rule being displayed, prompted, or applied.
 @Serializable
@@ -191,7 +196,7 @@ fun GameState.deferPendingCap(): GameState {
 /**
  * Compute the next cap that still matters for live status display.
  *
- * @param now The current epoch millis used to turn scheduled cap times into remaining durations.
+ * @param now The current epoch millis used to exclude scheduled caps already in the past.
  */
 fun GameState.computeNextCapStatus(now: Long): CapStatus? {
     // `to` in Kotlin makes pairs. So `first to second` makes a pair (first, second).
@@ -211,12 +216,10 @@ fun GameState.computeNextCapStatus(now: Long): CapStatus? {
         .map { it.second }
 
     return caps
-        // Convert each capTime into the time left from now until the cap.
-        .map { (label, capTime) -> label to Duration.ofMillis(capTime - now) }
-        // Find the first one whose duration is not negative.
-        .firstOrNull { (_, remaining) -> !remaining.isNegative }
-        // If any are found, make a CapStatus from this cap's time remaining.
-        ?.let { (label, remaining) -> CapStatus(label, remaining) }
+        // Find the first cap whose scheduled time is not in the past.
+        .firstOrNull { (_, targetEpoch) -> targetEpoch >= now }
+        // If any are found, return its label and scheduled time.
+        ?.let { (label, targetEpoch) -> CapStatus(label, targetEpoch) }
 }
 
 /**

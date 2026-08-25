@@ -1,5 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.firebase.crashlytics)
+    alias(libs.plugins.google.services)
     alias(libs.plugins.kotlin.compose)
 }
 
@@ -10,7 +12,7 @@ kotlin {
 }
 
 android {
-    namespace = "rmjarvis.ultiobserver.wear"
+    namespace = "rmjarvis.ultiobserver"
     compileSdk {
         version = release(37)
     }
@@ -44,7 +46,9 @@ android {
 }
 
 dependencies {
+    implementation(project(":wear-protocol"))
     implementation(platform(libs.androidx.compose.bom))
+    implementation(platform(libs.firebase.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
@@ -53,6 +57,9 @@ dependencies {
     implementation(libs.androidx.wear.compose.material3)
     implementation(libs.androidx.wear.compose.ui.tooling)
     implementation(libs.androidx.wear.tooling.preview)
+    implementation(libs.firebase.crashlytics)
+    implementation(libs.play.services.wearable)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
+    testImplementation(libs.junit)
 }

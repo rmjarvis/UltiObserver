@@ -184,6 +184,7 @@ internal fun SlideToConfirmControl(
  *
  * @param clockText Formatted official tournament clock time.
  * @param capStatus The next cap status, or null when all caps are passed or irrelevant.
+ * @param now The current phone epoch millis used to derive the cap countdown.
  * @param allocatedHeight Vertical height allocated to this status line by its parent layout.
  * @param modifier Modifier controlling the status line's share of its parent.
  * @param pushCapToEnd Whether the cap and rules action should occupy the remaining row width.
@@ -193,13 +194,14 @@ internal fun SlideToConfirmControl(
 internal fun StatusLine(
     clockText: String,
     capStatus: CapStatus?,
+    now: Long,
     allocatedHeight: Dp,
     modifier: Modifier,
     pushCapToEnd: Boolean,
     onRulesReference: () -> Unit,
 ) {
     val capLabel = capStatus?.label ?: ""
-    val capCountdown = capStatus?.let { formatDuration(it.remaining) }
+    val capCountdown = capStatus?.let { status -> formatDuration(status.remaining(now)) }
     val capText = listOfNotNull(capLabel, capCountdown).joinToString(" ")
     val preferredClockFontSize = (allocatedHeight.value * 0.68f).coerceIn(28f, 36f).sp
     val preferredCapFontSize = (allocatedHeight.value * 0.42f).coerceIn(18f, 22f).sp

@@ -132,7 +132,7 @@ class TestTimingAlerts {
         ).timingAlertServiceCues(
             preferences.copy(
                 globalMode = TimingAlertGlobalMode.OFF,
-                watchNotificationMode = WatchNotificationMode.ALERTING,
+                watchConnectionMode = WatchConnectionMode.ALERTING,
             )
         )
         assertEquals(listOf(TimingCueId.HALF_CAP), watchCuePayloads.map { it.id })
@@ -290,7 +290,7 @@ class TestTimingAlerts {
         // Off and should be skipped, while the Off zero cue must remain to end the countdown.
         val watchPreferences = TimingAlertPreferences(
             globalMode = TimingAlertGlobalMode.OFF,
-            watchNotificationMode = WatchNotificationMode.ALERTING,
+            watchConnectionMode = WatchConnectionMode.ALERTING,
             cueModes = mapOf(
                 TimingCueId.OFFENSE_TEN to TimingAlertMode.BEEP,
                 TimingCueId.OFFENSE_COUNTDOWN_FROM_FIVE to TimingAlertMode.NONE,
@@ -310,7 +310,7 @@ class TestTimingAlerts {
         val offZeroCue = countdownCues.last()
         val snapshot = serviceSnapshot(
             countdownCues = countdownCues,
-            watchNotificationMode = WatchNotificationMode.ALERTING,
+            watchConnectionMode = WatchConnectionMode.ALERTING,
             watchScoreLine = scoreLine,
         )
         val platform = FakeTimingAlertServicePlatform(now = 1_000L)
@@ -366,7 +366,7 @@ class TestTimingAlerts {
         val silentModeController = newController(silentModePlatform, scheduleCheckMillis = 100_000L)
         try {
             val silentModeSnapshot = serviceSnapshot(
-                watchNotificationMode = WatchNotificationMode.SILENT,
+                watchConnectionMode = WatchConnectionMode.SILENT,
                 countdownCues = listOf(watchOnlyTenCue),
                 watchScoreLine = scoreLine,
             )
@@ -387,7 +387,7 @@ class TestTimingAlerts {
         try {
             cueLessController.handleTimingAlertUpdate(
                 serviceSnapshot(
-                    watchNotificationMode = WatchNotificationMode.ALERTING,
+                    watchConnectionMode = WatchConnectionMode.ALERTING,
                     watchScoreLine = scoreLine,
                 )
             )
@@ -818,7 +818,7 @@ class TestTimingAlerts {
                 settings = Settings(
                     timingAlerts = TimingAlertPreferences(
                         globalMode = TimingAlertGlobalMode.SOUNDS_ON,
-                        watchNotificationMode = WatchNotificationMode.SILENT,
+                        watchConnectionMode = WatchConnectionMode.SILENT,
                     ),
                 ),
             )
@@ -912,7 +912,7 @@ class TestTimingAlerts {
                     settings = Settings(
                         timingAlerts = TimingAlertPreferences(
                             globalMode = TimingAlertGlobalMode.OFF,
-                            watchNotificationMode = WatchNotificationMode.SILENT,
+                            watchConnectionMode = WatchConnectionMode.SILENT,
                         ),
                     ),
                 ),
@@ -962,7 +962,7 @@ class TestTimingAlerts {
                             serviceSnapshot(
                                 vibrationDurationMillis = 1L,
                                 capCues = listOf(capCue, laterCapCue),
-                                watchNotificationMode = WatchNotificationMode.ALERTING,
+                                watchConnectionMode = WatchConnectionMode.ALERTING,
                                 watchScoreLine = "7-6 Animal",
                             )
                         ),
@@ -1141,7 +1141,7 @@ class TestTimingAlerts {
         vibrateWithSounds: Boolean = false,
         countdownCues: List<TimingAlertServiceCue> = emptyList(),
         capCues: List<TimingAlertServiceCue> = emptyList(),
-        watchNotificationMode: WatchNotificationMode = WatchNotificationMode.OFF,
+        watchConnectionMode: WatchConnectionMode = WatchConnectionMode.OFF,
         watchScoreLine: String? = null,
     ): TimingAlertServiceSnapshot {
         return TimingAlertServiceSnapshot(
@@ -1150,7 +1150,7 @@ class TestTimingAlerts {
             vibrateWithSounds = vibrateWithSounds,
             countdownCues = countdownCues,
             capCues = capCues,
-            watchNotificationMode = watchNotificationMode,
+            watchConnectionMode = watchConnectionMode,
             watchScoreLine = watchScoreLine,
         )
     }

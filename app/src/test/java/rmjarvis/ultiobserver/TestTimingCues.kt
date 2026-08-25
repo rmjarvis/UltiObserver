@@ -21,7 +21,7 @@ class TestTimingCues : GameDomainTestFixtures() {
 
         // Default preferences start in vibration-only mode with full sound volume.
         assertEquals(TimingAlertGlobalMode.VIBRATION_ONLY, defaultPreferences.globalMode)
-        assertEquals(WatchNotificationMode.OFF, defaultPreferences.watchNotificationMode)
+        assertEquals(WatchConnectionMode.OFF, defaultPreferences.watchConnectionMode)
         assertEquals(1f, defaultPreferences.soundVolume, 0f)
         assertFalse(defaultPreferences.vibrateWithSounds)
 
@@ -43,7 +43,7 @@ class TestTimingCues : GameDomainTestFixtures() {
             GameRules().hasEnabledCapTimingAlerts(
                 defaultPreferences.copy(
                     globalMode = TimingAlertGlobalMode.OFF,
-                    watchNotificationMode = WatchNotificationMode.SILENT,
+                    watchConnectionMode = WatchConnectionMode.SILENT,
                 )
             )
         )
@@ -51,7 +51,7 @@ class TestTimingCues : GameDomainTestFixtures() {
             GameRules().hasEnabledCapTimingAlerts(
                 defaultPreferences.copy(
                     globalMode = TimingAlertGlobalMode.OFF,
-                    watchNotificationMode = WatchNotificationMode.SILENT,
+                    watchConnectionMode = WatchConnectionMode.SILENT,
                     cueModes = TimingCueId.entries.associateWith { TimingAlertMode.NONE },
                 )
             )
@@ -253,7 +253,7 @@ class TestTimingCues : GameDomainTestFixtures() {
         // Watch delivery requires watch notifications and an individually enabled cue, except that
         // an Off countdown-ending cue is still sent to return the notification to the score.
         assertTrue(
-            defaultPreferences.copy(watchNotificationMode = WatchNotificationMode.SILENT)
+            defaultPreferences.copy(watchConnectionMode = WatchConnectionMode.SILENT)
                 .sendsCueToWatch(
                     TimingCueId.PULLING_TWENTY_TO_PULL,
                     countdownSeconds = 20,
@@ -266,7 +266,7 @@ class TestTimingCues : GameDomainTestFixtures() {
             )
         )
         val offCuePreferences = defaultPreferences.copy(
-            watchNotificationMode = WatchNotificationMode.ALERTING,
+            watchConnectionMode = WatchConnectionMode.ALERTING,
             cueModes = defaultPreferences.cueModes +
                 (TimingCueId.PULLING_TIME_VIOLATION to TimingAlertMode.NONE),
         )
@@ -280,6 +280,14 @@ class TestTimingCues : GameDomainTestFixtures() {
             offCuePreferences.sendsCueToWatch(
                 TimingCueId.PULLING_TIME_VIOLATION,
                 countdownSeconds = 0,
+            )
+        )
+        assertFalse(
+            defaultPreferences.copy(
+                watchConnectionMode = WatchConnectionMode.WEAR_OS,
+            ).sendsCueToWatch(
+                TimingCueId.PULLING_TWENTY_TO_PULL,
+                countdownSeconds = 20,
             )
         )
 
@@ -323,8 +331,8 @@ class TestTimingCues : GameDomainTestFixtures() {
         assertEquals("Tick", TimingAlertSound.TICK.label)
         assertEquals("Sounds on", TimingAlertGlobalMode.SOUNDS_ON.label)
         assertEquals(
-            listOf("Off", "Silent", "Alerting"),
-            WatchNotificationMode.entries.map { mode -> mode.label },
+            listOf("Off", "Silent", "Alerting", "Wear OS"),
+            WatchConnectionMode.entries.map { mode -> mode.label },
         )
 
         // Sound modes map to their sound choice.

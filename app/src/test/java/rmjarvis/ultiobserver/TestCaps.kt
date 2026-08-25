@@ -40,21 +40,21 @@ class TestCaps : GameDomainTestFixtures() {
         )
         val halfCapStatus = state.computeNextCapStatus(timestampAfterStart(state, 15))!!
         assertEquals("Half cap", halfCapStatus.label)
-        assertEquals(Duration.ofMinutes(30), halfCapStatus.remaining)
-        assertEquals(CapStatus("Half cap", Duration.ofMinutes(30)), halfCapStatus)
+        assertEquals(Duration.ofMinutes(30), halfCapStatus.remaining(timestampAfterStart(state, 15)))
+        assertEquals(CapStatus("Half cap", timestampAfterStart(state, 45)), halfCapStatus)
         assertEquals(
-            CapStatus("Soft cap", Duration.ofMinutes(30)),
+            CapStatus("Soft cap", timestampAfterStart(state, 90)),
             state.copy(halfCapApplied = true)
                 .computeNextCapStatus(timestampAfterStart(state, 60)),
         )
         assertEquals(
-            CapStatus("Hard cap", Duration.ofMinutes(5)),
+            CapStatus("Hard cap", timestampAfterStart(state, 100)),
             state.copy(halfCapApplied = true, softCapApplied = true)
                 .computeNextCapStatus(timestampAfterStart(state, 95)),
         )
         assertNull(state.computeNextCapStatus(timestampAfterStart(state, 200)))
         assertEquals(
-            CapStatus("Soft cap", Duration.ofMinutes(30)),
+            CapStatus("Soft cap", timestampAfterStart(state, 90)),
             state.copy(halftimeTaken = true).computeNextCapStatus(timestampAfterStart(state, 60)),
         )
         assertNull(
@@ -73,7 +73,7 @@ class TestCaps : GameDomainTestFixtures() {
             teamTwo = afterHalftime.teamTwo.copy(score = 13),
         )
         assertEquals(
-            CapStatus("Hard cap", Duration.ofMinutes(85)),
+            CapStatus("Hard cap", timestampAfterStart(softIrrelevant, 100)),
             softIrrelevant.computeNextCapStatus(timestampAfterStart(softIrrelevant, 15)),
         )
         val hardIrrelevant = softIrrelevant.copy(
@@ -94,7 +94,7 @@ class TestCaps : GameDomainTestFixtures() {
             ),
         )
         assertEquals(
-            CapStatus("Half cap", Duration.ofMinutes(30)),
+            CapStatus("Half cap", timestampAfterStart(state, 45)),
             state.computeNextCapStatus(timestampAfterStart(state, 15)),
         )
         state = state.copy(halfCapApplied = true, softCapApplied = true, hardCapApplied = true)
@@ -334,7 +334,7 @@ class TestCaps : GameDomainTestFixtures() {
         // Start with an ordinary first point before any cap time and verify no cap is offered.
         var state = newCapState()
         assertEquals(
-            CapStatus("Half cap", Duration.ofMinutes(5)),
+            CapStatus("Half cap", timestampAfterStart(state, 10)),
             state.computeNextCapStatus(timestampAfterStart(state, 5)),
         )
         state = scoreAt(state, vc, 5)
@@ -974,7 +974,7 @@ class TestCaps : GameDomainTestFixtures() {
         assertNull(state.pendingCapOffer)
         assertFalse(state.halfCapRelevant())
         assertEquals(
-            CapStatus("Soft cap", Duration.ofMinutes(19)),
+            CapStatus("Soft cap", timestampAfterStart(state, 20)),
             state.computeNextCapStatus(timestampAfterStart(state, 1)),
         )
         state = scoreAt(state, vc, 11)
@@ -1016,7 +1016,7 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(3, state.teamTwo.score)
         assertNull(state.pendingCapOffer)
         assertEquals(
-            CapStatus("Soft cap", Duration.ofMinutes(19)),
+            CapStatus("Soft cap", timestampAfterStart(state, 20)),
             state.computeNextCapStatus(timestampAfterStart(state, 1)),
         )
         state = scoreAt(state, animal, 11)

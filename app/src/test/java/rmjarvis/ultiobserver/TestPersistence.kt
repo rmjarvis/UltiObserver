@@ -59,7 +59,7 @@ class TestPersistence : GameDomainTestFixtures() {
         updateTimingAlerts { it.withSoundVolume(0.4f) }
         updateTimingAlerts { it.withVibrationDuration(420L) }
         updateTimingAlerts { it.withVibrateWithSounds(true) }
-        updateTimingAlerts { it.withWatchNotificationMode(WatchNotificationMode.ALERTING) }
+        updateTimingAlerts { it.withWatchConnectionMode(WatchConnectionMode.ALERTING) }
         updateSettings { it.withAutomaticallyAdvanceCountdowns(false) }
         updateSettings { it.withAutomaticallyLockLivePoint(false) }
         updateSettings { it.withShowDefenseCountdowns(true) }
@@ -157,27 +157,27 @@ class TestPersistence : GameDomainTestFixtures() {
         assertEquals(420L, restored.settings.timingAlerts.vibrationDurationMillis)
         assertTrue(restored.settings.timingAlerts.vibrateWithSounds)
         assertEquals(
-            WatchNotificationMode.ALERTING,
-            restored.settings.timingAlerts.watchNotificationMode,
+            WatchConnectionMode.ALERTING,
+            restored.settings.timingAlerts.watchConnectionMode,
         )
 
         // Startup reconciliation preserves an enabled watch mode while Android notifications are
         // available, but turns it Off and persists that correction when they are unavailable.
-        restored.reconcileWatchNotificationAvailability(notificationsEnabled = true)
+        restored.disableWatchNotificationsIfUnavailable(notificationsEnabled = true)
         assertEquals(
-            WatchNotificationMode.ALERTING,
-            restored.settings.timingAlerts.watchNotificationMode,
+            WatchConnectionMode.ALERTING,
+            restored.settings.timingAlerts.watchConnectionMode,
         )
-        restored.reconcileWatchNotificationAvailability(notificationsEnabled = false)
+        restored.disableWatchNotificationsIfUnavailable(notificationsEnabled = false)
         assertEquals(
-            WatchNotificationMode.OFF,
-            restored.settings.timingAlerts.watchNotificationMode,
+            WatchConnectionMode.OFF,
+            restored.settings.timingAlerts.watchConnectionMode,
         )
-        restored.reconcileWatchNotificationAvailability(notificationsEnabled = false)
+        restored.disableWatchNotificationsIfUnavailable(notificationsEnabled = false)
         assertEquals(
-            WatchNotificationMode.OFF,
+            WatchConnectionMode.OFF,
             AppViewModel(FileAppStateStorage(storeDir))
-                .settings.timingAlerts.watchNotificationMode,
+                .settings.timingAlerts.watchConnectionMode,
         )
         assertEquals(
             TimingAlertMode.DING,
