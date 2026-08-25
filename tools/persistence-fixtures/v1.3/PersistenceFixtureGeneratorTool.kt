@@ -17,20 +17,6 @@ fun main(args: Array<String>) {
         "setup-draft" -> writeSetupDraft(root)
         "active-game" -> writeActiveGame(root)
         "complete-current-game" -> writeCompleteCurrentGame(root)
-        "complete-current-hard-cap" -> writeTerminalCurrentGame(root, shortHardCapGame())
-        "complete-current-hard-cap-now" -> writeTerminalCurrentGame(root, shortHardCapNowGame())
-        "complete-current-hard-cap-halftime" -> writeTerminalCurrentGame(
-            root,
-            shortHardCapGame(duringHalftime = true),
-        )
-        "complete-current-heat-level-3" -> writeTerminalCurrentGame(
-            root,
-            shortHeatLevelThreeGame(useAirQualityGuidelines = false),
-        )
-        "complete-current-aqi-level-3" -> writeTerminalCurrentGame(
-            root,
-            shortHeatLevelThreeGame(useAirQualityGuidelines = true),
-        )
         "completed-archive" -> writeCompletedArchive(root)
         else -> error("Unknown persistence fixture scenario: $scenario")
     }
@@ -46,7 +32,7 @@ private fun writeDefaultBuckets(dir: File) {
 
 private fun writeStartedGameNoEvents(dir: File) {
     val store = freshStore(dir)
-    val game = defaultSetup().startGame()
+    val game = defaultSetup().startGame(OrientationPreference.PORTRAIT)
     check(game.phase == GamePhase.PRE_GAME)
     check(game.eventLog.isEmpty())
     check(game.undoEntry == null)
@@ -60,7 +46,7 @@ private fun writeSetupDraft(dir: File) {
     val store = freshStore(dir)
     val setup = nonDefaultSetup().copy(
         level = "Youth",
-        rules = usauDefaultGameRules("Youth").withHeatLevel(HeatLevel.LEVEL_0),
+        rules = usauDefaultGameRules("Youth").withHeatLevel(HeatLevel.MANUAL),
     )
     check(setup.rules.nominalTimeBetweenPointsSeconds == 80)
     check(setup.rules.waterBreakMode == WaterBreakMode.MANUAL)
@@ -88,21 +74,19 @@ private fun writeActiveGame(dir: File) {
     check(setup.rules.waterBreakMode == WaterBreakMode.AUTOMATIC)
     check(setup.rules.waterBreakMinutes == 4)
     val guidanceMode = RuleGuidanceMode.TIMED
-    val activeGame = activeGameWithEvents(setup, guidanceMode)
-    val game = applySetupEditToLiveGame(
-        existing = activeGame,
-        edited = activeGame.copy(
-            teamTwo = activeGame.teamTwo.copy(color = TeamColorChoice.BLUE),
-        ),
-        now = setupEpoch(setup) + 180_000L,
-    )
+    val game = activeGameWithEvents(setup, guidanceMode)
 
     store.saveCurrentGame(game)
     store.saveProfile(fixtureProfile())
-    val settings = fixtureSettings().copy(
+    val baseSettings = fixtureSettings()
+    val settings = baseSettings.copy(
         ruleGuidanceMode = guidanceMode,
+        timingAlerts = baseSettings.timingAlerts.copy(
+            watchNotificationMode = WatchNotificationMode.SILENT,
+        ),
     )
     check(settings.ruleGuidanceMode == RuleGuidanceMode.TIMED)
+    check(settings.timingAlerts.watchNotificationMode == WatchNotificationMode.SILENT)
     store.saveSettings(settings)
     store.saveArchivedGames(
         listOf(
@@ -136,10 +120,6 @@ private fun writeCompletedArchive(dir: File) {
         listOf(
             richGame.pruneUndoHistory(),
             shortCompletedGame().pruneUndoHistory(),
-            shortHardCapGame().pruneUndoHistory(),
-            shortHardCapGame(duringHalftime = true).pruneUndoHistory(),
-            shortHeatLevelThreeGame(useAirQualityGuidelines = false).pruneUndoHistory(),
-            shortHeatLevelThreeGame(useAirQualityGuidelines = true).pruneUndoHistory(),
         )
     )
 }
@@ -160,14 +140,6 @@ private fun writeCompleteCurrentGame(dir: File) {
     store.saveCurrentGame(game)
     store.saveProfile(fixtureProfile())
     store.saveSettings(settings)
-    store.saveArchivedGames(emptyList())
-}
-
-private fun writeTerminalCurrentGame(dir: File, game: GameState) {
-    val store = freshStore(dir)
-    store.saveCurrentGame(game)
-    store.saveProfile(fixtureProfile())
-    store.saveSettings(fixtureSettings())
     store.saveArchivedGames(emptyList())
 }
 
@@ -280,7 +252,7 @@ private fun nonDefaultSetup(): GameState {
         ),
         teamTwo = TeamState(
             name = "Ferns",
-            color = TeamColorChoice.GRAY,
+            color = TeamColorChoice.GREEN,
             coaches = "Fern Coach",
             fieldCaptains = "Fern Captain",
             spiritCaptains = "Fern Spirit",
@@ -308,7 +280,7 @@ private fun activeGameWithEvents(
     guidanceMode: RuleGuidanceMode,
 ): GameState {
     val start = setupEpoch(setup)
-    var game = setup.startGame()
+    var game = setup.startGame(OrientationPreference.PORTRAIT)
     game = game.recordFalseStart(start + 1_000L)
     game = game.recordMajorityPullViolation(start + 2_000L)
     game = game.assessYellowCard(
@@ -419,68 +391,9 @@ private fun activeGameWithEvents(
 private fun shortCompletedGame(): GameState {
     val setup = baseSetup()
     val start = setupEpoch(setup)
-    var game = setup.startGame().beginLivePoint(start + 1_000L)
+    var game = setup.startGame(OrientationPreference.PORTRAIT).beginLivePoint(start + 1_000L)
     game = game.recordGoal(TeamId.TEAM_ONE, start + 60_000L)
     return game.endGameNow(start + 70_000L)
-}
-
-private fun shortHardCapGame(duringHalftime: Boolean = false): GameState {
-    val base = baseSetup()
-    val setup = base.copy(
-        rules = base.rules.copy(
-            useHardCap = true,
-            nominalHardCapMinutes = 0,
-        ),
-    )
-    val start = setupEpoch(setup)
-    var game = setup.startGame().beginLivePoint(start + 1_000L)
-    game = game.recordGoal(TeamId.TEAM_ONE, start + 60_000L)
-    check(game.teamOne.score == 1 && game.teamTwo.score == 0)
-    check(game.pendingCapOffer == CapType.HARD)
-    if (duringHalftime) {
-        game = game.startHalftimeNow(start + 60_500L)
-        check(game.phase == GamePhase.HALFTIME)
-        check(game.pendingCapOffer == CapType.HARD)
-    }
-    game = game.applyPendingCap(start + 61_000L)
-    check(game.phase == GamePhase.GAME_OVER)
-    check(game.undoEntry?.label == "Undo Apply hard cap")
-    return game
-}
-
-private fun shortHardCapNowGame(): GameState {
-    val setup = baseSetup()
-    val start = setupEpoch(setup)
-    var game = setup.startGame().beginLivePoint(start + 1_000L)
-    game = game.recordGoal(TeamId.TEAM_ONE, start + 60_000L)
-    check(game.teamOne.score == 1 && game.teamTwo.score == 0)
-    game = game.makeCapNow(CapType.HARD, start + 61_000L)
-    check(game.phase == GamePhase.GAME_OVER)
-    check(game.undoEntry?.label == "Undo Apply hard cap now")
-    return game
-}
-
-private fun shortHeatLevelThreeGame(useAirQualityGuidelines: Boolean): GameState {
-    val setup = baseSetup()
-    val start = setupEpoch(setup)
-    var game = setup.startGame().beginLivePoint(start + 1_000L)
-    game = game.recordGoal(TeamId.TEAM_ONE, start + 60_000L)
-    check(game.teamOne.score == 1 && game.teamTwo.score == 0)
-    game = game.setHeatGuidance(
-        newHeatLevel = HeatLevel.LEVEL_3,
-        useAirQualityGuidelines = useAirQualityGuidelines,
-        waterBreakMinutes = 4,
-        now = start + 61_000L,
-    )
-    check(game.phase == GamePhase.GAME_OVER)
-    check(
-        game.undoEntry?.label == if (useAirQualityGuidelines) {
-            AQI_LEVEL_THREE_UNDO_LABEL
-        } else {
-            HEAT_LEVEL_THREE_UNDO_LABEL
-        }
-    )
-    return game
 }
 
 private fun fixtureProfile(): Profile {

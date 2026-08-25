@@ -34,6 +34,14 @@ persisted_scenarios = {
         "complete-current-game": ScenarioSource("complete-current-game", None),
         "completed-archive": ScenarioSource("completed-archive", None),
     },
+    "v1.3": {
+        "default-buckets": ScenarioSource("default-buckets", "v1.3.1"),
+        "started-game-no-events": ScenarioSource("started-game-no-events", "v1.3.1"),
+        "setup-draft": ScenarioSource("setup-draft", "v1.3.1"),
+        "active-game": ScenarioSource("active-game", "v1.3.1"),
+        "complete-current-game": ScenarioSource("complete-current-game", "v1.3.1"),
+        "completed-archive": ScenarioSource("completed-archive", "v1.3.1"),
+    },
     "v1.2": {
         "default-buckets": ScenarioSource("default-buckets", "v1.2.0"),
         "started-game-no-events": ScenarioSource("started-game-no-events", "v1.2.0"),
@@ -214,6 +222,10 @@ def copy_current_worktree(workdir: Path) -> None:
         "app/build.gradle.kts",
         "app/proguard-rules.pro",
         "app/src",
+        "wear/build.gradle.kts",
+        "wear/src",
+        "wear-protocol/build.gradle.kts",
+        "wear-protocol/src",
     ):
         copy_project_path(path, workdir)
     copy_local_files(workdir)

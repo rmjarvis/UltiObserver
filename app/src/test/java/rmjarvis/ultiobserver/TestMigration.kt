@@ -504,12 +504,13 @@ class TestMigration : GameDomainTestFixtures() {
         assertEquals(defaultBuckets.profile, startedGameNoEvents.profile)
         assertEquals(defaultBuckets.settings, startedGameNoEvents.settings)
 
-        // setup-draft preserves the USAU Youth default of 80 seconds between points.
+        // setup-draft preserves its customized setup while converting the legacy LEVEL_0 water-
+        // break selection and Gray team color to their current representations.
         val setupDraft = loadMigratedFixture("v1.2", "setup-draft")
         assertTrue(setupDraft.hasSetupDraft)
         assertEquals("Youth", setupDraft.setupGame.level)
         assertEquals(80, setupDraft.setupGame.rules.nominalTimeBetweenPointsSeconds)
-        assertEquals(HeatLevel.NONE, setupDraft.setupGame.rules.heatLevel)
+        assertEquals(HeatLevel.MANUAL, setupDraft.setupGame.rules.heatLevel)
         assertFalse(setupDraft.setupGame.rules.useAirQualityGuidelines)
         assertEquals(TeamColorChoice.CUSTOM, setupDraft.setupGame.teamTwo.color)
         assertEquals(0xFF708090L, setupDraft.setupGame.teamTwo.customColorArgb)
@@ -666,6 +667,89 @@ class TestMigration : GameDomainTestFixtures() {
         assertEquals(HeatLevel.NONE, aqiCurrent.undoLastAction().rules.heatLevel)
     }
 
+    /**
+     * Verify every standard v1.3 fixture scenario loads into the current app model without
+     * startup recovery and preserves its workflow and settings state.
+     *
+     * The asserted fixture values come from
+     * `tools/persistence-fixtures/v1.3/PersistenceFixtureGeneratorTool.kt`.
+     */
+    @Test
+    fun loadFixturesFromV1_3() {
+        // default-buckets preserves the defaults for every independently stored bucket.
+        val defaultBuckets = loadMigratedFixture("v1.3", "default-buckets")
+        assertNull(defaultBuckets.currentGame)
+        assertFalse(defaultBuckets.hasSetupDraft)
+        assertProfileAndSettings(
+            defaultBuckets,
+            Profile(),
+            v1_3FixtureSettings("default-buckets"),
+        )
+        assertTrue(defaultBuckets.archivedGames.isEmpty())
+
+        // started-game-no-events remains a valid pre-game current state with empty event and undo
+        // histories.
+        val startedGameNoEvents = loadMigratedFixture("v1.3", "started-game-no-events")
+        assertStartedGameNoEvents(startedGameNoEvents)
+        assertEquals(defaultBuckets.profile, startedGameNoEvents.profile)
+        assertEquals(defaultBuckets.settings, startedGameNoEvents.settings)
+
+        // setup-draft preserves a customized setup, including the MANUAL water-break selection
+        // introduced in v1.3, before the game has started.
+        val setupDraft = loadMigratedFixture("v1.3", "setup-draft")
+        assertTrue(setupDraft.hasSetupDraft)
+        assertEquals("Youth", setupDraft.setupGame.level)
+        assertEquals(80, setupDraft.setupGame.rules.nominalTimeBetweenPointsSeconds)
+        assertEquals(HeatLevel.MANUAL, setupDraft.setupGame.rules.heatLevel)
+        assertProfileAndSettings(
+            setupDraft,
+            v1_1FixtureProfile(),
+            v1_3FixtureSettings("setup-draft"),
+        )
+
+        // active-game preserves the customized active workflow and its non-default legacy watch
+        // notification mode through the setting rename.
+        val activeGame = loadMigratedFixture("v1.3", "active-game")
+        val activeState = activeGame.currentGame!!
+        assertEquals(GamePhase.BETWEEN_POINTS, activeState.phase)
+        assertEquals(1, activeState.teamOne.score)
+        assertEquals(1, activeState.teamTwo.score)
+        assertEquals(1, activeGame.archivedGames.size)
+        assertProfileAndSettings(
+            activeGame,
+            v1_1FixtureProfile(),
+            v1_3FixtureSettings("active-game"),
+        )
+        assertEquals(
+            WatchConnectionMode.SILENT,
+            activeGame.settings.timingAlerts.watchConnectionMode,
+        )
+
+        // complete-current-game retains its completed current-game bucket and Undo End game path.
+        val completeCurrentGame = loadMigratedFixture("v1.3", "complete-current-game")
+        val completeCurrentState = completeCurrentGame.currentGame!!
+        assertEquals(GamePhase.GAME_OVER, completeCurrentState.phase)
+        assertEquals("Undo End game", completeCurrentState.undoEntry?.label)
+        assertProfileAndSettings(
+            completeCurrentGame,
+            v1_1FixtureProfile(),
+            v1_3FixtureSettings("complete-current-game"),
+        )
+
+        // completed-archive retains both completed games without leaving a current game.
+        val completedArchive = loadMigratedFixture("v1.3", "completed-archive")
+        assertNull(completedArchive.currentGame)
+        assertEquals(2, completedArchive.archivedGames.size)
+        assertTrue(completedArchive.archivedGames.all { game ->
+            game.phase == GamePhase.GAME_OVER
+        })
+        assertProfileAndSettings(
+            completedArchive,
+            v1_1FixtureProfile(),
+            v1_3FixtureSettings("completed-archive"),
+        )
+    }
+
     private fun assertMigratedV1_2TerminalCurrentGame(
         fixtureName: String,
         expectedPreviousPhase: GamePhase,
@@ -812,6 +896,25 @@ class TestMigration : GameDomainTestFixtures() {
             )
             else -> error("Unknown v1.2 fixture: $fixtureName")
         }
+    }
+
+    /// Return the expected settings for one standard v1.3 fixture.
+    private fun v1_3FixtureSettings(fixtureName: String): Settings {
+        if (fixtureName == "default-buckets") {
+            return Settings()
+        }
+        val settings = v1_2FixtureSettings(fixtureName)
+        return settings.copy(
+            timingAlerts = settings.timingAlerts.copy(
+                watchConnectionMode = if (fixtureName == "active-game") {
+                    WatchConnectionMode.SILENT
+                } else {
+                    WatchConnectionMode.OFF
+                },
+                cueModes = TimingCueId.entries.associateWith { TimingAlertMode.DING },
+                cueRepeatCounts = TimingCueId.entries.associateWith { 1 },
+            ),
+        )
     }
 
     /// Expected timing-alert defaults persisted by the v1.1 and v1.2 fixtures.

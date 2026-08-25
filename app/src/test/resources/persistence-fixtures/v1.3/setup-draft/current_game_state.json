@@ -1,12 +1,13 @@
 {
-    "versionName": "1.2.0",
-    "versionCode": 4,
+    "versionName": "1.3.1",
+    "versionCode": 6,
     "data": {
         "state": {
             "startDate": "2026-02-14",
             "startTime": "13:45",
             "timeZone": "America/New_York",
             "endEpoch": null,
+            "officialClockOffsetMillis": 0,
             "tournamentName": "Migration Invitational",
             "division": "OPEN",
             "level": "Youth",
@@ -34,7 +35,7 @@
                 "genderRatioRule": "ABBA",
                 "switchGenZoneAtHalftime": true,
                 "useAirQualityGuidelines": false,
-                "heatLevel": "LEVEL_0",
+                "heatLevel": "MANUAL",
                 "waterBreakMinutes": 3
             },
             "teamOne": {
@@ -56,7 +57,7 @@
             },
             "teamTwo": {
                 "name": "Ferns",
-                "color": "GRAY",
+                "color": "GREEN",
                 "customColorArgb": null,
                 "coaches": "Fern Coach",
                 "fieldCaptains": "Fern Captain",
@@ -127,6 +128,7 @@
             "softCapApplied": false,
             "hardCapApplied": false,
             "pendingCapOffer": null,
+            "pendingScoreTransition": null,
             "undoEntry": null,
             "redoEntry": null
         },

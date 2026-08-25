@@ -46,9 +46,10 @@ private fun writeSetupDraft(dir: File) {
     val store = freshStore(dir)
     val setup = nonDefaultSetup().copy(
         level = "Youth",
-        rules = usauDefaultGameRules("Youth"),
+        rules = usauDefaultGameRules("Youth").withHeatLevel(HeatLevel.MANUAL),
     )
     check(setup.rules.nominalTimeBetweenPointsSeconds == 80)
+    check(setup.rules.waterBreakMode == WaterBreakMode.MANUAL)
 
     store.saveCurrentGame(setup)
     store.saveProfile(fixtureProfile())
@@ -77,10 +78,15 @@ private fun writeActiveGame(dir: File) {
 
     store.saveCurrentGame(game)
     store.saveProfile(fixtureProfile())
-    val settings = fixtureSettings().copy(
+    val baseSettings = fixtureSettings()
+    val settings = baseSettings.copy(
         ruleGuidanceMode = guidanceMode,
+        timingAlerts = baseSettings.timingAlerts.copy(
+            watchConnectionMode = WatchConnectionMode.SILENT,
+        ),
     )
     check(settings.ruleGuidanceMode == RuleGuidanceMode.TIMED)
+    check(settings.timingAlerts.watchConnectionMode == WatchConnectionMode.SILENT)
     store.saveSettings(settings)
     store.saveArchivedGames(
         listOf(

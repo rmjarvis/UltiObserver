@@ -297,13 +297,30 @@ private object V1_2ToV1_3 {
         if (jsonElement is JsonNull) {
             return jsonElement
         }
-        val migratedColors = migrateGrayTeamColors(jsonElement)
+        val migratedHeatLevels = migrateManualHeatLevels(jsonElement)
+        val migratedColors = migrateGrayTeamColors(migratedHeatLevels)
         val gameObject = migratedColors.jsonObject
         val stateObject = gameObject["state"]?.jsonObject
         val timeZoneElement = stateObject?.getValue("timeZone")
             ?: gameObject.getValue("timeZone")
         val timeZone = ZoneId.of(timeZoneElement.jsonPrimitive.content)
         return migrateEventLogTimes(migratedColors, timeZone)
+    }
+
+    private fun migrateManualHeatLevels(jsonElement: JsonElement): JsonElement {
+        return when (jsonElement) {
+            is JsonArray -> JsonArray(jsonElement.map(::migrateManualHeatLevels))
+            is JsonObject -> JsonObject(
+                jsonElement.mapValues { (key, value) ->
+                    if (key == "heatLevel" && value.jsonPrimitive.contentOrNull == "LEVEL_0") {
+                        JsonPrimitive(HeatLevel.MANUAL.name)
+                    } else {
+                        migrateManualHeatLevels(value)
+                    }
+                },
+            )
+            else -> jsonElement
+        }
     }
 
     private fun migrateEventLogTimes(jsonElement: JsonElement, timeZone: ZoneId): JsonElement {
