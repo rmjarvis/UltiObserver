@@ -72,24 +72,24 @@ class TestObserverAvatars {
     @Test
     fun randomAvatar() {
         // Use a fixed chooser to verify random-avatar timing without relying on randomness.
-        val viewModel = AppViewModel(
+        val appState = AppState(
             appStateStorage = NoOpAppStateStorage,
             chooseAvatarIndex = { size ->
                 assertEquals(concreteObserverAvatarPreferences.size, size)
                 2
             },
         )
-        assertEquals(ObserverAvatarPreference.RANDOM, viewModel.profile.avatarPreference)
-        assertEquals(concreteObserverAvatarPreferences[2], viewModel.currentHomeAvatar)
+        assertEquals(ObserverAvatarPreference.RANDOM, appState.profile.avatarPreference)
+        assertEquals(concreteObserverAvatarPreferences[2], appState.currentHomeAvatar)
 
         // A concrete avatar preference should be used directly on Home.
-        viewModel.updateProfile(viewModel.profile.withAvatarPreference(ObserverAvatarPreference.GREY))
-        assertEquals(ObserverAvatarPreference.GREY, viewModel.profile.avatarPreference)
-        assertEquals(ObserverAvatarPreference.GREY, viewModel.currentHomeAvatar)
+        appState.updateProfile(appState.profile.withAvatarPreference(ObserverAvatarPreference.GREY))
+        assertEquals(ObserverAvatarPreference.GREY, appState.profile.avatarPreference)
+        assertEquals(ObserverAvatarPreference.GREY, appState.currentHomeAvatar)
 
         // Returning to random should choose a concrete Home avatar again.
-        viewModel.updateProfile(viewModel.profile.withAvatarPreference(ObserverAvatarPreference.RANDOM))
-        assertEquals(ObserverAvatarPreference.RANDOM, viewModel.profile.avatarPreference)
-        assertEquals(concreteObserverAvatarPreferences[2], viewModel.currentHomeAvatar)
+        appState.updateProfile(appState.profile.withAvatarPreference(ObserverAvatarPreference.RANDOM))
+        assertEquals(ObserverAvatarPreference.RANDOM, appState.profile.avatarPreference)
+        assertEquals(concreteObserverAvatarPreferences[2], appState.currentHomeAvatar)
     }
 }

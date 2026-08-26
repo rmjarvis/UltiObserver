@@ -16,11 +16,11 @@ import androidx.lifecycle.ViewModelProvider
 import java.io.File
 
 /**
- * Build the production AppViewModel factory for Android lifecycle creation.
+ * Build the production AppState factory for Android lifecycle creation.
  *
  * @param filesDir The app-private storage directory supplied by MainActivity.
  */
-internal fun appViewModelFactory(filesDir: File): ViewModelProvider.Factory {
+internal fun appStateFactory(filesDir: File): ViewModelProvider.Factory {
     return object : ViewModelProvider.Factory {
         /**
          * Create the app ViewModel with file-backed persistence.
@@ -28,47 +28,47 @@ internal fun appViewModelFactory(filesDir: File): ViewModelProvider.Factory {
          * @param modelClass The ViewModel class requested by the Android lifecycle owner.
          */
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return modelClass.cast(AppViewModel(FileAppStateStorage(filesDir)))!!
+            return modelClass.cast(AppState(FileAppStateStorage(filesDir)))!!
         }
     }
 }
 
 /**
- * Switch between home, setup, and live screens from the app ViewModel state.
+ * Switch between home, setup, and live screens from the current app state snapshot.
  *
- * @param viewModel The app-level ViewModel owning navigation and persisted state.
+ * @param appState The app-level ViewModel owning navigation and persisted state.
  * @param previousRunCrashed Whether Crashlytics recorded a fatal crash in the previous app run.
  * @param displayOrientation Readable orientation currently shown by Android.
  * @param wearWatchAvailable Whether a Wear OS node is reachable, or null before the check finishes.
  */
 @Composable
 internal fun UltiObserverApp(
-    viewModel: AppViewModel,
+    appState: AppState,
     previousRunCrashed: Boolean,
     displayOrientation: ActiveGameFullOrientation,
     wearWatchAvailable: Boolean?,
 ) {
-    val appState by viewModel.state.collectAsState()
+    val snapshot by appState.state.collectAsState()
     val context = LocalContext.current
     var showMissingExactAlarmAccessDialog by remember { mutableStateOf(false) }
     var showPreviousCrashDialog by rememberSaveable { mutableStateOf(previousRunCrashed) }
 
     // Back returns to setup from the pre-pull preview, otherwise to home.
-    BackHandler(enabled = appState.screen != AppScreen.HOME) {
-        viewModel.goBackFromCurrentScreen()
+    BackHandler(enabled = snapshot.screen != AppScreen.HOME) {
+        appState.goBackFromCurrentScreen()
     }
 
     TimingAlertForegroundServiceEffect(
-        liveState = appState.currentGame?.takeUnless { state ->
+        liveState = snapshot.currentGame?.takeUnless { state ->
             state.phase == GamePhase.SETUP || state.phase == GamePhase.GAME_OVER
         },
-        settings = appState.settings,
+        settings = snapshot.settings,
     )
 
     // No else branch: every AppScreen value is handled.
-    when (appState.screen) {
+    when (snapshot.screen) {
         AppScreen.HOME -> {
-            val currentState = appState.currentGame
+            val currentState = snapshot.currentGame
             val currentGame: GameListEntry?
             val completedGamePendingArchive: GameListEntry?
             if (currentState == null) {
@@ -82,32 +82,32 @@ internal fun UltiObserverApp(
                 completedGamePendingArchive = null
             }
             HomeScreen(
-                avatar = appState.currentHomeAvatar,
+                avatar = snapshot.currentHomeAvatar,
                 currentGame = currentGame,
-                currentGameSectionSubtitle = viewModel.currentGameHomeSubtitle,
+                currentGameSectionSubtitle = appState.currentGameHomeSubtitle,
                 completedGamePendingArchive = completedGamePendingArchive,
                 onResumeCurrentGame = {
-                    viewModel.resumeCurrentGame()
+                    appState.resumeCurrentGame()
                 },
                 onArchiveCompletedGame = {
-                    viewModel.archiveCompletedGame()
+                    appState.archiveCompletedGame()
                 },
-                onStartNewGame = { viewModel.startNewGame(System.currentTimeMillis()) },
+                onStartNewGame = { appState.startNewGame(System.currentTimeMillis()) },
                 onOpenAbout = {
-                    viewModel.openAbout()
+                    appState.openAbout()
                 },
                 onOpenOfficialClock = {
-                    viewModel.openOfficialClock()
+                    appState.openOfficialClock()
                 },
-                officialClockAdjusted = appState.settings.officialClockOffsetMillis != 0L,
+                officialClockAdjusted = snapshot.settings.officialClockOffsetMillis != 0L,
                 onOpenProfile = {
-                    viewModel.openProfile()
+                    appState.openProfile()
                 },
                 onOpenSettings = {
-                    viewModel.openSettings()
+                    appState.openSettings()
                 },
                 onOpenArchivedGames = {
-                    viewModel.openArchivedGames()
+                    appState.openArchivedGames()
                 },
             )
         }
@@ -116,58 +116,58 @@ internal fun UltiObserverApp(
             AboutScreen(
                 versionName = BuildConfig.VERSION_NAME,
                 onBackHome = {
-                    viewModel.goHome()
+                    appState.goHome()
                 },
                 onHome = {
-                    viewModel.goHome()
+                    appState.goHome()
                 },
             )
         }
 
         AppScreen.OFFICIAL_CLOCK -> {
             OfficialClockScreen(
-                currentOffsetMillis = appState.settings.officialClockOffsetMillis,
+                currentOffsetMillis = snapshot.settings.officialClockOffsetMillis,
                 onOffsetChange = { updatedOffsetMillis ->
-                    viewModel.updateOfficialClockOffset(updatedOffsetMillis)
+                    appState.updateOfficialClockOffset(updatedOffsetMillis)
                 },
                 onBackHome = {
-                    viewModel.goHome()
+                    appState.goHome()
                 },
                 onHome = {
-                    viewModel.goHome()
+                    appState.goHome()
                 },
             )
         }
 
         AppScreen.PROFILE -> {
             ProfileScreen(
-                profile = appState.profile,
+                profile = snapshot.profile,
                 onProfileChange = { updatedProfile ->
-                    viewModel.updateProfile(updatedProfile)
+                    appState.updateProfile(updatedProfile)
                 },
                 onBackHome = {
-                    viewModel.goHome()
+                    appState.goHome()
                 },
                 onHome = {
-                    viewModel.goHome()
+                    appState.goHome()
                 },
             )
         }
 
         AppScreen.SETTINGS -> {
             SettingsScreen(
-                settings = appState.settings,
+                settings = snapshot.settings,
                 onSettingsChange = { updatedSettings ->
-                    viewModel.updateSettings(updatedSettings)
+                    appState.updateSettings(updatedSettings)
                 },
                 onOpenTimingCueSettings = {
-                    viewModel.openTimingCueSettings()
+                    appState.openTimingCueSettings()
                 },
                 onBackHome = {
-                    viewModel.goHome()
+                    appState.goHome()
                 },
                 onHome = {
-                    viewModel.goHome()
+                    appState.goHome()
                 },
                 wearWatchAvailable = wearWatchAvailable,
             )
@@ -175,33 +175,33 @@ internal fun UltiObserverApp(
 
         AppScreen.TIMING_CUE_SETTINGS -> {
             TimingCueSettingsScreen(
-                settings = appState.settings,
+                settings = snapshot.settings,
                 onSettingsChange = { updatedSettings ->
-                    viewModel.updateSettings(updatedSettings)
+                    appState.updateSettings(updatedSettings)
                 },
                 onBackSettings = {
-                    viewModel.openSettings()
+                    appState.openSettings()
                 },
                 onHome = {
-                    viewModel.goHome()
+                    appState.goHome()
                 },
             )
         }
 
         AppScreen.ARCHIVED_GAMES -> {
-            val archivedGame = appState.viewingArchivedGame
+            val archivedGame = snapshot.viewingArchivedGame
             if (archivedGame != null) {
                 val isInProgressArchive = archivedGame.archiveCategory ==
                     ArchivedGameCategory.IN_PROGRESS
                 val archiveSavedInProgressAction: () -> Unit = {
-                    viewModel.archiveSavedInProgressGame(System.currentTimeMillis())
+                    appState.archiveSavedInProgressGame(System.currentTimeMillis())
                 }
                 GameOverSummaryScreen(
                     state = archivedGame,
                     completed = !isInProgressArchive,
-                    guidanceMode = appState.settings.ruleGuidanceMode,
+                    guidanceMode = snapshot.settings.ruleGuidanceMode,
                     onStateChange = { updatedGame ->
-                        viewModel.updateViewingArchivedGame(updatedGame)
+                        appState.updateViewingArchivedGame(updatedGame)
                     },
                     summaryActionText = if (isInProgressArchive) {
                         "Make current"
@@ -209,7 +209,7 @@ internal fun UltiObserverApp(
                         "Restore game"
                     },
                     onSummaryAction = {
-                        viewModel.makeArchivedGameCurrent()
+                        appState.makeArchivedGameCurrent()
                     },
                     secondarySummaryActionText = if (isInProgressArchive) {
                         "Archive game"
@@ -222,21 +222,21 @@ internal fun UltiObserverApp(
                         null
                     },
                     onBack = {
-                        viewModel.goBackFromCurrentScreen()
+                        appState.goBackFromCurrentScreen()
                     },
                     onHome = {
-                        viewModel.goHome()
+                        appState.goHome()
                     },
                 )
             } else {
-                val currentInProgressGame = appState.currentGame
+                val currentInProgressGame = snapshot.currentGame
                     ?.takeUnless { it.phase == GamePhase.SETUP }
                     ?.gameListEntry()
-                val currentSetupDraft = appState.currentGame
+                val currentSetupDraft = snapshot.currentGame
                     ?.takeIf { it.phase == GamePhase.SETUP }
                     ?.gameListEntry()
                 val archiveCategoryCounts = remember(
-                    appState.archivedGames,
+                    snapshot.archivedGames,
                     currentInProgressGame,
                     currentSetupDraft,
                 ) {
@@ -248,107 +248,107 @@ internal fun UltiObserverApp(
                                 currentSetupDraft != null -> 1
                             else -> 0
                         }
-                        currentCount + appState.archivedGames.count {
+                        currentCount + snapshot.archivedGames.count {
                             it.archiveCategory == category
                         }
                     }
                 }
                 ArchivedGamesScreen(
                     categoryCounts = archiveCategoryCounts,
-                    hasSavedOrArchivedGames = appState.archivedGames.isNotEmpty(),
-                    selectedCategory = appState.selectedArchiveCategory,
-                    archiveFilterSelections = appState.archiveFilterSelections,
-                    archiveSortMode = appState.archiveSortMode,
-                    filteredArchiveState = appState.filteredArchiveState(),
+                    hasSavedOrArchivedGames = snapshot.archivedGames.isNotEmpty(),
+                    selectedCategory = snapshot.selectedArchiveCategory,
+                    archiveFilterSelections = snapshot.archiveFilterSelections,
+                    archiveSortMode = snapshot.archiveSortMode,
+                    filteredArchiveState = snapshot.filteredArchiveState(),
                     currentInProgressGame = currentInProgressGame,
                     currentSetupDraft = currentSetupDraft,
                     onOpenCategory = { category ->
-                        viewModel.openArchivedGameCategory(category)
+                        appState.openArchivedGameCategory(category)
                     },
                     onUpdateArchiveFilterSelections = { field, values ->
-                        viewModel.updateArchiveFilterSelections(field, values)
+                        appState.updateArchiveFilterSelections(field, values)
                     },
                     onUpdateArchiveDateFilter = { dateFilter ->
-                        viewModel.updateArchiveDateFilter(dateFilter)
+                        appState.updateArchiveDateFilter(dateFilter)
                     },
                     onClearArchiveFilter = { field ->
-                        viewModel.clearArchiveFilter(field)
+                        appState.clearArchiveFilter(field)
                     },
                     onClearArchiveFilterSelections = {
-                        viewModel.clearArchiveFilterSelections()
+                        appState.clearArchiveFilterSelections()
                     },
                     onUpdateArchiveSortMode = { sortMode ->
-                        viewModel.updateArchiveSortMode(sortMode)
+                        appState.updateArchiveSortMode(sortMode)
                     },
                     onOpenCurrentGame = {
-                        viewModel.openCurrentGameSummary()
+                        appState.openCurrentGameSummary()
                     },
                     onOpenCurrentSetup = {
-                        viewModel.resumeCurrentGame()
+                        appState.resumeCurrentGame()
                     },
                     onOpenArchivedGame = { index ->
-                        viewModel.openArchivedGame(index, System.currentTimeMillis())
+                        appState.openArchivedGame(index, System.currentTimeMillis())
                     },
                     onDeleteCurrentGame = {
-                        viewModel.deleteCurrentGame()
+                        appState.deleteCurrentGame()
                     },
                     onDeleteArchivedGame = { index ->
-                        viewModel.deleteArchivedGame(index)
+                        appState.deleteArchivedGame(index)
                     },
                     onDeleteAllArchivedGames = {
-                        viewModel.deleteAllArchivedGames()
+                        appState.deleteAllArchivedGames()
                     },
                     onDeleteSelectedArchivedGames = { indices ->
-                        viewModel.deleteSelectedArchivedGames(indices)
+                        appState.deleteSelectedArchivedGames(indices)
                     },
                     onDeleteAllInSelectedCategory = {
-                        viewModel.deleteArchivedGamesInSelectedCategory()
+                        appState.deleteArchivedGamesInSelectedCategory()
                     },
                     onBackHome = {
-                        viewModel.goHome()
+                        appState.goHome()
                     },
                     onBackCategories = {
-                        viewModel.returnToArchivedGameCategories()
+                        appState.returnToArchivedGameCategories()
                     },
                     onHome = {
-                        viewModel.goHome()
+                        appState.goHome()
                     },
                 )
             }
         }
 
         AppScreen.SETUP -> {
-            val setupGame = appState.setupGame
-            val setupMode = appState.setupMode
+            val setupGame = snapshot.setupGame
+            val setupMode = snapshot.setupMode
             fun finishSetup() {
                 if (
                     setupMode == SetupMode.NEW_GAME &&
                     setupGame.rules.hasEnabledCapTimingAlerts(
-                        appState.settings.timingAlerts,
+                        snapshot.settings.timingAlerts,
                     ) &&
                     !context.hasExactTimingAlertAlarmAccess()
                 ) {
                     showMissingExactAlarmAccessDialog = true
                     return
                 }
-                viewModel.finishSetup(System.currentTimeMillis())
+                appState.finishSetup(System.currentTimeMillis())
             }
 
             val cancelSetupEditAction: () -> Unit = {
-                viewModel.cancelSetupEdit()
+                appState.cancelSetupEdit()
             }
             val openSavedSetupDraftsAction: () -> Unit = {
-                viewModel.openSavedSetupDrafts()
+                appState.openSavedSetupDrafts()
             }
             val saveSetupForLaterAction: () -> Unit = {
-                viewModel.saveSetupForLater()
+                appState.saveSetupForLater()
             }
 
             SetupScreen(
                 state = setupGame,
-                orientationPreference = appState.settings.orientationPreference,
+                orientationPreference = snapshot.settings.orientationPreference,
                 onStateChange = { updatedState ->
-                    viewModel.updateSetup(updatedState)
+                    appState.updateSetup(updatedState)
                 },
                 title = when (setupMode) {
                     SetupMode.EDIT_CURRENT_GAME -> "Update game setup"
@@ -362,7 +362,7 @@ internal fun UltiObserverApp(
                 },
                 onPrimaryAction = {
                     if (setupMode == SetupMode.EDIT_SAVED_SETUP) {
-                        viewModel.makeEditedSetupCurrent()
+                        appState.makeEditedSetupCurrent()
                     } else {
                         finishSetup()
                     }
@@ -395,13 +395,13 @@ internal fun UltiObserverApp(
                 },
                 onBackHome = {
                     if (setupMode == SetupMode.EDIT_SAVED_SETUP) {
-                        viewModel.openSavedSetupDrafts()
+                        appState.openSavedSetupDrafts()
                     } else {
-                        viewModel.goHome()
+                        appState.goHome()
                     }
                 },
                 onHome = {
-                    viewModel.goHome()
+                    appState.goHome()
                 },
             )
             if (showMissingExactAlarmAccessDialog) {
@@ -430,7 +430,7 @@ internal fun UltiObserverApp(
                             label = "Ignore",
                             onClick = {
                                 showMissingExactAlarmAccessDialog = false
-                                viewModel.finishSetup(System.currentTimeMillis())
+                                appState.finishSetup(System.currentTimeMillis())
                             },
                         )
                     },
@@ -439,8 +439,8 @@ internal fun UltiObserverApp(
         }
 
         AppScreen.LIVE -> {
-            val currentSummaryGame = appState.currentGame.takeIf {
-                appState.viewingCurrentGameSummary
+            val currentSummaryGame = snapshot.currentGame.takeIf {
+                snapshot.viewingCurrentGameSummary
             }
             if (currentSummaryGame != null) {
                 val completed = currentSummaryGame.phase == GamePhase.GAME_OVER
@@ -452,33 +452,33 @@ internal fun UltiObserverApp(
                 if (completed) {
                     summaryActionText = currentSummaryGame.undoEntry!!.label
                     onSummaryAction = {
-                        viewModel.updateCurrentGame(currentSummaryGame.undoLastAction())
-                        viewModel.resumeCurrentGame()
+                        appState.updateCurrentGame(currentSummaryGame.undoLastAction())
+                        appState.resumeCurrentGame()
                     }
                     secondarySummaryActionText = "Archive game"
                     onSecondarySummaryAction = {
-                        viewModel.archiveCompletedGame()
+                        appState.archiveCompletedGame()
                     }
                     onBack = {
-                        viewModel.goHome()
+                        appState.goHome()
                     }
                 } else {
                     summaryActionText = "Back to game"
                     onSummaryAction = {
-                        viewModel.resumeCurrentGame()
+                        appState.resumeCurrentGame()
                     }
                     secondarySummaryActionText = null
                     onSecondarySummaryAction = null
                     onBack = {
-                        viewModel.goBackFromCurrentScreen()
+                        appState.goBackFromCurrentScreen()
                     }
                 }
                 GameOverSummaryScreen(
                     state = currentSummaryGame,
                     completed = completed,
-                    guidanceMode = appState.settings.ruleGuidanceMode,
+                    guidanceMode = snapshot.settings.ruleGuidanceMode,
                     onStateChange = { updatedGame ->
-                        viewModel.updateCurrentGame(updatedGame)
+                        appState.updateCurrentGame(updatedGame)
                     },
                     summaryActionText = summaryActionText,
                     onSummaryAction = onSummaryAction,
@@ -486,41 +486,41 @@ internal fun UltiObserverApp(
                     onSecondarySummaryAction = onSecondarySummaryAction,
                     onBack = onBack,
                     onHome = {
-                        viewModel.goHome()
+                        appState.goHome()
                     },
                 )
             } else {
-                val currentGame = appState.currentGame!!
+                val currentGame = snapshot.currentGame!!
                 ActiveGameScreen(
                     state = currentGame,
-                    settings = appState.settings,
+                    settings = snapshot.settings,
                     displayOrientation = displayOrientation,
                     onStateChange = { updatedState ->
-                        viewModel.updateCurrentGame(updatedState)
+                        appState.updateCurrentGame(updatedState)
                     },
                     onUpdateGameSetup = {
-                        viewModel.editCurrentGame(currentGame)
+                        appState.editCurrentGame(currentGame)
                     },
                     onOpenGameSummary = {
-                        viewModel.openCurrentGameSummary()
+                        appState.openCurrentGameSummary()
                     },
                     onBackHome = {
-                        viewModel.goBackFromCurrentScreen()
+                        appState.goBackFromCurrentScreen()
                     },
                     onHome = {
-                        viewModel.goHome()
+                        appState.goHome()
                     },
                 )
             }
         }
     }
 
-    val startupRecoveryNotice = appState.startupRecoveryNotice
+    val startupRecoveryNotice = snapshot.startupRecoveryNotice
     if (startupRecoveryNotice != null) {
         val notice = startupRecoveryNotice
         AlertDialog(
             onDismissRequest = {
-                viewModel.dismissStartupRecoveryNotice()
+                appState.dismissStartupRecoveryNotice()
             },
             title = { Text(notice.title) },
             text = { Text(notice.message) },
@@ -528,7 +528,7 @@ internal fun UltiObserverApp(
                 TextActionButton(
                     label = "OK",
                     onClick = {
-                        viewModel.dismissStartupRecoveryNotice()
+                        appState.dismissStartupRecoveryNotice()
                     },
                 )
             },

@@ -177,7 +177,7 @@ class TestSetupUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("setup-Team 1-color-custom-preview").performClick()
         composeRule.onNodeWithText("Use this color").performClick()
         waitForText("Start game")
-        val customColor = composeRule.activity.appViewModel.currentGame!!
+        val customColor = composeRule.activity.appState.currentGame!!
             .teamOne.customColorArgb!!.toInt()
         assertEquals(
             android.graphics.Color.red(customColor),

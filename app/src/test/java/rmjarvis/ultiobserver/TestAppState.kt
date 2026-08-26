@@ -12,90 +12,90 @@ import org.junit.Test
 
 /**
  * Tests for app-level navigation, setup lifecycle, settings, and other non-archive
- * state owned by AppViewModel.
+ * state owned by AppState.
  */
-class TestAppViewModel : GameDomainTestFixtures() {
+class TestAppState : GameDomainTestFixtures() {
     /**
-     * Verify AppViewModel's main lifecycle from empty Home, through setup and live play,
+     * Verify AppState's main lifecycle from empty Home, through setup and live play,
      * into setup editing and starting over.
      */
     @Test
     fun topLevelGameFlow() {
         // Start from a clean Home state with no current or archived game.
-        val viewModel = AppViewModel(NoOpAppStateStorage)
-        assertEquals(AppScreen.HOME, viewModel.screen)
-        assertEquals(AppScreen.HOME, viewModel.state.value.screen)
-        assertNull(viewModel.currentGame)
-        assertTrue(viewModel.archivedGames.isEmpty())
-        assertNull(viewModel.currentGameHomeSubtitle)
-        assertEquals(SetupMode.NEW_GAME, viewModel.setupMode)
+        val appState = AppState(NoOpAppStateStorage)
+        assertEquals(AppScreen.HOME, appState.screen)
+        assertEquals(AppScreen.HOME, appState.state.value.screen)
+        assertNull(appState.currentGame)
+        assertTrue(appState.archivedGames.isEmpty())
+        assertNull(appState.currentGameHomeSubtitle)
+        assertEquals(SetupMode.NEW_GAME, appState.setupMode)
         assertThrows(IllegalStateException::class.java) {
-            viewModel.setupGame
+            appState.setupGame
         }
 
         // Create a setup draft and verify Home can advertise it as resumable.
-        viewModel.startNewGame(now = 123_000L)
-        assertEquals(AppScreen.SETUP, viewModel.screen)
-        assertTrue(viewModel.hasSetupDraft)
-        assertEquals("Tap to resume", viewModel.currentGameHomeSubtitle)
+        appState.startNewGame(now = 123_000L)
+        assertEquals(AppScreen.SETUP, appState.screen)
+        assertTrue(appState.hasSetupDraft)
+        assertEquals("Tap to resume", appState.currentGameHomeSubtitle)
 
         // Finish setup with named teams and verify the current game is created from that draft.
-        val namedSetup = viewModel.setupGame.copy(
+        val namedSetup = appState.setupGame.copy(
             teamOne = TeamState("Alpha", TeamColorChoice.BLUE),
             teamTwo = TeamState("Beta", TeamColorChoice.PINK),
         )
-        viewModel.updateSetup(namedSetup)
-        viewModel.finishSetup(now = 123_000L)
-        assertFalse(viewModel.hasSetupDraft)
-        val startedGame = viewModel.currentGame
+        appState.updateSetup(namedSetup)
+        appState.finishSetup(now = 123_000L)
+        assertFalse(appState.hasSetupDraft)
+        val startedGame = appState.currentGame
         assertNotNull(startedGame)
-        assertEquals(AppScreen.LIVE, viewModel.screen)
-        assertEquals("Tap to resume", viewModel.currentGameHomeSubtitle)
+        assertEquals(AppScreen.LIVE, appState.screen)
+        assertEquals("Tap to resume", appState.currentGameHomeSubtitle)
         assertEquals("Alpha", startedGame!!.teamOne.name)
         assertEquals("Beta", startedGame.teamTwo.name)
 
         // Current-game updates should keep Home resume state and store the latest score.
-        viewModel.updateCurrentGame(startedGame.beginLivePoint())
-        assertEquals("Tap to resume", viewModel.currentGameHomeSubtitle)
-        val adjustedGame = viewModel.currentGame!!.adjustScore(teamOneScore = 2, teamTwoScore = 1)
-        viewModel.updateCurrentGame(adjustedGame)
-        assertEquals(2, viewModel.currentGame!!.teamOne.score)
+        appState.updateCurrentGame(startedGame.beginLivePoint())
+        assertEquals("Tap to resume", appState.currentGameHomeSubtitle)
+        val adjustedGame = appState.currentGame!!.adjustScore(teamOneScore = 2, teamTwoScore = 1)
+        appState.updateCurrentGame(adjustedGame)
+        assertEquals(2, appState.currentGame!!.teamOne.score)
 
         // Reopen setup from the current game and verify setup edits preserve live score state.
-        viewModel.editCurrentGame(viewModel.currentGame!!)
-        assertEquals(AppScreen.SETUP, viewModel.screen)
-        assertEquals(SetupMode.EDIT_CURRENT_GAME, viewModel.setupMode)
-        viewModel.updateSetup(
-            viewModel.setupGame.copy(
-                teamOne = viewModel.setupGame.teamOne.copy(name = "Alpha Prime"),
+        appState.editCurrentGame(appState.currentGame!!)
+        assertEquals(AppScreen.SETUP, appState.screen)
+        assertEquals(SetupMode.EDIT_CURRENT_GAME, appState.setupMode)
+        appState.updateSetup(
+            appState.setupGame.copy(
+                teamOne = appState.setupGame.teamOne.copy(name = "Alpha Prime"),
             )
         )
-        assertFalse(viewModel.hasSetupDraft)
-        viewModel.finishSetup(now = 123_000L)
-        assertEquals(AppScreen.LIVE, viewModel.screen)
-        assertEquals("Alpha Prime", viewModel.currentGame!!.teamOne.name)
-        assertEquals(2, viewModel.currentGame!!.teamOne.score)
+        assertFalse(appState.hasSetupDraft)
+        appState.finishSetup(now = 123_000L)
+        assertEquals(AppScreen.LIVE, appState.screen)
+        assertEquals("Alpha Prime", appState.currentGame!!.teamOne.name)
+        assertEquals(2, appState.currentGame!!.teamOne.score)
 
         // Starting over should archive the old current game and create a fresh setup draft.
-        val currentGameBeforeStartingOver = viewModel.currentGame!!
-        viewModel.goHome()
-        assertEquals(AppScreen.HOME, viewModel.screen)
-        viewModel.startNewGame(now = 123_000L)
-        assertEquals(AppScreen.SETUP, viewModel.screen)
-        assertTrue(viewModel.hasSetupDraft)
-        assertEquals(1, viewModel.archivedGames.size)
-        val archivedGame = viewModel.archivedGames.single()
+        val currentGameBeforeStartingOver = appState.currentGame!!
+        appState.goHome()
+        assertEquals(AppScreen.HOME, appState.screen)
+        appState.startNewGame(now = 123_000L)
+        assertEquals(AppScreen.SETUP, appState.screen)
+        assertTrue(appState.hasSetupDraft)
+        assertEquals(1, appState.archivedGames.size)
+        val archivedGame = appState.archivedGames.single()
         assertEquals(ArchivedGameCategory.IN_PROGRESS, archivedGame.archiveCategory)
         assertEquals(currentGameBeforeStartingOver, archivedGame)
         assertNull(archivedGame.endEpoch)
-        assertEquals(GamePhase.SETUP, viewModel.currentGame?.phase)
-        assertEquals("Tap to resume", viewModel.currentGameHomeSubtitle)
+        assertEquals(GamePhase.SETUP, appState.currentGame?.phase)
+        assertEquals("Tap to resume", appState.currentGameHomeSubtitle)
     }
 
     /** Verify game start uses the field-end arrangement for each orientation preference. */
     @Test
     fun gameStartOrientation() {
-        val landscapeViewModel = AppViewModel(NoOpAppStateStorage)
+        val landscapeViewModel = AppState(NoOpAppStateStorage)
         landscapeViewModel.updateSettings(
             landscapeViewModel.settings.withOrientationPreference(
                 OrientationPreference.LANDSCAPE
@@ -118,7 +118,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertEquals(FieldEnd.FAR, landscapeViewModel.currentGame!!.topDisplayedEnd)
 
         // Auto-rotate uses the normal Portrait field-end arrangement when starting the game.
-        val autoRotateViewModel = AppViewModel(NoOpAppStateStorage)
+        val autoRotateViewModel = AppState(NoOpAppStateStorage)
         autoRotateViewModel.updateSettings(
             autoRotateViewModel.settings.withOrientationPreference(
                 OrientationPreference.AUTO_ROTATE
@@ -140,36 +140,36 @@ class TestAppViewModel : GameDomainTestFixtures() {
     @Test
     fun setupDraftResume() {
         // Create a blank-name setup draft and verify Home resumes it as setup, not live play.
-        val viewModel = AppViewModel(NoOpAppStateStorage)
-        viewModel.startNewGame(now = 123_000L)
-        val draftedSetup = viewModel.setupGame.copy(
+        val appState = AppState(NoOpAppStateStorage)
+        appState.startNewGame(now = 123_000L)
+        val draftedSetup = appState.setupGame.copy(
             teamOne = TeamState("", TeamColorChoice.GREEN),
             teamTwo = TeamState("", TeamColorChoice.YELLOW),
         )
-        viewModel.updateSetup(draftedSetup)
-        viewModel.goHome()
-        assertEquals(AppScreen.HOME, viewModel.screen)
-        assertTrue(viewModel.hasSetupDraft)
-        assertEquals(GamePhase.SETUP, viewModel.currentGame?.phase)
+        appState.updateSetup(draftedSetup)
+        appState.goHome()
+        assertEquals(AppScreen.HOME, appState.screen)
+        assertTrue(appState.hasSetupDraft)
+        assertEquals(GamePhase.SETUP, appState.currentGame?.phase)
 
         // Resuming from Home should reopen the setup draft, not live play.
-        viewModel.resumeCurrentGame()
-        assertEquals(AppScreen.SETUP, viewModel.screen)
-        assertEquals(draftedSetup, viewModel.setupGame)
+        appState.resumeCurrentGame()
+        assertEquals(AppScreen.SETUP, appState.screen)
+        assertEquals(draftedSetup, appState.setupGame)
 
         // Backing out from the pre-pull preview should restore the original editable draft.
-        viewModel.finishSetup(now = 123_000L)
-        assertEquals(AppScreen.LIVE, viewModel.screen)
-        assertFalse(viewModel.hasSetupDraft)
-        viewModel.goBackFromCurrentScreen()
-        assertEquals(AppScreen.SETUP, viewModel.screen)
-        assertTrue(viewModel.hasSetupDraft)
-        assertEquals(GamePhase.SETUP, viewModel.currentGame?.phase)
-        assertEquals("", viewModel.setupGame.teamOne.name)
-        assertEquals("", viewModel.setupGame.teamTwo.name)
+        appState.finishSetup(now = 123_000L)
+        assertEquals(AppScreen.LIVE, appState.screen)
+        assertFalse(appState.hasSetupDraft)
+        appState.goBackFromCurrentScreen()
+        assertEquals(AppScreen.SETUP, appState.screen)
+        assertTrue(appState.hasSetupDraft)
+        assertEquals(GamePhase.SETUP, appState.currentGame?.phase)
+        assertEquals("", appState.setupGame.teamOne.name)
+        assertEquals("", appState.setupGame.teamTwo.name)
 
         // Backing out from a new setup draft returns Home while keeping the draft resumable.
-        val newSetupBackViewModel = AppViewModel(NoOpAppStateStorage)
+        val newSetupBackViewModel = AppState(NoOpAppStateStorage)
         newSetupBackViewModel.startNewGame(now = 123_000L)
         newSetupBackViewModel.goBackFromCurrentScreen()
         assertEquals(AppScreen.HOME, newSetupBackViewModel.screen)
@@ -181,39 +181,39 @@ class TestAppViewModel : GameDomainTestFixtures() {
         // going back to the setup screen first.  But if they closed the app and reopened it, they
         // would land in Home.  Then clicking the current game and then back would take them
         // to the setup page.
-        viewModel.finishSetup(now = 123_000L)
-        val livePreview = viewModel.currentGame!!
-        viewModel.goHome()
-        viewModel.resumeCurrentGame()
-        assertEquals(AppScreen.LIVE, viewModel.screen)
-        viewModel.goBackFromCurrentScreen()
-        assertEquals(AppScreen.SETUP, viewModel.screen)
-        assertTrue(viewModel.hasSetupDraft)
-        assertEquals(GamePhase.SETUP, viewModel.currentGame?.phase)
-        assertEquals("", viewModel.setupGame.teamOne.name)
-        assertEquals("", viewModel.setupGame.teamTwo.name)
+        appState.finishSetup(now = 123_000L)
+        val livePreview = appState.currentGame!!
+        appState.goHome()
+        appState.resumeCurrentGame()
+        assertEquals(AppScreen.LIVE, appState.screen)
+        appState.goBackFromCurrentScreen()
+        assertEquals(AppScreen.SETUP, appState.screen)
+        assertTrue(appState.hasSetupDraft)
+        assertEquals(GamePhase.SETUP, appState.currentGame?.phase)
+        assertEquals("", appState.setupGame.teamOne.name)
+        assertEquals("", appState.setupGame.teamTwo.name)
 
         // Update game setup should also treat the pre-pull game as a draft.
-        viewModel.finishSetup(now = 123_000L)
-        viewModel.editCurrentGame(viewModel.currentGame!!)
-        assertEquals(AppScreen.SETUP, viewModel.screen)
-        assertTrue(viewModel.hasSetupDraft)
-        assertEquals(GamePhase.SETUP, viewModel.currentGame?.phase)
-        assertEquals("", viewModel.setupGame.teamOne.name)
-        assertEquals("", viewModel.setupGame.teamTwo.name)
+        appState.finishSetup(now = 123_000L)
+        appState.editCurrentGame(appState.currentGame!!)
+        assertEquals(AppScreen.SETUP, appState.screen)
+        assertTrue(appState.hasSetupDraft)
+        assertEquals(GamePhase.SETUP, appState.currentGame?.phase)
+        assertEquals("", appState.setupGame.teamOne.name)
+        assertEquals("", appState.setupGame.teamTwo.name)
 
         // Once a real point starts, Home should resume the in-progress game instead of setup.
-        viewModel.finishSetup(now = 123_000L)
-        viewModel.updateCurrentGame(viewModel.currentGame!!.beginLivePoint())
-        viewModel.goHome()
-        viewModel.resumeCurrentGame()
-        assertEquals(AppScreen.LIVE, viewModel.screen)
-        assertEquals(GamePhase.LIVE_POINT, viewModel.currentGame!!.phase)
-        assertFalse(viewModel.hasSetupDraft)
-        assertEquals(livePreview.teamOne.name, viewModel.currentGame!!.teamOne.name)
+        appState.finishSetup(now = 123_000L)
+        appState.updateCurrentGame(appState.currentGame!!.beginLivePoint())
+        appState.goHome()
+        appState.resumeCurrentGame()
+        assertEquals(AppScreen.LIVE, appState.screen)
+        assertEquals(GamePhase.LIVE_POINT, appState.currentGame!!.phase)
+        assertFalse(appState.hasSetupDraft)
+        assertEquals(livePreview.teamOne.name, appState.currentGame!!.teamOne.name)
 
         // Starting over from an unstarted setup draft should save the old draft aside.
-        val setupDraftViewModel = AppViewModel(NoOpAppStateStorage)
+        val setupDraftViewModel = AppState(NoOpAppStateStorage)
         setupDraftViewModel.startNewGame(now = 123_000L)
         setupDraftViewModel.updateSetup(
             setupDraftViewModel.setupGame.copy(
@@ -233,7 +233,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertEquals("", setupDraftViewModel.setupGame.teamOne.name)
 
         // Starting over before the first real point should save the pre-pull preview aside.
-        val prePullViewModel = AppViewModel(NoOpAppStateStorage)
+        val prePullViewModel = AppState(NoOpAppStateStorage)
         prePullViewModel.startNewGame(now = 123_000L)
         prePullViewModel.finishSetup(now = 123_000L)
         val prePullPreview = prePullViewModel.currentGame!!
@@ -250,7 +250,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertEquals(prePullPreview, prePullViewModel.archivedGames.single())
 
         // Undo-backed setup edits before the opening pull are also preserved when starting over.
-        val setupOnlyViewModel = AppViewModel(NoOpAppStateStorage)
+        val setupOnlyViewModel = AppState(NoOpAppStateStorage)
         setupOnlyViewModel.startNewGame(now = 123_000L)
         setupOnlyViewModel.finishSetup(now = 123_000L)
         val setupOnlyPreview = setupOnlyViewModel.currentGame!!
@@ -276,7 +276,7 @@ class TestAppViewModel : GameDomainTestFixtures() {
         assertEquals(setupOnlyEditedPreview, setupOnlyViewModel.archivedGames.single())
 
         // A logged event before the opening pull is preserved the same way.
-        val prePullEventViewModel = AppViewModel(NoOpAppStateStorage)
+        val prePullEventViewModel = AppState(NoOpAppStateStorage)
         prePullEventViewModel.startNewGame(now = 123_000L)
         prePullEventViewModel.finishSetup(now = 123_000L)
         val prePullEventState = prePullEventViewModel.currentGame!!
@@ -304,39 +304,39 @@ class TestAppViewModel : GameDomainTestFixtures() {
     @Test
     fun currentGameSetupEdit() {
         // Resume a scored current game from Home, edit setup, and keep the live score.
-        val viewModel = AppViewModel(NoOpAppStateStorage)
-        viewModel.startNewGame(now = 123_000L)
-        viewModel.finishSetup(now = 123_000L)
-        val scoredGame = viewModel.currentGame!!.adjustScore(teamOneScore = 3, teamTwoScore = 2)
-        viewModel.updateCurrentGame(scoredGame)
+        val appState = AppState(NoOpAppStateStorage)
+        appState.startNewGame(now = 123_000L)
+        appState.finishSetup(now = 123_000L)
+        val scoredGame = appState.currentGame!!.adjustScore(teamOneScore = 3, teamTwoScore = 2)
+        appState.updateCurrentGame(scoredGame)
 
         // Home should retain the current game until it is resumed.
-        viewModel.goHome()
-        assertEquals(AppScreen.HOME, viewModel.screen)
-        assertEquals(scoredGame, viewModel.currentGame)
+        appState.goHome()
+        assertEquals(AppScreen.HOME, appState.screen)
+        assertEquals(scoredGame, appState.currentGame)
 
         // Resuming and editing setup should keep score while applying setup changes.
-        viewModel.resumeCurrentGame()
-        assertEquals(AppScreen.LIVE, viewModel.screen)
-        assertEquals(scoredGame, viewModel.displayedGame)
-        viewModel.editCurrentGame(viewModel.displayedGame!!)
-        assertEquals(AppScreen.SETUP, viewModel.screen)
-        assertEquals(SetupMode.EDIT_CURRENT_GAME, viewModel.setupMode)
-        viewModel.goBackFromCurrentScreen()
-        assertEquals(AppScreen.LIVE, viewModel.screen)
-        assertNull(viewModel.setupEditDraft)
-        viewModel.editCurrentGame(viewModel.currentGame!!)
-        assertEquals(AppScreen.SETUP, viewModel.screen)
-        viewModel.updateSetup(
-            viewModel.setupGame.copy(
-                rules = viewModel.setupGame.rules.copy(gameTo = 17),
+        appState.resumeCurrentGame()
+        assertEquals(AppScreen.LIVE, appState.screen)
+        assertEquals(scoredGame, appState.displayedGame)
+        appState.editCurrentGame(appState.displayedGame!!)
+        assertEquals(AppScreen.SETUP, appState.screen)
+        assertEquals(SetupMode.EDIT_CURRENT_GAME, appState.setupMode)
+        appState.goBackFromCurrentScreen()
+        assertEquals(AppScreen.LIVE, appState.screen)
+        assertNull(appState.setupEditDraft)
+        appState.editCurrentGame(appState.currentGame!!)
+        assertEquals(AppScreen.SETUP, appState.screen)
+        appState.updateSetup(
+            appState.setupGame.copy(
+                rules = appState.setupGame.rules.copy(gameTo = 17),
             )
         )
-        viewModel.finishSetup(now = 123_000L)
-        assertEquals(AppScreen.LIVE, viewModel.screen)
-        assertEquals(17, viewModel.currentGame!!.rules.gameTo)
-        assertEquals(3, viewModel.currentGame!!.teamOne.score)
-        assertEquals(2, viewModel.currentGame!!.teamTwo.score)
+        appState.finishSetup(now = 123_000L)
+        assertEquals(AppScreen.LIVE, appState.screen)
+        assertEquals(17, appState.currentGame!!.rules.gameTo)
+        assertEquals(3, appState.currentGame!!.teamOne.score)
+        assertEquals(2, appState.currentGame!!.teamTwo.score)
     }
 
     /**
@@ -346,54 +346,54 @@ class TestAppViewModel : GameDomainTestFixtures() {
     @Test
     fun unavailableActions() {
         // Empty-home actions should be harmless when there is no current or completed game.
-        val viewModel = AppViewModel(NoOpAppStateStorage)
-        viewModel.resumeCurrentGame()
-        assertEquals(AppScreen.HOME, viewModel.screen)
-        assertNull(viewModel.currentGame)
+        val appState = AppState(NoOpAppStateStorage)
+        appState.resumeCurrentGame()
+        assertEquals(AppScreen.HOME, appState.screen)
+        assertNull(appState.currentGame)
         assertThrows(IndexOutOfBoundsException::class.java) {
-            viewModel.openArchivedGame(0, now = 123_000L)
+            appState.openArchivedGame(0, now = 123_000L)
         }
-        assertEquals(AppScreen.HOME, viewModel.screen)
-        assertNull(viewModel.displayedGame)
-        viewModel.archiveCompletedGame()
-        assertTrue(viewModel.archivedGames.isEmpty())
+        assertEquals(AppScreen.HOME, appState.screen)
+        assertNull(appState.displayedGame)
+        appState.archiveCompletedGame()
+        assertTrue(appState.archivedGames.isEmpty())
 
         // A synthetic transient live screen without a current game should back out to Home.
         // I'm not sure if this state is possible with race conditions in the app, so this is
         // a defensive check.  If there is no currentGame and somehow we are in the live screen,
         // it probably looks weird and might already have crashed, but if not, then back
         // will take use to the safety of the HOME screen.
-        viewModel.forceUiState(
-            viewModel.state.value.copy(
+        appState.forceUiState(
+            appState.state.value.copy(
                 screen = AppScreen.LIVE,
                 currentGame = null,
                 viewingArchivedGame = null,
             )
         )
-        viewModel.goBackFromCurrentScreen()
-        assertEquals(AppScreen.HOME, viewModel.screen)
-        assertNull(viewModel.currentGame)
+        appState.goBackFromCurrentScreen()
+        assertEquals(AppScreen.HOME, appState.screen)
+        assertNull(appState.currentGame)
 
         // Active-game-only state should reject the completed-game archive action.
-        viewModel.startNewGame(now = 123_000L)
-        viewModel.finishSetup(now = 123_000L)
-        val activeGame = viewModel.currentGame!!
-        viewModel.goHome()
-        viewModel.archiveCompletedGame()
-        assertTrue(viewModel.archivedGames.isEmpty())
-        assertEquals(activeGame, viewModel.currentGame)
+        appState.startNewGame(now = 123_000L)
+        appState.finishSetup(now = 123_000L)
+        val activeGame = appState.currentGame!!
+        appState.goHome()
+        appState.archiveCompletedGame()
+        assertTrue(appState.archivedGames.isEmpty())
+        assertEquals(activeGame, appState.currentGame)
 
         // Non-game screens return Home.
-        viewModel.openProfile()
-        viewModel.goBackFromCurrentScreen()
-        assertEquals(AppScreen.HOME, viewModel.screen)
+        appState.openProfile()
+        appState.goBackFromCurrentScreen()
+        assertEquals(AppScreen.HOME, appState.screen)
 
         // Back navigation from a resumed live game should return Home.
-        viewModel.updateCurrentGame(activeGame.beginLivePoint())
-        viewModel.resumeCurrentGame()
-        assertEquals(AppScreen.LIVE, viewModel.screen)
-        viewModel.goBackFromCurrentScreen()
-        assertEquals(AppScreen.HOME, viewModel.screen)
+        appState.updateCurrentGame(activeGame.beginLivePoint())
+        appState.resumeCurrentGame()
+        assertEquals(AppScreen.LIVE, appState.screen)
+        appState.goBackFromCurrentScreen()
+        assertEquals(AppScreen.HOME, appState.screen)
     }
 
     /**
@@ -403,13 +403,13 @@ class TestAppViewModel : GameDomainTestFixtures() {
     fun profileNameSeedsNewGameObserver() {
         // New game setup should start with the profile name as the first observer, since the
         // observer using the phone will usually work their own game.
-        val viewModel = AppViewModel(NoOpAppStateStorage)
-        viewModel.updateProfile(viewModel.profile.withName(" Casey Observer "))
-        viewModel.startNewGame(now = 123_000L)
-        assertEquals(listOf("Casey Observer"), viewModel.setupGame.observerNames)
+        val appState = AppState(NoOpAppStateStorage)
+        appState.updateProfile(appState.profile.withName(" Casey Observer "))
+        appState.startNewGame(now = 123_000L)
+        assertEquals(listOf("Casey Observer"), appState.setupGame.observerNames)
 
         // Blank or whitespace profile names should not create an empty observer entry.
-        val blankProfileViewModel = AppViewModel(NoOpAppStateStorage)
+        val blankProfileViewModel = AppState(NoOpAppStateStorage)
         blankProfileViewModel.updateProfile(blankProfileViewModel.profile.withName("   "))
         blankProfileViewModel.startNewGame(now = 123_000L)
         assertEquals(emptyList<String>(), blankProfileViewModel.setupGame.observerNames)
@@ -419,35 +419,35 @@ class TestAppViewModel : GameDomainTestFixtures() {
     @Test
     fun countdownAdvancementSetting() {
         // The setting defaults off while retaining three seconds for when it is enabled.
-        val viewModel = AppViewModel(NoOpAppStateStorage)
-        assertFalse(viewModel.settings.automaticallyAdvanceNewCountdowns)
-        assertEquals(3, viewModel.settings.newCountdownAdvanceSeconds)
+        val appState = AppState(NoOpAppStateStorage)
+        assertFalse(appState.settings.automaticallyAdvanceNewCountdowns)
+        assertEquals(3, appState.settings.newCountdownAdvanceSeconds)
         assertEquals(
             1_000_000L,
-            viewModel.settings.adjustedCountdownStartEpoch(1_000_000L),
+            appState.settings.adjustedCountdownStartEpoch(1_000_000L),
         )
 
-        // Both parts of the setting can be updated through the ViewModel.
-        viewModel.updateSettings(
-            viewModel.settings.withAutomaticallyAdvanceNewCountdowns(true)
+        // Both parts of the setting can be updated through the AppState.
+        appState.updateSettings(
+            appState.settings.withAutomaticallyAdvanceNewCountdowns(true)
         )
-        viewModel.updateSettings(viewModel.settings.withNewCountdownAdvanceSeconds(10))
-        assertTrue(viewModel.settings.automaticallyAdvanceNewCountdowns)
-        assertEquals(10, viewModel.settings.newCountdownAdvanceSeconds)
+        appState.updateSettings(appState.settings.withNewCountdownAdvanceSeconds(10))
+        assertTrue(appState.settings.automaticallyAdvanceNewCountdowns)
+        assertEquals(10, appState.settings.newCountdownAdvanceSeconds)
 
         // The upshot of the 10 second advancement is that goal and timeout presses
         // are taken to have been pressed 10 seconds previous to the actual press time.
         assertEquals(
             990_000L,
-            viewModel.settings.adjustedCountdownStartEpoch(1_000_000L),
+            appState.settings.adjustedCountdownStartEpoch(1_000_000L),
         )
 
         // Values outside the range exposed by Settings are rejected.
         assertThrows(IllegalArgumentException::class.java) {
-            viewModel.settings.withNewCountdownAdvanceSeconds(0)
+            appState.settings.withNewCountdownAdvanceSeconds(0)
         }
         assertThrows(IllegalArgumentException::class.java) {
-            viewModel.settings.withNewCountdownAdvanceSeconds(11)
+            appState.settings.withNewCountdownAdvanceSeconds(11)
         }
     }
 
@@ -458,9 +458,9 @@ class TestAppViewModel : GameDomainTestFixtures() {
     @Test
     fun timingCueDefaults() {
         // Reset cue-level timing settings while preserving global sound/vibration preferences.
-        val viewModel = AppViewModel(NoOpAppStateStorage)
+        val appState = AppState(NoOpAppStateStorage)
         fun updateSettings(transform: (Settings) -> Settings) {
-            viewModel.updateSettings(transform(viewModel.settings))
+            appState.updateSettings(transform(appState.settings))
         }
         fun updateTimingAlerts(transform: (TimingAlertPreferences) -> TimingAlertPreferences) {
             updateSettings { it.withTimingAlerts(transform(it.timingAlerts)) }
@@ -476,38 +476,38 @@ class TestAppViewModel : GameDomainTestFixtures() {
         updateTimingAlerts { it.withCueMode(TimingCueId.HARD_CAP, TimingAlertMode.BEEP) }
         updateTimingAlerts { it.withCueRepeatCount(TimingCueId.HARD_CAP, 1) }
         updateTimingAlerts { it.withDefaultCueSettings() }
-        assertEquals(TimingAlertGlobalMode.SOUNDS_ON, viewModel.settings.timingAlerts.globalMode)
-        assertEquals(0.4f, viewModel.settings.timingAlerts.soundVolume, 0f)
-        assertEquals(420L, viewModel.settings.timingAlerts.vibrationDurationMillis)
-        assertTrue(viewModel.settings.timingAlerts.vibrateWithSounds)
+        assertEquals(TimingAlertGlobalMode.SOUNDS_ON, appState.settings.timingAlerts.globalMode)
+        assertEquals(0.4f, appState.settings.timingAlerts.soundVolume, 0f)
+        assertEquals(420L, appState.settings.timingAlerts.vibrationDurationMillis)
+        assertTrue(appState.settings.timingAlerts.vibrateWithSounds)
         assertEquals(
             TimingAlertMode.TICK,
-            viewModel.settings.timingAlerts.settingsModeFor(TimingCueId.RECEIVING_TWENTY_FOR_HAND),
+            appState.settings.timingAlerts.settingsModeFor(TimingCueId.RECEIVING_TWENTY_FOR_HAND),
         )
         assertEquals(
             2,
-            viewModel.settings.timingAlerts.repeatCountFor(TimingCueId.RECEIVING_TWENTY_FOR_HAND),
+            appState.settings.timingAlerts.repeatCountFor(TimingCueId.RECEIVING_TWENTY_FOR_HAND),
         )
         assertEquals(
             TimingAlertMode.DING,
-            viewModel.settings.timingAlerts.settingsModeFor(TimingCueId.HARD_CAP),
+            appState.settings.timingAlerts.settingsModeFor(TimingCueId.HARD_CAP),
         )
-        assertEquals(3, viewModel.settings.timingAlerts.repeatCountFor(TimingCueId.HARD_CAP))
+        assertEquals(3, appState.settings.timingAlerts.repeatCountFor(TimingCueId.HARD_CAP))
     }
 
     /**
-     * Force a ViewModel state that has no public setup path.
+     * Force an app state that has no public setup path.
      *
      * This is reserved for defensive navigation tests where the state may only be reachable as a
      * transient race during UI teardown.
      *
-     * @param state The synthetic UI state to install.
+     * @param state The synthetic app state snapshot to install.
      */
     @Suppress("UNCHECKED_CAST")
-    private fun AppViewModel.forceUiState(state: AppUiState) {
-        val stateField = AppViewModel::class.java.getDeclaredField("_state")
+    private fun AppState.forceUiState(state: AppStateSnapshot) {
+        val stateField = AppState::class.java.getDeclaredField("_state")
         stateField.isAccessible = true
-        val mutableState = stateField.get(this) as MutableStateFlow<AppUiState>
+        val mutableState = stateField.get(this) as MutableStateFlow<AppStateSnapshot>
         mutableState.value = state
     }
 }

@@ -771,7 +771,7 @@ class TestMigration : GameDomainTestFixtures() {
         return game
     }
 
-    private fun assertStartedGameNoEvents(fixture: AppViewModel) {
+    private fun assertStartedGameNoEvents(fixture: AppState) {
         val game = fixture.currentGame!!
         assertEquals(GamePhase.PRE_GAME, game.phase)
         assertTrue(game.eventLog.isEmpty())
@@ -782,12 +782,12 @@ class TestMigration : GameDomainTestFixtures() {
         assertTrue(fixture.archivedGames.isEmpty())
     }
 
-    private fun loadMigratedFixture(version: String, scenario: String): AppViewModel {
+    private fun loadMigratedFixture(version: String, scenario: String): AppState {
         val storeDir = temporaryFolder.newFolder()
         fixtureDir(version, scenario).copyRecursively(storeDir, overwrite = true)
-        val viewModel = AppViewModel(FileAppStateStorage(storeDir))
-        assertNull(viewModel.startupRecoveryNotice)
-        return viewModel
+        val appState = AppState(FileAppStateStorage(storeDir))
+        assertNull(appState.startupRecoveryNotice)
+        return appState
     }
 
     private fun fixtureDir(version: String, scenario: String): File {
@@ -798,43 +798,43 @@ class TestMigration : GameDomainTestFixtures() {
     }
 
     private fun assertProfileAndSettings(
-        viewModel: AppViewModel,
+        appState: AppState,
         expectedProfile: Profile,
         expectedSettings: Settings,
     ) {
-        assertEquals(expectedProfile.name, viewModel.profile.name)
-        assertEquals(expectedProfile.avatarPreference, viewModel.profile.avatarPreference)
-        assertEquals(expectedSettings.ruleGuidanceMode, viewModel.settings.ruleGuidanceMode)
+        assertEquals(expectedProfile.name, appState.profile.name)
+        assertEquals(expectedProfile.avatarPreference, appState.profile.avatarPreference)
+        assertEquals(expectedSettings.ruleGuidanceMode, appState.settings.ruleGuidanceMode)
         assertEquals(
             expectedSettings.automaticallyAdvanceCountdowns,
-            viewModel.settings.automaticallyAdvanceCountdowns,
+            appState.settings.automaticallyAdvanceCountdowns,
         )
         assertEquals(
             expectedSettings.automaticallyLockLivePoint,
-            viewModel.settings.automaticallyLockLivePoint,
+            appState.settings.automaticallyLockLivePoint,
         )
-        assertEquals(expectedSettings.showDefenseCountdowns, viewModel.settings.showDefenseCountdowns)
+        assertEquals(expectedSettings.showDefenseCountdowns, appState.settings.showDefenseCountdowns)
         assertEquals(
             expectedSettings.automaticallyAdvanceNewCountdowns,
-            viewModel.settings.automaticallyAdvanceNewCountdowns,
+            appState.settings.automaticallyAdvanceNewCountdowns,
         )
         assertEquals(
             expectedSettings.newCountdownAdvanceSeconds,
-            viewModel.settings.newCountdownAdvanceSeconds,
+            appState.settings.newCountdownAdvanceSeconds,
         )
         assertEquals(
             expectedSettings.showAbbaRatioAsSequence,
-            viewModel.settings.showAbbaRatioAsSequence,
+            appState.settings.showAbbaRatioAsSequence,
         )
         assertEquals(
             expectedSettings.fourMenThreeWomenBadgeColorArgb,
-            viewModel.settings.fourMenThreeWomenBadgeColorArgb,
+            appState.settings.fourMenThreeWomenBadgeColorArgb,
         )
         assertEquals(
             expectedSettings.fourWomenThreeMenBadgeColorArgb,
-            viewModel.settings.fourWomenThreeMenBadgeColorArgb,
+            appState.settings.fourWomenThreeMenBadgeColorArgb,
         )
-        assertEquals(expectedSettings.timingAlerts, viewModel.settings.timingAlerts)
+        assertEquals(expectedSettings.timingAlerts, appState.settings.timingAlerts)
     }
 
     /// Expected profile shared by the customized v1.1 and v1.2 fixtures.

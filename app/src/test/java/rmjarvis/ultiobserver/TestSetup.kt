@@ -933,18 +933,18 @@ class TestSetup : GameDomainTestFixtures() {
         assertFalse(state.hasStarted())
 
         // One consequence of being in the pre-pull preview state is that pressing Back
-        // returns to setup rather than Home. Show this by inserting this state into a ViewModel
+        // returns to setup rather than Home. Show this by inserting this state into a AppState
         // that otherwise came from starting a normal game.
-        val previewModel = AppViewModel(NoOpAppStateStorage)
-        previewModel.startNewGame(now = 123_000L)
-        previewModel.updateSetup(setup)
-        previewModel.finishSetup(now = 123_000L)
-        previewModel.updateCurrentGame(state)
-        assertEquals(AppScreen.LIVE, previewModel.screen)
-        previewModel.goBackFromCurrentScreen()
-        assertEquals(AppScreen.SETUP, previewModel.screen)
-        assertTrue(previewModel.hasSetupDraft)
-        assertEquals(GamePhase.SETUP, previewModel.currentGame?.phase)
+        val previewState = AppState(NoOpAppStateStorage)
+        previewState.startNewGame(now = 123_000L)
+        previewState.updateSetup(setup)
+        previewState.finishSetup(now = 123_000L)
+        previewState.updateCurrentGame(state)
+        assertEquals(AppScreen.LIVE, previewState.screen)
+        previewState.goBackFromCurrentScreen()
+        assertEquals(AppScreen.SETUP, previewState.screen)
+        assertTrue(previewState.hasSetupDraft)
+        assertEquals(GamePhase.SETUP, previewState.currentGame?.phase)
 
         // A blue card before the first point starts is a real game event, so Back returns Home
         // rather than setup even though the game is still in the pre-game phase.
@@ -955,7 +955,7 @@ class TestSetup : GameDomainTestFixtures() {
         assertEquals(GamePhase.PRE_GAME, blueCardState.phase)
         assertTrue(blueCardState.hasStarted())
 
-        val blueCardModel = AppViewModel(NoOpAppStateStorage)
+        val blueCardModel = AppState(NoOpAppStateStorage)
         blueCardModel.startNewGame(now = 123_000L)
         blueCardModel.updateSetup(setup)
         blueCardModel.finishSetup(now = 123_000L)

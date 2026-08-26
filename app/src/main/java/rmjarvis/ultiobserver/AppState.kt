@@ -23,7 +23,7 @@ internal enum class AppScreen {
 }
 
 /**
- * Snapshot of app-level UI/session state owned by AppViewModel.
+ * Immutable snapshot of the app-level state owned by AppState.
  *
  * @param screen The top-level app screen currently routed by the app shell.
  * @param currentGame The mutable current game, including setup drafts and completed games.
@@ -40,7 +40,7 @@ internal enum class AppScreen {
  * @param archiveSortMode Sort order applied to the archive list.
  * @param startupRecoveryNotice The startup data-recovery notice, if corrupted app data was reset.
  */
-internal data class AppUiState(
+internal data class AppStateSnapshot(
     val screen: AppScreen = AppScreen.HOME,
     val currentGame: GameState?,
     val setupEditDraft: GameState?,
@@ -105,7 +105,7 @@ internal data class AppUiState(
  * It survives normal Activity recreation, such as rotation, so the UI can be rebuilt without
  * losing in-memory state; process restart recovery still comes from the app's storage layer.
  *
- * UltiObserver's AppViewModel owns top-level navigation, current-game state, profile state,
+ * UltiObserver's AppState owns top-level navigation, current-game state, profile state,
  * settings, archived-game lists, startup recovery notices, and the app actions that persist or
  * move between those states. Domain rules stay in the model helpers; this class coordinates the
  * app session around those model results.
@@ -113,7 +113,7 @@ internal data class AppUiState(
  * @param appStateStorage The persistence boundary used to load and save app state buckets.
  * @param chooseAvatarIndex Random-avatar chooser injected so tests can make selection deterministic.
  */
-internal class AppViewModel(
+internal class AppState(
     private val appStateStorage: AppStateStorage,
     // Injected so tests can make random avatar selection deterministic.
     private val chooseAvatarIndex: (Int) -> Int = { size -> Random.nextInt(size) },
@@ -125,7 +125,7 @@ internal class AppViewModel(
     private val recoveredPersistedDataAreas = appStateStorage.resetPersistedDataAreas
 
     private val _state = MutableStateFlow(
-        AppUiState(
+        AppStateSnapshot(
             currentGame = persistedCurrentGame,
             setupEditDraft = null,
             editingSavedSetupIndex = null,
@@ -144,7 +144,7 @@ internal class AppViewModel(
         )
     )
 
-    val state: StateFlow<AppUiState> = _state.asStateFlow()
+    val state: StateFlow<AppStateSnapshot> = _state.asStateFlow()
 
     val screen: AppScreen
         get() = state.value.screen
@@ -301,7 +301,7 @@ internal class AppViewModel(
      * @param updatedGame The current-game state returned from a model action.
      */
     fun updateCurrentGame(updatedGame: GameState) {
-        // All current-game event logging flows through this ViewModel boundary.
+        // All current-game event logging flows through this AppState boundary.
         _state.update { it.copy(currentGame = updatedGame) }
         persistCurrentGame()
     }

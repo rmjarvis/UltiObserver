@@ -128,14 +128,14 @@ class TestPersistence : MainActivityUiTestFixtures() {
     @Test
     fun startupRecoveryNotice() {
         // Use storage that reports repaired profile and settings buckets at startup.
-        val viewModel = AppViewModel(
+        val appState = AppState(
             StartupRecoveryNoticeStorage(
                 setOf(PersistedData.PROFILE, PersistedData.SETTINGS)
             )
         )
 
         // Render the app from scratch so the startup notice is shown over Home.
-        renderApp(viewModel = viewModel, previousRunCrashed = false)
+        renderApp(appState = appState, previousRunCrashed = false)
 
         // The notice names the repaired buckets while leaving Home visible behind the dialog.
         composeRule.onNodeWithText("Phone data reset").assertIsDisplayed()
@@ -152,12 +152,12 @@ class TestPersistence : MainActivityUiTestFixtures() {
 
         // When both notices are pending, data recovery is shown first because it names the
         // concrete repaired data.
-        val crashAfterRecoveryViewModel = AppViewModel(
+        val crashAfterRecoveryViewModel = AppState(
             StartupRecoveryNoticeStorage(
                 setOf(PersistedData.PROFILE)
             )
         )
-        renderApp(viewModel = crashAfterRecoveryViewModel, previousRunCrashed = true)
+        renderApp(appState = crashAfterRecoveryViewModel, previousRunCrashed = true)
         composeRule.onNodeWithText("Phone data reset").assertIsDisplayed()
         composeRule.onAllNodesWithText("Sorry, UltiObserver crashed").assertCountEquals(0)
 
@@ -172,10 +172,10 @@ class TestPersistence : MainActivityUiTestFixtures() {
      */
     @Test
     fun previousCrashNotice() {
-        val viewModel = AppViewModel(StartupRecoveryNoticeStorage(emptySet()))
+        val appState = AppState(StartupRecoveryNoticeStorage(emptySet()))
 
         // Render the app from scratch as though MainActivity saw a previous Crashlytics crash.
-        renderApp(viewModel = viewModel, previousRunCrashed = true)
+        renderApp(appState = appState, previousRunCrashed = true)
 
         // The crash notice explains that the app noticed the previous crash and reported it.
         composeRule.onNodeWithText("Sorry, UltiObserver crashed").assertIsDisplayed()
@@ -194,16 +194,16 @@ class TestPersistence : MainActivityUiTestFixtures() {
     /**
      * Render the app with custom startup state while keeping shared activity-fixture helpers.
      *
-     * @param viewModel App ViewModel to render.
+     * @param appState App state to render.
      * @param previousRunCrashed Whether to show the previous-crash startup notice.
      */
-    private fun renderApp(viewModel: AppViewModel, previousRunCrashed: Boolean) {
+    private fun renderApp(appState: AppState, previousRunCrashed: Boolean) {
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.setContent {
                 UltiObserverTheme(dynamicColor = false) {
-                    key(viewModel, previousRunCrashed) {
+                    key(appState, previousRunCrashed) {
                         UltiObserverApp(
-                            viewModel = viewModel,
+                            appState = appState,
                             previousRunCrashed = previousRunCrashed,
                             displayOrientation = ActiveGameFullOrientation.PORTRAIT,
                             wearWatchAvailable = false,

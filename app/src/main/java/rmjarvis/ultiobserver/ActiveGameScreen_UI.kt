@@ -77,7 +77,7 @@ private data class PendingFieldTechnicalFoulResolution(
  * @param onStateChange Callback receiving updated live state from user actions and timer transitions.
  * @param onUpdateGameSetup Callback reopening setup for the current game.
  * @param onOpenGameSummary Callback opening the current game summary.
- * @param onBackHome Callback returning to Home or setup according to ViewModel navigation rules.
+ * @param onBackHome Callback returning to Home or setup according to AppState navigation rules.
  * @param onHome Callback returning directly to Home.
  */
 @OptIn(ExperimentalMaterial3Api::class)

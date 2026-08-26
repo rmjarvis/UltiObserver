@@ -202,8 +202,8 @@ class TestFieldUi : MainActivityUiTestFixtures() {
 
         // The settings option can return the same badge to full-ratio text.
         composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.updateSettings(
-                activity.appViewModel.settings.withShowAbbaRatioAsSequence(false)
+            activity.appState.updateSettings(
+                activity.appState.settings.withShowAbbaRatioAsSequence(false)
             )
         }
         waitForText("4W/3M")
@@ -462,7 +462,7 @@ class TestFieldUi : MainActivityUiTestFixtures() {
     /// Update the current game state directly to focus this test on field rendering.
     private fun updateCurrentGameState(update: (GameState) -> GameState) {
         composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.updateCurrentGame(update(activity.appViewModel.currentGame!!))
+            activity.appState.updateCurrentGame(update(activity.appState.currentGame!!))
         }
         composeRule.waitForIdle()
     }
@@ -524,8 +524,8 @@ class TestFieldUi : MainActivityUiTestFixtures() {
                 expectedConfiguration,
                 activity.resources.configuration.orientation,
             )
-            val state = activity.appViewModel.currentGame!!
-            val activeGameDisplay = activity.appViewModel.settings.orientationPreference.displayFor(
+            val state = activity.appState.currentGame!!
+            val activeGameDisplay = activity.appState.settings.orientationPreference.displayFor(
                 displayOrientation = displayOrientation(activity.display!!.rotation),
                 phoneTopEnd = state.topDisplayedEnd,
             )

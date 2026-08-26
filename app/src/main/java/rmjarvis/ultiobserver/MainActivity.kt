@@ -31,7 +31,7 @@ import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 
 /// Android Activity entry point for the Compose app.
 class MainActivity : ComponentActivity() {
-    internal val appViewModel: AppViewModel by viewModels { appViewModelFactory(filesDir) }
+    internal val appState: AppState by viewModels { appStateFactory(filesDir) }
     private val autoRotateOrientationLock = AutoRotateOrientationLock()
     private var autoRotateScreenActive = false
     private var systemAutoRotateEnabled = false
@@ -70,7 +70,7 @@ class MainActivity : ComponentActivity() {
         override fun onDisplayChanged(displayId: Int) {
             handleDisplayChange(displayId, display!!.displayId) {
                 displayOrientation = currentDisplayOrientation()
-                applyRequestedActivityOrientation(appViewModel.state.value)
+                applyRequestedActivityOrientation(appState.state.value)
             }
         }
     }
@@ -90,17 +90,17 @@ class MainActivity : ComponentActivity() {
      */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        appViewModel.disableWatchNotificationsIfUnavailable(
+        appState.disableWatchNotificationsIfUnavailable(
             NotificationManagerCompat.from(this).areNotificationsEnabled()
         )
         val previousRunCrashed = FirebaseCrashlytics.getInstance().didCrashOnPreviousExecution()
         enableEdgeToEdge()
         systemAutoRotateEnabled = readSystemAutoRotateSetting()
-        // This bit keeps the phone in the correct orientation to match the appViewModel's
+        // This bit keeps the phone in the correct orientation to match the appState's
         // intended rendering orientation.
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                appViewModel.state
+                appState.state
                     .collect { state ->
                         val newAutoRotateScreenActive = state.viewingActiveGameScreen &&
                             state.settings.orientationPreference ==
@@ -121,7 +121,7 @@ class MainActivity : ComponentActivity() {
         }
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                appViewModel.state
+                appState.state
                     .map { state ->
                         if (
                             state.settings.timingAlerts.watchConnectionMode ==
@@ -148,7 +148,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             UltiObserverTheme(dynamicColor = false) {
                 UltiObserverApp(
-                    viewModel = appViewModel,
+                    appState = appState,
                     previousRunCrashed = previousRunCrashed,
                     displayOrientation = displayOrientation,
                     wearWatchAvailable = wearWatchAvailable,
@@ -200,11 +200,11 @@ class MainActivity : ComponentActivity() {
             )
         }
         systemAutoRotateEnabled = enabled
-        applyRequestedActivityOrientation(appViewModel.state.value)
+        applyRequestedActivityOrientation(appState.state.value)
     }
 
     /// Request the orientation required by the current screen and active-game preference.
-    private fun applyRequestedActivityOrientation(state: AppUiState) {
+    private fun applyRequestedActivityOrientation(state: AppStateSnapshot) {
         val activeGameVisible = state.viewingActiveGameScreen
         val orientation = if (!activeGameVisible) {
             ActivityInfo.SCREEN_ORIENTATION_PORTRAIT

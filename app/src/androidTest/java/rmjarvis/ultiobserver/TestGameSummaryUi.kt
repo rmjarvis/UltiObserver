@@ -113,7 +113,7 @@ class TestGameSummaryUi : MainActivityUiTestFixtures() {
         assertEquals("Archived Handler", resumed.playerCards(TeamId.TEAM_ONE).single().playerName)
         assertTrue(resumed.undoEntry!!.label.startsWith("Undo Edit yellow"))
 
-        // The still-current game summary edits Team Two and persists through the ViewModel path.
+        // The still-current game summary edits Team Two and persists through the AppState path.
         openMoreActionsDialog()
         selectMoreActionsCategory("Game details")
         composeRule.onNodeWithText("Game summary").performClick()

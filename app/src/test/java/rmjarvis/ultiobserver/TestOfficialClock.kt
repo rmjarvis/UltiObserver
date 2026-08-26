@@ -147,7 +147,7 @@ class TestOfficialClock : GameDomainTestFixtures() {
     /** Verify offset changes update only the current game's absolute timing. */
     @Test
     fun inProgressClockChange() {
-        val viewModel = AppViewModel(NoOpAppStateStorage)
+        val appState = AppState(NoOpAppStateStorage)
         val countdown = CountdownState(
             kind = CountdownKind.BETWEEN_POINTS,
             label = "Pull in",
@@ -156,38 +156,38 @@ class TestOfficialClock : GameDomainTestFixtures() {
         )
         val currentGame = standardLiveGameState().copy(countdown = countdown)
         val originalStartEpoch = currentGame.startEpoch
-        viewModel.updateCurrentGame(currentGame)
+        appState.updateCurrentGame(currentGame)
 
         // Changing the offset updates the stored mapping and absolute start epoch, while a running
         // action timer remains attached to its original phone-time target.
-        viewModel.updateOfficialClockOffset(-44_800L)
-        assertEquals(-44_800L, viewModel.settings.officialClockOffsetMillis)
-        assertEquals(170_000L, viewModel.currentGame!!.countdown!!.targetEpoch)
-        assertEquals(originalStartEpoch + 44_800L, viewModel.currentGame!!.startEpoch)
+        appState.updateOfficialClockOffset(-44_800L)
+        assertEquals(-44_800L, appState.settings.officialClockOffsetMillis)
+        assertEquals(170_000L, appState.currentGame!!.countdown!!.targetEpoch)
+        assertEquals(originalStartEpoch + 44_800L, appState.currentGame!!.startEpoch)
 
         // An active opening timer is the exception because its target is the official start time.
-        viewModel.updateCurrentGame(
+        appState.updateCurrentGame(
             standardLiveGameState().copy(
                 countdown = countdown.copy(kind = CountdownKind.OPENING_PULL),
             )
         )
-        viewModel.updateOfficialClockOffset(45_200L)
-        assertEquals(124_800L, viewModel.currentGame!!.countdown!!.targetEpoch)
+        appState.updateOfficialClockOffset(45_200L)
+        assertEquals(124_800L, appState.currentGame!!.countdown!!.targetEpoch)
 
         // Saving the game and changing the clock leaves the archived snapshot untouched.
-        viewModel.startNewGame(now = 200_000L)
-        val archivedGame = viewModel.archivedGames.single()
-        viewModel.updateOfficialClockOffset(15_200L)
-        assertEquals(archivedGame, viewModel.archivedGames.single())
+        appState.startNewGame(now = 200_000L)
+        val archivedGame = appState.archivedGames.single()
+        appState.updateOfficialClockOffset(15_200L)
+        assertEquals(archivedGame, appState.archivedGames.single())
 
         // Returning the archived game to current applies the new offset.
-        viewModel.openArchivedGame(index = 0, now = 200_000L)
-        viewModel.makeArchivedGameCurrent()
-        assertEquals(15_200L, viewModel.currentGame!!.officialClockOffsetMillis)
-        assertEquals(archivedGame.startEpoch + 30_000L, viewModel.currentGame!!.startEpoch)
+        appState.openArchivedGame(index = 0, now = 200_000L)
+        appState.makeArchivedGameCurrent()
+        assertEquals(15_200L, appState.currentGame!!.officialClockOffsetMillis)
+        assertEquals(archivedGame.startEpoch + 30_000L, appState.currentGame!!.startEpoch)
         assertEquals(
             archivedGame.countdown!!.targetEpoch + 30_000L,
-            viewModel.currentGame!!.countdown!!.targetEpoch,
+            appState.currentGame!!.countdown!!.targetEpoch,
         )
     }
 
@@ -216,24 +216,24 @@ class TestOfficialClock : GameDomainTestFixtures() {
     fun restoredCompletedArchiveUsesCurrentOffset() {
         // End and archive a game through the normal completed-game path with one offset, then
         // change the app's offset while no game is current.
-        val viewModel = AppViewModel(NoOpAppStateStorage)
-        viewModel.updateCurrentGame(
+        val appState = AppState(NoOpAppStateStorage)
+        appState.updateCurrentGame(
             standardLiveGameState().endGameNow(100_000L)
                 .withOfficialClockOffset(10_000L)
         )
-        viewModel.archiveCompletedGame()
-        viewModel.updateOfficialClockOffset(60_000L)
+        appState.archiveCompletedGame()
+        appState.updateOfficialClockOffset(60_000L)
 
         // Restoring the completed archive keeps it completed but applies the app's current offset,
         // rather than the different offset stored in the archived snapshot.
-        viewModel.openArchivedGame(index = 0, now = 200_000L)
-        viewModel.makeArchivedGameCurrent()
-        assertEquals(GamePhase.GAME_OVER, viewModel.currentGame!!.phase)
-        assertEquals(60_000L, viewModel.currentGame!!.officialClockOffsetMillis)
+        appState.openArchivedGame(index = 0, now = 200_000L)
+        appState.makeArchivedGameCurrent()
+        assertEquals(GamePhase.GAME_OVER, appState.currentGame!!.phase)
+        assertEquals(60_000L, appState.currentGame!!.officialClockOffsetMillis)
 
         // Even though it is completed, it behaves like any other current game when the offset
         // changes again.
-        viewModel.updateOfficialClockOffset(75_000L)
-        assertEquals(75_000L, viewModel.currentGame!!.officialClockOffsetMillis)
+        appState.updateOfficialClockOffset(75_000L)
+        assertEquals(75_000L, appState.currentGame!!.officialClockOffsetMillis)
     }
 }

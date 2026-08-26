@@ -921,8 +921,8 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
     /// Turn on showDefenseCountdowns setting.
     private fun setShowDefenseCountdownsProgrammatically(show: Boolean) {
         composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.updateSettings(
-                activity.appViewModel.settings.withShowDefenseCountdowns(show)
+            activity.appState.updateSettings(
+                activity.appState.settings.withShowDefenseCountdowns(show)
             )
         }
         composeRule.waitForIdle()

@@ -96,8 +96,8 @@ internal data class RecoveryNotice(
 }
 
 /**
- * App-state persistence boundary used by AppViewModel.
- * Tests provide alternate implementations so ViewModel behavior can be exercised without Android file I/O,
+ * App-state persistence boundary used by AppState.
+ * Tests provide alternate implementations so AppState behavior can be exercised without Android file I/O,
  * while production uses the file-backed implementation below.
  */
 internal interface AppStateStorage {

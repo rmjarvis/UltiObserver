@@ -77,8 +77,8 @@ abstract class MainActivityUiTestFixtures {
     /// Remove any current game and wait for the UI to observe the empty current-game state.
     protected fun clearCurrentGameProgrammatically() {
         composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.deleteCurrentGame()
-            activity.appViewModel.goHome()
+            activity.appState.deleteCurrentGame()
+            activity.appState.goHome()
         }
         composeRule.waitForIdle()
         waitForConfigurationOrientation(Configuration.ORIENTATION_PORTRAIT)
@@ -98,7 +98,7 @@ abstract class MainActivityUiTestFixtures {
     }
 
     /**
-     * Start a live game by seeding ViewModel state directly.
+     * Start a live game by seeding AppState directly.
      *
      * This lets UI test functions start with a well-defined game state rather than having to get
      * to that state via UI actions.
@@ -111,7 +111,7 @@ abstract class MainActivityUiTestFixtures {
     ) {
         var activeGameAlreadyVisible = false
         composeRule.activityRule.scenario.onActivity { activity ->
-            activeGameAlreadyVisible = activity.appViewModel.state.value.viewingActiveGameScreen
+            activeGameAlreadyVisible = activity.appState.state.value.viewingActiveGameScreen
         }
         if (!activeGameAlreadyVisible) {
             clearCurrentGameProgrammatically()
@@ -119,8 +119,8 @@ abstract class MainActivityUiTestFixtures {
         // When reseeding an active narrative, keep the active-game screen visible. Going through
         // Home would briefly request Portrait before the replacement game requests Landscape.
         composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.updateSetup(setup)
-            activity.appViewModel.finishSetup(now = 123_000L)
+            activity.appState.updateSetup(setup)
+            activity.appState.finishSetup(now = 123_000L)
         }
         composeRule.waitForIdle()
         assertLiveScreen()
@@ -139,8 +139,8 @@ abstract class MainActivityUiTestFixtures {
     ) {
         startLiveGameProgrammatically(setup)
         composeRule.activityRule.scenario.onActivity { activity ->
-            val current = activity.appViewModel.currentGame!!
-            activity.appViewModel.updateCurrentGame(current.beginLivePoint(System.currentTimeMillis()))
+            val current = activity.appState.currentGame!!
+            activity.appState.updateCurrentGame(current.beginLivePoint(System.currentTimeMillis()))
         }
         composeRule.waitForIdle()
         assertLiveScreen()
@@ -160,8 +160,8 @@ abstract class MainActivityUiTestFixtures {
     ) {
         startLiveGameProgrammatically(setup)
         composeRule.activityRule.scenario.onActivity { activity ->
-            val current = activity.appViewModel.currentGame!!
-            activity.appViewModel.updateCurrentGame(
+            val current = activity.appState.currentGame!!
+            activity.appState.updateCurrentGame(
                 current.recordGoalFromCurrentState(scoringTeam, System.currentTimeMillis())
             )
         }
@@ -319,7 +319,7 @@ abstract class MainActivityUiTestFixtures {
     }
 
     /**
-     * Add a setup prior-card holder by seeding ViewModel state directly.
+     * Add a setup prior-card holder by seeding AppState directly.
      *
      * This lets UI tests start from existing prior-card rows without replaying the add-holder
      * dialog when that dialog is not the behavior under test.
@@ -619,19 +619,19 @@ abstract class MainActivityUiTestFixtures {
     }
 
     /**
-     * Clear archived games by calling the ViewModel directly.
+     * Clear archived games by calling the AppState directly.
      *
      * This lets UI tests start from a known archive state without deleting existing rows through the UI.
      */
     protected fun clearArchivedGamesProgrammatically() {
         composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.deleteAllArchivedGames()
+            activity.appState.deleteAllArchivedGames()
         }
         composeRule.waitForIdle()
     }
 
     /**
-     * Seed one archived completed game by calling the ViewModel directly.
+     * Seed one archived completed game by calling the AppState directly.
      *
      * This lets UI tests validate Archived games behavior without first playing and archiving a game
      * through UI actions.
@@ -650,14 +650,14 @@ abstract class MainActivityUiTestFixtures {
                 endEpoch = System.currentTimeMillis(),
                 countdown = null,
             )
-            activity.appViewModel.updateCurrentGame(completed)
-            activity.appViewModel.archiveCompletedGame()
+            activity.appState.updateCurrentGame(completed)
+            activity.appState.archiveCompletedGame()
         }
         composeRule.waitForIdle()
     }
 
     /**
-     * Seed in-game player card records by calling the ViewModel directly.
+     * Seed in-game player card records by calling the AppState directly.
      *
      * This lets UI tests open card adjustment paths from a precise card history without recording every
      * prerequisite card through the UI.
@@ -670,8 +670,8 @@ abstract class MainActivityUiTestFixtures {
         teamTwoCards: List<PlayerRecord> = emptyList(),
     ) {
         composeRule.activityRule.scenario.onActivity { activity ->
-            val current = activity.appViewModel.currentGame!!
-            activity.appViewModel.updateCurrentGame(
+            val current = activity.appState.currentGame!!
+            activity.appState.updateCurrentGame(
                 current.copy(
                     teamOnePlayers = teamOneCards.withUniqueInGameCardIndexes(),
                     teamTwoPlayers = teamTwoCards.withUniqueInGameCardIndexes(),
@@ -700,8 +700,8 @@ abstract class MainActivityUiTestFixtures {
      */
     protected fun endCurrentGameProgrammatically() {
         composeRule.activityRule.scenario.onActivity { activity ->
-            val current = activity.appViewModel.currentGame!!
-            activity.appViewModel.updateCurrentGame(current.endGameNow(System.currentTimeMillis()))
+            val current = activity.appState.currentGame!!
+            activity.appState.updateCurrentGame(current.endGameNow(System.currentTimeMillis()))
         }
         waitForText("Game summary")
     }
@@ -709,24 +709,24 @@ abstract class MainActivityUiTestFixtures {
     /**
      * Update the current game state directly.
      *
-     * This keeps UI-focused tests from spelling out Activity/ViewModel plumbing when they need a
+     * This keeps UI-focused tests from spelling out Activity/AppState plumbing when they need a
      * specific model prerequisite before exercising behavior through Compose.
      */
     protected fun updateCurrentStateProgrammatically(update: GameState.() -> GameState) {
         composeRule.activityRule.scenario.onActivity { activity ->
-            val current = activity.appViewModel.currentGame!!
-            activity.appViewModel.updateCurrentGame(current.update())
+            val current = activity.appState.currentGame!!
+            activity.appState.updateCurrentGame(current.update())
         }
         composeRule.waitForIdle()
     }
 
     /// Read the current game state directly for model assertions or wait conditions.
     protected fun accessCurrentGameState(): GameState {
-        return composeRule.activity.appViewModel.currentGame!!
+        return composeRule.activity.appState.currentGame!!
     }
 
     /**
-     * Move the active countdown target relative to now by direct ViewModel state update.
+     * Move the active countdown target relative to now by updating AppState directly.
      *
      * This lets UI tests exercise expired-countdown behavior deterministically without waiting for
      * real time to pass.
@@ -735,9 +735,9 @@ abstract class MainActivityUiTestFixtures {
      */
     protected fun setActiveCountdownRemainingProgrammatically(secondsRemaining: Int) {
         composeRule.activityRule.scenario.onActivity { activity ->
-            val current = activity.appViewModel.currentGame!!
+            val current = activity.appState.currentGame!!
             val countdown = current.countdown!!
-            activity.appViewModel.updateCurrentGame(
+            activity.appState.updateCurrentGame(
                 current.copy(
                     countdown = countdown.copy(
                         targetEpoch = System.currentTimeMillis() + secondsRemaining * 1000L,
@@ -765,8 +765,8 @@ abstract class MainActivityUiTestFixtures {
      */
     protected fun startTimeoutCountdownProgrammatically(secondsRemaining: Int = 70) {
         composeRule.activityRule.scenario.onActivity { activity ->
-            val current = activity.appViewModel.currentGame!!
-            activity.appViewModel.updateCurrentGame(
+            val current = activity.appState.currentGame!!
+            activity.appState.updateCurrentGame(
                 current.copy(
                     phase = GamePhase.LIVE_POINT,
                     countdown = CountdownState(
@@ -791,8 +791,8 @@ abstract class MainActivityUiTestFixtures {
      */
     protected fun setAutomaticallyAdvanceCountdowns(automaticallyAdvance: Boolean) {
         composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.updateSettings(
-                activity.appViewModel.settings.withAutomaticallyAdvanceCountdowns(automaticallyAdvance)
+            activity.appState.updateSettings(
+                activity.appState.settings.withAutomaticallyAdvanceCountdowns(automaticallyAdvance)
             )
         }
         composeRule.waitForIdle()
@@ -815,14 +815,14 @@ abstract class MainActivityUiTestFixtures {
 
     /// Start this setup using the active-game orientation configured for the current UI test.
     protected fun GameState.startGameInTestOrientation(activity: MainActivity): GameState {
-        return startGame(activity.appViewModel.settings.orientationPreference)
+        return startGame(activity.appState.settings.orientationPreference)
     }
 
     /// Set the active-game orientation and wait for the UI to observe it.
     private fun updateOrientationPreference(preference: OrientationPreference) {
         composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.updateSettings(
-                activity.appViewModel.settings.withOrientationPreference(preference)
+            activity.appState.updateSettings(
+                activity.appState.settings.withOrientationPreference(preference)
             )
         }
         composeRule.waitForIdle()
@@ -837,8 +837,8 @@ abstract class MainActivityUiTestFixtures {
      */
     internal fun setRuleGuidanceMode(mode: RuleGuidanceMode) {
         composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.updateSettings(
-                activity.appViewModel.settings.withRuleGuidanceMode(mode)
+            activity.appState.updateSettings(
+                activity.appState.settings.withRuleGuidanceMode(mode)
             )
         }
         composeRule.waitForIdle()
@@ -866,8 +866,8 @@ abstract class MainActivityUiTestFixtures {
      */
     protected fun setAutomaticallyLockLivePoint(automaticallyLock: Boolean) {
         composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.updateSettings(
-                activity.appViewModel.settings.withAutomaticallyLockLivePoint(automaticallyLock)
+            activity.appState.updateSettings(
+                activity.appState.settings.withAutomaticallyLockLivePoint(automaticallyLock)
             )
         }
         composeRule.waitForIdle()
@@ -876,10 +876,10 @@ abstract class MainActivityUiTestFixtures {
     /** Establish the automatic advancement used for newly started countdowns. */
     protected fun setNewCountdownAdvanceSettings(enabled: Boolean, seconds: Int) {
         composeRule.activityRule.scenario.onActivity { activity ->
-            val settings = activity.appViewModel.settings
+            val settings = activity.appState.settings
                 .withAutomaticallyAdvanceNewCountdowns(enabled)
                 .withNewCountdownAdvanceSeconds(seconds)
-            activity.appViewModel.updateSettings(settings)
+            activity.appState.updateSettings(settings)
         }
         composeRule.waitForIdle()
     }
@@ -887,7 +887,7 @@ abstract class MainActivityUiTestFixtures {
     /// Establish the official-clock offset for a test that depends on persisted clock state.
     protected fun setOfficialClockOffset(offsetMillis: Long) {
         composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.updateOfficialClockOffset(offsetMillis)
+            activity.appState.updateOfficialClockOffset(offsetMillis)
         }
         composeRule.waitForIdle()
     }
@@ -902,8 +902,8 @@ abstract class MainActivityUiTestFixtures {
      */
     protected fun setShowAbbaRatioAsSequence(showAsSequence: Boolean) {
         composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.updateSettings(
-                activity.appViewModel.settings.withShowAbbaRatioAsSequence(showAsSequence)
+            activity.appState.updateSettings(
+                activity.appState.settings.withShowAbbaRatioAsSequence(showAsSequence)
             )
         }
         composeRule.waitForIdle()
@@ -916,8 +916,8 @@ abstract class MainActivityUiTestFixtures {
      */
     protected fun setTimingAlertPreferences(preferences: TimingAlertPreferences) {
         composeRule.activityRule.scenario.onActivity { activity ->
-            val viewModel = activity.appViewModel
-            viewModel.updateSettings(viewModel.settings.withTimingAlerts(preferences))
+            val appState = activity.appState
+            appState.updateSettings(appState.settings.withTimingAlerts(preferences))
         }
         composeRule.waitForIdle()
     }
@@ -1074,7 +1074,7 @@ abstract class MainActivityUiTestFixtures {
     /// Assert that the live screen's main controls are visible.
     protected fun assertLiveScreen() {
         val fixedOrientation = when (
-            composeRule.activity.appViewModel.settings.orientationPreference
+            composeRule.activity.appState.settings.orientationPreference
         ) {
             OrientationPreference.PORTRAIT -> Configuration.ORIENTATION_PORTRAIT
             OrientationPreference.LANDSCAPE -> Configuration.ORIENTATION_LANDSCAPE

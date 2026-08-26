@@ -3,8 +3,8 @@ package rmjarvis.ultiobserver
 /**
  * Test-only storage implementation that does not persist anything.
  *
- * Unit tests use this when they want a fresh ViewModel with default app state and no file-system
- * setup, so the test can focus on ViewModel behavior rather than persistence mechanics.
+ * Unit tests use this when they want a fresh AppState with default app state and no file-system
+ * setup, so the test can focus on AppState behavior rather than persistence mechanics.
  */
 internal object NoOpAppStateStorage : AppStateStorage {
     override val resetPersistedDataAreas: Set<PersistedData> = emptySet()

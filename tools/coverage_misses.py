@@ -685,7 +685,7 @@ def callback_lambda_scaffold_reason(
     and then passing it through nullable `if`/`when` wiring:
 
         val saveSetupForLaterAction: () -> Unit = {
-            viewModel.saveSetupForLater()
+            appState.saveSetupForLater()
         }
 
     Those local callback openers can receive the same generated wrapper branches as
@@ -1263,7 +1263,7 @@ def long_lived_activity_state_collect_scaffold_reason(
     `KotlinNothingValueException`. JaCoCo maps that generated path to the `collect` opener even
     when every executable line in the collector body has run.
 
-    This recognizer is intentionally limited to MainActivity's `appViewModel.state` collection
+    This recognizer is intentionally limited to MainActivity's `appState.state` collection
     directly inside `repeatOnLifecycle`, the observed instruction counters, and a fully covered
     collector body.
     """
@@ -1273,7 +1273,7 @@ def long_lived_activity_state_collect_scaffold_reason(
         return None
     if source_lines[index].strip() != ".collect { state ->":
         return None
-    if source_lines[index - 1].strip() != "appViewModel.state":
+    if source_lines[index - 1].strip() != "appState.state":
         return None
     if source_lines[index - 2].strip() != "repeatOnLifecycle(Lifecycle.State.STARTED) {":
         return None

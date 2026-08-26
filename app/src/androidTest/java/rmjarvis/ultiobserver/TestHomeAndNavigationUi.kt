@@ -161,14 +161,14 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         // Archive one active live-point game, then start another current game before restoring
         // the first.
         composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.deleteCurrentGame()
-            activity.appViewModel.seedCurrentInProgressGame(teamOneName, teamTwoName)
-            activity.appViewModel.startNewGame(now = 123_000L)
-            activity.appViewModel.seedCurrentInProgressGame(
+            activity.appState.deleteCurrentGame()
+            activity.appState.seedCurrentInProgressGame(teamOneName, teamTwoName)
+            activity.appState.startNewGame(now = 123_000L)
+            activity.appState.seedCurrentInProgressGame(
                 currentTeamOneName,
                 currentTeamTwoName,
             )
-            activity.appViewModel.goHome()
+            activity.appState.goHome()
         }
         composeRule.waitForIdle()
 
@@ -1209,9 +1209,9 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         // Install the inconsistent persisted state that Android can leave when notification
         // permission is revoked, then recreate the Activity to exercise its startup check.
         composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.updateSettings(
-                activity.appViewModel.settings.withTimingAlerts(
-                    activity.appViewModel.settings.timingAlerts.withWatchConnectionMode(
+            activity.appState.updateSettings(
+                activity.appState.settings.withTimingAlerts(
+                    activity.appState.settings.timingAlerts.withWatchConnectionMode(
                         WatchConnectionMode.ALERTING
                     )
                 )
@@ -1219,7 +1219,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         }
         composeRule.activityRule.scenario.recreate()
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            composeRule.activity.appViewModel.settings.timingAlerts.watchConnectionMode ==
+            composeRule.activity.appState.settings.timingAlerts.watchConnectionMode ==
                 WatchConnectionMode.OFF
         }
     }
@@ -1266,11 +1266,11 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
                     click(percentOffset(0.95f, 0.5f))
                 }
             composeRule.waitUntil(timeoutMillis = 5_000) {
-                composeRule.activity.appViewModel.settings.timingAlerts.vibrationDurationMillis >
+                composeRule.activity.appState.settings.timingAlerts.vibrationDurationMillis >
                     DEFAULT_TIMING_CUE_VIBRATION_MS
             }
             assertTrue(
-                composeRule.activity.appViewModel.settings.timingAlerts.vibrationDurationMillis >
+                composeRule.activity.appState.settings.timingAlerts.vibrationDurationMillis >
                     DEFAULT_TIMING_CUE_VIBRATION_MS
             )
             composeRule.onNodeWithTag("settings-test-vibration")
@@ -1337,7 +1337,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             )
             composeRule.onNodeWithTag("settings-watch-connection-ALERTING").performClick()
             composeRule.waitUntil(timeoutMillis = 5_000) {
-                composeRule.activity.appViewModel.settings.timingAlerts.watchConnectionMode ==
+                composeRule.activity.appState.settings.timingAlerts.watchConnectionMode ==
                     WatchConnectionMode.ALERTING
             }
             composeRule.onAllNodesWithText(
@@ -1347,7 +1347,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         }
         composeRule.onNodeWithTag("settings-watch-connection-SILENT").performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            composeRule.activity.appViewModel.settings.timingAlerts.watchConnectionMode ==
+            composeRule.activity.appState.settings.timingAlerts.watchConnectionMode ==
                 WatchConnectionMode.SILENT
         }
         waitForText(
@@ -1362,7 +1362,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         ).assertCountEquals(0)
         composeRule.onNodeWithTag("settings-watch-connection-ALERTING").performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            composeRule.activity.appViewModel.settings.timingAlerts.watchConnectionMode ==
+            composeRule.activity.appState.settings.timingAlerts.watchConnectionMode ==
                 WatchConnectionMode.ALERTING
         }
         waitForText(
@@ -1418,7 +1418,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             .performScrollTo()
             .performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            composeRule.activity.appViewModel.settings.timingAlerts.globalMode ==
+            composeRule.activity.appState.settings.timingAlerts.globalMode ==
                 TimingAlertGlobalMode.SOUNDS_ON
         }
         composeRule.onNodeWithTag("settings-sound-volume").performScrollTo()
@@ -1442,7 +1442,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
                 click(percentOffset(x = 0.75f, y = 0.5f))
             }
         assertTrue(
-            composeRule.activity.appViewModel.settings.timingAlerts.soundVolume > 0.5f
+            composeRule.activity.appState.settings.timingAlerts.soundVolume > 0.5f
         )
 
         // Re-enabled sound settings should expose vibration, preview, and repeat-count controls.
@@ -1458,7 +1458,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         }
         composeRule.onNodeWithTag("settings-global-alert-OFF").performScrollTo().performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            composeRule.activity.appViewModel.settings.timingAlerts.globalMode ==
+            composeRule.activity.appState.settings.timingAlerts.globalMode ==
                 TimingAlertGlobalMode.OFF
         }
         waitForText("No sound or vibration will be used for any timing cues.")
@@ -1682,14 +1682,14 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
                 teamOnePlayers = listOf(playerRecordWithCards("7", yellows = yellowCards)),
                 teamTwoPlayers = listOf(playerRecordWithCards("19", reds = redCards)),
             )
-            activity.appViewModel.updateCurrentGame(
+            activity.appState.updateCurrentGame(
                 setup.startGameInTestOrientation(activity).copy(
                     phase = GamePhase.GAME_OVER,
                     endEpoch = System.currentTimeMillis(),
                     countdown = null,
                 )
             )
-            activity.appViewModel.archiveCompletedGame()
+            activity.appState.archiveCompletedGame()
         }
         composeRule.waitForIdle()
     }
@@ -1705,10 +1705,10 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
      */
     private fun seedSavedInProgressGame(teamOne: String, teamTwo: String) {
         composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.deleteCurrentGame()
-            activity.appViewModel.seedCurrentInProgressGame(teamOne, teamTwo)
-            activity.appViewModel.startNewGame(now = 123_000L)
-            activity.appViewModel.goHome()
+            activity.appState.deleteCurrentGame()
+            activity.appState.seedCurrentInProgressGame(teamOne, teamTwo)
+            activity.appState.startNewGame(now = 123_000L)
+            activity.appState.goHome()
         }
         composeRule.waitForIdle()
     }
@@ -1721,15 +1721,15 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
      */
     private fun seedCurrentInProgressGame(teamOne: String, teamTwo: String) {
         composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.deleteCurrentGame()
-            activity.appViewModel.seedCurrentInProgressGame(teamOne, teamTwo)
-            activity.appViewModel.goHome()
+            activity.appState.deleteCurrentGame()
+            activity.appState.seedCurrentInProgressGame(teamOne, teamTwo)
+            activity.appState.goHome()
         }
         composeRule.waitForIdle()
     }
 
     /// Install an active live-point game without making the active-game screen visible.
-    private fun AppViewModel.seedCurrentInProgressGame(teamOne: String, teamTwo: String) {
+    private fun AppState.seedCurrentInProgressGame(teamOne: String, teamTwo: String) {
         updateCurrentGame(
             newSetupGameState(now = 123_000L).copy(
                 teamOne = TeamState(teamOne, TeamColorChoice.WHITE),
@@ -1746,14 +1746,14 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
      */
     private fun seedCurrentSetupAndSavePrevious(teamOne: String, teamTwo: String) {
         composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.startNewGame(now = 123_000L)
-            activity.appViewModel.updateSetup(
+            activity.appState.startNewGame(now = 123_000L)
+            activity.appState.updateSetup(
                 newSetupGameState(now = 123_000L).copy(
                     teamOne = TeamState(teamOne, TeamColorChoice.WHITE),
                     teamTwo = TeamState(teamTwo, TeamColorChoice.BLUE),
                 )
             )
-            activity.appViewModel.goHome()
+            activity.appState.goHome()
         }
         composeRule.waitForIdle()
     }

@@ -61,15 +61,15 @@ class GenerateReleaseScreenshots : MainActivityUiTestFixtures() {
                 .isEmpty()
         ) { "The screenshot seed triggered a persistence recovery notice." }
         composeRule.activityRule.scenario.onActivity { activity ->
-            activity.appViewModel.updateProfile(
+            activity.appState.updateProfile(
                 Profile(
                     name = "Mike Jarvis",
                     avatarPreference = ObserverAvatarPreference.SPIKY,
                 ),
             )
-            activity.appViewModel.updateSettings(Settings())
-            activity.appViewModel.deleteCurrentGame()
-            activity.appViewModel.goHome()
+            activity.appState.updateSettings(Settings())
+            activity.appState.deleteCurrentGame()
+            activity.appState.goHome()
         }
         composeRule.waitForIdle()
     }

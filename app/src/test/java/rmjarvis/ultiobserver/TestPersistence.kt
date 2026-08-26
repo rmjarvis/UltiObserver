@@ -21,7 +21,7 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
 /**
- * Tests for AppViewModel persistence coordination and file-backed app-state storage.
+ * Tests for AppState persistence coordination and file-backed app-state storage.
  */
 class TestPersistence : GameDomainTestFixtures() {
     @get:Rule
@@ -33,26 +33,26 @@ class TestPersistence : GameDomainTestFixtures() {
      */
     @Test
     fun profileAndSettingsPersistence() {
-        // Write profile values through the same ViewModel actions the UI uses.
+        // Write profile values through the same AppState actions the UI uses.
         val storeDir = temporaryFolder.newFolder()
-        val viewModel = AppViewModel(FileAppStateStorage(storeDir))
+        val appState = AppState(FileAppStateStorage(storeDir))
         fun updateSettings(transform: (Settings) -> Settings) {
-            viewModel.updateSettings(transform(viewModel.settings))
+            appState.updateSettings(transform(appState.settings))
         }
         fun updateTimingAlerts(transform: (TimingAlertPreferences) -> TimingAlertPreferences) {
             updateSettings { it.withTimingAlerts(transform(it.timingAlerts)) }
         }
-        viewModel.openProfile()
-        assertEquals(AppScreen.PROFILE, viewModel.screen)
-        viewModel.updateProfile(viewModel.profile.withName("Casey Observer"))
-        assertEquals("Casey Observer", viewModel.profile.name)
-        viewModel.updateProfile(viewModel.profile.withAvatarPreference(ObserverAvatarPreference.BLUE))
-        assertEquals(ObserverAvatarPreference.BLUE, viewModel.profile.avatarPreference)
-        assertEquals(ObserverAvatarPreference.BLUE, viewModel.currentHomeAvatar)
+        appState.openProfile()
+        assertEquals(AppScreen.PROFILE, appState.screen)
+        appState.updateProfile(appState.profile.withName("Casey Observer"))
+        assertEquals("Casey Observer", appState.profile.name)
+        appState.updateProfile(appState.profile.withAvatarPreference(ObserverAvatarPreference.BLUE))
+        assertEquals(ObserverAvatarPreference.BLUE, appState.profile.avatarPreference)
+        assertEquals(ObserverAvatarPreference.BLUE, appState.currentHomeAvatar)
 
         // Exercise global timing settings and cue overrides before leaving Settings.
-        viewModel.openSettings()
-        assertEquals(AppScreen.SETTINGS, viewModel.screen)
+        appState.openSettings()
+        assertEquals(AppScreen.SETTINGS, appState.screen)
         updateSettings { it.withOrientationPreference(OrientationPreference.AUTO_ROTATE) }
         updateSettings { it.withRuleGuidanceMode(RuleGuidanceMode.TIMED) }
         updateTimingAlerts { it.withGlobalMode(TimingAlertGlobalMode.VIBRATION_ONLY) }
@@ -83,11 +83,11 @@ class TestPersistence : GameDomainTestFixtures() {
         updateTimingAlerts { it.withCueRepeatCount(TimingCueId.PULLING_TIME_VIOLATION, 3) }
         assertEquals(
             TimingAlertMode.VIBRATE,
-            viewModel.settings.timingAlerts.alertModeFor(TimingCueId.PULLING_TIME_VIOLATION),
+            appState.settings.timingAlerts.alertModeFor(TimingCueId.PULLING_TIME_VIOLATION),
         )
         assertEquals(
             3,
-            viewModel.settings.timingAlerts.repeatCountFor(TimingCueId.PULLING_TIME_VIOLATION),
+            appState.settings.timingAlerts.repeatCountFor(TimingCueId.PULLING_TIME_VIOLATION),
         )
         assertThrows(IllegalArgumentException::class.java) {
             updateTimingAlerts { it.withCueRepeatCount(TimingCueId.PULLING_TIME_VIOLATION, 0) }
@@ -103,34 +103,34 @@ class TestPersistence : GameDomainTestFixtures() {
         updateTimingAlerts { it.withCueMode(TimingCueId.PULLING_TIME_VIOLATION, TimingAlertMode.NONE) }
         assertEquals(
             1,
-            viewModel.settings.timingAlerts.repeatCountFor(TimingCueId.PULLING_TIME_VIOLATION),
+            appState.settings.timingAlerts.repeatCountFor(TimingCueId.PULLING_TIME_VIOLATION),
         )
         updateTimingAlerts { it.withCueMode(TimingCueId.PULLING_TIME_VIOLATION, TimingAlertMode.DING) }
         updateTimingAlerts { it.withCueMode(TimingCueId.OFFENSE_TEN, TimingAlertMode.VIBRATE) }
-        viewModel.openTimingCueSettings()
-        assertEquals(AppScreen.TIMING_CUE_SETTINGS, viewModel.screen)
-        viewModel.goBackFromCurrentScreen()
-        assertEquals(AppScreen.SETTINGS, viewModel.screen)
+        appState.openTimingCueSettings()
+        assertEquals(AppScreen.TIMING_CUE_SETTINGS, appState.screen)
+        appState.goBackFromCurrentScreen()
+        assertEquals(AppScreen.SETTINGS, appState.screen)
         updateTimingAlerts { it.withGlobalMode(TimingAlertGlobalMode.OFF) }
         assertEquals(
             TimingAlertMode.NONE,
-            viewModel.settings.timingAlerts.alertModeFor(TimingCueId.PULLING_TIME_VIOLATION),
+            appState.settings.timingAlerts.alertModeFor(TimingCueId.PULLING_TIME_VIOLATION),
         )
         assertEquals(
             TimingAlertMode.NONE,
-            viewModel.settings.timingAlerts.alertModeFor(TimingCueId.OFFENSE_TEN),
+            appState.settings.timingAlerts.alertModeFor(TimingCueId.OFFENSE_TEN),
         )
-        viewModel.openArchivedGames()
-        assertEquals(AppScreen.ARCHIVED_GAMES, viewModel.screen)
-        viewModel.openAbout()
-        assertEquals(AppScreen.ABOUT, viewModel.screen)
-        viewModel.openOfficialClock()
-        assertEquals(AppScreen.OFFICIAL_CLOCK, viewModel.screen)
+        appState.openArchivedGames()
+        assertEquals(AppScreen.ARCHIVED_GAMES, appState.screen)
+        appState.openAbout()
+        assertEquals(AppScreen.ABOUT, appState.screen)
+        appState.openOfficialClock()
+        assertEquals(AppScreen.OFFICIAL_CLOCK, appState.screen)
         assertTrue(File(storeDir, "profile.json").exists())
         assertTrue(File(storeDir, "settings.json").exists())
 
-        // Recreate the ViewModel and verify persisted values restore while startup opens at Home.
-        val restored = AppViewModel(FileAppStateStorage(storeDir))
+        // Recreate the AppState and verify persisted values restore while startup opens at Home.
+        val restored = AppState(FileAppStateStorage(storeDir))
         assertEquals(AppScreen.HOME, restored.screen)
         assertEquals("Casey Observer", restored.profile.name)
         assertEquals(ObserverAvatarPreference.BLUE, restored.profile.avatarPreference)
@@ -176,7 +176,7 @@ class TestPersistence : GameDomainTestFixtures() {
         restored.disableWatchNotificationsIfUnavailable(notificationsEnabled = false)
         assertEquals(
             WatchConnectionMode.OFF,
-            AppViewModel(FileAppStateStorage(storeDir))
+            AppState(FileAppStateStorage(storeDir))
                 .settings.timingAlerts.watchConnectionMode,
         )
         assertEquals(
@@ -203,26 +203,26 @@ class TestPersistence : GameDomainTestFixtures() {
 
     /**
      * Verify persisted current-game state restores setup drafts, active games, and
-     * undo/redo history across ViewModel restarts.
+     * undo/redo history across AppState restarts.
      */
     @Test
     fun currentGamePersistence() {
         // Use real file storage so setup-draft and current-game restart behavior is exercised.
         val storeDir = temporaryFolder.newFolder()
         val store = FileAppStateStorage(storeDir)
-        val viewModel = AppViewModel(store)
+        val appState = AppState(store)
 
-        // A fresh ViewModel should keep a setup draft but open at Home.
-        viewModel.updateOfficialClockOffset(45_000L)
-        viewModel.startNewGame(now = 123_000L)
+        // A fresh AppState should keep a setup draft but open at Home.
+        appState.updateOfficialClockOffset(45_000L)
+        appState.startNewGame(now = 123_000L)
         val persistedRules = GameRules(gameTo = 13, nominalHardCapMinutes = 95, hasFloaterTimeout = true)
-        val draftedSetup = viewModel.setupGame.copy(
+        val draftedSetup = appState.setupGame.copy(
             rules = persistedRules,
             teamOne = TeamState("Viscous Coupling", TeamColorChoice.BLUE),
             teamTwo = TeamState("Animal", TeamColorChoice.PINK),
         )
-        viewModel.updateSetup(draftedSetup)
-        val draftRestored = AppViewModel(FileAppStateStorage(storeDir))
+        appState.updateSetup(draftedSetup)
+        val draftRestored = AppState(FileAppStateStorage(storeDir))
         assertEquals(AppScreen.HOME, draftRestored.screen)
         assertEquals(draftedSetup, draftRestored.setupGame)
         assertEquals(persistedRules, draftRestored.setupGame.rules)
@@ -242,8 +242,8 @@ class TestPersistence : GameDomainTestFixtures() {
         )
         draftRestored.updateCurrentGame(scoredState)
 
-        // A restarted ViewModel should restore the current game and its undo history.
-        val gameRestored = AppViewModel(FileAppStateStorage(storeDir))
+        // A restarted AppState should restore the current game and its undo history.
+        val gameRestored = AppState(FileAppStateStorage(storeDir))
         assertEquals(AppScreen.HOME, gameRestored.screen)
         assertEquals(scoredState, gameRestored.currentGame)
         assertEquals(persistedRules, gameRestored.currentGame!!.rules)
@@ -260,7 +260,7 @@ class TestPersistence : GameDomainTestFixtures() {
 
         // Persisting the undone state should preserve the redo entry across another restart.
         gameRestored.updateCurrentGame(undoRestoredState)
-        val redoRestored = AppViewModel(FileAppStateStorage(storeDir))
+        val redoRestored = AppState(FileAppStateStorage(storeDir))
         assertEquals(undoRestoredState, redoRestored.currentGame)
         assertEquals(scoredState, redoRestored.currentGame!!.redoLastAction())
     }
@@ -271,20 +271,20 @@ class TestPersistence : GameDomainTestFixtures() {
         // Start the first point so undo history contains the opening state and its pre-game
         // countdown target.
         val storeDir = temporaryFolder.newFolder()
-        val viewModel = AppViewModel(FileAppStateStorage(storeDir))
-        viewModel.startNewGame(now = 123_000L)
-        viewModel.finishSetup(now = 123_000L)
-        val opening = viewModel.currentGame!!
+        val appState = AppState(FileAppStateStorage(storeDir))
+        appState.startNewGame(now = 123_000L)
+        appState.finishSetup(now = 123_000L)
+        val opening = appState.currentGame!!
         val openingTarget = opening.countdown!!.targetEpoch
-        viewModel.updateCurrentGame(opening.beginLivePoint(123_000L))
+        appState.updateCurrentGame(opening.beginLivePoint(123_000L))
 
         // Move the official clock forward while the point is live. This persists the new mapping
         // on the current state without directly rewriting its undo history.
-        viewModel.updateOfficialClockOffset(60_000L)
+        appState.updateOfficialClockOffset(60_000L)
 
-        // Restart the ViewModel from disk, then undo the point start to reconstruct the saved
+        // Restart the AppState from disk, then undo the point start to reconstruct the saved
         // opening state from the serialized undo chain.
-        val restored = AppViewModel(FileAppStateStorage(storeDir))
+        val restored = AppState(FileAppStateStorage(storeDir))
         val undone = restored.currentGame!!.undoLastAction()
 
         // The reconstructed opening state adopts the current one-minute offset, including moving
@@ -298,13 +298,13 @@ class TestPersistence : GameDomainTestFixtures() {
     fun unchangedOfficialClockPersistence() {
         // The first offset change persists the new setting while there is no current game to save.
         val store = RecordingAppStateStorage()
-        val viewModel = AppViewModel(store)
-        viewModel.updateOfficialClockOffset(45_000L)
+        val appState = AppState(store)
+        appState.updateOfficialClockOffset(45_000L)
         assertEquals(45_000L, store.savedSettings.single().officialClockOffsetMillis)
         assertTrue(store.savedCurrentGames.isEmpty())
 
         // Sending the same offset again is a no-op rather than another settings write.
-        viewModel.updateOfficialClockOffset(45_000L)
+        appState.updateOfficialClockOffset(45_000L)
         assertEquals(1, store.savedSettings.size)
         assertTrue(store.savedCurrentGames.isEmpty())
     }
@@ -333,23 +333,23 @@ class TestPersistence : GameDomainTestFixtures() {
     }
 
     /**
-     * Verify live event updates persist at the ViewModel boundary without writing unrelated
+     * Verify live event updates persist at the AppState boundary without writing unrelated
      * profile or settings buckets.
      */
     @Test
     fun liveGameEventPersistence() {
-        // Use a recording store so only ViewModel save requests are inspected.
+        // Use a recording store so only AppState save requests are inspected.
         val store = RecordingAppStateStorage()
-        val viewModel = AppViewModel(store)
+        val appState = AppState(store)
 
         // Start a live game and clear the setup saves so the event assertion is focused.
-        viewModel.startNewGame(now = 123_000L)
-        viewModel.finishSetup(now = 123_000L)
+        appState.startNewGame(now = 123_000L)
+        appState.finishSetup(now = 123_000L)
         store.savedCurrentGames.clear()
 
         // Record an ordinary user-visible event through the same callback used by live UI actions.
-        val livePointState = viewModel.currentGame!!.beginLivePoint()
-        viewModel.updateCurrentGame(livePointState)
+        val livePointState = appState.currentGame!!.beginLivePoint()
+        appState.updateCurrentGame(livePointState)
         assertEquals(livePointState, store.savedCurrentGames.single())
         assertTrue(store.savedProfiles.isEmpty())
         assertTrue(store.savedSettings.isEmpty())
@@ -363,22 +363,22 @@ class TestPersistence : GameDomainTestFixtures() {
     fun independentPersistenceBuckets() {
         // Profile writes should not touch current-game or settings storage buckets.
         val store = RecordingAppStateStorage()
-        val viewModel = AppViewModel(store)
-        viewModel.updateProfile(viewModel.profile.withName("Casey Observer"))
+        val appState = AppState(store)
+        appState.updateProfile(appState.profile.withName("Casey Observer"))
         assertEquals("Casey Observer", store.savedProfiles.single().name)
         assertTrue(store.savedCurrentGames.isEmpty())
         assertTrue(store.savedSettings.isEmpty())
 
         // Settings and current-game writes likewise stay in their own buckets.
-        viewModel.updateProfile(viewModel.profile.withAvatarPreference(ObserverAvatarPreference.BLUE))
+        appState.updateProfile(appState.profile.withAvatarPreference(ObserverAvatarPreference.BLUE))
         assertEquals(ObserverAvatarPreference.BLUE, store.savedProfiles.last().avatarPreference)
         assertTrue(store.savedCurrentGames.isEmpty())
         assertTrue(store.savedSettings.isEmpty())
 
         // Settings writes should not touch current-game or profile storage buckets.
-        viewModel.updateSettings(
-            viewModel.settings.withTimingAlerts(
-                viewModel.settings.timingAlerts.withGlobalMode(TimingAlertGlobalMode.OFF)
+        appState.updateSettings(
+            appState.settings.withTimingAlerts(
+                appState.settings.timingAlerts.withGlobalMode(TimingAlertGlobalMode.OFF)
             )
         )
         assertEquals(
@@ -389,7 +389,7 @@ class TestPersistence : GameDomainTestFixtures() {
         assertEquals(2, store.savedProfiles.size)
 
         // Current-game writes should not touch profile or settings storage buckets.
-        viewModel.startNewGame(now = 123_000L)
+        appState.startNewGame(now = 123_000L)
         assertEquals(GamePhase.SETUP, store.savedCurrentGames.single()!!.phase)
         assertEquals(2, store.savedProfiles.size)
         assertEquals(1, store.savedSettings.size)
@@ -409,15 +409,15 @@ class TestPersistence : GameDomainTestFixtures() {
     fun archivedSummaryPersistence() {
         // Use real file storage so archived and current-game files can be inspected separately.
         val storeDir = temporaryFolder.newFolder()
-        val viewModel = AppViewModel(FileAppStateStorage(storeDir))
+        val appState = AppState(FileAppStateStorage(storeDir))
 
         // Complete and archive a game that still has live-only countdown and undo state.
-        viewModel.startNewGame(now = 123_000L)
-        viewModel.updateCurrentGame(
-            viewModel.currentGame!!.copy(officialClockOffsetMillis = 45_000L)
+        appState.startNewGame(now = 123_000L)
+        appState.updateCurrentGame(
+            appState.currentGame!!.copy(officialClockOffsetMillis = 45_000L)
         )
-        viewModel.finishSetup(now = 123_000L)
-        val beforeEndGame = viewModel.currentGame!!
+        appState.finishSetup(now = 123_000L)
+        val beforeEndGame = appState.currentGame!!
         val completedGame = beforeEndGame.copy(
             phase = GamePhase.GAME_OVER,
             countdown = CountdownState(
@@ -448,9 +448,9 @@ class TestPersistence : GameDomainTestFixtures() {
                 ),
             )
         )
-        viewModel.updateCurrentGame(completedGame)
-        viewModel.goHome()
-        viewModel.archiveCompletedGame()
+        appState.updateCurrentGame(completedGame)
+        appState.goHome()
+        appState.archiveCompletedGame()
 
         // Verify current game and archived games are written separately from profile/settings.
         assertTrue(File(storeDir, "current_game_state.json").exists())
@@ -459,7 +459,7 @@ class TestPersistence : GameDomainTestFixtures() {
         assertTrue(File(File(storeDir, "archived_games"), "00000.json").exists())
 
         // Restore from disk and verify the archived game keeps summary state and undo.
-        val restored = AppViewModel(FileAppStateStorage(storeDir))
+        val restored = AppState(FileAppStateStorage(storeDir))
         assertEquals(AppScreen.HOME, restored.screen)
         assertNull(restored.currentGame)
         assertEquals(1, restored.archivedGames.size)
@@ -592,7 +592,7 @@ class TestPersistence : GameDomainTestFixtures() {
         assertEquals(setOf(PersistedData.GAME_STATE), store.resetPersistedDataAreas)
 
         // App startup should preserve readable buckets and report the current-game reset.
-        val recoveredViewModel = AppViewModel(FileAppStateStorage(storeDir))
+        val recoveredViewModel = AppState(FileAppStateStorage(storeDir))
         assertNull(recoveredViewModel.currentGame)
         assertEquals("Casey Observer", recoveredViewModel.profile.name)
         assertEquals(timingPreferences, recoveredViewModel.settings.timingAlerts)
@@ -648,7 +648,7 @@ class TestPersistence : GameDomainTestFixtures() {
         assertEquals(setOf(PersistedData.ARCHIVED_GAMES), archiveStore.resetPersistedDataAreas)
 
         // Startup should show the recovery notice until the archive files have been repaired.
-        val archiveViewModel = AppViewModel(FileAppStateStorage(archiveStoreDir))
+        val archiveViewModel = AppState(FileAppStateStorage(archiveStoreDir))
         assertEquals(listOf(archivedTwo), archiveViewModel.archivedGames)
         assertEquals(
             "Sorry, some phone data was corrupt, so UltiObserver had to revert to default " +
@@ -660,7 +660,7 @@ class TestPersistence : GameDomainTestFixtures() {
         val repairedArchiveStore = FileAppStateStorage(archiveStoreDir)
         assertEquals(listOf(archivedTwo), repairedArchiveStore.loadArchivedGames())
         assertTrue(repairedArchiveStore.resetPersistedDataAreas.isEmpty())
-        val restoredAfterRecovery = AppViewModel(FileAppStateStorage(archiveStoreDir))
+        val restoredAfterRecovery = AppState(FileAppStateStorage(archiveStoreDir))
         assertEquals(listOf(archivedTwo), restoredAfterRecovery.archivedGames)
         assertNull(restoredAfterRecovery.startupRecoveryNotice)
     }
@@ -784,24 +784,24 @@ class TestPersistence : GameDomainTestFixtures() {
         File(storeDir, "current_game_state.json").writeText("{not-json")
         File(storeDir, "profile.json").writeText("{not-json")
         File(storeDir, "settings.json").writeText("{not-json")
-        val viewModel = AppViewModel(FileAppStateStorage(storeDir))
-        assertEquals(AppScreen.HOME, viewModel.screen)
-        assertNull(viewModel.currentGame)
-        assertEquals("", viewModel.profile.name)
-        assertEquals(TimingAlertPreferences(), viewModel.settings.timingAlerts)
+        val appState = AppState(FileAppStateStorage(storeDir))
+        assertEquals(AppScreen.HOME, appState.screen)
+        assertNull(appState.currentGame)
+        assertEquals("", appState.profile.name)
+        assertEquals(TimingAlertPreferences(), appState.settings.timingAlerts)
         assertEquals(
             setOf(
                 PersistedData.GAME_STATE,
                 PersistedData.PROFILE,
                 PersistedData.SETTINGS,
             ),
-            viewModel.startupRecoveryNotice!!.resetAreas,
+            appState.startupRecoveryNotice!!.resetAreas,
         )
-        assertEquals("Phone data reset", viewModel.startupRecoveryNotice!!.title)
+        assertEquals("Phone data reset", appState.startupRecoveryNotice!!.title)
         assertEquals(
             "Sorry, some phone data was corrupt, so UltiObserver had to revert to default " +
             "values for Current game, Profile, and Settings.",
-            viewModel.startupRecoveryNotice!!.message,
+            appState.startupRecoveryNotice!!.message,
         )
 
         // RecoveryNotice should format multi-area notices and reject empty notices.
@@ -1085,7 +1085,7 @@ private fun File.replaceText(oldValue: String, newValue: String) {
     writeText(readText().replace(oldValue, newValue))
 }
 
-/// Recording fake for AppViewModel persistence writes without touching the file system.
+/// Recording fake for AppState persistence writes without touching the file system.
 private class RecordingAppStateStorage : AppStateStorage {
     val savedCurrentGames = mutableListOf<GameState?>()
     val savedProfiles = mutableListOf<Profile>()
@@ -1100,7 +1100,7 @@ private class RecordingAppStateStorage : AppStateStorage {
     /**
      * Record a current-game save request.
      *
-     * @param state The current-game state passed by the ViewModel.
+     * @param state The current-game state passed by the AppState.
      */
     override fun saveCurrentGame(state: GameState?) {
         savedCurrentGames += state
@@ -1112,7 +1112,7 @@ private class RecordingAppStateStorage : AppStateStorage {
     /**
      * Record a profile save request.
      *
-     * @param state The profile state passed by the ViewModel.
+     * @param state The profile state passed by the AppState.
      */
     override fun saveProfile(state: Profile) {
         savedProfiles += state
@@ -1124,7 +1124,7 @@ private class RecordingAppStateStorage : AppStateStorage {
     /**
      * Record a settings save request.
      *
-     * @param state The settings state passed by the ViewModel.
+     * @param state The settings state passed by the AppState.
      */
     override fun saveSettings(state: Settings) {
         savedSettings += state
@@ -1136,7 +1136,7 @@ private class RecordingAppStateStorage : AppStateStorage {
     /**
      * Record an archived-games save request.
      *
-     * @param games The archived games passed by the ViewModel.
+     * @param games The archived games passed by the AppState.
      */
     override fun saveArchivedGames(games: List<GameState>) {
         savedArchivedGames += games
