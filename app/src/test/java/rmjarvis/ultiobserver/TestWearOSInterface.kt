@@ -74,8 +74,7 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         assertFalse(defaultSnapshot.gameOver)
         assertEquals(0L, defaultSnapshot.officialClockOffsetMillis)
         assertEquals("America/New_York", defaultSnapshot.officialTimeZoneId)
-        assertNull(defaultSnapshot.capLabel)
-        assertNull(defaultSnapshot.capTargetEpochMillis)
+        assertTrue(defaultSnapshot.upcomingCaps.isEmpty())
         assertNotNull(defaultSnapshot.countdown)
         assertNull(defaultSnapshot.ratio)
         assertNull(defaultSnapshot.pendingDecision)
@@ -131,9 +130,7 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         ).activeGame!!
         assertNull(livePointSnapshot.countdown)
 
-        // The snapshot that enters a live point schedules the same cap messages the phone will
-        // show, allowing the watch to advance from soft-cap to hard-cap text using phone time.
-        val capMessageGame = standardLiveGameState(
+        val capTimelineGame = standardLiveGameState(
             rules = GameRules(
                 gameTo = 15,
                 useHalfCap = false,
@@ -143,17 +140,31 @@ class TestWearOSInterface : GameDomainTestFixtures() {
                 nominalHardCapMinutes = 2,
             ),
         ).continueLivePoint()
-        val softCapEpoch = capMessageGame.capEpoch(CapType.SOFT)
-        val hardCapEpoch = capMessageGame.capEpoch(CapType.HARD)
-        val capMessageSnapshot = buildWearStateSnapshot(
-            game = capMessageGame,
+        val softCapEpoch = capTimelineGame.capEpoch(CapType.SOFT)
+        val hardCapEpoch = capTimelineGame.capEpoch(CapType.HARD)
+        val capTimelineSnapshot = buildWearStateSnapshot(
+            game = capTimelineGame,
             settings = settings,
             now = softCapEpoch - 10_000L,
             actionsAvailable = true,
         ).activeGame!!
+
+        // A live-point snapshot carries every future relevant cap, allowing the watch to advance
+        // from the soft-cap countdown to the hard-cap countdown using phone time.
+        assertEquals(
+            listOf("Soft cap", "Hard cap"),
+            capTimelineSnapshot.upcomingCaps.map { cap -> cap.label },
+        )
         assertEquals(
             listOf(softCapEpoch, hardCapEpoch),
-            capMessageSnapshot.statusMessageTransitions.map { transition ->
+            capTimelineSnapshot.upcomingCaps.map { cap -> cap.targetEpochMillis },
+        )
+
+        // The same snapshot schedules the cap messages the phone will show after those countdowns
+        // expire, allowing the watch to advance through that text using phone time as well.
+        assertEquals(
+            listOf(softCapEpoch, hardCapEpoch),
+            capTimelineSnapshot.statusMessageTransitions.map { transition ->
                 transition.targetEpochMillis
             },
         )
@@ -162,7 +173,7 @@ class TestWearOSInterface : GameDomainTestFixtures() {
                 "Soft cap passed. It will apply at the end of this point.",
                 "Hard cap passed. It will apply at the end of this point.",
             ),
-            capMessageSnapshot.statusMessageTransitions.map { transition -> transition.message },
+            capTimelineSnapshot.statusMessageTransitions.map { transition -> transition.message },
         )
 
         // A separate halftime game makes all context-dependent team actions unavailable.
@@ -232,12 +243,18 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         assertNotNull(active.activeGame)
         val gameSnapshot = active.activeGame!!
         val expectedCountdown = activeGame.activeCountdown(now)!!
-        val expectedCap = activeGame.computeNextCapStatus(now)
+        val expectedCaps = activeGame.upcomingCapStatuses(now)
         assertEquals(WearSnapshotStatus.ACTIVE_GAME, active.status)
         assertEquals(42_000L, gameSnapshot.officialClockOffsetMillis)
         assertEquals("America/New_York", gameSnapshot.officialTimeZoneId)
-        assertEquals("Hard cap in", gameSnapshot.capLabel)
-        assertEquals(expectedCap?.targetEpoch, gameSnapshot.capTargetEpochMillis)
+        assertEquals(
+            expectedCaps.map { status -> status.label },
+            gameSnapshot.upcomingCaps.map { cap -> cap.label },
+        )
+        assertEquals(
+            expectedCaps.map { status -> status.targetEpoch },
+            gameSnapshot.upcomingCaps.map { cap -> cap.targetEpochMillis },
+        )
         assertEquals("Animal", gameSnapshot.teamOne.name)
         assertEquals(8, gameSnapshot.teamOne.score)
         assertEquals(TeamColorChoice.BLUE.accentArgb, gameSnapshot.teamOne.backgroundArgb)

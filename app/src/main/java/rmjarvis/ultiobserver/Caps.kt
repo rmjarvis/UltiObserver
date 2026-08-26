@@ -6,7 +6,7 @@ import kotlin.math.max
 import kotlin.math.min
 
 /**
- * Representation of the next relevant cap status shown on the live screen.
+ * Representation of one relevant cap status shown on the live screen.
  *
  * @param label The user-facing cap label.
  * @param targetEpoch The phone epoch millis when that cap reaches its scheduled time.
@@ -199,6 +199,15 @@ fun GameState.deferPendingCap(): GameState {
  * @param now The current epoch millis used to exclude scheduled caps already in the past.
  */
 fun GameState.computeNextCapStatus(now: Long): CapStatus? {
+    return upcomingCapStatuses(now).firstOrNull()
+}
+
+/**
+ * Compute every future cap that still matters for live status display.
+ *
+ * @param now The current epoch millis used to exclude scheduled caps already in the past.
+ */
+internal fun GameState.upcomingCapStatuses(now: Long): List<CapStatus> {
     // `to` in Kotlin makes pairs. So `first to second` makes a pair (first, second).
     // Here we make pairs with second being another pair:
     // (isCapRelevant, (capName, capTime))
@@ -216,10 +225,10 @@ fun GameState.computeNextCapStatus(now: Long): CapStatus? {
         .map { it.second }
 
     return caps
-        // Find the first cap whose scheduled time is not in the past.
-        .firstOrNull { (_, targetEpoch) -> targetEpoch >= now }
-        // If any are found, return its label and scheduled time.
-        ?.let { (label, targetEpoch) -> CapStatus(label, targetEpoch) }
+        // Keep the caps whose scheduled time is not in the past.
+        .filter { (_, targetEpoch) -> targetEpoch >= now }
+        // Return each cap's label and scheduled time.
+        .map { (label, targetEpoch) -> CapStatus(label, targetEpoch) }
 }
 
 /**

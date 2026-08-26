@@ -49,6 +49,13 @@ data class WearStatusMessageTransition(
     val message: String?,
 )
 
+/** One future cap countdown shown in the watch's top status line. */
+@Serializable
+data class WearCapSnapshot(
+    val label: String,
+    val targetEpochMillis: Long,
+)
+
 /** Phone-style labels and availability for one team's action screen. */
 @Serializable
 data class WearTeamActionsSnapshot(
@@ -117,8 +124,7 @@ data class WearActiveGameSnapshot(
     val gameOver: Boolean = false,
     val officialClockOffsetMillis: Long,
     val officialTimeZoneId: String,
-    val capLabel: String?,
-    val capTargetEpochMillis: Long?,
+    val upcomingCaps: List<WearCapSnapshot> = emptyList(),
     val countdown: WearCountdownSnapshot?,
     val statusMessageTransitions: List<WearStatusMessageTransition> = emptyList(),
     val teamOne: WearTeamSnapshot,

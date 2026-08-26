@@ -11,6 +11,7 @@ import com.google.android.gms.wearable.WearableListenerService
 import java.security.MessageDigest
 import rmjarvis.ultiobserver.wearprotocol.WEAR_STATE_PATH
 import rmjarvis.ultiobserver.wearprotocol.WearActiveGameSnapshot
+import rmjarvis.ultiobserver.wearprotocol.WearCapSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearCountdownSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearCueSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearDecisionRequest
@@ -223,7 +224,6 @@ internal fun buildWearStateSnapshot(
     }
 
     val activeCountdown = game.activeCountdown(now)
-    val capStatus = game.computeNextCapStatus(now)
     val currentRatio = game.currentGenderRatio()
     val pendingDecision = if (actionsAvailable) game.pendingGameDecision() else null
     val gameOver = game.phase == GamePhase.GAME_OVER
@@ -236,8 +236,12 @@ internal fun buildWearStateSnapshot(
             gameOver = gameOver,
             officialClockOffsetMillis = game.officialClockOffsetMillis,
             officialTimeZoneId = game.timeZone.id,
-            capLabel = capStatus?.let { status -> "${status.label} in" },
-            capTargetEpochMillis = capStatus?.targetEpoch,
+            upcomingCaps = game.upcomingCapStatuses(now).map { status ->
+                WearCapSnapshot(
+                    label = status.label,
+                    targetEpochMillis = status.targetEpoch,
+                )
+            },
             countdown = activeCountdown?.let { countdown ->
                 WearCountdownSnapshot(
                     label = countdown.label,

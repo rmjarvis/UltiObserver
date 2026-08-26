@@ -184,7 +184,9 @@ private fun WearActiveGameSnapshot.toGameDisplay(
     currentPhoneEpochMillis: Long,
     connected: Boolean,
 ): GameDisplay {
-    val remainingCapMillis = capTargetEpochMillis?.minus(currentPhoneEpochMillis)
+    val nextCap = upcomingCaps.firstOrNull { cap ->
+        cap.targetEpochMillis >= currentPhoneEpochMillis
+    }
     val countdownRemainingMillis = countdown?.let { state ->
         state.targetEpochMillis - (state.pausedAtEpochMillis ?: currentPhoneEpochMillis)
     }
@@ -199,10 +201,9 @@ private fun WearActiveGameSnapshot.toGameDisplay(
             epochMillis = currentPhoneEpochMillis + officialClockOffsetMillis,
             timeZoneId = officialTimeZoneId,
         ),
-        capStatus = if (remainingCapMillis != null && remainingCapMillis >= 0L) {
-            "$capLabel ${formatDurationMillis(remainingCapMillis)}"
-        } else {
-            null
+        capStatus = nextCap?.let { cap ->
+            val remainingMillis = cap.targetEpochMillis - currentPhoneEpochMillis
+            "${cap.label} in ${formatDurationMillis(remainingMillis)}"
         },
         countdownLabel = countdown?.label.orEmpty(),
         countdownValue = if (gameOver) {
