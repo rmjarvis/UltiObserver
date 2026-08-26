@@ -191,6 +191,9 @@ private fun WearActiveGameSnapshot.toGameDisplay(
     val nextCue = countdown?.cues?.firstOrNull { cue ->
         cue.targetEpochMillis >= currentPhoneEpochMillis
     }
+    val statusMessage = statusMessageTransitions
+        .lastOrNull { transition -> transition.targetEpochMillis <= currentPhoneEpochMillis }
+        ?.message
     return GameDisplay(
         officialTime = formatOfficialTime(
             epochMillis = currentPhoneEpochMillis + officialClockOffsetMillis,
@@ -201,13 +204,14 @@ private fun WearActiveGameSnapshot.toGameDisplay(
         } else {
             null
         },
-        countdownLabel = if (gameOver) "Game over" else countdown?.label.orEmpty(),
+        countdownLabel = countdown?.label.orEmpty(),
         countdownValue = if (gameOver) {
             null
         } else {
             countdownRemainingMillis?.let(::formatDurationMillis)
         },
         nextCue = if (gameOver) null else nextCue?.let { cue -> "Next: ${cue.message}" },
+        statusMessage = statusMessage.takeIf { countdown == null },
         teamOne = teamOne.toTeamDisplay(),
         teamTwo = teamTwo.toTeamDisplay(),
         pullDirection = when (pullDirection) {

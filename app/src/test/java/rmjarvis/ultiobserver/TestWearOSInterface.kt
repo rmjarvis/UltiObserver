@@ -80,6 +80,7 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         assertNull(defaultSnapshot.ratio)
         assertNull(defaultSnapshot.pendingDecision)
         assertNull(defaultSnapshot.undoDescription)
+        assertTrue(defaultSnapshot.statusMessageTransitions.isEmpty())
         assertEquals(WearSnapshotPullDirection.LEFT_TO_RIGHT, defaultSnapshot.pullDirection)
         assertEquals("Viscous Coupling", defaultSnapshot.teamOne.name)
         assertEquals(0, defaultSnapshot.teamOne.score)
@@ -129,6 +130,40 @@ class TestWearOSInterface : GameDomainTestFixtures() {
             actionsAvailable = true,
         ).activeGame!!
         assertNull(livePointSnapshot.countdown)
+
+        // The snapshot that enters a live point schedules the same cap messages the phone will
+        // show, allowing the watch to advance from soft-cap to hard-cap text using phone time.
+        val capMessageGame = standardLiveGameState(
+            rules = GameRules(
+                gameTo = 15,
+                useHalfCap = false,
+                useSoftCap = true,
+                nominalSoftCapMinutes = 1,
+                useHardCap = true,
+                nominalHardCapMinutes = 2,
+            ),
+        ).continueLivePoint()
+        val softCapEpoch = capMessageGame.capEpoch(CapType.SOFT)
+        val hardCapEpoch = capMessageGame.capEpoch(CapType.HARD)
+        val capMessageSnapshot = buildWearStateSnapshot(
+            game = capMessageGame,
+            settings = settings,
+            now = softCapEpoch - 10_000L,
+            actionsAvailable = true,
+        ).activeGame!!
+        assertEquals(
+            listOf(softCapEpoch, hardCapEpoch),
+            capMessageSnapshot.statusMessageTransitions.map { transition ->
+                transition.targetEpochMillis
+            },
+        )
+        assertEquals(
+            listOf(
+                "Soft cap passed. It will apply at the end of this point.",
+                "Hard cap passed. It will apply at the end of this point.",
+            ),
+            capMessageSnapshot.statusMessageTransitions.map { transition -> transition.message },
+        )
 
         // A separate halftime game makes all context-dependent team actions unavailable.
         val halftimeBaseGame = standardLiveGameState()
@@ -552,6 +587,12 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         assertEquals(gameOverResult.teamOne.score, completedGameSnapshot.teamOne.score)
         assertEquals(gameOverResult.teamTwo.score, completedGameSnapshot.teamTwo.score)
         assertNull(completedGameSnapshot.countdown)
+        assertEquals(
+            listOf("Game over"),
+            completedGameSnapshot.statusMessageTransitions.map { transition ->
+                transition.message
+            },
+        )
 
         // The response holds whether the action was applied and the resulting snapshot, which
         // both survive the encoding and decoding round trip when sent to the watch.

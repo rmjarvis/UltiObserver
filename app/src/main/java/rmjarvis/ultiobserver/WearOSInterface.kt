@@ -26,6 +26,7 @@ import rmjarvis.ultiobserver.wearprotocol.WearSnapshotPullDirection
 import rmjarvis.ultiobserver.wearprotocol.WearSnapshotStatus
 import rmjarvis.ultiobserver.wearprotocol.WearStateSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearStartupResponse
+import rmjarvis.ultiobserver.wearprotocol.WearStatusMessageTransition
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionsSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearTeamId
 import rmjarvis.ultiobserver.wearprotocol.WearTeamSnapshot
@@ -250,6 +251,7 @@ internal fun buildWearStateSnapshot(
                     },
                 )
             },
+            statusMessageTransitions = game.wearStatusMessageTransitions(now),
             teamOne = game.wearTeamSnapshot(TeamId.TEAM_ONE, now),
             teamTwo = game.wearTeamSnapshot(TeamId.TEAM_TWO, now),
             pullDirection = if (game.pullingTeam == TeamId.TEAM_ONE) {
@@ -271,6 +273,41 @@ internal fun buildWearStateSnapshot(
             pendingDecision = pendingDecision?.wearSnapshot(settings.ruleGuidanceMode),
         ),
     )
+}
+
+/** Build each timed change to the phone-owned status text for the current game screen. */
+private fun GameState.wearStatusMessageTransitions(
+    now: Long,
+): List<WearStatusMessageTransition> {
+    if (phase == GamePhase.GAME_OVER) {
+        return listOf(
+            WearStatusMessageTransition(
+                targetEpochMillis = now,
+                message = "Game over",
+            )
+        )
+    }
+    if (phase != GamePhase.LIVE_POINT) {
+        return emptyList()
+    }
+    val candidates = (
+        listOf(now) + CapType.entries
+            .map { capType -> capEpoch(capType) }
+            .filter { targetEpoch -> targetEpoch > now }
+        )
+        .distinct()
+        .sorted()
+        .map { targetEpoch ->
+            WearStatusMessageTransition(
+                targetEpochMillis = targetEpoch,
+                message = capStatusMessage(targetEpoch),
+            )
+        }
+    return candidates
+        .filterIndexed { index, candidate ->
+            index == 0 || candidate.message != candidates[index - 1].message
+        }
+        .dropWhile { transition -> transition.message == null }
 }
 
 /** Build one team and its phone-equivalent compact action labels. */

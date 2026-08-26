@@ -82,6 +82,7 @@ internal data class GameDisplay(
     val countdownLabel: String,
     val countdownValue: String?,
     val nextCue: String?,
+    val statusMessage: String?,
     val teamOne: TeamDisplay,
     val teamTwo: TeamDisplay,
     val pullDirection: PullDirection,
@@ -219,14 +220,22 @@ private fun StatusRegion(
                     maxLines = 1,
                 )
                 RetryLabel(onRetry)
-            } else if (display.gameOver) {
-                CountdownStatus(display)
-            } else if (!display.actionsAvailable) {
+            } else if (!display.actionsAvailable && !display.gameOver) {
                 Text(
                     text = "Resume current game on phone to enable actions",
                     modifier = Modifier.padding(top = 13.dp),
                     color = StatusTextColor,
                     fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 2,
+                    textAlign = TextAlign.Center,
+                )
+            } else if (display.statusMessage != null) {
+                Text(
+                    text = display.statusMessage,
+                    modifier = Modifier.padding(top = 5.dp),
+                    color = Color.White,
+                    fontSize = if (display.gameOver) 18.sp else 13.sp,
                     fontWeight = FontWeight.Medium,
                     maxLines = 2,
                     textAlign = TextAlign.Center,

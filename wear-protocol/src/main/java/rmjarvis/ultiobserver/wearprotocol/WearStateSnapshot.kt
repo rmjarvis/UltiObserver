@@ -42,6 +42,13 @@ data class WearCountdownSnapshot(
     val cues: List<WearCueSnapshot>,
 )
 
+/** One scheduled change to phone-formatted text shown in the watch countdown area. */
+@Serializable
+data class WearStatusMessageTransition(
+    val targetEpochMillis: Long,
+    val message: String?,
+)
+
 /** Phone-style labels and availability for one team's action screen. */
 @Serializable
 data class WearTeamActionsSnapshot(
@@ -113,6 +120,7 @@ data class WearActiveGameSnapshot(
     val capLabel: String?,
     val capTargetEpochMillis: Long?,
     val countdown: WearCountdownSnapshot?,
+    val statusMessageTransitions: List<WearStatusMessageTransition> = emptyList(),
     val teamOne: WearTeamSnapshot,
     val teamTwo: WearTeamSnapshot,
     val pullDirection: WearSnapshotPullDirection,
