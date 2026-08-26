@@ -88,6 +88,7 @@ internal data class GameDisplay(
     val ratioBadge: RatioBadgeDisplay?,
     val connected: Boolean,
     val actionsAvailable: Boolean,
+    val gameOver: Boolean,
     val undoDescription: String?,
 )
 
@@ -218,6 +219,8 @@ private fun StatusRegion(
                     maxLines = 1,
                 )
                 RetryLabel(onRetry)
+            } else if (display.gameOver) {
+                CountdownStatus(display)
             } else if (!display.actionsAvailable) {
                 Text(
                     text = "Resume current game on phone to enable actions",
@@ -276,14 +279,13 @@ private fun TeamField(
 ) {
     BoxWithConstraints(
         modifier = modifier.alpha(
-            if (display.connected && display.actionsAvailable) 1f else DisabledContentAlpha
+            if (display.connected && (display.actionsAvailable || display.gameOver)) {
+                1f
+            } else {
+                DisabledContentAlpha
+            }
         ),
     ) {
-        val centerStackHeight = PullArrowHeight + CenterStackSpacing +
-            if (display.ratioBadge == null) 0.dp else RatioBadgeHeight
-        val centerStackTopPadding =
-            (maxHeight - VisibleUndoHeight - centerStackHeight) / 2f
-
         Row(modifier = Modifier.fillMaxSize()) {
             TeamRegion(
                 team = display.teamOne,
@@ -309,11 +311,17 @@ private fun TeamField(
                 .background(FieldDividerColor)
                 .align(Alignment.TopCenter),
         )
-        PullAndRatio(
-            display = display,
-            topPadding = centerStackTopPadding,
-            modifier = Modifier.align(Alignment.TopCenter),
-        )
+        if (!display.gameOver) {
+            val centerStackHeight = PullArrowHeight + CenterStackSpacing +
+                if (display.ratioBadge == null) 0.dp else RatioBadgeHeight
+            val centerStackTopPadding =
+                (maxHeight - VisibleUndoHeight - centerStackHeight) / 2f
+            PullAndRatio(
+                display = display,
+                topPadding = centerStackTopPadding,
+                modifier = Modifier.align(Alignment.TopCenter),
+            )
+        }
     }
 }
 

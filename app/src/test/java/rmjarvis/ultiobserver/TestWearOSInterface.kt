@@ -71,6 +71,7 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         val defaultSnapshot = default.activeGame!!
         assertEquals(wearStateToken(defaultGame), defaultSnapshot.stateToken)
         assertTrue(defaultSnapshot.actionsAvailable)
+        assertFalse(defaultSnapshot.gameOver)
         assertEquals(0L, defaultSnapshot.officialClockOffsetMillis)
         assertEquals("America/New_York", defaultSnapshot.officialTimeZoneId)
         assertNull(defaultSnapshot.capLabel)
@@ -536,14 +537,24 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         assertNull(gameOverResult.pendingCapOffer)
         assertNull(gameOverResult.pendingScoreTransition)
 
-        // The response holds whether the action was applied and the resulting snapshot, which
-        // both survive the encoding and decoding round trip when sent to the watch,
+        // A completed current game remains visible on the watch with its final score, while
+        // countdown and game actions no longer apply.
         val finalSnapshot = buildWearStateSnapshot(
             game = gameOverResult,
             settings = settings,
             now = goalTime,
             actionsAvailable = false,
         )
+        assertEquals(WearSnapshotStatus.ACTIVE_GAME, finalSnapshot.status)
+        val completedGameSnapshot = finalSnapshot.activeGame!!
+        assertTrue(completedGameSnapshot.gameOver)
+        assertFalse(completedGameSnapshot.actionsAvailable)
+        assertEquals(gameOverResult.teamOne.score, completedGameSnapshot.teamOne.score)
+        assertEquals(gameOverResult.teamTwo.score, completedGameSnapshot.teamTwo.score)
+        assertNull(completedGameSnapshot.countdown)
+
+        // The response holds whether the action was applied and the resulting snapshot, which
+        // both survive the encoding and decoding round trip when sent to the watch.
         val response = WearGameActionResponse(applied = true, snapshot = finalSnapshot)
         assertEquals(
             response,

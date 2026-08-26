@@ -201,9 +201,13 @@ private fun WearActiveGameSnapshot.toGameDisplay(
         } else {
             null
         },
-        countdownLabel = countdown?.label.orEmpty(),
-        countdownValue = countdownRemainingMillis?.let(::formatDurationMillis),
-        nextCue = nextCue?.let { cue -> "Next: ${cue.message}" },
+        countdownLabel = if (gameOver) "Game over" else countdown?.label.orEmpty(),
+        countdownValue = if (gameOver) {
+            null
+        } else {
+            countdownRemainingMillis?.let(::formatDurationMillis)
+        },
+        nextCue = if (gameOver) null else nextCue?.let { cue -> "Next: ${cue.message}" },
         teamOne = teamOne.toTeamDisplay(),
         teamTwo = teamTwo.toTeamDisplay(),
         pullDirection = when (pullDirection) {
@@ -219,6 +223,7 @@ private fun WearActiveGameSnapshot.toGameDisplay(
         },
         connected = connected,
         actionsAvailable = actionsAvailable,
+        gameOver = gameOver,
         undoDescription = undoDescription,
     )
 }

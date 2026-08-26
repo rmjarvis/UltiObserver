@@ -107,6 +107,7 @@ data class WearDecisionSnapshot(
 data class WearActiveGameSnapshot(
     val stateToken: String,
     val actionsAvailable: Boolean,
+    val gameOver: Boolean = false,
     val officialClockOffsetMillis: Long,
     val officialTimeZoneId: String,
     val capLabel: String?,

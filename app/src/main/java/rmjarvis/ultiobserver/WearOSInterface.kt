@@ -213,8 +213,7 @@ internal fun buildWearStateSnapshot(
     }
     if (
         game == null ||
-        game.phase == GamePhase.SETUP ||
-        game.phase == GamePhase.GAME_OVER
+        game.phase == GamePhase.SETUP
     ) {
         return WearStateSnapshot(
             status = WearSnapshotStatus.NO_ACTIVE_GAME,
@@ -226,12 +225,14 @@ internal fun buildWearStateSnapshot(
     val capStatus = game.computeNextCapStatus(now)
     val currentRatio = game.currentGenderRatio()
     val pendingDecision = if (actionsAvailable) game.pendingGameDecision() else null
-    val gameActionsAvailable = actionsAvailable && pendingDecision == null
+    val gameOver = game.phase == GamePhase.GAME_OVER
+    val gameActionsAvailable = actionsAvailable && !gameOver && pendingDecision == null
     return WearStateSnapshot(
         status = WearSnapshotStatus.ACTIVE_GAME,
         activeGame = WearActiveGameSnapshot(
             stateToken = wearStateToken(game),
             actionsAvailable = gameActionsAvailable,
+            gameOver = gameOver,
             officialClockOffsetMillis = game.officialClockOffsetMillis,
             officialTimeZoneId = game.timeZone.id,
             capLabel = capStatus?.let { status -> "${status.label} in" },
