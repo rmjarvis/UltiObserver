@@ -440,52 +440,51 @@ class TestCaps : GameDomainTestFixtures() {
     @Test
     fun softAndHardCaps() {
         // Soft cap sets the winning score to the current higher score plus one.
-        var state = newCapState(capRules.copy(useHalfCap = false))
+        var state = newCapState(capRules)
         state = scoreAt(state, vc, 5)
-        state = scoreAt(state, animal, 21)
-        assertEquals(1, state.teamOne.score)
-        assertEquals(1, state.teamTwo.score)
+        state = scoreAt(state, vc, 21)
+        assertEquals(2, state.teamOne.score)
+        assertEquals(0, state.teamTwo.score)
         assertEquals(CapType.SOFT, state.pendingCapOffer)
         assertEquals("Soft cap", state.capPrompt().formatTitle())
         assertEquals(
-            "Soft cap was at 10:20 AM, so it applies now. The new winning score is 2.",
+            "Soft cap was at 10:20 AM, so it applies now. The new winning score is 3.",
             state.capPrompt().formatMessage().plainText,
         )
         state = applyPendingCapAt(state, LocalTime.of(10, 21))
         assertTrue(state.softCapApplied)
-        assertEquals(2, state.winningScore)
+        assertEquals(3, state.winningScore)
         assertNull(state.pendingCapOffer)
         assertEquals("Undo Apply soft cap", state.undoEntry?.label)
         assertEquals(EventLogType.SOFT_CAP, state.eventLog.last().type)
         assertTrue(state.formatEventLogLines().last().endsWith("Soft cap applied"))
-        state = scoreAt(state, vc, 22)
+
+        // When soft cap applies before normal halftime, the earlier half cap can
+        // no longer affect play. A score by Animal now doesn't trigger a half cap.
+        assertFalse(state.halfCapRelevant())
+        state = scoreAt(state, animal, 22)
+        assertEquals(2, state.teamOne.score)
+        assertEquals(1, state.teamTwo.score)
+        assertNull(state.pendingCapOffer)
+
+        // When the winning team is only up by 1, and soft cap has applied, then hard
+        // cap is also irrelevant.  It displays a message saying so until after the
+        // hard cap time.
+        val softCapDecidingPoint = state.beginLivePoint()
+        assertEquals(
+            "Hard cap is no longer relevant.",
+            softCapDecidingPoint.capStatusMessage(timestampAfterStart(state, 22)),
+        )
+        assertNull(
+            softCapDecidingPoint.capStatusMessage(timestampAfterStart(state, 31))
+        )
+        state = scoreAt(state, vc, 32)
         assertEquals(ScoreTransition.GAME_OVER, state.pendingScoreTransition?.transition)
         state = state.acceptPendingScoreTransition()
         assertEquals(GamePhase.GAME_OVER, state.phase)
-        assertEquals(2, state.teamOne.score)
+        assertEquals(3, state.teamOne.score)
         assertEquals(1, state.teamTwo.score)
-        assertEquals(2, state.winningScore)
-
-        // Once soft cap has applied, a later non-winning point does not offer it again.
-        state = newCapState(
-            capRules.copy(
-                useHalfCap = false,
-                useHardCap = false,
-            )
-        ).let { freshState ->
-            freshState.copy(
-                teamOne = freshState.teamOne.copy(score = 9),
-                halftimeTaken = true,
-            )
-        }
-        state = scoreAt(state, animal, 21)
-        assertEquals(CapType.SOFT, state.pendingCapOffer)
-        state = applyPendingCapAt(state, LocalTime.of(10, 21))
-        assertEquals(10, state.winningScore)
-        state = scoreAt(state, animal, 22)
-        assertEquals(9, state.teamOne.score)
-        assertEquals(2, state.teamTwo.score)
-        assertNull(state.pendingCapOffer)
+        assertEquals(3, state.winningScore)
 
         // Hard cap while the score is not tied sets the target to the current higher score and
         // makes game over pending.
@@ -552,7 +551,7 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals("Game over", GamePrompt.GameOver(state).formatTitle())
 
         // Hard cap while tied triggers universe point, rather than ending.
-        state = newCapState(capRules.copy(useHalfCap = false))
+        state = newCapState(capRules)
         state = scoreAt(state, vc, 5)
         state = scoreAt(state, vc, 6)
         state = scoreAt(state, animal, 7)
@@ -572,8 +571,9 @@ class TestCaps : GameDomainTestFixtures() {
         assertNull(state.pendingCapOffer)
         assertEquals(EventLogType.HARD_CAP, state.eventLog.last().type)
 
-        // The applied hard cap is now the final target: the earlier soft cap is no longer relevant,
-        // and the deciding point does not show another cap status message.
+        // The applied hard cap is now the final target: the earlier half and soft caps are no
+        // longer relevant, and the deciding point does not show another cap status message.
+        assertFalse(state.halfCapRelevant())
         assertFalse(state.softCapRelevant())
         val decidingPoint = state.beginLivePoint()
         assertNull(decidingPoint.capStatusMessage(timestampAfterStart(decidingPoint, 31)))

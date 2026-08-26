@@ -363,6 +363,7 @@ internal fun GameState.halfCapRelevant(): Boolean {
     return rules.capEnabled(CapType.HALF) &&
         !halftimeTaken &&
         !halfCapApplied &&
+        winningScoreAllowsHalftime() &&
         halfCapCanChangeHalftime(rules, teamOne.score, teamTwo.score)
 }
 /** Report whether soft cap can still lower the winning score after the current point. */
@@ -392,6 +393,7 @@ internal fun GameState.halfCapReached(
     return rules.capEnabled(CapType.HALF) &&
         !halftimeTaken &&
         !halfCapApplied &&
+        winningScoreAllowsHalftime() &&
         halfCapCanChangeHalftimeNow(rules, teamOneScore, teamTwoScore) &&
         now >= capEpoch(CapType.HALF)
 }
@@ -458,6 +460,12 @@ private fun GameState.isUniversePoint(teamOneScore: Int, teamTwoScore: Int): Boo
     return teamOneScore == teamTwoScore &&
         teamOneScore == (winningScore ?: rules.gameTo) - 1
 }
+
+/** Report whether the current winning target leaves room to reach halftime before game over. */
+private fun GameState.winningScoreAllowsHalftime(): Boolean {
+    return (winningScore ?: rules.gameTo) > halftimeScore(rules)
+}
+
 /**
  * Calculate the normal halftime target as the next count above half the game target.
  * For example, a game to 15 has a normal halftime target of 8.
