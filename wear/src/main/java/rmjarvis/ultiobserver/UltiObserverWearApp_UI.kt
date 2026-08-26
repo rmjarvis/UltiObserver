@@ -2,20 +2,27 @@ package rmjarvis.ultiobserver
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -33,19 +40,32 @@ import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 import rmjarvis.ultiobserver.wearprotocol.WearActiveGameSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearSnapshotPullDirection
 import rmjarvis.ultiobserver.wearprotocol.WearSnapshotStatus
+import rmjarvis.ultiobserver.wearprotocol.WearTeamId
 import rmjarvis.ultiobserver.wearprotocol.WearTeamSnapshot
 
 /** Route synchronized phone state to the watch's idle, game, or team-action surface. */
 @Composable
 internal fun UltiObserverWearApp(
     receivedState: ReceivedState?,
-    phoneReachable: Boolean,
+    connectionState: ConnectionState,
+    onRetry: () -> Unit,
+    onGoal: (WearTeamId, String, (Boolean) -> Unit) -> Unit,
+    onDecision: (String, Boolean, (Boolean) -> Unit) -> Unit,
 ) {
     var selectedTeam by remember { mutableIntStateOf(0) }
     val snapshot = receivedState?.snapshot
+    val phoneReachable = connectionState == ConnectionState.CONNECTED
 
-    LaunchedEffect(phoneReachable, snapshot?.status) {
-        if (!phoneReachable || snapshot?.status != WearSnapshotStatus.ACTIVE_GAME) {
+    LaunchedEffect(
+        phoneReachable,
+        snapshot?.status,
+        snapshot?.activeGame?.actionsAvailable,
+    ) {
+        if (
+            !phoneReachable ||
+            snapshot?.status != WearSnapshotStatus.ACTIVE_GAME ||
+            snapshot.activeGame?.actionsAvailable != true
+        ) {
             selectedTeam = 0
         }
     }
@@ -54,19 +74,38 @@ internal fun UltiObserverWearApp(
     }
 
     when {
-        snapshot == null -> MessageScreen("Lost connection")
+        snapshot == null && connectionState == ConnectionState.CONNECTING ->
+            MessageScreen("Connecting…")
+        snapshot == null -> MessageScreen(
+            message = "Could not find a paired phone running UltiObserver.",
+            onRetry = onRetry,
+        )
         snapshot.status == WearSnapshotStatus.DISABLED -> DisabledScreen()
         snapshot.status == WearSnapshotStatus.NO_ACTIVE_GAME && !phoneReachable ->
-            MessageScreen("Lost connection")
+            MessageScreen("Lost connection", onRetry)
         snapshot.status == WearSnapshotStatus.NO_ACTIVE_GAME ->
             MessageScreen("No active game")
-        else -> ActiveGameScreen(
-            receivedState = receivedState,
-            activeGame = snapshot.activeGame!!,
-            phoneReachable = phoneReachable,
-            selectedTeam = selectedTeam,
-            onSelectedTeamChange = { selectedTeam = it },
-        )
+        else -> {
+            val activeGame = snapshot.activeGame!!
+            val pendingDecision = activeGame.pendingDecision
+            if (phoneReachable && pendingDecision != null) {
+                DecisionScreen(
+                    decision = pendingDecision,
+                    stateToken = activeGame.stateToken,
+                    onDecision = onDecision,
+                )
+            } else {
+                ActiveGameScreen(
+                    receivedState = receivedState,
+                    activeGame = activeGame,
+                    phoneReachable = phoneReachable,
+                    selectedTeam = selectedTeam,
+                    onSelectedTeamChange = { selectedTeam = it },
+                    onRetry = onRetry,
+                    onGoal = onGoal,
+                )
+            }
+        }
     }
 }
 
@@ -78,7 +117,10 @@ private fun ActiveGameScreen(
     phoneReachable: Boolean,
     selectedTeam: Int,
     onSelectedTeamChange: (Int) -> Unit,
+    onRetry: () -> Unit,
+    onGoal: (WearTeamId, String, (Boolean) -> Unit) -> Unit,
 ) {
+    var commandPending by remember { mutableStateOf(false) }
     val currentPhoneEpochMillis by produceState(
         initialValue = System.currentTimeMillis() + receivedState.phoneClockOffsetMillis,
         receivedState,
@@ -101,16 +143,30 @@ private fun ActiveGameScreen(
             onTeamTwo = {
                 onSelectedTeamChange(2)
             },
+            onRetry = onRetry,
             onUndo = {},
         )
     } else {
         TeamActionsScreen(
             display = if (selectedTeam == 1) {
-                activeGame.teamOne.toTeamActionsDisplay()
+                activeGame.teamOne.toTeamActionsDisplay(!commandPending)
             } else {
-                activeGame.teamTwo.toTeamActionsDisplay()
+                activeGame.teamTwo.toTeamActionsDisplay(!commandPending)
             },
-            onGoal = {},
+            onGoal = {
+                if (!commandPending) {
+                    commandPending = true
+                    onGoal(
+                        if (selectedTeam == 1) WearTeamId.TEAM_ONE else WearTeamId.TEAM_TWO,
+                        activeGame.stateToken,
+                    ) { applied ->
+                        commandPending = false
+                        if (applied) {
+                            onSelectedTeamChange(0)
+                        }
+                    }
+                }
+            },
             onTimeViolation = {},
             onPullViolation = {},
             onCard = {},
@@ -162,6 +218,7 @@ private fun WearActiveGameSnapshot.toGameDisplay(
             )
         },
         connected = connected,
+        actionsAvailable = actionsAvailable,
         undoDescription = undoDescription,
     )
 }
@@ -175,7 +232,7 @@ private fun WearTeamSnapshot.toTeamDisplay(): TeamDisplay {
     )
 }
 
-private fun WearTeamSnapshot.toTeamActionsDisplay(): TeamActionsDisplay {
+private fun WearTeamSnapshot.toTeamActionsDisplay(actionsAvailable: Boolean): TeamActionsDisplay {
     return TeamActionsDisplay(
         team = toTeamDisplay(),
         timeViolationLabel = actions.timeViolationLabel,
@@ -183,12 +240,12 @@ private fun WearTeamSnapshot.toTeamActionsDisplay(): TeamActionsDisplay {
         cardLabel = actions.cardLabel,
         technicalFoulLabel = actions.technicalFoulLabel,
         timeoutLabel = actions.timeoutLabel,
-        goalEnabled = actions.goalEnabled,
-        timeViolationEnabled = actions.timeViolationEnabled,
-        pullViolationEnabled = actions.pullViolationEnabled,
-        cardEnabled = actions.cardEnabled,
-        technicalFoulEnabled = actions.technicalFoulEnabled,
-        timeoutEnabled = actions.timeoutEnabled,
+        goalEnabled = actionsAvailable && actions.goalEnabled,
+        timeViolationEnabled = actionsAvailable && actions.timeViolationEnabled,
+        pullViolationEnabled = actionsAvailable && actions.pullViolationEnabled,
+        cardEnabled = actionsAvailable && actions.cardEnabled,
+        technicalFoulEnabled = actionsAvailable && actions.technicalFoulEnabled,
+        timeoutEnabled = actionsAvailable && actions.timeoutEnabled,
     )
 }
 
@@ -206,23 +263,33 @@ private fun DisabledScreen() {
 }
 
 @Composable
-private fun MessageScreen(message: String) {
-    MessageScreen(buildAnnotatedString { append(message) })
+private fun MessageScreen(
+    message: String,
+    onRetry: (() -> Unit)? = null,
+) {
+    MessageScreen(
+        message = buildAnnotatedString { append(message) },
+        onRetry = onRetry,
+    )
 }
 
 @Composable
-private fun MessageScreen(message: androidx.compose.ui.text.AnnotatedString) {
+private fun MessageScreen(
+    message: androidx.compose.ui.text.AnnotatedString,
+    onRetry: (() -> Unit)? = null,
+) {
     UltiObserverTheme {
         AppScaffold(
             timeText = { TimeText() },
             containerColor = Color.Black,
             contentColor = Color.White,
         ) {
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Black),
-                contentAlignment = Alignment.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
             ) {
                 Text(
                     text = message,
@@ -234,8 +301,37 @@ private fun MessageScreen(message: androidx.compose.ui.text.AnnotatedString) {
                     lineHeight = 17.sp,
                     textAlign = TextAlign.Center,
                 )
+                if (onRetry != null) {
+                    RetryLabel(onRetry)
+                }
             }
         }
+    }
+}
+
+/** Text-only retry action shared by the disconnected watch surfaces. */
+@Composable
+internal fun RetryLabel(
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .width(72.dp)
+            .height(40.dp)
+            .clickable(
+                role = Role.Button,
+                onClick = onRetry,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = "Retry",
+            color = Color.White,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+        )
     }
 }
 

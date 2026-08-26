@@ -8,14 +8,13 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.provider.Settings
+import android.provider.Settings as AndroidSettings
 import android.view.OrientationEventListener
 import android.view.Surface
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -31,7 +30,10 @@ import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 
 /// Android Activity entry point for the Compose app.
 class MainActivity : ComponentActivity() {
-    internal val appState: AppState by viewModels { appStateFactory(filesDir) }
+    private val ultiObserverApplication: UltiObserverApplication
+        get() = application as UltiObserverApplication
+    internal val appState: AppState
+        get() = ultiObserverApplication.appState
     private val autoRotateOrientationLock = AutoRotateOrientationLock()
     private var autoRotateScreenActive = false
     private var systemAutoRotateEnabled = false
@@ -39,9 +41,8 @@ class MainActivity : ComponentActivity() {
     private var lastUsesDisplayCutout: Boolean? = null
     private var displayOrientation by mutableStateOf(ActiveGameFullOrientation.PORTRAIT)
     private var wearWatchAvailable: Boolean? by mutableStateOf(null)
-    private val wearStatePublisher by lazy {
-        WearStatePublisher(applicationContext)
-    }
+    private val wearStatePublisher: WearStatePublisher
+        get() = ultiObserverApplication.wearStatePublisher
     private val wearOSAvailabilityChecker by lazy {
         WearOSAvailabilityChecker(applicationContext) { available ->
             runOnUiThread {
@@ -127,7 +128,11 @@ class MainActivity : ComponentActivity() {
                             state.settings.timingAlerts.watchConnectionMode ==
                             WatchConnectionMode.WEAR_OS
                         ) {
-                            state.currentGame to state.settings
+                            WearStatePublication(
+                                game = state.currentGame,
+                                settings = state.settings,
+                                actionsAvailable = state.viewingActiveGameScreen,
+                            )
                         } else {
                             null
                         }
@@ -138,8 +143,9 @@ class MainActivity : ComponentActivity() {
                             wearStatePublisher.publishDisabled()
                         } else {
                             wearStatePublisher.publish(
-                                game = publication.first,
-                                settings = publication.second,
+                                game = publication.game,
+                                settings = publication.settings,
+                                actionsAvailable = publication.actionsAvailable,
                             )
                         }
                     }
@@ -166,7 +172,7 @@ class MainActivity : ComponentActivity() {
         wearWatchAvailable = null
         wearOSAvailabilityChecker.refresh()
         contentResolver.registerContentObserver(
-            Settings.System.getUriFor(Settings.System.ACCELEROMETER_ROTATION),
+            AndroidSettings.System.getUriFor(AndroidSettings.System.ACCELEROMETER_ROTATION),
             false,
             autoRotateSettingObserver,
         )
@@ -183,9 +189,9 @@ class MainActivity : ComponentActivity() {
 
     /// Read whether Android currently allows sensor-driven display rotation.
     private fun readSystemAutoRotateSetting(): Boolean {
-        return Settings.System.getInt(
+        return AndroidSettings.System.getInt(
             contentResolver,
-            Settings.System.ACCELEROMETER_ROTATION,
+            AndroidSettings.System.ACCELEROMETER_ROTATION,
             0,
         ) == 1
     }
@@ -257,6 +263,13 @@ class MainActivity : ComponentActivity() {
         return displayOrientation(window.decorView.display?.rotation ?: Surface.ROTATION_0)
     }
 }
+
+/** Phone state whose changes require a new Wear companion publication. */
+private data class WearStatePublication(
+    val game: GameState?,
+    val settings: Settings,
+    val actionsAvailable: Boolean,
+)
 
 /// Run an activity display update only when Android reports that display as changed.
 internal fun handleDisplayChange(

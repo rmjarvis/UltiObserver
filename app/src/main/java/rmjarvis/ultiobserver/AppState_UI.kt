@@ -11,32 +11,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import java.io.File
-
-/**
- * Build the production AppState factory for Android lifecycle creation.
- *
- * @param filesDir The app-private storage directory supplied by MainActivity.
- */
-internal fun appStateFactory(filesDir: File): ViewModelProvider.Factory {
-    return object : ViewModelProvider.Factory {
-        /**
-         * Create the app ViewModel with file-backed persistence.
-         *
-         * @param modelClass The ViewModel class requested by the Android lifecycle owner.
-         */
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return modelClass.cast(AppState(FileAppStateStorage(filesDir)))!!
-        }
-    }
-}
 
 /**
  * Switch between home, setup, and live screens from the current app state snapshot.
  *
- * @param appState The app-level ViewModel owning navigation and persisted state.
+ * @param appState The process-wide app state owning navigation and persisted state.
  * @param previousRunCrashed Whether Crashlytics recorded a fatal crash in the previous app run.
  * @param displayOrientation Readable orientation currently shown by Android.
  * @param wearWatchAvailable Whether a Wear OS node is reachable, or null before the check finishes.
@@ -452,8 +431,14 @@ internal fun UltiObserverApp(
                 if (completed) {
                     summaryActionText = currentSummaryGame.undoEntry!!.label
                     onSummaryAction = {
-                        appState.updateCurrentGame(currentSummaryGame.undoLastAction())
-                        appState.resumeCurrentGame()
+                        if (
+                            appState.updateCurrentGame(
+                                currentSummaryGame,
+                                currentSummaryGame.undoLastAction(),
+                            )
+                        ) {
+                            appState.resumeCurrentGame()
+                        }
                     }
                     secondarySummaryActionText = "Archive game"
                     onSecondarySummaryAction = {
@@ -478,7 +463,7 @@ internal fun UltiObserverApp(
                     completed = completed,
                     guidanceMode = snapshot.settings.ruleGuidanceMode,
                     onStateChange = { updatedGame ->
-                        appState.updateCurrentGame(updatedGame)
+                        appState.updateCurrentGame(currentSummaryGame, updatedGame)
                     },
                     summaryActionText = summaryActionText,
                     onSummaryAction = onSummaryAction,
@@ -496,7 +481,21 @@ internal fun UltiObserverApp(
                     settings = snapshot.settings,
                     displayOrientation = displayOrientation,
                     onStateChange = { updatedState ->
-                        appState.updateCurrentGame(updatedState)
+                        appState.updateCurrentGame(currentGame, updatedState)
+                    },
+                    onGoal = { scoringTeam ->
+                        appState.recordGoal(
+                            currentGame = currentGame,
+                            scoringTeam = scoringTeam,
+                            now = System.currentTimeMillis(),
+                        )
+                    },
+                    onDecision = { accept ->
+                        appState.resolveDecision(
+                            currentGame = currentGame,
+                            accept = accept,
+                            now = System.currentTimeMillis(),
+                        )
                     },
                     onUpdateGameSetup = {
                         appState.editCurrentGame(currentGame)

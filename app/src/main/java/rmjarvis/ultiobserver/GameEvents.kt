@@ -183,6 +183,11 @@ fun GameEvent.formatPopupTitle(): String {
 
 /// Model prompts that require an observer decision or acknowledgement.
 sealed interface GamePrompt {
+    /** Prompt whose ordinary response is either OK or Not yet. */
+    sealed interface PendingDecision : GamePrompt {
+        val state: GameState
+    }
+
     /**
      * Prompt asking whether to apply a due cap now.
      *
@@ -190,9 +195,24 @@ sealed interface GamePrompt {
      * @param capType The cap being offered.
      */
     data class ApplyCap(
-        val state: GameState,
+        override val state: GameState,
         val capType: CapType,
-    ) : GamePrompt
+    ) : PendingDecision
+
+    /** Common prompt data for automatic and manually requested water breaks. */
+    sealed interface WaterBreakPrompt : GamePrompt {
+        val state: GameState
+    }
+
+    /** Pending automatic water-break offer with ordinary OK and Not yet actions. */
+    data class WaterBreak(
+        override val state: GameState,
+    ) : WaterBreakPrompt, PendingDecision
+
+    /** Confirmation shown before applying a manually requested water break. */
+    data class ManualWaterBreak(
+        override val state: GameState,
+    ) : WaterBreakPrompt
 
     /**
      * Prompt asking whether live-point misconduct was against the offense or defense.
@@ -209,8 +229,8 @@ sealed interface GamePrompt {
      * @param state The live state after entering halftime.
      */
     data class HalftimeStarted(
-        val state: GameState,
-    ) : GamePrompt
+        override val state: GameState,
+    ) : PendingDecision
 
     /**
      * Prompt notifying the observer that the game has ended.
@@ -218,19 +238,20 @@ sealed interface GamePrompt {
      * @param state The completed live state.
      */
     data class GameOver(
-        val state: GameState,
-    ) : GamePrompt
+        override val state: GameState,
+    ) : PendingDecision
 }
 
 /// Report whether None mode must still surface this prompt briefly.
 internal fun GamePrompt.requiresGuidanceInNone(): Boolean {
-    return this is GamePrompt.ApplyCap
+    return this is GamePrompt.ApplyCap || this is GamePrompt.WaterBreakPrompt
 }
 
 /// Format title text for prompts that need a dialog title in the current Android app.
 fun GamePrompt.formatTitle(): String {
     return when (this) {
         is GamePrompt.ApplyCap -> this.formatTitle()
+        is GamePrompt.WaterBreakPrompt -> this.formatTitle()
         is GamePrompt.LivePointMisconduct -> this.formatTitle()
         is GamePrompt.HalftimeStarted -> this.formatTitle()
         is GamePrompt.GameOver -> this.formatTitle()
@@ -241,6 +262,7 @@ fun GamePrompt.formatTitle(): String {
 internal fun GamePrompt.formatMessage(): RuleGuidanceMessage {
     return when (this) {
         is GamePrompt.ApplyCap -> this.formatMessage()
+        is GamePrompt.WaterBreakPrompt -> this.formatMessage()
         is GamePrompt.LivePointMisconduct -> this.formatMessage()
         is GamePrompt.HalftimeStarted -> this.formatMessage()
         is GamePrompt.GameOver -> this.formatMessage()

@@ -87,6 +87,7 @@ internal data class GameDisplay(
     val pullDirection: PullDirection,
     val ratioBadge: RatioBadgeDisplay?,
     val connected: Boolean,
+    val actionsAvailable: Boolean,
     val undoDescription: String?,
 )
 
@@ -102,6 +103,7 @@ internal fun GameScreen(
     display: GameDisplay,
     onTeamOne: () -> Unit,
     onTeamTwo: () -> Unit,
+    onRetry: () -> Unit,
     onUndo: () -> Unit,
 ) {
     val timeSource = remember(display.officialTime) {
@@ -130,6 +132,7 @@ internal fun GameScreen(
                 display = display,
                 onTeamOne = onTeamOne,
                 onTeamTwo = onTeamTwo,
+                onRetry = onRetry,
                 onUndo = onUndo,
             )
         }
@@ -141,6 +144,7 @@ private fun GameContent(
     display: GameDisplay,
     onTeamOne: () -> Unit,
     onTeamTwo: () -> Unit,
+    onRetry: () -> Unit,
     onUndo: () -> Unit,
 ) {
     val screenShape = LocalConfiguration.current.screenShape()
@@ -156,6 +160,7 @@ private fun GameContent(
 
         StatusRegion(
             display = display,
+            onRetry = onRetry,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(statusHeight)
@@ -170,7 +175,7 @@ private fun GameContent(
                 .height(fieldHeight)
                 .align(Alignment.BottomCenter),
         )
-        if (display.connected && display.undoDescription != null) {
+        if (display.connected && display.actionsAvailable && display.undoDescription != null) {
             UndoRegion(
                 description = display.undoDescription,
                 onUndo = onUndo,
@@ -183,6 +188,7 @@ private fun GameContent(
 @Composable
 private fun StatusRegion(
     display: GameDisplay,
+    onRetry: () -> Unit,
     modifier: Modifier,
 ) {
     BoxWithConstraints(modifier = modifier) {
@@ -203,7 +209,26 @@ private fun StatusRegion(
                 overflow = TextOverflow.Ellipsis,
             )
             Spacer(modifier = Modifier.height(5.dp))
-            if (display.connected) {
+            if (!display.connected) {
+                Text(
+                    text = "Lost connection",
+                    color = ConnectionLostColor,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                )
+                RetryLabel(onRetry)
+            } else if (!display.actionsAvailable) {
+                Text(
+                    text = "Resume current game on phone to enable actions",
+                    modifier = Modifier.padding(top = 13.dp),
+                    color = StatusTextColor,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 2,
+                    textAlign = TextAlign.Center,
+                )
+            } else {
                 CountdownStatus(display)
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
@@ -213,15 +238,6 @@ private fun StatusRegion(
                     fontWeight = FontWeight.Normal,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                )
-            } else {
-                Text(
-                    text = "Lost connection",
-                    modifier = Modifier.padding(top = 13.dp),
-                    color = ConnectionLostColor,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
                 )
             }
         }
@@ -259,7 +275,9 @@ private fun TeamField(
     modifier: Modifier,
 ) {
     BoxWithConstraints(
-        modifier = modifier.alpha(if (display.connected) 1f else DisabledContentAlpha),
+        modifier = modifier.alpha(
+            if (display.connected && display.actionsAvailable) 1f else DisabledContentAlpha
+        ),
     ) {
         val centerStackHeight = PullArrowHeight + CenterStackSpacing +
             if (display.ratioBadge == null) 0.dp else RatioBadgeHeight
@@ -269,7 +287,7 @@ private fun TeamField(
         Row(modifier = Modifier.fillMaxSize()) {
             TeamRegion(
                 team = display.teamOne,
-                enabled = display.connected,
+                enabled = display.connected && display.actionsAvailable,
                 onClick = onTeamOne,
                 modifier = Modifier
                     .weight(1f)
@@ -277,7 +295,7 @@ private fun TeamField(
             )
             TeamRegion(
                 team = display.teamTwo,
-                enabled = display.connected,
+                enabled = display.connected && display.actionsAvailable,
                 onClick = onTeamTwo,
                 modifier = Modifier
                     .weight(1f)

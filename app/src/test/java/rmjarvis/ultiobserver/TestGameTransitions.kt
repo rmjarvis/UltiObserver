@@ -778,6 +778,26 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertEquals("Halftime", halftimePrompt.formatTitle())
         assertEquals("Announce halftime.", halftimePrompt.formatMessage().plainText)
 
+        // Every pending prompt's Not yet action delegates to its matching state transition.
+        val capState = state.copy(pendingCapOffer = CapType.HALF)
+        assertEquals(capState.deferPendingCap(), GamePrompt.ApplyCap(capState, CapType.HALF).defer())
+        val waterBreakState = state.copy(pendingWaterBreakOffer = true)
+        assertEquals(
+            waterBreakState.declinePendingWaterBreak(),
+            GamePrompt.WaterBreak(waterBreakState).defer(),
+        )
+        val halftimeState = state.copy(
+            pendingScoreTransition = PendingScoreTransition(ScoreTransition.HALFTIME, 1L),
+        )
+        assertEquals(
+            halftimeState.deferPendingScoreTransition(),
+            GamePrompt.HalftimeStarted(halftimeState).defer(),
+        )
+        assertNull(
+            state.copy(pendingWaterBreakOffer = true, phase = GamePhase.GAME_OVER)
+                .pendingGameDecision()
+        )
+
         // Game-over prompt exposes a stable title and score summary text.
         val gameOverState = state.copy(
             phase = GamePhase.GAME_OVER,
@@ -786,6 +806,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         )
         val gameOverPrompt = GamePrompt.GameOver(gameOverState)
         assertEquals("Game over", gameOverPrompt.formatTitle())
+        assertEquals(gameOverState.deferPendingScoreTransition(), gameOverPrompt.defer())
         assertEquals(
             "Animal 5\nViscous Coupling 3",
             gameOverPrompt.formatMessage().plainText,

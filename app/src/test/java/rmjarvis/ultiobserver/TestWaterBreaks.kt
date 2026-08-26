@@ -179,15 +179,15 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         assertTrue(scheduledOffer.pendingWaterBreakOffer)
         assertEquals(
             "First quarter score reached.\nTake a 3-minute water break now.",
-            scheduledOffer.waterBreakPromptMessage().plainText,
+            GamePrompt.WaterBreak(scheduledOffer).formatMessage().plainText,
         )
 
         // If soft cap is also active at the scheduled score, the score still triggered this
         // already-pending break.
         assertEquals(
             "First quarter score reached.\nTake a 3-minute water break now.",
-            scheduledOffer.copy(softCapApplied = true)
-                .waterBreakPromptMessage().plainText,
+            GamePrompt.WaterBreak(scheduledOffer.copy(softCapApplied = true))
+                .formatMessage().plainText,
         )
         val firstBreakCountdown = scheduledOffer.countdown!!
         state = scheduledOffer.applyWaterBreak(timestampAt(scheduledOffer, LocalTime.of(10, 8)))
@@ -220,7 +220,7 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         assertTrue(thirdQuarterOffer.pendingWaterBreakOffer)
         assertEquals(
             "Third quarter score reached.\nTake a 3-minute water break now.",
-            thirdQuarterOffer.waterBreakPromptMessage().plainText,
+            GamePrompt.WaterBreak(thirdQuarterOffer).formatMessage().plainText,
         )
         val secondBreakCountdown = thirdQuarterOffer.countdown!!
         state = thirdQuarterOffer.applyWaterBreak(
@@ -290,7 +290,7 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         assertEquals(
             "Soft cap triggers the third-quarter water break.\n" +
             "Take a 3-minute water break now.",
-            softCapOffer.waterBreakPromptMessage().plainText,
+            GamePrompt.WaterBreak(softCapOffer).formatMessage().plainText,
         )
 
         // Applying soft cap preserves a water-break offer that was already pending.
@@ -313,7 +313,7 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         assertEquals(
             "Soft cap triggers the first-quarter water break.\n" +
             "Take a 3-minute water break now.",
-            firstHalfSoftCapOffer.waterBreakPromptMessage().plainText,
+            GamePrompt.WaterBreak(firstHalfSoftCapOffer).formatMessage().plainText,
         )
 
         // When soft and hard cap both pass during a point, accepting tied hard cap still offers
@@ -345,7 +345,7 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         assertEquals(
             "Soft cap triggers the third-quarter water break.\n" +
             "Take a 3-minute water break now.",
-            bothCapsOffer.waterBreakPromptMessage().plainText,
+            GamePrompt.WaterBreak(bothCapsOffer).formatMessage().plainText,
         )
 
         // Applying tied hard cap after the scheduled water-break score does not create another
@@ -938,7 +938,7 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         assertFalse(disabled.canApplyWaterBreak())
         assertEquals(
             "Take a 3-minute water break now.",
-            levelZero.waterBreakPromptMessage().plainText,
+            GamePrompt.ManualWaterBreak(levelZero).formatMessage().plainText,
         )
 
         // Activating level 1 after the quarter score offers a break at that point.
@@ -949,7 +949,7 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         assertTrue(atScheduledScore.pendingWaterBreakOffer)
         assertEquals(
             "First quarter score reached.\nTake a 3-minute water break now.",
-            atScheduledScore.waterBreakPromptMessage().plainText,
+            GamePrompt.WaterBreak(atScheduledScore).formatMessage().plainText,
         )
 
         // ... But not if there was already a water break taken earlier in the half.
@@ -989,7 +989,7 @@ class TestWaterBreaks : GameDomainTestFixtures() {
         assertEquals(
             "Heat level 1 is now in effect, and no water break has been taken this half.\n" +
             "Take a 3-minute water break now.",
-            changedDuringPoint.waterBreakPromptMessage().plainText,
+            GamePrompt.WaterBreak(changedDuringPoint).formatMessage().plainText,
         )
         val afterPoint = changedDuringPoint.recordGoal(TeamId.TEAM_ONE, now + 4_600L)
         assertTrue(afterPoint.pendingWaterBreakOffer)

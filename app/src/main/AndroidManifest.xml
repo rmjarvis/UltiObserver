@@ -44,7 +44,7 @@
 
                 <data
                     android:host="*"
-                    android:pathPrefix="/ultiobserver/time-sync"
+                    android:pathPrefix="/ultiobserver/"
                     android:scheme="wear" />
             </intent-filter>
         </service>

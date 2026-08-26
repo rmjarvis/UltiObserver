@@ -10,30 +10,33 @@ fun GameState.canApplyWaterBreak(): Boolean {
         phase.isBeforeLivePoint
 }
 
-/// Format an ordinary or pending late-activation water-break prompt.
-internal fun GameState.waterBreakPromptMessage(): RuleGuidanceMessage {
-    val lateHeatLevelChange = pendingWaterBreakOffer &&
-        maxOf(teamOne.score, teamTwo.score) > waterBreakScore()
+/// Format the title for a water-break prompt.
+internal fun GamePrompt.WaterBreakPrompt.formatTitle(): String = "Water break"
+
+/// Format the body for a water-break prompt.
+internal fun GamePrompt.WaterBreakPrompt.formatMessage(): RuleGuidanceMessage {
+    val lateHeatLevelChange = state.pendingWaterBreakOffer &&
+        maxOf(state.teamOne.score, state.teamTwo.score) > state.waterBreakScore()
     val lines = mutableListOf<RuleGuidanceLine>()
     if (lateHeatLevelChange) {
         lines += RuleGuidanceLine(
-            "${rules.heatLevelLabel()} " +
-            "${rules.heatLevel.displayText.removePrefix("Level ")} is now in effect, " +
+            "${state.rules.heatLevelLabel()} " +
+            "${state.rules.heatLevel.displayText.removePrefix("Level ")} is now in effect, " +
             "and no water break has been taken this half."
         )
     } else if (
-        pendingWaterBreakOffer &&
-        (softCapApplied || hardCapApplied) &&
-        maxOf(teamOne.score, teamTwo.score) < waterBreakScore()
+        state.pendingWaterBreakOffer &&
+        (state.softCapApplied || state.hardCapApplied) &&
+        maxOf(state.teamOne.score, state.teamTwo.score) < state.waterBreakScore()
     ) {
-        val quarter = if (halftimeTaken) "third" else "first"
+        val quarter = if (state.halftimeTaken) "third" else "first"
         lines += RuleGuidanceLine("Soft cap triggers the $quarter-quarter water break.")
-    } else if (pendingWaterBreakOffer) {
-        val quarter = if (halftimeTaken) "Third" else "First"
+    } else if (state.pendingWaterBreakOffer) {
+        val quarter = if (state.halftimeTaken) "Third" else "First"
         lines += RuleGuidanceLine("$quarter quarter score reached.")
     }
     lines += RuleGuidanceLine(
-        "Take a ${rules.waterBreakMinutes}-minute water break now."
+        "Take a ${state.rules.waterBreakMinutes}-minute water break now."
     )
     return RuleGuidanceMessage(lines)
 }

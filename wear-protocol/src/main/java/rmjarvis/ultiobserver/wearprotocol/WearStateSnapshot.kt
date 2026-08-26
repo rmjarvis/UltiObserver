@@ -1,14 +1,9 @@
 package rmjarvis.ultiobserver.wearprotocol
 
-import java.nio.ByteBuffer
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 
 /** Path of the single current-state item published by the phone. */
 const val WEAR_STATE_PATH = "/ultiobserver/current-state"
-
-/** RPC path used by the watch to calibrate against the phone's wall clock. */
-const val WEAR_TIME_SYNC_PATH = "/ultiobserver/time-sync"
 
 /** Capability advertised by an Android phone that can provide UltiObserver game state. */
 const val PHONE_STATE_CAPABILITY = "ultiobserver_phone_state"
@@ -81,9 +76,37 @@ data class WearRatioSnapshot(
     val contentArgb: Long,
 )
 
+/** Phone-selected presentation matching the configured rule-guidance mode. */
+@Serializable
+enum class WearGuidancePresentation {
+    VISIBLE,
+    VISIBLE_TIMED,
+    HIDDEN_AUTO_ACCEPT,
+}
+
+/** One phone-formatted line in a pending watch decision. */
+@Serializable
+data class WearGuidanceLineSnapshot(
+    val text: String,
+    val bold: Boolean,
+)
+
+/** Phone-owned prompt and controls for one decision awaiting an observer response. */
+@Serializable
+data class WearDecisionSnapshot(
+    val title: String,
+    val messageLines: List<WearGuidanceLineSnapshot>,
+    val confirmLabel: String,
+    val dismissLabel: String,
+    val presentation: WearGuidancePresentation,
+    val autoAcceptDelayMillis: Long?,
+)
+
 /** Complete active-game display state rendered by the watch. */
 @Serializable
 data class WearActiveGameSnapshot(
+    val stateToken: String,
+    val actionsAvailable: Boolean,
     val officialClockOffsetMillis: Long,
     val officialTimeZoneId: String,
     val capLabel: String?,
@@ -94,6 +117,7 @@ data class WearActiveGameSnapshot(
     val pullDirection: WearSnapshotPullDirection,
     val ratio: WearRatioSnapshot?,
     val undoDescription: String?,
+    val pendingDecision: WearDecisionSnapshot?,
 )
 
 /**
@@ -109,34 +133,9 @@ data class WearStateSnapshot(
     val activeGame: WearActiveGameSnapshot?,
 )
 
-/** Stable JSON codec shared by the phone publisher and watch receiver. */
-object WearStateSnapshotCodec {
-    private val json = Json {
-        encodeDefaults = true
-        ignoreUnknownKeys = true
-    }
-
-    fun encode(snapshot: WearStateSnapshot): ByteArray {
-        return json.encodeToString(WearStateSnapshot.serializer(), snapshot).encodeToByteArray()
-    }
-
-    fun decode(bytes: ByteArray): WearStateSnapshot {
-        return json.decodeFromString(WearStateSnapshot.serializer(), bytes.decodeToString())
-    }
-}
-
-/** Encode and decode the phone epoch returned by a time-sync request. */
-object WearTimeSyncCodec {
-    fun encode(phoneEpochMillis: Long): ByteArray {
-        return ByteBuffer.allocate(Long.SIZE_BYTES)
-            .putLong(phoneEpochMillis)
-            .array()
-    }
-
-    fun decode(bytes: ByteArray): Long {
-        require(bytes.size == Long.SIZE_BYTES) {
-            "Expected ${Long.SIZE_BYTES} time-sync bytes, received ${bytes.size}."
-        }
-        return ByteBuffer.wrap(bytes).long
-    }
-}
+/** Live phone response used to initialize one run of the watch companion. */
+@Serializable
+data class WearStartupResponse(
+    val phoneEpochMillis: Long,
+    val snapshot: WearStateSnapshot,
+)

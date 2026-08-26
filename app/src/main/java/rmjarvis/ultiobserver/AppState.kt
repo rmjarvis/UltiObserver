@@ -1,6 +1,5 @@
 package rmjarvis.ultiobserver
 
-import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -99,16 +98,15 @@ internal data class AppStateSnapshot(
 }
 
 /**
- * App-level state coordinator for the Android UI.
+ * Process-wide holder of app state shared by the Android UI and background services.
  *
- * An Android ViewModel is a lifecycle-aware state holder scoped to an Activity or UI flow.
+ * This process-wide state holder is scoped to UltiObserverApplication.
  * It survives normal Activity recreation, such as rotation, so the UI can be rebuilt without
  * losing in-memory state; process restart recovery still comes from the app's storage layer.
  *
- * UltiObserver's AppState owns top-level navigation, current-game state, profile state,
+ * AppState owns top-level navigation, current-game state, profile state,
  * settings, archived-game lists, startup recovery notices, and the app actions that persist or
- * move between those states. Domain rules stay in the model helpers; this class coordinates the
- * app session around those model results.
+ * move between those states. Domain rules stay in the model helpers.
  *
  * @param appStateStorage The persistence boundary used to load and save app state buckets.
  * @param chooseAvatarIndex Random-avatar chooser injected so tests can make selection deterministic.
@@ -117,7 +115,7 @@ internal class AppState(
     private val appStateStorage: AppStateStorage,
     // Injected so tests can make random avatar selection deterministic.
     private val chooseAvatarIndex: (Int) -> Int = { size -> Random.nextInt(size) },
-) : ViewModel() {
+) {
     private val persistedCurrentGame = appStateStorage.loadCurrentGame()
     private val persistedProfile = appStateStorage.loadProfile() ?: Profile()
     private val persistedSettings = appStateStorage.loadSettings() ?: Settings()
@@ -300,10 +298,88 @@ internal class AppState(
      *
      * @param updatedGame The current-game state returned from a model action.
      */
+    @Synchronized
     fun updateCurrentGame(updatedGame: GameState) {
         // All current-game event logging flows through this AppState boundary.
         _state.update { it.copy(currentGame = updatedGame) }
         persistCurrentGame()
+    }
+
+    /**
+     * Replace the current game only if the action was based on the latest committed state.
+     *
+     * Phone UI callbacks and Wear OS requests can calculate updates from the same immutable game
+     * while running on different threads. Checking the base game before committing prevents a
+     * later stale update from overwriting a game change already recorded by the other surface.
+     *
+     * @param expectedCurrentGame The current game from which updatedGame was calculated.
+     * @param updatedGame The resulting game state to commit.
+     * @return Whether expectedCurrentGame was still current and the update was applied.
+     */
+    @Synchronized
+    fun updateCurrentGame(
+        expectedCurrentGame: GameState,
+        updatedGame: GameState,
+    ): Boolean {
+        if (currentGame != expectedCurrentGame) {
+            return false
+        }
+        updateCurrentGame(updatedGame)
+        return true
+    }
+
+    /**
+     * Record a goal calculated from the exact current game seen by the initiating surface.
+     *
+     * Both the phone UI and Wear OS use this action so countdown adjustment, goal rules,
+     * conditional state replacement, and persistence follow one path.
+     *
+     * This function returns false if the goal could not be recorded, e.g. because some other
+     * thread already updated the game some other way, causing currentGame to no longer be
+     * current.
+     *
+     * @param currentGame The current game displayed when the goal action was initiated.
+     * @param scoringTeam The team credited with the goal.
+     * @param now Current unadjusted phone epoch millis when the action is handled.
+     * @return Whether the goal was successfully recorded.
+     */
+    @Synchronized
+    fun recordGoal(
+        currentGame: GameState,
+        scoringTeam: TeamId,
+        now: Long,
+    ): Boolean {
+        val goalEpoch = settings.adjustedCountdownStartEpoch(now)
+        val updatedGame = currentGame.recordGoalFromCurrentState(scoringTeam, goalEpoch)
+        return updateCurrentGame(
+            expectedCurrentGame = currentGame,
+            updatedGame = updatedGame,
+        )
+    }
+
+    /**
+     * Resolve the pending game decision displayed by the initiating surface.
+     *
+     * Both the phone UI and Wear OS use this action so accepting or deferring a decision,
+     * conditional state replacement, and persistence follow one path.
+     *
+     * @param currentGame The current game containing the decision being resolved.
+     * @param accept Whether to accept the decision rather than defer it.
+     * @param now Current unadjusted phone epoch millis when the decision is resolved.
+     * @return Whether the decision was still current and was successfully resolved.
+     */
+    @Synchronized
+    fun resolveDecision(
+        currentGame: GameState,
+        accept: Boolean,
+        now: Long,
+    ): Boolean {
+        val decision = currentGame.pendingGameDecision() ?: return false
+        val updatedGame = if (accept) decision.accept(now) else decision.defer()
+        return updateCurrentGame(
+            expectedCurrentGame = currentGame,
+            updatedGame = updatedGame,
+        )
     }
 
     /// Replace the profile bucket and refresh derived profile state.

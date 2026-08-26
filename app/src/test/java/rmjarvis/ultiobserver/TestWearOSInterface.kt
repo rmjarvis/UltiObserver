@@ -7,9 +7,16 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import rmjarvis.ultiobserver.wearprotocol.WearDecisionRequest
+import rmjarvis.ultiobserver.wearprotocol.WearGameActionResponse
+import rmjarvis.ultiobserver.wearprotocol.WearGoalRequest
+import rmjarvis.ultiobserver.wearprotocol.WearGuidancePresentation
+import rmjarvis.ultiobserver.wearprotocol.WearProtocolCodec
 import rmjarvis.ultiobserver.wearprotocol.WearSnapshotPullDirection
 import rmjarvis.ultiobserver.wearprotocol.WearSnapshotStatus
-import rmjarvis.ultiobserver.wearprotocol.WearStateSnapshotCodec
+import rmjarvis.ultiobserver.wearprotocol.WearStateSnapshot
+import rmjarvis.ultiobserver.wearprotocol.WearStartupResponse
+import rmjarvis.ultiobserver.wearprotocol.WearTeamId
 
 /// Tests for the phone-side Wear OS interface.
 class TestWearOSInterface : GameDomainTestFixtures() {
@@ -30,40 +37,47 @@ class TestWearOSInterface : GameDomainTestFixtures() {
             game = standardLiveGameState(),
             settings = Settings(),
             now = now,
+            actionsAvailable = true,
         )
         assertEquals(WearSnapshotStatus.DISABLED, disabled.status)
         assertNull(disabled.activeGame)
 
         // Wear OS mode distinguishes an idle phone from a disabled connection.
-        val companionSettings = Settings().copy(
+        val settings = Settings().copy(
             timingAlerts = TimingAlertPreferences(
                 watchConnectionMode = WatchConnectionMode.WEAR_OS,
             ),
         )
         val noGame = buildWearStateSnapshot(
             game = null,
-            settings = companionSettings,
+            settings = settings,
             now = now,
+            actionsAvailable = true,
         )
         assertEquals(WearSnapshotStatus.NO_ACTIVE_GAME, noGame.status)
         assertNull(noGame.activeGame)
 
         // A default game carries the default team presentation and action labels while omitting
         // optional state that does not apply.
+        val defaultGame = standardLiveGameState()
         val default = buildWearStateSnapshot(
-            game = standardLiveGameState(),
-            settings = companionSettings,
+            game = defaultGame,
+            settings = settings,
             now = now,
+            actionsAvailable = true,
         )
         assertEquals(WearSnapshotStatus.ACTIVE_GAME, default.status)
         assertNotNull(default.activeGame)
         val defaultSnapshot = default.activeGame!!
+        assertEquals(wearStateToken(defaultGame), defaultSnapshot.stateToken)
+        assertTrue(defaultSnapshot.actionsAvailable)
         assertEquals(0L, defaultSnapshot.officialClockOffsetMillis)
         assertEquals("America/New_York", defaultSnapshot.officialTimeZoneId)
         assertNull(defaultSnapshot.capLabel)
         assertNull(defaultSnapshot.capTargetEpochMillis)
         assertNotNull(defaultSnapshot.countdown)
         assertNull(defaultSnapshot.ratio)
+        assertNull(defaultSnapshot.pendingDecision)
         assertNull(defaultSnapshot.undoDescription)
         assertEquals(WearSnapshotPullDirection.LEFT_TO_RIGHT, defaultSnapshot.pullDirection)
         assertEquals("Viscous Coupling", defaultSnapshot.teamOne.name)
@@ -82,11 +96,36 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         assertTrue(defaultSnapshot.teamOne.actions.technicalFoulEnabled)
         assertTrue(defaultSnapshot.teamOne.actions.timeoutEnabled)
 
+        // Leaving the active-game screen keeps the game visible but disables every watch action.
+        val unavailable = buildWearStateSnapshot(
+            game = defaultGame,
+            settings = settings,
+            now = now,
+            actionsAvailable = false,
+        ).activeGame!!
+        assertFalse(unavailable.actionsAvailable)
+
+        // A pending phone decision also blocks watch actions until the phone accepts or rejects it.
+        val pendingGame = defaultGame.copy(
+            pendingScoreTransition = PendingScoreTransition(
+                transition = ScoreTransition.HALFTIME,
+                effectiveEpoch = now,
+            ),
+        )
+        val pending = buildWearStateSnapshot(
+            game = pendingGame,
+            settings = settings,
+            now = now,
+            actionsAvailable = true,
+        ).activeGame!!
+        assertFalse(pending.actionsAvailable)
+
         // A live point without an interruption countdown omits countdown state entirely.
         val livePointSnapshot = buildWearStateSnapshot(
             game = standardLiveGameState().continueLivePoint(),
-            settings = companionSettings,
+            settings = settings,
             now = now,
+            actionsAvailable = true,
         ).activeGame!!
         assertNull(livePointSnapshot.countdown)
 
@@ -103,8 +142,9 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         )
         val halftimeSnapshot = buildWearStateSnapshot(
             game = halftimeGame,
-            settings = companionSettings,
+            settings = settings,
             now = now,
+            actionsAvailable = true,
         ).activeGame!!
         assertFalse(halftimeSnapshot.teamOne.actions.timeViolationEnabled)
         assertFalse(halftimeSnapshot.teamOne.actions.pullViolationEnabled)
@@ -143,14 +183,15 @@ class TestWearOSInterface : GameDomainTestFixtures() {
             ),
             undoEntry = UndoEntry("Undo goal by Animal", baseGame),
         )
-        val settings = companionSettings.copy(
+        val mixedSettings = settings.copy(
             fourMenThreeWomenBadgeColorArgb = TeamColorChoice.BLACK.accentArgb,
             fourWomenThreeMenBadgeColorArgb = TeamColorChoice.PINK.accentArgb,
         )
         val active = buildWearStateSnapshot(
             game = activeGame,
-            settings = settings,
+            settings = mixedSettings,
             now = now,
+            actionsAvailable = true,
         )
         assertNotNull(active.activeGame)
         val gameSnapshot = active.activeGame!!
@@ -187,14 +228,330 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         )
         val pausedSnapshot = buildWearStateSnapshot(
             game = pausedGame,
-            settings = settings,
+            settings = mixedSettings,
             now = now + 5_000L,
+            actionsAvailable = true,
         ).activeGame!!.countdown!!
         assertEquals(expectedCountdown.targetEpoch, pausedSnapshot.targetEpochMillis)
         assertEquals(now, pausedSnapshot.pausedAtEpochMillis)
         assertTrue(pausedSnapshot.cues.isEmpty())
 
         // The shared codec preserves the complete protocol value across the Data Layer payload.
-        assertEquals(active, WearStateSnapshotCodec.decode(WearStateSnapshotCodec.encode(active)))
+        assertEquals(
+            active,
+            WearProtocolCodec.decode(
+                WearStateSnapshot.serializer(),
+                WearProtocolCodec.encode(WearStateSnapshot.serializer(), active),
+            ),
+        )
+
+        // A live startup response carries that same authoritative state together with the phone
+        // clock reading used to calibrate the watch.
+        val startupResponse = WearStartupResponse(
+            phoneEpochMillis = now,
+            snapshot = active,
+        )
+        assertEquals(
+            startupResponse,
+            WearProtocolCodec.decode(
+                WearStartupResponse.serializer(),
+                WearProtocolCodec.encode(WearStartupResponse.serializer(), startupResponse),
+            ),
+        )
+    }
+
+    /**
+     * Exercise watch-issued goals as authoritative phone actions, including the ordinary game
+     * decisions those goals expose before the phone can progress to its next state.
+     */
+    @Test
+    fun watchGoal() {
+        val settings = Settings(
+            automaticallyAdvanceNewCountdowns = true,
+            ruleGuidanceMode = RuleGuidanceMode.FULL,
+            timingAlerts = TimingAlertPreferences(
+                watchConnectionMode = WatchConnectionMode.WEAR_OS,
+            ),
+        )
+        val appState = AppState(NoOpAppStateStorage)
+        appState.updateSettings(settings)
+        val baseGame = standardLiveGameState().let { game ->
+            game.copy(
+                rules = game.rules.copy(
+                    useHalfCap = false,
+                    useSoftCap = false,
+                    useHardCap = false,
+                ),
+            ).continueLivePoint()
+        }
+        appState.updateCurrentGame(baseGame)
+        appState.resumeCurrentGame()
+
+        // An ordinary goal uses the configured countdown adjustment, persists the score through
+        // the shared state coordinator, and changes the state token returned to the watch.
+        val goalTime = timestampAt(baseGame, LocalTime.of(11, 0))
+        val goalRequest = WearGoalRequest(
+            stateToken = wearStateToken(baseGame),
+            scoringTeam = WearTeamId.TEAM_ONE,
+        )
+        assertEquals(
+            goalRequest,
+            WearProtocolCodec.decode(
+                WearGoalRequest.serializer(),
+                WearProtocolCodec.encode(WearGoalRequest.serializer(), goalRequest),
+            ),
+        )
+        assertTrue(
+            appState.recordGoal(
+                currentGame = baseGame,
+                scoringTeam = TeamId.TEAM_ONE,
+                now = goalTime,
+            )
+        )
+        val scoredGame = appState.currentGame!!
+        val adjustedGoalTime = settings.adjustedCountdownStartEpoch(goalTime)
+        val expectedScoredGame = baseGame.recordGoalFromCurrentState(
+            TeamId.TEAM_ONE,
+            adjustedGoalTime,
+        )
+        assertEquals(1, scoredGame.teamOne.score)
+        assertEquals(GamePhase.BETWEEN_POINTS, scoredGame.phase)
+        assertEquals(expectedScoredGame.countdown?.targetEpoch, scoredGame.countdown?.targetEpoch)
+        assertEquals("Undo Goal by ${baseGame.teamOne.name}", scoredGame.undoEntry?.label)
+        assertFalse(wearStateToken(scoredGame) == goalRequest.stateToken)
+
+        // Repeating the old request or committing a phone action calculated from the old game
+        // cannot apply a second score or overwrite the accepted watch result.
+        assertFalse(
+            appState.recordGoal(
+                currentGame = baseGame,
+                scoringTeam = TeamId.TEAM_ONE,
+                now = goalTime,
+            )
+        )
+        assertFalse(appState.updateCurrentGame(baseGame, baseGame.continueLivePoint()))
+        assertEquals(scoredGame, appState.currentGame)
+
+        // A goal reaching halftime leaves the phone's ordinary prompt pending. The watch receives
+        // the same copy and explicit-response behavior selected by Full guidance.
+        val halftimeGame = baseGame.copy(
+            rules = baseGame.rules.copy(gameTo = 5),
+            teamOne = baseGame.teamOne.copy(score = 2),
+        )
+        appState.updateCurrentGame(halftimeGame)
+        assertTrue(
+            appState.recordGoal(
+                currentGame = halftimeGame,
+                scoringTeam = TeamId.TEAM_ONE,
+                now = goalTime,
+            )
+        )
+        val pendingHalftime = appState.currentGame!!
+        assertEquals(GamePhase.BETWEEN_POINTS, pendingHalftime.phase)
+        assertFalse(pendingHalftime.halftimeTaken)
+        assertTrue(pendingHalftime.pendingGameDecision() is GamePrompt.HalftimeStarted)
+        val halftimeSnapshot = buildWearStateSnapshot(
+            game = pendingHalftime,
+            settings = settings,
+            now = goalTime,
+            actionsAvailable = true,
+        ).activeGame!!
+        assertFalse(halftimeSnapshot.actionsAvailable)
+        val halftimeDecision = halftimeSnapshot.pendingDecision!!
+        assertEquals("Halftime", halftimeDecision.title)
+        assertEquals(listOf("Announce halftime."), halftimeDecision.messageLines.map { it.text })
+        assertEquals("Not yet", halftimeDecision.dismissLabel)
+        assertEquals("OK", halftimeDecision.confirmLabel)
+        assertEquals(WearGuidancePresentation.VISIBLE, halftimeDecision.presentation)
+        assertNull(halftimeDecision.autoAcceptDelayMillis)
+
+        // Timed and None use the same phone policy: Timed shows the prompt before accepting it,
+        // while None immediately accepts this optional acknowledgement without rendering it.
+        val timedHalftimeDecision = buildWearStateSnapshot(
+            game = pendingHalftime,
+            settings = settings.copy(ruleGuidanceMode = RuleGuidanceMode.TIMED),
+            now = goalTime,
+            actionsAvailable = true,
+        ).activeGame!!.pendingDecision!!
+        assertEquals(WearGuidancePresentation.VISIBLE_TIMED, timedHalftimeDecision.presentation)
+        assertEquals(ruleGuidanceTimeoutMillis, timedHalftimeDecision.autoAcceptDelayMillis)
+        val noneHalftimeDecision = buildWearStateSnapshot(
+            game = pendingHalftime,
+            settings = settings.copy(ruleGuidanceMode = RuleGuidanceMode.NONE),
+            now = goalTime,
+            actionsAvailable = true,
+        ).activeGame!!.pendingDecision!!
+        assertEquals(WearGuidancePresentation.HIDDEN_AUTO_ACCEPT, noneHalftimeDecision.presentation)
+        assertNull(noneHalftimeDecision.autoAcceptDelayMillis)
+
+        // Not yet follows the same defer path as the phone and leaves the scored point in place.
+        val deferredHalftimeToken = wearStateToken(pendingHalftime)
+        val deferRequest = WearDecisionRequest(
+            stateToken = deferredHalftimeToken,
+            accept = false,
+        )
+        assertEquals(
+            deferRequest,
+            WearProtocolCodec.decode(
+                WearDecisionRequest.serializer(),
+                WearProtocolCodec.encode(WearDecisionRequest.serializer(), deferRequest),
+            ),
+        )
+        assertTrue(
+            appState.resolveDecision(
+                currentGame = pendingHalftime,
+                accept = deferRequest.accept,
+                now = goalTime,
+            )
+        )
+        assertNull(appState.currentGame!!.pendingScoreTransition)
+        assertFalse(appState.currentGame!!.halftimeTaken)
+
+        // Recording the same halftime-reaching point again allows the watch's OK action to enter
+        // halftime through the shared phone transition.
+        appState.updateCurrentGame(halftimeGame)
+        assertTrue(
+            appState.recordGoal(
+                currentGame = halftimeGame,
+                scoringTeam = TeamId.TEAM_ONE,
+                now = goalTime,
+            )
+        )
+        assertTrue(
+            appState.resolveDecision(
+                currentGame = appState.currentGame!!,
+                accept = true,
+                now = goalTime,
+            )
+        )
+        assertEquals(GamePhase.HALFTIME, appState.currentGame?.phase)
+        assertTrue(appState.currentGame!!.halftimeTaken)
+        assertNull(appState.currentGame!!.pendingScoreTransition)
+        assertFalse(
+            appState.resolveDecision(
+                currentGame = pendingHalftime,
+                accept = true,
+                now = goalTime,
+            )
+        )
+
+        // A required water-break notice remains visible briefly in None mode, then its OK action
+        // extends the new pull countdown through the same transition used by the phone.
+        val waterBreakGame = baseGame.copy(
+            rules = baseGame.rules.copy(
+                gameTo = 15,
+                heatLevel = HeatLevel.LEVEL_1,
+            ),
+            teamOne = baseGame.teamOne.copy(score = 3),
+            halftimeTargetScore = null,
+        )
+        appState.updateCurrentGame(waterBreakGame)
+        assertTrue(
+            appState.recordGoal(
+                currentGame = waterBreakGame,
+                scoringTeam = TeamId.TEAM_ONE,
+                now = goalTime,
+            )
+        )
+        val pendingWaterBreak = appState.currentGame!!
+        assertTrue(pendingWaterBreak.pendingWaterBreakOffer)
+        val waterBreakDecision = buildWearStateSnapshot(
+            game = pendingWaterBreak,
+            settings = settings.copy(ruleGuidanceMode = RuleGuidanceMode.NONE),
+            now = goalTime,
+            actionsAvailable = true,
+        ).activeGame!!.pendingDecision!!
+        assertEquals("Water break", waterBreakDecision.title)
+        assertEquals(WearGuidancePresentation.VISIBLE_TIMED, waterBreakDecision.presentation)
+        assertEquals(ruleGuidanceTimeoutMillis, waterBreakDecision.autoAcceptDelayMillis)
+        assertTrue(
+            appState.resolveDecision(
+                currentGame = pendingWaterBreak,
+                accept = true,
+                now = goalTime,
+            )
+        )
+        val waterBreakResult = appState.currentGame!!
+        val expectedWaterBreak = waterBreakGame.recordGoalFromCurrentState(
+            TeamId.TEAM_ONE,
+            adjustedGoalTime,
+        ).applyWaterBreak(goalTime)
+        assertFalse(waterBreakResult.pendingWaterBreakOffer)
+        assertEquals(EventLogType.WATER_BREAK, waterBreakResult.eventLog.last().type)
+        assertEquals(
+            expectedWaterBreak.countdown?.targetEpoch,
+            waterBreakResult.countdown?.targetEpoch,
+        )
+
+        // A due hard cap and its resulting game-over acknowledgement remain two distinct phone
+        // decisions; resolving each one exposes the next authoritative snapshot to the watch.
+        val hardCapGame = baseGame.copy(
+            rules = baseGame.rules.copy(
+                gameTo = 15,
+                useHardCap = true,
+                nominalHardCapMinutes = 0,
+            ),
+            teamOne = baseGame.teamOne.copy(score = 1),
+        )
+        appState.updateCurrentGame(hardCapGame)
+        val hardCapGoalTime = hardCapGame.capEpoch(CapType.HARD) + 10_000L
+        assertTrue(
+            appState.recordGoal(
+                currentGame = hardCapGame,
+                scoringTeam = TeamId.TEAM_ONE,
+                now = hardCapGoalTime,
+            )
+        )
+        val pendingHardCap = appState.currentGame!!
+        assertFalse(pendingHardCap.hardCapApplied)
+        assertNotNull(pendingHardCap.pendingCapOffer)
+        assertTrue(
+            appState.resolveDecision(
+                currentGame = pendingHardCap,
+                accept = true,
+                now = hardCapGoalTime,
+            )
+        )
+        val pendingGameOver = appState.currentGame!!
+        assertTrue(pendingGameOver.hardCapApplied)
+        assertNull(pendingGameOver.pendingCapOffer)
+        val gameOverDecision = buildWearStateSnapshot(
+            game = pendingGameOver,
+            settings = settings,
+            now = hardCapGoalTime,
+            actionsAvailable = true,
+        ).activeGame!!.pendingDecision!!
+        assertEquals("Game over", gameOverDecision.title)
+        assertEquals(WearGuidancePresentation.VISIBLE, gameOverDecision.presentation)
+        assertTrue(
+            appState.resolveDecision(
+                currentGame = pendingGameOver,
+                accept = true,
+                now = hardCapGoalTime,
+            )
+        )
+        val gameOverResult = appState.currentGame!!
+        assertTrue(gameOverResult.hardCapApplied)
+        assertEquals(GamePhase.GAME_OVER, gameOverResult.phase)
+        assertNull(gameOverResult.pendingCapOffer)
+        assertNull(gameOverResult.pendingScoreTransition)
+
+        // The response holds whether the action was applied and the resulting snapshot, which
+        // both survive the encoding and decoding round trip when sent to the watch,
+        val finalSnapshot = buildWearStateSnapshot(
+            game = gameOverResult,
+            settings = settings,
+            now = goalTime,
+            actionsAvailable = false,
+        )
+        val response = WearGameActionResponse(applied = true, snapshot = finalSnapshot)
+        assertEquals(
+            response,
+            WearProtocolCodec.decode(
+                WearGameActionResponse.serializer(),
+                WearProtocolCodec.encode(WearGameActionResponse.serializer(), response),
+            ),
+        )
+
     }
 }

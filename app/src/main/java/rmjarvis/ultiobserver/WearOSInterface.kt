@@ -8,19 +8,27 @@ import com.google.android.gms.tasks.Tasks
 import com.google.android.gms.wearable.PutDataRequest
 import com.google.android.gms.wearable.Wearable
 import com.google.android.gms.wearable.WearableListenerService
+import java.security.MessageDigest
 import rmjarvis.ultiobserver.wearprotocol.WEAR_STATE_PATH
-import rmjarvis.ultiobserver.wearprotocol.WEAR_TIME_SYNC_PATH
 import rmjarvis.ultiobserver.wearprotocol.WearActiveGameSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearCountdownSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearCueSnapshot
+import rmjarvis.ultiobserver.wearprotocol.WearDecisionRequest
+import rmjarvis.ultiobserver.wearprotocol.WearDecisionSnapshot
+import rmjarvis.ultiobserver.wearprotocol.WearGameActionResponse
+import rmjarvis.ultiobserver.wearprotocol.WearGoalRequest
+import rmjarvis.ultiobserver.wearprotocol.WearGuidanceLineSnapshot
+import rmjarvis.ultiobserver.wearprotocol.WearGuidancePresentation
+import rmjarvis.ultiobserver.wearprotocol.WearProtocolCodec
 import rmjarvis.ultiobserver.wearprotocol.WearRatioSnapshot
+import rmjarvis.ultiobserver.wearprotocol.WearRequestAction
 import rmjarvis.ultiobserver.wearprotocol.WearSnapshotPullDirection
 import rmjarvis.ultiobserver.wearprotocol.WearSnapshotStatus
 import rmjarvis.ultiobserver.wearprotocol.WearStateSnapshot
-import rmjarvis.ultiobserver.wearprotocol.WearStateSnapshotCodec
+import rmjarvis.ultiobserver.wearprotocol.WearStartupResponse
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionsSnapshot
+import rmjarvis.ultiobserver.wearprotocol.WearTeamId
 import rmjarvis.ultiobserver.wearprotocol.WearTeamSnapshot
-import rmjarvis.ultiobserver.wearprotocol.WearTimeSyncCodec
 
 /** Check whether this phone currently has a reachable Wear OS node. */
 internal class WearOSAvailabilityChecker(
@@ -46,12 +54,17 @@ internal class WearStatePublisher(context: Context) {
     private val dataClient = Wearable.getDataClient(context.applicationContext)
 
     /** Publish a fresh current snapshot. */
-    fun publish(game: GameState?, settings: Settings) {
+    fun publish(
+        game: GameState?,
+        settings: Settings,
+        actionsAvailable: Boolean,
+    ) {
         publish(
             buildWearStateSnapshot(
                 game = game,
                 settings = settings,
                 now = System.currentTimeMillis(),
+                actionsAvailable = actionsAvailable,
             )
         )
     }
@@ -66,26 +79,123 @@ internal class WearStatePublisher(context: Context) {
         )
     }
 
-    private fun publish(snapshot: WearStateSnapshot) {
+    /** Publish an already-built snapshot returned directly with a watch command response. */
+    fun publish(snapshot: WearStateSnapshot) {
         val request = PutDataRequest.create(WEAR_STATE_PATH)
-            .setData(WearStateSnapshotCodec.encode(snapshot))
+            .setData(WearProtocolCodec.encode(WearStateSnapshot.serializer(), snapshot))
             .setUrgent()
         dataClient.putDataItem(request)
     }
 }
 
-/** Answer watch time-sync requests while the phone UI may be stopped or locked. */
+/** Answer watch startup and game-action requests while the phone may be stopped or locked. */
 class WearOSRequestService : WearableListenerService() {
     override fun onRequest(
         nodeId: String,
-        path: String,
+        requestedActionPath: String,
         request: ByteArray,
     ): Task<ByteArray>? {
-        if (path != WEAR_TIME_SYNC_PATH) {
-            return null
+        val requestedAction = WearRequestAction.fromPath(requestedActionPath) ?: return null
+        return when (requestedAction) {
+            WearRequestAction.STARTUP -> handleStartupRequest()
+            WearRequestAction.GOAL -> handleGoalRequest(request)
+            WearRequestAction.DECISION -> handleDecisionRequest(request)
         }
-        return Tasks.forResult(WearTimeSyncCodec.encode(System.currentTimeMillis()))
     }
+
+    private fun handleStartupRequest(): Task<ByteArray> {
+        val app = application as UltiObserverApplication
+        val now = System.currentTimeMillis()
+        return Tasks.forResult(
+            WearProtocolCodec.encode(
+                WearStartupResponse.serializer(),
+                WearStartupResponse(
+                    phoneEpochMillis = now,
+                    snapshot = app.currentWearSnapshot(now),
+                )
+            )
+        )
+    }
+
+    private fun handleGoalRequest(requestBytes: ByteArray): Task<ByteArray> {
+        val request = WearProtocolCodec.decode(WearGoalRequest.serializer(), requestBytes)
+        val app = application as UltiObserverApplication
+        val now = System.currentTimeMillis()
+        val snapshot = app.appState.state.value
+        val game = snapshot.currentGame
+        val scoringTeam = when (request.scoringTeam) {
+            WearTeamId.TEAM_ONE -> TeamId.TEAM_ONE
+            WearTeamId.TEAM_TWO -> TeamId.TEAM_TWO
+        }
+        val applied = if (
+            game != null &&
+            snapshot.settings.timingAlerts.watchConnectionMode == WatchConnectionMode.WEAR_OS &&
+            snapshot.viewingActiveGameScreen &&
+            game.pendingGameDecision() == null &&
+            wearStateToken(game) == request.stateToken
+        ) {
+            app.appState.recordGoal(
+                currentGame = game,
+                scoringTeam = scoringTeam,
+                now = now,
+            )
+        } else {
+            false
+        }
+        return gameActionResponse(app, applied, now)
+    }
+
+    private fun handleDecisionRequest(requestBytes: ByteArray): Task<ByteArray> {
+        val request = WearProtocolCodec.decode(WearDecisionRequest.serializer(), requestBytes)
+        val app = application as UltiObserverApplication
+        val now = System.currentTimeMillis()
+        val snapshot = app.appState.state.value
+        val game = snapshot.currentGame
+        val applied = if (
+            game != null &&
+            snapshot.settings.timingAlerts.watchConnectionMode == WatchConnectionMode.WEAR_OS &&
+            snapshot.viewingActiveGameScreen &&
+            wearStateToken(game) == request.stateToken
+        ) {
+            app.appState.resolveDecision(
+                currentGame = game,
+                accept = request.accept,
+                now = now,
+            )
+        } else {
+            false
+        }
+        return gameActionResponse(app, applied, now)
+    }
+
+    private fun gameActionResponse(
+        app: UltiObserverApplication,
+        applied: Boolean,
+        now: Long,
+    ): Task<ByteArray> {
+        val snapshot = app.currentWearSnapshot(now)
+        app.wearStatePublisher.publish(snapshot)
+        return Tasks.forResult(
+            WearProtocolCodec.encode(
+                WearGameActionResponse.serializer(),
+                WearGameActionResponse(
+                    applied = applied,
+                    snapshot = snapshot,
+                )
+            )
+        )
+    }
+}
+
+/** Build the application's current authoritative state for one direct watch response. */
+private fun UltiObserverApplication.currentWearSnapshot(now: Long): WearStateSnapshot {
+    val appState = appState.state.value
+    return buildWearStateSnapshot(
+        game = appState.currentGame,
+        settings = appState.settings,
+        now = now,
+        actionsAvailable = appState.viewingActiveGameScreen,
+    )
 }
 
 /** Build the complete read-only companion snapshot from authoritative phone state. */
@@ -93,6 +203,7 @@ internal fun buildWearStateSnapshot(
     game: GameState?,
     settings: Settings,
     now: Long,
+    actionsAvailable: Boolean,
 ): WearStateSnapshot {
     if (settings.timingAlerts.watchConnectionMode != WatchConnectionMode.WEAR_OS) {
         return WearStateSnapshot(
@@ -114,9 +225,13 @@ internal fun buildWearStateSnapshot(
     val activeCountdown = game.activeCountdown(now)
     val capStatus = game.computeNextCapStatus(now)
     val currentRatio = game.currentGenderRatio()
+    val pendingDecision = if (actionsAvailable) game.pendingGameDecision() else null
+    val gameActionsAvailable = actionsAvailable && pendingDecision == null
     return WearStateSnapshot(
         status = WearSnapshotStatus.ACTIVE_GAME,
         activeGame = WearActiveGameSnapshot(
+            stateToken = wearStateToken(game),
+            actionsAvailable = gameActionsAvailable,
             officialClockOffsetMillis = game.officialClockOffsetMillis,
             officialTimeZoneId = game.timeZone.id,
             capLabel = capStatus?.let { status -> "${status.label} in" },
@@ -152,12 +267,16 @@ internal fun buildWearStateSnapshot(
                 )
             },
             undoDescription = game.undoEntry?.label,
+            pendingDecision = pendingDecision?.wearSnapshot(settings.ruleGuidanceMode),
         ),
     )
 }
 
 /** Build one team and its phone-equivalent compact action labels. */
-private fun GameState.wearTeamSnapshot(teamId: TeamId, now: Long): WearTeamSnapshot {
+private fun GameState.wearTeamSnapshot(
+    teamId: TeamId,
+    now: Long,
+): WearTeamSnapshot {
     val team = teamFor(teamId)
     val backgroundArgb = if (team.color == TeamColorChoice.CUSTOM) {
         team.customColorArgb!!
@@ -188,6 +307,42 @@ private fun GameState.wearTeamSnapshot(teamId: TeamId, now: Long): WearTeamSnaps
             timeoutEnabled = canRequestTimeout(now),
         ),
     )
+}
+
+/** Convert the phone's existing prompt copy and guidance policy into protocol display data. */
+private fun GamePrompt.PendingDecision.wearSnapshot(
+    guidanceMode: RuleGuidanceMode,
+): WearDecisionSnapshot {
+    val presentation = guidanceMode.presentation(requiresGuidanceInNone())
+    return WearDecisionSnapshot(
+        title = formatTitle(),
+        messageLines = formatMessage().lines.map { line ->
+            WearGuidanceLineSnapshot(
+                text = line.text,
+                bold = line.bold,
+            )
+        },
+        confirmLabel = "OK",
+        dismissLabel = "Not yet",
+        presentation = when (presentation) {
+            RuleGuidancePresentation.VISIBLE -> WearGuidancePresentation.VISIBLE
+            RuleGuidancePresentation.VISIBLE_TIMED -> WearGuidancePresentation.VISIBLE_TIMED
+            RuleGuidancePresentation.HIDDEN_AUTO_ACCEPT ->
+                WearGuidancePresentation.HIDDEN_AUTO_ACCEPT
+        },
+        autoAcceptDelayMillis = if (presentation == RuleGuidancePresentation.VISIBLE_TIMED) {
+            ruleGuidanceTimeoutMillis
+        } else {
+            null
+        },
+    )
+}
+
+/** Stable identity used to reject commands based on an older committed current game. */
+internal fun wearStateToken(game: GameState): String {
+    return MessageDigest.getInstance("SHA-256")
+        .digest(encodeCurrentGame(game).encodeToByteArray())
+        .joinToString("") { byte -> "%02x".format(byte) }
 }
 
 /** Return the same black-or-white content ARGB used for custom phone display colors. */

@@ -11,15 +11,15 @@ import androidx.compose.runtime.setValue
 /** Launcher activity for the Wear companion app. */
 internal class MainActivity : ComponentActivity() {
     private var receivedState by mutableStateOf<ReceivedState?>(null)
-    private var phoneReachable by mutableStateOf(false)
+    private var connectionState by mutableStateOf(ConnectionState.CONNECTING)
     private val stateClient by lazy {
         StateClient(
             context = applicationContext,
             onStateReceived = { state ->
                 receivedState = state
             },
-            onPhoneReachabilityChanged = { reachable ->
-                phoneReachable = reachable
+            onConnectionStateChanged = { state ->
+                connectionState = state
             },
         )
     }
@@ -29,13 +29,24 @@ internal class MainActivity : ComponentActivity() {
         setContent {
             UltiObserverWearApp(
                 receivedState = receivedState,
-                phoneReachable = phoneReachable,
+                connectionState = connectionState,
+                onRetry = {
+                    stateClient.retry()
+                },
+                onGoal = { scoringTeam, stateToken, onFinished ->
+                    stateClient.recordGoal(scoringTeam, stateToken, onFinished)
+                },
+                onDecision = { stateToken, accept, onFinished ->
+                    stateClient.resolveDecision(stateToken, accept, onFinished)
+                },
             )
         }
     }
 
     override fun onStart() {
         super.onStart()
+        receivedState = null
+        connectionState = ConnectionState.CONNECTING
         stateClient.start()
     }
 

@@ -412,6 +412,42 @@ fun GameState.recordGoalFromCurrentState(
     }
     return livePointState.recordGoal(scoringTeam, now)
 }
+
+/** Return the next pending decision in the same order used by the active-game screen. */
+internal fun GameState.pendingGameDecision(): GamePrompt.PendingDecision? {
+    pendingCapOffer?.let { capType ->
+        return GamePrompt.ApplyCap(this, capType)
+    }
+    if (pendingWaterBreakOffer && canApplyWaterBreak()) {
+        return GamePrompt.WaterBreak(this)
+    }
+    return when (pendingScoreTransition?.transition) {
+        ScoreTransition.HALFTIME -> GamePrompt.HalftimeStarted(this)
+        ScoreTransition.GAME_OVER -> GamePrompt.GameOver(this)
+        null -> null
+    }
+}
+
+/** Apply the ordinary OK action for this pending decision. */
+internal fun GamePrompt.PendingDecision.accept(now: Long): GameState {
+    return when (this) {
+        is GamePrompt.ApplyCap -> state.applyPendingCap(now)
+        is GamePrompt.WaterBreak -> state.applyWaterBreak(now)
+        is GamePrompt.HalftimeStarted,
+        is GamePrompt.GameOver -> state.acceptPendingScoreTransition()
+    }
+}
+
+/** Apply the ordinary Not yet action for this pending decision. */
+internal fun GamePrompt.PendingDecision.defer(): GameState {
+    return when (this) {
+        is GamePrompt.ApplyCap -> state.deferPendingCap()
+        is GamePrompt.WaterBreak -> state.declinePendingWaterBreak()
+        is GamePrompt.HalftimeStarted,
+        is GamePrompt.GameOver -> state.deferPendingScoreTransition()
+    }
+}
+
 /// Clear a timeout or similar in-point interruption countdown and resume normal live-point play.
 fun GameState.continueLivePoint(): GameState {
     return this.copy(

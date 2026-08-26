@@ -75,6 +75,7 @@ private data class PendingFieldTechnicalFoulResolution(
  * @param settings User settings that affect live-game behavior and display.
  * @param displayOrientation Readable orientation currently shown by Android.
  * @param onStateChange Callback receiving updated live state from user actions and timer transitions.
+ * @param onGoal Callback recording a goal for a specific team.
  * @param onUpdateGameSetup Callback reopening setup for the current game.
  * @param onOpenGameSummary Callback opening the current game summary.
  * @param onBackHome Callback returning to Home or setup according to AppState navigation rules.
@@ -87,6 +88,8 @@ internal fun ActiveGameScreen(
     settings: Settings,
     displayOrientation: ActiveGameFullOrientation,
     onStateChange: (GameState) -> Unit,
+    onGoal: (TeamId) -> Unit,
+    onDecision: (accept: Boolean) -> Unit,
     onUpdateGameSetup: () -> Unit,
     onOpenGameSummary: () -> Unit,
     onBackHome: () -> Unit,
@@ -110,7 +113,7 @@ internal fun ActiveGameScreen(
     }
     var teamInfoSheetTeam by remember { mutableStateOf<TeamId?>(null) }
     var locked by remember { mutableStateOf(false) }
-    var showWaterBreakPrompt by remember { mutableStateOf(false) }
+    var showManualWaterBreakPrompt by remember { mutableStateOf(false) }
     val activeGameDisplay = settings.orientationPreference.displayFor(
         displayOrientation = displayOrientation,
         phoneTopEnd = state.topDisplayedEnd,
@@ -126,11 +129,6 @@ internal fun ActiveGameScreen(
     /// Dismiss the pending time-violation confirmation.
     fun dismissTimeViolation() {
         pendingTimeViolationTeam = null
-    }
-
-    /// Accept a pending score transition.
-    fun acceptPendingScoreTransition() {
-        onStateChange(state.acceptPendingScoreTransition())
     }
 
     // Keep live-game display, transitions, and event timestamps current to the nearest second.
@@ -160,6 +158,7 @@ internal fun ActiveGameScreen(
     val canReportOffenseSet = remember(state, settings.showDefenseCountdowns) {
         state.canReportOffenseSet(settings.showDefenseCountdowns)
     }
+    val pendingGameDecision = state.pendingGameDecision()
 
     // Let countdown expiration move the model forward without requiring an observer tap.
     // Coverage: 2 parameter roots (`state`, `settings`) generate Compose effect guards.
@@ -191,17 +190,9 @@ internal fun ActiveGameScreen(
         }
     }
 
-    // A heat level can change during a live point. Offer the resulting late water break as
-    // soon as the game next reaches an eligible between-points countdown.
-    LaunchedEffect(state.pendingWaterBreakOffer, state.phase) {
-        if (state.pendingWaterBreakOffer && state.canApplyWaterBreak()) {
-            showWaterBreakPrompt = true
-        }
-    }
-
     val onLockedChange: (Boolean) -> Unit = { locked = it }
     val onRulesReference = { showRulesReference = true }
-    val onWaterBreak = { showWaterBreakPrompt = true }
+    val onWaterBreak = { showManualWaterBreakPrompt = true }
     val onMoreActions = {
         moreActionsCategory = MoreActionsCategory.SETUP_CHANGES
         showMoreActionsDialog = true
@@ -283,6 +274,7 @@ internal fun ActiveGameScreen(
                     maxWidth = maxWidth,
                     maxHeight = maxHeight,
                     onStateChange = onStateChange,
+                    onGoal = onGoal,
                     onLockedChange = onLockedChange,
                     onRulesReference = onRulesReference,
                     onWaterBreak = onWaterBreak,
@@ -310,6 +302,7 @@ internal fun ActiveGameScreen(
                     locked = locked,
                     maxHeight = maxHeight,
                     onStateChange = onStateChange,
+                    onGoal = onGoal,
                     onLockedChange = onLockedChange,
                     onRulesReference = onRulesReference,
                     onWaterBreak = onWaterBreak,
@@ -329,10 +322,10 @@ internal fun ActiveGameScreen(
     // Only show one dialog on this screen at a time. There are lots of possible dialogs,
     // so these are listed in priority order. Most can't overlap, but there are a few that
     // matter:
-    // 1. pendingCapOffer should be resolved before halftime in case the cap is hard cap,
-    //    which can end the game.
-    // 2. pendingCapOffer should also be before showWaterBreakPrompt, for the same reason
-    //    and also because a soft cap can change the water break prompt.
+    // 1. pendingGameDecision chooses cap, automatic water break, or score transition in the
+    //    required order.
+    // 2. A pending cap is also before a manually requested water break because applying soft cap
+    //    can change the water-break guidance.
     // 3. showMoreActions should be last, since it can spawn other dialogs, which should
     //    take precedence over the menu dialog.
     if (pendingCardTeam != null) {
@@ -642,14 +635,14 @@ internal fun ActiveGameScreen(
                 )
             },
         )
-    } else if (state.pendingCapOffer != null) {
+    } else if (pendingGameDecision is GamePrompt.ApplyCap) {
         // Cap prompts block until the observer decides whether to apply the newly eligible cap.
-        val capPrompt = GamePrompt.ApplyCap(state, state.pendingCapOffer!!)
+        val capPrompt = pendingGameDecision
         val applyCap = {
-            onStateChange(state.applyPendingCap(System.currentTimeMillis()))
+            onDecision(true)
         }
         RuleGuidanceGate(
-            key = state.pendingCapOffer,
+            key = capPrompt,
             mode = settings.ruleGuidanceMode,
             requiredInNone = capPrompt.requiresGuidanceInNone(),
             onAutoAccept = applyCap,
@@ -672,35 +665,45 @@ internal fun ActiveGameScreen(
                     TextActionButton(
                         label = "Not yet",
                         onClick = {
-                            onStateChange(state.deferPendingCap())
+                            onDecision(false)
                         },
                     )
                 },
                 widthProfile = DialogWidthProfile.COMPACT,
             )
         }
-    } else if (showWaterBreakPrompt) {
+    } else if (
+        pendingGameDecision is GamePrompt.WaterBreak ||
+        showManualWaterBreakPrompt
+    ) {
+        val pendingWaterBreak = pendingGameDecision as? GamePrompt.WaterBreak
+        val prompt: GamePrompt.WaterBreakPrompt = pendingWaterBreak
+            ?: GamePrompt.ManualWaterBreak(state)
         val applyWaterBreak = {
-            onStateChange(state.applyWaterBreak(now))
-            showWaterBreakPrompt = false
+            if (pendingWaterBreak != null) {
+                onDecision(true)
+            } else {
+                onStateChange(state.applyWaterBreak(now))
+            }
+            showManualWaterBreakPrompt = false
         }
         RuleGuidanceGate(
-            key = state.pendingWaterBreakOffer to showWaterBreakPrompt,
+            key = prompt,
             mode = settings.ruleGuidanceMode,
-            requiredInNone = true,
+            requiredInNone = prompt.requiresGuidanceInNone(),
             onAutoAccept = applyWaterBreak,
         ) {
             ResponsiveAlertDialog(
                 onDismissRequest = {
-                    if (state.pendingWaterBreakOffer) {
-                        onStateChange(state.declinePendingWaterBreak())
+                    if (pendingWaterBreak != null) {
+                        onDecision(false)
                     }
-                    showWaterBreakPrompt = false
+                    showManualWaterBreakPrompt = false
                 },
-                title = { Text("Water break") },
+                title = { Text(prompt.formatTitle()) },
                 text = {
                     ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
-                        RuleGuidanceText(state.waterBreakPromptMessage())
+                        RuleGuidanceText(prompt.formatMessage())
                     }
                 },
                 confirmButton = {
@@ -711,39 +714,35 @@ internal fun ActiveGameScreen(
                 },
                 dismissButton = {
                     TextActionButton(
-                        label = if (state.pendingWaterBreakOffer) "Not yet" else "Cancel",
+                        label = if (pendingWaterBreak != null) "Not yet" else "Cancel",
                         onClick = {
-                            if (state.pendingWaterBreakOffer) {
-                                onStateChange(state.declinePendingWaterBreak())
+                            if (pendingWaterBreak != null) {
+                                onDecision(false)
                             }
-                            showWaterBreakPrompt = false
+                            showManualWaterBreakPrompt = false
                         },
                     )
                 },
                 widthProfile = DialogWidthProfile.COMPACT,
             )
         }
-    } else if (state.pendingScoreTransition != null) {
-        val pendingTransition = state.pendingScoreTransition
-        val prompt = when (pendingTransition.transition) {
-            ScoreTransition.HALFTIME -> GamePrompt.HalftimeStarted(state)
-            ScoreTransition.GAME_OVER -> GamePrompt.GameOver(state)
-        }
+    } else if (pendingGameDecision != null) {
+        val prompt = pendingGameDecision
         RuleGuidanceGate(
-            key = pendingTransition,
+            key = prompt,
             mode = settings.ruleGuidanceMode,
-            requiredInNone = false,
+            requiredInNone = prompt.requiresGuidanceInNone(),
             onAutoAccept = {
-                acceptPendingScoreTransition()
+                onDecision(true)
             },
         ) {
             GamePromptDecisionDialog(
                 prompt = prompt,
                 onAccept = {
-                    acceptPendingScoreTransition()
+                    onDecision(true)
                 },
                 onNotYet = {
-                    onStateChange(state.deferPendingScoreTransition())
+                    onDecision(false)
                 },
             )
         }
@@ -1044,6 +1043,7 @@ private fun PortraitActiveGameContent(
     locked: Boolean,
     maxHeight: Dp,
     onStateChange: (GameState) -> Unit,
+    onGoal: (TeamId) -> Unit,
     onLockedChange: (Boolean) -> Unit,
     onRulesReference: () -> Unit,
     onWaterBreak: () -> Unit,
@@ -1185,14 +1185,7 @@ private fun PortraitActiveGameContent(
             onLock = {
                 onLockedChange(true)
             },
-            onGoal = { team ->
-                onStateChange(
-                    state.recordGoalFromCurrentState(
-                        team,
-                        settings.adjustedCountdownStartEpoch(System.currentTimeMillis()),
-                    )
-                )
-            },
+            onGoal = onGoal,
             onTimeout = onTimeout,
             onTimeViolation = onTimeViolation,
             onPullViolation = onPullViolation,
@@ -1241,6 +1234,7 @@ private fun LandscapeActiveGameContent(
     maxWidth: Dp,
     maxHeight: Dp,
     onStateChange: (GameState) -> Unit,
+    onGoal: (TeamId) -> Unit,
     onLockedChange: (Boolean) -> Unit,
     onRulesReference: () -> Unit,
     onWaterBreak: () -> Unit,
@@ -1404,14 +1398,7 @@ private fun LandscapeActiveGameContent(
             onLock = {
                 onLockedChange(true)
             },
-            onGoal = { team ->
-                onStateChange(
-                    state.recordGoalFromCurrentState(
-                        team,
-                        settings.adjustedCountdownStartEpoch(System.currentTimeMillis()),
-                    )
-                )
-            },
+            onGoal = onGoal,
             onTimeout = onTimeout,
             onTimeViolation = onTimeViolation,
             onPullViolation = onPullViolation,

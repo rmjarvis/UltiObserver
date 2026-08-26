@@ -3,13 +3,21 @@ package rmjarvis.ultiobserver
 import android.app.Application
 
 /**
- * Process-wide owner of Android resources shared by UltiObserver components.
+ * Process-wide owner of state and Android resources shared by UltiObserver components.
  *
- * The timing-alert player is created on first use and intentionally remains alive until Android
- * terminates the app process. Sharing it between sound previews and the foreground service avoids
- * overlapping SoundPool creation and asynchronous release operations.
+ * The app state lets the Activity and Wear request service serialize game actions
+ * through one authoritative path. The timing-alert player is also shared between sound previews
+ * and the foreground service to avoid overlapping SoundPool creation and release operations.
  */
 class UltiObserverApplication : Application() {
+    internal val appState by lazy {
+        AppState(FileAppStateStorage(filesDir))
+    }
+
+    internal val wearStatePublisher by lazy {
+        WearStatePublisher(this)
+    }
+
     internal val timingAlertPlayer by lazy {
         TimingAlertPlayer(this)
     }
