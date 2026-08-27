@@ -15,11 +15,11 @@ import rmjarvis.ultiobserver.wearprotocol.WearCapSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearCountdownSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearCueSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearDecisionRequest
-import rmjarvis.ultiobserver.wearprotocol.WearDecisionSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearGameActionResponse
 import rmjarvis.ultiobserver.wearprotocol.WearGoalRequest
 import rmjarvis.ultiobserver.wearprotocol.WearGuidanceLineSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearGuidancePresentation
+import rmjarvis.ultiobserver.wearprotocol.WearPromptSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearProtocolCodec
 import rmjarvis.ultiobserver.wearprotocol.WearRatioSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearRequestAction
@@ -31,6 +31,9 @@ import rmjarvis.ultiobserver.wearprotocol.WearStatusMessageTransition
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionsSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearTeamId
 import rmjarvis.ultiobserver.wearprotocol.WearTeamSnapshot
+import rmjarvis.ultiobserver.wearprotocol.WearActionConfirmation
+import rmjarvis.ultiobserver.wearprotocol.WearTimeoutPreviewRequest
+import rmjarvis.ultiobserver.wearprotocol.WearTimeoutRequest
 
 /** Check whether this phone currently has a reachable Wear OS node. */
 internal class WearOSAvailabilityChecker(
@@ -102,6 +105,8 @@ class WearOSRequestService : WearableListenerService() {
             WearRequestAction.STARTUP -> handleStartupRequest()
             WearRequestAction.GOAL -> handleGoalRequest(request)
             WearRequestAction.DECISION -> handleDecisionRequest(request)
+            WearRequestAction.TIMEOUT_PREVIEW -> handleTimeoutPreviewRequest(request)
+            WearRequestAction.TIMEOUT -> handleTimeoutRequest(request)
         }
     }
 
@@ -124,17 +129,15 @@ class WearOSRequestService : WearableListenerService() {
         val app = application as UltiObserverApplication
         val now = System.currentTimeMillis()
         val snapshot = app.appState.state.value
-        val game = snapshot.currentGame
+        val game = snapshot.gameOnWatch(request.stateToken)
         val scoringTeam = when (request.scoringTeam) {
             WearTeamId.TEAM_ONE -> TeamId.TEAM_ONE
             WearTeamId.TEAM_TWO -> TeamId.TEAM_TWO
         }
         val applied = if (
             game != null &&
-            snapshot.settings.timingAlerts.watchConnectionMode == WatchConnectionMode.WEAR_OS &&
-            snapshot.viewingActiveGameScreen &&
             game.pendingGameDecision() == null &&
-            wearStateToken(game) == request.stateToken
+            game.phase != GamePhase.GAME_OVER
         ) {
             app.appState.recordGoal(
                 currentGame = game,
@@ -144,7 +147,12 @@ class WearOSRequestService : WearableListenerService() {
         } else {
             false
         }
-        return gameActionResponse(app, applied, now)
+        return gameActionResponse(
+            app = app,
+            applied = applied,
+            now = now,
+            confirmation = null,
+        )
     }
 
     private fun handleDecisionRequest(requestBytes: ByteArray): Task<ByteArray> {
@@ -152,12 +160,9 @@ class WearOSRequestService : WearableListenerService() {
         val app = application as UltiObserverApplication
         val now = System.currentTimeMillis()
         val snapshot = app.appState.state.value
-        val game = snapshot.currentGame
+        val game = snapshot.gameOnWatch(request.stateToken)
         val applied = if (
-            game != null &&
-            snapshot.settings.timingAlerts.watchConnectionMode == WatchConnectionMode.WEAR_OS &&
-            snapshot.viewingActiveGameScreen &&
-            wearStateToken(game) == request.stateToken
+            game != null
         ) {
             app.appState.resolveDecision(
                 currentGame = game,
@@ -167,13 +172,90 @@ class WearOSRequestService : WearableListenerService() {
         } else {
             false
         }
-        return gameActionResponse(app, applied, now)
+        return gameActionResponse(
+            app = app,
+            applied = applied,
+            now = now,
+            confirmation = null,
+        )
+    }
+
+    private fun handleTimeoutPreviewRequest(requestBytes: ByteArray): Task<ByteArray> {
+        val request = WearProtocolCodec.decode(
+            WearTimeoutPreviewRequest.serializer(),
+            requestBytes,
+        )
+        val app = application as UltiObserverApplication
+        val now = System.currentTimeMillis()
+        val snapshot = app.appState.state.value
+        val game = snapshot.gameOnWatch(request.stateToken)
+        val team = request.team.toTeamId()
+        val confirmation = if (
+            game != null &&
+            game.pendingGameDecision() == null &&
+            game.canRequestTimeout(now)
+        ) {
+            val requestedAt = if (game.phase == GamePhase.LIVE_POINT) {
+                snapshot.settings.adjustedCountdownStartEpoch(now)
+            } else {
+                now
+            }
+            val action = GamePrompt.TimeoutConfirmation(
+                state = game,
+                team = team,
+                requestedAt = requestedAt,
+            )
+            WearActionConfirmation.Timeout(
+                stateToken = request.stateToken,
+                team = request.team,
+                requestedAtPhoneEpochMillis = requestedAt,
+                prompt = action.wearSnapshot(snapshot.settings.ruleGuidanceMode),
+            )
+        } else {
+            null
+        }
+        return gameActionResponse(
+            app = app,
+            applied = false,
+            now = now,
+            confirmation = confirmation,
+        )
+    }
+
+    private fun handleTimeoutRequest(requestBytes: ByteArray): Task<ByteArray> {
+        val request = WearProtocolCodec.decode(WearTimeoutRequest.serializer(), requestBytes)
+        val app = application as UltiObserverApplication
+        val now = System.currentTimeMillis()
+        val snapshot = app.appState.state.value
+        val game = snapshot.gameOnWatch(request.stateToken)
+        val applied = if (
+            game != null &&
+            game.pendingGameDecision() == null &&
+            game.canRequestTimeout(request.requestedAtPhoneEpochMillis)
+        ) {
+            app.appState.confirmAction(
+                GamePrompt.TimeoutConfirmation(
+                    state = game,
+                    team = request.team.toTeamId(),
+                    requestedAt = request.requestedAtPhoneEpochMillis,
+                )
+            )
+        } else {
+            false
+        }
+        return gameActionResponse(
+            app = app,
+            applied = applied,
+            now = now,
+            confirmation = null,
+        )
     }
 
     private fun gameActionResponse(
         app: UltiObserverApplication,
         applied: Boolean,
         now: Long,
+        confirmation: WearActionConfirmation?,
     ): Task<ByteArray> {
         val snapshot = app.currentWearSnapshot(now)
         app.wearStatePublisher.publish(snapshot)
@@ -183,9 +265,28 @@ class WearOSRequestService : WearableListenerService() {
                 WearGameActionResponse(
                     applied = applied,
                     snapshot = snapshot,
+                    confirmation = confirmation,
                 )
             )
         )
+    }
+}
+
+/** Return the current game if the watch may act on the supplied state token. */
+private fun AppStateSnapshot.gameOnWatch(stateToken: String): GameState? {
+    val game = currentGame ?: return null
+    return game.takeIf {
+        settings.timingAlerts.watchConnectionMode == WatchConnectionMode.WEAR_OS &&
+            viewingActiveGameScreen &&
+            wearStateToken(game) == stateToken
+    }
+}
+
+/** Convert the protocol team identity to the phone's game model. */
+private fun WearTeamId.toTeamId(): TeamId {
+    return when (this) {
+        WearTeamId.TEAM_ONE -> TeamId.TEAM_ONE
+        WearTeamId.TEAM_TWO -> TeamId.TEAM_TWO
     }
 }
 
@@ -354,18 +455,51 @@ private fun GameState.wearTeamSnapshot(
 /** Convert the phone's existing prompt copy and guidance policy into protocol display data. */
 private fun GamePrompt.PendingDecision.wearSnapshot(
     guidanceMode: RuleGuidanceMode,
-): WearDecisionSnapshot {
-    val presentation = guidanceMode.presentation(requiresGuidanceInNone())
-    return WearDecisionSnapshot(
+): WearPromptSnapshot {
+    return wearPromptSnapshot(
         title = formatTitle(),
-        messageLines = formatMessage().lines.map { line ->
+        message = formatMessage(),
+        confirmLabel = "OK",
+        dismissLabel = "Not yet",
+        guidanceMode = guidanceMode,
+        requiredInNone = requiresGuidanceInNone(),
+    )
+}
+
+/** Convert one action confirmation to the phone-owned copy and guidance presentation. */
+internal fun GamePrompt.ActionConfirmation.wearSnapshot(
+    guidanceMode: RuleGuidanceMode,
+): WearPromptSnapshot {
+    return wearPromptSnapshot(
+        title = formatTitle(),
+        message = guidanceMessage(guidanceMode),
+        confirmLabel = "OK",
+        dismissLabel = "Cancel",
+        guidanceMode = guidanceMode,
+        requiredInNone = requiresGuidanceInNone(),
+    )
+}
+
+/** Build common watch prompt display data from phone-owned guidance. */
+private fun wearPromptSnapshot(
+    title: String,
+    message: RuleGuidanceMessage,
+    confirmLabel: String,
+    dismissLabel: String,
+    guidanceMode: RuleGuidanceMode,
+    requiredInNone: Boolean,
+): WearPromptSnapshot {
+    val presentation = guidanceMode.presentation(requiredInNone)
+    return WearPromptSnapshot(
+        title = title,
+        messageLines = message.lines.map { line ->
             WearGuidanceLineSnapshot(
                 text = line.text,
                 bold = line.bold,
             )
         },
-        confirmLabel = "OK",
-        dismissLabel = "Not yet",
+        confirmLabel = confirmLabel,
+        dismissLabel = dismissLabel,
         presentation = when (presentation) {
             RuleGuidancePresentation.VISIBLE -> WearGuidancePresentation.VISIBLE
             RuleGuidancePresentation.VISIBLE_TIMED -> WearGuidancePresentation.VISIBLE_TIMED

@@ -23,6 +23,9 @@ import rmjarvis.ultiobserver.wearprotocol.WearRequestAction
 import rmjarvis.ultiobserver.wearprotocol.WearStateSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearStartupResponse
 import rmjarvis.ultiobserver.wearprotocol.WearTeamId
+import rmjarvis.ultiobserver.wearprotocol.WearActionConfirmation
+import rmjarvis.ultiobserver.wearprotocol.WearTimeoutPreviewRequest
+import rmjarvis.ultiobserver.wearprotocol.WearTimeoutRequest
 
 /** Snapshot plus the offset needed to display it using the phone's clock. */
 internal data class ReceivedState(
@@ -276,7 +279,7 @@ internal class StateClient(
             nodeId = nodeId,
             action = WearRequestAction.GOAL,
             request = WearProtocolCodec.encode(WearGoalRequest.serializer(), request),
-            onFinished = onFinished,
+            onFinished = { response -> onFinished(response?.applied == true) },
         )
     }
 
@@ -299,7 +302,65 @@ internal class StateClient(
             nodeId = nodeId,
             action = WearRequestAction.DECISION,
             request = WearProtocolCodec.encode(WearDecisionRequest.serializer(), request),
-            onFinished = onFinished,
+            onFinished = { response -> onFinished(response?.applied == true) },
+        )
+    }
+
+    /** Request the phone-owned timeout confirmation without changing the game. */
+    fun previewTimeout(
+        team: WearTeamId,
+        stateToken: String,
+        onFinished: (WearActionConfirmation?) -> Unit,
+    ) {
+        val nodeId = reachablePhoneNodeId
+        if (nodeId == null) {
+            onFinished(null)
+            return
+        }
+        val request = WearTimeoutPreviewRequest(
+            stateToken = stateToken,
+            team = team,
+        )
+        sendGameAction(
+            nodeId = nodeId,
+            action = WearRequestAction.TIMEOUT_PREVIEW,
+            request = WearProtocolCodec.encode(
+                WearTimeoutPreviewRequest.serializer(),
+                request,
+            ),
+            onFinished = { response -> onFinished(response?.confirmation) },
+        )
+    }
+
+    /** Apply the exact action confirmation accepted on the watch. */
+    fun confirmAction(
+        confirmation: WearActionConfirmation,
+        onFinished: (Boolean) -> Unit,
+    ) {
+        when (confirmation) {
+            is WearActionConfirmation.Timeout -> confirmTimeout(confirmation, onFinished)
+        }
+    }
+
+    private fun confirmTimeout(
+        confirmation: WearActionConfirmation.Timeout,
+        onFinished: (Boolean) -> Unit,
+    ) {
+        val nodeId = reachablePhoneNodeId
+        if (nodeId == null) {
+            onFinished(false)
+            return
+        }
+        val request = WearTimeoutRequest(
+            stateToken = confirmation.stateToken,
+            team = confirmation.team,
+            requestedAtPhoneEpochMillis = confirmation.requestedAtPhoneEpochMillis,
+        )
+        sendGameAction(
+            nodeId = nodeId,
+            action = WearRequestAction.TIMEOUT,
+            request = WearProtocolCodec.encode(WearTimeoutRequest.serializer(), request),
+            onFinished = { response -> onFinished(response?.applied == true) },
         )
     }
 
@@ -307,7 +368,7 @@ internal class StateClient(
         nodeId: String,
         action: WearRequestAction,
         request: ByteArray,
-        onFinished: (Boolean) -> Unit,
+        onFinished: (WearGameActionResponse?) -> Unit,
     ) {
         messageClient.sendRequest(nodeId, action.path, request)
             // Any response from the phone counts as success here. Even rejecting the action.
@@ -321,7 +382,7 @@ internal class StateClient(
                     startupComplete = true
                     onConnectionStateChanged(ConnectionState.CONNECTED)
                 }
-                onFinished(response.applied)
+                onFinished(response)
             }
             // Failure means some kind of disconnect: timeout, phone crash, transport error, etc.
             .addOnFailureListener {
@@ -330,7 +391,7 @@ internal class StateClient(
                     onConnectionStateChanged(ConnectionState.DISCONNECTED)
                     requestStartupState(nodeId)
                 }
-                onFinished(false)
+                onFinished(null)
             }
     }
 

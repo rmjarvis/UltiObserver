@@ -42,6 +42,7 @@ import rmjarvis.ultiobserver.wearprotocol.WearSnapshotPullDirection
 import rmjarvis.ultiobserver.wearprotocol.WearSnapshotStatus
 import rmjarvis.ultiobserver.wearprotocol.WearTeamId
 import rmjarvis.ultiobserver.wearprotocol.WearTeamSnapshot
+import rmjarvis.ultiobserver.wearprotocol.WearActionConfirmation
 
 /** Route synchronized phone state to the watch's idle, game, or team-action surface. */
 @Composable
@@ -51,8 +52,13 @@ internal fun UltiObserverWearApp(
     onRetry: () -> Unit,
     onGoal: (WearTeamId, String, (Boolean) -> Unit) -> Unit,
     onDecision: (String, Boolean, (Boolean) -> Unit) -> Unit,
+    onTimeout: (WearTeamId, String, (WearActionConfirmation?) -> Unit) -> Unit,
+    onConfirmAction: (WearActionConfirmation, (Boolean) -> Unit) -> Unit,
 ) {
     var selectedTeam by remember { mutableIntStateOf(0) }
+    var pendingConfirmation by remember {
+        mutableStateOf<WearActionConfirmation?>(null)
+    }
     val snapshot = receivedState?.snapshot
     val phoneReachable = connectionState == ConnectionState.CONNECTED
 
@@ -60,6 +66,7 @@ internal fun UltiObserverWearApp(
         phoneReachable,
         snapshot?.status,
         snapshot?.activeGame?.actionsAvailable,
+        snapshot?.activeGame?.stateToken,
     ) {
         if (
             !phoneReachable ||
@@ -68,8 +75,14 @@ internal fun UltiObserverWearApp(
         ) {
             selectedTeam = 0
         }
+        if (
+            !phoneReachable ||
+            pendingConfirmation?.stateToken != snapshot?.activeGame?.stateToken
+        ) {
+            pendingConfirmation = null
+        }
     }
-    BackHandler(enabled = selectedTeam != 0) {
+    BackHandler(enabled = selectedTeam != 0 && pendingConfirmation == null) {
         selectedTeam = 0
     }
 
@@ -94,6 +107,23 @@ internal fun UltiObserverWearApp(
                     stateToken = activeGame.stateToken,
                     onDecision = onDecision,
                 )
+            } else if (phoneReachable && pendingConfirmation != null) {
+                val confirmation = pendingConfirmation!!
+                ActionConfirmationScreen(
+                    prompt = confirmation.prompt,
+                    onConfirm = { onFinished ->
+                        onConfirmAction(confirmation) { applied ->
+                            pendingConfirmation = null
+                            if (applied) {
+                                selectedTeam = 0
+                            }
+                            onFinished(applied)
+                        }
+                    },
+                    onCancel = {
+                        pendingConfirmation = null
+                    },
+                )
             } else {
                 ActiveGameScreen(
                     receivedState = receivedState,
@@ -103,6 +133,10 @@ internal fun UltiObserverWearApp(
                     onSelectedTeamChange = { selectedTeam = it },
                     onRetry = onRetry,
                     onGoal = onGoal,
+                    onTimeout = onTimeout,
+                    onConfirmation = { confirmation ->
+                        pendingConfirmation = confirmation
+                    },
                 )
             }
         }
@@ -119,6 +153,8 @@ private fun ActiveGameScreen(
     onSelectedTeamChange: (Int) -> Unit,
     onRetry: () -> Unit,
     onGoal: (WearTeamId, String, (Boolean) -> Unit) -> Unit,
+    onTimeout: (WearTeamId, String, (WearActionConfirmation?) -> Unit) -> Unit,
+    onConfirmation: (WearActionConfirmation) -> Unit,
 ) {
     var commandPending by remember { mutableStateOf(false) }
     val currentPhoneEpochMillis by produceState(
@@ -171,7 +207,18 @@ private fun ActiveGameScreen(
             onPullViolation = {},
             onCard = {},
             onTechnicalFoul = {},
-            onTimeout = {},
+            onTimeout = {
+                if (!commandPending) {
+                    commandPending = true
+                    onTimeout(
+                        if (selectedTeam == 1) WearTeamId.TEAM_ONE else WearTeamId.TEAM_TWO,
+                        activeGame.stateToken,
+                    ) { confirmation ->
+                        commandPending = false
+                        confirmation?.let(onConfirmation)
+                    }
+                }
+            },
             onCancel = {
                 onSelectedTeamChange(0)
             },

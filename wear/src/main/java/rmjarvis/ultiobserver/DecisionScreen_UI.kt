@@ -39,14 +39,14 @@ import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.TimeText
 import kotlinx.coroutines.delay
 import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
-import rmjarvis.ultiobserver.wearprotocol.WearDecisionSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearGuidanceLineSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearGuidancePresentation
+import rmjarvis.ultiobserver.wearprotocol.WearPromptSnapshot
 
 /** Show one phone-formatted pending decision and return the observer's response to the phone. */
 @Composable
 internal fun DecisionScreen(
-    decision: WearDecisionSnapshot,
+    decision: WearPromptSnapshot,
     stateToken: String,
     onDecision: (String, Boolean, (Boolean) -> Unit) -> Unit,
 ) {
@@ -76,92 +76,133 @@ internal fun DecisionScreen(
         }
     }
 
+    PromptScreen(
+        prompt = decision,
+        enabled = !commandPending,
+        onConfirm = {
+            submitDecision(true)
+        },
+        onDismiss = {
+            submitDecision(false)
+        },
+    )
+}
+
+/** Show an action confirmation whose Cancel action remains local to the watch. */
+@Composable
+internal fun ActionConfirmationScreen(
+    prompt: WearPromptSnapshot,
+    onConfirm: ((Boolean) -> Unit) -> Unit,
+    onCancel: () -> Unit,
+) {
+    var commandPending by remember(prompt) { mutableStateOf(false) }
+    val submitConfirmation = {
+        if (!commandPending) {
+            commandPending = true
+            onConfirm {
+                commandPending = false
+            }
+        }
+    }
+
+    BackHandler(enabled = !commandPending) {
+        onCancel()
+    }
+    LaunchedEffect(prompt, commandPending) {
+        if (!commandPending) {
+            when (prompt.presentation) {
+                WearGuidancePresentation.VISIBLE -> Unit
+                WearGuidancePresentation.VISIBLE_TIMED -> {
+                    delay(prompt.autoAcceptDelayMillis!!)
+                    submitConfirmation()
+                }
+                WearGuidancePresentation.HIDDEN_AUTO_ACCEPT -> submitConfirmation()
+            }
+        }
+    }
+
+    PromptScreen(
+        prompt = prompt,
+        enabled = !commandPending,
+        onConfirm = submitConfirmation,
+        onDismiss = onCancel,
+    )
+}
+
+@Composable
+private fun PromptScreen(
+    prompt: WearPromptSnapshot,
+    enabled: Boolean,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
     UltiObserverTheme {
         AppScaffold(
             timeText = { TimeText() },
             containerColor = Color.Black,
             contentColor = Color.White,
         ) {
-            if (decision.presentation != WearGuidancePresentation.HIDDEN_AUTO_ACCEPT) {
-                DecisionContent(
-                    decision = decision,
-                    enabled = !commandPending,
-                    onAccept = {
-                        submitDecision(true)
-                    },
-                    onNotYet = {
-                        submitDecision(false)
-                    },
-                )
+            if (prompt.presentation != WearGuidancePresentation.HIDDEN_AUTO_ACCEPT) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black)
+                        .padding(horizontal = 26.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(DialogBackgroundColor)
+                            .padding(top = 12.dp, bottom = 4.dp, start = 12.dp, end = 12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            text = prompt.title,
+                            modifier = Modifier.fillMaxWidth(),
+                            color = DialogContentColor,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Start,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = prompt.messageLines.toAnnotatedString(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 76.dp)
+                                .verticalScroll(rememberScrollState()),
+                            color = DialogContentColor,
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp,
+                            textAlign = TextAlign.Start,
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                        ) {
+                            PromptAction(
+                                label = prompt.dismissLabel,
+                                enabled = enabled,
+                                onClick = onDismiss,
+                            )
+                            PromptAction(
+                                label = prompt.confirmLabel,
+                                enabled = enabled,
+                                onClick = onConfirm,
+                            )
+                        }
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun DecisionContent(
-    decision: WearDecisionSnapshot,
-    enabled: Boolean,
-    onAccept: () -> Unit,
-    onNotYet: () -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black)
-            .padding(horizontal = 26.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(DialogBackgroundColor)
-                .padding(top = 12.dp, bottom = 4.dp, start = 12.dp, end = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(
-                text = decision.title,
-                modifier = Modifier.fillMaxWidth(),
-                color = DialogContentColor,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Start,
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = decision.messageLines.toAnnotatedString(),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 76.dp)
-                    .verticalScroll(rememberScrollState()),
-                color = DialogContentColor,
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
-                textAlign = TextAlign.Start,
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-            ) {
-                DecisionAction(
-                    label = decision.dismissLabel,
-                    enabled = enabled,
-                    onClick = onNotYet,
-                )
-                DecisionAction(
-                    label = decision.confirmLabel,
-                    enabled = enabled,
-                    onClick = onAccept,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun DecisionAction(
+private fun PromptAction(
     label: String,
     enabled: Boolean,
     onClick: () -> Unit,

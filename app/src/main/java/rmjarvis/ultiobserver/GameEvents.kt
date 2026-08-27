@@ -188,6 +188,21 @@ sealed interface GamePrompt {
         val state: GameState
     }
 
+    /** Prompt shown before an observer action is committed with OK or discarded with Cancel. */
+    sealed interface ActionConfirmation : GamePrompt {
+        val state: GameState
+        val event: GameEvent
+    }
+
+    /** Confirmation shown before charging a requested timeout. */
+    data class TimeoutConfirmation(
+        override val state: GameState,
+        val team: TeamId,
+        val requestedAt: Long,
+    ) : ActionConfirmation {
+        override val event = state.previewTimeout(team, requestedAt).event
+    }
+
     /**
      * Prompt asking whether to apply a due cap now.
      *
@@ -244,12 +259,16 @@ sealed interface GamePrompt {
 
 /// Report whether None mode must still surface this prompt briefly.
 internal fun GamePrompt.requiresGuidanceInNone(): Boolean {
-    return this is GamePrompt.ApplyCap || this is GamePrompt.WaterBreakPrompt
+    return when (this) {
+        is GamePrompt.ActionConfirmation -> event.requiresGuidanceInNone()
+        else -> this is GamePrompt.ApplyCap || this is GamePrompt.WaterBreakPrompt
+    }
 }
 
 /// Format title text for prompts that need a dialog title in the current Android app.
 fun GamePrompt.formatTitle(): String {
     return when (this) {
+        is GamePrompt.ActionConfirmation -> event.formatPopupTitle()
         is GamePrompt.ApplyCap -> this.formatTitle()
         is GamePrompt.WaterBreakPrompt -> this.formatTitle()
         is GamePrompt.LivePointMisconduct -> this.formatTitle()
@@ -261,11 +280,26 @@ fun GamePrompt.formatTitle(): String {
 /// Format the main text shown to the observer for a prompt.
 internal fun GamePrompt.formatMessage(): RuleGuidanceMessage {
     return when (this) {
+        is GamePrompt.ActionConfirmation -> event.formatMessage()
         is GamePrompt.ApplyCap -> this.formatMessage()
         is GamePrompt.WaterBreakPrompt -> this.formatMessage()
         is GamePrompt.LivePointMisconduct -> this.formatMessage()
         is GamePrompt.HalftimeStarted -> this.formatMessage()
         is GamePrompt.GameOver -> this.formatMessage()
+    }
+}
+
+/// Format the full or concise message selected for an action confirmation.
+internal fun GamePrompt.ActionConfirmation.guidanceMessage(
+    mode: RuleGuidanceMode,
+): RuleGuidanceMessage {
+    return event.guidanceMessage(mode)
+}
+
+/// Apply an action confirmation through its ordinary game-action path.
+internal fun GamePrompt.ActionConfirmation.confirm(): GameState {
+    return when (this) {
+        is GamePrompt.TimeoutConfirmation -> state.assessTimeout(team, requestedAt).state
     }
 }
 

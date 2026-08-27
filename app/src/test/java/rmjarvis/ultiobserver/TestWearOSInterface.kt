@@ -17,6 +17,9 @@ import rmjarvis.ultiobserver.wearprotocol.WearSnapshotStatus
 import rmjarvis.ultiobserver.wearprotocol.WearStateSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearStartupResponse
 import rmjarvis.ultiobserver.wearprotocol.WearTeamId
+import rmjarvis.ultiobserver.wearprotocol.WearActionConfirmation
+import rmjarvis.ultiobserver.wearprotocol.WearTimeoutPreviewRequest
+import rmjarvis.ultiobserver.wearprotocol.WearTimeoutRequest
 
 /// Tests for the phone-side Wear OS interface.
 class TestWearOSInterface : GameDomainTestFixtures() {
@@ -309,6 +312,145 @@ class TestWearOSInterface : GameDomainTestFixtures() {
             WearProtocolCodec.decode(
                 WearStartupResponse.serializer(),
                 WearProtocolCodec.encode(WearStartupResponse.serializer(), startupResponse),
+            ),
+        )
+    }
+
+    /**
+     * Exercise a watch timeout as a phone-owned confirmation whose preview is harmless until the
+     * observer accepts it, then commits through the same app action used by the phone UI.
+     */
+    @Test
+    fun watchTimeout() {
+        val settings = Settings(
+            automaticallyAdvanceNewCountdowns = true,
+            ruleGuidanceMode = RuleGuidanceMode.FULL,
+            timingAlerts = TimingAlertPreferences(
+                watchConnectionMode = WatchConnectionMode.WEAR_OS,
+            ),
+        )
+        val appState = AppState(NoOpAppStateStorage)
+        appState.updateSettings(settings)
+        val game = standardLiveGameState().continueLivePoint()
+        appState.updateCurrentGame(game)
+        appState.resumeCurrentGame()
+        val requestedAt = settings.adjustedCountdownStartEpoch(
+            timestampAt(game, LocalTime.of(11, 0))
+        )
+        val confirmation = GamePrompt.TimeoutConfirmation(
+            state = game,
+            team = TeamId.TEAM_ONE,
+            requestedAt = requestedAt,
+        )
+
+        // Requesting the confirmation supplies the same Full guidance as the phone without
+        // changing the current game. Cancel therefore needs no phone command or state rollback.
+        val prompt = confirmation.wearSnapshot(settings.ruleGuidanceMode)
+        assertEquals("Timeout", prompt.title)
+        assertEquals(
+            listOf(
+                "Timeout charged to Viscous Coupling. " +
+                    "They have 1 timeout remaining in this half."
+            ),
+            prompt.messageLines.map { line -> line.text },
+        )
+        assertEquals("Cancel", prompt.dismissLabel)
+        assertEquals("OK", prompt.confirmLabel)
+        assertEquals(WearGuidancePresentation.VISIBLE, prompt.presentation)
+        assertEquals(game, appState.currentGame)
+
+        // Brief, Timed, and None select the same presentation and copy policy used by the phone.
+        val briefPrompt = confirmation.wearSnapshot(RuleGuidanceMode.BRIEF)
+        assertEquals(
+            listOf("Timeout charged to Viscous Coupling."),
+            briefPrompt.messageLines.map { line -> line.text },
+        )
+        assertEquals(WearGuidancePresentation.VISIBLE, briefPrompt.presentation)
+        val timedPrompt = confirmation.wearSnapshot(RuleGuidanceMode.TIMED)
+        assertEquals(WearGuidancePresentation.VISIBLE_TIMED, timedPrompt.presentation)
+        assertEquals(ruleGuidanceTimeoutMillis, timedPrompt.autoAcceptDelayMillis)
+        val nonePrompt = confirmation.wearSnapshot(RuleGuidanceMode.NONE)
+        assertEquals(WearGuidancePresentation.HIDDEN_AUTO_ACCEPT, nonePrompt.presentation)
+        assertNull(nonePrompt.autoAcceptDelayMillis)
+
+        // An invalid timeout remains visible briefly in None mode, matching the phone's required
+        // warning rather than silently accepting an action that cannot be charged.
+        val outOfTimeoutsGame = game.copy(
+            teamOne = game.teamOne.copy(timeoutsUsedThisHalf = 2),
+        )
+        val invalidPrompt = GamePrompt.TimeoutConfirmation(
+            state = outOfTimeoutsGame,
+            team = TeamId.TEAM_ONE,
+            requestedAt = requestedAt,
+        ).wearSnapshot(RuleGuidanceMode.NONE)
+        assertEquals("Invalid timeout", invalidPrompt.title)
+        assertEquals(WearGuidancePresentation.VISIBLE_TIMED, invalidPrompt.presentation)
+        assertEquals(ruleGuidanceTimeoutMillis, invalidPrompt.autoAcceptDelayMillis)
+
+        // OK commits the timeout through AppState and a second response based on the stale preview
+        // cannot overwrite that accepted result.
+        assertTrue(appState.confirmAction(confirmation))
+        val timeoutGame = appState.currentGame!!
+        assertEquals(game.assessTimeout(TeamId.TEAM_ONE, requestedAt).state, timeoutGame)
+        assertEquals(1, timeoutGame.teamOne.timeoutsUsedThisHalf)
+        assertEquals(CountdownKind.TIME_OUT, timeoutGame.countdown?.kind)
+        assertEquals("Undo Timeout by Viscous Coupling", timeoutGame.undoEntry?.label)
+        assertFalse(appState.confirmAction(confirmation))
+        assertEquals(timeoutGame, appState.currentGame)
+
+        // Preview and confirmation payloads preserve the exact state token, team, phone timestamp,
+        // prompt, and authoritative snapshot across their protocol round trips.
+        val stateToken = wearStateToken(game)
+        val previewRequest = WearTimeoutPreviewRequest(
+            stateToken = stateToken,
+            team = WearTeamId.TEAM_ONE,
+        )
+        assertEquals(
+            previewRequest,
+            WearProtocolCodec.decode(
+                WearTimeoutPreviewRequest.serializer(),
+                WearProtocolCodec.encode(
+                    WearTimeoutPreviewRequest.serializer(),
+                    previewRequest,
+                ),
+            ),
+        )
+        val protocolConfirmation = WearActionConfirmation.Timeout(
+            stateToken = stateToken,
+            team = WearTeamId.TEAM_ONE,
+            requestedAtPhoneEpochMillis = requestedAt,
+            prompt = prompt,
+        )
+        val previewResponse = WearGameActionResponse(
+            applied = false,
+            confirmation = protocolConfirmation,
+            snapshot = buildWearStateSnapshot(
+                game = game,
+                settings = settings,
+                now = requestedAt,
+                actionsAvailable = true,
+            ),
+        )
+        assertEquals(
+            previewResponse,
+            WearProtocolCodec.decode(
+                WearGameActionResponse.serializer(),
+                WearProtocolCodec.encode(
+                    WearGameActionResponse.serializer(),
+                    previewResponse,
+                ),
+            ),
+        )
+        val timeoutRequest = WearTimeoutRequest(
+            stateToken = stateToken,
+            team = WearTeamId.TEAM_ONE,
+            requestedAtPhoneEpochMillis = requestedAt,
+        )
+        assertEquals(
+            timeoutRequest,
+            WearProtocolCodec.decode(
+                WearTimeoutRequest.serializer(),
+                WearProtocolCodec.encode(WearTimeoutRequest.serializer(), timeoutRequest),
             ),
         )
     }
@@ -613,7 +755,11 @@ class TestWearOSInterface : GameDomainTestFixtures() {
 
         // The response holds whether the action was applied and the resulting snapshot, which
         // both survive the encoding and decoding round trip when sent to the watch.
-        val response = WearGameActionResponse(applied = true, snapshot = finalSnapshot)
+        val response = WearGameActionResponse(
+            applied = true,
+            snapshot = finalSnapshot,
+            confirmation = null,
+        )
         assertEquals(
             response,
             WearProtocolCodec.decode(

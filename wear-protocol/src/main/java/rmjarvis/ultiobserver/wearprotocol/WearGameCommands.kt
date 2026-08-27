@@ -14,6 +14,8 @@ enum class WearRequestAction(val path: String) {
     STARTUP("/ultiobserver/startup"),
     GOAL("/ultiobserver/goal"),
     DECISION("/ultiobserver/decision"),
+    TIMEOUT_PREVIEW("/ultiobserver/timeout-preview"),
+    TIMEOUT("/ultiobserver/timeout"),
     ;
 
     companion object {
@@ -45,11 +47,43 @@ data class WearDecisionRequest(
     val accept: Boolean,
 )
 
-/** Game-action result plus the authoritative state after accepting or rejecting the request. */
+/** Request the phone-owned confirmation for a timeout without changing the game. */
+@Serializable
+data class WearTimeoutPreviewRequest(
+    val stateToken: String,
+    val team: WearTeamId,
+)
+
+/** Phone-owned action context and prompt presented before the watch applies an action. */
+@Serializable
+sealed interface WearActionConfirmation {
+    val stateToken: String
+    val prompt: WearPromptSnapshot
+
+    /** Confirmation details needed to apply a timeout after the observer selects OK. */
+    @Serializable
+    data class Timeout(
+        override val stateToken: String,
+        val team: WearTeamId,
+        val requestedAtPhoneEpochMillis: Long,
+        override val prompt: WearPromptSnapshot,
+    ) : WearActionConfirmation
+}
+
+/** Request to apply the exact timeout confirmation accepted on the watch. */
+@Serializable
+data class WearTimeoutRequest(
+    val stateToken: String,
+    val team: WearTeamId,
+    val requestedAtPhoneEpochMillis: Long,
+)
+
+/** Game-action result, authoritative state, and any transient confirmation to show next. */
 @Serializable
 data class WearGameActionResponse(
     val applied: Boolean,
     val snapshot: WearStateSnapshot,
+    val confirmation: WearActionConfirmation?,
 )
 
 /** Stable JSON codec shared by every phone/watch protocol payload. */

@@ -105,9 +105,9 @@ data class WearGuidanceLineSnapshot(
     val bold: Boolean,
 )
 
-/** Phone-owned prompt and controls for one decision awaiting an observer response. */
+/** Phone-owned copy, controls, and presentation for one watch prompt. */
 @Serializable
-data class WearDecisionSnapshot(
+data class WearPromptSnapshot(
     val title: String,
     val messageLines: List<WearGuidanceLineSnapshot>,
     val confirmLabel: String,
@@ -132,7 +132,7 @@ data class WearActiveGameSnapshot(
     val pullDirection: WearSnapshotPullDirection,
     val ratio: WearRatioSnapshot?,
     val undoDescription: String?,
-    val pendingDecision: WearDecisionSnapshot?,
+    val pendingDecision: WearPromptSnapshot?,
 )
 
 /**

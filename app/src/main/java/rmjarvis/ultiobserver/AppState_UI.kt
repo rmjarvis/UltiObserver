@@ -497,6 +497,9 @@ internal fun UltiObserverApp(
                             now = System.currentTimeMillis(),
                         )
                     },
+                    onConfirmation = { confirmation ->
+                        appState.confirmAction(confirmation)
+                    },
                     onUpdateGameSetup = {
                         appState.editCurrentGame(currentGame)
                     },

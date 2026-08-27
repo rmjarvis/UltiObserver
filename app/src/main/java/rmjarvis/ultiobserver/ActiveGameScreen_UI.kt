@@ -45,17 +45,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * Timeout request waiting for observer confirmation.
- *
- * @param team The team requesting the timeout.
- * @param requestedAt The epoch millis when the timeout was requested.
- */
-private data class PendingTimeoutRequest(
-    val team: TeamId,
-    val requestedAt: Long,
-)
-
-/**
  * Field technical-foul misconduct consequence waiting for final confirmation.
  *
  * @param team The team receiving the technical foul.
@@ -76,6 +65,8 @@ private data class PendingFieldTechnicalFoulResolution(
  * @param displayOrientation Readable orientation currently shown by Android.
  * @param onStateChange Callback receiving updated live state from user actions and timer transitions.
  * @param onGoal Callback recording a goal for a specific team.
+ * @param onDecision Callback accepting or deferring a pending game decision.
+ * @param onConfirmation Callback committing an action after the observer selects OK.
  * @param onUpdateGameSetup Callback reopening setup for the current game.
  * @param onOpenGameSummary Callback opening the current game summary.
  * @param onBackHome Callback returning to Home or setup according to AppState navigation rules.
@@ -90,6 +81,7 @@ internal fun ActiveGameScreen(
     onStateChange: (GameState) -> Unit,
     onGoal: (TeamId) -> Unit,
     onDecision: (accept: Boolean) -> Unit,
+    onConfirmation: (GamePrompt.ActionConfirmation) -> Unit,
     onUpdateGameSetup: () -> Unit,
     onOpenGameSummary: () -> Unit,
     onBackHome: () -> Unit,
@@ -103,7 +95,9 @@ internal fun ActiveGameScreen(
     }
     var showRulesReference by remember { mutableStateOf(false) }
     var showEventLogSheet by remember { mutableStateOf(false) }
-    var pendingTimeoutRequest by remember { mutableStateOf<PendingTimeoutRequest?>(null) }
+    var pendingTimeoutConfirmation by remember {
+        mutableStateOf<GamePrompt.TimeoutConfirmation?>(null)
+    }
     var pendingTimeViolationTeam by remember { mutableStateOf<TeamId?>(null) }
     var pendingPullViolationTeam by remember { mutableStateOf<TeamId?>(null) }
     var pendingPullViolationType by remember { mutableStateOf(PullViolationType.OFFSIDES) }
@@ -200,9 +194,10 @@ internal fun ActiveGameScreen(
     val onTimeout: (TeamId) -> Unit
     onTimeout = { team ->
         val requestedAt = System.currentTimeMillis()
-        pendingTimeoutRequest = PendingTimeoutRequest(
-            team,
-            if (state.phase == GamePhase.LIVE_POINT) {
+        pendingTimeoutConfirmation = GamePrompt.TimeoutConfirmation(
+            state = state,
+            team = team,
+            requestedAt = if (state.phase == GamePhase.LIVE_POINT) {
                 settings.adjustedCountdownStartEpoch(requestedAt)
             } else {
                 requestedAt
@@ -362,22 +357,21 @@ internal fun ActiveGameScreen(
                 showRulesReference = false
             },
         )
-    } else if (pendingTimeoutRequest != null) {
-        val request = pendingTimeoutRequest!!
-        val event = state.previewTimeout(request.team, request.requestedAt).event
+    } else if (pendingTimeoutConfirmation != null) {
+        val confirmation = pendingTimeoutConfirmation!!
+        val event = confirmation.event
         val applyTimeout = {
-            val result = state.assessTimeout(request.team, request.requestedAt)
-            onStateChange(result.state)
-            pendingTimeoutRequest = null
+            onConfirmation(confirmation)
+            pendingTimeoutConfirmation = null
         }
         RuleGuidanceGate(
-            key = request,
+            key = confirmation,
             mode = settings.ruleGuidanceMode,
             requiredInNone = event.requiresGuidanceInNone(),
             onAutoAccept = applyTimeout,
         ) {
             ResponsiveAlertDialog(
-                onDismissRequest = { pendingTimeoutRequest = null },
+                onDismissRequest = { pendingTimeoutConfirmation = null },
                 title = { Text(event.formatPopupTitle()) },
                 text = {
                     ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
@@ -391,7 +385,10 @@ internal fun ActiveGameScreen(
                     )
                 },
                 dismissButton = {
-                    TextActionButton(label = "Cancel", onClick = { pendingTimeoutRequest = null })
+                    TextActionButton(
+                        label = "Cancel",
+                        onClick = { pendingTimeoutConfirmation = null },
+                    )
                 },
                 widthProfile = DialogWidthProfile.COMPACT,
             )

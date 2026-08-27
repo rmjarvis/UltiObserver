@@ -382,6 +382,24 @@ internal class AppState(
         )
     }
 
+    /**
+     * Commit an action after the initiating surface receives the observer's confirmation.
+     *
+     * Both the phone UI and Wear OS submit the same confirmation object so the action is derived
+     * from the game on which its preview was based. The conditional update prevents a confirmation
+     * from overwriting an intervening game action from either surface.
+     *
+     * @param confirmation The pending action and the game state from which it was previewed.
+     * @return Whether that game was still current and the confirmed action was committed.
+     */
+    @Synchronized
+    fun confirmAction(confirmation: GamePrompt.ActionConfirmation): Boolean {
+        return updateCurrentGame(
+            expectedCurrentGame = confirmation.state,
+            updatedGame = confirmation.confirm(),
+        )
+    }
+
     /// Replace the profile bucket and refresh derived profile state.
     fun updateProfile(updatedProfile: Profile) {
         _state.update {
