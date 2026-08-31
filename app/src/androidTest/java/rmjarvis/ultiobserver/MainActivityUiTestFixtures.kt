@@ -56,9 +56,12 @@ abstract class MainActivityUiTestFixtures {
         ruleGuidanceTimeoutMillis = 5_000L
     }
 
-    /// Use Landscape on Pixel 5 and Portrait elsewhere for each UI-test narrative.
+    /// Restore Home and use Landscape on Pixel 5 or Portrait elsewhere for each UI-test narrative.
     @Before
-    fun setOrientationPreference() {
+    fun prepareUiTest() {
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appState.goHome()
+        }
         updateOrientationPreference(testOrientationPreference())
     }
 

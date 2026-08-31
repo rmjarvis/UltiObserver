@@ -30,6 +30,7 @@ class TestCapsUi : MainActivityUiTestFixtures() {
     @Test
     fun capPromptPathways() {
         setRuleGuidanceMode(RuleGuidanceMode.FULL)
+        setAutomaticallyLockLivePoint(true)
 
         // Half cap can be applied from its confirmation prompt.
         startLiveGameWithDueCap("Half cap", "Half cap")
