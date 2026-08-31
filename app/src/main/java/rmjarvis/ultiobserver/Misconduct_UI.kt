@@ -761,7 +761,10 @@ private sealed interface TeamCardDialogStep {
     data class BlueCardConfirmation(val team: TeamId) : TeamCardDialogStep
     data class OffenseDefenseChoice(val pending: PendingMisconductChoice) : TeamCardDialogStep
     data class MisconductResolution(val pending: PendingMisconductResolution) : TeamCardDialogStep
-    data class AssessmentResult(val event: GameEvent) : TeamCardDialogStep
+    data class AssessmentResult(
+        val result: CardAssessmentResult,
+        val returnTo: PendingMisconductReturn,
+    ) : TeamCardDialogStep
     data class InvalidAssignment(
         val message: String,
         val returnTo: TeamCardDialogStep,
@@ -973,10 +976,12 @@ internal fun TeamCardDialog(
         mutableStateOf<TeamCardDialogStep>(TeamCardDialogStep.InitialCardChoice)
     }
 
-    fun completeAssessment(result: CardAssessmentResult) {
+    fun showAssessmentResult(
+        result: CardAssessmentResult,
+        returnTo: PendingMisconductReturn,
+    ) {
         val finalizedResult = result.finalizedForGuidanceMode(guidanceMode)
-        onStateUpdate(finalizedResult.state)
-        step = TeamCardDialogStep.AssessmentResult(finalizedResult.event)
+        step = TeamCardDialogStep.AssessmentResult(finalizedResult, returnTo)
     }
 
     fun cardedPlayerEntryStep(
@@ -1043,7 +1048,7 @@ internal fun TeamCardDialog(
         if (result.event.needsMisconductChoice(guidanceMode)) {
             step = offenseDefenseChoiceStep(PendingMisconductChoice(result, returnTo))
         } else {
-            completeAssessment(result)
+            showAssessmentResult(result, returnTo)
         }
     }
 
@@ -1398,15 +1403,22 @@ internal fun TeamCardDialog(
             )
         }
         is TeamCardDialogStep.AssessmentResult -> {
-            val event = activeStep.event
+            val result = activeStep.result
+            val event = result.event
+            val goBack = {
+                step = stepForPendingMisconductReturn(activeStep.returnTo)
+            }
+            val recordCard = {
+                onStateOnly(result.state)
+            }
             RuleGuidanceGate(
                 key = event,
                 mode = guidanceMode,
                 requiredInNone = event.requiresGuidanceInNone(),
-                onAutoAccept = onDismiss,
+                onAutoAccept = recordCard,
             ) {
                 ResponsiveAlertDialog(
-                    onDismissRequest = onDismiss,
+                    onDismissRequest = goBack,
                     title = { Text(event.formatPopupTitle()) },
                     text = {
                         ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
@@ -1414,7 +1426,10 @@ internal fun TeamCardDialog(
                         }
                     },
                     confirmButton = {
-                        TextActionButton(label = "OK", onClick = onDismiss)
+                        TextActionButton(label = "OK", onClick = recordCard)
+                    },
+                    dismissButton = {
+                        TextActionButton(label = "Back", onClick = goBack)
                     },
                 )
             }

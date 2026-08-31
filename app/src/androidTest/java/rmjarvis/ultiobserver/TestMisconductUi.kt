@@ -103,7 +103,21 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("card-player-name").performImeAction()
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Yellow card on Name Only Handler.", substring = true)
-        dismissDialog(text = "OK")
+
+        // Back from the result restores the entered player without recording the card.
+        dismissDialog(text = "Back", waitForText = "Yellow card")
+        assertEquals(
+            "Name Only Handler",
+            composeRule.onNodeWithTag("card-player-name")
+                .fetchSemanticsNode()
+                .config[SemanticsProperties.EditableText]
+                .text,
+        )
+
+        // Confirming the same result records the card.
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Yellow card on Name Only Handler.\nTeam 1 has 2 cards total.")
+        composeRule.onNodeWithText("OK").performClick()
 
         // Seed the next player yellow directly; later assertions only need the card count.
         seedInGamePlayerCardsProgrammatically(
