@@ -155,7 +155,12 @@ def verify_emulator(serial: str) -> None:
 def build_and_install(serial: str) -> None:
     environment = os.environ.copy()
     environment["ANDROID_SERIAL"] = serial
-    command = ["./gradlew", "assembleDebug", "assembleDebugAndroidTest"]
+    command = [
+        "./gradlew",
+        "-PincludeReleaseScreenshotTools=true",
+        "assembleDebug",
+        "assembleDebugAndroidTest",
+    ]
     print(f"+ {' '.join(command)}", flush=True)
     subprocess.run(command, cwd=ROOT, env=environment, check=True)
     adb(serial, "install", "-r", "app/build/outputs/apk/debug/app-debug.apk")

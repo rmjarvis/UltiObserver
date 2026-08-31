@@ -96,9 +96,11 @@ android {
         }
     }
     sourceSets {
-        getByName("androidTest").kotlin.directories.add(
-            "../tools/release-screenshots/android"
-        )
+        if (providers.gradleProperty("includeReleaseScreenshotTools").isPresent) {
+            getByName("androidTest").kotlin.directories.add(
+                "../tools/release-screenshots/android"
+            )
+        }
     }
 }
 
