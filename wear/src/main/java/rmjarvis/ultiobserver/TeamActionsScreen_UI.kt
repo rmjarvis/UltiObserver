@@ -198,6 +198,8 @@ internal fun TeamActionsScreen(
 internal fun CardChoiceScreen(
     display: TeamActionsDisplay,
     enabled: Boolean,
+    onYellow: () -> Unit,
+    onRed: () -> Unit,
     onBlue: () -> Unit,
     onCancel: () -> Unit,
 ) {
@@ -249,22 +251,22 @@ internal fun CardChoiceScreen(
                     ) {
                         ActionButton(
                             label = "Yellow",
-                            enabled = false,
+                            enabled = enabled,
                             background = YellowCardButtonColor,
                             contentColor = Color.Black,
                             fontSize = 10.sp,
-                            onClick = {},
+                            onClick = onYellow,
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight(),
                         )
                         ActionButton(
                             label = "Red",
-                            enabled = false,
+                            enabled = enabled,
                             background = RedCardButtonColor,
                             contentColor = Color.Black,
                             fontSize = 10.sp,
-                            onClick = {},
+                            onClick = onRed,
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight(),

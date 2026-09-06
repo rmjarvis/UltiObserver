@@ -1403,6 +1403,20 @@ class TestArchive : GameDomainTestFixtures() {
         appState.deleteAllArchivedGames()
         assertTrue(appState.archivedGames.isEmpty())
         assertNull(appState.displayedGame)
+
+        // Deleting a live game while its card dialog is open also closes that card workflow.
+        appState.startNewGame(now = 123_000L)
+        appState.finishSetup(now = 123_000L)
+        val liveGame = appState.currentGame!!
+        val cardEntry = ActiveCardEntry(
+            team = TeamId.TEAM_ONE,
+            cardType = null,
+            jerseyNumber = "",
+        )
+        appState.updateCardEntry(liveGame, null, cardEntry)
+        assertEquals(cardEntry, appState.state.value.activeCardEntry)
+        appState.deleteCurrentGame()
+        assertNull(appState.state.value.activeCardEntry)
     }
 
     /**

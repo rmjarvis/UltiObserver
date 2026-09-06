@@ -42,6 +42,12 @@ internal class MainActivity : ComponentActivity() {
                 onTeamAction = { team, stateToken, action, onFinished ->
                     stateClient.requestTeamAction(team, stateToken, action, onFinished)
                 },
+                onStartCardEntry = { team, stateToken, cardType, onFinished ->
+                    stateClient.startCardEntry(team, stateToken, cardType, onFinished)
+                },
+                onCancelCardEntry = { team, stateToken, cardType, onFinished ->
+                    stateClient.cancelCardEntry(team, stateToken, cardType, onFinished)
+                },
                 onConfirmAction = { confirmation, onFinished ->
                     stateClient.confirmAction(confirmation, onFinished)
                 },

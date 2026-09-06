@@ -50,10 +50,13 @@ import androidx.compose.ui.unit.sp
  * @param state The live game state to render.
  * @param settings User settings that affect live-game behavior and display.
  * @param displayOrientation Readable orientation currently shown by Android.
+ * @param activeCardEntry Card workflow currently active on the phone, when present.
  * @param onStateChange Callback receiving updated live state from user actions and timer transitions.
  * @param onGoal Callback recording a goal for a specific team.
  * @param onDecision Callback accepting or deferring a pending game decision.
  * @param onConfirmation Callback committing an action after the observer selects OK.
+ * @param onCardEntryChange Callback conditionally replacing the active card workflow.
+ * @param onCardEntryCompleted Callback committing a card action and completing its workflow.
  * @param onUpdateGameSetup Callback reopening setup for the current game.
  * @param onOpenGameSummary Callback opening the current game summary.
  * @param onBackHome Callback returning to Home or setup according to AppState navigation rules.
@@ -65,16 +68,18 @@ internal fun ActiveGameScreen(
     state: GameState,
     settings: Settings,
     displayOrientation: ActiveGameFullOrientation,
+    activeCardEntry: ActiveCardEntry?,
     onStateChange: (GameState) -> Unit,
     onGoal: (TeamId) -> Unit,
     onDecision: (accept: Boolean) -> Unit,
     onConfirmation: (GamePrompt.ActionConfirmation) -> Unit,
+    onCardEntryChange: (ActiveCardEntry?, ActiveCardEntry?) -> Unit,
+    onCardEntryCompleted: (ActiveCardEntry, GameState) -> Unit,
     onUpdateGameSetup: () -> Unit,
     onOpenGameSummary: () -> Unit,
     onBackHome: () -> Unit,
     onHome: () -> Unit,
 ) {
-    var pendingCardTeam by remember { mutableStateOf<TeamId?>(null) }
     var showMoreActionsDialog by remember { mutableStateOf(false) }
     var moreActionsChild by remember { mutableStateOf<MoreActionsChild?>(null) }
     var moreActionsCategory by remember {
@@ -210,7 +215,10 @@ internal fun ActiveGameScreen(
         )
     }
     val onCards: (TeamId) -> Unit = { team ->
-        pendingCardTeam = team
+        onCardEntryChange(
+            null,
+            ActiveCardEntry(team = team, cardType = null),
+        )
     }
     val onTechnicalFoul: (TeamId) -> Unit = { team ->
         val requestedAt = System.currentTimeMillis()
@@ -325,18 +333,23 @@ internal fun ActiveGameScreen(
     //    can change the water-break guidance.
     // 3. showMoreActions should be last, since it can spawn other dialogs, which should
     //    take precedence over the menu dialog.
-    if (pendingCardTeam != null) {
-        val team = pendingCardTeam!!
+    if (activeCardEntry != null) {
+        val cardEntry = activeCardEntry
         TeamCardDialog(
             state = state,
-            team = team,
+            team = cardEntry.team,
             now = now,
             guidanceMode = settings.ruleGuidanceMode,
             isLandscape = usesLandscapeOrientation,
-            onDismiss = { pendingCardTeam = null },
-            onConfirmation = { confirmation ->
-                onConfirmation(confirmation)
-                pendingCardTeam = null
+            initialCardType = cardEntry.cardType,
+            onCardTypeSelected = { cardType ->
+                onCardEntryChange(cardEntry, cardEntry.copy(cardType = cardType))
+            },
+            onDismiss = {
+                onCardEntryChange(cardEntry, null)
+            },
+            onCardEntryCompleted = { updatedState ->
+                onCardEntryCompleted(cardEntry, updatedState)
             },
             onStateUpdate = onStateChange,
         )

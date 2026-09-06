@@ -16,6 +16,8 @@ enum class WearRequestAction(val path: String) {
     DECISION("/ultiobserver/decision"),
     TEAM_ACTION("/ultiobserver/team-action"),
     CONFIRM_ACTION("/ultiobserver/confirm-action"),
+    CARD_ENTRY("/ultiobserver/card-entry"),
+    CANCEL_CARD_ENTRY("/ultiobserver/cancel-card-entry"),
     ;
 
     companion object {
@@ -149,6 +151,29 @@ sealed interface WearActionConfirmation {
 @Serializable
 data class WearConfirmActionRequest(
     val confirmation: WearActionConfirmation,
+)
+
+/** Player-card color whose remaining details must be entered on the phone. */
+@Serializable
+enum class WearPlayerCardType {
+    YELLOW,
+    RED,
+}
+
+/** Request player-card entry on the phone for a color selected on the watch. */
+@Serializable
+data class WearCardEntryRequest(
+    val stateToken: String,
+    val team: WearTeamId,
+    val cardType: WearPlayerCardType,
+)
+
+/** Cancel the exact player-card entry currently active on the phone. */
+@Serializable
+data class WearCancelCardEntryRequest(
+    val stateToken: String,
+    val team: WearTeamId,
+    val cardType: WearPlayerCardType?,
 )
 
 /** Game-action result, authoritative state, and any transient confirmation to show next. */

@@ -928,8 +928,10 @@ internal fun ExistingCardsEditorDialog(
  * @param now The current epoch millis for event logging.
  * @param guidanceMode Amount and duration of rule guidance shown during the workflow.
  * @param isLandscape Whether to arrange orientation-specific dialog content for landscape.
+ * @param initialCardType Card color already selected for player entry, or null to start with choices.
+ * @param onCardTypeSelected Callback selecting Yellow/Red or returning to the color choices.
  * @param onDismiss Callback closing the card dialog without recording.
- * @param onConfirmation Callback committing a blue card after the observer selects OK.
+ * @param onCardEntryCompleted Callback committing a completed card entry.
  * @param onStateUpdate Callback receiving state changes that should keep the Card dialog open.
  */
 @Composable
@@ -939,12 +941,22 @@ internal fun TeamCardDialog(
     now: Long,
     guidanceMode: RuleGuidanceMode,
     isLandscape: Boolean,
+    initialCardType: CardType?,
+    onCardTypeSelected: (CardType?) -> Unit,
     onDismiss: () -> Unit,
-    onConfirmation: (GamePrompt.ActionConfirmation) -> Unit,
+    onCardEntryCompleted: (GameState) -> Unit,
     onStateUpdate: (GameState) -> Unit,
 ) {
-    var step by remember {
-        mutableStateOf<TeamCardDialogStep>(TeamCardDialogStep.InitialCardChoice)
+    var step by remember(initialCardType) {
+        mutableStateOf<TeamCardDialogStep>(
+            initialCardType?.let { cardType ->
+                TeamCardDialogStep.CardedPlayerEntry(
+                    team = team,
+                    cardType = cardType,
+                    initialEntry = PlayerCardEntry(""),
+                )
+            } ?: TeamCardDialogStep.InitialCardChoice
+        )
     }
 
     fun showAssessmentResult(
@@ -1060,10 +1072,10 @@ internal fun TeamCardDialog(
                 state = state,
                 team = team,
                 onYellow = {
-                    step = cardedPlayerEntryStep(team, CardType.YELLOW, PlayerCardEntry(""))
+                    onCardTypeSelected(CardType.YELLOW)
                 },
                 onRed = {
-                    step = cardedPlayerEntryStep(team, CardType.RED, PlayerCardEntry(""))
+                    onCardTypeSelected(CardType.RED)
                 },
                 onBlue = {
                     step = TeamCardDialogStep.BlueCardConfirmation(
@@ -1097,7 +1109,9 @@ internal fun TeamCardDialog(
                 candidates = state.cardedPlayerCandidates(activeStep.team),
                 cardType = activeStep.cardType,
                 isLandscape = isLandscape,
-                onDismiss = { step = TeamCardDialogStep.InitialCardChoice },
+                onDismiss = {
+                    onCardTypeSelected(null)
+                },
                 onConfirm = { entry ->
                     assessPlayerCardEntry(
                         team = activeStep.team,
@@ -1178,7 +1192,7 @@ internal fun TeamCardDialog(
         is TeamCardDialogStep.BlueCardConfirmation -> {
             val confirmation = activeStep.confirmation
             val applyBlueCard = {
-                onConfirmation(confirmation)
+                onCardEntryCompleted(confirmation.confirm())
             }
             RuleGuidanceGate(
                 key = activeStep,
@@ -1219,8 +1233,7 @@ internal fun TeamCardDialog(
                 step = activeStep.returnTo
             }
             val recordCard = {
-                onStateUpdate(result.state)
-                onDismiss()
+                onCardEntryCompleted(result.state)
             }
             RuleGuidanceGate(
                 key = event,

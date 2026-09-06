@@ -8,12 +8,16 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import rmjarvis.ultiobserver.wearprotocol.WearActionConfirmation
+import rmjarvis.ultiobserver.wearprotocol.WearCancelCardEntryRequest
+import rmjarvis.ultiobserver.wearprotocol.WearCardEntryRequest
 import rmjarvis.ultiobserver.wearprotocol.WearConfirmActionRequest
 import rmjarvis.ultiobserver.wearprotocol.WearDecisionRequest
 import rmjarvis.ultiobserver.wearprotocol.WearGameActionResponse
 import rmjarvis.ultiobserver.wearprotocol.WearGoalRequest
 import rmjarvis.ultiobserver.wearprotocol.WearGuidancePresentation
+import rmjarvis.ultiobserver.wearprotocol.WearPlayerCardType
 import rmjarvis.ultiobserver.wearprotocol.WearProtocolCodec
+import rmjarvis.ultiobserver.wearprotocol.WearPullViolationType
 import rmjarvis.ultiobserver.wearprotocol.WearSnapshotPullDirection
 import rmjarvis.ultiobserver.wearprotocol.WearSnapshotStatus
 import rmjarvis.ultiobserver.wearprotocol.WearStateSnapshot
@@ -21,7 +25,6 @@ import rmjarvis.ultiobserver.wearprotocol.WearStartupResponse
 import rmjarvis.ultiobserver.wearprotocol.WearTeamAction
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionRequest
 import rmjarvis.ultiobserver.wearprotocol.WearTeamId
-import rmjarvis.ultiobserver.wearprotocol.WearPullViolationType
 
 /// Tests for the phone-side Wear OS interface.
 class TestWearOSInterface : GameDomainTestFixtures() {
@@ -42,7 +45,6 @@ class TestWearOSInterface : GameDomainTestFixtures() {
             game = standardLiveGameState(),
             settings = Settings(),
             now = now,
-            actionsAvailable = true,
         )
         assertEquals(WearSnapshotStatus.DISABLED, disabled.status)
         assertNull(disabled.activeGame)
@@ -57,7 +59,6 @@ class TestWearOSInterface : GameDomainTestFixtures() {
             game = null,
             settings = settings,
             now = now,
-            actionsAvailable = true,
         )
         assertEquals(WearSnapshotStatus.NO_ACTIVE_GAME, noGame.status)
         assertNull(noGame.activeGame)
@@ -69,7 +70,6 @@ class TestWearOSInterface : GameDomainTestFixtures() {
             game = defaultGame,
             settings = settings,
             now = now,
-            actionsAvailable = true,
         )
         assertEquals(WearSnapshotStatus.ACTIVE_GAME, default.status)
         assertNotNull(default.activeGame)
@@ -122,7 +122,6 @@ class TestWearOSInterface : GameDomainTestFixtures() {
             game = pendingGame,
             settings = settings,
             now = now,
-            actionsAvailable = true,
         ).activeGame!!
         assertFalse(pending.actionsAvailable)
 
@@ -131,7 +130,6 @@ class TestWearOSInterface : GameDomainTestFixtures() {
             game = standardLiveGameState().continueLivePoint(),
             settings = settings,
             now = now,
-            actionsAvailable = true,
         ).activeGame!!
         assertNull(livePointSnapshot.countdown)
 
@@ -151,7 +149,6 @@ class TestWearOSInterface : GameDomainTestFixtures() {
             game = capTimelineGame,
             settings = settings,
             now = softCapEpoch - 10_000L,
-            actionsAvailable = true,
         ).activeGame!!
 
         // A live-point snapshot carries every future relevant cap, allowing the watch to advance
@@ -196,7 +193,6 @@ class TestWearOSInterface : GameDomainTestFixtures() {
             game = halftimeGame,
             settings = settings,
             now = now,
-            actionsAvailable = true,
         ).activeGame!!
         assertFalse(halftimeSnapshot.teamOne.actions.timeViolationEnabled)
         assertFalse(halftimeSnapshot.teamOne.actions.pullViolationEnabled)
@@ -243,7 +239,6 @@ class TestWearOSInterface : GameDomainTestFixtures() {
             game = activeGame,
             settings = mixedSettings,
             now = now,
-            actionsAvailable = true,
         )
         assertNotNull(active.activeGame)
         val gameSnapshot = active.activeGame!!
@@ -288,7 +283,6 @@ class TestWearOSInterface : GameDomainTestFixtures() {
             game = pausedGame,
             settings = mixedSettings,
             now = now + 5_000L,
-            actionsAvailable = true,
         ).activeGame!!.countdown!!
         assertEquals(expectedCountdown.targetEpoch, pausedSnapshot.targetEpochMillis)
         assertEquals(now, pausedSnapshot.pausedAtEpochMillis)
@@ -412,7 +406,6 @@ class TestWearOSInterface : GameDomainTestFixtures() {
             game = pendingHalftime,
             settings = settings,
             now = goalTime,
-            actionsAvailable = true,
         ).activeGame!!
         assertFalse(halftimeSnapshot.actionsAvailable)
         val halftimeDecision = halftimeSnapshot.pendingDecision!!
@@ -429,7 +422,6 @@ class TestWearOSInterface : GameDomainTestFixtures() {
             game = pendingHalftime,
             settings = settings.copy(ruleGuidanceMode = RuleGuidanceMode.TIMED),
             now = goalTime,
-            actionsAvailable = true,
         ).activeGame!!.pendingDecision!!
         assertEquals(WearGuidancePresentation.VISIBLE_TIMED, timedHalftimeDecision.presentation)
         assertEquals(ruleGuidanceTimeoutMillis, timedHalftimeDecision.autoAcceptDelayMillis)
@@ -437,7 +429,6 @@ class TestWearOSInterface : GameDomainTestFixtures() {
             game = pendingHalftime,
             settings = settings.copy(ruleGuidanceMode = RuleGuidanceMode.NONE),
             now = goalTime,
-            actionsAvailable = true,
         ).activeGame!!.pendingDecision!!
         assertEquals(WearGuidancePresentation.HIDDEN_AUTO_ACCEPT, noneHalftimeDecision.presentation)
         assertNull(noneHalftimeDecision.autoAcceptDelayMillis)
@@ -517,7 +508,6 @@ class TestWearOSInterface : GameDomainTestFixtures() {
             game = pendingWaterBreak,
             settings = settings.copy(ruleGuidanceMode = RuleGuidanceMode.NONE),
             now = goalTime,
-            actionsAvailable = true,
         ).activeGame!!.pendingDecision!!
         assertEquals("Water break", waterBreakDecision.title)
         assertEquals(WearGuidancePresentation.VISIBLE_TIMED, waterBreakDecision.presentation)
@@ -577,7 +567,6 @@ class TestWearOSInterface : GameDomainTestFixtures() {
             game = pendingGameOver,
             settings = settings,
             now = hardCapGoalTime,
-            actionsAvailable = true,
         ).activeGame!!.pendingDecision!!
         assertEquals("Game over", gameOverDecision.title)
         assertEquals(WearGuidancePresentation.VISIBLE, gameOverDecision.presentation)
@@ -743,7 +732,6 @@ class TestWearOSInterface : GameDomainTestFixtures() {
                 game = game,
                 settings = settings,
                 now = requestedAt,
-                actionsAvailable = true,
             ),
         )
         assertEquals(
@@ -977,6 +965,139 @@ class TestWearOSInterface : GameDomainTestFixtures() {
                 WearProtocolCodec.encode(
                     WearConfirmActionRequest.serializer(),
                     confirmationRequest,
+                ),
+            ),
+        )
+    }
+
+    /** Exercise the player-card workflow that the watch starts and the phone completes. */
+    @Test
+    fun watchCardEntry() {
+        val settings = Settings(
+            timingAlerts = TimingAlertPreferences(
+                watchConnectionMode = WatchConnectionMode.WEAR_OS,
+            ),
+        )
+        val appState = AppState(NoOpAppStateStorage)
+        appState.updateSettings(settings)
+        val game = standardLiveGameState()
+        appState.updateCurrentGame(game)
+        appState.resumeCurrentGame()
+        val entry = ActiveCardEntry(
+            team = TeamId.TEAM_ONE,
+            cardType = CardType.RED,
+        )
+
+        // Starting Red entry changes only the phone workflow. The synchronized state preserves
+        // the selected team and color while disabling other watch actions.
+        assertTrue(appState.updateCardEntry(game, null, entry))
+        assertEquals(game, appState.currentGame)
+        assertEquals(entry, appState.state.value.activeCardEntry)
+        assertFalse(
+            appState.updateCardEntry(
+                currentGame = game,
+                expectedCardEntry = null,
+                updatedCardEntry = ActiveCardEntry(
+                    team = TeamId.TEAM_TWO,
+                    cardType = CardType.YELLOW,
+                ),
+            )
+        )
+        val pendingState = buildWearStateSnapshot(
+            game = game,
+            settings = settings,
+            now = 123_000L,
+            activeCardEntry = entry,
+        )
+        val pendingSnapshot = pendingState.activeGame!!
+        assertFalse(pendingSnapshot.actionsAvailable)
+        assertNull(pendingSnapshot.pendingDecision)
+        val cardEntrySnapshot = pendingSnapshot.phoneCardEntry!!
+        assertEquals(WearTeamId.TEAM_ONE, cardEntrySnapshot.team)
+        assertEquals(WearPlayerCardType.RED, cardEntrySnapshot.cardType)
+        assertEquals(
+            pendingState,
+            WearProtocolCodec.decode(
+                WearStateSnapshot.serializer(),
+                WearProtocolCodec.encode(WearStateSnapshot.serializer(), pendingState),
+            ),
+        )
+
+        // If the phone has changed from red to yellow or vice versa, then canceling from the
+        // watch is rejected. The delayed cancellation from the watch is obsolete.
+        // Here we actually test the reverse -- that the watch thinks the initiated card entry
+        // was with a yellow card, but the phone is currently working on red.
+        // The point is that the color is different and thus rejected.
+        assertFalse(
+            appState.updateCardEntry(
+                currentGame = game,
+                expectedCardEntry = ActiveCardEntry(
+                    team = TeamId.TEAM_ONE,
+                    cardType = CardType.YELLOW,
+                ),
+                updatedCardEntry = null,
+            )
+        )
+
+        // Cancelling the active Red entry clears the workflow and restores watch actions.
+        assertTrue(
+            appState.updateCardEntry(
+                currentGame = game,
+                expectedCardEntry = entry,
+                updatedCardEntry = null,
+            )
+        )
+        assertNull(appState.state.value.activeCardEntry)
+        val restoredSnapshot = buildWearStateSnapshot(
+            game = game,
+            settings = settings,
+            now = 123_000L,
+        ).activeGame!!
+        assertTrue(restoredSnapshot.actionsAvailable)
+        assertNull(restoredSnapshot.phoneCardEntry)
+
+        // Completing Yellow entry commits the card and closes the workflow in the same state
+        // change.
+        val nextEntry = ActiveCardEntry(
+            team = TeamId.TEAM_TWO,
+            cardType = CardType.YELLOW,
+        )
+        assertTrue(appState.updateCardEntry(game, null, nextEntry))
+        val completedGame = game.assessYellowCard(
+            team = nextEntry.team,
+            jerseyNumber = "8",
+            now = 124_000L,
+        ).state
+        assertTrue(appState.completeCardEntry(game, completedGame, nextEntry))
+        assertNull(appState.state.value.activeCardEntry)
+        assertEquals(completedGame, appState.currentGame)
+
+        // Starting and cancelling card entry preserve the exact game, team, and selected color
+        // through their protocol encoding round trips.
+        val request = WearCardEntryRequest(
+            stateToken = wearStateToken(game),
+            team = WearTeamId.TEAM_ONE,
+            cardType = WearPlayerCardType.RED,
+        )
+        assertEquals(
+            request,
+            WearProtocolCodec.decode(
+                WearCardEntryRequest.serializer(),
+                WearProtocolCodec.encode(WearCardEntryRequest.serializer(), request),
+            ),
+        )
+        val cancelRequest = WearCancelCardEntryRequest(
+            stateToken = request.stateToken,
+            team = request.team,
+            cardType = request.cardType,
+        )
+        assertEquals(
+            cancelRequest,
+            WearProtocolCodec.decode(
+                WearCancelCardEntryRequest.serializer(),
+                WearProtocolCodec.encode(
+                    WearCancelCardEntryRequest.serializer(),
+                    cancelRequest,
                 ),
             ),
         )

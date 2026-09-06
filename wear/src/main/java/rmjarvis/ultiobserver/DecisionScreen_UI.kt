@@ -152,6 +152,67 @@ internal fun ActionConfirmationScreen(
     )
 }
 
+/** Hold watch interaction while the phone owns an active card workflow. */
+@Composable
+internal fun ContinueOnPhoneScreen(
+    onCancel: ((Boolean) -> Unit) -> Unit,
+) {
+    var commandPending by remember { mutableStateOf(false) }
+    val cancel = {
+        if (!commandPending) {
+            commandPending = true
+            onCancel {
+                commandPending = false
+            }
+        }
+    }
+    BackHandler(enabled = !commandPending) {
+        cancel()
+    }
+    UltiObserverTheme {
+        AppScaffold(
+            timeText = { TimeText() },
+            containerColor = Color.Black,
+            contentColor = Color.White,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text(
+                    text = "Continue on phone",
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    lineHeight = 17.sp,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Box(
+                    modifier = Modifier
+                        .height(42.dp)
+                        .clickable(
+                            enabled = !commandPending,
+                            role = Role.Button,
+                            onClick = cancel,
+                        )
+                        .padding(horizontal = 12.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "Cancel",
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun PromptScreen(
     prompt: WearPromptSnapshot,

@@ -132,6 +132,7 @@ class MainActivity : ComponentActivity() {
                                 game = state.currentGame,
                                 settings = state.settings,
                                 actionsAvailable = state.viewingActiveGameScreen,
+                                activeCardEntry = state.activeCardEntry,
                             )
                         } else {
                             null
@@ -146,6 +147,7 @@ class MainActivity : ComponentActivity() {
                                 game = publication.game,
                                 settings = publication.settings,
                                 actionsAvailable = publication.actionsAvailable,
+                                activeCardEntry = publication.activeCardEntry,
                             )
                         }
                     }
@@ -269,6 +271,7 @@ private data class WearStatePublication(
     val game: GameState?,
     val settings: Settings,
     val actionsAvailable: Boolean,
+    val activeCardEntry: ActiveCardEntry?,
 )
 
 /// Run an activity display update only when Android reports that display as changed.

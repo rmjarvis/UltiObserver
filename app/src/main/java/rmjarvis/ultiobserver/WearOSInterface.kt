@@ -13,6 +13,8 @@ import rmjarvis.ultiobserver.wearprotocol.WEAR_STATE_PATH
 import rmjarvis.ultiobserver.wearprotocol.WearActionConfirmation
 import rmjarvis.ultiobserver.wearprotocol.WearActiveGameSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearCapSnapshot
+import rmjarvis.ultiobserver.wearprotocol.WearCancelCardEntryRequest
+import rmjarvis.ultiobserver.wearprotocol.WearCardEntryRequest
 import rmjarvis.ultiobserver.wearprotocol.WearConfirmActionRequest
 import rmjarvis.ultiobserver.wearprotocol.WearCountdownSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearCueSnapshot
@@ -23,6 +25,8 @@ import rmjarvis.ultiobserver.wearprotocol.WearGuidanceLineSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearGuidancePresentation
 import rmjarvis.ultiobserver.wearprotocol.WearPromptSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearProtocolCodec
+import rmjarvis.ultiobserver.wearprotocol.WearPlayerCardType
+import rmjarvis.ultiobserver.wearprotocol.WearPhoneCardEntrySnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearPullViolationOption
 import rmjarvis.ultiobserver.wearprotocol.WearPullViolationType
 import rmjarvis.ultiobserver.wearprotocol.WearRatioSnapshot
@@ -66,6 +70,7 @@ internal class WearStatePublisher(context: Context) {
         game: GameState?,
         settings: Settings,
         actionsAvailable: Boolean,
+        activeCardEntry: ActiveCardEntry?,
     ) {
         publish(
             buildWearStateSnapshot(
@@ -73,6 +78,7 @@ internal class WearStatePublisher(context: Context) {
                 settings = settings,
                 now = System.currentTimeMillis(),
                 actionsAvailable = actionsAvailable,
+                activeCardEntry = activeCardEntry,
             )
         )
     }
@@ -110,6 +116,8 @@ class WearOSRequestService : WearableListenerService() {
             WearRequestAction.DECISION -> handleDecisionRequest(request)
             WearRequestAction.TEAM_ACTION -> handleTeamActionRequest(request)
             WearRequestAction.CONFIRM_ACTION -> handleConfirmActionRequest(request)
+            WearRequestAction.CARD_ENTRY -> handleCardEntryRequest(request)
+            WearRequestAction.CANCEL_CARD_ENTRY -> handleCancelCardEntryRequest(request)
         }
     }
 
@@ -139,6 +147,7 @@ class WearOSRequestService : WearableListenerService() {
         }
         val applied = if (
             game != null &&
+            snapshot.activeCardEntry == null &&
             game.pendingGameDecision() == null &&
             game.phase != GamePhase.GAME_OVER
         ) {
@@ -194,6 +203,7 @@ class WearOSRequestService : WearableListenerService() {
         val game = snapshot.gameOnWatch(request.stateToken)
         val confirmation = if (
             game != null &&
+            snapshot.activeCardEntry == null &&
             game.pendingGameDecision() == null &&
             game.phase != GamePhase.GAME_OVER
         ) {
@@ -225,7 +235,11 @@ class WearOSRequestService : WearableListenerService() {
         val now = System.currentTimeMillis()
         val snapshot = app.appState.state.value
         val game = snapshot.gameOnWatch(request.confirmation.stateToken)
-        val confirmation = if (game != null && game.pendingGameDecision() == null) {
+        val confirmation = if (
+            game != null &&
+            snapshot.activeCardEntry == null &&
+            game.pendingGameDecision() == null
+        ) {
             request.confirmation.gamePrompt(
                 game = game,
             )
@@ -233,6 +247,56 @@ class WearOSRequestService : WearableListenerService() {
             null
         }
         val applied = confirmation != null && app.appState.confirmAction(confirmation)
+        return gameActionResponse(
+            app = app,
+            applied = applied,
+            now = now,
+            confirmation = null,
+        )
+    }
+
+    private fun handleCardEntryRequest(requestBytes: ByteArray): Task<ByteArray> {
+        val request = WearProtocolCodec.decode(WearCardEntryRequest.serializer(), requestBytes)
+        val app = application as UltiObserverApplication
+        val now = System.currentTimeMillis()
+        val snapshot = app.appState.state.value
+        val game = snapshot.gameOnWatch(request.stateToken)
+        val applied = game != null &&
+            game.pendingGameDecision() == null &&
+            game.phase != GamePhase.GAME_OVER &&
+            app.appState.updateCardEntry(
+                currentGame = game,
+                expectedCardEntry = null,
+                updatedCardEntry = ActiveCardEntry(
+                    team = request.team.toTeamId(),
+                    cardType = request.cardType.toCardType(),
+                ),
+            )
+        return gameActionResponse(
+            app = app,
+            applied = applied,
+            now = now,
+            confirmation = null,
+        )
+    }
+
+    private fun handleCancelCardEntryRequest(requestBytes: ByteArray): Task<ByteArray> {
+        val request = WearProtocolCodec.decode(
+            WearCancelCardEntryRequest.serializer(),
+            requestBytes,
+        )
+        val app = application as UltiObserverApplication
+        val now = System.currentTimeMillis()
+        val snapshot = app.appState.state.value
+        val game = snapshot.gameOnWatch(request.stateToken)
+        val applied = game != null && app.appState.updateCardEntry(
+            currentGame = game,
+            expectedCardEntry = ActiveCardEntry(
+                team = request.team.toTeamId(),
+                cardType = request.cardType?.toCardType(),
+            ),
+            updatedCardEntry = null,
+        )
         return gameActionResponse(
             app = app,
             applied = applied,
@@ -438,6 +502,14 @@ private fun WearTeamId.toTeamId(): TeamId {
     }
 }
 
+/** Convert a shared player-card type to the phone domain. */
+private fun WearPlayerCardType.toCardType(): CardType {
+    return when (this) {
+        WearPlayerCardType.YELLOW -> CardType.YELLOW
+        WearPlayerCardType.RED -> CardType.RED
+    }
+}
+
 /** Convert a shared pull-violation type to the phone domain. */
 private fun WearPullViolationType.toPullViolationType(): PullViolationType {
     return when (this) {
@@ -464,6 +536,14 @@ private fun PullViolationType.toWearPullViolationType(): WearPullViolationType {
     }
 }
 
+/** Convert a player-card type that can be continued on the phone. */
+private fun CardType.toWearPlayerCardType(): WearPlayerCardType {
+    return when (this) {
+        CardType.YELLOW -> WearPlayerCardType.YELLOW
+        CardType.RED -> WearPlayerCardType.RED
+    }
+}
+
 /** Build the application's current authoritative state for one direct watch response. */
 private fun UltiObserverApplication.currentWearSnapshot(now: Long): WearStateSnapshot {
     val appState = appState.state.value
@@ -472,6 +552,7 @@ private fun UltiObserverApplication.currentWearSnapshot(now: Long): WearStateSna
         settings = appState.settings,
         now = now,
         actionsAvailable = appState.viewingActiveGameScreen,
+        activeCardEntry = appState.activeCardEntry,
     )
 }
 
@@ -480,7 +561,8 @@ internal fun buildWearStateSnapshot(
     game: GameState?,
     settings: Settings,
     now: Long,
-    actionsAvailable: Boolean,
+    actionsAvailable: Boolean = true,
+    activeCardEntry: ActiveCardEntry? = null,
 ): WearStateSnapshot {
     if (settings.timingAlerts.watchConnectionMode != WatchConnectionMode.WEAR_OS) {
         return WearStateSnapshot(
@@ -500,9 +582,16 @@ internal fun buildWearStateSnapshot(
 
     val activeCountdown = game.activeCountdown(now)
     val currentRatio = game.currentGenderRatio()
-    val pendingDecision = if (actionsAvailable) game.pendingGameDecision() else null
+    val pendingDecision = if (actionsAvailable && activeCardEntry == null) {
+        game.pendingGameDecision()
+    } else {
+        null
+    }
     val gameOver = game.phase == GamePhase.GAME_OVER
-    val gameActionsAvailable = actionsAvailable && !gameOver && pendingDecision == null
+    val gameActionsAvailable = actionsAvailable &&
+        !gameOver &&
+        pendingDecision == null &&
+        activeCardEntry == null
     return WearStateSnapshot(
         status = WearSnapshotStatus.ACTIVE_GAME,
         activeGame = WearActiveGameSnapshot(
@@ -550,6 +639,12 @@ internal fun buildWearStateSnapshot(
             },
             undoDescription = game.undoEntry?.label,
             pendingDecision = pendingDecision?.wearSnapshot(settings.ruleGuidanceMode),
+            phoneCardEntry = activeCardEntry?.let { entry ->
+                WearPhoneCardEntrySnapshot(
+                    team = entry.team.toWearTeamId(),
+                    cardType = entry.cardType?.toWearPlayerCardType(),
+                )
+            },
         ),
     )
 }

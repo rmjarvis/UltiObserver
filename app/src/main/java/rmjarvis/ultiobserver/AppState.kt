@@ -21,6 +21,12 @@ internal enum class AppScreen {
     LIVE,
 }
 
+/** Card workflow currently active on the phone, with a selected player-card type when present. */
+internal data class ActiveCardEntry(
+    val team: TeamId,
+    val cardType: CardType?,
+)
+
 /**
  * Immutable snapshot of the app-level state owned by AppState.
  *
@@ -38,6 +44,7 @@ internal enum class AppScreen {
  * @param archiveFilterSelections Selected filters applied to the archive list.
  * @param archiveSortMode Sort order applied to the archive list.
  * @param startupRecoveryNotice The startup data-recovery notice, if corrupted app data was reset.
+ * @param activeCardEntry Card workflow currently active on the phone.
  */
 internal data class AppStateSnapshot(
     val screen: AppScreen = AppScreen.HOME,
@@ -54,6 +61,7 @@ internal data class AppStateSnapshot(
     val archiveFilterSelections: ArchiveFilterSelections,
     val archiveSortMode: ArchiveSortMode,
     val startupRecoveryNotice: RecoveryNotice?,
+    val activeCardEntry: ActiveCardEntry?,
 ) {
     val setupGame: GameState
         get() = editingSavedSetupIndex?.let { archivedGames[it] }
@@ -139,6 +147,7 @@ internal class AppState(
             startupRecoveryNotice = recoveredPersistedDataAreas.takeIf { it.isNotEmpty() }?.let { resetAreas ->
                 RecoveryNotice(resetAreas)
             },
+            activeCardEntry = null,
         )
     )
 
@@ -401,6 +410,47 @@ internal class AppState(
             expectedCurrentGame = confirmation.state,
             updatedGame = confirmation.confirm(),
         )
+    }
+
+    /** Conditionally replace the active card workflow shared by the phone UI and Wear OS. */
+    @Synchronized
+    fun updateCardEntry(
+        currentGame: GameState,
+        expectedCardEntry: ActiveCardEntry?,
+        updatedCardEntry: ActiveCardEntry?,
+    ): Boolean {
+        val snapshot = state.value
+        if (
+            snapshot.currentGame != currentGame ||
+            snapshot.activeCardEntry != expectedCardEntry
+        ) {
+            return false
+        }
+        _state.update {
+            it.copy(activeCardEntry = updatedCardEntry)
+        }
+        return true
+    }
+
+    /** Commit a card action and close its exact active phone workflow atomically. */
+    @Synchronized
+    fun completeCardEntry(
+        currentGame: GameState,
+        updatedGame: GameState,
+        entry: ActiveCardEntry,
+    ): Boolean {
+        val snapshot = state.value
+        if (snapshot.currentGame != currentGame || snapshot.activeCardEntry != entry) {
+            return false
+        }
+        _state.update {
+            it.copy(
+                currentGame = updatedGame,
+                activeCardEntry = null,
+            )
+        }
+        persistCurrentGame()
+        return true
     }
 
     /// Replace the profile bucket and refresh derived profile state.
@@ -693,6 +743,7 @@ internal class AppState(
                 viewingCurrentGameSummary = false,
                 editingSavedSetupIndex = null,
                 selectedArchiveCategory = null,
+                activeCardEntry = null,
                 screen = AppScreen.HOME,
             )
         }
@@ -716,6 +767,7 @@ internal class AppState(
                 viewingArchivedGame = null,
                 viewingCurrentGameSummary = archived.phase == GamePhase.GAME_OVER,
                 selectedArchiveCategory = null,
+                activeCardEntry = null,
                 screen = AppScreen.LIVE,
             )
         }
@@ -736,6 +788,7 @@ internal class AppState(
                 viewingArchivedGame = null,
                 viewingCurrentGameSummary = false,
                 selectedArchiveCategory = null,
+                activeCardEntry = null,
                 screen = AppScreen.HOME,
             )
         }
@@ -796,6 +849,7 @@ internal class AppState(
                 viewingArchivedGame = null,
                 viewingCurrentGameSummary = false,
                 selectedArchiveCategory = null,
+                activeCardEntry = null,
                 screen = AppScreen.SETUP,
             )
         }
@@ -823,6 +877,7 @@ internal class AppState(
                 viewingArchivedGame = null,
                 viewingCurrentGameSummary = false,
                 selectedArchiveCategory = categoryAfterDelete,
+                activeCardEntry = null,
                 screen = screenAfterDelete,
             )
         }
@@ -913,6 +968,7 @@ internal class AppState(
                 viewingArchivedGame = null,
                 viewingCurrentGameSummary = false,
                 selectedArchiveCategory = null,
+                activeCardEntry = null,
                 screen = AppScreen.SETUP,
             )
         }

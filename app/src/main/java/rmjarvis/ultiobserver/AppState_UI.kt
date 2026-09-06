@@ -480,6 +480,7 @@ internal fun UltiObserverApp(
                     state = currentGame,
                     settings = snapshot.settings,
                     displayOrientation = displayOrientation,
+                    activeCardEntry = snapshot.activeCardEntry,
                     onStateChange = { updatedState ->
                         appState.updateCurrentGame(currentGame, updatedState)
                     },
@@ -499,6 +500,12 @@ internal fun UltiObserverApp(
                     },
                     onConfirmation = { confirmation ->
                         appState.confirmAction(confirmation)
+                    },
+                    onCardEntryChange = { currentEntry, updatedEntry ->
+                        appState.updateCardEntry(currentGame, currentEntry, updatedEntry)
+                    },
+                    onCardEntryCompleted = { entry, updatedGame ->
+                        appState.completeCardEntry(currentGame, updatedGame, entry)
                     },
                     onUpdateGameSetup = {
                         appState.editCurrentGame(currentGame)

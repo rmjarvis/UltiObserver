@@ -16,11 +16,14 @@ import rmjarvis.ultiobserver.wearprotocol.PHONE_STATE_CAPABILITY
 import rmjarvis.ultiobserver.wearprotocol.WEAR_PROTOCOL_VERSION
 import rmjarvis.ultiobserver.wearprotocol.WEAR_STATE_PATH
 import rmjarvis.ultiobserver.wearprotocol.WearActionConfirmation
+import rmjarvis.ultiobserver.wearprotocol.WearCancelCardEntryRequest
+import rmjarvis.ultiobserver.wearprotocol.WearCardEntryRequest
 import rmjarvis.ultiobserver.wearprotocol.WearConfirmActionRequest
 import rmjarvis.ultiobserver.wearprotocol.WearDecisionRequest
 import rmjarvis.ultiobserver.wearprotocol.WearGameActionResponse
 import rmjarvis.ultiobserver.wearprotocol.WearGoalRequest
 import rmjarvis.ultiobserver.wearprotocol.WearProtocolCodec
+import rmjarvis.ultiobserver.wearprotocol.WearPlayerCardType
 import rmjarvis.ultiobserver.wearprotocol.WearRequestAction
 import rmjarvis.ultiobserver.wearprotocol.WearStateSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearStartupResponse
@@ -351,6 +354,51 @@ internal class StateClient(
                 request,
             ),
             onFinished = { response -> onFinished(response?.confirmation) },
+        )
+    }
+
+    /** Start yellow or red card entry on the phone. */
+    fun startCardEntry(
+        team: WearTeamId,
+        stateToken: String,
+        cardType: WearPlayerCardType,
+        onFinished: (Boolean) -> Unit,
+    ) {
+        val nodeId = reachablePhoneNodeId
+        if (nodeId == null) {
+            onFinished(false)
+            return
+        }
+        val request = WearCardEntryRequest(stateToken, team, cardType)
+        sendGameAction(
+            nodeId = nodeId,
+            action = WearRequestAction.CARD_ENTRY,
+            request = WearProtocolCodec.encode(WearCardEntryRequest.serializer(), request),
+            onFinished = { response -> onFinished(response?.applied == true) },
+        )
+    }
+
+    /** Cancel the exact card workflow active on the phone. */
+    fun cancelCardEntry(
+        team: WearTeamId,
+        stateToken: String,
+        cardType: WearPlayerCardType?,
+        onFinished: (Boolean) -> Unit,
+    ) {
+        val nodeId = reachablePhoneNodeId
+        if (nodeId == null) {
+            onFinished(false)
+            return
+        }
+        val request = WearCancelCardEntryRequest(stateToken, team, cardType)
+        sendGameAction(
+            nodeId = nodeId,
+            action = WearRequestAction.CANCEL_CARD_ENTRY,
+            request = WearProtocolCodec.encode(
+                WearCancelCardEntryRequest.serializer(),
+                request,
+            ),
+            onFinished = { response -> onFinished(response?.applied == true) },
         )
     }
 

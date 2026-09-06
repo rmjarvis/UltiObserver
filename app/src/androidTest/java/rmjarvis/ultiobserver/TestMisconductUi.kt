@@ -449,6 +449,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Close").performClick()
         openCardsDialog(TeamId.TEAM_TWO)
         composeRule.onNodeWithText("Team 2 (pulling)").assertIsDisplayed()
+        composeRule.onNodeWithText("Close").performClick()
     }
 
     /**
