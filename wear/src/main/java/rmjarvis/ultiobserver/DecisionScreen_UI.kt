@@ -95,7 +95,7 @@ internal fun ActionConfirmationScreen(
     onConfirm: (WearActionConfirmation, (Boolean) -> Unit) -> Unit,
     onCancel: () -> Unit,
 ) {
-    var prompt = confirmation.prompt
+    val prompt = confirmation.prompt
     var commandPending by remember(prompt) { mutableStateOf(false) }
     val submitConfirmation = {
         if (!commandPending) {

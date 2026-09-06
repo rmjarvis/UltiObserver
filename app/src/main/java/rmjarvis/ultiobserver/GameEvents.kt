@@ -223,6 +223,15 @@ sealed interface GamePrompt {
         override val event = state.previewPullViolation(team, violation)!!.event
     }
 
+    /** Confirmation shown before recording a technical foul. */
+    data class TechnicalFoulConfirmation(
+        override val state: GameState,
+        val team: TeamId,
+        override val requestedAt: Long,
+    ) : ActionConfirmation {
+        override val event = state.previewTechnicalFoul(team, requestedAt)
+    }
+
     /**
      * Prompt asking whether to apply a due cap now.
      *
@@ -312,6 +321,9 @@ internal fun GamePrompt.ActionConfirmation.confirm(): GameState {
         is GamePrompt.TimeViolationConfirmation -> state.assessTimeViolation(team, requestedAt).state
         is GamePrompt.PullViolationConfirmation -> {
             state.assessPullViolation(team, requestedAt, violation).state
+        }
+        is GamePrompt.TechnicalFoulConfirmation -> {
+            state.assessTechnicalFoul(team, requestedAt).state
         }
     }
 }

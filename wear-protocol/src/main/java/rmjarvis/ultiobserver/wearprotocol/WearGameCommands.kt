@@ -66,6 +66,9 @@ sealed interface WearTeamAction {
 
     @Serializable
     data object PullViolation : WearTeamAction
+
+    @Serializable
+    data object TechnicalFoul : WearTeamAction
 }
 
 /** Request one team action against the exact game state displayed by the watch. */
@@ -117,6 +120,15 @@ sealed interface WearActionConfirmation {
         override val requestedAtPhoneEpochMillis: Long,
         val selectedViolation: WearPullViolationType,
         val options: List<WearPullViolationOption>,
+        override val prompt: WearPromptSnapshot,
+    ) : WearActionConfirmation
+
+    /** Confirmation details for a technical foul. */
+    @Serializable
+    data class TechnicalFoul(
+        override val stateToken: String,
+        val team: WearTeamId,
+        override val requestedAtPhoneEpochMillis: Long,
         override val prompt: WearPromptSnapshot,
     ) : WearActionConfirmation
 }

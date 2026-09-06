@@ -230,7 +230,9 @@ private fun ActiveGameScreen(
                 requestConfirmation(WearTeamAction.PullViolation)
             },
             onCard = {},
-            onTechnicalFoul = {},
+            onTechnicalFoul = {
+                requestConfirmation(WearTeamAction.TechnicalFoul)
+            },
             onTimeout = {
                 requestConfirmation(WearTeamAction.Timeout)
             },

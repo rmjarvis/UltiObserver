@@ -318,269 +318,9 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         )
     }
 
-    /** Exercise a watch timeout that is requested before it is confirmed and recorded. */
-    @Test
-    fun watchTimeout() {
-        val settings = Settings(
-            automaticallyAdvanceNewCountdowns = true,
-            ruleGuidanceMode = RuleGuidanceMode.FULL,
-            timingAlerts = TimingAlertPreferences(
-                watchConnectionMode = WatchConnectionMode.WEAR_OS,
-            ),
-        )
-        val appState = AppState(NoOpAppStateStorage)
-        appState.updateSettings(settings)
-        val game = standardLiveGameState().continueLivePoint()
-        appState.updateCurrentGame(game)
-        appState.resumeCurrentGame()
-        val requestedAt = settings.adjustedCountdownStartEpoch(
-            timestampAt(game, LocalTime.of(11, 0))
-        )
-        val confirmation = GamePrompt.TimeoutConfirmation(
-            state = game,
-            team = TeamId.TEAM_ONE,
-            requestedAt = requestedAt,
-        )
-
-        // Requesting the confirmation supplies the same Full guidance as the phone without
-        // changing the current game. Cancel therefore needs no phone command or state rollback.
-        val prompt = confirmation.wearSnapshot(settings.ruleGuidanceMode)
-        assertEquals("Timeout", prompt.title)
-        assertEquals(
-            listOf(
-                "Timeout charged to Viscous Coupling. " +
-                    "They have 1 timeout remaining in this half."
-            ),
-            prompt.messageLines.map { line -> line.text },
-        )
-        assertEquals("Cancel", prompt.dismissLabel)
-        assertEquals("OK", prompt.confirmLabel)
-        assertEquals(WearGuidancePresentation.VISIBLE, prompt.presentation)
-        assertEquals(game, appState.currentGame)
-
-        // Brief, Timed, and None select the same presentation and copy policy used by the phone.
-        val briefPrompt = confirmation.wearSnapshot(RuleGuidanceMode.BRIEF)
-        assertEquals(
-            listOf("Timeout charged to Viscous Coupling."),
-            briefPrompt.messageLines.map { line -> line.text },
-        )
-        assertEquals(WearGuidancePresentation.VISIBLE, briefPrompt.presentation)
-        val timedPrompt = confirmation.wearSnapshot(RuleGuidanceMode.TIMED)
-        assertEquals(WearGuidancePresentation.VISIBLE_TIMED, timedPrompt.presentation)
-        assertEquals(ruleGuidanceTimeoutMillis, timedPrompt.autoAcceptDelayMillis)
-        val nonePrompt = confirmation.wearSnapshot(RuleGuidanceMode.NONE)
-        assertEquals(WearGuidancePresentation.HIDDEN_AUTO_ACCEPT, nonePrompt.presentation)
-        assertNull(nonePrompt.autoAcceptDelayMillis)
-
-        // An invalid timeout remains visible briefly in None mode, matching the phone's required
-        // warning rather than silently accepting an action that cannot be charged.
-        val outOfTimeoutsGame = game.copy(
-            teamOne = game.teamOne.copy(timeoutsUsedThisHalf = 2),
-        )
-        val invalidPrompt = GamePrompt.TimeoutConfirmation(
-            state = outOfTimeoutsGame,
-            team = TeamId.TEAM_ONE,
-            requestedAt = requestedAt,
-        ).wearSnapshot(RuleGuidanceMode.NONE)
-        assertEquals("Invalid timeout", invalidPrompt.title)
-        assertEquals(WearGuidancePresentation.VISIBLE_TIMED, invalidPrompt.presentation)
-        assertEquals(ruleGuidanceTimeoutMillis, invalidPrompt.autoAcceptDelayMillis)
-
-        // OK commits the timeout through AppState, and reusing the stale confirmation cannot
-        // overwrite that accepted result.
-        assertTrue(appState.confirmAction(confirmation))
-        val timeoutGame = appState.currentGame!!
-        assertEquals(game.assessTimeout(TeamId.TEAM_ONE, requestedAt).state, timeoutGame)
-        assertEquals(1, timeoutGame.teamOne.timeoutsUsedThisHalf)
-        assertEquals(CountdownKind.TIME_OUT, timeoutGame.countdown?.kind)
-        assertEquals("Undo Timeout by Viscous Coupling", timeoutGame.undoEntry?.label)
-        assertFalse(appState.confirmAction(confirmation))
-        assertEquals(timeoutGame, appState.currentGame)
-
-        // Action and confirmation payloads preserve the exact state token, team, phone timestamp,
-        // prompt, and authoritative snapshot across their protocol round trips.
-        val stateToken = wearStateToken(game)
-        val actionRequest = WearTeamActionRequest(
-            stateToken = stateToken,
-            team = WearTeamId.TEAM_ONE,
-            action = WearTeamAction.Timeout,
-        )
-        assertEquals(
-            actionRequest,
-            WearProtocolCodec.decode(
-                WearTeamActionRequest.serializer(),
-                WearProtocolCodec.encode(
-                    WearTeamActionRequest.serializer(),
-                    actionRequest,
-                ),
-            ),
-        )
-        val protocolConfirmation = WearActionConfirmation.Timeout(
-            stateToken = stateToken,
-            team = WearTeamId.TEAM_ONE,
-            requestedAtPhoneEpochMillis = requestedAt,
-            prompt = prompt,
-        )
-        val actionResponse = WearGameActionResponse(
-            applied = false,
-            confirmation = protocolConfirmation,
-            snapshot = buildWearStateSnapshot(
-                game = game,
-                settings = settings,
-                now = requestedAt,
-                actionsAvailable = true,
-            ),
-        )
-        assertEquals(
-            actionResponse,
-            WearProtocolCodec.decode(
-                WearGameActionResponse.serializer(),
-                WearProtocolCodec.encode(
-                    WearGameActionResponse.serializer(),
-                    actionResponse,
-                ),
-            ),
-        )
-        val confirmationRequest = WearConfirmActionRequest(protocolConfirmation)
-        assertEquals(
-            confirmationRequest,
-            WearProtocolCodec.decode(
-                WearConfirmActionRequest.serializer(),
-                WearProtocolCodec.encode(
-                    WearConfirmActionRequest.serializer(),
-                    confirmationRequest,
-                ),
-            ),
-        )
-    }
-
     /**
-     * Exercise the self-contained team actions that the watch can request and confirm without
-     * moving the observer to the phone.
-     */
-    @Test
-    fun watchTeamActions() {
-        val settings = Settings(
-            ruleGuidanceMode = RuleGuidanceMode.FULL,
-            timingAlerts = TimingAlertPreferences(
-                watchConnectionMode = WatchConnectionMode.WEAR_OS,
-            ),
-        )
-        val now = timestampAt(standardLiveGameState(), LocalTime.of(11, 0))
-        val requestedAt = now - 10_000L
-
-        // A time violation uses its action-request time for the same domain action as the phone.
-        var game = standardLiveGameState()
-        var confirmation: GamePrompt.ActionConfirmation = GamePrompt.TimeViolationConfirmation(
-            state = game,
-            team = TeamId.TEAM_ONE,
-            requestedAt = requestedAt,
-        )
-        var prompt = confirmation.wearConfirmation(
-            wearStateToken(game),
-            settings.ruleGuidanceMode,
-        )
-        assertEquals(confirmation.event.formatPopupTitle(), prompt.prompt.title)
-        assertEquals(requestedAt, prompt.requestedAtPhoneEpochMillis)
-        var appState = AppState(NoOpAppStateStorage)
-        appState.updateSettings(settings)
-        appState.updateCurrentGame(game)
-        appState.resumeCurrentGame()
-        assertTrue(appState.confirmAction(confirmation))
-        assertEquals(
-            game.assessTimeViolation(TeamId.TEAM_ONE, requestedAt).state,
-            appState.currentGame,
-        )
-
-        // Mixed pulling-team violations carry both phone-formatted choices. Selecting Majority
-        // pull commits that exact alternative rather than the initially displayed Offsides.
-        game = standardLiveGameState().copy(division = GameDivision.MIXED)
-        val pullingTeam = game.pullingTeam
-        confirmation = GamePrompt.PullViolationConfirmation(
-            state = game,
-            team = pullingTeam,
-            requestedAt = requestedAt,
-            violation = PullViolationType.OFFSIDES,
-        )
-        prompt = confirmation.wearConfirmation(
-            wearStateToken(game),
-            settings.ruleGuidanceMode,
-        )
-        assertEquals(requestedAt, prompt.requestedAtPhoneEpochMillis)
-        assertEquals(
-            setOf(WearPullViolationType.OFFSIDES, WearPullViolationType.MAJORITY_PULL),
-            (prompt as WearActionConfirmation.PullViolation)
-                .options.map { option -> option.violation }.toSet(),
-        )
-
-        confirmation = GamePrompt.PullViolationConfirmation(
-            state = game,
-            team = pullingTeam,
-            requestedAt = requestedAt,
-            violation = PullViolationType.MAJORITY_PULL,
-        )
-        appState = AppState(NoOpAppStateStorage)
-        appState.updateSettings(settings)
-        appState.updateCurrentGame(game)
-        appState.resumeCurrentGame()
-        assertTrue(appState.confirmAction(confirmation))
-        assertEquals(
-            game.assessPullViolation(
-                team = pullingTeam,
-                now = requestedAt,
-                violation = PullViolationType.MAJORITY_PULL,
-            ).state,
-            appState.currentGame,
-        )
-
-        // False start has no mixed-division alternative, so it sends no selection options.
-        val falseStartPrompt = GamePrompt.PullViolationConfirmation(
-            state = game,
-            team = pullingTeam.flip(),
-            requestedAt = requestedAt,
-            violation = PullViolationType.FALSE_START,
-        ).wearConfirmation(
-            wearStateToken(game),
-            settings.ruleGuidanceMode,
-        ) as WearActionConfirmation.PullViolation
-        assertTrue(falseStartPrompt.options.isEmpty())
-
-        // Action and confirmation requests preserve their concrete actions, choices, and prompts
-        // on the wire.
-        val actionRequest = WearTeamActionRequest(
-            stateToken = wearStateToken(game),
-            team = if (pullingTeam == TeamId.TEAM_ONE) {
-                WearTeamId.TEAM_ONE
-            } else {
-                WearTeamId.TEAM_TWO
-            },
-            action = WearTeamAction.PullViolation,
-        )
-        assertEquals(
-            actionRequest,
-            WearProtocolCodec.decode(
-                WearTeamActionRequest.serializer(),
-                WearProtocolCodec.encode(
-                    WearTeamActionRequest.serializer(),
-                    actionRequest,
-                ),
-            ),
-        )
-        listOf(prompt).forEach { protocolConfirmation ->
-            val request = WearConfirmActionRequest(protocolConfirmation)
-            assertEquals(
-                request,
-                WearProtocolCodec.decode(
-                    WearConfirmActionRequest.serializer(),
-                    WearProtocolCodec.encode(WearConfirmActionRequest.serializer(), request),
-                ),
-            )
-        }
-    }
-
-    /**
-     * Exercise watch-issued goals as authoritative phone actions, including the ordinary game
-     * decisions those goals expose before the phone can progress to its next state.
+     * Exercise watch-issued goals, including the ordinary game decisions those goals expose
+     * before the phone can progress to its next state.
      */
     @Test
     fun watchGoal() {
@@ -891,5 +631,355 @@ class TestWearOSInterface : GameDomainTestFixtures() {
             ),
         )
 
+    }
+
+    /** Exercise a watch timeout that is requested before it is confirmed and recorded. */
+    @Test
+    fun watchTimeout() {
+        val settings = Settings(
+            automaticallyAdvanceNewCountdowns = true,
+            ruleGuidanceMode = RuleGuidanceMode.FULL,
+            timingAlerts = TimingAlertPreferences(
+                watchConnectionMode = WatchConnectionMode.WEAR_OS,
+            ),
+        )
+        val appState = AppState(NoOpAppStateStorage)
+        appState.updateSettings(settings)
+        val game = standardLiveGameState().continueLivePoint()
+        appState.updateCurrentGame(game)
+        appState.resumeCurrentGame()
+        val requestedAt = settings.adjustedCountdownStartEpoch(
+            timestampAt(game, LocalTime.of(11, 0))
+        )
+        val confirmation = GamePrompt.TimeoutConfirmation(
+            state = game,
+            team = TeamId.TEAM_ONE,
+            requestedAt = requestedAt,
+        )
+
+        // Requesting the confirmation supplies the same Full guidance as the phone without
+        // changing the current game. Cancel therefore needs no phone command or state rollback.
+        val prompt = confirmation.wearSnapshot(settings.ruleGuidanceMode)
+        assertEquals("Timeout", prompt.title)
+        assertEquals(
+            listOf(
+                "Timeout charged to Viscous Coupling. " +
+                    "They have 1 timeout remaining in this half."
+            ),
+            prompt.messageLines.map { line -> line.text },
+        )
+        assertEquals("Cancel", prompt.dismissLabel)
+        assertEquals("OK", prompt.confirmLabel)
+        assertEquals(WearGuidancePresentation.VISIBLE, prompt.presentation)
+        assertEquals(game, appState.currentGame)
+
+        // Brief, Timed, and None select the same presentation and copy policy used by the phone.
+        val briefPrompt = confirmation.wearSnapshot(RuleGuidanceMode.BRIEF)
+        assertEquals(
+            listOf("Timeout charged to Viscous Coupling."),
+            briefPrompt.messageLines.map { line -> line.text },
+        )
+        assertEquals(WearGuidancePresentation.VISIBLE, briefPrompt.presentation)
+        val timedPrompt = confirmation.wearSnapshot(RuleGuidanceMode.TIMED)
+        assertEquals(WearGuidancePresentation.VISIBLE_TIMED, timedPrompt.presentation)
+        assertEquals(ruleGuidanceTimeoutMillis, timedPrompt.autoAcceptDelayMillis)
+        val nonePrompt = confirmation.wearSnapshot(RuleGuidanceMode.NONE)
+        assertEquals(WearGuidancePresentation.HIDDEN_AUTO_ACCEPT, nonePrompt.presentation)
+        assertNull(nonePrompt.autoAcceptDelayMillis)
+
+        // An invalid timeout remains visible briefly in None mode, matching the phone's required
+        // warning rather than silently accepting an action that cannot be charged.
+        val outOfTimeoutsGame = game.copy(
+            teamOne = game.teamOne.copy(timeoutsUsedThisHalf = 2),
+        )
+        val invalidPrompt = GamePrompt.TimeoutConfirmation(
+            state = outOfTimeoutsGame,
+            team = TeamId.TEAM_ONE,
+            requestedAt = requestedAt,
+        ).wearSnapshot(RuleGuidanceMode.NONE)
+        assertEquals("Invalid timeout", invalidPrompt.title)
+        assertEquals(WearGuidancePresentation.VISIBLE_TIMED, invalidPrompt.presentation)
+        assertEquals(ruleGuidanceTimeoutMillis, invalidPrompt.autoAcceptDelayMillis)
+
+        // OK commits the timeout through AppState, and reusing the stale confirmation cannot
+        // overwrite that accepted result.
+        assertTrue(appState.confirmAction(confirmation))
+        val timeoutGame = appState.currentGame!!
+        assertEquals(game.assessTimeout(TeamId.TEAM_ONE, requestedAt).state, timeoutGame)
+        assertEquals(1, timeoutGame.teamOne.timeoutsUsedThisHalf)
+        assertEquals(CountdownKind.TIME_OUT, timeoutGame.countdown?.kind)
+        assertEquals("Undo Timeout by Viscous Coupling", timeoutGame.undoEntry?.label)
+        assertFalse(appState.confirmAction(confirmation))
+        assertEquals(timeoutGame, appState.currentGame)
+
+        // Action and confirmation payloads preserve the exact state token, team, phone timestamp,
+        // prompt, and authoritative snapshot across their protocol round trips.
+        val stateToken = wearStateToken(game)
+        val actionRequest = WearTeamActionRequest(
+            stateToken = stateToken,
+            team = WearTeamId.TEAM_ONE,
+            action = WearTeamAction.Timeout,
+        )
+        assertEquals(
+            actionRequest,
+            WearProtocolCodec.decode(
+                WearTeamActionRequest.serializer(),
+                WearProtocolCodec.encode(
+                    WearTeamActionRequest.serializer(),
+                    actionRequest,
+                ),
+            ),
+        )
+        val protocolConfirmation = WearActionConfirmation.Timeout(
+            stateToken = stateToken,
+            team = WearTeamId.TEAM_ONE,
+            requestedAtPhoneEpochMillis = requestedAt,
+            prompt = prompt,
+        )
+        val actionResponse = WearGameActionResponse(
+            applied = false,
+            confirmation = protocolConfirmation,
+            snapshot = buildWearStateSnapshot(
+                game = game,
+                settings = settings,
+                now = requestedAt,
+                actionsAvailable = true,
+            ),
+        )
+        assertEquals(
+            actionResponse,
+            WearProtocolCodec.decode(
+                WearGameActionResponse.serializer(),
+                WearProtocolCodec.encode(
+                    WearGameActionResponse.serializer(),
+                    actionResponse,
+                ),
+            ),
+        )
+        val confirmationRequest = WearConfirmActionRequest(protocolConfirmation)
+        assertEquals(
+            confirmationRequest,
+            WearProtocolCodec.decode(
+                WearConfirmActionRequest.serializer(),
+                WearProtocolCodec.encode(
+                    WearConfirmActionRequest.serializer(),
+                    confirmationRequest,
+                ),
+            ),
+        )
+    }
+
+    /**
+     * Exercise watch time- and pull-violation actions that the watch can request and confirm
+     * directly.
+     */
+    @Test
+    fun watchTimeAndPullViolations() {
+        val settings = Settings(
+            ruleGuidanceMode = RuleGuidanceMode.FULL,
+            timingAlerts = TimingAlertPreferences(
+                watchConnectionMode = WatchConnectionMode.WEAR_OS,
+            ),
+        )
+        val now = timestampAt(standardLiveGameState(), LocalTime.of(11, 0))
+        val requestedAt = now - 10_000L
+
+        // A time violation uses its action-request time for the same domain action as the phone.
+        var game = standardLiveGameState()
+        var confirmation: GamePrompt.ActionConfirmation = GamePrompt.TimeViolationConfirmation(
+            state = game,
+            team = TeamId.TEAM_ONE,
+            requestedAt = requestedAt,
+        )
+        var prompt = confirmation.wearConfirmation(
+            wearStateToken(game),
+            settings.ruleGuidanceMode,
+        )
+        assertEquals(confirmation.event.formatPopupTitle(), prompt.prompt.title)
+        assertEquals(requestedAt, prompt.requestedAtPhoneEpochMillis)
+        var appState = AppState(NoOpAppStateStorage)
+        appState.updateSettings(settings)
+        appState.updateCurrentGame(game)
+        appState.resumeCurrentGame()
+        assertTrue(appState.confirmAction(confirmation))
+        assertEquals(
+            game.assessTimeViolation(TeamId.TEAM_ONE, requestedAt).state,
+            appState.currentGame,
+        )
+
+        // Mixed pulling-team violations carry both phone-formatted choices. Selecting Majority
+        // pull commits that exact alternative rather than the initially displayed Offsides.
+        game = standardLiveGameState().copy(division = GameDivision.MIXED)
+        val pullingTeam = game.pullingTeam
+        confirmation = GamePrompt.PullViolationConfirmation(
+            state = game,
+            team = pullingTeam,
+            requestedAt = requestedAt,
+            violation = PullViolationType.OFFSIDES,
+        )
+        prompt = confirmation.wearConfirmation(
+            wearStateToken(game),
+            settings.ruleGuidanceMode,
+        )
+        assertEquals(requestedAt, prompt.requestedAtPhoneEpochMillis)
+        assertEquals(
+            setOf(WearPullViolationType.OFFSIDES, WearPullViolationType.MAJORITY_PULL),
+            (prompt as WearActionConfirmation.PullViolation)
+                .options.map { option -> option.violation }.toSet(),
+        )
+
+        confirmation = GamePrompt.PullViolationConfirmation(
+            state = game,
+            team = pullingTeam,
+            requestedAt = requestedAt,
+            violation = PullViolationType.MAJORITY_PULL,
+        )
+        appState = AppState(NoOpAppStateStorage)
+        appState.updateSettings(settings)
+        appState.updateCurrentGame(game)
+        appState.resumeCurrentGame()
+        assertTrue(appState.confirmAction(confirmation))
+        assertEquals(
+            game.assessPullViolation(
+                team = pullingTeam,
+                now = requestedAt,
+                violation = PullViolationType.MAJORITY_PULL,
+            ).state,
+            appState.currentGame,
+        )
+
+        // False start has no mixed-division alternative, so it sends no selection options.
+        val falseStartPrompt = GamePrompt.PullViolationConfirmation(
+            state = game,
+            team = pullingTeam.flip(),
+            requestedAt = requestedAt,
+            violation = PullViolationType.FALSE_START,
+        ).wearConfirmation(
+            wearStateToken(game),
+            settings.ruleGuidanceMode,
+        ) as WearActionConfirmation.PullViolation
+        assertTrue(falseStartPrompt.options.isEmpty())
+
+        // Action and confirmation requests preserve their concrete actions, choices, and prompts
+        // on the wire.
+        val actionRequest = WearTeamActionRequest(
+            stateToken = wearStateToken(game),
+            team = if (pullingTeam == TeamId.TEAM_ONE) {
+                WearTeamId.TEAM_ONE
+            } else {
+                WearTeamId.TEAM_TWO
+            },
+            action = WearTeamAction.PullViolation,
+        )
+        assertEquals(
+            actionRequest,
+            WearProtocolCodec.decode(
+                WearTeamActionRequest.serializer(),
+                WearProtocolCodec.encode(
+                    WearTeamActionRequest.serializer(),
+                    actionRequest,
+                ),
+            ),
+        )
+        listOf(prompt).forEach { protocolConfirmation ->
+            val request = WearConfirmActionRequest(protocolConfirmation)
+            assertEquals(
+                request,
+                WearProtocolCodec.decode(
+                    WearConfirmActionRequest.serializer(),
+                    WearProtocolCodec.encode(WearConfirmActionRequest.serializer(), request),
+                ),
+            )
+        }
+    }
+
+    /**
+     * Exercise the watch technical foul action.
+     */
+    @Test
+    fun watchTechnicalFoul() {
+        val settings = Settings(
+            ruleGuidanceMode = RuleGuidanceMode.FULL,
+            timingAlerts = TimingAlertPreferences(
+                watchConnectionMode = WatchConnectionMode.WEAR_OS,
+            ),
+        )
+        val requestedAt = standardLiveGameState().startEpoch + 10_000L
+
+        // An ordinary technical foul remains uncommitted until its confirmation is accepted.
+        var game = standardLiveGameState()
+        var confirmation = GamePrompt.TechnicalFoulConfirmation(
+            state = game,
+            team = TeamId.TEAM_TWO,
+            requestedAt = requestedAt,
+        )
+        var prompt = confirmation.wearConfirmation(
+            wearStateToken(game),
+            settings.ruleGuidanceMode,
+        ) as WearActionConfirmation.TechnicalFoul
+        assertEquals(requestedAt, prompt.requestedAtPhoneEpochMillis)
+        var appState = AppState(NoOpAppStateStorage)
+        appState.updateSettings(settings)
+        appState.updateCurrentGame(game)
+        appState.resumeCurrentGame()
+        assertTrue(appState.confirmAction(confirmation))
+        assertEquals(
+            game.assessTechnicalFoul(TeamId.TEAM_TWO, requestedAt).state,
+            appState.currentGame,
+        )
+
+        // A third live-point foul carries both consequences in its Full-guidance confirmation.
+        game = standardLiveGameState().continueLivePoint()
+        game = game.copy(
+            teamOne = game.teamOne.copy(technicalFouls = 2),
+        )
+        confirmation = GamePrompt.TechnicalFoulConfirmation(
+            state = game,
+            team = TeamId.TEAM_ONE,
+            requestedAt = requestedAt,
+        )
+        prompt = confirmation.wearConfirmation(
+            wearStateToken(game),
+            settings.ruleGuidanceMode,
+        ) as WearActionConfirmation.TechnicalFoul
+        assertTrue(
+            prompt.prompt.messageLines.any { line -> line.text == "If against offense:" }
+        )
+        assertTrue(
+            prompt.prompt.messageLines.any { line -> line.text == "If against defense:" }
+        )
+        appState = AppState(NoOpAppStateStorage)
+        appState.updateSettings(settings)
+        appState.updateCurrentGame(game)
+        appState.resumeCurrentGame()
+        assertTrue(appState.confirmAction(confirmation))
+        assertEquals(3, appState.currentGame!!.teamOne.technicalFouls)
+        assertTrue(appState.currentGame!!.pendingMisconductCountdown)
+
+        // The technical-foul action and its resulting confirmation survive their protocol
+        // encoding round trips.
+        val actionRequest = WearTeamActionRequest(
+            stateToken = wearStateToken(game),
+            team = WearTeamId.TEAM_ONE,
+            action = WearTeamAction.TechnicalFoul,
+        )
+        assertEquals(
+            actionRequest,
+            WearProtocolCodec.decode(
+                WearTeamActionRequest.serializer(),
+                WearProtocolCodec.encode(WearTeamActionRequest.serializer(), actionRequest),
+            ),
+        )
+        val confirmationRequest = WearConfirmActionRequest(prompt)
+        assertEquals(
+            confirmationRequest,
+            WearProtocolCodec.decode(
+                WearConfirmActionRequest.serializer(),
+                WearProtocolCodec.encode(
+                    WearConfirmActionRequest.serializer(),
+                    confirmationRequest,
+                ),
+            ),
+        )
     }
 }

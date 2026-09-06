@@ -91,7 +91,9 @@ internal fun ActiveGameScreen(
     var pendingPullViolation by remember(state) {
         mutableStateOf<GamePrompt.PullViolationConfirmation?>(null)
     }
-    var pendingTechnicalFoulTeam by remember { mutableStateOf<TeamId?>(null) }
+    var pendingTechnicalFoul by remember {
+        mutableStateOf<GamePrompt.TechnicalFoulConfirmation?>(null)
+    }
     var teamInfoSheetTeam by remember { mutableStateOf<TeamId?>(null) }
     var locked by remember { mutableStateOf(false) }
     var showManualWaterBreakPrompt by remember { mutableStateOf(false) }
@@ -211,7 +213,12 @@ internal fun ActiveGameScreen(
         pendingCardTeam = team
     }
     val onTechnicalFoul: (TeamId) -> Unit = { team ->
-        pendingTechnicalFoulTeam = team
+        val requestedAt = System.currentTimeMillis()
+        pendingTechnicalFoul = GamePrompt.TechnicalFoulConfirmation(
+            state = state,
+            team = team,
+            requestedAt = requestedAt,
+        )
     }
     val onTeamInfo: (TeamId) -> Unit = { team ->
         teamInfoSheetTeam = team
@@ -499,25 +506,21 @@ internal fun ActiveGameScreen(
                 },
             )
         }
-    } else if (pendingTechnicalFoulTeam != null) {
-        val team = pendingTechnicalFoulTeam!!
-        val event = state.previewTechnicalFoul(team, now)
+    } else if (pendingTechnicalFoul != null) {
+        val confirmation = pendingTechnicalFoul!!
+        val event = confirmation.event
         val applyTechnicalFoul = {
-            val result = state.assessTechnicalFoul(
-                team,
-                now,
-            )
-            onStateChange(result.state)
-            pendingTechnicalFoulTeam = null
+            onConfirmation(confirmation)
+            pendingTechnicalFoul = null
         }
         RuleGuidanceGate(
-            key = team,
+            key = confirmation,
             mode = settings.ruleGuidanceMode,
             requiredInNone = event.requiresGuidanceInNone(),
             onAutoAccept = applyTechnicalFoul,
         ) {
             ResponsiveAlertDialog(
-                onDismissRequest = { pendingTechnicalFoulTeam = null },
+                onDismissRequest = { pendingTechnicalFoul = null },
                 title = { Text(event.formatPopupTitle()) },
                 text = {
                     ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
@@ -533,7 +536,7 @@ internal fun ActiveGameScreen(
                 dismissButton = {
                     TextActionButton(
                         label = "Cancel",
-                        onClick = { pendingTechnicalFoulTeam = null },
+                        onClick = { pendingTechnicalFoul = null },
                     )
                 },
             )

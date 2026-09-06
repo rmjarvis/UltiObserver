@@ -297,6 +297,11 @@ private fun GameState.actionConfirmation(
                 GamePrompt.PullViolationConfirmation(this, team, requestedAt, violation)
             }
         }
+        WearTeamAction.TechnicalFoul -> GamePrompt.TechnicalFoulConfirmation(
+            state = this,
+            team = team,
+            requestedAt = requestedAt,
+        )
     }
 }
 
@@ -340,6 +345,12 @@ internal fun GamePrompt.ActionConfirmation.wearConfirmation(
                 prompt = wearSnapshot(guidanceMode),
             )
         }
+        is GamePrompt.TechnicalFoulConfirmation -> WearActionConfirmation.TechnicalFoul(
+            stateToken = stateToken,
+            team = team.toWearTeamId(),
+            requestedAtPhoneEpochMillis = requestedAt,
+            prompt = wearSnapshot(guidanceMode),
+        )
     }
 }
 
@@ -385,6 +396,11 @@ private fun WearActionConfirmation.gamePrompt(
                 )
             }
         }
+        is WearActionConfirmation.TechnicalFoul -> GamePrompt.TechnicalFoulConfirmation(
+            state = game,
+            team = team.toTeamId(),
+            requestedAt = requestedAtPhoneEpochMillis,
+        )
     }
 }
 
