@@ -795,7 +795,7 @@ class TestWearOSInterface : GameDomainTestFixtures() {
             wearStateToken(game),
             settings.ruleGuidanceMode,
         )
-        assertEquals(confirmation.event.formatPopupTitle(), prompt.prompt.title)
+        assertEquals(confirmation.event.formatTitle(), prompt.prompt.title)
         assertEquals(requestedAt, prompt.requestedAtPhoneEpochMillis)
         var appState = AppState(NoOpAppStateStorage)
         appState.updateSettings(settings)
@@ -891,6 +891,95 @@ class TestWearOSInterface : GameDomainTestFixtures() {
                 ),
             )
         }
+    }
+
+    /** Exercise the watch blue-card request and confirmation. */
+    @Test
+    fun watchBlueCard() {
+        val settings = Settings(
+            ruleGuidanceMode = RuleGuidanceMode.FULL,
+            timingAlerts = TimingAlertPreferences(
+                watchConnectionMode = WatchConnectionMode.WEAR_OS,
+            ),
+        )
+        val requestedAt = standardLiveGameState().startEpoch + 10_000L
+
+        // An ordinary blue card remains uncommitted until its confirmation is accepted.
+        var game = standardLiveGameState()
+        var confirmation = GamePrompt.BlueCardConfirmation(
+            state = game,
+            team = TeamId.TEAM_TWO,
+            requestedAt = requestedAt,
+        )
+        var prompt = confirmation.wearConfirmation(
+            wearStateToken(game),
+            settings.ruleGuidanceMode,
+        ) as WearActionConfirmation.BlueCard
+        assertEquals(confirmation.event.formatTitle(), prompt.prompt.title)
+        assertEquals(requestedAt, prompt.requestedAtPhoneEpochMillis)
+        var appState = AppState(NoOpAppStateStorage)
+        appState.updateSettings(settings)
+        appState.updateCurrentGame(game)
+        appState.resumeCurrentGame()
+        assertEquals(game, appState.currentGame)
+        assertTrue(appState.confirmAction(confirmation))
+        assertEquals(
+            game.assessBlueCard(TeamId.TEAM_TWO, requestedAt).state,
+            appState.currentGame,
+        )
+
+        // A third live-point card carries both misconduct consequences in Full guidance.
+        game = standardLiveGameState().continueLivePoint()
+        game = game.copy(
+            teamOne = game.teamOne.copy(blueCards = 2),
+        )
+        confirmation = GamePrompt.BlueCardConfirmation(
+            state = game,
+            team = TeamId.TEAM_ONE,
+            requestedAt = requestedAt,
+        )
+        prompt = confirmation.wearConfirmation(
+            wearStateToken(game),
+            settings.ruleGuidanceMode,
+        ) as WearActionConfirmation.BlueCard
+        assertTrue(
+            prompt.prompt.messageLines.any { line -> line.text == "If against offense:" }
+        )
+        assertTrue(
+            prompt.prompt.messageLines.any { line -> line.text == "If against defense:" }
+        )
+        appState = AppState(NoOpAppStateStorage)
+        appState.updateSettings(settings)
+        appState.updateCurrentGame(game)
+        appState.resumeCurrentGame()
+        assertTrue(appState.confirmAction(confirmation))
+        assertEquals(3, appState.currentGame!!.teamOne.blueCards)
+        assertTrue(appState.currentGame!!.pendingMisconductCountdown)
+
+        // The blue-card action and its confirmation survive their protocol encoding round trips.
+        val actionRequest = WearTeamActionRequest(
+            stateToken = wearStateToken(game),
+            team = WearTeamId.TEAM_ONE,
+            action = WearTeamAction.BlueCard,
+        )
+        assertEquals(
+            actionRequest,
+            WearProtocolCodec.decode(
+                WearTeamActionRequest.serializer(),
+                WearProtocolCodec.encode(WearTeamActionRequest.serializer(), actionRequest),
+            ),
+        )
+        val confirmationRequest = WearConfirmActionRequest(prompt)
+        assertEquals(
+            confirmationRequest,
+            WearProtocolCodec.decode(
+                WearConfirmActionRequest.serializer(),
+                WearProtocolCodec.encode(
+                    WearConfirmActionRequest.serializer(),
+                    confirmationRequest,
+                ),
+            ),
+        )
     }
 
     /**

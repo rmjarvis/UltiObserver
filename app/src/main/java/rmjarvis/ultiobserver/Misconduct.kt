@@ -1765,12 +1765,12 @@ private fun GameState.playerCardFor(
 }
 
 /// Format the popup title for a team-card event.
-internal fun GameEvent.TeamCardsChanged.formatPopupTitle(): String {
+internal fun GameEvent.TeamCardsChanged.formatTitle(): String {
     return if (teamCardTotal >= 3) "Misconduct penalty" else "Misconduct"
 }
 
 /// Format the popup title for a technical-foul event.
-internal fun GameEvent.TechnicalFoulsChanged.formatPopupTitle(): String {
+internal fun GameEvent.TechnicalFoulsChanged.formatTitle(): String {
     return "Technical Foul"
 }
 

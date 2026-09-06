@@ -297,13 +297,13 @@ private fun applyLivePointTimeout(
 }
 
 /// Format a timeout event popup title.
-internal fun GameEvent.TimeoutCharged.formatPopupTitle(): String = "Timeout"
+internal fun GameEvent.TimeoutCharged.formatTitle(): String = "Timeout"
 
 /// Format an invalid-timeout event popup title.
-internal fun GameEvent.TimeoutUnavailable.formatPopupTitle(): String = "Timeout not possible now"
+internal fun GameEvent.TimeoutUnavailable.formatTitle(): String = "Timeout not possible now"
 
 /// Format an out-of-timeouts event popup title.
-internal fun GameEvent.TeamOutOfTimeouts.formatPopupTitle(): String = "Invalid timeout"
+internal fun GameEvent.TeamOutOfTimeouts.formatTitle(): String = "Invalid timeout"
 
 /// Format a timeout-charged event message with the remaining timeout count.
 internal fun GameEvent.TimeoutCharged.formatMessage(): RuleGuidanceMessage {

@@ -297,6 +297,11 @@ private fun GameState.actionConfirmation(
                 GamePrompt.PullViolationConfirmation(this, team, requestedAt, violation)
             }
         }
+        WearTeamAction.BlueCard -> GamePrompt.BlueCardConfirmation(
+            state = this,
+            team = team,
+            requestedAt = requestedAt,
+        )
         WearTeamAction.TechnicalFoul -> GamePrompt.TechnicalFoulConfirmation(
             state = this,
             team = team,
@@ -345,6 +350,12 @@ internal fun GamePrompt.ActionConfirmation.wearConfirmation(
                 prompt = wearSnapshot(guidanceMode),
             )
         }
+        is GamePrompt.BlueCardConfirmation -> WearActionConfirmation.BlueCard(
+            stateToken = stateToken,
+            team = team.toWearTeamId(),
+            requestedAtPhoneEpochMillis = requestedAt,
+            prompt = wearSnapshot(guidanceMode),
+        )
         is GamePrompt.TechnicalFoulConfirmation -> WearActionConfirmation.TechnicalFoul(
             stateToken = stateToken,
             team = team.toWearTeamId(),
@@ -396,6 +407,11 @@ private fun WearActionConfirmation.gamePrompt(
                 )
             }
         }
+        is WearActionConfirmation.BlueCard -> GamePrompt.BlueCardConfirmation(
+            state = game,
+            team = team.toTeamId(),
+            requestedAt = requestedAtPhoneEpochMillis,
+        )
         is WearActionConfirmation.TechnicalFoul -> GamePrompt.TechnicalFoulConfirmation(
             state = game,
             team = team.toTeamId(),

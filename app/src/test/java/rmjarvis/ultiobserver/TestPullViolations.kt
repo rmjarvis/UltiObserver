@@ -667,7 +667,7 @@ class TestPullViolations : GameDomainTestFixtures() {
             "The disc is live -- no defensive check is required.",
             pullViolationResult.message(),
         )
-        assertEquals("Offsides", pullViolationResult.event!!.formatPopupTitle())
+        assertEquals("Offsides", pullViolationResult.event!!.formatTitle())
         val pullViolationEvent = pullViolationResult.event as GameEvent.PullViolationRecorded
         assertEquals(
             "Animal starts at the brick mark.",
@@ -732,7 +732,7 @@ class TestPullViolations : GameDomainTestFixtures() {
             (pullViolationResult.event as GameEvent.PullViolationRecorded)
                 .formatBriefMessage().plainText,
         )
-        assertEquals("False start", pullViolationResult.event!!.formatPopupTitle())
+        assertEquals("False start", pullViolationResult.event!!.formatTitle())
         assertEquals(
             "This is Viscous Coupling's first pull violation.\n\n" +
             "Animal starts at the brick mark.",
@@ -972,9 +972,9 @@ class TestPullViolations : GameDomainTestFixtures() {
         var timeViolationState = timeViolationResult.state
         assertEquals(ANIMAL, warningEvent.team)
         assertEquals(TimeViolationOutcome.WARNING, warningEvent.outcome)
-        assertEquals("Time violation", warningEvent.formatPopupTitle())
+        assertEquals("Time violation", warningEvent.formatTitle())
         val warningGameEvent: GameEvent = warningEvent
-        assertEquals("Time violation", warningGameEvent.formatPopupTitle())
+        assertEquals("Time violation", warningGameEvent.formatTitle())
         assertEquals(1, timeViolationState.teamTwo.timeViolations)
         assertEquals(0, timeViolationState.teamOne.timeViolations)
         assertEquals(CountdownKind.PULL_RESET, timeViolationState.countdown?.kind)

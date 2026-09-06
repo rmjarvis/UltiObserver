@@ -468,7 +468,7 @@ private fun GameState.pullViolationTotal(teamId: TeamId): Int {
 }
 
 /// Format a pull-violation event popup title.
-internal fun GameEvent.PullViolationRecorded.formatPopupTitle(): String {
+internal fun GameEvent.PullViolationRecorded.formatTitle(): String {
     return when (violation) {
         PullViolationType.OFFSIDES -> "Offsides"
         PullViolationType.FALSE_START -> "False start"

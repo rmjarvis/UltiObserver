@@ -193,6 +193,120 @@ internal fun TeamActionsScreen(
     }
 }
 
+/** Show the card colors that can be assessed from the watch. */
+@Composable
+internal fun CardChoiceScreen(
+    display: TeamActionsDisplay,
+    enabled: Boolean,
+    onBlue: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    UltiObserverTheme {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(LocalConfiguration.current.screenShape())
+                .background(display.team.backgroundColor),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth(0.86f)
+                    .align(Alignment.Center),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    text = display.team.name,
+                    color = display.team.contentColor,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(PanelShape)
+                        .background(ActionPanelColor)
+                        .padding(PanelPadding),
+                    verticalArrangement = Arrangement.spacedBy(ActionGap),
+                ) {
+                    Text(
+                        text = "Assess a card",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        color = Color.Black,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        horizontalArrangement = Arrangement.spacedBy(ActionGap),
+                    ) {
+                        ActionButton(
+                            label = "Yellow",
+                            enabled = false,
+                            background = YellowCardButtonColor,
+                            contentColor = Color.Black,
+                            fontSize = 10.sp,
+                            onClick = {},
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
+                        )
+                        ActionButton(
+                            label = "Red",
+                            enabled = false,
+                            background = RedCardButtonColor,
+                            contentColor = Color.Black,
+                            fontSize = 10.sp,
+                            onClick = {},
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
+                        )
+                        ActionButton(
+                            label = "Blue",
+                            enabled = enabled,
+                            background = BlueCardButtonColor,
+                            contentColor = Color.White,
+                            fontSize = 10.sp,
+                            onClick = onBlue,
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
+                        )
+                    }
+                }
+            }
+            Box(
+                modifier = Modifier
+                    .width(88.dp)
+                    .height(48.dp)
+                    .align(Alignment.BottomCenter)
+                    .clickable(
+                        enabled = enabled,
+                        role = Role.Button,
+                        onClick = onCancel,
+                    ),
+                contentAlignment = Alignment.BottomCenter,
+            ) {
+                Text(
+                    text = "Cancel",
+                    modifier = Modifier.padding(bottom = 7.dp),
+                    color = display.team.contentColor,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
+        }
+    }
+}
+
 /** Render one stacked pair of compact actions. */
 @Composable
 private fun ActionPair(
@@ -283,6 +397,9 @@ private val PanelShape = RoundedCornerShape(8.dp)
 private val ActionPanelColor = Color(0xCCFFFFFF)
 private val GoalButtonColor = Color(0xFF2E7D32)
 private val CardButtonColor = Color(0xFFFDD835)
+private val YellowCardButtonColor = Color(0xFFFFD92F)
+private val RedCardButtonColor = Color(0xFFE64B3C)
+private val BlueCardButtonColor = Color(0xFF1976D2)
 private val TechButtonColor = Color(0xFFFFB74D)
 private val TimeoutButtonColor = Color(0xFF90CAF9)
 private val NeutralButtonColor = Color(0xFFF7F2EA)

@@ -69,7 +69,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
             "Timeout charged to Animal. They have 1 timeout remaining in this half.",
             firstTimeout.message(),
         )
-        assertEquals("Timeout", firstTimeout.event?.formatPopupTitle())
+        assertEquals("Timeout", firstTimeout.event?.formatTitle())
         state = firstTimeout.state
         assertEquals(1, state.teamTwo.timeoutsUsedThisHalf)
         assertEquals(1, state.timeoutsRemaining(ANIMAL))

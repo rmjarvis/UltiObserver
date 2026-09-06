@@ -68,6 +68,9 @@ sealed interface WearTeamAction {
     data object PullViolation : WearTeamAction
 
     @Serializable
+    data object BlueCard : WearTeamAction
+
+    @Serializable
     data object TechnicalFoul : WearTeamAction
 }
 
@@ -120,6 +123,15 @@ sealed interface WearActionConfirmation {
         override val requestedAtPhoneEpochMillis: Long,
         val selectedViolation: WearPullViolationType,
         val options: List<WearPullViolationOption>,
+        override val prompt: WearPromptSnapshot,
+    ) : WearActionConfirmation
+
+    /** Confirmation details for a blue card. */
+    @Serializable
+    data class BlueCard(
+        override val stateToken: String,
+        val team: WearTeamId,
+        override val requestedAtPhoneEpochMillis: Long,
         override val prompt: WearPromptSnapshot,
     ) : WearActionConfirmation
 

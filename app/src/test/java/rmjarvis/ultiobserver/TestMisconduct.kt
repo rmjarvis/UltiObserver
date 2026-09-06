@@ -613,7 +613,7 @@ class TestMisconduct : GameDomainTestFixtures() {
             "Yellow card on player 17.\nViscous Coupling has 1 card total.",
             cardResult.message(),
         )
-        assertEquals("Misconduct", cardResult.event.formatPopupTitle())
+        assertEquals("Misconduct", cardResult.event.formatTitle())
         assertEquals(1, state.teamYellowCards(VC))
         assertEquals(0, state.teamRedCards(VC))
         assertEquals(1, state.teamCardTotal(VC))
@@ -652,7 +652,7 @@ class TestMisconduct : GameDomainTestFixtures() {
             "Penalty against Viscous Coupling. No pull. Animal starts at attacking brick.",
             cardResult.message(),
         )
-        assertEquals("Misconduct penalty", cardResult.event.formatPopupTitle())
+        assertEquals("Misconduct penalty", cardResult.event.formatTitle())
         assertTrue(state.pullSkippedForCurrentPoint)
         assertEquals(CountdownKind.MISCONDUCT_BETWEEN_POINTS, state.countdown?.kind)
         assertEquals("Offense set in", state.countdown?.label)
@@ -815,7 +815,7 @@ class TestMisconduct : GameDomainTestFixtures() {
             "Animal has 2 cards total (red cards count as 2).",
             cardResult.message(),
         )
-        assertEquals("Misconduct", cardResult.event.formatPopupTitle())
+        assertEquals("Misconduct", cardResult.event.formatTitle())
         assertEquals(0, state.teamYellowCards(ANIMAL))
         assertEquals(1, state.teamRedCards(ANIMAL))
         assertEquals(2, state.teamCardTotal(ANIMAL))
@@ -1065,7 +1065,7 @@ class TestMisconduct : GameDomainTestFixtures() {
         var technicalFoulResult = state.assessTechnicalFoul(ANIMAL)
         state = technicalFoulResult.state
         assertEquals("This is Animal's first technical foul.", technicalFoulResult.message())
-        assertEquals("Technical Foul", technicalFoulResult.event.formatPopupTitle())
+        assertEquals("Technical Foul", technicalFoulResult.event.formatTitle())
         assertEquals(1, state.teamTwo.technicalFouls)
         assertEquals(0, state.teamCardTotal(ANIMAL))
 
@@ -1086,7 +1086,7 @@ class TestMisconduct : GameDomainTestFixtures() {
             "Third technical foul on Animal.\n\nNo pull. Start at negative brick.",
             technicalFoulResult.event.formatBriefMessage().plainText,
         )
-        assertEquals("Technical Foul", technicalFoulResult.event.formatPopupTitle())
+        assertEquals("Technical Foul", technicalFoulResult.event.formatTitle())
 
         // After Animal scores, they are the pulling team, so the next technical foul uses the
         // pulling-team cue.

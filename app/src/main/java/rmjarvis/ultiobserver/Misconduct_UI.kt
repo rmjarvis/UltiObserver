@@ -729,7 +729,9 @@ private sealed interface TeamCardDialogStep {
     data class SameNumberConfirmation(
         val confirmation: PendingSameNumberPlayerCardConfirmation
     ) : TeamCardDialogStep
-    data class BlueCardConfirmation(val team: TeamId) : TeamCardDialogStep
+    data class BlueCardConfirmation(
+        val confirmation: GamePrompt.BlueCardConfirmation,
+    ) : TeamCardDialogStep
     data class AssessmentResult(
         val result: CardAssessmentResult,
         val returnTo: CardedPlayerEntry,
@@ -927,7 +929,7 @@ internal fun ExistingCardsEditorDialog(
  * @param guidanceMode Amount and duration of rule guidance shown during the workflow.
  * @param isLandscape Whether to arrange orientation-specific dialog content for landscape.
  * @param onDismiss Callback closing the card dialog without recording.
- * @param onStateOnly Callback receiving the completed state when the confirmation dialog already showed the result.
+ * @param onConfirmation Callback committing a blue card after the observer selects OK.
  * @param onStateUpdate Callback receiving state changes that should keep the Card dialog open.
  */
 @Composable
@@ -938,7 +940,7 @@ internal fun TeamCardDialog(
     guidanceMode: RuleGuidanceMode,
     isLandscape: Boolean,
     onDismiss: () -> Unit,
-    onStateOnly: (GameState) -> Unit,
+    onConfirmation: (GamePrompt.ActionConfirmation) -> Unit,
     onStateUpdate: (GameState) -> Unit,
 ) {
     var step by remember {
@@ -958,10 +960,6 @@ internal fun TeamCardDialog(
         entry: PlayerCardEntry,
     ): TeamCardDialogStep.CardedPlayerEntry {
         return TeamCardDialogStep.CardedPlayerEntry(team, cardType, entry)
-    }
-
-    fun blueCardConfirmationStep(team: TeamId): TeamCardDialogStep.BlueCardConfirmation {
-        return TeamCardDialogStep.BlueCardConfirmation(team)
     }
 
     fun sameNumberConfirmationStep(
@@ -1068,7 +1066,13 @@ internal fun TeamCardDialog(
                     step = cardedPlayerEntryStep(team, CardType.RED, PlayerCardEntry(""))
                 },
                 onBlue = {
-                    step = blueCardConfirmationStep(team)
+                    step = TeamCardDialogStep.BlueCardConfirmation(
+                        GamePrompt.BlueCardConfirmation(
+                            state = state,
+                            team = team,
+                            requestedAt = System.currentTimeMillis(),
+                        )
+                    )
                 },
                 onEditExisting = { step = TeamCardDialogStep.ExistingCards(team) },
                 onDismiss = onDismiss,
@@ -1172,25 +1176,23 @@ internal fun TeamCardDialog(
             )
         }
         is TeamCardDialogStep.BlueCardConfirmation -> {
-            val blueTeam = activeStep.team
-            val event = state.previewBlueCard(blueTeam, now)
+            val confirmation = activeStep.confirmation
             val applyBlueCard = {
-                val result = state.assessBlueCard(blueTeam, now)
-                onStateOnly(result.state)
+                onConfirmation(confirmation)
             }
             RuleGuidanceGate(
                 key = activeStep,
                 mode = guidanceMode,
-                requiredInNone = event.requiresGuidanceInNone(),
+                requiredInNone = confirmation.requiresGuidanceInNone(),
                 onAutoAccept = applyBlueCard,
             ) {
                 ResponsiveAlertDialog(
                     onDismissRequest = { step = TeamCardDialogStep.InitialCardChoice },
-                    title = { Text("Blue Card") },
+                    title = { Text(confirmation.formatTitle()) },
                     text = {
                         ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
                             RuleGuidanceText(
-                                message = event.guidanceMessage(guidanceMode),
+                                message = confirmation.guidanceMessage(guidanceMode),
                             )
                         }
                     },
@@ -1217,7 +1219,8 @@ internal fun TeamCardDialog(
                 step = activeStep.returnTo
             }
             val recordCard = {
-                onStateOnly(result.state)
+                onStateUpdate(result.state)
+                onDismiss()
             }
             RuleGuidanceGate(
                 key = event,
@@ -1227,7 +1230,7 @@ internal fun TeamCardDialog(
             ) {
                 ResponsiveAlertDialog(
                     onDismissRequest = goBack,
-                    title = { Text(event.formatPopupTitle()) },
+                    title = { Text(event.formatTitle()) },
                     text = {
                         ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
                             RuleGuidanceText(event.guidanceMessage(guidanceMode))

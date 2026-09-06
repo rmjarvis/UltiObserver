@@ -168,16 +168,16 @@ internal fun GameEvent.formatBriefMessage(): RuleGuidanceMessage {
 }
 
 /// Format the title for an event-driven popup.
-fun GameEvent.formatPopupTitle(): String {
+fun GameEvent.formatTitle(): String {
     // This when block does runtime resolution to call the correct subtype's extension function.
     return when (this) {
-        is GameEvent.TimeoutCharged -> this.formatPopupTitle()
-        is GameEvent.TimeoutUnavailable -> this.formatPopupTitle()
-        is GameEvent.TeamOutOfTimeouts -> this.formatPopupTitle()
-        is GameEvent.TeamCardsChanged -> this.formatPopupTitle()
-        is GameEvent.TechnicalFoulsChanged -> this.formatPopupTitle()
-        is GameEvent.PullViolationRecorded -> this.formatPopupTitle()
-        is GameEvent.TimeViolationRecorded -> this.formatPopupTitle()
+        is GameEvent.TimeoutCharged -> this.formatTitle()
+        is GameEvent.TimeoutUnavailable -> this.formatTitle()
+        is GameEvent.TeamOutOfTimeouts -> this.formatTitle()
+        is GameEvent.TeamCardsChanged -> this.formatTitle()
+        is GameEvent.TechnicalFoulsChanged -> this.formatTitle()
+        is GameEvent.PullViolationRecorded -> this.formatTitle()
+        is GameEvent.TimeViolationRecorded -> this.formatTitle()
     }
 }
 
@@ -221,6 +221,15 @@ sealed interface GamePrompt {
         val violation: PullViolationType,
     ) : ActionConfirmation {
         override val event = state.previewPullViolation(team, violation)!!.event
+    }
+
+    /** Confirmation shown before recording a blue card. */
+    data class BlueCardConfirmation(
+        override val state: GameState,
+        val team: TeamId,
+        override val requestedAt: Long,
+    ) : ActionConfirmation {
+        override val event = state.previewBlueCard(team, requestedAt)
     }
 
     /** Confirmation shown before recording a technical foul. */
@@ -288,7 +297,7 @@ internal fun GamePrompt.requiresGuidanceInNone(): Boolean {
 /// Format title text for prompts that need a dialog title in the current Android app.
 fun GamePrompt.formatTitle(): String {
     return when (this) {
-        is GamePrompt.ActionConfirmation -> event.formatPopupTitle()
+        is GamePrompt.ActionConfirmation -> event.formatTitle()
         is GamePrompt.ApplyCap -> this.formatTitle()
         is GamePrompt.WaterBreakPrompt -> this.formatTitle()
         is GamePrompt.HalftimeStarted -> this.formatTitle()
@@ -322,6 +331,7 @@ internal fun GamePrompt.ActionConfirmation.confirm(): GameState {
         is GamePrompt.PullViolationConfirmation -> {
             state.assessPullViolation(team, requestedAt, violation).state
         }
+        is GamePrompt.BlueCardConfirmation -> state.assessBlueCard(team, requestedAt).state
         is GamePrompt.TechnicalFoulConfirmation -> {
             state.assessTechnicalFoul(team, requestedAt).state
         }

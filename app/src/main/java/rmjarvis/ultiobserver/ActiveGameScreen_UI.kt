@@ -334,8 +334,8 @@ internal fun ActiveGameScreen(
             guidanceMode = settings.ruleGuidanceMode,
             isLandscape = usesLandscapeOrientation,
             onDismiss = { pendingCardTeam = null },
-            onStateOnly = { updatedState ->
-                onStateChange(updatedState)
+            onConfirmation = { confirmation ->
+                onConfirmation(confirmation)
                 pendingCardTeam = null
             },
             onStateUpdate = onStateChange,
@@ -374,7 +374,7 @@ internal fun ActiveGameScreen(
         ) {
             ResponsiveAlertDialog(
                 onDismissRequest = { pendingTimeoutConfirmation = null },
-                title = { Text(event.formatPopupTitle()) },
+                title = { Text(event.formatTitle()) },
                 text = {
                     ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
                         RuleGuidanceText(event.guidanceMessage(settings.ruleGuidanceMode))
@@ -410,7 +410,7 @@ internal fun ActiveGameScreen(
         ) {
             ResponsiveAlertDialog(
                 onDismissRequest = { dismissTimeViolation() },
-                title = { Text(event.formatPopupTitle()) },
+                title = { Text(event.formatTitle()) },
                 text = {
                     ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
                         RuleGuidanceText(event.guidanceMessage(settings.ruleGuidanceMode))
@@ -446,7 +446,7 @@ internal fun ActiveGameScreen(
                 onDismissRequest = {
                     dismissPullViolation()
                 },
-                title = { Text(event.formatPopupTitle()) },
+                title = { Text(event.formatTitle()) },
                 text = {
                     ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
                         RuleGuidanceText(event.guidanceMessage(settings.ruleGuidanceMode))
@@ -521,7 +521,7 @@ internal fun ActiveGameScreen(
         ) {
             ResponsiveAlertDialog(
                 onDismissRequest = { pendingTechnicalFoul = null },
-                title = { Text(event.formatPopupTitle()) },
+                title = { Text(event.formatTitle()) },
                 text = {
                     ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
                         RuleGuidanceText(event.guidanceMessage(settings.ruleGuidanceMode))

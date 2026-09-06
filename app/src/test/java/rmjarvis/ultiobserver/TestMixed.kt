@@ -251,7 +251,7 @@ class TestMixed : GameDomainTestFixtures() {
         // A majority-pull preview uses the majority-pull title without mutating the current state.
         var state = mixedLiveGameState()
         val preview = state.previewPullViolation(VC, PullViolationType.MAJORITY_PULL)!!.event
-        assertEquals("Majority pull violation", preview.formatPopupTitle())
+        assertEquals("Majority pull violation", preview.formatTitle())
 
         // Recording a majority-pull violation uses its own event labels and the shared
         // pull-violation ladder.

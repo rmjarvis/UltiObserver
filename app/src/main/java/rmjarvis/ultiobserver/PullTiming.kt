@@ -603,7 +603,7 @@ internal fun TeamState.timeViolationFieldActionLabel(): String {
 }
 
 /// Format a time-violation event popup title.
-internal fun GameEvent.TimeViolationRecorded.formatPopupTitle(): String = "Time violation"
+internal fun GameEvent.TimeViolationRecorded.formatTitle(): String = "Time violation"
 
 /// Format a time-violation event message with warning, timeout, or no-timeout consequences.
 internal fun GameEvent.TimeViolationRecorded.formatMessage(): RuleGuidanceMessage {

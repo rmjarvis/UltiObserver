@@ -59,7 +59,7 @@ class TestTimeouts : GameDomainTestFixtures() {
             "Timeout charged to Viscous Coupling.",
             timeoutResult.event!!.formatBriefMessage().plainText,
         )
-        assertEquals("Timeout", timeoutResult.event?.formatPopupTitle())
+        assertEquals("Timeout", timeoutResult.event?.formatTitle())
         state = timeoutResult.state
         assertEquals(1, state.teamOne.timeoutsUsedThisHalf)
         assertEquals(1, state.timeoutsRemaining(VC))
@@ -148,7 +148,7 @@ class TestTimeouts : GameDomainTestFixtures() {
         assertTrue(outOfTimeoutsPreview.event is GameEvent.TeamOutOfTimeouts)
         timeoutResult = outOfTimeoutsState.assessTimeout(VC, outOfTimeoutsTime)
         assertEquals("Viscous Coupling is out of timeouts.", timeoutResult.message())
-        assertEquals("Invalid timeout", timeoutResult.event.formatPopupTitle())
+        assertEquals("Invalid timeout", timeoutResult.event.formatTitle())
         assertEquals(outOfTimeoutsState, timeoutResult.state)
         assertEquals(outOfTimeoutsState, outOfTimeoutsState.chargeTimeout(VC, outOfTimeoutsTime))
 
@@ -345,7 +345,7 @@ class TestTimeouts : GameDomainTestFixtures() {
             "Add three to the stall count. It is a turnover if that is 10 or more.",
             noTimeoutsResult.message(),
         )
-        assertEquals("Invalid timeout", noTimeoutsResult.event?.formatPopupTitle())
+        assertEquals("Invalid timeout", noTimeoutsResult.event?.formatTitle())
         assertEquals(timeoutCountdownState, noTimeoutsResult.state)
         assertEquals(timeoutCountdownState, timeoutCountdownState.chargeTimeout(VC, 1_010_000L))
     }
@@ -459,7 +459,7 @@ class TestTimeouts : GameDomainTestFixtures() {
         val halftimeEnd = state.countdown!!.targetEpoch
         timeoutResult = state.assessTimeout(VC, halftimeEnd - 1L)
         assertEquals("Timeouts are not available now.", timeoutResult.message())
-        assertEquals("Timeout not possible now", timeoutResult.event?.formatPopupTitle())
+        assertEquals("Timeout not possible now", timeoutResult.event?.formatTitle())
         assertEquals(state, (timeoutResult.event as GameEvent.TimeoutUnavailable).state)
         assertEquals(state, timeoutResult.state)
 
