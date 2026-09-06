@@ -39,8 +39,8 @@ internal class MainActivity : ComponentActivity() {
                 onDecision = { stateToken, accept, onFinished ->
                     stateClient.resolveDecision(stateToken, accept, onFinished)
                 },
-                onTimeout = { team, stateToken, onFinished ->
-                    stateClient.previewTimeout(team, stateToken, onFinished)
+                onTeamAction = { team, stateToken, action, onFinished ->
+                    stateClient.requestTeamAction(team, stateToken, action, onFinished)
                 },
                 onConfirmAction = { confirmation, onFinished ->
                     stateClient.confirmAction(confirmation, onFinished)

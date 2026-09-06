@@ -610,7 +610,7 @@ class TestPullViolations : GameDomainTestFixtures() {
         var previewEvent = state.previewPullViolation(VC, PullViolationType.OFFSIDES)!!.event
         assertEquals(1, previewEvent.state.teamOne.offsides)
         assertEquals(0, state.teamOne.offsides)
-        assertNull(previewEvent.pullViolationAlternative())
+        assertTrue(previewEvent.pullViolationSelections().isEmpty())
         assertFalse(previewEvent.requiresGuidanceInNone())
 
         // In mixed division, an offsides preview offers majority pull as an alternative. None
@@ -618,11 +618,17 @@ class TestPullViolations : GameDomainTestFixtures() {
         val mixedPreviewEvent = state.copy(division = GameDivision.MIXED)
             .previewPullViolation(VC, PullViolationType.OFFSIDES)!!.event
         assertEquals(
-            PullViolationAlternative(
-                violation = PullViolationType.MAJORITY_PULL,
-                actionLabel = "This was a Majority pull violation",
+            listOf(
+                PullViolationSelection(
+                    violation = PullViolationType.OFFSIDES,
+                    actionLabel = "This was an Offsides",
+                ),
+                PullViolationSelection(
+                    violation = PullViolationType.MAJORITY_PULL,
+                    actionLabel = "This was a Majority pull violation",
+                ),
             ),
-            mixedPreviewEvent.pullViolationAlternative(),
+            mixedPreviewEvent.pullViolationSelections(),
         )
         assertTrue(mixedPreviewEvent.requiresGuidanceInNone())
 
@@ -630,13 +636,14 @@ class TestPullViolations : GameDomainTestFixtures() {
         previewEvent = state.previewPullViolation(ANIMAL, PullViolationType.FALSE_START)!!.event
         assertEquals(1, previewEvent.state.teamTwo.falseStarts)
         assertEquals(0, state.teamTwo.falseStarts)
-        assertNull(previewEvent.pullViolationAlternative())
+        assertTrue(previewEvent.pullViolationSelections().isEmpty())
         assertFalse(previewEvent.requiresGuidanceInNone())
 
         // A majority-pull preview offers the reverse correction back to offsides.
         val majorityPullPreviewEvent = state.copy(division = GameDivision.MIXED)
             .previewPullViolation(VC, PullViolationType.MAJORITY_PULL)!!.event
-        val offsidesAlternative = majorityPullPreviewEvent.pullViolationAlternative()!!
+        val offsidesAlternative = majorityPullPreviewEvent.pullViolationSelections()
+            .first { selection -> selection.violation == PullViolationType.OFFSIDES }
         assertEquals(PullViolationType.OFFSIDES, offsidesAlternative.violation)
         assertEquals("This was an Offsides", offsidesAlternative.actionLabel)
 
@@ -900,7 +907,7 @@ class TestPullViolations : GameDomainTestFixtures() {
     }
 
     /**
-     * Test first pull time violations, which result in a warning and a short new countdown.
+     * Test first time violations, which result in a warning and a short new countdown.
      */
     @Test
     fun timeViolationWarnings() {

@@ -15,6 +15,8 @@ import kotlinx.serialization.SerializationException
 import rmjarvis.ultiobserver.wearprotocol.PHONE_STATE_CAPABILITY
 import rmjarvis.ultiobserver.wearprotocol.WEAR_PROTOCOL_VERSION
 import rmjarvis.ultiobserver.wearprotocol.WEAR_STATE_PATH
+import rmjarvis.ultiobserver.wearprotocol.WearActionConfirmation
+import rmjarvis.ultiobserver.wearprotocol.WearConfirmActionRequest
 import rmjarvis.ultiobserver.wearprotocol.WearDecisionRequest
 import rmjarvis.ultiobserver.wearprotocol.WearGameActionResponse
 import rmjarvis.ultiobserver.wearprotocol.WearGoalRequest
@@ -22,10 +24,9 @@ import rmjarvis.ultiobserver.wearprotocol.WearProtocolCodec
 import rmjarvis.ultiobserver.wearprotocol.WearRequestAction
 import rmjarvis.ultiobserver.wearprotocol.WearStateSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearStartupResponse
+import rmjarvis.ultiobserver.wearprotocol.WearTeamAction
+import rmjarvis.ultiobserver.wearprotocol.WearTeamActionRequest
 import rmjarvis.ultiobserver.wearprotocol.WearTeamId
-import rmjarvis.ultiobserver.wearprotocol.WearActionConfirmation
-import rmjarvis.ultiobserver.wearprotocol.WearTimeoutPreviewRequest
-import rmjarvis.ultiobserver.wearprotocol.WearTimeoutRequest
 
 /** Snapshot plus the offset needed to display it using the phone's clock. */
 internal data class ReceivedState(
@@ -306,44 +307,9 @@ internal class StateClient(
         )
     }
 
-    /** Request the phone-owned timeout confirmation without changing the game. */
-    fun previewTimeout(
-        team: WearTeamId,
-        stateToken: String,
-        onFinished: (WearActionConfirmation?) -> Unit,
-    ) {
-        val nodeId = reachablePhoneNodeId
-        if (nodeId == null) {
-            onFinished(null)
-            return
-        }
-        val request = WearTimeoutPreviewRequest(
-            stateToken = stateToken,
-            team = team,
-        )
-        sendGameAction(
-            nodeId = nodeId,
-            action = WearRequestAction.TIMEOUT_PREVIEW,
-            request = WearProtocolCodec.encode(
-                WearTimeoutPreviewRequest.serializer(),
-                request,
-            ),
-            onFinished = { response -> onFinished(response?.confirmation) },
-        )
-    }
-
     /** Apply the exact action confirmation accepted on the watch. */
     fun confirmAction(
         confirmation: WearActionConfirmation,
-        onFinished: (Boolean) -> Unit,
-    ) {
-        when (confirmation) {
-            is WearActionConfirmation.Timeout -> confirmTimeout(confirmation, onFinished)
-        }
-    }
-
-    private fun confirmTimeout(
-        confirmation: WearActionConfirmation.Timeout,
         onFinished: (Boolean) -> Unit,
     ) {
         val nodeId = reachablePhoneNodeId
@@ -351,16 +317,40 @@ internal class StateClient(
             onFinished(false)
             return
         }
-        val request = WearTimeoutRequest(
-            stateToken = confirmation.stateToken,
-            team = confirmation.team,
-            requestedAtPhoneEpochMillis = confirmation.requestedAtPhoneEpochMillis,
+        val request = WearConfirmActionRequest(confirmation)
+        sendGameAction(
+            nodeId = nodeId,
+            action = WearRequestAction.CONFIRM_ACTION,
+            request = WearProtocolCodec.encode(WearConfirmActionRequest.serializer(), request),
+            onFinished = { response -> onFinished(response?.applied == true) },
+        )
+    }
+
+    /** Request one team action and return the confirmation to show before applying it. */
+    fun requestTeamAction(
+        team: WearTeamId,
+        stateToken: String,
+        action: WearTeamAction,
+        onFinished: (WearActionConfirmation?) -> Unit,
+    ) {
+        val nodeId = reachablePhoneNodeId
+        if (nodeId == null) {
+            onFinished(null)
+            return
+        }
+        val request = WearTeamActionRequest(
+            stateToken = stateToken,
+            team = team,
+            action = action,
         )
         sendGameAction(
             nodeId = nodeId,
-            action = WearRequestAction.TIMEOUT,
-            request = WearProtocolCodec.encode(WearTimeoutRequest.serializer(), request),
-            onFinished = { response -> onFinished(response?.applied == true) },
+            action = WearRequestAction.TEAM_ACTION,
+            request = WearProtocolCodec.encode(
+                WearTeamActionRequest.serializer(),
+                request,
+            ),
+            onFinished = { response -> onFinished(response?.confirmation) },
         )
     }
 

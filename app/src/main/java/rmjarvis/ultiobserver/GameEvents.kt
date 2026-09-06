@@ -109,7 +109,7 @@ sealed interface GameEvent {
     ) : GameEvent
 
     /**
-     * Event reporting a pull time violation and its rule outcome.
+     * Event reporting a time violation and its rule outcome.
      *
      * @param state The live state after assessing the violation.
      * @param team The team that committed the time violation.
@@ -128,7 +128,7 @@ internal fun GameEvent.requiresGuidanceInNone(): Boolean {
         is GameEvent.TimeoutUnavailable,
         is GameEvent.TeamOutOfTimeouts -> true
         is GameEvent.TeamCardsChanged -> hasSuspensionNotice()
-        is GameEvent.PullViolationRecorded -> pullViolationAlternative() != null
+        is GameEvent.PullViolationRecorded -> pullViolationSelections().isNotEmpty()
         else -> false
     }
 }
@@ -192,15 +192,35 @@ sealed interface GamePrompt {
     sealed interface ActionConfirmation : GamePrompt {
         val state: GameState
         val event: GameEvent
+        val requestedAt: Long
     }
 
     /** Confirmation shown before charging a requested timeout. */
     data class TimeoutConfirmation(
         override val state: GameState,
         val team: TeamId,
-        val requestedAt: Long,
+        override val requestedAt: Long,
     ) : ActionConfirmation {
         override val event = state.previewTimeout(team, requestedAt).event
+    }
+
+    /** Confirmation shown before assessing a time violation. */
+    data class TimeViolationConfirmation(
+        override val state: GameState,
+        val team: TeamId,
+        override val requestedAt: Long,
+    ) : ActionConfirmation {
+        override val event = state.previewTimeViolation(team)!!.event
+    }
+
+    /** Confirmation shown before recording an offsides, false-start, or majority-pull violation. */
+    data class PullViolationConfirmation(
+        override val state: GameState,
+        val team: TeamId,
+        override val requestedAt: Long,
+        val violation: PullViolationType,
+    ) : ActionConfirmation {
+        override val event = state.previewPullViolation(team, violation)!!.event
     }
 
     /**
@@ -300,6 +320,10 @@ internal fun GamePrompt.ActionConfirmation.guidanceMessage(
 internal fun GamePrompt.ActionConfirmation.confirm(): GameState {
     return when (this) {
         is GamePrompt.TimeoutConfirmation -> state.assessTimeout(team, requestedAt).state
+        is GamePrompt.TimeViolationConfirmation -> state.assessTimeViolation(team, requestedAt).state
+        is GamePrompt.PullViolationConfirmation -> {
+            state.assessPullViolation(team, requestedAt, violation).state
+        }
     }
 }
 

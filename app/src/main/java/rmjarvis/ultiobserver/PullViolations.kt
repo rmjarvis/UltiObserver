@@ -31,40 +31,39 @@ data class PullViolationAssessmentPreview(
 )
 
 /**
- * Alternative violation offered from a mixed-division offsides action.
+ * One violation available from the mixed-division pull-choice confirmation.
  *
  * Clicking offsides opens a dialog confirmation that includes the option to switch the
  * violation to a majority pull violation instead. And then that lets you switch back.
- * This helper class keeps track of the alternative violation being offered in each case.
+ * This helper class pairs each valid choice with the action that selects it.
  *
- * @param violation The alternative violation to record.
- * @param actionLabel The correction action shown in the confirmation.
+ * @param violation The violation to record when this choice is selected.
+ * @param actionLabel The selection action shown in the confirmation.
  */
-internal data class PullViolationAlternative(
+internal data class PullViolationSelection(
     val violation: PullViolationType,
     val actionLabel: String,
 )
 
 /**
- * Return the other pulling-team violation available from a mixed-division confirmation.
+ * Return both pulling-team violations available from a mixed-division confirmation.
  *
- * False start has no alternative because it belongs to the receiving team.
+ * False start and non-mixed games have no choice to present.
  */
-internal fun GameEvent.PullViolationRecorded.pullViolationAlternative(): PullViolationAlternative? {
+internal fun GameEvent.PullViolationRecorded.pullViolationSelections(): List<PullViolationSelection> {
     if (violation == PullViolationType.FALSE_START || !state.usesMixedDivision()) {
-        return null
+        return emptyList()
     }
-    return if (violation == PullViolationType.MAJORITY_PULL) {
-        PullViolationAlternative(
+    return listOf(
+        PullViolationSelection(
             violation = PullViolationType.OFFSIDES,
             actionLabel = "This was an Offsides",
-        )
-    } else {
-        PullViolationAlternative(
+        ),
+        PullViolationSelection(
             violation = PullViolationType.MAJORITY_PULL,
             actionLabel = "This was a Majority pull violation",
-        )
-    }
+        ),
+    )
 }
 
 /**

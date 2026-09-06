@@ -14,8 +14,8 @@ enum class WearRequestAction(val path: String) {
     STARTUP("/ultiobserver/startup"),
     GOAL("/ultiobserver/goal"),
     DECISION("/ultiobserver/decision"),
-    TIMEOUT_PREVIEW("/ultiobserver/timeout-preview"),
-    TIMEOUT("/ultiobserver/timeout"),
+    TEAM_ACTION("/ultiobserver/team-action"),
+    CONFIRM_ACTION("/ultiobserver/confirm-action"),
     ;
 
     companion object {
@@ -47,17 +47,48 @@ data class WearDecisionRequest(
     val accept: Boolean,
 )
 
-/** Request the phone-owned confirmation for a timeout without changing the game. */
+/** Pull violation identity shared without exposing the phone's domain type. */
 @Serializable
-data class WearTimeoutPreviewRequest(
+enum class WearPullViolationType {
+    OFFSIDES,
+    FALSE_START,
+    MAJORITY_PULL,
+}
+
+/** Team action whose phone-owned confirmation should be shown on the watch. */
+@Serializable
+sealed interface WearTeamAction {
+    @Serializable
+    data object Timeout : WearTeamAction
+
+    @Serializable
+    data object TimeViolation : WearTeamAction
+
+    @Serializable
+    data object PullViolation : WearTeamAction
+}
+
+/** Request one team action against the exact game state displayed by the watch. */
+@Serializable
+data class WearTeamActionRequest(
     val stateToken: String,
     val team: WearTeamId,
+    val action: WearTeamAction,
+)
+
+/** One selectable pull-violation confirmation supplied by the phone. */
+@Serializable
+data class WearPullViolationOption(
+    val violation: WearPullViolationType,
+    val actionLabel: String,
+    val prompt: WearPromptSnapshot,
 )
 
 /** Phone-owned action context and prompt presented before the watch applies an action. */
 @Serializable
 sealed interface WearActionConfirmation {
     val stateToken: String
+    val requestedAtPhoneEpochMillis: Long
     val prompt: WearPromptSnapshot
 
     /** Confirmation details needed to apply a timeout after the observer selects OK. */
@@ -65,17 +96,35 @@ sealed interface WearActionConfirmation {
     data class Timeout(
         override val stateToken: String,
         val team: WearTeamId,
-        val requestedAtPhoneEpochMillis: Long,
+        override val requestedAtPhoneEpochMillis: Long,
+        override val prompt: WearPromptSnapshot,
+    ) : WearActionConfirmation
+
+    /** Confirmation details for a time violation. */
+    @Serializable
+    data class TimeViolation(
+        override val stateToken: String,
+        val team: WearTeamId,
+        override val requestedAtPhoneEpochMillis: Long,
+        override val prompt: WearPromptSnapshot,
+    ) : WearActionConfirmation
+
+    /** Confirmation details and selectable mixed-division alternatives for a pull violation. */
+    @Serializable
+    data class PullViolation(
+        override val stateToken: String,
+        val team: WearTeamId,
+        override val requestedAtPhoneEpochMillis: Long,
+        val selectedViolation: WearPullViolationType,
+        val options: List<WearPullViolationOption>,
         override val prompt: WearPromptSnapshot,
     ) : WearActionConfirmation
 }
 
-/** Request to apply the exact timeout confirmation accepted on the watch. */
+/** Request to apply the exact action confirmation accepted on the watch. */
 @Serializable
-data class WearTimeoutRequest(
-    val stateToken: String,
-    val team: WearTeamId,
-    val requestedAtPhoneEpochMillis: Long,
+data class WearConfirmActionRequest(
+    val confirmation: WearActionConfirmation,
 )
 
 /** Game-action result, authoritative state, and any transient confirmation to show next. */

@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,6 +20,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +39,7 @@ import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.TimeText
 import kotlinx.coroutines.delay
 import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
+import rmjarvis.ultiobserver.wearprotocol.WearActionConfirmation
 import rmjarvis.ultiobserver.wearprotocol.WearGuidanceLineSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearGuidancePresentation
 import rmjarvis.ultiobserver.wearprotocol.WearPromptSnapshot
@@ -79,53 +80,75 @@ internal fun DecisionScreen(
     PromptScreen(
         prompt = decision,
         enabled = !commandPending,
-        onConfirm = {
-            submitDecision(true)
-        },
-        onDismiss = {
-            submitDecision(false)
-        },
+        actions = listOf(
+            PromptActionSpec(decision.dismissLabel) { submitDecision(false) },
+            PromptActionSpec(decision.confirmLabel) { submitDecision(true) },
+        ),
     )
 }
 
 /** Show an action confirmation whose Cancel action remains local to the watch. */
 @Composable
 internal fun ActionConfirmationScreen(
-    prompt: WearPromptSnapshot,
-    onConfirm: ((Boolean) -> Unit) -> Unit,
+    confirmation: WearActionConfirmation,
+    onConfirmationChange: (WearActionConfirmation) -> Unit,
+    onConfirm: (WearActionConfirmation, (Boolean) -> Unit) -> Unit,
     onCancel: () -> Unit,
 ) {
+    var prompt = confirmation.prompt
     var commandPending by remember(prompt) { mutableStateOf(false) }
     val submitConfirmation = {
         if (!commandPending) {
             commandPending = true
-            onConfirm {
+            onConfirm(confirmation) {
                 commandPending = false
             }
         }
     }
+    val currentSubmitConfirmation by rememberUpdatedState(submitConfirmation)
 
     BackHandler(enabled = !commandPending) {
         onCancel()
     }
-    LaunchedEffect(prompt, commandPending) {
+    LaunchedEffect(confirmation.stateToken, commandPending) {
         if (!commandPending) {
             when (prompt.presentation) {
                 WearGuidancePresentation.VISIBLE -> Unit
                 WearGuidancePresentation.VISIBLE_TIMED -> {
                     delay(prompt.autoAcceptDelayMillis!!)
-                    submitConfirmation()
+                    currentSubmitConfirmation()
                 }
-                WearGuidancePresentation.HIDDEN_AUTO_ACCEPT -> submitConfirmation()
+                WearGuidancePresentation.HIDDEN_AUTO_ACCEPT -> currentSubmitConfirmation()
             }
         }
     }
 
+    val alternativeAction = if (confirmation is WearActionConfirmation.PullViolation) {
+        val alternative = confirmation.options
+            .firstOrNull { option -> option.violation != confirmation.selectedViolation }
+        if (alternative == null) {
+            null
+        } else {
+            PromptActionSpec(alternative.actionLabel) {
+                onConfirmationChange(
+                    confirmation.copy(
+                        selectedViolation = alternative.violation,
+                        prompt = alternative.prompt,
+                    )
+                )
+            }
+        }
+    } else {
+        null
+    }
     PromptScreen(
         prompt = prompt,
         enabled = !commandPending,
-        onConfirm = submitConfirmation,
-        onDismiss = onCancel,
+        actions = listOf(
+            PromptActionSpec(prompt.dismissLabel, onCancel),
+            PromptActionSpec(prompt.confirmLabel, submitConfirmation),
+        ),
+        alternativeAction = alternativeAction,
     )
 }
 
@@ -133,8 +156,8 @@ internal fun ActionConfirmationScreen(
 private fun PromptScreen(
     prompt: WearPromptSnapshot,
     enabled: Boolean,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
+    actions: List<PromptActionSpec>,
+    alternativeAction: PromptActionSpec? = null,
 ) {
     UltiObserverTheme {
         AppScaffold(
@@ -171,7 +194,7 @@ private fun PromptScreen(
                             text = prompt.messageLines.toAnnotatedString(),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(max = 76.dp)
+                                .weight(1f, fill = false)
                                 .verticalScroll(rememberScrollState()),
                             color = DialogContentColor,
                             fontSize = 12.sp,
@@ -179,20 +202,24 @@ private fun PromptScreen(
                             textAlign = TextAlign.Start,
                         )
                         Spacer(modifier = Modifier.height(4.dp))
+                        if (alternativeAction != null) {
+                            PromptAction(
+                                label = alternativeAction.label,
+                                enabled = enabled,
+                                onClick = alternativeAction.onClick,
+                            )
+                        }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceEvenly,
                         ) {
-                            PromptAction(
-                                label = prompt.dismissLabel,
-                                enabled = enabled,
-                                onClick = onDismiss,
-                            )
-                            PromptAction(
-                                label = prompt.confirmLabel,
-                                enabled = enabled,
-                                onClick = onConfirm,
-                            )
+                            actions.forEach { action ->
+                                PromptAction(
+                                    label = action.label,
+                                    enabled = enabled,
+                                    onClick = action.onClick,
+                                )
+                            }
                         }
                     }
                 }
@@ -200,6 +227,12 @@ private fun PromptScreen(
         }
     }
 }
+
+/** One text action shown along the bottom of a watch prompt. */
+private data class PromptActionSpec(
+    val label: String,
+    val onClick: () -> Unit,
+)
 
 @Composable
 private fun PromptAction(

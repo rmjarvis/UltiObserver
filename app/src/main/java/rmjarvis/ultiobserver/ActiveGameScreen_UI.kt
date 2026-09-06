@@ -98,9 +98,12 @@ internal fun ActiveGameScreen(
     var pendingTimeoutConfirmation by remember {
         mutableStateOf<GamePrompt.TimeoutConfirmation?>(null)
     }
-    var pendingTimeViolationTeam by remember { mutableStateOf<TeamId?>(null) }
-    var pendingPullViolationTeam by remember { mutableStateOf<TeamId?>(null) }
-    var pendingPullViolationType by remember { mutableStateOf(PullViolationType.OFFSIDES) }
+    var pendingTimeViolation by remember(state) {
+        mutableStateOf<GamePrompt.TimeViolationConfirmation?>(null)
+    }
+    var pendingPullViolation by remember(state) {
+        mutableStateOf<GamePrompt.PullViolationConfirmation?>(null)
+    }
     var pendingTechnicalFoulTeam by remember { mutableStateOf<TeamId?>(null) }
     var pendingTechnicalFoulResolution by remember {
         mutableStateOf<PendingFieldTechnicalFoulResolution?>(null)
@@ -117,12 +120,12 @@ internal fun ActiveGameScreen(
 
     /// Dismiss the pending pull-violation confirmation.
     fun dismissPullViolation() {
-        pendingPullViolationTeam = null
+        pendingPullViolation = null
     }
 
     /// Dismiss the pending time-violation confirmation.
     fun dismissTimeViolation() {
-        pendingTimeViolationTeam = null
+        pendingTimeViolation = null
     }
 
     // Keep live-game display, transitions, and event timestamps current to the nearest second.
@@ -205,12 +208,20 @@ internal fun ActiveGameScreen(
         )
     }
     val onTimeViolation: (TeamId) -> Unit = { team ->
-        pendingTimeViolationTeam = team
+        pendingTimeViolation = GamePrompt.TimeViolationConfirmation(
+            state = state,
+            team = team,
+            requestedAt = System.currentTimeMillis(),
+        )
     }
     val onPullViolation: (TeamId) -> Unit
     onPullViolation = { team ->
-        pendingPullViolationTeam = team
-        pendingPullViolationType = state.pullViolationTypeFor(team)
+        pendingPullViolation = GamePrompt.PullViolationConfirmation(
+            state = state,
+            team = team,
+            requestedAt = System.currentTimeMillis(),
+            violation = state.pullViolationTypeFor(team),
+        )
     }
     val onCards: (TeamId) -> Unit = { team ->
         pendingCardTeam = team
@@ -393,20 +404,15 @@ internal fun ActiveGameScreen(
                 widthProfile = DialogWidthProfile.COMPACT,
             )
         }
-    } else if (pendingTimeViolationTeam != null) {
-        val team = pendingTimeViolationTeam!!
-        val preview = state.previewTimeViolation(team)
-        if (preview == null) {
-            dismissTimeViolation()
-        }
-        val event = preview?.event ?: return
+    } else if (pendingTimeViolation != null) {
+        val confirmation = pendingTimeViolation!!
+        val event = confirmation.event
         val applyTimeViolation = {
-            val result = state.assessTimeViolation(team, System.currentTimeMillis())
-            onStateChange(result.state)
+            onConfirmation(confirmation)
             dismissTimeViolation()
         }
         RuleGuidanceGate(
-            key = team,
+            key = confirmation,
             mode = settings.ruleGuidanceMode,
             requiredInNone = event.requiresGuidanceInNone(),
             onAutoAccept = applyTimeViolation,
@@ -430,25 +436,17 @@ internal fun ActiveGameScreen(
                 },
             )
         }
-    } else if (pendingPullViolationTeam != null) {
-        val team = pendingPullViolationTeam!!
-        val preview = state.previewPullViolation(team, pendingPullViolationType)
-        if (preview == null) {
-            dismissPullViolation()
-        }
-        val event = preview?.event ?: return
-        val pullViolationAlternative = event.pullViolationAlternative()
+    } else if (pendingPullViolation != null) {
+        val confirmation = pendingPullViolation!!
+        val event = confirmation.event
+        val pullViolationAlternative = event.pullViolationSelections()
+            .firstOrNull { selection -> selection.violation != confirmation.violation }
         val applyPullViolation = {
-            val result = state.assessPullViolation(
-                team = team,
-                now = now,
-                violation = pendingPullViolationType,
-            )
-            onStateChange(result.state)
+            onConfirmation(confirmation)
             dismissPullViolation()
         }
         RuleGuidanceGate(
-            key = team,
+            key = confirmation.team,
             mode = settings.ruleGuidanceMode,
             requiredInNone = event.requiresGuidanceInNone(),
             onAutoAccept = applyPullViolation,
@@ -473,8 +471,13 @@ internal fun ActiveGameScreen(
                                 MenuButton(
                                     label = pullViolationAlternative.actionLabel,
                                     onClick = {
-                                        pendingPullViolationType =
-                                            pullViolationAlternative.violation
+                                        pendingPullViolation =
+                                            GamePrompt.PullViolationConfirmation(
+                                                state = confirmation.state,
+                                                team = confirmation.team,
+                                                requestedAt = confirmation.requestedAt,
+                                                violation = pullViolationAlternative.violation,
+                                            )
                                     },
                                     contentPadding = PaddingValues(
                                         horizontal = 16.dp,

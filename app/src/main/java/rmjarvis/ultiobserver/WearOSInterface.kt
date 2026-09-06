@@ -10,8 +10,10 @@ import com.google.android.gms.wearable.Wearable
 import com.google.android.gms.wearable.WearableListenerService
 import java.security.MessageDigest
 import rmjarvis.ultiobserver.wearprotocol.WEAR_STATE_PATH
+import rmjarvis.ultiobserver.wearprotocol.WearActionConfirmation
 import rmjarvis.ultiobserver.wearprotocol.WearActiveGameSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearCapSnapshot
+import rmjarvis.ultiobserver.wearprotocol.WearConfirmActionRequest
 import rmjarvis.ultiobserver.wearprotocol.WearCountdownSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearCueSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearDecisionRequest
@@ -21,6 +23,8 @@ import rmjarvis.ultiobserver.wearprotocol.WearGuidanceLineSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearGuidancePresentation
 import rmjarvis.ultiobserver.wearprotocol.WearPromptSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearProtocolCodec
+import rmjarvis.ultiobserver.wearprotocol.WearPullViolationOption
+import rmjarvis.ultiobserver.wearprotocol.WearPullViolationType
 import rmjarvis.ultiobserver.wearprotocol.WearRatioSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearRequestAction
 import rmjarvis.ultiobserver.wearprotocol.WearSnapshotPullDirection
@@ -28,12 +32,11 @@ import rmjarvis.ultiobserver.wearprotocol.WearSnapshotStatus
 import rmjarvis.ultiobserver.wearprotocol.WearStateSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearStartupResponse
 import rmjarvis.ultiobserver.wearprotocol.WearStatusMessageTransition
+import rmjarvis.ultiobserver.wearprotocol.WearTeamAction
+import rmjarvis.ultiobserver.wearprotocol.WearTeamActionRequest
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionsSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearTeamId
 import rmjarvis.ultiobserver.wearprotocol.WearTeamSnapshot
-import rmjarvis.ultiobserver.wearprotocol.WearActionConfirmation
-import rmjarvis.ultiobserver.wearprotocol.WearTimeoutPreviewRequest
-import rmjarvis.ultiobserver.wearprotocol.WearTimeoutRequest
 
 /** Check whether this phone currently has a reachable Wear OS node. */
 internal class WearOSAvailabilityChecker(
@@ -105,8 +108,8 @@ class WearOSRequestService : WearableListenerService() {
             WearRequestAction.STARTUP -> handleStartupRequest()
             WearRequestAction.GOAL -> handleGoalRequest(request)
             WearRequestAction.DECISION -> handleDecisionRequest(request)
-            WearRequestAction.TIMEOUT_PREVIEW -> handleTimeoutPreviewRequest(request)
-            WearRequestAction.TIMEOUT -> handleTimeoutRequest(request)
+            WearRequestAction.TEAM_ACTION -> handleTeamActionRequest(request)
+            WearRequestAction.CONFIRM_ACTION -> handleConfirmActionRequest(request)
         }
     }
 
@@ -180,36 +183,27 @@ class WearOSRequestService : WearableListenerService() {
         )
     }
 
-    private fun handleTimeoutPreviewRequest(requestBytes: ByteArray): Task<ByteArray> {
+    private fun handleTeamActionRequest(requestBytes: ByteArray): Task<ByteArray> {
         val request = WearProtocolCodec.decode(
-            WearTimeoutPreviewRequest.serializer(),
+            WearTeamActionRequest.serializer(),
             requestBytes,
         )
         val app = application as UltiObserverApplication
         val now = System.currentTimeMillis()
         val snapshot = app.appState.state.value
         val game = snapshot.gameOnWatch(request.stateToken)
-        val team = request.team.toTeamId()
         val confirmation = if (
             game != null &&
             game.pendingGameDecision() == null &&
-            game.canRequestTimeout(now)
+            game.phase != GamePhase.GAME_OVER
         ) {
-            val requestedAt = if (game.phase == GamePhase.LIVE_POINT) {
-                snapshot.settings.adjustedCountdownStartEpoch(now)
-            } else {
-                now
-            }
-            val action = GamePrompt.TimeoutConfirmation(
-                state = game,
-                team = team,
-                requestedAt = requestedAt,
-            )
-            WearActionConfirmation.Timeout(
+            game.actionConfirmation(
+                request = request,
+                requestedAt = now,
+                settings = snapshot.settings,
+            )?.wearConfirmation(
                 stateToken = request.stateToken,
-                team = request.team,
-                requestedAtPhoneEpochMillis = requestedAt,
-                prompt = action.wearSnapshot(snapshot.settings.ruleGuidanceMode),
+                guidanceMode = snapshot.settings.ruleGuidanceMode,
             )
         } else {
             null
@@ -222,27 +216,23 @@ class WearOSRequestService : WearableListenerService() {
         )
     }
 
-    private fun handleTimeoutRequest(requestBytes: ByteArray): Task<ByteArray> {
-        val request = WearProtocolCodec.decode(WearTimeoutRequest.serializer(), requestBytes)
+    private fun handleConfirmActionRequest(requestBytes: ByteArray): Task<ByteArray> {
+        val request = WearProtocolCodec.decode(
+            WearConfirmActionRequest.serializer(),
+            requestBytes,
+        )
         val app = application as UltiObserverApplication
         val now = System.currentTimeMillis()
         val snapshot = app.appState.state.value
-        val game = snapshot.gameOnWatch(request.stateToken)
-        val applied = if (
-            game != null &&
-            game.pendingGameDecision() == null &&
-            game.canRequestTimeout(request.requestedAtPhoneEpochMillis)
-        ) {
-            app.appState.confirmAction(
-                GamePrompt.TimeoutConfirmation(
-                    state = game,
-                    team = request.team.toTeamId(),
-                    requestedAt = request.requestedAtPhoneEpochMillis,
-                )
+        val game = snapshot.gameOnWatch(request.confirmation.stateToken)
+        val confirmation = if (game != null && game.pendingGameDecision() == null) {
+            request.confirmation.gamePrompt(
+                game = game,
             )
         } else {
-            false
+            null
         }
+        val applied = confirmation != null && app.appState.confirmAction(confirmation)
         return gameActionResponse(
             app = app,
             applied = applied,
@@ -272,6 +262,132 @@ class WearOSRequestService : WearableListenerService() {
     }
 }
 
+/** Build the phone-domain confirmation requested by one watch team action. */
+private fun GameState.actionConfirmation(
+    request: WearTeamActionRequest,
+    requestedAt: Long,
+    settings: Settings,
+): GamePrompt.ActionConfirmation? {
+    val team = request.team.toTeamId()
+    return when (request.action) {
+        WearTeamAction.Timeout -> {
+            if (!canRequestTimeout(requestedAt)) {
+                null
+            } else {
+                val timeoutAt = if (phase == GamePhase.LIVE_POINT) {
+                    settings.adjustedCountdownStartEpoch(requestedAt)
+                } else {
+                    requestedAt
+                }
+                GamePrompt.TimeoutConfirmation(this, team, timeoutAt)
+            }
+        }
+        WearTeamAction.TimeViolation -> {
+            if (previewTimeViolation(team) == null) {
+                null
+            } else {
+                GamePrompt.TimeViolationConfirmation(this, team, requestedAt)
+            }
+        }
+        WearTeamAction.PullViolation -> {
+            val violation = pullViolationTypeFor(team)
+            if (previewPullViolation(team, violation) == null) {
+                null
+            } else {
+                GamePrompt.PullViolationConfirmation(this, team, requestedAt, violation)
+            }
+        }
+    }
+}
+
+/** Convert one phone-domain action confirmation to its watch protocol representation. */
+internal fun GamePrompt.ActionConfirmation.wearConfirmation(
+    stateToken: String,
+    guidanceMode: RuleGuidanceMode,
+): WearActionConfirmation {
+    return when (this) {
+        is GamePrompt.TimeoutConfirmation -> WearActionConfirmation.Timeout(
+            stateToken = stateToken,
+            team = team.toWearTeamId(),
+            requestedAtPhoneEpochMillis = requestedAt,
+            prompt = wearSnapshot(guidanceMode),
+        )
+        is GamePrompt.TimeViolationConfirmation -> WearActionConfirmation.TimeViolation(
+            stateToken = stateToken,
+            team = team.toWearTeamId(),
+            requestedAtPhoneEpochMillis = requestedAt,
+            prompt = wearSnapshot(guidanceMode),
+        )
+        is GamePrompt.PullViolationConfirmation -> {
+            WearActionConfirmation.PullViolation(
+                stateToken = stateToken,
+                team = team.toWearTeamId(),
+                requestedAtPhoneEpochMillis = requestedAt,
+                selectedViolation = violation.toWearPullViolationType(),
+                options = event.pullViolationSelections().map { selection ->
+                    val confirmation = GamePrompt.PullViolationConfirmation(
+                        state = state,
+                        team = team,
+                        requestedAt = requestedAt,
+                        violation = selection.violation,
+                    )
+                    WearPullViolationOption(
+                        violation = confirmation.violation.toWearPullViolationType(),
+                        actionLabel = selection.actionLabel,
+                        prompt = confirmation.wearSnapshot(guidanceMode),
+                    )
+                },
+                prompt = wearSnapshot(guidanceMode),
+            )
+        }
+    }
+}
+
+/** Rebuild the phone-domain action represented by an accepted watch confirmation. */
+private fun WearActionConfirmation.gamePrompt(
+    game: GameState,
+): GamePrompt.ActionConfirmation? {
+    return when (this) {
+        is WearActionConfirmation.Timeout -> {
+            if (!game.canRequestTimeout(requestedAtPhoneEpochMillis)) {
+                null
+            } else {
+                GamePrompt.TimeoutConfirmation(
+                    state = game,
+                    team = team.toTeamId(),
+                    requestedAt = requestedAtPhoneEpochMillis,
+                )
+            }
+        }
+        is WearActionConfirmation.TimeViolation -> {
+            val phoneTeam = team.toTeamId()
+            if (game.previewTimeViolation(phoneTeam) == null) {
+                null
+            } else {
+                GamePrompt.TimeViolationConfirmation(
+                    state = game,
+                    team = phoneTeam,
+                    requestedAt = requestedAtPhoneEpochMillis,
+                )
+            }
+        }
+        is WearActionConfirmation.PullViolation -> {
+            val phoneTeam = team.toTeamId()
+            val phoneViolation = selectedViolation.toPullViolationType()
+            if (game.previewPullViolation(phoneTeam, phoneViolation) == null) {
+                null
+            } else {
+                GamePrompt.PullViolationConfirmation(
+                    state = game,
+                    team = phoneTeam,
+                    requestedAt = requestedAtPhoneEpochMillis,
+                    violation = phoneViolation,
+                )
+            }
+        }
+    }
+}
+
 /** Return the current game if the watch may act on the supplied state token. */
 private fun AppStateSnapshot.gameOnWatch(stateToken: String): GameState? {
     val game = currentGame ?: return null
@@ -287,6 +403,32 @@ private fun WearTeamId.toTeamId(): TeamId {
     return when (this) {
         WearTeamId.TEAM_ONE -> TeamId.TEAM_ONE
         WearTeamId.TEAM_TWO -> TeamId.TEAM_TWO
+    }
+}
+
+/** Convert a shared pull-violation type to the phone domain. */
+private fun WearPullViolationType.toPullViolationType(): PullViolationType {
+    return when (this) {
+        WearPullViolationType.OFFSIDES -> PullViolationType.OFFSIDES
+        WearPullViolationType.FALSE_START -> PullViolationType.FALSE_START
+        WearPullViolationType.MAJORITY_PULL -> PullViolationType.MAJORITY_PULL
+    }
+}
+
+/** Convert the phone team identity to the shared protocol type. */
+private fun TeamId.toWearTeamId(): WearTeamId {
+    return when (this) {
+        TeamId.TEAM_ONE -> WearTeamId.TEAM_ONE
+        TeamId.TEAM_TWO -> WearTeamId.TEAM_TWO
+    }
+}
+
+/** Convert a phone pull-violation type to the shared protocol. */
+private fun PullViolationType.toWearPullViolationType(): WearPullViolationType {
+    return when (this) {
+        PullViolationType.OFFSIDES -> WearPullViolationType.OFFSIDES
+        PullViolationType.FALSE_START -> WearPullViolationType.FALSE_START
+        PullViolationType.MAJORITY_PULL -> WearPullViolationType.MAJORITY_PULL
     }
 }
 

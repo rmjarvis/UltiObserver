@@ -37,7 +37,7 @@ enum class BetweenPointsCountdownTarget(val label: String) {
 }
 
 /**
- * State and optional popup event from assessing a pull time violation.
+ * State and optional popup event from assessing a time violation.
  *
  * @param state The live state after the assessment.
  * @param event The observer-facing event to show, or null when no popup is needed.
@@ -56,7 +56,7 @@ data class TimeViolationAssessmentPreview(
     val event: GameEvent.TimeViolationRecorded,
 )
 
-/// Rule outcome from assessing a team's pull time violation.
+/// Rule outcome from assessing a team's time violation.
 @Serializable
 enum class TimeViolationOutcome {
     WARNING,
@@ -292,7 +292,7 @@ fun GameState.hasExpiredPullActions(now: Long): Boolean {
         now >= countdown.targetEpoch
 }
 
-/// Report whether a pull time violation can be recorded for the current pull sequence.
+/// Report whether a time violation can be recorded for the current pull sequence.
 fun GameState.canAssessTimeViolation(): Boolean {
     return this.pendingScoreTransition == null &&
         !this.pullSkippedForCurrentPoint &&
@@ -307,7 +307,7 @@ internal fun GameState.expiredPullDecisionState(): GameState {
 }
 
 /**
- * Record a pull time violation for a team.
+ * Record a time violation for a team.
  * First violations are warnings, later violations charge a timeout when available, and no-timeout
  * violations skip the pull and show field-position guidance.
  *
@@ -335,7 +335,7 @@ fun GameState.assessTimeViolation(team: TeamId, now: Long): TimeViolationAssessm
 }
 
 /**
- * Build confirmation details for a pull time violation without changing game state.
+ * Build confirmation details for a time violation without changing game state.
  *
  * @param team The team that would receive the time violation.
  * @return The confirmation preview, or null when the action is no longer available.
@@ -517,7 +517,7 @@ private fun GameState.buildTimeViolationCountdown(
     )
 }
 
-/// Return the countdown target to show after a pull time-violation warning.
+/// Return the countdown target to show after a time-violation warning.
 private fun GameState.timeViolationWarningCountdownTarget(team: TeamId): BetweenPointsCountdownTarget {
     return if (team == pullingTeam) {
         if (pullPromptTarget.includesEnd(pullingFromEnd)) {
@@ -530,7 +530,7 @@ private fun GameState.timeViolationWarningCountdownTarget(team: TeamId): Between
     }
 }
 
-/// Return the countdown target to show after a timeout charged for a pull time violation.
+/// Return the countdown target to show after a timeout charged for a time violation.
 private fun GameState.timeViolationTimeoutCountdownTarget(): BetweenPointsCountdownTarget = currentCountdownTarget()
 
 /// Return the pull deadlines for a time-violation warning reset.
@@ -645,7 +645,7 @@ internal fun GameEvent.TimeViolationRecorded.formatMessage(): RuleGuidanceMessag
     )
 }
 
-/// Format only the operational consequence of a pull time violation.
+/// Format only the operational consequence of a time violation.
 internal fun GameEvent.TimeViolationRecorded.formatBriefMessage(): RuleGuidanceMessage {
     val teamName = state.teamName(team)
     val line = when (outcome) {

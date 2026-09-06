@@ -389,11 +389,14 @@ internal class AppState(
      * from the game on which its preview was based. The conditional update prevents a confirmation
      * from overwriting an intervening game action from either surface.
      *
-     * @param confirmation The pending action and the game state from which it was previewed.
+     * @param confirmation The pending action, its request time, and the game state from which it
+     * was requested.
      * @return Whether that game was still current and the confirmed action was committed.
      */
     @Synchronized
-    fun confirmAction(confirmation: GamePrompt.ActionConfirmation): Boolean {
+    fun confirmAction(
+        confirmation: GamePrompt.ActionConfirmation,
+    ): Boolean {
         return updateCurrentGame(
             expectedCurrentGame = confirmation.state,
             updatedGame = confirmation.confirm(),
