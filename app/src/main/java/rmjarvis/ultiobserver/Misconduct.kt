@@ -1774,15 +1774,6 @@ internal fun GameEvent.TechnicalFoulsChanged.formatPopupTitle(): String {
     return "Technical Foul"
 }
 
-/// Report whether this event crossed the live-point misconduct-penalty threshold.
-fun GameEvent.triggersMisconductPenalty(): Boolean {
-    return when (this) {
-        is GameEvent.TeamCardsChanged -> teamCardTotal >= 3 && state.phase == GamePhase.LIVE_POINT
-        is GameEvent.TechnicalFoulsChanged -> technicalFoulTotal >= 3 && state.phase == GamePhase.LIVE_POINT
-        else -> false
-    }
-}
-
 /// Format a team-card event message, including player-card and misconduct cue details.
 internal fun GameEvent.TeamCardsChanged.formatMessage(): RuleGuidanceMessage {
     val lines = buildList {
@@ -1798,15 +1789,7 @@ internal fun GameEvent.TeamCardsChanged.formatMessage(): RuleGuidanceMessage {
                 "${state.teamCardTotalExplanation(team)}."
             )
         )
-        if (teamCardTotal >= 3 && state.phase != GamePhase.LIVE_POINT) {
-            add(RuleGuidanceLine(""))
-            addAll(
-                state.betweenPointsMisconductCue(team)
-                    .lines()
-                    .map { RuleGuidanceLine(it) }
-            )
-        }
-        addAll(livePointMisconductGuidanceLines(brief = false))
+        addAll(state.misconductGuidanceLines(team, teamCardTotal))
     }
     return RuleGuidanceMessage(lines)
 }
@@ -1826,7 +1809,7 @@ internal fun GameEvent.TeamCardsChanged.formatBriefMessage(): RuleGuidanceMessag
         listOf(briefLine)
     }
     return RuleGuidanceMessage(
-        lines + livePointMisconductGuidanceLines(brief = true)
+        lines + state.briefMisconductGuidanceLines(team, teamCardTotal)
     )
 }
 
@@ -1954,11 +1937,7 @@ internal fun GameEvent.TechnicalFoulsChanged.formatMessage(): RuleGuidanceMessag
             "${technicalFoulTotal.ordinalWordText()} technical foul."
         )
     )
-    if (technicalFoulTotal >= 3 && state.phase != GamePhase.LIVE_POINT) {
-        lines += RuleGuidanceLine("")
-        lines += RuleGuidanceLine(state.betweenPointsMisconductCue(team))
-    }
-    lines += livePointMisconductGuidanceLines(brief = false)
+    lines += state.misconductGuidanceLines(team, technicalFoulTotal)
     return RuleGuidanceMessage(lines)
 }
 
@@ -1970,46 +1949,35 @@ internal fun GameEvent.TechnicalFoulsChanged.formatBriefMessage(): RuleGuidanceM
             "technical foul on ${state.teamName(team)}."
         )
     )
-    lines += livePointMisconductGuidanceLines(brief = true)
+    lines += state.briefMisconductGuidanceLines(team, technicalFoulTotal)
     return RuleGuidanceMessage(lines)
 }
 
-/**
- * Format the between-points misconduct consequence for the penalized team.
- *
- * @param team The team that reached the misconduct threshold.
- */
-private fun GameState.betweenPointsMisconductCue(team: TeamId): String {
-    val receivingTeam = pullingTeam.flip()
-    val penalizedTeamName = teamName(team)
-    val receivingTeamName = teamName(receivingTeam)
-    return if (team == receivingTeam) {
-        "Penalty against $penalizedTeamName. No pull. Disc at negative brick in defending end zone."
-    } else {
-        "Penalty against $penalizedTeamName. No pull. $receivingTeamName starts at attacking brick."
-    }
-}
-
-/**
- * Format the misconduct consequences for a penalty during a live point.
- *
- * @param brief Whether to use the concise operational reminder.
- */
-private fun GameEvent.livePointMisconductGuidanceLines(
-    brief: Boolean,
+/** Format complete misconduct guidance once a card or technical-foul count reaches three. */
+private fun GameState.misconductGuidanceLines(
+    team: TeamId,
+    misconductCount: Int,
 ): List<RuleGuidanceLine> {
-    if (!triggersMisconductPenalty()) {
+    if (misconductCount < 3) {
         return emptyList()
     }
-    return if (brief) {
-        listOf(
+    if (phase != GamePhase.LIVE_POINT) {
+        val receivingTeam = pullingTeam.flip()
+        val penalizedTeamName = teamName(team)
+        val receivingTeamName = teamName(receivingTeam)
+        val guidance = if (team == receivingTeam) {
+            "Penalty against $penalizedTeamName. No pull. " +
+            "Disc at negative brick in defending end zone."
+        } else {
+            "Penalty against $penalizedTeamName. No pull. " +
+            "$receivingTeamName starts at attacking brick."
+        }
+        return listOf(
             RuleGuidanceLine(""),
-            RuleGuidanceLine("If offense: reverse brick"),
-            RuleGuidanceLine("If defense: attacking brick or middle"),
-            RuleGuidanceLine("Offense has 30 seconds to set."),
+            RuleGuidanceLine(guidance),
         )
     } else {
-        listOf(
+        return listOf(
             RuleGuidanceLine(""),
             RuleGuidanceLine("If against offense:", bold = true),
             RuleGuidanceLine(
@@ -2028,6 +1996,34 @@ private fun GameEvent.livePointMisconductGuidanceLines(
                 "Offense has 30 seconds to set. " +
                 "Then defense has 20 seconds to check the disc in."
             ),
+        )
+    }
+}
+
+/** Format concise misconduct guidance once a card or technical-foul count reaches three. */
+private fun GameState.briefMisconductGuidanceLines(
+    team: TeamId,
+    misconductCount: Int,
+): List<RuleGuidanceLine> {
+    if (misconductCount < 3) {
+        return emptyList()
+    }
+    if (phase != GamePhase.LIVE_POINT) {
+        val start = if (team == pullingTeam.flip()) {
+            "negative brick"
+        } else {
+            "attacking brick"
+        }
+        return listOf(
+            RuleGuidanceLine(""),
+            RuleGuidanceLine("No pull. Start at $start."),
+        )
+    } else {
+        return listOf(
+            RuleGuidanceLine(""),
+            RuleGuidanceLine("If offense: reverse brick"),
+            RuleGuidanceLine("If defense: attacking brick or middle"),
+            RuleGuidanceLine("Offense has 30 seconds to set."),
         )
     }
 }

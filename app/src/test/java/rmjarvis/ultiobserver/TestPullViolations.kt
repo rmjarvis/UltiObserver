@@ -675,8 +675,6 @@ class TestPullViolations : GameDomainTestFixtures() {
         )
         assertEquals(state, pullViolationEvent.state)
         assertEquals(VC, pullViolationEvent.team)
-        assertFalse(pullViolationResult.event!!.triggersMisconductPenalty())
-
         // The same pull sequence cannot record a second offsides for the same team.
         pullViolationResult = state.assessPullViolation(VC)
         assertEquals(state, pullViolationResult.state)

@@ -785,6 +785,10 @@ class TestMisconduct : GameDomainTestFixtures() {
             "Penalty against Viscous Coupling. No pull. Animal starts at attacking brick.",
             cardResult.message(),
         )
+        assertEquals(
+            "Yellow card on player 14.\n\nNo pull. Start at attacking brick.",
+            cardResult.event.formatBriefMessage().plainText,
+        )
         assertEquals(CountdownKind.MISCONDUCT_BETWEEN_POINTS, cardResult.state.countdown?.kind)
 
         // During a live point, a first yellow that reaches the misconduct threshold includes the
@@ -1078,6 +1082,10 @@ class TestMisconduct : GameDomainTestFixtures() {
             "Penalty against Animal. No pull. Disc at negative brick in defending end zone.",
             technicalFoulResult.message(),
         )
+        assertEquals(
+            "Third technical foul on Animal.\n\nNo pull. Start at negative brick.",
+            technicalFoulResult.event.formatBriefMessage().plainText,
+        )
         assertEquals("Technical Foul", technicalFoulResult.event.formatPopupTitle())
 
         // After Animal scores, they are the pulling team, so the next technical foul uses the
@@ -1092,6 +1100,10 @@ class TestMisconduct : GameDomainTestFixtures() {
             "This is Animal's 4th technical foul.\n\n" +
             "Penalty against Animal. No pull. Viscous Coupling starts at attacking brick.",
             technicalFoulResult.message(),
+        )
+        assertEquals(
+            "4th technical foul on Animal.\n\nNo pull. Start at attacking brick.",
+            technicalFoulResult.event.formatBriefMessage().plainText,
         )
 
         // During a live point, third-and-later misconduct explains both possible restarts.

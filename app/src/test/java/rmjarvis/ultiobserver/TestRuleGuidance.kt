@@ -216,8 +216,6 @@ class TestRuleGuidance : GameDomainTestFixtures() {
             team = TeamId.TEAM_ONE,
             technicalFoulTotal = 3,
         )
-        assertEquals(true, event.triggersMisconductPenalty())
-
         // Full explains both cases in one message, with headings that remain visibly distinct.
         assertEquals(
             "This is Viscous Coupling's third technical foul.\n\n" +
