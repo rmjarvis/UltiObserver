@@ -59,7 +59,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         // It shows a dialog with information and possibly consequences.
         openCardsDialog()
         tapCardDialogAction(TeamId.TEAM_ONE, "Blue")
-        waitForText("Blue Card")
+        waitForText("Misconduct")
         waitForText("Blue card on Team 1.\nTeam 1 has 1 card total.")
         dismissDialog(text = "Cancel")
         composeRule.onNodeWithTag("card-dialog-${TeamId.TEAM_ONE.name}-blue").assertIsDisplayed()
@@ -787,14 +787,16 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         )
         composeRule.onNodeWithText("Cancel").performClick()
 
-        // A second yellow can restore the player entry after backing out of misconduct choice.
+        // A second yellow can restore the player entry after backing out of its result.
         openCardsDialog()
         tapCardDialogAction(TeamId.TEAM_ONE, "Yellow")
         waitForText("Yellow card")
         enterCardPlayerNumber("9")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Misconduct penalty")
-        dismissDialog(tag = "misconduct-choice-back", waitForText = "Yellow card")
+        waitForText("If against offense:", substring = true)
+        waitForText("If against defense:", substring = true)
+        dismissDialog(text = "Back", waitForText = "Yellow card")
         assertEquals(
             "9",
             composeRule.onNodeWithTag("card-player-number")
@@ -804,16 +806,12 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         )
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Misconduct penalty")
-        composeRule.onNodeWithText("Offense").performClick()
         waitForText(
-            "Team 1 moves the disc to the reverse brick in the end zone they are defending.",
+            "Offense moves the disc to the reverse brick in the end zone they are defending.",
             substring = true,
         )
-        dismissDialog(tag = "misconduct-resolution-back", waitForText = "Misconduct penalty")
-        waitForText("Was this against the offense or defense?", substring = true)
-        composeRule.onNodeWithText("Offense").performClick()
         waitForText(
-            "Team 1 moves the disc to the reverse brick in the end zone they are defending.",
+            "Offense may move the disc to the brick mark nearest the end zone they are attacking.",
             substring = true,
         )
         composeRule.onNodeWithText("OK").performClick()
@@ -835,51 +833,38 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Yellow card").assertIsDisplayed()
         dismissDialog(text = "Cancel")
 
-        // Back from a blue-card misconduct choice should cancel that card and return to Card.
+        // Canceling a blue-card misconduct confirmation returns to the Card choices.
         openCardsDialog()
         tapCardDialogAction(TeamId.TEAM_ONE, "Blue")
-        waitForText("Blue Card")
-        waitForText("Was this against the offense or defense?", substring = true)
+        waitForText("Misconduct penalty")
+        waitForText("If against offense:", substring = true)
         dismissDialog(text = "Cancel")
         composeRule.onNodeWithTag("card-dialog-${TeamId.TEAM_ONE.name}-blue")
             .assertIsDisplayed()
         composeRule.onAllNodesWithText("Misconduct penalty").assertCountEquals(0)
         composeRule.onNodeWithText("Close").performClick()
 
-        // Assessing a 3rd+ blue card during a point asks about offense or defense to
-        // give proper advice about the restart.
+        // A 3rd+ blue card during a point explains both possible restarts before recording it.
         openCardsDialog()
         tapCardDialogAction(TeamId.TEAM_ONE, "Blue")
-        waitForText("Blue Card")
-        waitForText("Was this against the offense or defense?", substring = true)
+        waitForText("Misconduct penalty")
+        waitForText("If against defense:", substring = true)
         dismissDialog(text = "Cancel")
         composeRule.onNodeWithTag("card-dialog-${TeamId.TEAM_ONE.name}-blue").assertIsDisplayed()
         composeRule.onAllNodesWithText("Misconduct penalty").assertCountEquals(0)
         tapCardDialogAction(TeamId.TEAM_ONE, "Blue")
-        waitForText("Was this against the offense or defense?", substring = true)
-        composeRule.onNodeWithText("Offense").performClick()
         waitForText(
-            "Team 1 moves the disc to the reverse brick in the end zone they are defending.",
+            "Offense moves the disc to the reverse brick in the end zone they are defending.",
             substring = true,
         )
-        dismissDialog(tag = "misconduct-resolution-back", waitForText = "Blue Card")
-        waitForText("Was this against the offense or defense?", substring = true)
-        composeRule.onNodeWithText("Defense").performClick()
         waitForText(
-            "Team 2 may move the disc to the brick mark nearest the end zone they are attacking.",
-            substring = true,
-        )
-        dismissDialog(tag = "misconduct-resolution-back", waitForText = "Blue Card")
-        waitForText("Was this against the offense or defense?", substring = true)
-        composeRule.onNodeWithText("Defense").performClick()
-        waitForText(
-            "Team 2 may move the disc to the brick mark nearest the end zone they are attacking.",
+            "Offense may move the disc to the brick mark nearest the end zone they are attacking.",
             substring = true,
         )
         composeRule.onNodeWithText("OK").performClick()
         waitForText("Start misconduct countdown")
 
-        // Same for the 3rd or later tech.
+        // A 3rd or later tech uses the same combined guidance and can still be cancelled.
         updateCurrentStateProgrammatically {
             copy(
                 countdown = null,
@@ -889,34 +874,31 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         }
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "tech")).performClick()
         waitForText("Technical Foul")
-        waitForText("Was this against the offense or defense?", substring = true)
+        waitForText("If against offense:", substring = true)
+        waitForText("If against defense:", substring = true)
         dismissDialog(text = "Cancel")
         composeRule.onAllNodesWithText("Misconduct penalty").assertCountEquals(0)
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "tech")).performClick()
-        waitForText("Was this against the offense or defense?", substring = true)
-        composeRule.onNodeWithText("Offense").performClick()
         waitForText(
-            "Team 1 moves the disc to the reverse brick in the end zone they are defending.",
+            "Offense moves the disc to the reverse brick in the end zone they are defending.",
             substring = true,
         )
-        dismissDialog(tag = "misconduct-resolution-back")
-        waitForText("Was this against the offense or defense?", substring = true)
-        composeRule.onNodeWithText("Defense").performClick()
         waitForText(
-            "Team 2 may move the disc to the brick mark nearest the end zone they are attacking.",
+            "Offense may move the disc to the brick mark nearest the end zone they are attacking.",
             substring = true,
         )
         composeRule.onNodeWithText("OK").performClick()
         waitForText("Start misconduct countdown")
 
-        // Back from a red-card misconduct choice should restore the entered player number.
+        // Back from a red-card misconduct result should restore the entered player number.
         openCardsDialog(TeamId.TEAM_TWO)
         tapCardDialogAction(TeamId.TEAM_TWO, "Red")
         waitForText("Red card")
         enterCardPlayerNumber("11")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Misconduct penalty")
-        dismissDialog(tag = "misconduct-choice-back", waitForText = "Red card")
+        waitForText("If against offense:", substring = true)
+        dismissDialog(text = "Back", waitForText = "Red card")
         assertEquals(
             "11",
             composeRule.onNodeWithTag("card-player-number")
@@ -926,9 +908,8 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         )
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Misconduct penalty")
-        composeRule.onNodeWithText("Defense").performClick()
         waitForText(
-            "Team 1 may move the disc to the brick mark nearest the end zone they are attacking.",
+            "Offense may move the disc to the brick mark nearest the end zone they are attacking.",
             substring = true,
         )
         composeRule.onNodeWithText("OK").performClick()

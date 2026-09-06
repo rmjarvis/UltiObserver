@@ -98,7 +98,6 @@ class TestEventLog : GameDomainTestFixtures() {
         state = state.assessTechnicalFoul(
             vc,
             timestampAt(state, LocalTime.of(12, 5)),
-            RuleGuidanceMode.FULL,
         ).state
 
         // Point, pull-violation, and time-violation entries use their specific outcomes.
@@ -293,7 +292,6 @@ class TestEventLog : GameDomainTestFixtures() {
         state = state.assessTechnicalFoul(
             vc,
             timestampAt(state, LocalTime.of(12, 1)),
-            RuleGuidanceMode.FULL,
         ).state
 
         // Manual pull-violation corrections log one entry for each changed count.

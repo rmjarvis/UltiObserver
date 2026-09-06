@@ -119,10 +119,9 @@ Technical fouls have the same misconduct penalties for the third and later techn
 as for team cards.
 
 If the 3rd or later team card or technical foul happens during a live point, it will tell
-you what the consequence is. If you have the full rules guidance enabled (see `Settings`),
-it will ask you whether the card was against the offense or defense so it can tell you the
-right restart. For brief rules guidance, it will just give a quick reminder of the restart
-for the two possible cases.
+you what the consequence is, including the possible restarts for penalties against the offense
+and defense. Full rules guidance (see `Settings`) gives the complete details, while Brief rules
+guidance gives a quick reminder of both cases.
 
 Since you will probably need to have some discussion with the teams related to the misconduct,
 the app waits until you are ready to start the resulting countdown.

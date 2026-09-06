@@ -145,7 +145,6 @@ private fun addTechnicalFoulPressure(
         state = state.assessTechnicalFoul(
             team,
             clock.next(),
-            RuleGuidanceMode.FULL,
         ).state
     }
     return state

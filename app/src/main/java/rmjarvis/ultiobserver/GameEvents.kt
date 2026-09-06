@@ -250,15 +250,6 @@ sealed interface GamePrompt {
     ) : WaterBreakPrompt
 
     /**
-     * Prompt asking whether live-point misconduct was against the offense or defense.
-     *
-     * @param event The card or technical-foul event that triggered the misconduct prompt.
-     */
-    data class LivePointMisconduct(
-        val event: GameEvent,
-    ) : GamePrompt
-
-    /**
      * Prompt notifying the observer that halftime has started.
      *
      * @param state The live state after entering halftime.
@@ -291,7 +282,6 @@ fun GamePrompt.formatTitle(): String {
         is GamePrompt.ActionConfirmation -> event.formatPopupTitle()
         is GamePrompt.ApplyCap -> this.formatTitle()
         is GamePrompt.WaterBreakPrompt -> this.formatTitle()
-        is GamePrompt.LivePointMisconduct -> this.formatTitle()
         is GamePrompt.HalftimeStarted -> this.formatTitle()
         is GamePrompt.GameOver -> this.formatTitle()
     }
@@ -303,7 +293,6 @@ internal fun GamePrompt.formatMessage(): RuleGuidanceMessage {
         is GamePrompt.ActionConfirmation -> event.formatMessage()
         is GamePrompt.ApplyCap -> this.formatMessage()
         is GamePrompt.WaterBreakPrompt -> this.formatMessage()
-        is GamePrompt.LivePointMisconduct -> this.formatMessage()
         is GamePrompt.HalftimeStarted -> this.formatMessage()
         is GamePrompt.GameOver -> this.formatMessage()
     }

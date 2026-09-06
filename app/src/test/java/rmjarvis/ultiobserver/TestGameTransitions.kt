@@ -88,7 +88,6 @@ class TestGameTransitions : GameDomainTestFixtures() {
         // Viscous Coupling gets a yellow on #17, then a blue card.  No yardage penalty yet.
         var cardResult = state.assessYellowCard(VC, "17")
         state = cardResult.state
-        assertFalse(cardResult.triggersMisconductPenalty)
         assertEquals(
             "Yellow card on player 17.\nViscous Coupling has 1 card total.",
             cardResult.message(),
@@ -100,7 +99,6 @@ class TestGameTransitions : GameDomainTestFixtures() {
         )
         cardResult = state.assessBlueCard(VC)
         state = cardResult.state
-        assertFalse(cardResult.triggersMisconductPenalty)
         assertEquals(
             "Blue card on Viscous Coupling.\nViscous Coupling has 2 cards total.",
             cardResult.message(),
@@ -108,14 +106,13 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertEquals(1, state.teamOne.blueCards)
 
         // Viscous Coupling reaches three team card points with a yellow on #8 during a live point.
-        // Since the app cannot infer possession, the model reports that a misconduct choice is
-        // needed.
+        // Since the app cannot infer possession, the guidance covers both restart situations.
         cardResult = state.assessYellowCard(VC, "8")
         state = cardResult.state
-        assertTrue(cardResult.triggersMisconductPenalty)
-        assertEquals(
-            "Yellow card on player 8.\nViscous Coupling has 3 cards total.",
-            cardResult.message(),
+        assertTrue(
+            cardResult.message()!!.contains(
+                "Yellow card on player 8.\nViscous Coupling has 3 cards total.",
+            ),
         )
         assertEquals(2, state.teamYellowCards(VC))
         assertEquals("Undo Yellow on #8 of Viscous Coupling", state.undoEntry?.label)
@@ -127,16 +124,13 @@ class TestGameTransitions : GameDomainTestFixtures() {
             state.playerCards(VC).single { it.jerseyNumber == "8" },
         )
         assertTrue(
-            cardResult.misconductPrompt().resolutionMessage(againstOffense = true)
-                .plainText
+            cardResult.event.formatMessage().plainText
                 .contains(
-                    "Viscous Coupling moves the disc to the reverse brick in the end zone " +
-                    "they are defending."
+                    "If against offense:\nOffense moves the disc to the reverse brick"
                 ),
         )
         assertTrue(
-            cardResult.misconductPrompt().resolutionMessage(againstOffense = true)
-                .plainText
+            cardResult.event.formatMessage().plainText
                 .contains(
                     "Offense has 30 seconds to set. Then defense has 20 seconds to check " +
                     "the disc in."
@@ -209,11 +203,9 @@ class TestGameTransitions : GameDomainTestFixtures() {
         // Animal picks up two technical fouls during the live point.
         var technicalFoulResult = state.assessTechnicalFoul(ANIMAL)
         state = technicalFoulResult.state
-        assertFalse(technicalFoulResult.triggersMisconductPenalty)
         assertEquals("This is Animal's first technical foul.", technicalFoulResult.message())
         technicalFoulResult = state.assessTechnicalFoul(ANIMAL)
         state = technicalFoulResult.state
-        assertFalse(technicalFoulResult.triggersMisconductPenalty)
         assertEquals("This is Animal's second technical foul.", technicalFoulResult.message())
 
         // Viscous Coupling calls a timeout, starting a countdown.
@@ -247,7 +239,6 @@ class TestGameTransitions : GameDomainTestFixtures() {
         // penalty for the restart.  No pull.
         technicalFoulResult = state.assessTechnicalFoul(ANIMAL)
         state = technicalFoulResult.state
-        assertFalse(technicalFoulResult.triggersMisconductPenalty)
         assertEquals(3, state.teamTwo.technicalFouls)
         assertTrue(
             technicalFoulResult.message()!!.contains("This is Animal's third technical foul.")
@@ -555,20 +546,17 @@ class TestGameTransitions : GameDomainTestFixtures() {
         state = state.assessBlueCard(VC).state
         state = state.assessBlueCard(VC).state
         val misconductResult = state.assessYellowCard(VC, "8")
-        assertTrue(misconductResult.triggersMisconductPenalty)
 
-        // The observer resolves the misconduct prompt as a penalty against the defense.  Pressing
-        // OK on that resolved dialog is what exposes the "Start misconduct countdown" button.
-        val misconductMessage = misconductResult.misconductPrompt()
-            .resolutionMessage(againstOffense = false)
-            .plainText
+        // The combined guidance covers a penalty against the defense. Pressing OK on that dialog
+        // is what exposes the "Start misconduct countdown" button.
+        val misconductMessage = misconductResult.event.formatMessage().plainText
         assertTrue(
             misconductMessage.contains(
-                "Animal may move the disc to the brick mark nearest the end zone they are " +
-                "attacking."
+                "If against defense:\nOffense may move the disc to the brick mark nearest " +
+                "the end zone they are attacking."
             )
         )
-        val misconductState = misconductResult.state.withPendingMisconductCountdown()
+        val misconductState = misconductResult.state
 
         // This is when the user has a "Start misconduct countdown" button, but hasn't pressed it
         // yet.

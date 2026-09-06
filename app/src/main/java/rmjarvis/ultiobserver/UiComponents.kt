@@ -320,8 +320,8 @@ internal fun ScrollableDialogRegion(
     val scrollState = rememberScrollState()
     val clearFocusAndHideKeyboard = rememberClearFocusAndHideKeyboard()
     val bottomChevronOffset = 22.dp
-    // Dialog measurement can produce tiny scroll ranges even when no meaningful content is hidden.
-    val overflowIndicatorThreshold = with(LocalDensity.current) { 24.dp.roundToPx() }
+    // Skip the indicator when only a small, still-legible part of the final line is clipped.
+    val overflowIndicatorThreshold = with(LocalDensity.current) { 8.dp.roundToPx() }
     val showScrollIndicators = scrollState.maxValue > overflowIndicatorThreshold
     Box(
         modifier = modifier
@@ -2013,47 +2013,6 @@ internal fun CorrectionCountRow(
                 onClick = onDecrement,
             )
         }
-    }
-}
-
-/**
- * Render compact misconduct side-choice dialog actions as one row.
- *
- * @param firstLabel The leftmost action label, usually `Cancel` or `Back`.
- * @param firstTag Optional test tag for the leftmost action.
- * @param onFirst Callback for the leftmost action.
- * @param onOffense Callback for choosing offense.
- * @param onDefense Callback for choosing defense.
- */
-@Composable
-internal fun MisconductChoiceButtons(
-    firstLabel: String,
-    firstTag: String? = null,
-    onFirst: () -> Unit,
-    onOffense: () -> Unit,
-    onDefense: () -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.End,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        TextActionButton(
-            label = firstLabel,
-            tag = firstTag,
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-            onClick = onFirst,
-        )
-        TextActionButton(
-            label = "Offense",
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-            onClick = onOffense,
-        )
-        TextActionButton(
-            label = "Defense",
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-            onClick = onDefense,
-        )
     }
 }
 

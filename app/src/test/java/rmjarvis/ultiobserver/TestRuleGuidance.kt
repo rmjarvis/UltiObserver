@@ -1,7 +1,6 @@
 package rmjarvis.ultiobserver
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertThrows
 import org.junit.Test
 
 /// Tests for the shared policy behind live-game rule-guidance presentation.
@@ -100,7 +99,7 @@ class TestRuleGuidance : GameDomainTestFixtures() {
             "Yellow card on player 4.",
             yellowEvent.formatBriefMessage().plainText,
         )
-        val blueEvent: GameEvent = state.previewBlueCard(TeamId.TEAM_ONE, state.startEpoch).event
+        val blueEvent: GameEvent = state.previewBlueCard(TeamId.TEAM_ONE, state.startEpoch)
         assertEquals(
             "Blue card on Viscous Coupling.",
             blueEvent.formatBriefMessage().plainText,
@@ -202,25 +201,15 @@ class TestRuleGuidance : GameDomainTestFixtures() {
         )
         assertEquals(
             false,
-            GamePrompt.LivePointMisconduct(
-                GameEvent.TechnicalFoulsChanged(
-                    state = state.beginLivePoint(),
-                    team = TeamId.TEAM_ONE,
-                    technicalFoulTotal = 3,
-                )
-            ).requiresGuidanceInNone(),
-        )
-        assertEquals(
-            false,
             GamePrompt.GameOver(state).requiresGuidanceInNone(),
         )
     }
 
     /**
-     * Verify only Full guidance asks the offense/defense misconduct question.
+     * Verify live-point misconduct guidance explains both possible restart situations directly.
      */
     @Test
-    fun misconductChoice() {
+    fun misconductGuidance() {
         // The third technical foul during a live point triggers the misconduct restart rules.
         val event = GameEvent.TechnicalFoulsChanged(
             state = standardLiveGameState().beginLivePoint(),
@@ -229,66 +218,54 @@ class TestRuleGuidance : GameDomainTestFixtures() {
         )
         assertEquals(true, event.triggersMisconductPenalty())
 
-        // Full is the only mode that asks whether the misconduct was against offense or defense.
-        assertEquals(true, event.needsMisconductChoice(RuleGuidanceMode.FULL))
-        assertEquals(false, event.needsMisconductChoice(RuleGuidanceMode.BRIEF))
-        assertEquals(false, event.needsMisconductChoice(RuleGuidanceMode.TIMED))
-        assertEquals(false, event.needsMisconductChoice(RuleGuidanceMode.NONE))
-
-        // Full shows the question, while concise modes show the restart alternatives directly.
+        // Full explains both cases in one message, with headings that remain visibly distinct.
         assertEquals(
-            GamePrompt.LivePointMisconduct(event).formatMessage().plainText,
-            event.misconductConfirmationMessage(RuleGuidanceMode.FULL).plainText,
+            "This is Viscous Coupling's third technical foul.\n\n" +
+            "If against offense:\n" +
+            "Offense moves the disc to the reverse brick in the end zone they are defending. " +
+            "Defense may instead leave the disc where it is, keeping the current stall count " +
+            "+1 (maximum 9).\n\n" +
+            "If against defense:\n" +
+            "Offense may move the disc to the brick mark nearest the end zone they are " +
+            "attacking. They may instead leave the disc where it is or center it.\n\n" +
+            "Offense has 30 seconds to set. Then defense has 20 seconds to check the disc in.",
+            event.guidanceMessage(RuleGuidanceMode.FULL).plainText,
         )
+        assertEquals(
+            listOf("If against offense:", "If against defense:"),
+            event.guidanceMessage(RuleGuidanceMode.FULL).lines
+                .filter { it.bold }
+                .map { it.text },
+        )
+
+        // Concise modes retain the same two-case operational reminder.
         val briefReminder =
             "If offense: reverse brick\n" +
             "If defense: attacking brick or middle\n" +
             "Offense has 30 seconds to set."
         assertEquals(
-            briefReminder,
-            event.misconductConfirmationMessage(RuleGuidanceMode.BRIEF).plainText,
-        )
-        assertEquals(
             "Third technical foul on Viscous Coupling.\n\n$briefReminder",
-            event.resultGuidanceMessage(RuleGuidanceMode.BRIEF).plainText,
+            event.guidanceMessage(RuleGuidanceMode.BRIEF).plainText,
         )
 
-        // An ordinary card does not ask the misconduct question or append restart guidance.
+        // An ordinary card does not append misconduct restart guidance.
         val ordinaryCardResult = standardLiveGameState()
             .assessYellowCard(TeamId.TEAM_ONE, "4", 0L)
         val ordinaryCardEvent = ordinaryCardResult.event
-        assertEquals(false, ordinaryCardEvent.needsMisconductChoice(RuleGuidanceMode.FULL))
         assertEquals(
             ordinaryCardEvent.formatMessage().plainText,
-            ordinaryCardEvent.misconductConfirmationMessage(RuleGuidanceMode.FULL).plainText,
+            ordinaryCardEvent.guidanceMessage(RuleGuidanceMode.FULL).plainText,
         )
         assertEquals(
             "Yellow card on player 4.",
-            ordinaryCardEvent.misconductConfirmationMessage(RuleGuidanceMode.BRIEF).plainText,
-        )
-        assertEquals(
-            "Yellow card on player 4.",
-            ordinaryCardEvent.resultGuidanceMessage(RuleGuidanceMode.BRIEF).plainText,
-        )
-        assertEquals(
-            ordinaryCardResult,
-            ordinaryCardResult.finalizedForGuidanceMode(RuleGuidanceMode.BRIEF),
-        )
-
-        // Resolving a non-threshold assessment directly violates the helper's strict contract.
-        val invalidResolution = assertThrows(IllegalArgumentException::class.java) {
-            ordinaryCardResult.withResolvedMisconductPenalty()
-        }
-        assertEquals(
-            "A misconduct countdown requires an assessment that triggered the penalty.",
-            invalidResolution.message,
+            ordinaryCardEvent.guidanceMessage(RuleGuidanceMode.BRIEF).plainText,
         )
 
         // Full card guidance carries explicit emphasis metadata for the suspension consequence.
         val redEvent = standardLiveGameState()
             .assessRedCard(TeamId.TEAM_ONE, "4", 0L)
             .event
-        val redGuidance = redEvent.resultGuidanceMessage(RuleGuidanceMode.FULL)
+        val redGuidance = redEvent.guidanceMessage(RuleGuidanceMode.FULL)
         assertEquals(
             listOf(false, true, false),
             redGuidance.lines.map { it.bold },
@@ -298,34 +275,18 @@ class TestRuleGuidance : GameDomainTestFixtures() {
             redGuidance.lines.single { it.bold }.text,
         )
 
-        // Full waits for the misconduct answer before starting its countdown; concise guidance
-        // resolves the omitted choice in the JVM and leaves the countdown ready to start.
+        // A threshold technical foul during a live point leaves its countdown ready to start.
         val thresholdState = event.state.copy(
             teamOne = event.state.teamOne.copy(technicalFouls = 2),
         )
-        val fullResult = thresholdState.assessTechnicalFoul(
-            TeamId.TEAM_ONE,
-            0L,
-            RuleGuidanceMode.FULL,
-        )
-        assertEquals(false, fullResult.state.pendingMisconductCountdown)
-        val briefResult = thresholdState.assessTechnicalFoul(
-            TeamId.TEAM_ONE,
-            0L,
-            RuleGuidanceMode.BRIEF,
-        )
-        assertEquals(true, briefResult.state.pendingMisconductCountdown)
+        val technicalFoulResult = thresholdState.assessTechnicalFoul(TeamId.TEAM_ONE, 0L)
+        assertEquals(true, technicalFoulResult.state.pendingMisconductCountdown)
 
-        // Blue-card thresholds use the same JVM finalization policy as technical fouls.
+        // Blue-card thresholds use the same domain behavior as technical fouls.
         var cardState = standardLiveGameState().beginLivePoint()
         cardState = cardState.assessBlueCard(TeamId.TEAM_ONE, 0L).state
         cardState = cardState.assessBlueCard(TeamId.TEAM_ONE, 0L).state
-        val rawCardResult = cardState.assessBlueCard(TeamId.TEAM_ONE, 0L)
-        assertEquals(false, rawCardResult.state.pendingMisconductCountdown)
-        assertEquals(
-            true,
-            rawCardResult.finalizedForGuidanceMode(RuleGuidanceMode.BRIEF)
-                .state.pendingMisconductCountdown,
-        )
+        val blueCardResult = cardState.assessBlueCard(TeamId.TEAM_ONE, 0L)
+        assertEquals(true, blueCardResult.state.pendingMisconductCountdown)
     }
 }

@@ -484,55 +484,10 @@ fun List<PlayerRecord>.sameNumberPlayerIdentityConflict(
  *
  * @param state The live state after the assessment.
  * @param event The observer-facing event to show.
- * @param triggersMisconductPenalty Whether this assessment crossed the live-point misconduct
- * threshold.
  */
 data class CardAssessmentResult(
     val state: GameState,
     val event: GameEvent,
-    val triggersMisconductPenalty: Boolean =
-        event.triggersMisconductPenalty(),
-)
-
-/**
- * Apply the live-point misconduct countdown after its offense/defense guidance is resolved.
- */
-internal fun CardAssessmentResult.withResolvedMisconductPenalty(): CardAssessmentResult {
-    require(triggersMisconductPenalty) {
-        "A misconduct countdown requires an assessment that triggered the penalty."
-    }
-    return copy(state = state.withPendingMisconductCountdown())
-}
-
-/**
- * Resolve the misconduct consequence automatically when the selected guidance skips its choice.
- */
-internal fun CardAssessmentResult.finalizedForGuidanceMode(
-    guidanceMode: RuleGuidanceMode,
-): CardAssessmentResult {
-    return if (triggersMisconductPenalty && guidanceMode.usesBriefGuidance()) {
-        withResolvedMisconductPenalty()
-    } else {
-        this
-    }
-}
-
-/**
- * State and popup needs from previewing a blue card before recording it.
- *
- * @param event The event describing what would be recorded.
- */
-data class BlueCardAssessmentPreview(
-    val event: GameEvent.TeamCardsChanged,
-)
-
-/**
- * State and popup needs from previewing a technical foul before recording it.
- *
- * @param event The event describing what would be recorded.
- */
-data class TechnicalFoulAssessmentPreview(
-    val event: GameEvent.TechnicalFoulsChanged,
 )
 
 /// Player-card event type used when formatting card popups.
@@ -1162,7 +1117,7 @@ fun GameState.assessBlueCard(team: TeamId, now: Long): CardAssessmentResult {
         )
     ).withUndo(this, "Undo Blue card on ${this.teamName(team)}")
     val cardTotal = updatedState.teamCardTotal(team)
-    updatedState = updatedState.withSkippedPullForMisconductThreshold(cardTotal, now)
+    updatedState = updatedState.withMisconductPenaltyForThreshold(cardTotal, now)
     return CardAssessmentResult(
         state = updatedState,
         event = GameEvent.TeamCardsChanged(
@@ -1179,16 +1134,14 @@ fun GameState.assessBlueCard(team: TeamId, now: Long): CardAssessmentResult {
  * @param team The team receiving the blue card.
  * @param now Current epoch millis used if the preview needs a fresh misconduct countdown.
  */
-fun GameState.previewBlueCard(team: TeamId, now: Long): BlueCardAssessmentPreview {
+fun GameState.previewBlueCard(team: TeamId, now: Long): GameEvent.TeamCardsChanged {
     var previewState = this.withAddedBlueCard(team)
     val cardTotal = previewState.teamCardTotal(team)
-    previewState = previewState.withSkippedPullForMisconductThreshold(cardTotal, now)
-    return BlueCardAssessmentPreview(
-        event = GameEvent.TeamCardsChanged(
-            state = previewState,
-            team = team,
-            teamCardTotal = cardTotal,
-        ),
+    previewState = previewState.withMisconductPenaltyForThreshold(cardTotal, now)
+    return GameEvent.TeamCardsChanged(
+        state = previewState,
+        team = team,
+        teamCardTotal = cardTotal,
     )
 }
 
@@ -1216,12 +1169,10 @@ private fun GameState.withAddedBlueCard(team: TeamId): GameState {
  *
  * @param team The team receiving the technical foul.
  * @param now Current epoch millis for the event log.
- * @param guidanceMode Rule-guidance mode controlling whether misconduct needs a later choice.
  */
 internal fun GameState.assessTechnicalFoul(
     team: TeamId,
     now: Long,
-    guidanceMode: RuleGuidanceMode,
 ): CardAssessmentResult {
     var updatedState = this.withAddedTechnicalFoul(team).withEventLogEntry(
         EventLogEntry(
@@ -1231,7 +1182,7 @@ internal fun GameState.assessTechnicalFoul(
         )
     ).withUndo(this, "Undo Technical foul on ${this.teamName(team)}")
     val technicalFouls = updatedState.technicalFoulsFor(team)
-    updatedState = updatedState.withSkippedPullForMisconductThreshold(technicalFouls, now)
+    updatedState = updatedState.withMisconductPenaltyForThreshold(technicalFouls, now)
     val event = GameEvent.TechnicalFoulsChanged(
         state = updatedState,
         team = team,
@@ -1240,7 +1191,7 @@ internal fun GameState.assessTechnicalFoul(
     return CardAssessmentResult(
         state = updatedState,
         event = event,
-    ).finalizedForGuidanceMode(guidanceMode)
+    )
 }
 
 /**
@@ -1249,16 +1200,14 @@ internal fun GameState.assessTechnicalFoul(
  * @param team The team receiving the technical foul.
  * @param now Current epoch millis used if the preview needs a fresh misconduct countdown.
  */
-fun GameState.previewTechnicalFoul(team: TeamId, now: Long): TechnicalFoulAssessmentPreview {
+fun GameState.previewTechnicalFoul(team: TeamId, now: Long): GameEvent.TechnicalFoulsChanged {
     var previewState = this.withAddedTechnicalFoul(team)
     val technicalFouls = previewState.technicalFoulsFor(team)
-    previewState = previewState.withSkippedPullForMisconductThreshold(technicalFouls, now)
-    return TechnicalFoulAssessmentPreview(
-        event = GameEvent.TechnicalFoulsChanged(
-            state = previewState,
-            team = team,
-            technicalFoulTotal = technicalFouls,
-        ),
+    previewState = previewState.withMisconductPenaltyForThreshold(technicalFouls, now)
+    return GameEvent.TechnicalFoulsChanged(
+        state = previewState,
+        team = team,
+        technicalFoulTotal = technicalFouls,
     )
 }
 
@@ -1341,7 +1290,7 @@ fun GameState.assessFirstYellowCard(
             )
         ).withUndo(this, playerCardUndoLabel("Yellow", team, identity.jerseyNumber, identity.playerName))
     val cardTotal = updatedState.teamCardTotal(team)
-    updatedState = updatedState.withSkippedPullForMisconductThreshold(cardTotal, now)
+    updatedState = updatedState.withMisconductPenaltyForThreshold(cardTotal, now)
     return CardAssessmentResult(
         state = updatedState,
         event = GameEvent.TeamCardsChanged(
@@ -1378,7 +1327,7 @@ fun GameState.assessRedCard(
             )
         ).withUndo(this, playerCardUndoLabel("Red", team, identity.jerseyNumber, identity.playerName))
     val cardTotal = updatedState.teamCardTotal(team)
-    updatedState = updatedState.withSkippedPullForMisconductThreshold(cardTotal, now)
+    updatedState = updatedState.withMisconductPenaltyForThreshold(cardTotal, now)
     return CardAssessmentResult(
         state = updatedState,
         event = GameEvent.TeamCardsChanged(
@@ -1416,7 +1365,7 @@ fun GameState.assessSecondYellowCard(
             )
         ).withUndo(this, playerCardUndoLabel("Second yellow", team, identity.jerseyNumber, identity.playerName))
     val cardTotal = updatedState.teamCardTotal(team)
-    updatedState = updatedState.withSkippedPullForMisconductThreshold(cardTotal, now)
+    updatedState = updatedState.withMisconductPenaltyForThreshold(cardTotal, now)
     return CardAssessmentResult(
         state = updatedState,
         event = GameEvent.TeamCardsChanged(
@@ -1510,17 +1459,20 @@ internal fun GameState.playerCardRemoveUndoLabel(
 }
 
 /**
- * Convert between-points misconduct threshold actions into a no-pull sequence when applicable.
+ * Apply the misconduct consequence for a threshold card or technical foul.
  *
  * @param thresholdCount The team-card or technical-foul count after the recorded action.
  * @param now Current epoch millis used to start a fresh countdown when the prior one has expired.
  */
-private fun GameState.withSkippedPullForMisconductThreshold(
+private fun GameState.withMisconductPenaltyForThreshold(
     thresholdCount: Int,
     now: Long,
 ): GameState {
-    if (thresholdCount < 3 || this.phase == GamePhase.LIVE_POINT || this.phase == GamePhase.GAME_OVER) {
+    if (thresholdCount < 3 || phase == GamePhase.GAME_OVER) {
         return this
+    }
+    if (phase == GamePhase.LIVE_POINT) {
+        return withPendingMisconductCountdown()
     }
     val misconductCountdown = if (this.countdown == null) {
         // An absent between-points countdown represents an expired 60-second offense deadline.
@@ -1831,41 +1783,6 @@ fun GameEvent.triggersMisconductPenalty(): Boolean {
     }
 }
 
-/// Report whether the selected guidance mode requires asking offense or defense.
-internal fun GameEvent.needsMisconductChoice(guidanceMode: RuleGuidanceMode): Boolean {
-    return triggersMisconductPenalty() && !guidanceMode.usesBriefGuidance()
-}
-
-/// Format the guidance shown before confirming a card or technical-foul assessment.
-internal fun GameEvent.misconductConfirmationMessage(
-    guidanceMode: RuleGuidanceMode,
-): RuleGuidanceMessage {
-    return if (triggersMisconductPenalty()) {
-        if (!guidanceMode.usesBriefGuidance()) {
-            GamePrompt.LivePointMisconduct(this).formatMessage()
-        } else {
-            GamePrompt.LivePointMisconduct(this).formatBriefMessage()
-        }
-    } else {
-        guidanceMessage(guidanceMode)
-    }
-}
-
-/// Format an assessed event result, including the concise misconduct reminder when needed.
-internal fun GameEvent.resultGuidanceMessage(
-    guidanceMode: RuleGuidanceMode,
-): RuleGuidanceMessage {
-    val baseMessage = guidanceMessage(guidanceMode)
-    return if (guidanceMode.usesBriefGuidance() && triggersMisconductPenalty()) {
-        val reminderLines = GamePrompt.LivePointMisconduct(this).formatBriefMessage().lines
-        RuleGuidanceMessage(
-            baseMessage.lines + RuleGuidanceLine("") + reminderLines
-        )
-    } else {
-        baseMessage
-    }
-}
-
 /// Format a team-card event message, including player-card and misconduct cue details.
 internal fun GameEvent.TeamCardsChanged.formatMessage(): RuleGuidanceMessage {
     val lines = buildList {
@@ -1889,6 +1806,7 @@ internal fun GameEvent.TeamCardsChanged.formatMessage(): RuleGuidanceMessage {
                     .map { RuleGuidanceLine(it) }
             )
         }
+        addAll(livePointMisconductGuidanceLines(brief = false))
     }
     return RuleGuidanceMessage(lines)
 }
@@ -1897,15 +1815,19 @@ internal fun GameEvent.TeamCardsChanged.formatMessage(): RuleGuidanceMessage {
 internal fun GameEvent.TeamCardsChanged.formatBriefMessage(): RuleGuidanceMessage {
     val playerLines = playerCardEventLines()
     val suspensionLines = playerLines.filter { it.bold }
-    if (suspensionLines.isNotEmpty()) {
-        return RuleGuidanceMessage(suspensionLines)
-    }
     val briefLine = if (playerCardType == null) {
         RuleGuidanceLine("Blue card on ${state.teamName(team)}.")
     } else {
         playerLines.first()
     }
-    return RuleGuidanceMessage(listOf(briefLine))
+    val lines = if (suspensionLines.isNotEmpty()) {
+        suspensionLines
+    } else {
+        listOf(briefLine)
+    }
+    return RuleGuidanceMessage(
+        lines + livePointMisconductGuidanceLines(brief = true)
+    )
 }
 
 /**
@@ -2036,19 +1958,20 @@ internal fun GameEvent.TechnicalFoulsChanged.formatMessage(): RuleGuidanceMessag
         lines += RuleGuidanceLine("")
         lines += RuleGuidanceLine(state.betweenPointsMisconductCue(team))
     }
+    lines += livePointMisconductGuidanceLines(brief = false)
     return RuleGuidanceMessage(lines)
 }
 
 /// Format a concise technical-foul result.
 internal fun GameEvent.TechnicalFoulsChanged.formatBriefMessage(): RuleGuidanceMessage {
-    return RuleGuidanceMessage(
-        listOf(
-            RuleGuidanceLine(
-                "${technicalFoulTotal.ordinalWordText().capitalized()} " +
-                "technical foul on ${state.teamName(team)}."
-            )
+    val lines = mutableListOf(
+        RuleGuidanceLine(
+            "${technicalFoulTotal.ordinalWordText().capitalized()} " +
+            "technical foul on ${state.teamName(team)}."
         )
     )
+    lines += livePointMisconductGuidanceLines(brief = true)
+    return RuleGuidanceMessage(lines)
 }
 
 /**
@@ -2067,82 +1990,45 @@ private fun GameState.betweenPointsMisconductCue(team: TeamId): String {
     }
 }
 
-/// Format the title for a live-point misconduct prompt.
-internal fun GamePrompt.LivePointMisconduct.formatTitle(): String = "Misconduct penalty"
-
-/// Format the prompt body that asks which side committed live-point misconduct.
-internal fun GamePrompt.LivePointMisconduct.formatMessage(): RuleGuidanceMessage {
-    return RuleGuidanceMessage(
-        event.formatMessage().lines + listOf(
-            RuleGuidanceLine(""),
-            RuleGuidanceLine("Was this against the offense or defense?"),
-        )
-    )
-}
-
 /**
- * Format the full live-point misconduct message after the observer chooses offense or defense.
+ * Format the misconduct consequences for a penalty during a live point.
  *
- * @param againstOffense Whether the penalty is against the offense rather than the defense.
+ * @param brief Whether to use the concise operational reminder.
  */
-internal fun GamePrompt.LivePointMisconduct.resolutionMessage(
-    againstOffense: Boolean,
-): RuleGuidanceMessage {
-    return RuleGuidanceMessage(
-        event.formatMessage().lines +
-            RuleGuidanceLine("") +
-            misconductResolutionLines(againstOffense)
-    )
-}
-
-/// Brief reminder that avoids asking which team was on offense.
-internal fun GamePrompt.LivePointMisconduct.formatBriefMessage(): RuleGuidanceMessage {
-    return RuleGuidanceMessage(
+private fun GameEvent.livePointMisconductGuidanceLines(
+    brief: Boolean,
+): List<RuleGuidanceLine> {
+    if (!triggersMisconductPenalty()) {
+        return emptyList()
+    }
+    return if (brief) {
         listOf(
+            RuleGuidanceLine(""),
             RuleGuidanceLine("If offense: reverse brick"),
             RuleGuidanceLine("If defense: attacking brick or middle"),
             RuleGuidanceLine("Offense has 30 seconds to set."),
         )
-    )
-}
-
-/**
- * Format the live-point misconduct consequence after offense/defense is chosen.
- *
- * @param againstOffense Whether the penalty is against the offense rather than the defense.
- */
-private fun GamePrompt.LivePointMisconduct.misconductResolutionLines(
-    againstOffense: Boolean,
-): List<RuleGuidanceLine> {
-    val (misconductTeam, state) = event.misconductContext()
-    val offenseTeam = if (againstOffense) misconductTeam else misconductTeam.flip()
-    val defenseTeam = offenseTeam.flip()
-    val offenseName = state.teamName(offenseTeam)
-    val defenseName = state.teamName(defenseTeam)
-    val fieldPosition = if (againstOffense) {
-        "$offenseName moves the disc to the reverse brick in the end zone they are defending. " +
-        "$defenseName may instead choose to leave the disc where it is " +
-        "(keeping the current stall count +1, max 9)."
     } else {
-        "$offenseName may move the disc to the brick mark nearest the end zone they are attacking. " +
-        "They may also choose to leave the disc where it is or center it."
-    }
-    return listOf(
-        RuleGuidanceLine(fieldPosition),
-        RuleGuidanceLine(""),
-        RuleGuidanceLine(
-            "Offense has 30 seconds to set. " +
-            "Then defense has 20 seconds to check the disc in."
-        ),
-    )
-}
-
-/// Return the team and state that triggered the live-point misconduct prompt.
-private fun GameEvent.misconductContext(): Pair<TeamId, GameState> {
-    return when (this) {
-        is GameEvent.TeamCardsChanged -> team to state
-        is GameEvent.TechnicalFoulsChanged -> team to state
-        else -> error("Live-point misconduct prompts require a card or technical-foul event.")
+        listOf(
+            RuleGuidanceLine(""),
+            RuleGuidanceLine("If against offense:", bold = true),
+            RuleGuidanceLine(
+                "Offense moves the disc to the reverse brick in the end zone they are defending. " +
+                "Defense may instead leave the disc where it is, keeping the current stall " +
+                "count +1 (maximum 9)."
+            ),
+            RuleGuidanceLine(""),
+            RuleGuidanceLine("If against defense:", bold = true),
+            RuleGuidanceLine(
+                "Offense may move the disc to the brick mark nearest the end zone they are " +
+                "attacking. They may instead leave the disc where it is or center it."
+            ),
+            RuleGuidanceLine(""),
+            RuleGuidanceLine(
+                "Offense has 30 seconds to set. " +
+                "Then defense has 20 seconds to check the disc in."
+            ),
+        )
     }
 }
 

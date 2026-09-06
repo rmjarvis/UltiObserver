@@ -45,19 +45,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * Field technical-foul misconduct consequence waiting for final confirmation.
- *
- * @param team The team receiving the technical foul.
- * @param result The assessed result before it is committed to app state.
- * @param againstOffense Whether the misconduct was against the offense.
- */
-private data class PendingFieldTechnicalFoulResolution(
-    val team: TeamId,
-    val result: CardAssessmentResult,
-    val againstOffense: Boolean,
-)
-
-/**
  * Render the active-game screen, including the field view, modal flows, and popup cues.
  *
  * @param state The live game state to render.
@@ -105,9 +92,6 @@ internal fun ActiveGameScreen(
         mutableStateOf<GamePrompt.PullViolationConfirmation?>(null)
     }
     var pendingTechnicalFoulTeam by remember { mutableStateOf<TeamId?>(null) }
-    var pendingTechnicalFoulResolution by remember {
-        mutableStateOf<PendingFieldTechnicalFoulResolution?>(null)
-    }
     var teamInfoSheetTeam by remember { mutableStateOf<TeamId?>(null) }
     var locked by remember { mutableStateOf(false) }
     var showManualWaterBreakPrompt by remember { mutableStateOf(false) }
@@ -517,19 +501,11 @@ internal fun ActiveGameScreen(
         }
     } else if (pendingTechnicalFoulTeam != null) {
         val team = pendingTechnicalFoulTeam!!
-        val event = state.previewTechnicalFoul(team, now).event
-        val misconductPrompt = if (
-            event.needsMisconductChoice(settings.ruleGuidanceMode)
-        ) {
-            GamePrompt.LivePointMisconduct(event)
-        } else {
-            null
-        }
+        val event = state.previewTechnicalFoul(team, now)
         val applyTechnicalFoul = {
             val result = state.assessTechnicalFoul(
                 team,
                 now,
-                settings.ruleGuidanceMode,
             )
             onStateChange(result.state)
             pendingTechnicalFoulTeam = null
@@ -545,96 +521,23 @@ internal fun ActiveGameScreen(
                 title = { Text(event.formatPopupTitle()) },
                 text = {
                     ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
-                        RuleGuidanceText(
-                            event.misconductConfirmationMessage(settings.ruleGuidanceMode)
-                        )
+                        RuleGuidanceText(event.guidanceMessage(settings.ruleGuidanceMode))
                     }
                 },
                 confirmButton = {
-                    if (misconductPrompt == null) {
-                        TextActionButton(
-                            label = "OK",
-                            onClick = applyTechnicalFoul,
-                        )
-                    } else {
-                        MisconductChoiceButtons(
-                            firstLabel = "Cancel",
-                            onFirst = { pendingTechnicalFoulTeam = null },
-                            onOffense = {
-                                val result = state.assessTechnicalFoul(
-                                    team,
-                                    now,
-                                    settings.ruleGuidanceMode,
-                                )
-                                pendingTechnicalFoulResolution = PendingFieldTechnicalFoulResolution(
-                                    team = team,
-                                    result = result,
-                                    againstOffense = true,
-                                )
-                                pendingTechnicalFoulTeam = null
-                            },
-                            onDefense = {
-                                val result = state.assessTechnicalFoul(
-                                    team,
-                                    now,
-                                    settings.ruleGuidanceMode,
-                                )
-                                pendingTechnicalFoulResolution = PendingFieldTechnicalFoulResolution(
-                                    team = team,
-                                    result = result,
-                                    againstOffense = false,
-                                )
-                                pendingTechnicalFoulTeam = null
-                            },
-                        )
-                    }
+                    TextActionButton(
+                        label = "OK",
+                        onClick = applyTechnicalFoul,
+                    )
                 },
-                dismissButton = if (misconductPrompt == null) {
-                    {
-                        TextActionButton(
-                            label = "Cancel",
-                            onClick = { pendingTechnicalFoulTeam = null },
-                        )
-                    }
-                } else {
-                    null
+                dismissButton = {
+                    TextActionButton(
+                        label = "Cancel",
+                        onClick = { pendingTechnicalFoulTeam = null },
+                    )
                 },
             )
         }
-    } else if (pendingTechnicalFoulResolution != null) {
-        val pending = pendingTechnicalFoulResolution!!
-        val prompt = GamePrompt.LivePointMisconduct(pending.result.event)
-        ResponsiveAlertDialog(
-            onDismissRequest = {
-                pendingTechnicalFoulTeam = pending.team
-                pendingTechnicalFoulResolution = null
-            },
-            title = { Text(prompt.formatTitle()) },
-            text = {
-                ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
-                    RuleGuidanceText(prompt.resolutionMessage(pending.againstOffense))
-                }
-            },
-            confirmButton = {
-                TextActionButton(
-                    label = "OK",
-                    onClick = {
-                        onStateChange(pending.result.withResolvedMisconductPenalty().state)
-                        pendingTechnicalFoulResolution = null
-                    },
-                )
-            },
-            dismissButton = {
-                TextActionButton(
-                    label = "Back",
-                    tag = "misconduct-resolution-back",
-                    onClick = {
-                        pendingTechnicalFoulTeam = pending.team
-                        pendingTechnicalFoulResolution = null
-                    },
-                )
-            },
-        )
     } else if (pendingGameDecision is GamePrompt.ApplyCap) {
         // Cap prompts block until the observer decides whether to apply the newly eligible cap.
         val capPrompt = pendingGameDecision

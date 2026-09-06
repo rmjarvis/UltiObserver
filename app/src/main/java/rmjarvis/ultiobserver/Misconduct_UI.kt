@@ -114,35 +114,6 @@ private data class PendingManualCardRemove(
     val card: EditablePlayerCard,
 )
 
-/// Previous Card-dialog step to restore when dismissing a live-point misconduct choice.
-private sealed interface PendingMisconductReturn {
-    data class YellowEntry(val team: TeamId, val entry: PlayerCardEntry) : PendingMisconductReturn
-    data class RedEntry(val team: TeamId, val entry: PlayerCardEntry) : PendingMisconductReturn
-    data class BlueCard(val team: TeamId) : PendingMisconductReturn
-}
-
-/**
- * Live-point misconduct assessment waiting for the observer to choose offense or defense.
- *
- * @param result The assessed card or technical-foul result before the side choice is applied.
- * @param returnTo The previous UI step to reopen if the observer dismisses the side-choice prompt.
- */
-private data class PendingMisconductChoice(
-    val result: CardAssessmentResult,
-    val returnTo: PendingMisconductReturn,
-)
-
-/**
- * Live-point misconduct consequence waiting for final confirmation.
- *
- * @param choice The offense/defense choice this consequence resolves.
- * @param againstOffense Whether the misconduct was against the offense.
- */
-private data class PendingMisconductResolution(
-    val choice: PendingMisconductChoice,
-    val againstOffense: Boolean,
-)
-
 /**
  * One active step in the manual card/tech correction dialog.
  *
@@ -759,11 +730,9 @@ private sealed interface TeamCardDialogStep {
         val confirmation: PendingSameNumberPlayerCardConfirmation
     ) : TeamCardDialogStep
     data class BlueCardConfirmation(val team: TeamId) : TeamCardDialogStep
-    data class OffenseDefenseChoice(val pending: PendingMisconductChoice) : TeamCardDialogStep
-    data class MisconductResolution(val pending: PendingMisconductResolution) : TeamCardDialogStep
     data class AssessmentResult(
         val result: CardAssessmentResult,
-        val returnTo: PendingMisconductReturn,
+        val returnTo: CardedPlayerEntry,
     ) : TeamCardDialogStep
     data class InvalidAssignment(
         val message: String,
@@ -978,10 +947,9 @@ internal fun TeamCardDialog(
 
     fun showAssessmentResult(
         result: CardAssessmentResult,
-        returnTo: PendingMisconductReturn,
+        returnTo: TeamCardDialogStep.CardedPlayerEntry,
     ) {
-        val finalizedResult = result.finalizedForGuidanceMode(guidanceMode)
-        step = TeamCardDialogStep.AssessmentResult(finalizedResult, returnTo)
+        step = TeamCardDialogStep.AssessmentResult(result, returnTo)
     }
 
     fun cardedPlayerEntryStep(
@@ -996,18 +964,6 @@ internal fun TeamCardDialog(
         return TeamCardDialogStep.BlueCardConfirmation(team)
     }
 
-    fun offenseDefenseChoiceStep(
-        pending: PendingMisconductChoice
-    ): TeamCardDialogStep.OffenseDefenseChoice {
-        return TeamCardDialogStep.OffenseDefenseChoice(pending)
-    }
-
-    fun misconductResolutionStep(
-        pending: PendingMisconductResolution
-    ): TeamCardDialogStep.MisconductResolution {
-        return TeamCardDialogStep.MisconductResolution(pending)
-    }
-
     fun sameNumberConfirmationStep(
         confirmation: PendingSameNumberPlayerCardConfirmation
     ): TeamCardDialogStep.SameNumberConfirmation {
@@ -1019,37 +975,6 @@ internal fun TeamCardDialog(
         returnTo: TeamCardDialogStep,
     ): TeamCardDialogStep.InvalidAssignment {
         return TeamCardDialogStep.InvalidAssignment(message, returnTo)
-    }
-
-    fun stepForPendingMisconductReturn(returnTo: PendingMisconductReturn): TeamCardDialogStep {
-        // No else branch: every PendingMisconductReturn value is handled.
-        return when (returnTo) {
-            is PendingMisconductReturn.YellowEntry -> {
-                cardedPlayerEntryStep(returnTo.team, CardType.YELLOW, returnTo.entry)
-            }
-            is PendingMisconductReturn.RedEntry -> {
-                cardedPlayerEntryStep(returnTo.team, CardType.RED, returnTo.entry)
-            }
-            is PendingMisconductReturn.BlueCard -> {
-                blueCardConfirmationStep(returnTo.team)
-            }
-        }
-    }
-
-    fun stepForMisconductResolutionDismissal(choice: PendingMisconductChoice): TeamCardDialogStep {
-        return if (choice.returnTo is PendingMisconductReturn.BlueCard) {
-            stepForPendingMisconductReturn(choice.returnTo)
-        } else {
-            offenseDefenseChoiceStep(choice)
-        }
-    }
-
-    fun presentAssessment(result: CardAssessmentResult, returnTo: PendingMisconductReturn) {
-        if (result.event.needsMisconductChoice(guidanceMode)) {
-            step = offenseDefenseChoiceStep(PendingMisconductChoice(result, returnTo))
-        } else {
-            showAssessmentResult(result, returnTo)
-        }
     }
 
     fun assessPlayerCardEntry(
@@ -1102,7 +1027,7 @@ internal fun TeamCardDialog(
         // No else branch: every CardType value is handled.
         when (cardType) {
             CardType.YELLOW -> {
-                presentAssessment(
+                showAssessmentResult(
                     state.assessYellowCard(
                         team,
                         identity.jerseyNumber,
@@ -1110,12 +1035,12 @@ internal fun TeamCardDialog(
                         identity.playerName,
                         entry.reason
                     ),
-                    PendingMisconductReturn.YellowEntry(team, normalizedEntry),
+                    cardedPlayerEntryStep(team, CardType.YELLOW, normalizedEntry),
                 )
                 return true
             }
             CardType.RED -> {
-                presentAssessment(
+                showAssessmentResult(
                     state.assessRedCard(
                         team,
                         identity.jerseyNumber,
@@ -1123,7 +1048,7 @@ internal fun TeamCardDialog(
                         identity.playerName,
                         entry.reason
                     ),
-                    PendingMisconductReturn.RedEntry(team, normalizedEntry),
+                    cardedPlayerEntryStep(team, CardType.RED, normalizedEntry),
                 )
                 return true
             }
@@ -1248,15 +1173,9 @@ internal fun TeamCardDialog(
         }
         is TeamCardDialogStep.BlueCardConfirmation -> {
             val blueTeam = activeStep.team
-            val event = state.previewBlueCard(blueTeam, now).event
-            val misconductPrompt = if (event.needsMisconductChoice(guidanceMode)) {
-                GamePrompt.LivePointMisconduct(event)
-            } else {
-                null
-            }
+            val event = state.previewBlueCard(blueTeam, now)
             val applyBlueCard = {
                 val result = state.assessBlueCard(blueTeam, now)
-                    .finalizedForGuidanceMode(guidanceMode)
                 onStateOnly(result.state)
             }
             RuleGuidanceGate(
@@ -1271,142 +1190,31 @@ internal fun TeamCardDialog(
                     text = {
                         ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
                             RuleGuidanceText(
-                                message = event.misconductConfirmationMessage(guidanceMode),
+                                message = event.guidanceMessage(guidanceMode),
                             )
                         }
                     },
                     confirmButton = {
-                        if (misconductPrompt == null) {
-                            TextActionButton(
-                                label = "OK",
-                                onClick = applyBlueCard,
-                            )
-                        } else {
-                            MisconductChoiceButtons(
-                                firstLabel = "Cancel",
-                                onFirst = { step = TeamCardDialogStep.InitialCardChoice },
-                                onOffense = {
-                                    val result = state.assessBlueCard(blueTeam, now)
-                                    step = misconductResolutionStep(
-                                        PendingMisconductResolution(
-                                            choice = PendingMisconductChoice(
-                                                result = result,
-                                                returnTo = PendingMisconductReturn.BlueCard(blueTeam),
-                                            ),
-                                            againstOffense = true,
-                                        )
-                                    )
-                                },
-                                onDefense = {
-                                    val result = state.assessBlueCard(blueTeam, now)
-                                    step = misconductResolutionStep(
-                                        PendingMisconductResolution(
-                                            choice = PendingMisconductChoice(
-                                                result = result,
-                                                returnTo = PendingMisconductReturn.BlueCard(blueTeam),
-                                            ),
-                                            againstOffense = false,
-                                        )
-                                    )
-                                },
-                            )
-                        }
+                        TextActionButton(
+                            label = "OK",
+                            onClick = applyBlueCard,
+                        )
                     },
-                    dismissButton = if (misconductPrompt == null) {
-                        {
-                            TextActionButton(
-                                label = "Cancel",
-                                onClick = { step = TeamCardDialogStep.InitialCardChoice },
-                            )
-                        }
-                    } else {
-                        null
+                    dismissButton = {
+                        TextActionButton(
+                            label = "Cancel",
+                            onClick = { step = TeamCardDialogStep.InitialCardChoice },
+                        )
                     },
                     widthProfile = DialogWidthProfile.MODERATE,
                 )
             }
         }
-        is TeamCardDialogStep.OffenseDefenseChoice -> {
-            val pending = activeStep.pending
-            val prompt = GamePrompt.LivePointMisconduct(pending.result.event)
-            ResponsiveAlertDialog(
-                onDismissRequest = {
-                    step = stepForPendingMisconductReturn(pending.returnTo)
-                },
-                title = { Text(prompt.formatTitle()) },
-                text = {
-                    ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
-                        RuleGuidanceText(prompt.formatMessage())
-                    }
-                },
-                confirmButton = {
-                    MisconductChoiceButtons(
-                        firstLabel = "Back",
-                        firstTag = "misconduct-choice-back",
-                        onFirst = { step = stepForPendingMisconductReturn(pending.returnTo) },
-                        onOffense = {
-                            step = misconductResolutionStep(
-                                PendingMisconductResolution(
-                                    choice = pending,
-                                    againstOffense = true,
-                                )
-                            )
-                        },
-                        onDefense = {
-                            step = misconductResolutionStep(
-                                PendingMisconductResolution(
-                                    choice = pending,
-                                    againstOffense = false,
-                                )
-                            )
-                        },
-                    )
-                },
-                widthProfile = DialogWidthProfile.MODERATE,
-            )
-        }
-        is TeamCardDialogStep.MisconductResolution -> {
-            val pending = activeStep.pending
-            val prompt = GamePrompt.LivePointMisconduct(pending.choice.result.event)
-            ResponsiveAlertDialog(
-                onDismissRequest = {
-                    step = stepForMisconductResolutionDismissal(pending.choice)
-                },
-                title = { Text(prompt.formatTitle()) },
-                text = {
-                    ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
-                        RuleGuidanceText(
-                            prompt.resolutionMessage(pending.againstOffense)
-                        )
-                    }
-                },
-                confirmButton = {
-                    TextActionButton(
-                        label = "OK",
-                        onClick = {
-                            onStateOnly(
-                                pending.choice.result.withResolvedMisconductPenalty().state
-                            )
-                        },
-                    )
-                },
-                dismissButton = {
-                    TextActionButton(
-                        label = "Back",
-                        tag = "misconduct-resolution-back",
-                        onClick = {
-                            step = stepForMisconductResolutionDismissal(pending.choice)
-                        },
-                    )
-                },
-                widthProfile = DialogWidthProfile.MODERATE,
-            )
-        }
         is TeamCardDialogStep.AssessmentResult -> {
             val result = activeStep.result
             val event = result.event
             val goBack = {
-                step = stepForPendingMisconductReturn(activeStep.returnTo)
+                step = activeStep.returnTo
             }
             val recordCard = {
                 onStateOnly(result.state)
@@ -1422,7 +1230,7 @@ internal fun TeamCardDialog(
                     title = { Text(event.formatPopupTitle()) },
                     text = {
                         ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
-                            RuleGuidanceText(event.resultGuidanceMessage(guidanceMode))
+                            RuleGuidanceText(event.guidanceMessage(guidanceMode))
                         }
                     },
                     confirmButton = {

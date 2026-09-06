@@ -226,7 +226,7 @@ abstract class GameDomainTestFixtures {
      * @param team The team receiving the technical foul.
      */
     protected fun GameState.assessTechnicalFoul(team: TeamId): CardAssessmentResult {
-        return assessTechnicalFoul(team, 0L, RuleGuidanceMode.FULL)
+        return assessTechnicalFoul(team, 0L)
     }
 
     /**
@@ -430,8 +430,4 @@ abstract class GameDomainTestFixtures {
         return GamePrompt.ApplyCap(this, pendingCapOffer!!)
     }
 
-    /// Build a live-point misconduct prompt from a card assessment event.
-    protected fun CardAssessmentResult.misconductPrompt(): GamePrompt.LivePointMisconduct {
-        return GamePrompt.LivePointMisconduct(event)
-    }
 }

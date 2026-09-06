@@ -17,15 +17,14 @@ How much rule guidance should appear during games?
     or informational message. It also gives a summary of the relevant rules (such as restart
     location, whether there is a required check, etc.) and the resulting game state (e.g.
     timeouts remaining or a team's total card count). For in-point misconduct penalties,
-    it also asks whether the misconduct is on the offense or defense, so it can inform you about
-    the correct restart. This behavior is called **Full** here.
+    it describes the possible restarts for penalties against the offense and defense. This
+    behavior is called **Full** here.
 
     For experienced observers, this information is probably not necessary, so we provide
     three less verbose guidance modes:
 
     * **Brief** just gives a very short reminder of the relevant rule (e.g. '[Team] starts at
-      midfield' for a second offsides), and doesn't have the offense/defense question for
-      misconduct penalties.
+      midfield' for a second offsides).
     * **Timed** has the same message as **Brief**, but automatically closes the message after
       5 seconds. This still lets you cancel an action if you need to, but if you ignore it, it
       treats that as though you pressed OK, confirming the action. Other dialogs that require
