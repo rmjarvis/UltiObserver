@@ -4,6 +4,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -33,14 +35,15 @@ internal fun RuleGuidanceGate(
     content: @Composable () -> Unit,
 ) {
     val presentation = mode.presentation(requiredInNone)
+    val currentAutoAccept by rememberUpdatedState(onAutoAccept)
     LaunchedEffect(key, presentation) {
         when (presentation) {
             RuleGuidancePresentation.VISIBLE -> Unit
             RuleGuidancePresentation.VISIBLE_TIMED -> {
                 kotlinx.coroutines.delay(ruleGuidanceTimeoutMillis)
-                onAutoAccept()
+                currentAutoAccept()
             }
-            RuleGuidancePresentation.HIDDEN_AUTO_ACCEPT -> onAutoAccept()
+            RuleGuidancePresentation.HIDDEN_AUTO_ACCEPT -> currentAutoAccept()
         }
     }
     if (presentation != RuleGuidancePresentation.HIDDEN_AUTO_ACCEPT) {

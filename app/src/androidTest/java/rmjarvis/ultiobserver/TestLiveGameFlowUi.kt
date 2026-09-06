@@ -293,7 +293,10 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         ).assertCountEquals(0)
         assertEquals(1, accessCurrentGameState().teamOne.timeoutsUsedThisHalf)
 
-        // None retains the mixed offsides/majority choice briefly, defaulting to offsides.
+        // None retains the mixed offsides/majority choice briefly. Switching to Majority pull
+        // while its timer is running makes the timer accept that current selection, rather than
+        // the Offsides callback with which it started.
+        setRuleGuidanceTimeoutForTest(2_000L)
         val mixedSetup = newSetupGameState(now = System.currentTimeMillis()).copy(
             division = GameDivision.MIXED,
         )
@@ -302,8 +305,11 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
             teamActionTag(TeamId.TEAM_ONE, "pull-violation")
         ).performClick()
         waitForText("This was a Majority pull violation")
-        waitForText("Undo Offsides on Team 1")
-        assertEquals(1, accessCurrentGameState().teamOne.offsides)
+        composeRule.onNodeWithText("This was a Majority pull violation").performClick()
+        waitForText("This was an Offsides")
+        waitForText("Undo Majority pull violation on Team 1")
+        assertEquals(0, accessCurrentGameState().teamOne.offsides)
+        assertEquals(1, accessCurrentGameState().teamOne.majorityPullViolations)
 
         // None also preserves a five-second opportunity to defer a due cap.
         showPendingCapOfferProgrammatically(CapType.SOFT)
