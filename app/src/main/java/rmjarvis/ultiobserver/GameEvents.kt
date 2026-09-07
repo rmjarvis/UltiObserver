@@ -64,19 +64,17 @@ sealed interface GameEvent {
      * @param team The team whose card total changed.
      * @param teamCardTotal The team-card point total after the action.
      * @param playerCardType The player-card event type, or null for team-only card changes.
-     * @param playerCardJerseyNumber The player jersey number when playerCardType is present.
-     * @param playerCardName The player name when entered for this player-card event.
+     * @param playerIdentity The player receiving the card, or null for a team-only card change.
      */
     data class TeamCardsChanged(
         val state: GameState,
         val team: TeamId,
         val teamCardTotal: Int,
         val playerCardType: PlayerCardEventType? = null,
-        val playerCardJerseyNumber: String? = null,
-        val playerCardName: String? = null,
+        val playerIdentity: PlayerIdentity? = null,
     ) : GameEvent {
         init {
-            require((playerCardType == null) == (playerCardJerseyNumber == null))
+            require((playerCardType == null) == (playerIdentity == null))
         }
     }
 

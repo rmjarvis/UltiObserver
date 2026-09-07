@@ -797,7 +797,7 @@ class TestArchive : GameDomainTestFixtures() {
         appState.finishSetup(now = 124_000L)
         val teamTwoCardGame = appState.currentGame!!.assessYellowCard(
             team = TeamId.TEAM_TWO,
-            jerseyNumber = "23",
+            identity = PlayerIdentity("23"),
             now = 125_000L,
         ).state
         appState.updateCurrentGame(teamTwoCardGame.endGameNow(now = 126_000L))
@@ -822,9 +822,8 @@ class TestArchive : GameDomainTestFixtures() {
         val editedTeamTwoRecords = replaceEditablePlayerCard(
             records = teamTwoArchive.teamTwoPlayers,
             editableCard = existingCard,
-            jerseyNumber = "23",
+            identity = PlayerIdentity("23", "Taylor Cutter"),
             cardType = CardType.YELLOW,
-            playerName = "Taylor Cutter",
             reason = CardReason(preset = "Dangerous play"),
         )
         val editedTeamTwoArchive = teamTwoArchive.editExistingPlayerCards(

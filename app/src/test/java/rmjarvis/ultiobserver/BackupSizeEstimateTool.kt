@@ -122,11 +122,11 @@ private fun addCardPressure(
     var state = initialState
     repeat(10) { index ->
         val team = if (index % 2 == 0) TeamId.TEAM_ONE else TeamId.TEAM_TWO
-        state = state.assessYellowCard(team, "${10 + index}", clock.next()).state
+        state = state.assessYellowCard(team, PlayerIdentity("${10 + index}"), clock.next()).state
     }
     repeat(5) { index ->
         val team = if (index % 2 == 0) TeamId.TEAM_ONE else TeamId.TEAM_TWO
-        state = state.assessRedCard(team, "${30 + index}", clock.next()).state
+        state = state.assessRedCard(team, PlayerIdentity("${30 + index}"), clock.next()).state
     }
     repeat(5) { index ->
         val team = if (index % 2 == 0) TeamId.TEAM_TWO else TeamId.TEAM_ONE

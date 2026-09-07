@@ -210,19 +210,13 @@ internal fun AdjustCardsDialog(
             return
         }
         if (!skipSameNumberWarning) {
-            val conflict = records.sameNumberPlayerIdentityConflict(
-                identity.jerseyNumber,
-                identity.playerName
-            )
+            val conflict = records.sameNumberPlayerIdentityConflict(identity)
             if (conflict != null) {
                 step = AdjustCardsDialogStep.SameNumberConfirmation(
                     PendingSameNumberPlayerCardConfirmation(
                         team = team,
                         cardType = cardType,
-                        entry = entry.copy(
-                            jerseyNumber = identity.jerseyNumber,
-                            playerName = identity.playerName
-                        ),
+                        entry = entry,
                         conflict = conflict,
                     ),
                 )
@@ -240,10 +234,9 @@ internal fun AdjustCardsDialog(
         }
         val updatedRecords = addPlayerCardAssignment(
             records = records,
-            jerseyNumber = identity.jerseyNumber,
+            identity = identity,
             cardType = cardType,
             index = nextManualCardIndex(),
-            playerName = identity.playerName,
             reason = entry.reason,
         )
         setRecordsFor(team, updatedRecords)
@@ -294,13 +287,12 @@ internal fun AdjustCardsDialog(
         val updatedRecords = replaceEditablePlayerCard(
             records = recordsFor(team),
             editableCard = originalCard,
-            jerseyNumber = identity.jerseyNumber,
+            identity = identity,
             cardType = originalCard.cardType,
-            playerName = identity.playerName,
             reason = entry.reason,
         )
         setRecordsFor(team, updatedRecords)
-        val noticeMessage = if (!identity.matches(originalCard.identity())) {
+        val noticeMessage = if (!identity.matches(originalCard.identity)) {
             state.playerSuspensionNotice(team, updatedRecords, identity)
         } else {
             null
@@ -490,8 +482,8 @@ internal fun AdjustCardsDialog(
                     step = AdjustCardsDialogStep.CardEdit(
                         PendingManualCardEdit(activeStep.team, card),
                         PlayerCardEntry(
-                            jerseyNumber = card.jerseyNumber,
-                            playerName = card.playerName,
+                            jerseyNumber = card.identity.jerseyNumber,
+                            playerName = card.identity.playerName,
                             reason = card.reason,
                         ),
                     )
@@ -556,7 +548,7 @@ internal fun AdjustCardsDialog(
                             undoLabel = state.playerCardRemoveUndoLabel(
                                 team = pending.team,
                                 cardType = pending.card.cardType,
-                                identity = pending.card.identity(),
+                                identity = pending.card.identity,
                             ),
                         )
                     )
@@ -586,13 +578,10 @@ internal fun AdjustCardsDialog(
                 text = {
                     ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
                         Text(
-                            "${PlayerIdentity(
-                                confirmation.conflict.existingJerseyNumber,
-                                confirmation.conflict.existingPlayerName,
-                            ).displayText(compact = false)} is already listed. Record ${PlayerIdentity(
-                                confirmation.conflict.proposedJerseyNumber,
-                                confirmation.conflict.proposedPlayerName,
-                            ).displayText(compact = false)} as a different player with the same number?"
+                            "${confirmation.conflict.existingIdentity.displayText(compact = false)} " +
+                            "is already listed. Record " +
+                            "${confirmation.conflict.proposedIdentity.displayText(compact = false)} " +
+                            "as a different player with the same number?"
                         )
                     }
                 },
@@ -631,8 +620,8 @@ internal fun AdjustCardsDialog(
                 candidates = playerMatches.candidates,
                 onSelect = { candidate ->
                     val selectedEntry = activeStep.returnTo.pending.entry.copy(
-                        jerseyNumber = candidate.jerseyNumber,
-                        playerName = candidate.playerName,
+                        jerseyNumber = candidate.identity.jerseyNumber,
+                        playerName = candidate.identity.playerName,
                     )
                     applyManualCardAdd(
                         pending = activeStep.returnTo.pending.copy(entry = selectedEntry),
@@ -798,12 +787,11 @@ internal fun ExistingCardsEditorDialog(
         val updatedRecords = replaceEditablePlayerCard(
             records = state.playerCards(pending.team),
             editableCard = pending.card,
-            jerseyNumber = identity.jerseyNumber,
+            identity = identity,
             cardType = pending.card.cardType,
-            playerName = identity.playerName,
             reason = entry.reason,
         )
-        val noticeMessage = if (!identity.matches(pending.card.identity())) {
+        val noticeMessage = if (!identity.matches(pending.card.identity)) {
             state.playerSuspensionNotice(pending.team, updatedRecords, identity)
         } else {
             null
@@ -838,8 +826,8 @@ internal fun ExistingCardsEditorDialog(
                     step = ExistingCardsEditorStep.CardEdit(
                         PendingManualCardEdit(team, card),
                         PlayerCardEntry(
-                            jerseyNumber = card.jerseyNumber,
-                            playerName = card.playerName,
+                            jerseyNumber = card.identity.jerseyNumber,
+                            playerName = card.identity.playerName,
                             reason = card.reason,
                         ),
                     )
@@ -966,19 +954,11 @@ internal fun TeamCardDialog(
             )
             return false
         }
-        val identity = PlayerIdentity(entry.jerseyNumber, entry.playerName)
-        val normalizedEntry = entry.copy(
-            jerseyNumber = identity.jerseyNumber,
-            playerName = identity.playerName
-        )
-        val playerMatches = normalizedEntry.checkForMultiplePlayerMatches(state.playerCards(team))
+        val enteredIdentity = PlayerIdentity(entry.jerseyNumber, entry.playerName)
+        val playerMatches = entry.checkForMultiplePlayerMatches(state.playerCards(team))
         if (playerMatches != null) {
             step = TeamCardDialogStep.PlayerNumberSelection(
-                returnTo = TeamCardDialogStep.CardedPlayerEntry(
-                    team,
-                    cardType,
-                    normalizedEntry,
-                ),
+                returnTo = returnTo,
                 playerMatches = playerMatches,
             )
             return true
@@ -986,21 +966,21 @@ internal fun TeamCardDialog(
         if (!skipSameNumberWarning) {
             val conflict = state.sameNumberPlayerIdentityConflict(
                 team,
-                identity.jerseyNumber,
-                identity.playerName
+                enteredIdentity,
             )
             if (conflict != null) {
                 step = TeamCardDialogStep.SameNumberConfirmation(
                     PendingSameNumberPlayerCardConfirmation(
                         team = team,
                         cardType = cardType,
-                        entry = normalizedEntry,
+                        entry = entry,
                         conflict = conflict,
                     )
                 )
                 return true
             }
         }
+        val identity = state.resolvePlayerIdentity(team, enteredIdentity)
         val status = playerSuspensionStatus(state.playerCards(team), identity)
         if (status != null) {
             step = TeamCardDialogStep.InvalidAssignment(
@@ -1017,15 +997,17 @@ internal fun TeamCardDialog(
                 showAssessmentResult(
                     state.assessYellowCard(
                         team,
-                        identity.jerseyNumber,
+                        identity,
                         now,
-                        identity.playerName,
                         entry.reason
                     ),
                     TeamCardDialogStep.CardedPlayerEntry(
                         team,
                         CardType.YELLOW,
-                        normalizedEntry,
+                        entry.copy(
+                            jerseyNumber = identity.jerseyNumber,
+                            playerName = identity.playerName,
+                        ),
                     ),
                 )
                 return true
@@ -1034,15 +1016,17 @@ internal fun TeamCardDialog(
                 showAssessmentResult(
                     state.assessRedCard(
                         team,
-                        identity.jerseyNumber,
+                        identity,
                         now,
-                        identity.playerName,
                         entry.reason
                     ),
                     TeamCardDialogStep.CardedPlayerEntry(
                         team,
                         CardType.RED,
-                        normalizedEntry,
+                        entry.copy(
+                            jerseyNumber = identity.jerseyNumber,
+                            playerName = identity.playerName,
+                        ),
                     ),
                 )
                 return true
@@ -1120,13 +1104,10 @@ internal fun TeamCardDialog(
                 text = {
                     ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
                         Text(
-                            "${PlayerIdentity(
-                                confirmation.conflict.existingJerseyNumber,
-                                confirmation.conflict.existingPlayerName,
-                            ).displayText(compact = false)} is already listed. Record ${PlayerIdentity(
-                                confirmation.conflict.proposedJerseyNumber,
-                                confirmation.conflict.proposedPlayerName,
-                            ).displayText(compact = false)} as a different player with the same number?"
+                            "${confirmation.conflict.existingIdentity.displayText(compact = false)} " +
+                            "is already listed. Record " +
+                            "${confirmation.conflict.proposedIdentity.displayText(compact = false)} " +
+                            "as a different player with the same number?"
                         )
                     }
                 },
@@ -1169,8 +1150,8 @@ internal fun TeamCardDialog(
                         team = activeStep.returnTo.team,
                         cardType = activeStep.returnTo.cardType,
                         entry = activeStep.returnTo.entry.copy(
-                            jerseyNumber = candidate.jerseyNumber,
-                            playerName = candidate.playerName,
+                            jerseyNumber = candidate.identity.jerseyNumber,
+                            playerName = candidate.identity.playerName,
                         ),
                     )
                 },
@@ -1505,7 +1486,7 @@ private fun EditablePlayerCardRow(
     onEdit: () -> Unit,
     onRemove: (() -> Unit)? = null,
 ) {
-    val identity = PlayerIdentity(card.jerseyNumber, card.playerName)
+    val identity = card.identity
         .displayText(compact = false)
     DialogListItemCard {
         Row(
@@ -1609,7 +1590,7 @@ private fun RemoveEditablePlayerCardDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
 ) {
-    val playerIdentity = PlayerIdentity(card.jerseyNumber, card.playerName)
+    val playerIdentity = card.identity
         .displayText(compact = false)
 
     ResponsiveAlertDialog(
@@ -1710,10 +1691,10 @@ private fun PlayerCardEntryDialog(
                                     candidate = candidate,
                                     actionLabel = "Copy",
                                     actionTag =
-                                        "card-candidate-copy-${candidate.jerseyNumber}-${candidate.playerName}",
+                                        "card-candidate-copy-${candidate.identity.jerseyNumber}-${candidate.identity.playerName}",
                                     onClick = {
-                                        jerseyNumber = candidate.jerseyNumber
-                                        playerName = candidate.playerName
+                                        jerseyNumber = candidate.identity.jerseyNumber
+                                        playerName = candidate.identity.playerName
                                     },
                                 )
                             }
@@ -1779,7 +1760,7 @@ private fun PlayerNumberSelectionDialog(
                         candidate = candidate,
                         actionLabel = "Select",
                         actionTag =
-                            "card-number-select-${candidate.jerseyNumber}-${candidate.playerName}",
+                            "card-number-select-${candidate.identity.jerseyNumber}-${candidate.identity.playerName}",
                         onClick = { onSelect(candidate) },
                     )
                 }
@@ -1821,7 +1802,7 @@ private fun PlayerCardCandidateRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            "${PlayerIdentity(candidate.jerseyNumber, candidate.playerName).displayText(compact = false)}$detail",
+            "${candidate.identity.displayText(compact = false)}$detail",
             modifier = Modifier.weight(1f),
         )
         TextActionButton(

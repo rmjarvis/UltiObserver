@@ -48,9 +48,8 @@ class TestMisconduct : GameDomainTestFixtures() {
         var state = standardLiveGameState()
         var cardResult = state.assessYellowCard(
             team = VC,
-            jerseyNumber = "24",
+            identity = PlayerIdentity("24", "Drew Handler"),
             now = 0L,
-            playerName = "Drew Handler",
             reason = CardReason(preset = "Dangerous play"),
         )
         state = cardResult.state
@@ -77,9 +76,11 @@ class TestMisconduct : GameDomainTestFixtures() {
         // new reason.
         cardResult = state.assessYellowCard(
             team = VC,
-            jerseyNumber = "24",
+            identity = state.resolvePlayerIdentity(
+                VC,
+                PlayerIdentity("24", "  drew   handler  "),
+            ),
             now = 0L,
-            playerName = "  drew   handler  ",
             reason = CardReason(preset = "Taunting"),
         )
         state = cardResult.state
@@ -101,9 +102,8 @@ class TestMisconduct : GameDomainTestFixtures() {
         // The same jersey with a different name is treated as a different player-card holder.
         cardResult = state.assessYellowCard(
             team = VC,
-            jerseyNumber = "24",
+            identity = PlayerIdentity("24", "Different Player"),
             now = 0L,
-            playerName = "Different Player",
         )
         state = cardResult.state
         assertEquals(2, state.playerCards(VC).size)
@@ -126,9 +126,11 @@ class TestMisconduct : GameDomainTestFixtures() {
         )
         cardResult = priorNameOnlyState.assessYellowCard(
             team = VC,
-            jerseyNumber = "",
+            identity = priorNameOnlyState.resolvePlayerIdentity(
+                VC,
+                PlayerIdentity("", " name   only "),
+            ),
             now = 0L,
-            playerName = " name   only ",
         )
         assertEquals(
             "Yellow card on Name Only.\n" +
@@ -190,6 +192,16 @@ class TestMisconduct : GameDomainTestFixtures() {
 
         // An exact match is not considered a mere overlap.
         assertFalse(normalizedIdentity.hasOverlapWith(PlayerIdentity("7", "drew handler")))
+
+        // Once an entry identifies one existing player, subsequent card handling uses that
+        // player's complete stored identity.
+        val state = standardLiveGameState().copy(
+            teamOnePlayers = listOf(PlayerRecord("12", playerName = "Sideline Caller")),
+        )
+        assertEquals(
+            PlayerIdentity("12", "Sideline Caller"),
+            state.resolvePlayerIdentity(TeamId.TEAM_ONE, PlayerIdentity("12")),
+        )
 
         // A player-card identity must have at least a jersey number or a player name.
         val invalidIdentityException = assertThrows(IllegalArgumentException::class.java) {
@@ -281,8 +293,7 @@ class TestMisconduct : GameDomainTestFixtures() {
                 team = TeamId.TEAM_ONE,
                 teamCardTotal = 1,
                 playerCardType = PlayerCardEventType.YELLOW,
-                playerCardJerseyNumber = "4",
-                playerCardName = null,
+                playerIdentity = PlayerIdentity("4"),
             ).formatMessage().plainText,
         )
         assertEquals(
@@ -542,30 +553,40 @@ class TestMisconduct : GameDomainTestFixtures() {
 
         // Same-number conflict reports identify the existing and proposed player names.
         val sameNumberConflict = cardHolderEntryChecks.sameNumberPlayerIdentityConflict(
-            jerseyNumber = "7",
-            playerName = "James Cutter",
+            PlayerIdentity("7", "James Cutter"),
         )
         assertEquals(
             SameNumberPlayerIdentityConflict(
-                existingJerseyNumber = "7",
-                existingPlayerName = "Drew Handler",
-                proposedJerseyNumber = "7",
-                proposedPlayerName = "James Cutter",
+                existingIdentity = PlayerIdentity("7", "Drew Handler"),
+                proposedIdentity = PlayerIdentity("7", "James Cutter"),
             ),
             sameNumberConflict,
         )
-        assertEquals("7", sameNumberConflict!!.existingJerseyNumber)
-        assertEquals("Drew Handler", sameNumberConflict.existingPlayerName)
-        assertEquals("7", sameNumberConflict.proposedJerseyNumber)
-        assertEquals("James Cutter", sameNumberConflict.proposedPlayerName)
+        assertEquals(PlayerIdentity("7", "Drew Handler"), sameNumberConflict!!.existingIdentity)
+        assertEquals(PlayerIdentity("7", "James Cutter"), sameNumberConflict.proposedIdentity)
 
         // Same-number conflict checks allow missing names, new numbers, and exact name matches.
-        assertNull(cardHolderEntryChecks.sameNumberPlayerIdentityConflict("7", ""))
-        assertNull(cardHolderEntryChecks.sameNumberPlayerIdentityConflict("99", "New Player"))
-        assertNull(cardHolderEntryChecks.sameNumberPlayerIdentityConflict("7", "Drew Handler"))
-        assertNull(listOf(PlayerRecord("7")).sameNumberPlayerIdentityConflict("7", "New Player"))
+        assertNull(cardHolderEntryChecks.sameNumberPlayerIdentityConflict(PlayerIdentity("7")))
+        assertNull(
+            cardHolderEntryChecks.sameNumberPlayerIdentityConflict(
+                PlayerIdentity("99", "New Player")
+            )
+        )
+        assertNull(
+            cardHolderEntryChecks.sameNumberPlayerIdentityConflict(
+                PlayerIdentity("7", "Drew Handler")
+            )
+        )
+        assertNull(
+            listOf(PlayerRecord("7")).sameNumberPlayerIdentityConflict(
+                PlayerIdentity("7", "New Player")
+            )
+        )
         val stateConflict = standardLiveGameState().copy(teamOnePlayers = cardHolderEntryChecks)
-            .sameNumberPlayerIdentityConflict(TeamId.TEAM_ONE, "7", "James Cutter")
+            .sameNumberPlayerIdentityConflict(
+                TeamId.TEAM_ONE,
+                PlayerIdentity("7", "James Cutter"),
+            )
         assertNotNull(stateConflict)
 
         // Card-entry match results retain their complete identity, display detail, candidate
@@ -1179,14 +1200,14 @@ class TestMisconduct : GameDomainTestFixtures() {
         var cardAssignments = emptyList<PlayerRecord>()
         cardAssignments = addPlayerCardAssignment(
             cardAssignments,
-            jerseyNumber = "17",
+            identity = PlayerIdentity("17"),
             cardType = CardType.YELLOW,
             index = 0,
         )
         assertEquals(listOf(playerRecordWithCards("17", yellows = 1)), cardAssignments)
         cardAssignments = addPlayerCardAssignment(
             cardAssignments,
-            jerseyNumber = "17",
+            identity = PlayerIdentity("17"),
             cardType = CardType.RED,
             index = 1,
         )
@@ -1195,15 +1216,13 @@ class TestMisconduct : GameDomainTestFixtures() {
             listOf(
                 EditablePlayerCard(
                     index = 0,
-                    jerseyNumber = "17",
-                    playerName = "",
+                    identity = PlayerIdentity("17"),
                     cardType = CardType.YELLOW,
                     reason = CardReason(),
                 ),
                 EditablePlayerCard(
                     index = 1,
-                    jerseyNumber = "17",
-                    playerName = "",
+                    identity = PlayerIdentity("17"),
                     cardType = CardType.RED,
                     reason = CardReason(),
                 ),
@@ -1294,9 +1313,8 @@ class TestMisconduct : GameDomainTestFixtures() {
         cardAssignments = replaceEditablePlayerCard(
             records = cardAssignments,
             editableCard = editablePlayerCards(cardAssignments).first(),
-            jerseyNumber = "8",
+            identity = PlayerIdentity("8"),
             cardType = CardType.YELLOW,
-            playerName = "",
             reason = CardReason(preset = "Other", otherText = "Corrected identity"),
         )
         assertEquals(1, cardAssignments.size)
@@ -1317,7 +1335,7 @@ class TestMisconduct : GameDomainTestFixtures() {
         )
         cardAssignments = addPlayerCardAssignment(
             cardAssignments,
-            jerseyNumber = "23",
+            identity = PlayerIdentity("23"),
             cardType = CardType.YELLOW,
             index = 2,
         )
@@ -1353,9 +1371,8 @@ class TestMisconduct : GameDomainTestFixtures() {
         cardAssignments = replaceEditablePlayerCard(
             records = cardAssignments,
             editableCard = editablePlayerCards(cardAssignments).first(),
-            jerseyNumber = "12",
+            identity = PlayerIdentity("12", "Mike"),
             cardType = CardType.YELLOW,
-            playerName = "Mike",
             reason = CardReason(preset = "Dangerous play"),
         )
         assertEquals(
@@ -1441,17 +1458,17 @@ class TestMisconduct : GameDomainTestFixtures() {
         )
 
         // Yellow-card lookup and undo labels depend on whether the player already has a yellow.
-        assertFalse(standardLiveGameState().playerHasYellowThisGame(VC, "99"))
+        assertFalse(standardLiveGameState().playerHasYellowThisGame(VC, PlayerIdentity("99")))
         assertFalse(
             standardLiveGameState().copy(
                 teamOnePlayers = listOf(PlayerRecord("99")),
             ).playerHasYellowThisGame(
                 VC,
-                "99",
+                PlayerIdentity("99"),
             )
         )
         val yellowLookupState = standardLiveGameState().assessFirstYellowCard(VC, "99").state
-        assertTrue(yellowLookupState.playerHasYellowThisGame(VC, "99"))
+        assertTrue(yellowLookupState.playerHasYellowThisGame(VC, PlayerIdentity("99")))
 
         // Team-level player records count in-game cards without including prior cards.
         assertEquals(
@@ -1503,7 +1520,7 @@ class TestMisconduct : GameDomainTestFixtures() {
         val invalidAssignmentException = assertThrows(IllegalArgumentException::class.java) {
             addPlayerCardAssignment(
                 listOf(playerRecordWithCards("17", reds = 1)),
-                jerseyNumber = "17",
+                identity = PlayerIdentity("17"),
                 cardType = CardType.RED,
                 index = 1,
             )
@@ -1843,9 +1860,8 @@ class TestMisconduct : GameDomainTestFixtures() {
         val editedRecords = replaceEditablePlayerCard(
             records = original.teamOnePlayers,
             editableCard = originalCard,
-            jerseyNumber = "9",
+            identity = PlayerIdentity("9", "Casey Handler"),
             cardType = CardType.YELLOW,
-            playerName = "Casey Handler",
             reason = reason,
         )
         val undoLabel = original.playerCardEditUndoLabel(
@@ -1951,13 +1967,18 @@ class TestMisconduct : GameDomainTestFixtures() {
             PendingPlayerNumberSelection(
                 identity = PlayerIdentity("3"),
                 candidates = listOf(
-                    PlayerCardCandidate("3", "John", "Y 1"),
-                    PlayerCardCandidate("3", "Mark", "prior Y 1"),
-                    PlayerCardCandidate("3", "Alex", "R 1"),
-                    PlayerCardCandidate("3", "Taylor", "Y 2"),
+                    PlayerCardCandidate(PlayerIdentity("3", "John"), "Y 1"),
+                    PlayerCardCandidate(PlayerIdentity("3", "Mark"), "prior Y 1"),
+                    PlayerCardCandidate(PlayerIdentity("3", "Alex"), "R 1"),
+                    PlayerCardCandidate(PlayerIdentity("3", "Taylor"), "Y 2"),
                 ),
             ),
             PlayerCardEntry(" 3 ").checkForMultiplePlayerMatches(players),
+        )
+
+        // A blank entry has no player identity to disambiguate.
+        assertNull(
+            PlayerCardEntry("").checkForMultiplePlayerMatches(players)
         )
 
         // One match, no match, and an entry that already supplies a name need no selection.
@@ -1982,15 +2003,16 @@ class TestMisconduct : GameDomainTestFixtures() {
             PlayerSuspensionStatus.TWO_YELLOWS,
             playerSuspensionStatus(players, PlayerIdentity("3", "Taylor")),
         )
-        assertNull(players.sameNumberPlayerIdentityConflict("3", "Mark"))
+        assertNull(
+            players.sameNumberPlayerIdentityConflict(PlayerIdentity("3", "Mark"))
+        )
 
         // Supplying the selected name performs the ordinary assessment for Mark's exact prior-card
         // record without changing any of the other same-number players.
         val result = state.assessRedCard(
             team = TeamId.TEAM_ONE,
-            jerseyNumber = "3",
+            identity = PlayerIdentity("3", "Mark"),
             now = 123_000L,
-            playerName = "Mark",
         )
         val selectedPlayer = result.state.teamOnePlayers[1]
         assertEquals(1, selectedPlayer.priorYellows)

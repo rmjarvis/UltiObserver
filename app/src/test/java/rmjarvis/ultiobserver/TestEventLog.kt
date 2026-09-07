@@ -85,15 +85,13 @@ class TestEventLog : GameDomainTestFixtures() {
             .continueLivePoint()
         state = state.assessYellowCard(
             animal,
-            "23",
+            PlayerIdentity("23", "Jarvis"),
             timestampAt(state, LocalTime.of(12, 4)),
-            playerName = "Jarvis",
         ).state
         state = state.assessYellowCard(
             animal,
-            "23",
+            PlayerIdentity("23", "Jarvis"),
             timestampAt(state, LocalTime.of(12, 4)),
-            playerName = "Jarvis",
         ).state
         state = state.assessTechnicalFoul(
             vc,
@@ -287,7 +285,11 @@ class TestEventLog : GameDomainTestFixtures() {
         val vc = TeamId.TEAM_ONE
         val animal = TeamId.TEAM_TWO
         var state = standardLiveGameState(startTime = LocalTime.of(12, 0))
-        state = state.assessYellowCard(animal, "17", timestampAt(state, LocalTime.of(12, 1)))
+        state = state.assessYellowCard(
+            animal,
+            PlayerIdentity("17"),
+            timestampAt(state, LocalTime.of(12, 1)),
+        )
             .state
         state = state.assessTechnicalFoul(
             vc,
@@ -393,7 +395,11 @@ class TestEventLog : GameDomainTestFixtures() {
         // Record the original player card through the normal card pathway.
         val animal = TeamId.TEAM_TWO
         var state = standardLiveGameState(startTime = LocalTime.of(12, 0))
-        state = state.assessYellowCard(animal, "12", timestampAt(state, LocalTime.of(12, 1)))
+        state = state.assessYellowCard(
+            animal,
+            PlayerIdentity("12"),
+            timestampAt(state, LocalTime.of(12, 1)),
+        )
             .state
 
         // Editing the player's name does not create a separate event-log correction.
@@ -451,9 +457,8 @@ class TestEventLog : GameDomainTestFixtures() {
         val state = standardLiveGameState(startTime = LocalTime.of(12, 0))
         val afterCard = state.assessRedCard(
             team = animal,
-            jerseyNumber = "",
+            identity = PlayerIdentity("", "No Number"),
             now = timestampAt(state, LocalTime.of(12, 10)),
-            playerName = "No Number",
         ).state
 
         // Undoing the only logged event returns the event log to empty.

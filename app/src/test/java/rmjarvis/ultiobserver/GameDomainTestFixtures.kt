@@ -173,7 +173,8 @@ abstract class GameDomainTestFixtures {
      * @param jerseyNumber The player receiving the card.
      */
     protected fun GameState.assessYellowCard(team: TeamId, jerseyNumber: String): CardAssessmentResult {
-        return assessYellowCard(team, jerseyNumber, 0L)
+        val identity = resolvePlayerIdentity(team, PlayerIdentity(jerseyNumber))
+        return assessYellowCard(team, identity, 0L)
     }
 
     /**
@@ -184,7 +185,8 @@ abstract class GameDomainTestFixtures {
      * @param jerseyNumber The player receiving the card.
      */
     protected fun GameState.assessFirstYellowCard(team: TeamId, jerseyNumber: String): CardAssessmentResult {
-        return assessFirstYellowCard(team, jerseyNumber, 0L)
+        val identity = resolvePlayerIdentity(team, PlayerIdentity(jerseyNumber))
+        return assessFirstYellowCard(team, identity, 0L)
     }
 
     /**
@@ -195,7 +197,8 @@ abstract class GameDomainTestFixtures {
      * @param jerseyNumber The player receiving the card.
      */
     protected fun GameState.assessSecondYellowCard(team: TeamId, jerseyNumber: String): CardAssessmentResult {
-        return assessSecondYellowCard(team, jerseyNumber, 0L)
+        val identity = resolvePlayerIdentity(team, PlayerIdentity(jerseyNumber))
+        return assessSecondYellowCard(team, identity, 0L)
     }
 
     /**
@@ -206,7 +209,8 @@ abstract class GameDomainTestFixtures {
      * @param jerseyNumber The player receiving the card.
      */
     protected fun GameState.assessRedCard(team: TeamId, jerseyNumber: String): CardAssessmentResult {
-        return assessRedCard(team, jerseyNumber, 0L)
+        val identity = resolvePlayerIdentity(team, PlayerIdentity(jerseyNumber))
+        return assessRedCard(team, identity, 0L)
     }
 
     /**

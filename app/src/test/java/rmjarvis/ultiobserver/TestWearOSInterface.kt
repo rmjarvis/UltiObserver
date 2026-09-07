@@ -1065,7 +1065,7 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         assertTrue(appState.updateCardEntry(game, null, nextEntry))
         val completedGame = game.assessYellowCard(
             team = nextEntry.team,
-            jerseyNumber = "8",
+            identity = PlayerIdentity("8"),
             now = 124_000L,
         ).state
         assertTrue(appState.completeCardEntry(game, completedGame, nextEntry))

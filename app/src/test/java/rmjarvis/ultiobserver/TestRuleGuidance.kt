@@ -94,7 +94,7 @@ class TestRuleGuidance : GameDomainTestFixtures() {
 
         // Team-card dispatch covers both player-specific and team-only concise results.
         val yellowEvent: GameEvent =
-            state.assessYellowCard(TeamId.TEAM_ONE, "4", 0L).event
+            state.assessYellowCard(TeamId.TEAM_ONE, "4").event
         assertEquals(
             "Yellow card on player 4.",
             yellowEvent.formatBriefMessage().plainText,
@@ -157,9 +157,9 @@ class TestRuleGuidance : GameDomainTestFixtures() {
         )
 
         // Card results are required only when they announce a player suspension.
-        val ordinaryCardEvent = state.assessYellowCard(TeamId.TEAM_ONE, "4", 0L).event
+        val ordinaryCardEvent = state.assessYellowCard(TeamId.TEAM_ONE, "4").event
         assertEquals(false, ordinaryCardEvent.requiresGuidanceInNone())
-        val suspensionCardEvent = state.assessRedCard(TeamId.TEAM_ONE, "4", 0L).event
+        val suspensionCardEvent = state.assessRedCard(TeamId.TEAM_ONE, "4").event
         assertEquals(true, suspensionCardEvent.requiresGuidanceInNone())
 
         // A pull violation remains visible only when the majority-pull alternative must be
@@ -248,7 +248,7 @@ class TestRuleGuidance : GameDomainTestFixtures() {
 
         // An ordinary card does not append misconduct restart guidance.
         val ordinaryCardResult = standardLiveGameState()
-            .assessYellowCard(TeamId.TEAM_ONE, "4", 0L)
+            .assessYellowCard(TeamId.TEAM_ONE, "4")
         val ordinaryCardEvent = ordinaryCardResult.event
         assertEquals(
             ordinaryCardEvent.formatMessage().plainText,
@@ -261,7 +261,7 @@ class TestRuleGuidance : GameDomainTestFixtures() {
 
         // Full card guidance carries explicit emphasis metadata for the suspension consequence.
         val redEvent = standardLiveGameState()
-            .assessRedCard(TeamId.TEAM_ONE, "4", 0L)
+            .assessRedCard(TeamId.TEAM_ONE, "4")
             .event
         val redGuidance = redEvent.guidanceMessage(RuleGuidanceMode.FULL)
         assertEquals(
