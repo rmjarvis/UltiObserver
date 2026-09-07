@@ -407,6 +407,20 @@ data class CardAssessmentResult(
     val event: GameEvent,
 )
 
+/** Assess a yellow or red card for a resolved player identity. */
+internal fun GameState.assessPlayerCard(
+    team: TeamId,
+    cardType: CardType,
+    identity: PlayerIdentity,
+    now: Long,
+    reason: CardReason,
+): CardAssessmentResult {
+    return when (cardType) {
+        CardType.YELLOW -> assessYellowCard(team, identity, now, reason)
+        CardType.RED -> assessRedCard(team, identity, now, reason)
+    }
+}
+
 /// Player-card event type used when formatting card popups.
 enum class PlayerCardEventType {
     YELLOW,

@@ -230,6 +230,24 @@ sealed interface GamePrompt {
         override val event = state.previewBlueCard(team, requestedAt)
     }
 
+    /** Confirmation shown before recording a yellow or red card for one player. */
+    data class PlayerCardConfirmation(
+        override val state: GameState,
+        val team: TeamId,
+        val cardType: CardType,
+        val identity: PlayerIdentity,
+        val reason: CardReason,
+        override val requestedAt: Long,
+    ) : ActionConfirmation {
+        override val event = state.assessPlayerCard(
+            team = team,
+            cardType = cardType,
+            identity = identity,
+            now = requestedAt,
+            reason = reason,
+        ).event
+    }
+
     /** Confirmation shown before recording a technical foul. */
     data class TechnicalFoulConfirmation(
         override val state: GameState,
@@ -330,6 +348,13 @@ internal fun GamePrompt.ActionConfirmation.confirm(): GameState {
             state.assessPullViolation(team, requestedAt, violation).state
         }
         is GamePrompt.BlueCardConfirmation -> state.assessBlueCard(team, requestedAt).state
+        is GamePrompt.PlayerCardConfirmation -> state.assessPlayerCard(
+            team = team,
+            cardType = cardType,
+            identity = identity,
+            now = requestedAt,
+            reason = reason,
+        ).state
         is GamePrompt.TechnicalFoulConfirmation -> {
             state.assessTechnicalFoul(team, requestedAt).state
         }

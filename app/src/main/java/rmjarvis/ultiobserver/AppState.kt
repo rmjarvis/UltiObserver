@@ -21,10 +21,14 @@ internal enum class AppScreen {
     LIVE,
 }
 
-/** Card workflow currently active on the phone, with a selected player-card type when present. */
+/**
+ * Card workflow currently active on the phone, with a selected player-card type when present
+ * and any jersey number entered on the watch.
+ */
 internal data class ActiveCardEntry(
     val team: TeamId,
     val cardType: CardType?,
+    val jerseyNumber: String,
 )
 
 /**

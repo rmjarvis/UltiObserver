@@ -707,8 +707,8 @@ private sealed interface TeamCardDialogStep {
     data class BlueCardConfirmation(
         val confirmation: GamePrompt.BlueCardConfirmation,
     ) : TeamCardDialogStep
-    data class AssessmentResult(
-        val result: CardAssessmentResult,
+    data class PlayerCardResult(
+        val confirmation: GamePrompt.PlayerCardConfirmation,
         val returnTo: CardedPlayerEntry,
     ) : TeamCardDialogStep
     data class InvalidAssignment(
@@ -903,6 +903,7 @@ internal fun ExistingCardsEditorDialog(
  * @param guidanceMode Amount and duration of rule guidance shown during the workflow.
  * @param isLandscape Whether to arrange orientation-specific dialog content for landscape.
  * @param initialCardType Card color already selected for player entry, or null to start with choices.
+ * @param initialJerseyNumber Player number already entered on the watch, or blank.
  * @param onCardTypeSelected Callback selecting Yellow/Red or returning to the color choices.
  * @param onDismiss Callback closing the card dialog without recording.
  * @param onCardEntryCompleted Callback committing a completed card entry.
@@ -916,28 +917,39 @@ internal fun TeamCardDialog(
     guidanceMode: RuleGuidanceMode,
     isLandscape: Boolean,
     initialCardType: CardType?,
+    initialJerseyNumber: String,
     onCardTypeSelected: (CardType?) -> Unit,
     onDismiss: () -> Unit,
     onCardEntryCompleted: (GameState) -> Unit,
     onStateUpdate: (GameState) -> Unit,
 ) {
-    var step by remember(initialCardType) {
+    var step by remember(initialCardType, initialJerseyNumber) {
         mutableStateOf<TeamCardDialogStep>(
             initialCardType?.let { cardType ->
-                TeamCardDialogStep.CardedPlayerEntry(
+                val entry = PlayerCardEntry(initialJerseyNumber)
+                val playerEntryStep = TeamCardDialogStep.CardedPlayerEntry(
                     team = team,
                     cardType = cardType,
-                    entry = PlayerCardEntry(""),
+                    entry = entry,
                 )
+                val playerMatches = entry.checkForMultiplePlayerMatches(state.playerCards(team))
+                if (playerMatches != null) {
+                    TeamCardDialogStep.PlayerNumberSelection(
+                        returnTo = playerEntryStep,
+                        playerMatches = playerMatches,
+                    )
+                } else {
+                    playerEntryStep
+                }
             } ?: TeamCardDialogStep.InitialCardChoice
         )
     }
 
     fun showAssessmentResult(
-        result: CardAssessmentResult,
+        confirmation: GamePrompt.PlayerCardConfirmation,
         returnTo: TeamCardDialogStep.CardedPlayerEntry,
     ) {
-        step = TeamCardDialogStep.AssessmentResult(result, returnTo)
+        step = TeamCardDialogStep.PlayerCardResult(confirmation, returnTo)
     }
 
     fun assessPlayerCardEntry(
@@ -991,47 +1003,25 @@ internal fun TeamCardDialog(
             return false
         }
 
-        // No else branch: every CardType value is handled.
-        when (cardType) {
-            CardType.YELLOW -> {
-                showAssessmentResult(
-                    state.assessYellowCard(
-                        team,
-                        identity,
-                        now,
-                        entry.reason
-                    ),
-                    TeamCardDialogStep.CardedPlayerEntry(
-                        team,
-                        CardType.YELLOW,
-                        entry.copy(
-                            jerseyNumber = identity.jerseyNumber,
-                            playerName = identity.playerName,
-                        ),
-                    ),
-                )
-                return true
-            }
-            CardType.RED -> {
-                showAssessmentResult(
-                    state.assessRedCard(
-                        team,
-                        identity,
-                        now,
-                        entry.reason
-                    ),
-                    TeamCardDialogStep.CardedPlayerEntry(
-                        team,
-                        CardType.RED,
-                        entry.copy(
-                            jerseyNumber = identity.jerseyNumber,
-                            playerName = identity.playerName,
-                        ),
-                    ),
-                )
-                return true
-            }
-        }
+        showAssessmentResult(
+            GamePrompt.PlayerCardConfirmation(
+                state = state,
+                team = team,
+                cardType = cardType,
+                identity = identity,
+                reason = entry.reason,
+                requestedAt = now,
+            ),
+            TeamCardDialogStep.CardedPlayerEntry(
+                team,
+                cardType,
+                entry.copy(
+                    jerseyNumber = identity.jerseyNumber,
+                    playerName = identity.playerName,
+                ),
+            ),
+        )
+        return true
     }
 
     // No else branch: every TeamCardDialogStep value is handled.
@@ -1212,14 +1202,14 @@ internal fun TeamCardDialog(
                 )
             }
         }
-        is TeamCardDialogStep.AssessmentResult -> {
-            val result = activeStep.result
-            val event = result.event
+        is TeamCardDialogStep.PlayerCardResult -> {
+            val confirmation = activeStep.confirmation
+            val event = confirmation.event
             val goBack = {
                 step = activeStep.returnTo
             }
             val recordCard = {
-                onCardEntryCompleted(result.state)
+                onCardEntryCompleted(confirmation.confirm())
             }
             RuleGuidanceGate(
                 key = event,

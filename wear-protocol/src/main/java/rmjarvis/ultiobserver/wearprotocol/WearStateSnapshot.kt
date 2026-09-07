@@ -118,11 +118,12 @@ data class WearPromptSnapshot(
     val autoAcceptDelayMillis: Long?,
 )
 
-/** Card workflow currently active on the phone, with a player-card type when selected. */
+/** Card workflow currently active on the phone, including any number entered on the watch. */
 @Serializable
 data class WearPhoneCardEntrySnapshot(
     val team: TeamId,
     val cardType: CardType?,
+    val jerseyNumber: String,
 )
 
 /** Complete active-game display state rendered by the watch. */

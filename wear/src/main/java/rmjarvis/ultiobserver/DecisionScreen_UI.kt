@@ -40,6 +40,7 @@ import androidx.wear.compose.material3.TimeText
 import kotlinx.coroutines.delay
 import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 import rmjarvis.ultiobserver.wearprotocol.WearActionConfirmation
+import rmjarvis.ultiobserver.wearprotocol.WearTeamActionPrompt
 import rmjarvis.ultiobserver.wearprotocol.WearGuidanceLineSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearGuidancePresentation
 import rmjarvis.ultiobserver.wearprotocol.WearPromptSnapshot
@@ -149,6 +150,22 @@ internal fun ActionConfirmationScreen(
             PromptActionSpec(prompt.confirmLabel, submitConfirmation),
         ),
         alternativeAction = alternativeAction,
+    )
+}
+
+/** Show a notice that can be dismissed entirely on the watch. */
+@Composable
+internal fun ActionNoticeScreen(
+    notice: WearTeamActionPrompt.Notice,
+    onDismiss: () -> Unit,
+) {
+    BackHandler {
+        onDismiss()
+    }
+    PromptScreen(
+        prompt = notice.prompt,
+        enabled = true,
+        actions = listOf(PromptActionSpec(notice.prompt.dismissLabel, onDismiss)),
     )
 }
 

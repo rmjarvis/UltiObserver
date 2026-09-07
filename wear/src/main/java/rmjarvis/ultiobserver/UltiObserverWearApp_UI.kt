@@ -42,6 +42,7 @@ import rmjarvis.ultiobserver.wearprotocol.WearActiveGameSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearSnapshotPullDirection
 import rmjarvis.ultiobserver.wearprotocol.WearSnapshotStatus
 import rmjarvis.ultiobserver.wearprotocol.WearTeamAction
+import rmjarvis.ultiobserver.wearprotocol.WearTeamActionPrompt
 import rmjarvis.ultiobserver.wearprotocol.WearTeamSnapshot
 
 /** Route synchronized phone state to the watch's idle, game, or team-action surface. */
@@ -52,16 +53,17 @@ internal fun UltiObserverWearApp(
     onRetry: () -> Unit,
     onGoal: (TeamId, String, (Boolean) -> Unit) -> Unit,
     onDecision: (String, Boolean, (Boolean) -> Unit) -> Unit,
-    onTeamAction: (TeamId, String, WearTeamAction, (WearActionConfirmation?) -> Unit) -> Unit,
-    onStartCardEntry: (TeamId, String, CardType, (Boolean) -> Unit) -> Unit,
-    onCancelCardEntry: (TeamId, String, CardType?, (Boolean) -> Unit) -> Unit,
+    onTeamAction: (TeamId, String, WearTeamAction, (WearTeamActionPrompt?) -> Unit) -> Unit,
+    onStartCardEntry: (TeamId, String, CardType, String, (Boolean) -> Unit) -> Unit,
+    onCancelCardEntry: (TeamId, String, CardType?, String, (Boolean) -> Unit) -> Unit,
     onConfirmAction: (WearActionConfirmation, (Boolean) -> Unit) -> Unit,
 ) {
     var selectedTeam by remember { mutableIntStateOf(0) }
-    var pendingConfirmation by remember {
-        mutableStateOf<WearActionConfirmation?>(null)
+    var pendingActionPrompt by remember {
+        mutableStateOf<WearTeamActionPrompt?>(null)
     }
     var cardChoiceStateToken by remember { mutableStateOf<String?>(null) }
+    var playerCard by remember { mutableStateOf<WearTeamAction.PlayerCard?>(null) }
     var phoneCardEntryWasActive by remember { mutableStateOf(false) }
     var returnToCardChoicesForTeam by remember { mutableStateOf<TeamId?>(null) }
     val snapshot = receivedState?.snapshot
@@ -88,6 +90,7 @@ internal fun UltiObserverWearApp(
             if (returnTeam == null) {
                 selectedTeam = 0
                 cardChoiceStateToken = null
+                playerCard = null
             } else {
                 selectedTeam = if (returnTeam == TeamId.TEAM_ONE) 1 else 2
                 cardChoiceStateToken = snapshot.activeGame?.stateToken
@@ -105,21 +108,27 @@ internal fun UltiObserverWearApp(
         ) {
             selectedTeam = 0
             cardChoiceStateToken = null
+            playerCard = null
         }
         if (
             !phoneReachable ||
-            pendingConfirmation?.stateToken != snapshot?.activeGame?.stateToken
+            pendingActionPrompt?.stateToken != snapshot?.activeGame?.stateToken
         ) {
-            pendingConfirmation = null
+            pendingActionPrompt = null
         }
         if (cardChoiceStateToken != snapshot?.activeGame?.stateToken) {
             if (cardChoiceStateToken != null && phoneCardEntry != null) {
                 selectedTeam = 0
             }
             cardChoiceStateToken = null
+            playerCard = null
         }
     }
-    BackHandler(enabled = selectedTeam != 0 && pendingConfirmation == null) {
+    BackHandler(
+        enabled = selectedTeam != 0 &&
+            pendingActionPrompt == null &&
+            playerCard == null,
+    ) {
         if (cardChoiceStateToken != null) {
             cardChoiceStateToken = null
         } else {
@@ -156,6 +165,7 @@ internal fun UltiObserverWearApp(
                             phoneCardEntry.team,
                             activeGame.stateToken,
                             phoneCardEntry.cardType,
+                            phoneCardEntry.jerseyNumber,
                         ) { cancelled ->
                             if (!cancelled) {
                                 returnToCardChoicesForTeam = null
@@ -164,25 +174,31 @@ internal fun UltiObserverWearApp(
                         }
                     },
                 )
-            } else if (phoneReachable && pendingConfirmation != null) {
-                val confirmation = pendingConfirmation!!
-                ActionConfirmationScreen(
-                    confirmation = confirmation,
-                    onConfirmationChange = { pendingConfirmation = it },
-                    onConfirm = { confirmedAction, onFinished ->
-                        onConfirmAction(confirmedAction) { applied ->
-                            pendingConfirmation = null
-                            if (applied) {
-                                selectedTeam = 0
-                                cardChoiceStateToken = null
+            } else if (phoneReachable && pendingActionPrompt != null) {
+                when (val actionPrompt = pendingActionPrompt!!) {
+                    is WearActionConfirmation -> ActionConfirmationScreen(
+                        confirmation = actionPrompt,
+                        onConfirmationChange = { pendingActionPrompt = it },
+                        onConfirm = { confirmedAction, onFinished ->
+                            onConfirmAction(confirmedAction) { applied ->
+                                pendingActionPrompt = null
+                                if (applied) {
+                                    selectedTeam = 0
+                                    cardChoiceStateToken = null
+                                    playerCard = null
+                                }
+                                onFinished(applied)
                             }
-                            onFinished(applied)
-                        }
-                    },
-                    onCancel = {
-                        pendingConfirmation = null
-                    },
-                )
+                        },
+                        onCancel = {
+                            pendingActionPrompt = null
+                        },
+                    )
+                    is WearTeamActionPrompt.Notice -> ActionNoticeScreen(
+                        notice = actionPrompt,
+                        onDismiss = { pendingActionPrompt = null },
+                    )
+                }
             } else {
                 ActiveGameScreen(
                     receivedState = receivedState,
@@ -194,11 +210,13 @@ internal fun UltiObserverWearApp(
                     onGoal = onGoal,
                     onTeamAction = onTeamAction,
                     onStartCardEntry = onStartCardEntry,
-                    onConfirmation = { confirmation ->
-                        pendingConfirmation = confirmation
+                    onPrompt = { prompt ->
+                        pendingActionPrompt = prompt
                     },
                     cardChoiceStateToken = cardChoiceStateToken,
                     onCardChoiceStateTokenChange = { cardChoiceStateToken = it },
+                    playerCard = playerCard,
+                    onPlayerCardChange = { playerCard = it },
                 )
             }
         }
@@ -215,11 +233,13 @@ private fun ActiveGameScreen(
     onSelectedTeamChange: (Int) -> Unit,
     onRetry: () -> Unit,
     onGoal: (TeamId, String, (Boolean) -> Unit) -> Unit,
-    onTeamAction: (TeamId, String, WearTeamAction, (WearActionConfirmation?) -> Unit) -> Unit,
-    onStartCardEntry: (TeamId, String, CardType, (Boolean) -> Unit) -> Unit,
-    onConfirmation: (WearActionConfirmation) -> Unit,
+    onTeamAction: (TeamId, String, WearTeamAction, (WearTeamActionPrompt?) -> Unit) -> Unit,
+    onStartCardEntry: (TeamId, String, CardType, String, (Boolean) -> Unit) -> Unit,
+    onPrompt: (WearTeamActionPrompt) -> Unit,
     cardChoiceStateToken: String?,
     onCardChoiceStateTokenChange: (String?) -> Unit,
+    playerCard: WearTeamAction.PlayerCard?,
+    onPlayerCardChange: (WearTeamAction.PlayerCard?) -> Unit,
 ) {
     var commandPending by remember { mutableStateOf(false) }
     val currentPhoneEpochMillis by produceState(
@@ -253,16 +273,16 @@ private fun ActiveGameScreen(
         } else {
             TeamId.TEAM_TWO
         }
-        val requestConfirmation: (WearTeamAction) -> Unit = { action ->
+        val requestPrompt: (WearTeamAction) -> Unit = { action ->
             if (!commandPending) {
                 commandPending = true
                 onTeamAction(
                     selectedWearTeam,
                     activeGame.stateToken,
                     action,
-                ) { confirmation ->
+                ) { prompt ->
                     commandPending = false
-                    confirmation?.let(onConfirmation)
+                    prompt?.let(onPrompt)
                 }
             }
         }
@@ -271,39 +291,54 @@ private fun ActiveGameScreen(
         } else {
             activeGame.teamTwo
         }
-        if (cardChoiceStateToken == activeGame.stateToken) {
+        if (cardChoiceStateToken == activeGame.stateToken && playerCard != null) {
+            PlayerCardEntryOptionsScreen(
+                display = selectedTeamSnapshot.toTeamActionsDisplay(!commandPending),
+                cardType = playerCard.cardType,
+                jerseyNumber = playerCard.jerseyNumber,
+                enabled = !commandPending,
+                onJerseyNumberChange = { jerseyNumber ->
+                    onPlayerCardChange(playerCard.copy(jerseyNumber = jerseyNumber))
+                },
+                onRecord = {
+                    requestPrompt(playerCard)
+                },
+                onContinueOnPhone = {
+                    if (!commandPending) {
+                        commandPending = true
+                        onStartCardEntry(
+                            selectedWearTeam,
+                            activeGame.stateToken,
+                            playerCard.cardType,
+                            playerCard.jerseyNumber,
+                        ) { applied ->
+                            commandPending = false
+                            if (applied) {
+                                onPlayerCardChange(null)
+                            }
+                        }
+                    }
+                },
+                onCancel = {
+                    onPlayerCardChange(null)
+                },
+            )
+        } else if (cardChoiceStateToken == activeGame.stateToken) {
             CardChoiceScreen(
                 display = selectedTeamSnapshot.toTeamActionsDisplay(!commandPending),
                 enabled = !commandPending,
                 onYellow = {
-                    if (!commandPending) {
-                        commandPending = true
-                        onStartCardEntry(
-                            selectedWearTeam,
-                            activeGame.stateToken,
-                            CardType.YELLOW,
-                        ) {
-                            commandPending = false
-                        }
-                    }
+                    onPlayerCardChange(WearTeamAction.PlayerCard(CardType.YELLOW, ""))
                 },
                 onRed = {
-                    if (!commandPending) {
-                        commandPending = true
-                        onStartCardEntry(
-                            selectedWearTeam,
-                            activeGame.stateToken,
-                            CardType.RED,
-                        ) {
-                            commandPending = false
-                        }
-                    }
+                    onPlayerCardChange(WearTeamAction.PlayerCard(CardType.RED, ""))
                 },
                 onBlue = {
-                    requestConfirmation(WearTeamAction.BlueCard)
+                    requestPrompt(WearTeamAction.BlueCard)
                 },
                 onCancel = {
                     onCardChoiceStateTokenChange(null)
+                    onPlayerCardChange(null)
                 },
             )
         } else {
@@ -324,19 +359,19 @@ private fun ActiveGameScreen(
                     }
                 },
                 onTimeViolation = {
-                    requestConfirmation(WearTeamAction.TimeViolation)
+                    requestPrompt(WearTeamAction.TimeViolation)
                 },
                 onPullViolation = {
-                    requestConfirmation(WearTeamAction.PullViolation)
+                    requestPrompt(WearTeamAction.PullViolation)
                 },
                 onCard = {
                     onCardChoiceStateTokenChange(activeGame.stateToken)
                 },
                 onTechnicalFoul = {
-                    requestConfirmation(WearTeamAction.TechnicalFoul)
+                    requestPrompt(WearTeamAction.TechnicalFoul)
                 },
                 onTimeout = {
-                    requestConfirmation(WearTeamAction.Timeout)
+                    requestPrompt(WearTeamAction.Timeout)
                 },
                 onCancel = {
                     onSelectedTeamChange(0)

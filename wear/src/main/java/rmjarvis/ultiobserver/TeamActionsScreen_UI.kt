@@ -1,6 +1,7 @@
 package rmjarvis.ultiobserver
 
 import android.content.res.Configuration
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -16,19 +17,31 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -285,27 +298,182 @@ internal fun CardChoiceScreen(
                     }
                 }
             }
-            Box(
-                modifier = Modifier
-                    .width(88.dp)
-                    .height(48.dp)
-                    .align(Alignment.BottomCenter)
-                    .clickable(
-                        enabled = enabled,
-                        role = Role.Button,
-                        onClick = onCancel,
-                    ),
-                contentAlignment = Alignment.BottomCenter,
-            ) {
-                Text(
-                    text = "Cancel",
-                    modifier = Modifier.padding(bottom = 7.dp),
-                    color = display.team.contentColor,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                )
-            }
+            TeamScreenCancel(
+                color = display.team.contentColor,
+                enabled = enabled,
+                onCancel = onCancel,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
         }
+    }
+}
+
+/** Offer number-only entry or the complete phone workflow for a yellow or red card. */
+@Composable
+internal fun PlayerCardEntryOptionsScreen(
+    display: TeamActionsDisplay,
+    cardType: CardType,
+    jerseyNumber: String,
+    enabled: Boolean,
+    onJerseyNumberChange: (String) -> Unit,
+    onRecord: () -> Unit,
+    onContinueOnPhone: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    var draftJerseyNumber by remember(jerseyNumber) {
+        mutableStateOf(jerseyNumber)
+    }
+    val focusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    BackHandler(enabled = enabled) {
+        onCancel()
+    }
+    UltiObserverTheme {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(LocalConfiguration.current.screenShape())
+                .background(display.team.backgroundColor),
+        ) {
+            BasicTextField(
+                value = draftJerseyNumber,
+                onValueChange = { value ->
+                    draftJerseyNumber = value.filter { character -> character.isDigit() }
+                },
+                modifier = Modifier
+                    .width(1.dp)
+                    .height(1.dp)
+                    .alpha(0f)
+                    .focusRequester(focusRequester),
+                enabled = enabled,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Number,
+                    imeAction = ImeAction.Done,
+                ),
+                keyboardActions = KeyboardActions(
+                    onDone = {
+                        onJerseyNumberChange(draftJerseyNumber)
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
+                    }
+                ),
+                singleLine = true,
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth(0.86f)
+                    .align(Alignment.Center),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = "${cardType.label} card",
+                        color = display.team.contentColor,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = display.team.name,
+                        color = display.team.contentColor,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(PanelShape)
+                        .background(ActionPanelColor)
+                        .padding(PanelPadding),
+                    verticalArrangement = Arrangement.spacedBy(ActionGap),
+                ) {
+                    ActionButton(
+                        label = if (jerseyNumber.isEmpty()) {
+                            "Enter player number"
+                        } else {
+                            "Change number ($jerseyNumber)"
+                        },
+                        enabled = enabled,
+                        background = NeutralButtonColor,
+                        contentColor = Color.Black,
+                        fontSize = 12.sp,
+                        onClick = {
+                            draftJerseyNumber = jerseyNumber
+                            focusRequester.requestFocus()
+                            keyboardController?.show()
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(32.dp),
+                    )
+                    ActionButton(
+                        label = "Enter details on phone",
+                        enabled = enabled,
+                        background = NeutralButtonColor,
+                        contentColor = Color.Black,
+                        fontSize = 12.sp,
+                        onClick = onContinueOnPhone,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(32.dp),
+                    )
+                    if (jerseyNumber.isNotEmpty()) {
+                        ActionButton(
+                            label = "Record card",
+                            enabled = enabled,
+                            background = PrimaryActionButtonColor,
+                            contentColor = Color.White,
+                            fontSize = 12.sp,
+                            onClick = onRecord,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(32.dp),
+                        )
+                    }
+                }
+            }
+            TeamScreenCancel(
+                color = display.team.contentColor,
+                enabled = enabled,
+                onCancel = onCancel,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+        }
+    }
+}
+
+/** Bottom-edge Cancel action shared by the watch's team-colored card screens. */
+@Composable
+private fun TeamScreenCancel(
+    color: Color,
+    enabled: Boolean,
+    onCancel: () -> Unit,
+    modifier: Modifier,
+) {
+    Box(
+        modifier = modifier
+            .width(88.dp)
+            .height(48.dp)
+            .clickable(
+                enabled = enabled,
+                role = Role.Button,
+                onClick = onCancel,
+            ),
+        contentAlignment = Alignment.BottomCenter,
+    ) {
+        Text(
+            text = "Cancel",
+            modifier = Modifier.padding(bottom = 7.dp),
+            color = color,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+        )
     }
 }
 
@@ -360,15 +528,23 @@ private fun ActionButton(
     background: Color,
     contentColor: Color,
     fontSize: TextUnit,
+    shape: Shape = PanelShape,
+    borderColor: Color? = Color.Black,
     onClick: () -> Unit,
     modifier: Modifier,
 ) {
     Box(
         modifier = modifier
             .alpha(if (enabled) 1f else DisabledActionAlpha)
-            .clip(PanelShape)
+            .clip(shape)
             .background(background)
-            .border(BorderStroke(1.dp, Color.Black), PanelShape)
+            .then(
+                if (borderColor == null) {
+                    Modifier
+                } else {
+                    Modifier.border(BorderStroke(1.dp, borderColor), shape)
+                }
+            )
             .clickable(
                 enabled = enabled,
                 role = Role.Button,
@@ -396,8 +572,10 @@ private fun Configuration.screenShape(): Shape {
 }
 
 private val PanelShape = RoundedCornerShape(8.dp)
+private val CardChoiceButtonShape = RoundedCornerShape(percent = 50)
 private val ActionPanelColor = Color(0xCCFFFFFF)
 private val GoalButtonColor = Color(0xFF2E7D32)
+private val PrimaryActionButtonColor = Color(0xFF2E7D32)
 private val CardButtonColor = Color(0xFFFDD835)
 private val YellowCardButtonColor = Color(0xFFFFD92F)
 private val RedCardButtonColor = Color(0xFFE64B3C)

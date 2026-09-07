@@ -35,6 +35,7 @@ import rmjarvis.ultiobserver.wearprotocol.WearStateSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearStartupResponse
 import rmjarvis.ultiobserver.wearprotocol.WearStatusMessageTransition
 import rmjarvis.ultiobserver.wearprotocol.WearTeamAction
+import rmjarvis.ultiobserver.wearprotocol.WearTeamActionPrompt
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionRequest
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionsSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearTeamSnapshot
@@ -157,7 +158,7 @@ class WearOSRequestService : WearableListenerService() {
             app = app,
             applied = applied,
             now = now,
-            confirmation = null,
+            nextPrompt = null,
         )
     }
 
@@ -182,7 +183,7 @@ class WearOSRequestService : WearableListenerService() {
             app = app,
             applied = applied,
             now = now,
-            confirmation = null,
+            nextPrompt = null,
         )
     }
 
@@ -195,19 +196,16 @@ class WearOSRequestService : WearableListenerService() {
         val now = System.currentTimeMillis()
         val snapshot = app.appState.state.value
         val game = snapshot.gameOnWatch(request.stateToken)
-        val confirmation = if (
+        val nextPrompt = if (
             game != null &&
             snapshot.activeCardEntry == null &&
             game.pendingGameDecision() == null &&
             game.phase != GamePhase.GAME_OVER
         ) {
-            game.actionConfirmation(
+            game.wearActionPrompt(
                 request = request,
                 requestedAt = now,
                 settings = snapshot.settings,
-            )?.wearConfirmation(
-                stateToken = request.stateToken,
-                guidanceMode = snapshot.settings.ruleGuidanceMode,
             )
         } else {
             null
@@ -216,7 +214,7 @@ class WearOSRequestService : WearableListenerService() {
             app = app,
             applied = false,
             now = now,
-            confirmation = confirmation,
+            nextPrompt = nextPrompt,
         )
     }
 
@@ -229,23 +227,36 @@ class WearOSRequestService : WearableListenerService() {
         val now = System.currentTimeMillis()
         val snapshot = app.appState.state.value
         val game = snapshot.gameOnWatch(request.confirmation.stateToken)
-        val confirmation = if (
-            game != null &&
+        val canApply = game != null &&
             snapshot.activeCardEntry == null &&
-            game.pendingGameDecision() == null
-        ) {
-            request.confirmation.gamePrompt(
-                game = game,
-            )
+            game.pendingGameDecision() == null &&
+            game.phase != GamePhase.GAME_OVER
+        val confirmation = if (canApply) {
+            request.confirmation.gamePrompt(game)
         } else {
             null
         }
-        val applied = confirmation != null && app.appState.confirmAction(confirmation)
+        val applied = if (
+            canApply && request.confirmation is WearActionConfirmation.CardEntryHandoff
+        ) {
+            val handoff = request.confirmation as WearActionConfirmation.CardEntryHandoff
+            app.appState.updateCardEntry(
+                currentGame = game,
+                expectedCardEntry = null,
+                updatedCardEntry = ActiveCardEntry(
+                    team = handoff.team,
+                    cardType = handoff.cardType,
+                    jerseyNumber = handoff.jerseyNumber,
+                ),
+            )
+        } else {
+            confirmation != null && app.appState.confirmAction(confirmation)
+        }
         return gameActionResponse(
             app = app,
             applied = applied,
             now = now,
-            confirmation = null,
+            nextPrompt = null,
         )
     }
 
@@ -264,13 +275,14 @@ class WearOSRequestService : WearableListenerService() {
                 updatedCardEntry = ActiveCardEntry(
                     team = request.team,
                     cardType = request.cardType,
+                    jerseyNumber = request.jerseyNumber,
                 ),
             )
         return gameActionResponse(
             app = app,
             applied = applied,
             now = now,
-            confirmation = null,
+            nextPrompt = null,
         )
     }
 
@@ -288,6 +300,7 @@ class WearOSRequestService : WearableListenerService() {
             expectedCardEntry = ActiveCardEntry(
                 team = request.team,
                 cardType = request.cardType,
+                jerseyNumber = request.jerseyNumber,
             ),
             updatedCardEntry = null,
         )
@@ -295,7 +308,7 @@ class WearOSRequestService : WearableListenerService() {
             app = app,
             applied = applied,
             now = now,
-            confirmation = null,
+            nextPrompt = null,
         )
     }
 
@@ -303,7 +316,7 @@ class WearOSRequestService : WearableListenerService() {
         app: UltiObserverApplication,
         applied: Boolean,
         now: Long,
-        confirmation: WearActionConfirmation?,
+        nextPrompt: WearTeamActionPrompt?,
     ): Task<ByteArray> {
         val snapshot = app.currentWearSnapshot(now)
         app.wearStatePublisher.publish(snapshot)
@@ -313,21 +326,21 @@ class WearOSRequestService : WearableListenerService() {
                 WearGameActionResponse(
                     applied = applied,
                     snapshot = snapshot,
-                    confirmation = confirmation,
+                    nextPrompt = nextPrompt,
                 )
             )
         )
     }
 }
 
-/** Build the phone-domain confirmation requested by one watch team action. */
-private fun GameState.actionConfirmation(
+/** Build the protocol prompt requested by one watch team action. */
+private fun GameState.wearActionPrompt(
     request: WearTeamActionRequest,
     requestedAt: Long,
     settings: Settings,
-): GamePrompt.ActionConfirmation? {
+): WearTeamActionPrompt? {
     val team = request.team
-    return when (request.action) {
+    val confirmation = when (val action = request.action) {
         WearTeamAction.Timeout -> {
             if (!canRequestTimeout(requestedAt)) {
                 null
@@ -365,6 +378,86 @@ private fun GameState.actionConfirmation(
             team = team,
             requestedAt = requestedAt,
         )
+        is WearTeamAction.PlayerCard -> {
+            return wearPlayerCardPrompt(
+                stateToken = request.stateToken,
+                team = team,
+                cardType = action.cardType,
+                jerseyNumber = action.jerseyNumber,
+                requestedAt = requestedAt,
+                guidanceMode = settings.ruleGuidanceMode,
+            )
+        }
+    }
+    return confirmation?.wearConfirmation(
+        stateToken = request.stateToken,
+        guidanceMode = settings.ruleGuidanceMode,
+    )
+}
+
+/** Build the next prompt for a numbered player-card entry. */
+internal fun GameState.wearPlayerCardPrompt(
+    stateToken: String,
+    team: TeamId,
+    cardType: CardType,
+    jerseyNumber: String,
+    requestedAt: Long,
+    guidanceMode: RuleGuidanceMode,
+): WearTeamActionPrompt? {
+    val number = jerseyNumber.trim()
+    if (number.isEmpty() || number.any { character -> !character.isDigit() }) {
+        return null
+    }
+    val entry = PlayerCardEntry(number)
+    if (entry.checkForMultiplePlayerMatches(playerCards(team)) != null) {
+        return WearActionConfirmation.CardEntryHandoff(
+            stateToken = stateToken,
+            team = team,
+            cardType = cardType,
+            jerseyNumber = number,
+            prompt = WearPromptSnapshot(
+                title = "Multiple players",
+                messageLines = listOf(
+                    WearGuidanceLineSnapshot(
+                        text = "Player number $number corresponds to multiple players already recorded.",
+                        bold = false,
+                    )
+                ),
+                confirmLabel = "Continue on phone",
+                dismissLabel = "Cancel",
+                presentation = WearGuidancePresentation.VISIBLE,
+                autoAcceptDelayMillis = null,
+            ),
+        )
+    }
+    val identity = resolvePlayerIdentity(team, PlayerIdentity(number))
+    val suspension = playerSuspensionStatus(playerCards(team), identity)
+    if (suspension != null) {
+        return WearTeamActionPrompt.Notice(
+            stateToken = stateToken,
+            prompt = WearPromptSnapshot(
+                title = "Invalid card assignment",
+                messageLines = listOf(
+                    WearGuidanceLineSnapshot(
+                        text = "${teamFor(team).name} #$number ${suspension.rejectionText}",
+                        bold = false,
+                    )
+                ),
+                confirmLabel = "",
+                dismissLabel = "OK",
+                presentation = WearGuidancePresentation.VISIBLE,
+                autoAcceptDelayMillis = null,
+            ),
+        )
+    } else {
+        return GamePrompt.PlayerCardConfirmation(
+            state = this,
+            team = team,
+            cardType = cardType,
+            identity = identity,
+            reason = CardReason(),
+            requestedAt = requestedAt,
+        ).wearConfirmation(stateToken, guidanceMode)
     }
 }
 
@@ -410,6 +503,14 @@ internal fun GamePrompt.ActionConfirmation.wearConfirmation(
         is GamePrompt.BlueCardConfirmation -> WearActionConfirmation.BlueCard(
             stateToken = stateToken,
             team = team,
+            requestedAtPhoneEpochMillis = requestedAt,
+            prompt = wearSnapshot(guidanceMode),
+        )
+        is GamePrompt.PlayerCardConfirmation -> WearActionConfirmation.PlayerCard(
+            stateToken = stateToken,
+            team = team,
+            cardType = cardType,
+            identity = identity,
             requestedAtPhoneEpochMillis = requestedAt,
             prompt = wearSnapshot(guidanceMode),
         )
@@ -469,11 +570,22 @@ private fun WearActionConfirmation.gamePrompt(
             team = team,
             requestedAt = requestedAtPhoneEpochMillis,
         )
+        is WearActionConfirmation.PlayerCard -> {
+            GamePrompt.PlayerCardConfirmation(
+                state = game,
+                team = team,
+                cardType = cardType,
+                identity = identity,
+                reason = CardReason(),
+                requestedAt = requestedAtPhoneEpochMillis,
+            )
+        }
         is WearActionConfirmation.TechnicalFoul -> GamePrompt.TechnicalFoulConfirmation(
             state = game,
             team = team,
             requestedAt = requestedAtPhoneEpochMillis,
         )
+        is WearActionConfirmation.CardEntryHandoff -> null
     }
 }
 
@@ -586,6 +698,7 @@ internal fun buildWearStateSnapshot(
                 WearPhoneCardEntrySnapshot(
                     team = entry.team,
                     cardType = entry.cardType,
+                    jerseyNumber = entry.jerseyNumber,
                 )
             },
         ),
@@ -686,7 +799,7 @@ internal fun GamePrompt.ActionConfirmation.wearSnapshot(
         title = formatTitle(),
         message = guidanceMessage(guidanceMode),
         confirmLabel = "OK",
-        dismissLabel = "Cancel",
+        dismissLabel = if (this is GamePrompt.PlayerCardConfirmation) "Back" else "Cancel",
         guidanceMode = guidanceMode,
         requiredInNone = requiresGuidanceInNone(),
     )

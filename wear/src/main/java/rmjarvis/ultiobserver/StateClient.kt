@@ -27,6 +27,7 @@ import rmjarvis.ultiobserver.wearprotocol.WearRequestAction
 import rmjarvis.ultiobserver.wearprotocol.WearStateSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearStartupResponse
 import rmjarvis.ultiobserver.wearprotocol.WearTeamAction
+import rmjarvis.ultiobserver.wearprotocol.WearTeamActionPrompt
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionRequest
 
 /** Snapshot plus the offset needed to display it using the phone's clock. */
@@ -327,12 +328,12 @@ internal class StateClient(
         )
     }
 
-    /** Request one team action and return the confirmation to show before applying it. */
+    /** Request one team action and return the prompt to show next. */
     fun requestTeamAction(
         team: TeamId,
         stateToken: String,
         action: WearTeamAction,
-        onFinished: (WearActionConfirmation?) -> Unit,
+        onFinished: (WearTeamActionPrompt?) -> Unit,
     ) {
         val nodeId = reachablePhoneNodeId
         if (nodeId == null) {
@@ -351,7 +352,7 @@ internal class StateClient(
                 WearTeamActionRequest.serializer(),
                 request,
             ),
-            onFinished = { response -> onFinished(response?.confirmation) },
+            onFinished = { response -> onFinished(response?.nextPrompt) },
         )
     }
 
@@ -360,6 +361,7 @@ internal class StateClient(
         team: TeamId,
         stateToken: String,
         cardType: CardType,
+        jerseyNumber: String,
         onFinished: (Boolean) -> Unit,
     ) {
         val nodeId = reachablePhoneNodeId
@@ -367,7 +369,7 @@ internal class StateClient(
             onFinished(false)
             return
         }
-        val request = WearCardEntryRequest(stateToken, team, cardType)
+        val request = WearCardEntryRequest(stateToken, team, cardType, jerseyNumber)
         sendGameAction(
             nodeId = nodeId,
             action = WearRequestAction.CARD_ENTRY,
@@ -381,6 +383,7 @@ internal class StateClient(
         team: TeamId,
         stateToken: String,
         cardType: CardType?,
+        jerseyNumber: String,
         onFinished: (Boolean) -> Unit,
     ) {
         val nodeId = reachablePhoneNodeId
@@ -388,7 +391,7 @@ internal class StateClient(
             onFinished(false)
             return
         }
-        val request = WearCancelCardEntryRequest(stateToken, team, cardType)
+        val request = WearCancelCardEntryRequest(stateToken, team, cardType, jerseyNumber)
         sendGameAction(
             nodeId = nodeId,
             action = WearRequestAction.CANCEL_CARD_ENTRY,

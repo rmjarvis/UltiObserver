@@ -4,6 +4,7 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import rmjarvis.ultiobserver.CardType
+import rmjarvis.ultiobserver.PlayerIdentity
 import rmjarvis.ultiobserver.PullViolationType
 import rmjarvis.ultiobserver.TeamId
 
@@ -62,6 +63,13 @@ sealed interface WearTeamAction {
 
     @Serializable
     data object TechnicalFoul : WearTeamAction
+
+    /** Yellow or red card requested with only a player number. */
+    @Serializable
+    data class PlayerCard(
+        val cardType: CardType,
+        val jerseyNumber: String,
+    ) : WearTeamAction
 }
 
 /** Request one team action against the exact game state displayed by the watch. */
@@ -79,19 +87,30 @@ data class WearPullViolationOption(
     val prompt: WearPromptSnapshot,
 )
 
+/** Prompt returned after a team action is selected on the watch. */
+@Serializable
+sealed interface WearTeamActionPrompt {
+    val stateToken: String
+    val prompt: WearPromptSnapshot
+
+    /** Notice that the watch can dismiss without sending another request to the phone. */
+    @Serializable
+    data class Notice(
+        override val stateToken: String,
+        override val prompt: WearPromptSnapshot,
+    ) : WearTeamActionPrompt
+}
+
 /** Phone-owned action context and prompt presented before the watch applies an action. */
 @Serializable
-sealed interface WearActionConfirmation {
-    val stateToken: String
-    val requestedAtPhoneEpochMillis: Long
-    val prompt: WearPromptSnapshot
+sealed interface WearActionConfirmation : WearTeamActionPrompt {
 
     /** Confirmation details needed to apply a timeout after the observer selects OK. */
     @Serializable
     data class Timeout(
         override val stateToken: String,
         val team: TeamId,
-        override val requestedAtPhoneEpochMillis: Long,
+        val requestedAtPhoneEpochMillis: Long,
         override val prompt: WearPromptSnapshot,
     ) : WearActionConfirmation
 
@@ -100,7 +119,7 @@ sealed interface WearActionConfirmation {
     data class TimeViolation(
         override val stateToken: String,
         val team: TeamId,
-        override val requestedAtPhoneEpochMillis: Long,
+        val requestedAtPhoneEpochMillis: Long,
         override val prompt: WearPromptSnapshot,
     ) : WearActionConfirmation
 
@@ -109,7 +128,7 @@ sealed interface WearActionConfirmation {
     data class PullViolation(
         override val stateToken: String,
         val team: TeamId,
-        override val requestedAtPhoneEpochMillis: Long,
+        val requestedAtPhoneEpochMillis: Long,
         val selectedViolation: PullViolationType,
         val options: List<WearPullViolationOption>,
         override val prompt: WearPromptSnapshot,
@@ -120,7 +139,7 @@ sealed interface WearActionConfirmation {
     data class BlueCard(
         override val stateToken: String,
         val team: TeamId,
-        override val requestedAtPhoneEpochMillis: Long,
+        val requestedAtPhoneEpochMillis: Long,
         override val prompt: WearPromptSnapshot,
     ) : WearActionConfirmation
 
@@ -129,7 +148,28 @@ sealed interface WearActionConfirmation {
     data class TechnicalFoul(
         override val stateToken: String,
         val team: TeamId,
-        override val requestedAtPhoneEpochMillis: Long,
+        val requestedAtPhoneEpochMillis: Long,
+        override val prompt: WearPromptSnapshot,
+    ) : WearActionConfirmation
+
+    /** Confirmation for a numbered yellow or red card. */
+    @Serializable
+    data class PlayerCard(
+        override val stateToken: String,
+        val team: TeamId,
+        val cardType: CardType,
+        val identity: PlayerIdentity,
+        val requestedAtPhoneEpochMillis: Long,
+        override val prompt: WearPromptSnapshot,
+    ) : WearActionConfirmation
+
+    /** Prompt handing ambiguous or otherwise incomplete player-card entry to the phone. */
+    @Serializable
+    data class CardEntryHandoff(
+        override val stateToken: String,
+        val team: TeamId,
+        val cardType: CardType,
+        val jerseyNumber: String,
         override val prompt: WearPromptSnapshot,
     ) : WearActionConfirmation
 }
@@ -146,6 +186,7 @@ data class WearCardEntryRequest(
     val stateToken: String,
     val team: TeamId,
     val cardType: CardType,
+    val jerseyNumber: String,
 )
 
 /** Cancel the exact player-card entry currently active on the phone. */
@@ -154,14 +195,15 @@ data class WearCancelCardEntryRequest(
     val stateToken: String,
     val team: TeamId,
     val cardType: CardType?,
+    val jerseyNumber: String,
 )
 
-/** Game-action result, authoritative state, and any transient confirmation to show next. */
+/** Game-action result, authoritative state, and any transient prompt to show next. */
 @Serializable
 data class WearGameActionResponse(
     val applied: Boolean,
     val snapshot: WearStateSnapshot,
-    val confirmation: WearActionConfirmation?,
+    val nextPrompt: WearTeamActionPrompt?,
 )
 
 /** Stable JSON codec shared by every phone/watch protocol payload. */

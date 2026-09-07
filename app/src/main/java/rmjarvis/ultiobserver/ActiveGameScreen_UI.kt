@@ -217,7 +217,7 @@ internal fun ActiveGameScreen(
     val onCards: (TeamId) -> Unit = { team ->
         onCardEntryChange(
             null,
-            ActiveCardEntry(team = team, cardType = null),
+            ActiveCardEntry(team = team, cardType = null, jerseyNumber = ""),
         )
     }
     val onTechnicalFoul: (TeamId) -> Unit = { team ->
@@ -342,8 +342,16 @@ internal fun ActiveGameScreen(
             guidanceMode = settings.ruleGuidanceMode,
             isLandscape = usesLandscapeOrientation,
             initialCardType = cardEntry.cardType,
+            initialJerseyNumber = cardEntry.jerseyNumber,
             onCardTypeSelected = { cardType ->
-                onCardEntryChange(cardEntry, cardEntry.copy(cardType = cardType))
+                val jerseyNumber = if (cardType == null) "" else cardEntry.jerseyNumber
+                onCardEntryChange(
+                    cardEntry,
+                    cardEntry.copy(
+                        cardType = cardType,
+                        jerseyNumber = jerseyNumber,
+                    ),
+                )
             },
             onDismiss = {
                 onCardEntryChange(cardEntry, null)
