@@ -26,5 +26,6 @@ android {
 }
 
 dependencies {
+    api(project(":shared"))
     implementation(libs.kotlinx.serialization.json)
 }

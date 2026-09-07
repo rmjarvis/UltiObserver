@@ -105,6 +105,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":shared"))
     implementation(project(":wear-protocol"))
     constraints {
         implementation(libs.androidx.fragment) {

@@ -46,6 +46,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":shared"))
     implementation(project(":wear-protocol"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(platform(libs.firebase.bom))

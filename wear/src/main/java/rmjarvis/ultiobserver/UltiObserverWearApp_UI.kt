@@ -39,11 +39,9 @@ import kotlinx.coroutines.delay
 import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 import rmjarvis.ultiobserver.wearprotocol.WearActionConfirmation
 import rmjarvis.ultiobserver.wearprotocol.WearActiveGameSnapshot
-import rmjarvis.ultiobserver.wearprotocol.WearPlayerCardType
 import rmjarvis.ultiobserver.wearprotocol.WearSnapshotPullDirection
 import rmjarvis.ultiobserver.wearprotocol.WearSnapshotStatus
 import rmjarvis.ultiobserver.wearprotocol.WearTeamAction
-import rmjarvis.ultiobserver.wearprotocol.WearTeamId
 import rmjarvis.ultiobserver.wearprotocol.WearTeamSnapshot
 
 /** Route synchronized phone state to the watch's idle, game, or team-action surface. */
@@ -52,11 +50,11 @@ internal fun UltiObserverWearApp(
     receivedState: ReceivedState?,
     connectionState: ConnectionState,
     onRetry: () -> Unit,
-    onGoal: (WearTeamId, String, (Boolean) -> Unit) -> Unit,
+    onGoal: (TeamId, String, (Boolean) -> Unit) -> Unit,
     onDecision: (String, Boolean, (Boolean) -> Unit) -> Unit,
-    onTeamAction: (WearTeamId, String, WearTeamAction, (WearActionConfirmation?) -> Unit) -> Unit,
-    onStartCardEntry: (WearTeamId, String, WearPlayerCardType, (Boolean) -> Unit) -> Unit,
-    onCancelCardEntry: (WearTeamId, String, WearPlayerCardType?, (Boolean) -> Unit) -> Unit,
+    onTeamAction: (TeamId, String, WearTeamAction, (WearActionConfirmation?) -> Unit) -> Unit,
+    onStartCardEntry: (TeamId, String, CardType, (Boolean) -> Unit) -> Unit,
+    onCancelCardEntry: (TeamId, String, CardType?, (Boolean) -> Unit) -> Unit,
     onConfirmAction: (WearActionConfirmation, (Boolean) -> Unit) -> Unit,
 ) {
     var selectedTeam by remember { mutableIntStateOf(0) }
@@ -65,7 +63,7 @@ internal fun UltiObserverWearApp(
     }
     var cardChoiceStateToken by remember { mutableStateOf<String?>(null) }
     var phoneCardEntryWasActive by remember { mutableStateOf(false) }
-    var returnToCardChoicesForTeam by remember { mutableStateOf<WearTeamId?>(null) }
+    var returnToCardChoicesForTeam by remember { mutableStateOf<TeamId?>(null) }
     val snapshot = receivedState?.snapshot
     val phoneReachable = connectionState == ConnectionState.CONNECTED
     val phoneCardEntry = snapshot?.activeGame?.phoneCardEntry
@@ -91,7 +89,7 @@ internal fun UltiObserverWearApp(
                 selectedTeam = 0
                 cardChoiceStateToken = null
             } else {
-                selectedTeam = if (returnTeam == WearTeamId.TEAM_ONE) 1 else 2
+                selectedTeam = if (returnTeam == TeamId.TEAM_ONE) 1 else 2
                 cardChoiceStateToken = snapshot.activeGame?.stateToken
             }
             phoneCardEntryWasActive = false
@@ -216,9 +214,9 @@ private fun ActiveGameScreen(
     selectedTeam: Int,
     onSelectedTeamChange: (Int) -> Unit,
     onRetry: () -> Unit,
-    onGoal: (WearTeamId, String, (Boolean) -> Unit) -> Unit,
-    onTeamAction: (WearTeamId, String, WearTeamAction, (WearActionConfirmation?) -> Unit) -> Unit,
-    onStartCardEntry: (WearTeamId, String, WearPlayerCardType, (Boolean) -> Unit) -> Unit,
+    onGoal: (TeamId, String, (Boolean) -> Unit) -> Unit,
+    onTeamAction: (TeamId, String, WearTeamAction, (WearActionConfirmation?) -> Unit) -> Unit,
+    onStartCardEntry: (TeamId, String, CardType, (Boolean) -> Unit) -> Unit,
     onConfirmation: (WearActionConfirmation) -> Unit,
     cardChoiceStateToken: String?,
     onCardChoiceStateTokenChange: (String?) -> Unit,
@@ -251,9 +249,9 @@ private fun ActiveGameScreen(
         )
     } else {
         val selectedWearTeam = if (selectedTeam == 1) {
-            WearTeamId.TEAM_ONE
+            TeamId.TEAM_ONE
         } else {
-            WearTeamId.TEAM_TWO
+            TeamId.TEAM_TWO
         }
         val requestConfirmation: (WearTeamAction) -> Unit = { action ->
             if (!commandPending) {
@@ -283,7 +281,7 @@ private fun ActiveGameScreen(
                         onStartCardEntry(
                             selectedWearTeam,
                             activeGame.stateToken,
-                            WearPlayerCardType.YELLOW,
+                            CardType.YELLOW,
                         ) {
                             commandPending = false
                         }
@@ -295,7 +293,7 @@ private fun ActiveGameScreen(
                         onStartCardEntry(
                             selectedWearTeam,
                             activeGame.stateToken,
-                            WearPlayerCardType.RED,
+                            CardType.RED,
                         ) {
                             commandPending = false
                         }

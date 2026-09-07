@@ -88,23 +88,6 @@ data class GameRules(
         }
 }
 
-/// USA Ultimate heat level, plus an app-level disabled state.
-@Serializable
-enum class HeatLevel(val displayText: String) {
-    NONE("None"),
-    LEVEL_1("Level 1"),
-    LEVEL_2("Level 2"),
-    LEVEL_3("Level 3"),
-    MANUAL("Manual"),
-}
-
-/// How water breaks should be offered during this game.
-enum class WaterBreakMode {
-    NONE,
-    MANUAL,
-    AUTOMATIC,
-}
-
 /// Return rules configured for the standard behavior of one heat-level selection.
 internal fun GameRules.withHeatLevel(newHeatLevel: HeatLevel): GameRules {
     return when (newHeatLevel) {

@@ -23,13 +23,11 @@ import rmjarvis.ultiobserver.wearprotocol.WearDecisionRequest
 import rmjarvis.ultiobserver.wearprotocol.WearGameActionResponse
 import rmjarvis.ultiobserver.wearprotocol.WearGoalRequest
 import rmjarvis.ultiobserver.wearprotocol.WearProtocolCodec
-import rmjarvis.ultiobserver.wearprotocol.WearPlayerCardType
 import rmjarvis.ultiobserver.wearprotocol.WearRequestAction
 import rmjarvis.ultiobserver.wearprotocol.WearStateSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearStartupResponse
 import rmjarvis.ultiobserver.wearprotocol.WearTeamAction
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionRequest
-import rmjarvis.ultiobserver.wearprotocol.WearTeamId
 
 /** Snapshot plus the offset needed to display it using the phone's clock. */
 internal data class ReceivedState(
@@ -266,7 +264,7 @@ internal class StateClient(
 
     /** Send one goal request to the reachable phone and receive its resulting state. */
     fun recordGoal(
-        scoringTeam: WearTeamId,
+        scoringTeam: TeamId,
         stateToken: String,
         onFinished: (Boolean) -> Unit,
     ) {
@@ -331,7 +329,7 @@ internal class StateClient(
 
     /** Request one team action and return the confirmation to show before applying it. */
     fun requestTeamAction(
-        team: WearTeamId,
+        team: TeamId,
         stateToken: String,
         action: WearTeamAction,
         onFinished: (WearActionConfirmation?) -> Unit,
@@ -359,9 +357,9 @@ internal class StateClient(
 
     /** Start yellow or red card entry on the phone. */
     fun startCardEntry(
-        team: WearTeamId,
+        team: TeamId,
         stateToken: String,
-        cardType: WearPlayerCardType,
+        cardType: CardType,
         onFinished: (Boolean) -> Unit,
     ) {
         val nodeId = reachablePhoneNodeId
@@ -380,9 +378,9 @@ internal class StateClient(
 
     /** Cancel the exact card workflow active on the phone. */
     fun cancelCardEntry(
-        team: WearTeamId,
+        team: TeamId,
         stateToken: String,
-        cardType: WearPlayerCardType?,
+        cardType: CardType?,
         onFinished: (Boolean) -> Unit,
     ) {
         val nodeId = reachablePhoneNodeId

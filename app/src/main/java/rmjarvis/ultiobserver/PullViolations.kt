@@ -1,15 +1,5 @@
 package rmjarvis.ultiobserver
 
-import kotlinx.serialization.Serializable
-
-/// Type of pull violation recorded during a pull sequence.
-@Serializable
-enum class PullViolationType {
-    OFFSIDES,
-    FALSE_START,
-    MAJORITY_PULL,
-}
-
 /**
  * State and optional popup event from trying to record a pull violation.
  *

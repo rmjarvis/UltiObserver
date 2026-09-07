@@ -1,6 +1,8 @@
 package rmjarvis.ultiobserver.wearprotocol
 
 import kotlinx.serialization.Serializable
+import rmjarvis.ultiobserver.CardType
+import rmjarvis.ultiobserver.TeamId
 
 /** Path of the single current-state item published by the phone. */
 const val WEAR_STATE_PATH = "/ultiobserver/current-state"
@@ -119,8 +121,8 @@ data class WearPromptSnapshot(
 /** Card workflow currently active on the phone, with a player-card type when selected. */
 @Serializable
 data class WearPhoneCardEntrySnapshot(
-    val team: WearTeamId,
-    val cardType: WearPlayerCardType?,
+    val team: TeamId,
+    val cardType: CardType?,
 )
 
 /** Complete active-game display state rendered by the watch. */

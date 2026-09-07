@@ -15,16 +15,13 @@ import rmjarvis.ultiobserver.wearprotocol.WearDecisionRequest
 import rmjarvis.ultiobserver.wearprotocol.WearGameActionResponse
 import rmjarvis.ultiobserver.wearprotocol.WearGoalRequest
 import rmjarvis.ultiobserver.wearprotocol.WearGuidancePresentation
-import rmjarvis.ultiobserver.wearprotocol.WearPlayerCardType
 import rmjarvis.ultiobserver.wearprotocol.WearProtocolCodec
-import rmjarvis.ultiobserver.wearprotocol.WearPullViolationType
 import rmjarvis.ultiobserver.wearprotocol.WearSnapshotPullDirection
 import rmjarvis.ultiobserver.wearprotocol.WearSnapshotStatus
 import rmjarvis.ultiobserver.wearprotocol.WearStateSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearStartupResponse
 import rmjarvis.ultiobserver.wearprotocol.WearTeamAction
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionRequest
-import rmjarvis.ultiobserver.wearprotocol.WearTeamId
 
 /// Tests for the phone-side Wear OS interface.
 class TestWearOSInterface : GameDomainTestFixtures() {
@@ -344,7 +341,7 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         val goalTime = timestampAt(baseGame, LocalTime.of(11, 0))
         val goalRequest = WearGoalRequest(
             stateToken = wearStateToken(baseGame),
-            scoringTeam = WearTeamId.TEAM_ONE,
+            scoringTeam = TeamId.TEAM_ONE,
         )
         assertEquals(
             goalRequest,
@@ -706,7 +703,7 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         val stateToken = wearStateToken(game)
         val actionRequest = WearTeamActionRequest(
             stateToken = stateToken,
-            team = WearTeamId.TEAM_ONE,
+            team = TeamId.TEAM_ONE,
             action = WearTeamAction.Timeout,
         )
         assertEquals(
@@ -721,7 +718,7 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         )
         val protocolConfirmation = WearActionConfirmation.Timeout(
             stateToken = stateToken,
-            team = WearTeamId.TEAM_ONE,
+            team = TeamId.TEAM_ONE,
             requestedAtPhoneEpochMillis = requestedAt,
             prompt = prompt,
         )
@@ -811,7 +808,7 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         )
         assertEquals(requestedAt, prompt.requestedAtPhoneEpochMillis)
         assertEquals(
-            setOf(WearPullViolationType.OFFSIDES, WearPullViolationType.MAJORITY_PULL),
+            setOf(PullViolationType.OFFSIDES, PullViolationType.MAJORITY_PULL),
             (prompt as WearActionConfirmation.PullViolation)
                 .options.map { option -> option.violation }.toSet(),
         )
@@ -853,9 +850,9 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         val actionRequest = WearTeamActionRequest(
             stateToken = wearStateToken(game),
             team = if (pullingTeam == TeamId.TEAM_ONE) {
-                WearTeamId.TEAM_ONE
+                TeamId.TEAM_ONE
             } else {
-                WearTeamId.TEAM_TWO
+                TeamId.TEAM_TWO
             },
             action = WearTeamAction.PullViolation,
         )
@@ -947,7 +944,7 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         // The blue-card action and its confirmation survive their protocol encoding round trips.
         val actionRequest = WearTeamActionRequest(
             stateToken = wearStateToken(game),
-            team = WearTeamId.TEAM_ONE,
+            team = TeamId.TEAM_ONE,
             action = WearTeamAction.BlueCard,
         )
         assertEquals(
@@ -1013,8 +1010,8 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         assertFalse(pendingSnapshot.actionsAvailable)
         assertNull(pendingSnapshot.pendingDecision)
         val cardEntrySnapshot = pendingSnapshot.phoneCardEntry!!
-        assertEquals(WearTeamId.TEAM_ONE, cardEntrySnapshot.team)
-        assertEquals(WearPlayerCardType.RED, cardEntrySnapshot.cardType)
+        assertEquals(TeamId.TEAM_ONE, cardEntrySnapshot.team)
+        assertEquals(CardType.RED, cardEntrySnapshot.cardType)
         assertEquals(
             pendingState,
             WearProtocolCodec.decode(
@@ -1076,8 +1073,8 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         // through their protocol encoding round trips.
         val request = WearCardEntryRequest(
             stateToken = wearStateToken(game),
-            team = WearTeamId.TEAM_ONE,
-            cardType = WearPlayerCardType.RED,
+            team = TeamId.TEAM_ONE,
+            cardType = CardType.RED,
         )
         assertEquals(
             request,
@@ -1170,7 +1167,7 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         // encoding round trips.
         val actionRequest = WearTeamActionRequest(
             stateToken = wearStateToken(game),
-            team = WearTeamId.TEAM_ONE,
+            team = TeamId.TEAM_ONE,
             action = WearTeamAction.TechnicalFoul,
         )
         assertEquals(

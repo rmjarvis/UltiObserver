@@ -25,10 +25,8 @@ import rmjarvis.ultiobserver.wearprotocol.WearGuidanceLineSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearGuidancePresentation
 import rmjarvis.ultiobserver.wearprotocol.WearPromptSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearProtocolCodec
-import rmjarvis.ultiobserver.wearprotocol.WearPlayerCardType
 import rmjarvis.ultiobserver.wearprotocol.WearPhoneCardEntrySnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearPullViolationOption
-import rmjarvis.ultiobserver.wearprotocol.WearPullViolationType
 import rmjarvis.ultiobserver.wearprotocol.WearRatioSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearRequestAction
 import rmjarvis.ultiobserver.wearprotocol.WearSnapshotPullDirection
@@ -39,7 +37,6 @@ import rmjarvis.ultiobserver.wearprotocol.WearStatusMessageTransition
 import rmjarvis.ultiobserver.wearprotocol.WearTeamAction
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionRequest
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionsSnapshot
-import rmjarvis.ultiobserver.wearprotocol.WearTeamId
 import rmjarvis.ultiobserver.wearprotocol.WearTeamSnapshot
 
 /** Check whether this phone currently has a reachable Wear OS node. */
@@ -141,10 +138,7 @@ class WearOSRequestService : WearableListenerService() {
         val now = System.currentTimeMillis()
         val snapshot = app.appState.state.value
         val game = snapshot.gameOnWatch(request.stateToken)
-        val scoringTeam = when (request.scoringTeam) {
-            WearTeamId.TEAM_ONE -> TeamId.TEAM_ONE
-            WearTeamId.TEAM_TWO -> TeamId.TEAM_TWO
-        }
+        val scoringTeam = request.scoringTeam
         val applied = if (
             game != null &&
             snapshot.activeCardEntry == null &&
@@ -268,8 +262,8 @@ class WearOSRequestService : WearableListenerService() {
                 currentGame = game,
                 expectedCardEntry = null,
                 updatedCardEntry = ActiveCardEntry(
-                    team = request.team.toTeamId(),
-                    cardType = request.cardType.toCardType(),
+                    team = request.team,
+                    cardType = request.cardType,
                 ),
             )
         return gameActionResponse(
@@ -292,8 +286,8 @@ class WearOSRequestService : WearableListenerService() {
         val applied = game != null && app.appState.updateCardEntry(
             currentGame = game,
             expectedCardEntry = ActiveCardEntry(
-                team = request.team.toTeamId(),
-                cardType = request.cardType?.toCardType(),
+                team = request.team,
+                cardType = request.cardType,
             ),
             updatedCardEntry = null,
         )
@@ -332,7 +326,7 @@ private fun GameState.actionConfirmation(
     requestedAt: Long,
     settings: Settings,
 ): GamePrompt.ActionConfirmation? {
-    val team = request.team.toTeamId()
+    val team = request.team
     return when (request.action) {
         WearTeamAction.Timeout -> {
             if (!canRequestTimeout(requestedAt)) {
@@ -382,22 +376,22 @@ internal fun GamePrompt.ActionConfirmation.wearConfirmation(
     return when (this) {
         is GamePrompt.TimeoutConfirmation -> WearActionConfirmation.Timeout(
             stateToken = stateToken,
-            team = team.toWearTeamId(),
+            team = team,
             requestedAtPhoneEpochMillis = requestedAt,
             prompt = wearSnapshot(guidanceMode),
         )
         is GamePrompt.TimeViolationConfirmation -> WearActionConfirmation.TimeViolation(
             stateToken = stateToken,
-            team = team.toWearTeamId(),
+            team = team,
             requestedAtPhoneEpochMillis = requestedAt,
             prompt = wearSnapshot(guidanceMode),
         )
         is GamePrompt.PullViolationConfirmation -> {
             WearActionConfirmation.PullViolation(
                 stateToken = stateToken,
-                team = team.toWearTeamId(),
+                team = team,
                 requestedAtPhoneEpochMillis = requestedAt,
-                selectedViolation = violation.toWearPullViolationType(),
+                selectedViolation = violation,
                 options = event.pullViolationSelections().map { selection ->
                     val confirmation = GamePrompt.PullViolationConfirmation(
                         state = state,
@@ -406,7 +400,7 @@ internal fun GamePrompt.ActionConfirmation.wearConfirmation(
                         violation = selection.violation,
                     )
                     WearPullViolationOption(
-                        violation = confirmation.violation.toWearPullViolationType(),
+                        violation = confirmation.violation,
                         actionLabel = selection.actionLabel,
                         prompt = confirmation.wearSnapshot(guidanceMode),
                     )
@@ -416,13 +410,13 @@ internal fun GamePrompt.ActionConfirmation.wearConfirmation(
         }
         is GamePrompt.BlueCardConfirmation -> WearActionConfirmation.BlueCard(
             stateToken = stateToken,
-            team = team.toWearTeamId(),
+            team = team,
             requestedAtPhoneEpochMillis = requestedAt,
             prompt = wearSnapshot(guidanceMode),
         )
         is GamePrompt.TechnicalFoulConfirmation -> WearActionConfirmation.TechnicalFoul(
             stateToken = stateToken,
-            team = team.toWearTeamId(),
+            team = team,
             requestedAtPhoneEpochMillis = requestedAt,
             prompt = wearSnapshot(guidanceMode),
         )
@@ -440,13 +434,13 @@ private fun WearActionConfirmation.gamePrompt(
             } else {
                 GamePrompt.TimeoutConfirmation(
                     state = game,
-                    team = team.toTeamId(),
+                    team = team,
                     requestedAt = requestedAtPhoneEpochMillis,
                 )
             }
         }
         is WearActionConfirmation.TimeViolation -> {
-            val phoneTeam = team.toTeamId()
+            val phoneTeam = team
             if (game.previewTimeViolation(phoneTeam) == null) {
                 null
             } else {
@@ -458,8 +452,8 @@ private fun WearActionConfirmation.gamePrompt(
             }
         }
         is WearActionConfirmation.PullViolation -> {
-            val phoneTeam = team.toTeamId()
-            val phoneViolation = selectedViolation.toPullViolationType()
+            val phoneTeam = team
+            val phoneViolation = selectedViolation
             if (game.previewPullViolation(phoneTeam, phoneViolation) == null) {
                 null
             } else {
@@ -473,12 +467,12 @@ private fun WearActionConfirmation.gamePrompt(
         }
         is WearActionConfirmation.BlueCard -> GamePrompt.BlueCardConfirmation(
             state = game,
-            team = team.toTeamId(),
+            team = team,
             requestedAt = requestedAtPhoneEpochMillis,
         )
         is WearActionConfirmation.TechnicalFoul -> GamePrompt.TechnicalFoulConfirmation(
             state = game,
-            team = team.toTeamId(),
+            team = team,
             requestedAt = requestedAtPhoneEpochMillis,
         )
     }
@@ -491,56 +485,6 @@ private fun AppStateSnapshot.gameOnWatch(stateToken: String): GameState? {
         settings.timingAlerts.watchConnectionMode == WatchConnectionMode.WEAR_OS &&
             viewingActiveGameScreen &&
             wearStateToken(game) == stateToken
-    }
-}
-
-/** Convert the protocol team identity to the phone's game model. */
-private fun WearTeamId.toTeamId(): TeamId {
-    return when (this) {
-        WearTeamId.TEAM_ONE -> TeamId.TEAM_ONE
-        WearTeamId.TEAM_TWO -> TeamId.TEAM_TWO
-    }
-}
-
-/** Convert a shared player-card type to the phone domain. */
-private fun WearPlayerCardType.toCardType(): CardType {
-    return when (this) {
-        WearPlayerCardType.YELLOW -> CardType.YELLOW
-        WearPlayerCardType.RED -> CardType.RED
-    }
-}
-
-/** Convert a shared pull-violation type to the phone domain. */
-private fun WearPullViolationType.toPullViolationType(): PullViolationType {
-    return when (this) {
-        WearPullViolationType.OFFSIDES -> PullViolationType.OFFSIDES
-        WearPullViolationType.FALSE_START -> PullViolationType.FALSE_START
-        WearPullViolationType.MAJORITY_PULL -> PullViolationType.MAJORITY_PULL
-    }
-}
-
-/** Convert the phone team identity to the shared protocol type. */
-private fun TeamId.toWearTeamId(): WearTeamId {
-    return when (this) {
-        TeamId.TEAM_ONE -> WearTeamId.TEAM_ONE
-        TeamId.TEAM_TWO -> WearTeamId.TEAM_TWO
-    }
-}
-
-/** Convert a phone pull-violation type to the shared protocol. */
-private fun PullViolationType.toWearPullViolationType(): WearPullViolationType {
-    return when (this) {
-        PullViolationType.OFFSIDES -> WearPullViolationType.OFFSIDES
-        PullViolationType.FALSE_START -> WearPullViolationType.FALSE_START
-        PullViolationType.MAJORITY_PULL -> WearPullViolationType.MAJORITY_PULL
-    }
-}
-
-/** Convert a player-card type that can be continued on the phone. */
-private fun CardType.toWearPlayerCardType(): WearPlayerCardType {
-    return when (this) {
-        CardType.YELLOW -> WearPlayerCardType.YELLOW
-        CardType.RED -> WearPlayerCardType.RED
     }
 }
 
@@ -641,8 +585,8 @@ internal fun buildWearStateSnapshot(
             pendingDecision = pendingDecision?.wearSnapshot(settings.ruleGuidanceMode),
             phoneCardEntry = activeCardEntry?.let { entry ->
                 WearPhoneCardEntrySnapshot(
-                    team = entry.team.toWearTeamId(),
-                    cardType = entry.cardType?.toWearPlayerCardType(),
+                    team = entry.team,
+                    cardType = entry.cardType,
                 )
             },
         ),

@@ -128,34 +128,6 @@ internal fun localTimeFromEpoch(epoch: Long, timeZone: ZoneId): LocalTime {
     return localDateTimeFromEpoch(epoch, timeZone).toLocalTime()
 }
 
-/// Identity of one of the two teams in setup and in-progress game state.
-@Serializable
-enum class TeamId {
-    TEAM_ONE,
-    TEAM_TWO;
-
-    /// Return the other team identifier.
-    fun flip(): TeamId {
-        return if (this == TEAM_ONE) TEAM_TWO else TEAM_ONE
-    }
-
-    /// Return the default display name for this team.
-    fun defaultName(): String {
-        return if (this == TEAM_ONE) "Team 1" else "Team 2"
-    }
-}
-/// Identity of the field end nearest or farthest from the observer.
-@Serializable
-enum class FieldEnd {
-    NEAR,
-    FAR;
-
-    /// Return the opposite field end.
-    fun flip(): FieldEnd {
-        return if (this == NEAR) FAR else NEAR
-    }
-}
-
 /// Observer preference for which field end should receive pulling prompts.
 @Serializable
 enum class PullPromptTarget {
