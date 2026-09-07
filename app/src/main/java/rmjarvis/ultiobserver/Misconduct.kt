@@ -408,6 +408,78 @@ data class CardReason(
 }
 
 /**
+ * Entered player-card details from the yellow/red card dialog.
+ *
+ * @param jerseyNumber The player's jersey number, or blank for name-only.
+ * @param playerName The player's name, or blank when unknown.
+ * @param reason Optional observer-entered card reason.
+ */
+internal data class PlayerCardEntry(
+    val jerseyNumber: String,
+    val playerName: String = "",
+    val reason: CardReason = CardReason(),
+)
+
+/**
+ * Known carded player offered for quick selection.
+ *
+ * @param jerseyNumber The player's jersey number, or blank for name-only.
+ * @param playerName The player's name, or blank when unknown.
+ * @param detail Compact card-count detail for this player.
+ */
+internal data class PlayerCardCandidate(
+    val jerseyNumber: String,
+    val playerName: String,
+    val detail: String,
+)
+
+/**
+ * Number-only player-card entry that matches more than one recorded player.
+ *
+ * @param identity The normalized number-only player identity.
+ * @param candidates Recorded players from whom the observer must choose.
+ */
+internal data class PendingPlayerNumberSelection(
+    val identity: PlayerIdentity,
+    val candidates: List<PlayerCardCandidate>,
+)
+
+/**
+ * Check whether this number-only entry matches multiple recorded players.
+ *
+ * @param records Recorded players on the team receiving the card.
+ */
+internal fun PlayerCardEntry.checkForMultiplePlayerMatches(
+    records: List<PlayerRecord>,
+): PendingPlayerNumberSelection? {
+    val identity = PlayerIdentity(jerseyNumber, playerName)
+    if (identity.playerName.isNotEmpty() || identity.jerseyNumber.isEmpty()) {
+        return null
+    }
+    val candidates = records
+        .filter { player -> player.identity().jerseyNumber == identity.jerseyNumber }
+        .playerCardCandidates()
+    if (candidates.size <= 1) {
+        return null
+    }
+    return PendingPlayerNumberSelection(
+        identity = identity,
+        candidates = candidates,
+    )
+}
+
+/// Return known players for quick player-card selection.
+internal fun List<PlayerRecord>.playerCardCandidates(): List<PlayerCardCandidate> {
+    return map { player ->
+        PlayerCardCandidate(
+            jerseyNumber = player.jerseyNumber,
+            playerName = player.playerName,
+            detail = player.cardDetail(compact = true, includeGame = true),
+        )
+    }
+}
+
+/**
  * Persisted in-game yellow/red card event.
  *
  * @param cardType The card assessed to the player.
@@ -451,6 +523,12 @@ fun GameState.sameNumberPlayerIdentityConflict(
     return playerCards(team).sameNumberPlayerIdentityConflict(jerseyNumber, playerName)
 }
 
+/** Return the exact identity match, or one unambiguous compatible partial identity. */
+private fun List<PlayerRecord>.preferredIdentityMatch(identity: PlayerIdentity): PlayerRecord? {
+    return firstOrNull { player -> player.identity() == identity }
+        ?: filter { player -> player.identity().matches(identity) }.singleOrNull()
+}
+
 /**
  * Return a same-number, different-name conflict for a player-card entry.
  *
@@ -464,6 +542,9 @@ fun List<PlayerRecord>.sameNumberPlayerIdentityConflict(
     val proposedIdentity = PlayerIdentity(jerseyNumber, playerName)
     val proposedName = proposedIdentity.normalizedPlayerName()
     if (proposedName.isEmpty()) {
+        return null
+    }
+    if (any { player -> player.identity().matches(proposedIdentity) }) {
         return null
     }
     val existingPlayer = firstOrNull { player ->
@@ -941,7 +1022,7 @@ fun playerSuspensionStatus(
     records: List<PlayerRecord>,
     identity: PlayerIdentity,
 ): PlayerSuspensionStatus? {
-    val existingRecord = records.firstOrNull { it.identity().matches(identity) } ?: return null
+    val existingRecord = records.preferredIdentityMatch(identity) ?: return null
     val yellowEquivalentTournamentCards =
         existingRecord.priorYellows + existingRecord.yellows + (2 * existingRecord.priorReds)
     return when {
@@ -1620,9 +1701,7 @@ private fun updatePlayerCardRecord(
     transform: (PlayerRecord) -> PlayerRecord,
 ): List<PlayerRecord> {
     val identity = PlayerIdentity(jerseyNumber, playerName)
-    val existingIndex = records.indexOfFirst { record ->
-        record.identity().matches(identity)
-    }
+    val existingIndex = records.preferredIdentityMatch(identity)?.let(records::indexOf) ?: -1
     val updatedRecords = if (existingIndex >= 0) {
         records.mapIndexed { index, record ->
             if (index == existingIndex) {
@@ -1654,7 +1733,7 @@ private fun GameState.playerIdentityForAssessment(
     // Prefer an existing player record when the entry matches a known player, but fill any
     // blank number/name from the observer's newly entered details.
     return playerCards(team)
-        .firstOrNull { record -> record.identity().matches(identity) }
+        .preferredIdentityMatch(identity)
         ?.identity()
         ?.withMissingFieldsFrom(identity)
         ?: identity
@@ -1761,7 +1840,7 @@ private fun GameState.playerCardFor(
     playerName: String,
 ): PlayerRecord? {
     val identity = PlayerIdentity(jerseyNumber, playerName)
-    return playerCardsFor(team).firstOrNull { it.identity().matches(identity) }
+    return playerCardsFor(team).preferredIdentityMatch(identity)
 }
 
 /// Format the popup title for a team-card event.
@@ -1925,7 +2004,7 @@ private fun GameState.playerHasTournamentSuspension(
     playerName: String,
 ): Boolean {
     val identity = PlayerIdentity(jerseyNumber, playerName)
-    val player = playerCards(team).first { it.identity().matches(identity) }
+    val player = playerCards(team).preferredIdentityMatch(identity)!!
     return player.totalCardPoints >= 3
 }
 

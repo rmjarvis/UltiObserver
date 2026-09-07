@@ -425,6 +425,65 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
     }
 
     /**
+     * Test that number-only card entry asks which recorded player has that number.
+     */
+    @Test
+    fun ambiguousPlayerNumberSelection() {
+        setRuleGuidanceMode(RuleGuidanceMode.FULL)
+        startLiveGameProgrammatically()
+        seedInGamePlayerCardsProgrammatically(
+            teamOneCards = listOf(
+                playerRecordWithCards("3", yellows = 1, playerName = "John"),
+                PlayerRecord("3", playerName = "Mark", priorYellows = 1),
+            ),
+        )
+
+        // A number shared by two recorded players opens a selection dialog containing both card
+        // histories. Cancel restores the original number-only entry.
+        openCardsDialog(TeamId.TEAM_ONE)
+        tapCardDialogAction(TeamId.TEAM_ONE, "Red")
+        enterCardPlayerNumber("3")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Which player is #3?")
+        waitForText("#3 John (Y 1)")
+        waitForText("#3 Mark (prior Y 1)")
+        composeRule.onNodeWithTag("card-number-selection-cancel").performClick()
+        assertEquals(
+            "3",
+            composeRule.onNodeWithTag("card-player-number")
+                .fetchSemanticsNode()
+                .config[SemanticsProperties.EditableText]
+                .text,
+        )
+
+        // Selecting Mark behaves like entering both his number and name in the original form.
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Which player is #3?")
+        composeRule.onNodeWithTag("card-number-select-3-Mark").performClick()
+        waitForText("Red card on #3 Mark.", substring = true)
+        composeRule.onNodeWithText("Back").performClick()
+        assertEquals(
+            "3",
+            composeRule.onNodeWithTag("card-player-number")
+                .fetchSemanticsNode()
+                .config[SemanticsProperties.EditableText]
+                .text,
+        )
+        assertEquals(
+            "Mark",
+            composeRule.onNodeWithTag("card-player-name")
+                .fetchSemanticsNode()
+                .config[SemanticsProperties.EditableText]
+                .text,
+        )
+
+        // Recording the restored exact identity no longer needs the ambiguity selection.
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Red card on #3 Mark.", substring = true)
+        composeRule.onNodeWithText("OK").performClick()
+    }
+
+    /**
      * The Card dialog should keep pull/receive role labels visible during halftime.
      */
     @Test

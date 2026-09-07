@@ -568,6 +568,23 @@ class TestMisconduct : GameDomainTestFixtures() {
             .sameNumberPlayerIdentityConflict(TeamId.TEAM_ONE, "7", "James Cutter")
         assertNotNull(stateConflict)
 
+        // Card-entry match results retain their complete identity, display detail, candidate
+        // list, and default empty reason for the UI workflow that consumes them.
+        val defaultEntry = PlayerCardEntry(jerseyNumber = "7")
+        assertEquals(CardReason(), defaultEntry.reason)
+        val candidate = PlayerCardCandidate(
+            identity = PlayerIdentity("7", "Drew Handler"),
+            detail = "2 cards",
+        )
+        assertEquals(PlayerIdentity("7", "Drew Handler"), candidate.identity)
+        assertEquals("2 cards", candidate.detail)
+        val selection = PendingPlayerNumberSelection(
+            identity = PlayerIdentity("7"),
+            candidates = listOf(candidate),
+        )
+        assertEquals(PlayerIdentity("7"), selection.identity)
+        assertEquals(listOf(candidate), selection.candidates)
+
         // Same name with a different number from an existing numbered player is accepted.
         assertNull(
             cardHolderEntryChecks.cardHolderEntryCheck(
@@ -1910,6 +1927,78 @@ class TestMisconduct : GameDomainTestFixtures() {
         assertTrue(beforeCardEdit.hardCapApplied)
         assertEquals("Undo Apply hard cap", beforeCardEdit.undoEntry?.label)
         assertNull(beforeCardEdit.undoLastAction().pendingCapOffer)
+    }
+
+    /**
+     * Test that ambiguous-number candidates retain their distinct identities and card histories.
+     */
+    @Test
+    fun ambiguousPlayerNumber() {
+        val matchingPlayers = listOf(
+            playerRecordWithCards("3", yellows = 1, playerName = "John"),
+            priorPlayerRecord("3", priorYellows = 1, playerName = "Mark"),
+            playerRecordWithCards("3", reds = 1, playerName = "Alex"),
+            playerRecordWithCards("3", yellows = 2, playerName = "Taylor"),
+        )
+        val differentNumberPlayer =
+            playerRecordWithCards("4", yellows = 1, playerName = "Morgan")
+        val players = matchingPlayers + differentNumberPlayer
+        val state = standardLiveGameState().copy(teamOnePlayers = players)
+
+        // A number shared by four players produces the complete pending selection, retaining each
+        // candidate's distinct current or prior card history.
+        assertEquals(
+            PendingPlayerNumberSelection(
+                identity = PlayerIdentity("3"),
+                candidates = listOf(
+                    PlayerCardCandidate("3", "John", "Y 1"),
+                    PlayerCardCandidate("3", "Mark", "prior Y 1"),
+                    PlayerCardCandidate("3", "Alex", "R 1"),
+                    PlayerCardCandidate("3", "Taylor", "Y 2"),
+                ),
+            ),
+            PlayerCardEntry(" 3 ").checkForMultiplePlayerMatches(players),
+        )
+
+        // One match, no match, and an entry that already supplies a name need no selection.
+        assertNull(
+            PlayerCardEntry("3").checkForMultiplePlayerMatches(matchingPlayers.take(1))
+        )
+        assertNull(
+            PlayerCardEntry("5").checkForMultiplePlayerMatches(players)
+        )
+        assertNull(
+            PlayerCardEntry("3", "Mark").checkForMultiplePlayerMatches(players)
+        )
+
+        // Exact identities still find the correct suspension status among candidates sharing the
+        // same number.
+        assertNull(playerSuspensionStatus(players, PlayerIdentity("3", "Mark")))
+        assertEquals(
+            PlayerSuspensionStatus.RED_CARD,
+            playerSuspensionStatus(players, PlayerIdentity("3", "Alex")),
+        )
+        assertEquals(
+            PlayerSuspensionStatus.TWO_YELLOWS,
+            playerSuspensionStatus(players, PlayerIdentity("3", "Taylor")),
+        )
+        assertNull(players.sameNumberPlayerIdentityConflict("3", "Mark"))
+
+        // Supplying the selected name performs the ordinary assessment for Mark's exact prior-card
+        // record without changing any of the other same-number players.
+        val result = state.assessRedCard(
+            team = TeamId.TEAM_ONE,
+            jerseyNumber = "3",
+            now = 123_000L,
+            playerName = "Mark",
+        )
+        val selectedPlayer = result.state.teamOnePlayers[1]
+        assertEquals(1, selectedPlayer.priorYellows)
+        assertEquals(listOf(CardType.RED), selectedPlayer.cards.map { it.cardType })
+        assertEquals(players[0], result.state.teamOnePlayers[0])
+        assertEquals(players[2], result.state.teamOnePlayers[2])
+        assertEquals(players[3], result.state.teamOnePlayers[3])
+        assertEquals(differentNumberPlayer, result.state.teamOnePlayers[4])
     }
 
     /**

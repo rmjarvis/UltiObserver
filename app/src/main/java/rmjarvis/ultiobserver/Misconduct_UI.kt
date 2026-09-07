@@ -39,32 +39,6 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 
 /**
- * Entered player-card details from the yellow/red card dialog.
- *
- * @param jerseyNumber The player's jersey number, or blank for name-only.
- * @param playerName The player's name, or blank when unknown.
- * @param reason Optional observer-entered card reason.
- */
-private data class PlayerCardEntry(
-    val jerseyNumber: String,
-    val playerName: String = "",
-    val reason: CardReason = CardReason(),
-)
-
-/**
- * Known carded player offered for quick selection.
- *
- * @param jerseyNumber The player's jersey number, or blank for name-only.
- * @param playerName The player's name, or blank when unknown.
- * @param detail Compact card-count detail for this player.
- */
-private data class PlayerCardCandidate(
-    val jerseyNumber: String,
-    val playerName: String,
-    val detail: String,
-)
-
-/**
  * Live player-card entry with a same-number, different-name conflict awaiting confirmation.
  *
  * @param team The team receiving the card.
@@ -84,12 +58,12 @@ private data class PendingSameNumberPlayerCardConfirmation(
  *
  * @param team The team receiving the card.
  * @param cardType The card being added.
- * @param initialEntry The entry values to restore when returning to this add dialog.
+ * @param entry The current entry values for this card-add workflow.
  */
 private data class PendingManualCardAdd(
     val team: TeamId,
     val cardType: CardType,
-    val initialEntry: PlayerCardEntry,
+    val entry: PlayerCardEntry,
 )
 
 /**
@@ -126,11 +100,15 @@ private sealed interface AdjustCardsDialogStep {
     data class CardAdd(val pending: PendingManualCardAdd) : AdjustCardsDialogStep
     data class CardEdit(
         val pending: PendingManualCardEdit,
-        val initialEntry: PlayerCardEntry,
+        val entry: PlayerCardEntry,
     ) : AdjustCardsDialogStep
     data class CardRemove(val pending: PendingManualCardRemove) : AdjustCardsDialogStep
     data class SameNumberConfirmation(
         val confirmation: PendingSameNumberPlayerCardConfirmation
+    ) : AdjustCardsDialogStep
+    data class PlayerNumberSelection(
+        val returnTo: CardAdd,
+        val playerMatches: PendingPlayerNumberSelection,
     ) : AdjustCardsDialogStep
     data class InvalidAssignment(
         val message: String,
@@ -194,31 +172,6 @@ internal fun AdjustCardsDialog(
         ).getNextAssessmentIndex()
     }
 
-    fun suspensionNoticeMessage(
-        team: TeamId,
-        records: List<PlayerRecord>,
-        identity: PlayerIdentity
-    ): RuleGuidanceMessage? {
-        return state.playerSuspensionNotice(team, records, identity)
-    }
-
-    fun GameState.withPlayerCards(
-        team: TeamId,
-        records: List<PlayerRecord>,
-        undoLabel: String,
-    ): GameState {
-        return adjustCardsAndTf(
-            teamOneBlues = teamOne.blueCards,
-            teamOneTechnicalFouls = teamOne.technicalFouls,
-            teamTwoBlues = teamTwo.blueCards,
-            teamTwoTechnicalFouls = teamTwo.technicalFouls,
-            teamOnePlayers = if (team == TeamId.TEAM_ONE) records else teamOnePlayers,
-            teamTwoPlayers = if (team == TeamId.TEAM_TWO) records else teamTwoPlayers,
-            now = now,
-            undoLabel = undoLabel,
-        )
-    }
-
     fun finalizeAdjustment() {
         onConfirm(
             state.adjustBlueCardsAndTechs(
@@ -233,14 +186,12 @@ internal fun AdjustCardsDialog(
 
     fun applyManualCardAdd(
         pending: PendingManualCardAdd,
-        entry: PlayerCardEntry,
         skipSameNumberWarning: Boolean = false,
     ) {
         val team = pending.team
         val cardType = pending.cardType
-        val returnTo = AdjustCardsDialogStep.CardAdd(
-            pending.copy(initialEntry = entry)
-        )
+        val entry = pending.entry
+        val returnTo = AdjustCardsDialogStep.CardAdd(pending)
         if (entry.jerseyNumber.isBlank() && entry.playerName.isBlank()) {
             step = AdjustCardsDialogStep.InvalidAssignment(
                 "Enter a player number or name before recording this card.",
@@ -250,6 +201,14 @@ internal fun AdjustCardsDialog(
         }
         val identity = PlayerIdentity(entry.jerseyNumber, entry.playerName)
         val records = recordsFor(team)
+        val playerMatches = entry.checkForMultiplePlayerMatches(records)
+        if (playerMatches != null) {
+            step = AdjustCardsDialogStep.PlayerNumberSelection(
+                returnTo = returnTo,
+                playerMatches = playerMatches,
+            )
+            return
+        }
         if (!skipSameNumberWarning) {
             val conflict = records.sameNumberPlayerIdentityConflict(
                 identity.jerseyNumber,
@@ -288,11 +247,12 @@ internal fun AdjustCardsDialog(
             reason = entry.reason,
         )
         setRecordsFor(team, updatedRecords)
-        val noticeMessage = suspensionNoticeMessage(team, updatedRecords, identity)
+        val noticeMessage = state.playerSuspensionNotice(team, updatedRecords, identity)
         onStateUpdate(
-            state.withPlayerCards(
+            state.editExistingPlayerCards(
                 team = team,
                 records = updatedRecords,
+                now = now,
                 undoLabel = state.playerCardAddUndoLabel(team, cardType, identity),
             )
         )
@@ -341,14 +301,15 @@ internal fun AdjustCardsDialog(
         )
         setRecordsFor(team, updatedRecords)
         val noticeMessage = if (!identity.matches(originalCard.identity())) {
-            suspensionNoticeMessage(team, updatedRecords, identity)
+            state.playerSuspensionNotice(team, updatedRecords, identity)
         } else {
             null
         }
         onStateUpdate(
-            state.withPlayerCards(
+            state.editExistingPlayerCards(
                 team = team,
                 records = updatedRecords,
+                now = now,
                 undoLabel = state.playerCardEditUndoLabel(team, originalCard.cardType, identity),
             )
         )
@@ -548,13 +509,14 @@ internal fun AdjustCardsDialog(
             PlayerCardEntryDialog(
                 title = "Add ${pending.cardType.label.lowercase()} card",
                 teamName = state.teamFor(pending.team).name,
-                initialEntry = pending.initialEntry,
+                entry = pending.entry,
                 candidates = recordsFor(pending.team).playerCardCandidates(),
                 cardType = pending.cardType,
                 isLandscape = isLandscape,
                 onDismiss = { step = AdjustCardsDialogStep.CardCounts },
                 onConfirm = { entry ->
-                    applyManualCardAdd(pending, entry)
+                    // Keep the submitted values in the workflow if a later step returns here.
+                    applyManualCardAdd(pending.copy(entry = entry))
                 },
             )
         }
@@ -564,7 +526,7 @@ internal fun AdjustCardsDialog(
             PlayerCardEntryDialog(
                 title = "Edit ${pending.card.cardType.label.lowercase()} card",
                 teamName = state.teamFor(pending.team).name,
-                initialEntry = activeStep.initialEntry,
+                entry = activeStep.entry,
                 candidates = emptyList(),
                 cardType = pending.card.cardType,
                 isLandscape = isLandscape,
@@ -587,9 +549,10 @@ internal fun AdjustCardsDialog(
                     )
                     setRecordsFor(pending.team, updatedRecords)
                     onStateUpdate(
-                        state.withPlayerCards(
+                        state.editExistingPlayerCards(
                             team = pending.team,
                             records = updatedRecords,
+                            now = now,
                             undoLabel = state.playerCardRemoveUndoLabel(
                                 team = pending.team,
                                 cardType = pending.card.cardType,
@@ -610,7 +573,7 @@ internal fun AdjustCardsDialog(
                     PendingManualCardAdd(
                         team = confirmation.team,
                         cardType = confirmation.cardType,
-                        initialEntry = confirmation.entry,
+                        entry = confirmation.entry,
                     )
                 )
             }
@@ -641,9 +604,8 @@ internal fun AdjustCardsDialog(
                                 pending = PendingManualCardAdd(
                                     team = confirmation.team,
                                     cardType = confirmation.cardType,
-                                    initialEntry = confirmation.entry,
+                                    entry = confirmation.entry,
                                 ),
-                                entry = confirmation.entry,
                                 skipSameNumberWarning = true,
                             )
                         }
@@ -659,6 +621,26 @@ internal fun AdjustCardsDialog(
                     )
                 },
                 widthProfile = DialogWidthProfile.COMPACT,
+            )
+        }
+
+        is AdjustCardsDialogStep.PlayerNumberSelection -> {
+            val playerMatches = activeStep.playerMatches
+            PlayerNumberSelectionDialog(
+                jerseyNumber = playerMatches.identity.jerseyNumber,
+                candidates = playerMatches.candidates,
+                onSelect = { candidate ->
+                    val selectedEntry = activeStep.returnTo.pending.entry.copy(
+                        jerseyNumber = candidate.jerseyNumber,
+                        playerName = candidate.playerName,
+                    )
+                    applyManualCardAdd(
+                        pending = activeStep.returnTo.pending.copy(entry = selectedEntry),
+                    )
+                },
+                onDismiss = {
+                    step = activeStep.returnTo
+                },
             )
         }
 
@@ -724,10 +706,14 @@ private sealed interface TeamCardDialogStep {
     data class CardedPlayerEntry(
         val team: TeamId,
         val cardType: CardType,
-        val initialEntry: PlayerCardEntry,
+        val entry: PlayerCardEntry,
     ) : TeamCardDialogStep
     data class SameNumberConfirmation(
         val confirmation: PendingSameNumberPlayerCardConfirmation
+    ) : TeamCardDialogStep
+    data class PlayerNumberSelection(
+        val returnTo: CardedPlayerEntry,
+        val playerMatches: PendingPlayerNumberSelection,
     ) : TeamCardDialogStep
     data class BlueCardConfirmation(
         val confirmation: GamePrompt.BlueCardConfirmation,
@@ -747,7 +733,7 @@ private sealed interface ExistingCardsEditorStep {
     data object CardList : ExistingCardsEditorStep
     data class CardEdit(
         val pending: PendingManualCardEdit,
-        val initialEntry: PlayerCardEntry,
+        val entry: PlayerCardEntry,
     ) : ExistingCardsEditorStep
     data class InvalidAssignment(
         val message: String,
@@ -865,7 +851,7 @@ internal fun ExistingCardsEditorDialog(
             PlayerCardEntryDialog(
                 title = "Edit ${pending.card.cardType.label.lowercase()} card",
                 teamName = state.teamFor(pending.team).name,
-                initialEntry = activeStep.initialEntry,
+                entry = activeStep.entry,
                 candidates = emptyList(),
                 cardType = pending.card.cardType,
                 isLandscape = isLandscape,
@@ -953,7 +939,7 @@ internal fun TeamCardDialog(
                 TeamCardDialogStep.CardedPlayerEntry(
                     team = team,
                     cardType = cardType,
-                    initialEntry = PlayerCardEntry(""),
+                    entry = PlayerCardEntry(""),
                 )
             } ?: TeamCardDialogStep.InitialCardChoice
         )
@@ -966,36 +952,15 @@ internal fun TeamCardDialog(
         step = TeamCardDialogStep.AssessmentResult(result, returnTo)
     }
 
-    fun cardedPlayerEntryStep(
-        team: TeamId,
-        cardType: CardType,
-        entry: PlayerCardEntry,
-    ): TeamCardDialogStep.CardedPlayerEntry {
-        return TeamCardDialogStep.CardedPlayerEntry(team, cardType, entry)
-    }
-
-    fun sameNumberConfirmationStep(
-        confirmation: PendingSameNumberPlayerCardConfirmation
-    ): TeamCardDialogStep.SameNumberConfirmation {
-        return TeamCardDialogStep.SameNumberConfirmation(confirmation)
-    }
-
-    fun invalidAssignmentStep(
-        message: String,
-        returnTo: TeamCardDialogStep,
-    ): TeamCardDialogStep.InvalidAssignment {
-        return TeamCardDialogStep.InvalidAssignment(message, returnTo)
-    }
-
     fun assessPlayerCardEntry(
         team: TeamId,
         cardType: CardType,
         entry: PlayerCardEntry,
         skipSameNumberWarning: Boolean = false,
     ): Boolean {
-        val returnTo = cardedPlayerEntryStep(team, cardType, entry)
+        val returnTo = TeamCardDialogStep.CardedPlayerEntry(team, cardType, entry)
         if (entry.jerseyNumber.isBlank() && entry.playerName.isBlank()) {
-            step = invalidAssignmentStep(
+            step = TeamCardDialogStep.InvalidAssignment(
                 "Enter a player number or name before recording this card.",
                 returnTo,
             )
@@ -1006,6 +971,18 @@ internal fun TeamCardDialog(
             jerseyNumber = identity.jerseyNumber,
             playerName = identity.playerName
         )
+        val playerMatches = normalizedEntry.checkForMultiplePlayerMatches(state.playerCards(team))
+        if (playerMatches != null) {
+            step = TeamCardDialogStep.PlayerNumberSelection(
+                returnTo = TeamCardDialogStep.CardedPlayerEntry(
+                    team,
+                    cardType,
+                    normalizedEntry,
+                ),
+                playerMatches = playerMatches,
+            )
+            return true
+        }
         if (!skipSameNumberWarning) {
             val conflict = state.sameNumberPlayerIdentityConflict(
                 team,
@@ -1013,7 +990,7 @@ internal fun TeamCardDialog(
                 identity.playerName
             )
             if (conflict != null) {
-                step = sameNumberConfirmationStep(
+                step = TeamCardDialogStep.SameNumberConfirmation(
                     PendingSameNumberPlayerCardConfirmation(
                         team = team,
                         cardType = cardType,
@@ -1026,7 +1003,7 @@ internal fun TeamCardDialog(
         }
         val status = playerSuspensionStatus(state.playerCards(team), identity)
         if (status != null) {
-            step = invalidAssignmentStep(
+            step = TeamCardDialogStep.InvalidAssignment(
                 "${state.teamFor(team).name} ${identity.displayText(compact = true)} " +
                     status.rejectionText,
                 returnTo,
@@ -1045,7 +1022,11 @@ internal fun TeamCardDialog(
                         identity.playerName,
                         entry.reason
                     ),
-                    cardedPlayerEntryStep(team, CardType.YELLOW, normalizedEntry),
+                    TeamCardDialogStep.CardedPlayerEntry(
+                        team,
+                        CardType.YELLOW,
+                        normalizedEntry,
+                    ),
                 )
                 return true
             }
@@ -1058,7 +1039,11 @@ internal fun TeamCardDialog(
                         identity.playerName,
                         entry.reason
                     ),
-                    cardedPlayerEntryStep(team, CardType.RED, normalizedEntry),
+                    TeamCardDialogStep.CardedPlayerEntry(
+                        team,
+                        CardType.RED,
+                        normalizedEntry,
+                    ),
                 )
                 return true
             }
@@ -1105,8 +1090,8 @@ internal fun TeamCardDialog(
             PlayerCardEntryDialog(
                 title = "${activeStep.cardType.label} card",
                 teamName = state.teamFor(activeStep.team).name,
-                initialEntry = activeStep.initialEntry,
-                candidates = state.cardedPlayerCandidates(activeStep.team),
+                entry = activeStep.entry,
+                candidates = state.playerCards(activeStep.team).playerCardCandidates(),
                 cardType = activeStep.cardType,
                 isLandscape = isLandscape,
                 onDismiss = {
@@ -1125,7 +1110,7 @@ internal fun TeamCardDialog(
             val confirmation = activeStep.confirmation
             ResponsiveAlertDialog(
                 onDismissRequest = {
-                    step = cardedPlayerEntryStep(
+                    step = TeamCardDialogStep.CardedPlayerEntry(
                         confirmation.team,
                         confirmation.cardType,
                         confirmation.entry,
@@ -1163,7 +1148,7 @@ internal fun TeamCardDialog(
                         label = "Cancel",
                         tag = "same-number-warning-cancel",
                         onClick = {
-                            step = cardedPlayerEntryStep(
+                            step = TeamCardDialogStep.CardedPlayerEntry(
                                 confirmation.team,
                                 confirmation.cardType,
                                 confirmation.entry
@@ -1172,6 +1157,26 @@ internal fun TeamCardDialog(
                     )
                 },
                 widthProfile = DialogWidthProfile.COMPACT,
+            )
+        }
+        is TeamCardDialogStep.PlayerNumberSelection -> {
+            val playerMatches = activeStep.playerMatches
+            PlayerNumberSelectionDialog(
+                jerseyNumber = playerMatches.identity.jerseyNumber,
+                candidates = playerMatches.candidates,
+                onSelect = { candidate ->
+                    assessPlayerCardEntry(
+                        team = activeStep.returnTo.team,
+                        cardType = activeStep.returnTo.cardType,
+                        entry = activeStep.returnTo.entry.copy(
+                            jerseyNumber = candidate.jerseyNumber,
+                            playerName = candidate.playerName,
+                        ),
+                    )
+                },
+                onDismiss = {
+                    step = activeStep.returnTo
+                },
             )
         }
         is TeamCardDialogStep.InvalidAssignment -> {
@@ -1500,7 +1505,8 @@ private fun EditablePlayerCardRow(
     onEdit: () -> Unit,
     onRemove: (() -> Unit)? = null,
 ) {
-    val identity = editablePlayerCardIdentityText(card)
+    val identity = PlayerIdentity(card.jerseyNumber, card.playerName)
+        .displayText(compact = false)
     DialogListItemCard {
         Row(
             modifier = Modifier
@@ -1627,17 +1633,12 @@ private fun RemoveEditablePlayerCardDialog(
     )
 }
 
-/// Return the player identity text for one editable card row.
-private fun editablePlayerCardIdentityText(card: EditablePlayerCard): String {
-    return PlayerIdentity(card.jerseyNumber, card.playerName).displayText(compact = false)
-}
-
 /**
  * Render the player details prompt for live yellow/red card flows.
  *
  * @param title The dialog title describing the card type.
  * @param teamName The team receiving the player card.
- * @param initialEntry Card details to restore when returning from a later dialog step.
+ * @param entry Card details used to seed the number, name, and reason when the dialog opens.
  * @param candidates Known carded players for this team.
  * @param cardType The card being assessed.
  * @param isLandscape Whether to arrange orientation-specific dialog content for landscape.
@@ -1648,21 +1649,21 @@ private fun editablePlayerCardIdentityText(card: EditablePlayerCard): String {
 private fun PlayerCardEntryDialog(
     title: String,
     teamName: String,
-    initialEntry: PlayerCardEntry,
+    entry: PlayerCardEntry,
     candidates: List<PlayerCardCandidate>,
     cardType: CardType,
     isLandscape: Boolean,
     onDismiss: () -> Unit,
     onConfirm: (PlayerCardEntry) -> Unit,
 ) {
-    var jerseyNumber by remember(initialEntry) {
-        mutableStateOf(initialEntry.jerseyNumber)
+    var jerseyNumber by remember(entry) {
+        mutableStateOf(entry.jerseyNumber)
     }
-    var playerName by remember(initialEntry) {
-        mutableStateOf(initialEntry.playerName)
+    var playerName by remember(entry) {
+        mutableStateOf(entry.playerName)
     }
-    var reason by remember(initialEntry) {
-        mutableStateOf(initialEntry.reason)
+    var reason by remember(entry) {
+        mutableStateOf(entry.reason)
     }
     var showingReasonDialog by remember {
         mutableStateOf(false)
@@ -1707,7 +1708,10 @@ private fun PlayerCardEntryDialog(
                             candidates.forEach { candidate ->
                                 PlayerCardCandidateRow(
                                     candidate = candidate,
-                                    onCopy = {
+                                    actionLabel = "Copy",
+                                    actionTag =
+                                        "card-candidate-copy-${candidate.jerseyNumber}-${candidate.playerName}",
+                                    onClick = {
                                         jerseyNumber = candidate.jerseyNumber
                                         playerName = candidate.playerName
                                     },
@@ -1748,13 +1752,66 @@ private fun PlayerCardEntryDialog(
 }
 
 /**
- * Render one known player row with an action to copy its identity into the entry fields.
+ * Ask which known player is meant by a number-only card entry.
  *
- * @param candidate The known player to show.
- * @param onCopy Callback copying the candidate identity into the current entry.
+ * @param jerseyNumber The ambiguous player number.
+ * @param candidates Known players who share that number.
+ * @param onSelect Callback selecting one exact player identity.
+ * @param onDismiss Callback returning to the populated card entry.
  */
 @Composable
-private fun PlayerCardCandidateRow(candidate: PlayerCardCandidate, onCopy: () -> Unit) {
+private fun PlayerNumberSelectionDialog(
+    jerseyNumber: String,
+    candidates: List<PlayerCardCandidate>,
+    onSelect: (PlayerCardCandidate) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ResponsiveAlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Which player is #$jerseyNumber?") },
+        text = {
+            ScrollableDialogRegion(
+                maxHeight = dialogBodyMaxHeight(),
+                verticalArrangement = Arrangement.spacedBy(0.dp),
+            ) {
+                candidates.forEach { candidate ->
+                    PlayerCardCandidateRow(
+                        candidate = candidate,
+                        actionLabel = "Select",
+                        actionTag =
+                            "card-number-select-${candidate.jerseyNumber}-${candidate.playerName}",
+                        onClick = { onSelect(candidate) },
+                    )
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextActionButton(
+                label = "Cancel",
+                tag = "card-number-selection-cancel",
+                onClick = onDismiss,
+            )
+        },
+        widthProfile = DialogWidthProfile.COMPACT,
+    )
+}
+
+/**
+ * Render one known player row with a compact identity action.
+ *
+ * @param candidate The known player to show.
+ * @param actionLabel Label for the row action.
+ * @param actionTag Test tag for the row action.
+ * @param onClick Callback selecting the candidate.
+ */
+@Composable
+private fun PlayerCardCandidateRow(
+    candidate: PlayerCardCandidate,
+    actionLabel: String,
+    actionTag: String,
+    onClick: () -> Unit,
+) {
     val detail = candidate.detail.takeIf { it.isNotBlank() }?.let { " ($it)" }.orEmpty()
     Row(
         modifier = Modifier
@@ -1768,10 +1825,10 @@ private fun PlayerCardCandidateRow(candidate: PlayerCardCandidate, onCopy: () ->
             modifier = Modifier.weight(1f),
         )
         TextActionButton(
-            label = "Copy",
-            tag = "card-candidate-copy-${candidate.jerseyNumber}-${candidate.playerName}",
+            label = actionLabel,
+            tag = actionTag,
             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-            onClick = onCopy,
+            onClick = onClick,
         )
     }
 }
@@ -1930,25 +1987,5 @@ private fun GameState.cardsRoleSuffix(team: TeamId): String {
         if (team == pullingTeam) " (pulling)" else " (receiving)"
     } else {
         ""
-    }
-}
-
-/**
- * Return known players for quick live-card selection.
- *
- * @param team The team whose known players should be listed.
- */
-private fun GameState.cardedPlayerCandidates(team: TeamId): List<PlayerCardCandidate> {
-    return playerCards(team).playerCardCandidates()
-}
-
-/// Return known players for quick player-card selection.
-private fun List<PlayerRecord>.playerCardCandidates(): List<PlayerCardCandidate> {
-    return map { player ->
-        PlayerCardCandidate(
-            jerseyNumber = player.jerseyNumber,
-            playerName = player.playerName,
-            detail = player.cardDetail(compact = true, includeGame = true),
-        )
     }
 }
