@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+if (( $# > 1 )); then
+    echo "Usage: $0 [emulator serial or AVD name]" >&2
+    exit 2
+fi
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$script_dir"
+
+if command -v adb >/dev/null 2>&1; then
+    adb_command="$(command -v adb)"
+elif [[ -n "${ANDROID_SDK_ROOT:-}" ]]; then
+    adb_command="$ANDROID_SDK_ROOT/platform-tools/adb"
+elif [[ -n "${ANDROID_HOME:-}" ]]; then
+    adb_command="$ANDROID_HOME/platform-tools/adb"
+else
+    sdk_dir="$(sed -n 's/^sdk\.dir=//p' local.properties | head -n 1)"
+    adb_command="$sdk_dir/platform-tools/adb"
+fi
+
+if [[ ! -x "$adb_command" ]]; then
+    echo "Could not find adb. Set ANDROID_SDK_ROOT or ANDROID_HOME." >&2
+    exit 1
+fi
+
+phone_serials=()
+phone_names=()
+while read -r serial state _; do
+    if [[ "$state" != "device" || "$serial" != emulator-* ]]; then
+        continue
+    fi
+    characteristics="$(
+        "$adb_command" -s "$serial" shell getprop ro.build.characteristics </dev/null | tr -d '\r'
+    )"
+    if [[ ",$characteristics," == *,watch,* ]]; then
+        continue
+    fi
+    avd_name="$(
+        "$adb_command" -s "$serial" shell getprop ro.boot.qemu.avd_name </dev/null | tr -d '\r'
+    )"
+    if [[ -z "$avd_name" ]]; then
+        avd_name="$(
+            "$adb_command" -s "$serial" shell getprop ro.kernel.qemu.avd_name </dev/null | tr -d '\r'
+        )"
+    fi
+    phone_serials+=("$serial")
+    phone_names+=("$avd_name")
+done < <("$adb_command" devices)
+
+if (( ${#phone_serials[@]} == 0 )); then
+    echo "No regular phone emulator is connected." >&2
+    exit 1
+fi
+
+requested_device="${1:-${ANDROID_SERIAL:-}}"
+selected_index=0
+if [[ -n "$requested_device" ]]; then
+    selected_index=-1
+    for index in "${!phone_serials[@]}"; do
+        if [[
+            "$requested_device" == "${phone_serials[$index]}" ||
+            "$requested_device" == "${phone_names[$index]}"
+        ]]; then
+            selected_index=$index
+            break
+        fi
+    done
+    if (( selected_index < 0 )); then
+        echo "'$requested_device' is not a connected regular phone emulator." >&2
+        echo "Available phone emulators:" >&2
+        for index in "${!phone_serials[@]}"; do
+            echo "  ${phone_names[$index]} (${phone_serials[$index]})" >&2
+        done
+        exit 1
+    fi
+elif (( ${#phone_serials[@]} > 1 )); then
+    echo "Multiple phone emulators are connected; using the first one."
+fi
+
+export ANDROID_SERIAL="${phone_serials[$selected_index]}"
+echo "Running UI tests on ${phone_names[$selected_index]} ($ANDROID_SERIAL)."
+
+./gradlew :app:compileDebugAndroidTestKotlin
+./gradlew :app:connectedDebugAndroidTest

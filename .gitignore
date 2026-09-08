@@ -24,5 +24,4 @@ docs/_build/
 .cxx/
 tools/detekt/*.jar
 play-store-assets
-run-*
 exported_games
