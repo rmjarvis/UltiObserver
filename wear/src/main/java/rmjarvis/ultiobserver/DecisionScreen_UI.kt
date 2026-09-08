@@ -2,6 +2,7 @@ package rmjarvis.ultiobserver
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -36,7 +38,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.material3.Text
-import androidx.wear.compose.material3.TimeText
 import kotlinx.coroutines.delay
 import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 import rmjarvis.ultiobserver.wearprotocol.WearActionConfirmation
@@ -188,7 +189,7 @@ internal fun ContinueOnPhoneScreen(
     }
     UltiObserverTheme {
         AppScaffold(
-            timeText = { TimeText() },
+            timeText = { AppTimeText() },
             containerColor = Color.Black,
             contentColor = Color.White,
         ) {
@@ -239,23 +240,21 @@ private fun PromptScreen(
 ) {
     UltiObserverTheme {
         AppScaffold(
-            timeText = { TimeText() },
-            containerColor = Color.Black,
-            contentColor = Color.White,
+            timeText = { AppTimeText() },
+            containerColor = DialogBackgroundColor,
+            contentColor = DialogContentColor,
         ) {
             if (prompt.presentation != WearGuidancePresentation.HIDDEN_AUTO_ACCEPT) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black)
-                        .padding(horizontal = 26.dp),
+                        .background(DialogBackgroundColor)
+                        .padding(top = 28.dp, start = 12.dp, end = 12.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Column(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(DialogBackgroundColor)
+                            .fillMaxSize()
                             .padding(top = 12.dp, bottom = 4.dp, start = 12.dp, end = 12.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
@@ -265,20 +264,26 @@ private fun PromptScreen(
                             color = DialogContentColor,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Start,
+                            textAlign = TextAlign.Center,
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = prompt.messageLines.toAnnotatedString(),
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .weight(1f, fill = false)
-                                .verticalScroll(rememberScrollState()),
-                            color = DialogContentColor,
-                            fontSize = 12.sp,
-                            lineHeight = 16.sp,
-                            textAlign = TextAlign.Start,
-                        )
+                                .weight(1f),
+                            contentAlignment = Alignment.TopStart,
+                        ) {
+                            Text(
+                                text = prompt.messageLines.toAnnotatedString(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .verticalScroll(rememberScrollState()),
+                                color = DialogContentColor,
+                                fontSize = 12.sp,
+                                lineHeight = 16.sp,
+                                textAlign = TextAlign.Start,
+                            )
+                        }
                         Spacer(modifier = Modifier.height(4.dp))
                         if (alternativeAction != null) {
                             PromptAlternativeAction(
@@ -334,6 +339,8 @@ private fun PromptAction(
             color = if (enabled) DialogContentColor else DisabledDialogContentColor,
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            softWrap = false,
         )
     }
 }

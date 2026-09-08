@@ -43,9 +43,6 @@ import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.TimeSource
-import androidx.wear.compose.material3.TimeText
-import androidx.wear.compose.material3.TimeTextDefaults
-import androidx.wear.compose.material3.timeTextCurvedText
 import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 
 /** One team as presented on the fixed left or right side of the watch. */
@@ -111,21 +108,10 @@ internal fun GameScreen(
     val timeSource = remember(display.officialTime) {
         DisplayTimeSource(display.officialTime)
     }
-    val timeStyle = TimeTextDefaults.timeTextStyle(
-        background = Color.Black,
-        color = Color.White,
-        fontSize = 11.sp,
-    )
-
     UltiObserverTheme {
         AppScaffold(
             timeText = {
-                TimeText(
-                    backgroundColor = Color.Black,
-                    timeSource = timeSource,
-                ) { time ->
-                    timeTextCurvedText(time, timeStyle)
-                }
+                AppTimeText(timeSource)
             },
             containerColor = Color.Black,
             contentColor = Color.White,

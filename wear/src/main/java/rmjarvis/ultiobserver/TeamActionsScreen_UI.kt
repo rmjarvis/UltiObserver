@@ -8,6 +8,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicTextField
@@ -23,8 +25,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -32,13 +36,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -48,6 +51,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.material3.Text
 import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 
@@ -67,6 +71,22 @@ internal data class TeamActionsDisplay(
     val timeoutEnabled: Boolean = true,
 )
 
+/** Provide the clock and team colors shared by every team-action screen. */
+@Composable
+private fun TeamScreenScaffold(
+    team: TeamDisplay,
+    content: @Composable BoxScope.() -> Unit,
+) {
+    UltiObserverTheme {
+        AppScaffold(
+            timeText = { AppTimeText() },
+            containerColor = team.backgroundColor,
+            contentColor = team.contentColor,
+            content = content,
+        )
+    }
+}
+
 /**
  * Show the phone-style compact action grid for one team.
  *
@@ -85,7 +105,7 @@ internal fun TeamActionsScreen(
     onTimeout: () -> Unit,
     onCancel: () -> Unit,
 ) {
-    UltiObserverTheme {
+    TeamScreenScaffold(display.team) {
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
@@ -216,7 +236,7 @@ internal fun CardChoiceScreen(
     onBlue: () -> Unit,
     onCancel: () -> Unit,
 ) {
-    UltiObserverTheme {
+    TeamScreenScaffold(display.team) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -226,18 +246,29 @@ internal fun CardChoiceScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth(0.86f)
-                    .align(Alignment.Center),
+                    .align(Alignment.Center)
+                    .offset(y = (-12).dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                Text(
-                    text = display.team.name,
-                    color = display.team.contentColor,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = "Assess a card",
+                        color = display.team.contentColor,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = display.team.name,
+                        color = display.team.contentColor,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -246,20 +277,10 @@ internal fun CardChoiceScreen(
                         .padding(PanelPadding),
                     verticalArrangement = Arrangement.spacedBy(ActionGap),
                 ) {
-                    Text(
-                        text = "Assess a card",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        color = Color.Black,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                    )
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(48.dp),
+                            .height(32.dp),
                         horizontalArrangement = Arrangement.spacedBy(ActionGap),
                     ) {
                         ActionButton(
@@ -267,7 +288,9 @@ internal fun CardChoiceScreen(
                             enabled = enabled,
                             background = YellowCardButtonColor,
                             contentColor = Color.Black,
-                            fontSize = 10.sp,
+                            fontSize = 12.sp,
+                            shape = CardChoiceButtonShape,
+                            borderColor = null,
                             onClick = onYellow,
                             modifier = Modifier
                                 .weight(1f)
@@ -278,7 +301,9 @@ internal fun CardChoiceScreen(
                             enabled = enabled,
                             background = RedCardButtonColor,
                             contentColor = Color.Black,
-                            fontSize = 10.sp,
+                            fontSize = 12.sp,
+                            shape = CardChoiceButtonShape,
+                            borderColor = null,
                             onClick = onRed,
                             modifier = Modifier
                                 .weight(1f)
@@ -289,7 +314,9 @@ internal fun CardChoiceScreen(
                             enabled = enabled,
                             background = BlueCardButtonColor,
                             contentColor = Color.White,
-                            fontSize = 10.sp,
+                            fontSize = 12.sp,
+                            shape = CardChoiceButtonShape,
+                            borderColor = null,
                             onClick = onBlue,
                             modifier = Modifier
                                 .weight(1f)
@@ -329,7 +356,7 @@ internal fun PlayerCardEntryOptionsScreen(
     BackHandler(enabled = enabled) {
         onCancel()
     }
-    UltiObserverTheme {
+    TeamScreenScaffold(display.team) {
         Box(
             modifier = Modifier
                 .fillMaxSize()

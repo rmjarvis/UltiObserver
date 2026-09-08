@@ -31,7 +31,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.material3.Text
-import androidx.wear.compose.material3.TimeText
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -492,7 +491,7 @@ private fun MessageScreen(
 ) {
     UltiObserverTheme {
         AppScaffold(
-            timeText = { TimeText() },
+            timeText = { AppTimeText() },
             containerColor = Color.Black,
             contentColor = Color.White,
         ) {
