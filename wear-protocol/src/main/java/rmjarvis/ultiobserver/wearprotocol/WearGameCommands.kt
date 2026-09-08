@@ -76,7 +76,6 @@ data class WearTeamActionRequest(
 @Serializable
 data class WearPullViolationOption(
     val violation: PullViolationType,
-    val actionLabel: String,
     val prompt: WearPromptSnapshot,
 )
 

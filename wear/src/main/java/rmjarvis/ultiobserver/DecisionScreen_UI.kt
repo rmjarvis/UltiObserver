@@ -129,7 +129,7 @@ internal fun ActionConfirmationScreen(
         if (alternative == null) {
             null
         } else {
-            PromptActionSpec(alternative.actionLabel) {
+            PromptActionSpec(alternative.violation.alternativeActionLabel()) {
                 onConfirmationChange(
                     confirmation.copy(
                         selectedViolation = alternative.violation,
@@ -264,7 +264,7 @@ private fun PromptScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         if (alternativeAction != null) {
-                            PromptAction(
+                            PromptAlternativeAction(
                                 label = alternativeAction.label,
                                 enabled = enabled,
                                 onClick = alternativeAction.onClick,
@@ -321,7 +321,46 @@ private fun PromptAction(
     }
 }
 
+/** Compact text action that switches the selected mixed pull violation. */
+@Composable
+private fun PromptAlternativeAction(
+    label: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val shape = RoundedCornerShape(12.dp)
+    Text(
+        text = label,
+        modifier = Modifier
+            .offset(y = 6.dp)
+            .clip(shape)
+            .background(AlternativeActionBackgroundColor)
+            .border(1.dp, DialogContentColor, shape)
+            .clickable(
+                enabled = enabled,
+                role = Role.Button,
+                onClick = onClick,
+            )
+            .padding(horizontal = 14.dp, vertical = 4.dp),
+        color = if (enabled) DialogContentColor else DisabledDialogContentColor,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Medium,
+        maxLines = 1,
+        softWrap = false,
+    )
+}
+
+/** Format the compact action that switches a mixed pull violation on the watch. */
+private fun PullViolationType.alternativeActionLabel(): String {
+    return when (this) {
+        PullViolationType.OFFSIDES -> "→ Offsides"
+        PullViolationType.MAJORITY_PULL -> "→ Majority pull viol."
+        PullViolationType.FALSE_START -> error("False start has no alternative pull violation.")
+    }
+}
+
 private val DialogBackgroundColor = Color(0xFFF5F1E7)
+private val AlternativeActionBackgroundColor = Color(0xFFFFFDF8)
 private val DialogContentColor = Color(0xFF1F1A17)
 private val DisabledDialogContentColor = Color(0xFF817B75)
 

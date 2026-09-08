@@ -401,7 +401,6 @@ internal fun GamePrompt.ActionConfirmation.wearConfirmation(
                     )
                     WearPullViolationOption(
                         violation = confirmation.violation,
-                        actionLabel = selection.actionLabel,
                         prompt = confirmation.wearSnapshot(guidanceMode),
                     )
                 },
