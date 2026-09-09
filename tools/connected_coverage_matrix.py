@@ -233,7 +233,11 @@ def run_for_device(args: argparse.Namespace, device: MatrixDevice, root: Path) -
     coverage_file = None if args.no_coverage else f"/sdcard/Download/ultiobserver-{device.label}.ec"
     if coverage_file is not None:
         clear_device_coverage_file(args.adb, device, root, coverage_file)
-    run_instrumentation(args.adb, device, root, args.test_class, coverage_file)
+    instrumentation_error = None
+    try:
+        run_instrumentation(args.adb, device, root, args.test_class, coverage_file)
+    except subprocess.CalledProcessError as error:
+        instrumentation_error = error
     elapsed = time.monotonic() - start_time
     print(f"{device.label}: instrumentation finished in {elapsed:.1f}s", flush=True)
 
@@ -246,6 +250,8 @@ def run_for_device(args: argparse.Namespace, device: MatrixDevice, root: Path) -
             coverage_file=coverage_file,
             root=root,
         )
+    if instrumentation_error is not None:
+        raise instrumentation_error
 
 
 def run_gradle_connected_coverage(
@@ -261,28 +267,37 @@ def run_gradle_connected_coverage(
         set_exact_alarm_appop(args.adb, device, root)
 
     if args.no_coverage:
-        command = [args.gradle, "connectedDebugAndroidTest"]
+        command = [args.gradle, "app:connectedDebugAndroidTest"]
     else:
         connected_coverage_dir = root / args.connected_coverage_dir
         if connected_coverage_dir.exists():
             shutil.rmtree(connected_coverage_dir)
-        command = [args.gradle, "connectedDebugAndroidTest"]
+        command = [args.gradle, "app:connectedDebugAndroidTest"]
     if args.test_class:
         command.append(
             "-Pandroid.testInstrumentationRunnerArguments.class=" + ",".join(args.test_class)
         )
 
     start_time = time.monotonic()
-    run(command, cwd=root, env=env)
+    instrumentation_error = None
+    try:
+        run(command, cwd=root, env=env)
+    except subprocess.CalledProcessError as error:
+        instrumentation_error = error
     elapsed = time.monotonic() - start_time
     print(f"{device.label}: Gradle instrumentation finished in {elapsed:.1f}s", flush=True)
 
     if not args.no_coverage:
-        preserve_gradle_connected_coverage(
-            connected_coverage_dir=root / args.connected_coverage_dir,
-            preserved_coverage_dir=root / args.preserved_coverage_dir,
-            device=device,
-        )
+        connected_coverage_dir = root / args.connected_coverage_dir
+        coverage_files = sorted(connected_coverage_dir.glob("**/coverage.ec"))
+        if instrumentation_error is None or len(coverage_files) == 1:
+            preserve_gradle_connected_coverage(
+                connected_coverage_dir=connected_coverage_dir,
+                preserved_coverage_dir=root / args.preserved_coverage_dir,
+                device=device,
+            )
+    if instrumentation_error is not None:
+        raise instrumentation_error
 
 
 def set_exact_alarm_appop(adb: Path, device: MatrixDevice, root: Path) -> None:
