@@ -431,14 +431,7 @@ internal fun UltiObserverApp(
                 if (completed) {
                     summaryActionText = currentSummaryGame.undoEntry!!.label
                     onSummaryAction = {
-                        if (
-                            appState.updateCurrentGame(
-                                currentSummaryGame,
-                                currentSummaryGame.undoLastAction(),
-                            )
-                        ) {
-                            appState.resumeCurrentGame()
-                        }
+                        appState.undoCompletedCurrentGame(currentSummaryGame)
                     }
                     secondarySummaryActionText = "Archive game"
                     onSecondarySummaryAction = {

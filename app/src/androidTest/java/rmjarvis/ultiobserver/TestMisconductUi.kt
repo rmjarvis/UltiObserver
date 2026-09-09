@@ -436,6 +436,10 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
                 playerRecordWithCards("3", yellows = 1, playerName = "John"),
                 PlayerRecord("3", playerName = "Mark", priorYellows = 1),
             ),
+            teamTwoCards = listOf(
+                playerRecordWithCards("23", yellows = 1, playerName = "Alex"),
+                PlayerRecord("23", playerName = "Blake", priorYellows = 1),
+            ),
         )
 
         // A number shared by two recorded players opens a selection dialog containing both card
@@ -481,6 +485,39 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Red card on #3 Mark.", substring = true)
         composeRule.onNodeWithText("OK").performClick()
+
+        // An externally started number-only entry opens directly at player selection. Completing
+        // that workflow clears the active entry after recording the selected player.
+        composeRule.activityRule.scenario.onActivity { activity ->
+            val currentGame = activity.appState.currentGame!!
+            activity.appState.updateCardEntry(
+                currentGame = currentGame,
+                expectedCardEntry = null,
+                updatedCardEntry = ActiveCardEntry(
+                    team = TeamId.TEAM_TWO,
+                    cardType = CardType.RED,
+                    jerseyNumber = "23",
+                ),
+            )
+        }
+        waitForText("Which player is #23?")
+        composeRule.onNodeWithTag("card-number-selection-cancel").performClick()
+        waitForText("Red card")
+        assertEquals(
+            "23",
+            composeRule.onNodeWithTag("card-player-number")
+                .fetchSemanticsNode()
+                .config[SemanticsProperties.EditableText]
+                .text,
+        )
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Which player is #23?")
+        composeRule.onNodeWithTag("card-number-select-23-Blake").performClick()
+        waitForText("Red card on #23 Blake.", substring = true)
+        composeRule.onNodeWithText("OK").performClick()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.activity.appState.state.value.activeCardEntry == null
+        }
     }
 
     /**
@@ -712,6 +749,8 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
             teamTwoCards = listOf(
                 playerRecordWithCards("21", yellows = 1, playerName = "Alex Handler"),
                 playerRecordWithCards("22", yellows = 2),
+                playerRecordWithCards("23", yellows = 1, playerName = "Alex"),
+                PlayerRecord("23", playerName = "Blake", priorYellows = 1),
             ),
         )
 
@@ -745,6 +784,26 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         waitForText("Same number, different names")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("now has a red card and has been suspended.", substring = true)
+        composeRule.onNodeWithText("OK").performClick()
+        composeRule.onNodeWithText("Done").performClick()
+        assertLiveScreen()
+
+        // An ambiguous number uses the correction flow's player chooser. Cancel returns to the
+        // add-card dialog, while choosing a player records the correction normally.
+        openAdjustCardsDialog()
+        composeRule.onNodeWithTag("cards-adjust-team-two-add-red")
+            .performScrollTo()
+            .performClick()
+        waitForText("Add red card")
+        enterCardPlayerNumber("23")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Which player is #23?")
+        composeRule.onNodeWithTag("card-number-selection-cancel").performClick()
+        waitForText("Add red card")
+        composeRule.onNodeWithText("Record").performClick()
+        waitForText("Which player is #23?")
+        composeRule.onNodeWithTag("card-number-select-23-Blake").performClick()
+        waitForText("Card suspension")
         composeRule.onNodeWithText("OK").performClick()
         composeRule.onNodeWithText("Done").performClick()
         assertLiveScreen()

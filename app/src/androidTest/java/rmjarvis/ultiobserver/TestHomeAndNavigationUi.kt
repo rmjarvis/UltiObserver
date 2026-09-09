@@ -7,6 +7,7 @@ import android.app.Instrumentation
 import android.content.pm.PackageManager
 import android.content.Intent
 import android.provider.Settings
+import androidx.activity.compose.setContent
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -37,6 +38,7 @@ import androidx.test.espresso.intent.Intents.intending
 import androidx.test.espresso.intent.Intents.release
 import androidx.test.espresso.intent.matcher.IntentMatchers.hasAction
 import androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra
+import androidx.test.filters.SdkSuppress
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.core.content.ContextCompat
 import java.time.LocalDate
@@ -44,10 +46,10 @@ import java.time.LocalTime
 import kotlin.math.abs
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.hamcrest.Matchers.allOf
+import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 
 /// Tests for Home, top-level navigation, profile, settings, and archived-game UI pathways.
 @RunWith(AndroidJUnit4::class)
@@ -965,6 +967,20 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         setNewCountdownAdvanceSettings(enabled = false, seconds = 3)
         setShowAbbaRatioAsSequence(true)
         setPortraitOrientationPreference()
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appState.updateSettings(
+                activity.appState.settings
+                    .withGenderRatioBadgeColor(
+                        GenderRatio.FOUR_MEN_THREE_WOMEN,
+                        TeamColorChoice.BLUE.accentArgb,
+                    )
+                    .withGenderRatioBadgeColor(
+                        GenderRatio.FOUR_WOMEN_THREE_MEN,
+                        TeamColorChoice.RED.accentArgb,
+                    )
+            )
+        }
+        composeRule.waitForIdle()
 
         // Active games default to Portrait; exercise both alternate orientation behaviors.
         composeRule.onNodeWithText("Settings").performClick()
@@ -1160,28 +1176,27 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("settings-4w-3m-badge-color")
             .assertTextEquals("Black")
 
-        // Indicator colors also use the shared custom-color flow. Visible Cancel leaves the
-        // current color in place, while platform Back applies the picker like Use this color.
-        // Applying a custom color exposes it as a selectable custom swatch.
+        // Indicator colors also use the shared custom-color flow. Cancel leaves the
+        // current color in place.
         composeRule.onNodeWithTag("settings-4m-3w-badge-color").performClick()
         composeRule.onNodeWithTag("settings-4m-3w-badge-color-more").performClick()
         waitForText("Use this color")
-        dismissDialog(text = "Cancel")
-        val colorAfterDismiss = if (shouldUsePlatformBackDismissalCoverage()) {
-            "Custom"
-        } else {
-            "Black"
-        }
-        composeRule.onNodeWithTag("settings-4m-3w-badge-color")
-            .assertTextEquals(colorAfterDismiss)
-            .performClick()
+        composeRule.onNodeWithTag("settings-4m-3w-badge-color-custom-picker")
+            .performTouchInput {
+                click(percentOffset(0.25f, 0.65f))
+            }
+        composeRule.onNodeWithText("Cancel").performClick()
+        composeRule.onNodeWithTag("settings-4m-3w-badge-color").assertTextEquals("Black")
+
+        // Applying a custom indicator color exposes it as a selectable custom swatch.
+        composeRule.onNodeWithTag("settings-4m-3w-badge-color").performClick()
         composeRule.onNodeWithTag("settings-4m-3w-badge-color-more").performClick()
         composeRule.onNodeWithTag("settings-4m-3w-badge-color-custom-picker")
             .performTouchInput {
                 click(percentOffset(0.75f, 0.35f))
             }
         composeRule.onNodeWithTag("settings-4m-3w-badge-color-custom-preview").performClick()
-        composeRule.onNodeWithText("Use this color").performClick()
+        dismissDialog(text = "Use this color")
         composeRule.onNodeWithTag("settings-4m-3w-badge-color")
             .assertTextEquals("Custom")
             .performClick()
@@ -1193,11 +1208,40 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
     }
 
     /**
-     * Verify Activity startup reconciles a saved watch mode with Android notification permission.
+     * Verify the Wear OS description used when the phone can reach a paired watch.
      */
     @Test
+    fun availableWearWatchDescription() {
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appState.openSettings()
+            activity.setContent {
+                UltiObserverTheme(dynamicColor = false) {
+                    UltiObserverApp(
+                        appState = activity.appState,
+                        previousRunCrashed = false,
+                        displayOrientation = ActiveGameFullOrientation.PORTRAIT,
+                        wearWatchAvailable = true,
+                    )
+                }
+            }
+        }
+        composeRule.onNodeWithTag("settings-watch-connection-WEAR_OS")
+            .performScrollTo()
+            .performClick()
+        waitForText("record goals, timeouts and other events", substring = true)
+        waitForText("vibration will happen on the watch", substring = true)
+        composeRule.onAllNodesWithText(
+            "No Wear OS watch is currently available",
+            substring = true,
+        ).assertCountEquals(0)
+    }
+
+    /**
+     * Verify Activity startup reconciles a saved watch mode with Android notification permission.
+     */
+    @SdkSuppress(minSdkVersion = Build.VERSION_CODES.TIRAMISU)
+    @Test
     fun unavailableWatchNotificationsTurnOffAtStartup() {
-        assumeTrue(Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
         assertEquals(
             PackageManager.PERMISSION_DENIED,
             ContextCompat.checkSelfPermission(
@@ -1322,7 +1366,9 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
 
             // Wear OS mode does not require phone notification permission because it uses the
             // native Data Layer connection instead of standard notification bridging.
-            composeRule.onNodeWithTag("settings-watch-connection-WEAR_OS").performClick()
+            composeRule.onNodeWithTag("settings-watch-connection-WEAR_OS")
+                .performScrollTo()
+                .performClick()
             waitForText("Use UltiObserver on a paired Wear OS watch", substring = true)
             composeRule.onAllNodesWithText(
                 "Phone notifications must be enabled for watch notifications to work.",

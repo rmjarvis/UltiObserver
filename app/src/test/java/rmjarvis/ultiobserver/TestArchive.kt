@@ -881,7 +881,7 @@ class TestArchive : GameDomainTestFixtures() {
         assertFalse(appState.viewingCurrentGameSummary)
 
         // A completed current game opens the normal current-game summary.
-        val completedCurrentGame = currentGame.copy(phase = GamePhase.GAME_OVER)
+        val completedCurrentGame = endGameNowAt(currentGame, LocalTime.of(11, 40))
         appState.updateCurrentGame(completedCurrentGame)
         assertTrue(appState.state.value.viewingActiveGameScreen)
         appState.openArchivedGames()
@@ -892,6 +892,29 @@ class TestArchive : GameDomainTestFixtures() {
         assertEquals(GamePhase.GAME_OVER, appState.currentGame!!.phase)
         assertFalse(appState.state.value.viewingActiveGameScreen)
         assertEquals(completedCurrentGame, appState.displayedGame)
+
+        // Undoing from that summary restores live play and leaves archive navigation.
+        assertTrue(appState.undoCompletedCurrentGame(completedCurrentGame))
+        assertEquals(completedCurrentGame.undoLastAction(), appState.currentGame)
+        assertEquals(AppScreen.LIVE, appState.screen)
+        assertNull(appState.selectedArchiveCategory)
+        assertFalse(appState.viewingCurrentGameSummary)
+        assertTrue(appState.state.value.viewingActiveGameScreen)
+
+        // A stale summary cannot undo over a newer current-game update or resume behind it.
+        appState.updateCurrentGame(completedCurrentGame)
+        appState.openArchivedGames()
+        appState.openArchivedGameCategory(ArchivedGameCategory.IN_PROGRESS)
+        appState.openCurrentGameSummary()
+        val newerCurrentGame = completedCurrentGame.copy(
+            teamOne = completedCurrentGame.teamOne.copy(name = "Updated team"),
+        )
+        appState.updateCurrentGame(newerCurrentGame)
+        assertFalse(appState.undoCompletedCurrentGame(completedCurrentGame))
+        assertEquals(newerCurrentGame, appState.currentGame)
+        assertEquals(AppScreen.LIVE, appState.screen)
+        assertEquals(ArchivedGameCategory.IN_PROGRESS, appState.selectedArchiveCategory)
+        assertTrue(appState.viewingCurrentGameSummary)
 
         // A stale UI callback should not leave archive navigation when no current game exists.
         appState.deleteCurrentGame()

@@ -342,6 +342,26 @@ internal class AppState(
     }
 
     /**
+     * Undo the completed current game shown in a summary and return to live play.
+     *
+     * @param expectedCurrentGame The completed game displayed by the summary.
+     * @return Whether that game was still current and the undo was applied.
+     */
+    @Synchronized
+    fun undoCompletedCurrentGame(expectedCurrentGame: GameState): Boolean {
+        if (
+            !updateCurrentGame(
+                expectedCurrentGame,
+                expectedCurrentGame.undoLastAction(),
+            )
+        ) {
+            return false
+        }
+        resumeCurrentGame()
+        return true
+    }
+
+    /**
      * Record a goal calculated from the exact current game seen by the initiating surface.
      *
      * Both the phone UI and Wear OS use this action so countdown adjustment, goal rules,
