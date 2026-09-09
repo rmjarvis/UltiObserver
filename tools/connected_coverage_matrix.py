@@ -21,6 +21,7 @@ DEFAULT_CONNECTED_COVERAGE_DIR = Path(
 DEFAULT_PRESERVED_COVERAGE_DIR = Path(
     "app/build/outputs/code_coverage/debugAndroidTest/preserved-matrix"
 )
+EMULATOR_REGISTRATION_DIR = Path.home() / "Library/Caches/TemporaryItems/avd/running"
 PACKAGE_NAME = "rmjarvis.ultiobserver"
 TEST_RUNNER = "rmjarvis.ultiobserver.test/androidx.test.runner.AndroidJUnitRunner"
 DIRECT_INSTRUMENTATION_EXCLUSIONS = (
@@ -51,7 +52,7 @@ def parse_args() -> argparse.Namespace:
         "--device",
         action="append",
         default=[],
-        metavar="SERIAL:LABEL[:allow|deny|skip]",
+        metavar="SERIAL:LABEL[:APP_OP][:COVERAGE_MODE]",
         help=(
             "Device to run, with a stable label, optional exact-alarm app-op, "
             "and optional coverage mode direct|gradle. "
@@ -117,7 +118,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def parse_device(text: str) -> MatrixDevice:
-    """Return a matrix device parsed from `SERIAL:LABEL[:APP_OP][:COVERAGE_MODE]`."""
+    """Parse one device and its matrix role."""
 
     parts = text.split(":")
     if len(parts) not in {2, 3, 4}:
@@ -128,11 +129,8 @@ def parse_device(text: str) -> MatrixDevice:
 
     serial = parts[0].strip()
     label = sanitize_label(parts[1].strip())
-    exact_alarm_mode = parts[2].strip() if len(parts) == 3 else "skip"
-    coverage_mode = "direct"
-    if len(parts) == 4:
-        exact_alarm_mode = parts[2].strip()
-        coverage_mode = parts[3].strip()
+    exact_alarm_mode = parts[2].strip() if len(parts) >= 3 else "skip"
+    coverage_mode = parts[3].strip() if len(parts) >= 4 else "direct"
     if not serial:
         raise ValueError(f"Invalid --device value {text!r}; serial is empty.")
     if not label:
@@ -147,11 +145,11 @@ def parse_device(text: str) -> MatrixDevice:
             f"Invalid coverage mode {coverage_mode!r}; "
             f"expected one of {sorted(COVERAGE_MODES)}."
         )
-    if exact_alarm_mode != "skip" and coverage_mode == "gradle":
+    if exact_alarm_mode == "allow" and coverage_mode == "gradle":
         raise ValueError(
-            f"Invalid --device value {text!r}; exact-alarm {exact_alarm_mode!r} roles must "
-            "use direct coverage mode. Gradle connected-test mode may reinstall or reset "
-            "app-op state after the helper sets it."
+            f"Invalid --device value {text!r}; exact-alarm 'allow' roles must use direct "
+            "coverage mode. Gradle connected-test mode may reset the app-op to deny when "
+            "it reinstalls the app."
         )
     return MatrixDevice(
         serial=serial,
@@ -167,17 +165,31 @@ def sanitize_label(label: str) -> str:
     return re.sub(r"[^A-Za-z0-9_.-]+", "_", label).strip("_")
 
 
+def redacted_command(command: list[str]) -> list[str]:
+    """Hide emulator authentication tokens when commands are logged or reported."""
+
+    token_prefix = "-Pandroid.testInstrumentationRunnerArguments.grpc.token="
+    return [
+        token_prefix + "<redacted>" if argument.startswith(token_prefix) else argument
+        for argument in command
+    ]
+
+
 def run(command: list[str], cwd: Path, env: dict[str, str] | None = None) -> None:
     """Run one command, echoing it first."""
 
-    print(f"+ {' '.join(command)}", flush=True)
-    subprocess.run(command, cwd=cwd, env=env, check=True)
+    safe_command = redacted_command(command)
+    print(f"+ {' '.join(safe_command)}", flush=True)
+    result = subprocess.run(command, cwd=cwd, env=env, check=False)
+    if result.returncode != 0:
+        raise subprocess.CalledProcessError(result.returncode, safe_command)
 
 
 def run_captured(command: list[str], cwd: Path, env: dict[str, str] | None = None) -> str:
     """Run one command while streaming and retaining combined stdout/stderr."""
 
-    print(f"+ {' '.join(command)}", flush=True)
+    safe_command = redacted_command(command)
+    print(f"+ {' '.join(safe_command)}", flush=True)
     process = subprocess.Popen(
         command,
         cwd=cwd,
@@ -195,7 +207,7 @@ def run_captured(command: list[str], cwd: Path, env: dict[str, str] | None = Non
     returncode = process.wait()
     output = "".join(output_parts)
     if returncode != 0:
-        raise subprocess.CalledProcessError(returncode, command, output=output)
+        raise subprocess.CalledProcessError(returncode, safe_command, output=output)
     return output
 
 
@@ -264,6 +276,8 @@ def run_gradle_connected_coverage(
 
     if device.exact_alarm_mode != "skip":
         run([args.gradle, "app:installDebug", "app:installDebugAndroidTest"], cwd=root, env=env)
+        clear_app_data(args.adb, device, root)
+        revoke_notification_permission(args.adb, device, root)
         set_exact_alarm_appop(args.adb, device, root)
 
     if args.no_coverage:
@@ -277,6 +291,12 @@ def run_gradle_connected_coverage(
         command.append(
             "-Pandroid.testInstrumentationRunnerArguments.class=" + ",".join(args.test_class)
         )
+    if device.exact_alarm_mode != "skip":
+        command.append(
+            "-Pandroid.testInstrumentationRunnerArguments.expectedExactAlarmMode="
+            + device.exact_alarm_mode
+        )
+    command.extend(emulator_grpc_instrumentation_arguments(device))
 
     start_time = time.monotonic()
     instrumentation_error = None
@@ -298,6 +318,50 @@ def run_gradle_connected_coverage(
             )
     if instrumentation_error is not None:
         raise instrumentation_error
+
+
+def emulator_grpc_instrumentation_arguments(device: MatrixDevice) -> list[str]:
+    """Read the authenticated gRPC endpoint registered by one running emulator."""
+
+    serial_match = re.fullmatch(r"emulator-(\d+)", device.serial)
+    if serial_match is None:
+        raise RuntimeError(
+            f"{device.label}: Gradle coverage mode requires an emulator serial, "
+            f"not {device.serial!r}."
+        )
+
+    matches = []
+    for registration_file in EMULATOR_REGISTRATION_DIR.glob("pid_*.ini"):
+        registration = {}
+        for line in registration_file.read_text().splitlines():
+            key, separator, value = line.partition("=")
+            if separator:
+                registration[key] = value
+        if registration.get("port.serial") == serial_match.group(1):
+            matches.append((registration_file, registration))
+
+    if len(matches) != 1:
+        raise RuntimeError(
+            f"{device.label}: expected one emulator registration for {device.serial}, "
+            f"found {len(matches)} in {EMULATOR_REGISTRATION_DIR}."
+        )
+
+    registration_file, registration = matches[0]
+    port = registration.get("grpc.port")
+    token = registration.get("grpc.token")
+    if port is None or not port.isdigit() or not 1 <= int(port) <= 65_535:
+        raise RuntimeError(
+            f"{device.label}: {registration_file} has no valid authenticated gRPC port."
+        )
+    if not token:
+        raise RuntimeError(
+            f"{device.label}: {registration_file} has no emulator gRPC authentication token."
+        )
+
+    return [
+        "-Pandroid.testInstrumentationRunnerArguments.grpc.port=" + port,
+        "-Pandroid.testInstrumentationRunnerArguments.grpc.token=" + token,
+    ]
 
 
 def set_exact_alarm_appop(adb: Path, device: MatrixDevice, root: Path) -> None:
