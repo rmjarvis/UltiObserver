@@ -24,8 +24,8 @@ DEFAULT_PRESERVED_COVERAGE_DIR = Path(
 PACKAGE_NAME = "rmjarvis.ultiobserver"
 TEST_RUNNER = "rmjarvis.ultiobserver.test/androidx.test.runner.AndroidJUnitRunner"
 DIRECT_INSTRUMENTATION_EXCLUSIONS = (
-    # Espresso Device receives its emulator-control gRPC connection from Gradle. The Gradle
-    # SmallPhone and Pixel 5 legs run this method; direct exact-alarm legs run every other test.
+    # Espresso Device requires Gradle's emulator-control gRPC connection. Direct matrix legs skip
+    # this method; run it separately through Gradle only on an emulator known to provide it.
     "rmjarvis.ultiobserver.TestFieldUi#autoRotateSystemSettingBehavior",
 )
 EXACT_ALARM_MODES = {"allow", "deny", "skip"}
