@@ -65,3 +65,19 @@ Use the event log when you need to reconstruct when something happened or resolv
 with your partner about some game event.
 
 The event log can also be shared through the same Android share function.
+
+Undo End game
+-------------
+
+This button will bring the game back to the state it had before the game was considered over.
+This could be useful if you had the winning score wrong and the game was declared over
+prematurely. Or if you assess a card to a player after the game is over, but while the
+players are still on site. In the latter case, you can re-end the game using the
+**End game** button in the :ref:`Manual game transitions` section of the :ref:`More actions` menu.
+
+Archive game
+------------
+
+This button will move the completed game to the archive, so it is no longer considered the
+current game. See :ref:`Archived games` for details about what you can still do with a
+game after it is archived.
