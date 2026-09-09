@@ -551,6 +551,20 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         val pendingHardCap = appState.currentGame!!
         assertFalse(pendingHardCap.hardCapApplied)
         assertNotNull(pendingHardCap.pendingCapOffer)
+        val hardCapDecision = buildWearStateSnapshot(
+            game = pendingHardCap,
+            settings = settings,
+            now = hardCapGoalTime,
+        ).activeGame!!.pendingDecision!!
+        assertEquals("Hard cap", hardCapDecision.title)
+        assertEquals(
+            listOf(
+                "Hard cap was at 11:00 AM, so it applies now. " +
+                    "Score is not tied, so the game is over.",
+            ),
+            hardCapDecision.messageLines.map { line -> line.text },
+        )
+        assertEquals(WearGuidancePresentation.VISIBLE, hardCapDecision.presentation)
         assertTrue(
             appState.resolveDecision(
                 currentGame = pendingHardCap,

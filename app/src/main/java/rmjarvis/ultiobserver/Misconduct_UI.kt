@@ -1182,7 +1182,7 @@ internal fun TeamCardDialog(
                     text = {
                         ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
                             RuleGuidanceText(
-                                message = confirmation.guidanceMessage(guidanceMode),
+                                message = confirmation.formatMessage(guidanceMode),
                             )
                         }
                     },
@@ -1222,7 +1222,7 @@ internal fun TeamCardDialog(
                     title = { Text(event.formatTitle()) },
                     text = {
                         ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
-                            RuleGuidanceText(event.guidanceMessage(guidanceMode))
+                            RuleGuidanceText(confirmation.formatMessage(guidanceMode))
                         }
                     },
                     confirmButton = {

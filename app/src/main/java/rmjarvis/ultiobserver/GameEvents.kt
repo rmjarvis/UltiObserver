@@ -321,22 +321,15 @@ fun GamePrompt.formatTitle(): String {
     }
 }
 
-/// Format the main text shown to the observer for a prompt.
-internal fun GamePrompt.formatMessage(): RuleGuidanceMessage {
+/// Format the main text shown to the observer for a prompt under the selected guidance mode.
+internal fun GamePrompt.formatMessage(guidanceMode: RuleGuidanceMode): RuleGuidanceMessage {
     return when (this) {
-        is GamePrompt.ActionConfirmation -> event.formatMessage()
+        is GamePrompt.ActionConfirmation -> event.guidanceMessage(guidanceMode)
         is GamePrompt.ApplyCap -> this.formatMessage()
         is GamePrompt.WaterBreakPrompt -> this.formatMessage()
         is GamePrompt.HalftimeStarted -> this.formatMessage()
         is GamePrompt.GameOver -> this.formatMessage()
     }
-}
-
-/// Format the full or concise message selected for an action confirmation.
-internal fun GamePrompt.ActionConfirmation.guidanceMessage(
-    mode: RuleGuidanceMode,
-): RuleGuidanceMessage {
-    return event.guidanceMessage(mode)
 }
 
 /// Apply an action confirmation through its ordinary game-action path.
@@ -365,7 +358,7 @@ internal fun GamePrompt.ActionConfirmation.confirm(): GameState {
 private fun GamePrompt.HalftimeStarted.formatTitle(): String = "Halftime"
 
 /// Format the halftime-started prompt body.
-private fun GamePrompt.HalftimeStarted.formatMessage(): RuleGuidanceMessage {
+internal fun GamePrompt.HalftimeStarted.formatMessage(): RuleGuidanceMessage {
     return RuleGuidanceMessage(
         listOf(RuleGuidanceLine("Announce halftime."))
     )
@@ -381,7 +374,7 @@ private fun GamePrompt.GameOver.formatTitle(): String {
 }
 
 /// Format the game-over prompt body with the winner first.
-private fun GamePrompt.GameOver.formatMessage(): RuleGuidanceMessage {
+internal fun GamePrompt.GameOver.formatMessage(): RuleGuidanceMessage {
     val orderedTeams = state.winnerFirstTeams()
     return RuleGuidanceMessage(
         listOf(

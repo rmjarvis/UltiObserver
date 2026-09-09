@@ -398,7 +398,7 @@ internal fun ActiveGameScreen(
                 title = { Text(event.formatTitle()) },
                 text = {
                     ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
-                        RuleGuidanceText(event.guidanceMessage(settings.ruleGuidanceMode))
+                        RuleGuidanceText(confirmation.formatMessage(settings.ruleGuidanceMode))
                     }
                 },
                 confirmButton = {
@@ -434,7 +434,7 @@ internal fun ActiveGameScreen(
                 title = { Text(event.formatTitle()) },
                 text = {
                     ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
-                        RuleGuidanceText(event.guidanceMessage(settings.ruleGuidanceMode))
+                        RuleGuidanceText(confirmation.formatMessage(settings.ruleGuidanceMode))
                     }
                 },
                 confirmButton = {
@@ -470,7 +470,7 @@ internal fun ActiveGameScreen(
                 title = { Text(event.formatTitle()) },
                 text = {
                     ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
-                        RuleGuidanceText(event.guidanceMessage(settings.ruleGuidanceMode))
+                        RuleGuidanceText(confirmation.formatMessage(settings.ruleGuidanceMode))
                     }
                 },
                 confirmButton = {
@@ -545,7 +545,7 @@ internal fun ActiveGameScreen(
                 title = { Text(event.formatTitle()) },
                 text = {
                     ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
-                        RuleGuidanceText(event.guidanceMessage(settings.ruleGuidanceMode))
+                        RuleGuidanceText(confirmation.formatMessage(settings.ruleGuidanceMode))
                     }
                 },
                 confirmButton = {
@@ -665,6 +665,7 @@ internal fun ActiveGameScreen(
         ) {
             GamePromptDecisionDialog(
                 prompt = prompt,
+                guidanceMode = settings.ruleGuidanceMode,
                 onAccept = {
                     onDecision(true)
                 },
@@ -743,6 +744,7 @@ internal fun ActiveGameScreen(
 @Composable
 private fun GamePromptDecisionDialog(
     prompt: GamePrompt,
+    guidanceMode: RuleGuidanceMode,
     onAccept: () -> Unit,
     onNotYet: () -> Unit,
 ) {
@@ -751,7 +753,7 @@ private fun GamePromptDecisionDialog(
         title = { Text(prompt.formatTitle()) },
         text = {
             ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
-                RuleGuidanceText(prompt.formatMessage())
+                RuleGuidanceText(prompt.formatMessage(guidanceMode))
             }
         },
         confirmButton = {

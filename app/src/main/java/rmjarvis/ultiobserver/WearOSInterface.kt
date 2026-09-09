@@ -620,31 +620,26 @@ private fun GameState.wearTeamSnapshot(
 }
 
 /** Convert the phone's existing prompt copy and guidance policy into protocol display data. */
-private fun GamePrompt.PendingDecision.wearSnapshot(
+internal fun GamePrompt.wearSnapshot(
     guidanceMode: RuleGuidanceMode,
 ): WearPromptSnapshot {
     return wearPromptSnapshot(
         title = formatTitle(),
-        message = formatMessage(),
+        message = formatMessage(guidanceMode),
         confirmLabel = "OK",
-        dismissLabel = "Not yet",
+        dismissLabel = dismissLabel(),
         guidanceMode = guidanceMode,
         requiredInNone = requiresGuidanceInNone(),
     )
 }
 
-/** Convert one action confirmation to the phone-owned copy and guidance presentation. */
-internal fun GamePrompt.ActionConfirmation.wearSnapshot(
-    guidanceMode: RuleGuidanceMode,
-): WearPromptSnapshot {
-    return wearPromptSnapshot(
-        title = formatTitle(),
-        message = guidanceMessage(guidanceMode),
-        confirmLabel = "OK",
-        dismissLabel = if (this is GamePrompt.PlayerCardConfirmation) "Back" else "Cancel",
-        guidanceMode = guidanceMode,
-        requiredInNone = requiresGuidanceInNone(),
-    )
+/** Return the phone action represented by dismissing this prompt. */
+private fun GamePrompt.dismissLabel(): String {
+    return when {
+        this is GamePrompt.PendingDecision -> "Not yet"
+        this is GamePrompt.PlayerCardConfirmation -> "Back"
+        else -> "Cancel"
+    }
 }
 
 /** Build common watch prompt display data from phone-owned guidance. */

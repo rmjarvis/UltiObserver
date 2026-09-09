@@ -349,15 +349,9 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(1, state.teamTwo.score)
         assertEquals(CapType.HALF, state.pendingCapOffer)
         assertEquals("Half cap", state.capPrompt().formatTitle())
-        val capPrompt: GamePrompt = state.capPrompt()
-        assertEquals("Half cap", capPrompt.formatTitle())
         assertEquals(
             "Half cap was at 10:10 AM, so it applies now. The new halftime target is 2.",
             state.capPrompt().formatMessage().plainText,
-        )
-        assertEquals(
-            "Half cap was at 10:10 AM, so it applies now. The new halftime target is 2.",
-            capPrompt.formatMessage().plainText,
         )
 
         // Applying half cap sets the target, clears the offer, and keeps an undo path.
@@ -381,10 +375,10 @@ class TestCaps : GameDomainTestFixtures() {
         assertTrue(state.halftimeTaken)
         assertEquals(2, state.halftimeTargetScore)
         assertNull(state.pendingCapOffer)
-        val halftimePrompt: GamePrompt = GamePrompt.HalftimeStarted(state)
+        val halftimePrompt = GamePrompt.HalftimeStarted(state)
         assertEquals("Halftime", halftimePrompt.formatTitle())
         assertEquals("Announce halftime.", halftimePrompt.formatMessage().plainText)
-        assertEquals(state, (halftimePrompt as GamePrompt.HalftimeStarted).state)
+        assertEquals(state, halftimePrompt.state)
 
         // If the observer defers a pending half cap, the offer clears but the cap is not applied.
         state = newCapState()
