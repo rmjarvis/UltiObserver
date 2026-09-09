@@ -159,9 +159,9 @@ val filteredCoverageExclusions = listOf(
 
 tasks.register<JacocoReport>("filteredCoverageReport") {
     group = "verification"
-    description = "Generates a JaCoCo report excluding previews, generated scaffolding, and static theme code."
+    description = "Generates an app/shared JaCoCo report excluding previews, generated scaffolding, and static theme code."
 
-    dependsOn("testDebugUnitTest", "connectedDebugAndroidTest")
+    dependsOn("testDebugUnitTest", "connectedDebugAndroidTest", ":shared:classes")
 
     reports {
         html.required.set(true)
@@ -179,9 +179,17 @@ tasks.register<JacocoReport>("filteredCoverageReport") {
             fileTree(layout.buildDirectory.dir("intermediates/javac/debug/classes")) {
                 exclude(filteredCoverageExclusions)
             },
+            fileTree(project(":shared").layout.buildDirectory.dir("classes/kotlin/main")) {
+                exclude(filteredCoverageExclusions)
+            },
         )
     )
-    sourceDirectories.setFrom(files("src/main/java"))
+    sourceDirectories.setFrom(
+        files(
+            "src/main/java",
+            project(":shared").file("src/main/kotlin"),
+        )
+    )
     executionData.setFrom(
         fileTree(layout.buildDirectory) {
             include(
