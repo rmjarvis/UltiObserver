@@ -198,7 +198,8 @@ internal fun ActiveGameScreen(
             },
         )
     }
-    val onTimeViolation: (TeamId) -> Unit = { team ->
+    val onTimeViolation: (TeamId) -> Unit
+    onTimeViolation = { team ->
         pendingTimeViolation = GamePrompt.TimeViolationConfirmation(
             state = state,
             team = team,
@@ -220,7 +221,8 @@ internal fun ActiveGameScreen(
             ActiveCardEntry(team = team, cardType = null, jerseyNumber = ""),
         )
     }
-    val onTechnicalFoul: (TeamId) -> Unit = { team ->
+    val onTechnicalFoul: (TeamId) -> Unit
+    onTechnicalFoul = { team ->
         val requestedAt = System.currentTimeMillis()
         pendingTechnicalFoul = GamePrompt.TechnicalFoulConfirmation(
             state = state,

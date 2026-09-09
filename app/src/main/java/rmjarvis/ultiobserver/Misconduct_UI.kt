@@ -1208,14 +1208,14 @@ internal fun TeamCardDialog(
             val goBack = {
                 step = activeStep.returnTo
             }
-            val recordCard = {
+            val onConfirm = {
                 onCardEntryCompleted(confirmation.confirm())
             }
             RuleGuidanceGate(
                 key = event,
                 mode = guidanceMode,
                 requiredInNone = event.requiresGuidanceInNone(),
-                onAutoAccept = recordCard,
+                onAutoAccept = onConfirm,
             ) {
                 ResponsiveAlertDialog(
                     onDismissRequest = goBack,
@@ -1226,7 +1226,7 @@ internal fun TeamCardDialog(
                         }
                     },
                     confirmButton = {
-                        TextActionButton(label = "OK", onClick = recordCard)
+                        TextActionButton(label = "OK", onClick = onConfirm)
                     },
                     dismissButton = {
                         TextActionButton(label = "Back", onClick = goBack)
@@ -1474,7 +1474,7 @@ private fun addCardButtonFontSize(
 private fun EditablePlayerCardRow(
     card: EditablePlayerCard,
     onEdit: () -> Unit,
-    onRemove: (() -> Unit)? = null,
+    onRemove: (() -> Unit)?,
 ) {
     val identity = card.identity
         .displayText(compact = false)

@@ -1001,7 +1001,9 @@ private fun SetupSummaryRow(
             }
             SetupEditButton(
                 onClick = onEdit,
+                label = "Edit",
                 tag = editTag,
+                contentPadding = DefaultButtonContentPadding,
             )
         }
     }
@@ -1426,14 +1428,14 @@ private fun GenderRatioChoiceRow(
  * @param label The user-facing choice text.
  * @param selected Whether this choice is currently selected.
  * @param onClick Callback selecting this choice.
- * @param tag Optional test tag.
+ * @param tag Test tag.
  */
 @Composable
 private fun SetupChoiceChip(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
-    tag: String? = null,
+    tag: String,
 ) {
     ChoiceChipButton(
         label = label,
@@ -1526,9 +1528,9 @@ private fun SetupSummaryLabeledValue(
 @Composable
 private fun SetupEditButton(
     onClick: () -> Unit,
-    label: String = "Edit",
-    tag: String? = null,
-    contentPadding: PaddingValues = DefaultButtonContentPadding,
+    label: String,
+    tag: String,
+    contentPadding: PaddingValues,
 ) {
     MenuButton(
         label = label,

@@ -33,9 +33,12 @@ internal fun UltiObserverApp(
     var showPreviousCrashDialog by rememberSaveable { mutableStateOf(previousRunCrashed) }
 
     // Back returns to setup from the pre-pull preview, otherwise to home.
-    BackHandler(enabled = snapshot.screen != AppScreen.HOME) {
-        appState.goBackFromCurrentScreen()
-    }
+    BackHandler(
+        enabled = snapshot.screen != AppScreen.HOME,
+        onBack = {
+            appState.goBackFromCurrentScreen()
+        },
+    )
 
     TimingAlertForegroundServiceEffect(
         liveState = snapshot.currentGame?.takeUnless { state ->
@@ -71,7 +74,9 @@ internal fun UltiObserverApp(
                 onArchiveCompletedGame = {
                     appState.archiveCompletedGame()
                 },
-                onStartNewGame = { appState.startNewGame(System.currentTimeMillis()) },
+                onStartNewGame = {
+                    appState.startNewGame(System.currentTimeMillis())
+                },
                 onOpenAbout = {
                     appState.openAbout()
                 },

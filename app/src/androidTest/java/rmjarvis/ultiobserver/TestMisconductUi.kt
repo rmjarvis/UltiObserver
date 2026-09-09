@@ -327,7 +327,7 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithTag("card-player-name").performTextReplacement("Alex Cutter")
         composeRule.onNodeWithText("Record").performClick()
         waitForText("Team 2 #8 now has two yellow cards and has been suspended.")
-        dismissDialog(text = "OK")
+        dismissDialog(text = "OK", waitForText = "Edit existing cards")
         composeRule.onNodeWithText("Done").performClick()
         waitForText("Current cards:")
         composeRule.onNodeWithText("Close").performClick()

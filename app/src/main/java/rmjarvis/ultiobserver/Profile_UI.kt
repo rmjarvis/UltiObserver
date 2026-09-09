@@ -173,7 +173,7 @@ private fun AvatarPreferenceButton(
     preference: ObserverAvatarPreference,
     selected: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
+    modifier: Modifier,
 ) {
     Surface(
         onClick = onClick,

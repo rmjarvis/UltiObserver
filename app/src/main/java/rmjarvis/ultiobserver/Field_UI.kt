@@ -1172,6 +1172,7 @@ private fun LandscapeEndZonePanel(
                 modifier = Modifier.align(
                     if (isLeftPanel) Alignment.BottomStart else Alignment.BottomEnd
                 ),
+                textAlign = TextAlign.End,
             )
         }
     }
@@ -1184,7 +1185,7 @@ private fun LandscapeEndZoneLabels(
     fieldEndName: String,
     contentColor: Color,
     gap: Dp,
-    modifier: Modifier = Modifier,
+    modifier: Modifier,
 ) {
     Row(
         modifier = modifier,
@@ -1200,6 +1201,7 @@ private fun LandscapeEndZoneLabels(
             GenderRatioChooserText(
                 contentColor = contentColor,
                 modifier = Modifier.weight(1f),
+                textAlign = TextAlign.End,
             )
         } else {
             GenderRatioChooserText(
@@ -1211,6 +1213,7 @@ private fun LandscapeEndZoneLabels(
                 name = fieldEndName,
                 contentColor = contentColor,
                 modifier = Modifier.weight(1f),
+                textAlign = TextAlign.End,
             )
         }
     }
@@ -1316,11 +1319,13 @@ private fun PortraitEndZonePanel(
                                     name = fieldEndName,
                                     contentColor = team.content,
                                     modifier = Modifier.weight(1f),
+                                    textAlign = TextAlign.End,
                                 )
                             } else {
                                 GenderRatioChooserText(
                                     contentColor = team.content,
                                     modifier = Modifier.weight(1f),
+                                    textAlign = TextAlign.End,
                                 )
                             }
                         }
@@ -1368,6 +1373,7 @@ private fun PortraitEndZonePanel(
                 name = fieldEndName,
                 contentColor = team.content,
                 modifier = Modifier.align(Alignment.BottomEnd),
+                textAlign = TextAlign.End,
             )
         }
     }
@@ -1488,12 +1494,13 @@ private fun GenderRatioChooserLabel(
  *
  * @param contentColor Text color matching the team row.
  * @param modifier Modifier applied by the caller.
+ * @param textAlign Horizontal alignment of the marker text.
  */
 @Composable
 private fun GenderRatioChooserText(
     contentColor: Color,
-    modifier: Modifier = Modifier,
-    textAlign: TextAlign = TextAlign.End,
+    modifier: Modifier,
+    textAlign: TextAlign,
 ) {
     Text(
         text = "Chooses ratio",
@@ -1889,13 +1896,14 @@ internal fun PullViolationType.fieldActionLabel(team: TeamState): String {
  * @param name The field-end name to display.
  * @param contentColor Color that contrasts with the team section.
  * @param modifier Modifier applied by the caller.
+ * @param textAlign Horizontal alignment of the field-end name.
  */
 @Composable
 private fun FieldEndCornerLabel(
     name: String,
     contentColor: Color,
-    modifier: Modifier = Modifier,
-    textAlign: TextAlign = TextAlign.End,
+    modifier: Modifier,
+    textAlign: TextAlign,
 ) {
     Text(
         text = name,
@@ -1919,7 +1927,7 @@ private fun FieldEndCornerLabel(
 private fun LandscapePullDirectionIndicator(
     pullingFromEnd: FieldEnd,
     leftDisplayedEnd: FieldEnd,
-    modifier: Modifier = Modifier,
+    modifier: Modifier,
 ) {
     val pullsFromLeft = pullingFromEnd == leftDisplayedEnd
     Row(
@@ -1959,7 +1967,7 @@ private fun LandscapePullDirectionIndicator(
 private fun PortraitPullDirectionIndicator(
     pullingFromEnd: FieldEnd,
     topDisplayedEnd: FieldEnd,
-    modifier: Modifier = Modifier,
+    modifier: Modifier,
 ) {
     BoxWithConstraints(
         modifier = modifier
@@ -2045,10 +2053,10 @@ internal fun CountdownLine(
     countdown: ActiveCountdownDisplay?,
     enabled: Boolean,
     onAdjust: (Int) -> Unit,
-    waterBreakAction: (() -> Unit)? = null,
+    waterBreakAction: (() -> Unit)?,
     onTogglePaused: () -> Unit,
-    expiredPullActions: ExpiredPullActions? = null,
-    misconductCountdownAction: MisconductCountdownAction? = null,
+    expiredPullActions: ExpiredPullActions?,
+    misconductCountdownAction: MisconductCountdownAction?,
     statusMessage: String? = null,
     height: Dp,
     modifier: Modifier = Modifier,

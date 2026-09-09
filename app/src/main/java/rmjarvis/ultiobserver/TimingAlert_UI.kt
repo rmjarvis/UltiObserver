@@ -21,6 +21,7 @@ internal fun TimingAlertForegroundServiceEffect(
     settings: Settings,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current.applicationContext
+    // Coverage: 2 parameter roots (`liveState`, `settings`) generate Compose effect guards.
     LaunchedEffect(liveState, settings) {
         if (liveState == null ||
             (settings.timingAlerts.globalMode == TimingAlertGlobalMode.OFF &&

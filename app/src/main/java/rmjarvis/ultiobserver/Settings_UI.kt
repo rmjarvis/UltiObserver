@@ -1098,17 +1098,16 @@ private fun TimingCueSettingRow(
  *
  * @param selected Whether this option is currently selected.
  * @param label The visible option label.
- * @param modifier Optional layout modifier.
  * @param horizontalPadding Horizontal text padding in density-independent pixels.
- * @param tag Optional test tag.
+ * @param tag Test tag for this option.
  * @param onClick Callback selecting this option.
  */
 @Composable
 private fun CompactTimingAlertOption(
     selected: Boolean,
     label: String,
-    horizontalPadding: Int = 5,
-    tag: String? = null,
+    horizontalPadding: Int,
+    tag: String,
     onClick: () -> Unit,
 ) {
     ChoiceChipButton(

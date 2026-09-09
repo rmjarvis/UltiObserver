@@ -356,26 +356,20 @@ internal fun ScrollableDialogRegion(
 /**
  * Render two dialog columns that scroll together with shared overflow indicators.
  *
- * @param modifier Optional modifier for the outer scroll region.
  * @param maxHeight Maximum height before the body scrolls.
  * @param horizontalArrangement Horizontal spacing for the two-column row.
- * @param verticalArrangement Vertical spacing between the columns and optional footer.
  * @param columnArrangement Vertical spacing within each column.
  * @param showDivider Whether to draw a vertical divider between the columns.
- * @param showBottomChevron Whether to show a down-chevron below the bottom fade.
  * @param leftContent Content for the left column.
  * @param rightContent Content for the right column.
  * @param footer Optional full-width content below the columns.
  */
 @Composable
 internal fun TwoColumnDialogRegion(
-    modifier: Modifier = Modifier,
-    maxHeight: Dp = keyboardDialogBodyMaxHeight(),
+    maxHeight: Dp,
     horizontalArrangement: Arrangement.Horizontal = Arrangement.spacedBy(12.dp),
-    verticalArrangement: Arrangement.Vertical = Arrangement.spacedBy(12.dp),
     columnArrangement: Arrangement.Vertical = Arrangement.spacedBy(8.dp),
     showDivider: Boolean,
-    showBottomChevron: Boolean = true,
     leftContent: @Composable ColumnScope.() -> Unit,
     rightContent: @Composable ColumnScope.() -> Unit,
     footer: (@Composable ColumnScope.() -> Unit)?,
@@ -383,10 +377,9 @@ internal fun TwoColumnDialogRegion(
     val density = LocalDensity.current
     var columnsHeightPx by remember { mutableIntStateOf(0) }
     ScrollableDialogRegion(
-        modifier = modifier,
         maxHeight = maxHeight,
-        verticalArrangement = verticalArrangement,
-        showBottomChevron = showBottomChevron,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        showBottomChevron = true,
     ) {
         Box {
             Row(
@@ -1254,7 +1247,6 @@ internal fun NavigationButton(
  *
  * @param label The button label.
  * @param fullWidth Whether the button should fill the available width.
- * @param height Optional fixed button height.
  * @param enabled Whether the button is enabled.
  * @param modifier Optional layout modifier, reserved for row weight when needed.
  * @param containerColor Button background color.
@@ -1272,7 +1264,6 @@ internal fun NavigationButton(
 internal fun BigActionButton(
     label: String,
     fullWidth: Boolean = false,
-    height: Dp? = null,
     enabled: Boolean = true,
     modifier: Modifier = Modifier,
     containerColor: Color = DarkNeutralColor,
@@ -1291,7 +1282,7 @@ internal fun BigActionButton(
         modifier = buttonLayoutModifier(
             modifier = modifier,
             fullWidth = fullWidth,
-            height = height,
+            height = null,
         )
             .defaultMinSize(minHeight = minHeight),
         enabled = enabled,
@@ -1323,7 +1314,6 @@ internal fun BigActionButton(
  * @param colors Button colors.
  * @param borderColor Optional button border color.
  * @param contentPadding Padding inside the button.
- * @param maxLines Maximum menu-label line count.
  * @param trailingLabel Optional value shown on the right side of the button row.
  * @param tag Optional test tag.
  * @param onClick Callback invoked when the button is tapped.
@@ -1336,7 +1326,6 @@ internal fun MenuButton(
     colors: ButtonColors = neutralOutlinedButtonColors(),
     borderColor: Color? = MaterialTheme.colorScheme.outline,
     contentPadding: PaddingValues = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-    maxLines: Int = 3,
     trailingLabel: String? = null,
     tag: String? = null,
     onClick: () -> Unit,
@@ -1351,7 +1340,7 @@ internal fun MenuButton(
         compact = false,
         tag = tag,
         contentPadding = contentPadding,
-        textMaxLines = maxLines,
+        textMaxLines = 3,
         softWrap = true,
         trailingLabel = trailingLabel,
         onClick = onClick,
@@ -1705,8 +1694,6 @@ private fun StandardRoleButton(
  * @param label The button label.
  * @param enabled Whether the button is enabled.
  * @param containerColor Button background color.
- * @param contentColor Button text color.
- * @param borderColor Button border color.
  * @param tag Optional test tag.
  * @param height Minimum button height.
  * @param onClick Callback invoked when the button is tapped.
@@ -1716,8 +1703,6 @@ internal fun AdjustButton(
     label: String,
     enabled: Boolean = true,
     containerColor: Color = LightNeutralColor,
-    contentColor: Color = MaterialTheme.colorScheme.onSurface,
-    borderColor: Color = MaterialTheme.colorScheme.outline,
     tag: String? = null,
     height: Dp = 34.dp,
     onClick: () -> Unit,
@@ -1741,11 +1726,11 @@ internal fun AdjustButton(
             shape = AdjustShape,
             colors = ButtonDefaults.outlinedButtonColors(
                 containerColor = containerColor,
-                contentColor = contentColor,
+                contentColor = MaterialTheme.colorScheme.onSurface,
                 disabledContainerColor = containerColor.copy(alpha = 0.45f),
-                disabledContentColor = contentColor.copy(alpha = 0.38f),
+                disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
             ),
-            border = BorderStroke(1.dp, borderColor),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
             contentPadding = PaddingValues(horizontal = 0.dp, vertical = 3.dp),
         ) {
             Text(
@@ -1768,12 +1753,10 @@ internal fun AdjustButton(
  * @param width Optional fixed button width.
  * @param height Button height.
  * @param fontSize Button-label font size resolved for the complete action grid.
- * @param modifier Optional layout modifier, reserved for row weight when needed.
  * @param enabled Whether the button can be pressed.
  * @param containerColor Button background color.
  * @param contentColor Button text color.
- * @param borderColor Button border color.
- * @param tag Optional test tag.
+ * @param tag Test tag for this field action.
  * @param onClick Callback invoked when the observer taps the action.
  */
 @Composable
@@ -1783,12 +1766,10 @@ internal fun FieldControlButton(
     width: Dp? = null,
     height: Dp,
     fontSize: TextUnit,
-    modifier: Modifier = Modifier,
     enabled: Boolean,
     containerColor: Color = Color.White,
     contentColor: Color = Color.Black,
-    borderColor: Color = Color.Black,
-    tag: String? = null,
+    tag: String,
     onClick: () -> Unit,
 ) {
     val clearFocusAndHideKeyboard = rememberClearFocusAndHideKeyboard()
@@ -1800,7 +1781,6 @@ internal fun FieldControlButton(
             },
             enabled = enabled,
             modifier = buttonLayoutModifier(
-                modifier = modifier,
                 fullWidth = fullWidth,
                 width = width,
                 height = height,
@@ -1812,7 +1792,7 @@ internal fun FieldControlButton(
                 containerColor = containerColor,
                 contentColor = contentColor,
             ),
-            border = BorderStroke(1.dp, borderColor),
+            border = BorderStroke(1.dp, Color.Black),
             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
         ) {
             Text(
@@ -1835,14 +1815,14 @@ internal fun FieldControlButton(
  *
  * @param teamName The team name used in the accessibility label.
  * @param contentColor Color that contrasts with the team background.
- * @param tag Optional test tag.
+ * @param tag Test tag for the information button.
  * @param onClick Callback opening the team information view.
  */
 @Composable
 internal fun FieldInfoButton(
     teamName: String,
     contentColor: Color,
-    tag: String? = null,
+    tag: String,
     onClick: () -> Unit,
 ) {
     val clearFocusAndHideKeyboard = rememberClearFocusAndHideKeyboard()
@@ -2078,7 +2058,7 @@ internal fun SectionCard(
 @Composable
 internal fun TeamCorrectionSection(
     title: String,
-    modifier: Modifier = Modifier,
+    modifier: Modifier,
     content: @Composable () -> Unit,
 ) {
     Column(

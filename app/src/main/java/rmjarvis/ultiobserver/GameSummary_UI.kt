@@ -50,13 +50,13 @@ import androidx.compose.ui.unit.dp
 @Composable
 internal fun GameOverSummaryScreen(
     state: GameState,
-    completed: Boolean = true,
+    completed: Boolean,
     guidanceMode: RuleGuidanceMode,
     onStateChange: (GameState) -> Unit,
     summaryActionText: String,
     onSummaryAction: () -> Unit,
-    secondarySummaryActionText: String? = null,
-    onSecondarySummaryAction: (() -> Unit)? = null,
+    secondarySummaryActionText: String?,
+    onSecondarySummaryAction: (() -> Unit)?,
     onBack: () -> Unit,
     onHome: () -> Unit,
 ) {

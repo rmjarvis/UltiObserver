@@ -344,7 +344,7 @@ internal fun HomeScreen(
  * @param onOpenArchivedGames Callback opening Archived games.
  * @param onOpenProfile Callback opening Profile.
  * @param onOpenSettings Callback opening Settings.
- * @param modifier Optional layout modifier for the action column.
+ * @param modifier Layout modifier for the action column.
  */
 @Composable
 private fun HomeActions(
@@ -352,7 +352,7 @@ private fun HomeActions(
     onOpenArchivedGames: () -> Unit,
     onOpenProfile: () -> Unit,
     onOpenSettings: () -> Unit,
-    modifier: Modifier = Modifier,
+    modifier: Modifier,
 ) {
     Column(
         modifier = modifier,
