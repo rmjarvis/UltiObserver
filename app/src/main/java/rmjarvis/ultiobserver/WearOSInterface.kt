@@ -1,15 +1,8 @@
 package rmjarvis.ultiobserver
 
-import android.content.Context
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import com.google.android.gms.tasks.Task
-import com.google.android.gms.tasks.Tasks
-import com.google.android.gms.wearable.PutDataRequest
-import com.google.android.gms.wearable.Wearable
-import com.google.android.gms.wearable.WearableListenerService
 import java.security.MessageDigest
-import rmjarvis.ultiobserver.wearprotocol.WEAR_STATE_PATH
 import rmjarvis.ultiobserver.wearprotocol.WearActionConfirmation
 import rmjarvis.ultiobserver.wearprotocol.WearActiveGameSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearCapSnapshot
@@ -40,297 +33,146 @@ import rmjarvis.ultiobserver.wearprotocol.WearTeamActionRequest
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionsSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearTeamSnapshot
 
-/** Check whether this phone currently has a reachable Wear OS node. */
-internal class WearOSAvailabilityChecker(
-    context: Context,
-    private val onAvailabilityChanged: (Boolean) -> Unit,
-) {
-    private val nodeClient = Wearable.getNodeClient(context.applicationContext)
-
-    /** Query and report the current connected-node state. */
-    fun refresh() {
-        nodeClient.connectedNodes
-            .addOnSuccessListener { nodes ->
-                onAvailabilityChanged(nodes.isNotEmpty())
-            }
-            .addOnFailureListener {
-                onAvailabilityChanged(false)
-            }
-    }
-}
-
-/** Publish changed authoritative phone state to the Wear Data Layer. */
-internal class WearStatePublisher(context: Context) {
-    private val dataClient = Wearable.getDataClient(context.applicationContext)
-
-    /** Publish a fresh current snapshot. */
-    fun publish(
-        game: GameState?,
-        settings: Settings,
-        actionsAvailable: Boolean,
-        activeCardEntry: ActiveCardEntry?,
-    ) {
-        publish(
-            buildWearStateSnapshot(
-                game = game,
-                settings = settings,
-                now = System.currentTimeMillis(),
-                actionsAvailable = actionsAvailable,
-                activeCardEntry = activeCardEntry,
-            )
-        )
-    }
-
-    /** Publish one disabled snapshot after Wear OS synchronization is turned off. */
-    fun publishDisabled() {
-        publish(
-            WearStateSnapshot(
-                status = WearSnapshotStatus.DISABLED,
-                activeGame = null,
-            )
-        )
-    }
-
-    /** Publish an already-built snapshot returned directly with a watch command response. */
-    fun publish(snapshot: WearStateSnapshot) {
-        val request = PutDataRequest.create(WEAR_STATE_PATH)
-            .setData(WearProtocolCodec.encode(WearStateSnapshot.serializer(), snapshot))
-            .setUrgent()
-        dataClient.putDataItem(request)
-    }
-}
-
-/** Answer watch startup and game-action requests while the phone may be stopped or locked. */
-class WearOSRequestService : WearableListenerService() {
-    override fun onRequest(
-        nodeId: String,
-        requestedActionPath: String,
-        request: ByteArray,
-    ): Task<ByteArray>? {
-        val requestedAction = WearRequestAction.fromPath(requestedActionPath) ?: return null
-        return when (requestedAction) {
-            WearRequestAction.STARTUP -> handleStartupRequest()
-            WearRequestAction.GOAL -> handleGoalRequest(request)
-            WearRequestAction.DECISION -> handleDecisionRequest(request)
-            WearRequestAction.TEAM_ACTION -> handleTeamActionRequest(request)
-            WearRequestAction.CONFIRM_ACTION -> handleConfirmActionRequest(request)
-            WearRequestAction.CARD_ENTRY -> handleCardEntryRequest(request)
-            WearRequestAction.CANCEL_CARD_ENTRY -> handleCancelCardEntryRequest(request)
-        }
-    }
-
-    private fun handleStartupRequest(): Task<ByteArray> {
-        val app = application as UltiObserverApplication
-        val now = System.currentTimeMillis()
-        return Tasks.forResult(
-            WearProtocolCodec.encode(
+/** Handle one decoded-path watch request against authoritative phone state. */
+internal fun handleWearRequest(
+    requestedActionPath: String,
+    requestBytes: ByteArray,
+    appState: AppState,
+    publish: (WearStateSnapshot) -> Unit,
+    now: Long,
+): ByteArray? {
+    val requestedAction = WearRequestAction.fromPath(requestedActionPath) ?: return null
+    var applied = false
+    var nextPrompt: WearTeamActionPrompt? = null
+    synchronized(appState) {
+        val snapshot = appState.state.value
+        when (requestedAction) {
+            WearRequestAction.STARTUP -> return WearProtocolCodec.encode(
                 WearStartupResponse.serializer(),
                 WearStartupResponse(
                     phoneEpochMillis = now,
-                    snapshot = app.currentWearSnapshot(now),
+                    snapshot = appState.currentWearSnapshot(now),
+                ),
+            )
+            WearRequestAction.GOAL -> {
+                val request = WearProtocolCodec.decode(WearGoalRequest.serializer(), requestBytes)
+                val game = snapshot.gameOnWatch(request.stateToken)
+                if (
+                    game != null &&
+                    snapshot.activeCardEntry == null &&
+                    game.pendingGameDecision() == null &&
+                    game.phase != GamePhase.GAME_OVER
+                ) {
+                    appState.recordGoal(game, request.scoringTeam, now)
+                    applied = true
+                }
+            }
+            WearRequestAction.DECISION -> {
+                val request = WearProtocolCodec.decode(WearDecisionRequest.serializer(), requestBytes)
+                val game = snapshot.gameOnWatch(request.stateToken)
+                applied = game != null && appState.resolveDecision(game, request.accept, now)
+            }
+            WearRequestAction.TEAM_ACTION -> {
+                val request = WearProtocolCodec.decode(
+                    WearTeamActionRequest.serializer(),
+                    requestBytes,
                 )
-            )
-        )
-    }
-
-    private fun handleGoalRequest(requestBytes: ByteArray): Task<ByteArray> {
-        val request = WearProtocolCodec.decode(WearGoalRequest.serializer(), requestBytes)
-        val app = application as UltiObserverApplication
-        val now = System.currentTimeMillis()
-        val snapshot = app.appState.state.value
-        val game = snapshot.gameOnWatch(request.stateToken)
-        val scoringTeam = request.scoringTeam
-        val applied = if (
-            game != null &&
-            snapshot.activeCardEntry == null &&
-            game.pendingGameDecision() == null &&
-            game.phase != GamePhase.GAME_OVER
-        ) {
-            app.appState.recordGoal(
-                currentGame = game,
-                scoringTeam = scoringTeam,
-                now = now,
-            )
-        } else {
-            false
+                val game = snapshot.gameOnWatch(request.stateToken)
+                nextPrompt = if (
+                    game != null &&
+                    snapshot.activeCardEntry == null &&
+                    game.pendingGameDecision() == null &&
+                    game.phase != GamePhase.GAME_OVER
+                ) {
+                    game.wearActionPrompt(request, now, snapshot.settings)
+                } else {
+                    null
+                }
+            }
+            WearRequestAction.CONFIRM_ACTION -> {
+                val request = WearProtocolCodec.decode(
+                    WearConfirmActionRequest.serializer(),
+                    requestBytes,
+                )
+                val game = snapshot.gameOnWatch(request.confirmation.stateToken)
+                val canApply = game != null &&
+                    snapshot.activeCardEntry == null &&
+                    game.pendingGameDecision() == null &&
+                    game.phase != GamePhase.GAME_OVER
+                val confirmation = if (canApply) request.confirmation.gamePrompt(game) else null
+                applied = if (
+                    canApply && request.confirmation is WearActionConfirmation.CardEntryHandoff
+                ) {
+                    val handoff = request.confirmation as WearActionConfirmation.CardEntryHandoff
+                    appState.updateCardEntry(
+                        currentGame = game,
+                        expectedCardEntry = null,
+                        updatedCardEntry = ActiveCardEntry(
+                            team = handoff.team,
+                            cardType = handoff.cardType,
+                            jerseyNumber = handoff.jerseyNumber,
+                        ),
+                    )
+                } else {
+                    if (confirmation != null) {
+                        appState.confirmAction(confirmation)
+                        true
+                    } else {
+                        false
+                    }
+                }
+            }
+            WearRequestAction.CARD_ENTRY -> {
+                val request = WearProtocolCodec.decode(WearCardEntryRequest.serializer(), requestBytes)
+                val game = snapshot.gameOnWatch(request.stateToken)
+                applied = if (
+                    game != null &&
+                    snapshot.activeCardEntry == null &&
+                    game.pendingGameDecision() == null &&
+                    game.phase != GamePhase.GAME_OVER
+                ) {
+                    appState.updateCardEntry(
+                        currentGame = game,
+                        expectedCardEntry = null,
+                        updatedCardEntry = ActiveCardEntry(
+                            team = request.team,
+                            cardType = request.cardType,
+                            jerseyNumber = request.jerseyNumber,
+                        ),
+                    )
+                    true
+                } else {
+                    false
+                }
+            }
+            WearRequestAction.CANCEL_CARD_ENTRY -> {
+                val request = WearProtocolCodec.decode(
+                    WearCancelCardEntryRequest.serializer(),
+                    requestBytes,
+                )
+                val game = snapshot.gameOnWatch(request.stateToken)
+                applied = game != null && appState.updateCardEntry(
+                    currentGame = game,
+                    expectedCardEntry = ActiveCardEntry(
+                        team = request.team,
+                        cardType = request.cardType,
+                        jerseyNumber = request.jerseyNumber,
+                    ),
+                    updatedCardEntry = null,
+                )
+            }
         }
-        return gameActionResponse(
-            app = app,
+    }
+    val responseSnapshot = appState.currentWearSnapshot(now)
+    publish(responseSnapshot)
+    return WearProtocolCodec.encode(
+        WearGameActionResponse.serializer(),
+        WearGameActionResponse(
             applied = applied,
-            now = now,
-            nextPrompt = null,
-        )
-    }
-
-    private fun handleDecisionRequest(requestBytes: ByteArray): Task<ByteArray> {
-        val request = WearProtocolCodec.decode(WearDecisionRequest.serializer(), requestBytes)
-        val app = application as UltiObserverApplication
-        val now = System.currentTimeMillis()
-        val snapshot = app.appState.state.value
-        val game = snapshot.gameOnWatch(request.stateToken)
-        val applied = if (
-            game != null
-        ) {
-            app.appState.resolveDecision(
-                currentGame = game,
-                accept = request.accept,
-                now = now,
-            )
-        } else {
-            false
-        }
-        return gameActionResponse(
-            app = app,
-            applied = applied,
-            now = now,
-            nextPrompt = null,
-        )
-    }
-
-    private fun handleTeamActionRequest(requestBytes: ByteArray): Task<ByteArray> {
-        val request = WearProtocolCodec.decode(
-            WearTeamActionRequest.serializer(),
-            requestBytes,
-        )
-        val app = application as UltiObserverApplication
-        val now = System.currentTimeMillis()
-        val snapshot = app.appState.state.value
-        val game = snapshot.gameOnWatch(request.stateToken)
-        val nextPrompt = if (
-            game != null &&
-            snapshot.activeCardEntry == null &&
-            game.pendingGameDecision() == null &&
-            game.phase != GamePhase.GAME_OVER
-        ) {
-            game.wearActionPrompt(
-                request = request,
-                requestedAt = now,
-                settings = snapshot.settings,
-            )
-        } else {
-            null
-        }
-        return gameActionResponse(
-            app = app,
-            applied = false,
-            now = now,
+            snapshot = responseSnapshot,
             nextPrompt = nextPrompt,
-        )
-    }
-
-    private fun handleConfirmActionRequest(requestBytes: ByteArray): Task<ByteArray> {
-        val request = WearProtocolCodec.decode(
-            WearConfirmActionRequest.serializer(),
-            requestBytes,
-        )
-        val app = application as UltiObserverApplication
-        val now = System.currentTimeMillis()
-        val snapshot = app.appState.state.value
-        val game = snapshot.gameOnWatch(request.confirmation.stateToken)
-        val canApply = game != null &&
-            snapshot.activeCardEntry == null &&
-            game.pendingGameDecision() == null &&
-            game.phase != GamePhase.GAME_OVER
-        val confirmation = if (canApply) {
-            request.confirmation.gamePrompt(game)
-        } else {
-            null
-        }
-        val applied = if (
-            canApply && request.confirmation is WearActionConfirmation.CardEntryHandoff
-        ) {
-            val handoff = request.confirmation as WearActionConfirmation.CardEntryHandoff
-            app.appState.updateCardEntry(
-                currentGame = game,
-                expectedCardEntry = null,
-                updatedCardEntry = ActiveCardEntry(
-                    team = handoff.team,
-                    cardType = handoff.cardType,
-                    jerseyNumber = handoff.jerseyNumber,
-                ),
-            )
-        } else {
-            confirmation != null && app.appState.confirmAction(confirmation)
-        }
-        return gameActionResponse(
-            app = app,
-            applied = applied,
-            now = now,
-            nextPrompt = null,
-        )
-    }
-
-    private fun handleCardEntryRequest(requestBytes: ByteArray): Task<ByteArray> {
-        val request = WearProtocolCodec.decode(WearCardEntryRequest.serializer(), requestBytes)
-        val app = application as UltiObserverApplication
-        val now = System.currentTimeMillis()
-        val snapshot = app.appState.state.value
-        val game = snapshot.gameOnWatch(request.stateToken)
-        val applied = game != null &&
-            game.pendingGameDecision() == null &&
-            game.phase != GamePhase.GAME_OVER &&
-            app.appState.updateCardEntry(
-                currentGame = game,
-                expectedCardEntry = null,
-                updatedCardEntry = ActiveCardEntry(
-                    team = request.team,
-                    cardType = request.cardType,
-                    jerseyNumber = request.jerseyNumber,
-                ),
-            )
-        return gameActionResponse(
-            app = app,
-            applied = applied,
-            now = now,
-            nextPrompt = null,
-        )
-    }
-
-    private fun handleCancelCardEntryRequest(requestBytes: ByteArray): Task<ByteArray> {
-        val request = WearProtocolCodec.decode(
-            WearCancelCardEntryRequest.serializer(),
-            requestBytes,
-        )
-        val app = application as UltiObserverApplication
-        val now = System.currentTimeMillis()
-        val snapshot = app.appState.state.value
-        val game = snapshot.gameOnWatch(request.stateToken)
-        val applied = game != null && app.appState.updateCardEntry(
-            currentGame = game,
-            expectedCardEntry = ActiveCardEntry(
-                team = request.team,
-                cardType = request.cardType,
-                jerseyNumber = request.jerseyNumber,
-            ),
-            updatedCardEntry = null,
-        )
-        return gameActionResponse(
-            app = app,
-            applied = applied,
-            now = now,
-            nextPrompt = null,
-        )
-    }
-
-    private fun gameActionResponse(
-        app: UltiObserverApplication,
-        applied: Boolean,
-        now: Long,
-        nextPrompt: WearTeamActionPrompt?,
-    ): Task<ByteArray> {
-        val snapshot = app.currentWearSnapshot(now)
-        app.wearStatePublisher.publish(snapshot)
-        return Tasks.forResult(
-            WearProtocolCodec.encode(
-                WearGameActionResponse.serializer(),
-                WearGameActionResponse(
-                    applied = applied,
-                    snapshot = snapshot,
-                    nextPrompt = nextPrompt,
-                )
-            )
-        )
-    }
+        ),
+    )
 }
 
 /** Build the protocol prompt requested by one watch team action. */
@@ -600,8 +442,8 @@ private fun AppStateSnapshot.gameOnWatch(stateToken: String): GameState? {
 }
 
 /** Build the application's current authoritative state for one direct watch response. */
-private fun UltiObserverApplication.currentWearSnapshot(now: Long): WearStateSnapshot {
-    val appState = appState.state.value
+private fun AppState.currentWearSnapshot(now: Long): WearStateSnapshot {
+    val appState = state.value
     return buildWearStateSnapshot(
         game = appState.currentGame,
         settings = appState.settings,
@@ -845,6 +687,9 @@ internal fun wearStateToken(game: GameState): String {
         .digest(encodeCurrentGame(game).encodeToByteArray())
         .joinToString("") { byte -> "%02x".format(byte) }
 }
+
+/** Return whether the Wear node query found at least one reachable companion. */
+internal fun hasAvailableWearNode(nodeCount: Int): Boolean = nodeCount > 0
 
 /** Return the same black-or-white content ARGB used for custom phone display colors. */
 private fun readableContentArgb(backgroundArgb: Long): Long {

@@ -126,6 +126,7 @@ def is_ui_source_file(path: Path) -> bool:
             "TimingAlertForegroundService.kt",
             "UiComponents.kt",
             "UltiObserverApplication.kt",
+            "WearOSCommunication.kt",
         }
         or "/ui/theme/" in path.as_posix()
     )
