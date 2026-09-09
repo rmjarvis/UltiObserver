@@ -29,7 +29,8 @@ CALLBACK_LAMBDA_OPENER = re.compile(
     r"(?:(?:[A-Za-z_]\w*\s*,\s*)*[A-Za-z_]\w*\s*->\s*)?$"
 )
 LOCAL_UI_CALLBACK_LAMBDA_OPENER = re.compile(
-    r"^val\s+[A-Za-z_]\w*Action\s*:\s*\(\)\s*->\s*Unit\s*=\s*\{\s*$"
+    r"^val\s+(?:on[A-Za-z]\w*|[A-Za-z_]\w*Action\s*:\s*\(\)\s*->\s*Unit)"
+    r"\s*=\s*\{\s*$"
 )
 COMPOSE_APPLY_LAMBDA_OPENER = re.compile(
     r"^val\s+apply[A-Z]\w*\s*=\s*\{$"
@@ -100,6 +101,13 @@ def parse_args() -> argparse.Namespace:
         help="Omit UI source files from the report, useful for JVM-only coverage passes.",
     )
     parser.add_argument(
+        "--exclude-wear-request-service",
+        action="store_true",
+        help=(
+            "Omit the phone's WearOSRequestService adapter when paired watch tests were not run."
+        ),
+    )
+    parser.add_argument(
         "--path",
         action="append",
         default=[],
@@ -130,6 +138,25 @@ def is_ui_source_file(path: Path) -> bool:
         }
         or "/ui/theme/" in path.as_posix()
     )
+
+
+def is_wear_request_service_line(line: MissedLine) -> bool:
+    """Return whether a miss belongs to the watch-driven phone request service adapter."""
+
+    if line.path.name != "WearOSCommunication.kt":
+        return False
+    source_lines = line.path.read_text().splitlines()
+    declaration_index = next(
+        (
+            index
+            for index, source in enumerate(source_lines)
+            if source.strip() == "class WearOSRequestService : WearableListenerService() {"
+        ),
+        None,
+    )
+    if declaration_index is None:
+        return False
+    return declaration_index <= line.number - 1 <= block_end_index(source_lines, declaration_index)
 
 
 def line_allowed_reason(
@@ -425,6 +452,10 @@ def exhaustive_when_without_else_reason(
     lines, usually the final `is SomeStep ->` case.  Keep that allowance narrow: the
     case line must be inside a documented exhaustive `when`, must have covered
     instructions, and must only miss exactly one branch with no missed instructions.
+
+    The current Kotlin/Compose toolchain can map the synthetic fallback instructions to
+    the documented `when` block's closing brace instead. Accept only the observed
+    two-instruction, branchless miss on that exact closing brace.
     """
 
     line_index = line_number - 1
@@ -434,6 +465,19 @@ def exhaustive_when_without_else_reason(
         if comment_index is None:
             return None
         if next_code_line_after(source_lines, comment_index) != line_index:
+            return None
+
+        return "documented exhaustive when without else"
+
+    if source == "}":
+        if (
+            counters.missed_instructions != 2
+            or counters.covered_instructions != 0
+            or counters.missed_branches != 0
+            or counters.covered_branches != 0
+        ):
+            return None
+        if documented_exhaustive_when_index_for_closing_brace(source_lines, line_index) is None:
             return None
 
         return "documented exhaustive when without else"
@@ -471,6 +515,32 @@ def documented_exhaustive_when_index_for_case_line(
         if "when (" not in source:
             continue
         if block_end_index(source_lines, index) < line_index:
+            continue
+
+        comment_index = nearby_comment_index_before(
+            source_lines,
+            index,
+            EXHAUSTIVE_WHEN_COMMENT,
+        )
+        if comment_index is None:
+            return None
+        if next_code_line_after(source_lines, comment_index) != index:
+            return None
+        return index
+    return None
+
+
+def documented_exhaustive_when_index_for_closing_brace(
+    source_lines: list[str],
+    line_index: int,
+) -> int | None:
+    """Return the documented exhaustive `when` opener closed by this line."""
+
+    for index in range(line_index - 1, -1, -1):
+        source = source_lines[index].strip()
+        if "when (" not in source:
+            continue
+        if block_end_index(source_lines, index) != line_index:
             continue
 
         comment_index = nearby_comment_index_before(
@@ -691,8 +761,9 @@ def callback_lambda_scaffold_reason(
 
     Those local callback openers can receive the same generated wrapper branches as
     direct `onClick = { ... }` parameters.  This rule accepts only local `val`
-    lambdas whose names end in `Action`, have the exact `() -> Unit` callback type,
-    and have covered executable body lines.
+    lambdas that either use the usual `onSomething` callback name or whose names end
+    in `Action` with the exact `() -> Unit` callback type.  Their executable body lines
+    must be covered.
     """
 
     line_index = line_number - 1
@@ -955,8 +1026,13 @@ def composable_declaration_scaffold_reason(
 
     * Defaulted parameters can receive generated default-mask branches.
       Example pattern: `modifier: Modifier = Modifier,` or `enabled: Boolean = true,`.
-      Tests commonly cover either "caller supplied a value" or "Kotlin/Compose used
-      the default", but not every generated mask path.
+      In addition to fully covered default-mask branches, the recognizer ignores the
+      inspected `mi=0, mb=1, cb=1` profile left by Compose's post-`shouldExecute`
+      default substitution.
+
+    * Compose can map default-expression cache reuse onto the first function-declaration
+      line.  The inspected profiles are `(mi, mb) = (4, 1), (10, 2), (18, 4), and
+      (26, 6)`; the latter three scale with the number of cached default expressions.
 
     * In some cases, such as `SmallActionButton`, JaCoCo maps restart/skip code all
       the way back to the `@Composable` annotation line.  The annotation is not
@@ -977,7 +1053,39 @@ def composable_declaration_scaffold_reason(
     if source == ") {" and counters.covered_instructions > 0 and counters.covered_branches > 0:
         return "Compose function prologue scaffold"
 
-    if composable_default_parameter_source(source) and counters.covered_instructions > 0:
+    declaration_default_cache_profiles = {
+        (4, 1, 1),
+        (10, 2, 0),
+        (18, 4, 0),
+        (26, 6, 0),
+    }
+    if (
+        re.search(r"\bfun\s+[A-Za-z_][A-Za-z0-9_]*\s*\($", source) and
+        (
+            counters.missed_instructions,
+            counters.missed_branches,
+            counters.covered_branches,
+        ) in declaration_default_cache_profiles and
+        counters.covered_instructions > 0 and
+        composable_body_has_covered_code(source_lines, opening_index, coverage_by_line)
+    ):
+        return "Compose default-cache declaration scaffold"
+
+    if (
+        composable_default_parameter_source(source) and
+        counters.covered_instructions > 0 and
+        (
+            (
+                counters.missed_branches == 0 and
+                counters.covered_branches >= 2
+            ) or
+            (
+                counters.missed_instructions == 0 and
+                counters.missed_branches == 1 and
+                counters.covered_branches == 1
+            )
+        )
+    ):
         return "Compose default-parameter scaffold"
 
     if (
@@ -1260,34 +1368,56 @@ def long_lived_activity_state_collect_scaffold_reason(
     Return a reason for the impossible normal-completion path after Activity state collection.
 
     `StateFlow.collect` runs until its surrounding lifecycle coroutine is cancelled. Kotlin still
-    emits a resume path that handles a theoretical normal return and throws
-    `KotlinNothingValueException`. JaCoCo maps that generated path to the `collect` opener even
-    when every executable line in the collector body has run.
+    emits a resume path that handles a theoretical normal return. A direct collection throws
+    `KotlinNothingValueException`, which JaCoCo maps to the `collect` opener. A transformed flow
+    has a `Unit`-return epilogue instead, which JaCoCo maps to the `repeatOnLifecycle` closing
+    brace.
 
-    This recognizer is intentionally limited to MainActivity's `appState.state` collection
+    This recognizer is intentionally limited to MainActivity's `appState.state` collections
     directly inside `repeatOnLifecycle`, the observed instruction counters, and a fully covered
-    collector body.
+    collection body.
     """
 
     index = line_number - 1
     if index < 2 or index >= len(source_lines):
         return None
-    if source_lines[index].strip() != ".collect { state ->":
-        return None
-    if source_lines[index - 1].strip() != "appState.state":
-        return None
-    if source_lines[index - 2].strip() != "repeatOnLifecycle(Lifecycle.State.STARTED) {":
-        return None
-    if counters != LineCounters(
-        missed_instructions=5,
-        covered_instructions=12,
+    source = source_lines[index].strip()
+    if source == ".collect { state ->":
+        if source_lines[index - 1].strip() != "appState.state":
+            return None
+        if source_lines[index - 2].strip() != "repeatOnLifecycle(Lifecycle.State.STARTED) {":
+            return None
+        if counters != LineCounters(
+            missed_instructions=5,
+            covered_instructions=12,
+            missed_branches=0,
+            covered_branches=0,
+        ):
+            return None
+        if not lambda_body_is_covered(source_lines, index, coverage_by_line):
+            return None
+        return "long-lived Activity StateFlow.collect completion scaffold"
+
+    if source != "}" or counters != LineCounters(
+        missed_instructions=3,
+        covered_instructions=0,
         missed_branches=0,
         covered_branches=0,
     ):
         return None
-    if not lambda_body_is_covered(source_lines, index, coverage_by_line):
+    opening_index = matching_opening_brace_index(source_lines, index)
+    if opening_index is None:
         return None
-    return "long-lived Activity StateFlow.collect completion scaffold"
+    if source_lines[opening_index].strip() != "repeatOnLifecycle(Lifecycle.State.STARTED) {":
+        return None
+    body = [line.strip() for line in source_lines[opening_index + 1:index]]
+    if len(body) < 3 or body[0] != "appState.state" or body[1] != ".map { state ->":
+        return None
+    if ".distinctUntilChanged()" not in body or ".collect { publication ->" not in body:
+        return None
+    if not lambda_body_is_covered(source_lines, opening_index, coverage_by_line):
+        return None
+    return "long-lived Activity transformed StateFlow.collect completion scaffold"
 
 
 def line_opens_launched_effect_body(source_lines: list[str], line_index: int) -> bool:
@@ -1599,6 +1729,8 @@ def main() -> int:
         ]
     if args.exclude_ui:
         misses = [line for line in misses if not is_ui_source_file(line.path)]
+    if args.exclude_wear_request_service:
+        misses = [line for line in misses if not is_wear_request_service_line(line)]
     actionable = [line for line in misses if line.allowed_reason is None]
     ignored = [line for line in misses if line.allowed_reason is not None]
 
