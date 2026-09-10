@@ -51,6 +51,7 @@ internal fun UltiObserverWearApp(
     connectionState: ConnectionState,
     onRetry: () -> Unit,
     onGoal: (TeamId, String, (Boolean) -> Unit) -> Unit,
+    onUndo: (String, (Boolean) -> Unit) -> Unit,
     onDecision: (String, Boolean, (Boolean) -> Unit) -> Unit,
     onTeamAction: (TeamId, String, WearTeamAction, (WearTeamActionPrompt?) -> Unit) -> Unit,
     onStartCardEntry: (TeamId, String, CardType, String, (Boolean) -> Unit) -> Unit,
@@ -207,6 +208,7 @@ internal fun UltiObserverWearApp(
                     onSelectedTeamChange = { selectedTeam = it },
                     onRetry = onRetry,
                     onGoal = onGoal,
+                    onUndo = onUndo,
                     onTeamAction = onTeamAction,
                     onStartCardEntry = onStartCardEntry,
                     onPrompt = { prompt ->
@@ -232,6 +234,7 @@ private fun ActiveGameScreen(
     onSelectedTeamChange: (Int) -> Unit,
     onRetry: () -> Unit,
     onGoal: (TeamId, String, (Boolean) -> Unit) -> Unit,
+    onUndo: (String, (Boolean) -> Unit) -> Unit,
     onTeamAction: (TeamId, String, WearTeamAction, (WearTeamActionPrompt?) -> Unit) -> Unit,
     onStartCardEntry: (TeamId, String, CardType, String, (Boolean) -> Unit) -> Unit,
     onPrompt: (WearTeamActionPrompt) -> Unit,
@@ -264,7 +267,14 @@ private fun ActiveGameScreen(
                 onSelectedTeamChange(2)
             },
             onRetry = onRetry,
-            onUndo = {},
+            onUndo = {
+                if (!commandPending) {
+                    commandPending = true
+                    onUndo(activeGame.stateToken) {
+                        commandPending = false
+                    }
+                }
+            },
         )
     } else {
         val selectedWearTeam = if (selectedTeam == 1) {

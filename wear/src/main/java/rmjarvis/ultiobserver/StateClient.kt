@@ -29,6 +29,7 @@ import rmjarvis.ultiobserver.wearprotocol.WearStartupResponse
 import rmjarvis.ultiobserver.wearprotocol.WearTeamAction
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionPrompt
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionRequest
+import rmjarvis.ultiobserver.wearprotocol.WearUndoRequest
 
 /** Snapshot plus the offset needed to display it using the phone's clock. */
 internal data class ReceivedState(
@@ -282,6 +283,25 @@ internal class StateClient(
             nodeId = nodeId,
             action = WearRequestAction.GOAL,
             request = WearProtocolCodec.encode(WearGoalRequest.serializer(), request),
+            onFinished = { response -> onFinished(response?.applied == true) },
+        )
+    }
+
+    /** Undo the latest action against the exact state displayed by the watch. */
+    fun undo(
+        stateToken: String,
+        onFinished: (Boolean) -> Unit,
+    ) {
+        val nodeId = reachablePhoneNodeId
+        if (nodeId == null) {
+            onFinished(false)
+            return
+        }
+        val request = WearUndoRequest(stateToken)
+        sendGameAction(
+            nodeId = nodeId,
+            action = WearRequestAction.UNDO,
+            request = WearProtocolCodec.encode(WearUndoRequest.serializer(), request),
             onFinished = { response -> onFinished(response?.applied == true) },
         )
     }

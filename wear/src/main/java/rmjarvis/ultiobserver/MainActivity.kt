@@ -36,6 +36,9 @@ internal class MainActivity : ComponentActivity() {
                 onGoal = { scoringTeam, stateToken, onFinished ->
                     stateClient.recordGoal(scoringTeam, stateToken, onFinished)
                 },
+                onUndo = { stateToken, onFinished ->
+                    stateClient.undo(stateToken, onFinished)
+                },
                 onDecision = { stateToken, accept, onFinished ->
                     stateClient.resolveDecision(stateToken, accept, onFinished)
                 },

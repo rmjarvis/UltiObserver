@@ -24,6 +24,7 @@ import rmjarvis.ultiobserver.wearprotocol.WearStartupResponse
 import rmjarvis.ultiobserver.wearprotocol.WearTeamAction
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionPrompt
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionRequest
+import rmjarvis.ultiobserver.wearprotocol.WearUndoRequest
 
 /// Tests for the phone-side Wear OS interface.
 class TestWearOSInterface : GameDomainTestFixtures() {
@@ -826,6 +827,71 @@ class TestWearOSInterface : GameDomainTestFixtures() {
             ),
         )
 
+    }
+
+    /** Exercise watch Undo through the same conditional state replacement used by the phone. */
+    @Test
+    fun watchUndo() {
+        val settings = Settings(
+            timingAlerts = TimingAlertPreferences(
+                watchConnectionMode = WatchConnectionMode.WEAR_OS,
+            ),
+        )
+        val appState = activeWearState(settings)
+        val baseGame = appState.currentGame!!
+        val goalTime = timestampAt(baseGame, LocalTime.of(11, 0))
+        appState.recordGoal(baseGame, TeamId.TEAM_ONE, goalTime)
+        val scoredGame = appState.currentGame!!
+        val undoRequest = WearUndoRequest(wearStateToken(scoredGame))
+
+        // The request preserves the exact game token through protocol serialization.
+        assertEquals(
+            undoRequest,
+            WearProtocolCodec.decode(
+                WearUndoRequest.serializer(),
+                WearProtocolCodec.encode(WearUndoRequest.serializer(), undoRequest),
+            ),
+        )
+
+        // Undo restores the preceding game, publishes it to the watch, and retains Redo exactly
+        // as the phone's ordinary Undo action does.
+        assertTrue(
+            requestResponse(
+                appState = appState,
+                action = WearRequestAction.UNDO,
+                request = WearProtocolCodec.encode(WearUndoRequest.serializer(), undoRequest),
+                now = goalTime,
+            ).applied
+        )
+        assertEquals(scoredGame.undoLastAction(), appState.currentGame)
+        assertNotNull(appState.currentGame!!.redoEntry)
+
+        // Repeating the stale request cannot undo an older action or overwrite the current game.
+        val restoredGame = appState.currentGame!!
+        assertFalse(
+            requestResponse(
+                appState = appState,
+                action = WearRequestAction.UNDO,
+                request = WearProtocolCodec.encode(WearUndoRequest.serializer(), undoRequest),
+                now = goalTime,
+            ).applied
+        )
+        assertEquals(restoredGame, appState.currentGame)
+
+        // A current game without an Undo action also rejects the request.
+        val noUndoGame = restoredGame.copy(undoEntry = null, redoEntry = null)
+        appState.updateCurrentGame(noUndoGame)
+        assertFalse(
+            requestResponse(
+                appState = appState,
+                action = WearRequestAction.UNDO,
+                request = WearProtocolCodec.encode(
+                    WearUndoRequest.serializer(),
+                    WearUndoRequest(wearStateToken(noUndoGame)),
+                ),
+                now = goalTime,
+            ).applied
+        )
     }
 
     /** Exercise a watch timeout that is requested before it is confirmed and recorded. */

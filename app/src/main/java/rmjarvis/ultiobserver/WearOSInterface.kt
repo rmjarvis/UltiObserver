@@ -32,6 +32,7 @@ import rmjarvis.ultiobserver.wearprotocol.WearTeamActionPrompt
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionRequest
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionsSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearTeamSnapshot
+import rmjarvis.ultiobserver.wearprotocol.WearUndoRequest
 
 /** Handle one decoded-path watch request against authoritative phone state. */
 internal fun handleWearRequest(
@@ -65,6 +66,18 @@ internal fun handleWearRequest(
                 ) {
                     appState.recordGoal(game, request.scoringTeam, now)
                     applied = true
+                }
+            }
+            WearRequestAction.UNDO -> {
+                val request = WearProtocolCodec.decode(WearUndoRequest.serializer(), requestBytes)
+                val game = snapshot.gameOnWatch(request.stateToken)
+                if (
+                    game?.undoEntry != null &&
+                    snapshot.activeCardEntry == null &&
+                    game.pendingGameDecision() == null &&
+                    game.phase != GamePhase.GAME_OVER
+                ) {
+                    applied = appState.updateCurrentGame(game, game.undoLastAction())
                 }
             }
             WearRequestAction.DECISION -> {

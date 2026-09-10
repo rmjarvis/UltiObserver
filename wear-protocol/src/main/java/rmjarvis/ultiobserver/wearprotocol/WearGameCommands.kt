@@ -17,6 +17,7 @@ private val wearProtocolJson = Json {
 enum class WearRequestAction(val path: String) {
     STARTUP("/ultiobserver/startup"),
     GOAL("/ultiobserver/goal"),
+    UNDO("/ultiobserver/undo"),
     DECISION("/ultiobserver/decision"),
     TEAM_ACTION("/ultiobserver/team-action"),
     CONFIRM_ACTION("/ultiobserver/confirm-action"),
@@ -37,6 +38,12 @@ enum class WearRequestAction(val path: String) {
 data class WearGoalRequest(
     val stateToken: String,
     val scoringTeam: TeamId,
+)
+
+/** Request to undo the latest action against the exact game state displayed by the watch. */
+@Serializable
+data class WearUndoRequest(
+    val stateToken: String,
 )
 
 /** Observer response to the exact pending decision displayed by the watch. */
