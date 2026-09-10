@@ -14,7 +14,7 @@
             android:value="false" />
 
         <activity
-            android:name=".MainActivity"
+            android:name=".WatchActivity"
             android:exported="true"
             android:taskAffinity=""
             android:theme="@style/Theme.UltiObserver.Wear">

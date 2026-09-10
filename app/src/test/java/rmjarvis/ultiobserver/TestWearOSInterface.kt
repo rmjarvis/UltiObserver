@@ -876,6 +876,62 @@ class TestWearOSInterface : GameDomainTestFixtures() {
                 now = goalTime,
             ).applied
         )
+
+        // Card entry makes all ordinary game actions unavailable, including an otherwise current
+        // Undo request.
+        val cardEntryState = activeWearState(settings, scoredGame)
+        cardEntryState.updateCardEntry(
+            currentGame = scoredGame,
+            expectedCardEntry = null,
+            updatedCardEntry = ActiveCardEntry(
+                team = TeamId.TEAM_ONE,
+                cardType = CardType.YELLOW,
+                jerseyNumber = "8",
+            ),
+        )
+        assertFalse(
+            requestResponse(
+                appState = cardEntryState,
+                action = WearRequestAction.UNDO,
+                request = WearProtocolCodec.encode(WearUndoRequest.serializer(), undoRequest),
+                now = goalTime,
+            ).applied
+        )
+
+        // A pending game decision owns the watch surface and prevents Undo until the observer
+        // resolves that decision.
+        val pendingDecisionGame = scoredGame.copy(
+            pendingScoreTransition = PendingScoreTransition(
+                transition = ScoreTransition.HALFTIME,
+                effectiveEpoch = goalTime,
+            ),
+        )
+        assertFalse(
+            requestResponse(
+                appState = activeWearState(settings, pendingDecisionGame),
+                action = WearRequestAction.UNDO,
+                request = WearProtocolCodec.encode(
+                    WearUndoRequest.serializer(),
+                    WearUndoRequest(wearStateToken(pendingDecisionGame)),
+                ),
+                now = goalTime,
+            ).applied
+        )
+
+        // Completed games keep their final state visible but expose no watch actions. Undoing game
+        // end remains a phone-summary action.
+        val completedGame = scoredGame.endGameNow(goalTime)
+        assertFalse(
+            requestResponse(
+                appState = liveScreenWearState(settings, completedGame),
+                action = WearRequestAction.UNDO,
+                request = WearProtocolCodec.encode(
+                    WearUndoRequest.serializer(),
+                    WearUndoRequest(wearStateToken(completedGame)),
+                ),
+                now = goalTime,
+            ).applied
+        )
         assertEquals(restoredGame, appState.currentGame)
 
         // A current game without an Undo action also rejects the request.

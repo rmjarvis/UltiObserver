@@ -19,6 +19,12 @@ android {
         minSdk = 26
     }
 
+    buildTypes {
+        debug {
+            enableUnitTestCoverage = true
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -28,4 +34,5 @@ android {
 dependencies {
     api(project(":shared"))
     implementation(libs.kotlinx.serialization.json)
+    testImplementation(libs.junit)
 }

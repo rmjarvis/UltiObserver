@@ -12,7 +12,12 @@ import xml.etree.ElementTree as ET
 
 
 DEFAULT_REPORT = Path("app/build/reports/jacoco/filtered/filteredCoverageReport.xml")
-DEFAULT_SOURCE_ROOT = Path("app/src/main/java")
+DEFAULT_SOURCE_ROOTS = (
+    Path("app/src/main/java"),
+    Path("shared/src/main/kotlin"),
+    Path("wear-protocol/src/main/java"),
+    Path("wear/src/main/java"),
+)
 ALLOWED_COMMENT_LOOKBACK_LINES = 5
 DEFENSIVE_GUARD_COMMENT = re.compile(r"\bdefensive\b.*\bguard\b", re.IGNORECASE)
 UNUSED_REQUIRED_COMMENT = re.compile(r"\bunused but required\b", re.IGNORECASE)
@@ -86,9 +91,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--source-root",
+        action="append",
         type=Path,
-        default=DEFAULT_SOURCE_ROOT,
-        help=f"Kotlin source root, default: {DEFAULT_SOURCE_ROOT}",
+        default=None,
+        help=(
+            "Kotlin source root. May be passed multiple times; defaults to all covered modules."
+        ),
     )
     parser.add_argument(
         "--show-ignored",
@@ -135,6 +143,8 @@ def is_ui_source_file(path: Path) -> bool:
             "UiComponents.kt",
             "UltiObserverApplication.kt",
             "WearOSCommunication.kt",
+            "StateClient.kt",
+            "WatchActivity.kt",
         }
         or "/ui/theme/" in path.as_posix()
     )
@@ -1629,16 +1639,27 @@ def meaningful_lambda_body_source(source: str) -> bool:
     return bool(source) and not source.startswith("//") and source not in {"}", "},", ")", "),"}
 
 
-def read_source(source_root: Path, package_name: str, source_name: str) -> tuple[Path, list[str]]:
+def read_source(
+    source_roots: list[Path],
+    package_name: str,
+    source_name: str,
+) -> tuple[Path, list[str]]:
     """Read the Kotlin source file referenced by one JaCoCo package/sourcefile pair."""
 
-    path = source_root / package_name / source_name
-    if not path.exists():
-        return path, []
+    candidates = [source_root / package_name / source_name for source_root in source_roots]
+    matches = [path for path in candidates if path.exists()]
+    if len(matches) > 1:
+        raise ValueError(
+            f"Ambiguous JaCoCo source {package_name}/{source_name}: "
+            + ", ".join(str(path) for path in matches)
+        )
+    if not matches:
+        return candidates[0], []
+    path = matches[0]
     return path, path.read_text().splitlines()
 
 
-def collect_misses(report: Path, source_root: Path) -> list[MissedLine]:
+def collect_misses(report: Path, source_roots: list[Path]) -> list[MissedLine]:
     """Return all source lines with missed instructions or branches."""
 
     tree = ET.parse(report)
@@ -1649,7 +1670,7 @@ def collect_misses(report: Path, source_root: Path) -> list[MissedLine]:
         package_name = package.attrib["name"]
         for sourcefile in package.findall("sourcefile"):
             source_name = sourcefile.attrib["name"]
-            source_path, source_lines = read_source(source_root, package_name, source_name)
+            source_path, source_lines = read_source(source_roots, package_name, source_name)
             coverage_by_line = {
                 int(line.attrib["nr"]): LineCounters(
                     missed_instructions=int(line.attrib["mi"]),
@@ -1720,7 +1741,8 @@ def main() -> int:
         print(f"Coverage report not found: {args.report}", file=sys.stderr)
         return 2
 
-    misses = collect_misses(args.report, args.source_root)
+    source_roots = args.source_root or list(DEFAULT_SOURCE_ROOTS)
+    misses = collect_misses(args.report, source_roots)
     if args.path:
         misses = [
             line

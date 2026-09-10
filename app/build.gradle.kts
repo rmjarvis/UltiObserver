@@ -52,7 +52,7 @@ android {
         versionCode = 7
         versionName = "1.4.0alpha"
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = "rmjarvis.ultiobserver.UltiObserverTestRunner"
     }
 
     signingConfigs {
@@ -159,9 +159,16 @@ val filteredCoverageExclusions = listOf(
 
 tasks.register<JacocoReport>("filteredCoverageReport") {
     group = "verification"
-    description = "Generates an app/shared JaCoCo report excluding previews, generated scaffolding, and static theme code."
+    description = "Generates an app/shared/Wear JaCoCo report excluding previews, generated scaffolding, and static theme code."
 
-    dependsOn("testDebugUnitTest", "connectedDebugAndroidTest", ":shared:classes")
+    dependsOn(
+        "testDebugUnitTest",
+        "connectedDebugAndroidTest",
+        ":shared:classes",
+        ":wear-protocol:testDebugUnitTest",
+        ":wear:testDebugUnitTest",
+        ":wear:connectedDebugAndroidTest",
+    )
 
     reports {
         html.required.set(true)
@@ -182,21 +189,48 @@ tasks.register<JacocoReport>("filteredCoverageReport") {
             fileTree(project(":shared").layout.buildDirectory.dir("classes/kotlin/main")) {
                 exclude(filteredCoverageExclusions)
             },
+            fileTree(
+                project(":wear-protocol").layout.buildDirectory.dir(
+                    "intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes"
+                )
+            ) {
+                exclude(filteredCoverageExclusions)
+            },
+            fileTree(
+                project(":wear").layout.buildDirectory.dir(
+                    "intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes"
+                )
+            ) {
+                exclude(filteredCoverageExclusions)
+            },
         )
     )
     sourceDirectories.setFrom(
         files(
             "src/main/java",
             project(":shared").file("src/main/kotlin"),
+            project(":wear-protocol").file("src/main/java"),
+            project(":wear").file("src/main/java"),
         )
     )
     executionData.setFrom(
-        fileTree(layout.buildDirectory) {
-            include(
-                "outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec",
-                "outputs/code_coverage/debugAndroidTest/connected/**/*.ec",
-            )
-        }
+        files(
+            fileTree(layout.buildDirectory) {
+                include(
+                    "outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec",
+                    "outputs/code_coverage/debugAndroidTest/connected/**/*.ec",
+                )
+            },
+            fileTree(project(":wear-protocol").layout.buildDirectory) {
+                include("outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec")
+            },
+            fileTree(project(":wear").layout.buildDirectory) {
+                include(
+                    "outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec",
+                    "outputs/code_coverage/debugAndroidTest/connected/**/*.ec",
+                )
+            },
+        )
     )
 }
 

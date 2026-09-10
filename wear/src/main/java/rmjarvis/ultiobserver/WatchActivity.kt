@@ -9,7 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 
 /** Launcher activity for the Wear companion app. */
-internal class MainActivity : ComponentActivity() {
+internal class WatchActivity : ComponentActivity() {
     private var receivedState by mutableStateOf<ReceivedState?>(null)
     private var connectionState by mutableStateOf(ConnectionState.CONNECTING)
     private val stateClient by lazy {
