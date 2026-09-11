@@ -16,12 +16,8 @@ DEFAULT_ADB = Path("/Users/Mike/Library/Android/sdk/platform-tools/adb")
 PACKAGE_NAME = "rmjarvis.ultiobserver"
 PHONE_TEST_RUNNER = f"{PACKAGE_NAME}.test/{PACKAGE_NAME}.UltiObserverTestRunner"
 WATCH_TEST_RUNNER = f"{PACKAGE_NAME}.test/androidx.test.runner.AndroidJUnitRunner"
-PHONE_TEST_CLASS = f"{PACKAGE_NAME}.TestWearPairedPhoneUi"
-WATCH_TEST_CLASS = f"{PACKAGE_NAME}.TestWatchGameFlowUi"
+PAIRED_TEST_CLASS = f"{PACKAGE_NAME}.TestWearPairedPhoneUi"
 WATCH_ONLY_TEST_CLASSES = (
-    f"{PACKAGE_NAME}.TestWatchCardEntryUi",
-    f"{PACKAGE_NAME}.TestWatchGameDisplayUi",
-    f"{PACKAGE_NAME}.TestWatchPromptUi",
     f"{PACKAGE_NAME}.TestWatchStateUi",
 )
 READY_FILE = "files/paired-test-ready"
@@ -29,8 +25,9 @@ DEFAULT_NARRATIVES = (
     "goalAndUndo",
     "timeAndPullViolations",
     "timeoutAndMisconduct",
-    "halftimeDecision",
+    "halftimeConfirmation",
     "gameWinningGoal",
+    "playerCardEntryOnWatch",
     "playerCardPhoneHandoff",
 )
 
@@ -133,7 +130,22 @@ def validate_pair(adb: Path, pair: EmulatorPair, root: Path) -> None:
 
 
 def build_apks(args: argparse.Namespace, root: Path) -> None:
-    """Assemble both target APKs and their instrumentation APKs once."""
+    """Recompile paired-test code, then assemble all target APKs once."""
+
+    # AGP's incremental compilation has occasionally left stale production or test bytecode in an
+    # otherwise successfully assembled APK. Force the Kotlin compilation tasks for both halves of
+    # the paired test before the normal build.
+    run(
+        [
+            args.gradle,
+            "app:compileDebugKotlin",
+            "app:compileDebugAndroidTestKotlin",
+            "wear:compileDebugKotlin",
+            "wear:compileDebugAndroidTestKotlin",
+            "--rerun-tasks",
+        ],
+        root,
+    )
 
     run(
         [
@@ -354,7 +366,7 @@ def run_narrative(
     phone_command = paired_phone_instrumentation_command(
         adb,
         pair.phone_serial,
-        f"{PHONE_TEST_CLASS}#{narrative}",
+        f"{PAIRED_TEST_CLASS}#{narrative}",
         phone_remote,
     )
     print(f"+ {' '.join(str(part) for part in phone_command)}", flush=True)
@@ -371,7 +383,7 @@ def run_narrative(
             instrumentation_command(
                 adb,
                 pair.watch_serial,
-                f"{WATCH_TEST_CLASS}#{narrative}",
+                f"{PAIRED_TEST_CLASS}#{narrative}",
                 watch_remote,
                 WATCH_TEST_RUNNER,
             ),
@@ -379,14 +391,8 @@ def run_narrative(
             capture=True,
             check=False,
         )
-        phone_output, _ = phone_process.communicate(timeout=30.0)
-        if (
-            watch_result.returncode != 0 or
-            "FAILURES!!!" in watch_result.stdout or
-            "INSTRUMENTATION_FAILED" in watch_result.stdout
-        ):
-            print(phone_output, end="" if phone_output.endswith("\n") else "\n", flush=True)
         assert_instrumentation_passed("Watch", watch_result.stdout, watch_result.returncode)
+        phone_output, _ = phone_process.communicate(timeout=30.0)
         assert_instrumentation_passed("Phone", phone_output, phone_process.returncode)
     except Exception:
         if phone_process.poll() is None:
