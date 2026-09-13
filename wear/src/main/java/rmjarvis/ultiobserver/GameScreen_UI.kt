@@ -32,15 +32,18 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material3.AppScaffold
+import androidx.wear.compose.material3.LocalTextStyle
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.TimeSource
 import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
@@ -221,7 +224,7 @@ private fun StatusRegion(
                     text = display.statusMessage,
                     modifier = Modifier.padding(top = 5.dp),
                     color = Color.White,
-                    fontSize = if (display.gameOver) 18.sp else 13.sp,
+                    fontSize = if (display.gameOver) 18.sp else 11.sp,
                     fontWeight = FontWeight.Medium,
                     maxLines = 2,
                     textAlign = TextAlign.Center,
@@ -248,18 +251,40 @@ private fun CountdownStatus(display: GameDisplay) {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = display.countdownLabel,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Normal,
-            maxLines = 1,
-        )
+        // Measure the unweighted countdown first; only its label yields space when necessary.
+        BoxWithConstraints(modifier = Modifier.weight(1f, fill = false)) {
+            val textMeasurer = rememberTextMeasurer()
+            val labelStyle = LocalTextStyle.current.copy(
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Normal,
+            )
+            val naturalWidth = textMeasurer.measure(
+                text = display.countdownLabel,
+                style = labelStyle,
+                maxLines = 1,
+                softWrap = false,
+            ).size.width
+            val availableWidth = with(LocalDensity.current) { maxWidth.toPx() }
+            val fontSize = if (naturalWidth > availableWidth) {
+                labelStyle.fontSize * (availableWidth / naturalWidth)
+            } else {
+                labelStyle.fontSize
+            }
+            Text(
+                text = display.countdownLabel,
+                style = labelStyle,
+                fontSize = fontSize,
+                maxLines = 1,
+                softWrap = false,
+            )
+        }
         if (display.countdownValue != null) {
             Text(
                 text = display.countdownValue,
                 fontSize = 27.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
+                softWrap = false,
             )
         }
     }

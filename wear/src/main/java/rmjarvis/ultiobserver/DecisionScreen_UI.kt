@@ -245,46 +245,36 @@ private fun PromptScreen(
             contentColor = DialogContentColor,
         ) {
             if (prompt.presentation != WearGuidancePresentation.HIDDEN_AUTO_ACCEPT) {
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(DialogBackgroundColor)
-                        .padding(top = 28.dp, start = 12.dp, end = 12.dp),
-                    contentAlignment = Alignment.Center,
+                        .padding(top = 28.dp, start = 24.dp, end = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.SpaceEvenly,
                 ) {
-                    Column(
+                    Text(
+                        text = prompt.title,
+                        color = DialogContentColor,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                    )
+                    Text(
+                        text = prompt.messageLines.toAnnotatedString(),
                         modifier = Modifier
-                            .fillMaxSize()
-                            .padding(top = 12.dp, bottom = 4.dp, start = 12.dp, end = 12.dp),
+                            .fillMaxWidth()
+                            .weight(1f, fill = false)
+                            .padding(vertical = 4.dp)
+                            .verticalScroll(rememberScrollState()),
+                        color = DialogContentColor,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp,
+                        textAlign = TextAlign.Start,
+                    )
+                    Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        Text(
-                            text = prompt.title,
-                            modifier = Modifier.fillMaxWidth(),
-                            color = DialogContentColor,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center,
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
-                            contentAlignment = Alignment.TopStart,
-                        ) {
-                            Text(
-                                text = prompt.messageLines.toAnnotatedString(),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .verticalScroll(rememberScrollState()),
-                                color = DialogContentColor,
-                                fontSize = 12.sp,
-                                lineHeight = 16.sp,
-                                textAlign = TextAlign.Start,
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
                         if (alternativeAction != null) {
                             PromptAlternativeAction(
                                 label = alternativeAction.label,
@@ -293,14 +283,16 @@ private fun PromptScreen(
                             )
                         }
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            horizontalArrangement = Arrangement.spacedBy(
+                                12.dp, Alignment.CenterHorizontally,
+                            ),
                         ) {
                             actions.forEach { action ->
                                 PromptAction(
                                     label = action.label,
                                     enabled = enabled,
                                     onClick = action.onClick,
+                                    modifier = Modifier.weight(1f, fill = false),
                                 )
                             }
                         }
@@ -322,16 +314,17 @@ private fun PromptAction(
     label: String,
     enabled: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier,
 ) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .height(42.dp)
             .clickable(
                 enabled = enabled,
                 role = Role.Button,
                 onClick = onClick,
             )
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 4.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -339,8 +332,9 @@ private fun PromptAction(
             color = if (enabled) DialogContentColor else DisabledDialogContentColor,
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
-            maxLines = 1,
-            softWrap = false,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            softWrap = true,
         )
     }
 }
