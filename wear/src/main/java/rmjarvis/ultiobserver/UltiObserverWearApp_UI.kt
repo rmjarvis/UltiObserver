@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -31,18 +30,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.material3.Text
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.delay
 import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 import rmjarvis.ultiobserver.wearprotocol.WearActionConfirmation
 import rmjarvis.ultiobserver.wearprotocol.WearActiveGameSnapshot
-import rmjarvis.ultiobserver.wearprotocol.WearSnapshotPullDirection
 import rmjarvis.ultiobserver.wearprotocol.WearSnapshotStatus
 import rmjarvis.ultiobserver.wearprotocol.WearTeamAction
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionPrompt
-import rmjarvis.ultiobserver.wearprotocol.WearTeamSnapshot
 
 /** Route synchronized phone state to the watch's idle, game, or team-action surface. */
 @Composable
@@ -58,146 +52,72 @@ internal fun UltiObserverWearApp(
     onCancelCardEntry: (TeamId, String, CardType?, String, (Boolean) -> Unit) -> Unit,
     onConfirmAction: (WearActionConfirmation, (Boolean) -> Unit) -> Unit,
 ) {
-    var selectedTeam by remember { mutableIntStateOf(0) }
-    var pendingActionPrompt by remember {
-        mutableStateOf<WearTeamActionPrompt?>(null)
-    }
-    var cardChoiceStateToken by remember { mutableStateOf<String?>(null) }
-    var playerCard by remember { mutableStateOf<WearTeamAction.PlayerCard?>(null) }
-    var phoneCardEntryWasActive by remember { mutableStateOf(false) }
-    var returnToCardChoicesForTeam by remember { mutableStateOf<TeamId?>(null) }
+    var navigation by remember { mutableStateOf(NavigationState()) }
     val snapshot = receivedState?.snapshot
     val phoneReachable = connectionState == ConnectionState.CONNECTED
     val phoneCardEntry = snapshot?.activeGame?.phoneCardEntry
-
-    LaunchedEffect(
-        phoneReachable,
-        snapshot?.status,
-        snapshot?.activeGame?.actionsAvailable,
-        snapshot?.activeGame?.stateToken,
-        phoneCardEntry,
-    ) {
-        if (
-            !phoneReachable ||
-            snapshot?.status != WearSnapshotStatus.ACTIVE_GAME
-        ) {
-            phoneCardEntryWasActive = false
-            returnToCardChoicesForTeam = null
-        } else if (phoneCardEntry != null) {
-            phoneCardEntryWasActive = true
-        } else if (phoneCardEntryWasActive) {
-            val returnTeam = returnToCardChoicesForTeam
-            if (returnTeam == null) {
-                selectedTeam = 0
-                cardChoiceStateToken = null
-                playerCard = null
-            } else {
-                selectedTeam = if (returnTeam == TeamId.TEAM_ONE) 1 else 2
-                cardChoiceStateToken = snapshot.activeGame?.stateToken
-            }
-            phoneCardEntryWasActive = false
-            returnToCardChoicesForTeam = null
-        }
-        if (
-            !phoneReachable ||
-            snapshot?.status != WearSnapshotStatus.ACTIVE_GAME ||
-            (
-                snapshot.activeGame?.actionsAvailable != true &&
-                    snapshot.activeGame?.phoneCardEntry == null
-                )
-        ) {
-            selectedTeam = 0
-            cardChoiceStateToken = null
-            playerCard = null
-        }
-        if (
-            !phoneReachable ||
-            pendingActionPrompt?.stateToken != snapshot?.activeGame?.stateToken
-        ) {
-            pendingActionPrompt = null
-        }
-        if (cardChoiceStateToken != snapshot?.activeGame?.stateToken) {
-            if (cardChoiceStateToken != null && phoneCardEntry != null) {
-                selectedTeam = 0
-            }
-            cardChoiceStateToken = null
-            playerCard = null
-        }
+    LaunchedEffect(snapshot, connectionState) {
+        navigation = navigation.receive(snapshot, connectionState)
     }
-    BackHandler(
-        enabled = selectedTeam != 0 &&
-            pendingActionPrompt == null &&
-            playerCard == null,
-    ) {
-        if (cardChoiceStateToken != null) {
-            cardChoiceStateToken = null
-        } else {
-            selectedTeam = 0
-        }
+    BackHandler(enabled = navigation.handlesBack) {
+        navigation = navigation.back()
     }
 
-    when {
-        connectionState == ConnectionState.DISABLED -> DisabledScreen()
-        snapshot == null && connectionState == ConnectionState.CONNECTING ->
+    val screen = navigation.screen(snapshot, connectionState)
+    when (screen) {
+        WatchScreen.DISABLED -> DisabledScreen()
+        WatchScreen.CONNECTING ->
             MessageScreen("Connecting…")
-        snapshot == null -> MessageScreen(
+        WatchScreen.UNREACHABLE -> MessageScreen(
             message = "Could not find a paired phone running UltiObserver.",
             onRetry = onRetry,
         )
-        snapshot.status == WearSnapshotStatus.DISABLED -> DisabledScreen()
-        snapshot.status == WearSnapshotStatus.NO_ACTIVE_GAME && !phoneReachable ->
+        WatchScreen.DISCONNECTED ->
             MessageScreen("Lost connection", onRetry)
-        snapshot.status == WearSnapshotStatus.NO_ACTIVE_GAME ->
+        WatchScreen.IDLE ->
             MessageScreen("No active game")
         else -> {
-            val activeGame = snapshot.activeGame!!
+            val activeGame = snapshot!!.activeGame!!
             val pendingDecision = activeGame.pendingDecision
-            if (phoneReachable && pendingDecision != null) {
+            if (screen == WatchScreen.CONFIRMATION) {
                 DecisionScreen(
-                    decision = pendingDecision,
+                    decision = pendingDecision!!,
                     stateToken = activeGame.stateToken,
                     onDecision = onDecision,
                 )
-            } else if (phoneReachable && phoneCardEntry != null) {
+            } else if (screen == WatchScreen.PHONE_ENTRY) {
                 ContinueOnPhoneScreen(
                     onCancel = { onFinished ->
-                        returnToCardChoicesForTeam = phoneCardEntry.team
+                        navigation = navigation.beginPhoneCancellation(phoneCardEntry!!.team)
                         onCancelCardEntry(
                             phoneCardEntry.team,
                             activeGame.stateToken,
                             phoneCardEntry.cardType,
                             phoneCardEntry.jerseyNumber,
                         ) { cancelled ->
-                            if (!cancelled) {
-                                returnToCardChoicesForTeam = null
-                            }
+                            navigation = navigation.finishPhoneCancellation(cancelled)
                             onFinished(cancelled)
                         }
                     },
                 )
-            } else if (phoneReachable && pendingActionPrompt != null) {
-                when (val actionPrompt = pendingActionPrompt!!) {
+            } else if (screen == WatchScreen.ACTION_PROMPT) {
+                when (val actionPrompt = navigation.pendingActionPrompt!!) {
                     is WearActionConfirmation -> ActionConfirmationScreen(
                         confirmation = actionPrompt,
-                        onConfirmationChange = { pendingActionPrompt = it },
+                        onConfirmationChange = { navigation = navigation.copy(pendingActionPrompt = it) },
                         onConfirm = { confirmedAction, onFinished ->
                             onConfirmAction(confirmedAction) { applied ->
-                                pendingActionPrompt = null
-                                if (applied) {
-                                    selectedTeam = 0
-                                    cardChoiceStateToken = null
-                                    playerCard = null
-                                }
+                                navigation = navigation.finishConfirmation(applied)
                                 onFinished(applied)
                             }
                         },
                         onCancel = {
-                            pendingActionPrompt = null
+                            navigation = navigation.copy(pendingActionPrompt = null)
                         },
                     )
                     is WearTeamActionPrompt.Notice -> ActionNoticeScreen(
                         notice = actionPrompt,
-                        onDismiss = { pendingActionPrompt = null },
+                        onDismiss = { navigation = navigation.copy(pendingActionPrompt = null) },
                     )
                 }
             } else {
@@ -205,22 +125,13 @@ internal fun UltiObserverWearApp(
                     receivedState = receivedState,
                     activeGame = activeGame,
                     phoneReachable = phoneReachable,
-                    selectedTeam = selectedTeam,
-                    onSelectedTeamChange = {
-                        selectedTeam = it
-                    },
+                    navigation = navigation,
+                    onNavigationChange = { navigation = it(navigation) },
                     onRetry = onRetry,
                     onGoal = onGoal,
                     onUndo = onUndo,
                     onTeamAction = onTeamAction,
                     onStartCardEntry = onStartCardEntry,
-                    onPrompt = { prompt ->
-                        pendingActionPrompt = prompt
-                    },
-                    cardChoiceStateToken = cardChoiceStateToken,
-                    onCardChoiceStateTokenChange = { cardChoiceStateToken = it },
-                    playerCard = playerCard,
-                    onPlayerCardChange = { playerCard = it },
                 )
             }
         }
@@ -233,18 +144,13 @@ private fun ActiveGameScreen(
     receivedState: ReceivedState,
     activeGame: WearActiveGameSnapshot,
     phoneReachable: Boolean,
-    selectedTeam: Int,
-    onSelectedTeamChange: (Int) -> Unit,
+    navigation: NavigationState,
+    onNavigationChange: ((NavigationState) -> NavigationState) -> Unit,
     onRetry: () -> Unit,
     onGoal: (TeamId, String, (Boolean) -> Unit) -> Unit,
     onUndo: (String, (Boolean) -> Unit) -> Unit,
     onTeamAction: (TeamId, String, WearTeamAction, (WearTeamActionPrompt?) -> Unit) -> Unit,
     onStartCardEntry: (TeamId, String, CardType, String, (Boolean) -> Unit) -> Unit,
-    onPrompt: (WearTeamActionPrompt) -> Unit,
-    cardChoiceStateToken: String?,
-    onCardChoiceStateTokenChange: (String?) -> Unit,
-    playerCard: WearTeamAction.PlayerCard?,
-    onPlayerCardChange: (WearTeamAction.PlayerCard?) -> Unit,
 ) {
     var commandPending by remember { mutableStateOf(false) }
     val currentPhoneEpochMillis by produceState(
@@ -260,14 +166,17 @@ private fun ActiveGameScreen(
         currentPhoneEpochMillis = currentPhoneEpochMillis,
         connected = phoneReachable,
     )
-    if (selectedTeam == 0) {
+    val selectedTeam = navigation.selectedTeam
+    val playerCard = navigation.playerCard
+    val surface = navigation.gameScreen(activeGame.stateToken)
+    if (surface == GameSurface.SCORE) {
         GameScreen(
             display = display,
             onTeamOne = {
-                onSelectedTeamChange(1)
+                onNavigationChange { it.copy(selectedTeam = 1) }
             },
             onTeamTwo = {
-                onSelectedTeamChange(2)
+                onNavigationChange { it.copy(selectedTeam = 2) }
             },
             onRetry = onRetry,
             onUndo = {
@@ -291,7 +200,7 @@ private fun ActiveGameScreen(
                 action,
             ) { prompt ->
                 commandPending = false
-                prompt?.let(onPrompt)
+                onNavigationChange { it.copy(pendingActionPrompt = prompt) }
             }
         }
         val selectedTeamSnapshot = if (selectedTeam == 1) {
@@ -299,14 +208,14 @@ private fun ActiveGameScreen(
         } else {
             activeGame.teamTwo
         }
-        if (cardChoiceStateToken == activeGame.stateToken && playerCard != null) {
+        if (surface == GameSurface.PLAYER_CARD) {
             PlayerCardEntryOptionsScreen(
                 display = selectedTeamSnapshot.toTeamActionsDisplay(!commandPending),
-                cardType = playerCard.cardType,
+                cardType = playerCard!!.cardType,
                 jerseyNumber = playerCard.jerseyNumber,
                 enabled = !commandPending,
                 onJerseyNumberChange = { jerseyNumber ->
-                    onPlayerCardChange(playerCard.copy(jerseyNumber = jerseyNumber))
+                    onNavigationChange { it.copy(playerCard = playerCard.copy(jerseyNumber = jerseyNumber)) }
                 },
                 onRecord = {
                     requestPrompt(playerCard)
@@ -320,31 +229,28 @@ private fun ActiveGameScreen(
                         playerCard.jerseyNumber,
                     ) { applied ->
                         commandPending = false
-                        if (applied) {
-                            onPlayerCardChange(null)
-                        }
+                        onNavigationChange { it.finishHandoff(applied) }
                     }
                 },
                 onCancel = {
-                    onPlayerCardChange(null)
+                    onNavigationChange { it.copy(playerCard = null) }
                 },
             )
-        } else if (cardChoiceStateToken == activeGame.stateToken) {
+        } else if (surface == GameSurface.CARD_CHOICES) {
             CardChoiceScreen(
                 display = selectedTeamSnapshot.toTeamActionsDisplay(!commandPending),
                 enabled = !commandPending,
                 onYellow = {
-                    onPlayerCardChange(WearTeamAction.PlayerCard(CardType.YELLOW, ""))
+                    onNavigationChange { it.copy(playerCard = WearTeamAction.PlayerCard(CardType.YELLOW, "")) }
                 },
                 onRed = {
-                    onPlayerCardChange(WearTeamAction.PlayerCard(CardType.RED, ""))
+                    onNavigationChange { it.copy(playerCard = WearTeamAction.PlayerCard(CardType.RED, "")) }
                 },
                 onBlue = {
                     requestPrompt(WearTeamAction.BlueCard)
                 },
                 onCancel = {
-                    onCardChoiceStateTokenChange(null)
-                    onPlayerCardChange(null)
+                    onNavigationChange { it.back() }
                 },
             )
         } else {
@@ -357,9 +263,7 @@ private fun ActiveGameScreen(
                         activeGame.stateToken,
                     ) { applied ->
                         commandPending = false
-                        if (applied) {
-                            onSelectedTeamChange(0)
-                        }
+                        onNavigationChange { it.finishGoal(applied) }
                     }
                 },
                 onTimeViolation = {
@@ -369,7 +273,7 @@ private fun ActiveGameScreen(
                     requestPrompt(WearTeamAction.PullViolation)
                 },
                 onCard = {
-                    onCardChoiceStateTokenChange(activeGame.stateToken)
+                    onNavigationChange { it.copy(cardChoiceStateToken = activeGame.stateToken) }
                 },
                 onTechnicalFoul = {
                     requestPrompt(WearTeamAction.TechnicalFoul)
@@ -378,91 +282,11 @@ private fun ActiveGameScreen(
                     requestPrompt(WearTeamAction.Timeout)
                 },
                 onCancel = {
-                    onSelectedTeamChange(0)
+                    onNavigationChange { it.back() }
                 },
             )
         }
     }
-}
-
-/** Convert one protocol game into the existing display-only main-screen model. */
-private fun WearActiveGameSnapshot.toGameDisplay(
-    currentPhoneEpochMillis: Long,
-    connected: Boolean,
-): GameDisplay {
-    val nextCap = upcomingCaps.firstOrNull { cap ->
-        cap.targetEpochMillis >= currentPhoneEpochMillis
-    }
-    val countdownRemainingMillis = countdown?.let { state ->
-        state.targetEpochMillis - (state.pausedAtEpochMillis ?: currentPhoneEpochMillis)
-    }
-    val nextCue = countdown?.cues?.firstOrNull { cue ->
-        cue.targetEpochMillis >= currentPhoneEpochMillis
-    }
-    val statusMessage = statusMessageTransitions
-        .lastOrNull { transition -> transition.targetEpochMillis <= currentPhoneEpochMillis }
-        ?.message
-    return GameDisplay(
-        officialTime = formatOfficialTime(
-            epochMillis = currentPhoneEpochMillis + officialClockOffsetMillis,
-            timeZoneId = officialTimeZoneId,
-        ),
-        capStatus = nextCap?.let { cap ->
-            val remainingMillis = cap.targetEpochMillis - currentPhoneEpochMillis
-            "${cap.label} in ${formatDurationMillis(remainingMillis)}"
-        },
-        countdownLabel = countdown?.label.orEmpty(),
-        countdownValue = if (gameOver) {
-            null
-        } else {
-            countdownRemainingMillis?.let(::formatDurationMillis)
-        },
-        nextCue = if (gameOver) null else nextCue?.let { cue -> "Next: ${cue.message}" },
-        statusMessage = statusMessage.takeIf { countdown == null },
-        teamOne = teamOne.toTeamDisplay(),
-        teamTwo = teamTwo.toTeamDisplay(),
-        pullDirection = when (pullDirection) {
-            WearSnapshotPullDirection.LEFT_TO_RIGHT -> PullDirection.LEFT_TO_RIGHT
-            WearSnapshotPullDirection.RIGHT_TO_LEFT -> PullDirection.RIGHT_TO_LEFT
-        },
-        ratioBadge = ratio?.let { badge ->
-            RatioBadgeDisplay(
-                label = badge.label,
-                backgroundColor = Color(badge.backgroundArgb),
-                contentColor = Color(badge.contentArgb),
-            )
-        },
-        connected = connected,
-        actionsAvailable = actionsAvailable,
-        gameOver = gameOver,
-        undoDescription = undoDescription,
-    )
-}
-
-private fun WearTeamSnapshot.toTeamDisplay(): TeamDisplay {
-    return TeamDisplay(
-        name = name,
-        score = score,
-        backgroundColor = Color(backgroundArgb),
-        contentColor = Color(contentArgb),
-    )
-}
-
-private fun WearTeamSnapshot.toTeamActionsDisplay(actionsAvailable: Boolean): TeamActionsDisplay {
-    return TeamActionsDisplay(
-        team = toTeamDisplay(),
-        timeViolationLabel = actions.timeViolationLabel,
-        pullViolationLabel = actions.pullViolationLabel,
-        cardLabel = actions.cardLabel,
-        technicalFoulLabel = actions.technicalFoulLabel,
-        timeoutLabel = actions.timeoutLabel,
-        goalEnabled = actionsAvailable && actions.goalEnabled,
-        timeViolationEnabled = actionsAvailable && actions.timeViolationEnabled,
-        pullViolationEnabled = actionsAvailable && actions.pullViolationEnabled,
-        cardEnabled = actionsAvailable && actions.cardEnabled,
-        technicalFoulEnabled = actionsAvailable && actions.technicalFoulEnabled,
-        timeoutEnabled = actionsAvailable && actions.timeoutEnabled,
-    )
 }
 
 @Composable
@@ -550,18 +374,3 @@ internal fun RetryLabel(
         )
     }
 }
-
-private fun formatOfficialTime(epochMillis: Long, timeZoneId: String): String {
-    return Instant.ofEpochMilli(epochMillis)
-        .atZone(ZoneId.of(timeZoneId))
-        .format(WATCH_TIME_FORMATTER)
-}
-
-private fun formatDurationMillis(durationMillis: Long): String {
-    val totalSeconds = (durationMillis.coerceAtLeast(0L) / 1_000L)
-    val minutes = totalSeconds / 60L
-    val seconds = totalSeconds % 60L
-    return "$minutes:${seconds.toString().padStart(2, '0')}"
-}
-
-private val WATCH_TIME_FORMATTER = DateTimeFormatter.ofPattern("h:mm")

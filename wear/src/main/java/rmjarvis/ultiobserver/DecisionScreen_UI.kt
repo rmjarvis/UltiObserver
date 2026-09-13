@@ -65,15 +65,9 @@ internal fun DecisionScreen(
         submitDecision(true)
     }
     LaunchedEffect(decision, stateToken, commandPending) {
-        if (!commandPending) {
-            when (decision.presentation) {
-                WearGuidancePresentation.VISIBLE -> Unit
-                WearGuidancePresentation.VISIBLE_TIMED -> {
-                    delay(decision.autoAcceptDelayMillis!!)
-                    submitDecision(true)
-                }
-                WearGuidancePresentation.HIDDEN_AUTO_ACCEPT -> submitDecision(true)
-            }
+        decision.confirmationDelayMillis(commandPending)?.let { delayMillis ->
+            delay(delayMillis)
+            submitDecision(true)
         }
     }
 
@@ -109,36 +103,18 @@ internal fun ActionConfirmationScreen(
         onCancel()
     }
     LaunchedEffect(confirmation.stateToken, commandPending) {
-        if (!commandPending) {
-            when (prompt.presentation) {
-                WearGuidancePresentation.VISIBLE -> Unit
-                WearGuidancePresentation.VISIBLE_TIMED -> {
-                    delay(prompt.autoAcceptDelayMillis!!)
-                    currentSubmitConfirmation()
-                }
-                WearGuidancePresentation.HIDDEN_AUTO_ACCEPT -> currentSubmitConfirmation()
-            }
+        prompt.confirmationDelayMillis(commandPending)?.let { delayMillis ->
+            delay(delayMillis)
+            currentSubmitConfirmation()
         }
     }
 
-    val alternativeAction = if (confirmation is WearActionConfirmation.PullViolation) {
-        val alternative = confirmation.options
-            .firstOrNull { option -> option.violation != confirmation.selectedViolation }
-        if (alternative == null) {
-            null
-        } else {
-            PromptActionSpec(alternative.violation.alternativeActionLabel()) {
-                onConfirmationChange(
-                    confirmation.copy(
-                        selectedViolation = alternative.violation,
-                        prompt = alternative.prompt,
-                    )
-                )
-            }
+    val alternativeAction = confirmation.alternativeConfirmation()?.let { alternative ->
+        PromptActionSpec(alternative.selectedViolation.alternativeActionLabel()) {
+            onConfirmationChange(alternative)
         }
-    } else {
-        null
     }
+
     PromptScreen(
         prompt = prompt,
         enabled = !commandPending,
@@ -360,15 +336,6 @@ private fun PromptAlternativeAction(
         maxLines = 1,
         softWrap = false,
     )
-}
-
-/** Format the compact action that switches a mixed pull violation on the watch. */
-private fun PullViolationType.alternativeActionLabel(): String {
-    return when (this) {
-        PullViolationType.OFFSIDES -> "→ Offsides"
-        PullViolationType.MAJORITY_PULL -> "→ Majority pull viol."
-        PullViolationType.FALSE_START -> error("False start has no alternative pull violation.")
-    }
 }
 
 private val DialogBackgroundColor = Color(0xFFF5F1E7)
