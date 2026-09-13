@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -350,6 +351,7 @@ internal fun PlayerCardEntryOptionsScreen(
     var draftJerseyNumber by remember(jerseyNumber) {
         mutableStateOf(jerseyNumber)
     }
+    val actionRows = if (jerseyNumber.isEmpty()) 2 else 3
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -390,9 +392,11 @@ internal fun PlayerCardEntryOptionsScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth(0.86f)
+                    .fillMaxHeight()
+                    .padding(top = 26.dp, bottom = 36.dp)
                     .align(Alignment.Center),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically),
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -415,6 +419,10 @@ internal fun PlayerCardEntryOptionsScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .weight(1f, fill = false)
+                        .heightIn(
+                            max = 32.dp * actionRows + ActionGap * (actionRows - 1) + PanelPadding * 2,
+                        )
                         .clip(PanelShape)
                         .background(ActionPanelColor)
                         .padding(PanelPadding),
@@ -437,7 +445,7 @@ internal fun PlayerCardEntryOptionsScreen(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(32.dp),
+                            .weight(1f),
                     )
                     ActionButton(
                         label = "Enter details on phone",
@@ -448,7 +456,7 @@ internal fun PlayerCardEntryOptionsScreen(
                         onClick = onContinueOnPhone,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(32.dp),
+                            .weight(1f),
                     )
                     if (jerseyNumber.isNotEmpty()) {
                         ActionButton(
@@ -460,7 +468,7 @@ internal fun PlayerCardEntryOptionsScreen(
                             onClick = onRecord,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(32.dp),
+                                .weight(1f),
                         )
                     }
                 }
@@ -469,7 +477,9 @@ internal fun PlayerCardEntryOptionsScreen(
                 color = display.team.contentColor,
                 enabled = enabled,
                 onCancel = onCancel,
-                modifier = Modifier.align(Alignment.BottomCenter),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .height(36.dp),
             )
         }
     }
