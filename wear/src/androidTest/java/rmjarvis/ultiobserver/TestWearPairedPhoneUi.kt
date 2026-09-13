@@ -131,7 +131,7 @@ class TestWearPairedPhoneUi {
         composeRule.onNodeWithText("Time viol.").performClick()
         waitForText("OK")
         composeRule.onNodeWithText("OK").performClick()
-        waitForContentDescription("Undo Time violation on Animal")
+        waitForContentDescription("Undo Time violation warning on Animal")
     }
 
     /** Test recording timeout, technical foul, and blue card from the watch. */

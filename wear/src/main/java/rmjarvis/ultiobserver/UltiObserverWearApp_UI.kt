@@ -137,6 +137,7 @@ internal fun UltiObserverWearApp(
     }
 
     when {
+        connectionState == ConnectionState.DISABLED -> DisabledScreen()
         snapshot == null && connectionState == ConnectionState.CONNECTING ->
             MessageScreen("Connecting…")
         snapshot == null -> MessageScreen(
@@ -205,7 +206,9 @@ internal fun UltiObserverWearApp(
                     activeGame = activeGame,
                     phoneReachable = phoneReachable,
                     selectedTeam = selectedTeam,
-                    onSelectedTeamChange = { selectedTeam = it },
+                    onSelectedTeamChange = {
+                        selectedTeam = it
+                    },
                     onRetry = onRetry,
                     onGoal = onGoal,
                     onUndo = onUndo,

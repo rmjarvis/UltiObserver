@@ -55,8 +55,8 @@ class TestWatchStateUi {
     @Test
     fun disabledIdleAndDisconnectedPhoneStates() {
         val retryRequested = AtomicBoolean(false)
-        var state by mutableStateOf(snapshot(WearSnapshotStatus.DISABLED))
-        var connection by mutableStateOf(ConnectionState.CONNECTED)
+        var state by mutableStateOf<ReceivedState?>(null)
+        var connection by mutableStateOf(ConnectionState.DISABLED)
         show(
             state = { state },
             connection = { connection },
@@ -71,7 +71,10 @@ class TestWatchStateUi {
 
         // Once it is enabled, the phone is still not showing an active game.
         // Until it does, the watch says that there isn't an active game yet.
-        composeRule.runOnIdle { state = snapshot(WearSnapshotStatus.NO_ACTIVE_GAME) }
+        composeRule.runOnIdle {
+            state = snapshot(WearSnapshotStatus.NO_ACTIVE_GAME)
+            connection = ConnectionState.CONNECTED
+        }
         composeRule.onNodeWithText("No active game").assertIsDisplayed()
 
         // If the connection is lost, but the phone had previously been connected, then

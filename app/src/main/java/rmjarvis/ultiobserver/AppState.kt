@@ -3,7 +3,6 @@ package rmjarvis.ultiobserver
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
 import kotlin.random.Random
 
@@ -157,6 +156,18 @@ internal class AppState(
 
     val state: StateFlow<AppStateSnapshot> = _state.asStateFlow()
 
+    /** Notify an integration of committed changes, synchronously under the state lock. */
+    var onStateChanged: ((AppStateSnapshot, AppStateSnapshot) -> Unit)? = null
+
+    @Synchronized
+    private fun updateState(transform: (AppStateSnapshot) -> AppStateSnapshot) {
+        val previous = _state.value
+        val updated = transform(previous)
+        if (updated == previous) return
+        _state.value = updated
+        onStateChanged?.invoke(previous, updated)
+    }
+
     val screen: AppScreen
         get() = state.value.screen
     val currentGame: GameState?
@@ -210,7 +221,7 @@ internal class AppState(
 
     /// Navigate to Home and clear any summary view.
     fun goHome() {
-        _state.update {
+        updateState {
             it.copy(
                 screen = AppScreen.HOME,
                 selectedArchiveCategory = null,
@@ -230,7 +241,7 @@ internal class AppState(
         }
 
         if (viewingArchivedGame != null) {
-            _state.update {
+            updateState {
                 it.copy(
                     screen = AppScreen.ARCHIVED_GAMES,
                     viewingArchivedGame = null,
@@ -241,7 +252,7 @@ internal class AppState(
         }
 
         if (viewingCurrentGameSummary) {
-            _state.update {
+            updateState {
                 it.copy(
                     screen = if (selectedArchiveCategory == null) {
                         AppScreen.LIVE
@@ -255,7 +266,7 @@ internal class AppState(
         }
 
         if (screen == AppScreen.ARCHIVED_GAMES && selectedArchiveCategory != null) {
-            _state.update { it.copy(selectedArchiveCategory = null) }
+            updateState { it.copy(selectedArchiveCategory = null) }
             return
         }
 
@@ -290,7 +301,7 @@ internal class AppState(
     fun updateSetup(updatedGame: GameState) {
         val savedIndex = editingSavedSetupIndex
         if (savedIndex != null) {
-            _state.update {
+            updateState {
                 it.copy(
                     archivedGames = archivedGamesWith(savedIndex, updatedGame)
                 )
@@ -299,10 +310,10 @@ internal class AppState(
             return
         }
         if (setupEditDraft != null) {
-            _state.update { it.copy(setupEditDraft = updatedGame) }
+            updateState { it.copy(setupEditDraft = updatedGame) }
             return
         }
-        _state.update { it.copy(currentGame = updatedGame) }
+        updateState { it.copy(currentGame = updatedGame) }
         persistCurrentGame()
     }
 
@@ -314,7 +325,7 @@ internal class AppState(
     @Synchronized
     fun updateCurrentGame(updatedGame: GameState) {
         // All current-game event logging flows through this AppState boundary.
-        _state.update { it.copy(currentGame = updatedGame) }
+        updateState { it.copy(currentGame = updatedGame) }
         persistCurrentGame()
     }
 
@@ -450,7 +461,7 @@ internal class AppState(
         ) {
             return false
         }
-        _state.update {
+        updateState {
             it.copy(activeCardEntry = updatedCardEntry)
         }
         return true
@@ -467,7 +478,7 @@ internal class AppState(
         if (snapshot.currentGame != currentGame || snapshot.activeCardEntry != entry) {
             return false
         }
-        _state.update {
+        updateState {
             it.copy(
                 currentGame = updatedGame,
                 activeCardEntry = null,
@@ -479,7 +490,7 @@ internal class AppState(
 
     /// Replace the profile bucket and refresh derived profile state.
     fun updateProfile(updatedProfile: Profile) {
-        _state.update {
+        updateState {
             it.copy(
                 profile = updatedProfile,
                 currentHomeAvatar = if (updatedProfile.avatarPreference == it.profile.avatarPreference) {
@@ -494,7 +505,7 @@ internal class AppState(
 
     /// Replace the settings bucket.
     fun updateSettings(updatedSettings: Settings) {
-        _state.update { it.copy(settings = updatedSettings) }
+        updateState { it.copy(settings = updatedSettings) }
         persistSettingsState()
     }
 
@@ -524,7 +535,7 @@ internal class AppState(
         if (updatedOffsetMillis == settings.officialClockOffsetMillis) {
             return
         }
-        _state.update {
+        updateState {
             it.copy(
                 settings = it.settings.copy(
                     officialClockOffsetMillis = updatedOffsetMillis,
@@ -540,7 +551,7 @@ internal class AppState(
 
     /// Clear the startup recovery notice after the user dismisses it.
     fun dismissStartupRecoveryNotice() {
-        _state.update { it.copy(startupRecoveryNotice = null) }
+        updateState { it.copy(startupRecoveryNotice = null) }
     }
 
     /// Open the profile screen.
@@ -570,7 +581,7 @@ internal class AppState(
 
     /// Open the archived games screen.
     fun openArchivedGames() {
-        _state.update {
+        updateState {
             it.copy(
                 viewingArchivedGame = null,
                 viewingCurrentGameSummary = false,
@@ -585,7 +596,7 @@ internal class AppState(
 
     /// Return to the archive category landing page while preserving archive filter/sort state.
     fun returnToArchivedGameCategories() {
-        _state.update {
+        updateState {
             it.copy(
                 viewingArchivedGame = null,
                 viewingCurrentGameSummary = false,
@@ -601,7 +612,7 @@ internal class AppState(
      * @param category The archive category to list.
      */
     fun openArchivedGameCategory(category: ArchivedGameCategory) {
-        _state.update { it.copy(selectedArchiveCategory = category) }
+        updateState { it.copy(selectedArchiveCategory = category) }
     }
 
     /**
@@ -611,7 +622,7 @@ internal class AppState(
      * @param values The selected values for that filter.
      */
     fun updateArchiveFilterSelections(field: ArchiveFilterField, values: Set<String>) {
-        _state.update {
+        updateState {
             it.copy(archiveFilterSelections = it.archiveFilterSelections.withValues(field, values))
         }
     }
@@ -622,7 +633,7 @@ internal class AppState(
      * @param dateFilter The date filter to apply, or null to clear it.
      */
     fun updateArchiveDateFilter(dateFilter: ArchiveDateFilter?) {
-        _state.update {
+        updateState {
             it.copy(
                 archiveFilterSelections = it.archiveFilterSelections.copy(dateRange = dateFilter),
             )
@@ -631,14 +642,14 @@ internal class AppState(
 
     /// Clear one archive filter field.
     fun clearArchiveFilter(field: ArchiveFilterField) {
-        _state.update {
+        updateState {
             it.copy(archiveFilterSelections = it.archiveFilterSelections.without(field))
         }
     }
 
     /// Clear all archive filters.
     fun clearArchiveFilterSelections() {
-        _state.update { it.copy(archiveFilterSelections = ArchiveFilterSelections()) }
+        updateState { it.copy(archiveFilterSelections = ArchiveFilterSelections()) }
     }
 
     /**
@@ -647,7 +658,7 @@ internal class AppState(
      * @param sortMode The sort mode to apply.
      */
     fun updateArchiveSortMode(sortMode: ArchiveSortMode) {
-        _state.update { it.copy(archiveSortMode = sortMode) }
+        updateState { it.copy(archiveSortMode = sortMode) }
     }
 
     /**
@@ -656,7 +667,7 @@ internal class AppState(
     fun resumeCurrentGame() {
         val current = currentGame ?: return
         if (current.phase == GamePhase.SETUP) {
-            _state.update {
+            updateState {
                 it.copy(
                     viewingArchivedGame = null,
                     viewingCurrentGameSummary = false,
@@ -666,7 +677,7 @@ internal class AppState(
             return
         }
         if (viewingCurrentGameSummary) {
-            _state.update {
+            updateState {
                 it.copy(
                     viewingArchivedGame = null,
                     viewingCurrentGameSummary = false,
@@ -688,7 +699,7 @@ internal class AppState(
         if (currentGame == null) {
             return
         }
-        _state.update {
+        updateState {
             it.copy(
                 viewingArchivedGame = null,
                 viewingCurrentGameSummary = true,
@@ -708,7 +719,7 @@ internal class AppState(
             openSavedSetupDraft(index)
             return
         }
-        _state.update {
+        updateState {
             it.copy(
                 viewingArchivedGame = archived,
                 viewingCurrentGameSummary = false,
@@ -726,7 +737,7 @@ internal class AppState(
     fun updateViewingArchivedGame(updatedGame: GameState) {
         val archived = viewingArchivedGame!!
         val index = archivedGames.indexOfFirst { it === archived }
-        _state.update {
+        updateState {
             it.copy(
                 archivedGames = archivedGamesWith(index, updatedGame),
                 viewingArchivedGame = updatedGame,
@@ -741,7 +752,7 @@ internal class AppState(
      * @param index The archived-game index to edit.
      */
     private fun openSavedSetupDraft(index: Int) {
-        _state.update {
+        updateState {
             it.copy(
                 setupEditDraft = null,
                 editingSavedSetupIndex = index,
@@ -759,7 +770,7 @@ internal class AppState(
             return
         }
         val updatedArchivedGames = archivedGames + completed.pruneUndoHistory()
-        _state.update {
+        updateState {
             it.copy(
                 archivedGames = updatedArchivedGames,
                 currentGame = null,
@@ -780,7 +791,7 @@ internal class AppState(
         val archived = viewingArchivedGame ?: return
         val index = archivedGames.indexOfFirst { it === archived }
         val updatedArchivedGames = archivedGamesWithout(index, appendCurrent = true)
-        _state.update {
+        updateState {
             it.copy(
                 archivedGames = updatedArchivedGames,
                 currentGame = archived.withOfficialClockOffset(
@@ -803,7 +814,7 @@ internal class AppState(
     fun saveSetupForLater() {
         // This action is only exposed while creating a setup-phase game.
         val setupGame = currentGame!!
-        _state.update {
+        updateState {
             it.copy(
                 archivedGames = archivedGames + setupGame,
                 currentGame = null,
@@ -830,7 +841,7 @@ internal class AppState(
         val archived = viewingArchivedGame!!
         val index = archivedGames.indexOfFirst { it === archived }
         val updatedArchivedGames = archivedGamesWith(index, archived.asCompletedArchive(now))
-        _state.update {
+        updateState {
             it.copy(
                 archivedGames = updatedArchivedGames,
                 viewingArchivedGame = null,
@@ -845,7 +856,7 @@ internal class AppState(
 
     /// Open the saved setup drafts list, leaving any saved-draft edit screen.
     fun openSavedSetupDrafts() {
-        _state.update {
+        updateState {
             it.copy(
                 editingSavedSetupIndex = null,
                 setupEditDraft = null,
@@ -862,7 +873,7 @@ internal class AppState(
         val savedIndex = editingSavedSetupIndex!!
         val savedSetup = archivedGames[savedIndex]
         val updatedArchivedGames = archivedGamesWithout(savedIndex, appendCurrent = true)
-        _state.update {
+        updateState {
             it.copy(
                 archivedGames = updatedArchivedGames,
                 currentGame = savedSetup.withOfficialClockOffset(
@@ -883,7 +894,7 @@ internal class AppState(
 
     /// Delete the current setup/in-progress/completed game state.
     fun deleteCurrentGame() {
-        _state.update { state ->
+        updateState { state ->
             val screenAfterDelete = if (state.screen == AppScreen.ARCHIVED_GAMES) {
                 AppScreen.ARCHIVED_GAMES
             } else {
@@ -915,7 +926,7 @@ internal class AppState(
      */
     fun deleteArchivedGame(index: Int) {
         val updatedArchivedGames = archivedGamesWithout(index)
-        _state.update {
+        updateState {
             it.copy(
                 archivedGames = updatedArchivedGames,
                 viewingArchivedGame = null,
@@ -929,7 +940,7 @@ internal class AppState(
     fun deleteArchivedGamesInSelectedCategory() {
         // This action is only exposed from within a selected archive category.
         val category = selectedArchiveCategory!!
-        _state.update {
+        updateState {
             it.copy(
                 archivedGames = archivedGames.filterNot { game ->
                     game.archiveCategory == category
@@ -947,7 +958,7 @@ internal class AppState(
      * @param archiveIndices Full archived-game storage indices to delete.
      */
     fun deleteSelectedArchivedGames(archiveIndices: Set<Int>) {
-        _state.update {
+        updateState {
             it.copy(
                 archivedGames = it.archivedGames.filterIndexed { index, _ ->
                     index !in archiveIndices
@@ -961,7 +972,7 @@ internal class AppState(
 
     /// Delete all archived/saved games.
     fun deleteAllArchivedGames() {
-        _state.update {
+        updateState {
             it.copy(
                 archivedGames = emptyList(),
                 viewingArchivedGame = null,
@@ -978,7 +989,7 @@ internal class AppState(
         val archivedCurrent = archiveCurrentGame()
         val updatedArchivedGames = archivedCurrent?.let { archivedGames + it } ?: archivedGames
         val previousSetupDefaults = updatedArchivedGames.lastOrNull()
-        _state.update {
+        updateState {
             it.copy(
                 archivedGames = updatedArchivedGames,
                 currentGame = newSetupGameState(
@@ -1015,7 +1026,7 @@ internal class AppState(
         } else {
             applySetupEditToActiveGame(current, setupEdit, now)
         }
-        _state.update {
+        updateState {
             it.copy(
                 currentGame = updatedCurrentGame,
                 setupEditDraft = null,
@@ -1039,7 +1050,7 @@ internal class AppState(
             reopenSetupDraftFromInitialPreview()
             return
         }
-        _state.update {
+        updateState {
             it.copy(
                 setupEditDraft = currentGame,
                 editingSavedSetupIndex = null,
@@ -1050,7 +1061,7 @@ internal class AppState(
 
     /// Discard setup edits for the current game and return to the live screen.
     fun cancelSetupEdit() {
-        _state.update {
+        updateState {
             it.copy(
                 setupEditDraft = null,
                 editingSavedSetupIndex = null,
@@ -1064,7 +1075,7 @@ internal class AppState(
 
     /// Convert the pre-pull preview back into a resumable setup draft.
     private fun reopenSetupDraftFromInitialPreview() {
-        _state.update {
+        updateState {
             val current = it.currentGame!!
             it.copy(
                 currentGame = current.copy(
@@ -1097,7 +1108,7 @@ internal class AppState(
      * @param targetScreen The destination screen to show.
      */
     private fun openScreen(targetScreen: AppScreen) {
-        _state.update {
+        updateState {
             it.copy(
                 viewingArchivedGame = null,
                 viewingCurrentGameSummary = false,

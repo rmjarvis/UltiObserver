@@ -1,6 +1,8 @@
 package rmjarvis.ultiobserver.wearprotocol
 
+import java.util.UUID
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
 import rmjarvis.ultiobserver.CardType
 import rmjarvis.ultiobserver.TeamId
 
@@ -151,17 +153,162 @@ data class WearActiveGameSnapshot(
  *
  * Timing values use absolute phone epochs. The watch compares them with its calibrated estimate
  * of current phone time, so the phone does not publish once per second.
+ * The phone tags transport snapshots with its process-session identity and sequence number;
+ * sequence numbers order all published snapshots within that session, including startup state.
  */
 @Serializable
 data class WearStateSnapshot(
     val protocolVersion: Int = WEAR_PROTOCOL_VERSION,
     val status: WearSnapshotStatus,
     val activeGame: WearActiveGameSnapshot?,
+    val sessionId: String = "",
+    val sequenceNumber: Long = 0L,
 )
 
-/** Live phone response used to initialize one run of the watch companion. */
+/** Identify a fresh request for the phone's current state, including across watch restarts. */
+@Serializable
+data class WearStartupRequest(val requestId: String)
+
+/** Direct startup reply for connection status and clock calibration, without a game snapshot. */
 @Serializable
 data class WearStartupResponse(
+    val enabled: Boolean,
     val phoneEpochMillis: Long,
-    val snapshot: WearStateSnapshot,
+    val protocolVersion: Int = WEAR_PROTOCOL_VERSION,
 )
+
+/**
+ * A helper that tags outgoing snapshots with two bits of metadata:
+ *  - sessionId is a unique id for the current session of the app on the phone.
+ *  - sequenceNumber is the running number in the sequence of all snapshots sent to the
+ *    watch, so we can confirm the order of messages that arrive at the watch.
+ *
+ * Note: successive identical snapshots do not update the sequenceNumber.
+ */
+class WearSnapshotTagger {
+    private val sessionId = UUID.randomUUID().toString()
+    private var previous: WearStateSnapshot? = null
+
+    /**
+     * Tag the given snapshot with the necessary metadata.
+     *
+     * Note: This function must be called atomically, since it mutates an internal variable.
+     * We do this using an AppState lock.
+     * */
+    fun tag(payload: WearStateSnapshot): WearStateSnapshot {
+        val last = previous
+        val sequenceNumber = last?.sequenceNumber ?: 0L
+        val snapshot = payload.copy(sessionId = sessionId, sequenceNumber = sequenceNumber)
+        if (snapshot == last) return snapshot
+        return snapshot.copy(sequenceNumber = sequenceNumber + 1L).also {
+            previous = it
+        }
+    }
+}
+
+/**
+ * Track the watch's current phone snapshot, ignoring duplicate or outdated updates.
+ *
+ * This is the watch-side handler of the tags assigned to the payload by [WearSnapshotTagger].
+ *
+ * Startup can establish a new phone session. Subsequent updates must belong to that
+ * session and have a higher sequence number before replacing the current snapshot.
+ */
+class WearSnapshotReceiver {
+    var current: WearStateSnapshot? = null
+        private set
+
+    /** Establish state from a published update acknowledging the current startup request. */
+    fun startSession(snapshot: WearStateSnapshot) {
+        current = snapshot
+    }
+
+    fun receive(snapshot: WearStateSnapshot): Boolean {
+        val previous = current ?: return false
+        if (snapshot.sessionId != previous.sessionId || snapshot.sequenceNumber <= previous.sequenceNumber) {
+            return false
+        }
+        current = snapshot
+        return true
+    }
+
+    fun isCurrent(snapshot: WearStateSnapshot): Boolean {
+        return snapshot.sessionId == current?.sessionId && snapshot.sequenceNumber == current?.sequenceNumber
+    }
+}
+
+/** Identify a game command independently of its action-specific encoded arguments. */
+@Serializable
+data class WearCommandRequest(val requestId: String, val arguments: ByteArray)
+
+/** Acknowledge the latest watch request, whether startup or a game command. */
+@Serializable
+sealed interface WearAcknowledgement {
+    val requestId: String
+}
+
+/**
+ * Acknowledge the latest startup request.
+ */
+@Serializable
+@SerialName("startup")
+data class WearStartupAcknowledgement(
+    override val requestId: String,
+) : WearAcknowledgement
+
+/**
+ * Acknowledge and report the result of the most recently handled watch command.
+ * The snapshot identity identifies when transient navigation results were valid; later phone
+ * changes may complete the command without allowing its old prompt to replace newer state.
+ */
+@Serializable
+@SerialName("command")
+data class WearCommandAcknowledgement(
+    override val requestId: String,
+    val applied: Boolean,
+    val sessionId: String,
+    val sequenceNumber: Long,
+    val nextPrompt: WearTeamActionPrompt?,
+) : WearAcknowledgement {
+    fun matchesSnapshot(snapshot: WearStateSnapshot): Boolean {
+        return sessionId == snapshot.sessionId && sequenceNumber == snapshot.sequenceNumber
+    }
+}
+
+/** Latest phone state and retained acknowledgement, synchronized together at the state DataItem. */
+@Serializable
+data class WearStateUpdate(
+    val snapshot: WearStateSnapshot,
+    val acknowledgement: WearAcknowledgement?,
+)
+
+/** Match one outstanding command, including across watch restarts and unchanged snapshots. */
+class WearPendingCommand {
+    private var stateToken: String? = null
+    var requestId: String? = null
+        private set
+
+    fun begin(stateToken: String): String {
+        check(requestId == null) { "A watch command is already pending" }
+        this.stateToken = stateToken
+        return UUID.randomUUID().toString().also { requestId = it }
+    }
+
+    fun complete(acknowledgement: WearAcknowledgement?): Boolean {
+        if (acknowledgement == null || acknowledgement.requestId != requestId) return false
+        clear()
+        return true
+    }
+
+    /** Stop waiting when authoritative state no longer matches the command's game state. */
+    fun supersede(currentStateToken: String?): Boolean {
+        if (requestId == null || stateToken == currentStateToken) return false
+        clear()
+        return true
+    }
+
+    fun clear() {
+        requestId = null
+        stateToken = null
+    }
+}

@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import java.util.UUID
 import com.google.android.gms.wearable.CapabilityClient
 import com.google.android.gms.wearable.CapabilityInfo
 import com.google.android.gms.wearable.DataClient
@@ -25,11 +26,17 @@ import rmjarvis.ultiobserver.wearprotocol.WearGoalRequest
 import rmjarvis.ultiobserver.wearprotocol.WearProtocolCodec
 import rmjarvis.ultiobserver.wearprotocol.WearRequestAction
 import rmjarvis.ultiobserver.wearprotocol.WearStateSnapshot
+import rmjarvis.ultiobserver.wearprotocol.WearSnapshotReceiver
+import rmjarvis.ultiobserver.wearprotocol.WearStartupRequest
 import rmjarvis.ultiobserver.wearprotocol.WearStartupResponse
 import rmjarvis.ultiobserver.wearprotocol.WearTeamAction
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionPrompt
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionRequest
 import rmjarvis.ultiobserver.wearprotocol.WearUndoRequest
+import rmjarvis.ultiobserver.wearprotocol.WearCommandRequest
+import rmjarvis.ultiobserver.wearprotocol.WearCommandAcknowledgement
+import rmjarvis.ultiobserver.wearprotocol.WearPendingCommand
+import rmjarvis.ultiobserver.wearprotocol.WearStateUpdate
 
 /**
  * Listen for the phone's current-state item and advertised reachability while the watch app runs.
@@ -47,13 +54,17 @@ internal class StateClient(
     private var phoneClockOffsetMillis: Long? = null
     private var reachablePhoneNodeId: String? = null
     private var startupRequestNodeId: String? = null
-    private var startupRequestAttemptCount = 0L
-    private var currentStartupRequestAttempt: Long? = null
+    private var currentStartupRequestAttempt: String? = null
+    private var pendingStartup: PendingStartup? = null
     private var connectionAttemptCount = 0L
     private var currentConnectionAttempt: Long? = null
     private var startupTimeout: Runnable? = null
     private var startupComplete = false
     private var started = false
+    private val snapshotReceiver = WearSnapshotReceiver()
+    private val pendingCommand = WearPendingCommand()
+    private var commandTimeout: Runnable? = null
+    private var onCommandFinished: ((WearGameActionResponse?) -> Unit)? = null
 
     /** Register live listeners and request current state from a reachable phone. */
     fun start() {
@@ -101,6 +112,7 @@ internal class StateClient(
 
     /** Remove the live listeners when the watch screen is no longer active. */
     fun stop() {
+        clearPendingCommand()
         started = false
         currentConnectionAttempt = null
         reachablePhoneNodeId = null
@@ -116,11 +128,7 @@ internal class StateClient(
                 event.type == DataEvent.TYPE_CHANGED &&
                 event.dataItem.uri.path == WEAR_STATE_PATH
             ) {
-                if (startupComplete) {
-                    event.dataItem.data?.let { bytes -> receiveStateBytes(bytes) }
-                } else {
-                    reachablePhoneNodeId?.let { nodeId -> requestStartupState(nodeId) }
-                }
+                event.dataItem.data?.let { bytes -> receiveStateBytes(bytes) }
             }
         }
     }
@@ -160,8 +168,9 @@ internal class StateClient(
             return
         }
         finishStartupRequest()
+        startupComplete = false
         startupRequestNodeId = nodeId
-        val startupRequestAttempt = ++startupRequestAttemptCount
+        val startupRequestAttempt = UUID.randomUUID().toString()
         currentStartupRequestAttempt = startupRequestAttempt
         onConnectionStateChanged(ConnectionState.CONNECTING)
         val timeout = Runnable {
@@ -169,40 +178,30 @@ internal class StateClient(
         }
         startupTimeout = timeout
         handler.postDelayed(timeout, STARTUP_TIMEOUT_MILLIS)
-        val requestSentAt = System.currentTimeMillis()
+        pendingStartup = PendingStartup(startupRequestAttempt, System.currentTimeMillis())
         messageClient.sendRequest(
             nodeId,
             WearRequestAction.STARTUP.path,
-            byteArrayOf(),
+            WearProtocolCodec.encode(
+                WearStartupRequest.serializer(), WearStartupRequest(startupRequestAttempt),
+            ),
         )
-            .addOnSuccessListener { responseBytes ->
-                if (
-                    !started ||
-                    reachablePhoneNodeId != nodeId ||
-                    startupRequestAttempt != currentStartupRequestAttempt
-                ) {
-                    return@addOnSuccessListener
-                }
-                val response = try {
-                    WearProtocolCodec.decode(WearStartupResponse.serializer(), responseBytes)
-                } catch (_: SerializationException) {
+            .addOnSuccessListener { bytes ->
+                if (!started || reachablePhoneNodeId != nodeId ||
+                    currentStartupRequestAttempt != startupRequestAttempt) return@addOnSuccessListener
+                val receivedAt = System.currentTimeMillis()
+                val response = WearProtocolCodec.decode(WearStartupResponse.serializer(), bytes)
+                if (response.protocolVersion != WEAR_PROTOCOL_VERSION) {
                     finishStartupFailure(nodeId, startupRequestAttempt)
-                    return@addOnSuccessListener
+                } else if (!response.enabled) {
+                    finishStartupRequest()
+                    onCommandFinished?.invoke(null)
+                    clearPendingCommand()
+                    onConnectionStateChanged(ConnectionState.DISABLED)
+                } else {
+                    pendingStartup!!.receiveTiming(response.phoneEpochMillis, receivedAt)
+                    completeStartupIfReady()
                 }
-                if (response.snapshot.protocolVersion != WEAR_PROTOCOL_VERSION) {
-                    finishStartupFailure(nodeId, startupRequestAttempt)
-                    return@addOnSuccessListener
-                }
-                finishStartupRequest()
-                val responseReceivedAt = System.currentTimeMillis()
-                phoneClockOffsetMillis = calibratePhoneClockOffset(
-                    requestSentAtWatchEpochMillis = requestSentAt,
-                    responseReceivedAtWatchEpochMillis = responseReceivedAt,
-                    phoneEpochMillis = response.phoneEpochMillis,
-                )
-                startupComplete = true
-                receiveSnapshot(response.snapshot)
-                onConnectionStateChanged(ConnectionState.CONNECTED)
             }
             .addOnFailureListener {
                 finishStartupFailure(nodeId, startupRequestAttempt)
@@ -214,11 +213,25 @@ internal class StateClient(
         startupTimeout = null
         startupRequestNodeId = null
         currentStartupRequestAttempt = null
+        pendingStartup = null
+    }
+
+    private fun completeStartupIfReady() {
+        val state = pendingStartup?.receivedState ?: return
+        phoneClockOffsetMillis = state.phoneClockOffsetMillis
+        snapshotReceiver.startSession(state.snapshot)
+        finishStartupRequest()
+        startupComplete = true
+        // Recovery refreshes state without replaying a potentially completed command.
+        onCommandFinished?.invoke(null)
+        clearPendingCommand()
+        deliverSnapshot(state.snapshot)
+        onConnectionStateChanged(ConnectionState.CONNECTED)
     }
 
     private fun finishStartupFailure(
         nodeId: String,
-        startupRequestAttempt: Long,
+        startupRequestAttempt: String,
     ) {
         if (
             !started ||
@@ -250,6 +263,7 @@ internal class StateClient(
         sendGameAction(
             nodeId = nodeId,
             action = WearRequestAction.GOAL,
+            stateToken = stateToken,
             request = WearProtocolCodec.encode(WearGoalRequest.serializer(), request),
             onFinished = { response -> onFinished(response?.applied == true) },
         )
@@ -269,6 +283,7 @@ internal class StateClient(
         sendGameAction(
             nodeId = nodeId,
             action = WearRequestAction.UNDO,
+            stateToken = stateToken,
             request = WearProtocolCodec.encode(WearUndoRequest.serializer(), request),
             onFinished = { response -> onFinished(response?.applied == true) },
         )
@@ -292,6 +307,7 @@ internal class StateClient(
         sendGameAction(
             nodeId = nodeId,
             action = WearRequestAction.DECISION,
+            stateToken = stateToken,
             request = WearProtocolCodec.encode(WearDecisionRequest.serializer(), request),
             onFinished = { response -> onFinished(response?.applied == true) },
         )
@@ -311,6 +327,7 @@ internal class StateClient(
         sendGameAction(
             nodeId = nodeId,
             action = WearRequestAction.CONFIRM_ACTION,
+            stateToken = confirmation.stateToken,
             request = WearProtocolCodec.encode(WearConfirmActionRequest.serializer(), request),
             onFinished = { response -> onFinished(response?.applied == true) },
         )
@@ -336,6 +353,7 @@ internal class StateClient(
         sendGameAction(
             nodeId = nodeId,
             action = WearRequestAction.TEAM_ACTION,
+            stateToken = stateToken,
             request = WearProtocolCodec.encode(
                 WearTeamActionRequest.serializer(),
                 request,
@@ -361,6 +379,7 @@ internal class StateClient(
         sendGameAction(
             nodeId = nodeId,
             action = WearRequestAction.CARD_ENTRY,
+            stateToken = stateToken,
             request = WearProtocolCodec.encode(WearCardEntryRequest.serializer(), request),
             onFinished = { response -> onFinished(response?.applied == true) },
         )
@@ -383,6 +402,7 @@ internal class StateClient(
         sendGameAction(
             nodeId = nodeId,
             action = WearRequestAction.CANCEL_CARD_ENTRY,
+            stateToken = stateToken,
             request = WearProtocolCodec.encode(
                 WearCancelCardEntryRequest.serializer(),
                 request,
@@ -394,48 +414,87 @@ internal class StateClient(
     private fun sendGameAction(
         nodeId: String,
         action: WearRequestAction,
+        stateToken: String,
         request: ByteArray,
         onFinished: (WearGameActionResponse?) -> Unit,
     ) {
-        messageClient.sendRequest(nodeId, action.path, request)
-            // Any response from the phone counts as success here. Even rejecting the action.
-            .addOnSuccessListener { responseBytes ->
-                val response = WearProtocolCodec.decode(
-                    WearGameActionResponse.serializer(),
-                    responseBytes,
-                )
-                receiveSnapshot(response.snapshot)
-                if (reachablePhoneNodeId == nodeId) {
-                    startupComplete = true
-                    onConnectionStateChanged(ConnectionState.CONNECTED)
-                }
-                onFinished(response)
-            }
-            // Failure means some kind of disconnect: timeout, phone crash, transport error, etc.
+        val commandId = pendingCommand.begin(stateToken)
+        onCommandFinished = onFinished
+        val timeout = Runnable { failCommand(commandId, nodeId) }
+        commandTimeout = timeout
+        handler.postDelayed(timeout, COMMAND_TIMEOUT_MILLIS)
+        messageClient.sendMessage(
+            nodeId, action.path,
+            WearProtocolCodec.encode(
+                WearCommandRequest.serializer(), WearCommandRequest(commandId, request),
+            ),
+        )
             .addOnFailureListener {
-                if (reachablePhoneNodeId == nodeId) {
-                    startupComplete = false
-                    onConnectionStateChanged(ConnectionState.DISCONNECTED)
-                    requestStartupState(nodeId)
-                }
-                onFinished(null)
+                failCommand(commandId, nodeId)
             }
+    }
+
+    private fun clearPendingCommand() {
+        commandTimeout?.let { handler.removeCallbacks(it) }
+        commandTimeout = null
+        pendingCommand.clear()
+        onCommandFinished = null
+    }
+
+    private fun failCommand(commandId: String, nodeId: String) {
+        if (!started || pendingCommand.requestId != commandId) return
+        startupComplete = false
+        onConnectionStateChanged(ConnectionState.DISCONNECTED)
+        onCommandFinished?.invoke(null)
+        clearPendingCommand()
+        if (reachablePhoneNodeId == nodeId) requestStartupState(nodeId)
     }
 
     private fun receiveStateBytes(bytes: ByteArray) {
-        val snapshot = try {
-            WearProtocolCodec.decode(WearStateSnapshot.serializer(), bytes)
+        if (!started) return
+        val update = try {
+            WearProtocolCodec.decode(WearStateUpdate.serializer(), bytes)
         } catch (_: SerializationException) {
             return
         }
-        receiveSnapshot(snapshot)
-    }
-
-    private fun receiveSnapshot(snapshot: WearStateSnapshot) {
-        if (snapshot.protocolVersion != WEAR_PROTOCOL_VERSION) {
+        val snapshot = update.snapshot
+        if (snapshot.protocolVersion != WEAR_PROTOCOL_VERSION) return
+        if (!startupComplete) {
+            val requestId = currentStartupRequestAttempt
+            if (requestId == null) {
+                reachablePhoneNodeId?.let { requestStartupState(it) }
+                return
+            }
+            pendingStartup!!.receiveSnapshot(update)
+            completeStartupIfReady()
             return
         }
-        deliverSnapshot(snapshot)
+        if (snapshot.sessionId != snapshotReceiver.current?.sessionId) {
+            reachablePhoneNodeId?.let { requestStartupState(it) }
+            return
+        }
+        val stateChanged = snapshotReceiver.receive(snapshot)
+        val acknowledgement = update.acknowledgement
+        // Even an unchanged or older snapshot can carry the acknowledgement we are waiting for.
+        if (pendingCommand.complete(acknowledgement)) {
+            val current = snapshotReceiver.current!!
+            val result = acknowledgement as WearCommandAcknowledgement
+            // Complete the command, but never restore a prompt made obsolete by a phone change.
+            onCommandFinished?.invoke(if (result.matchesSnapshot(current)) {
+                WearGameActionResponse(result.applied, current, result.nextPrompt)
+            } else {
+                null
+            })
+            clearPendingCommand()
+        } else if (stateChanged && pendingCommand.supersede(snapshot.activeGame?.stateToken)) {
+            // The phone has moved past the requested state; release the old screen's local guard.
+            onCommandFinished?.invoke(null)
+            clearPendingCommand()
+        }
+        // Finish or supersede the command before exposing a replacement screen to the UI.
+        if (stateChanged) {
+            deliverSnapshot(snapshot)
+        }
     }
 
     private fun deliverSnapshot(snapshot: WearStateSnapshot) {
@@ -449,3 +508,4 @@ internal class StateClient(
 }
 
 private const val STARTUP_TIMEOUT_MILLIS = 5_000L
+private const val COMMAND_TIMEOUT_MILLIS = 5_000L

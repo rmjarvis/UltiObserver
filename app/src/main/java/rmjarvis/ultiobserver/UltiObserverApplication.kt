@@ -14,8 +14,13 @@ class UltiObserverApplication : Application() {
         AppState(FileAppStateStorage(filesDir))
     }
 
-    internal val wearStatePublisher by lazy {
-        WearStatePublisher(this)
+    internal val wearCoordinator by lazy {
+        val publisher = WearStatePublisher(this)
+        WearPhoneCoordinator(
+            appState = appState,
+            publish = { update -> publisher.publish(update) },
+            clock = { System.currentTimeMillis() },
+        )
     }
 
     internal val timingAlertPlayer by lazy {

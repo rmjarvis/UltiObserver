@@ -23,8 +23,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.google.firebase.crashlytics.FirebaseCrashlytics
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 
@@ -41,8 +39,6 @@ class MainActivity : ComponentActivity() {
     private var lastUsesDisplayCutout: Boolean? = null
     private var displayOrientation by mutableStateOf(ActiveGameFullOrientation.PORTRAIT)
     private var wearWatchAvailable: Boolean? by mutableStateOf(null)
-    private val wearStatePublisher: WearStatePublisher
-        get() = ultiObserverApplication.wearStatePublisher
     private val wearOSAvailabilityChecker by lazy {
         WearOSAvailabilityChecker(applicationContext) { available ->
             runOnUiThread {
@@ -117,39 +113,6 @@ class MainActivity : ComponentActivity() {
                         }
                         autoRotateScreenActive = newAutoRotateScreenActive
                         applyRequestedActivityOrientation(state)
-                    }
-            }
-        }
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                appState.state
-                    .map { state ->
-                        if (
-                            state.settings.timingAlerts.watchConnectionMode ==
-                            WatchConnectionMode.WEAR_OS
-                        ) {
-                            WearStatePublication(
-                                game = state.currentGame,
-                                settings = state.settings,
-                                actionsAvailable = state.viewingActiveGameScreen,
-                                activeCardEntry = state.activeCardEntry,
-                            )
-                        } else {
-                            null
-                        }
-                    }
-                    .distinctUntilChanged()
-                    .collect { publication ->
-                        if (publication == null) {
-                            wearStatePublisher.publishDisabled()
-                        } else {
-                            wearStatePublisher.publish(
-                                game = publication.game,
-                                settings = publication.settings,
-                                actionsAvailable = publication.actionsAvailable,
-                                activeCardEntry = publication.activeCardEntry,
-                            )
-                        }
                     }
             }
         }
@@ -265,14 +228,6 @@ class MainActivity : ComponentActivity() {
         return displayOrientation(window.decorView.display?.rotation ?: Surface.ROTATION_0)
     }
 }
-
-/** Phone state whose changes require a new Wear companion publication. */
-private data class WearStatePublication(
-    val game: GameState?,
-    val settings: Settings,
-    val actionsAvailable: Boolean,
-    val activeCardEntry: ActiveCardEntry?,
-)
 
 /// Run an activity display update only when Android reports that display as changed.
 internal fun handleDisplayChange(

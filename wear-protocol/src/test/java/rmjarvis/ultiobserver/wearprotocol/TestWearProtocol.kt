@@ -356,9 +356,15 @@ class TestWearProtocol {
             ),
         )
         assertRoundTrip(
-            WearStartupResponse.serializer(),
-            WearStartupResponse(phoneEpochMillis = 123_456L, snapshot = state),
+            WearStateUpdate.serializer(),
+            WearStateUpdate(
+                snapshot = state,
+                acknowledgement = WearStartupAcknowledgement("startup"),
+            ),
         )
+        assertRoundTrip(WearStartupRequest.serializer(), WearStartupRequest("startup"))
+        assertRoundTrip(WearStartupResponse.serializer(), WearStartupResponse(false, 123_456L))
+        assertRoundTrip(WearStartupResponse.serializer(), WearStartupResponse(true, 123_456L))
     }
 
     private fun prompt(title: String): WearPromptSnapshot {

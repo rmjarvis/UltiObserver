@@ -1,11 +1,13 @@
 package rmjarvis.ultiobserver
 
 import java.time.LocalTime
+import java.util.UUID
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertThrows
 import org.junit.Test
 import rmjarvis.ultiobserver.wearprotocol.WearActionConfirmation
 import rmjarvis.ultiobserver.wearprotocol.WearCancelCardEntryRequest
@@ -20,14 +22,32 @@ import rmjarvis.ultiobserver.wearprotocol.WearRequestAction
 import rmjarvis.ultiobserver.wearprotocol.WearSnapshotPullDirection
 import rmjarvis.ultiobserver.wearprotocol.WearSnapshotStatus
 import rmjarvis.ultiobserver.wearprotocol.WearStateSnapshot
-import rmjarvis.ultiobserver.wearprotocol.WearStartupResponse
+import rmjarvis.ultiobserver.wearprotocol.WearStartupAcknowledgement
 import rmjarvis.ultiobserver.wearprotocol.WearTeamAction
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionPrompt
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionRequest
 import rmjarvis.ultiobserver.wearprotocol.WearUndoRequest
+import rmjarvis.ultiobserver.wearprotocol.WearCommandRequest
+import rmjarvis.ultiobserver.wearprotocol.WearCommandAcknowledgement
+import rmjarvis.ultiobserver.wearprotocol.WearStateUpdate
+import rmjarvis.ultiobserver.wearprotocol.WearSnapshotReceiver
+import rmjarvis.ultiobserver.wearprotocol.WearPendingCommand
 
 /// Tests for the phone-side Wear OS interface.
 class TestWearOSInterface : GameDomainTestFixtures() {
+    private val coordinators = mutableMapOf<AppState, WearPhoneCoordinator>()
+    private val publications = mutableMapOf<AppState, MutableList<WearStateUpdate>>()
+
+    private fun coordinatorFor(appState: AppState): WearPhoneCoordinator {
+        return coordinators.getOrPut(appState) {
+            WearPhoneCoordinator(
+                appState,
+                publish = { publications.getOrPut(appState) { mutableListOf() }.add(it) },
+                clock = { 0L },
+            )
+        }
+    }
+
     private fun activeWearState(
         settings: Settings,
         game: GameState = standardLiveGameState().continueLivePoint(),
@@ -49,21 +69,16 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         request: ByteArray,
         now: Long,
     ): WearGameActionResponse {
-        var published: WearStateSnapshot? = null
-        val response = WearProtocolCodec.decode(
-            WearGameActionResponse.serializer(),
-            requireNotNull(
-                handleWearRequest(
-                    requestedActionPath = action.path,
-                    requestBytes = request,
-                    appState = appState,
-                    publish = { snapshot -> published = snapshot },
-                    now = now,
-                )
-            ),
+        coordinatorFor(appState).handleRequest(
+            requestedActionPath = action.path,
+            request = WearCommandRequest(UUID.randomUUID().toString(), request),
+            now = now,
         )
-        assertEquals(response.snapshot, published)
-        return response
+        val update = publications.getValue(appState).last()
+        val acknowledgement = update.acknowledgement as WearCommandAcknowledgement
+        return WearGameActionResponse(
+            acknowledgement.applied, update.snapshot, acknowledgement.nextPrompt,
+        )
     }
 
     private fun teamActionResponse(
@@ -405,17 +420,17 @@ class TestWearOSInterface : GameDomainTestFixtures() {
             ),
         )
 
-        // A live startup response carries that same authoritative state together with the phone
-        // clock reading used to calibrate the watch.
-        val startupResponse = WearStartupResponse(
-            phoneEpochMillis = now,
+        // A published startup update carries the state with an acknowledgement and phone clock
+        // reading, independently of the snapshot's sequence number.
+        val startupUpdate = WearStateUpdate(
             snapshot = active,
+            acknowledgement = WearStartupAcknowledgement("startup"),
         )
         assertEquals(
-            startupResponse,
+            startupUpdate,
             WearProtocolCodec.decode(
-                WearStartupResponse.serializer(),
-                WearProtocolCodec.encode(WearStartupResponse.serializer(), startupResponse),
+                WearStateUpdate.serializer(),
+                WearProtocolCodec.encode(WearStateUpdate.serializer(), startupUpdate),
             ),
         )
     }
@@ -640,6 +655,62 @@ class TestWearOSInterface : GameDomainTestFixtures() {
                 now = goalTime,
             ).applied
         )
+
+        // The watch sends Not yet for halftime, but the phone has not handled the request yet.
+        // Establish the watch receiver from the actual published halftime notice.
+        appState.updateCurrentGame(pendingHalftime)
+        val receiver = WearSnapshotReceiver()
+        val noticeSnapshot = publications.getValue(appState).last().snapshot
+        receiver.startSession(noticeSnapshot)
+        val pendingCommand = WearPendingCommand()
+        val deferId = pendingCommand.begin(deferredHalftimeToken)
+
+        // Meanwhile, the phone changes Full guidance to Timed. Its publication changes the watch's
+        // prompt presentation and advances the sequence, but leaves the game token unchanged.
+        // This update neither acknowledges Not yet nor makes it obsolete: keep waiting.
+        appState.updateSettings(settings.copy(ruleGuidanceMode = RuleGuidanceMode.TIMED))
+        val guidanceUpdate = publications.getValue(appState).last()
+        assertEquals(WearGuidancePresentation.VISIBLE,
+            noticeSnapshot.activeGame!!.pendingDecision!!.presentation)
+        assertEquals(WearGuidancePresentation.VISIBLE_TIMED,
+            guidanceUpdate.snapshot.activeGame!!.pendingDecision!!.presentation)
+        assertTrue(guidanceUpdate.snapshot.sequenceNumber > noticeSnapshot.sequenceNumber)
+        assertEquals(deferredHalftimeToken, guidanceUpdate.snapshot.activeGame!!.stateToken)
+        assertTrue(receiver.receive(guidanceUpdate.snapshot))
+        assertFalse(pendingCommand.complete(guidanceUpdate.acknowledgement))
+        assertFalse(pendingCommand.supersede(receiver.current!!.activeGame!!.stateToken))
+        assertEquals(deferId, pendingCommand.requestId)
+
+        // Phone OK then crosses the still-outstanding Not yet. Unlike the settings update, this
+        // changes the game token.
+        assertTrue(appState.resolveDecision(pendingHalftime, true, goalTime))
+
+        // The watch accepts halftime and stops waiting before the phone acknowledges the Not yet.
+        val acceptedHalftime = appState.currentGame!!
+        val phoneUpdate = publications.getValue(appState).last()
+        assertEquals(GamePhase.HALFTIME, acceptedHalftime.phase)
+        assertTrue(receiver.receive(phoneUpdate.snapshot))
+        assertTrue(pendingCommand.supersede(phoneUpdate.snapshot.activeGame!!.stateToken))
+        assertNull(pendingCommand.requestId)
+
+        // A new watch command can start immediately. Handling the crossed Not yet changes nothing,
+        // and its late rejection cannot clear the new command.
+        val nextCommandId = pendingCommand.begin(wearStateToken(acceptedHalftime))
+        coordinatorFor(appState).handleRequest(
+            WearRequestAction.DECISION.path,
+            WearCommandRequest(deferId, WearProtocolCodec.encode(
+                WearDecisionRequest.serializer(), deferRequest,
+            )),
+            goalTime,
+        )
+        val rejectedDefer = publications.getValue(appState).last().acknowledgement as WearCommandAcknowledgement
+        assertFalse(rejectedDefer.applied)
+        assertEquals(acceptedHalftime, appState.currentGame)
+        assertFalse(pendingCommand.complete(rejectedDefer))
+        assertEquals(nextCommandId, pendingCommand.requestId)
+
+        // Restore Full guidance for the remaining prompt examples.
+        appState.updateSettings(settings)
 
         // A required water-break notice remains visible briefly in None mode, then its OK action
         // extends the new pull countdown through the same transition used by the phone.
@@ -1930,31 +2001,133 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         val now = timestampAt(appState.currentGame!!, LocalTime.of(11, 0))
 
         // Unknown request paths are ignored without publishing state.
-        assertNull(
-            handleWearRequest(
-                requestedActionPath = "/unknown",
-                requestBytes = byteArrayOf(),
-                appState = appState,
-                publish = { error("Unknown requests must not publish") },
-                now = now,
-            )
+        coordinatorFor(appState).handleRequest(
+            requestedActionPath = "/unknown",
+            request = WearCommandRequest("unknown", byteArrayOf()),
+            now = now,
         )
+        assertTrue(publications[appState].isNullOrEmpty())
 
-        // Startup returns the authoritative state and supplied phone time without publishing.
-        val startup = WearProtocolCodec.decode(
-            WearStartupResponse.serializer(),
-            requireNotNull(
-                handleWearRequest(
-                    requestedActionPath = WearRequestAction.STARTUP.path,
-                    requestBytes = byteArrayOf(),
-                    appState = appState,
-                    publish = { error("Startup responses must not publish") },
-                    now = now,
-                )
-            ),
-        )
-        assertEquals(now, startup.phoneEpochMillis)
+        // Enabled startup publishes state and its matching acknowledgement through the standard path.
+        val startupReply = coordinatorFor(appState).startup("first-startup", now)
+        assertTrue(startupReply.enabled)
+        assertEquals(now, startupReply.phoneEpochMillis)
+        val startup = publications.getValue(appState).single()
+        assertEquals(WearStartupAcknowledgement("first-startup"), startup.acknowledgement)
         assertEquals(WearSnapshotStatus.ACTIVE_GAME, startup.snapshot.status)
+
+        // Retain startup confirmation in subsequent updates, so a later phone action cannot erase it
+        // before the watch sees it. A newer snapshot can establish the connection just as well.
+        appState.goHome()
+        val later = publications.getValue(appState).last()
+        assertEquals(startup.acknowledgement, later.acknowledgement)
+        assertTrue(later.snapshot.sequenceNumber > startup.snapshot.sequenceNumber)
+
+        // A fresh retry must publish even if the snapshot is unchanged. Only the retained startup
+        // request ID changes; the snapshot keeps the same sequence number.
+        assertTrue(coordinatorFor(appState).startup("retry", now).enabled)
+        val retry = publications.getValue(appState).last()
+        assertEquals(later.snapshot, retry.snapshot)
+        assertEquals("retry", retry.acknowledgement!!.requestId)
+
+        // Enabled but idle phones also publish snapshots; absence of a game is not disconnection.
+        val idleState = AppState(NoOpAppStateStorage)
+        idleState.updateSettings(settings)
+        assertTrue(coordinatorFor(idleState).startup("idle", now).enabled)
+        assertEquals(WearSnapshotStatus.NO_ACTIVE_GAME,
+            publications.getValue(idleState).single().snapshot.status)
+
+        // Disabled support takes the abbreviated path, without publishing or consuming a sequence
+        // number. Enabling it afterward produces the first tagged snapshot of that session.
+        val disabledState = AppState(NoOpAppStateStorage)
+        val disabledCoordinator = coordinatorFor(disabledState)
+        assertFalse(disabledCoordinator.startup("disabled", now).enabled)
+        assertTrue(publications[disabledState].isNullOrEmpty())
+        disabledState.updateSettings(settings)
+        assertEquals(1L, publications.getValue(disabledState).single().snapshot.sequenceNumber)
+    }
+
+    /**
+     * Verify that one published update carries both ordered state and the retained watch-command
+     * result, so receiving a later phone-initiated update can also complete a pending command.
+     */
+    @Test
+    fun commandAcknowledgementsAndPhoneUpdates() {
+        // A watch goal publishes its updated score and acknowledgement together, exactly once.
+        val settings = Settings(timingAlerts = TimingAlertPreferences(
+            watchConnectionMode = WatchConnectionMode.WEAR_OS,
+        ))
+        val appState = activeWearState(settings)
+        val updates = mutableListOf<WearStateUpdate>()
+        publications[appState] = updates
+        val game = appState.currentGame!!
+        val now = timestampAt(game, LocalTime.of(11, 0))
+        coordinators[appState] = WearPhoneCoordinator(
+            appState, publish = { updates.add(it) }, clock = { now },
+        )
+        val snapshotReceiver = WearSnapshotReceiver()
+        coordinators.getValue(appState).startup("startup", now)
+        assertEquals(WearStartupAcknowledgement("startup"), updates.single().acknowledgement)
+        snapshotReceiver.startSession(updates.single().snapshot)
+        updates.clear()
+        val pending = WearPendingCommand()
+        val requestId = pending.begin(wearStateToken(game))
+        coordinators.getValue(appState).handleRequest(
+            WearRequestAction.GOAL.path,
+            WearCommandRequest(requestId, WearProtocolCodec.encode(
+                WearGoalRequest.serializer(),
+                WearGoalRequest(wearStateToken(game), TeamId.TEAM_ONE),
+            )),
+            now,
+        )
+        val goalUpdate = updates.single()
+        assertTrue((goalUpdate.acknowledgement as WearCommandAcknowledgement).applied)
+        assertEquals(requestId, goalUpdate.acknowledgement!!.requestId)
+        assertEquals(1, goalUpdate.snapshot.activeGame!!.teamOne.score)
+
+        // The phone initiates an undo action after recording the watch-initiated goal.
+        // If for whatever reason (temporary disconnection, communication failure, synchronization
+        // issue with the update delivery, watch not listening for a bit, etc.) the watch doesn't
+        // see the first update that the goal was recorded, the later update still has the
+        // acknowledgement the watch needs to confirm the goal action was completed.
+        appState.updateCurrentGame(appState.currentGame!!.undoLastAction())
+        val phoneUpdate = updates.last()
+        assertEquals(2, updates.size)
+        assertEquals(goalUpdate.acknowledgement, phoneUpdate.acknowledgement)
+        assertEquals(goalUpdate.snapshot.sessionId, phoneUpdate.snapshot.sessionId)
+        assertTrue(phoneUpdate.snapshot.sequenceNumber > goalUpdate.snapshot.sequenceNumber)
+        assertEquals(0, phoneUpdate.snapshot.activeGame!!.teamOne.score)
+        assertTrue(snapshotReceiver.receive(phoneUpdate.snapshot))
+        assertTrue(pending.complete(phoneUpdate.acknowledgement))
+        assertNull(pending.requestId)
+        assertFalse((phoneUpdate.acknowledgement as WearCommandAcknowledgement).matchesSnapshot(snapshotReceiver.current!!))
+
+        // A watch Undo using the old goal state is rejected. The snapshot and its sequence number
+        // stay unchanged, but the new acknowledgement is still published to complete this request.
+        val rejected = requestResponse(
+            appState, WearRequestAction.UNDO,
+            WearProtocolCodec.encode(WearUndoRequest.serializer(),
+                WearUndoRequest(goalUpdate.snapshot.activeGame!!.stateToken)),
+            now,
+        )
+        assertFalse(rejected.applied)
+        assertEquals(phoneUpdate.snapshot, rejected.snapshot)
+        assertEquals(3, updates.size)
+        assertFalse((updates.last().acknowledgement as WearCommandAcknowledgement).applied)
+
+        // Phone Redo restores the goal's game payload, but not its old sequence number:
+        // the intervening Undo makes this a new position in the sequence.
+        appState.updateCurrentGame(appState.currentGame!!.redoLastAction())
+        val restoredGoal = updates.last().snapshot
+        assertEquals(goalUpdate.snapshot.activeGame, restoredGoal.activeGame)
+        assertTrue(restoredGoal.sequenceNumber > phoneUpdate.snapshot.sequenceNumber)
+
+        // A recovery startup replaces the command acknowledgement in that same field. Subsequent
+        // phone changes retain startup until another watch request supplies its replacement.
+        coordinators.getValue(appState).startup("recovery", now)
+        assertEquals(WearStartupAcknowledgement("recovery"), updates.last().acknowledgement)
+        appState.updateCurrentGame(appState.currentGame!!.undoLastAction())
+        assertEquals(WearStartupAcknowledgement("recovery"), updates.last().acknowledgement)
     }
 
     /** Exercise coordinator rejection paths shared across watch request types. */
@@ -2145,5 +2318,25 @@ class TestWearOSInterface : GameDomainTestFixtures() {
                 now,
             ).applied
         )
+    }
+
+    /** Reject startup accidentally routed through the game-command path instead of startup(). */
+    @Test
+    fun startupMisroutedAsGameCommand() {
+        // The Android service separates startup from game commands before reaching this path.
+        // An internal caller that violates that boundary must fail explicitly without publishing.
+        val appState = AppState(NoOpAppStateStorage)
+        val previous = appState.state.value
+        val coordinator = coordinatorFor(appState)
+        val error = assertThrows(IllegalStateException::class.java) {
+            coordinator.handleRequest(
+                requestedActionPath = WearRequestAction.STARTUP.path,
+                request = WearCommandRequest("misrouted-startup", byteArrayOf()),
+                now = 0L,
+            )
+        }
+        assertEquals("Startup is handled separately from game commands", error.message)
+        assertEquals(previous, appState.state.value)
+        assertTrue(publications[appState].isNullOrEmpty())
     }
 }
