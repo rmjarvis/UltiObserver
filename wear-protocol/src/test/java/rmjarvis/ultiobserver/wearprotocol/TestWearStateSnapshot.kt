@@ -53,8 +53,7 @@ class TestWearStateSnapshot {
             sessionId = "first-phone-process",
             sequenceNumber = 10,
         )
-        val snapshotReceiver = WearSnapshotReceiver()
-        snapshotReceiver.startSession(startup)
+        var snapshotReceiver = WearSnapshotReceiver(startup)
 
         // Deliver snapshot 12 before snapshot 11. The newer disabled state must be accepted,
         // and the delayed idle state must neither replace it nor be recognized as current.
@@ -62,7 +61,6 @@ class TestWearStateSnapshot {
         val phoneChange = startup.copy(sequenceNumber = 12, status = WearSnapshotStatus.DISABLED)
         assertTrue(snapshotReceiver.receive(phoneChange))
         assertFalse(snapshotReceiver.receive(earlierSnapshot))
-        assertFalse(snapshotReceiver.isCurrent(earlierSnapshot))
         assertEquals(phoneChange, snapshotReceiver.current)
 
         // Deliver snapshot 12 again, followed by snapshot 13 twice. Only the first delivery of 13
@@ -70,7 +68,7 @@ class TestWearStateSnapshot {
         assertFalse(snapshotReceiver.receive(phoneChange))
         val nextSnapshot = phoneChange.copy(sequenceNumber = 13)
         assertTrue(snapshotReceiver.receive(nextSnapshot))
-        assertTrue(snapshotReceiver.isCurrent(nextSnapshot))
+        assertEquals(nextSnapshot, snapshotReceiver.current)
         assertFalse(snapshotReceiver.receive(nextSnapshot))
 
         // A different phone session cannot be established by an ordinary update. Establish it
@@ -78,7 +76,7 @@ class TestWearStateSnapshot {
         // accepting the new session's next number. Numbers are comparable only within a session.
         val restarted = startup.copy(sessionId = "second-phone-process", sequenceNumber = 0)
         assertFalse(snapshotReceiver.receive(restarted))
-        snapshotReceiver.startSession(restarted)
+        snapshotReceiver = WearSnapshotReceiver(restarted)
         assertFalse(snapshotReceiver.receive(nextSnapshot))
         assertTrue(snapshotReceiver.receive(restarted.copy(sequenceNumber = 1)))
     }
@@ -90,12 +88,11 @@ class TestWearStateSnapshot {
     @Test
     fun commandAcknowledgements() {
         // Establish an idle phone snapshot, then begin a watch command that needs acknowledgement.
-        val snapshotReceiver = WearSnapshotReceiver()
         val tagger = WearSnapshotTagger()
         val idle = tagger.tag(WearStateSnapshot(
             status = WearSnapshotStatus.NO_ACTIVE_GAME, activeGame = null,
         ))
-        snapshotReceiver.startSession(idle)
+        val snapshotReceiver = WearSnapshotReceiver(idle)
         val pending = WearPendingCommand()
         val requestId = pending.begin("game-state")
 
@@ -126,7 +123,7 @@ class TestWearStateSnapshot {
         assertEquals(update, received)
         assertFalse(snapshotReceiver.receive(received.snapshot))
         assertTrue(pending.complete(received.acknowledgement))
-        assertTrue(result.matchesSnapshot(snapshotReceiver.current!!))
+        assertTrue(result.matchesSnapshot(snapshotReceiver.current))
         assertNull(pending.requestId)
 
         // Begin another command. It gets a different request ID, so receiving the previous
@@ -181,18 +178,17 @@ class TestWearStateSnapshot {
         // but deliver only snapshot 3, carrying that retained acknowledgement. The receiver accepts
         // the newer state and completes the command. The acknowledgement's snapshot identity no
         // longer matches, so its old navigation result must not be applied to the current state.
-        val snapshotReceiver = WearSnapshotReceiver()
         val pending = WearPendingCommand()
         val initial = WearStateSnapshot(
             status = WearSnapshotStatus.NO_ACTIVE_GAME, activeGame = null,
             sessionId = "phone", sequenceNumber = 1,
         )
-        snapshotReceiver.startSession(initial)
+        val snapshotReceiver = WearSnapshotReceiver(initial)
         val result = WearCommandAcknowledgement(pending.begin("game-state"), true, "phone", 2, null)
         val later = WearStateUpdate(initial.copy(sequenceNumber = 3), result)
         assertTrue(snapshotReceiver.receive(later.snapshot))
         assertTrue(pending.complete(later.acknowledgement))
-        assertFalse(result.matchesSnapshot(snapshotReceiver.current!!))
+        assertFalse(result.matchesSnapshot(snapshotReceiver.current))
 
         // Deliver the skipped snapshot 2 afterward, along with the same acknowledgement.
         // Neither is new: the current snapshot remains 3 and the completed command stays cleared.

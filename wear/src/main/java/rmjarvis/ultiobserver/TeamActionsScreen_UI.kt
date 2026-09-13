@@ -1,6 +1,5 @@
 package rmjarvis.ultiobserver
 
-import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -23,7 +22,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -37,9 +35,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.Role
@@ -64,12 +60,12 @@ internal data class TeamActionsDisplay(
     val cardLabel: String,
     val technicalFoulLabel: String,
     val timeoutLabel: String,
-    val goalEnabled: Boolean = true,
-    val timeViolationEnabled: Boolean = true,
-    val pullViolationEnabled: Boolean = true,
-    val cardEnabled: Boolean = true,
-    val technicalFoulEnabled: Boolean = true,
-    val timeoutEnabled: Boolean = true,
+    val goalEnabled: Boolean,
+    val timeViolationEnabled: Boolean,
+    val pullViolationEnabled: Boolean,
+    val cardEnabled: Boolean,
+    val technicalFoulEnabled: Boolean,
+    val timeoutEnabled: Boolean,
 )
 
 /** Provide the clock and team colors shared by every team-action screen. */
@@ -110,7 +106,6 @@ internal fun TeamActionsScreen(
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
-                .clip(LocalConfiguration.current.screenShape())
                 .background(display.team.backgroundColor),
         ) {
             val contentWidth = maxWidth * 0.90f
@@ -241,7 +236,6 @@ internal fun CardChoiceScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .clip(LocalConfiguration.current.screenShape())
                 .background(display.team.backgroundColor),
         ) {
             Column(
@@ -362,7 +356,6 @@ internal fun PlayerCardEntryOptionsScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .clip(LocalConfiguration.current.screenShape())
                 .background(display.team.backgroundColor),
         ) {
             BasicTextField(
@@ -602,10 +595,6 @@ private fun ActionButton(
             textAlign = TextAlign.Center,
         )
     }
-}
-
-private fun Configuration.screenShape(): Shape {
-    return if (isScreenRound) CircleShape else RectangleShape
 }
 
 private val PanelShape = RoundedCornerShape(8.dp)

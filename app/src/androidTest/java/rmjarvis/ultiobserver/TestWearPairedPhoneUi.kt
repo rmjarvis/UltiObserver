@@ -308,6 +308,61 @@ class TestWearPairedPhoneUi : MainActivityUiTestFixtures() {
         assertEquals(CardType.RED, selected.cards.single().cardType)
     }
 
+    /** Host watch actions and halftime with short Timed rule guidance. */
+    @Test
+    fun timedGuidance() {
+        setTimingAlertPreferences(
+            TimingAlertPreferences(watchConnectionMode = WatchConnectionMode.WEAR_OS)
+        )
+        setRuleGuidanceMode(RuleGuidanceMode.TIMED)
+        setRuleGuidanceTimeoutForTest(1_000L)
+        startLivePointProgrammatically(
+            newSetupGameState(now = System.currentTimeMillis()).copy(
+                rules = GameRules(gameTo = 3, useHalfCap = false,
+                    useSoftCap = false, useHardCap = false),
+            )
+        )
+        useStandardTeamNames()
+        signalReady("timedGuidance")
+
+        // The watch records a timeout and a technical foul, then two Animal goals. Verify that
+        // the actions and halftime completed without the observer clicking confirmation controls.
+        waitForGame { game -> game.phase == GamePhase.HALFTIME }
+        val game = composeRule.activity.appState.currentGame!!
+        assertEquals(1, game.teamTwo.firstHalfTimeoutsUsed)
+        assertEquals(1, game.teamOne.technicalFouls)
+        assertEquals(2, game.teamOne.score)
+        assertEquals(0, game.teamTwo.score)
+    }
+
+    /** Host watch actions with None guidance, including a required mixed-pull notice. */
+    @Test
+    fun noGuidance() {
+        setTimingAlertPreferences(
+            TimingAlertPreferences(watchConnectionMode = WatchConnectionMode.WEAR_OS)
+        )
+        setRuleGuidanceMode(RuleGuidanceMode.NONE)
+        setRuleGuidanceTimeoutForTest(1_000L)
+        startLiveGameProgrammatically(
+            newSetupGameState(now = System.currentTimeMillis()).copy(
+                division = GameDivision.MIXED,
+                rules = GameRules(gameTo = 3, useHalfCap = false,
+                    useSoftCap = false, useHardCap = false),
+            )
+        )
+        useStandardTeamNames()
+        signalReady("noGuidance")
+
+        // The watch records offsides and a time violation, then two Animal goals. None still
+        // retains mixed-pull guidance briefly, but does not require manual confirmation.
+        waitForGame { game -> game.phase == GamePhase.HALFTIME }
+        val game = composeRule.activity.appState.currentGame!!
+        assertEquals(1, game.teamOne.offsides)
+        assertEquals(1, game.teamTwo.timeViolations)
+        assertEquals(2, game.teamOne.score)
+        assertEquals(0, game.teamTwo.score)
+    }
+
     private fun waitForPairedCardEntry() {
         composeRule.waitUntil(timeoutMillis = PAIRED_TEST_TIMEOUT_MILLIS) {
             composeRule.activity.appState.state.value.activeCardEntry != null

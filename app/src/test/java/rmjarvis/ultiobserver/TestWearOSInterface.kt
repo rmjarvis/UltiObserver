@@ -659,9 +659,8 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         // The watch sends Not yet for halftime, but the phone has not handled the request yet.
         // Establish the watch receiver from the actual published halftime notice.
         appState.updateCurrentGame(pendingHalftime)
-        val receiver = WearSnapshotReceiver()
         val noticeSnapshot = publications.getValue(appState).last().snapshot
-        receiver.startSession(noticeSnapshot)
+        val receiver = WearSnapshotReceiver(noticeSnapshot)
         val pendingCommand = WearPendingCommand()
         val deferId = pendingCommand.begin(deferredHalftimeToken)
 
@@ -678,7 +677,7 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         assertEquals(deferredHalftimeToken, guidanceUpdate.snapshot.activeGame!!.stateToken)
         assertTrue(receiver.receive(guidanceUpdate.snapshot))
         assertFalse(pendingCommand.complete(guidanceUpdate.acknowledgement))
-        assertFalse(pendingCommand.supersede(receiver.current!!.activeGame!!.stateToken))
+        assertFalse(pendingCommand.supersede(receiver.current.activeGame!!.stateToken))
         assertEquals(deferId, pendingCommand.requestId)
 
         // Phone OK then crosses the still-outstanding Not yet. Unlike the settings update, this
@@ -2065,10 +2064,9 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         coordinators[appState] = WearPhoneCoordinator(
             appState, publish = { updates.add(it) }, clock = { now },
         )
-        val snapshotReceiver = WearSnapshotReceiver()
         coordinators.getValue(appState).startup("startup", now)
         assertEquals(WearStartupAcknowledgement("startup"), updates.single().acknowledgement)
-        snapshotReceiver.startSession(updates.single().snapshot)
+        val snapshotReceiver = WearSnapshotReceiver(updates.single().snapshot)
         updates.clear()
         val pending = WearPendingCommand()
         val requestId = pending.begin(wearStateToken(game))
@@ -2100,7 +2098,7 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         assertTrue(snapshotReceiver.receive(phoneUpdate.snapshot))
         assertTrue(pending.complete(phoneUpdate.acknowledgement))
         assertNull(pending.requestId)
-        assertFalse((phoneUpdate.acknowledgement as WearCommandAcknowledgement).matchesSnapshot(snapshotReceiver.current!!))
+        assertFalse((phoneUpdate.acknowledgement as WearCommandAcknowledgement).matchesSnapshot(snapshotReceiver.current))
 
         // A watch Undo using the old goal state is rejected. The snapshot and its sequence number
         // stay unchanged, but the new acknowledgement is still published to complete this request.

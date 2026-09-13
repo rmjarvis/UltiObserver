@@ -1,6 +1,5 @@
 package rmjarvis.ultiobserver
 
-import android.content.res.Configuration
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -19,7 +18,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -28,10 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -138,12 +133,10 @@ private fun GameContent(
     onRetry: () -> Unit,
     onUndo: () -> Unit,
 ) {
-    val screenShape = LocalConfiguration.current.screenShape()
 
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .clip(screenShape)
             .background(Color.Black),
     ) {
         val statusHeight = maxHeight * 0.48f
@@ -516,10 +509,6 @@ private fun UndoRegion(
 private class DisplayTimeSource(private val time: String) : TimeSource {
     @Composable
     override fun currentTime(): String = time
-}
-
-private fun Configuration.screenShape(): Shape {
-    return if (isScreenRound) CircleShape else RectangleShape
 }
 
 private val StatusTextColor = Color(0xFFC8CDD2)

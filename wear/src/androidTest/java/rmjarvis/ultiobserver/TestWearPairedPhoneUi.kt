@@ -1,5 +1,9 @@
 package rmjarvis.ultiobserver
 
+import android.os.ParcelFileDescriptor
+import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.espresso.Espresso.pressBackUnconditionally
+
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
@@ -39,6 +43,13 @@ class TestWearPairedPhoneUi {
             hasContentDescription("Pull direction from Animal toward Viscous Coupling")
         ).assertIsDisplayed()
         composeRule.onNode(hasContentDescription("ABBA ratio M2")).assertIsDisplayed()
+        assertEquals(2, composeRule.onAllNodesWithText("0").fetchSemanticsNodes().size)
+
+        // Opening a team's actions does not commit anything. Cancel returns to the same score.
+        composeRule.onNodeWithText(VISCOUS_COUPLING).performClick()
+        waitForText("Goal")
+        dismissNotice("Cancel")
+        waitForText(ANIMAL)
         assertEquals(2, composeRule.onAllNodesWithText("0").fetchSemanticsNodes().size)
 
         // Goal for Animal. It updates the score, starts a countdown, and changes the ratio.
@@ -90,7 +101,7 @@ class TestWearPairedPhoneUi {
         waitForText("Goal")
         composeRule.onNodeWithText("Offsides").performClick()
         waitForText("OK")
-        composeRule.onNodeWithText("Cancel").performClick()
+        dismissNotice("Cancel")
         waitForText("Goal")
         composeRule.onNodeWithText("Offsides").performClick()
         waitForText("OK")
@@ -114,7 +125,7 @@ class TestWearPairedPhoneUi {
         waitForText("Goal")
         composeRule.onNodeWithText("False start").performClick()
         waitForText("OK")
-        composeRule.onNodeWithText("Cancel").performClick()
+        dismissNotice("Cancel")
         waitForText("Goal")
         composeRule.onNodeWithText("False start").performClick()
         waitForText("OK")
@@ -126,7 +137,7 @@ class TestWearPairedPhoneUi {
         waitForText("Time viol.")
         composeRule.onNodeWithText("Time viol.").performClick()
         waitForText("Cancel")
-        composeRule.onNodeWithText("Cancel").performClick()
+        dismissNotice("Cancel")
         waitForText("Time viol.")
         composeRule.onNodeWithText("Time viol.").performClick()
         waitForText("OK")
@@ -144,7 +155,7 @@ class TestWearPairedPhoneUi {
         waitForText("Goal")
         composeRule.onNodeWithText("Timeout (2)").performClick()
         waitForText("OK")
-        composeRule.onNodeWithText("Cancel").performClick()
+        dismissNotice("Cancel")
         waitForText("Goal")
         composeRule.onNodeWithText("Timeout (2)").performClick()
         waitForText("OK")
@@ -156,7 +167,7 @@ class TestWearPairedPhoneUi {
         waitForText("Goal")
         composeRule.onNodeWithText("Tech").performClick()
         waitForText("OK")
-        composeRule.onNodeWithText("Cancel").performClick()
+        dismissNotice("Cancel")
         waitForText("Goal")
         composeRule.onNodeWithText("Tech").performClick()
         waitForText("OK")
@@ -168,13 +179,13 @@ class TestWearPairedPhoneUi {
         waitForText("Goal")
         composeRule.onNodeWithText("Card").performClick()
         waitForText("Blue")
-        composeRule.onNodeWithText("Cancel").performClick()
+        dismissNotice("Cancel")
         waitForText("Goal")
         composeRule.onNodeWithText("Card").performClick()
         waitForText("Blue")
         composeRule.onNodeWithText("Blue").performClick()
         waitForText("OK")
-        composeRule.onNodeWithText("Cancel").performClick()
+        dismissNotice("Cancel")
         waitForText("Blue")
         composeRule.onNodeWithText("Blue").performClick()
         waitForText("OK")
@@ -200,7 +211,7 @@ class TestWearPairedPhoneUi {
         waitForText("Goal")
         composeRule.onNodeWithText("Goal").performClick()
         waitForText("Half cap")
-        composeRule.onNodeWithText("OK").performClick()
+        dismissNotice("OK")
         waitForContentDescription("Undo Apply half cap")
 
         // Animal scores into the new halftime target, but defer halftime.
@@ -216,7 +227,7 @@ class TestWearPairedPhoneUi {
         waitForText("Goal")
         composeRule.onNodeWithText("Goal").performClick()
         waitForText("Halftime")
-        composeRule.onNodeWithText("OK").performClick()
+        dismissNotice("OK")
         waitForContentDescription("Undo Start halftime")
         waitForText("Halftime")
         assertEquals(2, composeRule.onAllNodesWithText("2").fetchSemanticsNodes().size)
@@ -240,7 +251,7 @@ class TestWearPairedPhoneUi {
         waitForText("Goal")
         composeRule.onNodeWithText("Goal").performClick()
         waitForText("Soft cap")
-        composeRule.onNodeWithText("OK").performClick()
+        dismissNotice("OK")
         waitForContentDescription("Undo Apply soft cap")
         assertEquals(2, composeRule.onAllNodesWithText("1").fetchSemanticsNodes().size)
 
@@ -258,7 +269,7 @@ class TestWearPairedPhoneUi {
         waitForText("Goal")
         composeRule.onNodeWithText("Goal").performClick()
         waitForText("Game over")
-        composeRule.onNodeWithText("OK").performClick()
+        dismissNotice("OK")
 
         // Game over. The phone verifies the final score of 3-1.
         // Now the phone prepares a fresh hard-cap game.
@@ -274,7 +285,7 @@ class TestWearPairedPhoneUi {
 
         // The hard cap is offered again. This time confirm it.
         waitForText("Hard cap")
-        composeRule.onNodeWithText("OK").performClick()
+        dismissNotice("OK")
         waitForContentDescription("Undo Apply hard cap")
         assertEquals(2, composeRule.onAllNodesWithText("1").fetchSemanticsNodes().size)
 
@@ -283,7 +294,7 @@ class TestWearPairedPhoneUi {
         waitForText("Goal")
         composeRule.onNodeWithText("Goal").performClick()
         waitForText("Game over")
-        composeRule.onNodeWithText("OK").performClick()
+        dismissNotice("OK")
         waitForNoText("OK")
         waitForText("Game over")
         assertEquals(1, composeRule.onAllNodesWithText("2").fetchSemanticsNodes().size)
@@ -312,14 +323,14 @@ class TestWearPairedPhoneUi {
         waitForText("Card (4)")
         composeRule.onNodeWithText("Card (4)").performClick()
         waitForText("Assess a card")
-        composeRule.onNodeWithText("Cancel").performClick()
+        dismissNotice("Cancel")
         waitForText("Goal")
 
         // Cancel the numbered-card screen to return to the card picker.
         composeRule.onNodeWithText("Card (4)").performClick()
         composeRule.onNodeWithText("Red").performClick()
         waitForText("Red card")
-        composeRule.onNodeWithText("Cancel").performClick()
+        dismissNotice("Cancel")
         waitForText("Assess a card")
 
         // Dismiss the notice that prevents assigning another yellow card to a suspended player.
@@ -327,17 +338,38 @@ class TestWearPairedPhoneUi {
         enterPlayerNumber("8")
         composeRule.onNodeWithText("Record card").performClick()
         waitForText("Invalid card assignment")
-        composeRule.onNodeWithText("OK").performClick()
+        dismissNotice("OK")
         waitForText("Change number (8)")
 
         // Start entering that card on the phone, then cancel the phone workflow from the watch.
         composeRule.onNodeWithText("Enter details on phone").performClick()
         waitForText("Continue on phone")
-        composeRule.onNodeWithText("Cancel").performClick()
+        dismissNotice("Cancel")
         waitForText("Assess a card")
 
-        // Return to the team actions and score a goal to tell the phone all card checks are done.
-        composeRule.onNodeWithText("Cancel").performClick()
+        // Return to the game and try a handoff for the other team. Cancelling it restores that
+        // team's card picker, not Animal's.
+        dismissNotice("Cancel")
+        waitForText("Goal")
+        dismissNotice("Cancel")
+        waitForText(VISCOUS_COUPLING)
+        composeRule.onNodeWithText(VISCOUS_COUPLING).performClick()
+        waitForText("Card")
+        composeRule.onNodeWithText("Card").performClick()
+        composeRule.onNodeWithText("Yellow").performClick()
+        waitForText("Enter details on phone")
+        composeRule.onNodeWithText("Enter details on phone").performClick()
+        waitForText("Continue on phone")
+        dismissNotice("Cancel")
+        waitForText("Assess a card")
+        composeRule.onNodeWithText(VISCOUS_COUPLING).assertIsDisplayed()
+        dismissNotice("Cancel")
+        waitForText("Goal")
+        dismissNotice("Cancel")
+        waitForText(ANIMAL)
+
+        // Score a goal to tell the phone all card checks are done.
+        composeRule.onNodeWithText(ANIMAL).performClick()
         waitForText("Goal")
         composeRule.onNodeWithText("Goal").performClick()
         waitForContentDescription("Undo Goal by Animal")
@@ -371,10 +403,89 @@ class TestWearPairedPhoneUi {
         enterPlayerNumber("3")
         composeRule.onNodeWithText("Record card").performClick()
         waitForText("Multiple players")
+        dismissNotice("Cancel")
+        waitForText("Change number (3)")
+        composeRule.onNodeWithText("Record card").performClick()
+        waitForText("Multiple players")
         composeRule.onNodeWithText("Continue on phone").performClick()
 
         // The phone selects Mark and confirms his red card. The watch receives the recorded result.
         waitForPairedContentDescription("Undo Red on #3 of Animal")
+    }
+
+    /** Record actions and reach halftime without clicking OK on Timed guidance. */
+    @Test
+    fun timedGuidance() {
+        waitForPairedText(VISCOUS_COUPLING)
+
+        // Let the timeout confirmation expire, then verify the recorded action on the watch.
+        composeRule.onNodeWithText(VISCOUS_COUPLING).performClick()
+        waitForText("Timeout (2)")
+        composeRule.onNodeWithText("Timeout (2)").performClick()
+        waitForContentDescription("Undo Timeout by Viscous Coupling")
+
+        // Technical-foul guidance also expires without an explicit confirmation.
+        composeRule.onNodeWithText(ANIMAL).performClick()
+        waitForText("Tech")
+        composeRule.onNodeWithText("Tech").performClick()
+        waitForContentDescription("Undo Technical foul on Animal")
+
+        // Two Animal goals reach halftime. The halftime notice expires just like action guidance.
+        composeRule.onNodeWithText(ANIMAL).performClick()
+        waitForText("Goal")
+        composeRule.onNodeWithText("Goal").performClick()
+        waitForContentDescription("Undo Goal by Animal")
+        waitForText("1")
+        composeRule.onNodeWithText(ANIMAL).performClick()
+        waitForText("Goal")
+        composeRule.onNodeWithText("Goal").performClick()
+        waitForContentDescription("Undo Start halftime")
+        waitForText("2")
+    }
+
+    /** Record actions and reach halftime with None guidance, retaining required notices. */
+    @Test
+    fun noGuidance() {
+        waitForPairedText(ANIMAL)
+
+        // Mixed-pull guidance is retained briefly in None mode. Leaving its default Offsides
+        // selection alone records the violation when the notice expires.
+        composeRule.onNodeWithText(ANIMAL).performClick()
+        waitForText("Offsides")
+        composeRule.onNodeWithText("Offsides").performClick()
+        waitForContentDescription("Undo Offsides on Animal")
+
+        // Ordinary time-violation guidance needs no displayed confirmation in None mode.
+        composeRule.onNodeWithText(VISCOUS_COUPLING).performClick()
+        waitForText("Time viol.")
+        composeRule.onNodeWithText("Time viol.").performClick()
+        waitForContentDescription("Undo Time violation warning on Viscous Coupling")
+
+        // Two goals reach halftime, which also completes without an OK click.
+        composeRule.onNodeWithText(ANIMAL).performClick()
+        waitForText("Goal")
+        composeRule.onNodeWithText("Goal").performClick()
+        waitForContentDescription("Undo Goal by Animal")
+        waitForText("1")
+        composeRule.onNodeWithText(ANIMAL).performClick()
+        waitForText("Goal")
+        composeRule.onNodeWithText("Goal").performClick()
+        waitForContentDescription("Undo Start halftime")
+        waitForText("2")
+    }
+
+    /** Cover explicit controls on Small Round and equivalent platform Back on Large Round. */
+    private fun dismissNotice(text: String) {
+        waitForText(text)
+        val descriptor = InstrumentationRegistry.getInstrumentation().uiAutomation
+            .executeShellCommand("getprop ro.boot.qemu.avd_name")
+        val avdName = ParcelFileDescriptor.AutoCloseInputStream(descriptor)
+            .bufferedReader().use { it.readText().trim() }
+        if (avdName == "Wear_OS_Large_Round") {
+            pressBackUnconditionally()
+        } else {
+            composeRule.onNodeWithText(text).performClick()
+        }
     }
 
     private fun enterPlayerNumber(number: String) {

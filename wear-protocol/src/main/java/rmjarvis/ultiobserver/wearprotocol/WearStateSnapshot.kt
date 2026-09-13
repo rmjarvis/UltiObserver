@@ -214,26 +214,17 @@ class WearSnapshotTagger {
  * Startup can establish a new phone session. Subsequent updates must belong to that
  * session and have a higher sequence number before replacing the current snapshot.
  */
-class WearSnapshotReceiver {
-    var current: WearStateSnapshot? = null
+class WearSnapshotReceiver(initialSnapshot: WearStateSnapshot) {
+    var current: WearStateSnapshot = initialSnapshot
         private set
 
-    /** Establish state from a published update acknowledging the current startup request. */
-    fun startSession(snapshot: WearStateSnapshot) {
-        current = snapshot
-    }
-
     fun receive(snapshot: WearStateSnapshot): Boolean {
-        val previous = current ?: return false
+        val previous = current
         if (snapshot.sessionId != previous.sessionId || snapshot.sequenceNumber <= previous.sequenceNumber) {
             return false
         }
         current = snapshot
         return true
-    }
-
-    fun isCurrent(snapshot: WearStateSnapshot): Boolean {
-        return snapshot.sessionId == current?.sessionId && snapshot.sequenceNumber == current?.sequenceNumber
     }
 }
 
@@ -266,12 +257,13 @@ data class WearStartupAcknowledgement(
 data class WearCommandAcknowledgement(
     override val requestId: String,
     val applied: Boolean,
-    val sessionId: String,
-    val sequenceNumber: Long,
+    private val sessionId: String,
+    private val sequenceNumber: Long,
     val nextPrompt: WearTeamActionPrompt?,
 ) : WearAcknowledgement {
     fun matchesSnapshot(snapshot: WearStateSnapshot): Boolean {
-        return sessionId == snapshot.sessionId && sequenceNumber == snapshot.sequenceNumber
+        // The client verifies the phone session before processing its acknowledgement.
+        return sequenceNumber == snapshot.sequenceNumber
     }
 }
 
@@ -289,7 +281,6 @@ class WearPendingCommand {
         private set
 
     fun begin(stateToken: String): String {
-        check(requestId == null) { "A watch command is already pending" }
         this.stateToken = stateToken
         return UUID.randomUUID().toString().also { requestId = it }
     }

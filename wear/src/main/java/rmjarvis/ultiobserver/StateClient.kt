@@ -4,7 +4,6 @@ import android.content.Context
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
-import java.util.UUID
 import com.google.android.gms.wearable.CapabilityClient
 import com.google.android.gms.wearable.CapabilityInfo
 import com.google.android.gms.wearable.DataClient
@@ -61,7 +60,7 @@ internal class StateClient(
     private var startupTimeout: Runnable? = null
     private var startupComplete = false
     private var started = false
-    private val snapshotReceiver = WearSnapshotReceiver()
+    private lateinit var snapshotReceiver: WearSnapshotReceiver
     private val pendingCommand = WearPendingCommand()
     private var commandTimeout: Runnable? = null
     private var onCommandFinished: ((WearGameActionResponse?) -> Unit)? = null
@@ -219,7 +218,7 @@ internal class StateClient(
     private fun completeStartupIfReady() {
         val state = pendingStartup?.receivedState ?: return
         phoneClockOffsetMillis = state.phoneClockOffsetMillis
-        snapshotReceiver.startSession(state.snapshot)
+        snapshotReceiver = WearSnapshotReceiver(state.snapshot)
         finishStartupRequest()
         startupComplete = true
         // Recovery refreshes state without replaying a potentially completed command.
@@ -469,7 +468,7 @@ internal class StateClient(
             completeStartupIfReady()
             return
         }
-        if (snapshot.sessionId != snapshotReceiver.current?.sessionId) {
+        if (snapshot.sessionId != snapshotReceiver.current.sessionId) {
             reachablePhoneNodeId?.let { requestStartupState(it) }
             return
         }
@@ -477,7 +476,7 @@ internal class StateClient(
         val acknowledgement = update.acknowledgement
         // Even an unchanged or older snapshot can carry the acknowledgement we are waiting for.
         if (pendingCommand.complete(acknowledgement)) {
-            val current = snapshotReceiver.current!!
+            val current = snapshotReceiver.current
             val result = acknowledgement as WearCommandAcknowledgement
             // Complete the command, but never restore a prompt made obsolete by a phone change.
             onCommandFinished?.invoke(if (result.matchesSnapshot(current)) {

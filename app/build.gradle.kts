@@ -246,6 +246,42 @@ tasks.register<JavaExec>("estimateBackupSize") {
     workingDir = rootProject.projectDir
 }
 
+tasks.register<JacocoReport>("wearCoverageReport") {
+    group = "verification"
+    description = "Reports wear and wear-protocol coverage from JVM tests and explicitly selected UI execution data."
+
+    val coveredModules = listOf(project(":wear"), project(":wear-protocol"))
+    // Phone JVM tests also exercise the shared Wear protocol; only the report is watch-scoped.
+    val testModules = coveredModules + project(":app")
+    dependsOn(testModules.map { "${it.path}:testDebugUnitTest" })
+
+    reports {
+        html.required.set(true)
+        html.outputLocation.set(layout.buildDirectory.dir("reports/jacoco/wear/html"))
+        xml.required.set(true)
+        xml.outputLocation.set(layout.buildDirectory.file("reports/jacoco/wear/wearCoverageReport.xml"))
+        csv.required.set(false)
+    }
+    classDirectories.setFrom(coveredModules.map { module ->
+        fileTree(module.layout.buildDirectory.dir(
+            "intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes"
+        )) {
+            exclude(filteredCoverageExclusions)
+        }
+    })
+    sourceDirectories.setFrom(coveredModules.map { it.file("src/main/java") })
+    executionData.setFrom(testModules.map { module ->
+        module.layout.buildDirectory.file(
+            "outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec"
+        )
+    })
+    // No old connected results enter this report implicitly. Supply a directory containing only
+    // the phone/watch .ec files from the current coverage pass to include paired UI coverage.
+    providers.gradleProperty("wearCoverageData").orNull?.let { directory ->
+        executionData.from(fileTree(rootProject.file(directory)) { include("**/*.ec") })
+    }
+}
+
 tasks.register("seedFakeArchive") {
     group = "manual"
     description = "Installs debug and populates completed archives with fake filter/sort data."

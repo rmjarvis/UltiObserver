@@ -29,6 +29,8 @@ DEFAULT_NARRATIVES = (
     "gameWinningGoal",
     "playerCardEntryOnWatch",
     "playerCardPhoneHandoff",
+    "timedGuidance",
+    "noGuidance",
 )
 
 

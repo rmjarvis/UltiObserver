@@ -197,11 +197,17 @@ class TestWearProtocol {
         }
         assertNull(WearRequestAction.fromPath("/some-other-app/action"))
 
-        // Direct game requests retain the exact state token and observer choice.
-        assertRoundTrip(
-            WearGoalRequest.serializer(),
-            WearGoalRequest("goal-state", TeamId.TEAM_ONE),
+        // Send a goal inside the same command envelope used by the watch. The phone can recover
+        // both the request ID needed for acknowledgement and the exact action arguments.
+        val goal = WearGoalRequest("goal-state", TeamId.TEAM_ONE)
+        val command = roundTrip(
+            WearCommandRequest.serializer(),
+            WearCommandRequest("watch-goal", WearProtocolCodec.encode(WearGoalRequest.serializer(), goal)),
         )
+        assertEquals("watch-goal", command.requestId)
+        assertEquals(goal, WearProtocolCodec.decode(WearGoalRequest.serializer(), command.arguments))
+
+        // Other direct game requests retain the exact state token and observer choice.
         assertRoundTrip(WearUndoRequest.serializer(), WearUndoRequest("undo-state"))
         assertRoundTrip(
             WearDecisionRequest.serializer(),
@@ -365,6 +371,15 @@ class TestWearProtocol {
         assertRoundTrip(WearStartupRequest.serializer(), WearStartupRequest("startup"))
         assertRoundTrip(WearStartupResponse.serializer(), WearStartupResponse(false, 123_456L))
         assertRoundTrip(WearStartupResponse.serializer(), WearStartupResponse(true, 123_456L))
+
+        // Startup preserves the ID the phone acknowledges and advertises the protocol version
+        // the watch checks before accepting the reply.
+        val startupRequest = roundTrip(WearStartupRequest.serializer(), WearStartupRequest("startup"))
+        val startupResponse = roundTrip(
+            WearStartupResponse.serializer(), WearStartupResponse(true, 123_456L),
+        )
+        assertEquals("startup", startupRequest.requestId)
+        assertEquals(WEAR_PROTOCOL_VERSION, startupResponse.protocolVersion)
     }
 
     private fun prompt(title: String): WearPromptSnapshot {
