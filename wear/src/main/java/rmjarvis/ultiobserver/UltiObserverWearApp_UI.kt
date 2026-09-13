@@ -271,11 +271,9 @@ private fun ActiveGameScreen(
             },
             onRetry = onRetry,
             onUndo = {
-                if (!commandPending) {
-                    commandPending = true
-                    onUndo(activeGame.stateToken) {
-                        commandPending = false
-                    }
+                commandPending = true
+                onUndo(activeGame.stateToken) {
+                    commandPending = false
                 }
             },
         )
@@ -286,16 +284,14 @@ private fun ActiveGameScreen(
             TeamId.TEAM_TWO
         }
         val requestPrompt: (WearTeamAction) -> Unit = { action ->
-            if (!commandPending) {
-                commandPending = true
-                onTeamAction(
-                    selectedWearTeam,
-                    activeGame.stateToken,
-                    action,
-                ) { prompt ->
-                    commandPending = false
-                    prompt?.let(onPrompt)
-                }
+            commandPending = true
+            onTeamAction(
+                selectedWearTeam,
+                activeGame.stateToken,
+                action,
+            ) { prompt ->
+                commandPending = false
+                prompt?.let(onPrompt)
             }
         }
         val selectedTeamSnapshot = if (selectedTeam == 1) {
@@ -316,18 +312,16 @@ private fun ActiveGameScreen(
                     requestPrompt(playerCard)
                 },
                 onContinueOnPhone = {
-                    if (!commandPending) {
-                        commandPending = true
-                        onStartCardEntry(
-                            selectedWearTeam,
-                            activeGame.stateToken,
-                            playerCard.cardType,
-                            playerCard.jerseyNumber,
-                        ) { applied ->
-                            commandPending = false
-                            if (applied) {
-                                onPlayerCardChange(null)
-                            }
+                    commandPending = true
+                    onStartCardEntry(
+                        selectedWearTeam,
+                        activeGame.stateToken,
+                        playerCard.cardType,
+                        playerCard.jerseyNumber,
+                    ) { applied ->
+                        commandPending = false
+                        if (applied) {
+                            onPlayerCardChange(null)
                         }
                     }
                 },
@@ -357,16 +351,14 @@ private fun ActiveGameScreen(
             TeamActionsScreen(
                 display = selectedTeamSnapshot.toTeamActionsDisplay(!commandPending),
                 onGoal = {
-                    if (!commandPending) {
-                        commandPending = true
-                        onGoal(
-                            selectedWearTeam,
-                            activeGame.stateToken,
-                        ) { applied ->
-                            commandPending = false
-                            if (applied) {
-                                onSelectedTeamChange(0)
-                            }
+                    commandPending = true
+                    onGoal(
+                        selectedWearTeam,
+                        activeGame.stateToken,
+                    ) { applied ->
+                        commandPending = false
+                        if (applied) {
+                            onSelectedTeamChange(0)
                         }
                     }
                 },

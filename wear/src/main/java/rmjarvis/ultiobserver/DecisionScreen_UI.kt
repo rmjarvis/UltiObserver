@@ -55,11 +55,9 @@ internal fun DecisionScreen(
 ) {
     var commandPending by remember(decision, stateToken) { mutableStateOf(false) }
     val submitDecision: (Boolean) -> Unit = { accept ->
-        if (!commandPending) {
-            commandPending = true
-            onDecision(stateToken, accept) {
-                commandPending = false
-            }
+        commandPending = true
+        onDecision(stateToken, accept) {
+            commandPending = false
         }
     }
 
@@ -100,11 +98,9 @@ internal fun ActionConfirmationScreen(
     val prompt = confirmation.prompt
     var commandPending by remember(prompt) { mutableStateOf(false) }
     val submitConfirmation = {
-        if (!commandPending) {
-            commandPending = true
-            onConfirm(confirmation) {
-                commandPending = false
-            }
+        commandPending = true
+        onConfirm(confirmation) {
+            commandPending = false
         }
     }
     val currentSubmitConfirmation by rememberUpdatedState(submitConfirmation)
@@ -177,11 +173,9 @@ internal fun ContinueOnPhoneScreen(
 ) {
     var commandPending by remember { mutableStateOf(false) }
     val cancel = {
-        if (!commandPending) {
-            commandPending = true
-            onCancel {
-                commandPending = false
-            }
+        commandPending = true
+        onCancel {
+            commandPending = false
         }
     }
     BackHandler(enabled = !commandPending) {

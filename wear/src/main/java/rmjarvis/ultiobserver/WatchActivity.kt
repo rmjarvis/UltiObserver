@@ -30,22 +30,22 @@ class WatchActivity : ComponentActivity() {
                 receivedState = receivedState,
                 connectionState = connectionState,
                 onRetry = {
-                    stateClient.retry()
+                    stateClient.connection.retry()
                 },
                 onGoal = { scoringTeam, stateToken, onFinished ->
-                    stateClient.recordGoal(scoringTeam, stateToken, onFinished)
+                    stateClient.connection.recordGoal(scoringTeam, stateToken, onFinished)
                 },
                 onUndo = { stateToken, onFinished ->
-                    stateClient.undo(stateToken, onFinished)
+                    stateClient.connection.undo(stateToken, onFinished)
                 },
                 onDecision = { stateToken, accept, onFinished ->
-                    stateClient.resolveDecision(stateToken, accept, onFinished)
+                    stateClient.connection.resolveDecision(stateToken, accept, onFinished)
                 },
                 onTeamAction = { team, stateToken, action, onFinished ->
-                    stateClient.requestTeamAction(team, stateToken, action, onFinished)
+                    stateClient.connection.requestTeamAction(team, stateToken, action, onFinished)
                 },
                 onStartCardEntry = { team, stateToken, cardType, jerseyNumber, onFinished ->
-                    stateClient.startCardEntry(
+                    stateClient.connection.startCardEntry(
                         team,
                         stateToken,
                         cardType,
@@ -54,7 +54,7 @@ class WatchActivity : ComponentActivity() {
                     )
                 },
                 onCancelCardEntry = { team, stateToken, cardType, jerseyNumber, onFinished ->
-                    stateClient.cancelCardEntry(
+                    stateClient.connection.cancelCardEntry(
                         team,
                         stateToken,
                         cardType,
@@ -63,7 +63,7 @@ class WatchActivity : ComponentActivity() {
                     )
                 },
                 onConfirmAction = { confirmation, onFinished ->
-                    stateClient.confirmAction(confirmation, onFinished)
+                    stateClient.connection.confirmAction(confirmation, onFinished)
                 },
             )
         }
