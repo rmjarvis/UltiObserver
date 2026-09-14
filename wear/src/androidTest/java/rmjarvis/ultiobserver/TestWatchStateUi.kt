@@ -8,6 +8,8 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.performClick
 import java.util.concurrent.atomic.AtomicBoolean
 import org.junit.Assert.assertTrue
@@ -31,6 +33,37 @@ import rmjarvis.ultiobserver.wearprotocol.WearCountdownSnapshot
 class TestWatchStateUi {
     @get:Rule
     val composeRule = createComposeRule()
+
+    /** Advance the displayed countdown locally without receiving another phone snapshot. */
+    @Test
+    fun countdown() {
+        val initial = activeSnapshot()
+        val state = initial.copy(snapshot = initial.snapshot.copy(
+            activeGame = initial.snapshot.activeGame!!.copy(
+                countdown = WearCountdownSnapshot(
+                    label = "Between points",
+                    targetEpochMillis = System.currentTimeMillis() + 45_000L,
+                    pausedAtEpochMillis = null,
+                    cues = emptyList(),
+                ),
+            ),
+        ))
+        show(state = { state }, connection = { ConnectionState.CONNECTED })
+
+        // Keep the received state unchanged. A smaller displayed value must therefore come from
+        // the watch's own clock loop resuming after its delay, not a replacement phone snapshot.
+        val firstValue = countdownSeconds()
+        composeRule.waitUntil(timeoutMillis = 10_000L) {
+            countdownSeconds() < firstValue
+        }
+        composeRule.onNodeWithText("Home").assertIsEnabled()
+    }
+
+    private fun countdownSeconds(): Int {
+        val text = composeRule.onAllNodesWithText("0:", substring = true)
+            .fetchSemanticsNodes().single().config[SemanticsProperties.Text].single().text
+        return text.substringAfter(":").toInt()
+    }
 
     /** Test what happens when there is no paired phone available. */
     @Test
