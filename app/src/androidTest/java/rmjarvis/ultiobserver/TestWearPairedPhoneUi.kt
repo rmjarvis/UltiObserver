@@ -363,6 +363,59 @@ class TestWearPairedPhoneUi : MainActivityUiTestFixtures() {
         assertEquals(0, game.teamTwo.score)
     }
 
+    /** Keep the game alive while the Wear request service is temporarily unavailable. */
+    @Test
+    fun connectionRecovery() {
+        setTimingAlertPreferences(
+            TimingAlertPreferences(watchConnectionMode = WatchConnectionMode.WEAR_OS)
+        )
+        startLivePointProgrammatically(
+            newSetupGameState(now = System.currentTimeMillis()).copy(
+                rules = GameRules(useHalfCap = false, useSoftCap = false, useHardCap = false),
+            )
+        )
+        useStandardTeamNames()
+        val activity = composeRule.activity
+        val manager = activity.packageManager
+        val service = android.content.ComponentName(activity, WearOSRequestService::class.java)
+        val originalSetting = manager.getComponentEnabledSetting(service)
+        signalReady("connectionRecovery")
+
+        // Simulate a paired phone whose app stops responding, as if the app had hung. Disabling
+        // only the Wear request service produces a missing acknowledgement while keeping the game
+        // and phone test running. This tests request-timeout recovery, not Bluetooth loss, moving
+        // out of range, or losing the phone capability. The pairing remains intact.
+        try {
+            waitForRecoveryStage("disconnect")
+            manager.setComponentEnabledSetting(service,
+                android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                android.content.pm.PackageManager.DONT_KILL_APP)
+            File(activity.filesDir, "paired-recovery-disabled").createNewFile()
+
+            // After the watch reports the request timeout as Lost connection, restore delivery.
+            // The runner releases the watch to tap Retry only after the service is available again.
+            waitForRecoveryStage("restore")
+            manager.setComponentEnabledSetting(service, originalSetting,
+                android.content.pm.PackageManager.DONT_KILL_APP)
+            File(activity.filesDir, "paired-recovery-restored").createNewFile()
+
+            // Only the post-recovery goal should be recorded; the timed-out goal is not replayed.
+            waitForGame { it.teamOne.score == 1 }
+            val game = activity.appState.currentGame!!
+            assertEquals(1, game.teamOne.score)
+            assertEquals(0, game.teamTwo.score)
+        } finally {
+            manager.setComponentEnabledSetting(service, originalSetting,
+                android.content.pm.PackageManager.DONT_KILL_APP)
+        }
+    }
+
+    private fun waitForRecoveryStage(stage: String) {
+        composeRule.waitUntil(timeoutMillis = 60_000L) {
+            File(composeRule.activity.filesDir, "paired-recovery-$stage").exists()
+        }
+    }
+
     private fun waitForPairedCardEntry() {
         composeRule.waitUntil(timeoutMillis = PAIRED_TEST_TIMEOUT_MILLIS) {
             composeRule.activity.appState.state.value.activeCardEntry != null

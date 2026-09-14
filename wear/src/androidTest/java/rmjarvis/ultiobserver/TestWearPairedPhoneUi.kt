@@ -5,8 +5,13 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.espresso.Espresso.pressBackUnconditionally
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
+import java.io.File
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isEnabled
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
@@ -472,6 +477,58 @@ class TestWearPairedPhoneUi {
         composeRule.onNodeWithText("Goal").performClick()
         waitForContentDescription("Undo Start halftime")
         waitForText("2")
+    }
+
+    /** Recover from a paired phone app that stops responding to requests. */
+    @Test
+    fun connectionRecovery() {
+        waitForPairedText(ANIMAL)
+        composeRule.onNodeWithText(ANIMAL).assertIsEnabled()
+        assertEquals(2, composeRule.onAllNodesWithText("0").fetchSemanticsNodes().size)
+
+        // The phone partner disables its request service to simulate an unresponsive app, not a
+        // physical disconnection. The pairing remains intact, but the next goal gets no
+        // acknowledgement and times out, leaving the old score readable and actions disabled.
+        File(composeRule.activity.filesDir, "paired-recovery-disconnect").createNewFile()
+        waitForRecoveryStage("disabled")
+        composeRule.onNodeWithText(ANIMAL).performClick()
+        waitForText("Goal")
+        composeRule.onNodeWithText("Goal").performClick()
+        waitForPairedText("Lost connection")
+        composeRule.onNodeWithText(ANIMAL).assertIsNotEnabled()
+        composeRule.onNodeWithText(VISCOUS_COUPLING).assertIsNotEnabled()
+        assertEquals(2, composeRule.onAllNodesWithText("0").fetchSemanticsNodes().size)
+
+        // Restore phone request delivery. The file creation is our communication channel
+        // with the parallel phone test function.
+        File(composeRule.activity.filesDir, "paired-recovery-restore").createNewFile()
+        waitForRecoveryStage("restored")
+
+        // Use the Retry control. The fresh snapshot retains 0-0, proving that recovery
+        // did not replay the unacknowledged goal.
+        composeRule.onNodeWithText("Retry").performClick()
+        waitForConnectedGame()
+        composeRule.onNodeWithText(ANIMAL).assertIsEnabled()
+        assertEquals(2, composeRule.onAllNodesWithText("0").fetchSemanticsNodes().size)
+
+        // A new goal works normally after the handshake and is verified by the phone partner.
+        composeRule.onNodeWithText(ANIMAL).performClick()
+        waitForText("Goal")
+        composeRule.onNodeWithText("Goal").performClick()
+        waitForContentDescription("Undo Goal by Animal")
+        waitForText("1")
+    }
+
+    private fun waitForRecoveryStage(stage: String) {
+        composeRule.waitUntil(timeoutMillis = 60_000L) {
+            File(composeRule.activity.filesDir, "paired-recovery-$stage").exists()
+        }
+    }
+
+    private fun waitForConnectedGame() {
+        composeRule.waitUntil(timeoutMillis = PAIRED_TEST_TIMEOUT_MILLIS) {
+            composeRule.onAllNodes(hasText(ANIMAL) and isEnabled()).fetchSemanticsNodes().isNotEmpty()
+        }
     }
 
     /** Cover explicit controls on Small Round and equivalent platform Back on Large Round. */

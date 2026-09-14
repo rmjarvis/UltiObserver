@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 import shutil
@@ -31,6 +32,7 @@ DEFAULT_NARRATIVES = (
     "playerCardPhoneHandoff",
     "timedGuidance",
     "noGuidance",
+    "connectionRecovery",
 )
 
 
@@ -381,18 +383,23 @@ def run_narrative(
     )
     try:
         wait_until_phone_ready(adb, pair, narrative, phone_process, root)
-        watch_result = run(
-            instrumentation_command(
-                adb,
-                pair.watch_serial,
-                f"{PAIRED_TEST_CLASS}#{narrative}",
-                watch_remote,
-                WATCH_TEST_RUNNER,
-            ),
-            root,
-            capture=True,
-            check=False,
-        )
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            if narrative == "connectionRecovery":
+                recovery = executor.submit(coordinate_recovery, adb, pair, root)
+            watch_result = run(
+                instrumentation_command(
+                    adb,
+                    pair.watch_serial,
+                    f"{PAIRED_TEST_CLASS}#{narrative}",
+                    watch_remote,
+                    WATCH_TEST_RUNNER,
+                ),
+                root,
+                capture=True,
+                check=False,
+            )
+            if narrative == "connectionRecovery":
+                recovery.result()
         assert_instrumentation_passed("Watch", watch_result.stdout, watch_result.returncode)
         phone_output, _ = phone_process.communicate(timeout=30.0)
         assert_instrumentation_passed("Phone", phone_output, phone_process.returncode)
@@ -423,6 +430,30 @@ def run_narrative(
             destination.unlink()
     pull_coverage(adb, pair.phone_serial, phone_remote, phone_destination, root)
     pull_coverage(adb, pair.watch_serial, watch_remote, watch_destination, root)
+
+
+def coordinate_recovery(adb: Path, pair: EmulatorPair, root: Path) -> None:
+    """Relay recovery-test barriers while both instrumentation processes remain running."""
+
+    for source, target, stage in (
+        (pair.watch_serial, pair.phone_serial, "disconnect"),
+        (pair.phone_serial, pair.watch_serial, "disabled"),
+        (pair.watch_serial, pair.phone_serial, "restore"),
+        (pair.phone_serial, pair.watch_serial, "restored"),
+    ):
+        marker = f"files/paired-recovery-{stage}"
+        deadline = time.monotonic() + 60.0
+        while time.monotonic() < deadline:
+            result = subprocess.run(
+                adb_command(adb, source, "shell", "run-as", PACKAGE_NAME, "test", "-f", marker),
+                cwd=root, capture_output=True, check=False,
+            )
+            if result.returncode == 0:
+                run(adb_command(adb, target, "shell", "run-as", PACKAGE_NAME, "touch", marker), root)
+                break
+            time.sleep(0.25)
+        else:
+            raise TimeoutError(f"Recovery test did not reach {stage}.")
 
 
 def run_watch_only_tests(adb: Path, pair: EmulatorPair, root: Path) -> None:
