@@ -390,6 +390,17 @@ class TestWearPairedPhoneUi : MainActivityUiTestFixtures() {
             manager.setComponentEnabledSetting(service,
                 android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
                 android.content.pm.PackageManager.DONT_KILL_APP)
+
+            // Uninstalling the phone app resets its DataItems. Exercise the same deletion event
+            // directly, preserving the running fixture and pairing rather than uninstalling it.
+            val deleted = com.google.android.gms.tasks.Tasks.await(
+                com.google.android.gms.wearable.Wearable.getDataClient(activity).deleteDataItems(
+                    android.net.Uri.parse("wear://*${rmjarvis.ultiobserver.wearprotocol.WEAR_STATE_PATH}"),
+                    com.google.android.gms.wearable.DataClient.FILTER_LITERAL,
+                ),
+                30, java.util.concurrent.TimeUnit.SECONDS,
+            )
+            assertEquals(1, deleted.toInt())
             File(activity.filesDir, "paired-recovery-disabled").createNewFile()
 
             // After the watch reports the request timeout as Lost connection, restore delivery.

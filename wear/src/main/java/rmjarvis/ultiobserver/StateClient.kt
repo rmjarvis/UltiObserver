@@ -4,10 +4,10 @@ import android.content.Context
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import com.google.android.gms.tasks.Task
 import com.google.android.gms.wearable.CapabilityClient
 import com.google.android.gms.wearable.CapabilityInfo
 import com.google.android.gms.wearable.DataClient
-import com.google.android.gms.wearable.DataEvent
 import com.google.android.gms.wearable.DataEventBuffer
 import com.google.android.gms.wearable.Node
 import com.google.android.gms.wearable.Wearable
@@ -20,10 +20,34 @@ internal class StateClient(
     context: Context,
     onStateReceived: (ReceivedState) -> Unit,
     onConnectionStateChanged: (ConnectionState) -> Unit,
+    // Injectable operations let tests supply controlled Tasks to simulate Wear API failures.
+    private val lookupPhone: () -> Task<CapabilityInfo>,
+    private val sendStartup: (String, ByteArray) -> Task<ByteArray>,
+    private val sendMessage: (String, String, ByteArray) -> Task<Int>,
 ) : DataClient.OnDataChangedListener, CapabilityClient.OnCapabilityChangedListener, PhoneTransport {
+    constructor(
+        context: Context,
+        onStateReceived: (ReceivedState) -> Unit,
+        onConnectionStateChanged: (ConnectionState) -> Unit,
+    ) : this(
+        context,
+        onStateReceived,
+        onConnectionStateChanged,
+        lookupPhone = {
+            Wearable.getCapabilityClient(context.applicationContext)
+                .getCapability(PHONE_STATE_CAPABILITY, CapabilityClient.FILTER_REACHABLE)
+        },
+        sendStartup = { nodeId, bytes ->
+            Wearable.getMessageClient(context.applicationContext)
+                .sendRequest(nodeId, WearRequestAction.STARTUP.path, bytes)
+        },
+        sendMessage = { nodeId, path, bytes ->
+            Wearable.getMessageClient(context.applicationContext).sendMessage(nodeId, path, bytes)
+        },
+    )
+
     private val dataClient = Wearable.getDataClient(context.applicationContext)
     private val capabilityClient = Wearable.getCapabilityClient(context.applicationContext)
-    private val messageClient = Wearable.getMessageClient(context.applicationContext)
     private val handler = Handler(Looper.getMainLooper())
     private val stateUri = Uri.parse("wear://*$WEAR_STATE_PATH")
     val connection = PhoneConnectionController(
@@ -49,22 +73,19 @@ internal class StateClient(
 
     override fun onDataChanged(events: DataEventBuffer) {
         events.forEach { event ->
-            if (event.type == DataEvent.TYPE_CHANGED && event.dataItem.uri.path == WEAR_STATE_PATH) {
-                event.dataItem.data?.let { bytes ->
-                    connection.receiveStateBytes(bytes)
-                }
+            // Registration filters the path; deletion events have no payload to receive.
+            event.dataItem.data?.let { bytes ->
+                connection.receiveStateBytes(bytes)
             }
         }
     }
 
     override fun onCapabilityChanged(capability: CapabilityInfo) {
-        if (capability.name == PHONE_STATE_CAPABILITY) {
-            connection.phoneReachabilityChanged(capability.nodes.map { it.phoneNode() })
-        }
+        connection.phoneReachabilityChanged(capability.nodes.map { it.phoneNode() })
     }
 
     override fun findPhone(onSuccess: (List<PhoneNode>) -> Unit, onFailure: () -> Unit) {
-        capabilityClient.getCapability(PHONE_STATE_CAPABILITY, CapabilityClient.FILTER_REACHABLE)
+        lookupPhone()
             .addOnSuccessListener { capability ->
                 onSuccess(capability.nodes.map { it.phoneNode() })
             }
@@ -77,7 +98,7 @@ internal class StateClient(
         onSuccess: (ByteArray) -> Unit,
         onFailure: () -> Unit,
     ) {
-        messageClient.sendRequest(nodeId, WearRequestAction.STARTUP.path, bytes)
+        sendStartup(nodeId, bytes)
             .addOnSuccessListener { reply -> onSuccess(reply) }
             .addOnFailureListener { onFailure() }
     }
@@ -88,7 +109,7 @@ internal class StateClient(
         bytes: ByteArray,
         onFailure: () -> Unit,
     ) {
-        messageClient.sendMessage(nodeId, path, bytes)
+        sendMessage(nodeId, path, bytes)
             .addOnFailureListener { onFailure() }
     }
 

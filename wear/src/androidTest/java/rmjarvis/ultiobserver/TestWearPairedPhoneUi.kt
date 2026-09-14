@@ -19,6 +19,20 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTextInput
+import android.net.Uri
+import com.google.android.gms.tasks.Tasks
+import com.google.android.gms.wearable.CapabilityClient
+import com.google.android.gms.wearable.CapabilityInfo
+import com.google.android.gms.wearable.DataClient
+import com.google.android.gms.wearable.DataEvent
+import com.google.android.gms.wearable.Wearable
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
+import rmjarvis.ultiobserver.wearprotocol.PHONE_STATE_CAPABILITY
+import rmjarvis.ultiobserver.wearprotocol.WEAR_STATE_PATH
+import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -486,37 +500,113 @@ class TestWearPairedPhoneUi {
         composeRule.onNodeWithText(ANIMAL).assertIsEnabled()
         assertEquals(2, composeRule.onAllNodesWithText("0").fetchSemanticsNodes().size)
 
-        // The phone partner disables its request service to simulate an unresponsive app, not a
-        // physical disconnection. The pairing remains intact, but the next goal gets no
-        // acknowledgement and times out, leaving the old score readable and actions disabled.
-        File(composeRule.activity.filesDir, "paired-recovery-disconnect").createNewFile()
-        waitForRecoveryStage("disabled")
-        composeRule.onNodeWithText(ANIMAL).performClick()
-        waitForText("Goal")
-        composeRule.onNodeWithText("Goal").performClick()
-        waitForPairedText("Lost connection")
-        composeRule.onNodeWithText(ANIMAL).assertIsNotEnabled()
-        composeRule.onNodeWithText(VISCOUS_COUPLING).assertIsNotEnabled()
-        assertEquals(2, composeRule.onAllNodesWithText("0").fetchSemanticsNodes().size)
+        val dataClient = Wearable.getDataClient(composeRule.activity)
+        val deletion = CountDownLatch(1)
+        val listener = DataClient.OnDataChangedListener { events ->
+            events.forEach { event ->
+                if (event.type == DataEvent.TYPE_DELETED) {
+                    assertNull(event.dataItem.data)
+                    deletion.countDown()
+                }
+            }
+        }
+        Tasks.await(dataClient.addListener(
+            listener, Uri.parse("wear://*$WEAR_STATE_PATH"), DataClient.FILTER_LITERAL,
+        ), 30, TimeUnit.SECONDS)
+        try {
+            // The phone partner disables its request service to simulate an unresponsive app, not a
+            // physical disconnection. The pairing remains intact, but the next goal gets no
+            // acknowledgement and times out, leaving the old score readable and actions disabled.
+            File(composeRule.activity.filesDir, "paired-recovery-disconnect").createNewFile()
+            waitForRecoveryStage("disabled")
 
-        // Restore phone request delivery. The file creation is our communication channel
-        // with the parallel phone test function.
-        File(composeRule.activity.filesDir, "paired-recovery-restore").createNewFile()
-        waitForRecoveryStage("restored")
+            // The deleted DataItem has no payload. It must not be decoded as a snapshot or clear
+            // the last received game. Observe its delivery before asserting the retained score.
+            assertTrue("State DataItem deletion was not delivered", deletion.await(30, TimeUnit.SECONDS))
+            composeRule.onNodeWithText(ANIMAL).assertIsDisplayed()
+            assertEquals(2, composeRule.onAllNodesWithText("0").fetchSemanticsNodes().size)
 
-        // Use the Retry control. The fresh snapshot retains 0-0, proving that recovery
-        // did not replay the unacknowledged goal.
-        composeRule.onNodeWithText("Retry").performClick()
-        waitForConnectedGame()
-        composeRule.onNodeWithText(ANIMAL).assertIsEnabled()
-        assertEquals(2, composeRule.onAllNodesWithText("0").fetchSemanticsNodes().size)
+            // With request delivery still disabled, a goal times out and disables game actions.
+            composeRule.onNodeWithText(ANIMAL).performClick()
+            waitForText("Goal")
+            composeRule.onNodeWithText("Goal").performClick()
+            waitForPairedText("Lost connection")
+            composeRule.onNodeWithText(ANIMAL).assertIsNotEnabled()
+            composeRule.onNodeWithText(VISCOUS_COUPLING).assertIsNotEnabled()
+            assertEquals(2, composeRule.onAllNodesWithText("0").fetchSemanticsNodes().size)
 
-        // A new goal works normally after the handshake and is verified by the phone partner.
-        composeRule.onNodeWithText(ANIMAL).performClick()
-        waitForText("Goal")
-        composeRule.onNodeWithText("Goal").performClick()
-        waitForContentDescription("Undo Goal by Animal")
-        waitForText("1")
+            // Restore phone request delivery. The file creation is our communication channel
+            // with the parallel phone test function.
+            File(composeRule.activity.filesDir, "paired-recovery-restore").createNewFile()
+            waitForRecoveryStage("restored")
+
+            // Use the Retry control. The fresh snapshot retains 0-0, proving that recovery
+            // did not replay the unacknowledged goal.
+            composeRule.onNodeWithText("Retry").performClick()
+            waitForConnectedGame()
+            composeRule.onNodeWithText(ANIMAL).assertIsEnabled()
+            assertEquals(2, composeRule.onAllNodesWithText("0").fetchSemanticsNodes().size)
+
+            // Exercise capability-loss and return callbacks against the now-responsive phone.
+            verifyCapabilityRecovery()
+
+            // A new goal works normally after the handshake and is verified by the phone partner.
+            composeRule.onNodeWithText(ANIMAL).performClick()
+            waitForText("Goal")
+            composeRule.onNodeWithText("Goal").performClick()
+            waitForContentDescription("Undo Goal by Animal")
+            waitForText("1")
+        } finally {
+            Tasks.await(dataClient.removeListener(listener), 30, TimeUnit.SECONDS)
+        }
+    }
+
+    /** Verify Android capability callbacks reach the session controller and trigger recovery. */
+    private fun verifyCapabilityRecovery() {
+        val phone = Tasks.await(
+            Wearable.getCapabilityClient(composeRule.activity).getCapability(
+                PHONE_STATE_CAPABILITY, CapabilityClient.FILTER_REACHABLE,
+            ),
+            30, TimeUnit.SECONDS,
+        )
+        assertTrue(phone.nodes.isNotEmpty())
+        val connection = AtomicReference(ConnectionState.CONNECTING)
+        val received = AtomicReference<ReceivedState>()
+        val client = StateClient(
+            composeRule.activity,
+            onStateReceived = { received.set(it) },
+            onConnectionStateChanged = { connection.set(it) },
+        )
+        try {
+            // Use a separate client so injected callbacks do not alter the Activity's listeners.
+            // Its initial session and subsequent recovery both use the real paired phone.
+            composeRule.runOnIdle { client.start() }
+            composeRule.waitUntil(timeoutMillis = PAIRED_TEST_TIMEOUT_MILLIS) {
+                connection.get() == ConnectionState.CONNECTED
+            }
+            val original = received.get()
+
+            // An empty capability node set represents the phone leaving reachability. Invoke
+            // the Android callback directly: manifest capabilities cannot be withdrawn by API.
+            // This proves callback forwarding, not Android's delivery of capability events.
+            val unavailable = object : CapabilityInfo {
+                override fun getName() = PHONE_STATE_CAPABILITY
+                override fun getNodes() = emptySet<com.google.android.gms.wearable.Node>()
+            }
+            composeRule.runOnIdle { client.onCapabilityChanged(unavailable) }
+            assertEquals(ConnectionState.DISCONNECTED, connection.get())
+            assertEquals(original, received.get())
+
+            // Returning nodes must be converted and forwarded too. The real phone supplies a
+            // fresh startup snapshot before the client can report that it is connected again.
+            composeRule.runOnIdle { client.onCapabilityChanged(phone) }
+            composeRule.waitUntil(timeoutMillis = PAIRED_TEST_TIMEOUT_MILLIS) {
+                connection.get() == ConnectionState.CONNECTED
+            }
+            assertEquals(original.snapshot.activeGame, received.get().snapshot.activeGame)
+        } finally {
+            composeRule.runOnIdle { client.stop() }
+        }
     }
 
     private fun waitForRecoveryStage(stage: String) {

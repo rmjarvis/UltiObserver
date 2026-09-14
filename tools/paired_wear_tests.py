@@ -19,6 +19,7 @@ PHONE_TEST_RUNNER = f"{PACKAGE_NAME}.test/{PACKAGE_NAME}.UltiObserverTestRunner"
 WATCH_TEST_RUNNER = f"{PACKAGE_NAME}.test/androidx.test.runner.AndroidJUnitRunner"
 PAIRED_TEST_CLASS = f"{PACKAGE_NAME}.TestWearPairedPhoneUi"
 WATCH_ONLY_TEST_CLASSES = (
+    f"{PACKAGE_NAME}.TestStateClient",
     f"{PACKAGE_NAME}.TestWatchStateUi",
 )
 READY_FILE = "files/paired-test-ready"
