@@ -1791,6 +1791,7 @@ internal fun FieldControlButton(
             colors = ButtonDefaults.outlinedButtonColors(
                 containerColor = containerColor,
                 contentColor = contentColor,
+                disabledContentColor = Color.DarkGray,
             ),
             border = BorderStroke(1.dp, Color.Black),
             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
