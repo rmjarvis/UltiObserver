@@ -1,12 +1,15 @@
 package rmjarvis.ultiobserver
 
 import android.content.res.Configuration
+import android.graphics.Bitmap
+import android.util.Log
 import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
@@ -17,11 +20,13 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollTo
-import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.printToString
 import androidx.compose.ui.test.swipeRight
 import androidx.test.espresso.Espresso.pressBackUnconditionally
 import androidx.test.platform.app.InstrumentationRegistry
+import java.io.File
 import java.io.FileInputStream
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -1091,8 +1096,10 @@ abstract class MainActivityUiTestFixtures {
 
     /// Wait until Android has applied a requested portrait or landscape configuration.
     private fun waitForConfigurationOrientation(orientation: Int) {
-        composeRule.waitUntil(timeoutMillis = 10_000) {
-            composeRule.activity.resources.configuration.orientation == orientation
+        catchAndDiagnoseFailure {
+            composeRule.waitUntil(timeoutMillis = 10_000) {
+                composeRule.activity.resources.configuration.orientation == orientation
+            }
         }
     }
 
@@ -1207,8 +1214,10 @@ abstract class MainActivityUiTestFixtures {
      * @param substring Whether substring matching should be used.
      */
     protected fun waitForText(text: String, substring: Boolean = false) {
-        composeRule.waitUntil(timeoutMillis = 10_000) {
-            composeRule.onAllNodesWithText(text, substring = substring).fetchSemanticsNodes().isNotEmpty()
+        catchAndDiagnoseFailure {
+            composeRule.waitUntil(timeoutMillis = 10_000) {
+                composeRule.onAllNodesWithText(text, substring = substring).fetchSemanticsNodes().isNotEmpty()
+            }
         }
     }
 
@@ -1219,8 +1228,10 @@ abstract class MainActivityUiTestFixtures {
      * @param substring Whether substring matching should be used.
      */
     protected fun waitForNoText(text: String, substring: Boolean = false) {
-        composeRule.waitUntil(timeoutMillis = 10_000) {
-            composeRule.onAllNodesWithText(text, substring = substring).fetchSemanticsNodes().isEmpty()
+        catchAndDiagnoseFailure {
+            composeRule.waitUntil(timeoutMillis = 10_000) {
+                composeRule.onAllNodesWithText(text, substring = substring).fetchSemanticsNodes().isEmpty()
+            }
         }
     }
 
@@ -1230,8 +1241,10 @@ abstract class MainActivityUiTestFixtures {
      * @param testTag The test tag to wait for.
      */
     protected fun waitForTag(testTag: String) {
-        composeRule.waitUntil(timeoutMillis = 10_000) {
-            composeRule.onAllNodesWithTag(testTag).fetchSemanticsNodes().isNotEmpty()
+        catchAndDiagnoseFailure {
+            composeRule.waitUntil(timeoutMillis = 10_000) {
+                composeRule.onAllNodesWithTag(testTag).fetchSemanticsNodes().isNotEmpty()
+            }
         }
     }
 
@@ -1276,5 +1289,35 @@ abstract class MainActivityUiTestFixtures {
             useHardCap = capType == CapType.HARD,
             nominalHardCapMinutes = capMinutes,
         )
+    }
+
+    /** Capture the live screen and UI tree when a wait fails, then rethrow the failure. */
+    protected fun catchAndDiagnoseFailure(action: () -> Unit) {
+        try {
+            action()
+        } catch (failure: Throwable) {
+            val instrumentation = InstrumentationRegistry.getInstrumentation()
+            val name = "wait-failure-${System.currentTimeMillis()}"
+            val directory = File(instrumentation.targetContext.getExternalFilesDir(null), "wait-failures")
+            // A capture failure must not hide the original wait failure.
+            runCatching {
+                directory.mkdirs()
+                val tree = composeRule.onAllNodes(isRoot(), useUnmergedTree = true)
+                    .printToString(maxDepth = Int.MAX_VALUE)
+                Log.e("UiTestFailure", tree)
+                File(directory, "$name.txt").writeText(failure.stackTraceToString() + "\n" + tree)
+            }.exceptionOrNull()?.let { failure.addSuppressed(it) }
+            runCatching {
+                val screenshot = instrumentation.uiAutomation.takeScreenshot()
+                try {
+                    File(directory, "$name.png").outputStream().use { stream ->
+                        screenshot.compress(Bitmap.CompressFormat.PNG, 100, stream)
+                    }
+                } finally {
+                    screenshot.recycle()
+                }
+            }.exceptionOrNull()?.let { failure.addSuppressed(it) }
+            throw failure
+        }
     }
 }

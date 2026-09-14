@@ -1,17 +1,18 @@
 package rmjarvis.ultiobserver
 
+import android.graphics.Bitmap
+import android.net.Uri
 import android.os.ParcelFileDescriptor
-import androidx.test.platform.app.InstrumentationRegistry
-import androidx.test.espresso.Espresso.pressBackUnconditionally
-
+import android.util.Log
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
-import java.io.File
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isEnabled
+import androidx.compose.ui.test.isRoot
+import androidx.compose.ui.test.junit4.ComposeTestRule
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
@@ -19,23 +20,26 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTextInput
-import android.net.Uri
+import androidx.compose.ui.test.printToString
+import androidx.test.espresso.Espresso.pressBackUnconditionally
+import androidx.test.platform.app.InstrumentationRegistry
 import com.google.android.gms.tasks.Tasks
 import com.google.android.gms.wearable.CapabilityClient
 import com.google.android.gms.wearable.CapabilityInfo
 import com.google.android.gms.wearable.DataClient
 import com.google.android.gms.wearable.DataEvent
 import com.google.android.gms.wearable.Wearable
+import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
-import rmjarvis.ultiobserver.wearprotocol.PHONE_STATE_CAPABILITY
-import rmjarvis.ultiobserver.wearprotocol.WEAR_STATE_PATH
-import org.junit.Assert.assertTrue
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import rmjarvis.ultiobserver.wearprotocol.PHONE_STATE_CAPABILITY
+import rmjarvis.ultiobserver.wearprotocol.WEAR_STATE_PATH
 
 /**
  * User narratives that control the authoritative phone game from the paired watch.
@@ -610,14 +614,18 @@ class TestWearPairedPhoneUi {
     }
 
     private fun waitForRecoveryStage(stage: String) {
-        composeRule.waitUntil(timeoutMillis = 60_000L) {
-            File(composeRule.activity.filesDir, "paired-recovery-$stage").exists()
+        catchAndDiagnoseFailure(composeRule) {
+            composeRule.waitUntil(timeoutMillis = 60_000L) {
+                File(composeRule.activity.filesDir, "paired-recovery-$stage").exists()
+            }
         }
     }
 
     private fun waitForConnectedGame() {
-        composeRule.waitUntil(timeoutMillis = PAIRED_TEST_TIMEOUT_MILLIS) {
-            composeRule.onAllNodes(hasText(ANIMAL) and isEnabled()).fetchSemanticsNodes().isNotEmpty()
+        catchAndDiagnoseFailure(composeRule) {
+            composeRule.waitUntil(timeoutMillis = PAIRED_TEST_TIMEOUT_MILLIS) {
+                composeRule.onAllNodes(hasText(ANIMAL) and isEnabled()).fetchSemanticsNodes().isNotEmpty()
+            }
         }
     }
 
@@ -645,41 +653,53 @@ class TestWearPairedPhoneUi {
     }
 
     private fun waitForText(text: String) {
-        composeRule.waitUntil(timeoutMillis = UI_ACTION_TIMEOUT_MILLIS) {
-            composeRule.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
+        catchAndDiagnoseFailure(composeRule) {
+            composeRule.waitUntil(timeoutMillis = UI_ACTION_TIMEOUT_MILLIS) {
+                composeRule.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
+            }
         }
     }
 
     private fun waitForNoText(text: String) {
-        composeRule.waitUntil(timeoutMillis = UI_ACTION_TIMEOUT_MILLIS) {
-            composeRule.onAllNodesWithText(text).fetchSemanticsNodes().isEmpty()
+        catchAndDiagnoseFailure(composeRule) {
+            composeRule.waitUntil(timeoutMillis = UI_ACTION_TIMEOUT_MILLIS) {
+                composeRule.onAllNodesWithText(text).fetchSemanticsNodes().isEmpty()
+            }
         }
     }
 
     private fun waitForPairedText(text: String) {
-        composeRule.waitUntil(timeoutMillis = PAIRED_TEST_TIMEOUT_MILLIS) {
-            composeRule.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
+        catchAndDiagnoseFailure(composeRule) {
+            composeRule.waitUntil(timeoutMillis = PAIRED_TEST_TIMEOUT_MILLIS) {
+                composeRule.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
+            }
         }
     }
 
     private fun waitForContentDescription(description: String) {
-        composeRule.waitUntil(timeoutMillis = UI_ACTION_TIMEOUT_MILLIS) {
-            composeRule.onAllNodesWithContentDescription(description)
-                .fetchSemanticsNodes().isNotEmpty()
+        catchAndDiagnoseFailure(composeRule) {
+            composeRule.waitUntil(timeoutMillis = UI_ACTION_TIMEOUT_MILLIS) {
+                composeRule.onAllNodesWithContentDescription(description)
+                    .fetchSemanticsNodes().isNotEmpty()
+            }
         }
     }
 
     private fun waitForPairedContentDescription(description: String) {
-        composeRule.waitUntil(timeoutMillis = PAIRED_TEST_TIMEOUT_MILLIS) {
-            composeRule.onAllNodesWithContentDescription(description)
-                .fetchSemanticsNodes().isNotEmpty()
+        catchAndDiagnoseFailure(composeRule) {
+            composeRule.waitUntil(timeoutMillis = PAIRED_TEST_TIMEOUT_MILLIS) {
+                composeRule.onAllNodesWithContentDescription(description)
+                    .fetchSemanticsNodes().isNotEmpty()
+            }
         }
     }
 
     private fun waitForNoContentDescription(description: String) {
-        composeRule.waitUntil(timeoutMillis = UI_ACTION_TIMEOUT_MILLIS) {
-            composeRule.onAllNodesWithContentDescription(description)
-                .fetchSemanticsNodes().isEmpty()
+        catchAndDiagnoseFailure(composeRule) {
+            composeRule.waitUntil(timeoutMillis = UI_ACTION_TIMEOUT_MILLIS) {
+                composeRule.onAllNodesWithContentDescription(description)
+                    .fetchSemanticsNodes().isEmpty()
+            }
         }
     }
 }
@@ -688,3 +708,33 @@ private const val UI_ACTION_TIMEOUT_MILLIS = 10_000L
 private const val PAIRED_TEST_TIMEOUT_MILLIS = 120_000L
 private const val ANIMAL = "Animal"
 private const val VISCOUS_COUPLING = "Viscous Coupling"
+
+/** Capture the live screen and UI tree when a wait fails, then rethrow the failure. */
+internal fun catchAndDiagnoseFailure(composeRule: ComposeTestRule, action: () -> Unit) {
+    try {
+        action()
+    } catch (failure: Throwable) {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val name = "wait-failure-${System.currentTimeMillis()}"
+        val directory = File(instrumentation.targetContext.getExternalFilesDir(null), "wait-failures")
+        // A capture failure must not hide the original wait failure.
+        runCatching {
+            directory.mkdirs()
+            val tree = composeRule.onAllNodes(isRoot(), useUnmergedTree = true)
+                .printToString(maxDepth = Int.MAX_VALUE)
+            Log.e("UiTestFailure", tree)
+            File(directory, "$name.txt").writeText(failure.stackTraceToString() + "\n" + tree)
+        }.exceptionOrNull()?.let { failure.addSuppressed(it) }
+        runCatching {
+            val screenshot = instrumentation.uiAutomation.takeScreenshot()
+            try {
+                File(directory, "$name.png").outputStream().use { stream ->
+                    screenshot.compress(Bitmap.CompressFormat.PNG, 100, stream)
+                }
+            } finally {
+                screenshot.recycle()
+            }
+        }.exceptionOrNull()?.let { failure.addSuppressed(it) }
+        throw failure
+    }
+}

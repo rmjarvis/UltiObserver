@@ -422,20 +422,26 @@ class TestWearPairedPhoneUi : MainActivityUiTestFixtures() {
     }
 
     private fun waitForRecoveryStage(stage: String) {
-        composeRule.waitUntil(timeoutMillis = 60_000L) {
-            File(composeRule.activity.filesDir, "paired-recovery-$stage").exists()
+        catchAndDiagnoseFailure {
+            composeRule.waitUntil(timeoutMillis = 60_000L) {
+                File(composeRule.activity.filesDir, "paired-recovery-$stage").exists()
+            }
         }
     }
 
     private fun waitForPairedCardEntry() {
-        composeRule.waitUntil(timeoutMillis = PAIRED_TEST_TIMEOUT_MILLIS) {
-            composeRule.activity.appState.state.value.activeCardEntry != null
+        catchAndDiagnoseFailure {
+            composeRule.waitUntil(timeoutMillis = PAIRED_TEST_TIMEOUT_MILLIS) {
+                composeRule.activity.appState.state.value.activeCardEntry != null
+            }
         }
     }
 
     private fun waitForGame(condition: (GameState) -> Boolean) {
-        composeRule.waitUntil(timeoutMillis = PAIRED_TEST_TIMEOUT_MILLIS) {
-            composeRule.activity.appState.currentGame?.let(condition) == true
+        catchAndDiagnoseFailure {
+            composeRule.waitUntil(timeoutMillis = PAIRED_TEST_TIMEOUT_MILLIS) {
+                composeRule.activity.appState.currentGame?.let(condition) == true
+            }
         }
     }
 
