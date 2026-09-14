@@ -284,8 +284,7 @@ def wait_until_phone_ready(
     )
     while time.monotonic() < deadline:
         if phone_process.poll() is not None:
-            output, _ = phone_process.communicate()
-            raise RuntimeError(f"Phone fixture stopped before readiness:\n{output}")
+            raise RuntimeError("Phone fixture stopped before readiness.")
         result = subprocess.run(
             [str(part) for part in command],
             cwd=root,
@@ -303,7 +302,8 @@ def assert_instrumentation_passed(side: str, output: str, returncode: int) -> No
     """Recognize both shell failures and JUnit failures in instrumentation output."""
 
     print(output, end="" if output.endswith("\n") else "\n", flush=True)
-    if returncode != 0 or "FAILURES!!!" in output or "INSTRUMENTATION_FAILED" in output:
+    if (returncode != 0 or "FAILURES!!!" in output or "INSTRUMENTATION_FAILED" in output
+            or "shortMsg=Process crashed" in output):
         raise RuntimeError(f"{side} instrumentation failed with exit code {returncode}.")
 
 
@@ -407,7 +407,13 @@ def run_narrative(
     except Exception:
         if phone_process.poll() is None:
             phone_process.terminate()
-            phone_process.communicate(timeout=5.0)
+        try:
+            phone_output, _ = phone_process.communicate(timeout=5.0)
+        except subprocess.TimeoutExpired:
+            phone_process.kill()
+            phone_output, _ = phone_process.communicate()
+        print("Phone instrumentation output on failure:", flush=True)
+        print(phone_output, flush=True)
         preserve_failed_coverage(
             adb,
             pair,
