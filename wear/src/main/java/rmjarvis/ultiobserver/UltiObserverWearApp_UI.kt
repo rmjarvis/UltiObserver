@@ -59,9 +59,12 @@ internal fun UltiObserverWearApp(
     LaunchedEffect(snapshot, connectionState) {
         navigation = navigation.receive(snapshot, connectionState)
     }
-    BackHandler(enabled = navigation.handlesBack) {
-        navigation = navigation.back()
-    }
+    BackHandler(
+        enabled = navigation.handlesBack,
+        onBack = {
+            navigation = navigation.back()
+        },
+    )
 
     val screen = navigation.screen(snapshot, connectionState)
     when (screen) {
@@ -101,24 +104,33 @@ internal fun UltiObserverWearApp(
                     },
                 )
             } else if (screen == WatchScreen.ACTION_PROMPT) {
+                // No else branch: all prompt types are covered
                 when (val actionPrompt = navigation.pendingActionPrompt!!) {
-                    is WearActionConfirmation -> ActionConfirmationScreen(
-                        confirmation = actionPrompt,
-                        onConfirmationChange = { navigation = navigation.copy(pendingActionPrompt = it) },
-                        onConfirm = { confirmedAction, onFinished ->
-                            onConfirmAction(confirmedAction) { applied ->
-                                navigation = navigation.finishConfirmation(applied)
-                                onFinished(applied)
-                            }
-                        },
-                        onCancel = {
-                            navigation = navigation.copy(pendingActionPrompt = null)
-                        },
-                    )
-                    is WearTeamActionPrompt.Notice -> ActionNoticeScreen(
-                        notice = actionPrompt,
-                        onDismiss = { navigation = navigation.copy(pendingActionPrompt = null) },
-                    )
+                    is WearActionConfirmation -> {
+                        ActionConfirmationScreen(
+                            confirmation = actionPrompt,
+                            onConfirmationChange = {
+                                navigation = navigation.copy(pendingActionPrompt = it)
+                            },
+                            onConfirm = { confirmedAction, onFinished ->
+                                onConfirmAction(confirmedAction) { applied ->
+                                    navigation = navigation.finishConfirmation(applied)
+                                    onFinished(applied)
+                                }
+                            },
+                            onCancel = {
+                                navigation = navigation.copy(pendingActionPrompt = null)
+                            },
+                        )
+                    }
+                    is WearTeamActionPrompt.Notice -> {
+                        ActionNoticeScreen(
+                            notice = actionPrompt,
+                            onDismiss = {
+                                navigation = navigation.copy(pendingActionPrompt = null)
+                            },
+                        )
+                    }
                 }
             } else {
                 ActiveGameScreen(
@@ -126,7 +138,9 @@ internal fun UltiObserverWearApp(
                     activeGame = activeGame,
                     phoneReachable = phoneReachable,
                     navigation = navigation,
-                    onNavigationChange = { navigation = it(navigation) },
+                    onNavigationChange = {
+                        navigation = it(navigation)
+                    },
                     onRetry = onRetry,
                     onGoal = onGoal,
                     onUndo = onUndo,
@@ -153,15 +167,16 @@ private fun ActiveGameScreen(
     onStartCardEntry: (TeamId, String, CardType, String, (Boolean) -> Unit) -> Unit,
 ) {
     var commandPending by remember { mutableStateOf(false) }
-    val currentPhoneEpochMillis by produceState(
-        initialValue = System.currentTimeMillis() + receivedState.phoneClockOffsetMillis,
+    val currentWatchEpochMillis by produceState(
+        initialValue = System.currentTimeMillis(),
         receivedState,
     ) {
         while (true) {
-            value = System.currentTimeMillis() + receivedState.phoneClockOffsetMillis
+            value = System.currentTimeMillis()
             delay(1_000L)
         }
     }
+    val currentPhoneEpochMillis = currentWatchEpochMillis + receivedState.phoneClockOffsetMillis
     val display = activeGame.toGameDisplay(
         currentPhoneEpochMillis = currentPhoneEpochMillis,
         connected = phoneReachable,
@@ -192,7 +207,8 @@ private fun ActiveGameScreen(
         } else {
             TeamId.TEAM_TWO
         }
-        val requestPrompt: (WearTeamAction) -> Unit = { action ->
+        val onRequestPrompt: (WearTeamAction) -> Unit
+        onRequestPrompt = { action ->
             commandPending = true
             onTeamAction(
                 selectedWearTeam,
@@ -218,7 +234,7 @@ private fun ActiveGameScreen(
                     onNavigationChange { it.copy(playerCard = playerCard.copy(jerseyNumber = jerseyNumber)) }
                 },
                 onRecord = {
-                    requestPrompt(playerCard)
+                    onRequestPrompt(playerCard)
                 },
                 onContinueOnPhone = {
                     commandPending = true
@@ -247,7 +263,7 @@ private fun ActiveGameScreen(
                     onNavigationChange { it.copy(playerCard = WearTeamAction.PlayerCard(CardType.RED, "")) }
                 },
                 onBlue = {
-                    requestPrompt(WearTeamAction.BlueCard)
+                    onRequestPrompt(WearTeamAction.BlueCard)
                 },
                 onCancel = {
                     onNavigationChange { it.back() }
@@ -267,19 +283,19 @@ private fun ActiveGameScreen(
                     }
                 },
                 onTimeViolation = {
-                    requestPrompt(WearTeamAction.TimeViolation)
+                    onRequestPrompt(WearTeamAction.TimeViolation)
                 },
                 onPullViolation = {
-                    requestPrompt(WearTeamAction.PullViolation)
+                    onRequestPrompt(WearTeamAction.PullViolation)
                 },
                 onCard = {
                     onNavigationChange { it.copy(cardChoiceStateToken = activeGame.stateToken) }
                 },
                 onTechnicalFoul = {
-                    requestPrompt(WearTeamAction.TechnicalFoul)
+                    onRequestPrompt(WearTeamAction.TechnicalFoul)
                 },
                 onTimeout = {
-                    requestPrompt(WearTeamAction.Timeout)
+                    onRequestPrompt(WearTeamAction.Timeout)
                 },
                 onCancel = {
                     onNavigationChange { it.back() }

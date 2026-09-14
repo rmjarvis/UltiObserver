@@ -349,9 +349,12 @@ internal fun PlayerCardEntryOptionsScreen(
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
-    BackHandler(enabled = enabled) {
-        onCancel()
-    }
+    BackHandler(
+        enabled = enabled,
+        onBack = {
+            onCancel()
+        },
+    )
     TeamScreenScaffold(display.team) {
         Box(
             modifier = Modifier
@@ -377,6 +380,7 @@ internal fun PlayerCardEntryOptionsScreen(
                     onDone = {
                         onJerseyNumberChange(draftJerseyNumber)
                         focusManager.clearFocus()
+                        // Defensive guard: Compose returns null when software keyboard control is unavailable.
                         keyboardController?.hide()
                     }
                 ),
@@ -434,6 +438,7 @@ internal fun PlayerCardEntryOptionsScreen(
                         onClick = {
                             draftJerseyNumber = jerseyNumber
                             focusRequester.requestFocus()
+                            // Defensive guard: Compose returns null when software keyboard control is unavailable.
                             keyboardController?.show()
                         },
                         modifier = Modifier

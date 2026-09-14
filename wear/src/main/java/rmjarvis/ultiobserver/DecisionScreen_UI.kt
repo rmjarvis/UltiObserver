@@ -54,20 +54,23 @@ internal fun DecisionScreen(
     onDecision: (String, Boolean, (Boolean) -> Unit) -> Unit,
 ) {
     var commandPending by remember(decision, stateToken) { mutableStateOf(false) }
-    val submitDecision: (Boolean) -> Unit = { accept ->
+    val onRespond: (Boolean) -> Unit
+    onRespond = { accept ->
         commandPending = true
         onDecision(stateToken, accept) {
             commandPending = false
         }
     }
 
-    BackHandler {
-        submitDecision(true)
-    }
+    BackHandler(
+        onBack = {
+            onRespond(true)
+        },
+    )
     LaunchedEffect(decision, stateToken, commandPending) {
         decision.confirmationDelayMillis(commandPending)?.let { delayMillis ->
             delay(delayMillis)
-            submitDecision(true)
+            onRespond(true)
         }
     }
 
@@ -75,8 +78,18 @@ internal fun DecisionScreen(
         prompt = decision,
         enabled = !commandPending,
         actions = listOf(
-            PromptActionSpec(decision.dismissLabel) { submitDecision(false) },
-            PromptActionSpec(decision.confirmLabel) { submitDecision(true) },
+            PromptActionSpec(
+                label = decision.dismissLabel,
+                onClick = {
+                    onRespond(false)
+                },
+            ),
+            PromptActionSpec(
+                label = decision.confirmLabel,
+                onClick = {
+                    onRespond(true)
+                },
+            ),
         ),
     )
 }
@@ -91,28 +104,34 @@ internal fun ActionConfirmationScreen(
 ) {
     val prompt = confirmation.prompt
     var commandPending by remember(prompt) { mutableStateOf(false) }
-    val submitConfirmation = {
+    val onSubmitConfirmation = {
         commandPending = true
         onConfirm(confirmation) {
             commandPending = false
         }
     }
-    val currentSubmitConfirmation by rememberUpdatedState(submitConfirmation)
+    val currentOnSubmitConfirmation by rememberUpdatedState(onSubmitConfirmation)
 
-    BackHandler(enabled = !commandPending) {
-        onCancel()
-    }
+    BackHandler(
+        enabled = !commandPending,
+        onBack = {
+            onCancel()
+        },
+    )
     LaunchedEffect(confirmation.stateToken, commandPending) {
         prompt.confirmationDelayMillis(commandPending)?.let { delayMillis ->
             delay(delayMillis)
-            currentSubmitConfirmation()
+            currentOnSubmitConfirmation()
         }
     }
 
     val alternativeAction = confirmation.alternativeConfirmation()?.let { alternative ->
-        PromptActionSpec(alternative.selectedViolation.alternativeActionLabel()) {
-            onConfirmationChange(alternative)
-        }
+        PromptActionSpec(
+            label = alternative.selectedViolation.alternativeActionLabel(),
+            onClick = {
+                onConfirmationChange(alternative)
+            },
+        )
     }
 
     PromptScreen(
@@ -120,7 +139,7 @@ internal fun ActionConfirmationScreen(
         enabled = !commandPending,
         actions = listOf(
             PromptActionSpec(prompt.dismissLabel, onCancel),
-            PromptActionSpec(prompt.confirmLabel, submitConfirmation),
+            PromptActionSpec(prompt.confirmLabel, onSubmitConfirmation),
         ),
         alternativeAction = alternativeAction,
     )
@@ -132,9 +151,11 @@ internal fun ActionNoticeScreen(
     notice: WearTeamActionPrompt.Notice,
     onDismiss: () -> Unit,
 ) {
-    BackHandler {
-        onDismiss()
-    }
+    BackHandler(
+        onBack = {
+            onDismiss()
+        },
+    )
     PromptScreen(
         prompt = notice.prompt,
         enabled = true,
@@ -154,9 +175,12 @@ internal fun ContinueOnPhoneScreen(
             commandPending = false
         }
     }
-    BackHandler(enabled = !commandPending) {
-        cancel()
-    }
+    BackHandler(
+        enabled = !commandPending,
+        onBack = {
+            cancel()
+        },
+    )
     UltiObserverTheme {
         AppScaffold(
             timeText = { AppTimeText() },

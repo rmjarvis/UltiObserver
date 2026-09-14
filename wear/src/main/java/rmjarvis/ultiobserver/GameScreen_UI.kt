@@ -412,7 +412,9 @@ private fun PullArrow(
     Canvas(
         modifier = Modifier
             .size(width = 31.dp, height = PullArrowHeight)
-            .semantics { contentDescription = description },
+            .semantics {
+                contentDescription = description
+            },
     ) {
         val travelsRight = direction == PullDirection.LEFT_TO_RIGHT
         val startX = if (travelsRight) 1.dp.toPx() else size.width - 1.dp.toPx()
@@ -458,7 +460,9 @@ private fun RatioBadge(badge: RatioBadgeDisplay) {
                 RoundedCornerShape(4.dp),
             )
             .padding(horizontal = 5.dp, vertical = 1.dp)
-            .semantics { contentDescription = "ABBA ratio ${badge.label}" },
+            .semantics {
+                contentDescription = "ABBA ratio ${badge.label}"
+            },
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -481,7 +485,9 @@ private fun UndoRegion(
         modifier = modifier
             .fillMaxWidth()
             .height(48.dp)
-            .semantics { contentDescription = description }
+            .semantics {
+                contentDescription = description
+            }
             .clickable(
                 role = Role.Button,
                 onClick = onUndo,
