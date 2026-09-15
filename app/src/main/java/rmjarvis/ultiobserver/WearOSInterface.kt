@@ -83,11 +83,12 @@ internal fun handleWearRequest(
                 snapshot.activeCardEntry == null &&
                 game.pendingGameDecision() == null &&
                 game.phase != GamePhase.GAME_OVER &&
-                game.wearCountdownAction(now) == request.action
+                request.action in game.wearCountdownActions(now)
             ) {
                 val updated = when (request.action) {
                     WearCountdownAction.START_MISCONDUCT -> game.startMisconductCountdown(now)
                     WearCountdownAction.RESTART_PULL -> game.restartPullCountdown(now)
+                    WearCountdownAction.START_POINT -> game.beginLivePoint(now)
                 }
                 applied = appState.updateCurrentGame(game, updated)
             }
@@ -541,7 +542,7 @@ internal fun buildWearStateSnapshot(
                     },
                 )
             },
-            countdownAction = game.wearCountdownAction(now),
+            countdownActions = game.wearCountdownActions(now),
             statusMessageTransitions = game.wearStatusMessageTransitions(now),
             teamOne = game.wearTeamSnapshot(TeamId.TEAM_ONE, now),
             teamTwo = game.wearTeamSnapshot(TeamId.TEAM_TWO, now),
@@ -573,12 +574,14 @@ internal fun buildWearStateSnapshot(
     )
 }
 
-/** Select the same replacement action used by the phone countdown row. */
-private fun GameState.wearCountdownAction(now: Long): WearCountdownAction? {
+/** Select the phone-authorized actions replacing the watch countdown. */
+private fun GameState.wearCountdownActions(now: Long): List<WearCountdownAction> {
     return when {
-        pendingMisconductCountdown -> WearCountdownAction.START_MISCONDUCT
-        hasExpiredPullActions(now) -> WearCountdownAction.RESTART_PULL
-        else -> null
+        pendingMisconductCountdown -> listOf(WearCountdownAction.START_MISCONDUCT)
+        hasExpiredPullActions(now) -> {
+            listOf(WearCountdownAction.RESTART_PULL, WearCountdownAction.START_POINT)
+        }
+        else -> emptyList()
     }
 }
 

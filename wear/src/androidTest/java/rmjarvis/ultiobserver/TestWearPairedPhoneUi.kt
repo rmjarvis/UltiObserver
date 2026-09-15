@@ -117,6 +117,16 @@ class TestWearPairedPhoneUi {
         waitForContentDescription("Undo Goal by Animal")
         composeRule.onNodeWithText("Restart countdown").assertIsDisplayed()
 
+        // Start play instead of restarting the countdown, then undo to recover both choices.
+        composeRule.onNodeWithText("Start point").assertIsDisplayed().performClick()
+        waitForContentDescription("Undo Start point")
+        composeRule.onNodeWithText("Start point").assertDoesNotExist()
+        composeRule.onNodeWithText("Restart countdown").assertDoesNotExist()
+        composeRule.onNodeWithText("Undo").performClick()
+        waitForContentDescription("Undo Goal by Animal")
+        composeRule.onNodeWithText("Start point").assertIsDisplayed()
+        composeRule.onNodeWithText("Restart countdown").assertIsDisplayed()
+
         // The watch can then undo that phone-recorded goal.
         composeRule.onNode(
             hasContentDescription("Undo Goal by Animal")

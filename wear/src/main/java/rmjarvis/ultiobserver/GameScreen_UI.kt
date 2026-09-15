@@ -75,7 +75,7 @@ internal data class RatioBadgeDisplay(
 internal data class GameDisplay(
     val officialTime: String,
     val capStatus: String?,
-    val countdownAction: WearCountdownAction?,
+    val countdownActions: List<WearCountdownAction>,
     val countdownLabel: String,
     val countdownValue: String?,
     val nextCue: String?,
@@ -224,22 +224,26 @@ private fun StatusRegion(
                     maxLines = 2,
                     textAlign = TextAlign.Center,
                 )
-            } else if (display.countdownAction != null) {
-                Box(
+            } else if (display.countdownActions.isNotEmpty()) {
+                Column(
                     modifier = Modifier.fillMaxWidth().weight(1f).padding(bottom = 4.dp),
-                    contentAlignment = Alignment.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically),
                 ) {
-                    CountdownActionButton(
-                        label = when (display.countdownAction) {
-                            WearCountdownAction.START_MISCONDUCT -> "Start misconduct\ncountdown"
-                            WearCountdownAction.RESTART_PULL -> display.countdownAction.label
-                        },
-                        enabled = countdownActionEnabled,
-                        onClick = {
-                            onCountdownAction(display.countdownAction)
-                        },
-                        modifier = Modifier.padding(horizontal = 8.dp),
-                    )
+                    display.countdownActions.forEach { action ->
+                        CountdownActionButton(
+                            label = when (action) {
+                                WearCountdownAction.START_MISCONDUCT -> "Start misconduct\ncountdown"
+                                WearCountdownAction.RESTART_PULL, WearCountdownAction.START_POINT ->
+                                    action.label
+                            },
+                            enabled = countdownActionEnabled,
+                            onClick = {
+                                onCountdownAction(action)
+                            },
+                            modifier = Modifier.padding(horizontal = 8.dp),
+                        )
+                    }
                 }
             } else if (display.statusMessage != null) {
                 Text(

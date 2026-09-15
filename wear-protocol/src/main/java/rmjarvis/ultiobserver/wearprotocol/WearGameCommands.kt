@@ -52,6 +52,7 @@ data class WearUndoRequest(
 enum class WearCountdownAction(val label: String) {
     START_MISCONDUCT("Start misconduct countdown"),
     RESTART_PULL("Restart countdown"),
+    START_POINT("Start point"),
 }
 
 /** Request the countdown action shown against the exact game state displayed by the watch. */

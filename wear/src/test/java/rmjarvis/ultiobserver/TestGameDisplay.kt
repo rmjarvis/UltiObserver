@@ -87,17 +87,21 @@ class TestGameDisplay {
     @Test
     fun countdownActions() {
         val game = navigationSnapshot().activeGame!!.copy(
-            countdownAction = WearCountdownAction.START_MISCONDUCT,
+            countdownActions = listOf(WearCountdownAction.START_MISCONDUCT),
             statusMessageTransitions = listOf(WearStatusMessageTransition(0L, "Half cap passed")),
         )
         val display = game.toGameDisplay(0L, true)
-        assertEquals(WearCountdownAction.START_MISCONDUCT, display.countdownAction)
+        assertEquals(listOf(WearCountdownAction.START_MISCONDUCT), display.countdownActions)
         assertNull(display.statusMessage)
         assertNull(display.countdownValue)
 
+        // Between points, both phone-selected choices retain their display order.
+        val choices = listOf(WearCountdownAction.RESTART_PULL, WearCountdownAction.START_POINT)
+        assertEquals(choices, game.copy(countdownActions = choices).toGameDisplay(0L, true).countdownActions)
+
         // The replacement snapshot restores ordinary status text once the action is gone.
-        val cleared = game.copy(countdownAction = null).toGameDisplay(0L, true)
-        assertNull(cleared.countdownAction)
+        val cleared = game.copy(countdownActions = emptyList()).toGameDisplay(0L, true)
+        assertTrue(cleared.countdownActions.isEmpty())
         assertEquals("Half cap passed", cleared.statusMessage)
     }
 

@@ -226,7 +226,7 @@ internal fun navigationSnapshot(): WearStateSnapshot {
         status = WearSnapshotStatus.ACTIVE_GAME,
         activeGame = WearActiveGameSnapshot(
             stateToken = "playing", actionsAvailable = true,
-            officialClockOffsetMillis = 0, officialTimeZoneId = "UTC", countdownAction = null, countdown = null,
+            officialClockOffsetMillis = 0, officialTimeZoneId = "UTC", countdownActions = emptyList(), countdown = null,
             teamOne = WearTeamSnapshot("Animal", 0, 0xFFFFFFFF, 0xFF000000, actions),
             teamTwo = WearTeamSnapshot("Viscous Coupling", 0, 0xFF000000, 0xFFFFFFFF, actions),
             pullDirection = WearSnapshotPullDirection.LEFT_TO_RIGHT, ratio = null,

@@ -256,7 +256,7 @@ class TestWatchStateUi {
                     actionsAvailable = true,
                     officialClockOffsetMillis = 0,
                     officialTimeZoneId = "UTC",
-                    countdownAction = null,
+                    countdownActions = emptyList(),
                     countdown = null,
                     teamOne = WearTeamSnapshot("Home", 3, 0xFFFFFFFF, 0xFF000000, actions),
                     teamTwo = WearTeamSnapshot("Away", 2, 0xFF000000, 0xFFFFFFFF, actions),

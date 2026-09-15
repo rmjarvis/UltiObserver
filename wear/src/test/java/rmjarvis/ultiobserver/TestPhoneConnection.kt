@@ -662,7 +662,7 @@ private class PhoneSession : PhoneTransport {
         status = WearSnapshotStatus.ACTIVE_GAME,
         activeGame = WearActiveGameSnapshot(
             stateToken = "playing", actionsAvailable = true, officialClockOffsetMillis = 0,
-            officialTimeZoneId = "UTC", countdownAction = null, countdown = null,
+            officialTimeZoneId = "UTC", countdownActions = emptyList(), countdown = null,
             teamOne = WearTeamSnapshot("Animal", 0, 0, 0, actions),
             teamTwo = WearTeamSnapshot("Viscous Coupling", 0, 0, 0, actions),
             pullDirection = WearSnapshotPullDirection.LEFT_TO_RIGHT, ratio = null,
