@@ -43,6 +43,16 @@ internal class WearPhoneCoordinator(
         }
     }
 
+    /** Announce the current phone session when its activity starts or returns to the foreground. */
+    fun publishCurrentState() = synchronized(appState) {
+        val state = appState.state.value
+        if (state.settings.timingAlerts.watchConnectionMode == WatchConnectionMode.WEAR_OS) {
+            publish(WearStateUpdate(
+                state.toWearSnapshot(snapshotTagger, clock()), latestAcknowledgement,
+            ))
+        }
+    }
+
     /** Publish enabled startup state and return connection status with the phone time. */
     fun startup(requestId: String, now: Long): WearStartupResponse = synchronized(appState) {
         val state = appState.state.value

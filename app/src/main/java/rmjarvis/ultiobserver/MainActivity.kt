@@ -131,6 +131,7 @@ class MainActivity : ComponentActivity() {
     /// Begin observing physical orientation and the Android auto-rotate setting.
     override fun onStart() {
         super.onStart()
+        ultiObserverApplication.wearCoordinator.publishCurrentState()
         orientationEventListener.enable()
         displayOrientation = currentDisplayOrientation()
         displayManager.registerDisplayListener(displayListener, null)

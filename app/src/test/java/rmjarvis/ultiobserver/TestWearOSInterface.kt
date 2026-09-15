@@ -2083,6 +2083,29 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         assertEquals(later.snapshot, retry.snapshot)
         assertEquals("retry", retry.acknowledgement!!.requestId)
 
+        // After a phone process restart, opening the phone app announces its new session even
+        // before the watch sends a request. Resuming the game and scoring then publish normally.
+        val restartedState = activeWearState(settings)
+        restartedState.goHome()
+        val restartedCoordinator = coordinatorFor(restartedState)
+        restartedCoordinator.publishCurrentState()
+        val announced = publications.getValue(restartedState).single()
+        assertNull(announced.acknowledgement)
+        assertFalse(announced.snapshot.activeGame!!.actionsAvailable)
+        assertTrue(announced.snapshot.sessionId != startup.snapshot.sessionId)
+        restartedState.resumeCurrentGame()
+        val resumed = publications.getValue(restartedState).last()
+        assertTrue(resumed.snapshot.activeGame!!.actionsAvailable)
+        assertTrue(resumed.snapshot.sequenceNumber > announced.snapshot.sequenceNumber)
+        restartedState.recordGoal(restartedState.currentGame!!, TeamId.TEAM_ONE, now)
+        assertEquals(1, publications.getValue(restartedState).last().snapshot.activeGame!!.teamOne.score)
+
+        // Foreground refreshes retain a completed handshake's acknowledgement and snapshot order.
+        restartedCoordinator.startup("reconnected", now)
+        val reconnected = publications.getValue(restartedState).last()
+        restartedCoordinator.publishCurrentState()
+        assertEquals(reconnected, publications.getValue(restartedState).last())
+
         // Enabled but idle phones also publish snapshots; absence of a game is not disconnection.
         val idleState = AppState(NoOpAppStateStorage)
         idleState.updateSettings(settings)
@@ -2095,6 +2118,7 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         val disabledState = AppState(NoOpAppStateStorage)
         val disabledCoordinator = coordinatorFor(disabledState)
         assertFalse(disabledCoordinator.startup("disabled", now).enabled)
+        disabledCoordinator.publishCurrentState()
         assertTrue(publications[disabledState].isNullOrEmpty())
         disabledState.updateSettings(settings)
         assertEquals(1L, publications.getValue(disabledState).single().snapshot.sequenceNumber)
