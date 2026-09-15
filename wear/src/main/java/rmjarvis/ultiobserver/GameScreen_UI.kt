@@ -67,6 +67,14 @@ internal data class RatioBadgeDisplay(
     val contentColor: Color,
 )
 
+/** Phone-selected team and colored segments of the ratio-choice badge. */
+internal data class RatioChooserDisplay(
+    val team: TeamId,
+    val men: RatioBadgeDisplay,
+    val women: RatioBadgeDisplay,
+    val description: String,
+)
+
 /**
  * Display-only snapshot for the watch's active-game main screen.
  *
@@ -87,6 +95,7 @@ internal data class GameDisplay(
     val teamTwo: TeamDisplay,
     val pullDirection: PullDirection,
     val ratioBadge: RatioBadgeDisplay?,
+    val ratioChooser: RatioChooserDisplay?,
     val connected: Boolean,
     val actionsAvailable: Boolean,
     val gameOver: Boolean,
@@ -387,7 +396,7 @@ private fun TeamField(
         )
         if (!display.gameOver) {
             val centerStackHeight = PullArrowHeight + CenterStackSpacing +
-                if (display.ratioBadge == null) 0.dp else RatioBadgeHeight
+                if (display.ratioBadge == null && display.ratioChooser == null) 0.dp else RatioBadgeHeight
             val centerStackTopPadding =
                 (maxHeight - VisibleUndoHeight - centerStackHeight) / 2f
             PullAndRatio(
@@ -395,6 +404,23 @@ private fun TeamField(
                 topPadding = centerStackTopPadding,
                 modifier = Modifier.align(Alignment.TopCenter),
             )
+            display.ratioChooser?.let { chooser ->
+                Row(
+                    modifier = Modifier.fillMaxWidth()
+                        .padding(top = centerStackTopPadding + PullArrowHeight + CenterStackSpacing),
+                ) {
+                    Box(modifier = Modifier.weight(1f).padding(end = 4.dp)) {
+                        if (chooser.team == TeamId.TEAM_ONE) {
+                            RatioChooserBadge(chooser, Modifier.align(Alignment.CenterEnd))
+                        }
+                    }
+                    Box(modifier = Modifier.weight(1f).padding(start = 4.dp)) {
+                        if (chooser.team == TeamId.TEAM_TWO) {
+                            RatioChooserBadge(chooser, Modifier.align(Alignment.CenterStart))
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -556,6 +582,36 @@ private fun RatioBadge(badge: RatioBadgeDisplay) {
             fontWeight = FontWeight.Medium,
             maxLines = 1,
         )
+    }
+}
+
+/** Display the two configured ratio colors inside a single informational badge. */
+@Composable
+private fun RatioChooserBadge(badge: RatioChooserDisplay, modifier: Modifier) {
+    val shape = RoundedCornerShape(2.8.dp)
+    Row(
+        modifier = modifier.height(RatioBadgeHeight * 0.7f)
+            .clip(shape)
+            .border(1.dp, Color.White.copy(alpha = 0.7f), shape)
+            .semantics { contentDescription = badge.description },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        listOf(badge.men, badge.women).forEach { segment ->
+            Box(
+                modifier = Modifier.fillMaxHeight().background(segment.backgroundColor)
+                    .padding(horizontal = 2.1.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = segment.label,
+                    color = segment.contentColor,
+                    fontSize = 8.4.sp,
+                    lineHeight = 8.4.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                )
+            }
+        }
     }
 }
 

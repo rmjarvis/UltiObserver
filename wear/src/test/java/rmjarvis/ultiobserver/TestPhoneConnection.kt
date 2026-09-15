@@ -686,6 +686,7 @@ private class PhoneSession : PhoneTransport {
             teamOne = WearTeamSnapshot("Animal", 0, "Far end", 0, 0, actions),
             teamTwo = WearTeamSnapshot("Viscous Coupling", 0, "Near end", 0, 0, actions),
             pullDirection = WearSnapshotPullDirection.LEFT_TO_RIGHT, ratio = null,
+            ratioChooser = null,
             undoDescription = null, pendingDecision = null, phoneCardEntry = null,
         ),
         sessionId = "phone", sequenceNumber = 1,

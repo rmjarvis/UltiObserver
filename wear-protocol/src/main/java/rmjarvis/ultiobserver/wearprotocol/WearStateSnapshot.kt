@@ -95,6 +95,14 @@ data class WearRatioSnapshot(
     val contentArgb: Long,
 )
 
+/** Two colored label segments identifying the team that chooses the point's ratio. */
+@Serializable
+data class WearRatioChooserSnapshot(
+    val team: TeamId,
+    val men: WearRatioSnapshot,
+    val women: WearRatioSnapshot,
+)
+
 /** Phone-selected presentation matching the configured rule-guidance mode. */
 @Serializable
 enum class WearGuidancePresentation {
@@ -156,6 +164,7 @@ data class WearActiveGameSnapshot(
     val teamTwo: WearTeamSnapshot,
     val pullDirection: WearSnapshotPullDirection,
     val ratio: WearRatioSnapshot?,
+    val ratioChooser: WearRatioChooserSnapshot?,
     val undoDescription: String?,
     val pendingDecision: WearPromptSnapshot?,
     val phoneCardEntry: WearPhoneCardEntrySnapshot?,

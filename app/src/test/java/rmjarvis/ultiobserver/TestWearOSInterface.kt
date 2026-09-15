@@ -179,6 +179,7 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         assertTrue(defaultSnapshot.upcomingCaps.isEmpty())
         assertNotNull(defaultSnapshot.countdown)
         assertNull(defaultSnapshot.ratio)
+        assertNull(defaultSnapshot.ratioChooser)
         assertNull(defaultSnapshot.pendingDecision)
         assertNull(defaultSnapshot.undoDescription)
         assertTrue(defaultSnapshot.statusMessageTransitions.isEmpty())
@@ -312,6 +313,53 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         assertFalse(halftimeSnapshot.teamTwo.actions.timeViolationEnabled)
         assertFalse(halftimeSnapshot.teamTwo.actions.pullViolationEnabled)
         assertFalse(halftimeSnapshot.teamTwo.actions.timeoutEnabled)
+
+        // Offense-decides identifies the choosing team with both configured badge colors.
+        val choosingGame = defaultGame.copy(
+            division = GameDivision.MIXED,
+            rules = defaultGame.rules.copy(genderRatioRule = GenderRatioRule.OFFENSE_DECIDES),
+        )
+        val choosingSettings = settings.copy(
+            fourMenThreeWomenBadgeColorArgb = 0xFF000000,
+            fourWomenThreeMenBadgeColorArgb = 0xFFFFFFFF,
+        )
+        val choosing = buildWearStateSnapshot(choosingGame, choosingSettings, now).activeGame!!
+        assertNull(choosing.ratio)
+        assertEquals(TeamId.TEAM_TWO, choosing.ratioChooser!!.team)
+        assertEquals("M", choosing.ratioChooser!!.men.label)
+        assertEquals("W", choosing.ratioChooser!!.women.label)
+        assertEquals(0xFF000000, choosing.ratioChooser!!.men.backgroundArgb)
+        assertEquals(0xFFFFFFFF, choosing.ratioChooser!!.men.contentArgb)
+        assertEquals(0xFFFFFFFF, choosing.ratioChooser!!.women.backgroundArgb)
+        assertEquals(TeamColorChoice.WHITE.contentArgb, choosing.ratioChooser!!.women.contentArgb)
+
+        // Scoring changes the choosing team, and Undo restores it.
+        val choosingAfterGoal = choosingGame.recordGoal(TeamId.TEAM_TWO, now)
+        assertEquals(TeamId.TEAM_ONE,
+            buildWearStateSnapshot(choosingAfterGoal, choosingSettings, now).activeGame!!.ratioChooser!!.team)
+        assertEquals(choosing.ratioChooser,
+            buildWearStateSnapshot(choosingAfterGoal.undoLastAction(), choosingSettings, now)
+                .activeGame!!.ratioChooser)
+
+        // Gen-zone follows the selected end, including its configured halftime switch.
+        val genZone = choosingGame.copy(
+            firstHalfGenZone = FieldEnd.FAR,
+            rules = choosingGame.rules.copy(genderRatioRule = GenderRatioRule.GEN_ZONE,
+                switchGenZoneAtHalftime = true),
+        )
+        assertEquals(TeamId.TEAM_ONE,
+            buildWearStateSnapshot(genZone, settings, now).activeGame!!.ratioChooser!!.team)
+        assertEquals(TeamId.TEAM_TWO,
+            buildWearStateSnapshot(genZone.copy(halftimeTaken = true), settings, now)
+                .activeGame!!.ratioChooser!!.team)
+
+        // Fixed ratios and ABBA display their known ratio instead of a choosing-team badge.
+        for (rule in listOf(GenderRatioRule.ABBA, GenderRatioRule.FIXED_4M_3W, GenderRatioRule.FIXED_4W_3M)) {
+            val fixed = choosingGame.copy(rules = choosingGame.rules.copy(genderRatioRule = rule))
+            val fixedSnapshot = buildWearStateSnapshot(fixed, settings, now).activeGame!!
+            assertNotNull(fixedSnapshot.ratio)
+            assertNull(fixedSnapshot.ratioChooser)
+        }
 
         // An active mixed game carries exact phone colors, phone-style action labels, timing
         // deadlines, future cues, ratio settings, pull direction, and Undo availability.

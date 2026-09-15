@@ -263,6 +263,7 @@ class TestWatchStateUi {
                     teamTwo = WearTeamSnapshot("Away", 2, "Near end", 0xFF000000, 0xFFFFFFFF, actions),
                     pullDirection = WearSnapshotPullDirection.LEFT_TO_RIGHT,
                     ratio = null,
+                    ratioChooser = null,
                     undoDescription = "Undo Goal by Home",
                     pendingDecision = null,
                     phoneCardEntry = null,

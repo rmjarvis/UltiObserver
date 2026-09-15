@@ -58,6 +58,16 @@ internal fun WearActiveGameSnapshot.toGameDisplay(
                 contentColor = Color(badge.contentArgb),
             )
         },
+        ratioChooser = ratioChooser?.let { chooser ->
+            RatioChooserDisplay(
+                team = chooser.team,
+                men = RatioBadgeDisplay(chooser.men.label, Color(chooser.men.backgroundArgb),
+                    Color(chooser.men.contentArgb)),
+                women = RatioBadgeDisplay(chooser.women.label, Color(chooser.women.backgroundArgb),
+                    Color(chooser.women.contentArgb)),
+                description = "${if (chooser.team == TeamId.TEAM_ONE) teamOne.name else teamTwo.name} chooses ratio",
+            )
+        },
         connected = connected,
         actionsAvailable = actionsAvailable,
         gameOver = gameOver,

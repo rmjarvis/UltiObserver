@@ -22,6 +22,7 @@ import rmjarvis.ultiobserver.wearprotocol.WearProtocolCodec
 import rmjarvis.ultiobserver.wearprotocol.WearPhoneCardEntrySnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearPullViolationOption
 import rmjarvis.ultiobserver.wearprotocol.WearRatioSnapshot
+import rmjarvis.ultiobserver.wearprotocol.WearRatioChooserSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearRequestAction
 import rmjarvis.ultiobserver.wearprotocol.WearSnapshotPullDirection
 import rmjarvis.ultiobserver.wearprotocol.WearSnapshotStatus
@@ -579,6 +580,15 @@ internal fun buildWearStateSnapshot(
                     ),
                     backgroundArgb = backgroundArgb,
                     contentArgb = readableContentArgb(backgroundArgb),
+                )
+            },
+            ratioChooser = game.ratioChoosingTeam()?.let { team ->
+                val menColor = settings.genderRatioBadgeColorArgb(GenderRatio.FOUR_MEN_THREE_WOMEN)
+                val womenColor = settings.genderRatioBadgeColorArgb(GenderRatio.FOUR_WOMEN_THREE_MEN)
+                WearRatioChooserSnapshot(
+                    team = team,
+                    men = WearRatioSnapshot("M", menColor, readableContentArgb(menColor)),
+                    women = WearRatioSnapshot("W", womenColor, readableContentArgb(womenColor)),
                 )
             },
             undoDescription = game.undoEntry?.label,

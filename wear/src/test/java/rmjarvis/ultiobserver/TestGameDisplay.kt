@@ -22,6 +22,7 @@ class TestGameDisplay {
         assertTrue(display.actionsAvailable)
         assertFalse(display.gameOver)
         assertNull(display.ratioBadge)
+        assertNull(display.ratioChooser)
         assertNull(display.undoDescription)
         assertNull(display.countdownValue)
         assertEquals("", display.countdownLabel)
@@ -39,6 +40,32 @@ class TestGameDisplay {
         assertEquals("Undo Goal by Animal", updated.undoDescription)
         assertFalse(updated.connected)
         assertFalse(updated.actionsAvailable)
+    }
+
+    /** Preserve the phone's chosen team, text, and both colors in the split badge. */
+    @Test
+    fun ratioChooser() {
+        val game = navigationSnapshot().activeGame!!
+        val chooser = WearRatioChooserSnapshot(
+            TeamId.TEAM_ONE,
+            WearRatioSnapshot("M", 0xFF000000, 0xFFFFFFFF),
+            WearRatioSnapshot("W", 0xFFFFFFFF, 0xFF000000),
+        )
+        val display = game.copy(ratioChooser = chooser).toGameDisplay(0L, true).ratioChooser!!
+        assertEquals(TeamId.TEAM_ONE, display.team)
+        assertEquals("M", display.men.label)
+        assertEquals("W", display.women.label)
+        assertEquals(androidx.compose.ui.graphics.Color.Black, display.men.backgroundColor)
+        assertEquals(androidx.compose.ui.graphics.Color.White, display.men.contentColor)
+        assertEquals(androidx.compose.ui.graphics.Color.White, display.women.backgroundColor)
+        assertEquals(androidx.compose.ui.graphics.Color.Black, display.women.contentColor)
+        assertEquals("Animal chooses ratio", display.description)
+
+        // The other team uses the same badge colors and its own accessible description.
+        val other = game.copy(ratioChooser = chooser.copy(team = TeamId.TEAM_TWO))
+            .toGameDisplay(0L, true).ratioChooser!!
+        assertEquals(TeamId.TEAM_TWO, other.team)
+        assertEquals("Viscous Coupling chooses ratio", other.description)
     }
 
     /** Advance caps, countdowns, and cues while respecting paused and completed games. */
