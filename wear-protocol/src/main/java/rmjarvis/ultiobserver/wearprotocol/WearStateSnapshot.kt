@@ -128,6 +128,16 @@ data class WearPhoneCardEntrySnapshot(
     val jerseyNumber: String,
 )
 
+/** One adjustment row followed by an optional point-action button in the watch timing panel. */
+@Serializable
+data class WearTimingControlsSnapshot(
+    val adjustments: List<WearCountdownAction>,
+    val pointAction: WearCountdownAction?,
+) {
+    /** Return every action available in the timing panel, in display order. */
+    fun all(): List<WearCountdownAction> = adjustments + listOfNotNull(pointAction)
+}
+
 /** Complete active-game display state rendered by the watch. */
 @Serializable
 data class WearActiveGameSnapshot(
@@ -139,6 +149,7 @@ data class WearActiveGameSnapshot(
     val upcomingCaps: List<WearCapSnapshot> = emptyList(),
     val countdown: WearCountdownSnapshot?,
     val countdownActions: List<WearCountdownAction>,
+    val timingControls: WearTimingControlsSnapshot?,
     val statusMessageTransitions: List<WearStatusMessageTransition> = emptyList(),
     val teamOne: WearTeamSnapshot,
     val teamTwo: WearTeamSnapshot,

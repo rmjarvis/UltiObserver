@@ -13,6 +13,27 @@ class TestNavigation {
         assertEquals(GameSurface.SCORE, navigation.gameScreen("playing"))
         assertFalse(navigation.handlesBack)
 
+        // Timing adjustments stay open across countdown updates and close when play resumes.
+        val snapshot = navigationSnapshot()
+        val timedGame = snapshot.activeGame!!.copy(
+            countdown = WearCountdownSnapshot("Pull in", 100_000L, null, emptyList()),
+            timingControls = WearTimingControlsSnapshot(
+                listOf(WearCountdownAction.PLUS_FIVE), WearCountdownAction.START_POINT,
+            ),
+        )
+        navigation = navigation.copy(timingControlsOpen = true)
+            .receive(snapshot.copy(activeGame = timedGame), ConnectionState.CONNECTED)
+        assertTrue(navigation.handlesBack)
+        assertTrue(navigation.timingControlsOpen)
+        assertEquals(NavigationState(), navigation.back())
+        navigation = navigation.receive(snapshot.copy(activeGame = timedGame.copy(
+            stateToken = "adjusted", countdown = timedGame.countdown!!.copy(targetEpochMillis = 105_000L),
+        )), ConnectionState.CONNECTED)
+        assertTrue(navigation.timingControlsOpen)
+        assertFalse(navigation.receive(snapshot, ConnectionState.CONNECTED).timingControlsOpen)
+        assertFalse(navigation.receive(snapshot, ConnectionState.DISCONNECTED).timingControlsOpen)
+        navigation = navigation.back()
+
         // Opening a team enables local Back; opening cards adds one level to that hierarchy.
         navigation = navigation.copy(selectedTeam = 1)
         assertEquals(GameSurface.TEAM_ACTIONS, navigation.gameScreen("playing"))
@@ -55,6 +76,16 @@ class TestNavigation {
         assertEquals(card, rejected.playerCard)
         assertEquals(2, rejected.selectedTeam)
         assertEquals("playing", rejected.cardChoiceStateToken)
+
+        // Confirming a water break returns to the scores; rejection keeps timing controls open.
+        val waterBreak = NavigationState(
+            timingControlsOpen = true,
+            pendingActionPrompt = WearActionConfirmation.WaterBreak(
+                "playing", timeoutConfirmation().prompt,
+            ),
+        )
+        assertEquals(NavigationState(), waterBreak.finishConfirmation(true))
+        assertTrue(waterBreak.finishConfirmation(false).timingControlsOpen)
 
         // Goal and handoff results make different transitions: a goal returns to the score,
         // whereas a handoff clears number entry while awaiting the phone's entry snapshot.
@@ -226,7 +257,11 @@ internal fun navigationSnapshot(): WearStateSnapshot {
         status = WearSnapshotStatus.ACTIVE_GAME,
         activeGame = WearActiveGameSnapshot(
             stateToken = "playing", actionsAvailable = true,
-            officialClockOffsetMillis = 0, officialTimeZoneId = "UTC", countdownActions = emptyList(), countdown = null,
+            officialClockOffsetMillis = 0,
+            officialTimeZoneId = "UTC",
+            countdownActions = emptyList(),
+            timingControls = null,
+            countdown = null,
             teamOne = WearTeamSnapshot("Animal", 0, 0xFFFFFFFF, 0xFF000000, actions),
             teamTwo = WearTeamSnapshot("Viscous Coupling", 0, 0xFF000000, 0xFFFFFFFF, actions),
             pullDirection = WearSnapshotPullDirection.LEFT_TO_RIGHT, ratio = null,

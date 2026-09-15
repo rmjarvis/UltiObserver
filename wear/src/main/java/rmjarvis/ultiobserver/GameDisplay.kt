@@ -35,13 +35,15 @@ internal fun WearActiveGameSnapshot.toGameDisplay(
             "${cap.label} in ${formatDurationMillis(remainingMillis)}"
         },
         countdownActions = countdownActions,
+        timingControls = timingControls,
         countdownLabel = countdown?.label.orEmpty(),
         countdownValue = if (gameOver) {
             null
         } else {
             countdownRemainingMillis?.let(::formatDurationMillis)
         },
-        nextCue = if (gameOver) null else nextCue?.let { cue -> "Next: ${cue.message}" },
+        nextCue = if (gameOver) null else if (countdown?.pausedAtEpochMillis != null) "Paused"
+            else nextCue?.let { cue -> "Next: ${cue.message}" },
         statusMessage = statusMessage.takeIf { countdown == null && countdownActions.isEmpty() },
         teamOne = teamOne.toTeamDisplay(),
         teamTwo = teamTwo.toTeamDisplay(),

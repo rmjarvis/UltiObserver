@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.util.Log
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -67,6 +68,46 @@ class TestWearPairedPhoneUi {
         ).assertIsDisplayed()
         composeRule.onNode(hasContentDescription("ABBA ratio M2")).assertIsDisplayed()
         assertEquals(2, composeRule.onAllNodesWithText("0").fetchSemanticsNodes().size)
+
+        // Open timing controls, pause the clock, and adjust it in both directions.
+        composeRule.onNode(hasContentDescription("Countdown controls")).performClick()
+        waitForText("Start point")
+        composeRule.onNode(hasContentDescription("Pause")).performClick()
+        waitForText("Paused")
+        waitForContentDescription("Resume")
+        val timerText = composeRule.onNode(hasContentDescription("Countdown controls"))
+            .fetchSemanticsNode().config[SemanticsProperties.Text]
+            .map { it.text }.first { it.matches(Regex("[0-9]+:[0-9]{2}")) }
+        val timerParts = timerText.split(":").map(String::toInt)
+        val seconds = timerParts[0] * 60 + timerParts[1]
+        composeRule.onNode(hasContentDescription("+5")).performClick()
+        waitForText("%d:%02d".format((seconds + 5) / 60, (seconds + 5) % 60))
+        composeRule.onNode(hasContentDescription("−5")).performClick()
+        waitForText(timerText)
+        composeRule.onNode(hasContentDescription("Resume")).performClick()
+        waitForContentDescription("Pause")
+        dismissNotice("Back")
+        waitForText(ANIMAL)
+
+        // Cancelling a water break returns to timing controls; confirming returns to the scores.
+        composeRule.onNode(hasContentDescription("Countdown controls")).performClick()
+        composeRule.onNode(hasContentDescription("Water break")).performClick()
+        waitForText("OK")
+        dismissNotice("Cancel")
+        waitForText("Start point")
+        composeRule.onNode(hasContentDescription("Water break")).performClick()
+        waitForText("OK")
+        composeRule.onNodeWithText("OK").performClick()
+        waitForText(ANIMAL)
+        composeRule.onNodeWithText("Start point").assertDoesNotExist()
+
+        // Reopen timing controls to start play after the water break.
+        composeRule.onNode(hasContentDescription("Countdown controls")).performClick()
+        waitForText("Start point")
+        composeRule.onNodeWithText("Start point").performClick()
+        waitForContentDescription("Undo Start point")
+        composeRule.onNodeWithText("Start point").assertDoesNotExist()
+        composeRule.onNodeWithText(ANIMAL).assertIsDisplayed()
 
         // Opening a team's actions does not commit anything. Cancel returns to the same score.
         composeRule.onNodeWithText(VISCOUS_COUPLING).performClick()
@@ -206,6 +247,16 @@ class TestWearPairedPhoneUi {
         waitForText("OK")
         composeRule.onNodeWithText("OK").performClick()
         waitForContentDescription("Undo Timeout by Viscous Coupling")
+
+        // The timing panel mirrors Offense is set, then Continue point, from the phone.
+        composeRule.onNode(hasContentDescription("Countdown controls")).performClick()
+        waitForText("Offense is set")
+        composeRule.onNodeWithText("Offense is set").performClick()
+        waitForText("Continue point")
+        composeRule.onNodeWithText("Offense is set").assertDoesNotExist()
+        composeRule.onNodeWithText("Continue point").performClick()
+        waitForText(ANIMAL)
+        composeRule.onNodeWithText("Continue point").assertDoesNotExist()
 
         // Technical foul on Animal
         composeRule.onNodeWithText(ANIMAL).performClick()

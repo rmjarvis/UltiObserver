@@ -292,14 +292,14 @@ internal class PhoneConnectionController(
     fun countdownAction(
         stateToken: String,
         action: WearCountdownAction,
-        onFinished: (Boolean) -> Unit,
+        onFinished: (Boolean, WearTeamActionPrompt?) -> Unit,
     ) {
         val request = WearCountdownActionRequest(stateToken, action)
         sendGameAction(
             action = WearRequestAction.COUNTDOWN,
             stateToken = stateToken,
             request = WearProtocolCodec.encode(WearCountdownActionRequest.serializer(), request),
-            onFinished = { response -> onFinished(response?.applied == true) },
+            onFinished = { response -> onFinished(response?.applied == true, response?.nextPrompt) },
         )
     }
 

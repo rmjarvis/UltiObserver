@@ -1,5 +1,19 @@
 package rmjarvis.ultiobserver
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.WaterDrop
+import androidx.wear.compose.material3.Icon
+import rmjarvis.ultiobserver.wearprotocol.WearCountdownAction
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -7,7 +21,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -56,7 +69,6 @@ internal fun CountdownActionButton(
     Text(
         text = label,
         modifier = modifier
-            .alpha(if (enabled) 1f else 0.55f)
             .clip(shape)
             .background(Color(0xFFFFFDF8))
             .border(1.dp, contentColor, shape)
@@ -73,4 +85,42 @@ internal fun CountdownActionButton(
         maxLines = 2,
         textAlign = TextAlign.Center,
     )
+}
+
+/** Compact timing control using the same pause, play, and water-drop icons as the phone. */
+@Composable
+internal fun TimingAdjustmentButton(
+    action: WearCountdownAction,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val shape = RoundedCornerShape(10.dp)
+    val contentColor = Color(0xFF1F1A17)
+    val lineHeight = with(LocalDensity.current) { 14.sp.toDp() }
+    Box(
+        modifier = Modifier.width(34.dp).height(lineHeight + 8.dp)
+            .clip(shape)
+            .background(Color(0xFFFFFDF8))
+            .border(1.dp, contentColor, shape)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = action.label },
+        contentAlignment = Alignment.Center,
+    ) {
+        val icon = when (action) {
+            WearCountdownAction.PAUSE -> Icons.Filled.Pause
+            WearCountdownAction.RESUME -> Icons.Filled.PlayArrow
+            WearCountdownAction.WATER_BREAK -> Icons.Filled.WaterDrop
+            else -> null
+        }
+        if (icon == null) {
+            Text(action.label, color = contentColor, fontSize = 12.sp, lineHeight = 14.sp)
+        } else {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(lineHeight),
+                tint = if (action == WearCountdownAction.WATER_BREAK) Color(0xFF1976D2) else contentColor,
+            )
+        }
+    }
 }

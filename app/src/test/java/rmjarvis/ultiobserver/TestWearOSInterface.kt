@@ -1037,7 +1037,7 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         val appState = activeWearState(settings, misconduct)
         val before = buildWearStateSnapshot(misconduct, settings, now).activeGame!!
         assertEquals(listOf(WearCountdownAction.START_MISCONDUCT), before.countdownActions)
-        assertEquals("Start misconduct countdown", before.countdownActions.single().label)
+        assertEquals("Start misconduct\ncountdown", before.countdownActions.single().label)
         assertNull(before.countdown)
         val request = WearCountdownActionRequest(before.stateToken, before.countdownActions.single())
         val encoded = WearProtocolCodec.encode(WearCountdownActionRequest.serializer(), request)
@@ -1051,6 +1051,79 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         // A delayed repeat cannot restart a countdown that has already begun.
         assertFalse(requestResponse(appState, WearRequestAction.COUNTDOWN, encoded, now + 8_000L).applied)
         assertEquals(now + 35_000L, appState.currentGame!!.countdown!!.targetEpoch)
+
+        // Live misconduct timing supports repeated adjustments, pause/resume, and continuing play.
+        val timingGame = appState.currentGame!!
+        val controls = started.snapshot.activeGame!!.timingControls!!
+        assertEquals(listOf(WearCountdownAction.PAUSE, WearCountdownAction.MINUS_FIVE,
+            WearCountdownAction.PLUS_FIVE), controls.adjustments)
+        assertEquals(WearCountdownAction.CONTINUE_POINT, controls.pointAction)
+        val plusFive = WearProtocolCodec.encode(WearCountdownActionRequest.serializer(),
+            WearCountdownActionRequest(wearStateToken(timingGame), WearCountdownAction.PLUS_FIVE))
+        assertTrue(requestResponse(appState, WearRequestAction.COUNTDOWN, plusFive, now + 8_000L).applied)
+        assertEquals(timingGame.addTimeToCountdown(5), appState.currentGame)
+        assertFalse(requestResponse(appState, WearRequestAction.COUNTDOWN, plusFive, now + 8_000L).applied)
+        val minusFive = WearProtocolCodec.encode(WearCountdownActionRequest.serializer(),
+            WearCountdownActionRequest(wearStateToken(appState.currentGame!!), WearCountdownAction.MINUS_FIVE))
+        assertTrue(requestResponse(appState, WearRequestAction.COUNTDOWN, minusFive, now + 8_000L).applied)
+        assertEquals(timingGame.countdown, appState.currentGame!!.countdown)
+
+        // Pause changes the offered icon to Resume and preserves the remaining time on resumption.
+        val beforePause = appState.currentGame!!
+        val pause = WearProtocolCodec.encode(WearCountdownActionRequest.serializer(),
+            WearCountdownActionRequest(wearStateToken(beforePause), WearCountdownAction.PAUSE))
+        val paused = requestResponse(appState, WearRequestAction.COUNTDOWN, pause, now + 10_000L)
+        assertTrue(paused.applied)
+        assertEquals(beforePause.toggleCountdownPaused(now + 10_000L), appState.currentGame)
+        assertTrue(WearCountdownAction.RESUME in paused.snapshot.activeGame!!.timingControls!!.adjustments)
+        assertFalse(WearCountdownAction.PAUSE in paused.snapshot.activeGame!!.timingControls!!.adjustments)
+        val resume = WearProtocolCodec.encode(WearCountdownActionRequest.serializer(),
+            WearCountdownActionRequest(wearStateToken(appState.currentGame!!), WearCountdownAction.RESUME))
+        assertTrue(requestResponse(appState, WearRequestAction.COUNTDOWN, resume, now + 15_000L).applied)
+        assertEquals(timingGame.countdown!!.targetEpoch + 5_000L, appState.currentGame!!.countdown!!.targetEpoch)
+
+        // Enabling explicit defense timing replaces Continue point with Offense is set.
+        val defenseSettings = settings.copy(showDefenseCountdowns = true)
+        val offenseState = activeWearState(defenseSettings, appState.currentGame!!)
+        val offenseSnapshot = buildWearStateSnapshot(offenseState.currentGame!!, defenseSettings, now + 15_000L)
+        assertEquals(WearCountdownAction.OFFENSE_SET, offenseSnapshot.activeGame!!.timingControls!!.pointAction)
+        val offenseGame = offenseState.currentGame!!
+        val offenseSet = WearProtocolCodec.encode(WearCountdownActionRequest.serializer(),
+            WearCountdownActionRequest(wearStateToken(offenseGame), WearCountdownAction.OFFENSE_SET))
+        val defense = requestResponse(offenseState, WearRequestAction.COUNTDOWN, offenseSet, now + 15_000L)
+        assertTrue(defense.applied)
+        assertEquals(offenseGame.reportOffenseSet(now + 15_000L), offenseState.currentGame)
+        assertEquals(WearCountdownAction.CONTINUE_POINT, defense.snapshot.activeGame!!.timingControls!!.pointAction)
+        val continuePoint = WearProtocolCodec.encode(WearCountdownActionRequest.serializer(),
+            WearCountdownActionRequest(wearStateToken(offenseState.currentGame!!), WearCountdownAction.CONTINUE_POINT))
+        val continued = requestResponse(offenseState, WearRequestAction.COUNTDOWN, continuePoint, now + 16_000L)
+        assertTrue(continued.applied)
+        assertNull(offenseState.currentGame!!.countdown)
+        assertNull(continued.snapshot.activeGame!!.timingControls)
+
+        // Water breaks use the same prompt in every guidance mode and require a current token.
+        val waterGame = standardLiveGameState(rules = GameRules().withHeatLevel(HeatLevel.MANUAL))
+            .restartPullCountdown(now)
+        for (guidanceMode in RuleGuidanceMode.entries) {
+            val waterSettings = settings.copy(ruleGuidanceMode = guidanceMode)
+            val waterState = activeWearState(waterSettings, waterGame)
+            val waterSnapshot = buildWearStateSnapshot(waterGame, waterSettings, now).activeGame!!
+            assertEquals(listOf(WearCountdownAction.WATER_BREAK, WearCountdownAction.PAUSE,
+                WearCountdownAction.MINUS_FIVE, WearCountdownAction.PLUS_FIVE),
+                waterSnapshot.timingControls!!.adjustments)
+            assertEquals(WearCountdownAction.START_POINT, waterSnapshot.timingControls!!.pointAction)
+            val waterRequest = WearProtocolCodec.encode(WearCountdownActionRequest.serializer(),
+                WearCountdownActionRequest(waterSnapshot.stateToken, WearCountdownAction.WATER_BREAK))
+            val offered = requestResponse(waterState, WearRequestAction.COUNTDOWN, waterRequest, now)
+            val confirmation = offered.nextPrompt as WearActionConfirmation.WaterBreak
+            assertEquals(GamePrompt.ManualWaterBreak(waterGame).wearSnapshot(guidanceMode), confirmation.prompt)
+            assertEquals(waterGame, waterState.currentGame)
+            val confirm = WearProtocolCodec.encode(WearConfirmActionRequest.serializer(),
+                WearConfirmActionRequest(confirmation))
+            assertTrue(requestResponse(waterState, WearRequestAction.CONFIRM_ACTION, confirm, now).applied)
+            assertEquals(waterGame.applyWaterBreak(now), waterState.currentGame)
+            assertFalse(requestResponse(waterState, WearRequestAction.CONFIRM_ACTION, confirm, now).applied)
+        }
 
         // An expired pull offers Restart countdown and keeps the usual undo behavior.
         val expired = standardLiveGameState().copy(countdown = null)

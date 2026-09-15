@@ -42,6 +42,7 @@ import androidx.wear.compose.material3.LocalTextStyle
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.TimeSource
 import rmjarvis.ultiobserver.wearprotocol.WearCountdownAction
+import rmjarvis.ultiobserver.wearprotocol.WearTimingControlsSnapshot
 import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 
 /** One team as presented on the fixed left or right side of the watch. */
@@ -76,6 +77,7 @@ internal data class GameDisplay(
     val officialTime: String,
     val capStatus: String?,
     val countdownActions: List<WearCountdownAction>,
+    val timingControls: WearTimingControlsSnapshot?,
     val countdownLabel: String,
     val countdownValue: String?,
     val nextCue: String?,
@@ -102,6 +104,9 @@ internal fun GameScreen(
     display: GameDisplay,
     onTeamOne: () -> Unit,
     onTeamTwo: () -> Unit,
+    timingControlsOpen: Boolean,
+    onToggleTimingControls: () -> Unit,
+    onCloseTimingControls: () -> Unit,
     countdownActionEnabled: Boolean,
     onCountdownAction: (WearCountdownAction) -> Unit,
     onRetry: () -> Unit,
@@ -122,6 +127,9 @@ internal fun GameScreen(
                 display = display,
                 onTeamOne = onTeamOne,
                 onTeamTwo = onTeamTwo,
+                timingControlsOpen = timingControlsOpen,
+                onToggleTimingControls = onToggleTimingControls,
+                onCloseTimingControls = onCloseTimingControls,
                 countdownActionEnabled = countdownActionEnabled,
                 onCountdownAction = onCountdownAction,
                 onRetry = onRetry,
@@ -136,6 +144,9 @@ private fun GameContent(
     display: GameDisplay,
     onTeamOne: () -> Unit,
     onTeamTwo: () -> Unit,
+    timingControlsOpen: Boolean,
+    onToggleTimingControls: () -> Unit,
+    onCloseTimingControls: () -> Unit,
     countdownActionEnabled: Boolean,
     onCountdownAction: (WearCountdownAction) -> Unit,
     onRetry: () -> Unit,
@@ -155,26 +166,37 @@ private fun GameContent(
             countdownActionEnabled = countdownActionEnabled,
             onCountdownAction = onCountdownAction,
             onRetry = onRetry,
+            onToggleTimingControls = onToggleTimingControls,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(statusHeight)
                 .align(Alignment.TopCenter),
         )
-        TeamField(
-            display = display,
-            onTeamOne = onTeamOne,
-            onTeamTwo = onTeamTwo,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(fieldHeight)
-                .align(Alignment.BottomCenter),
-        )
-        if (display.connected && display.actionsAvailable && display.undoDescription != null) {
-            UndoRegion(
-                description = display.undoDescription,
-                onUndo = onUndo,
-                modifier = Modifier.align(Alignment.BottomCenter),
+        if (timingControlsOpen && display.timingControls != null) {
+            TimingControls(
+                controls = display.timingControls,
+                enabled = countdownActionEnabled && display.actionsAvailable && display.connected,
+                onAction = onCountdownAction,
+                onBack = onCloseTimingControls,
+                modifier = Modifier.fillMaxWidth().height(fieldHeight).align(Alignment.BottomCenter),
             )
+        } else {
+            TeamField(
+                display = display,
+                onTeamOne = onTeamOne,
+                onTeamTwo = onTeamTwo,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(fieldHeight)
+                    .align(Alignment.BottomCenter),
+            )
+            if (display.connected && display.actionsAvailable && display.undoDescription != null) {
+                UndoRegion(
+                    description = display.undoDescription,
+                    onUndo = onUndo,
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                )
+            }
         }
     }
 }
@@ -185,6 +207,7 @@ private fun StatusRegion(
     countdownActionEnabled: Boolean,
     onCountdownAction: (WearCountdownAction) -> Unit,
     onRetry: () -> Unit,
+    onToggleTimingControls: () -> Unit,
     modifier: Modifier,
 ) {
     BoxWithConstraints(modifier = modifier) {
@@ -232,11 +255,7 @@ private fun StatusRegion(
                 ) {
                     display.countdownActions.forEach { action ->
                         CountdownActionButton(
-                            label = when (action) {
-                                WearCountdownAction.START_MISCONDUCT -> "Start misconduct\ncountdown"
-                                WearCountdownAction.RESTART_PULL, WearCountdownAction.START_POINT ->
-                                    action.label
-                            },
+                            label = action.label,
                             enabled = countdownActionEnabled,
                             onClick = {
                                 onCountdownAction(action)
@@ -255,24 +274,32 @@ private fun StatusRegion(
                     maxLines = 2,
                     textAlign = TextAlign.Center,
                 )
-            } else {
-                CountdownStatus(display)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = display.nextCue.orEmpty(),
-                    color = StatusTextColor,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Normal,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+            } else if (display.countdownValue != null) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().clickable(
+                        role = Role.Button,
+                        onClick = onToggleTimingControls,
+                    ).semantics { contentDescription = "Countdown controls" },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    CountdownStatus(display.countdownLabel, display.countdownValue)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = display.nextCue.orEmpty(),
+                        color = StatusTextColor,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Normal,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun CountdownStatus(display: GameDisplay) {
+private fun CountdownStatus(label: String, value: String) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -285,7 +312,7 @@ private fun CountdownStatus(display: GameDisplay) {
                 fontWeight = FontWeight.Normal,
             )
             val naturalWidth = textMeasurer.measure(
-                text = display.countdownLabel,
+                text = label,
                 style = labelStyle,
                 maxLines = 1,
                 softWrap = false,
@@ -297,22 +324,20 @@ private fun CountdownStatus(display: GameDisplay) {
                 labelStyle.fontSize
             }
             Text(
-                text = display.countdownLabel,
+                text = label,
                 style = labelStyle,
                 fontSize = fontSize,
                 maxLines = 1,
                 softWrap = false,
             )
         }
-        if (display.countdownValue != null) {
-            Text(
-                text = display.countdownValue,
-                fontSize = 27.sp,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                softWrap = false,
-            )
-        }
+        Text(
+            text = value,
+            fontSize = 27.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            softWrap = false,
+        )
     }
 }
 
@@ -561,3 +586,46 @@ private val PullArrowHeight = 19.dp
 private val CenterStackSpacing = 3.dp
 private val RatioBadgeHeight = 19.dp
 private const val DisabledContentAlpha = 0.55f
+
+/** Replace the scores with countdown adjustments while keeping the timer visible above. */
+@Composable
+private fun TimingControls(
+    controls: WearTimingControlsSnapshot,
+    enabled: Boolean,
+    onAction: (WearCountdownAction) -> Unit,
+    onBack: () -> Unit,
+    modifier: Modifier,
+) {
+    Column(
+        modifier = modifier.padding(top = 3.dp, bottom = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceEvenly,
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            controls.adjustments.forEach { action ->
+                TimingAdjustmentButton(action, enabled) {
+                    onAction(action)
+                }
+            }
+        }
+        controls.pointAction?.let { action ->
+            CountdownActionButton(
+                label = action.label,
+                enabled = enabled,
+                onClick = {
+                    onAction(action)
+                },
+                modifier = Modifier,
+            )
+        }
+        Text(
+            text = "Back",
+            modifier = Modifier.clickable(role = Role.Button, onClick = onBack)
+                .padding(horizontal = 16.dp, vertical = 7.dp),
+            color = Color.White,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+        )
+    }
+}

@@ -44,7 +44,9 @@ class TestPhoneConnection {
         assertEquals(true, applied)
 
         // Countdown buttons carry the exact displayed action and use the same acknowledgement.
-        phone.controller.countdownAction("playing", WearCountdownAction.START_MISCONDUCT) { applied = it }
+        phone.controller.countdownAction("playing", WearCountdownAction.START_MISCONDUCT) { result, _ ->
+            applied = result
+        }
         assertEquals(WearRequestAction.COUNTDOWN.path, phone.sent.last().path)
         val countdown = WearProtocolCodec.decode(
             WearCountdownActionRequest.serializer(), phone.command().arguments,
@@ -55,7 +57,9 @@ class TestPhoneConnection {
         assertEquals(true, applied)
 
         // A rejected restart releases its button without pretending the countdown started.
-        phone.controller.countdownAction("playing", WearCountdownAction.RESTART_PULL) { applied = it }
+        phone.controller.countdownAction("playing", WearCountdownAction.RESTART_PULL) { result, _ ->
+            applied = result
+        }
         phone.complete(false)
         assertEquals(false, applied)
 
@@ -74,6 +78,19 @@ class TestPhoneConnection {
         ).confirmation)
         phone.complete(true)
         assertEquals(true, applied)
+
+        // Water break returns a confirmation through the countdown command without applying it.
+        val waterBreak = WearActionConfirmation.WaterBreak(
+            "playing", WearPromptSnapshot("Water break", emptyList(), "OK", "Cancel",
+                WearGuidancePresentation.VISIBLE, null),
+        )
+        phone.controller.countdownAction("playing", WearCountdownAction.WATER_BREAK) { result, nextPrompt ->
+            applied = result
+            prompt = nextPrompt
+        }
+        phone.complete(false, waterBreak)
+        assertEquals(false, applied)
+        assertEquals(waterBreak, prompt)
 
         // Numbered card handoff and cancellation preserve the phone workflow's identity.
         phone.controller.startCardEntry(TeamId.TEAM_ONE, "playing", CardType.YELLOW, "17") { applied = it }
@@ -662,7 +679,10 @@ private class PhoneSession : PhoneTransport {
         status = WearSnapshotStatus.ACTIVE_GAME,
         activeGame = WearActiveGameSnapshot(
             stateToken = "playing", actionsAvailable = true, officialClockOffsetMillis = 0,
-            officialTimeZoneId = "UTC", countdownActions = emptyList(), countdown = null,
+            officialTimeZoneId = "UTC",
+            countdownActions = emptyList(),
+            timingControls = null,
+            countdown = null,
             teamOne = WearTeamSnapshot("Animal", 0, 0, 0, actions),
             teamTwo = WearTeamSnapshot("Viscous Coupling", 0, 0, 0, actions),
             pullDirection = WearSnapshotPullDirection.LEFT_TO_RIGHT, ratio = null,

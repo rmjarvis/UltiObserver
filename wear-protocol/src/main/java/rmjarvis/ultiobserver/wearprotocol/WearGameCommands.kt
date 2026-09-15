@@ -50,9 +50,16 @@ data class WearUndoRequest(
 /** Action replacing the countdown on the phone and watch. */
 @Serializable
 enum class WearCountdownAction(val label: String) {
-    START_MISCONDUCT("Start misconduct countdown"),
+    START_MISCONDUCT("Start misconduct\ncountdown"),
     RESTART_PULL("Restart countdown"),
     START_POINT("Start point"),
+    CONTINUE_POINT("Continue point"),
+    OFFENSE_SET("Offense is set"),
+    MINUS_FIVE("−5"),
+    PLUS_FIVE("+5"),
+    PAUSE("Pause"),
+    RESUME("Resume"),
+    WATER_BREAK("Water break"),
 }
 
 /** Request the countdown action shown against the exact game state displayed by the watch. */
@@ -127,6 +134,14 @@ sealed interface WearTeamActionPrompt {
 /** Phone-owned action context and prompt presented before the watch applies an action. */
 @Serializable
 sealed interface WearActionConfirmation : WearTeamActionPrompt {
+
+    /** Manual water break using the phone's ordinary guidance and current countdown. */
+    @Serializable
+    data class WaterBreak(
+        override val stateToken: String,
+        override val prompt: WearPromptSnapshot,
+    ) : WearActionConfirmation
+
 
     /** Confirmation details needed to apply a timeout after the observer selects OK. */
     @Serializable

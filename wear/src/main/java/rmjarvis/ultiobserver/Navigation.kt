@@ -8,6 +8,7 @@ import rmjarvis.ultiobserver.wearprotocol.WearTeamActionPrompt
 /** Watch-owned navigation reconciled with the authoritative phone state. */
 internal data class NavigationState(
     val selectedTeam: Int = 0,
+    val timingControlsOpen: Boolean = false,
     val pendingActionPrompt: WearTeamActionPrompt? = null,
     val cardChoiceStateToken: String? = null,
     val playerCard: WearTeamAction.PlayerCard? = null,
@@ -59,6 +60,8 @@ internal data class NavigationState(
         }
         return copy(
             selectedTeam = selectedTeam,
+            timingControlsOpen = timingControlsOpen && game.actionsAvailable &&
+                game.timingControls != null && game.countdown != null,
             pendingActionPrompt = pendingActionPrompt,
             cardChoiceStateToken = cardChoiceStateToken,
             playerCard = playerCard,
@@ -68,13 +71,13 @@ internal data class NavigationState(
     }
 
     val handlesBack: Boolean
-        get() = selectedTeam != 0 && pendingActionPrompt == null && playerCard == null
+        get() = (selectedTeam != 0 || timingControlsOpen) && pendingActionPrompt == null && playerCard == null
 
     /** Return from card choices to team actions, or from team actions to the game. */
     fun back(): NavigationState = if (cardChoiceStateToken != null) {
         copy(cardChoiceStateToken = null)
     } else {
-        copy(selectedTeam = 0)
+        copy(selectedTeam = 0, timingControlsOpen = false)
     }
 
     fun beginPhoneCancellation(team: TeamId): NavigationState =
@@ -86,6 +89,7 @@ internal data class NavigationState(
     fun finishConfirmation(applied: Boolean): NavigationState =
         if (applied) copy(
             pendingActionPrompt = null, selectedTeam = 0,
+            timingControlsOpen = false,
             cardChoiceStateToken = null, playerCard = null,
         ) else copy(pendingActionPrompt = null)
 

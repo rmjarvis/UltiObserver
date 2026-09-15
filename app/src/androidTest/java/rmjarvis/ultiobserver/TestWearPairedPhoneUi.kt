@@ -39,6 +39,7 @@ class TestWearPairedPhoneUi : MainActivityUiTestFixtures() {
             newSetupGameState(now = System.currentTimeMillis()).copy(
                 division = GameDivision.MIXED,
                 pullPromptTarget = PullPromptTarget.BOTH,
+                rules = GameRules().withHeatLevel(HeatLevel.MANUAL),
             )
         )
         useStandardTeamNames()
@@ -130,6 +131,10 @@ class TestWearPairedPhoneUi : MainActivityUiTestFixtures() {
         setTimingAlertPreferences(
             TimingAlertPreferences(watchConnectionMode = WatchConnectionMode.WEAR_OS)
         )
+        composeRule.runOnIdle {
+            val appState = composeRule.activity.appState
+            appState.updateSettings(appState.settings.copy(showDefenseCountdowns = true))
+        }
         startLivePointProgrammatically()
         useStandardTeamNames()
         signalReady("timeoutAndMisconduct")

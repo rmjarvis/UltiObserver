@@ -34,6 +34,7 @@ import rmjarvis.ultiobserver.wearprotocol.WearTeamActionsSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearTeamSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearCountdownAction
 import rmjarvis.ultiobserver.wearprotocol.WearCountdownActionRequest
+import rmjarvis.ultiobserver.wearprotocol.WearTimingControlsSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearUndoRequest
 
 /** Handle a watch request while WearPhoneCoordinator holds the authoritative AppState lock. */
@@ -83,14 +84,29 @@ internal fun handleWearRequest(
                 snapshot.activeCardEntry == null &&
                 game.pendingGameDecision() == null &&
                 game.phase != GamePhase.GAME_OVER &&
-                request.action in game.wearCountdownActions(now)
+                (request.action in game.wearCountdownActions(now) ||
+                    request.action in game.wearTimingControls(now, snapshot.settings)?.all().orEmpty())
             ) {
-                val updated = when (request.action) {
-                    WearCountdownAction.START_MISCONDUCT -> game.startMisconductCountdown(now)
-                    WearCountdownAction.RESTART_PULL -> game.restartPullCountdown(now)
-                    WearCountdownAction.START_POINT -> game.beginLivePoint(now)
+                if (request.action == WearCountdownAction.WATER_BREAK) {
+                    nextPrompt = WearActionConfirmation.WaterBreak(
+                        request.stateToken,
+                        GamePrompt.ManualWaterBreak(game).wearSnapshot(snapshot.settings.ruleGuidanceMode),
+                    )
+                } else {
+                    // No else branch: every WearCountdownAction value is handled.
+                    val updated = when (request.action) {
+                        WearCountdownAction.START_MISCONDUCT -> game.startMisconductCountdown(now)
+                        WearCountdownAction.RESTART_PULL -> game.restartPullCountdown(now)
+                        WearCountdownAction.START_POINT -> game.beginLivePoint(now)
+                        WearCountdownAction.CONTINUE_POINT -> game.continueLivePoint()
+                        WearCountdownAction.OFFENSE_SET -> game.reportOffenseSet(now)
+                        WearCountdownAction.MINUS_FIVE -> game.addTimeToCountdown(-5)
+                        WearCountdownAction.PLUS_FIVE -> game.addTimeToCountdown(5)
+                        WearCountdownAction.PAUSE, WearCountdownAction.RESUME -> game.toggleCountdownPaused(now)
+                        WearCountdownAction.WATER_BREAK -> error("Water break requires confirmation")
+                    }
+                    applied = appState.updateCurrentGame(game, updated)
                 }
-                applied = appState.updateCurrentGame(game, updated)
             }
         }
         WearRequestAction.DECISION -> {
@@ -126,7 +142,9 @@ internal fun handleWearRequest(
                 game.pendingGameDecision() == null &&
                 game.phase != GamePhase.GAME_OVER
             val confirmation = if (canApply) request.confirmation.gamePrompt(game) else null
-            applied = if (
+            applied = if (canApply && request.confirmation is WearActionConfirmation.WaterBreak) {
+                appState.updateCurrentGame(game, game.applyWaterBreak(now))
+            } else if (
                 canApply && request.confirmation is WearActionConfirmation.CardEntryHandoff
             ) {
                 val handoff = request.confirmation as WearActionConfirmation.CardEntryHandoff
@@ -391,6 +409,7 @@ private fun WearActionConfirmation.gamePrompt(
     game: GameState,
 ): GamePrompt.ActionConfirmation? {
     return when (this) {
+        is WearActionConfirmation.WaterBreak -> null
         is WearActionConfirmation.Timeout -> {
             if (!game.canRequestTimeout(requestedAtPhoneEpochMillis)) {
                 null
@@ -543,6 +562,7 @@ internal fun buildWearStateSnapshot(
                 )
             },
             countdownActions = game.wearCountdownActions(now),
+            timingControls = game.wearTimingControls(now, settings),
             statusMessageTransitions = game.wearStatusMessageTransitions(now),
             teamOne = game.wearTeamSnapshot(TeamId.TEAM_ONE, now),
             teamTwo = game.wearTeamSnapshot(TeamId.TEAM_TWO, now),
@@ -583,6 +603,26 @@ private fun GameState.wearCountdownActions(now: Long): List<WearCountdownAction>
         }
         else -> emptyList()
     }
+}
+
+/** Select the controls shown while the phone displays a countdown. */
+private fun GameState.wearTimingControls(now: Long, settings: Settings): WearTimingControlsSnapshot? {
+    val countdown = countdown ?: return null
+    if (wearCountdownActions(now).isNotEmpty() || phase == GamePhase.GAME_OVER) return null
+    return WearTimingControlsSnapshot(
+        adjustments = buildList {
+            if (canApplyWaterBreak()) add(WearCountdownAction.WATER_BREAK)
+            add(if (countdown.isPaused()) WearCountdownAction.RESUME else WearCountdownAction.PAUSE)
+            add(WearCountdownAction.MINUS_FIVE)
+            add(WearCountdownAction.PLUS_FIVE)
+        },
+        pointAction = when {
+            canReportOffenseSet(settings.showDefenseCountdowns) -> WearCountdownAction.OFFENSE_SET
+            phase.isBeforeLivePoint || halftimeTransitionReady(now) -> WearCountdownAction.START_POINT
+            phase == GamePhase.LIVE_POINT -> WearCountdownAction.CONTINUE_POINT
+            else -> null
+        },
+    )
 }
 
 /** Build each timed change to the phone-owned status text for the current game screen. */

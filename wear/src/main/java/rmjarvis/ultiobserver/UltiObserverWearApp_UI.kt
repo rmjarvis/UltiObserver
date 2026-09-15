@@ -47,7 +47,7 @@ internal fun UltiObserverWearApp(
     onRetry: () -> Unit,
     onGoal: (TeamId, String, (Boolean) -> Unit) -> Unit,
     onUndo: (String, (Boolean) -> Unit) -> Unit,
-    onCountdownAction: (String, WearCountdownAction, (Boolean) -> Unit) -> Unit,
+    onCountdownAction: (String, WearCountdownAction, (Boolean, WearTeamActionPrompt?) -> Unit) -> Unit,
     onDecision: (String, Boolean, (Boolean) -> Unit) -> Unit,
     onTeamAction: (TeamId, String, WearTeamAction, (WearTeamActionPrompt?) -> Unit) -> Unit,
     onStartCardEntry: (TeamId, String, CardType, String, (Boolean) -> Unit) -> Unit,
@@ -166,7 +166,7 @@ private fun ActiveGameScreen(
     onRetry: () -> Unit,
     onGoal: (TeamId, String, (Boolean) -> Unit) -> Unit,
     onUndo: (String, (Boolean) -> Unit) -> Unit,
-    onCountdownAction: (String, WearCountdownAction, (Boolean) -> Unit) -> Unit,
+    onCountdownAction: (String, WearCountdownAction, (Boolean, WearTeamActionPrompt?) -> Unit) -> Unit,
     onTeamAction: (TeamId, String, WearTeamAction, (WearTeamActionPrompt?) -> Unit) -> Unit,
     onStartCardEntry: (TeamId, String, CardType, String, (Boolean) -> Unit) -> Unit,
 ) {
@@ -198,11 +198,19 @@ private fun ActiveGameScreen(
                 onNavigationChange { it.copy(selectedTeam = 2) }
             },
             onRetry = onRetry,
+            timingControlsOpen = navigation.timingControlsOpen,
+            onToggleTimingControls = {
+                onNavigationChange { it.copy(timingControlsOpen = !it.timingControlsOpen) }
+            },
+            onCloseTimingControls = {
+                onNavigationChange { it.back() }
+            },
             countdownActionEnabled = !commandPending,
             onCountdownAction = { action ->
                 commandPending = true
-                onCountdownAction(activeGame.stateToken, action) {
+                onCountdownAction(activeGame.stateToken, action) { _, prompt ->
                     commandPending = false
+                    onNavigationChange { it.copy(pendingActionPrompt = prompt) }
                 }
             },
             onUndo = {
