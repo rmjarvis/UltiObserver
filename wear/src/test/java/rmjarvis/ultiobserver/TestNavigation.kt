@@ -57,6 +57,17 @@ class TestNavigation {
         assertEquals(GameSurface.TEAM_ACTIONS, navigation.gameScreen("playing"))
         navigation = navigation.back()
         assertEquals(GameSurface.SCORE, navigation.gameScreen("playing"))
+
+        // Team information returns to its team actions and closes when the connection is lost.
+        navigation = navigation.copy(selectedTeam = 2, teamInfoOpen = true)
+        assertEquals(GameSurface.TEAM_INFO, navigation.gameScreen("playing"))
+        assertTrue(navigation.handlesBack)
+        assertEquals(NavigationState(), navigation.receive(snapshot, ConnectionState.DISCONNECTED))
+        navigation = navigation.back()
+        assertEquals(GameSurface.TEAM_ACTIONS, navigation.gameScreen("playing"))
+        assertEquals(2, navigation.selectedTeam)
+        assertFalse(navigation.teamInfoOpen)
+        assertEquals(NavigationState(), navigation.back())
     }
 
     /** Finish actions without discarding a local workflow when the phone rejects them. */
@@ -262,8 +273,8 @@ internal fun navigationSnapshot(): WearStateSnapshot {
             countdownActions = emptyList(),
             timingControls = null,
             countdown = null,
-            teamOne = WearTeamSnapshot("Animal", 0, "Far end", 0xFFFFFFFF, 0xFF000000, actions),
-            teamTwo = WearTeamSnapshot("Viscous Coupling", 0, "Near end", 0xFF000000, 0xFFFFFFFF, actions),
+            teamOne = WearTeamSnapshot("Animal", 0, "Far end", 0xFFFFFFFF, 0xFF000000, actions, emptyList()),
+            teamTwo = WearTeamSnapshot("Viscous Coupling", 0, "Near end", 0xFF000000, 0xFFFFFFFF, actions, emptyList()),
             pullDirection = WearSnapshotPullDirection.LEFT_TO_RIGHT, ratio = null,
             ratioChooser = null,
             undoDescription = null, pendingDecision = null, phoneCardEntry = null,

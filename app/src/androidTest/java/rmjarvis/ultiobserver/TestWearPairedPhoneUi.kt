@@ -45,6 +45,7 @@ class TestWearPairedPhoneUi : MainActivityUiTestFixtures() {
         useStandardTeamNames()
         updateCurrentStateProgrammatically {
             copy(
+                teamOne = teamOne.copy(coaches = "Alex", fieldCaptains = "Pat\nSam", spiritCaptains = "Lee"),
                 countdown = buildBetweenPointsCountdown(
                     pullingFromEnd = pullingFromEnd,
                     sequenceStart = System.currentTimeMillis(),

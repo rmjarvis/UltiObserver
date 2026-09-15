@@ -75,7 +75,7 @@ internal fun WearActiveGameSnapshot.toGameDisplay(
     )
 }
 
-private fun WearTeamSnapshot.toTeamDisplay(): TeamDisplay {
+internal fun WearTeamSnapshot.toTeamDisplay(): TeamDisplay {
     return TeamDisplay(
         name = name,
         score = score,
@@ -88,6 +88,7 @@ private fun WearTeamSnapshot.toTeamDisplay(): TeamDisplay {
 internal fun WearTeamSnapshot.toTeamActionsDisplay(actionsAvailable: Boolean): TeamActionsDisplay {
     return TeamActionsDisplay(
         team = toTeamDisplay(),
+        nameInfo = nameInfo,
         timeViolationLabel = actions.timeViolationLabel,
         pullViolationLabel = actions.pullViolationLabel,
         cardLabel = actions.cardLabel,

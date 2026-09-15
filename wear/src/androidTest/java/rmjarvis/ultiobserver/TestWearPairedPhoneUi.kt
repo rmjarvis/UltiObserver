@@ -69,6 +69,22 @@ class TestWearPairedPhoneUi {
         composeRule.onNode(hasContentDescription("ABBA ratio M2")).assertIsDisplayed()
         assertEquals(2, composeRule.onAllNodesWithText("0").fetchSemanticsNodes().size)
 
+        // Coach/captain names open locally, while a team without names has no information icon.
+        composeRule.onNodeWithText(ANIMAL).performClick()
+        waitForContentDescription("Coach/captain information")
+        composeRule.onNode(hasContentDescription("Coach/captain information")).performClick()
+        waitForText("Alex")
+        composeRule.onNodeWithText("Coach").assertIsDisplayed()
+        composeRule.onNodeWithText("Pat\nSam").assertExists()
+        composeRule.onNodeWithText("Lee").assertExists()
+        dismissNotice("Back")
+        waitForText("Goal")
+        dismissNotice("Cancel")
+        composeRule.onNodeWithText("Viscous Coupling").performClick()
+        waitForText("Goal")
+        composeRule.onNode(hasContentDescription("Coach/captain information")).assertDoesNotExist()
+        dismissNotice("Cancel")
+
         // Open timing controls, pause the clock, and adjust it in both directions.
         composeRule.onNode(hasContentDescription("Countdown controls")).performClick()
         waitForText("Start point")

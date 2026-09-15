@@ -23,6 +23,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,6 +41,8 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -51,10 +55,12 @@ import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.material3.Text
 import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
+import rmjarvis.ultiobserver.wearprotocol.WearGuidanceLineSnapshot
 
 /** Display values for one team's six watch actions. */
 internal data class TeamActionsDisplay(
     val team: TeamDisplay,
+    val nameInfo: List<WearGuidanceLineSnapshot>,
     val timeViolationLabel: String,
     val pullViolationLabel: String,
     val cardLabel: String,
@@ -94,6 +100,7 @@ private fun TeamScreenScaffold(
 @Composable
 internal fun TeamActionsScreen(
     display: TeamActionsDisplay,
+    onTeamInfo: () -> Unit,
     onGoal: () -> Unit,
     onTimeViolation: () -> Unit,
     onPullViolation: () -> Unit,
@@ -125,16 +132,33 @@ internal fun TeamActionsScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(ActionGap),
             ) {
-                Text(
-                    text = display.team.name,
+                Row(
                     modifier = Modifier.height(titleHeight),
-                    color = display.team.contentColor,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center,
-                )
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
+                ) {
+                    Text(
+                        text = display.team.name,
+                        modifier = Modifier.weight(1f, fill = false),
+                        color = display.team.contentColor,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center,
+                    )
+                    if (display.nameInfo.isNotEmpty()) {
+                        Text(
+                            text = "ⓘ",
+                            modifier = Modifier.clickable(role = Role.Button, onClick = onTeamInfo)
+                                .semantics { contentDescription = "Coach/captain information" }
+                                .padding(horizontal = 3.dp),
+                            color = display.team.contentColor,
+                            fontSize = 16.sp,
+                            lineHeight = 18.sp,
+                        )
+                    }
+                }
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -217,6 +241,49 @@ internal fun TeamActionsScreen(
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
                 )
+            }
+        }
+    }
+}
+
+/** Show phone-formatted coach and captain names without leaving the team workflow. */
+@Composable
+internal fun TeamInfoScreen(
+    team: TeamDisplay,
+    nameInfo: List<WearGuidanceLineSnapshot>,
+    onBack: () -> Unit,
+) {
+    TeamScreenScaffold(team) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(top = 28.dp, start = 24.dp, end = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = team.name,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+            )
+            Column(
+                modifier = Modifier.weight(1f).fillMaxWidth()
+                    .verticalScroll(rememberScrollState()).padding(vertical = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                nameInfo.forEach { line ->
+                    Text(
+                        text = line.text,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp,
+                        fontWeight = if (line.bold) FontWeight.Bold else FontWeight.Normal,
+                    )
+                }
+            }
+            Box(
+                modifier = Modifier.height(42.dp).clickable(role = Role.Button, onClick = onBack)
+                    .padding(horizontal = 16.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(text = "Back", fontSize = 12.sp, fontWeight = FontWeight.Medium)
             }
         }
     }

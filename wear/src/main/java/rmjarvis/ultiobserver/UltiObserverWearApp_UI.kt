@@ -243,7 +243,15 @@ private fun ActiveGameScreen(
         } else {
             activeGame.teamTwo
         }
-        if (surface == GameSurface.PLAYER_CARD) {
+        if (surface == GameSurface.TEAM_INFO) {
+            TeamInfoScreen(
+                team = selectedTeamSnapshot.toTeamDisplay(),
+                nameInfo = selectedTeamSnapshot.nameInfo,
+                onBack = {
+                    onNavigationChange { it.back() }
+                },
+            )
+        } else if (surface == GameSurface.PLAYER_CARD) {
             PlayerCardEntryOptionsScreen(
                 display = selectedTeamSnapshot.toTeamActionsDisplay(!commandPending),
                 cardType = playerCard!!.cardType,
@@ -291,6 +299,9 @@ private fun ActiveGameScreen(
         } else {
             TeamActionsScreen(
                 display = selectedTeamSnapshot.toTeamActionsDisplay(!commandPending),
+                onTeamInfo = {
+                    onNavigationChange { it.copy(teamInfoOpen = true) }
+                },
                 onGoal = {
                     commandPending = true
                     onGoal(

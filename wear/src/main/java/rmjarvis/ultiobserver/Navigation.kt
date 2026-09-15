@@ -8,6 +8,7 @@ import rmjarvis.ultiobserver.wearprotocol.WearTeamActionPrompt
 /** Watch-owned navigation reconciled with the authoritative phone state. */
 internal data class NavigationState(
     val selectedTeam: Int = 0,
+    val teamInfoOpen: Boolean = false,
     val timingControlsOpen: Boolean = false,
     val pendingActionPrompt: WearTeamActionPrompt? = null,
     val cardChoiceStateToken: String? = null,
@@ -60,6 +61,7 @@ internal data class NavigationState(
         }
         return copy(
             selectedTeam = selectedTeam,
+            teamInfoOpen = teamInfoOpen && selectedTeam != 0,
             timingControlsOpen = timingControlsOpen && game.actionsAvailable &&
                 game.timingControls != null && game.countdown != null,
             pendingActionPrompt = pendingActionPrompt,
@@ -74,7 +76,9 @@ internal data class NavigationState(
         get() = (selectedTeam != 0 || timingControlsOpen) && pendingActionPrompt == null && playerCard == null
 
     /** Return from card choices to team actions, or from team actions to the game. */
-    fun back(): NavigationState = if (cardChoiceStateToken != null) {
+    fun back(): NavigationState = if (teamInfoOpen) {
+        copy(teamInfoOpen = false)
+    } else if (cardChoiceStateToken != null) {
         copy(cardChoiceStateToken = null)
     } else {
         copy(selectedTeam = 0, timingControlsOpen = false)
@@ -118,6 +122,7 @@ internal data class NavigationState(
 
     fun gameScreen(stateToken: String): GameSurface = when {
         selectedTeam == 0 -> GameSurface.SCORE
+        teamInfoOpen -> GameSurface.TEAM_INFO
         cardChoiceStateToken == stateToken && playerCard != null -> GameSurface.PLAYER_CARD
         cardChoiceStateToken == stateToken -> GameSurface.CARD_CHOICES
         else -> GameSurface.TEAM_ACTIONS
@@ -130,4 +135,4 @@ internal enum class WatchScreen {
 }
 
 /** Local surfaces within an active phone game. */
-internal enum class GameSurface { SCORE, TEAM_ACTIONS, CARD_CHOICES, PLAYER_CARD }
+internal enum class GameSurface { SCORE, TEAM_ACTIONS, TEAM_INFO, CARD_CHOICES, PLAYER_CARD }

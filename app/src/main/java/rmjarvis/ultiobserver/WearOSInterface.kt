@@ -695,6 +695,7 @@ private fun GameState.wearTeamSnapshot(
         ),
         backgroundArgb = backgroundArgb,
         contentArgb = contentArgb,
+        nameInfo = team.wearNameInfo(),
         actions = WearTeamActionsSnapshot(
             timeViolationLabel = team.timeViolationFieldActionLabel(),
             pullViolationLabel = pullViolationTypeFor(teamId).fieldActionLabel(team),
@@ -709,6 +710,21 @@ private fun GameState.wearTeamSnapshot(
             timeoutEnabled = canRequestTimeout(now),
         ),
     )
+}
+
+/** Format nonempty coach/captain sections with the same labels as the phone. */
+private fun TeamState.wearNameInfo(): List<WearGuidanceLineSnapshot> = buildList {
+    fun section(value: String, singular: String, plural: String) {
+        val names = value.trim()
+        if (names.isNotEmpty()) {
+            val label = if (names.lineSequence().count { it.isNotBlank() } == 1) singular else plural
+            add(WearGuidanceLineSnapshot(label, true))
+            add(WearGuidanceLineSnapshot(names, false))
+        }
+    }
+    section(coaches, "Coach", "Coaches")
+    section(fieldCaptains, "Field captain", "Field captains")
+    section(spiritCaptains, "Spirit captain", "Spirit captains")
 }
 
 /** Convert the phone's existing prompt copy and guidance policy into protocol display data. */

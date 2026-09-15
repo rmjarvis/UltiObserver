@@ -1,5 +1,7 @@
 package rmjarvis.ultiobserver
 
+import rmjarvis.ultiobserver.wearprotocol.WearGuidanceLineSnapshot
+
 import java.time.LocalTime
 import java.util.UUID
 import org.junit.Assert.assertEquals
@@ -290,6 +292,28 @@ class TestWearOSInterface : GameDomainTestFixtures() {
             ),
             capTimelineSnapshot.statusMessageTransitions.map { transition -> transition.message },
         )
+
+        // Coach/captain information omits blank fields and preserves entered multiline names.
+        assertTrue(defaultSnapshot.teamOne.nameInfo.isEmpty())
+        val namedGame = defaultGame.copy(
+            teamOne = defaultGame.teamOne.copy(
+                coaches = "  Alex  ",
+                fieldCaptains = "Pat\n\nSam",
+                spiritCaptains = " \n ",
+            ),
+            teamTwo = defaultGame.teamTwo.copy(spiritCaptains = "Lee"),
+        )
+        val coachSnapshot = buildWearStateSnapshot(namedGame, settings, now).activeGame!!
+        assertEquals(listOf(
+            WearGuidanceLineSnapshot("Coach", true),
+            WearGuidanceLineSnapshot("Alex", false),
+            WearGuidanceLineSnapshot("Field captains", true),
+            WearGuidanceLineSnapshot("Pat\n\nSam", false),
+        ), coachSnapshot.teamOne.nameInfo)
+        assertEquals(listOf(
+            WearGuidanceLineSnapshot("Spirit captain", true),
+            WearGuidanceLineSnapshot("Lee", false),
+        ), coachSnapshot.teamTwo.nameInfo)
 
         // A separate halftime game makes all context-dependent team actions unavailable.
         val halftimeBaseGame = standardLiveGameState()

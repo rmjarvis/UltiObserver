@@ -157,5 +157,13 @@ class TestGameDisplay {
             cardEnabled = false, technicalFoulEnabled = false, timeoutEnabled = false,
         ))
         assertEquals(disabled, restricted.toTeamActionsDisplay(true))
+
+        // The team information screen receives the phone's formatted names without alteration.
+        assertTrue(enabled.nameInfo.isEmpty())
+        val names = listOf(
+            WearGuidanceLineSnapshot("Coaches", true),
+            WearGuidanceLineSnapshot("Alex\nSam", false),
+        )
+        assertEquals(names, team.copy(nameInfo = names).toTeamActionsDisplay(true).nameInfo)
     }
 }

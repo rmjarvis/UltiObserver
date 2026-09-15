@@ -85,6 +85,7 @@ data class WearTeamSnapshot(
     val backgroundArgb: Long,
     val contentArgb: Long,
     val actions: WearTeamActionsSnapshot,
+    val nameInfo: List<WearGuidanceLineSnapshot>,
 )
 
 /** Optional mixed-division ratio badge for the current point. */

@@ -36,9 +36,11 @@ class TestWearProtocol {
             backgroundArgb = 0xFF123456,
             contentArgb = 0xFFFFFFFF,
             actions = actions,
+            nameInfo = listOf(WearGuidanceLineSnapshot("Coach", true), WearGuidanceLineSnapshot("Alex", false)),
         )
         val teamTwo = WearTeamSnapshot(
             name = "Machine",
+            nameInfo = emptyList(),
             score = 7,
             fieldEndName = "Road",
             backgroundArgb = 0xFFABCDEF,
