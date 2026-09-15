@@ -148,6 +148,14 @@ data class WearTimingControlsSnapshot(
     fun all(): List<WearCountdownAction> = adjustments + listOfNotNull(pointAction)
 }
 
+/** One phone-formatted rule, including the phone's heat-adjustment emphasis. */
+@Serializable
+data class WearRulesReferenceItemSnapshot(
+    val label: String,
+    val value: String,
+    val heatAdjusted: Boolean,
+)
+
 /** Complete active-game display state rendered by the watch. */
 @Serializable
 data class WearActiveGameSnapshot(
@@ -157,6 +165,7 @@ data class WearActiveGameSnapshot(
     val officialClockOffsetMillis: Long,
     val officialTimeZoneId: String,
     val upcomingCaps: List<WearCapSnapshot> = emptyList(),
+    val rulesReference: List<WearRulesReferenceItemSnapshot>,
     val countdown: WearCountdownSnapshot?,
     val countdownActions: List<WearCountdownAction>,
     val timingControls: WearTimingControlsSnapshot?,

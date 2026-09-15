@@ -8,6 +8,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.performClick
@@ -23,6 +24,7 @@ import rmjarvis.ultiobserver.wearprotocol.WearSnapshotPullDirection
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionsSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearTeamSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearCountdownSnapshot
+import rmjarvis.ultiobserver.wearprotocol.WearRulesReferenceItemSnapshot
 
 /**
  * Tests of the connection status between a watch and the phone.
@@ -57,6 +59,12 @@ class TestWatchStateUi {
             countdownSeconds() < firstValue
         }
         composeRule.onNodeWithText("Home").assertIsEnabled()
+
+        // With no cap text, the paper icon still opens the rules and Back restores the game.
+        composeRule.onNodeWithContentDescription("Game rules").performClick()
+        composeRule.onNodeWithText("Game to 15").assertIsDisplayed()
+        composeRule.onNodeWithText("Back").performClick()
+        composeRule.onNodeWithText("Home").assertIsDisplayed()
     }
 
     private fun countdownSeconds(): Int {
@@ -256,6 +264,7 @@ class TestWatchStateUi {
                     actionsAvailable = true,
                     officialClockOffsetMillis = 0,
                     officialTimeZoneId = "UTC",
+                    rulesReference = listOf(WearRulesReferenceItemSnapshot("Game to", "15", false)),
                     countdownActions = emptyList(),
                     timingControls = null,
                     countdown = null,

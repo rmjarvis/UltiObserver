@@ -26,6 +26,16 @@ class TestNavigation {
         assertTrue(navigation.handlesBack)
         assertTrue(navigation.timingControlsOpen)
         assertEquals(NavigationState(), navigation.back())
+
+        // Rules open without a cap and return to the same timing panel when dismissed.
+        navigation = NavigationState(timingControlsOpen = true, rulesOpen = true)
+        assertEquals(GameSurface.RULES, navigation.gameScreen("playing"))
+        assertTrue(navigation.handlesBack)
+        navigation = navigation.back()
+        assertFalse(navigation.rulesOpen)
+        assertTrue(navigation.timingControlsOpen)
+        assertEquals(GameSurface.SCORE, navigation.gameScreen("playing"))
+        navigation = NavigationState(timingControlsOpen = true)
         navigation = navigation.receive(snapshot.copy(activeGame = timedGame.copy(
             stateToken = "adjusted", countdown = timedGame.countdown!!.copy(targetEpochMillis = 105_000L),
         )), ConnectionState.CONNECTED)
@@ -270,6 +280,7 @@ internal fun navigationSnapshot(): WearStateSnapshot {
             stateToken = "playing", actionsAvailable = true,
             officialClockOffsetMillis = 0,
             officialTimeZoneId = "UTC",
+            rulesReference = listOf(WearRulesReferenceItemSnapshot("Game to", "15", false)),
             countdownActions = emptyList(),
             timingControls = null,
             countdown = null,

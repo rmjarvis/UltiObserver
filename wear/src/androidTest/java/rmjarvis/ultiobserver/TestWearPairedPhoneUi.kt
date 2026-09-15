@@ -69,6 +69,14 @@ class TestWearPairedPhoneUi {
         composeRule.onNode(hasContentDescription("ABBA ratio M2")).assertIsDisplayed()
         assertEquals(2, composeRule.onAllNodesWithText("0").fetchSemanticsNodes().size)
 
+        // The cap row opens the phone's game rules, then returns to the scores.
+        composeRule.onNodeWithText("Half cap in", substring = true).performClick()
+        waitForText("Game to 15")
+        composeRule.onNodeWithText("Game to 15").assertIsDisplayed()
+        composeRule.onNodeWithText("Halftime", substring = true).assertExists()
+        dismissNotice("Back")
+        waitForText(ANIMAL)
+
         // Coach/captain names open locally, while a team without names has no information icon.
         composeRule.onNodeWithText(ANIMAL).performClick()
         waitForContentDescription("Coach/captain information")

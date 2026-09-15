@@ -1,5 +1,7 @@
 package rmjarvis.ultiobserver
 
+import rmjarvis.ultiobserver.wearprotocol.WearRulesReferenceItemSnapshot
+
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import java.security.MessageDigest
@@ -543,6 +545,9 @@ internal fun buildWearStateSnapshot(
             gameOver = gameOver,
             officialClockOffsetMillis = game.officialClockOffsetMillis,
             officialTimeZoneId = game.timeZone.id,
+            rulesReference = game.rulesReferenceItems().map { item ->
+                WearRulesReferenceItemSnapshot(item.label, item.value, item.heatAdjusted)
+            },
             upcomingCaps = game.upcomingCapStatuses(now).map { status ->
                 WearCapSnapshot(
                     label = status.label,

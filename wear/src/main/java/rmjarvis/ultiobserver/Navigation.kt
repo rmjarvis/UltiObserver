@@ -9,6 +9,7 @@ import rmjarvis.ultiobserver.wearprotocol.WearTeamActionPrompt
 internal data class NavigationState(
     val selectedTeam: Int = 0,
     val teamInfoOpen: Boolean = false,
+    val rulesOpen: Boolean = false,
     val timingControlsOpen: Boolean = false,
     val pendingActionPrompt: WearTeamActionPrompt? = null,
     val cardChoiceStateToken: String? = null,
@@ -73,10 +74,12 @@ internal data class NavigationState(
     }
 
     val handlesBack: Boolean
-        get() = (selectedTeam != 0 || timingControlsOpen) && pendingActionPrompt == null && playerCard == null
+        get() = (selectedTeam != 0 || timingControlsOpen || rulesOpen) && pendingActionPrompt == null && playerCard == null
 
     /** Return from card choices to team actions, or from team actions to the game. */
-    fun back(): NavigationState = if (teamInfoOpen) {
+    fun back(): NavigationState = if (rulesOpen) {
+        copy(rulesOpen = false)
+    } else if (teamInfoOpen) {
         copy(teamInfoOpen = false)
     } else if (cardChoiceStateToken != null) {
         copy(cardChoiceStateToken = null)
@@ -121,6 +124,7 @@ internal data class NavigationState(
     }
 
     fun gameScreen(stateToken: String): GameSurface = when {
+        rulesOpen -> GameSurface.RULES
         selectedTeam == 0 -> GameSurface.SCORE
         teamInfoOpen -> GameSurface.TEAM_INFO
         cardChoiceStateToken == stateToken && playerCard != null -> GameSurface.PLAYER_CARD
@@ -135,4 +139,4 @@ internal enum class WatchScreen {
 }
 
 /** Local surfaces within an active phone game. */
-internal enum class GameSurface { SCORE, TEAM_ACTIONS, TEAM_INFO, CARD_CHOICES, PLAYER_CARD }
+internal enum class GameSurface { SCORE, RULES, TEAM_ACTIONS, TEAM_INFO, CARD_CHOICES, PLAYER_CARD }

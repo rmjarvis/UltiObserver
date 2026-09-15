@@ -680,6 +680,7 @@ private class PhoneSession : PhoneTransport {
         activeGame = WearActiveGameSnapshot(
             stateToken = "playing", actionsAvailable = true, officialClockOffsetMillis = 0,
             officialTimeZoneId = "UTC",
+            rulesReference = emptyList(),
             countdownActions = emptyList(),
             timingControls = null,
             countdown = null,

@@ -188,7 +188,14 @@ private fun ActiveGameScreen(
     val selectedTeam = navigation.selectedTeam
     val playerCard = navigation.playerCard
     val surface = navigation.gameScreen(activeGame.stateToken)
-    if (surface == GameSurface.SCORE) {
+    if (surface == GameSurface.RULES) {
+        RulesReferenceScreen(
+            items = activeGame.rulesReference,
+            onBack = {
+                onNavigationChange { it.back() }
+            },
+        )
+    } else if (surface == GameSurface.SCORE) {
         GameScreen(
             display = display,
             onTeamOne = {
@@ -199,6 +206,9 @@ private fun ActiveGameScreen(
             },
             onRetry = onRetry,
             timingControlsOpen = navigation.timingControlsOpen,
+            onRulesReference = {
+                onNavigationChange { it.copy(rulesOpen = true) }
+            },
             onToggleTimingControls = {
                 onNavigationChange { it.copy(timingControlsOpen = !it.timingControlsOpen) }
             },

@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -38,6 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material3.AppScaffold
+import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.LocalTextStyle
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.TimeSource
@@ -112,6 +115,7 @@ internal data class GameDisplay(
 @Composable
 internal fun GameScreen(
     display: GameDisplay,
+    onRulesReference: () -> Unit,
     onTeamOne: () -> Unit,
     onTeamTwo: () -> Unit,
     timingControlsOpen: Boolean,
@@ -135,6 +139,7 @@ internal fun GameScreen(
         ) {
             GameContent(
                 display = display,
+                onRulesReference = onRulesReference,
                 onTeamOne = onTeamOne,
                 onTeamTwo = onTeamTwo,
                 timingControlsOpen = timingControlsOpen,
@@ -152,6 +157,7 @@ internal fun GameScreen(
 @Composable
 private fun GameContent(
     display: GameDisplay,
+    onRulesReference: () -> Unit,
     onTeamOne: () -> Unit,
     onTeamTwo: () -> Unit,
     timingControlsOpen: Boolean,
@@ -173,6 +179,7 @@ private fun GameContent(
 
         StatusRegion(
             display = display,
+            onRulesReference = onRulesReference,
             countdownActionEnabled = countdownActionEnabled,
             onCountdownAction = onCountdownAction,
             onRetry = onRetry,
@@ -214,6 +221,7 @@ private fun GameContent(
 @Composable
 private fun StatusRegion(
     display: GameDisplay,
+    onRulesReference: () -> Unit,
     countdownActionEnabled: Boolean,
     onCountdownAction: (WearCountdownAction) -> Unit,
     onRetry: () -> Unit,
@@ -226,18 +234,35 @@ private fun StatusRegion(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = topPadding, start = 16.dp, end = 16.dp),
+                .padding(top = topPadding - 6.dp, start = 16.dp, end = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(
-                text = display.capStatus.orEmpty(),
-                color = StatusTextColor,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Normal,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(modifier = Modifier.height(5.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth()
+                    .clickable(role = Role.Button, onClick = onRulesReference)
+                    .semantics { contentDescription = "Game rules" }
+                    .padding(vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                display.capStatus?.let { capStatus ->
+                    Text(
+                        text = capStatus,
+                        modifier = Modifier.weight(1f, fill = false),
+                        color = StatusTextColor,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Normal,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Outlined.Description,
+                    contentDescription = null,
+                    tint = StatusTextColor,
+                    modifier = Modifier.size(12.dp),
+                )
+            }
             if (!display.connected) {
                 Text(
                     text = "Lost connection",

@@ -293,6 +293,17 @@ class TestWearOSInterface : GameDomainTestFixtures() {
             capTimelineSnapshot.statusMessageTransitions.map { transition -> transition.message },
         )
 
+        // The watch's rules reference includes current targets and heat-adjusted values.
+        val referenceGame = defaultGame.copy(
+            winningScore = 11,
+            rules = defaultGame.rules.withHeatLevel(HeatLevel.LEVEL_2),
+        )
+        val reference = buildWearStateSnapshot(referenceGame, settings, now).activeGame!!.rulesReference
+        assertEquals("11 (was ${defaultGame.rules.gameTo})", reference.first { it.label == "Game to" }.value)
+        assertTrue(reference.first { it.label == "Time between points" }.heatAdjusted)
+        assertEquals(referenceGame.rulesReferenceItems().map { it.label }, reference.map { it.label })
+        assertEquals(referenceGame.rulesReferenceItems().map { it.value }, reference.map { it.value })
+
         // Coach/captain information omits blank fields and preserves entered multiline names.
         assertTrue(defaultSnapshot.teamOne.nameInfo.isEmpty())
         val namedGame = defaultGame.copy(
