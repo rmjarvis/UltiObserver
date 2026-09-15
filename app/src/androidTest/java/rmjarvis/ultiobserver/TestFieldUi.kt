@@ -10,6 +10,8 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -160,18 +162,18 @@ class TestFieldUi : MainActivityUiTestFixtures() {
         startLiveGameProgrammatically(setup)
 
         // With the Gen Zone at the top field end, the top team chooses the point ratio.
-        composeRule.onAllNodesWithText("Chooses ratio").assertCountEquals(1)
+        composeRule.onAllNodesWithContentDescription("Chooses ratio").assertCountEquals(1)
         assertChooserMarkerAtFirstFieldEnd()
 
         // Moving the Gen Zone to the bottom end uses the bottom-row inline chooser marker.
         updateCurrentGameState { it.copy(firstHalfGenZone = FieldEnd.NEAR) }
-        composeRule.onAllNodesWithText("Chooses ratio").assertCountEquals(1)
+        composeRule.onAllNodesWithContentDescription("Chooses ratio").assertCountEquals(1)
         assertChooserMarkerAtSecondFieldEnd()
 
         // Flipping the displayed field end puts the same choosing team at the top again through
         // the opposite pull-orientation calculation.
         updateCurrentGameState { it.copy(topDisplayedEnd = FieldEnd.NEAR) }
-        composeRule.onAllNodesWithText("Chooses ratio").assertCountEquals(1)
+        composeRule.onAllNodesWithContentDescription("Chooses ratio").assertCountEquals(1)
         assertChooserMarkerAtFirstFieldEnd()
     }
 
@@ -419,7 +421,7 @@ class TestFieldUi : MainActivityUiTestFixtures() {
 
     /// Return the visible bounds for the gender-ratio chooser marker.
     private fun chooserMarkerBounds(): Rect {
-        return composeRule.onNodeWithText("Chooses ratio")
+        return composeRule.onNodeWithContentDescription("Chooses ratio")
             .fetchSemanticsNode()
             .boundsInRoot
     }

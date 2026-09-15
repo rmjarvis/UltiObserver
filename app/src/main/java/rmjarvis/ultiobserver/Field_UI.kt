@@ -564,6 +564,7 @@ internal fun PortraitFieldSketchCard(
     topDisplayedEnd: FieldEnd,
     showAbbaRatioAsSequence: Boolean,
     genderRatioBadgeColor: Color?,
+    genderRatioChooserColors: GenderRatioChooserColors,
     interactionsEnabled: Boolean,
     timeoutEnabled: Boolean,
     metrics: PortraitFieldLayoutMetrics,
@@ -660,6 +661,7 @@ internal fun PortraitFieldSketchCard(
                     shape = TopEndZoneShape,
                     interactionsEnabled = interactionsEnabled,
                     choosesGenderRatio = ratioChoosingTeam == topSlot,
+                    genderRatioChooserColors = genderRatioChooserColors,
                     timeViolationEnabled = state.canAssessTimeViolation(),
                     pullViolationEnabled = state.canRecordPullViolation(topSlot),
                     pullViolationType = topPullViolationType,
@@ -737,6 +739,7 @@ internal fun PortraitFieldSketchCard(
                     shape = BottomEndZoneShape,
                     interactionsEnabled = interactionsEnabled,
                     choosesGenderRatio = ratioChoosingTeam == bottomSlot,
+                    genderRatioChooserColors = genderRatioChooserColors,
                     timeViolationEnabled = state.canAssessTimeViolation(),
                     pullViolationEnabled = state.canRecordPullViolation(bottomSlot),
                     pullViolationType = bottomPullViolationType,
@@ -788,6 +791,7 @@ internal fun LandscapeFieldSketchCard(
     activeGameLayout: ActiveGameOrientation,
     showAbbaRatioAsSequence: Boolean,
     genderRatioBadgeColor: Color?,
+    genderRatioChooserColors: GenderRatioChooserColors,
     interactionsEnabled: Boolean,
     timeoutEnabled: Boolean,
     metrics: LandscapeFieldLayoutMetrics,
@@ -919,6 +923,7 @@ internal fun LandscapeFieldSketchCard(
                     shape = LeftEndZoneShape,
                     interactionsEnabled = interactionsEnabled,
                     choosesGenderRatio = ratioChoosingTeam == leftSlot,
+                    genderRatioChooserColors = genderRatioChooserColors,
                     timeViolationEnabled = state.canAssessTimeViolation(),
                     pullViolationEnabled = state.canRecordPullViolation(leftSlot),
                     pullViolationType = leftPullViolationType,
@@ -993,6 +998,7 @@ internal fun LandscapeFieldSketchCard(
                     shape = RightEndZoneShape,
                     interactionsEnabled = interactionsEnabled,
                     choosesGenderRatio = ratioChoosingTeam == rightSlot,
+                    genderRatioChooserColors = genderRatioChooserColors,
                     timeViolationEnabled = state.canAssessTimeViolation(),
                     pullViolationEnabled = state.canRecordPullViolation(rightSlot),
                     pullViolationType = rightPullViolationType,
@@ -1082,6 +1088,7 @@ private fun LandscapeEndZonePanel(
     shape: RoundedCornerShape,
     interactionsEnabled: Boolean,
     choosesGenderRatio: Boolean,
+    genderRatioChooserColors: GenderRatioChooserColors,
     timeViolationEnabled: Boolean,
     pullViolationEnabled: Boolean,
     pullViolationType: PullViolationType,
@@ -1133,47 +1140,53 @@ private fun LandscapeEndZonePanel(
                     onTeamInfo = onTeamInfo,
                 )
             }
-            TeamActionGrid(
-                teamId = teamId,
-                team = team,
-                cardPoints = cardPoints,
-                timeoutsRemaining = timeoutsRemaining,
-                timeoutEnabled = timeoutEnabled,
-                interactionsEnabled = interactionsEnabled,
-                timeViolationEnabled = timeViolationEnabled,
-                pullViolationEnabled = pullViolationEnabled,
-                pullViolationType = pullViolationType,
-                widths = actionGridWidths,
-                layout = actionGridLayout,
-                actionButtonHeight = metrics.actionButtonHeight,
-                gap = metrics.actionGap,
-                onGoal = onGoal,
-                onTimeout = onTimeout,
-                onTimeViolation = onTimeViolation,
-                onPullViolation = onPullViolation,
-                onCards = onCards,
-                onTechnicalFoul = onTechnicalFoul,
-            )
-        }
-        if (choosesGenderRatio) {
-            LandscapeEndZoneLabels(
-                isLeftPanel = isLeftPanel,
-                fieldEndName = fieldEndName,
-                contentColor = team.content,
-                gap = metrics.titleGap,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter),
-            )
-        } else {
-            FieldEndCornerLabel(
-                name = fieldEndName,
-                contentColor = team.content,
-                modifier = Modifier.align(
-                    if (isLeftPanel) Alignment.BottomStart else Alignment.BottomEnd
-                ),
-                textAlign = TextAlign.End,
-            )
+            BoxWithConstraints(modifier = Modifier.weight(1f)) {
+                val rows = if (actionGridLayout == TeamActionGridLayout.TIMEOUT_ROW) 3 else 2
+                val fittedActionHeight = minOf(
+                    metrics.actionButtonHeight,
+                    ((maxHeight - 8.dp - metrics.actionGap * (rows - 1)) / rows).coerceAtLeast(0.dp),
+                )
+                TeamActionGrid(
+                    teamId = teamId,
+                    team = team,
+                    cardPoints = cardPoints,
+                    timeoutsRemaining = timeoutsRemaining,
+                    timeoutEnabled = timeoutEnabled,
+                    interactionsEnabled = interactionsEnabled,
+                    timeViolationEnabled = timeViolationEnabled,
+                    pullViolationEnabled = pullViolationEnabled,
+                    pullViolationType = pullViolationType,
+                    widths = actionGridWidths,
+                    layout = actionGridLayout,
+                    actionButtonHeight = fittedActionHeight,
+                    gap = metrics.actionGap,
+                    onGoal = onGoal,
+                    onTimeout = onTimeout,
+                    onTimeViolation = onTimeViolation,
+                    onPullViolation = onPullViolation,
+                    onCards = onCards,
+                    onTechnicalFoul = onTechnicalFoul,
+                )
+            }
+            if (choosesGenderRatio) {
+                LandscapeEndZoneLabels(
+                    isLeftPanel = isLeftPanel,
+                    genderRatioChooserColors = genderRatioChooserColors,
+                    badgeFontSize = metrics.genderRatioBadgeFontSize,
+                    badgeVerticalPadding = metrics.genderRatioBadgeVerticalPadding,
+                    fieldEndName = fieldEndName,
+                    contentColor = team.content,
+                    gap = metrics.titleGap,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else {
+                FieldEndCornerLabel(
+                    name = fieldEndName,
+                    contentColor = team.content,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = if (isLeftPanel) TextAlign.Start else TextAlign.End,
+                )
+            }
         }
     }
 }
@@ -1182,6 +1195,9 @@ private fun LandscapeEndZonePanel(
 @Composable
 private fun LandscapeEndZoneLabels(
     isLeftPanel: Boolean,
+    genderRatioChooserColors: GenderRatioChooserColors,
+    badgeFontSize: TextUnit,
+    badgeVerticalPadding: Dp,
     fieldEndName: String,
     contentColor: Color,
     gap: Dp,
@@ -1198,15 +1214,19 @@ private fun LandscapeEndZoneLabels(
                 textAlign = TextAlign.Start,
                 modifier = Modifier.weight(1f),
             )
-            GenderRatioChooserText(
-                contentColor = contentColor,
+            GenderRatioChooserBadge(
+                colors = genderRatioChooserColors,
+                fontSize = badgeFontSize,
+                verticalPadding = badgeVerticalPadding,
                 modifier = Modifier.weight(1f),
-                textAlign = TextAlign.End,
+                alignment = Alignment.CenterEnd,
             )
         } else {
-            GenderRatioChooserText(
-                contentColor = contentColor,
-                textAlign = TextAlign.Start,
+            GenderRatioChooserBadge(
+                colors = genderRatioChooserColors,
+                fontSize = badgeFontSize,
+                verticalPadding = badgeVerticalPadding,
+                alignment = Alignment.CenterStart,
                 modifier = Modifier.weight(1f),
             )
             FieldEndCornerLabel(
@@ -1256,6 +1276,7 @@ private fun PortraitEndZonePanel(
     shape: RoundedCornerShape,
     interactionsEnabled: Boolean,
     choosesGenderRatio: Boolean,
+    genderRatioChooserColors: GenderRatioChooserColors,
     timeViolationEnabled: Boolean,
     pullViolationEnabled: Boolean,
     pullViolationType: PullViolationType,
@@ -1311,7 +1332,11 @@ private fun PortraitEndZonePanel(
                                 teamId = teamId,
                                 team = team,
                                 titleTextStyle = titleTextStyle,
-                                modifier = Modifier.widthIn(max = contentWidth * 0.75f),
+                                modifier = if (fieldEndLabelAtTop) {
+                                    Modifier.widthIn(max = contentWidth * 0.75f)
+                                } else {
+                                    Modifier.weight(1f)
+                                },
                                 onTeamInfo = onTeamInfo,
                             )
                             if (fieldEndLabelAtTop) {
@@ -1322,10 +1347,12 @@ private fun PortraitEndZonePanel(
                                     textAlign = TextAlign.End,
                                 )
                             } else {
-                                GenderRatioChooserText(
-                                    contentColor = team.content,
-                                    modifier = Modifier.weight(1f),
-                                    textAlign = TextAlign.End,
+                                GenderRatioChooserBadge(
+                                    colors = genderRatioChooserColors,
+                                    fontSize = metrics.genderRatioBadgeFontSize,
+                                    verticalPadding = metrics.genderRatioBadgeVerticalPadding,
+                                    modifier = Modifier,
+                                    alignment = Alignment.CenterEnd,
                                 )
                             }
                         }
@@ -1340,41 +1367,50 @@ private fun PortraitEndZonePanel(
                     )
                 }
             }
-            TeamActionGrid(
-                teamId = teamId,
-                team = team,
-                cardPoints = cardPoints,
-                timeoutsRemaining = timeoutsRemaining,
-                timeoutEnabled = timeoutEnabled,
-                interactionsEnabled = interactionsEnabled,
-                timeViolationEnabled = timeViolationEnabled,
-                pullViolationEnabled = pullViolationEnabled,
-                pullViolationType = pullViolationType,
-                widths = actionGridWidths,
-                actionButtonHeight = metrics.actionButtonHeight,
-                gap = metrics.actionGap,
-                onGoal = onGoal,
-                onTimeout = onTimeout,
-                onTimeViolation = onTimeViolation,
-                onPullViolation = onPullViolation,
-                onCards = onCards,
-                onTechnicalFoul = onTechnicalFoul,
-            )
-            if (fieldEndLabelAtTop && choosesGenderRatio) {
-                Spacer(modifier = Modifier.weight(1f))
-                GenderRatioChooserLabel(
-                    contentColor = team.content,
-                    modifier = Modifier.fillMaxWidth(),
+            BoxWithConstraints(modifier = Modifier.weight(1f)) {
+                val rows = 2
+                val fittedActionHeight = minOf(
+                    metrics.actionButtonHeight,
+                    ((maxHeight - 8.dp - metrics.actionGap * (rows - 1)) / rows).coerceAtLeast(0.dp),
+                )
+                TeamActionGrid(
+                    teamId = teamId,
+                    team = team,
+                    cardPoints = cardPoints,
+                    timeoutsRemaining = timeoutsRemaining,
+                    timeoutEnabled = timeoutEnabled,
+                    interactionsEnabled = interactionsEnabled,
+                    timeViolationEnabled = timeViolationEnabled,
+                    pullViolationEnabled = pullViolationEnabled,
+                    pullViolationType = pullViolationType,
+                    widths = actionGridWidths,
+                    actionButtonHeight = fittedActionHeight,
+                    gap = metrics.actionGap,
+                    onGoal = onGoal,
+                    onTimeout = onTimeout,
+                    onTimeViolation = onTimeViolation,
+                    onPullViolation = onPullViolation,
+                    onCards = onCards,
+                    onTechnicalFoul = onTechnicalFoul,
                 )
             }
-        }
-        if (!fieldEndLabelAtTop) {
-            FieldEndCornerLabel(
-                name = fieldEndName,
-                contentColor = team.content,
-                modifier = Modifier.align(Alignment.BottomEnd),
-                textAlign = TextAlign.End,
-            )
+            if (fieldEndLabelAtTop && choosesGenderRatio) {
+                GenderRatioChooserBadge(
+                    colors = genderRatioChooserColors,
+                    fontSize = metrics.genderRatioBadgeFontSize,
+                    verticalPadding = metrics.genderRatioBadgeVerticalPadding,
+                    modifier = Modifier.fillMaxWidth(),
+                    alignment = Alignment.CenterEnd,
+                )
+            }
+            if (!fieldEndLabelAtTop) {
+                FieldEndCornerLabel(
+                    name = fieldEndName,
+                    contentColor = team.content,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.End,
+                )
+            }
         }
     }
 }
@@ -1463,55 +1499,37 @@ private fun GenderRatioStatusBadge(
     }
 }
 
-/**
- * Render the marker for the team choosing the gender ratio.
- *
- * @param contentColor Text color matching the team row.
- * @param modifier Modifier applied by the caller.
- */
-@Composable
-private fun GenderRatioChooserLabel(
-    contentColor: Color,
-    modifier: Modifier,
-) {
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.End,
-    ) {
-        Text(
-            text = "Chooses ratio",
-            color = contentColor,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
+/** Configured backgrounds for the two halves of the ratio chooser badge. */
+internal data class GenderRatioChooserColors(val men: Color, val women: Color)
 
-/**
- * Render the gender-ratio chooser marker inline with other team-row corner labels.
- *
- * @param contentColor Text color matching the team row.
- * @param modifier Modifier applied by the caller.
- * @param textAlign Horizontal alignment of the marker text.
- */
+/** Show the watch-style M/W color badge in the existing team-row marker position. */
 @Composable
-private fun GenderRatioChooserText(
-    contentColor: Color,
+private fun GenderRatioChooserBadge(
+    colors: GenderRatioChooserColors,
+    fontSize: TextUnit,
+    verticalPadding: Dp,
     modifier: Modifier,
-    textAlign: TextAlign,
+    alignment: Alignment,
 ) {
-    Text(
-        text = "Chooses ratio",
-        color = contentColor,
-        modifier = modifier,
-        style = MaterialTheme.typography.labelMedium,
-        fontWeight = FontWeight.SemiBold,
-        textAlign = textAlign,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-    )
+    val shape = RoundedCornerShape(3.dp)
+    Box(modifier = modifier, contentAlignment = alignment) {
+        Row(
+            modifier = Modifier.clip(shape)
+                .border(1.dp, Color.White.copy(alpha = 0.7f), shape)
+                .semantics(mergeDescendants = true) { contentDescription = "Chooses ratio" },
+        ) {
+            listOf("M" to colors.men, "W" to colors.women).forEach { (label, background) ->
+                Text(
+                    text = label,
+                    modifier = Modifier.background(background).padding(horizontal = 3.dp, vertical = verticalPadding),
+                    color = readableContentColor(background),
+                    style = MaterialTheme.typography.titleMedium.copy(fontSize = fontSize, lineHeight = fontSize),
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
 }
 
 /// Resolved widths and shared font size for the team action complex.
@@ -1601,7 +1619,7 @@ private fun teamActionGridWidths(
     val fullTimeoutLabel = "Timeout ($timeoutsRemaining)"
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
-    val preferredTextStyle = MaterialTheme.typography.labelMedium
+    val preferredTextStyle = MaterialTheme.typography.labelLarge
     val preferredTextHeight = textMeasurer.measure(
         text = AnnotatedString("Goal"),
         style = preferredTextStyle,

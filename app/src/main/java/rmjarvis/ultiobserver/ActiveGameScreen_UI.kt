@@ -1057,6 +1057,10 @@ private fun PortraitActiveGameContent(
             topDisplayedEnd = topDisplayedEnd,
             showAbbaRatioAsSequence = settings.showAbbaRatioAsSequence,
             genderRatioBadgeColor = genderRatioBadgeColor,
+            genderRatioChooserColors = GenderRatioChooserColors(
+                men = Color(settings.genderRatioBadgeColorArgb(GenderRatio.FOUR_MEN_THREE_WOMEN)),
+                women = Color(settings.genderRatioBadgeColorArgb(GenderRatio.FOUR_WOMEN_THREE_MEN)),
+            ),
             interactionsEnabled = !locked,
             timeoutEnabled = state.canRequestTimeout(now),
             metrics = metrics.field,
@@ -1267,6 +1271,10 @@ private fun LandscapeActiveGameContent(
             activeGameLayout = activeGameLayout,
             showAbbaRatioAsSequence = settings.showAbbaRatioAsSequence,
             genderRatioBadgeColor = genderRatioBadgeColor,
+            genderRatioChooserColors = GenderRatioChooserColors(
+                men = Color(settings.genderRatioBadgeColorArgb(GenderRatio.FOUR_MEN_THREE_WOMEN)),
+                women = Color(settings.genderRatioBadgeColorArgb(GenderRatio.FOUR_WOMEN_THREE_MEN)),
+            ),
             interactionsEnabled = !locked,
             timeoutEnabled = state.canRequestTimeout(now),
             metrics = metrics.field,
@@ -1474,7 +1482,7 @@ private fun portraitActiveGameLayoutMetrics(contentHeight: Dp): PortraitActiveGa
     val pagePadding = (contentHeight.value * 0.014f).dp.coerceIn(8.dp, 16.dp)
     val sectionSpacing = (contentHeight.value * 0.011f).dp.coerceIn(6.dp, 12.dp)
     val statusLineHeight = (contentHeight.value * 0.075f).dp.coerceIn(42.dp, 52.dp)
-    val countdownHeight = (contentHeight.value * 0.095f).dp.coerceIn(52.dp, 64.dp)
+    val countdownHeight = (contentHeight.value * 0.08f).dp.coerceIn(48.dp, 64.dp)
     val bottomActionHeight = 34.dp
     val undoHeight = 34.dp
     val fieldHeight = (

@@ -136,7 +136,8 @@ requisite gender ratio will also be shown in the central section next to the loc
 Fixed gender-ratio rules show this as ``4M/3W`` or ``4W/3M``. ABBA may show the ratio using one
 of these or using the sequence shorthand: ``M1``, ``M2``, ``W1``, or ``W2``.
 You can choose between these options in the `Settings`.
-If one team is choosing the gender ratio, then that will be indicated in their team area.
+If one team is choosing the gender ratio, then that will be indicated in their team area
+using an "MW" badge in the corner.
 
 The center of the field sometimes shows a button to transition the game to the next phase.
 **Start point** indicates that the pull happened, presumably before the countdown finished.
