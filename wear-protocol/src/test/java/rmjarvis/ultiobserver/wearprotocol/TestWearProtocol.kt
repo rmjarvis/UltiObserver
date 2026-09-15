@@ -77,6 +77,7 @@ class TestWearProtocol {
             jerseyNumber = "23",
         )
         val activeGame = WearActiveGameSnapshot(
+            leftTeam = TeamId.TEAM_TWO,
             stateToken = "state-token",
             actionsAvailable = false,
             gameOver = true,
@@ -164,6 +165,7 @@ class TestWearProtocol {
             statusMessageTransitions = emptyList(),
         )
         val constructedWithDefaults = WearActiveGameSnapshot(
+            leftTeam = defaultGame.leftTeam,
             stateToken = defaultGame.stateToken,
             actionsAvailable = defaultGame.actionsAvailable,
             officialClockOffsetMillis = defaultGame.officialClockOffsetMillis,

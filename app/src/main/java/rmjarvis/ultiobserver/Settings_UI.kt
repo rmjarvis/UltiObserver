@@ -169,6 +169,29 @@ internal fun SettingsScreen(
                 },
             )
 
+            if (settings.timingAlerts.watchConnectionMode == WatchConnectionMode.WEAR_OS) {
+                Text("Team display on watch", style = MaterialTheme.typography.titleMedium)
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    WatchOrientation.entries.forEach { orientation ->
+                        ChoiceChipButton(
+                            label = orientation.label,
+                            selected = settings.watchOrientation == orientation,
+                            tag = "settings-watch-orientation-${orientation.name}",
+                            onClick = {
+                                onSettingsChange(settings.copy(watchOrientation = orientation))
+                            },
+                        )
+                    }
+                }
+                Text(
+                    settings.watchOrientation.description,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+
             HorizontalDivider()
 
             OrientationPreferenceSelector(

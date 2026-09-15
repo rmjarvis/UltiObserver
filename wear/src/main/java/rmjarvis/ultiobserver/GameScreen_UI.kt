@@ -96,6 +96,7 @@ internal data class GameDisplay(
     val statusMessage: String?,
     val teamOne: TeamDisplay,
     val teamTwo: TeamDisplay,
+    val leftTeamId: TeamId,
     val pullDirection: PullDirection,
     val ratioBadge: RatioBadgeDisplay?,
     val ratioChooser: RatioChooserDisplay?,
@@ -103,21 +104,25 @@ internal data class GameDisplay(
     val actionsAvailable: Boolean,
     val gameOver: Boolean,
     val undoDescription: String?,
-)
+) {
+    val leftTeam: TeamDisplay
+        get() = if (leftTeamId == TeamId.TEAM_ONE) teamOne else teamTwo
+
+    val rightTeam: TeamDisplay
+        get() = if (leftTeamId == TeamId.TEAM_ONE) teamTwo else teamOne
+}
 
 /**
  * Render the active-game watch surface and route its three main actions.
  *
- * Team 1 always stays on the left and Team 2 always stays on the right. A disconnected snapshot
- * remains readable but disables every action and replaces the countdown area with
- * `Lost connection`.
+ * A disconnected snapshot remains readable but disables every action and replaces
+ * the countdown area with `Lost connection`.
  */
 @Composable
 internal fun GameScreen(
     display: GameDisplay,
     onRulesReference: () -> Unit,
-    onTeamOne: () -> Unit,
-    onTeamTwo: () -> Unit,
+    onTeamSelected: (TeamId) -> Unit,
     timingControlsOpen: Boolean,
     onToggleTimingControls: () -> Unit,
     onCloseTimingControls: () -> Unit,
@@ -140,8 +145,7 @@ internal fun GameScreen(
             GameContent(
                 display = display,
                 onRulesReference = onRulesReference,
-                onTeamOne = onTeamOne,
-                onTeamTwo = onTeamTwo,
+                onTeamSelected = onTeamSelected,
                 timingControlsOpen = timingControlsOpen,
                 onToggleTimingControls = onToggleTimingControls,
                 onCloseTimingControls = onCloseTimingControls,
@@ -158,8 +162,7 @@ internal fun GameScreen(
 private fun GameContent(
     display: GameDisplay,
     onRulesReference: () -> Unit,
-    onTeamOne: () -> Unit,
-    onTeamTwo: () -> Unit,
+    onTeamSelected: (TeamId) -> Unit,
     timingControlsOpen: Boolean,
     onToggleTimingControls: () -> Unit,
     onCloseTimingControls: () -> Unit,
@@ -200,8 +203,7 @@ private fun GameContent(
         } else {
             TeamField(
                 display = display,
-                onTeamOne = onTeamOne,
-                onTeamTwo = onTeamTwo,
+                onTeamSelected = onTeamSelected,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(fieldHeight)
@@ -381,8 +383,7 @@ private fun CountdownStatus(label: String, value: String) {
 @Composable
 private fun TeamField(
     display: GameDisplay,
-    onTeamOne: () -> Unit,
-    onTeamTwo: () -> Unit,
+    onTeamSelected: (TeamId) -> Unit,
     modifier: Modifier,
 ) {
     BoxWithConstraints(
@@ -396,19 +397,23 @@ private fun TeamField(
     ) {
         Row(modifier = Modifier.fillMaxSize()) {
             TeamRegion(
-                team = display.teamOne,
+                team = display.leftTeam,
                 endLabelAlignment = Alignment.Start,
                 enabled = display.connected && display.actionsAvailable,
-                onClick = onTeamOne,
+                onClick = {
+                    onTeamSelected(display.leftTeamId)
+                },
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight(),
             )
             TeamRegion(
-                team = display.teamTwo,
+                team = display.rightTeam,
                 endLabelAlignment = Alignment.End,
                 enabled = display.connected && display.actionsAvailable,
-                onClick = onTeamTwo,
+                onClick = {
+                    onTeamSelected(display.leftTeamId.flip())
+                },
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight(),
@@ -437,12 +442,12 @@ private fun TeamField(
                         .padding(top = centerStackTopPadding + PullArrowHeight + CenterStackSpacing),
                 ) {
                     Box(modifier = Modifier.weight(1f).padding(end = 4.dp)) {
-                        if (chooser.team == TeamId.TEAM_ONE) {
+                        if (chooser.team == display.leftTeamId) {
                             RatioChooserBadge(chooser, Modifier.align(Alignment.CenterEnd))
                         }
                     }
                     Box(modifier = Modifier.weight(1f).padding(start = 4.dp)) {
-                        if (chooser.team == TeamId.TEAM_TWO) {
+                        if (chooser.team != display.leftTeamId) {
                             RatioChooserBadge(chooser, Modifier.align(Alignment.CenterStart))
                         }
                     }
@@ -522,9 +527,9 @@ private fun PullAndRatio(
 ) {
     val directionDescription = when (display.pullDirection) {
         PullDirection.LEFT_TO_RIGHT ->
-            "Pull direction from ${display.teamOne.name} toward ${display.teamTwo.name}"
+            "Pull direction from ${display.leftTeam.name} toward ${display.rightTeam.name}"
         PullDirection.RIGHT_TO_LEFT ->
-            "Pull direction from ${display.teamTwo.name} toward ${display.teamOne.name}"
+            "Pull direction from ${display.rightTeam.name} toward ${display.leftTeam.name}"
     }
     Column(
         modifier = modifier.padding(top = topPadding),

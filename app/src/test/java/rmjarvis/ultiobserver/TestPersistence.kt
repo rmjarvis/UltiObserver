@@ -54,6 +54,7 @@ class TestPersistence : GameDomainTestFixtures() {
         appState.openSettings()
         assertEquals(AppScreen.SETTINGS, appState.screen)
         updateSettings { it.withOrientationPreference(OrientationPreference.AUTO_ROTATE) }
+        updateSettings { it.copy(watchOrientation = WatchOrientation.ENDS_FIXED) }
         updateSettings { it.withRuleGuidanceMode(RuleGuidanceMode.TIMED) }
         updateTimingAlerts { it.withGlobalMode(TimingAlertGlobalMode.VIBRATION_ONLY) }
         updateTimingAlerts { it.withSoundVolume(0.4f) }
@@ -140,6 +141,7 @@ class TestPersistence : GameDomainTestFixtures() {
             restored.settings.orientationPreference
         )
         assertEquals(RuleGuidanceMode.TIMED, restored.settings.ruleGuidanceMode)
+        assertEquals(WatchOrientation.ENDS_FIXED, restored.settings.watchOrientation)
         assertEquals(TimingAlertGlobalMode.OFF, restored.settings.timingAlerts.globalMode)
         assertFalse(restored.settings.automaticallyAdvanceCountdowns)
         assertFalse(restored.settings.automaticallyLockLivePoint)
@@ -217,6 +219,7 @@ class TestPersistence : GameDomainTestFixtures() {
         appState.startNewGame(now = 123_000L)
         val persistedRules = GameRules(gameTo = 13, nominalHardCapMinutes = 95, hasFloaterTimeout = true)
         val draftedSetup = appState.setupGame.copy(
+            watchLeftEnd = FieldEnd.NEAR,
             rules = persistedRules,
             teamOne = TeamState("Viscous Coupling", TeamColorChoice.BLUE),
             teamTwo = TeamState("Animal", TeamColorChoice.PINK),

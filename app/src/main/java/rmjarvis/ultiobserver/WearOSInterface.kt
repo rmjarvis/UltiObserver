@@ -533,6 +533,16 @@ internal fun buildWearStateSnapshot(
         null
     }
     val gameOver = game.phase == GamePhase.GAME_OVER
+    val leftTeam = if (settings.watchOrientation == WatchOrientation.TEAMS_FIXED) {
+        TeamId.TEAM_ONE
+    } else {
+        val leftEnd = if (settings.orientationPreference == OrientationPreference.LANDSCAPE) {
+            game.topDisplayedEnd
+        } else {
+            game.watchLeftEnd
+        }
+        game.teamDefendingEnd(leftEnd)
+    }
     val gameActionsAvailable = actionsAvailable &&
         !gameOver &&
         pendingDecision == null &&
@@ -572,7 +582,8 @@ internal fun buildWearStateSnapshot(
             statusMessageTransitions = game.wearStatusMessageTransitions(now),
             teamOne = game.wearTeamSnapshot(TeamId.TEAM_ONE, now),
             teamTwo = game.wearTeamSnapshot(TeamId.TEAM_TWO, now),
-            pullDirection = if (game.pullingTeam == TeamId.TEAM_ONE) {
+            leftTeam = leftTeam,
+            pullDirection = if (game.pullingTeam == leftTeam) {
                 WearSnapshotPullDirection.LEFT_TO_RIGHT
             } else {
                 WearSnapshotPullDirection.RIGHT_TO_LEFT

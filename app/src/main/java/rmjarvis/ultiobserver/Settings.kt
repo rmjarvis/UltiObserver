@@ -451,6 +451,21 @@ internal fun OrientationPreference.displayFor(
     )
 }
 
+/** Which placement remains fixed on the watch as teams change ends. */
+@Serializable
+internal enum class WatchOrientation(val label: String, val description: String) {
+    TEAMS_FIXED(
+        "Teams fixed",
+        "Keep Team 1 on the left and Team 2 on the right on the watch game screen."
+    ),
+    ENDS_FIXED(
+        "Ends fixed",
+        "Keep field ends fixed on the watch game screen as teams change ends. " +
+        "In Landscape mode, match the phone display orientation. " +
+        "In Portrait or Auto-rotate, choose the orientation in game setup.",
+    ),
+}
+
 /**
  * User settings stored as one persistence bucket.
  *
@@ -472,6 +487,7 @@ internal fun OrientationPreference.displayFor(
 @Serializable
 internal data class Settings(
     val orientationPreference: OrientationPreference = OrientationPreference.PORTRAIT,
+    val watchOrientation: WatchOrientation = WatchOrientation.TEAMS_FIXED,
     val ruleGuidanceMode: RuleGuidanceMode = RuleGuidanceMode.FULL,
     val automaticallyAdvanceCountdowns: Boolean = true,
     val automaticallyLockLivePoint: Boolean = true,

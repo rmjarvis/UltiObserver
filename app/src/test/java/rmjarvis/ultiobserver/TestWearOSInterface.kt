@@ -535,6 +535,57 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         )
     }
 
+    /** Keep the selected team or field end fixed in the watch's left slot. */
+    @Test
+    fun watchOrientation() {
+        // Teams stay in their original slots by default, even after a goal or phone field flip.
+        val game = standardLiveGameState().copy(nearEndName = "Road", farEndName = "Trees")
+        val now = timestampAt(game, LocalTime.of(11, 0))
+        val settings = Settings(
+            timingAlerts = TimingAlertPreferences(watchConnectionMode = WatchConnectionMode.WEAR_OS),
+        )
+        val scored = game.recordGoal(TeamId.TEAM_ONE, now)
+        assertEquals(TeamId.TEAM_ONE,
+            buildWearStateSnapshot(scored.flipFieldDisplay(), settings, now).activeGame!!.leftTeam)
+
+        // Fixing the Road end on the left moves the teams after a goal and restores them on Undo.
+        val endsFixed = settings.copy(watchOrientation = WatchOrientation.ENDS_FIXED)
+        val roadLeft = game.copy(watchLeftEnd = FieldEnd.NEAR)
+        val initial = buildWearStateSnapshot(roadLeft, endsFixed, now).activeGame!!
+        assertEquals(TeamId.TEAM_TWO, initial.leftTeam)
+        assertEquals("Road", initial.teamTwo.fieldEndName)
+        assertEquals(WearSnapshotPullDirection.RIGHT_TO_LEFT, initial.pullDirection)
+        val goal = roadLeft.recordGoal(TeamId.TEAM_ONE, now)
+        val afterGoal = buildWearStateSnapshot(goal, endsFixed, now).activeGame!!
+        assertEquals(TeamId.TEAM_ONE, afterGoal.leftTeam)
+        assertEquals("Road", afterGoal.teamOne.fieldEndName)
+        assertEquals(WearSnapshotPullDirection.LEFT_TO_RIGHT, afterGoal.pullDirection)
+        assertEquals(initial.leftTeam,
+            buildWearStateSnapshot(goal.undoLastAction(), endsFixed, now).activeGame!!.leftTeam)
+
+        // Portrait and Auto-rotate retain the chosen end independently of phone field placement.
+        val flipped = roadLeft.flipFieldDisplay()
+        assertEquals(TeamId.TEAM_TWO,
+            buildWearStateSnapshot(flipped, endsFixed, now).activeGame!!.leftTeam)
+        val autoRotate = endsFixed.copy(orientationPreference = OrientationPreference.AUTO_ROTATE)
+        assertEquals(TeamId.TEAM_TWO,
+            buildWearStateSnapshot(flipped, autoRotate, now).activeGame!!.leftTeam)
+        assertEquals(TeamId.TEAM_ONE,
+            buildWearStateSnapshot(
+                roadLeft.copy(watchLeftEnd = FieldEnd.FAR), autoRotate, now,
+            ).activeGame!!.leftTeam)
+
+        // Fixed Landscape follows the phone's left end, including Flip field display and Undo.
+        val landscape = endsFixed.copy(orientationPreference = OrientationPreference.LANDSCAPE)
+        assertEquals(TeamId.TEAM_ONE,
+            buildWearStateSnapshot(roadLeft, landscape, now).activeGame!!.leftTeam)
+        val landscapeFlipped = buildWearStateSnapshot(flipped, landscape, now).activeGame!!
+        assertEquals(TeamId.TEAM_TWO, landscapeFlipped.leftTeam)
+        assertEquals(WearSnapshotPullDirection.RIGHT_TO_LEFT, landscapeFlipped.pullDirection)
+        assertEquals(TeamId.TEAM_ONE,
+            buildWearStateSnapshot(flipped.undoLastAction(), landscape, now).activeGame!!.leftTeam)
+    }
+
     /**
      * Exercise watch-issued goals, including the ordinary game decisions those goals expose
      * before the phone can progress to its next state.

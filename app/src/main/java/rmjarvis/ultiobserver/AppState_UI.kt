@@ -331,6 +331,10 @@ internal fun UltiObserverApp(
             SetupScreen(
                 state = setupGame,
                 orientationPreference = snapshot.settings.orientationPreference,
+                chooseWatchLeftEnd = snapshot.settings.timingAlerts.watchConnectionMode ==
+                    WatchConnectionMode.WEAR_OS &&
+                    snapshot.settings.watchOrientation == WatchOrientation.ENDS_FIXED &&
+                    snapshot.settings.orientationPreference != OrientationPreference.LANDSCAPE,
                 onStateChange = { updatedState ->
                     appState.updateSetup(updatedState)
                 },

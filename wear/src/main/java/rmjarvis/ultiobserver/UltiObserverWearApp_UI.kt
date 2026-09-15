@@ -198,11 +198,8 @@ private fun ActiveGameScreen(
     } else if (surface == GameSurface.SCORE) {
         GameScreen(
             display = display,
-            onTeamOne = {
-                onNavigationChange { it.copy(selectedTeam = 1) }
-            },
-            onTeamTwo = {
-                onNavigationChange { it.copy(selectedTeam = 2) }
+            onTeamSelected = { team ->
+                onNavigationChange { it.copy(selectedTeam = team) }
             },
             onRetry = onRetry,
             timingControlsOpen = navigation.timingControlsOpen,
@@ -231,11 +228,7 @@ private fun ActiveGameScreen(
             },
         )
     } else {
-        val selectedWearTeam = if (selectedTeam == 1) {
-            TeamId.TEAM_ONE
-        } else {
-            TeamId.TEAM_TWO
-        }
+        val selectedWearTeam = selectedTeam!!
         val onRequestPrompt: (WearTeamAction) -> Unit
         onRequestPrompt = { action ->
             commandPending = true
@@ -248,11 +241,7 @@ private fun ActiveGameScreen(
                 onNavigationChange { it.copy(pendingActionPrompt = prompt) }
             }
         }
-        val selectedTeamSnapshot = if (selectedTeam == 1) {
-            activeGame.teamOne
-        } else {
-            activeGame.teamTwo
-        }
+        val selectedTeamSnapshot = activeGame.snapshotFor(selectedWearTeam)
         if (surface == GameSurface.TEAM_INFO) {
             TeamInfoScreen(
                 team = selectedTeamSnapshot.toTeamDisplay(),

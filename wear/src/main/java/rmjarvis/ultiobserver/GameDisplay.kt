@@ -47,6 +47,7 @@ internal fun WearActiveGameSnapshot.toGameDisplay(
         statusMessage = statusMessage.takeIf { countdown == null && countdownActions.isEmpty() },
         teamOne = teamOne.toTeamDisplay(),
         teamTwo = teamTwo.toTeamDisplay(),
+        leftTeamId = leftTeam,
         pullDirection = when (pullDirection) {
             WearSnapshotPullDirection.LEFT_TO_RIGHT -> PullDirection.LEFT_TO_RIGHT
             WearSnapshotPullDirection.RIGHT_TO_LEFT -> PullDirection.RIGHT_TO_LEFT
@@ -65,7 +66,7 @@ internal fun WearActiveGameSnapshot.toGameDisplay(
                     Color(chooser.men.contentArgb)),
                 women = RatioBadgeDisplay(chooser.women.label, Color(chooser.women.backgroundArgb),
                     Color(chooser.women.contentArgb)),
-                description = "${if (chooser.team == TeamId.TEAM_ONE) teamOne.name else teamTwo.name} chooses ratio",
+                description = "${snapshotFor(chooser.team).name} chooses ratio",
             )
         },
         connected = connected,

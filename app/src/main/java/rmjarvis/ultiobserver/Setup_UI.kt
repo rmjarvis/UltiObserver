@@ -206,6 +206,7 @@ private data class PossiblePlayerMatchConfirmation(
 internal fun SetupScreen(
     state: GameState,
     orientationPreference: OrientationPreference,
+    chooseWatchLeftEnd: Boolean,
     onStateChange: (GameState) -> Unit,
     title: String,
     primaryButtonLabel: String,
@@ -429,7 +430,21 @@ internal fun SetupScreen(
                 onEdit = { setupDialog = SetupDialog.STARTING_PULL },
             ) {
                 SetupSummaryLines(
-                    state.fieldStartingPullSummaryLines(orientationPreference),
+                    state.fieldStartingPullSummaryLines(orientationPreference) +
+                        if (chooseWatchLeftEnd) {
+                            listOf(
+                                SetupSummaryLine(
+                                    label = "On watch:",
+                                    value = state.fieldEndName(
+                                        state.watchLeftEnd, orientationPreference,
+                                    ) + " | " + state.fieldEndName(
+                                        state.watchLeftEnd.flip(), orientationPreference,
+                                    ),
+                                )
+                            )
+                        } else {
+                            emptyList()
+                        },
                 )
             }
             SetupSummaryRow(
@@ -460,6 +475,7 @@ internal fun SetupScreen(
             StartingPullSetupDialog(
                 state = state,
                 preference = orientationPreference,
+                chooseWatchLeftEnd = chooseWatchLeftEnd,
                 onStateChange = onStateChange,
                 onDismiss = { setupDialog = null },
             )
@@ -1553,6 +1569,7 @@ private fun SetupEditButton(
 private fun StartingPullSetupDialog(
     state: GameState,
     preference: OrientationPreference,
+    chooseWatchLeftEnd: Boolean,
     onStateChange: (GameState) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -1565,6 +1582,7 @@ private fun StartingPullSetupDialog(
     var pullPromptTarget by remember { mutableStateOf(state.pullPromptTarget) }
     var initialGenderRatio by remember { mutableStateOf(state.initialGenderRatio) }
     var firstHalfGenZone by remember { mutableStateOf(state.firstHalfGenZone) }
+    var watchLeftEnd by remember { mutableStateOf(state.watchLeftEnd) }
     val dialogBodyMaxHeight = keyboardDialogBodyMaxHeight()
 
     fun commitNearEndLabel() {
@@ -1593,6 +1611,7 @@ private fun StartingPullSetupDialog(
                 pullPromptTarget = pullPromptTarget,
                 initialGenderRatio = initialGenderRatio,
                 firstHalfGenZone = firstHalfGenZone,
+                watchLeftEnd = watchLeftEnd,
             )
         )
         onDismiss()
@@ -1700,6 +1719,23 @@ private fun StartingPullSetupDialog(
                     farLabel = displayFieldEndName(FieldEnd.FAR),
                     onSelected = { pullPromptTarget = it },
                 )
+                if (chooseWatchLeftEnd) {
+                    Text(
+                        "How do you want the ends displayed on the watch?",
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    val nearLabel = displayFieldEndName(FieldEnd.NEAR)
+                    val farLabel = displayFieldEndName(FieldEnd.FAR)
+                    FieldEndChoiceRow(
+                        selected = watchLeftEnd,
+                        nearLabel = "$nearLabel | $farLabel",
+                        farLabel = "$farLabel | $nearLabel",
+                        onSelected = {
+                            watchLeftEnd = it
+                        },
+                        testTagPrefix = "setup-watch-left-end",
+                    )
+                }
             }
         },
         confirmButton = {

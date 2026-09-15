@@ -29,6 +29,47 @@ import org.junit.runner.RunWith
 /// Tests for setup screen editors and setup-specific navigation.
 @RunWith(AndroidJUnit4::class)
 class TestSetupUi : MainActivityUiTestFixtures() {
+    /** Choose and retain a named watch end with the phone in Portrait mode. */
+    @Test
+    fun watchEndSetup() {
+        // Portrait lets the observer choose which field end appears on the watch's left.
+        composeRule.activityRule.scenario.onActivity { activity ->
+            activity.appState.updateSettings(
+                activity.appState.settings.copy(
+                    orientationPreference = OrientationPreference.PORTRAIT,
+                    watchOrientation = WatchOrientation.ENDS_FIXED,
+                    timingAlerts = TimingAlertPreferences(
+                        watchConnectionMode = WatchConnectionMode.WEAR_OS,
+                    ),
+                )
+            )
+        }
+        openNewGameSetup()
+        openStartingPullSetupEditor()
+        composeRule.onNodeWithTag("setup-near-end-name").performTextReplacement("Road")
+        composeRule.onNodeWithTag("setup-near-end-name").performImeAction()
+        composeRule.onNodeWithTag("setup-watch-left-end-NEAR")
+            .performScrollTo().assertTextEquals("Road | Far end").performClick()
+        composeRule.onNodeWithTag("setup-watch-left-end-FAR")
+            .assertTextEquals("Far end | Road")
+        closeSetupEditor()
+        waitForText("On watch: Road | Far end")
+        assertEquals(FieldEnd.NEAR, composeRule.activity.appState.setupGame.watchLeftEnd)
+
+        // Cancelling an edit keeps the saved end; Done applies the other end.
+        openStartingPullSetupEditor()
+        composeRule.onNodeWithTag("setup-watch-left-end-NEAR")
+            .performScrollTo().assertIsSelected()
+        composeRule.onNodeWithTag("setup-watch-left-end-FAR").performClick()
+        composeRule.onNodeWithText("Cancel").performClick()
+        waitForText("On watch: Road | Far end")
+        openStartingPullSetupEditor()
+        composeRule.onNodeWithTag("setup-watch-left-end-FAR").performScrollTo().performClick()
+        closeSetupEditor()
+        waitForText("On watch: Far end | Road")
+        assertEquals(FieldEnd.FAR, composeRule.activity.appState.setupGame.watchLeftEnd)
+    }
+
     /**
      * Test landscape field-end language while the setup screen itself remains portrait.
      */

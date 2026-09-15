@@ -678,6 +678,7 @@ private class PhoneSession : PhoneTransport {
     var snapshot = WearStateSnapshot(
         status = WearSnapshotStatus.ACTIVE_GAME,
         activeGame = WearActiveGameSnapshot(
+            leftTeam = TeamId.TEAM_ONE,
             stateToken = "playing", actionsAvailable = true, officialClockOffsetMillis = 0,
             officialTimeZoneId = "UTC",
             rulesReference = emptyList(),

@@ -7,7 +7,7 @@ import rmjarvis.ultiobserver.wearprotocol.WearTeamActionPrompt
 
 /** Watch-owned navigation reconciled with the authoritative phone state. */
 internal data class NavigationState(
-    val selectedTeam: Int = 0,
+    val selectedTeam: TeamId? = null,
     val teamInfoOpen: Boolean = false,
     val rulesOpen: Boolean = false,
     val timingControlsOpen: Boolean = false,
@@ -35,18 +35,18 @@ internal data class NavigationState(
         } else if (phoneCardEntryWasActive) {
             val returnTeam = returnToCardChoicesForTeam
             if (returnTeam == null) {
-                selectedTeam = 0
+                selectedTeam = null
                 cardChoiceStateToken = null
                 playerCard = null
             } else {
-                selectedTeam = if (returnTeam == TeamId.TEAM_ONE) 1 else 2
+                selectedTeam = returnTeam
                 cardChoiceStateToken = game.stateToken
             }
             phoneCardEntryWasActive = false
             returnToCardChoicesForTeam = null
         }
         if (!game.actionsAvailable && phoneCardEntry == null) {
-            selectedTeam = 0
+            selectedTeam = null
             cardChoiceStateToken = null
             playerCard = null
         }
@@ -55,14 +55,14 @@ internal data class NavigationState(
         }
         if (cardChoiceStateToken != game.stateToken) {
             if (cardChoiceStateToken != null && phoneCardEntry != null) {
-                selectedTeam = 0
+                selectedTeam = null
             }
             cardChoiceStateToken = null
             playerCard = null
         }
         return copy(
             selectedTeam = selectedTeam,
-            teamInfoOpen = teamInfoOpen && selectedTeam != 0,
+            teamInfoOpen = teamInfoOpen && selectedTeam != null,
             timingControlsOpen = timingControlsOpen && game.actionsAvailable &&
                 game.timingControls != null && game.countdown != null,
             pendingActionPrompt = pendingActionPrompt,
@@ -74,7 +74,7 @@ internal data class NavigationState(
     }
 
     val handlesBack: Boolean
-        get() = (selectedTeam != 0 || timingControlsOpen || rulesOpen) && pendingActionPrompt == null && playerCard == null
+        get() = (selectedTeam != null || timingControlsOpen || rulesOpen) && pendingActionPrompt == null && playerCard == null
 
     /** Return from card choices to team actions, or from team actions to the game. */
     fun back(): NavigationState = if (rulesOpen) {
@@ -84,7 +84,7 @@ internal data class NavigationState(
     } else if (cardChoiceStateToken != null) {
         copy(cardChoiceStateToken = null)
     } else {
-        copy(selectedTeam = 0, timingControlsOpen = false)
+        copy(selectedTeam = null, timingControlsOpen = false)
     }
 
     fun beginPhoneCancellation(team: TeamId): NavigationState =
@@ -95,13 +95,13 @@ internal data class NavigationState(
 
     fun finishConfirmation(applied: Boolean): NavigationState =
         if (applied) copy(
-            pendingActionPrompt = null, selectedTeam = 0,
+            pendingActionPrompt = null, selectedTeam = null,
             timingControlsOpen = false,
             cardChoiceStateToken = null, playerCard = null,
         ) else copy(pendingActionPrompt = null)
 
     fun finishGoal(applied: Boolean): NavigationState =
-        if (applied) copy(selectedTeam = 0) else this
+        if (applied) copy(selectedTeam = null) else this
 
     fun finishHandoff(applied: Boolean): NavigationState =
         if (applied) copy(playerCard = null) else this
@@ -125,7 +125,7 @@ internal data class NavigationState(
 
     fun gameScreen(stateToken: String): GameSurface = when {
         rulesOpen -> GameSurface.RULES
-        selectedTeam == 0 -> GameSurface.SCORE
+        selectedTeam == null -> GameSurface.SCORE
         teamInfoOpen -> GameSurface.TEAM_INFO
         cardChoiceStateToken == stateToken && playerCard != null -> GameSurface.PLAYER_CARD
         cardChoiceStateToken == stateToken -> GameSurface.CARD_CHOICES

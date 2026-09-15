@@ -505,6 +505,7 @@ data class GameState(
     val pullingTeam: TeamId,
     val pullingFromEnd: FieldEnd,
     val topDisplayedEnd: FieldEnd = FieldEnd.FAR,
+    val watchLeftEnd: FieldEnd = FieldEnd.NEAR,
     val pullPromptTarget: PullPromptTarget = PullPromptTarget.NEAR,
     val initialGenderRatio: GenderRatio = GenderRatio.FOUR_MEN_THREE_WOMEN,
     val firstHalfGenZone: FieldEnd = FieldEnd.FAR,
@@ -800,6 +801,7 @@ private fun GameState.hasSameSetupFieldsAs(other: GameState): Boolean {
         fieldName == other.fieldName &&
         nearEndName == other.nearEndName &&
         farEndName == other.farEndName &&
+        watchLeftEnd == other.watchLeftEnd &&
         rules == other.rules &&
         teamOne.hasSameSetupFieldsAs(other.teamOne) &&
         teamTwo.hasSameSetupFieldsAs(other.teamTwo) &&

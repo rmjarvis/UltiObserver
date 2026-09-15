@@ -1234,6 +1234,19 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             "No Wear OS watch is currently available",
             substring = true,
         ).assertCountEquals(0)
+
+        // Wear OS exposes the placement choice, retaining it when the connection is turned off.
+        composeRule.onNodeWithTag("settings-watch-orientation-TEAMS_FIXED")
+            .performScrollTo().assertIsSelected()
+        composeRule.onNodeWithTag("settings-watch-orientation-ENDS_FIXED").performClick()
+        assertEquals(WatchOrientation.ENDS_FIXED, composeRule.activity.appState.settings.watchOrientation)
+        composeRule.onNodeWithTag("settings-watch-connection-OFF").performScrollTo().performClick()
+        composeRule.onNodeWithTag("settings-watch-orientation-ENDS_FIXED").assertDoesNotExist()
+        composeRule.onNodeWithTag("settings-watch-connection-WEAR_OS").performClick()
+        composeRule.onNodeWithTag("settings-watch-orientation-ENDS_FIXED")
+            .performScrollTo().assertIsSelected()
+        composeRule.onNodeWithTag("settings-watch-orientation-TEAMS_FIXED").performClick()
+        assertEquals(WatchOrientation.TEAMS_FIXED, composeRule.activity.appState.settings.watchOrientation)
     }
 
     /**

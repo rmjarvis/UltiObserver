@@ -27,6 +27,15 @@ class TestGameDisplay {
         assertNull(display.countdownValue)
         assertEquals("", display.countdownLabel)
 
+        // The phone can put Team 2 on the left without changing either team's identity or colors.
+        val swapped = game.copy(leftTeam = TeamId.TEAM_TWO).toGameDisplay(0L, true)
+        assertEquals(TeamId.TEAM_ONE, display.leftTeamId)
+        assertEquals(display.teamOne, display.leftTeam)
+        assertEquals(display.teamTwo, display.rightTeam)
+        assertEquals(TeamId.TEAM_TWO, swapped.leftTeamId)
+        assertEquals(display.teamTwo, swapped.leftTeam)
+        assertEquals(display.teamOne, swapped.rightTeam)
+
         // A mixed game's badge, reversed pull, and Undo come from the updated snapshot.
         val updated = game.copy(
             officialClockOffsetMillis = 60_000L,

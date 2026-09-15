@@ -247,6 +247,7 @@ class TestSetup : GameDomainTestFixtures() {
             "field" to { it.copy(fieldName = "Changed field") },
             "near end" to { it.copy(nearEndName = "Changed near end") },
             "far end" to { it.copy(farEndName = "Changed far end") },
+            "watch left end" to { it.copy(watchLeftEnd = it.watchLeftEnd.flip()) },
             "rules" to { it.copy(rules = it.rules.copy(gameTo = it.rules.gameTo + 1)) },
             "team one name" to { it.copy(teamOne = it.teamOne.copy(name = "Changed team")) },
             "team one color" to { it.copy(teamOne = it.teamOne.copy(color = TeamColorChoice.BLACK)) },

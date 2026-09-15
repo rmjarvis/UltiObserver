@@ -45,13 +45,13 @@ class TestNavigation {
         navigation = navigation.back()
 
         // Opening a team enables local Back; opening cards adds one level to that hierarchy.
-        navigation = navigation.copy(selectedTeam = 1)
+        navigation = navigation.copy(selectedTeam = TeamId.TEAM_ONE)
         assertEquals(GameSurface.TEAM_ACTIONS, navigation.gameScreen("playing"))
         assertTrue(navigation.handlesBack)
         navigation = navigation.copy(cardChoiceStateToken = "playing")
         assertEquals(GameSurface.CARD_CHOICES, navigation.gameScreen("playing"))
         assertEquals("playing", navigation.cardChoiceStateToken)
-        assertEquals(1, navigation.selectedTeam)
+        assertEquals(TeamId.TEAM_ONE, navigation.selectedTeam)
         assertTrue(navigation.handlesBack)
 
         // Number entry and its confirmation own Back themselves, rather than skipping the picker.
@@ -69,13 +69,13 @@ class TestNavigation {
         assertEquals(GameSurface.SCORE, navigation.gameScreen("playing"))
 
         // Team information returns to its team actions and closes when the connection is lost.
-        navigation = navigation.copy(selectedTeam = 2, teamInfoOpen = true)
+        navigation = navigation.copy(selectedTeam = TeamId.TEAM_TWO, teamInfoOpen = true)
         assertEquals(GameSurface.TEAM_INFO, navigation.gameScreen("playing"))
         assertTrue(navigation.handlesBack)
         assertEquals(NavigationState(), navigation.receive(snapshot, ConnectionState.DISCONNECTED))
         navigation = navigation.back()
         assertEquals(GameSurface.TEAM_ACTIONS, navigation.gameScreen("playing"))
-        assertEquals(2, navigation.selectedTeam)
+        assertEquals(TeamId.TEAM_TWO, navigation.selectedTeam)
         assertFalse(navigation.teamInfoOpen)
         assertEquals(NavigationState(), navigation.back())
     }
@@ -85,7 +85,7 @@ class TestNavigation {
     fun commandResults() {
         val card = WearTeamAction.PlayerCard(CardType.YELLOW, "17")
         val entry = NavigationState(
-            selectedTeam = 2, cardChoiceStateToken = "playing", playerCard = card,
+            selectedTeam = TeamId.TEAM_TWO, cardChoiceStateToken = "playing", playerCard = card,
             pendingActionPrompt = timeoutConfirmation(),
         )
 
@@ -95,7 +95,7 @@ class TestNavigation {
         val rejected = entry.finishConfirmation(false)
         assertNull(rejected.pendingActionPrompt)
         assertEquals(card, rejected.playerCard)
-        assertEquals(2, rejected.selectedTeam)
+        assertEquals(TeamId.TEAM_TWO, rejected.selectedTeam)
         assertEquals("playing", rejected.cardChoiceStateToken)
 
         // Confirming a water break returns to the scores; rejection keeps timing controls open.
@@ -110,7 +110,7 @@ class TestNavigation {
 
         // Goal and handoff results make different transitions: a goal returns to the score,
         // whereas a handoff clears number entry while awaiting the phone's entry snapshot.
-        val team = NavigationState(selectedTeam = 1)
+        val team = NavigationState(selectedTeam = TeamId.TEAM_ONE)
         assertEquals(team, team.finishGoal(false))
         assertEquals(NavigationState(), team.finishGoal(true))
         assertEquals(entry, entry.finishHandoff(false))
@@ -183,13 +183,13 @@ class TestNavigation {
                 phoneCardEntry = WearPhoneCardEntrySnapshot(team, CardType.YELLOW, "17"),
             ))
             var navigation = NavigationState(
-                selectedTeam = if (team == TeamId.TEAM_ONE) 1 else 2,
+                selectedTeam = team,
                 cardChoiceStateToken = "playing",
             ).receive(handoff, ConnectionState.CONNECTED)
             assertEquals(WatchScreen.PHONE_ENTRY, navigation.screen(handoff, ConnectionState.CONNECTED))
             navigation = navigation.beginPhoneCancellation(team).finishPhoneCancellation(true)
                 .receive(playing, ConnectionState.CONNECTED)
-            assertEquals(if (team == TeamId.TEAM_ONE) 1 else 2, navigation.selectedTeam)
+            assertEquals(team, navigation.selectedTeam)
             assertEquals(GameSurface.CARD_CHOICES, navigation.gameScreen("playing"))
 
             // Phone-side completion, including a cancellation rejected because the phone already
@@ -206,7 +206,7 @@ class TestNavigation {
     fun phoneChanges() {
         val playing = navigationSnapshot()
         val entry = NavigationState(
-            selectedTeam = 1, cardChoiceStateToken = "playing",
+            selectedTeam = TeamId.TEAM_ONE, cardChoiceStateToken = "playing",
             playerCard = WearTeamAction.PlayerCard(CardType.RED, "3"),
             pendingActionPrompt = timeoutConfirmation(),
         )
@@ -226,13 +226,13 @@ class TestNavigation {
             phoneCardEntry = WearPhoneCardEntrySnapshot(TeamId.TEAM_TWO, CardType.RED, "3"),
         ))
         val onPhone = entry.receive(handoff, ConnectionState.CONNECTED)
-        assertEquals(0, onPhone.selectedTeam)
+        assertNull(onPhone.selectedTeam)
         assertEquals(NavigationState(), onPhone.receive(goal, ConnectionState.CONNECTED))
 
         // Leaving the phone game closes team actions. Disconnection also clears prompts and
         // handoff return state, rather than restoring them after reconnection.
         val paused = playing.copy(activeGame = playing.activeGame!!.copy(actionsAvailable = false))
-        assertEquals(0, entry.receive(paused, ConnectionState.CONNECTED).selectedTeam)
+        assertNull(entry.receive(paused, ConnectionState.CONNECTED).selectedTeam)
         assertEquals(NavigationState(), entry.receive(playing, ConnectionState.DISCONNECTED))
         assertEquals(NavigationState(), onPhone.receive(playing, ConnectionState.DISCONNECTED))
         assertEquals(NavigationState(), entry.receive(null, ConnectionState.CONNECTING))
@@ -277,6 +277,7 @@ internal fun navigationSnapshot(): WearStateSnapshot {
     return WearStateSnapshot(
         status = WearSnapshotStatus.ACTIVE_GAME,
         activeGame = WearActiveGameSnapshot(
+            leftTeam = TeamId.TEAM_ONE,
             stateToken = "playing", actionsAvailable = true,
             officialClockOffsetMillis = 0,
             officialTimeZoneId = "UTC",

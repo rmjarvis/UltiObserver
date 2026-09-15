@@ -172,13 +172,19 @@ data class WearActiveGameSnapshot(
     val statusMessageTransitions: List<WearStatusMessageTransition> = emptyList(),
     val teamOne: WearTeamSnapshot,
     val teamTwo: WearTeamSnapshot,
+    val leftTeam: TeamId,
     val pullDirection: WearSnapshotPullDirection,
     val ratio: WearRatioSnapshot?,
     val ratioChooser: WearRatioChooserSnapshot?,
     val undoDescription: String?,
     val pendingDecision: WearPromptSnapshot?,
     val phoneCardEntry: WearPhoneCardEntrySnapshot?,
-)
+) {
+    /** Return the phone-supplied state for the requested team. */
+    fun snapshotFor(team: TeamId): WearTeamSnapshot {
+        return if (team == TeamId.TEAM_ONE) teamOne else teamTwo
+    }
+}
 
 /**
  * Current phone-owned state synchronized to the companion watch.
