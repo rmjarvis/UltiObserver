@@ -75,6 +75,12 @@ class TestWearPairedPhoneUi : MainActivityUiTestFixtures() {
         // that the phone has finished, then undoes this phone-recorded goal.
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal")).performClick()
 
+        // Clear this phone-recorded goal's countdown so the watch can restart it, then undo
+        // the restart before undoing the goal. No watch goal request is pending during this edit.
+        updateCurrentStateProgrammatically {
+            copy(countdown = null)
+        }
+
         // The watch undoes the phone's goal for Animal. Validate the final state.
         waitForGame { game ->
             game.teamOne.score == 1 && game.teamTwo.score == 0 && game.redoEntry != null
@@ -130,13 +136,15 @@ class TestWearPairedPhoneUi : MainActivityUiTestFixtures() {
 
         // The watch records a timeout for VC, a tech on Animal, and a blue card on VC.
 
-        // The blue card is the last watch action in this narrative.
-        // Validate the final game state.
-        waitForGame { game -> game.teamTwo.blueCards == 1 }
+        // The watch continues through VC's third blue card and starts the misconduct countdown.
+        waitForGame { game -> game.teamTwo.blueCards == 3 && game.countdown != null }
         val finalGame = composeRule.activity.appState.currentGame!!
         assertEquals(1, finalGame.teamTwo.timeoutsUsedThisHalf)
         assertEquals(1, finalGame.teamOne.technicalFouls)
-        assertEquals(1, finalGame.teamTwo.blueCards)
+        assertEquals(3, finalGame.teamTwo.blueCards)
+        assertEquals(CountdownKind.TIME_OUT, finalGame.countdown!!.kind)
+        assertEquals(30, finalGame.countdown.durationSeconds)
+        assertTrue(!finalGame.pendingMisconductCountdown)
         assertEquals("Undo Blue card on Viscous Coupling", finalGame.undoEntry?.label)
     }
 

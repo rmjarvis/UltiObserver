@@ -18,6 +18,7 @@ enum class WearRequestAction(val path: String) {
     STARTUP("/ultiobserver/startup"),
     GOAL("/ultiobserver/goal"),
     UNDO("/ultiobserver/undo"),
+    COUNTDOWN("/ultiobserver/countdown"),
     DECISION("/ultiobserver/decision"),
     TEAM_ACTION("/ultiobserver/team-action"),
     CONFIRM_ACTION("/ultiobserver/confirm-action"),
@@ -44,6 +45,20 @@ data class WearGoalRequest(
 @Serializable
 data class WearUndoRequest(
     val stateToken: String,
+)
+
+/** Action replacing the countdown on the phone and watch. */
+@Serializable
+enum class WearCountdownAction(val label: String) {
+    START_MISCONDUCT("Start misconduct countdown"),
+    RESTART_PULL("Restart countdown"),
+}
+
+/** Request the countdown action shown against the exact game state displayed by the watch. */
+@Serializable
+data class WearCountdownActionRequest(
+    val stateToken: String,
+    val action: WearCountdownAction,
 )
 
 /** Observer response to the exact pending decision displayed by the watch. */

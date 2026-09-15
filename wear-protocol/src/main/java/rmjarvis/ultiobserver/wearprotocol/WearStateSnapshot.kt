@@ -138,6 +138,7 @@ data class WearActiveGameSnapshot(
     val officialTimeZoneId: String,
     val upcomingCaps: List<WearCapSnapshot> = emptyList(),
     val countdown: WearCountdownSnapshot?,
+    val countdownAction: WearCountdownAction?,
     val statusMessageTransitions: List<WearStatusMessageTransition> = emptyList(),
     val teamOne: WearTeamSnapshot,
     val teamTwo: WearTeamSnapshot,

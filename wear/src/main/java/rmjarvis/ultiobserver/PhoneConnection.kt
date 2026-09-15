@@ -23,6 +23,8 @@ import rmjarvis.ultiobserver.wearprotocol.WearStateUpdate
 import rmjarvis.ultiobserver.wearprotocol.WearTeamAction
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionPrompt
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionRequest
+import rmjarvis.ultiobserver.wearprotocol.WearCountdownAction
+import rmjarvis.ultiobserver.wearprotocol.WearCountdownActionRequest
 import rmjarvis.ultiobserver.wearprotocol.WearUndoRequest
 
 /** Wait for both the startup timing reply and its published snapshot, in either arrival order. */
@@ -282,6 +284,21 @@ internal class PhoneConnectionController(
             action = WearRequestAction.UNDO,
             stateToken = stateToken,
             request = WearProtocolCodec.encode(WearUndoRequest.serializer(), request),
+            onFinished = { response -> onFinished(response?.applied == true) },
+        )
+    }
+
+    /** Apply the countdown action against the exact state displayed by the watch. */
+    fun countdownAction(
+        stateToken: String,
+        action: WearCountdownAction,
+        onFinished: (Boolean) -> Unit,
+    ) {
+        val request = WearCountdownActionRequest(stateToken, action)
+        sendGameAction(
+            action = WearRequestAction.COUNTDOWN,
+            stateToken = stateToken,
+            request = WearProtocolCodec.encode(WearCountdownActionRequest.serializer(), request),
             onFinished = { response -> onFinished(response?.applied == true) },
         )
     }

@@ -83,6 +83,24 @@ class TestGameDisplay {
         assertNull(game.toGameDisplay(30_000L, true).statusMessage)
     }
 
+    /** Countdown actions occupy the same area as the phone action and suppress status text. */
+    @Test
+    fun countdownActions() {
+        val game = navigationSnapshot().activeGame!!.copy(
+            countdownAction = WearCountdownAction.START_MISCONDUCT,
+            statusMessageTransitions = listOf(WearStatusMessageTransition(0L, "Half cap passed")),
+        )
+        val display = game.toGameDisplay(0L, true)
+        assertEquals(WearCountdownAction.START_MISCONDUCT, display.countdownAction)
+        assertNull(display.statusMessage)
+        assertNull(display.countdownValue)
+
+        // The replacement snapshot restores ordinary status text once the action is gone.
+        val cleared = game.copy(countdownAction = null).toGameDisplay(0L, true)
+        assertNull(cleared.countdownAction)
+        assertEquals("Half cap passed", cleared.statusMessage)
+    }
+
     /** Preserve individual action restrictions and disable all actions while a request is pending. */
     @Test
     fun teamActions() {

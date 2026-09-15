@@ -35,6 +35,9 @@ class WatchActivity : ComponentActivity() {
                 onGoal = { scoringTeam, stateToken, onFinished ->
                     stateClient.connection.recordGoal(scoringTeam, stateToken, onFinished)
                 },
+                onCountdownAction = { stateToken, action, onFinished ->
+                    stateClient.connection.countdownAction(stateToken, action, onFinished)
+                },
                 onUndo = { stateToken, onFinished ->
                     stateClient.connection.undo(stateToken, onFinished)
                 },

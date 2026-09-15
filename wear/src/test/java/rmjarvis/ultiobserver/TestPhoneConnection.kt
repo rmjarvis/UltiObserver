@@ -43,6 +43,22 @@ class TestPhoneConnection {
         phone.complete(true)
         assertEquals(true, applied)
 
+        // Countdown buttons carry the exact displayed action and use the same acknowledgement.
+        phone.controller.countdownAction("playing", WearCountdownAction.START_MISCONDUCT) { applied = it }
+        assertEquals(WearRequestAction.COUNTDOWN.path, phone.sent.last().path)
+        val countdown = WearProtocolCodec.decode(
+            WearCountdownActionRequest.serializer(), phone.command().arguments,
+        )
+        assertEquals("playing", countdown.stateToken)
+        assertEquals(WearCountdownAction.START_MISCONDUCT, countdown.action)
+        phone.complete(true)
+        assertEquals(true, applied)
+
+        // A rejected restart releases its button without pretending the countdown started.
+        phone.controller.countdownAction("playing", WearCountdownAction.RESTART_PULL) { applied = it }
+        phone.complete(false)
+        assertEquals(false, applied)
+
         // Request a timeout prompt, then send its confirmation back unchanged.
         val confirmation = WearActionConfirmation.Timeout(
             "playing", TeamId.TEAM_TWO, phone.now,
@@ -646,7 +662,7 @@ private class PhoneSession : PhoneTransport {
         status = WearSnapshotStatus.ACTIVE_GAME,
         activeGame = WearActiveGameSnapshot(
             stateToken = "playing", actionsAvailable = true, officialClockOffsetMillis = 0,
-            officialTimeZoneId = "UTC", countdown = null,
+            officialTimeZoneId = "UTC", countdownAction = null, countdown = null,
             teamOne = WearTeamSnapshot("Animal", 0, 0, 0, actions),
             teamTwo = WearTeamSnapshot("Viscous Coupling", 0, 0, 0, actions),
             pullDirection = WearSnapshotPullDirection.LEFT_TO_RIGHT, ratio = null,

@@ -26,6 +26,8 @@ import rmjarvis.ultiobserver.wearprotocol.WearStartupAcknowledgement
 import rmjarvis.ultiobserver.wearprotocol.WearTeamAction
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionPrompt
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionRequest
+import rmjarvis.ultiobserver.wearprotocol.WearCountdownAction
+import rmjarvis.ultiobserver.wearprotocol.WearCountdownActionRequest
 import rmjarvis.ultiobserver.wearprotocol.WearUndoRequest
 import rmjarvis.ultiobserver.wearprotocol.WearCommandRequest
 import rmjarvis.ultiobserver.wearprotocol.WearCommandAcknowledgement
@@ -1018,6 +1020,58 @@ class TestWearOSInterface : GameDomainTestFixtures() {
                 now = goalTime,
             ).applied
         )
+    }
+
+    /** Start misconduct timing and restart expired pulls from the watch's countdown area. */
+    @Test
+    fun watchCountdownActions() {
+        val settings = Settings(timingAlerts = TimingAlertPreferences(
+            watchConnectionMode = WatchConnectionMode.WEAR_OS,
+        ))
+        val now = 1_000_000L
+
+        // A third live-point blue card offers a start button, then starts the phone's 30 seconds.
+        val liveGame = standardLiveGameState().continueLivePoint()
+        val misconduct = liveGame.copy(teamOne = liveGame.teamOne.copy(blueCards = 2))
+            .assessBlueCard(TeamId.TEAM_ONE, now).state
+        val appState = activeWearState(settings, misconduct)
+        val before = buildWearStateSnapshot(misconduct, settings, now).activeGame!!
+        assertEquals(WearCountdownAction.START_MISCONDUCT, before.countdownAction)
+        assertEquals("Start misconduct countdown", before.countdownAction!!.label)
+        assertNull(before.countdown)
+        val request = WearCountdownActionRequest(before.stateToken, before.countdownAction!!)
+        val encoded = WearProtocolCodec.encode(WearCountdownActionRequest.serializer(), request)
+        assertEquals(request, WearProtocolCodec.decode(WearCountdownActionRequest.serializer(), encoded))
+        val started = requestResponse(appState, WearRequestAction.COUNTDOWN, encoded, now + 5_000L)
+        assertTrue(started.applied)
+        assertEquals(misconduct.startMisconductCountdown(now + 5_000L), appState.currentGame)
+        assertNull(started.snapshot.activeGame!!.countdownAction)
+        assertEquals(now + 35_000L, started.snapshot.activeGame!!.countdown!!.targetEpochMillis)
+
+        // A delayed repeat cannot restart a countdown that has already begun.
+        assertFalse(requestResponse(appState, WearRequestAction.COUNTDOWN, encoded, now + 8_000L).applied)
+        assertEquals(now + 35_000L, appState.currentGame!!.countdown!!.targetEpoch)
+
+        // An expired pull offers Restart countdown and keeps the usual undo behavior.
+        val expired = standardLiveGameState().copy(countdown = null)
+        appState.updateCurrentGame(expired)
+        val restartDisplay = buildWearStateSnapshot(expired, settings, now).activeGame!!
+        assertEquals(WearCountdownAction.RESTART_PULL, restartDisplay.countdownAction)
+        assertEquals("Restart countdown", restartDisplay.countdownAction!!.label)
+        val restart = WearProtocolCodec.encode(WearCountdownActionRequest.serializer(),
+            WearCountdownActionRequest(restartDisplay.stateToken, WearCountdownAction.RESTART_PULL))
+        val restarted = requestResponse(appState, WearRequestAction.COUNTDOWN, restart, now)
+        assertTrue(restarted.applied)
+        assertEquals(expired.restartPullCountdown(now), appState.currentGame)
+        assertNull(restarted.snapshot.activeGame!!.countdownAction)
+        assertEquals("Undo Restart countdown", restarted.snapshot.activeGame!!.undoDescription)
+
+        // A different action cannot be substituted for the one currently shown.
+        appState.updateCurrentGame(expired)
+        val wrongAction = WearProtocolCodec.encode(WearCountdownActionRequest.serializer(),
+            WearCountdownActionRequest(wearStateToken(expired), WearCountdownAction.START_MISCONDUCT))
+        assertFalse(requestResponse(appState, WearRequestAction.COUNTDOWN, wrongAction, now).applied)
+        assertEquals(expired, appState.currentGame)
     }
 
     /** Exercise a watch timeout that is requested before it is confirmed and recorded. */

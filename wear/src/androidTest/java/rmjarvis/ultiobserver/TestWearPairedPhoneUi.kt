@@ -105,6 +105,18 @@ class TestWearPairedPhoneUi {
         assertEquals(1, composeRule.onAllNodesWithText("2").fetchSemanticsNodes().size)
         assertEquals(1, composeRule.onAllNodesWithText("0").fetchSemanticsNodes().size)
 
+        // The phone clears the post-goal countdown; restart it from the watch.
+        waitForPairedText("Restart countdown")
+        composeRule.onNodeWithText("Restart countdown").assertIsDisplayed().performClick()
+        waitForContentDescription("Undo Restart countdown")
+        composeRule.onNodeWithText("Restart countdown").assertDoesNotExist()
+        composeRule.onNodeWithText("Pull in").assertIsDisplayed()
+
+        // Undo the restart to return to the goal's undo entry.
+        composeRule.onNodeWithText("Undo").performClick()
+        waitForContentDescription("Undo Goal by Animal")
+        composeRule.onNodeWithText("Restart countdown").assertIsDisplayed()
+
         // The watch can then undo that phone-recorded goal.
         composeRule.onNode(
             hasContentDescription("Undo Goal by Animal")
@@ -214,6 +226,25 @@ class TestWearPairedPhoneUi {
         waitForText("OK")
         composeRule.onNodeWithText("OK").performClick()
         waitForContentDescription("Undo Blue card on Viscous Coupling")
+
+        // Two more blue cards reach the live-point misconduct penalty.
+        for (cardCount in 1..2) {
+            composeRule.onNodeWithText(VISCOUS_COUPLING).performClick()
+            waitForText("Card ($cardCount)")
+            composeRule.onNodeWithText("Card ($cardCount)").performClick()
+            waitForText("Blue")
+            composeRule.onNodeWithText("Blue").performClick()
+            waitForText("OK")
+            composeRule.onNodeWithText("OK").performClick()
+            waitForText(VISCOUS_COUPLING)
+        }
+        waitForText("Start misconduct\ncountdown")
+        composeRule.onNodeWithText("Start misconduct\ncountdown").assertIsDisplayed().assertIsEnabled()
+
+        // Start the phone's 30-second offense-set countdown from the watch.
+        composeRule.onNodeWithText("Start misconduct\ncountdown").performClick()
+        waitForText("Offense set in")
+        composeRule.onNodeWithText("Start misconduct\ncountdown").assertDoesNotExist()
     }
 
     /** Defer and accept both the half-cap and halftime confirmations on the watch. */

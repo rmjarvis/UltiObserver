@@ -34,6 +34,7 @@ internal fun WearActiveGameSnapshot.toGameDisplay(
             val remainingMillis = cap.targetEpochMillis - currentPhoneEpochMillis
             "${cap.label} in ${formatDurationMillis(remainingMillis)}"
         },
+        countdownAction = countdownAction,
         countdownLabel = countdown?.label.orEmpty(),
         countdownValue = if (gameOver) {
             null
@@ -41,7 +42,7 @@ internal fun WearActiveGameSnapshot.toGameDisplay(
             countdownRemainingMillis?.let(::formatDurationMillis)
         },
         nextCue = if (gameOver) null else nextCue?.let { cue -> "Next: ${cue.message}" },
-        statusMessage = statusMessage.takeIf { countdown == null },
+        statusMessage = statusMessage.takeIf { countdown == null && countdownAction == null },
         teamOne = teamOne.toTeamDisplay(),
         teamTwo = teamTwo.toTeamDisplay(),
         pullDirection = when (pullDirection) {

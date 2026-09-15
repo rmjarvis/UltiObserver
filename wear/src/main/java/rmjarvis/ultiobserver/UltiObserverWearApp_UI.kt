@@ -33,6 +33,7 @@ import androidx.wear.compose.material3.Text
 import kotlinx.coroutines.delay
 import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 import rmjarvis.ultiobserver.wearprotocol.WearActionConfirmation
+import rmjarvis.ultiobserver.wearprotocol.WearCountdownAction
 import rmjarvis.ultiobserver.wearprotocol.WearActiveGameSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearSnapshotStatus
 import rmjarvis.ultiobserver.wearprotocol.WearTeamAction
@@ -46,6 +47,7 @@ internal fun UltiObserverWearApp(
     onRetry: () -> Unit,
     onGoal: (TeamId, String, (Boolean) -> Unit) -> Unit,
     onUndo: (String, (Boolean) -> Unit) -> Unit,
+    onCountdownAction: (String, WearCountdownAction, (Boolean) -> Unit) -> Unit,
     onDecision: (String, Boolean, (Boolean) -> Unit) -> Unit,
     onTeamAction: (TeamId, String, WearTeamAction, (WearTeamActionPrompt?) -> Unit) -> Unit,
     onStartCardEntry: (TeamId, String, CardType, String, (Boolean) -> Unit) -> Unit,
@@ -144,6 +146,7 @@ internal fun UltiObserverWearApp(
                     onRetry = onRetry,
                     onGoal = onGoal,
                     onUndo = onUndo,
+                    onCountdownAction = onCountdownAction,
                     onTeamAction = onTeamAction,
                     onStartCardEntry = onStartCardEntry,
                 )
@@ -163,6 +166,7 @@ private fun ActiveGameScreen(
     onRetry: () -> Unit,
     onGoal: (TeamId, String, (Boolean) -> Unit) -> Unit,
     onUndo: (String, (Boolean) -> Unit) -> Unit,
+    onCountdownAction: (String, WearCountdownAction, (Boolean) -> Unit) -> Unit,
     onTeamAction: (TeamId, String, WearTeamAction, (WearTeamActionPrompt?) -> Unit) -> Unit,
     onStartCardEntry: (TeamId, String, CardType, String, (Boolean) -> Unit) -> Unit,
 ) {
@@ -194,6 +198,13 @@ private fun ActiveGameScreen(
                 onNavigationChange { it.copy(selectedTeam = 2) }
             },
             onRetry = onRetry,
+            countdownActionEnabled = !commandPending,
+            onCountdownAction = { action ->
+                commandPending = true
+                onCountdownAction(activeGame.stateToken, action) {
+                    commandPending = false
+                }
+            },
             onUndo = {
                 commandPending = true
                 onUndo(activeGame.stateToken) {

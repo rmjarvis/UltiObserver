@@ -41,6 +41,7 @@ import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.material3.LocalTextStyle
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.TimeSource
+import rmjarvis.ultiobserver.wearprotocol.WearCountdownAction
 import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 
 /** One team as presented on the fixed left or right side of the watch. */
@@ -74,6 +75,7 @@ internal data class RatioBadgeDisplay(
 internal data class GameDisplay(
     val officialTime: String,
     val capStatus: String?,
+    val countdownAction: WearCountdownAction?,
     val countdownLabel: String,
     val countdownValue: String?,
     val nextCue: String?,
@@ -100,6 +102,8 @@ internal fun GameScreen(
     display: GameDisplay,
     onTeamOne: () -> Unit,
     onTeamTwo: () -> Unit,
+    countdownActionEnabled: Boolean,
+    onCountdownAction: (WearCountdownAction) -> Unit,
     onRetry: () -> Unit,
     onUndo: () -> Unit,
 ) {
@@ -118,6 +122,8 @@ internal fun GameScreen(
                 display = display,
                 onTeamOne = onTeamOne,
                 onTeamTwo = onTeamTwo,
+                countdownActionEnabled = countdownActionEnabled,
+                onCountdownAction = onCountdownAction,
                 onRetry = onRetry,
                 onUndo = onUndo,
             )
@@ -130,6 +136,8 @@ private fun GameContent(
     display: GameDisplay,
     onTeamOne: () -> Unit,
     onTeamTwo: () -> Unit,
+    countdownActionEnabled: Boolean,
+    onCountdownAction: (WearCountdownAction) -> Unit,
     onRetry: () -> Unit,
     onUndo: () -> Unit,
 ) {
@@ -144,6 +152,8 @@ private fun GameContent(
 
         StatusRegion(
             display = display,
+            countdownActionEnabled = countdownActionEnabled,
+            onCountdownAction = onCountdownAction,
             onRetry = onRetry,
             modifier = Modifier
                 .fillMaxWidth()
@@ -172,6 +182,8 @@ private fun GameContent(
 @Composable
 private fun StatusRegion(
     display: GameDisplay,
+    countdownActionEnabled: Boolean,
+    onCountdownAction: (WearCountdownAction) -> Unit,
     onRetry: () -> Unit,
     modifier: Modifier,
 ) {
@@ -212,6 +224,23 @@ private fun StatusRegion(
                     maxLines = 2,
                     textAlign = TextAlign.Center,
                 )
+            } else if (display.countdownAction != null) {
+                Box(
+                    modifier = Modifier.fillMaxWidth().weight(1f).padding(bottom = 4.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CountdownActionButton(
+                        label = when (display.countdownAction) {
+                            WearCountdownAction.START_MISCONDUCT -> "Start misconduct\ncountdown"
+                            WearCountdownAction.RESTART_PULL -> display.countdownAction.label
+                        },
+                        enabled = countdownActionEnabled,
+                        onClick = {
+                            onCountdownAction(display.countdownAction)
+                        },
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                    )
+                }
             } else if (display.statusMessage != null) {
                 Text(
                     text = display.statusMessage,

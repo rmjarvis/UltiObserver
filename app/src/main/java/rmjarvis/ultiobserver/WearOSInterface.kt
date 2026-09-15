@@ -32,6 +32,8 @@ import rmjarvis.ultiobserver.wearprotocol.WearTeamActionPrompt
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionRequest
 import rmjarvis.ultiobserver.wearprotocol.WearTeamActionsSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearTeamSnapshot
+import rmjarvis.ultiobserver.wearprotocol.WearCountdownAction
+import rmjarvis.ultiobserver.wearprotocol.WearCountdownActionRequest
 import rmjarvis.ultiobserver.wearprotocol.WearUndoRequest
 
 /** Handle a watch request while WearPhoneCoordinator holds the authoritative AppState lock. */
@@ -71,6 +73,23 @@ internal fun handleWearRequest(
                 game.phase != GamePhase.GAME_OVER
             ) {
                 applied = appState.updateCurrentGame(game, game.undoLastAction())
+            }
+        }
+        WearRequestAction.COUNTDOWN -> {
+            val request = WearProtocolCodec.decode(WearCountdownActionRequest.serializer(), requestBytes)
+            val game = snapshot.gameOnWatch(request.stateToken)
+            if (
+                game != null &&
+                snapshot.activeCardEntry == null &&
+                game.pendingGameDecision() == null &&
+                game.phase != GamePhase.GAME_OVER &&
+                game.wearCountdownAction(now) == request.action
+            ) {
+                val updated = when (request.action) {
+                    WearCountdownAction.START_MISCONDUCT -> game.startMisconductCountdown(now)
+                    WearCountdownAction.RESTART_PULL -> game.restartPullCountdown(now)
+                }
+                applied = appState.updateCurrentGame(game, updated)
             }
         }
         WearRequestAction.DECISION -> {
@@ -522,6 +541,7 @@ internal fun buildWearStateSnapshot(
                     },
                 )
             },
+            countdownAction = game.wearCountdownAction(now),
             statusMessageTransitions = game.wearStatusMessageTransitions(now),
             teamOne = game.wearTeamSnapshot(TeamId.TEAM_ONE, now),
             teamTwo = game.wearTeamSnapshot(TeamId.TEAM_TWO, now),
@@ -551,6 +571,15 @@ internal fun buildWearStateSnapshot(
             },
         ),
     )
+}
+
+/** Select the same replacement action used by the phone countdown row. */
+private fun GameState.wearCountdownAction(now: Long): WearCountdownAction? {
+    return when {
+        pendingMisconductCountdown -> WearCountdownAction.START_MISCONDUCT
+        hasExpiredPullActions(now) -> WearCountdownAction.RESTART_PULL
+        else -> null
+    }
 }
 
 /** Build each timed change to the phone-owned status text for the current game screen. */
