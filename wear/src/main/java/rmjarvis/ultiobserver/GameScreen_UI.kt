@@ -248,6 +248,7 @@ private fun StatusRegion(
                 display.capStatus?.let { capStatus ->
                     Text(
                         text = capStatus,
+                        style = LocalTextStyle.current.copy(fontFeatureSettings = "tnum"),
                         modifier = Modifier.weight(1f, fill = false),
                         color = StatusTextColor,
                         fontSize = 10.sp,
@@ -368,6 +369,7 @@ private fun CountdownStatus(label: String, value: String) {
         }
         Text(
             text = value,
+            style = LocalTextStyle.current.copy(fontFeatureSettings = "tnum"),
             fontSize = 27.sp,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
