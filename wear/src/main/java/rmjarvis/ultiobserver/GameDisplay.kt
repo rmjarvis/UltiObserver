@@ -69,6 +69,7 @@ private fun WearTeamSnapshot.toTeamDisplay(): TeamDisplay {
     return TeamDisplay(
         name = name,
         score = score,
+        fieldEndName = fieldEndName,
         backgroundColor = Color(backgroundArgb),
         contentColor = Color(contentArgb),
     )

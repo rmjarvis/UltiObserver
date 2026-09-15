@@ -81,6 +81,7 @@ data class WearTeamActionsSnapshot(
 data class WearTeamSnapshot(
     val name: String,
     val score: Int,
+    val fieldEndName: String,
     val backgroundArgb: Long,
     val contentArgb: Long,
     val actions: WearTeamActionsSnapshot,

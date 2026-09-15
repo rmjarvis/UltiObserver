@@ -32,6 +32,7 @@ class TestWearProtocol {
         val teamOne = WearTeamSnapshot(
             name = "Animal",
             score = 8,
+            fieldEndName = "Clubhouse",
             backgroundArgb = 0xFF123456,
             contentArgb = 0xFFFFFFFF,
             actions = actions,
@@ -39,6 +40,7 @@ class TestWearProtocol {
         val teamTwo = WearTeamSnapshot(
             name = "Machine",
             score = 7,
+            fieldEndName = "Road",
             backgroundArgb = 0xFFABCDEF,
             contentArgb = 0xFF000000,
             actions = actions.copy(

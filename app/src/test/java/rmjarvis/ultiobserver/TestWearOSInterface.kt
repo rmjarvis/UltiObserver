@@ -185,6 +185,8 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         assertEquals(WearSnapshotPullDirection.LEFT_TO_RIGHT, defaultSnapshot.pullDirection)
         assertEquals("Viscous Coupling", defaultSnapshot.teamOne.name)
         assertEquals(0, defaultSnapshot.teamOne.score)
+        assertEquals("Far end", defaultSnapshot.teamOne.fieldEndName)
+        assertEquals("Near end", defaultSnapshot.teamTwo.fieldEndName)
         assertEquals(TeamColorChoice.WHITE.accentArgb, defaultSnapshot.teamOne.backgroundArgb)
         assertEquals(TeamColorChoice.WHITE.contentArgb, defaultSnapshot.teamOne.contentArgb)
         assertEquals("Time viol.", defaultSnapshot.teamOne.actions.timeViolationLabel)
@@ -198,6 +200,19 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         assertTrue(defaultSnapshot.teamOne.actions.cardEnabled)
         assertTrue(defaultSnapshot.teamOne.actions.technicalFoulEnabled)
         assertTrue(defaultSnapshot.teamOne.actions.timeoutEnabled)
+
+        // Custom field-end names follow the teams when they switch ends after a goal.
+        val namedEnds = defaultGame.copy(nearEndName = "Road", farEndName = "Clubhouse")
+        val namedSnapshot = buildWearStateSnapshot(namedEnds, settings, now).activeGame!!
+        assertEquals("Clubhouse", namedSnapshot.teamOne.fieldEndName)
+        assertEquals("Road", namedSnapshot.teamTwo.fieldEndName)
+        val scored = namedEnds.recordGoal(TeamId.TEAM_ONE, now)
+        val scoredSnapshot = buildWearStateSnapshot(scored, settings, now).activeGame!!
+        assertEquals("Road", scoredSnapshot.teamOne.fieldEndName)
+        assertEquals("Clubhouse", scoredSnapshot.teamTwo.fieldEndName)
+        val undoneSnapshot = buildWearStateSnapshot(scored.undoLastAction(), settings, now).activeGame!!
+        assertEquals(namedSnapshot.teamOne.fieldEndName, undoneSnapshot.teamOne.fieldEndName)
+        assertEquals(namedSnapshot.teamTwo.fieldEndName, undoneSnapshot.teamTwo.fieldEndName)
 
         // Leaving the active-game screen keeps the game visible but disables every watch action.
         val unavailable = buildWearStateSnapshot(

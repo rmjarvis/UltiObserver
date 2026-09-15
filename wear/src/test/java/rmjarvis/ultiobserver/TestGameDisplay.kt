@@ -14,6 +14,8 @@ class TestGameDisplay {
         assertEquals("12:00", display.officialTime)
         assertEquals("Animal", display.teamOne.name)
         assertEquals("Viscous Coupling", display.teamTwo.name)
+        assertEquals("Far end", display.teamOne.fieldEndName)
+        assertEquals("Near end", display.teamTwo.fieldEndName)
         assertEquals(0, display.teamOne.score)
         assertEquals(PullDirection.LEFT_TO_RIGHT, display.pullDirection)
         assertTrue(display.connected)

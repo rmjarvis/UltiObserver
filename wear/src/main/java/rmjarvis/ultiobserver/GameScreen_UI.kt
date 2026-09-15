@@ -49,6 +49,7 @@ import rmjarvis.ultiobserver.ui.theme.UltiObserverTheme
 internal data class TeamDisplay(
     val name: String,
     val score: Int,
+    val fieldEndName: String,
     val backgroundColor: Color,
     val contentColor: Color,
 )
@@ -360,6 +361,7 @@ private fun TeamField(
         Row(modifier = Modifier.fillMaxSize()) {
             TeamRegion(
                 team = display.teamOne,
+                endLabelAlignment = Alignment.Start,
                 enabled = display.connected && display.actionsAvailable,
                 onClick = onTeamOne,
                 modifier = Modifier
@@ -368,6 +370,7 @@ private fun TeamField(
             )
             TeamRegion(
                 team = display.teamTwo,
+                endLabelAlignment = Alignment.End,
                 enabled = display.connected && display.actionsAvailable,
                 onClick = onTeamTwo,
                 modifier = Modifier
@@ -399,6 +402,7 @@ private fun TeamField(
 @Composable
 private fun TeamRegion(
     team: TeamDisplay,
+    endLabelAlignment: Alignment.Horizontal,
     enabled: Boolean,
     onClick: () -> Unit,
     modifier: Modifier,
@@ -425,12 +429,34 @@ private fun TeamRegion(
             textAlign = TextAlign.Center,
         )
         Spacer(modifier = Modifier.height(2.dp))
+        BoxWithConstraints(
+            modifier = Modifier.weight(1f),
+            contentAlignment = Alignment.Center,
+        ) {
+            val scoreSize = with(LocalDensity.current) { maxHeight.toSp() }.value.coerceAtMost(36f).sp
+            Text(
+                text = team.score.toString(),
+                color = team.contentColor,
+                fontSize = scoreSize,
+                lineHeight = scoreSize,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+            )
+        }
         Text(
-            text = team.score.toString(),
+            text = team.fieldEndName,
+            modifier = Modifier.fillMaxWidth().padding(
+                start = if (endLabelAlignment == Alignment.Start) 26.dp else 0.dp,
+                end = if (endLabelAlignment == Alignment.End) 26.dp else 0.dp,
+                top = 2.dp,
+                bottom = 2.dp,
+            ),
             color = team.contentColor,
-            fontSize = 36.sp,
-            fontWeight = FontWeight.Medium,
+            fontSize = 9.sp,
+            lineHeight = 11.sp,
+            textAlign = if (endLabelAlignment == Alignment.Start) TextAlign.Start else TextAlign.End,
             maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }

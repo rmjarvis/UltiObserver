@@ -679,6 +679,10 @@ private fun GameState.wearTeamSnapshot(
     return WearTeamSnapshot(
         name = team.name,
         score = team.score,
+        fieldEndName = fieldEndName(
+            if (teamId == pullingTeam) pullingFromEnd else pullingFromEnd.flip(),
+            ActiveGameOrientation.PORTRAIT,
+        ),
         backgroundArgb = backgroundArgb,
         contentArgb = contentArgb,
         actions = WearTeamActionsSnapshot(
