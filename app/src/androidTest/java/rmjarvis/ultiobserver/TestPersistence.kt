@@ -77,7 +77,7 @@ class TestPersistence : MainActivityUiTestFixtures() {
             storage.saveSettings(
                 Settings(
                     automaticallyAdvanceCountdowns = false,
-                    automaticallyLockLivePoint = false,
+                    accidentalTouchProtection = AccidentalTouchProtection.NONE,
                     timingAlerts = timingPreferences,
                 )
             )

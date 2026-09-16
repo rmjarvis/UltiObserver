@@ -405,7 +405,7 @@ internal fun UltiObserverApp(
                         )
                     },
                     confirmButton = {
-                        TextActionButton(
+                        TextButton(
                             label = "Open settings",
                             onClick = {
                                 showMissingExactAlarmAccessDialog = false
@@ -414,7 +414,7 @@ internal fun UltiObserverApp(
                         )
                     },
                     dismissButton = {
-                        TextActionButton(
+                        TextButton(
                             label = "Ignore",
                             onClick = {
                                 showMissingExactAlarmAccessDialog = false
@@ -536,7 +536,7 @@ internal fun UltiObserverApp(
             title = { Text(notice.title) },
             text = { Text(notice.message) },
             confirmButton = {
-                TextActionButton(
+                TextButton(
                     label = "OK",
                     onClick = {
                         appState.dismissStartupRecoveryNotice()
@@ -557,7 +557,7 @@ internal fun UltiObserverApp(
                 )
             },
             confirmButton = {
-                TextActionButton(
+                TextButton(
                     label = "OK",
                     onClick = {
                         showPreviousCrashDialog = false

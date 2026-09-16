@@ -767,7 +767,7 @@ internal fun SetupScreen(
                             Text("Remove prior cards for ${pendingRemoval.record.playerIdentity(compact = false)}?")
                         },
                         confirmButton = {
-                            TextActionButton(
+                            TextButton(
                                 label = "Remove",
                                 onClick = {
                                     removePriorCardRecord(
@@ -779,7 +779,7 @@ internal fun SetupScreen(
                             )
                         },
                         dismissButton = {
-                            TextActionButton(
+                            TextButton(
                                 label = "Cancel",
                                 onClick = {
                                     dismissPriorCardRemoval()
@@ -798,7 +798,7 @@ internal fun SetupScreen(
                         title = { Text("Player not deleted") },
                         text = { Text(deleteRejectedMessage) },
                         confirmButton = {
-                            TextActionButton(
+                            TextButton(
                                 label = "OK",
                                 onClick = {
                                     dismissPlayerDeleteRejectedMessage()
@@ -876,7 +876,7 @@ internal fun SetupScreen(
                 )
             },
             confirmButton = {
-                TextActionButton(
+                TextButton(
                     label = "OK",
                     onClick = {
                         existingPriorCardNotice = null
@@ -885,7 +885,7 @@ internal fun SetupScreen(
                 )
             },
             dismissButton = {
-                TextActionButton(
+                TextButton(
                     label = "Back",
                     onClick = { returnToExistingPriorCardEntry(notice) },
                     tag = "setup-existing-card-holder-back",
@@ -909,7 +909,7 @@ internal fun SetupScreen(
                 )
             },
             confirmButton = {
-                TextActionButton(
+                TextButton(
                     label = "Add",
                     onClick = {
                         possiblePlayerMatchConfirmation = null
@@ -918,7 +918,7 @@ internal fun SetupScreen(
                 )
             },
             dismissButton = {
-                TextActionButton(
+                TextButton(
                     label = "Cancel",
                     onClick = {
                         returnToPossiblePlayerMatchEntry(confirmation)
@@ -1199,7 +1199,7 @@ private fun GameInformationSetupDialog(
                 }
             },
             confirmButton = {
-                TextActionButton(
+                TextButton(
                     label = "Done",
                     onClick = {
                         saveAndDismiss()
@@ -1207,7 +1207,7 @@ private fun GameInformationSetupDialog(
                 )
             },
             dismissButton = {
-                TextActionButton(label = "Cancel", onClick = onDismiss)
+                TextButton(label = "Cancel", onClick = onDismiss)
             },
         )
     }
@@ -1263,7 +1263,7 @@ private fun ObserverNameEntries(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         if (canRemove) {
-                            IconActionButton(
+                            IconButton(
                                 icon = Icons.Filled.RemoveCircle,
                                 contentDescription = "Remove observer ${index + 1}",
                                 tag = "setup-remove-observer-$index",
@@ -1271,7 +1271,7 @@ private fun ObserverNameEntries(
                             )
                         }
                         if (addInThisRow) {
-                            IconActionButton(
+                            IconButton(
                                 icon = Icons.Filled.AddCircle,
                                 contentDescription = "Add observer",
                                 tag = "setup-add-observer",
@@ -1739,7 +1739,7 @@ private fun StartingPullSetupDialog(
             }
         },
         confirmButton = {
-            TextActionButton(
+            TextButton(
                 label = "Done",
                 onClick = {
                     saveAndDismiss()
@@ -1747,7 +1747,7 @@ private fun StartingPullSetupDialog(
             )
         },
         dismissButton = {
-            TextActionButton(label = "Cancel", onClick = onDismiss)
+            TextButton(label = "Cancel", onClick = onDismiss)
         },
     )
 }
@@ -1846,10 +1846,10 @@ private fun GameRulesSetupDialog(
             }
         },
         confirmButton = {
-            TextActionButton(label = "Done", onClick = onConfirm)
+            TextButton(label = "Done", onClick = onConfirm)
         },
         dismissButton = {
-            TextActionButton(label = "Cancel", onClick = onDismiss)
+            TextButton(label = "Cancel", onClick = onDismiss)
         },
     )
 }
@@ -1901,7 +1901,7 @@ private fun GenderRatioRuleDialog(
             }
         },
         confirmButton = {
-            TextActionButton(
+            TextButton(
                 label = "Set",
                 tag = "setup-gender-ratio-set",
                 onClick = {
@@ -1915,7 +1915,7 @@ private fun GenderRatioRuleDialog(
             )
         },
         dismissButton = {
-            TextActionButton(label = "Cancel", onClick = onDismiss)
+            TextButton(label = "Cancel", onClick = onDismiss)
         },
     )
 }
@@ -1976,7 +1976,7 @@ private fun PriorCardsSetupDialog(
             }
         },
         confirmButton = {
-            TextActionButton(label = "Done", onClick = onDismiss)
+            TextButton(label = "Done", onClick = onDismiss)
         },
     )
 }
@@ -2006,7 +2006,7 @@ private fun ExactTimeDialog(
         onDismissRequest = onDismiss,
         title = {},
         confirmButton = {
-            TextActionButton(
+            TextButton(
                 label = "Set",
                 tag = "setup-start-time-set",
                 onClick = {
@@ -2015,7 +2015,7 @@ private fun ExactTimeDialog(
             )
         },
         dismissButton = {
-            TextActionButton(label = "Cancel", onClick = onDismiss)
+            TextButton(label = "Cancel", onClick = onDismiss)
         },
     ) {
         TimeInput(state = timePickerState)
@@ -2075,7 +2075,7 @@ private fun IntegerEditDialog(
             }
         },
         confirmButton = {
-            TextActionButton(
+            TextButton(
                 label = "Set",
                 tag = "setup-integer-set",
                 onClick = {
@@ -2084,7 +2084,7 @@ private fun IntegerEditDialog(
             )
         },
         dismissButton = {
-            TextActionButton(label = "Cancel", onClick = onDismiss)
+            TextButton(label = "Cancel", onClick = onDismiss)
         },
     )
 }
@@ -2154,7 +2154,7 @@ private fun CapRuleEditDialog(
             }
         },
         confirmButton = {
-            TextActionButton(
+            TextButton(
                 label = "Set",
                 tag = "setup-$title-set",
                 onClick = {
@@ -2163,7 +2163,7 @@ private fun CapRuleEditDialog(
             )
         },
         dismissButton = {
-            TextActionButton(label = "Cancel", onClick = onDismiss)
+            TextButton(label = "Cancel", onClick = onDismiss)
         },
     )
 }
@@ -2211,7 +2211,7 @@ private fun TimeoutRulesDialog(
             }
         },
         confirmButton = {
-            TextActionButton(
+            TextButton(
                 label = "Set",
                 tag = "setup-timeouts-set",
                 onClick = {
@@ -2225,7 +2225,7 @@ private fun TimeoutRulesDialog(
             )
         },
         dismissButton = {
-            TextActionButton(label = "Cancel", onClick = onDismiss)
+            TextButton(label = "Cancel", onClick = onDismiss)
         },
     )
 }
@@ -2361,7 +2361,7 @@ private fun HeatLevelSetupDialog(
             }
         },
         confirmButton = {
-            TextActionButton(
+            TextButton(
                 label = "Set",
                 tag = "setup-water-breaks-set",
                 onClick = {
@@ -2377,7 +2377,7 @@ private fun HeatLevelSetupDialog(
             )
         },
         dismissButton = {
-            TextActionButton(label = "Cancel", onClick = onDismiss)
+            TextButton(label = "Cancel", onClick = onDismiss)
         },
     )
 }
@@ -2504,7 +2504,7 @@ private fun PriorCardPlayerDialog(
             }
         },
         confirmButton = {
-            TextActionButton(
+            TextButton(
                 label = confirmLabel,
                 enabled = hasPlayerIdentity,
                 onClick = {
@@ -2521,7 +2521,7 @@ private fun PriorCardPlayerDialog(
             )
         },
         dismissButton = {
-            TextActionButton(label = "Cancel", onClick = onDismiss)
+            TextButton(label = "Cancel", onClick = onDismiss)
         },
     )
 }
@@ -2750,7 +2750,7 @@ private fun TeamNamesSetupDialog(
             }
         },
         confirmButton = {
-            TextActionButton(label = "Done", onClick = onDismiss)
+            TextButton(label = "Done", onClick = onDismiss)
         },
     )
 }
@@ -2991,13 +2991,13 @@ private fun PlayerRecordRow(
                 Text(detail)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                IconActionButton(
+                IconButton(
                     icon = Icons.Filled.Edit,
                     contentDescription = "Edit $label",
                     tag = editTag,
                     onClick = onEdit,
                 )
-                IconActionButton(
+                IconButton(
                     icon = Icons.Filled.Delete,
                     contentDescription = "Remove $label",
                     tag = removeTag,

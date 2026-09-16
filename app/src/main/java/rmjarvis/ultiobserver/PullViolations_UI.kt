@@ -140,7 +140,7 @@ internal fun AdjustPullViolationsDialog(
             }
         },
         confirmButton = {
-            TextActionButton(
+            TextButton(
                 label = "Set",
                 onClick = {
                     onConfirm(
@@ -158,7 +158,7 @@ internal fun AdjustPullViolationsDialog(
             )
         },
         dismissButton = {
-            TextActionButton(label = "Cancel", onClick = onDismiss)
+            TextButton(label = "Cancel", onClick = onDismiss)
         },
         widthProfile = DialogWidthProfile.ADAPTIVE,
     )

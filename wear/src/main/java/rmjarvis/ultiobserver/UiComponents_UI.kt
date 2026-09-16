@@ -17,6 +17,8 @@ import rmjarvis.ultiobserver.wearprotocol.WearCountdownAction
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -33,6 +35,29 @@ import androidx.wear.compose.material3.TimeSource
 import androidx.wear.compose.material3.TimeText
 import androidx.wear.compose.material3.TimeTextDefaults
 import androidx.wear.compose.material3.timeTextCurvedText
+
+/** Main-screen controls can require a hold independently of the phone's protection setting. */
+internal val LocalRequireLongPress = staticCompositionLocalOf { false }
+
+/** Use the system hold gesture only for controls inside the protected main-screen scope. */
+@Composable
+internal fun Modifier.gameClickable(
+    enabled: Boolean,
+    role: Role,
+    onClick: () -> Unit,
+): Modifier {
+    return if (LocalRequireLongPress.current) {
+        combinedClickable(
+            enabled = enabled,
+            role = role,
+            onClick = {},
+            onLongClickLabel = "Activate",
+            onLongClick = onClick,
+        )
+    } else {
+        clickable(enabled = enabled, role = role, onClick = onClick)
+    }
+}
 
 /** Show the standard clock used at the top of UltiObserver watch screens. */
 @Composable
@@ -72,7 +97,7 @@ internal fun CountdownActionButton(
             .clip(shape)
             .background(Color(0xFFFFFDF8))
             .border(1.dp, contentColor, shape)
-            .clickable(
+            .gameClickable(
                 enabled = enabled,
                 role = Role.Button,
                 onClick = onClick,

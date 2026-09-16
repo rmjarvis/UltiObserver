@@ -368,7 +368,7 @@ private fun GameOverTeamSummary(
                     )
                 }
                 onEditCards?.let { editCards ->
-                    IconActionButton(
+                    IconButton(
                         icon = Icons.Filled.Edit,
                         contentDescription = "Edit cards for ${team.name}",
                         tag = "summary-${teamId.name}-edit-cards",

@@ -120,6 +120,7 @@ internal fun SettingsScreen(
 
             TimingAlertGlobalModeSelector(
                 selectedMode = settings.timingAlerts.globalMode,
+                hasTimingCueHaptics = hasTimingCueHaptics,
                 onModeChange = {
                     onSettingsChange(
                         settings.withTimingAlerts(settings.timingAlerts.withGlobalMode(it))
@@ -177,14 +178,31 @@ internal fun SettingsScreen(
             )
 
             if (settings.timingAlerts.watchConnectionMode == WatchConnectionMode.WEAR_OS) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Team display on watch", style = MaterialTheme.typography.titleMedium)
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        WatchOrientation.entries.forEach { orientation ->
+                            ChoiceChipButton(
+                                label = orientation.label,
+                                selected = settings.watchOrientation == orientation,
+                                tag = "settings-watch-orientation-${orientation.name}",
+                                onClick = {
+                                    onSettingsChange(settings.copy(watchOrientation = orientation))
+                                },
+                            )
+                        }
+                    }
+                    Text(
+                        settings.watchOrientation.description,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
                 SettingsSwitchWithNote(
                     label = "Vibrate on watch?",
-                    note = if (settings.timingAlerts.vibrateOnWatch) {
-                        "Send timing vibrations to the watch, including when its screen is off. " +
-                        "If the watch is unavailable, vibrate on the phone instead."
-                    } else {
-                        "Keep timing vibrations on the phone."
-                    },
+                    note = settings.timingAlerts.vibrateOnWatchDescription,
                     checked = settings.timingAlerts.vibrateOnWatch,
                     onCheckedChange = {
                         onSettingsChange(settings.withTimingAlerts(
@@ -193,25 +211,14 @@ internal fun SettingsScreen(
                     },
                     testTag = "settings-vibrate-on-watch",
                 )
-                Text("Team display on watch", style = MaterialTheme.typography.titleMedium)
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    WatchOrientation.entries.forEach { orientation ->
-                        ChoiceChipButton(
-                            label = orientation.label,
-                            selected = settings.watchOrientation == orientation,
-                            tag = "settings-watch-orientation-${orientation.name}",
-                            onClick = {
-                                onSettingsChange(settings.copy(watchOrientation = orientation))
-                            },
-                        )
-                    }
-                }
-                Text(
-                    settings.watchOrientation.description,
-                    style = MaterialTheme.typography.bodySmall,
+                SettingsSwitchWithNote(
+                    label = "Require long presses?",
+                    note = settings.requireWatchLongPressDescription,
+                    checked = settings.requireWatchLongPress,
+                    onCheckedChange = {
+                        onSettingsChange(settings.copy(requireWatchLongPress = it))
+                    },
+                    testTag = "settings-watch-long-press",
                 )
             }
 
@@ -224,15 +231,33 @@ internal fun SettingsScreen(
                 },
             )
 
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Accidental touch protection", style = MaterialTheme.typography.titleMedium)
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    AccidentalTouchProtection.entries.forEach { protection ->
+                        ChoiceChipButton(
+                            label = protection.label,
+                            selected = settings.accidentalTouchProtection == protection,
+                            tag = "settings-touch-protection-${protection.name}",
+                            onClick = {
+                                onSettingsChange(settings.copy(accidentalTouchProtection = protection))
+                            },
+                        )
+                    }
+                }
+                Text(
+                    settings.accidentalTouchProtection.description,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+
+
             SettingsSwitchWithNote(
                 label = "Automatically start live play?",
-                note = if (settings.automaticallyAdvanceCountdowns) {
-                    "When a pull or timeout countdown expires, UltiObserver will automatically " +
-                    "start or resume live play."
-                } else {
-                    "When a countdown expires, UltiObserver will wait for you to tap Start point " +
-                    "or Continue point."
-                },
+                note = settings.automaticallyAdvanceCountdownsDescription,
                 checked = settings.automaticallyAdvanceCountdowns,
                 onCheckedChange = {
                     onSettingsChange(settings.withAutomaticallyAdvanceCountdowns(it))
@@ -241,30 +266,8 @@ internal fun SettingsScreen(
             )
 
             SettingsSwitchWithNote(
-                label = "Automatically lock screen?",
-                note = if (settings.automaticallyLockLivePoint) {
-                    "The screen will automatically lock whenever play becomes live."
-                } else {
-                    "The screen will remain unlocked when play becomes live. You can still lock " +
-                    "it manually by clicking the lock icon in the central region of the screen."
-                },
-                checked = settings.automaticallyLockLivePoint,
-                onCheckedChange = {
-                    onSettingsChange(settings.withAutomaticallyLockLivePoint(it))
-                },
-                testTag = "settings-auto-lock-live-point",
-            )
-
-            SettingsSwitchWithNote(
                 label = "Show defense countdowns?",
-                note = if (settings.showDefenseCountdowns) {
-                    "After you mark the offense set during a timeout or misconduct penalty, " +
-                    "UltiObserver will display the 20-second defense countdown."
-                } else {
-                    "UltiObserver will not display the defense countdown for timeouts or " +
-                    "misconduct penalties. You should count the time for the defensive check " +
-                    "yourself with arm chops."
-                },
+                note = settings.showDefenseCountdownsDescription,
                 checked = settings.showDefenseCountdowns,
                 onCheckedChange = {
                     onSettingsChange(settings.withShowDefenseCountdowns(it))
@@ -273,22 +276,9 @@ internal fun SettingsScreen(
             )
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                val secondsLabel = if (settings.newCountdownAdvanceSeconds == 1) {
-                    "second"
-                } else {
-                    "seconds"
-                }
                 SettingsSwitchWithNote(
                     label = "Automatically advance countdowns by a few seconds?",
-                    note = if (settings.automaticallyAdvanceNewCountdowns) {
-                        "Countdowns after a goal or in-point timeout will automatically begin " +
-                        "with ${settings.newCountdownAdvanceSeconds} $secondsLabel already " +
-                        "elapsed to account for the time it takes to open your phone and " +
-                        "press the button."
-                    } else {
-                        "Countdowns start when you press the relevant button, and they take the " +
-                        "full time."
-                    },
+                    note = settings.automaticallyAdvanceNewCountdownsDescription,
                     checked = settings.automaticallyAdvanceNewCountdowns,
                     onCheckedChange = {
                         onSettingsChange(settings.withAutomaticallyAdvanceNewCountdowns(it))
@@ -328,11 +318,7 @@ internal fun SettingsScreen(
 
             SettingsSwitchWithNote(
                 label = "Show ABBA gender ratio as M1/M2/W1/W2?",
-                note = if (settings.showAbbaRatioAsSequence) {
-                    "Ratio will display as W2, M1, M2, W1, W2... or M2, W1, W2, M1, M2..."
-                } else {
-                    "Ratio will display as either 4W/3M or 4M/3W."
-                },
+                note = settings.showAbbaRatioAsSequenceDescription,
                 checked = settings.showAbbaRatioAsSequence,
                 onCheckedChange = {
                     onSettingsChange(settings.withShowAbbaRatioAsSequence(it))
@@ -412,7 +398,7 @@ private fun OrientationPreferenceSelector(
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Text(
             text = "How should the active game screen be oriented?",
@@ -455,7 +441,7 @@ private fun RuleGuidanceModeSelector(
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Text(
             text = "How much rule guidance should appear during games?",
@@ -688,9 +674,7 @@ internal fun TimingCueSettingsScreen(
                 if (section.isDefenseCheckCountdownSection() && !settings.showDefenseCountdowns) {
                     Text(
                         text =
-                            "Note — defensive check countdowns are not currently enabled. " +
-                            "If you want these cues, enable defensive check countdowns " +
-                            "on the previous page.",
+                            Settings.DEFENSE_COUNTDOWN_DISABLED_NOTE,
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
@@ -727,11 +711,12 @@ internal fun TimingCueSettingsScreen(
 @Composable
 private fun TimingAlertGlobalModeSelector(
     selectedMode: TimingAlertGlobalMode,
+    hasTimingCueHaptics: Boolean,
     onModeChange: (TimingAlertGlobalMode) -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Text(
             text = "Use sounds and vibration for timing cues?",
@@ -752,6 +737,12 @@ private fun TimingAlertGlobalModeSelector(
                     },
                 )
             }
+        }
+        selectedMode.settingsMessages(hasTimingCueHaptics).forEach { message ->
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium,
+            )
         }
     }
 }
@@ -787,12 +778,6 @@ private fun TimingAlertSoundControls(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        timingAlertPreferences.globalMode.settingsMessages(hasTimingCueHaptics).forEach { message ->
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        }
         if (timingAlertPreferences.globalMode == TimingAlertGlobalMode.SOUNDS_ON) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -881,13 +866,7 @@ private fun TimingAlertSoundControls(
                         },
                     )
                     Text(
-                        text = if (timingAlertPreferences.usesWatchVibration()) {
-                            "If the test vibration is too weak, check the vibration strength " +
-                            "in your watch's settings. If the watch is unavailable, the phone vibrates."
-                        } else {
-                            "If the test vibration is too weak, check the vibration strength " +
-                            "in your phone's haptic settings."
-                        },
+                        text = timingAlertPreferences.vibrationTestDescription,
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.weight(1f),
                     )
@@ -913,7 +892,7 @@ private fun WatchConnectionModeSelector(
     notificationsEnabled: Boolean,
     wearWatchAvailable: Boolean?,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
             text = "Watch connection",
             style = MaterialTheme.typography.titleMedium,
@@ -935,45 +914,25 @@ private fun WatchConnectionModeSelector(
             }
         }
         val description = buildAnnotatedString {
+            append(selectedMode.description)
             when (selectedMode) {
                 WatchConnectionMode.OFF -> {
-                    append("No notifications will be sent to a watch.")
                     if (!notificationsEnabled) {
                         append("\n\n")
                         pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
                         append("Note: ")
                         pop()
-                        append(
-                            "Phone notifications must be enabled for watch notifications to work. " +
-                            "Selecting either Silent or Alerting will open the Android settings " +
-                            "page where you can enable notifications."
-                        )
+                        append(WatchConnectionMode.NOTIFICATION_PERMISSION_NOTE)
                     }
                 }
                 WatchConnectionMode.SILENT,
                 WatchConnectionMode.ALERTING,
                 -> {
-                    if (selectedMode == WatchConnectionMode.SILENT) {
-                        append(
-                            "Timing cues will be sent to a paired watch, but no alerts will be " +
-                            "triggered."
-                        )
-                    } else {
-                        append(
-                            "Timing cues will be sent to a paired watch. Cues whose individual " +
-                            "setting is not Off will also trigger an alert, causing a vibration if " +
-                            "enabled on the watch."
-                        )
-                    }
                     append("\n\n")
                     pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
                     append("Warning: ")
                     pop()
-                    append(
-                        "Watch notifications require a paired watch and notification sharing " +
-                        "enabled in its companion app. UltiObserver cannot verify the " +
-                        "connection."
-                    )
+                    append(WatchConnectionMode.NOTIFICATION_SHARING_WARNING)
                     if (
                         selectedMode == WatchConnectionMode.ALERTING &&
                         Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA
@@ -982,35 +941,22 @@ private fun WatchConnectionModeSelector(
                         pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
                         append("Important: ")
                         pop()
-                        append(
-                            "By default Android applies a \"cooldown\" to repeated notifications, " +
-                            "which lessens the vibration strength for alerts after the first one. " +
-                            "To turn it off, go to Settings — Notifications — Notification cooldown."
-                        )
+                        append(WatchConnectionMode.NOTIFICATION_COOLDOWN_WARNING)
                     }
                 }
                 WatchConnectionMode.WEAR_OS -> {
-                    append("Use UltiObserver on a paired Wear OS watch.")
                     if (wearWatchAvailable == true) {
                         append(" ")
-                        append(
-                            "This will let you receive timing cues on the watch as well as " +
-                            "record goals, timeouts and other events directly from the watch. "
-                        )
+                        append(WatchConnectionMode.CONNECTED_WEAR_DESCRIPTION)
                         if (vibrateOnWatch) {
-                            append(
-                                "Any cues set to use vibration will happen on the watch rather than " +
-                                "on the phone."
-                            )
+                            append(WatchConnectionMode.WATCH_VIBRATION_DESCRIPTION)
                         }
                     } else if (wearWatchAvailable == false) {
                         append("\n\n")
                         pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                        append("No Wear OS watch is currently available.  ")
+                        append(WatchConnectionMode.UNAVAILABLE_WEAR_TITLE)
                         pop()
-                        append(
-                            "Pair a Wear OS watch with this phone before using this setting."
-                        )
+                        append(WatchConnectionMode.UNAVAILABLE_WEAR_DESCRIPTION)
                     }
                 }
             }
@@ -1072,21 +1018,6 @@ private fun SoundPreviewRow(
     }
 }
 
-/// Return the explanatory note to show beside sound previews under the current global mode.
-private fun TimingAlertPreferences.soundPreviewNote(hasTimingCueHaptics: Boolean): String? {
-    if (globalMode == TimingAlertGlobalMode.SOUNDS_ON) {
-        return null
-    }
-    val vibrateInsteadSentence = if (vibrateWithSounds && hasTimingCueHaptics) {
-        " The phone will currently vibrate instead for any cues with sounds."
-    } else {
-        ""
-    }
-    return (
-        "Note — sounds are currently not enabled.$vibrateInsteadSentence " +
-        "If you want sounds, enable them on the previous page."
-    )
-}
 
 /**
  * Render one timing cue's alert-mode and repeat-count controls.
@@ -1177,30 +1108,6 @@ private fun CompactTimingAlertOption(
         verticalPadding = 5.dp,
         onClick = onClick,
     )
-}
-
-/// Return the settings-page messages for a global timing-alert mode and haptic capability.
-private fun TimingAlertGlobalMode.settingsMessages(hasTimingCueHaptics: Boolean): List<String> {
-    if (!hasTimingCueHaptics) {
-        val noHapticsMessage =
-            "This phone reports that vibration is unavailable. " +
-            "Check Android Settings > Sound & vibration > Vibration & haptics, then return to UltiObserver."
-        return when (this) {
-            TimingAlertGlobalMode.OFF -> listOf("No sound or vibration will be used for any timing cues.")
-            TimingAlertGlobalMode.VIBRATION_ONLY -> listOf(noHapticsMessage)
-            TimingAlertGlobalMode.SOUNDS_ON -> listOf(
-                "Ear buds are recommended when using sounds with UltiObserver.",
-                noHapticsMessage,
-            )
-        }
-    }
-    return when (this) {
-        TimingAlertGlobalMode.OFF -> listOf("No sound or vibration will be used for any timing cues.")
-        TimingAlertGlobalMode.VIBRATION_ONLY -> {
-            listOf("Vibration will be used for any cues that are set to use sound.")
-        }
-        TimingAlertGlobalMode.SOUNDS_ON -> listOf("Ear buds are recommended when using sounds with UltiObserver.")
-    }
 }
 
 /// Return the compact settings label for a timing-alert mode.

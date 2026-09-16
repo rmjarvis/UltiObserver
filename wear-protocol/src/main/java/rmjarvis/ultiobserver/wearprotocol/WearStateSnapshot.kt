@@ -199,6 +199,7 @@ data class WearStateSnapshot(
     val protocolVersion: Int = WEAR_PROTOCOL_VERSION,
     val status: WearSnapshotStatus,
     val activeGame: WearActiveGameSnapshot?,
+    val requireLongPress: Boolean = false,
     val sessionId: String = "",
     val sequenceNumber: Long = 0L,
 )

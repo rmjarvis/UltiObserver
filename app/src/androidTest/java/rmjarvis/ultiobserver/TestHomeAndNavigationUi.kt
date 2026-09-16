@@ -1040,7 +1040,7 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             "or resume live play."
         )
         composeRule.onNodeWithTag("settings-auto-advance-countdowns-value").assertTextEquals("Yes")
-        composeRule.onNodeWithTag("settings-auto-lock-live-point-value").assertTextEquals("Yes")
+        composeRule.onNodeWithTag("settings-touch-protection-AUTO_LOCK").assertIsSelected()
         waitForText("The screen will automatically lock whenever play becomes live.")
         composeRule.onNodeWithTag("settings-auto-advance-countdowns").performClick()
         composeRule.onNodeWithTag("settings-auto-advance-countdowns-value").assertTextEquals("No")
@@ -1048,18 +1048,28 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             "When a countdown expires, UltiObserver will wait for you to tap Start point or " +
             "Continue point."
         )
-        composeRule.onNodeWithTag("settings-auto-lock-live-point")
+        composeRule.onNodeWithTag("settings-touch-protection-NONE")
             .performScrollTo()
             .performClick()
-        composeRule.onNodeWithTag("settings-auto-lock-live-point-value").assertTextEquals("No")
+        composeRule.onNodeWithTag("settings-touch-protection-NONE").assertIsSelected()
         waitForText(
-            "The screen will remain unlocked when play becomes live. You can still lock it " +
-            "manually by clicking the lock icon in the central region of the screen."
+            "Use normal taps on the active game screen. It will not automatically lock. " +
+            "You can still lock the screen manually by clicking the lock icon in the central " +
+            "region of the screen."
         )
         composeRule.onNodeWithTag("settings-auto-advance-countdowns")
             .performScrollTo()
             .performClick()
-        composeRule.onNodeWithTag("settings-auto-lock-live-point").performClick()
+        composeRule.onNodeWithTag("settings-touch-protection-AUTO_LOCK").performClick()
+
+        // Long press replaces automatic locking while retaining the manual lock.
+        composeRule.onNodeWithTag("settings-touch-protection-LONG_PRESS").performClick()
+        assertEquals(
+            AccidentalTouchProtection.LONG_PRESS,
+            composeRule.activity.appState.settings.accidentalTouchProtection,
+        )
+        assertFalse(composeRule.activity.appState.settings.automaticallyLockLivePoint)
+        composeRule.onNodeWithTag("settings-touch-protection-AUTO_LOCK").performClick()
 
         // By default we don't show countdowns for the defensive check on timeouts and
         // misconduct. The next setting can enable those.
@@ -1255,6 +1265,18 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             .performScrollTo().assertIsSelected()
         composeRule.onNodeWithTag("settings-watch-orientation-TEAMS_FIXED").performClick()
         assertEquals(WatchOrientation.TEAMS_FIXED, composeRule.activity.appState.settings.watchOrientation)
+
+        // Watch holds are independent of the phone's protection setting and only shown for Wear OS.
+        composeRule.onNodeWithTag("settings-watch-long-press").performScrollTo().performClick()
+        assertTrue(composeRule.activity.appState.settings.requireWatchLongPress)
+        waitForText("Press and hold controls on the watch's main game screen.", substring = true)
+        composeRule.onNodeWithTag("settings-watch-connection-OFF").performScrollTo().performClick()
+        composeRule.onNodeWithTag("settings-watch-long-press").assertDoesNotExist()
+        composeRule.onNodeWithTag("settings-watch-connection-WEAR_OS").performClick()
+        composeRule.onNodeWithTag("settings-watch-long-press-value")
+            .performScrollTo().assertTextEquals("Yes")
+        composeRule.onNodeWithTag("settings-watch-long-press").performClick()
+        assertFalse(composeRule.activity.appState.settings.requireWatchLongPress)
     }
 
     /**

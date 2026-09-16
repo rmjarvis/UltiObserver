@@ -63,7 +63,10 @@ class TestPersistence : GameDomainTestFixtures() {
         updateTimingAlerts { it.withWatchConnectionMode(WatchConnectionMode.ALERTING) }
         updateTimingAlerts { it.copy(vibrateOnWatch = false) }
         updateSettings { it.withAutomaticallyAdvanceCountdowns(false) }
-        updateSettings { it.withAutomaticallyLockLivePoint(false) }
+        updateSettings { it.copy(
+            accidentalTouchProtection = AccidentalTouchProtection.LONG_PRESS,
+            requireWatchLongPress = true,
+        ) }
         updateSettings { it.withShowDefenseCountdowns(true) }
         updateSettings { it.withAutomaticallyAdvanceNewCountdowns(true) }
         updateSettings { it.withNewCountdownAdvanceSeconds(4) }
@@ -147,6 +150,8 @@ class TestPersistence : GameDomainTestFixtures() {
         assertEquals(TimingAlertGlobalMode.OFF, restored.settings.timingAlerts.globalMode)
         assertFalse(restored.settings.automaticallyAdvanceCountdowns)
         assertFalse(restored.settings.automaticallyLockLivePoint)
+        assertEquals(AccidentalTouchProtection.LONG_PRESS, restored.settings.accidentalTouchProtection)
+        assertTrue(restored.settings.requireWatchLongPress)
         assertTrue(restored.settings.showDefenseCountdowns)
         assertTrue(restored.settings.automaticallyAdvanceNewCountdowns)
         assertEquals(4, restored.settings.newCountdownAdvanceSeconds)

@@ -870,9 +870,14 @@ abstract class MainActivityUiTestFixtures {
      * @param automaticallyLock Whether automatic live-point entry should enable lock mode.
      */
     protected fun setAutomaticallyLockLivePoint(automaticallyLock: Boolean) {
+        val protection = if (automaticallyLock) {
+            AccidentalTouchProtection.AUTO_LOCK
+        } else {
+            AccidentalTouchProtection.NONE
+        }
         composeRule.activityRule.scenario.onActivity { activity ->
             activity.appState.updateSettings(
-                activity.appState.settings.withAutomaticallyLockLivePoint(automaticallyLock)
+                activity.appState.settings.copy(accidentalTouchProtection = protection)
             )
         }
         composeRule.waitForIdle()

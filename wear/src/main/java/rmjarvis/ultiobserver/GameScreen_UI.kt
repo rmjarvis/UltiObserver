@@ -5,6 +5,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -241,7 +242,7 @@ private fun StatusRegion(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth()
-                    .clickable(role = Role.Button, onClick = onRulesReference)
+                    .gameClickable(enabled = true, role = Role.Button, onClick = onRulesReference)
                     .semantics { contentDescription = "Game rules" }
                     .padding(vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
@@ -314,7 +315,8 @@ private fun StatusRegion(
                 )
             } else if (display.countdownValue != null) {
                 Column(
-                    modifier = Modifier.fillMaxWidth().clickable(
+                    modifier = Modifier.fillMaxWidth().gameClickable(
+                        enabled = true,
                         role = Role.Button,
                         onClick = onToggleTimingControls,
                     ).semantics { contentDescription = "Countdown controls" },
@@ -468,7 +470,7 @@ private fun TeamRegion(
     Column(
         modifier = modifier
             .background(team.backgroundColor)
-            .clickable(
+            .gameClickable(
                 enabled = enabled,
                 role = Role.Button,
                 onClick = onClick,
@@ -660,7 +662,8 @@ private fun UndoRegion(
             .semantics {
                 contentDescription = description
             }
-            .clickable(
+            .gameClickable(
+                enabled = true,
                 role = Role.Button,
                 onClick = onUndo,
             ),
@@ -723,14 +726,16 @@ private fun TimingControls(
             }
         }
         controls.pointAction?.let { action ->
-            CountdownActionButton(
-                label = action.label,
-                enabled = enabled,
-                onClick = {
-                    onAction(action)
-                },
-                modifier = Modifier,
-            )
+            CompositionLocalProvider(LocalRequireLongPress provides false) {
+                CountdownActionButton(
+                    label = action.label,
+                    enabled = enabled,
+                    onClick = {
+                        onAction(action)
+                    },
+                    modifier = Modifier,
+                )
+            }
         }
         Text(
             text = "Back",

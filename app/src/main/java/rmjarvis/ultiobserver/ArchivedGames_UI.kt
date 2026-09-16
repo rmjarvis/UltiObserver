@@ -378,7 +378,7 @@ private fun ArchiveListControls(
         )
         Spacer(modifier = Modifier.weight(1f))
         if (showDeleteAll) {
-            TextActionButton(
+            TextButton(
                 label = "Delete all",
                 tag = "delete-all-archived-games",
                 onClick = onDeleteAll,
@@ -494,10 +494,10 @@ private fun ArchiveFilterFieldListDialog(
             }
         },
         confirmButton = {
-            TextActionButton(label = "Done", onClick = onDismiss)
+            TextButton(label = "Done", onClick = onDismiss)
         },
         dismissButton = {
-            TextActionButton(
+            TextButton(
                 label = "Clear filters",
                 enabled = filterSelections.isActive(),
                 tag = "archive-clear-filters",
@@ -552,7 +552,7 @@ private fun ArchiveValueFilterDialog(
                 maxHeight = 420.dp,
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                TextActionButton(
+                TextButton(
                     label = "Clear",
                     enabled = selectedValues.isNotEmpty(),
                     tag = "archive-clear-filter-${field.name}",
@@ -585,7 +585,7 @@ private fun ArchiveValueFilterDialog(
             }
         },
         confirmButton = {
-            TextActionButton(label = "Back", onClick = onBack)
+            TextButton(label = "Back", onClick = onBack)
         },
     )
 }
@@ -645,7 +645,7 @@ private fun ArchiveDateFilterDialog(
                     maxHeight = 420.dp,
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    TextActionButton(
+                    TextButton(
                         label = "Clear",
                         enabled = selectedStart != null || selectedEnd != null,
                         tag = "archive-clear-filter-DATE",
@@ -676,7 +676,7 @@ private fun ArchiveDateFilterDialog(
                 }
             },
             confirmButton = {
-                TextActionButton(
+                TextButton(
                     label = "Done",
                     onClick = {
                         onUpdateDateFilter(
@@ -694,7 +694,7 @@ private fun ArchiveDateFilterDialog(
                 )
             },
             dismissButton = {
-                TextActionButton(label = "Cancel", onClick = onBack)
+                TextButton(label = "Cancel", onClick = onBack)
             },
         )
     }
@@ -774,7 +774,7 @@ private fun ArchiveSortDialog(
             }
         },
         confirmButton = {
-            TextActionButton(label = "Cancel", onClick = onDismiss)
+            TextButton(label = "Cancel", onClick = onDismiss)
         },
     )
 }
@@ -923,7 +923,7 @@ private fun SavedArchiveSectionHeader(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             ArchiveSectionLabel(label)
-            TextActionButton(
+            TextButton(
                 label = "Delete all",
                 compact = true,
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
@@ -958,7 +958,7 @@ private fun DeleteAllButton(onClick: () -> Unit) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.End,
     ) {
-        TextActionButton(
+        TextButton(
             label = "Delete all",
             tag = "delete-all-archived-games",
             onClick = onClick,
@@ -1015,7 +1015,7 @@ private fun DeletableGameListRow(
                 .weight(1f)
                 .testTag(rowTag),
         )
-        IconActionButton(
+        IconButton(
             icon = Icons.Filled.Delete,
             contentDescription = "Delete ${entry.summaryLine}",
             size = 48.dp,
@@ -1062,7 +1062,7 @@ internal fun DeleteGameDialog(
         },
         confirmButton = {},
         dismissButton = {
-            TextActionButton(label = "Cancel", onClick = onDismiss)
+            TextButton(label = "Cancel", onClick = onDismiss)
         },
     )
 }

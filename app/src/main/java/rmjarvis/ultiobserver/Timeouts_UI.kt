@@ -104,7 +104,7 @@ internal fun AdjustTimeoutsDialog(
             }
         },
         confirmButton = {
-            TextActionButton(
+            TextButton(
                 label = "Set",
                 onClick = {
                     onConfirm(
@@ -117,7 +117,7 @@ internal fun AdjustTimeoutsDialog(
             )
         },
         dismissButton = {
-            TextActionButton(label = "Cancel", onClick = onDismiss)
+            TextButton(label = "Cancel", onClick = onDismiss)
         },
     )
 }

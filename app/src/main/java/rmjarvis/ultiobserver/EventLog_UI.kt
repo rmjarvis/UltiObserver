@@ -28,7 +28,7 @@ internal fun EventLogDialog(state: GameState, onDismiss: () -> Unit) {
             EventLogDialogContent(state = state)
         },
         dismissButton = {
-            TextActionButton(
+            TextButton(
                 label = "Share",
                 tag = "event-log-share",
                 onClick = {
@@ -37,7 +37,7 @@ internal fun EventLogDialog(state: GameState, onDismiss: () -> Unit) {
             )
         },
         confirmButton = {
-            TextActionButton(label = "OK", onClick = onDismiss)
+            TextButton(label = "OK", onClick = onDismiss)
         },
         widthProfile = DialogWidthProfile.MODERATE,
     )

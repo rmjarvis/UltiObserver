@@ -1,5 +1,9 @@
 package rmjarvis.ultiobserver
 
+import androidx.compose.ui.test.click
+import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.performTouchInput
+
 import android.graphics.Bitmap
 import android.app.Notification
 import android.app.NotificationManager
@@ -645,6 +649,37 @@ class TestWearPairedPhoneUi {
         composeRule.onNodeWithText("Goal").performClick()
         waitForContentDescription("Undo Start halftime")
         waitForText("2")
+    }
+
+    /** Require holds on the main screen, then accept ordinary taps in team actions. */
+    @Test
+    fun longPressProtection() {
+        waitForPairedText(ANIMAL)
+
+        // Opening team actions requires a hold; the Goal action then accepts a normal tap.
+        composeRule.onNodeWithText(ANIMAL).performTouchInput { click() }
+        composeRule.onNodeWithText("Goal").assertDoesNotExist()
+        composeRule.onNodeWithText(ANIMAL).performTouchInput { longClick() }
+        waitForText("Goal")
+        composeRule.onNodeWithText("Goal").performTouchInput { click() }
+        waitForContentDescription("Undo Goal by Animal")
+        waitForText("1")
+
+        // Undo also requires a hold, and each hold performs the action only once.
+        composeRule.onNode(hasContentDescription("Undo Goal by Animal"))
+            .performTouchInput { click() }
+        composeRule.onNodeWithText("1").assertExists()
+        composeRule.onNode(hasContentDescription("Undo Goal by Animal"))
+            .performTouchInput { longClick() }
+        waitForNoText("1")
+
+        // Re-enter the normal team menu twice to finish the paired narrative at two goals.
+        repeat(2) { score ->
+            composeRule.onNodeWithText(ANIMAL).performTouchInput { longClick() }
+            waitForText("Goal")
+            composeRule.onNodeWithText("Goal").performTouchInput { click() }
+            waitForText((score + 1).toString())
+        }
     }
 
     /** Return from the watch-face indicator to the game, then remove it when Wear OS is disabled. */

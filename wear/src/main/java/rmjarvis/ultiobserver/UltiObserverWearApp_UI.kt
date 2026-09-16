@@ -1,8 +1,9 @@
 package rmjarvis.ultiobserver
 
+import androidx.compose.runtime.CompositionLocalProvider
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -196,37 +197,41 @@ private fun ActiveGameScreen(
             },
         )
     } else if (surface == GameSurface.SCORE) {
-        GameScreen(
-            display = display,
-            onTeamSelected = { team ->
-                onNavigationChange { it.copy(selectedTeam = team) }
-            },
-            onRetry = onRetry,
-            timingControlsOpen = navigation.timingControlsOpen,
-            onRulesReference = {
-                onNavigationChange { it.copy(rulesOpen = true) }
-            },
-            onToggleTimingControls = {
-                onNavigationChange { it.copy(timingControlsOpen = !it.timingControlsOpen) }
-            },
-            onCloseTimingControls = {
-                onNavigationChange { it.back() }
-            },
-            countdownActionEnabled = !commandPending,
-            onCountdownAction = { action ->
-                commandPending = true
-                onCountdownAction(activeGame.stateToken, action) { _, prompt ->
-                    commandPending = false
-                    onNavigationChange { it.copy(pendingActionPrompt = prompt) }
-                }
-            },
-            onUndo = {
-                commandPending = true
-                onUndo(activeGame.stateToken) {
-                    commandPending = false
-                }
-            },
-        )
+        CompositionLocalProvider(
+            LocalRequireLongPress provides receivedState.snapshot.requireLongPress,
+        ) {
+            GameScreen(
+                display = display,
+                onTeamSelected = { team ->
+                    onNavigationChange { it.copy(selectedTeam = team) }
+                },
+                onRetry = onRetry,
+                timingControlsOpen = navigation.timingControlsOpen,
+                onRulesReference = {
+                    onNavigationChange { it.copy(rulesOpen = true) }
+                },
+                onToggleTimingControls = {
+                    onNavigationChange { it.copy(timingControlsOpen = !it.timingControlsOpen) }
+                },
+                onCloseTimingControls = {
+                    onNavigationChange { it.back() }
+                },
+                countdownActionEnabled = !commandPending,
+                onCountdownAction = { action ->
+                    commandPending = true
+                    onCountdownAction(activeGame.stateToken, action) { _, prompt ->
+                        commandPending = false
+                        onNavigationChange { it.copy(pendingActionPrompt = prompt) }
+                    }
+                },
+                onUndo = {
+                    commandPending = true
+                    onUndo(activeGame.stateToken) {
+                        commandPending = false
+                    }
+                },
+            )
+        }
     } else {
         val selectedWearTeam = selectedTeam!!
         val onRequestPrompt: (WearTeamAction) -> Unit
@@ -404,7 +409,8 @@ internal fun RetryLabel(
         modifier = modifier
             .width(72.dp)
             .height(40.dp)
-            .clickable(
+            .gameClickable(
+                enabled = true,
                 role = Role.Button,
                 onClick = onRetry,
             ),

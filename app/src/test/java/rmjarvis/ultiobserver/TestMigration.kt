@@ -849,7 +849,7 @@ class TestMigration : GameDomainTestFixtures() {
     private fun v1_1FixtureSettings(): Settings {
         return Settings(
             automaticallyAdvanceCountdowns = false,
-            automaticallyLockLivePoint = false,
+            accidentalTouchProtection = AccidentalTouchProtection.NONE,
             showDefenseCountdowns = true,
             timingAlerts = TimingAlertPreferences(
                 globalMode = TimingAlertGlobalMode.SOUNDS_ON,

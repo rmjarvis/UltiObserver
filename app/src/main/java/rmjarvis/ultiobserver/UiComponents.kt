@@ -1,9 +1,12 @@
 package rmjarvis.ultiobserver
 
+import androidx.compose.runtime.staticCompositionLocalOf
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.rememberScrollState
@@ -45,25 +48,23 @@ import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonColors
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldColors
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
@@ -81,6 +82,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -97,6 +99,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.AnnotatedString
@@ -119,6 +122,86 @@ import java.time.ZoneOffset
 import com.github.skydoves.colorpicker.compose.BrightnessSlider
 import com.github.skydoves.colorpicker.compose.HsvColorPicker
 import com.github.skydoves.colorpicker.compose.rememberColorPickerController
+
+/** Whether controls in this game surface require a deliberate hold. */
+internal val LocalRequireLongPress = staticCompositionLocalOf { false }
+
+/** Use Compose's gesture handling for the tap or hold required by this game surface. */
+@Composable
+internal fun Modifier.gameClickable(enabled: Boolean, onClick: () -> Unit): Modifier {
+    return if (LocalRequireLongPress.current) {
+        combinedClickable(
+            enabled = enabled,
+            role = Role.Button,
+            onClickLabel = "Hold to activate",
+            onClick = {},
+            onLongClickLabel = "Activate",
+            onLongClick = onClick,
+        )
+    } else {
+        clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+    }
+}
+
+/** Render the shared button styling with tap or hold handling owned by Compose. */
+@Composable
+private fun ButtonContainer(
+    onClick: () -> Unit,
+    modifier: Modifier,
+    enabled: Boolean,
+    shape: Shape,
+    colors: ButtonColors,
+    border: BorderStroke?,
+    contentPadding: PaddingValues,
+    content: @Composable () -> Unit,
+) {
+    Surface(
+        modifier = modifier
+            .minimumInteractiveComponentSize()
+            .clip(shape)
+            .gameClickable(enabled, onClick),
+        shape = shape,
+        color = if (enabled) colors.containerColor else colors.disabledContainerColor,
+        contentColor = if (enabled) colors.contentColor else colors.disabledContentColor,
+        border = border,
+    ) {
+        ProvideTextStyle(MaterialTheme.typography.labelLarge) {
+            Row(
+                modifier = Modifier
+                    .defaultMinSize(
+                        minWidth = ButtonDefaults.MinWidth,
+                        minHeight = ButtonDefaults.MinHeight,
+                    )
+                    .padding(contentPadding),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                content()
+            }
+        }
+    }
+}
+
+/** Render the shared icon touch target with the same tap or hold behavior as text buttons. */
+@Composable
+private fun IconButtonContainer(
+    onClick: () -> Unit,
+    modifier: Modifier,
+    content: @Composable () -> Unit,
+) {
+    Box(
+        modifier = modifier
+            .minimumInteractiveComponentSize()
+            .clip(IconButtonDefaults.standardShape)
+            .gameClickable(enabled = true, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        CompositionLocalProvider(
+            LocalContentColor provides IconButtonDefaults.iconButtonColors().contentColor,
+            content = content,
+        )
+    }
+}
 
 private const val KEYBOARD_DIALOG_HEIGHT_FRACTION = 0.60f
 
@@ -232,6 +315,7 @@ internal fun ResponsiveAlertDialog(
         modifier = dialogModifier,
         properties = DialogProperties(
             usePlatformDefaultWidth = !usesResponsiveLandscapeWidth,
+            dismissOnClickOutside = !LocalRequireLongPress.current,
         ),
     ) {
         Surface(
@@ -767,13 +851,13 @@ internal fun ColorDialogActions(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        TextActionButton(
+        TextButton(
             label = "Cancel",
             compact = true,
             contentPadding = PaddingValues(horizontal = 0.dp, vertical = 8.dp),
             onClick = onCancel,
         )
-        TextActionButton(
+        TextButton(
             label = confirmText,
             compact = true,
             tag = confirmTestTag,
@@ -1359,7 +1443,7 @@ internal fun MenuButton(
  * @param onClick Callback invoked when the button is tapped.
  */
 @Composable
-internal fun TextActionButton(
+internal fun TextButton(
     label: String,
     height: Dp? = null,
     compact: Boolean = false,
@@ -1375,7 +1459,7 @@ internal fun TextActionButton(
     } else {
         taggedModifier
     }
-    TextButton(
+    ButtonContainer(
         onClick = {
             clearFocusAndHideKeyboard()
             onClick()
@@ -1383,6 +1467,9 @@ internal fun TextActionButton(
         modifier = buttonModifier,
         enabled = enabled,
         contentPadding = contentPadding,
+        shape = ButtonDefaults.textShape,
+        colors = ButtonDefaults.textButtonColors(),
+        border = null,
     ) {
         Text(label, maxLines = 1, softWrap = false)
     }
@@ -1411,7 +1498,7 @@ internal fun LocalDatePickerDialog(
     DatePickerDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextActionButton(
+            TextButton(
                 label = "Set",
                 tag = setButtonTag,
                 onClick = {
@@ -1421,7 +1508,7 @@ internal fun LocalDatePickerDialog(
             )
         },
         dismissButton = {
-            TextActionButton(label = "Cancel", onClick = onDismiss)
+            TextButton(label = "Cancel", onClick = onDismiss)
         },
     ) {
         DatePicker(
@@ -1462,7 +1549,7 @@ private fun pickerTimestampToDate(timestamp: Long): LocalDate {
  * @param onClick Callback invoked when the icon is tapped.
  */
 @Composable
-internal fun IconActionButton(
+internal fun IconButton(
     icon: ImageVector,
     contentDescription: String,
     modifier: Modifier = Modifier,
@@ -1472,7 +1559,7 @@ internal fun IconActionButton(
     tag: String? = null,
     onClick: () -> Unit,
 ) {
-    IconButton(
+    IconButtonContainer(
         onClick = onClick,
         modifier = modifier
             .withTag(tag)
@@ -1490,7 +1577,7 @@ internal fun IconActionButton(
 /// Render the shared top-bar action that navigates back from the current screen.
 @Composable
 internal fun TopBarBackButton(onClick: () -> Unit) {
-    IconActionButton(
+    IconButton(
         icon = Icons.AutoMirrored.Filled.ArrowBack,
         contentDescription = "Back",
         tag = "top-bar-back",
@@ -1501,7 +1588,7 @@ internal fun TopBarBackButton(onClick: () -> Unit) {
 /// Render the shared top-bar action that returns directly to Home.
 @Composable
 internal fun TopBarHomeButton(onClick: () -> Unit) {
-    IconActionButton(
+    IconButton(
         icon = Icons.Filled.Home,
         contentDescription = "Home",
         tag = "top-bar-home",
@@ -1648,36 +1735,19 @@ private fun StandardRoleButton(
         }
     }
     val button: @Composable () -> Unit = {
-        if (borderColor == null) {
-            Button(
-                onClick = {
-                    clearFocusAndHideKeyboard()
-                    onClick()
-                },
-                enabled = enabled,
-                modifier = buttonModifier,
-                shape = shape,
-                colors = colors,
-                contentPadding = resolvedContentPadding,
-            ) {
-                content()
-            }
-        } else {
-            OutlinedButton(
-                onClick = {
-                    clearFocusAndHideKeyboard()
-                    onClick()
-                },
-                enabled = enabled,
-                modifier = buttonModifier,
-                shape = shape,
-                colors = colors,
-                border = BorderStroke(1.dp, borderColor),
-                contentPadding = resolvedContentPadding,
-            ) {
-                content()
-            }
-        }
+        ButtonContainer(
+            onClick = {
+                clearFocusAndHideKeyboard()
+                onClick()
+            },
+            enabled = enabled,
+            modifier = buttonModifier,
+            shape = shape,
+            colors = colors,
+            border = borderColor?.let { BorderStroke(1.dp, it) },
+            contentPadding = resolvedContentPadding,
+            content = content,
+        )
     }
     if (compact) {
         CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
@@ -1715,7 +1785,7 @@ internal fun AdjustButton(
         ).sp
     val fontSize = minOf(preferredFontSize.value, maximumFontSize.value).sp
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-        OutlinedButton(
+        ButtonContainer(
             onClick = {
                 clearFocusAndHideKeyboard()
                 onClick()
@@ -1774,7 +1844,7 @@ internal fun FieldControlButton(
 ) {
     val clearFocusAndHideKeyboard = rememberClearFocusAndHideKeyboard()
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-        OutlinedButton(
+        ButtonContainer(
             onClick = {
                 clearFocusAndHideKeyboard()
                 onClick()
@@ -1828,7 +1898,7 @@ internal fun FieldInfoButton(
 ) {
     val clearFocusAndHideKeyboard = rememberClearFocusAndHideKeyboard()
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-        IconButton(
+        IconButtonContainer(
             onClick = {
                 clearFocusAndHideKeyboard()
                 onClick()
@@ -1869,7 +1939,7 @@ internal fun PauseResumeButton(
     val iconSize = height * (18f / 34f)
     val horizontalPadding = height * (8f / 34f)
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-        OutlinedButton(
+        ButtonContainer(
             onClick = onClick,
             enabled = enabled,
             modifier = Modifier
@@ -1914,7 +1984,7 @@ internal fun WaterBreakButton(
     val iconSize = height * (18f / 34f)
     val horizontalPadding = height * (8f / 34f)
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-        OutlinedButton(
+        ButtonContainer(
             onClick = onClick,
             enabled = enabled,
             modifier = Modifier

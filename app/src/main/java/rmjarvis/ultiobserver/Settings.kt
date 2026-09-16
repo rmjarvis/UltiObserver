@@ -8,6 +8,45 @@ import kotlinx.serialization.json.decodeFromJsonElement
 internal const val DEFAULT_NEW_COUNTDOWN_ADVANCE_SECONDS = 3
 internal const val MAX_NEW_COUNTDOWN_ADVANCE_SECONDS = 10
 
+/** Protection used for touch actions on the phone's active-game screen. */
+@Serializable
+internal enum class AccidentalTouchProtection(val label: String, val description: String) {
+    NONE(
+        "None",
+        "Use normal taps on the active game screen. It will not automatically lock. " +
+        "You can still lock the screen manually by clicking the lock icon in the central " +
+        "region of the screen.",
+    ),
+    AUTO_LOCK(
+        "Auto-lock",
+        "The screen will automatically lock whenever play becomes live.",
+    ),
+    LONG_PRESS(
+        "Long press",
+        "Press and hold controls on the active game screen and in dialogs that " +
+        "appear automatically. Use normal taps on dialogs that you open.",
+    ),
+}
+
+/** Require a hold for an automatic game prompt unless a user-opened dialog takes precedence. */
+internal fun AccidentalTouchProtection.requiresLongPressForDialog(
+    hasPendingGameDecision: Boolean,
+    hasActiveCardEntry: Boolean,
+    showEventLogSheet: Boolean,
+    hasTeamInfoSheet: Boolean,
+    showRulesReference: Boolean,
+    hasPendingTimeoutConfirmation: Boolean,
+    hasPendingTimeViolation: Boolean,
+    hasPendingPullViolation: Boolean,
+    hasPendingTechnicalFoul: Boolean,
+): Boolean {
+    return this == AccidentalTouchProtection.LONG_PRESS &&
+        hasPendingGameDecision && !hasActiveCardEntry &&
+        !showEventLogSheet && !hasTeamInfoSheet && !showRulesReference &&
+        !hasPendingTimeoutConfirmation && !hasPendingTimeViolation &&
+        !hasPendingPullViolation && !hasPendingTechnicalFoul
+}
+
 /// Per-cue alert choice before the global alert mode is applied.
 @Serializable
 enum class TimingAlertMode {
@@ -62,16 +101,63 @@ enum class TimingAlertGlobalMode(
 @Serializable
 enum class WatchConnectionMode(
     val label: String,
+    val description: String,
 ) {
-    OFF("Off"),
-    SILENT("Silent"),
-    ALERTING("Alerting"),
-    WEAR_OS("Wear OS"),
+    OFF(
+        "Off",
+        "No notifications will be sent to a watch.",
+    ),
+    SILENT(
+        "Silent",
+        "Timing cues will be sent to a paired watch, but no alerts will be " +
+        "triggered.",
+    ),
+    ALERTING(
+        "Alerting",
+        "Timing cues will be sent to a paired watch. Cues whose individual " +
+        "setting is not Off will also trigger an alert, causing a vibration if " +
+        "enabled on the watch.",
+    ),
+    WEAR_OS(
+        "Wear OS",
+        "Use UltiObserver on a paired Wear OS watch.",
+    ),
     ;
 
     /// Report whether standard Android notifications should be bridged to a watch.
     fun usesNotifications(): Boolean {
         return this == SILENT || this == ALERTING
+    }
+
+    companion object {
+        const val NOTIFICATION_PERMISSION_NOTE =
+            "Phone notifications must be enabled for watch notifications to work. " +
+            "Selecting either Silent or Alerting will open the Android settings " +
+            "page where you can enable notifications."
+
+        const val NOTIFICATION_SHARING_WARNING =
+            "Watch notifications require a paired watch and notification sharing " +
+            "enabled in its companion app. UltiObserver cannot verify the " +
+            "connection."
+
+        const val NOTIFICATION_COOLDOWN_WARNING =
+            "By default Android applies a \"cooldown\" to repeated notifications, " +
+            "which lessens the vibration strength for alerts after the first one. " +
+            "To turn it off, go to Settings — Notifications — Notification cooldown."
+
+        const val CONNECTED_WEAR_DESCRIPTION =
+            "This will let you receive timing cues on the watch as well as " +
+            "record goals, timeouts and other events directly from the watch. "
+
+        const val WATCH_VIBRATION_DESCRIPTION =
+            "Any cues set to use vibration will happen on the watch rather than " +
+            "on the phone."
+
+        const val UNAVAILABLE_WEAR_TITLE =
+            "No Wear OS watch is currently available.  "
+
+        const val UNAVAILABLE_WEAR_DESCRIPTION =
+            "Pair a Wear OS watch with this phone before using this setting."
     }
 }
 
@@ -97,6 +183,25 @@ data class TimingAlertPreferences(
     val cueModes: Map<TimingCueId, TimingAlertMode> = defaultTimingCueModes(),
     val cueRepeatCounts: Map<TimingCueId, Int> = defaultTimingCueRepeatCounts(),
 ) {
+    /// Explanation shown below the vibrateOnWatch setting.
+    val vibrateOnWatchDescription: String
+        get() = if (vibrateOnWatch) {
+            "Send timing vibrations to the watch, including when its screen is off. " +
+            "If the watch is unavailable, vibrate on the phone instead."
+        } else {
+            "Keep timing vibrations on the phone."
+        }
+
+    /// Explanation beside the vibration test control.
+    val vibrationTestDescription: String
+        get() = if (usesWatchVibration()) {
+            "If the test vibration is too weak, check the vibration strength " +
+            "in your watch's settings. If the watch is unavailable, the phone vibrates."
+        } else {
+            "If the test vibration is too weak, check the vibration strength " +
+            "in your phone's haptic settings."
+        }
+
     /** Whether timing vibrations should try the native watch before the phone. */
     fun usesWatchVibration(): Boolean {
         return watchConnectionMode == WatchConnectionMode.WEAR_OS && vibrateOnWatch
@@ -478,7 +583,7 @@ internal enum class WatchOrientation(val label: String, val description: String)
  * @param orientationPreference Orientation behavior used by the active-game screen.
  * @param ruleGuidanceMode Amount and duration of rule guidance shown during games.
  * @param automaticallyAdvanceCountdowns Whether expired countdowns should drive model transitions.
- * @param automaticallyLockLivePoint Whether automatic live-point entry should lock the live screen.
+ * @param accidentalTouchProtection How active-game controls guard against accidental touches.
  * @param showDefenseCountdowns Whether timeout offense-set expirations wait for defense.
  * @param automaticallyAdvanceNewCountdowns Whether newly started countdowns should compensate for
  * the delay before the observer presses the relevant button.
@@ -496,7 +601,8 @@ internal data class Settings(
     val watchOrientation: WatchOrientation = WatchOrientation.TEAMS_FIXED,
     val ruleGuidanceMode: RuleGuidanceMode = RuleGuidanceMode.FULL,
     val automaticallyAdvanceCountdowns: Boolean = true,
-    val automaticallyLockLivePoint: Boolean = true,
+    val accidentalTouchProtection: AccidentalTouchProtection = AccidentalTouchProtection.AUTO_LOCK,
+    val requireWatchLongPress: Boolean = false,
     val showDefenseCountdowns: Boolean = false,
     val automaticallyAdvanceNewCountdowns: Boolean = false,
     val newCountdownAdvanceSeconds: Int = DEFAULT_NEW_COUNTDOWN_ADVANCE_SECONDS,
@@ -506,6 +612,62 @@ internal data class Settings(
     val officialClockOffsetMillis: Long = 0L,
     val timingAlerts: TimingAlertPreferences = TimingAlertPreferences(),
 ) {
+    /// Explanation shown below the requireWatchLongPress setting.
+    val requireWatchLongPressDescription: String
+        get() = if (requireWatchLongPress) {
+            "Press and hold controls on the watch's main game screen. " +
+            "After opening a menu or another screen, use normal taps."
+        } else {
+            "Use normal taps on the watch."
+        }
+
+    /// Explanation shown below the automaticallyAdvanceCountdowns setting.
+    val automaticallyAdvanceCountdownsDescription: String
+        get() = if (automaticallyAdvanceCountdowns) {
+            "When a pull or timeout countdown expires, UltiObserver will automatically " +
+            "start or resume live play."
+        } else {
+            "When a countdown expires, UltiObserver will wait for you to tap Start point " +
+            "or Continue point."
+        }
+
+    /// Explanation shown below the showDefenseCountdowns setting.
+    val showDefenseCountdownsDescription: String
+        get() = if (showDefenseCountdowns) {
+            "After you mark the offense set during a timeout or misconduct penalty, " +
+            "UltiObserver will display the 20-second defense countdown."
+        } else {
+            "UltiObserver will not display the defense countdown for timeouts or " +
+            "misconduct penalties. You should count the time for the defensive check " +
+            "yourself with arm chops."
+        }
+
+    /// Explanation shown below the automaticallyAdvanceNewCountdowns setting.
+    val automaticallyAdvanceNewCountdownsDescription: String
+        get() {
+            val secondsLabel = if (newCountdownAdvanceSeconds == 1) "second" else "seconds"
+            return if (automaticallyAdvanceNewCountdowns) {
+                "Countdowns after a goal or in-point timeout will automatically begin " +
+                "with ${newCountdownAdvanceSeconds} $secondsLabel already " +
+                "elapsed to account for the time it takes to open your phone and " +
+                "press the button."
+            } else {
+                "Countdowns start when you press the relevant button, and they take the " +
+                "full time."
+            }
+        }
+
+    /// Explanation shown below the showAbbaRatioAsSequence setting.
+    val showAbbaRatioAsSequenceDescription: String
+        get() = if (showAbbaRatioAsSequence) {
+            "Ratio will display as W2, M1, M2, W1, W2... or M2, W1, W2, M1, M2..."
+        } else {
+            "Ratio will display as either 4W/3M or 4M/3W."
+        }
+
+    val automaticallyLockLivePoint: Boolean
+        get() = accidentalTouchProtection == AccidentalTouchProtection.AUTO_LOCK
+
     /// Return these settings with the active-game orientation preference replaced.
     fun withOrientationPreference(preference: OrientationPreference): Settings {
         return copy(orientationPreference = preference)
@@ -523,15 +685,6 @@ internal data class Settings(
      */
     fun withAutomaticallyAdvanceCountdowns(automaticallyAdvance: Boolean): Settings {
         return copy(automaticallyAdvanceCountdowns = automaticallyAdvance)
-    }
-
-    /**
-     * Return these settings with automatic live-point locking replaced.
-     *
-     * @param automaticallyLock Whether automatic live-point entry should enable lock mode.
-     */
-    fun withAutomaticallyLockLivePoint(automaticallyLock: Boolean): Settings {
-        return copy(automaticallyLockLivePoint = automaticallyLock)
     }
 
     /**
@@ -615,6 +768,11 @@ internal data class Settings(
     }
 
     companion object {
+        const val DEFENSE_COUNTDOWN_DISABLED_NOTE =
+            "Note — defensive check countdowns are not currently enabled. " +
+            "If you want these cues, enable defensive check countdowns " +
+            "on the previous page."
+
         /**
          * Decode persisted settings state for a known storage version.
          *
@@ -636,5 +794,48 @@ internal data class Settings(
                 null
             }
         }
+    }
+}
+
+
+/// Return the explanatory note to show beside sound previews under the current global mode.
+internal fun TimingAlertPreferences.soundPreviewNote(hasTimingCueHaptics: Boolean): String? {
+    if (globalMode == TimingAlertGlobalMode.SOUNDS_ON) {
+        return null
+    }
+    val vibrateInsteadSentence = if (vibrateWithSounds && hasTimingCueHaptics) {
+        val device = if (usesWatchVibration()) "watch" else "phone"
+        " The $device will currently vibrate instead for any cues with sounds."
+    } else {
+        ""
+    }
+    return (
+        "Note — sounds are currently not enabled.$vibrateInsteadSentence " +
+        "If you want sounds, enable them on the previous page."
+    )
+}
+
+
+/// Return the settings-page messages for a global timing-alert mode and haptic capability.
+internal fun TimingAlertGlobalMode.settingsMessages(hasTimingCueHaptics: Boolean): List<String> {
+    if (!hasTimingCueHaptics) {
+        val noHapticsMessage =
+            "This phone reports that vibration is unavailable. " +
+            "Check Android Settings > Sound & vibration > Vibration & haptics, then return to UltiObserver."
+        return when (this) {
+            TimingAlertGlobalMode.OFF -> listOf("No sound or vibration will be used for any timing cues.")
+            TimingAlertGlobalMode.VIBRATION_ONLY -> listOf(noHapticsMessage)
+            TimingAlertGlobalMode.SOUNDS_ON -> listOf(
+                "Ear buds are recommended when using sounds with UltiObserver.",
+                noHapticsMessage,
+            )
+        }
+    }
+    return when (this) {
+        TimingAlertGlobalMode.OFF -> listOf("No sound or vibration will be used for any timing cues.")
+        TimingAlertGlobalMode.VIBRATION_ONLY -> {
+            listOf("Vibration will be used for any cues that are set to use sound.")
+        }
+        TimingAlertGlobalMode.SOUNDS_ON -> listOf("Ear buds are recommended when using sounds with UltiObserver.")
     }
 }

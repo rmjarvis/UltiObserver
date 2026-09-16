@@ -278,6 +278,13 @@ private object V1_3ToV1_4 {
             ?: JsonPrimitive(WatchConnectionMode.OFF.name)
         return JsonObject(
             jsonObject.toMutableMap().apply {
+                this["accidentalTouchProtection"] = JsonPrimitive(
+                    if (remove("automaticallyLockLivePoint") == JsonPrimitive(false)) {
+                        AccidentalTouchProtection.NONE.name
+                    } else {
+                        AccidentalTouchProtection.AUTO_LOCK.name
+                    }
+                )
                 this["timingAlerts"] = JsonObject(
                     timingAlerts.toMutableMap().apply {
                         this["watchConnectionMode"] = watchConnectionMode

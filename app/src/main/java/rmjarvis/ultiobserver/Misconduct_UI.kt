@@ -464,10 +464,10 @@ internal fun AdjustCardsDialog(
                     }
                 },
                 confirmButton = {
-                    TextActionButton(label = "Done", onClick = { finalizeAdjustment() })
+                    TextButton(label = "Done", onClick = { finalizeAdjustment() })
                 },
                 dismissButton = {
-                    TextActionButton(label = "Cancel", onClick = onDismiss)
+                    TextButton(label = "Cancel", onClick = onDismiss)
                 },
                 widthProfile = DialogWidthProfile.WIDE,
             )
@@ -586,7 +586,7 @@ internal fun AdjustCardsDialog(
                     }
                 },
                 confirmButton = {
-                    TextActionButton(
+                    TextButton(
                         label = "Record",
                         onClick = {
                             applyManualCardAdd(
@@ -601,7 +601,7 @@ internal fun AdjustCardsDialog(
                     )
                 },
                 dismissButton = {
-                    TextActionButton(
+                    TextButton(
                         label = "Cancel",
                         tag = "same-number-warning-cancel",
                         onClick = {
@@ -643,7 +643,7 @@ internal fun AdjustCardsDialog(
                     }
                 },
                 confirmButton = {
-                    TextActionButton(
+                    TextButton(
                         label = "OK",
                         onClick = { step = activeStep.returnTo },
                     )
@@ -670,7 +670,7 @@ internal fun AdjustCardsDialog(
                         }
                     },
                     confirmButton = {
-                        TextActionButton(
+                        TextButton(
                             label = "OK",
                             onClick = { step = activeStep.returnTo },
                         )
@@ -859,7 +859,7 @@ internal fun ExistingCardsEditorDialog(
                     }
                 },
                 confirmButton = {
-                    TextActionButton(label = "OK", onClick = { step = activeStep.returnTo })
+                    TextButton(label = "OK", onClick = { step = activeStep.returnTo })
                 },
                 widthProfile = DialogWidthProfile.COMPACT,
             )
@@ -882,7 +882,7 @@ internal fun ExistingCardsEditorDialog(
                         }
                     },
                     confirmButton = {
-                        TextActionButton(
+                        TextButton(
                             label = "OK",
                             onClick = { step = ExistingCardsEditorStep.CardList },
                         )
@@ -1102,7 +1102,7 @@ internal fun TeamCardDialog(
                     }
                 },
                 confirmButton = {
-                    TextActionButton(
+                    TextButton(
                         label = "Record",
                         onClick = {
                             assessPlayerCardEntry(
@@ -1115,7 +1115,7 @@ internal fun TeamCardDialog(
                     )
                 },
                 dismissButton = {
-                    TextActionButton(
+                    TextButton(
                         label = "Cancel",
                         tag = "same-number-warning-cancel",
                         onClick = {
@@ -1160,7 +1160,7 @@ internal fun TeamCardDialog(
                     }
                 },
                 confirmButton = {
-                    TextActionButton(label = "OK", onClick = { step = activeStep.returnTo })
+                    TextButton(label = "OK", onClick = { step = activeStep.returnTo })
                 },
                 widthProfile = DialogWidthProfile.COMPACT,
             )
@@ -1187,13 +1187,13 @@ internal fun TeamCardDialog(
                         }
                     },
                     confirmButton = {
-                        TextActionButton(
+                        TextButton(
                             label = "OK",
                             onClick = applyBlueCard,
                         )
                     },
                     dismissButton = {
-                        TextActionButton(
+                        TextButton(
                             label = "Cancel",
                             onClick = { step = TeamCardDialogStep.InitialCardChoice },
                         )
@@ -1226,10 +1226,10 @@ internal fun TeamCardDialog(
                         }
                     },
                     confirmButton = {
-                        TextActionButton(label = "OK", onClick = onConfirm)
+                        TextButton(label = "OK", onClick = onConfirm)
                     },
                     dismissButton = {
-                        TextActionButton(label = "Back", onClick = goBack)
+                        TextButton(label = "Back", onClick = goBack)
                     },
                 )
             }
@@ -1324,7 +1324,7 @@ private fun CardChoiceDialog(
             }
         },
         confirmButton = {
-            TextActionButton(label = "Close", onClick = onDismiss)
+            TextButton(label = "Close", onClick = onDismiss)
         },
     )
 }
@@ -1506,13 +1506,13 @@ private fun EditablePlayerCardRow(
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                IconActionButton(
+                IconButton(
                     icon = Icons.Filled.Edit,
                     contentDescription = "Edit $identity",
                     onClick = onEdit,
                 )
                 onRemove?.let { remove ->
-                    IconActionButton(
+                    IconButton(
                         icon = Icons.Filled.Delete,
                         contentDescription = "Remove $identity",
                         onClick = remove,
@@ -1558,7 +1558,7 @@ private fun EditablePlayerCardsDialog(
             }
         },
         confirmButton = {
-            TextActionButton(
+            TextButton(
                 label = "Done",
                 tag = "editable-player-cards-done",
                 onClick = onDismiss,
@@ -1595,10 +1595,10 @@ private fun RemoveEditablePlayerCardDialog(
             }
         },
         confirmButton = {
-            TextActionButton(label = "Remove", onClick = onConfirm)
+            TextButton(label = "Remove", onClick = onConfirm)
         },
         dismissButton = {
-            TextActionButton(label = "Cancel", onClick = onDismiss)
+            TextButton(label = "Cancel", onClick = onDismiss)
         },
         widthProfile = DialogWidthProfile.COMPACT,
     )
@@ -1698,7 +1698,7 @@ private fun PlayerCardEntryDialog(
                 }
             },
             confirmButton = {
-                TextActionButton(
+                TextButton(
                     label = "Record",
                     onClick = {
                         onConfirm(
@@ -1712,7 +1712,7 @@ private fun PlayerCardEntryDialog(
                 )
             },
             dismissButton = {
-                TextActionButton(
+                TextButton(
                     label = "Cancel",
                     tag = "card-entry-cancel",
                     onClick = onDismiss,
@@ -1758,7 +1758,7 @@ private fun PlayerNumberSelectionDialog(
         },
         confirmButton = {},
         dismissButton = {
-            TextActionButton(
+            TextButton(
                 label = "Cancel",
                 tag = "card-number-selection-cancel",
                 onClick = onDismiss,
@@ -1795,7 +1795,7 @@ private fun PlayerCardCandidateRow(
             "${candidate.identity.displayText(compact = false)}$detail",
             modifier = Modifier.weight(1f),
         )
-        TextActionButton(
+        TextButton(
             label = actionLabel,
             tag = actionTag,
             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
@@ -1904,7 +1904,7 @@ private fun CardReasonDialog(
             }
         },
         confirmButton = {
-            TextActionButton(
+            TextButton(
                 label = "Set",
                 onClick = {
                     onConfirm(
@@ -1918,7 +1918,7 @@ private fun CardReasonDialog(
             )
         },
         dismissButton = {
-            TextActionButton(label = "Back", onClick = onDismiss)
+            TextButton(label = "Back", onClick = onDismiss)
         },
     )
 }

@@ -549,6 +549,7 @@ internal fun buildWearStateSnapshot(
         activeCardEntry == null
     return WearStateSnapshot(
         status = WearSnapshotStatus.ACTIVE_GAME,
+        requireLongPress = settings.requireWatchLongPress,
         activeGame = WearActiveGameSnapshot(
             stateToken = wearStateToken(game),
             actionsAvailable = gameActionsAvailable,

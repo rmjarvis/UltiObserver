@@ -310,7 +310,7 @@ internal fun HomeScreen(
                 }
             }
 
-            IconActionButton(
+            IconButton(
                 icon = Icons.Outlined.Info,
                 contentDescription = "About",
                 tag = "home-about",
@@ -319,7 +319,7 @@ internal fun HomeScreen(
                     .align(Alignment.TopStart)
                     .padding(pagePadding)
             )
-            IconActionButton(
+            IconButton(
                 icon = Icons.Filled.WatchLater,
                 contentDescription = if (officialClockAdjusted) {
                     "Official clock adjusted"

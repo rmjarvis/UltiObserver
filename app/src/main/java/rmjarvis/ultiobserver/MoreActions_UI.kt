@@ -707,7 +707,7 @@ private fun SetHeatLevelDialog(
             }
         },
         confirmButton = {
-            TextActionButton(
+            TextButton(
                 label = "Set",
                 tag = "set-heat-level-confirm",
                 onClick = {
@@ -723,7 +723,7 @@ private fun SetHeatLevelDialog(
             )
         },
         dismissButton = {
-            TextActionButton(label = "Cancel", onClick = onDismiss)
+            TextButton(label = "Cancel", onClick = onDismiss)
         },
     )
 }
@@ -767,10 +767,10 @@ private fun ChangePullPromptsDialog(
             }
         },
         confirmButton = {
-            TextActionButton(label = "Set", onClick = { onConfirm(selected) })
+            TextButton(label = "Set", onClick = { onConfirm(selected) })
         },
         dismissButton = {
-            TextActionButton(label = "Cancel", onClick = onDismiss)
+            TextButton(label = "Cancel", onClick = onDismiss)
         },
     )
 }
@@ -816,10 +816,10 @@ private fun AdjustScoreDialog(
             }
         },
         confirmButton = {
-            TextActionButton(label = "Set", onClick = { onConfirm(teamOneScore, teamTwoScore) })
+            TextButton(label = "Set", onClick = { onConfirm(teamOneScore, teamTwoScore) })
         },
         dismissButton = {
-            TextActionButton(label = "Cancel", onClick = onDismiss)
+            TextButton(label = "Cancel", onClick = onDismiss)
         },
         widthProfile = DialogWidthProfile.COMPACT,
     )

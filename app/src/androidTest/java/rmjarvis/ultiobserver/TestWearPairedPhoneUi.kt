@@ -392,9 +392,31 @@ class TestWearPairedPhoneUi : MainActivityUiTestFixtures() {
         assertEquals(0, game.teamTwo.score)
     }
 
+    /** Host watch scoring and undo with the watch's independent long-press setting enabled. */
+    @Test
+    fun longPressProtection() {
+        setTimingAlertPreferences(
+            TimingAlertPreferences(watchConnectionMode = WatchConnectionMode.WEAR_OS)
+        )
+        composeRule.runOnIdle {
+            val state = composeRule.activity.appState
+            state.updateSettings(state.settings.copy(requireWatchLongPress = true))
+        }
+        startLivePointProgrammatically()
+        useStandardTeamNames()
+        signalReady("longPressProtection")
+
+        // The watch scores, undoes, then records two goals using the protected main screen.
+        waitForGame { it.teamOne.score == 2 }
+    }
+
     /** Keep a game available while the watch tests its system shortcut, then disable Wear OS. */
     @Test
     fun ongoingGame() {
+        composeRule.runOnIdle {
+            val state = composeRule.activity.appState
+            state.updateSettings(state.settings.copy(requireWatchLongPress = false))
+        }
         setTimingAlertPreferences(
             TimingAlertPreferences(watchConnectionMode = WatchConnectionMode.WEAR_OS)
         )

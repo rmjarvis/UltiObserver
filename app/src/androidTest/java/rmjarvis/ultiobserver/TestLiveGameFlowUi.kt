@@ -1,5 +1,8 @@
 package rmjarvis.ultiobserver
 
+import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.longClick
+
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -849,6 +852,77 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         assertEquals(lockedCountdownTarget, accessCurrentGameState().countdown!!.targetEpoch)
     }
 
+    /** Protect game controls and automatic prompts while deliberately opened dialogs use taps. */
+    @Test
+    fun longPressProtection() {
+        setRuleGuidanceMode(RuleGuidanceMode.FULL)
+        composeRule.runOnIdle {
+            val state = composeRule.activity.appState
+            state.updateSettings(state.settings.copy(
+                accidentalTouchProtection = AccidentalTouchProtection.LONG_PRESS,
+            ))
+        }
+        startLivePointProgrammatically()
+
+        // A short tap cannot score; holding the same button records exactly one goal.
+        val goal = composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal"))
+        goal.performTouchInput { click() }
+        assertEquals(0, accessCurrentGameState().teamOne.score)
+
+        // Cancelling a press before the hold completes also leaves the score unchanged.
+        goal.performTouchInput {
+            down(center)
+            advanceEventTime(100L)
+            cancel()
+        }
+        assertEquals(0, accessCurrentGameState().teamOne.score)
+
+        // Completing the hold records one goal, with no extra goal on release.
+        goal.performTouchInput { longClick() }
+        waitForText("Undo Goal by Team 1")
+        assertEquals(1, accessCurrentGameState().teamOne.score)
+
+        // A deliberately opened timeout dialog accepts an ordinary Cancel tap.
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "timeout"))
+            .performTouchInput { longClick() }
+        waitForText("Cancel")
+        composeRule.onNodeWithText("Cancel").performTouchInput { click() }
+        waitForText("Undo Goal by Team 1")
+
+        // Manual locking remains available in long-press mode, with the usual unlock slider.
+        composeRule.onNodeWithText("Start point").performTouchInput { longClick() }
+        waitForTag("live-center-lock")
+        composeRule.onNodeWithTag("live-center-lock").performTouchInput { longClick() }
+        waitForText("Slide right to unlock")
+
+        // Holding a disabled goal button cannot bypass the manual lock.
+        goal.assertIsNotEnabled().performTouchInput { longClick() }
+        assertEquals(1, accessCurrentGameState().teamOne.score)
+        unlockLiveScreen()
+
+        // An automatically offered cap requires a hold on its confirmation too.
+        startLiveGameWithDueCap("Half cap", "Half cap")
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal"))
+            .performTouchInput { longClick() }
+        waitForText("Not yet")
+        composeRule.onNodeWithText("OK").performTouchInput { click() }
+        assertFalse(accessCurrentGameState().halfCapApplied)
+        composeRule.onNodeWithText("OK").performTouchInput { longClick() }
+        waitForText("Undo Apply half cap")
+        assertTrue(accessCurrentGameState().halfCapApplied)
+
+        // Timed guidance retains automatic confirmation even when manual controls require holds.
+        setRuleGuidanceMode(RuleGuidanceMode.TIMED)
+        setRuleGuidanceTimeoutForTest(1_000L)
+
+        // Scoring needs a hold, but the resulting cap confirmation still accepts automatically.
+        startLiveGameWithDueCap("Half cap", "Half cap")
+        composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal"))
+            .performTouchInput { longClick() }
+        waitForText("Undo Apply half cap")
+        assertTrue(accessCurrentGameState().halfCapApplied)
+    }
+
     /**
      * Verify disabling automatic live-point locking leaves the point live but unlocked after timer
      * expiration.
@@ -863,13 +937,13 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         tapTopBarHome()
         waitForText("Current game")
         composeRule.onNodeWithText("Settings").performClick()
-        waitForText("Automatically lock screen?")
+        waitForText("Accidental touch protection")
         composeRule.onNodeWithTag("settings-auto-advance-countdowns-value").assertTextEquals("Yes")
-        composeRule.onNodeWithTag("settings-auto-lock-live-point-value").assertTextEquals("Yes")
-        composeRule.onNodeWithTag("settings-auto-lock-live-point")
+        composeRule.onNodeWithTag("settings-touch-protection-AUTO_LOCK").assertIsSelected()
+        composeRule.onNodeWithTag("settings-touch-protection-NONE")
             .performScrollTo()
             .performClick()
-        composeRule.onNodeWithTag("settings-auto-lock-live-point-value").assertTextEquals("No")
+        composeRule.onNodeWithTag("settings-touch-protection-NONE").assertIsSelected()
         tapTopBarBack()
         waitForText("Current game")
         composeRule.onNodeWithTag("current-game").performClick()
