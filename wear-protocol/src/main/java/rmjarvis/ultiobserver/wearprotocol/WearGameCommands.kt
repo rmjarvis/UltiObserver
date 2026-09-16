@@ -18,6 +18,7 @@ enum class WearRequestAction(val path: String) {
     STARTUP("/ultiobserver/startup"),
     GOAL("/ultiobserver/goal"),
     UNDO("/ultiobserver/undo"),
+    REDO("/ultiobserver/redo"),
     COUNTDOWN("/ultiobserver/countdown"),
     DECISION("/ultiobserver/decision"),
     TEAM_ACTION("/ultiobserver/team-action"),
@@ -44,6 +45,12 @@ data class WearGoalRequest(
 /** Request to undo the latest action against the exact game state displayed by the watch. */
 @Serializable
 data class WearUndoRequest(
+    val stateToken: String,
+)
+
+/** Request to redo the last undone action against the exact game state displayed by the watch. */
+@Serializable
+data class WearRedoRequest(
     val stateToken: String,
 )
 

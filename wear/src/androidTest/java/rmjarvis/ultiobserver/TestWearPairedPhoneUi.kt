@@ -187,7 +187,7 @@ class TestWearPairedPhoneUi {
         // Undo returns the score to Animal 1, Viscous Coupling 0.
         composeRule.onNode(
             hasContentDescription("Undo Goal by Viscous Coupling")
-        ).performClick()
+        ).performTouchInput { longClick() }
 
         // The phone verifies the Undo result, then records a goal for Animal.
 
@@ -204,16 +204,31 @@ class TestWearPairedPhoneUi {
         composeRule.onNodeWithText("Pull in").assertIsDisplayed()
 
         // Undo the restart to return to the goal's undo entry.
-        composeRule.onNodeWithText("Undo").performClick()
+        // Even with normal taps enabled, history actions require a hold.
+        composeRule.onNodeWithText("Undo").performTouchInput { click() }
+        composeRule.onNodeWithText("Pull in").assertIsDisplayed()
+        composeRule.onNodeWithText("Restart countdown").assertDoesNotExist()
+        composeRule.onNodeWithText("Undo").performTouchInput { longClick() }
         waitForContentDescription("Undo Goal by Animal")
         composeRule.onNodeWithText("Restart countdown").assertIsDisplayed()
+
+        // Redo restores the restart, then disappears; Undo still restores both point choices.
+        composeRule.onNodeWithText("Redo").assertIsDisplayed().performTouchInput { click() }
+        composeRule.onNodeWithText("Restart countdown").assertIsDisplayed()
+        composeRule.onNodeWithText("Redo").performTouchInput { longClick() }
+        waitForContentDescription("Undo Restart countdown")
+        composeRule.onNodeWithText("Redo").assertDoesNotExist()
+        composeRule.onNodeWithText("Pull in").assertIsDisplayed()
+        composeRule.onNodeWithText("Undo").performTouchInput { longClick() }
+        waitForContentDescription("Undo Goal by Animal")
+        composeRule.onNodeWithText("Redo").assertIsDisplayed()
 
         // Start play instead of restarting the countdown, then undo to recover both choices.
         composeRule.onNodeWithText("Start point").assertIsDisplayed().performClick()
         waitForContentDescription("Undo Start point")
         composeRule.onNodeWithText("Start point").assertDoesNotExist()
         composeRule.onNodeWithText("Restart countdown").assertDoesNotExist()
-        composeRule.onNodeWithText("Undo").performClick()
+        composeRule.onNodeWithText("Undo").performTouchInput { longClick() }
         waitForContentDescription("Undo Goal by Animal")
         composeRule.onNodeWithText("Start point").assertIsDisplayed()
         composeRule.onNodeWithText("Restart countdown").assertIsDisplayed()
@@ -221,7 +236,7 @@ class TestWearPairedPhoneUi {
         // The watch can then undo that phone-recorded goal.
         composeRule.onNode(
             hasContentDescription("Undo Goal by Animal")
-        ).performClick()
+        ).performTouchInput { longClick() }
         waitForText("1")
         assertEquals(1, composeRule.onAllNodesWithText("1").fetchSemanticsNodes().size)
         assertEquals(1, composeRule.onAllNodesWithText("0").fetchSemanticsNodes().size)
@@ -243,7 +258,7 @@ class TestWearPairedPhoneUi {
         waitForText("OK")
         composeRule.onNodeWithText("OK").performClick()
         waitForContentDescription("Undo Offsides on Animal")
-        composeRule.onNodeWithText("Undo").performClick()
+        composeRule.onNodeWithText("Undo").performTouchInput { longClick() }
         waitForNoContentDescription("Undo Offsides on Animal")
 
         // Do it again, but switch to Majority pull violation.
@@ -671,6 +686,16 @@ class TestWearPairedPhoneUi {
         composeRule.onNodeWithText("1").assertExists()
         composeRule.onNode(hasContentDescription("Undo Goal by Animal"))
             .performTouchInput { longClick() }
+        waitForNoText("1")
+
+        // Redo also requires a hold, and restoring the goal removes the Redo button.
+        waitForText("Redo")
+        composeRule.onNodeWithText("Redo").performTouchInput { click() }
+        composeRule.onNodeWithText("1").assertDoesNotExist()
+        composeRule.onNodeWithText("Redo").performTouchInput { longClick() }
+        waitForText("1")
+        composeRule.onNodeWithText("Redo").assertDoesNotExist()
+        composeRule.onNodeWithText("Undo").performTouchInput { longClick() }
         waitForNoText("1")
 
         // Re-enter the normal team menu twice to finish the paired narrative at two goals.

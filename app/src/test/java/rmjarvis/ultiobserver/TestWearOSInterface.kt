@@ -31,6 +31,7 @@ import rmjarvis.ultiobserver.wearprotocol.WearTeamActionRequest
 import rmjarvis.ultiobserver.wearprotocol.WearCountdownAction
 import rmjarvis.ultiobserver.wearprotocol.WearCountdownActionRequest
 import rmjarvis.ultiobserver.wearprotocol.WearUndoRequest
+import rmjarvis.ultiobserver.wearprotocol.WearRedoRequest
 import rmjarvis.ultiobserver.wearprotocol.WearCommandRequest
 import rmjarvis.ultiobserver.wearprotocol.WearCommandAcknowledgement
 import rmjarvis.ultiobserver.wearprotocol.WearStateUpdate
@@ -1169,6 +1170,58 @@ class TestWearOSInterface : GameDomainTestFixtures() {
                 now = goalTime,
             ).applied
         )
+
+        // Redo restores the undone goal through the phone and removes the watch's Redo button.
+        appState.updateCurrentGame(restoredGame)
+        val redoRequest = WearProtocolCodec.encode(
+            WearRedoRequest.serializer(), WearRedoRequest(wearStateToken(restoredGame)),
+        )
+        assertTrue(buildWearStateSnapshot(restoredGame, settings, goalTime).activeGame!!.redoAvailable)
+        val redone = requestResponse(appState, WearRequestAction.REDO, redoRequest, goalTime)
+        assertTrue(redone.applied)
+        assertEquals(restoredGame.redoLastAction(), appState.currentGame)
+        assertFalse(redone.snapshot.activeGame!!.redoAvailable)
+
+        // Repeating that request is stale, and a current token without Redo also does nothing.
+        val redoneGame = appState.currentGame!!
+        assertFalse(requestResponse(appState, WearRequestAction.REDO, redoRequest, goalTime).applied)
+        assertFalse(requestResponse(
+            appState, WearRequestAction.REDO,
+            WearProtocolCodec.encode(
+                WearRedoRequest.serializer(), WearRedoRequest(wearStateToken(redoneGame)),
+            ), goalTime,
+        ).applied)
+        assertEquals(redoneGame, appState.currentGame)
+
+        // A later phone action invalidates an older Redo request even if Redo is still retained.
+        val changedGame = restoredGame.copy(teamOne = restoredGame.teamOne.copy(name = "Renamed team"))
+        appState.updateCurrentGame(changedGame)
+        assertFalse(requestResponse(appState, WearRequestAction.REDO, redoRequest, goalTime).applied)
+        assertEquals(changedGame, appState.currentGame)
+
+        // Card entry, an unresolved confirmation, and game over still prevent Redo.
+        val redoCardEntryState = activeWearState(settings, restoredGame)
+        redoCardEntryState.updateCardEntry(
+            currentGame = restoredGame,
+            expectedCardEntry = null,
+            updatedCardEntry = ActiveCardEntry(
+                team = TeamId.TEAM_ONE, cardType = CardType.YELLOW, jerseyNumber = "8",
+            ),
+        )
+        assertFalse(requestResponse(
+            redoCardEntryState, WearRequestAction.REDO, redoRequest, goalTime,
+        ).applied)
+        for (blockedGame in listOf(
+            restoredGame.copy(pendingScoreTransition = pendingDecisionGame.pendingScoreTransition),
+            restoredGame.copy(phase = GamePhase.GAME_OVER),
+        )) {
+            assertFalse(requestResponse(
+                liveScreenWearState(settings, blockedGame), WearRequestAction.REDO,
+                WearProtocolCodec.encode(
+                    WearRedoRequest.serializer(), WearRedoRequest(wearStateToken(blockedGame)),
+                ), goalTime,
+            ).applied)
+        }
     }
 
     /** Start misconduct timing and restart expired pulls from the watch's countdown area. */

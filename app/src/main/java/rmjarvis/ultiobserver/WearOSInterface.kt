@@ -39,6 +39,7 @@ import rmjarvis.ultiobserver.wearprotocol.WearCountdownAction
 import rmjarvis.ultiobserver.wearprotocol.WearCountdownActionRequest
 import rmjarvis.ultiobserver.wearprotocol.WearTimingControlsSnapshot
 import rmjarvis.ultiobserver.wearprotocol.WearUndoRequest
+import rmjarvis.ultiobserver.wearprotocol.WearRedoRequest
 
 /** Handle a watch request while WearPhoneCoordinator holds the authoritative AppState lock. */
 internal fun handleWearRequest(
@@ -77,6 +78,18 @@ internal fun handleWearRequest(
                 game.phase != GamePhase.GAME_OVER
             ) {
                 applied = appState.updateCurrentGame(game, game.undoLastAction())
+            }
+        }
+        WearRequestAction.REDO -> {
+            val request = WearProtocolCodec.decode(WearRedoRequest.serializer(), requestBytes)
+            val game = snapshot.gameOnWatch(request.stateToken)
+            if (
+                game?.redoEntry != null &&
+                snapshot.activeCardEntry == null &&
+                game.pendingGameDecision() == null &&
+                game.phase != GamePhase.GAME_OVER
+            ) {
+                applied = appState.updateCurrentGame(game, game.redoLastAction())
             }
         }
         WearRequestAction.COUNTDOWN -> {
@@ -609,6 +622,7 @@ internal fun buildWearStateSnapshot(
                 )
             },
             undoDescription = game.undoEntry?.label,
+            redoAvailable = game.redoEntry != null,
             pendingDecision = pendingDecision?.wearSnapshot(settings.ruleGuidanceMode),
             phoneCardEntry = activeCardEntry?.let { entry ->
                 WearPhoneCardEntrySnapshot(

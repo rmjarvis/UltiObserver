@@ -94,6 +94,7 @@ class TestWearProtocol {
             pullDirection = WearSnapshotPullDirection.RIGHT_TO_LEFT,
             ratio = ratio,
             ratioChooser = null,
+            redoAvailable = false,
             undoDescription = "Undo Goal by Animal",
             pendingDecision = decision,
             phoneCardEntry = phoneCardEntry,
@@ -180,6 +181,7 @@ class TestWearProtocol {
             ratio = defaultGame.ratio,
             ratioChooser = null,
             undoDescription = defaultGame.undoDescription,
+            redoAvailable = defaultGame.redoAvailable,
             pendingDecision = defaultGame.pendingDecision,
             phoneCardEntry = defaultGame.phoneCardEntry,
         )
@@ -223,6 +225,7 @@ class TestWearProtocol {
 
         // Other direct game requests retain the exact state token and observer choice.
         assertRoundTrip(WearUndoRequest.serializer(), WearUndoRequest("undo-state"))
+        assertRoundTrip(WearRedoRequest.serializer(), WearRedoRequest("redo-state"))
         assertRoundTrip(
             WearDecisionRequest.serializer(),
             WearDecisionRequest("decision-state", accept = false),

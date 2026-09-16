@@ -47,6 +47,13 @@ class TestGameDisplay {
         assertEquals(PullDirection.RIGHT_TO_LEFT, updated.pullDirection)
         assertEquals("4W", updated.ratioBadge!!.label)
         assertEquals("Undo Goal by Animal", updated.undoDescription)
+
+        // Redo availability comes from the phone, including when no older Undo remains.
+        val undone = game.copy(undoDescription = null, redoAvailable = true)
+            .toGameDisplay(0L, true)
+        assertNull(undone.undoDescription)
+        assertTrue(undone.redoAvailable)
+        assertFalse(display.redoAvailable)
         assertFalse(updated.connected)
         assertFalse(updated.actionsAvailable)
     }

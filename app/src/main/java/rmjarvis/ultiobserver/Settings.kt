@@ -618,7 +618,7 @@ internal data class Settings(
             "Press and hold controls on the watch's main game screen. " +
             "After opening a menu or another screen, use normal taps."
         } else {
-            "Use normal taps on the watch."
+            "Use normal taps on the watch. Note: Undo and Redo always require a long press."
         }
 
     /// Explanation shown below the automaticallyAdvanceCountdowns setting.

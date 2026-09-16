@@ -48,6 +48,7 @@ internal fun UltiObserverWearApp(
     onRetry: () -> Unit,
     onGoal: (TeamId, String, (Boolean) -> Unit) -> Unit,
     onUndo: (String, (Boolean) -> Unit) -> Unit,
+    onRedo: (String, (Boolean) -> Unit) -> Unit,
     onCountdownAction: (String, WearCountdownAction, (Boolean, WearTeamActionPrompt?) -> Unit) -> Unit,
     onDecision: (String, Boolean, (Boolean) -> Unit) -> Unit,
     onTeamAction: (TeamId, String, WearTeamAction, (WearTeamActionPrompt?) -> Unit) -> Unit,
@@ -147,6 +148,7 @@ internal fun UltiObserverWearApp(
                     onRetry = onRetry,
                     onGoal = onGoal,
                     onUndo = onUndo,
+                    onRedo = onRedo,
                     onCountdownAction = onCountdownAction,
                     onTeamAction = onTeamAction,
                     onStartCardEntry = onStartCardEntry,
@@ -167,6 +169,7 @@ private fun ActiveGameScreen(
     onRetry: () -> Unit,
     onGoal: (TeamId, String, (Boolean) -> Unit) -> Unit,
     onUndo: (String, (Boolean) -> Unit) -> Unit,
+    onRedo: (String, (Boolean) -> Unit) -> Unit,
     onCountdownAction: (String, WearCountdownAction, (Boolean, WearTeamActionPrompt?) -> Unit) -> Unit,
     onTeamAction: (TeamId, String, WearTeamAction, (WearTeamActionPrompt?) -> Unit) -> Unit,
     onStartCardEntry: (TeamId, String, CardType, String, (Boolean) -> Unit) -> Unit,
@@ -227,6 +230,12 @@ private fun ActiveGameScreen(
                 onUndo = {
                     commandPending = true
                     onUndo(activeGame.stateToken) {
+                        commandPending = false
+                    }
+                },
+                onRedo = {
+                    commandPending = true
+                    onRedo(activeGame.stateToken) {
                         commandPending = false
                     }
                 },

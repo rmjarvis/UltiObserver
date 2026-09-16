@@ -37,6 +37,16 @@ class TestPhoneConnection {
         phone.complete(false)
         assertEquals(false, applied)
 
+        // Redo carries the displayed state token and waits for the phone's acknowledgement too.
+        applied = null
+        phone.controller.redo("undone") { applied = it }
+        assertEquals(WearRequestAction.REDO.path, phone.sent.last().path)
+        val redo = WearProtocolCodec.decode(WearRedoRequest.serializer(), phone.command().arguments)
+        assertEquals("undone", redo.stateToken)
+        assertNull(applied)
+        phone.complete(true)
+        assertEquals(true, applied)
+
         // The next confirmation is accepted by the phone; its acknowledgement releases the
         // watch with a successful result.
         phone.controller.resolveDecision("playing", true) { applied = it }
@@ -689,6 +699,7 @@ private class PhoneSession : PhoneTransport {
             teamTwo = WearTeamSnapshot("Viscous Coupling", 0, "Near end", 0, 0, actions, emptyList()),
             pullDirection = WearSnapshotPullDirection.LEFT_TO_RIGHT, ratio = null,
             ratioChooser = null,
+            redoAvailable = false,
             undoDescription = null, pendingDecision = null, phoneCardEntry = null,
         ),
         sessionId = "phone", sequenceNumber = 1,

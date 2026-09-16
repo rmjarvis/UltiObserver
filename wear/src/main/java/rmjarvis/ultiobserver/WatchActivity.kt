@@ -52,6 +52,9 @@ class WatchActivity : ComponentActivity() {
                 onUndo = { stateToken, onFinished ->
                     stateClient.connection.undo(stateToken, onFinished)
                 },
+                onRedo = { stateToken, onFinished ->
+                    stateClient.connection.redo(stateToken, onFinished)
+                },
                 onDecision = { stateToken, accept, onFinished ->
                     stateClient.connection.resolveDecision(stateToken, accept, onFinished)
                 },

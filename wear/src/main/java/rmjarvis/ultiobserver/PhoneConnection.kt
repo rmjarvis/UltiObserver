@@ -26,6 +26,7 @@ import rmjarvis.ultiobserver.wearprotocol.WearTeamActionRequest
 import rmjarvis.ultiobserver.wearprotocol.WearCountdownAction
 import rmjarvis.ultiobserver.wearprotocol.WearCountdownActionRequest
 import rmjarvis.ultiobserver.wearprotocol.WearUndoRequest
+import rmjarvis.ultiobserver.wearprotocol.WearRedoRequest
 
 /** Wait for both the startup timing reply and its published snapshot, in either arrival order. */
 internal class PendingStartup(
@@ -284,6 +285,20 @@ internal class PhoneConnectionController(
             action = WearRequestAction.UNDO,
             stateToken = stateToken,
             request = WearProtocolCodec.encode(WearUndoRequest.serializer(), request),
+            onFinished = { response -> onFinished(response?.applied == true) },
+        )
+    }
+
+    /** Redo the last undone action against the exact state displayed by the watch. */
+    fun redo(
+        stateToken: String,
+        onFinished: (Boolean) -> Unit,
+    ) {
+        val request = WearRedoRequest(stateToken)
+        sendGameAction(
+            action = WearRequestAction.REDO,
+            stateToken = stateToken,
+            request = WearProtocolCodec.encode(WearRedoRequest.serializer(), request),
             onFinished = { response -> onFinished(response?.applied == true) },
         )
     }

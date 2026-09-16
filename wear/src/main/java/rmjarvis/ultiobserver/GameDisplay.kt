@@ -73,6 +73,7 @@ internal fun WearActiveGameSnapshot.toGameDisplay(
         actionsAvailable = actionsAvailable,
         gameOver = gameOver,
         undoDescription = undoDescription,
+        redoAvailable = redoAvailable,
     )
 }
 

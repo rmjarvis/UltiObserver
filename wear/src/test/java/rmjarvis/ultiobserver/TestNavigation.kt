@@ -289,6 +289,7 @@ internal fun navigationSnapshot(): WearStateSnapshot {
             teamTwo = WearTeamSnapshot("Viscous Coupling", 0, "Near end", 0xFF000000, 0xFFFFFFFF, actions, emptyList()),
             pullDirection = WearSnapshotPullDirection.LEFT_TO_RIGHT, ratio = null,
             ratioChooser = null,
+            redoAvailable = false,
             undoDescription = null, pendingDecision = null, phoneCardEntry = null,
         ),
     )

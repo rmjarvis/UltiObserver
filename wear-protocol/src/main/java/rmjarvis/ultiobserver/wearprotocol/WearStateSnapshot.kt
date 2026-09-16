@@ -177,6 +177,7 @@ data class WearActiveGameSnapshot(
     val ratio: WearRatioSnapshot?,
     val ratioChooser: WearRatioChooserSnapshot?,
     val undoDescription: String?,
+    val redoAvailable: Boolean,
     val pendingDecision: WearPromptSnapshot?,
     val phoneCardEntry: WearPhoneCardEntrySnapshot?,
 ) {

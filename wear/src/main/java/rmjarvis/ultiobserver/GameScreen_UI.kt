@@ -31,6 +31,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.platform.ViewConfiguration
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -39,6 +41,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.sp
 import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.material3.Icon
@@ -105,6 +108,7 @@ internal data class GameDisplay(
     val actionsAvailable: Boolean,
     val gameOver: Boolean,
     val undoDescription: String?,
+    val redoAvailable: Boolean,
 ) {
     val leftTeam: TeamDisplay
         get() = if (leftTeamId == TeamId.TEAM_ONE) teamOne else teamTwo
@@ -131,6 +135,7 @@ internal fun GameScreen(
     onCountdownAction: (WearCountdownAction) -> Unit,
     onRetry: () -> Unit,
     onUndo: () -> Unit,
+    onRedo: () -> Unit,
 ) {
     val timeSource = remember(display.officialTime) {
         DisplayTimeSource(display.officialTime)
@@ -154,6 +159,7 @@ internal fun GameScreen(
                 onCountdownAction = onCountdownAction,
                 onRetry = onRetry,
                 onUndo = onUndo,
+                onRedo = onRedo,
             )
         }
     }
@@ -171,6 +177,7 @@ private fun GameContent(
     onCountdownAction: (WearCountdownAction) -> Unit,
     onRetry: () -> Unit,
     onUndo: () -> Unit,
+    onRedo: () -> Unit,
 ) {
 
     BoxWithConstraints(
@@ -210,13 +217,14 @@ private fun GameContent(
                     .height(fieldHeight)
                     .align(Alignment.BottomCenter),
             )
-            if (display.connected && display.actionsAvailable && display.undoDescription != null) {
-                UndoRegion(
-                    description = display.undoDescription,
-                    onUndo = onUndo,
-                    modifier = Modifier.align(Alignment.BottomCenter),
-                )
-            }
+            val historyActionsAvailable = display.connected && display.actionsAvailable
+            UndoRedoRegion(
+                undoDescription = display.undoDescription.takeIf { historyActionsAvailable },
+                redoAvailable = display.redoAvailable && historyActionsAvailable,
+                onUndo = onUndo,
+                onRedo = onRedo,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
         }
     }
 }
@@ -650,35 +658,73 @@ private fun RatioChooserBadge(badge: RatioChooserDisplay, modifier: Modifier) {
 }
 
 @Composable
-private fun UndoRegion(
-    description: String,
+private fun UndoRedoRegion(
+    undoDescription: String?,
+    redoAvailable: Boolean,
     onUndo: () -> Unit,
+    onRedo: () -> Unit,
     modifier: Modifier,
 ) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(48.dp)
-            .semantics {
-                contentDescription = description
-            }
-            .gameClickable(
-                enabled = true,
-                role = Role.Button,
+    Row(modifier = modifier.fillMaxWidth()) {
+        if (undoDescription != null) {
+            HistoryButton(
+                label = "Undo",
+                description = undoDescription,
+                backgroundColor = UndoBackgroundColor,
+                labelAlignment = if (redoAvailable) Alignment.CenterEnd else Alignment.Center,
                 onClick = onUndo,
-            ),
-        contentAlignment = Alignment.BottomCenter,
+                modifier = Modifier.weight(1f),
+            )
+        } else {
+            Spacer(
+                modifier = Modifier.weight(1f).height(VisibleUndoHeight).background(Color.Black),
+            )
+        }
+        if (redoAvailable) {
+            HistoryButton(
+                label = "Redo",
+                description = "Redo",
+                backgroundColor = RedoBackgroundColor,
+                labelAlignment = Alignment.CenterStart,
+                onClick = onRedo,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+/** Keep each history action's touch target within its visible strip. */
+@Composable
+private fun HistoryButton(
+    label: String,
+    description: String,
+    backgroundColor: Color,
+    labelAlignment: Alignment,
+    onClick: () -> Unit,
+    modifier: Modifier,
+) {
+    val viewConfiguration = LocalViewConfiguration.current
+    val historyViewConfiguration = remember(viewConfiguration) {
+        object : ViewConfiguration by viewConfiguration {
+            override val minimumTouchTargetSize = DpSize.Zero
+        }
+    }
+    CompositionLocalProvider(
+        LocalViewConfiguration provides historyViewConfiguration,
+        LocalRequireLongPress provides true,
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
+            modifier = modifier
                 .height(VisibleUndoHeight)
-                .background(UndoBackgroundColor),
-            contentAlignment = Alignment.Center,
+                .background(backgroundColor)
+                .semantics { contentDescription = description }
+                .gameClickable(enabled = true, role = Role.Button, onClick = onClick)
+                .padding(horizontal = 12.dp),
+            contentAlignment = labelAlignment,
         ) {
             Text(
-                text = "Undo",
-                color = UndoContentColor,
+                text = label,
+                color = UndoRedoContentColor,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
@@ -697,7 +743,8 @@ private val ConnectionLostColor = Color(0xFFFFB4AB)
 private val FieldDividerColor = Color(0xB3101317)
 private val FieldContentColor = Color(0xFF101317)
 private val UndoBackgroundColor = Color(0xFF9E4B3E)
-private val UndoContentColor = Color.White
+private val RedoBackgroundColor = Color(0xFF4F565C)
+private val UndoRedoContentColor = Color.White
 private val VisibleUndoHeight = 30.dp
 private val PullArrowHeight = 19.dp
 private val CenterStackSpacing = 3.dp
