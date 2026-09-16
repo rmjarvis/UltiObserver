@@ -6,6 +6,7 @@ import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -683,12 +684,13 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         startLiveGameProgrammatically()
         showExpiredPullSurface()
 
-        // Locking the screen hides expired-pull correction actions until the observer unlocks it.
+        // Locking the screen disables expired-pull correction actions until the observer unlocks it.
         composeRule.onNodeWithTag("live-center-lock").performClick()
         waitForText("Slide right to unlock")
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "time-violation"))
             .assertIsNotEnabled()
-        composeRule.onAllNodesWithTag("live-restart-pull-countdown").assertCountEquals(0)
+        composeRule.onNodeWithTag("live-restart-pull-countdown")
+            .assertIsDisplayed().assertIsNotEnabled()
         unlockLiveScreen()
         waitForText("Restart countdown")
 
@@ -756,6 +758,13 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         composeRule.onNodeWithText("Undo Start point").performClick()
         waitForTag("live-center-lock")
         composeRule.onAllNodesWithText("Slide right to unlock").assertCountEquals(0)
+
+        // Locking keeps the restart action visible but disabled until the screen is unlocked.
+        composeRule.onNodeWithTag("live-center-lock").performClick()
+        composeRule.onNodeWithTag("live-restart-pull-countdown")
+            .assertIsDisplayed().assertIsNotEnabled()
+        unlockLiveScreen()
+        composeRule.onNodeWithTag("live-restart-pull-countdown").assertIsEnabled()
         composeRule.onNodeWithText("Redo").performClick()
 
         // For a time out during a point, the countdown expiring automatically continues

@@ -118,11 +118,12 @@ class TestGameDisplay {
     @Test
     fun statusMessages() {
         val game = navigationSnapshot().activeGame!!.copy(statusMessageTransitions = listOf(
+            WearStatusMessageTransition(0L, "Live point in progress"),
             WearStatusMessageTransition(10_000L, "Half cap passed"),
             WearStatusMessageTransition(20_000L, "Hard cap passed"),
             WearStatusMessageTransition(30_000L, null),
         ))
-        assertNull(game.toGameDisplay(0L, true).statusMessage)
+        assertEquals("Live point in progress", game.toGameDisplay(0L, true).statusMessage)
         assertEquals("Half cap passed", game.toGameDisplay(10_000L, true).statusMessage)
         assertEquals("Hard cap passed", game.toGameDisplay(25_000L, true).statusMessage)
         assertNull(game.toGameDisplay(30_000L, true).statusMessage)

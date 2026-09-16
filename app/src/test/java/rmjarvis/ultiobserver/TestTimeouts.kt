@@ -270,12 +270,12 @@ class TestTimeouts : GameDomainTestFixtures() {
         // into live play at the end of the original timeout countdown.
         assertEquals(
             timeoutCountdownState,
-            timeoutCountdownState.applyExpiredCountdownTransitions(
+            timeoutCountdownState.applyAutomaticGameTransitions(
                 timeoutEnd - 1L,
                 showDefenseCountdowns = false,
             ),
         )
-        val continuedState = timeoutCountdownState.applyExpiredCountdownTransitions(
+        val continuedState = timeoutCountdownState.applyAutomaticGameTransitions(
             timeoutEnd,
             showDefenseCountdowns = false,
         )
@@ -290,7 +290,7 @@ class TestTimeouts : GameDomainTestFixtures() {
         assertFalse(explicitTimeoutDefenseState.canReportOffenseSet(showDefenseCountdowns = false))
         assertEquals(
             explicitTimeoutDefenseState,
-            explicitTimeoutDefenseState.applyExpiredCountdownTransitions(
+            explicitTimeoutDefenseState.applyAutomaticGameTransitions(
                 now = timeoutEnd,
                 showDefenseCountdowns = true,
             ),
@@ -319,12 +319,12 @@ class TestTimeouts : GameDomainTestFixtures() {
         // with no countdown.
         assertEquals(
             lateOffenseSetState,
-            lateOffenseSetState.applyExpiredCountdownTransitions(
+            lateOffenseSetState.applyAutomaticGameTransitions(
                 now = timeoutEnd + 25_000L - 1L,
                 showDefenseCountdowns = true,
             ),
         )
-        val expiredDefenseCountdownState = lateOffenseSetState.applyExpiredCountdownTransitions(
+        val expiredDefenseCountdownState = lateOffenseSetState.applyAutomaticGameTransitions(
             now = timeoutEnd + 25_000L,
             showDefenseCountdowns = true,
         )
@@ -368,7 +368,7 @@ class TestTimeouts : GameDomainTestFixtures() {
         state = state.assessTimeout(VC, state.countdown!!.targetEpoch - 1_000L).state
         state = state.beginLivePoint()
         state = state.assessTimeout(VC, 1_000_000L).state
-        state = state.applyExpiredCountdownTransitions(1_070_000L, showDefenseCountdowns = false)
+        state = state.applyAutomaticGameTransitions(1_070_000L, showDefenseCountdowns = false)
         state = scoreToHalftime(state, VC, 1_100_000L)
         assertEquals(GamePhase.HALFTIME, state.phase)
         assertEquals(2, state.teamOne.firstHalfTimeoutsUsed)
@@ -466,7 +466,7 @@ class TestTimeouts : GameDomainTestFixtures() {
         // After halftime has elapsed but before the pull, a timeout extends the pull countdown.
         // Here we have to manually transition the countdown that would happen automatically
         // at the end of halftime.
-        val afterHalftimeState = state.applyExpiredCountdownTransitions(
+        val afterHalftimeState = state.applyAutomaticGameTransitions(
             halftimeEnd + 1L,
             showDefenseCountdowns = false,
         )

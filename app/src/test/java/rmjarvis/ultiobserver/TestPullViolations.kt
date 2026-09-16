@@ -1040,7 +1040,7 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertEquals(CountdownKind.PULL_RESET, unrelatedUndoWarningResult.state.countdown?.kind)
 
         // When the warning reset expires, it starts the live point like a normal pull countdown.
-        val liveAfterWarningReset = timeViolationState.applyExpiredCountdownTransitions(
+        val liveAfterWarningReset = timeViolationState.applyAutomaticGameTransitions(
             firstViolationMoment + 20_000L,
             showDefenseCountdowns = false,
         )
@@ -1352,6 +1352,34 @@ class TestPullViolations : GameDomainTestFixtures() {
             receivingNoTimeoutEvent.formatBriefMessage().plainText,
         )
 
+        // Automatic advancement starts the no-pull point, with a reversible Start point action.
+        val automaticStart = timeViolationState.applyAutomaticGameTransitions(
+            state.countdown!!.targetEpoch,
+            showDefenseCountdowns = false,
+        )
+        assertEquals(GamePhase.LIVE_POINT, automaticStart.phase)
+        assertNull(automaticStart.countdown)
+        assertEquals("Undo Start point", automaticStart.undoEntry?.label)
+        val undoneStart = assertUndoRestores(timeViolationState, automaticStart)
+        assertEquals(
+            undoneStart,
+            undoneStart.applyAutomaticGameTransitions(
+                state.countdown!!.targetEpoch,
+                showDefenseCountdowns = false,
+            ),
+        )
+        assertEquals(automaticStart, undoneStart.redoLastAction())
+
+        // A pending misconduct countdown still requires its own start action.
+        val pendingMisconduct = timeViolationState.copy(pendingMisconductCountdown = true)
+        assertEquals(
+            pendingMisconduct,
+            pendingMisconduct.applyAutomaticGameTransitions(
+                state.countdown!!.targetEpoch,
+                showDefenseCountdowns = false,
+            ),
+        )
+
         // A pulling-team time violation with no timeout left sends the receiving team to midfield.
         state = standardLiveGameState(
             rules = noTimeoutRules,
@@ -1376,6 +1404,13 @@ class TestPullViolations : GameDomainTestFixtures() {
         assertEquals(
             "No pull. Animal starts at midfield.",
             pullingNoTimeoutEvent.formatBriefMessage().plainText,
+        )
+        assertEquals(
+            GamePhase.LIVE_POINT,
+            timeViolationState.applyAutomaticGameTransitions(
+                state.countdown!!.targetEpoch,
+                showDefenseCountdowns = true,
+            ).phase,
         )
     }
 

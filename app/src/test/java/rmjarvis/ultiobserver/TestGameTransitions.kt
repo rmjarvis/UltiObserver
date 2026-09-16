@@ -427,7 +427,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertTrue(state.dueTimingAlerts(pausedCountdown.targetEpoch).isEmpty())
         assertEquals(
             state,
-            state.applyExpiredCountdownTransitions(
+            state.applyAutomaticGameTransitions(
                 pausedCountdown.targetEpoch + 1_000L,
                 showDefenseCountdowns = false,
             ),
@@ -484,7 +484,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         // loudly.
         val mismatchedCountdownState = standardLiveGameState().copy(phase = GamePhase.LIVE_POINT)
         val mismatchException = assertThrows(IllegalStateException::class.java) {
-            mismatchedCountdownState.applyExpiredCountdownTransitions(
+            mismatchedCountdownState.applyAutomaticGameTransitions(
                 mismatchedCountdownState.countdown!!.targetEpoch,
                 showDefenseCountdowns = false,
             )
@@ -498,7 +498,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
             countdown = inPointTimeoutCountdown,
         )
         val betweenPointsMismatchException = assertThrows(IllegalStateException::class.java) {
-            betweenPointsWithTimeoutCountdown.applyExpiredCountdownTransitions(
+            betweenPointsWithTimeoutCountdown.applyAutomaticGameTransitions(
                 inPointTimeoutCountdown.targetEpoch,
                 showDefenseCountdowns = false,
             )
@@ -511,7 +511,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
             phase = GamePhase.HALFTIME,
         )
         val halftimeMismatchException = assertThrows(IllegalStateException::class.java) {
-            halftimeWithBetweenPointsCountdown.applyExpiredCountdownTransitions(
+            halftimeWithBetweenPointsCountdown.applyAutomaticGameTransitions(
                 halftimeWithBetweenPointsCountdown.countdown!!.targetEpoch,
                 showDefenseCountdowns = false,
             )
@@ -605,7 +605,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertEquals(1, timeoutDuringPendingMisconduct.teamTwo.timeoutsUsedThisHalf)
 
         // When that longer countdown expires, play finally restarts.
-        val continuedState = timeoutDuringActiveMisconduct.applyExpiredCountdownTransitions(
+        val continuedState = timeoutDuringActiveMisconduct.applyAutomaticGameTransitions(
             1_110_000L,
             showDefenseCountdowns = false,
         )
@@ -625,12 +625,12 @@ class TestGameTransitions : GameDomainTestFixtures() {
         val betweenPointsCountdown = state.countdown!!
         assertEquals(
             state,
-            state.applyExpiredCountdownTransitions(
+            state.applyAutomaticGameTransitions(
                 betweenPointsCountdown.targetEpoch - 1L,
                 showDefenseCountdowns = false,
             ),
         )
-        val automaticStartState = state.applyExpiredCountdownTransitions(
+        val automaticStartState = state.applyAutomaticGameTransitions(
             betweenPointsCountdown.targetEpoch,
             showDefenseCountdowns = false,
         )
@@ -653,7 +653,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         // An expired-pull decision surface does not auto-start again when its countdown is gone.
         assertEquals(
             undoneAutomaticStartState,
-            undoneAutomaticStartState.applyExpiredCountdownTransitions(
+            undoneAutomaticStartState.applyAutomaticGameTransitions(
                 betweenPointsCountdown.targetEpoch,
                 showDefenseCountdowns = false,
             ),
@@ -690,7 +690,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
         assertNotNull(undoneManualStartState.redoEntry)
         assertEquals(
             undoneManualStartState,
-            undoneManualStartState.applyExpiredCountdownTransitions(
+            undoneManualStartState.applyAutomaticGameTransitions(
                 betweenPointsCountdown.targetEpoch,
                 showDefenseCountdowns = false,
             ),
@@ -703,7 +703,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
             TeamId.TEAM_TWO,
             state.startEpoch + 90_000L,
         )
-        val laterAutomaticStart = laterBetweenPointsState.applyExpiredCountdownTransitions(
+        val laterAutomaticStart = laterBetweenPointsState.applyAutomaticGameTransitions(
             laterBetweenPointsState.countdown!!.targetEpoch,
             showDefenseCountdowns = false,
         )
@@ -717,7 +717,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
             state.startEpoch + 95_000L,
         )
         val teamOneLaterAutomaticStart =
-            teamOneLaterBetweenPointsState.applyExpiredCountdownTransitions(
+            teamOneLaterBetweenPointsState.applyAutomaticGameTransitions(
                 teamOneLaterBetweenPointsState.countdown!!.targetEpoch,
                 showDefenseCountdowns = false,
             )
@@ -729,7 +729,7 @@ class TestGameTransitions : GameDomainTestFixtures() {
 
         // A misconduct event before the first pull should not suppress the first-pull log entry.
         val prePullMisconductState = state.assessBlueCard(VC, state.startEpoch + 5_000L).state
-        val automaticStartAfterMisconduct = prePullMisconductState.applyExpiredCountdownTransitions(
+        val automaticStartAfterMisconduct = prePullMisconductState.applyAutomaticGameTransitions(
             betweenPointsCountdown.targetEpoch,
             showDefenseCountdowns = false,
         )
@@ -744,12 +744,12 @@ class TestGameTransitions : GameDomainTestFixtures() {
         val timeoutCountdown = inPointState.countdown!!
         assertEquals(
             inPointState,
-            inPointState.applyExpiredCountdownTransitions(
+            inPointState.applyAutomaticGameTransitions(
                 timeoutCountdown.targetEpoch - 1L,
                 showDefenseCountdowns = false,
             ),
         )
-        inPointState = inPointState.applyExpiredCountdownTransitions(
+        inPointState = inPointState.applyAutomaticGameTransitions(
             timeoutCountdown.targetEpoch,
             showDefenseCountdowns = false,
         )

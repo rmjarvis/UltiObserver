@@ -937,7 +937,8 @@ class TestMisconductUi : MainActivityUiTestFixtures() {
         waitForText("Start misconduct countdown")
         composeRule.onNodeWithTag("live-center-lock").performClick()
         waitForText("Slide right to unlock")
-        composeRule.onAllNodesWithTag("live-start-misconduct-countdown").assertCountEquals(0)
+        composeRule.onNodeWithTag("live-start-misconduct-countdown")
+            .assertIsDisplayed().assertIsNotEnabled()
         unlockLiveScreen()
         waitForText("Start misconduct countdown")
 

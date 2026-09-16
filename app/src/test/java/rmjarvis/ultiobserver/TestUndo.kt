@@ -25,6 +25,7 @@ class TestUndo : GameDomainTestFixtures() {
         state = state.beginLivePoint()
         assertEquals("Undo Start point", state.undoEntry?.label)
         val undoneStartPoint = assertUndoRestores(beforeStartPoint, state)
+        assertNull(undoneStartPoint.livePointStatusMessage(0L))
         val nudgedCountdown = undoneStartPoint.addTimeToCountdown(10)
         assertNotNull(nudgedCountdown.redoEntry)
 
@@ -34,6 +35,7 @@ class TestUndo : GameDomainTestFixtures() {
         assertEquals(1, state.teamOne.score)
         assertEquals("Undo Goal by Viscous Coupling", state.undoEntry?.label)
         val undoneLiveGoal = assertUndoRestores(beforeLiveGoal, state)
+        assertEquals("Live point in progress", undoneLiveGoal.livePointStatusMessage(0L))
         state = undoneLiveGoal.assessTimeout(VC, 800_000L).state
         assertNull(state.redoEntry)
 
@@ -45,6 +47,7 @@ class TestUndo : GameDomainTestFixtures() {
         val implicitLiveState = state.undoLastAction()
         assertEquals(GamePhase.LIVE_POINT, implicitLiveState.phase)
         assertNull(implicitLiveState.countdown)
+        assertEquals("Live point in progress", implicitLiveState.livePointStatusMessage(0L))
         assertEquals(0, implicitLiveState.teamOne.score)
         assertEquals(0, implicitLiveState.teamTwo.score)
         assertUndoRestores(betweenPointsBeforeGoal, implicitLiveState)

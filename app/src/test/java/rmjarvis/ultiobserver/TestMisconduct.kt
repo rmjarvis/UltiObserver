@@ -708,7 +708,7 @@ class TestMisconduct : GameDomainTestFixtures() {
         assertEquals("Defense check in", earlySetState.countdown?.label)
         assertEquals(30, earlySetState.countdown?.durationSeconds)
         assertEquals(state.startEpoch + 100_000L, earlySetState.countdown?.targetEpoch)
-        val livePointAfterDefenseCheck = earlySetState.applyExpiredCountdownTransitions(
+        val livePointAfterDefenseCheck = earlySetState.applyAutomaticGameTransitions(
             earlySetState.countdown!!.targetEpoch,
             showDefenseCountdowns = false,
         )
@@ -735,12 +735,12 @@ class TestMisconduct : GameDomainTestFixtures() {
         )
         assertEquals(
             state,
-            state.applyExpiredCountdownTransitions(
+            state.applyAutomaticGameTransitions(
                 state.countdown!!.targetEpoch,
                 showDefenseCountdowns = true,
             ),
         )
-        state = state.applyExpiredCountdownTransitions(
+        state = state.applyAutomaticGameTransitions(
             state.countdown!!.targetEpoch,
             showDefenseCountdowns = false,
         )

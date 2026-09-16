@@ -469,7 +469,7 @@ internal fun GameState.halftimeTransitionReady(now: Long): Boolean {
 }
 
 /**
- * Apply automatic timer expirations that do not require an observer button press.
+ * Apply automatic timer expirations and start a point when a penalty skips the pull.
  *
  * Note -- don't apply any automatic transitions when there is a redo chain attached to
  * the current state to avoid clearing the redo path.  Otherwise, backing up into a state
@@ -480,18 +480,24 @@ internal fun GameState.halftimeTransitionReady(now: Long): Boolean {
  * @param now The current phone epoch millis.
  * @param showDefenseCountdowns Whether timeout offense-set expirations wait for defense.
  */
-fun GameState.applyExpiredCountdownTransitions(
+fun GameState.applyAutomaticGameTransitions(
     now: Long,
     showDefenseCountdowns: Boolean,
 ): GameState {
+    if (this.redoEntry != null) {
+        return this
+    }
+    if (
+        phase.isBeforeLivePoint && pullSkippedForCurrentPoint && countdown == null &&
+        !pendingMisconductCountdown
+    ) {
+        return automaticLivePointState(now)
+    }
     val countdown = this.countdown ?: return this
     if (countdown.isPaused()) {
         return this
     }
     if (now < countdown.targetEpoch) {
-        return this
-    }
-    if (this.redoEntry != null) {
         return this
     }
     return when {
@@ -523,7 +529,7 @@ fun GameState.applyExpiredCountdownTransitions(
                 pullSkippedForCurrentPoint = false,
                 pendingMisconductCountdown = false,
             )
-            betweenPointsState.applyExpiredCountdownTransitions(
+            betweenPointsState.applyAutomaticGameTransitions(
                 now = now,
                 showDefenseCountdowns = showDefenseCountdowns,
             )
@@ -542,7 +548,7 @@ fun GameState.undoLastAction(): GameState {
 fun GameState.redoLastAction(): GameState {
     return this.redoEntry?.withOfficialClockOffset(officialClockOffsetMillis) ?: this
 }
-/// Enter live-point play from an expired countdown while preserving undo back to the expired-pull actions.
+/// Enter live-point play automatically while preserving undo to the preceding pre-point state.
 private fun GameState.automaticLivePointState(now: Long): GameState {
     val previous = this.expiredPullDecisionState()
     val firstPullTimestamp = this.firstPullLogTimestamp(now)

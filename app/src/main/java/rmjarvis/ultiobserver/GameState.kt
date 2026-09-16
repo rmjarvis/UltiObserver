@@ -814,6 +814,12 @@ private fun GameState.hasSameSetupFieldsAs(other: GameState): Boolean {
         openingPullingFromEnd == other.openingPullingFromEnd
 }
 
+/** Status text for the countdown area when no countdown or action occupies it. */
+internal fun GameState.livePointStatusMessage(now: Long): String? {
+    if (phase != GamePhase.LIVE_POINT) return null
+    return capStatusMessage(now) ?: "Live point in progress"
+}
+
 /// Return whether two team states have identical setup-editable fields.
 private fun TeamState.hasSameSetupFieldsAs(other: TeamState): Boolean {
     return name == other.name &&

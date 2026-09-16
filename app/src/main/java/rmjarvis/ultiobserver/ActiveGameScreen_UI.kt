@@ -134,8 +134,8 @@ internal fun ActiveGameScreen(
     val activeCountdown = remember(state, now) {
         state.activeCountdownDisplay(now)
     }
-    val capStatusMessage = remember(state, now) {
-        state.capStatusMessage(now)
+    val livePointStatusMessage = remember(state, now) {
+        state.livePointStatusMessage(now)
     }
     val canStartPoint = remember(state, now) {
         state.phase.isBeforeLivePoint || state.halftimeTransitionReady(now)
@@ -158,7 +158,7 @@ internal fun ActiveGameScreen(
         settings.showDefenseCountdowns,
     ) {
         if (settings.automaticallyAdvanceCountdowns) {
-            val transitionedState = state.applyExpiredCountdownTransitions(
+            val transitionedState = state.applyAutomaticGameTransitions(
                 now = now,
                 showDefenseCountdowns = settings.showDefenseCountdowns,
             )
@@ -277,7 +277,7 @@ internal fun ActiveGameScreen(
                         now = now,
                         capStatus = capStatus,
                         activeCountdown = activeCountdown,
-                        capStatusMessage = capStatusMessage,
+                        livePointStatusMessage = livePointStatusMessage,
                         canStartPoint = canStartPoint,
                         hasExpiredPullActions = hasExpiredPullActions,
                         canReportOffenseSet = canReportOffenseSet,
@@ -306,7 +306,7 @@ internal fun ActiveGameScreen(
                         now = now,
                         capStatus = capStatus,
                         activeCountdown = activeCountdown,
-                        capStatusMessage = capStatusMessage,
+                        livePointStatusMessage = livePointStatusMessage,
                         canStartPoint = canStartPoint,
                         hasExpiredPullActions = hasExpiredPullActions,
                         canReportOffenseSet = canReportOffenseSet,
@@ -987,7 +987,7 @@ private fun PortraitActiveGameContent(
     now: Long,
     capStatus: CapStatus?,
     activeCountdown: ActiveCountdownDisplay?,
-    capStatusMessage: String?,
+    livePointStatusMessage: String?,
     canStartPoint: Boolean,
     hasExpiredPullActions: Boolean,
     canReportOffenseSet: Boolean,
@@ -1046,7 +1046,7 @@ private fun PortraitActiveGameContent(
                     state.toggleCountdownPaused(System.currentTimeMillis())
                 )
             },
-            expiredPullActions = if (hasExpiredPullActions && !locked) {
+            expiredPullActions = if (hasExpiredPullActions) {
                 ExpiredPullActions(
                     onRestartPullCountdown = {
                         onStateChange(
@@ -1057,7 +1057,7 @@ private fun PortraitActiveGameContent(
             } else {
                 null
             },
-            misconductCountdownAction = if (state.pendingMisconductCountdown && !locked) {
+            misconductCountdownAction = if (state.pendingMisconductCountdown) {
                 MisconductCountdownAction(
                     onStart = {
                         onStateChange(
@@ -1068,7 +1068,7 @@ private fun PortraitActiveGameContent(
             } else {
                 null
             },
-            statusMessage = capStatusMessage,
+            statusMessage = livePointStatusMessage,
             height = metrics.countdownHeight,
         )
 
@@ -1181,7 +1181,7 @@ private fun LandscapeActiveGameContent(
     now: Long,
     capStatus: CapStatus?,
     activeCountdown: ActiveCountdownDisplay?,
-    capStatusMessage: String?,
+    livePointStatusMessage: String?,
     canStartPoint: Boolean,
     hasExpiredPullActions: Boolean,
     canReportOffenseSet: Boolean,
@@ -1255,7 +1255,7 @@ private fun LandscapeActiveGameContent(
                         state.toggleCountdownPaused(System.currentTimeMillis())
                     )
                 },
-                expiredPullActions = if (hasExpiredPullActions && !locked) {
+                expiredPullActions = if (hasExpiredPullActions) {
                     ExpiredPullActions(
                         onRestartPullCountdown = {
                             onStateChange(
@@ -1266,9 +1266,7 @@ private fun LandscapeActiveGameContent(
                 } else {
                     null
                 },
-                misconductCountdownAction = if (
-                    state.pendingMisconductCountdown && !locked
-                ) {
+                misconductCountdownAction = if (state.pendingMisconductCountdown) {
                     MisconductCountdownAction(
                         onStart = {
                             onStateChange(
@@ -1279,7 +1277,7 @@ private fun LandscapeActiveGameContent(
                 } else {
                     null
                 },
-                statusMessage = capStatusMessage,
+                statusMessage = livePointStatusMessage,
                 height = metrics.topRowHeight,
                 modifier = Modifier.weight(1f),
             )

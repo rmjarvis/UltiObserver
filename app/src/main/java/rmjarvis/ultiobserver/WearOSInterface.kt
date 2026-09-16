@@ -688,17 +688,17 @@ private fun GameState.wearStatusMessageTransitions(
         )
         .distinct()
         .sorted()
-        .map { targetEpoch ->
+        .mapIndexed { index, targetEpoch ->
             WearStatusMessageTransition(
-                targetEpochMillis = targetEpoch,
-                message = capStatusMessage(targetEpoch),
+                // The current message applies immediately and stays stable across publications.
+                targetEpochMillis = if (index == 0) Long.MIN_VALUE else targetEpoch,
+                message = livePointStatusMessage(targetEpoch),
             )
         }
     return candidates
         .filterIndexed { index, candidate ->
             index == 0 || candidate.message != candidates[index - 1].message
         }
-        .dropWhile { transition -> transition.message == null }
 }
 
 /** Build one team and its phone-equivalent compact action labels. */

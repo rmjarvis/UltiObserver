@@ -248,6 +248,10 @@ class TestWearOSInterface : GameDomainTestFixtures() {
             now = now,
         ).activeGame!!
         assertNull(livePointSnapshot.countdown)
+        assertEquals(
+            listOf("Live point in progress"),
+            livePointSnapshot.statusMessageTransitions.map { it.message },
+        )
 
         val capTimelineGame = standardLiveGameState(
             rules = GameRules(
@@ -281,13 +285,14 @@ class TestWearOSInterface : GameDomainTestFixtures() {
         // The same snapshot schedules the cap messages the phone will show after those countdowns
         // expire, allowing the watch to advance through that text using phone time as well.
         assertEquals(
-            listOf(softCapEpoch, hardCapEpoch),
+            listOf(Long.MIN_VALUE, softCapEpoch, hardCapEpoch),
             capTimelineSnapshot.statusMessageTransitions.map { transition ->
                 transition.targetEpochMillis
             },
         )
         assertEquals(
             listOf(
+                "Live point in progress",
                 "Soft cap passed. It will apply at the end of this point.",
                 "Hard cap passed. It will apply at the end of this point.",
             ),

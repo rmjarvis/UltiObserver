@@ -800,7 +800,7 @@ class TestCaps : GameDomainTestFixtures() {
         assertTrue(state.softCapApplied)
         assertEquals(4, state.winningScore)
         assertNull(state.pendingCapOffer)
-        state = state.applyExpiredCountdownTransitions(
+        state = state.applyAutomaticGameTransitions(
             halftimeCountdown.targetEpoch,
             showDefenseCountdowns = false,
         )
@@ -891,7 +891,7 @@ class TestCaps : GameDomainTestFixtures() {
         assertEquals(ScoreTransition.HALFTIME, state.pendingScoreTransition?.transition)
         state = state.acceptPendingScoreTransition()
         assertEquals(GamePhase.HALFTIME, state.phase)
-        state = state.applyExpiredCountdownTransitions(
+        state = state.applyAutomaticGameTransitions(
             state.countdown!!.targetEpoch + 30_000L,
             showDefenseCountdowns = false,
         )
