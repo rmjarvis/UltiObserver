@@ -130,7 +130,14 @@ class TestWearPairedPhoneUi : MainActivityUiTestFixtures() {
     @Test
     fun timeoutAndMisconduct() {
         setTimingAlertPreferences(
-            TimingAlertPreferences(watchConnectionMode = WatchConnectionMode.WEAR_OS)
+            TimingAlertPreferences(
+                watchConnectionMode = WatchConnectionMode.WEAR_OS,
+                vibrationDurationMillis = 420L,
+                cueModes = TimingCueId.entries.associateWith {
+                    if (it == TimingCueId.OFFENSE_TWENTY) TimingAlertMode.VIBRATE else TimingAlertMode.NONE
+                },
+                cueRepeatCounts = mapOf(TimingCueId.OFFENSE_TWENTY to 1),
+            )
         )
         composeRule.runOnIdle {
             val appState = composeRule.activity.appState
@@ -152,6 +159,14 @@ class TestWearPairedPhoneUi : MainActivityUiTestFixtures() {
         assertEquals(30, finalGame.countdown.durationSeconds)
         assertTrue(!finalGame.pendingMisconductCountdown)
         assertEquals("Undo Blue card on Viscous Coupling", finalGame.undoEntry?.label)
+
+        // Prime the countdown so the 20-second cue arrives in about one second.
+        updateCurrentStateProgrammatically {
+            copy(countdown = countdown!!.copy(targetEpoch = System.currentTimeMillis() + 22_000L))
+        }
+
+        // Keep the game running while the watch waits for the cue, then resumes play.
+        waitForGame { game -> game.countdown == null }
     }
 
     /** Host the test of halftime, letting the halftime confirmation be done on the watch. */

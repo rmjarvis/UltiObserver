@@ -2,6 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-feature android:name="android.hardware.type.watch" />
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <application
         android:allowBackup="true"
@@ -12,6 +13,16 @@
         <meta-data
             android:name="com.google.android.wearable.standalone"
             android:value="false" />
+
+        <service
+            android:name=".VibrationService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.REQUEST_RECEIVED" />
+                <data android:scheme="wear" android:host="*"
+                    android:path="/ultiobserver/vibration" />
+            </intent-filter>
+        </service>
 
         <activity
             android:name=".WatchActivity"

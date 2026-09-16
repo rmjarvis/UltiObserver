@@ -142,6 +142,7 @@ def is_ui_source_file(path: Path) -> bool:
             "TimingAlertForegroundService.kt",
             "UiComponents.kt",
             "UltiObserverApplication.kt",
+            "VibrationService.kt",
             "WearOSCommunication.kt",
             "StateClient.kt",
             "WatchActivity.kt",

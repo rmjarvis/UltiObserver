@@ -396,4 +396,17 @@ internal fun Context.performTimingCueHaptic(durationMillis: Long) {
     }
 }
 
+/** Route an existing timing pulse to the watch when selected, falling back to the phone. */
+internal suspend fun deliverTimingVibration(
+    preferences: TimingAlertPreferences,
+    durationMillis: Long,
+    vibrateOnWatch: suspend (Long) -> Boolean,
+    vibrateOnPhone: (Long) -> Unit,
+) {
+    val accepted = preferences.usesWatchVibration() && vibrateOnWatch(durationMillis)
+    if (!accepted) {
+        vibrateOnPhone(durationMillis)
+    }
+}
+
 internal const val TIMING_ALERT_REPEAT_HAPTIC_GAP_MS = 120L

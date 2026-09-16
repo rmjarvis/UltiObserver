@@ -61,6 +61,7 @@ class TestPersistence : GameDomainTestFixtures() {
         updateTimingAlerts { it.withVibrationDuration(420L) }
         updateTimingAlerts { it.withVibrateWithSounds(true) }
         updateTimingAlerts { it.withWatchConnectionMode(WatchConnectionMode.ALERTING) }
+        updateTimingAlerts { it.copy(vibrateOnWatch = false) }
         updateSettings { it.withAutomaticallyAdvanceCountdowns(false) }
         updateSettings { it.withAutomaticallyLockLivePoint(false) }
         updateSettings { it.withShowDefenseCountdowns(true) }
@@ -141,6 +142,7 @@ class TestPersistence : GameDomainTestFixtures() {
             restored.settings.orientationPreference
         )
         assertEquals(RuleGuidanceMode.TIMED, restored.settings.ruleGuidanceMode)
+        assertFalse(restored.settings.timingAlerts.vibrateOnWatch)
         assertEquals(WatchOrientation.ENDS_FIXED, restored.settings.watchOrientation)
         assertEquals(TimingAlertGlobalMode.OFF, restored.settings.timingAlerts.globalMode)
         assertFalse(restored.settings.automaticallyAdvanceCountdowns)

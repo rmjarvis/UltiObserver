@@ -3,10 +3,17 @@ package rmjarvis.ultiobserver
 import android.content.Context
 import com.google.android.gms.tasks.Task
 import com.google.android.gms.tasks.Tasks
+import com.google.android.gms.wearable.CapabilityClient
+import com.google.android.gms.wearable.CapabilityInfo
 import com.google.android.gms.wearable.PutDataRequest
 import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.Wearable
 import com.google.android.gms.wearable.WearableListenerService
+import kotlin.coroutines.resume
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
+import rmjarvis.ultiobserver.wearprotocol.WATCH_VIBRATION_CAPABILITY
+import rmjarvis.ultiobserver.wearprotocol.WATCH_VIBRATION_PATH
 import rmjarvis.ultiobserver.wearprotocol.WEAR_STATE_PATH
 import rmjarvis.ultiobserver.wearprotocol.WearProtocolCodec
 import rmjarvis.ultiobserver.wearprotocol.WearStateUpdate
@@ -14,6 +21,52 @@ import rmjarvis.ultiobserver.wearprotocol.WearCommandRequest
 import rmjarvis.ultiobserver.wearprotocol.WearRequestAction
 import rmjarvis.ultiobserver.wearprotocol.WearStartupRequest
 import rmjarvis.ultiobserver.wearprotocol.WearStartupResponse
+import rmjarvis.ultiobserver.wearprotocol.WearVibrationRequest
+import rmjarvis.ultiobserver.wearprotocol.WearVibrationResponse
+
+/** Send a live pulse to a reachable watch and wait briefly for its acceptance. */
+internal class WearVibrationSender(
+    private val findWatch: () -> Task<CapabilityInfo>,
+    private val sendRequest: (String, ByteArray) -> Task<ByteArray>,
+) {
+    constructor(context: Context) : this(
+        findWatch = {
+            Wearable.getCapabilityClient(context.applicationContext)
+                .getCapability(WATCH_VIBRATION_CAPABILITY, CapabilityClient.FILTER_REACHABLE)
+        },
+        sendRequest = { nodeId, bytes ->
+            Wearable.getMessageClient(context.applicationContext)
+                .sendRequest(nodeId, WATCH_VIBRATION_PATH, bytes)
+        },
+    )
+
+    suspend fun vibrate(durationMillis: Long): Boolean {
+        val reply = withTimeoutOrNull(WATCH_VIBRATION_TIMEOUT_MILLIS) {
+            suspendCancellableCoroutine<ByteArray?> { continuation ->
+                findWatch().continueWithTask { result ->
+                    val node = result.result.nodes.sortedBy { it.id }
+                        .let { nodes -> nodes.firstOrNull { it.isNearby } ?: nodes.firstOrNull() }
+                    if (node == null || !continuation.isActive) {
+                        Tasks.forResult<ByteArray?>(null)
+                    } else {
+                        sendRequest(node.id, WearProtocolCodec.encode(
+                            WearVibrationRequest.serializer(), WearVibrationRequest(durationMillis),
+                        ))
+                    }
+                }.addOnSuccessListener { bytes ->
+                    continuation.resume(bytes)
+                }.addOnFailureListener {
+                    continuation.resume(null)
+                }.addOnCanceledListener {
+                    continuation.resume(null)
+                }
+            }
+        } ?: return false
+        return WearProtocolCodec.decode(WearVibrationResponse.serializer(), reply).accepted
+    }
+}
+
+internal const val WATCH_VIBRATION_TIMEOUT_MILLIS = 2_000L
 
 /** Check whether this phone currently has a reachable Wear OS node. */
 internal class WearOSAvailabilityChecker(

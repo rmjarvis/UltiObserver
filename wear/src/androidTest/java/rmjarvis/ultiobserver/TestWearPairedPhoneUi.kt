@@ -330,6 +330,18 @@ class TestWearPairedPhoneUi {
         composeRule.onNodeWithText("Start misconduct\ncountdown").performClick()
         waitForText("Offense set in")
         composeRule.onNodeWithText("Start misconduct\ncountdown").assertDoesNotExist()
+
+        // Let the configured vibration cue pass while watching the countdown.
+        waitForText("Next: 20 seconds, offense")
+        waitForNoText("Next: 20 seconds, offense")
+
+        // Continue the point after the cue, so the phone test can finish up.
+        composeRule.onNode(hasContentDescription("Countdown controls")).performClick()
+        waitForText("Offense is set")
+        composeRule.onNodeWithText("Offense is set").performClick()
+        waitForText("Continue point")
+        composeRule.onNodeWithText("Continue point").performClick()
+        waitForText(ANIMAL)
     }
 
     /** Defer and accept both the half-cap and halftime confirmations on the watch. */

@@ -165,7 +165,7 @@ class TimingAlertForegroundService : Service() {
             }
 
             override suspend fun performHaptic(durationMillis: Long) {
-                performTimingCueHaptic(durationMillis)
+                (application as UltiObserverApplication).vibrateTimingCue(durationMillis)
             }
 
             override fun postWatchStatusNotification(

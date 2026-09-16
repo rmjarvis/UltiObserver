@@ -93,9 +93,15 @@ data class TimingAlertPreferences(
     val vibrationDurationMillis: Long = DEFAULT_TIMING_CUE_VIBRATION_MS,
     val vibrateWithSounds: Boolean = false,
     val watchConnectionMode: WatchConnectionMode = WatchConnectionMode.OFF,
+    val vibrateOnWatch: Boolean = true,
     val cueModes: Map<TimingCueId, TimingAlertMode> = defaultTimingCueModes(),
     val cueRepeatCounts: Map<TimingCueId, Int> = defaultTimingCueRepeatCounts(),
 ) {
+    /** Whether timing vibrations should try the native watch before the phone. */
+    fun usesWatchVibration(): Boolean {
+        return watchConnectionMode == WatchConnectionMode.WEAR_OS && vibrateOnWatch
+    }
+
     /**
      * Return the configured per-cue setting shown in Settings, before the global alert mode is applied.
      *

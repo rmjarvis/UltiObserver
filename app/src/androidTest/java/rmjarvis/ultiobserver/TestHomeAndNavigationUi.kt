@@ -45,6 +45,7 @@ import java.time.LocalDate
 import java.time.LocalTime
 import kotlin.math.abs
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -1234,6 +1235,13 @@ class TestHomeAndNavigationUi : MainActivityUiTestFixtures() {
             "No Wear OS watch is currently available",
             substring = true,
         ).assertCountEquals(0)
+
+        // Native watch vibration is enabled by default and can be redirected to the phone.
+        composeRule.onNodeWithTag("settings-vibrate-on-watch").performScrollTo().performClick()
+        assertFalse(composeRule.activity.appState.settings.timingAlerts.vibrateOnWatch)
+        waitForText("Keep timing vibrations on the phone.")
+        composeRule.onNodeWithTag("settings-vibrate-on-watch").performClick()
+        assertTrue(composeRule.activity.appState.settings.timingAlerts.vibrateOnWatch)
 
         // Wear OS exposes the placement choice, retaining it when the connection is turned off.
         composeRule.onNodeWithTag("settings-watch-orientation-TEAMS_FIXED")

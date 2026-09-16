@@ -26,4 +26,16 @@ class UltiObserverApplication : Application() {
     internal val timingAlertPlayer by lazy {
         TimingAlertPlayer(this)
     }
+
+    private val wearVibrationSender by lazy { WearVibrationSender(this) }
+
+    /** Deliver haptic pulse to the currently selected vibration destination. */
+    internal suspend fun vibrateTimingCue(durationMillis: Long) {
+        deliverTimingVibration(
+            preferences = appState.settings.timingAlerts,
+            durationMillis = durationMillis,
+            vibrateOnWatch = { wearVibrationSender.vibrate(it) },
+            vibrateOnPhone = { performTimingCueHaptic(it) },
+        )
+    }
 }

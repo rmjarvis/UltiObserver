@@ -2,7 +2,9 @@ package rmjarvis.ultiobserver
 
 import android.content.Context
 import java.time.Duration
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.fail
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -647,6 +649,61 @@ class TestTimingCues : GameDomainTestFixtures() {
             )
         }
         assertEquals(listOf(80L, 0L, 0L), performedHaptics)
+    }
+
+    /**
+     * Timing vibrations keep their cue settings and change only their destination.
+     *
+     * [deliverTimingVibration] is a suspend function because watch delivery may wait for a reply.
+     * [runBlocking] supplies the coroutine needed to call it and waits for completion before the
+     * JUnit test returns. Blocking is appropriate on this test thread, but would freeze the UI
+     * if used in a button callback.
+     */
+    @Test
+    fun vibrationDestination() = runBlocking {
+        // Wear OS defaults to the watch, preserving the requested pulse length.
+        val preferences = TimingAlertPreferences(watchConnectionMode = WatchConnectionMode.WEAR_OS)
+        val watchPulses = mutableListOf<Long>()
+        val phonePulses = mutableListOf<Long>()
+        val watch: suspend (Long) -> Boolean = {
+            watchPulses.add(it)
+            true
+        }
+        val phone: (Long) -> Unit = { phonePulses.add(it) }
+        assertTrue(preferences.vibrateOnWatch)
+        deliverTimingVibration(preferences, 420L, watch, phone)
+        assertEquals(listOf(420L), watchPulses)
+        assertTrue(phonePulses.isEmpty())
+
+        // Opting out leaves the watch alone and delivers exactly one phone pulse.
+        deliverTimingVibration(preferences.copy(vibrateOnWatch = false), 300L, watch, phone)
+        assertEquals(listOf(420L), watchPulses)
+        assertEquals(listOf(300L), phonePulses)
+
+        // A failed watch attempt falls back to the phone without retrying the request.
+        var attempts = 0
+        deliverTimingVibration(preferences, 500L, {
+            attempts++
+            false
+        }, phone)
+        assertEquals(1, attempts)
+        assertEquals(listOf(300L, 500L), phonePulses)
+
+        // Ordinary and bridged-notification modes continue to vibrate on the phone.
+        for (mode in listOf(WatchConnectionMode.OFF, WatchConnectionMode.SILENT,
+            WatchConnectionMode.ALERTING)) {
+            deliverTimingVibration(preferences.copy(watchConnectionMode = mode), 200L, watch, phone)
+        }
+        assertEquals(listOf(420L), watchPulses)
+        assertEquals(listOf(300L, 500L, 200L, 200L, 200L), phonePulses)
+
+        // Cancelling an obsolete cue must not create a fallback vibration.
+        try {
+            deliverTimingVibration(preferences, 600L, { throw CancellationException() }, phone)
+            fail("Cancellation should propagate")
+        } catch (_: CancellationException) {
+            assertEquals(listOf(300L, 500L, 200L, 200L, 200L), phonePulses)
+        }
     }
 
     /**

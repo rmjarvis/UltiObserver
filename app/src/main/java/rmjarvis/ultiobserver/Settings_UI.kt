@@ -27,6 +27,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
+import kotlinx.coroutines.launch
 
 private enum class GenderRatioBadgeColorTarget(
     val ratio: GenderRatio,
@@ -69,7 +71,9 @@ internal fun SettingsScreen(
     wearWatchAvailable: Boolean?,
 ) {
     val context = LocalContext.current
-    val hasTimingCueHaptics = context.hasTimingCueHaptics()
+    val hasTimingCueHaptics = context.hasTimingCueHaptics() ||
+        settings.timingAlerts.usesWatchVibration()
+    val vibrationScope = rememberCoroutineScope()
     val notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
     var colorTarget by remember { mutableStateOf<GenderRatioBadgeColorTarget?>(null) }
     var customColorTarget by remember { mutableStateOf<GenderRatioBadgeColorTarget?>(null) }
@@ -165,11 +169,30 @@ internal fun SettingsScreen(
                 notificationsEnabled = notificationsEnabled,
                 wearWatchAvailable = wearWatchAvailable,
                 onTestVibration = { durationMillis ->
-                    context.performTimingCueHaptic(durationMillis)
+                    vibrationScope.launch {
+                        (context.applicationContext as UltiObserverApplication)
+                            .vibrateTimingCue(durationMillis)
+                    }
                 },
             )
 
             if (settings.timingAlerts.watchConnectionMode == WatchConnectionMode.WEAR_OS) {
+                SettingsSwitchWithNote(
+                    label = "Vibrate on watch?",
+                    note = if (settings.timingAlerts.vibrateOnWatch) {
+                        "Send timing vibrations to the watch, including when its screen is off. " +
+                        "If the watch is unavailable, vibrate on the phone instead."
+                    } else {
+                        "Keep timing vibrations on the phone."
+                    },
+                    checked = settings.timingAlerts.vibrateOnWatch,
+                    onCheckedChange = {
+                        onSettingsChange(settings.withTimingAlerts(
+                            settings.timingAlerts.copy(vibrateOnWatch = it)
+                        ))
+                    },
+                    testTag = "settings-vibrate-on-watch",
+                )
                 Text("Team display on watch", style = MaterialTheme.typography.titleMedium)
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -592,7 +615,8 @@ internal fun TimingCueSettingsScreen(
     onHome: () -> Unit,
 ) {
     val context = LocalContext.current
-    val hasTimingCueHaptics = context.hasTimingCueHaptics()
+    val hasTimingCueHaptics = context.hasTimingCueHaptics() ||
+        settings.timingAlerts.usesWatchVibration()
     val timingAlertPlayer =
         (context.applicationContext as UltiObserverApplication).timingAlertPlayer
 
@@ -857,7 +881,13 @@ private fun TimingAlertSoundControls(
                         },
                     )
                     Text(
-                        text = "If the test vibration is too weak, check the vibration strength in your phone's haptic settings.",
+                        text = if (timingAlertPreferences.usesWatchVibration()) {
+                            "If the test vibration is too weak, check the vibration strength " +
+                            "in your watch's settings. If the watch is unavailable, the phone vibrates."
+                        } else {
+                            "If the test vibration is too weak, check the vibration strength " +
+                            "in your phone's haptic settings."
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.weight(1f),
                     )
@@ -866,6 +896,7 @@ private fun TimingAlertSoundControls(
         }
         WatchConnectionModeSelector(
             selectedMode = timingAlertPreferences.watchConnectionMode,
+            vibrateOnWatch = timingAlertPreferences.vibrateOnWatch,
             onModeChange = onWatchConnectionModeChange,
             notificationsEnabled = notificationsEnabled,
             wearWatchAvailable = wearWatchAvailable,
@@ -877,6 +908,7 @@ private fun TimingAlertSoundControls(
 @Composable
 private fun WatchConnectionModeSelector(
     selectedMode: WatchConnectionMode,
+    vibrateOnWatch: Boolean,
     onModeChange: (WatchConnectionMode) -> Unit,
     notificationsEnabled: Boolean,
     wearWatchAvailable: Boolean?,
@@ -963,10 +995,14 @@ private fun WatchConnectionModeSelector(
                         append(" ")
                         append(
                             "This will let you receive timing cues on the watch as well as " +
-                            "record goals, timeouts and other events directly from the watch. " +
-                            "Any cues set to use vibration will happen on the watch rather than " +
-                            "on the phone."
+                            "record goals, timeouts and other events directly from the watch. "
                         )
+                        if (vibrateOnWatch) {
+                            append(
+                                "Any cues set to use vibration will happen on the watch rather than " +
+                                "on the phone."
+                            )
+                        }
                     } else if (wearWatchAvailable == false) {
                         append("\n\n")
                         pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
