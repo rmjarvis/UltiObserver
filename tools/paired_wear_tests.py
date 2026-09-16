@@ -33,6 +33,7 @@ DEFAULT_NARRATIVES = (
     "playerCardPhoneHandoff",
     "timedGuidance",
     "noGuidance",
+    "ongoingGame",
     "connectionRecovery",
 )
 

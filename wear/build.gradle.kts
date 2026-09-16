@@ -65,6 +65,7 @@ dependencies {
     implementation(libs.androidx.wear.compose.material3)
     implementation(libs.androidx.wear.compose.ui.tooling)
     implementation(libs.androidx.wear.tooling.preview)
+    implementation(libs.androidx.wear.ongoing)
     implementation(libs.firebase.crashlytics)
     implementation(libs.play.services.wearable)
 
@@ -74,5 +75,6 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.test.uiautomator)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

@@ -1,6 +1,9 @@
 package rmjarvis.ultiobserver
 
 import android.graphics.Bitmap
+import android.app.Notification
+import android.app.NotificationManager
+import android.os.Build
 import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.util.Log
@@ -24,6 +27,10 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.printToString
 import androidx.test.espresso.Espresso.pressBackUnconditionally
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.By
+import androidx.test.uiautomator.UiDevice
+import androidx.test.uiautomator.Until
+import androidx.wear.ongoing.OngoingActivity
 import com.google.android.gms.tasks.Tasks
 import com.google.android.gms.wearable.CapabilityClient
 import com.google.android.gms.wearable.CapabilityInfo
@@ -36,7 +43,9 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import rmjarvis.ultiobserver.wearprotocol.PHONE_STATE_CAPABILITY
@@ -54,6 +63,19 @@ import rmjarvis.ultiobserver.wearprotocol.WEAR_STATE_PATH
 class TestWearPairedPhoneUi {
     @get:Rule
     val composeRule = createAndroidComposeRule<WatchActivity>()
+
+    /** Allow the ongoing-game notification when a fresh modern watch asks for permission. */
+    @Before
+    fun allowGameNotification() {
+        val notifications = composeRule.activity.getSystemService(NotificationManager::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            !notifications.areNotificationsEnabled()
+        ) {
+            val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+            val allow = device.wait(Until.findObject(By.text("Allow")), UI_ACTION_TIMEOUT_MILLIS)
+            checkNotNull(allow) { "The watch did not request notification permission" }.click()
+        }
+    }
 
     /** Read the live status, then test recording goals and undoing them on the watch. */
     @Test
@@ -623,6 +645,47 @@ class TestWearPairedPhoneUi {
         composeRule.onNodeWithText("Goal").performClick()
         waitForContentDescription("Undo Start halftime")
         waitForText("2")
+    }
+
+    /** Return from the watch-face indicator to the game, then remove it when Wear OS is disabled. */
+    @Test
+    fun ongoingGame() {
+        waitForPairedText(ANIMAL)
+        val notifications = composeRule.activity.getSystemService(NotificationManager::class.java)
+
+        // A game publishes one quiet ongoing activity with a return-to-game action.
+        // These are programmatic tests of the watch's ongoing-game notification.
+        composeRule.waitUntil(timeoutMillis = UI_ACTION_TIMEOUT_MILLIS) {
+            notifications.activeNotifications.any { it.id == ONGOING_GAME_NOTIFICATION_ID }
+        }
+        val notification = notifications.activeNotifications.single {
+            it.id == ONGOING_GAME_NOTIFICATION_ID
+        }.notification
+        assertTrue(notification.flags and Notification.FLAG_ONGOING_EVENT != 0)
+        assertNotNull(OngoingActivity.recoverOngoingActivity(composeRule.activity))
+        assertEquals("Return to game", notification.extras.getString(Notification.EXTRA_TEXT))
+        val channel = notifications.getNotificationChannel(notification.channelId)
+        assertNull(channel.sound)
+        assertTrue(!channel.shouldVibrate())
+
+        // Leave the app and go to the watch's home screen.
+        // The ongoing game is indicated at the bottom with a small observer icon.
+        // Tapping that returns to the game.
+        val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+        device.pressHome()
+        val shortcut = device.wait(
+            Until.findObject(By.desc("UltiObserver")), UI_ACTION_TIMEOUT_MILLIS,
+        )
+        checkNotNull(shortcut) { "UltiObserver's watch-face indicator was not visible" }.click()
+        waitForPairedText(ANIMAL)
+        composeRule.onNodeWithText(ANIMAL).performClick()
+        waitForText("Goal")
+        composeRule.onNodeWithText("Goal").performClick()
+
+        // The phone turns off Wear OS after receiving the goal; the shortcut must disappear.
+        composeRule.waitUntil(timeoutMillis = PAIRED_TEST_TIMEOUT_MILLIS) {
+            notifications.activeNotifications.none { it.id == ONGOING_GAME_NOTIFICATION_ID }
+        }
     }
 
     /** Recover from a paired phone app that stops responding to requests. */

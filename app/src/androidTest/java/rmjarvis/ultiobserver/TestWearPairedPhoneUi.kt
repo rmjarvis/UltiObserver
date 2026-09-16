@@ -392,6 +392,25 @@ class TestWearPairedPhoneUi : MainActivityUiTestFixtures() {
         assertEquals(0, game.teamTwo.score)
     }
 
+    /** Keep a game available while the watch tests its system shortcut, then disable Wear OS. */
+    @Test
+    fun ongoingGame() {
+        setTimingAlertPreferences(
+            TimingAlertPreferences(watchConnectionMode = WatchConnectionMode.WEAR_OS)
+        )
+        startLivePointProgrammatically()
+        useStandardTeamNames()
+        signalReady("ongoingGame")
+
+        // A goal from the watch confirms the user returned from the ongoing notification.
+        waitForGame { game -> game.teamOne.score == 1 }
+
+        // Turning off Wear OS removes its return-to-game shortcut too.
+        tapTopBarHome()
+        composeRule.onNodeWithText("Settings").performClick()
+        composeRule.onNodeWithTag("settings-watch-connection-OFF").performScrollTo().performClick()
+    }
+
     /** Keep the game alive while the Wear request service is temporarily unavailable. */
     @Test
     fun connectionRecovery() {

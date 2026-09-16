@@ -138,6 +138,7 @@ def is_ui_source_file(path: Path) -> bool:
         or name in {
             "MainActivity.kt",
             "MainActivityPreview.kt",
+            "OngoingGame.kt",
             "TimingAlertAudio.kt",
             "TimingAlertForegroundService.kt",
             "UiComponents.kt",

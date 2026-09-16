@@ -17,6 +17,8 @@ firebaseCrashlyticsPlugin = "3.0.7"
 googleServices = "4.5.0"
 wearCompose = "1.6.2"
 wearToolingPreview = "1.0.0"
+wearOngoing = "1.1.0"
+uiautomator = "2.4.0"
 playServicesWearable = "20.0.1"
 
 [libraries]
@@ -49,6 +51,8 @@ androidx-wear-compose-foundation = { group = "androidx.wear.compose", name = "co
 androidx-wear-compose-material3 = { group = "androidx.wear.compose", name = "compose-material3", version.ref = "wearCompose" }
 androidx-wear-compose-ui-tooling = { group = "androidx.wear.compose", name = "compose-ui-tooling", version.ref = "wearCompose" }
 androidx-wear-tooling-preview = { group = "androidx.wear", name = "wear-tooling-preview", version.ref = "wearToolingPreview" }
+androidx-wear-ongoing = { group = "androidx.wear", name = "wear-ongoing", version.ref = "wearOngoing" }
+androidx-test-uiautomator = { group = "androidx.test.uiautomator", name = "uiautomator", version.ref = "uiautomator" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
