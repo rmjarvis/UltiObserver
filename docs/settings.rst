@@ -79,7 +79,7 @@ Watch connection
     companion app, which lets you perform some actions directly on the watch.
     There are four options:
 
-    * **Off** does not send any timing cue notifications. This is the default.
+    * **Off** does not send any timing cue notifications to a watch. This is the default.
     * **Silent** keeps the information current without intentionally alerting the watch. This is
       useful when you are getting sound cues through an earbud. The score and gender ratio
       (for ABBA) are shown on the watch, along with what the next cue is, but the watch will
@@ -99,12 +99,10 @@ Watch connection
         and switch *Use notification cooldown* to Off.
 
     * **Wear OS** synchronizes the current game with the UltiObserver app installed on a paired
-      Wear OS watch. At the top, the watch shows any existing countdown along with the next cue,
-      the next cap, if any, and the current official time. The bottom shows the score, along with
-      the current gender ratio (for ABBA), and the pull direction. Tapping either team section
-      opens a screen with the usual team action buttons. Any actions that don't require
-      additional information (such as name and number for yellow cards) can be performed
-      directly on the watch.
+      Wear OS watch. The main display shows any current countdown, the next upcoming cap,
+      the current score, and the gender ratio for mixed games. You can use the app to
+      record goals, timeouts, cards, etc. See :ref:`Wear OS companion app` for details.
+      When this option is selected the `Wear OS Settings` become available.
 
     Android notification permission and notification mirroring must be enabled for **Silent** and
     **Alerting** to work. The watch and its companion app ultimately control whether an alert
@@ -115,6 +113,40 @@ Watch connection
         For **Silent** and **Alerting**, UltiObserver cannot verify that a watch is paired or
         that notification sharing is enabled. These modes only send notifications to the phone.
         The watch's companion app is responsible for sending them to the watch.
+
+Wear OS Settings
+^^^^^^^^^^^^^^^^
+
+Team display on watch
+    The watch always shows the two team areas on the left and right side of the watch.
+    You can decide how you want this to behave as the teams change sides during the game.
+
+    * **Teams fixed** This keeps the teams in the same place on the watch throughout the
+      game. Whichever team is listed first in the game setup screen is on the left.
+      The second one is on the right. The names of the field ends where the teams start each
+      point will swap each point.
+
+    * **Ends fixed** This keeps the field orientation fixed throughout the game as the
+      teams switch sides. The names of the field ends will not change, but the teams
+      will switch after every goal. When the phone is set to landscape mode, these will
+      match the phone orientation. Otherwise, you can decide which way you want them to
+      display in the :ref:`Field And Starting Pull` section of the setup screen.
+
+Vibrate on watch
+    The default behavior is to let any timing cues set to vibration do that on the watch,
+    rather than the phone. If you'd rather keep the vibration action on the phone, you can
+    switch this to **No**. In either case, if the watch is temporarily unavailable the
+    vibration will happen on the phone.
+
+Require long presses
+    The watch screen doesn't have a lock screen like the phone. If you want some level of
+    accidental touch protection on the watch, you can require long presses for any primary
+    action on the watch. This only applies to the main game screen. Once you are in a
+    sub-menu or dialog screen, normal taps are sufficient.
+
+    Note: the Undo and (when present) Redo buttons at the bottom of the watch face always
+    require long presses.
+
 
 Active Game Screen Behavior
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -85,6 +85,7 @@ Contents
    ingame-events
    misconduct
    timing-cues
+   wear-os
    more-actions
    summary
    archive

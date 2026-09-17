@@ -146,6 +146,11 @@ Timing prompts for which end?
     field, but you can also choose neither or both, which might be appropriate in 3 or 4 person
     crews.
 
+How do you want the ends displayed on the watch?
+    When using the Wear OS app in portrait or auto-rotate mode and have the
+    **Team display on watch** setting set to **Ends fixed**, then this will let you choose
+    which end you want on the left and which one on the right of the watch face.
+
 Game Rules
 ----------
 
