@@ -23,28 +23,8 @@ internal enum class AccidentalTouchProtection(val label: String, val description
     ),
     LONG_PRESS(
         "Long press",
-        "Press and hold controls on the active game screen and in dialogs that " +
-        "appear automatically. Use normal taps on dialogs that you open.",
+        "Press and hold controls on the active game screen. Use normal taps in dialogs.",
     ),
-}
-
-/** Require a hold for an automatic game prompt unless a user-opened dialog takes precedence. */
-internal fun AccidentalTouchProtection.requiresLongPressForDialog(
-    hasPendingGameDecision: Boolean,
-    hasActiveCardEntry: Boolean,
-    showEventLogSheet: Boolean,
-    hasTeamInfoSheet: Boolean,
-    showRulesReference: Boolean,
-    hasPendingTimeoutConfirmation: Boolean,
-    hasPendingTimeViolation: Boolean,
-    hasPendingPullViolation: Boolean,
-    hasPendingTechnicalFoul: Boolean,
-): Boolean {
-    return this == AccidentalTouchProtection.LONG_PRESS &&
-        hasPendingGameDecision && !hasActiveCardEntry &&
-        !showEventLogSheet && !hasTeamInfoSheet && !showRulesReference &&
-        !hasPendingTimeoutConfirmation && !hasPendingTimeViolation &&
-        !hasPendingPullViolation && !hasPendingTechnicalFoul
 }
 
 /// Per-cue alert choice before the global alert mode is applied.

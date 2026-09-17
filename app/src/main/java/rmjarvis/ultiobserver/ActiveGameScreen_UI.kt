@@ -341,424 +341,410 @@ internal fun ActiveGameScreen(
     //    can change the water-break guidance.
     // 3. showMoreActions should be last, since it can spawn other dialogs, which should
     //    take precedence over the menu dialog.
-    CompositionLocalProvider(
-        LocalRequireLongPress provides settings.accidentalTouchProtection.requiresLongPressForDialog(
-            hasPendingGameDecision = pendingGameDecision != null,
-            hasActiveCardEntry = activeCardEntry != null,
-            showEventLogSheet = showEventLogSheet,
-            hasTeamInfoSheet = teamInfoSheetTeam != null,
-            showRulesReference = showRulesReference,
-            hasPendingTimeoutConfirmation = pendingTimeoutConfirmation != null,
-            hasPendingTimeViolation = pendingTimeViolation != null,
-            hasPendingPullViolation = pendingPullViolation != null,
-            hasPendingTechnicalFoul = pendingTechnicalFoul != null,
-        ),
-    ) {
-        if (activeCardEntry != null) {
-            val cardEntry = activeCardEntry
-            TeamCardDialog(
-                state = state,
-                team = cardEntry.team,
-                now = now,
-                guidanceMode = settings.ruleGuidanceMode,
-                isLandscape = usesLandscapeOrientation,
-                initialCardType = cardEntry.cardType,
-                initialJerseyNumber = cardEntry.jerseyNumber,
-                onCardTypeSelected = { cardType ->
-                    val jerseyNumber = if (cardType == null) "" else cardEntry.jerseyNumber
-                    onCardEntryChange(
-                        cardEntry,
-                        cardEntry.copy(
-                            cardType = cardType,
-                            jerseyNumber = jerseyNumber,
-                        ),
-                    )
-                },
-                onDismiss = {
-                    onCardEntryChange(cardEntry, null)
-                },
-                onCardEntryCompleted = { updatedState ->
-                    onCardEntryCompleted(cardEntry, updatedState)
-                },
-                onStateUpdate = onStateChange,
-            )
-        } else if (showEventLogSheet) {
-            EventLogDialog(
-                state = state,
-                onDismiss = { showEventLogSheet = false },
-            )
-        } else if (teamInfoSheetTeam != null) {
-            val team = teamInfoSheetTeam!!
-            TeamNamesDialog(
-                team = state.teamFor(team),
-                onDismiss = { teamInfoSheetTeam = null },
-            )
-        } else if (showRulesReference) {
-            RulesReferenceDialog(
-                state = state,
-                activeGameOrientation = activeGameDisplay.orientation,
-                onDismiss = {
-                    showRulesReference = false
-                },
-            )
-        } else if (pendingTimeoutConfirmation != null) {
-            val confirmation = pendingTimeoutConfirmation!!
-            val event = confirmation.event
-            val applyTimeout = {
-                onConfirmation(confirmation)
-                pendingTimeoutConfirmation = null
-            }
-            RuleGuidanceGate(
-                key = confirmation,
-                mode = settings.ruleGuidanceMode,
-                requiredInNone = event.requiresGuidanceInNone(),
-                onAutoAccept = applyTimeout,
-            ) {
-                ResponsiveAlertDialog(
-                    onDismissRequest = { pendingTimeoutConfirmation = null },
-                    title = { Text(event.formatTitle()) },
-                    text = {
-                        ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
-                            RuleGuidanceText(confirmation.formatMessage(settings.ruleGuidanceMode))
-                        }
-                    },
-                    confirmButton = {
-                        TextButton(
-                            label = "OK",
-                            onClick = applyTimeout,
-                        )
-                    },
-                    dismissButton = {
-                        TextButton(
-                            label = "Cancel",
-                            onClick = { pendingTimeoutConfirmation = null },
-                        )
-                    },
-                    widthProfile = DialogWidthProfile.COMPACT,
+    if (activeCardEntry != null) {
+        val cardEntry = activeCardEntry
+        TeamCardDialog(
+            state = state,
+            team = cardEntry.team,
+            now = now,
+            guidanceMode = settings.ruleGuidanceMode,
+            isLandscape = usesLandscapeOrientation,
+            initialCardType = cardEntry.cardType,
+            initialJerseyNumber = cardEntry.jerseyNumber,
+            onCardTypeSelected = { cardType ->
+                val jerseyNumber = if (cardType == null) "" else cardEntry.jerseyNumber
+                onCardEntryChange(
+                    cardEntry,
+                    cardEntry.copy(
+                        cardType = cardType,
+                        jerseyNumber = jerseyNumber,
+                    ),
                 )
-            }
-        } else if (pendingTimeViolation != null) {
-            val confirmation = pendingTimeViolation!!
-            val event = confirmation.event
-            val applyTimeViolation = {
-                onConfirmation(confirmation)
-                dismissTimeViolation()
-            }
-            RuleGuidanceGate(
-                key = confirmation,
-                mode = settings.ruleGuidanceMode,
-                requiredInNone = event.requiresGuidanceInNone(),
-                onAutoAccept = applyTimeViolation,
-            ) {
-                ResponsiveAlertDialog(
-                    onDismissRequest = { dismissTimeViolation() },
-                    title = { Text(event.formatTitle()) },
-                    text = {
-                        ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
-                            RuleGuidanceText(confirmation.formatMessage(settings.ruleGuidanceMode))
-                        }
-                    },
-                    confirmButton = {
-                        TextButton(
-                            label = "OK",
-                            onClick = applyTimeViolation,
-                        )
-                    },
-                    dismissButton = {
-                        TextButton(label = "Cancel", onClick = { dismissTimeViolation() })
-                    },
-                )
-            }
-        } else if (pendingPullViolation != null) {
-            val confirmation = pendingPullViolation!!
-            val event = confirmation.event
-            val pullViolationAlternative = event.pullViolationSelections()
-                .firstOrNull { selection -> selection.violation != confirmation.violation }
-            val applyPullViolation = {
-                onConfirmation(confirmation)
-                dismissPullViolation()
-            }
-            RuleGuidanceGate(
-                key = confirmation.team,
-                mode = settings.ruleGuidanceMode,
-                requiredInNone = event.requiresGuidanceInNone(),
-                onAutoAccept = applyPullViolation,
-            ) {
-                ResponsiveAlertDialog(
-                    onDismissRequest = {
-                        dismissPullViolation()
-                    },
-                    title = { Text(event.formatTitle()) },
-                    text = {
-                        ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
-                            RuleGuidanceText(confirmation.formatMessage(settings.ruleGuidanceMode))
-                        }
-                    },
-                    confirmButton = {
-                        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalAlignment = Alignment.End,
-                            ) {
-                                if (pullViolationAlternative != null) {
-                                    MenuButton(
-                                        label = pullViolationAlternative.actionLabel,
-                                        onClick = {
-                                            pendingPullViolation =
-                                                GamePrompt.PullViolationConfirmation(
-                                                    state = confirmation.state,
-                                                    team = confirmation.team,
-                                                    requestedAt = confirmation.requestedAt,
-                                                    violation = pullViolationAlternative.violation,
-                                                )
-                                        },
-                                        contentPadding = PaddingValues(
-                                            horizontal = 16.dp,
-                                            vertical = 8.dp,
-                                        ),
-                                    )
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                }
-                                Row(horizontalArrangement = Arrangement.End) {
-                                    TextButton(
-                                        label = "Cancel",
-                                        onClick = {
-                                            dismissPullViolation()
-                                        },
-                                        height = 32.dp,
-                                        compact = true,
-                                        contentPadding = PaddingValues(
-                                            horizontal = 8.dp,
-                                            vertical = 0.dp,
-                                        ),
-                                    )
-                                    TextButton(
-                                        label = "OK",
-                                        onClick = applyPullViolation,
-                                        height = 32.dp,
-                                        compact = true,
-                                        contentPadding = PaddingValues(
-                                            horizontal = 8.dp,
-                                            vertical = 0.dp,
-                                        ),
-                                    )
-                                }
-                            }
-                        }
-                    },
-                )
-            }
-        } else if (pendingTechnicalFoul != null) {
-            val confirmation = pendingTechnicalFoul!!
-            val event = confirmation.event
-            val applyTechnicalFoul = {
-                onConfirmation(confirmation)
-                pendingTechnicalFoul = null
-            }
-            RuleGuidanceGate(
-                key = confirmation,
-                mode = settings.ruleGuidanceMode,
-                requiredInNone = event.requiresGuidanceInNone(),
-                onAutoAccept = applyTechnicalFoul,
-            ) {
-                ResponsiveAlertDialog(
-                    onDismissRequest = { pendingTechnicalFoul = null },
-                    title = { Text(event.formatTitle()) },
-                    text = {
-                        ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
-                            RuleGuidanceText(confirmation.formatMessage(settings.ruleGuidanceMode))
-                        }
-                    },
-                    confirmButton = {
-                        TextButton(
-                            label = "OK",
-                            onClick = applyTechnicalFoul,
-                        )
-                    },
-                    dismissButton = {
-                        TextButton(
-                            label = "Cancel",
-                            onClick = { pendingTechnicalFoul = null },
-                        )
-                    },
-                )
-            }
-        } else if (pendingGameDecision is GamePrompt.ApplyCap) {
-            // Cap prompts block until the observer decides whether to apply the newly eligible cap.
-            val capPrompt = pendingGameDecision
-            val applyCap = {
-                onDecision(true)
-            }
-            RuleGuidanceGate(
-                key = capPrompt,
-                mode = settings.ruleGuidanceMode,
-                requiredInNone = capPrompt.requiresGuidanceInNone(),
-                onAutoAccept = applyCap,
-            ) {
-                ResponsiveAlertDialog(
-                    onDismissRequest = {},
-                    title = { Text(capPrompt.formatTitle()) },
-                    text = {
-                        ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
-                            RuleGuidanceText(capPrompt.formatMessage())
-                        }
-                    },
-                    confirmButton = {
-                        TextButton(
-                            label = "OK",
-                            onClick = applyCap,
-                        )
-                    },
-                    dismissButton = {
-                        TextButton(
-                            label = "Not yet",
-                            onClick = {
-                                onDecision(false)
-                            },
-                        )
-                    },
-                    widthProfile = DialogWidthProfile.COMPACT,
-                )
-            }
-        } else if (
-            pendingGameDecision is GamePrompt.WaterBreak ||
-            showManualWaterBreakPrompt
+            },
+            onDismiss = {
+                onCardEntryChange(cardEntry, null)
+            },
+            onCardEntryCompleted = { updatedState ->
+                onCardEntryCompleted(cardEntry, updatedState)
+            },
+            onStateUpdate = onStateChange,
+        )
+    } else if (showEventLogSheet) {
+        EventLogDialog(
+            state = state,
+            onDismiss = { showEventLogSheet = false },
+        )
+    } else if (teamInfoSheetTeam != null) {
+        val team = teamInfoSheetTeam!!
+        TeamNamesDialog(
+            team = state.teamFor(team),
+            onDismiss = { teamInfoSheetTeam = null },
+        )
+    } else if (showRulesReference) {
+        RulesReferenceDialog(
+            state = state,
+            activeGameOrientation = activeGameDisplay.orientation,
+            onDismiss = {
+                showRulesReference = false
+            },
+        )
+    } else if (pendingTimeoutConfirmation != null) {
+        val confirmation = pendingTimeoutConfirmation!!
+        val event = confirmation.event
+        val applyTimeout = {
+            onConfirmation(confirmation)
+            pendingTimeoutConfirmation = null
+        }
+        RuleGuidanceGate(
+            key = confirmation,
+            mode = settings.ruleGuidanceMode,
+            requiredInNone = event.requiresGuidanceInNone(),
+            onAutoAccept = applyTimeout,
         ) {
-            val pendingWaterBreak = pendingGameDecision as? GamePrompt.WaterBreak
-            val prompt: GamePrompt.WaterBreakPrompt = pendingWaterBreak
-                ?: GamePrompt.ManualWaterBreak(state)
-            val applyWaterBreak = {
-                if (pendingWaterBreak != null) {
-                    onDecision(true)
-                } else {
-                    onStateChange(state.applyWaterBreak(now))
-                }
-                showManualWaterBreakPrompt = false
-            }
-            RuleGuidanceGate(
-                key = prompt,
-                mode = settings.ruleGuidanceMode,
-                requiredInNone = prompt.requiresGuidanceInNone(),
-                onAutoAccept = applyWaterBreak,
-            ) {
-                ResponsiveAlertDialog(
-                    onDismissRequest = {
-                        if (pendingWaterBreak != null) {
-                            onDecision(false)
-                        }
-                        showManualWaterBreakPrompt = false
-                    },
-                    title = { Text(prompt.formatTitle()) },
-                    text = {
-                        ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
-                            RuleGuidanceText(prompt.formatMessage())
-                        }
-                    },
-                    confirmButton = {
-                        TextButton(
-                            label = "OK",
-                            onClick = applyWaterBreak,
-                        )
-                    },
-                    dismissButton = {
-                        TextButton(
-                            label = if (pendingWaterBreak != null) "Not yet" else "Cancel",
-                            onClick = {
-                                if (pendingWaterBreak != null) {
-                                    onDecision(false)
-                                }
-                                showManualWaterBreakPrompt = false
-                            },
-                        )
-                    },
-                    widthProfile = DialogWidthProfile.COMPACT,
-                )
-            }
-        } else if (pendingGameDecision != null) {
-            val prompt = pendingGameDecision
-            RuleGuidanceGate(
-                key = prompt,
-                mode = settings.ruleGuidanceMode,
-                requiredInNone = prompt.requiresGuidanceInNone(),
-                onAutoAccept = {
-                    onDecision(true)
-                },
-            ) {
-                GamePromptDecisionDialog(
-                    prompt = prompt,
-                    guidanceMode = settings.ruleGuidanceMode,
-                    onAccept = {
-                        onDecision(true)
-                    },
-                    onNotYet = {
-                        onDecision(false)
-                    },
-                )
-            }
-        } else if (moreActionsChild != null) {
-            MoreActionsChildDialog(
-                child = moreActionsChild!!,
-                state = state,
-                now = now,
-                activeGameOrientation = activeGameDisplay.orientation,
-                activeGameLayout = activeGameDisplay.layout,
-                guidanceMode = settings.ruleGuidanceMode,
-                onDismiss = { moreActionsChild = null },
-                onHeatRulesChange = { rules ->
-                    onStateChange(
-                        state.setHeatGuidance(
-                            rules.heatLevel,
-                            rules.useAirQualityGuidelines,
-                            rules.waterBreakMinutes,
-                            System.currentTimeMillis(),
-                        )
-                    )
-                    moreActionsChild = null
-                    showMoreActionsDialog = false
-                },
-                onAction = { updatedState ->
-                    onStateChange(updatedState)
-                    moreActionsChild = null
-                    showMoreActionsDialog = false
-                },
-                onStateUpdate = onStateChange,
-            )
-        } else if (showMoreActionsDialog) {
-            // Dialog for less-common actions and manual corrections.
             ResponsiveAlertDialog(
-                onDismissRequest = { showMoreActionsDialog = false },
-                title = { Text("More actions") },
+                onDismissRequest = { pendingTimeoutConfirmation = null },
+                title = { Text(event.formatTitle()) },
                 text = {
-                    MoreActionsContent(
-                        state = state,
-                        activeGameOrientation = activeGameDisplay.orientation,
-                        onUpdateGameSetup = {
-                            showMoreActionsDialog = false
-                            onUpdateGameSetup()
-                        },
-                        onShowEventLog = {
-                            showMoreActionsDialog = false
-                            showEventLogSheet = true
-                        },
-                        onShowGameSummary = {
-                            showMoreActionsDialog = false
-                            onOpenGameSummary()
-                        },
-                        onOpenChild = { moreActionsChild = it },
-                        onAction = { updatedState ->
-                            onStateChange(updatedState)
-                            showMoreActionsDialog = false
-                        },
-                        selectedCategory = moreActionsCategory,
-                        onCategorySelected = { moreActionsCategory = it },
-                    )
+                    ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
+                        RuleGuidanceText(confirmation.formatMessage(settings.ruleGuidanceMode))
+                    }
                 },
                 confirmButton = {
-                    TextButton(label = "Close", onClick = { showMoreActionsDialog = false })
+                    TextButton(
+                        label = "OK",
+                        onClick = applyTimeout,
+                    )
                 },
-                widthProfile = DialogWidthProfile.WIDE,
+                dismissButton = {
+                    TextButton(
+                        label = "Cancel",
+                        onClick = { pendingTimeoutConfirmation = null },
+                    )
+                },
+                widthProfile = DialogWidthProfile.COMPACT,
             )
         }
+    } else if (pendingTimeViolation != null) {
+        val confirmation = pendingTimeViolation!!
+        val event = confirmation.event
+        val applyTimeViolation = {
+            onConfirmation(confirmation)
+            dismissTimeViolation()
+        }
+        RuleGuidanceGate(
+            key = confirmation,
+            mode = settings.ruleGuidanceMode,
+            requiredInNone = event.requiresGuidanceInNone(),
+            onAutoAccept = applyTimeViolation,
+        ) {
+            ResponsiveAlertDialog(
+                onDismissRequest = { dismissTimeViolation() },
+                title = { Text(event.formatTitle()) },
+                text = {
+                    ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
+                        RuleGuidanceText(confirmation.formatMessage(settings.ruleGuidanceMode))
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        label = "OK",
+                        onClick = applyTimeViolation,
+                    )
+                },
+                dismissButton = {
+                    TextButton(label = "Cancel", onClick = { dismissTimeViolation() })
+                },
+            )
+        }
+    } else if (pendingPullViolation != null) {
+        val confirmation = pendingPullViolation!!
+        val event = confirmation.event
+        val pullViolationAlternative = event.pullViolationSelections()
+            .firstOrNull { selection -> selection.violation != confirmation.violation }
+        val applyPullViolation = {
+            onConfirmation(confirmation)
+            dismissPullViolation()
+        }
+        RuleGuidanceGate(
+            key = confirmation.team,
+            mode = settings.ruleGuidanceMode,
+            requiredInNone = event.requiresGuidanceInNone(),
+            onAutoAccept = applyPullViolation,
+        ) {
+            ResponsiveAlertDialog(
+                onDismissRequest = {
+                    dismissPullViolation()
+                },
+                title = { Text(event.formatTitle()) },
+                text = {
+                    ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
+                        RuleGuidanceText(confirmation.formatMessage(settings.ruleGuidanceMode))
+                    }
+                },
+                confirmButton = {
+                    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.End,
+                        ) {
+                            if (pullViolationAlternative != null) {
+                                MenuButton(
+                                    label = pullViolationAlternative.actionLabel,
+                                    onClick = {
+                                        pendingPullViolation =
+                                            GamePrompt.PullViolationConfirmation(
+                                                state = confirmation.state,
+                                                team = confirmation.team,
+                                                requestedAt = confirmation.requestedAt,
+                                                violation = pullViolationAlternative.violation,
+                                            )
+                                    },
+                                    contentPadding = PaddingValues(
+                                        horizontal = 16.dp,
+                                        vertical = 8.dp,
+                                    ),
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+                            Row(horizontalArrangement = Arrangement.End) {
+                                TextButton(
+                                    label = "Cancel",
+                                    onClick = {
+                                        dismissPullViolation()
+                                    },
+                                    height = 32.dp,
+                                    compact = true,
+                                    contentPadding = PaddingValues(
+                                        horizontal = 8.dp,
+                                        vertical = 0.dp,
+                                    ),
+                                )
+                                TextButton(
+                                    label = "OK",
+                                    onClick = applyPullViolation,
+                                    height = 32.dp,
+                                    compact = true,
+                                    contentPadding = PaddingValues(
+                                        horizontal = 8.dp,
+                                        vertical = 0.dp,
+                                    ),
+                                )
+                            }
+                        }
+                    }
+                },
+            )
+        }
+    } else if (pendingTechnicalFoul != null) {
+        val confirmation = pendingTechnicalFoul!!
+        val event = confirmation.event
+        val applyTechnicalFoul = {
+            onConfirmation(confirmation)
+            pendingTechnicalFoul = null
+        }
+        RuleGuidanceGate(
+            key = confirmation,
+            mode = settings.ruleGuidanceMode,
+            requiredInNone = event.requiresGuidanceInNone(),
+            onAutoAccept = applyTechnicalFoul,
+        ) {
+            ResponsiveAlertDialog(
+                onDismissRequest = { pendingTechnicalFoul = null },
+                title = { Text(event.formatTitle()) },
+                text = {
+                    ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
+                        RuleGuidanceText(confirmation.formatMessage(settings.ruleGuidanceMode))
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        label = "OK",
+                        onClick = applyTechnicalFoul,
+                    )
+                },
+                dismissButton = {
+                    TextButton(
+                        label = "Cancel",
+                        onClick = { pendingTechnicalFoul = null },
+                    )
+                },
+            )
+        }
+    } else if (pendingGameDecision is GamePrompt.ApplyCap) {
+        // Cap prompts block until the observer decides whether to apply the newly eligible cap.
+        val capPrompt = pendingGameDecision
+        val applyCap = {
+            onDecision(true)
+        }
+        RuleGuidanceGate(
+            key = capPrompt,
+            mode = settings.ruleGuidanceMode,
+            requiredInNone = capPrompt.requiresGuidanceInNone(),
+            onAutoAccept = applyCap,
+        ) {
+            ResponsiveAlertDialog(
+                onDismissRequest = {},
+                title = { Text(capPrompt.formatTitle()) },
+                text = {
+                    ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
+                        RuleGuidanceText(capPrompt.formatMessage())
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        label = "OK",
+                        onClick = applyCap,
+                    )
+                },
+                dismissButton = {
+                    TextButton(
+                        label = "Not yet",
+                        onClick = {
+                            onDecision(false)
+                        },
+                    )
+                },
+                widthProfile = DialogWidthProfile.COMPACT,
+            )
+        }
+    } else if (
+        pendingGameDecision is GamePrompt.WaterBreak ||
+        showManualWaterBreakPrompt
+    ) {
+        val pendingWaterBreak = pendingGameDecision as? GamePrompt.WaterBreak
+        val prompt: GamePrompt.WaterBreakPrompt = pendingWaterBreak
+            ?: GamePrompt.ManualWaterBreak(state)
+        val applyWaterBreak = {
+            if (pendingWaterBreak != null) {
+                onDecision(true)
+            } else {
+                onStateChange(state.applyWaterBreak(now))
+            }
+            showManualWaterBreakPrompt = false
+        }
+        RuleGuidanceGate(
+            key = prompt,
+            mode = settings.ruleGuidanceMode,
+            requiredInNone = prompt.requiresGuidanceInNone(),
+            onAutoAccept = applyWaterBreak,
+        ) {
+            ResponsiveAlertDialog(
+                onDismissRequest = {
+                    if (pendingWaterBreak != null) {
+                        onDecision(false)
+                    }
+                    showManualWaterBreakPrompt = false
+                },
+                title = { Text(prompt.formatTitle()) },
+                text = {
+                    ScrollableDialogRegion(maxHeight = dialogBodyMaxHeight()) {
+                        RuleGuidanceText(prompt.formatMessage())
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        label = "OK",
+                        onClick = applyWaterBreak,
+                    )
+                },
+                dismissButton = {
+                    TextButton(
+                        label = if (pendingWaterBreak != null) "Not yet" else "Cancel",
+                        onClick = {
+                            if (pendingWaterBreak != null) {
+                                onDecision(false)
+                            }
+                            showManualWaterBreakPrompt = false
+                        },
+                    )
+                },
+                widthProfile = DialogWidthProfile.COMPACT,
+            )
+        }
+    } else if (pendingGameDecision != null) {
+        val prompt = pendingGameDecision
+        RuleGuidanceGate(
+            key = prompt,
+            mode = settings.ruleGuidanceMode,
+            requiredInNone = prompt.requiresGuidanceInNone(),
+            onAutoAccept = {
+                onDecision(true)
+            },
+        ) {
+            GamePromptDecisionDialog(
+                prompt = prompt,
+                guidanceMode = settings.ruleGuidanceMode,
+                onAccept = {
+                    onDecision(true)
+                },
+                onNotYet = {
+                    onDecision(false)
+                },
+            )
+        }
+    } else if (moreActionsChild != null) {
+        MoreActionsChildDialog(
+            child = moreActionsChild!!,
+            state = state,
+            now = now,
+            activeGameOrientation = activeGameDisplay.orientation,
+            activeGameLayout = activeGameDisplay.layout,
+            guidanceMode = settings.ruleGuidanceMode,
+            onDismiss = { moreActionsChild = null },
+            onHeatRulesChange = { rules ->
+                onStateChange(
+                    state.setHeatGuidance(
+                        rules.heatLevel,
+                        rules.useAirQualityGuidelines,
+                        rules.waterBreakMinutes,
+                        System.currentTimeMillis(),
+                    )
+                )
+                moreActionsChild = null
+                showMoreActionsDialog = false
+            },
+            onAction = { updatedState ->
+                onStateChange(updatedState)
+                moreActionsChild = null
+                showMoreActionsDialog = false
+            },
+            onStateUpdate = onStateChange,
+        )
+    } else if (showMoreActionsDialog) {
+        // Dialog for less-common actions and manual corrections.
+        ResponsiveAlertDialog(
+            onDismissRequest = { showMoreActionsDialog = false },
+            title = { Text("More actions") },
+            text = {
+                MoreActionsContent(
+                    state = state,
+                    activeGameOrientation = activeGameDisplay.orientation,
+                    onUpdateGameSetup = {
+                        showMoreActionsDialog = false
+                        onUpdateGameSetup()
+                    },
+                    onShowEventLog = {
+                        showMoreActionsDialog = false
+                        showEventLogSheet = true
+                    },
+                    onShowGameSummary = {
+                        showMoreActionsDialog = false
+                        onOpenGameSummary()
+                    },
+                    onOpenChild = { moreActionsChild = it },
+                    onAction = { updatedState ->
+                        onStateChange(updatedState)
+                        showMoreActionsDialog = false
+                    },
+                    selectedCategory = moreActionsCategory,
+                    onCategorySelected = { moreActionsCategory = it },
+                )
+            },
+            confirmButton = {
+                TextButton(label = "Close", onClick = { showMoreActionsDialog = false })
+            },
+            widthProfile = DialogWidthProfile.WIDE,
+        )
     }
 }
 

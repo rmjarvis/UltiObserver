@@ -337,7 +337,7 @@ class TestSettings {
             AccidentalTouchProtection.entries.map { it.label })
         assertTrue(AccidentalTouchProtection.NONE.description.contains("manually"))
         assertTrue(AccidentalTouchProtection.AUTO_LOCK.description.contains("play becomes live"))
-        assertTrue(AccidentalTouchProtection.LONG_PRESS.description.contains("dialogs that you open"))
+        assertTrue(AccidentalTouchProtection.LONG_PRESS.description.contains("Use normal taps in dialogs"))
         val settings = Settings()
         assertTrue(settings.copy(requireWatchLongPress = false).requireWatchLongPressDescription
             .contains("Undo and Redo always require a long press"))
@@ -423,42 +423,4 @@ class TestSettings {
         assertTrue(soundMode.settingsMessages(false).last().contains("vibration is unavailable"))
     }
 
-    /** Automatic prompts require holds only when no user-opened dialog takes precedence. */
-    @Test
-    fun dialogTouchProtection() {
-        val manualDialogs = listOf(
-            "card entry", "event log", "team information", "rules reference",
-            "timeout", "time violation", "pull violation", "technical foul",
-        )
-
-        // Cover every combination, including manual dialogs interrupting an automatic prompt.
-        // An empty set represents the ordinary automatic-prompt path; any manual dialog
-        // takes precedence and must retain normal taps in every protection mode.
-        for (mask in 0 until (1 shl manualDialogs.size)) {
-            val openDialogs = manualDialogs.filterIndexed { index, _ ->
-                mask and (1 shl index) != 0
-            }.toSet()
-            for (hasDecision in listOf(false, true)) {
-                for (protection in AccidentalTouchProtection.entries) {
-                    val expected = protection == AccidentalTouchProtection.LONG_PRESS &&
-                        hasDecision && openDialogs.isEmpty()
-                    assertEquals(
-                        "$protection, automatic prompt=$hasDecision, manual dialogs=$openDialogs",
-                        expected,
-                        protection.requiresLongPressForDialog(
-                            hasPendingGameDecision = hasDecision,
-                            hasActiveCardEntry = "card entry" in openDialogs,
-                            showEventLogSheet = "event log" in openDialogs,
-                            hasTeamInfoSheet = "team information" in openDialogs,
-                            showRulesReference = "rules reference" in openDialogs,
-                            hasPendingTimeoutConfirmation = "timeout" in openDialogs,
-                            hasPendingTimeViolation = "time violation" in openDialogs,
-                            hasPendingPullViolation = "pull violation" in openDialogs,
-                            hasPendingTechnicalFoul = "technical foul" in openDialogs,
-                        ),
-                    )
-                }
-            }
-        }
-    }
 }

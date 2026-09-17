@@ -861,7 +861,7 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         assertEquals(lockedCountdownTarget, accessCurrentGameState().countdown!!.targetEpoch)
     }
 
-    /** Protect game controls and automatic prompts while deliberately opened dialogs use taps. */
+    /** Protect game controls using long presses. */
     @Test
     fun longPressProtection() {
         setRuleGuidanceMode(RuleGuidanceMode.FULL)
@@ -909,14 +909,12 @@ class TestLiveGameFlowUi : MainActivityUiTestFixtures() {
         assertEquals(1, accessCurrentGameState().teamOne.score)
         unlockLiveScreen()
 
-        // An automatically offered cap requires a hold on its confirmation too.
+        // An automatically offered cap accepts an ordinary tap after the intentional goal hold.
         startLiveGameWithDueCap("Half cap", "Half cap")
         composeRule.onNodeWithTag(teamActionTag(TeamId.TEAM_ONE, "goal"))
             .performTouchInput { longClick() }
         waitForText("Not yet")
         composeRule.onNodeWithText("OK").performTouchInput { click() }
-        assertFalse(accessCurrentGameState().halfCapApplied)
-        composeRule.onNodeWithText("OK").performTouchInput { longClick() }
         waitForText("Undo Apply half cap")
         assertTrue(accessCurrentGameState().halfCapApplied)
 
